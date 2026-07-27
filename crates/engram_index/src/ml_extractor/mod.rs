@@ -19,20 +19,39 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 /// Block keywords that open a nesting level. Every one is closed by
-/// `End <keyword>`. Control-flow blocks (`If`, `While`, `Try`, …) emit no
-/// symbols but MUST be tracked, otherwise their `End` lines would close the
-/// enclosing function early.
+/// `End <keyword>`, EXCEPT `For`, whose dominant real-corpus closer is the
+/// bare word `Next` (see `closes_block`; `End For` also works, but is a
+/// construct the compiler itself rejects). Control-flow blocks (`If`,
+/// `While`, `Try`, …) emit no symbols but MUST be tracked, otherwise their
+/// `End` lines would close the enclosing function early.
 pub(crate) const BLOCK_KEYWORDS: &[&str] = &[
     // Declaration blocks — these produce symbols.
     "Namespace",
     "Function",
+    // `Func Name(...) -> Type ... End Func` — MiniLang's alternate function
+    // declaration syntax (7 corpus occurrences, all in `tests/drafts/`,
+    // e.g. `tests/drafts/seh_phase5_test.ml`). See `is_function_like`.
+    "Func",
     "Sub",
     "Type",
+    // `Union Name ... End Union` — MiniLang's EXPLICIT tagged-union
+    // declaration (14 corpus files, e.g.
+    // `tests/conformance/unions/test_mlh2080_nested_variant_constructors.ml`),
+    // distinct from the implicit `Type`-with-variant-rows fallback the
+    // `Type` arm already supports. See `decls::open_declaration`'s `Union`
+    // arm.
+    "Union",
     "Enum",
     "Interface",
     // Control flow and scoping — tracked for balance only.
     "If",
     "While",
+    // `For i = 0 To n` / `For Each x In xs` — closed by the bare word
+    // `Next` (see `closes_block`), or, in a handful of (compiler-rejected)
+    // negative/fuzz fixtures, by `End For`.
+    "For",
+    // `Repeat N Times ... End Repeat` (45 corpus occurrences).
+    "Repeat",
     "Try",
     "Match",
     "Select",
@@ -110,6 +129,21 @@ pub(crate) fn block_opener(trimmed: &str) -> Option<&'static str> {
             rest = r.trim_start();
         }
     }
+    // `Parallel For …` / `Parallel For Each …` is MiniLang's explicit MIMD
+    // parallel-loop form (real corpus: 60 occurrences across 9 files under
+    // `tests/conformance/optimizer/`, e.g.
+    // `test_mlh2270_parallel_for_syntax.ml`'s `Parallel For index = 0 To
+    // 511`), closed by the same bare `Next` as an ordinary `For`.
+    // `Parallel` precedes ONLY `For` in the real corpus (verified: no
+    // `Parallel While`/`Parallel Repeat`/etc. exist), so this is a
+    // targeted strip, not a generic modifier alongside `Public`/`Private`.
+    // Without it, `Parallel For …` is not recognized as an opener at all,
+    // so nothing is pushed for it — but its `Next` still closes a `For`
+    // frame (see `closes_block`), wrongly popping whatever real frame (a
+    // `Function`, most often) happens to be on top of the stack instead.
+    if let Some(after) = rest.strip_prefix("Parallel ") {
+        rest = after;
+    }
     // `Declare Function` / `Extern "C" Function` are single-line bindings,
     // not blocks — they must not open a nesting level.
     if rest.starts_with("Declare ") || rest.starts_with("Extern ") {
@@ -153,6 +187,68 @@ pub(crate) fn block_closer(trimmed: &str) -> Option<String> {
         return None;
     }
     Some(rest.to_string())
+}
+
+/// The keyword a closing line closes, covering BOTH of MiniLang's `For`
+/// loop terminator styles: the generic `End X` form (delegated to
+/// `block_closer`) and the bare word `Next`, which closes a `For` frame
+/// with no `End` prefix at all.
+///
+/// `Next` is MiniLang's overwhelmingly dominant loop terminator (thousands
+/// of corpus occurrences, e.g. `benchmarks/bench_loop_sum.ml`'s `For i = 1
+/// To 1000 ... Next`); `End For` is real corpus TEXT but is a construct the
+/// compiler itself REJECTS (3 occurrences, all under
+/// `tests/negative/syntax/` and `tests/fuzz/` — e.g. `test_end_for.ml`'s
+/// own comment: "Developer writes End For instead of Next"). This scanner
+/// is a lenient text scanner over real files on disk, not a validating
+/// parser, so both terminator spellings must close a `For` frame — the
+/// exact match against the bare literal `"Next"` (not a prefix check)
+/// keeps this from colliding with the real corpus field row shape `Next As
+/// <Type>` (a linked-list node's `Next` pointer, e.g.
+/// `Std.Collections.Map.Core.ml`'s `Next As Int`), which is never equal to
+/// the trimmed line `"Next"` alone.
+pub(crate) fn closes_block(trimmed: &str) -> Option<String> {
+    block_closer(trimmed).or_else(|| (trimmed == "Next").then(|| "For".to_string()))
+}
+
+/// True for a block keyword that behaves like a function body: it opens a
+/// callable scope that local bindings, `Catch` regions, capability edges,
+/// and call/statement attribution all key off of, and is closed by `End
+/// <keyword>`.
+///
+/// `Func` (`Func Name(...) -> Type ... End Func`, MiniLang's alternate
+/// function-declaration syntax) is semantically identical to
+/// `Function`/`Sub` in every one of these respects, so everywhere this
+/// scanner treats a `Function`/`Sub` frame as a function scope, it must
+/// treat a `Func` frame the same way.
+pub(crate) fn is_function_like(keyword: &str) -> bool {
+    matches!(keyword, "Function" | "Sub" | "Func")
+}
+
+/// True when a `block_opener` match found INSIDE a
+/// `Type`/`Enum`/`Interface`/`Union`/`Asm` body is not a genuine nested
+/// declaration, but a member/variant/mnemonic row that merely collides
+/// textually with a block keyword. See `open_declaration`'s per-arm doc
+/// comments (`Type`, `Enum`/`Interface`) and the `Asm` case below for the
+/// corpus evidence behind each branch.
+///
+/// `Enum`/`Interface`/`Union` bodies are pure flat lists (member
+/// signatures or variants) with no inline-method carve-out, so ANY
+/// block-opener match there is unconditionally a member row. `Asm` bodies
+/// are assembly, never declarations — real corpus shape:
+/// `tests/conformance/asm/test_asm_two_blocks.ml`'s `Sub Rbx, Rax` mnemonic
+/// row matches `block_opener` as a `Sub` declaration (the operand row
+/// starts with the exact block keyword `Sub` followed by a space); without
+/// this guard that pushes a phantom frame, fabricates a `function` symbol
+/// named from the operand, and desyncs the following `End Asm`/`End
+/// Unsafe`. `Type` alone may contain real inline methods (MLH-2080), so it
+/// defers to `member_shaped`.
+pub(crate) fn skip_as_member_row(top_kw: Option<&str>, trimmed: &str, keyword: &str) -> bool {
+    match top_kw {
+        Some("Enum") | Some("Interface") | Some("Union") | Some("Asm") => true,
+        Some("Type") => member_shaped(trimmed, keyword),
+        _ => false,
+    }
 }
 
 /// True when `trimmed` is a field/member row whose NAME happens to
@@ -260,10 +356,10 @@ pub fn extract_ml(
         // that function's execution, not a project-level declaration. Skip
         // extraction entirely rather than attributing it to whatever named
         // scope encloses the function.
-        let inside_executable_scope = matches!(
-            stack.last().map(|b| b.keyword.as_str()),
-            Some("Function") | Some("Sub")
-        );
+        let inside_executable_scope = stack
+            .last()
+            .map(|b| is_function_like(b.keyword.as_str()))
+            .unwrap_or(false);
         if !inside_executable_scope {
             let parent_fqn = stack
                 .iter()
@@ -278,12 +374,13 @@ pub fn extract_ml(
         }
 
         // Closing lines first: `End Function` also starts with a keyword
-        // that would otherwise be scanned as an opener.
-        if let Some(closed) = block_closer(trimmed) {
+        // that would otherwise be scanned as an opener. `closes_block`
+        // covers both `End X` and the bare `Next` closer of a `For` frame.
+        if let Some(closed) = closes_block(trimmed) {
             if let Some(open) = stack.pop() {
                 if let Some(i) = open.symbol_idx {
                     symbols[i].end_line = line_no;
-                    if open.keyword == "Function" || open.keyword == "Sub" {
+                    if is_function_like(&open.keyword) {
                         let mut m = symbols[i].metadata.take().unwrap_or_default();
                         if !open.immutable_locals.is_empty() {
                             m.insert("immutable_locals".into(), open.immutable_locals.join("||"));
@@ -309,24 +406,27 @@ pub fn extract_ml(
 
         let opener = block_opener(trimmed);
 
-        // Rows directly inside a Type/Enum/Interface body (fields,
-        // variants, members) are a flat member list, NEVER nested block
-        // declarations — regardless of what `block_opener` returns for
-        // them. This matters even when `block_opener` DOES match a
-        // keyword: a field literally named after a block keyword (real
-        // corpus shape: `Type Box { Label As Str }` in 8 files under
-        // `tests/conformance/`, where `Label` collides with the `Ui` DSL's
-        // `Label` element) would otherwise be treated as a genuine opener
-        // — fabricating a `control`/etc. symbol that does not exist, and
-        // pushing a phantom `OpenBlock` with no matching `End Label` in
-        // the source, corrupting the stack until the enclosing `End Type`
-        // line wrongly closes IT instead of the real `Type` block. Every
-        // such row is already fully classified from `body` in
-        // `open_declaration` when the ENCLOSING Type/Enum/Interface line
-        // was processed; there is nothing more to do with it here.
+        // Rows directly inside a Type/Enum/Interface/Union/Asm body
+        // (fields, variants, members, mnemonics) are a flat, non-nesting
+        // list — NEVER nested block declarations — regardless of what
+        // `block_opener` returns for them. This matters even when
+        // `block_opener` DOES match a keyword: a field literally named
+        // after a block keyword (real corpus shape: `Type Box { Label As
+        // Str }` in 8 files under `tests/conformance/`, where `Label`
+        // collides with the `Ui` DSL's `Label` element) would otherwise be
+        // treated as a genuine opener — fabricating a `control`/etc.
+        // symbol that does not exist, and pushing a phantom `OpenBlock`
+        // with no matching `End Label` in the source, corrupting the stack
+        // until the enclosing `End Type` line wrongly closes IT instead of
+        // the real `Type` block. Every `Type`/`Enum`/`Interface`/`Union`
+        // member row is already fully classified from `body` in
+        // `open_declaration` when the ENCLOSING declaration line was
+        // processed; an `Asm` row is already fully classified by
+        // `ui::asm_symbol` when the `Asm` line itself was processed. There
+        // is nothing more to do with any of them here.
         let in_declaration_body = matches!(
             stack.last().map(|b| b.keyword.as_str()),
-            Some("Type") | Some("Enum") | Some("Interface")
+            Some("Type") | Some("Enum") | Some("Interface") | Some("Union") | Some("Asm")
         );
 
         // Statement lines (everything that opens no block) contribute call
@@ -347,26 +447,22 @@ pub fn extract_ml(
             }
 
             // Interior rows of an open UI element (`Rect`/`Bg`/`Text`/…
-            // attribute rows), an `Asm` block (mnemonic and `In`/`Out`
-            // rows), or a `Define Style` bundle (`MinSize`/`Margin`/…
-            // property rows) are already fully accounted for by their
-            // opening line's own handling — the UI branch folds attribute
-            // rows via `ui::ui_own_rows`, and the Asm branch parses its
-            // whole body via `ui::asm_symbol`. Without this guard, every
-            // such row falls through to the generic statement scanner
-            // below: it finds no enclosing Function/Sub for most of them
-            // and misfiles them as top-level program statements —
-            // fabricating a bloated synthetic `<module>` entry symbol for
-            // every UI-DSL file — and for the rows that DO happen to sit
-            // inside a function (an `Asm` block written inside one), it
-            // redundantly re-scans lines already consumed by
-            // `ui::asm_symbol`.
+            // attribute rows) or a `Define Style` bundle (`MinSize`/
+            // `Margin`/… property rows) are already fully accounted for by
+            // their opening line's own handling via `ui::ui_own_rows`. An
+            // `Asm` block's own interior rows are handled by the
+            // `in_declaration_body` guard above instead (not here): unlike
+            // UI/Style rows, an Asm mnemonic row can itself match
+            // `block_opener` (real corpus case: `Sub Rbx, Rax`), so it must
+            // be excluded before the `opener.is_some()` branch below ever
+            // sees it, not just here in the `opener.is_none()` branch.
+            // Without this guard, every UI/Style row falls through to the
+            // generic statement scanner below: it finds no enclosing
+            // Function/Sub for most of them and misfiles them as top-level
+            // program statements — fabricating a bloated synthetic
+            // `<module>` entry symbol for every UI-DSL file.
             let already_consumed = match stack.last() {
-                Some(b) => {
-                    ui::UI_ELEMENTS.contains(&b.keyword.as_str())
-                        || b.keyword == "Asm"
-                        || b.keyword == "Style"
-                }
+                Some(b) => ui::UI_ELEMENTS.contains(&b.keyword.as_str()) || b.keyword == "Style",
                 None => false,
             };
             if already_consumed {
@@ -380,7 +476,7 @@ pub fn extract_ml(
             if let Some(owner) = stack
                 .iter_mut()
                 .rev()
-                .find(|b| b.keyword == "Function" || b.keyword == "Sub")
+                .find(|b| is_function_like(&b.keyword))
             {
                 if let Some((name, mutable)) = bodies::local_binding(trimmed) {
                     if mutable {
@@ -397,7 +493,7 @@ pub fn extract_ml(
             let enclosing = stack
                 .iter()
                 .rev()
-                .find(|b| b.keyword == "Function" || b.keyword == "Sub")
+                .find(|b| is_function_like(&b.keyword))
                 .map(|b| b.fqn.clone());
             match enclosing {
                 Some(fqn) => bodies::scan_statement(trimmed, &fqn, line_no, &mut edges),
@@ -413,50 +509,40 @@ pub fn extract_ml(
             continue;
         };
 
+        // `Enum`/`Interface` bodies are pure signature/variant lists — a
+        // `Function`/`Sub` row here (real corpus case: `Interface
+        // IInlineJob { Function Cost(extra As Int) As Int ... }`) is a
+        // BARE signature with no body and no matching `End Function` of
+        // its own. Treating it as a genuine opener would push a frame
+        // nothing ever pops except the enclosing `End Interface`/`End
+        // Enum` line, desyncing the stack — 212 real corpus (Function,
+        // Interface) rows would do exactly this without an unconditional
+        // skip here. `Union` bodies are the same shape (variants only, no
+        // inline members). A `Type` body, unlike Enum/Interface/Union, may
+        // declare real inline methods with full bodies (MLH-2080, real
+        // corpus: `tests/conformance/interfaces/test_mlh2080_type_inline_methods.ml`'s
+        // `Type BuildJob { ... Function Cost(extra As Int) As Int ... End
+        // Function ... }`). Those MUST produce their own `function` symbol
+        // and push their own frame so their `End Function`/`End Sub` pops
+        // THEM, not the enclosing `Type` — unconditionally skipping here
+        // (round 1's fix) truncated the Type's `end_line` and cascaded
+        // into a stack desync on the following `End Type`. Skip only a row
+        // shaped like a field whose name collides with a block keyword
+        // (`Label As Str`, `Function As SomeType`), signalled by the
+        // keyword being immediately followed by ` As ` — a real
+        // declaration (`Function Cost(...)`, `Sub Push(x As T)`) never is.
+        // An `Asm` body's mnemonic rows never nest, so they are always
+        // skipped here too (see `skip_as_member_row`'s doc comment).
         if in_declaration_body {
             let top_kw = stack.last().map(|b| b.keyword.as_str());
-            let skip_as_member_row = match top_kw {
-                // `Enum`/`Interface` bodies are pure signature/variant
-                // lists — a `Function`/`Sub` row here (real corpus case:
-                // `Interface IInlineJob { Function Cost(extra As Int) As
-                // Int ... }`) is a BARE signature with no body and no
-                // matching `End Function` of its own. Treating it as a
-                // genuine opener would push a frame nothing ever pops
-                // except the enclosing `End Interface`/`End Enum` line,
-                // desyncing the stack — 212 real corpus (Function,
-                // Interface) rows would do exactly this without an
-                // unconditional skip here.
-                Some("Enum") | Some("Interface") => true,
-                // A `Type` body, unlike Enum/Interface, may declare real
-                // inline methods with full bodies (MLH-2080, real corpus:
-                // `tests/conformance/interfaces/test_mlh2080_type_inline_methods.ml`'s
-                // `Type BuildJob { ... Function Cost(extra As Int) As Int
-                // ... End Function ... }`). Those MUST produce their own
-                // `function` symbol and push their own frame so their
-                // `End Function`/`End Sub` pops THEM, not the enclosing
-                // `Type` — unconditionally skipping here (round 1's fix)
-                // truncated the Type's `end_line` and cascaded into a
-                // stack desync on the following `End Type`. Skip only a
-                // row shaped like a field whose name collides with a
-                // block keyword (`Label As Str`, `Function As SomeType`),
-                // signalled by the keyword being immediately followed by
-                // ` As ` — a real declaration (`Function Cost(...)`,
-                // `Sub Push(x As T)`) never is.
-                Some("Type") => member_shaped(trimmed, keyword),
-                _ => false,
-            };
-            if skip_as_member_row {
+            if skip_as_member_row(top_kw, trimmed, keyword) {
                 continue;
             }
         }
 
         if keyword == "Unsafe" {
             if let Some(caps) = bodies::unsafe_capabilities(trimmed) {
-                if let Some(owner) = stack
-                    .iter()
-                    .rev()
-                    .find(|b| b.keyword == "Function" || b.keyword == "Sub")
-                {
+                if let Some(owner) = stack.iter().rev().find(|b| is_function_like(&b.keyword)) {
                     edges.push(ExtractedEdge {
                         source_name: owner.fqn.clone(),
                         source_kind: "function".to_string(),
@@ -559,7 +645,7 @@ pub fn extract_ml(
             let owner = stack
                 .iter()
                 .rev()
-                .find(|b| b.keyword == "Function" || b.keyword == "Sub")
+                .find(|b| is_function_like(&b.keyword))
                 .map(|b| b.fqn.clone())
                 .unwrap_or_else(|| file_stem(rel_path));
             let body = collect_block_body(source, idx, "Asm");
@@ -584,16 +670,18 @@ pub fn extract_ml(
             .map(|b| b.fqn.as_str())
             .unwrap_or("");
 
-        // Type/Enum/Interface bodies are classified from their rows, so
-        // collect the block's lines up to its matching `End`. A `Type`
-        // body needs its OWN collector: unlike Enum/Interface, it may
+        // Type/Enum/Interface/Union bodies are classified from their rows,
+        // so collect the block's lines up to its matching `End`. A `Type`
+        // body needs its OWN collector: unlike Enum/Interface/Union, it may
         // contain real inline methods (MLH-2080) whose declaration line
         // and full statement body must be excluded from the member rows
         // handed to the field/variant classifier — see
-        // `collect_type_member_rows`'s doc comment.
+        // `collect_type_member_rows`'s doc comment. `Union` bodies are
+        // variants-only, the same flat shape as Enum/Interface, so they
+        // share the generic collector.
         let body: Vec<&str> = match keyword {
             "Type" => collect_type_member_rows(source, idx),
-            "Enum" | "Interface" => collect_block_body(source, idx, keyword),
+            "Enum" | "Interface" | "Union" => collect_block_body(source, idx, keyword),
             _ => Vec::new(),
         };
 
@@ -735,7 +823,7 @@ pub(crate) fn collect_type_member_rows(source: &str, open_idx: usize) -> Vec<&st
             depth += 1;
         }
         if let Some(kw) = block_opener(trimmed)
-            && (kw == "Function" || kw == "Sub")
+            && is_function_like(kw)
             && !member_shaped(trimmed, kw)
         {
             // A real inline method: fast-forward past its own body to its

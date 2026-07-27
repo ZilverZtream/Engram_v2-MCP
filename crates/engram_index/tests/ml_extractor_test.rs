@@ -1555,3 +1555,362 @@ End Namespace
         );
     }
 }
+
+// ---------------------------------------------------------------------
+// Task 6b: scanner keyword completeness (Union, Repeat, Func, For/Next,
+// the Asm/Sub mnemonic collision, and the field access-modifier leak).
+// ---------------------------------------------------------------------
+
+#[test]
+fn explicit_union_keyword_declares_a_union_with_generic_constraint() {
+    // Real corpus shape (`tests/conformance/generics/test_mlh2020_generic_type_constraints.ml`):
+    // MiniLang's EXPLICIT `Union` declaration keyword was completely
+    // unmodeled -- only the `Type`-with-variant-rows fallback was. Before
+    // this fix `Union` was not a block opener at all, so this block's own
+    // body rows ("Some(value As T)", "None") fell through and were
+    // misfiled as top-level program statements (fabricating a phantom
+    // `Some` call edge on a synthetic `<module>` entry), and `End Union`
+    // closed nothing (silently ignored on an empty stack) -- desyncing
+    // every declaration after it in the file.
+    let src = "\
+Union OrderedChoice Of T As Ordered
+    Some(value As T)
+    None
+End Union
+Function After() As Int
+    Return 1
+End Function
+";
+    let (syms, _) = run(src);
+    let u = syms
+        .iter()
+        .find(|s| s.kind == "union" && s.name == "OrderedChoice")
+        .expect("union symbol");
+    let m = u.metadata.as_ref().expect("metadata");
+    assert_eq!(
+        m.get("variants").map(String::as_str),
+        Some("Some/1||None/0")
+    );
+    assert_eq!(
+        m.get("generic_params").map(String::as_str),
+        Some("T:Ordered")
+    );
+
+    // No phantom top-level `<module>` entry or spurious call edge to the
+    // variant constructor.
+    assert!(
+        !syms.iter().any(|s| s.name.ends_with("<module>")),
+        "an explicit Union body must not fabricate a synthetic module entry, got {:?}",
+        syms.iter().map(|s| (&s.kind, &s.name)).collect::<Vec<_>>()
+    );
+
+    // The sibling Function after it must still parse correctly -- proof
+    // the scanner's stack was never desynced by the Union block.
+    let f = syms
+        .iter()
+        .find(|s| s.kind == "function" && s.name == "After")
+        .expect("After function symbol");
+    assert_eq!(f.start_line, 5);
+    assert_eq!(f.end_line, 7);
+}
+
+#[test]
+fn public_union_with_multi_variant_records_access_and_variants() {
+    // Real corpus shape (`tests/conformance/integration/ultimate_showcase.ml`
+    // line 43: `Public Union JobResult`, nested under `Namespace
+    // Showcase.Model`). `Union` reuses the same
+    // `access_modifier`/`generic_params`/`meta` helpers as every other
+    // declaration kind, and emits `kind: "union"` -- the same kind the
+    // `Type`-with-variant-rows fallback path already produces. This test
+    // uses a single-segment namespace name (`Showcase`, not the real
+    // file's dotted `Showcase.Model`): `declaration_name`'s
+    // `take_while(is_alphanumeric || '_')` stops at `.`, so a DOTTED
+    // namespace name is a separate, pre-existing gap unrelated to Union --
+    // out of scope for this task, and not exercised here so it cannot
+    // mask a Union-specific failure.
+    let src = "\
+Namespace Showcase
+    Public Union JobResult
+        Ok(value As Int)
+        Failed(reason As Str)
+    End Union
+End Namespace
+";
+    let (syms, _) = run(src);
+    let u = syms
+        .iter()
+        .find(|s| s.kind == "union" && s.name == "Showcase.JobResult")
+        .expect("JobResult union symbol");
+    let m = u.metadata.as_ref().expect("metadata");
+    assert_eq!(m.get("access").map(String::as_str), Some("Public"));
+    assert_eq!(
+        m.get("variants").map(String::as_str),
+        Some("Ok/1||Failed/1")
+    );
+}
+
+#[test]
+fn field_access_modifier_is_stripped_from_the_field_name() {
+    // Real corpus shape (`tests/conformance/integration/ultimate_showcase.ml`
+    // line 31): the field-row parser in `decls.rs` used a bare
+    // `lhs.trim()`, so `Public name As Str` yielded the field `Public
+    // name:Str` -- the access modifier leaked straight into the field
+    // NAME -- instead of `name:Str`.
+    let src = "\
+Type BuildJob
+    Public name As Str
+    weight As Int
+End Type
+";
+    let (syms, _) = run(src);
+    let t = syms
+        .iter()
+        .find(|s| s.kind == "struct" && s.name == "BuildJob")
+        .expect("BuildJob struct symbol");
+    let m = t.metadata.as_ref().expect("metadata");
+    assert_eq!(
+        m.get("fields").map(String::as_str),
+        Some("name:Str||weight:Int"),
+        "the Public modifier must not leak into the field name, got {m:?}"
+    );
+}
+
+#[test]
+fn repeat_times_loop_is_balanced_and_produces_no_symbol() {
+    // Real corpus shape (`tests/conformance/control-flow/test_repeat_counter.ml`):
+    // `Repeat N Times ... End Repeat` was not tracked by `BLOCK_KEYWORDS`
+    // at all (45 real `End Repeat` occurrences), so its `End Repeat`
+    // closed nothing (silently ignored on an empty stack) while
+    // everything declared after it in the enclosing scope desynced.
+    let src = "\
+Function Counter() As Int
+    Var count As Int
+    Set count To 0
+    Repeat 10 Times
+        Set count To count + 1
+    End Repeat
+    Return count
+End Function
+Function After() As Int
+    Return 1
+End Function
+";
+    let (syms, _) = run(src);
+    let fns: Vec<&str> = syms
+        .iter()
+        .filter(|s| s.kind == "function")
+        .map(|s| s.name.as_str())
+        .collect();
+    assert_eq!(fns, vec!["Counter", "After"], "got symbols {syms:?}");
+    assert!(
+        !syms.iter().any(|s| s.name.contains("Repeat")),
+        "Repeat must emit no symbol of its own, got {:?}",
+        syms.iter().map(|s| (&s.kind, &s.name)).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn func_keyword_alternate_syntax_declares_a_function_with_arrow_return() {
+    // Real corpus shape (`tests/drafts/seh_phase5_test.ml`): MiniLang's
+    // alternate `Func Name(...) -> Type ... End Func` declaration syntax
+    // (7 occurrences, all in `tests/drafts/`) was completely unmodeled --
+    // `Func` was not a block opener, so its body statements fell through
+    // as top-level statements and `End Func` closed nothing, desyncing
+    // every declaration after it in the file. Also covers the colon-typed
+    // parameter shape (`x: Int` rather than `x As Int`) used by this same
+    // draft dialect: `parse_params` only ever reads the NAME, so it
+    // already tolerates this without changes.
+    let src = "\
+Func DivideByZero(x: Int) -> Int
+    Throw 999
+    Return x
+End Func
+Func TestNestedTryCatch() -> Int
+    Return 0
+End Func
+";
+    let (syms, _) = run(src);
+    let fns: Vec<&str> = syms
+        .iter()
+        .filter(|s| s.kind == "function")
+        .map(|s| s.name.as_str())
+        .collect();
+    assert_eq!(
+        fns,
+        vec!["DivideByZero", "TestNestedTryCatch"],
+        "got symbols {syms:?}"
+    );
+
+    let f = syms
+        .iter()
+        .find(|s| s.name == "DivideByZero")
+        .expect("DivideByZero function symbol");
+    let m = f.metadata.as_ref().expect("metadata");
+    assert_eq!(
+        m.get("params").map(String::as_str),
+        Some("owned x"),
+        "the colon-typed param name must still be captured, got {m:?}"
+    );
+    assert_eq!(
+        m.get("returns").map(String::as_str),
+        Some("Int"),
+        "the arrow return clause must be captured, got {m:?}"
+    );
+}
+
+#[test]
+fn for_next_loops_including_nested_ones_stay_balanced() {
+    // Real corpus shape (thousands of occurrences, e.g.
+    // `benchmarks/bench_loop_sum.ml`'s `For i = 1 To 1000 ... Next`) --
+    // MiniLang's dominant loop form. Before this fix `For` was not a block
+    // opener and `Next` was not recognized as a closer at all, so the
+    // common case "balanced by accident" (nothing pushed, nothing
+    // popped). Naively adding `For` as an opener WITHOUT also making
+    // `Next` close it would turn every one of these loops into a
+    // permanently unclosed frame -- this test also covers nesting, which
+    // would be the first thing to break from an off-by-one in that fix.
+    let src = "\
+Function SumGrid() As Int
+    Var total As Int
+    Set total To 0
+    For i = 0 To 9
+        For j = 0 To 9
+            Set total To total + i * j
+        Next
+    Next
+    Return total
+End Function
+Function After() As Int
+    Return 1
+End Function
+";
+    let (syms, _) = run(src);
+    let fns: Vec<&str> = syms
+        .iter()
+        .filter(|s| s.kind == "function")
+        .map(|s| s.name.as_str())
+        .collect();
+    assert_eq!(fns, vec!["SumGrid", "After"], "got symbols {syms:?}");
+    let sum = syms.iter().find(|s| s.name == "SumGrid").expect("SumGrid");
+    assert_eq!(sum.start_line, 1);
+    assert_eq!(sum.end_line, 10);
+}
+
+#[test]
+fn for_each_loop_and_the_end_for_terminator_both_close_a_for_frame() {
+    // `For Each value As T In collection ... Next` is the collection-loop
+    // variant (`benchmarks/collections/bench_list_cache_scan.ml`).
+    // Separately, `End For` (3 real occurrences, all under
+    // `tests/negative/syntax/` and `tests/fuzz/` -- the compiler itself
+    // REJECTS `End For` in favor of `Next`, e.g. `test_end_for.ml`'s own
+    // comment: "Developer writes End For instead of Next") must still be
+    // recognized as closing a `For` frame here: this scanner is a lenient
+    // text scanner over real files on disk, not a validating parser, and
+    // these files exist in the corpus regardless of what the compiler
+    // itself accepts.
+    let src = "\
+Function ScanAll() As Int
+    For Each value As Int In values.AsSlice()
+        Say value
+    Next
+    For i = 1 To 5
+        Say i
+    End For
+    Return 0
+End Function
+";
+    let (syms, _) = run(src);
+    let f = syms
+        .iter()
+        .find(|s| s.kind == "function")
+        .expect("function symbol");
+    assert_eq!(f.name, "ScanAll");
+    assert_eq!(f.start_line, 1);
+    assert_eq!(f.end_line, 9);
+}
+
+#[test]
+fn parallel_for_is_recognized_as_a_for_opener() {
+    // Real corpus shape (`tests/conformance/optimizer/test_mlh2270_parallel_for_syntax.ml`,
+    // 60 occurrences across 9 files): `Parallel For …`/`Parallel For Each
+    // …` is MiniLang's explicit MIMD parallel-loop form, closed by the
+    // same bare `Next` as an ordinary `For`. This was found DURING this
+    // task's own corpus desync measurement, not in the original spec: a
+    // naive fix that makes `Next` unconditionally close a `For` frame
+    // (this task's item 4) is not enough on its own -- `block_opener`
+    // must also recognize `Parallel For` as an opener, or nothing gets
+    // pushed for it and its `Next` wrongly pops whatever real frame (here,
+    // the enclosing `Function`) happens to be on top of the stack instead,
+    // corrupting the function's `end_line` and desyncing the real `End
+    // Function` after it into a silent no-op.
+    let src = "\
+Function RunLocalParallel() As Int
+    Var output As Int[512]
+    For index = 0 To 511
+        Set output[index] To index
+    Next
+    Parallel For index = 0 To 511
+        Set output[index] To output[index] Xor 3
+    Next
+    Return output[0]
+End Function
+";
+    let (syms, _) = run(src);
+    let f = syms
+        .iter()
+        .find(|s| s.kind == "function")
+        .expect("function symbol");
+    assert_eq!(f.name, "RunLocalParallel");
+    assert_eq!(f.start_line, 1);
+    assert_eq!(f.end_line, 10, "the real End Function line");
+}
+
+#[test]
+fn asm_sub_mnemonic_does_not_collide_with_the_sub_block_keyword() {
+    // Real corpus shape (`tests/conformance/asm/test_asm_two_blocks.ml`):
+    // `Sub Rbx, Rax` inside an `Asm` block matches `block_opener` as a
+    // `Sub` DECLARATION (the mnemonic operand row starts with the exact
+    // block keyword `Sub` followed by a space). Before this fix that
+    // pushed a phantom frame, fabricated a `function` symbol named from
+    // the operand, and desynced the following `End Asm`/`End Unsafe`.
+    let src = "\
+Unsafe
+    Asm
+        In a, b
+        Out r2
+        Sub Rbx, Rax
+        Mov Rax, Rbx
+    End Asm
+End Unsafe
+Function After() As Int
+    Return 1
+End Function
+";
+    let (syms, _) = run(src);
+    assert!(
+        !syms
+            .iter()
+            .any(|s| s.kind == "function" && s.name != "After"),
+        "the Sub mnemonic row must not fabricate a function symbol, got {:?}",
+        syms.iter().map(|s| (&s.kind, &s.name)).collect::<Vec<_>>()
+    );
+    let asm = syms
+        .iter()
+        .find(|s| s.kind == "inline_asm")
+        .expect("inline_asm symbol");
+    let m = asm.metadata.as_ref().expect("metadata");
+    assert_eq!(
+        m.get("mnemonics").map(String::as_str),
+        Some("Sub||Mov"),
+        "Sub must still be recorded as a mnemonic, got {m:?}"
+    );
+
+    // The sibling Function after the Unsafe/Asm block must still parse
+    // correctly -- proof the scanner's stack was never desynced.
+    let f = syms
+        .iter()
+        .find(|s| s.kind == "function" && s.name == "After")
+        .expect("After function symbol");
+    assert_eq!(f.start_line, 9);
+    assert_eq!(f.end_line, 11);
+}

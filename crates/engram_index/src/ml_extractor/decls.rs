@@ -33,7 +33,7 @@ pub(crate) fn open_declaration(
             });
             (fqn, Some(symbols.len() - 1))
         }
-        "Function" | "Sub" => {
+        "Function" | "Sub" | "Func" => {
             let Some(name) = declaration_name(trimmed, keyword) else {
                 return (String::new(), None);
             };
@@ -41,6 +41,14 @@ pub(crate) fn open_declaration(
             let params = parse_params(trimmed);
             let (returns, nullable) = if keyword == "Sub" {
                 (String::new(), false)
+            } else if keyword == "Func" {
+                // `Func Name(...) -> Type` uses `->`, not `As`, for its
+                // return clause -- a different shape from `parse_return`'s
+                // paren-depth-aware `As` scan (which the far more common
+                // `Function`/`Sub`/`Type` callers depend on), so this is a
+                // small dedicated helper rather than teaching `parse_return`
+                // a second clause syntax.
+                (parse_arrow_return(trimmed), false)
             } else {
                 parse_return(trimmed)
             };
@@ -139,6 +147,19 @@ pub(crate) fn open_declaration(
                 if let Some((lhs, rhs)) = row.split_once(" As ") {
                     if !lhs.contains('(') {
                         let ty = rhs.trim();
+                        // A field row's LHS may itself carry a `Public`/
+                        // `Private` modifier (real corpus:
+                        // `tests/conformance/integration/ultimate_showcase.ml`'s
+                        // `Public name As Str`) -- strip it the same way
+                        // every other declaration parser here does, or it
+                        // leaks straight into the field NAME (`Public
+                        // name:Str` instead of `name:Str`).
+                        let mut lhs = lhs.trim();
+                        for modifier in ["Public ", "Private "] {
+                            if let Some(r) = lhs.strip_prefix(modifier) {
+                                lhs = r.trim_start();
+                            }
+                        }
                         // Strong `Ref(Of T)` fields can form ownership
                         // cycles; `Weak(Of T)` is the documented break edge.
                         let strength = if ty.starts_with("Weak(") {
@@ -149,32 +170,16 @@ pub(crate) fn open_declaration(
                             ""
                         };
                         if strength.is_empty() {
-                            fields.push(format!("{}:{}", lhs.trim(), ty));
+                            fields.push(format!("{lhs}:{ty}"));
                         } else {
-                            fields.push(format!("{}:{}:{}", lhs.trim(), ty, strength));
+                            fields.push(format!("{lhs}:{ty}:{strength}"));
                         }
                         continue;
                     }
                 }
-                let vname: String = row
-                    .chars()
-                    .take_while(|c| c.is_alphanumeric() || *c == '_')
-                    .collect();
-                if vname.is_empty() {
-                    continue;
+                if let Some(v) = parse_variant(row) {
+                    variants.push(v);
                 }
-                let arity = match row.split_once('(') {
-                    Some((_, args)) => {
-                        let args = args.trim_end_matches(')').trim();
-                        if args.is_empty() {
-                            0
-                        } else {
-                            args.matches(',').count() + 1
-                        }
-                    }
-                    None => 0,
-                };
-                variants.push(format!("{vname}/{arity}"));
             }
 
             let is_union = !variants.is_empty() && fields.is_empty();
@@ -201,6 +206,37 @@ pub(crate) fn open_declaration(
                 end_line: 0,
                 metadata: meta(&[
                     ("fields", fields.join("||")),
+                    ("variants", variants.join("||")),
+                    ("generic_params", generic_params(trimmed)),
+                    ("access", access_modifier(trimmed)),
+                ]),
+            });
+            (fqn, Some(symbols.len() - 1))
+        }
+        "Union" => {
+            // MiniLang's EXPLICIT tagged-union declaration (real corpus:
+            // `tests/conformance/unions/test_mlh2080_nested_variant_constructors.ml`'s
+            // `Union Choice { Some(value As Int) None } End Union`) --
+            // distinct from the `Type`-with-variant-rows fallback above.
+            // A `Union` body is variants-only (no field rows are ever
+            // valid there), so unlike `Type` it never runs the
+            // struct/union ambiguity logic -- every row is unconditionally
+            // a variant, via the same `parse_variant` helper the `Type`
+            // arm uses for ITS variant-shaped rows. Same symbol kind
+            // (`"union"`) and metadata shape (variants/generic_params/
+            // access) as that fallback path, via the same shared helpers.
+            let Some(name) = declaration_name(trimmed, keyword) else {
+                return (String::new(), None);
+            };
+            let fqn = qualify(parent_fqn, &name);
+            let variants: Vec<String> = body.iter().filter_map(|row| parse_variant(row)).collect();
+
+            symbols.push(ExtractedSymbol {
+                name: fqn.clone(),
+                kind: "union".to_string(),
+                start_line: line_no,
+                end_line: 0,
+                metadata: meta(&[
                     ("variants", variants.join("||")),
                     ("generic_params", generic_params(trimmed)),
                     ("access", access_modifier(trimmed)),
@@ -243,6 +279,33 @@ pub(crate) fn open_declaration(
         }
         _ => (String::new(), None),
     }
+}
+
+/// Parse a union-variant row (`Name` or `Name(args, ...)`) into `Name/arity`.
+/// Shared by `Type`'s implicit union-fallback path (a variant-shaped row
+/// among possible field rows) and `Union`'s explicit, variants-only path --
+/// both classify a variant row identically. Returns `None` for a row with
+/// no leading identifier (defensive; not expected in real MiniLang).
+fn parse_variant(row: &str) -> Option<String> {
+    let vname: String = row
+        .chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '_')
+        .collect();
+    if vname.is_empty() {
+        return None;
+    }
+    let arity = match row.split_once('(') {
+        Some((_, args)) => {
+            let args = args.trim_end_matches(')').trim();
+            if args.is_empty() {
+                0
+            } else {
+                args.matches(',').count() + 1
+            }
+        }
+        None => 0,
+    };
+    Some(format!("{vname}/{arity}"))
 }
 
 /// The declared name on a `Function`/`Sub`/`Type`/`Enum`/`Interface` line.
@@ -462,6 +525,26 @@ pub(crate) fn parse_return(trimmed: &str) -> (String, bool) {
         .collect();
     let nullable = rest[ty.len()..].starts_with('?');
     (ty, nullable)
+}
+
+/// The `-> <Type>` return clause of MiniLang's alternate `Func` declaration
+/// syntax (real corpus: `tests/drafts/seh_phase5_test.ml`'s `Func
+/// TestNestedTryCatch() -> Int`). This is a DIFFERENT return-clause shape
+/// from `parse_return`'s paren-depth-aware `As` scan, deliberately kept as
+/// its own small helper rather than teaching `parse_return` a second
+/// syntax: `parse_return` scans for the LAST ` As ` because parameter types
+/// also use ` As ` at shallower paren depth, but `Func`'s draft-dialect
+/// signatures observed in the corpus have no such ambiguity to resolve
+/// (colon-typed params, e.g. `x: Int`, never contain `->`). Returns `""`
+/// when there is no `->` clause.
+pub(crate) fn parse_arrow_return(trimmed: &str) -> String {
+    let Some((_, rest)) = trimmed.split_once("->") else {
+        return String::new();
+    };
+    rest.trim_start()
+        .chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '.')
+        .collect()
 }
 
 /// The error type named by a `Throws E` clause, or empty.
