@@ -2013,16 +2013,23 @@ impl Engram {
                     crate::services::business_logic_service::detect_language(file_path, &content);
                 let class_name =
                     crate::services::business_logic_service::detect_class_name(&content);
-                let body_opt = if language == "vb" {
-                    crate::services::full_project_migration_service::extract_vb_method_body(
+                let body_opt = match language {
+                    "ml" => {
+                        crate::services::full_project_migration_service::extract_ml_method_body(
+                            &content,
+                            method_name,
+                        )
+                    }
+                    "vb" => {
+                        crate::services::full_project_migration_service::extract_vb_method_body(
+                            &content,
+                            method_name,
+                        )
+                    }
+                    _ => crate::services::full_project_migration_service::extract_cs_method_body(
                         &content,
                         method_name,
-                    )
-                } else {
-                    crate::services::full_project_migration_service::extract_cs_method_body(
-                        &content,
-                        method_name,
-                    )
+                    ),
                 };
 
                 let Some((body, start, _end, _lines)) = body_opt else {
