@@ -113,12 +113,26 @@ pub(crate) fn open_declaration(
             // A row shaped `Name As Type` is a struct field; `Name(…)` or a
             // bare `Name` is a union variant. A `Type` is a union only when
             // it has at least one variant-shaped row and NO field rows; any
-            // field row makes it a struct. Mixed bodies (both field and
-            // variant rows) never occur in valid MiniLang — the corpus has
-            // zero such cases — so this is a defined fallback, not a
-            // dominance/majority rule: a single field row forces
+            // field row makes it a struct: a single field row forces
             // `kind: "struct"` even alongside variant-shaped rows, and any
-            // such rows are still recorded in the `variants` metadata.
+            // such rows are still recorded in the `variants` metadata. This
+            // is a defined fallback, not a dominance/majority rule.
+            //
+            // CORRECTION (this was previously documented, incorrectly, as
+            // "mixed bodies never occur in valid MiniLang — the corpus has
+            // zero such cases"): mixed-LOOKING bodies DO occur, via MLH-2080
+            // inline `Type` methods (real corpus: `Type BuildJob` in
+            // `tests/conformance/interfaces/test_mlh2080_type_inline_methods.ml`
+            // has 2 fields plus 3 methods, and 10 files corpus-wide have this
+            // shape once `tests/`/`docs/` are included in the scan — the
+            // original zero-count measurement scoped only `src`+`examples`+
+            // `benchmarks` and missed every one of them). The CALLER
+            // (`mod.rs`'s `collect_type_member_rows`, not this function)
+            // already excludes a method's declaration line and its entire
+            // body from `body` before it ever reaches this loop — so `body`
+            // here never actually contains a real method's rows, and this
+            // fallback exists for TRUE field+variant mixing, which remains
+            // unverified either way (not proven zero, not proven nonzero).
             let mut fields: Vec<String> = Vec::new();
             let mut variants: Vec<String> = Vec::new();
             for row in body {

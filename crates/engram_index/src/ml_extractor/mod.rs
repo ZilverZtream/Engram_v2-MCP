@@ -155,6 +155,29 @@ pub(crate) fn block_closer(trimmed: &str) -> Option<String> {
     Some(rest.to_string())
 }
 
+/// True when `trimmed` is a field/member row whose NAME happens to
+/// collide with a block keyword — e.g. `Label As Str`, `Function As
+/// SomeType` — signalled by the keyword being immediately followed by
+/// ` As `. `keyword` must be the exact keyword `block_opener` matched on
+/// this same line (this function replicates its Public/Private modifier
+/// stripping so the two stay aligned).
+///
+/// False for a genuine declaration: `Function Cost(extra As Int) As Int`
+/// has `Function` immediately followed by ` Cost(`, not ` As ` — the
+/// return clause's ` As Int` is further down the line, past the
+/// parameter list, so it never fools this check.
+pub(crate) fn member_shaped(trimmed: &str, keyword: &str) -> bool {
+    let mut rest = trimmed;
+    for modifier in ["Public ", "Private "] {
+        if let Some(r) = rest.strip_prefix(modifier) {
+            rest = r.trim_start();
+        }
+    }
+    rest.strip_prefix(keyword)
+        .map(|after| after.starts_with(" As "))
+        .unwrap_or(false)
+}
+
 /// One open block on the scanner's stack.
 pub(crate) struct OpenBlock {
     pub keyword: String,
@@ -391,13 +414,40 @@ pub fn extract_ml(
         };
 
         if in_declaration_body {
-            // A field/variant/member row whose name happens to collide
-            // with a block keyword (see the comment above `opener`'s
-            // computation) — not a real opener. Skip the entire
-            // keyword-specific dispatch below (Unsafe/UI element/Asm/
-            // generic declaration) and do not push anything onto the
-            // stack for it.
-            continue;
+            let top_kw = stack.last().map(|b| b.keyword.as_str());
+            let skip_as_member_row = match top_kw {
+                // `Enum`/`Interface` bodies are pure signature/variant
+                // lists — a `Function`/`Sub` row here (real corpus case:
+                // `Interface IInlineJob { Function Cost(extra As Int) As
+                // Int ... }`) is a BARE signature with no body and no
+                // matching `End Function` of its own. Treating it as a
+                // genuine opener would push a frame nothing ever pops
+                // except the enclosing `End Interface`/`End Enum` line,
+                // desyncing the stack — 212 real corpus (Function,
+                // Interface) rows would do exactly this without an
+                // unconditional skip here.
+                Some("Enum") | Some("Interface") => true,
+                // A `Type` body, unlike Enum/Interface, may declare real
+                // inline methods with full bodies (MLH-2080, real corpus:
+                // `tests/conformance/interfaces/test_mlh2080_type_inline_methods.ml`'s
+                // `Type BuildJob { ... Function Cost(extra As Int) As Int
+                // ... End Function ... }`). Those MUST produce their own
+                // `function` symbol and push their own frame so their
+                // `End Function`/`End Sub` pops THEM, not the enclosing
+                // `Type` — unconditionally skipping here (round 1's fix)
+                // truncated the Type's `end_line` and cascaded into a
+                // stack desync on the following `End Type`. Skip only a
+                // row shaped like a field whose name collides with a
+                // block keyword (`Label As Str`, `Function As SomeType`),
+                // signalled by the keyword being immediately followed by
+                // ` As ` — a real declaration (`Function Cost(...)`,
+                // `Sub Push(x As T)`) never is.
+                Some("Type") => member_shaped(trimmed, keyword),
+                _ => false,
+            };
+            if skip_as_member_row {
+                continue;
+            }
         }
 
         if keyword == "Unsafe" {
@@ -535,11 +585,16 @@ pub fn extract_ml(
             .unwrap_or("");
 
         // Type/Enum/Interface bodies are classified from their rows, so
-        // collect the block's lines up to its matching `End`.
-        let body: Vec<&str> = if matches!(keyword, "Type" | "Enum" | "Interface") {
-            collect_block_body(source, idx, keyword)
-        } else {
-            Vec::new()
+        // collect the block's lines up to its matching `End`. A `Type`
+        // body needs its OWN collector: unlike Enum/Interface, it may
+        // contain real inline methods (MLH-2080) whose declaration line
+        // and full statement body must be excluded from the member rows
+        // handed to the field/variant classifier — see
+        // `collect_type_member_rows`'s doc comment.
+        let body: Vec<&str> = match keyword {
+            "Type" => collect_type_member_rows(source, idx),
+            "Enum" | "Interface" => collect_block_body(source, idx, keyword),
+            _ => Vec::new(),
         };
 
         let (fqn, symbol_idx) = decls::open_declaration(
@@ -631,6 +686,79 @@ pub(crate) fn collect_block_body<'a>(
         }
         if block_opener(trimmed) == Some(keyword) {
             depth += 1;
+        }
+        out.push(trimmed);
+    }
+    out
+}
+
+/// Lines strictly inside a `Type` body that are the type's OWN member
+/// rows (fields/variants) — never a nested inline method's declaration
+/// line or any line from its body.
+///
+/// MiniLang `Type` bodies may declare methods with full bodies (MLH-2080,
+/// real corpus: `Type BuildJob` in
+/// `tests/conformance/interfaces/test_mlh2080_type_inline_methods.ml`
+/// declares three `Function`s). A generic whole-body scan
+/// (`collect_block_body`) would hand the field/variant classifier in
+/// `decls::open_declaration`'s `Type` arm every line of a method's
+/// signature and body too — misreading `Function Cost(extra As Int) As
+/// Int` as a variant row (its `lhs` contains `(`) and `Return weight * 2
+/// + extra` as another, polluting the type's `variants` metadata with
+/// garbage like `Function/1`, `Return/0`.
+///
+/// A method's declaration line and everything up to its own matching
+/// `End Function`/`End Sub` is skipped entirely and excluded from the
+/// output. A field/variant row whose NAME happens to collide with
+/// `Function`/`Sub` (immediately followed by ` As `, e.g. `Function As
+/// SomeType` — see `member_shaped`) is still a genuine member row and is
+/// kept; only a REAL method declaration is skipped.
+pub(crate) fn collect_type_member_rows(source: &str, open_idx: usize) -> Vec<&str> {
+    let mut out = Vec::new();
+    let mut depth = 1usize;
+    let mut lines = source.lines().skip(open_idx + 1);
+    while let Some(line) = lines.next() {
+        let trimmed = strip_comment(line).trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if let Some(closed) = block_closer(trimmed) {
+            if closed == "Type" {
+                depth -= 1;
+                if depth == 0 {
+                    break;
+                }
+            }
+            continue;
+        }
+        if block_opener(trimmed) == Some("Type") {
+            depth += 1;
+        }
+        if let Some(kw) = block_opener(trimmed)
+            && (kw == "Function" || kw == "Sub")
+            && !member_shaped(trimmed, kw)
+        {
+            // A real inline method: fast-forward past its own body to its
+            // matching `End Function`/`End Sub`, contributing NONE of
+            // those lines to the member-row output.
+            let mut method_depth = 1usize;
+            while method_depth > 0 {
+                let Some(inner) = lines.next() else { break };
+                let inner_trimmed = strip_comment(inner).trim();
+                if inner_trimmed.is_empty() {
+                    continue;
+                }
+                if let Some(inner_closed) = block_closer(inner_trimmed) {
+                    if inner_closed == kw {
+                        method_depth -= 1;
+                    }
+                    continue;
+                }
+                if block_opener(inner_trimmed) == Some(kw) {
+                    method_depth += 1;
+                }
+            }
+            continue;
         }
         out.push(trimmed);
     }
