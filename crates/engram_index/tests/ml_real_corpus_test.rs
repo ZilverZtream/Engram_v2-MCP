@@ -34,9 +34,16 @@ fn collect_ml_files(root: &Path) -> Vec<PathBuf> {
             let name = name.to_string_lossy();
             if path.is_dir() {
                 // Skip duplicate/scratch trees that would inflate counts.
+                // `fuzz`/`negative` are also skipped: their fixtures are
+                // deliberately malformed (mismatched blocks, constructs
+                // the real compiler rejects), so counting them would mix
+                // adversarial noise into a census meant to characterize
+                // real, valid MiniLang, and scanning them logs a
+                // `tracing::warn!` per mismatch for a shape that is never
+                // going to balance.
                 if matches!(
                     name.as_ref(),
-                    ".git" | ".claude" | ".tmp" | "target" | "artifacts"
+                    ".git" | ".claude" | ".tmp" | "target" | "artifacts" | "fuzz" | "negative"
                 ) {
                     continue;
                 }

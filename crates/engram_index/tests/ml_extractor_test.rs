@@ -2090,9 +2090,9 @@ fn self_closing_function_on_one_line_does_not_leave_a_dangling_frame() {
     // a frame; the mid-line `End Function` was invisible to `block_closer`
     // (which only recognizes a closer at the START of a trimmed line), so
     // the frame was never popped -- every subsequent declaration nested
-    // under it, and the eventual `End Namespace` closed the WRONG frame (a
-    // `debug_assert_eq!` catches this mismatch in test builds; release
-    // builds silently corrupted the symbol graph instead).
+    // under it, and the eventual `End Namespace` closed the WRONG frame
+    // (silently, in every build -- see `mod.rs`'s closing-line handler,
+    // which warns on this mismatch but does not abort).
     let src = "\
 Namespace Demo
     Function FLAG_HOVER() As Int     Return 1 End Function ' Bit 0

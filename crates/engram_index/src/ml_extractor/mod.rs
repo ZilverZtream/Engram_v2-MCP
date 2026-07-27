@@ -291,8 +291,10 @@ pub(crate) fn closes_block(trimmed: &str) -> Option<String> {
 /// which self-closes `If`). Such a line opens and closes in the same
 /// instant: the scanner must not push a frame for it, or nothing will ever
 /// pop it and the NEXT real `End <keyword>` in the file closes the wrong
-/// frame instead (silent stack desync; a `debug_assert_eq!` catches it in
-/// debug builds, but it is compiled out in release).
+/// frame instead (stack desync; `extract_ml`'s closing-line handler emits
+/// a `tracing::warn!` when the popped frame's keyword does not match, but
+/// does not abort — see that call site's doc comment for why this cannot
+/// be a hard assert).
 ///
 /// Matched as a whole word — `End Select` must not match inside `End
 /// SelectChannel` (checked via the byte immediately following the
@@ -530,7 +532,7 @@ pub fn extract_ml(
         } else {
             closes_block(trimmed)
         };
-        if let Some(_closed) = closer {
+        if let Some(closed) = closer {
             if let Some(open) = stack.pop() {
                 if let Some(i) = open.symbol_idx {
                     symbols[i].end_line = line_no;
@@ -550,28 +552,41 @@ pub fn extract_ml(
                         }
                     }
                 }
-                // A residual mismatch here (`open.keyword != closed`) means
-                // the SOURCE itself is unbalanced, not that this scanner
-                // failed to recognize a legitimate shape. This used to be
-                // a hard `debug_assert_eq!`, which is exactly what caught
+                // `open.keyword == closed` is a property of the INPUT
+                // FILE, not an invariant this scanner can enforce — a
+                // hard `debug_assert_eq!` here used to abort the whole
+                // scan on any mismatch, which is exactly what caught
                 // every real defect this task fixed (the self-closing
                 // block, the one-line `If … Then <stmt>`, and the bare
-                // `End` above) — but run over the FULL real corpus, it also
-                // aborts on the two fixtures that are invalid on purpose:
-                // `tests/fuzz/mismatched_blocks.ml` (every block closed by
-                // the WRONG `End <keyword>`, deliberately, to fuzz the
-                // compiler's error recovery) and `tests/negative/syntax/
+                // `End` above) but ALSO aborted on two real-corpus
+                // fixtures that are invalid on purpose: `tests/fuzz/
+                // mismatched_blocks.ml` (every block closed by the WRONG
+                // `End <keyword>`, deliberately, to fuzz the compiler's
+                // error recovery) and `tests/negative/syntax/
                 // explicit_union_end_type_rejected.ml` (`Union … End
                 // Type`; its own comment reads "must close with End
-                // Union" — the same "construct the real compiler REJECTS"
-                // precedent as `End For`, documented on `BLOCK_KEYWORDS`
-                // above). Input that is invalid by design has no single
-                // correct parse to converge on, so nothing is asserted:
-                // the frame is popped as-is, consistent with this
-                // scanner's documented nature elsewhere ("a lenient text
-                // scanner over real files on disk, not a validating
-                // parser") — and, crucially, consistent with what a
-                // RELEASE build has always silently done here anyway.
+                // Union" — the same "construct the real compiler
+                // REJECTS" precedent as `End For`, documented on
+                // `BLOCK_KEYWORDS` above). A debug build of this indexer
+                // must not abort on a customer repo that merely contains
+                // one truncated or malformed `.ml` file, so the frame is
+                // popped as-is either way (consistent with what a
+                // RELEASE build has always silently done here) — but the
+                // mismatch itself is still real signal, worth keeping:
+                // a NEW one-line construct, a NEW closer spelling, or
+                // another `Try`-style duality this scanner does not yet
+                // know about would desync the stack exactly like the
+                // three fixed defects did, with nothing left to surface
+                // it if this were silent too.
+                if open.keyword != closed {
+                    tracing::warn!(
+                        file = rel_path,
+                        line = line_no,
+                        opened = %open.keyword,
+                        closed = %closed,
+                        "MiniLang block mismatch: closer does not match the innermost open block"
+                    );
+                }
             }
             continue;
         }
@@ -1058,7 +1073,21 @@ pub(crate) fn file_stem(rel_path: &str) -> String {
 }
 
 /// Lines strictly inside the block that opens at `open_idx`, up to its
-/// matching `End <keyword>`. Nested blocks of the same keyword are balanced.
+/// matching `End <keyword>`. Nested blocks of the same keyword are
+/// balanced -- EXCEPT a nested occurrence that is itself self-closing
+/// (`has_inline_closer`, e.g. a hypothetical `Union X ... End Union` all on
+/// one line nested inside an outer `Union`'s body): that line already
+/// closed on its own, so it must not bump `depth`, or this collector would
+/// hunt for one more `End <keyword>` than the source actually has left,
+/// running past the OUTER block's real closer into unrelated subsequent
+/// content. Not reachable in today's real corpus (every real self-closer
+/// is `Function`, never `Enum`/`Interface`/`Union`/`Asm`, the only
+/// keywords this collector is called with), but it is the identical
+/// defect class the rest of this module was fixed for, and unlike a
+/// mismatch on the outer scanner's stack (which only ever produces a
+/// `tracing::warn!`, never silently wrong data), a depth desync HERE would
+/// corrupt this collector's `out` with unrelated lines and give no signal
+/// at all.
 pub(crate) fn collect_block_body<'a>(
     source: &'a str,
     open_idx: usize,
@@ -1080,7 +1109,7 @@ pub(crate) fn collect_block_body<'a>(
             }
             continue;
         }
-        if block_opener(trimmed) == Some(keyword) {
+        if block_opener(trimmed) == Some(keyword) && !has_inline_closer(trimmed, keyword) {
             depth += 1;
         }
         out.push(trimmed);
@@ -1127,7 +1156,13 @@ pub(crate) fn collect_type_member_rows(source: &str, open_idx: usize) -> Vec<&st
             }
             continue;
         }
-        if block_opener(trimmed) == Some("Type") {
+        // A nested `Type ... End Type` that is itself self-closing (see
+        // `collect_block_body`'s doc comment for the same reasoning
+        // applied there) has already closed on this one line and must not
+        // bump `depth` -- unreachable in the real corpus today (no `Type`
+        // there nests another `Type`, let alone a self-closing one), but
+        // the identical defect class.
+        if block_opener(trimmed) == Some("Type") && !has_inline_closer(trimmed, "Type") {
             depth += 1;
         }
         if let Some(kw) = block_opener(trimmed)
@@ -1169,7 +1204,14 @@ pub(crate) fn collect_type_member_rows(source: &str, open_idx: usize) -> Vec<&st
                     }
                     continue;
                 }
-                if block_opener(inner_trimmed) == Some(kw) {
+                // Same reasoning as the `Type`-depth guard above and
+                // `collect_block_body`'s: a nested occurrence of `kw` that
+                // is itself self-closing already closed on its own line
+                // and must not bump `method_depth`. Even less reachable
+                // than the other two sites (a MiniLang function body does
+                // not declare a nested function), but free to close.
+                if block_opener(inner_trimmed) == Some(kw) && !has_inline_closer(inner_trimmed, kw)
+                {
                     method_depth += 1;
                 }
             }
