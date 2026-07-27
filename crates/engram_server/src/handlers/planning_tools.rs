@@ -5038,7 +5038,11 @@ impl Engram {
             }
             let glob_prefix = |g: &str| -> String {
                 let g = g.to_lowercase().replace('\\', "/");
-                g.split("/**").next().unwrap_or(&g).trim_end_matches('/').to_string()
+                g.split("/**")
+                    .next()
+                    .unwrap_or(&g)
+                    .trim_end_matches('/')
+                    .to_string()
             };
             let mut rows: Vec<(bool, String, String, Option<String>)> = Vec::new();
             let mut seen_rule: HashSet<String> = HashSet::new();
@@ -5071,17 +5075,23 @@ impl Engram {
                 let file_match = !prefix.is_empty()
                     && cand_paths.iter().any(|c| {
                         c.starts_with(&prefix)
-                            || c.strip_prefix("site/").is_some_and(|s| s.starts_with(&prefix))
-                            || prefix.strip_prefix("site/").is_some_and(|p| c.starts_with(p))
+                            || c.strip_prefix("site/")
+                                .is_some_and(|s| s.starts_with(&prefix))
+                            || prefix
+                                .strip_prefix("site/")
+                                .is_some_and(|p| c.starts_with(p))
                     });
                 rows.push((
                     file_match,
                     format!("`{}`", path.as_str()),
-                    format!("{instruction}{}", if fix_rate.is_empty() {
-                        String::new()
-                    } else {
-                        format!(" ({})", fix_rate.to_lowercase())
-                    }),
+                    format!(
+                        "{instruction}{}",
+                        if fix_rate.is_empty() {
+                            String::new()
+                        } else {
+                            format!(" ({})", fix_rate.to_lowercase())
+                        }
+                    ),
                     fix_hunk,
                 ));
             }

@@ -940,9 +940,9 @@ impl HybridSearchEngine {
                     )
                 })
                 .transpose()?;
-            let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> =
-                self.acquire_writer("generation purge", &CancellationToken::new())
-                    .await?;
+            let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> = self
+                .acquire_writer("generation purge", &CancellationToken::new())
+                .await?;
 
             for ns in engram_core::KNOWN_NAMESPACES {
                 if let Ok(policy) = engram_core::get_policy(ns) {
@@ -1228,9 +1228,9 @@ impl HybridSearchEngine {
                     )
                 })
                 .transpose()?;
-            let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> =
-                self.acquire_writer("delete_files", &CancellationToken::new())
-                    .await?;
+            let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> = self
+                .acquire_writer("delete_files", &CancellationToken::new())
+                .await?;
             for p in paths {
                 let pid_term = Term::from_field_text(self.fields.project_id, project_id);
                 let ns_term = Term::from_field_text(self.fields.namespace, namespace);

@@ -871,8 +871,7 @@ async fn fetch_pr_file_versions(
     };
     const MAX_ITERS: usize = 10;
     for it in iter_ids.into_iter().take(MAX_ITERS) {
-        let ch_url =
-            format!("{base}/pullrequests/{pr_id}/iterations/{it}/changes?api-version=7.1");
+        let ch_url = format!("{base}/pullrequests/{pr_id}/iterations/{it}/changes?api-version=7.1");
         let Ok(resp) = client
             .get(&ch_url)
             .header(AUTHORIZATION, auth)
@@ -1585,7 +1584,9 @@ pub(crate) fn fix_hunk_by_token(diff_text: &str, tokens: &[String]) -> Option<St
         return None;
     }
     let has_token = |removed: &[&str]| -> bool {
-        removed.iter().any(|r| tokens.iter().any(|t| r.contains(t.as_str())))
+        removed
+            .iter()
+            .any(|r| tokens.iter().any(|t| r.contains(t.as_str())))
     };
     let mut cur: Vec<&str> = Vec::new();
     let mut removed: Vec<&str> = Vec::new();
@@ -2106,10 +2107,18 @@ mod tests {
             ),
         };
         let rule = parse_comment(&raw).expect("parses");
-        assert_eq!(rule.fix_hunk.as_deref().map(|h| h.contains("IsNot Nothing")), Some(true));
+        assert_eq!(
+            rule.fix_hunk
+                .as_deref()
+                .map(|h| h.contains("IsNot Nothing")),
+            Some(true)
+        );
         let cluster = build_cluster(vec![rule]);
         let body = cluster_index_body(&cluster);
-        assert!(body.contains("House fix (applied in a merged PR):"), "body:\n{body}");
+        assert!(
+            body.contains("House fix (applied in a merged PR):"),
+            "body:\n{body}"
+        );
         assert!(body.contains("If Query?.projectId IsNot Nothing Then"));
     }
 
@@ -2183,7 +2192,10 @@ mod tests {
         let out = strip_html(body);
         assert!(out.contains("Missing null check"));
         assert!(out.contains("Fix by guarding"));
-        assert!(!out.contains("Script executed"), "analysis chain leaked: {out}");
+        assert!(
+            !out.contains("Script executed"),
+            "analysis chain leaked: {out}"
+        );
         assert!(!out.contains("bin/bash"));
         // Unterminated details (truncated comment) must also be dropped.
         let out2 = strip_html("**Title.**\n<details><summary>chain</summary>partial…");

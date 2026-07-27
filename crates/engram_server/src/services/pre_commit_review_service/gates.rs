@@ -3017,7 +3017,11 @@ pub(crate) fn count_params_at(text: &str, open_paren: usize) -> Option<usize> {
 /// languages close at the matching `}` (naive brace count — string
 /// literals containing braces can skew it; acceptable for a review nudge).
 pub(crate) fn function_spans(content: &str, vb_style: bool) -> Vec<(usize, usize, String)> {
-    let decl_re: &Regex = if vb_style { &RE_CX_DECL_VB } else { &RE_CX_DECL_CS };
+    let decl_re: &Regex = if vb_style {
+        &RE_CX_DECL_VB
+    } else {
+        &RE_CX_DECL_CS
+    };
     let ts_re: &Regex = &RE_CX_DECL_TS;
     let line_starts: Vec<usize> = std::iter::once(0)
         .chain(content.match_indices('\n').map(|(i, _)| i + 1))
@@ -3151,7 +3155,9 @@ impl Gate for ComplexityGate {
                             Severity::Warning,
                             "complexity_budget",
                             df.path.clone(),
-                            format!("`{name}` declares {n} parameters (SonarQube max {SQ_PARAMS_MAX})"),
+                            format!(
+                                "`{name}` declares {n} parameters (SonarQube max {SQ_PARAMS_MAX})"
+                            ),
                             format!(
                                 "This diff adds a declaration with {n} parameters. SonarQube \
                                  flags any function over {SQ_PARAMS_MAX}; long parameter lists \
@@ -3199,7 +3205,9 @@ impl Gate for ComplexityGate {
                 let (sev, title, detail, suggestion) = if is_new {
                     (
                         Severity::Warning,
-                        format!("New function `{name}` has estimated complexity {cx} (max {SQ_COMPLEXITY_MAX})"),
+                        format!(
+                            "New function `{name}` has estimated complexity {cx} (max {SQ_COMPLEXITY_MAX})"
+                        ),
                         format!(
                             "SonarQube will reject this on the next scan — new code over \
                              complexity {SQ_COMPLEXITY_MAX} is a standing quality-gate failure \
@@ -3212,7 +3220,9 @@ impl Gate for ComplexityGate {
                 } else {
                     (
                         Severity::Info,
-                        format!("Touched function `{name}` is already at complexity {cx} (max {SQ_COMPLEXITY_MAX})"),
+                        format!(
+                            "Touched function `{name}` is already at complexity {cx} (max {SQ_COMPLEXITY_MAX})"
+                        ),
                         format!(
                             "This diff modifies a function that already exceeds the complexity \
                              budget (estimated {cx}). House rule: when you touch an \
@@ -3226,8 +3236,15 @@ impl Gate for ComplexityGate {
                     )
                 };
                 findings.push(
-                    ReviewFinding::new(sev, "complexity_budget", df.path.clone(), title, detail, suggestion)
-                        .with_lines(vec![start]),
+                    ReviewFinding::new(
+                        sev,
+                        "complexity_budget",
+                        df.path.clone(),
+                        title,
+                        detail,
+                        suggestion,
+                    )
+                    .with_lines(vec![start]),
                 );
             }
         }
@@ -3256,16 +3273,14 @@ static RE_AC_PUBLIC_DECL: LazyLock<Regex> = LazyLock::new(|| {
     .expect("valid public decl regex")
 });
 
-static RE_AC_DOC_LINE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^\s*(?:'''|///|/\*\*|\*)").expect("valid doc line regex")
-});
+static RE_AC_DOC_LINE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\s*(?:'''|///|/\*\*|\*)").expect("valid doc line regex"));
 
 static RE_AC_CATCH: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)^\s*catch\b").expect("valid catch regex"));
 
-static RE_AC_LOG_CALL: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)\b([\w.]*\blog\w*)\s*\(").expect("valid log call regex")
-});
+static RE_AC_LOG_CALL: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)\b([\w.]*\blog\w*)\s*\(").expect("valid log call regex"));
 
 /// Fraction of public decls in `content` that carry a doc comment on the
 /// line above, together with the total count — the house-style evidence.
@@ -3332,12 +3347,16 @@ impl Gate for AddedConventionsGate {
             let is_code = [".vb", ".cs", ".ts", ".tsx", ".js", ".jsx"]
                 .iter()
                 .any(|e| lower.ends_with(e));
-            let is_markup = [".aspx", ".ascx", ".master", ".html", ".htm", ".vbhtml", ".cshtml"]
-                .iter()
-                .any(|e| lower.ends_with(e))
+            let is_markup = [
+                ".aspx", ".ascx", ".master", ".html", ".htm", ".vbhtml", ".cshtml",
+            ]
+            .iter()
+            .any(|e| lower.ends_with(e))
                 || lower.ends_with(".tsx")
                 || lower.ends_with(".jsx");
-            let is_css = [".css", ".scss", ".less"].iter().any(|e| lower.ends_with(e));
+            let is_css = [".css", ".scss", ".less"]
+                .iter()
+                .any(|e| lower.ends_with(e));
             if df.is_binary
                 || df.is_test_file()
                 || super::is_generated_filename(&df.path)
@@ -3374,7 +3393,10 @@ impl Gate for AddedConventionsGate {
                             Severity::Info,
                             "added_conventions",
                             df.path.clone(),
-                            format!("{} added image(s) without alt text or aria-hidden", missing_alt.len()),
+                            format!(
+                                "{} added image(s) without alt text or aria-hidden",
+                                missing_alt.len()
+                            ),
                             "Added <img>/<asp:Image> elements carry neither alt text nor \
                              aria-hidden=\"true\". Screen readers announce these as noise; \
                              reviewers flag it on every markup change that ships images."
@@ -3386,7 +3408,8 @@ impl Gate for AddedConventionsGate {
                     );
                 }
             }
-            if is_css && df.added_content.to_lowercase().contains("all: unset")
+            if is_css
+                && df.added_content.to_lowercase().contains("all: unset")
                 && !df.added_content.to_lowercase().contains(":focus")
             {
                 let line = df
@@ -3426,8 +3449,11 @@ impl Gate for AddedConventionsGate {
             let file_documents = total >= 3 && documented * 10 >= total * 4;
             let rule_demands_docs = ctx.repo_rules.iter().any(|r| {
                 let t = r.rule_text.to_lowercase();
-                (t.contains("xml doc") || t.contains("xml-doc") || t.contains("doc comment")
-                    || t.contains("'''") || t.contains("///"))
+                (t.contains("xml doc")
+                    || t.contains("xml-doc")
+                    || t.contains("doc comment")
+                    || t.contains("'''")
+                    || t.contains("///"))
                     && (t.contains("public") || t.contains("member") || t.contains("summary"))
             });
             if file_documents || rule_demands_docs {
@@ -3509,7 +3535,9 @@ impl Gate for AddedConventionsGate {
                         }
                         if let Some(cap) = RE_AC_LOG_CALL.captures(t) {
                             let used = cap[1].to_lowercase();
-                            if used != dom && !used.ends_with(&format!(".{dom}")) && !dom.ends_with(&used)
+                            if used != dom
+                                && !used.ends_with(&format!(".{dom}"))
+                                && !dom.ends_with(&used)
                             {
                                 off_convention.push((*line_no, cap[1].to_string()));
                             }
@@ -3569,8 +3597,7 @@ impl Gate for AddedConventionsGate {
                     // Same-line guard already present (`= x.Find(..) ?? …`,
                     // inline If) — skip.
                     let lower = text.to_lowercase();
-                    if lower.contains("??")
-                        || lower.contains(&format!("{}?.", var.to_lowercase()))
+                    if lower.contains("??") || lower.contains(&format!("{}?.", var.to_lowercase()))
                     {
                         continue;
                     }
@@ -3679,7 +3706,10 @@ mod tests {
             "Site/modules/page.aspx",
             &[
                 (10, r#"<img src="excel.png" class="icon" />"#),
-                (11, r#"<asp:Image runat="server" ImageUrl="x.png" AlternateText="chart" />"#),
+                (
+                    11,
+                    r#"<asp:Image runat="server" ImageUrl="x.png" AlternateText="chart" />"#,
+                ),
                 (12, r#"<img src="ok.png" alt="" />"#),
             ],
         );
@@ -3734,7 +3764,10 @@ mod tests {
         assert_eq!(count_params_at(empty, empty.find('(').unwrap()), Some(0));
 
         let unterminated = "Public Sub Cut(a, b,";
-        assert_eq!(count_params_at(unterminated, unterminated.find('(').unwrap()), None);
+        assert_eq!(
+            count_params_at(unterminated, unterminated.find('(').unwrap()),
+            None
+        );
     }
 
     #[test]
