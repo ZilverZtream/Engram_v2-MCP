@@ -1015,3 +1015,254 @@ End Function
     );
     assert_eq!(m.get("has_catch").map(String::as_str), Some("true"));
 }
+
+#[test]
+fn ui_block_produces_nested_containers_and_controls() {
+    let src = "\
+Ui Width 420 Height 160 Bg bg
+  Panel
+    Bg surface
+    Rect 20 20 400 140 16
+    Label
+      Text \"Deployment status\"
+      Rect 44 38 360 70 0
+    End Label
+    Badge
+      Text \"Active\"
+      Rect 44 84 134 112 0
+    End Badge
+  End Panel
+End Ui
+";
+    let (syms, edges) = run(src);
+
+    let root = syms
+        .iter()
+        .find(|s| s.kind == "ui_container" && s.name == "Sample.Ui")
+        .expect("root Ui container");
+    let m = root.metadata.as_ref().expect("metadata");
+    assert_eq!(m.get("width").map(String::as_str), Some("420"));
+    assert_eq!(m.get("height").map(String::as_str), Some("160"));
+
+    let label = syms
+        .iter()
+        .find(|s| s.kind == "control" && s.name.ends_with(".Label"))
+        .expect("Label control");
+    let lm = label.metadata.as_ref().expect("metadata");
+    assert_eq!(
+        lm.get("text").map(String::as_str),
+        Some("Deployment status")
+    );
+    assert_eq!(lm.get("rect").map(String::as_str), Some("44 38 360 70 0"));
+    assert_eq!(lm.get("element").map(String::as_str), Some("Label"));
+
+    // Nesting is expressed as contains_ui edges parent -> child.
+    assert!(
+        edges.iter().any(|e| e.kind == "contains_ui"
+            && e.source_name == "Sample.Ui"
+            && e.target_name.ends_with(".Panel")),
+        "Ui should contain Panel"
+    );
+    assert!(
+        edges.iter().any(|e| e.kind == "contains_ui"
+            && e.source_name.ends_with(".Panel")
+            && e.target_name.ends_with(".Label")),
+        "Panel should contain Label"
+    );
+
+    // Attribute folding must not bleed a child's own rows onto its
+    // ancestor: Panel has no `Text` row of its own, so its metadata must
+    // not pick up Label's "Deployment status" (or Badge's "Active").
+    let panel = syms
+        .iter()
+        .find(|s| s.kind == "control" && s.name.ends_with(".Panel"))
+        .expect("Panel control");
+    let pm = panel.metadata.as_ref().expect("metadata");
+    assert_eq!(pm.get("bg").map(String::as_str), Some("surface"));
+    assert_eq!(pm.get("rect").map(String::as_str), Some("20 20 400 140 16"));
+    assert_eq!(
+        pm.get("text"),
+        None,
+        "Label's Text row must not bleed onto its parent Panel: {pm:?}"
+    );
+
+    // A purely declarative UI file must not fabricate a synthetic
+    // `<module>` entry: every attribute row inside the Ui tree is folded
+    // into its owning element and must never be misfiled as an orphaned
+    // top-level statement.
+    assert!(
+        !syms.iter().any(|s| s.name.ends_with("<module>")),
+        "UI-only file must not get a synthetic module entry, got {:?}",
+        syms.iter().map(|s| (&s.kind, &s.name)).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn inline_asm_block_records_mnemonics_and_bindings() {
+    // Real corpus grammar (verified against the compiler's own parser,
+    // `Frontend/Parser.Statements.vb::ParseAsmLine`): `In`/`Out` rows are
+    // BARE, comma-separated variable names with NO `As Type` clause --
+    // the compiler hardcodes every asm in/out slot to `Int` itself
+    // (`InlineAsmStmt` in `Core/AST/StatementNodes.Unsafe.vb` carries no
+    // type field at all). This matches all 47 real `Asm`-bearing corpus
+    // files, e.g. `tests/conformance/asm/test_asm_arithmetic.ml`'s
+    // `In x, y` / `Out result`.
+    let src = "\
+Function Fast(x As Int, y As Int) As Int
+    Asm
+        In x, y
+        Mov Rax, Rbx
+        Add Rax, 1
+        Out result
+    End Asm
+    Return x
+End Function
+";
+    let (syms, _) = run(src);
+    let a = syms
+        .iter()
+        .find(|s| s.kind == "inline_asm")
+        .expect("inline_asm symbol");
+    let m = a.metadata.as_ref().expect("metadata");
+    assert_eq!(m.get("mnemonics").map(String::as_str), Some("Mov||Add"));
+    assert_eq!(m.get("inputs").map(String::as_str), Some("x||y"));
+    assert_eq!(m.get("outputs").map(String::as_str), Some("result"));
+    assert_eq!(m.get("owner").map(String::as_str), Some("Fast"));
+    // The block's real span (End Asm is line 7), not a hand-counted
+    // estimate -- the block contains no blank/comment lines here, but the
+    // backfill mechanism must be exercised regardless.
+    assert_eq!(a.start_line, 2);
+    assert_eq!(a.end_line, 7);
+}
+
+#[test]
+fn switch_is_a_ui_control_not_control_flow() {
+    // MiniLang has no control-flow `Switch`/`Case`/`End Switch` construct
+    // -- every real `Switch` in the corpus (7 `End Switch` occurrences
+    // across 3 files, e.g. `examples/ui/declarative_switch_png.ml`) is a
+    // toggle control. Before this fix `Switch` was tracked as inert
+    // control flow (produced no symbol, no `contains_ui` edge), and --
+    // more importantly -- correct parsing of the sibling `Label` after it
+    // depended on `Switch` being on `ui::UI_ELEMENTS`'s nested-element
+    // boundary list at all; this test also proves that boundary still
+    // works once the sibling reopens.
+    let src = "\
+Ui Width 400 Height 220 Bg bg
+  Panel
+    Switch
+      On 1
+      Rect 300 84 356 112 0
+    End Switch
+    Label
+      Text \"Dark mode\"
+      Rect 44 86 250 110 0
+    End Label
+  End Panel
+End Ui
+";
+    let (syms, edges) = run(src);
+
+    let toggle = syms
+        .iter()
+        .find(|s| s.kind == "control" && s.name.ends_with(".Switch"))
+        .expect("Switch control symbol");
+    assert_eq!(
+        toggle
+            .metadata
+            .as_ref()
+            .and_then(|m| m.get("element"))
+            .map(String::as_str),
+        Some("Switch")
+    );
+
+    assert!(
+        edges.iter().any(|e| e.kind == "contains_ui"
+            && e.source_name.ends_with(".Panel")
+            && e.target_name.ends_with(".Switch")),
+        "Panel should contain Switch, got {edges:?}"
+    );
+
+    // The Label AFTER the Switch must still be correctly nested under the
+    // same Panel -- proof the scanner's stack was never desynced by
+    // Switch's `End Switch` line.
+    let label = syms
+        .iter()
+        .find(|s| s.kind == "control" && s.name.ends_with(".Label"))
+        .expect("Label control symbol");
+    assert!(
+        label.name.contains(".Panel."),
+        "Label must nest under Panel, got {}",
+        label.name
+    );
+    assert!(
+        edges.iter().any(|e| e.kind == "contains_ui"
+            && e.source_name.ends_with(".Panel")
+            && e.target_name.ends_with(".Label")),
+        "Panel should contain Label, got {edges:?}"
+    );
+}
+
+#[test]
+fn ui_header_window_modifier_does_not_shift_attribute_pairs() {
+    // Real corpus shape (284 files, e.g.
+    // `examples/ui/declarative_window_png.ml`): a bare `Window` flag with
+    // no value of its own sits between `Ui` and the first real key/value
+    // pair. Naively pairing tokens two-at-a-time from `Ui` onward reads
+    // `("window", "Width")`, `("360", "Height")`, ... -- garbage.
+    let src = "Ui Window Width 360 Height 220 Bg bg\nEnd Ui\n";
+    let (syms, _) = run(src);
+    let root = syms
+        .iter()
+        .find(|s| s.kind == "ui_container")
+        .expect("root Ui container");
+    let m = root.metadata.as_ref().expect("metadata");
+    assert_eq!(m.get("width").map(String::as_str), Some("360"));
+    assert_eq!(m.get("height").map(String::as_str), Some("220"));
+    assert_eq!(m.get("bg").map(String::as_str), Some("bg"));
+    assert_eq!(m.get("window"), None, "got metadata {m:?}");
+}
+
+#[test]
+fn define_style_block_inside_ui_does_not_corrupt_sibling_nesting() {
+    // `Define Style <name> ... End Style` (the "mcss" style-bundle
+    // feature, real corpus construct: 8 files under
+    // `tests/conformance/ui/` and `tests/drafts/`) is untracked by
+    // `BLOCK_KEYWORDS`. Its `End Style` line would otherwise pop
+    // whatever's actually on top of the scanner's stack -- corrupting
+    // every UI element that follows it in the same file. This test does
+    // not assert anything about the style bundle's own properties (out of
+    // scope); it only proves the scanner survives the construct and keeps
+    // nesting the real UI elements correctly.
+    let src = "\
+Ui Width 240 Height 240 Bg bg
+  Define Style boxy
+    MinSize 150 80
+    Margin 5 6 7 8
+  End Style
+  Panel
+    Bg surface
+    Rect 10 10 230 230 8
+  End Panel
+End Ui
+";
+    let (syms, edges) = run(src);
+
+    let root = syms
+        .iter()
+        .find(|s| s.kind == "ui_container" && s.name == "Sample.Ui")
+        .expect("root Ui container");
+    assert_eq!(root.end_line, 10, "Ui's real End Ui is line 10");
+
+    let panel = syms
+        .iter()
+        .find(|s| s.kind == "control" && s.name.ends_with(".Panel"))
+        .expect("Panel must still be extracted");
+    assert_eq!(panel.name, "Sample.Ui.Panel", "Panel must nest under Ui");
+
+    assert!(
+        edges.iter().any(|e| e.kind == "contains_ui"
+            && e.source_name == "Sample.Ui"
+            && e.target_name.ends_with(".Panel")),
+        "Ui should still contain Panel despite the intervening Define Style block, got {edges:?}"
+    );
+}
