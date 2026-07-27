@@ -3280,8 +3280,7 @@ Function AfterOuter() As Int
     Return 2
 End Function
 ";
-        let (body, _, end, _) =
-            extract_ml_method_body(src, "Outer").expect("body extracted");
+        let (body, _, end, _) = extract_ml_method_body(src, "Outer").expect("body extracted");
         assert!(
             body.trim_end().ends_with("End Function"),
             "must stop at its own End Function, got: {body:?}"
