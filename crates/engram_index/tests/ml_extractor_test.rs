@@ -1914,3 +1914,118 @@ End Function
     assert_eq!(f.start_line, 9);
     assert_eq!(f.end_line, 11);
 }
+
+// ---------------------------------------------------------------------
+// Task 6b, fix round 1: the Try/Try-Call collision (in scope after
+// review -- it accounted for ~98% of the corpus's residual desyncs), plus
+// the two safety properties `closes_block` depends on.
+// ---------------------------------------------------------------------
+
+#[test]
+fn try_call_single_statement_does_not_open_a_block() {
+    // Real corpus shape (`src/MiniLangCompiler/Libraries/Std.Collections.Deque.ml:676`):
+    // `Try Call X(...)` is a single-line fallible-call STATEMENT with no
+    // body and no `End Try` of its own -- 187 corpus occurrences total
+    // (186 `Try Call X(...)` + 1 bare `Try X(...)` with no `Call`).
+    // Before this fix, `block_opener` treated ANY `Try` followed by a
+    // space as opening a block (the same boundary check used for
+    // `Unsafe(...)`/etc.), pushing a frame that nothing ever closed and
+    // desyncing the very next real `End` line in the enclosing scope --
+    // 22 real corpus files, all `Std.*` library files making heavy use of
+    // `Throws`/fallible-call propagation.
+    let src = "\
+Sub Deque_Put(items As Int, index As Int, value As Int) Throws Std.Collections.DequeError
+    Try Call Deque_SetRaw(items, index, value)
+End Sub
+Sub After() As Int
+    Return 1
+End Sub
+";
+    let (syms, edges) = run(src);
+    let fns: Vec<&str> = syms
+        .iter()
+        .filter(|s| s.kind == "function")
+        .map(|s| s.name.as_str())
+        .collect();
+    assert_eq!(fns, vec!["Deque_Put", "After"], "got symbols {syms:?}");
+
+    // The stack must not desync: After's own span must be its real one,
+    // not corrupted by a phantom, never-closed Try frame from the
+    // preceding Sub.
+    let after = syms.iter().find(|s| s.name == "After").expect("After");
+    assert_eq!(after.start_line, 4);
+    assert_eq!(after.end_line, 6);
+
+    // The fix must not silently swallow the statement -- its call edge
+    // must still be extracted and attributed to the enclosing Sub.
+    let e = edges
+        .iter()
+        .find(|e| e.kind == "calls" && e.target_name == "Deque_SetRaw")
+        .expect("calls edge to Deque_SetRaw");
+    assert_eq!(e.source_name, "Deque_Put");
+}
+
+#[test]
+fn bare_next_against_an_empty_stack_is_a_safe_no_op() {
+    // Pins one of the two safety properties `closes_block` depends on: a
+    // `Next` with nothing open on the stack must be silently ignored,
+    // exactly like every other closer hitting an empty stack -- not panic,
+    // not corrupt state, not fabricate a top-level statement entry.
+    let src = "\
+Next
+Function After() As Int
+    Return 1
+End Function
+";
+    let (syms, _) = run(src);
+    assert!(
+        !syms.iter().any(|s| s.name.ends_with("<module>")),
+        "an unmatched Next must not be misfiled as a top-level statement, got {:?}",
+        syms.iter().map(|s| (&s.kind, &s.name)).collect::<Vec<_>>()
+    );
+    let f = syms
+        .iter()
+        .find(|s| s.kind == "function")
+        .expect("function symbol");
+    assert_eq!(f.name, "After");
+    assert_eq!(f.start_line, 2);
+    assert_eq!(f.end_line, 4);
+}
+
+#[test]
+fn next_as_type_field_row_is_not_treated_as_a_for_closer() {
+    // Real corpus shape (`Std.Collections.Map.Core.ml`'s `Next As Int`, a
+    // linked-list node's own `Next` pointer field). Pins the second safety
+    // property: `closes_block` matches the bare literal `"Next"` only (an
+    // exact match, not a `starts_with("Next")` prefix check) specifically
+    // so this field row is never mistaken for a `For`-loop closer -- a
+    // future "simplification" to a prefix check would silently corrupt
+    // every file with this field name.
+    let src = "\
+Type Node
+    Value As Int
+    Next As Int
+End Type
+Function After() As Int
+    Return 1
+End Function
+";
+    let (syms, _) = run(src);
+    let t = syms
+        .iter()
+        .find(|s| s.kind == "struct" && s.name == "Node")
+        .expect("Node struct symbol");
+    let m = t.metadata.as_ref().expect("metadata");
+    assert_eq!(
+        m.get("fields").map(String::as_str),
+        Some("Value:Int||Next:Int"),
+        "the Next field must be classified as a field, not consumed as a For closer"
+    );
+
+    let f = syms
+        .iter()
+        .find(|s| s.kind == "function" && s.name == "After")
+        .expect("After function symbol");
+    assert_eq!(f.start_line, 5);
+    assert_eq!(f.end_line, 7);
+}

@@ -537,8 +537,16 @@ pub(crate) fn parse_return(trimmed: &str) -> (String, bool) {
 /// signatures observed in the corpus have no such ambiguity to resolve
 /// (colon-typed params, e.g. `x: Int`, never contain `->`). Returns `""`
 /// when there is no `->` clause.
+///
+/// Uses `rsplit_once`, taking the LAST `->`, not the first: a
+/// higher-order parameter type can itself contain an arrow (e.g. `Func
+/// F(cb: (Int) -> Str) -> Int`), and the declaration's own return clause
+/// is always the final one on the line. No real corpus occurrence
+/// exercises this today (the one `Func` file's signatures are all
+/// first-order), but `split_once` would silently capture the PARAMETER's
+/// arrow instead of the function's.
 pub(crate) fn parse_arrow_return(trimmed: &str) -> String {
-    let Some((_, rest)) = trimmed.split_once("->") else {
+    let Some((_, rest)) = trimmed.rsplit_once("->") else {
         return String::new();
     };
     rest.trim_start()
