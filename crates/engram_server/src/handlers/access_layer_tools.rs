@@ -3159,6 +3159,9 @@ impl Engram {
                     // .ascx.vb all have extension "vb"); it must get pre-edit
                     // risk diagnostics like every other first-class language.
                     "vb" => Some(engram_index::language_diagnostics::LanguageFamily::Vb),
+                    "ml" | "mlinc" => {
+                        Some(engram_index::language_diagnostics::LanguageFamily::MiniLang)
+                    }
                     _ => None,
                 };
 
