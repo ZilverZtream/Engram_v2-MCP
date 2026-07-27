@@ -209,21 +209,29 @@ explicit no-analogue finding.
 | `code_review_ingest_service.rs` | Language tag `minilang` |
 | `language_diagnostics/` | New `minilang.rs` + `LanguageFamily::MiniLang`, matching the existing `vb.rs` |
 
-**MiniLang diagnostics** (`language_diagnostics/minilang.rs`) covers three documented footguns,
-each a single-line regex match: non-`Detached` `Spawn` of a non-terminating fiber (hangs the
+**MiniLang diagnostics** (`language_diagnostics/minilang.rs`) covers six documented footguns.
+Three are single-line regex matches: non-`Detached` `Spawn` of a non-terminating fiber (hangs the
 root scope at exit); bare `Unsafe` granting more capability than the block uses; raw
 `Std.Memory.Alloc` with no matching `Free` and no enclosing `Using Arena` scope elsewhere in the
-file.
+file. Three more need type/function-level structure, which the module gets by reusing
+`ml_extractor::extract_ml` rather than re-deriving a second parser:
 
-**Not implemented — follow-up.** The design originally scoped three additional diagnostics; each
-needs real data-flow or enumeration reasoning that a line-level regex scanner cannot provide, so
-they were correctly dropped rather than shipped as unreliable approximations:
-
-| Diagnostic | Why regex is insufficient |
+| Diagnostic | How it works |
 |---|---|
-| Definite strong-`Ref` self-cycle (MLC6013) | Detecting a cycle requires tracing the reference graph across assignments and struct fields, not matching a single line |
-| `Send` on a closed channel | Whether a channel is closed at a given `Send` depends on flow-sensitive state across prior statements, not the line the `Send` appears on |
-| `Match` without `Case Else` over an open variant set | Requires knowing the full variant set of the matched type and confirming every arm is covered — type-aware enumeration, not text matching |
+| Definite strong-`Ref` self-cycle (MLC6013) | Builds a per-file struct-field graph from the extractor's `fields` metadata (`name:Type:strong`/`:weak`), then checks whether following only strong, non-nullable `Ref(Of …)` edges from a type ever leads back to itself — direct (`A -> A`) or transitive (`A -> B -> A`), generalizing the real compiler's own `WarnDefiniteStrongSelfCycle` check (`SemanticAnalyzer.Types.vb`), which only covers the direct case |
+| `Send` on a closed channel | Slices each function's own line range (from its extracted symbol) and walks it in order, tracking a `Close`d-channel set that is only trusted when neither the `Close` nor a later `Send` sits inside an `If`/`Match`/`Select`/`SelectChannel`/`While`/`For`/`Repeat` nesting level (no branch-exclusivity or loop-carried guessing); `Try` is deliberately transparent, since the real corpus's own canonical fixture puts the risky `Send` inside a `Try`/`Catch` specifically to catch the fault it causes |
+| `Match` without `Case Else`/`Default` over a union | Resolves a `Match`'s scrutinee only when it is a bare identifier bound by a `Dim`/`Var`/`Mut` local or a parameter of the enclosing function (never a call or field access — those are skipped, not guessed at), then compares the `Case` labels found directly inside the block (nested blocks excluded) against the union's full variant set from the extractor's `variants` metadata |
+
+All three are scoped to a SINGLE FILE — deliberately not merged across a multi-file `code_files`
+batch. A corpus-wide census taken while building this confirmed real MiniLang conformance-test
+files freely reuse short type names (`Node`, `Expr`, `Shape`, `Color`, …) with no shared
+namespace; per-file scoping (treating a same-file duplicate bare name as ambiguous and skipping
+it) eliminates that cross-file name-collision false-positive class entirely, at the cost of never
+catching a hypothetical cross-file cycle or cross-file union match — not observed anywhere in the
+real corpus. Validated against the real corpus (5,376 files): 6 `strong_ref_self_cycle`, 3
+`send_on_closed_channel`, 7 `match_missing_case_else` findings, every one hand-verified against
+its source file (see `crates/engram_index/tests/ml_diagnostics_real_corpus_test.rs` and
+`.superpowers/sdd/2026-07-26-minilang-language-support/diagnostics-report.md`).
 
 **No analogue required** — recorded so these are not later mistaken for gaps:
 
