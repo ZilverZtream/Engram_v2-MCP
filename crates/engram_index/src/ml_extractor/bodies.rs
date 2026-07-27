@@ -27,6 +27,15 @@ const CALL_STOPWORDS: &[&str] = &[
     "elseif",
     "while",
     "for",
+    // `Try Call X(...)` / `Try X(...)` (a single-line fallible-call
+    // statement, real corpus: `Std.Collections.Deque.ml:676`) now falls
+    // through to this statement scanner instead of opening a block (see
+    // `block_opener`'s `Try` handling in `mod.rs`) — the two real corpus
+    // shapes always have a space before the call target, so `Try` itself
+    // never abuts `(` and CALL_RE never matches it, but this stopword is
+    // added defensively for symmetry with every other control-flow
+    // keyword in this list.
+    "try",
     "return",
     "set",
     "say",

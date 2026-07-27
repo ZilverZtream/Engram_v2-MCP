@@ -52,6 +52,9 @@ pub(crate) const BLOCK_KEYWORDS: &[&str] = &[
     "For",
     // `Repeat N Times ... End Repeat` (45 corpus occurrences).
     "Repeat",
+    // Bare `Try` opens a `Try … [Catch|Finally] … End Try` block. `Try
+    // Call X(...)` / `Try X(...)` does NOT — see `block_opener`'s
+    // keyword-specific handling of `"Try"` in the matching loop below.
     "Try",
     "Match",
     "Select",
@@ -168,9 +171,33 @@ pub(crate) fn block_opener(trimmed: &str) -> Option<&'static str> {
         }
     }
     for kw in BLOCK_KEYWORDS {
-        // `Unsafe(RawPtr)` has no space before its capability list, so match
-        // the keyword followed by a space, an open paren, or end-of-line.
         if let Some(after) = rest.strip_prefix(*kw) {
+            // `Try` is the one keyword in this list with a genuine
+            // bare-vs-prefix duality: bare `Try` opens a `Try …
+            // [Catch|Finally] … End Try` block (1,147 corpus occurrences,
+            // essentially perfectly balanced against 1,146 `End Try`), but
+            // `Try Call X(...)` / `Try X(...)` (187 occurrences, e.g.
+            // `Std.Collections.Deque.ml:676`'s `Try Call Deque_SetRaw Of
+            // T(items.Handle, index, value)`) is a SEPARATE, single-line
+            // fallible-call statement with no body and no `End Try` of its
+            // own. Before this fix, `Try Call …` was wrongly treated as
+            // opening a block (matched via the `after.starts_with(' ')`
+            // arm below), pushing a frame nothing ever closed. Checked
+            // every other `BLOCK_KEYWORDS` entry against the corpus for
+            // the same duality (`If`/`While`/`Select` have a handful of
+            // bare occurrences, but only in deliberately-malformed
+            // negative/fuzz fixtures testing a missing condition, not a
+            // real second construct; `Unsafe`/`Using` always open) — `Try`
+            // is the only real case.
+            if *kw == "Try" {
+                if after.is_empty() {
+                    return Some(kw);
+                }
+                continue;
+            }
+            // `Unsafe(RawPtr)` has no space before its capability list, so
+            // match the keyword followed by a space, an open paren, or
+            // end-of-line.
             if after.is_empty() || after.starts_with(' ') || after.starts_with('(') {
                 return Some(kw);
             }
@@ -255,8 +282,13 @@ pub(crate) fn skip_as_member_row(top_kw: Option<&str>, trimmed: &str, keyword: &
 /// collide with a block keyword — e.g. `Label As Str`, `Function As
 /// SomeType` — signalled by the keyword being immediately followed by
 /// ` As `. `keyword` must be the exact keyword `block_opener` matched on
-/// this same line (this function replicates its Public/Private modifier
-/// stripping so the two stay aligned).
+/// this same line, so this function replicates the SUBSET of
+/// `block_opener`'s prefix-stripping that can actually appear before a
+/// field/member row: `Public`/`Private` access modifiers. It deliberately
+/// does NOT replicate `block_opener`'s `Parallel ` strip — that only ever
+/// precedes `For` inside a loop header, never a `Type`/`Enum`/`Interface`/
+/// `Union` member row, so there is nothing for it to stay aligned with
+/// there.
 ///
 /// False for a genuine declaration: `Function Cost(extra As Int) As Int`
 /// has `Function` immediately followed by ` Cost(`, not ` As ` — the
