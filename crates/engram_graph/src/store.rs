@@ -1413,6 +1413,24 @@ impl GraphStore {
             return Ok(ResolveResult::Unique(node));
         }
 
+        // A bare project-relative path is a legitimate identifier for a file
+        // node — callers pass one to ast_dependency_graph / trace_data_flow —
+        // but file nodes carry the BASENAME in `name` and the full path only
+        // in `node_id`/`file_path`, so step 2's exact-name match never fires
+        // for one. Resolve it against `file:{path}` here.
+        //
+        // Without this the input reached step 4, whose `split('.').next_back()`
+        // yields the EXTENSION for a path ("ml"), matching every file of that
+        // type: an exact, existing `.ml` path was reported as "ambiguous
+        // (44 matches)" against unrelated bench kernels.
+        let looks_like_path = input.contains('/') || input.contains('\\');
+        if looks_like_path {
+            let normalized = input.replace('\\', "/");
+            if let Some(node) = self.get_node(project_id, &format!("file:{normalized}"))? {
+                return Ok(ResolveResult::Unique(node));
+            }
+        }
+
         // Step 2: exact canonical name match (`Node.name`).
         if let Ok(nodes) = self.query_nodes(project_id, node_type, Some(input), None, 100) {
             let exact_name: Vec<Node> = nodes.into_iter().filter(|n| n.name == input).collect();
@@ -1454,9 +1472,17 @@ impl GraphStore {
             }
         }
 
-        // Step 4: short-name fallback.
+        // Step 4: short-name fallback, for DOTTED SYMBOL NAMES only
+        // (`Namespace.Class.Method` -> `Method`).
+        //
+        // Deliberately skipped for path-shaped input: there the terminal `.`
+        // segment is the file extension, so this would "resolve" every file
+        // sharing it. A caller who mistypes a path must get NotFound, not an
+        // ambiguity list of 40 unrelated same-extension files.
         let short = input.split('.').next_back().unwrap_or(input);
-        if let Ok(nodes) = self.query_nodes(project_id, node_type, Some(short), None, 50) {
+        if !looks_like_path
+            && let Ok(nodes) = self.query_nodes(project_id, node_type, Some(short), None, 50)
+        {
             let suffix = format!(".{short}");
             let exact_short: Vec<Node> = nodes
                 .into_iter()
@@ -2998,6 +3024,110 @@ mod tests {
             matched.iter().map(|n| &n.name).collect::<Vec<_>>()
         );
         assert_eq!(matched[0].name, "Worker");
+    }
+
+    /// Mirrors how ingest actually builds file nodes (see `dreamer.rs`):
+    /// `node_id` carries the full path, but `name` is the BASENAME. Using
+    /// the full path as `name` here would make the exact-path test pass at
+    /// step 2 and hide the very bug these tests exist for.
+    fn file_node(path: &str) -> Node {
+        let base = path.rsplit('/').next().unwrap_or(path);
+        let mut n = test_node(&format!("file:{path}"), "file", base, path);
+        n.language = "minilang".to_string();
+        n
+    }
+
+    /// Regression: `ast_dependency_graph(entry="tests/…/x.ml")` — an exact,
+    /// existing project-relative path — failed with "Symbol '…' is ambiguous
+    /// (44 matches)" listing entirely unrelated files (`bench/kernels/
+    /// collatz/kernel.ml`, …).
+    ///
+    /// Cause: a bare path matches no DIRECT_PREFIXES, so resolution fell to
+    /// the short-name fallback, whose `input.split('.').next_back()` yields
+    /// the EXTENSION for a path (`ml`). Every node whose name ends in `.ml`
+    /// then "matched". The fallback exists for dotted symbol names
+    /// (`Namespace.Class.Method` -> `Method`) and is meaningless for paths.
+    #[test]
+    fn file_path_input_resolves_to_the_file_node() {
+        let store = test_store();
+        let pid = "p1";
+        let mut nodes: Vec<Node> = (0..40)
+            .map(|i| file_node(&format!("bench/kernels/k{i:02}/kernel.ml")))
+            .collect();
+        nodes.push(file_node("tests/conformance/fibers/target.ml"));
+        store.upsert_nodes(pid, &nodes).expect("seed");
+
+        let got = store
+            .resolve_symbol(pid, "tests/conformance/fibers/target.ml", None, None)
+            .expect("resolve");
+        match got {
+            ResolveResult::Unique(n) => {
+                assert_eq!(n.node_id, "file:tests/conformance/fibers/target.ml")
+            }
+            ResolveResult::Ambiguous(v) => panic!(
+                "exact path must resolve uniquely, not to {} candidates: {:?}",
+                v.len(),
+                v.iter().map(|n| &n.node_id).collect::<Vec<_>>()
+            ),
+            ResolveResult::NotFound => panic!("exact path must resolve"),
+        }
+    }
+
+    /// A path that does NOT exist must be NotFound — never "ambiguous with
+    /// every file sharing its extension", which is what made the original
+    /// error message useless.
+    #[test]
+    fn missing_file_path_does_not_degrade_to_extension_matching() {
+        let store = test_store();
+        let pid = "p1";
+        let nodes: Vec<Node> = (0..40)
+            .map(|i| file_node(&format!("bench/kernels/k{i:02}/kernel.ml")))
+            .collect();
+        store.upsert_nodes(pid, &nodes).expect("seed");
+
+        let got = store
+            .resolve_symbol(pid, "no/such/file.ml", None, None)
+            .expect("resolve");
+        match got {
+            ResolveResult::NotFound => {}
+            ResolveResult::Unique(n) => panic!("must not resolve to {}", n.node_id),
+            ResolveResult::Ambiguous(v) => panic!(
+                "a missing path must be NotFound, not ambiguous across {} \
+                 same-extension files",
+                v.len()
+            ),
+        }
+    }
+
+    /// The dotted short-name fallback must still work — it is the reason
+    /// step 4 exists, and narrowing it to non-paths must not remove it.
+    #[test]
+    fn dotted_symbol_short_name_fallback_still_resolves() {
+        let store = test_store();
+        let pid = "p1";
+        let nodes = vec![
+            test_node(
+                "sym:function:m.ml:Orchestrator.Worker:12",
+                "function",
+                "Orchestrator.Worker",
+                "m.ml",
+            ),
+            test_node(
+                "sym:function:m.ml:Unrelated:30",
+                "function",
+                "Unrelated",
+                "m.ml",
+            ),
+        ];
+        store.upsert_nodes(pid, &nodes).expect("seed");
+
+        match store
+            .resolve_symbol(pid, "Some.Other.Worker", None, None)
+            .expect("resolve")
+        {
+            ResolveResult::Unique(n) => assert_eq!(n.name, "Orchestrator.Worker"),
+            other => panic!("dotted fallback must still resolve, got {other:?}"),
+        }
     }
 
     #[test]
