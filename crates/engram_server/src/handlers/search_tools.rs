@@ -523,27 +523,25 @@ impl Engram {
             EndpointLabels,
             bool,
         ) = tokio::task::spawn_blocking(move || {
+            // The match ladder (exact / `.`-suffix / `::`-suffix / node-id
+            // suffix) and the result cap now live TOGETHER in the store.
+            // They have to: this call previously asked for 50 *substring*
+            // matches and filtered them here, so the cap applied before the
+            // filter and 50 neighbours like `FuzzWorkerProtocol` could crowd
+            // out the exact `Worker` node — the tool answered "No graph
+            // symbol found" for a node `resolve_id` confirmed existed and
+            // told the agent to look up this very way.
+            //
+            // Do NOT reintroduce a post-hoc name filter here. A second copy
+            // of the rule is precisely how the ProjectType serde alias list
+            // drifted from `from_registry_str`.
             let nodes = graph_b
-                .query_nodes(&project_id_b, None, Some(&needle_b), None, 50)
+                .query_nodes_by_symbol_name(&project_id_b, &needle_b, file_scope_b.as_deref(), 50)
                 .unwrap_or_default();
 
-            let needle_lower = needle_b.to_lowercase();
             let mut results: Vec<NodeGraphResult> = Vec::new();
 
             for node in nodes {
-                // Multi-strategy name match: exact, FQN suffix, node-id suffix.
-                let name_lower = node.name.to_lowercase();
-                let name_matches = name_lower == needle_lower
-                    || name_lower.ends_with(&format!(".{}", needle_lower))
-                    || name_lower.ends_with(&format!("::{}", needle_lower))
-                    || node
-                        .node_id
-                        .to_lowercase()
-                        .ends_with(&format!(":{}", needle_lower));
-                if !name_matches {
-                    continue;
-                }
-
                 // File scope filter on the node itself.
                 let fp_str = node.file_path.as_str().to_string();
                 if let Some(ref scope) = file_scope_b

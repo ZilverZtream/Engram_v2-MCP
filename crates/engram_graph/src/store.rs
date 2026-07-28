@@ -1306,6 +1306,76 @@ impl GraphStore {
         Ok(out)
     }
 
+    /// Symbol-name lookup for the graph-reference tools.
+    ///
+    /// Unlike [`Self::query_nodes`], whose `name_pattern` is a SUBSTRING
+    /// filter, this applies the exact/suffix match rule DURING the scan, so
+    /// `limit` bounds the number of MATCHING nodes rather than the number of
+    /// candidates inspected.
+    ///
+    /// The distinction is not cosmetic. `find_symbol_references("Worker")`
+    /// reported "No graph symbol found" against a live 26k-function index
+    /// while `resolve_id` confirmed the node existed and recommended that
+    /// very call: 50 substring neighbours (`FuzzWorkerProtocol`, …) filled
+    /// the prefetch window before the scan reached the exact node, and the
+    /// caller's post-hoc filter then had nothing to keep. Raising the cap
+    /// only moves the threshold — the cap must apply after matching.
+    ///
+    /// Match ladder (identical to the one callers applied post-hoc): exact
+    /// name, `.`-qualified suffix, `::`-qualified suffix, or a `:`-suffixed
+    /// `node_id`. `file_scope_prefix`, when set, keeps only nodes whose file
+    /// path starts with it; empty paths are never filtered out.
+    pub fn query_nodes_by_symbol_name(
+        &self,
+        project_id: &str,
+        symbol_name: &str,
+        file_scope_prefix: Option<&str>,
+        limit: usize,
+    ) -> anyhow::Result<Vec<Node>> {
+        let mut out = Vec::new();
+        let needle = symbol_name.to_lowercase();
+        if needle.is_empty() || limit == 0 {
+            return Ok(out);
+        }
+        let dot_suffix = format!(".{needle}");
+        let colon_suffix = format!("::{needle}");
+        let id_suffix = format!(":{needle}");
+
+        let prefix = format!("{project_id}\0");
+        let rtx = self.db.begin_read()?;
+        let nt = rtx.open_table(NODES)?;
+
+        for r in nt.range(prefix.as_str()..)? {
+            let (k, v) = r?;
+            if !k.value().starts_with(&prefix) {
+                break;
+            }
+            let n: Node = bincode::deserialize(v.value())?;
+
+            let name_lower = n.name.to_lowercase();
+            let matches = name_lower == needle
+                || name_lower.ends_with(&dot_suffix)
+                || name_lower.ends_with(&colon_suffix)
+                || n.node_id.to_lowercase().ends_with(&id_suffix);
+            if !matches {
+                continue;
+            }
+
+            if let Some(scope) = file_scope_prefix {
+                let fp = n.file_path.as_str();
+                if !fp.is_empty() && !fp.starts_with(scope) {
+                    continue;
+                }
+            }
+
+            out.push(n);
+            if out.len() >= limit {
+                break;
+            }
+        }
+        Ok(out)
+    }
+
     /// Resolve a user-supplied symbol identifier to a node using a fallback ladder:
     /// 1) direct node_id lookup for known prefixed IDs
     /// 2) exact `Node.name` match
@@ -2802,6 +2872,132 @@ mod tests {
             generation: 1,
             metadata: None,
         }
+    }
+
+    /// Build `count` decoy nodes whose names CONTAIN `needle` without equalling
+    /// it, with node_ids that sort BEFORE `exact_node_id` so a range scan meets
+    /// them first — the real shape in MiniLangCompiler, where `Worker` is
+    /// preceded by `FuzzWorkerProtocol` and friends.
+    fn crowding_nodes(count: usize, needle: &str, exact_file: &str) -> Vec<Node> {
+        let mut nodes: Vec<Node> = (0..count)
+            .map(|i| {
+                test_node(
+                    &format!("sym:function:a{i:03}.vb:Fuzz{needle}Protocol{i}:1"),
+                    "function",
+                    &format!("Fuzz{needle}Protocol{i}"),
+                    &format!("a{i:03}.vb"),
+                )
+            })
+            .collect();
+        nodes.push(test_node(
+            &format!("sym:function:z{exact_file}:{needle}:6"),
+            "function",
+            needle,
+            exact_file,
+        ));
+        nodes
+    }
+
+    /// Regression: `find_symbol_references("Worker")` reported "No graph symbol
+    /// found" against a live index while `resolve_id` confirmed the node
+    /// existed AND recommended that exact call.
+    ///
+    /// Cause: the handler asked `query_nodes` for up to N *substring* matches
+    /// and then filtered them for exact/suffix equality. The cap applied
+    /// BEFORE the filter, so N nodes merely containing "worker" consumed the
+    /// whole window and the exact node was never returned. Raising N only
+    /// moves the threshold; the cap has to apply to MATCHING nodes.
+    #[test]
+    fn exact_symbol_name_survives_substring_crowding() {
+        let store = test_store();
+        let pid = "p1";
+        let nodes = crowding_nodes(60, "Worker", "z.ml");
+        store.upsert_nodes(pid, &nodes).expect("seed nodes");
+
+        // Old path: substring query capped at 50, then exact-filtered.
+        let prefetched = store
+            .query_nodes(pid, None, Some("Worker"), None, 50)
+            .expect("query_nodes");
+        let exact_after_cap = prefetched.iter().filter(|n| n.name == "Worker").count();
+
+        // New path: the cap applies after matching.
+        let matched = store
+            .query_nodes_by_symbol_name(pid, "Worker", None, 50)
+            .expect("query_nodes_by_symbol_name");
+
+        assert!(
+            matched.iter().any(|n| n.name == "Worker"),
+            "exact 'Worker' must be found regardless of how many substring \
+             neighbours precede it; got {:?}",
+            matched.iter().map(|n| &n.name).collect::<Vec<_>>()
+        );
+        assert_eq!(
+            exact_after_cap, 0,
+            "precondition: this fixture must actually crowd the old path out, \
+             otherwise the test proves nothing"
+        );
+    }
+
+    /// The suffix forms the handler accepts (`Ns.Worker`, `Ns::Worker`) must
+    /// resolve too — MiniLang qualifies module-level functions, so a bare
+    /// name has to reach a qualified node.
+    #[test]
+    fn symbol_name_lookup_matches_qualified_suffixes() {
+        let store = test_store();
+        let pid = "p1";
+        let nodes = vec![
+            test_node(
+                "sym:function:m.ml:Mod.Launch:6",
+                "function",
+                "Mod.Launch",
+                "m.ml",
+            ),
+            test_node(
+                "sym:function:n.vb:Ns::Launch:9",
+                "function",
+                "Ns::Launch",
+                "n.vb",
+            ),
+            test_node(
+                "sym:function:o.ml:Unrelated:1",
+                "function",
+                "Unrelated",
+                "o.ml",
+            ),
+        ];
+        store.upsert_nodes(pid, &nodes).expect("seed nodes");
+
+        let matched = store
+            .query_nodes_by_symbol_name(pid, "Launch", None, 50)
+            .expect("query");
+        let names: Vec<&str> = matched.iter().map(|n| n.name.as_str()).collect();
+        assert!(names.contains(&"Mod.Launch"), "dot-qualified: {names:?}");
+        assert!(names.contains(&"Ns::Launch"), "colon-qualified: {names:?}");
+        assert!(
+            !names.contains(&"Unrelated"),
+            "must not over-match: {names:?}"
+        );
+    }
+
+    /// A substring neighbour must NOT be returned — the old handler filter
+    /// rejected these, and pushing the filter down must not loosen it.
+    #[test]
+    fn symbol_name_lookup_rejects_mere_substring_neighbours() {
+        let store = test_store();
+        let pid = "p1";
+        let nodes = crowding_nodes(3, "Worker", "z.ml");
+        store.upsert_nodes(pid, &nodes).expect("seed nodes");
+
+        let matched = store
+            .query_nodes_by_symbol_name(pid, "Worker", None, 50)
+            .expect("query");
+        assert_eq!(
+            matched.len(),
+            1,
+            "only the exact node qualifies; got {:?}",
+            matched.iter().map(|n| &n.name).collect::<Vec<_>>()
+        );
+        assert_eq!(matched[0].name, "Worker");
     }
 
     #[test]
