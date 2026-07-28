@@ -173,7 +173,14 @@ pub enum ProjectType {
     /// MiniLang — native systems language compiled by MiniLangCompiler.
     /// Indexes `.ml`/`.mlinc` alongside the polyglot compiler sources and
     /// conformance-test goldens that share the repository.
-    #[serde(alias = "mini_lang", alias = "ml")]
+    ///
+    /// `minilang` (no underscore) is REQUIRED, not decorative: `rename_all =
+    /// "snake_case"` makes the canonical wire name `mini_lang`, but
+    /// `as_str()` below returns `"minilang"`. Without this alias the type
+    /// cannot round-trip its own output — a real `index_project` call was
+    /// rejected with "unknown variant `minilang`" on 2026-07-28. Same drift
+    /// the `CSharp` comment above records.
+    #[serde(alias = "mini_lang", alias = "minilang", alias = "ml")]
     MiniLang,
 }
 
@@ -3465,5 +3472,115 @@ mod unknown_field_request_tests {
             serde_json::from_str::<VectorSearchRequest>(bad).is_err(),
             "unknown field typo_key must be rejected"
         );
+    }
+}
+
+#[cfg(test)]
+mod project_type_round_trip_tests {
+    use super::ProjectType;
+
+    /// Every variant. Kept honest by `_exhaustiveness_guard` below: adding a
+    /// variant forces a new match arm there, which puts a maintainer in this
+    /// module with this list in view.
+    const ALL: &[ProjectType] = &[
+        ProjectType::DotnetWebformsCs,
+        ProjectType::DotnetWebformsVb,
+        ProjectType::General,
+        ProjectType::Rust,
+        ProjectType::CSharp,
+        ProjectType::Cpp,
+        ProjectType::C,
+        ProjectType::MiniLang,
+    ];
+
+    fn _exhaustiveness_guard(pt: ProjectType) {
+        match pt {
+            ProjectType::DotnetWebformsCs
+            | ProjectType::DotnetWebformsVb
+            | ProjectType::General
+            | ProjectType::Rust
+            | ProjectType::CSharp
+            | ProjectType::Cpp
+            | ProjectType::C
+            | ProjectType::MiniLang => {}
+        }
+    }
+
+    /// `as_str()` is what this type reports itself as; serde is what it
+    /// accepts. When those drift, a caller that reads a project type back and
+    /// feeds it to `index_project` gets "unknown variant" for a name the type
+    /// itself produced.
+    ///
+    /// This is not hypothetical. `rename_all = "snake_case"` makes the
+    /// canonical wire name `mini_lang`, but `MiniLang::as_str()` returns
+    /// `minilang`, and no alias covered it — a real `index_project` call was
+    /// rejected on 2026-07-28 with:
+    ///
+    /// ```text
+    /// unknown variant `minilang`, expected one of ... `mini_lang`, `ml`
+    /// ```
+    ///
+    /// The `CSharp` variant carries a comment recording the SAME drift
+    /// (`from_registry_str` accepted `csharp` while the serde list did not),
+    /// so this had already happened once before it happened to MiniLang.
+    /// Pinned for every variant rather than just the two known offenders.
+    #[test]
+    fn as_str_deserializes_back_to_the_same_variant() {
+        for pt in ALL {
+            let s = pt.as_str();
+            let json = format!("\"{s}\"");
+            let back: ProjectType = serde_json::from_str(&json).unwrap_or_else(|e| {
+                panic!(
+                    "ProjectType::{pt:?}.as_str() == {s:?}, but serde REJECTS that \
+                     string: {e}\nThe type cannot round-trip its own output. Add \
+                     `#[serde(alias = {s:?})]` to the variant."
+                )
+            });
+            assert_eq!(
+                back, *pt,
+                "{s:?} deserialized to {back:?}, not {pt:?} — two variants claim \
+                 the same wire name"
+            );
+        }
+    }
+
+    /// The registry path must accept `as_str()` output too: registry records
+    /// persist exactly that string, so a mismatch makes stored projects
+    /// unopenable.
+    #[test]
+    fn as_str_parses_back_through_from_registry_str() {
+        for pt in ALL {
+            let s = pt.as_str();
+            assert_eq!(
+                ProjectType::from_registry_str(s),
+                Some(*pt),
+                "from_registry_str({s:?}) failed to return {pt:?}; a persisted \
+                 registry record written from as_str() would not load"
+            );
+        }
+    }
+
+    /// The serialized form must also be accepted back. `Serialize` emits the
+    /// `rename_all` name (`mini_lang`), which is a DIFFERENT string from
+    /// `as_str()` (`minilang`) — both must work, and this pins the second one.
+    #[test]
+    fn serialized_form_deserializes_back_to_the_same_variant() {
+        for pt in ALL {
+            let json = serde_json::to_string(pt).expect("ProjectType serializes");
+            let back: ProjectType = serde_json::from_str(&json)
+                .unwrap_or_else(|e| panic!("{pt:?} serialized to {json} but will not parse: {e}"));
+            assert_eq!(back, *pt);
+        }
+    }
+
+    /// The exact string that failed in production.
+    #[test]
+    fn index_project_accepts_the_minilang_spelling_that_was_rejected() {
+        for spelling in ["minilang", "mini_lang", "ml"] {
+            let json = format!("\"{spelling}\"");
+            let parsed: ProjectType = serde_json::from_str(&json)
+                .unwrap_or_else(|e| panic!("project_type {spelling:?} must parse: {e}"));
+            assert_eq!(parsed, ProjectType::MiniLang);
+        }
     }
 }
