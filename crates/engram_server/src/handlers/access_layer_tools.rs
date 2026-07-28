@@ -351,6 +351,33 @@ pub struct DeadMethodInfo {
 /// a disambiguation list. `query_nodes` matches case-insensitive substrings,
 /// so "Page_Load" hits every page's handler - silently taking the first
 /// match is how agents read or edit the wrong method.
+/// Should a language diagnostic reported at `line` appear in the
+/// implementation context for the method spanning
+/// `[method_start, method_end]`?
+///
+/// `claimable` is every method/function range in the same file.
+///
+/// Method-range filtering alone silently drops DECLARATION-level findings.
+/// MiniLang's MLC6013 strong-`Ref` cycle is reported on the `Type` line,
+/// which lies outside every function range, so it was computed on every
+/// call and could never reach an agent — a diagnostic that exists only in
+/// a corpus census is not a feature.
+///
+/// A finding is kept when it is inside THIS method, or when no method in
+/// the file can claim it. A finding inside a DIFFERENT method is still
+/// excluded, so this rescues declaration-level context without widening
+/// the filter into noise.
+pub(crate) fn diagnostic_belongs_to_context(
+    line: u32,
+    method_start: u32,
+    method_end: u32,
+    claimable: &[(u32, u32)],
+) -> bool {
+    let in_this_method = line >= method_start && line <= method_end;
+    let claimed_elsewhere = claimable.iter().any(|(s, e)| line >= *s && line <= *e);
+    in_this_method || !claimed_elsewhere
+}
+
 fn resolve_unique_function(
     graph: &engram_graph::GraphStore,
     project_id: &str,
@@ -3174,6 +3201,31 @@ impl Engram {
                             engram_index::language_diagnostics::detect_language_diagnostics(
                                 family, &files,
                             );
+                        // Method-range filtering alone silently drops any
+                        // DECLARATION-level finding: MiniLang's MLC6013
+                        // strong-`Ref` cycle is reported on the `Type` line,
+                        // which lies outside every function range, so the
+                        // diagnostic was computed on every call and could
+                        // never be seen by an agent.
+                        //
+                        // Keep a finding when it belongs to THIS method, or
+                        // when no method in the file can claim it. A leaking
+                        // type declared in the file being edited is exactly
+                        // the context the caller needs; a finding inside a
+                        // DIFFERENT method still stays out.
+                        let claimable: Vec<(u32, u32)> = graph
+                            .query_nodes(&project_id, None, None, Some(&file_path), 5000)
+                            .unwrap_or_default()
+                            .into_iter()
+                            .filter(|n| {
+                                n.file_path.as_str() == file_path
+                                    && matches!(n.node_type.as_str(), "function" | "method")
+                                    && n.start_line > 0
+                                    && n.end_line >= n.start_line
+                            })
+                            .map(|n| (n.start_line, n.end_line))
+                            .collect();
+
                         report
                             .diagnostics
                             .into_iter()
@@ -3182,8 +3234,14 @@ impl Engram {
                                     .rsplit(':')
                                     .next()
                                     .and_then(|s| s.parse::<u32>().ok())
-                                    .map(|line| line >= node.start_line && line <= node.end_line)
-                                    .unwrap_or(false)
+                                    .is_some_and(|line| {
+                                        diagnostic_belongs_to_context(
+                                            line,
+                                            node.start_line,
+                                            node.end_line,
+                                            &claimable,
+                                        )
+                                    })
                             })
                             .map(|d| LanguageDiagnosticSummary {
                                 location: d.location,
@@ -4421,5 +4479,53 @@ mod resolve_unique_function_tests {
         let (_t, g) = store();
         let err = resolve_unique_function(&g, "p", "Ghost").unwrap_err();
         assert!(err.contains("No method found"));
+    }
+}
+
+#[cfg(test)]
+mod diagnostic_scope_tests {
+    use super::diagnostic_belongs_to_context;
+
+    /// Real shape from tests/negative/diagnostics/mlc6013_definite_ref_cycle.ml:
+    /// the strong-Ref cycle is reported on the `Type` line (1), while the
+    /// file's only callable is the synthetic module entry at 5..=5.
+    #[test]
+    fn type_declaration_finding_reaches_every_method_in_the_file() {
+        let claimable = [(5u32, 5u32)];
+        assert!(
+            diagnostic_belongs_to_context(1, 5, 5, &claimable),
+            "MLC6013 on the Type line must not be dropped — no method can \
+             ever claim it, so a method-range filter hides it forever"
+        );
+    }
+
+    #[test]
+    fn finding_inside_this_method_is_kept() {
+        let claimable = [(10u32, 20u32), (30u32, 40u32)];
+        assert!(diagnostic_belongs_to_context(15, 10, 20, &claimable));
+    }
+
+    /// The rescue must not turn into "show everything": a finding that
+    /// belongs to a DIFFERENT method stays out.
+    #[test]
+    fn finding_inside_another_method_is_excluded() {
+        let claimable = [(10u32, 20u32), (30u32, 40u32)];
+        assert!(
+            !diagnostic_belongs_to_context(35, 10, 20, &claimable),
+            "a finding owned by another method must not leak into this context"
+        );
+    }
+
+    #[test]
+    fn finding_between_methods_is_kept_as_file_level_context() {
+        let claimable = [(10u32, 20u32), (30u32, 40u32)];
+        assert!(diagnostic_belongs_to_context(25, 10, 20, &claimable));
+    }
+
+    /// With no method ranges known, nothing can be claimed, so a
+    /// declaration-level finding must still surface rather than vanish.
+    #[test]
+    fn empty_claimable_keeps_the_finding() {
+        assert!(diagnostic_belongs_to_context(1, 5, 5, &[]));
     }
 }
