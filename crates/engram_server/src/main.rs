@@ -75,8 +75,19 @@ async fn main() -> anyhow::Result<()> {
     apply_multi_client_overrides(&mut cfg);
 
     match role {
-        ProcessRole::DaemonLauncher => return multi_client::run_daemon_launcher(),
-        ProcessRole::Daemon => return multi_client::run_daemon(cfg).await,
+        ProcessRole::DaemonLauncher => {
+            return multi_client::run_daemon_launcher()
+                .inspect_err(multi_client::log_fatal_daemon_error);
+        }
+        // The daemon is detached with a null stderr, so returning this Err
+        // would print the cause into a discarded handle. Trace it first so
+        // the failure reaches `log_file` — otherwise a daemon that dies
+        // before binding its IPC endpoint is completely silent.
+        ProcessRole::Daemon => {
+            return multi_client::run_daemon(cfg)
+                .await
+                .inspect_err(multi_client::log_fatal_daemon_error);
+        }
         ProcessRole::Client => {}
     }
 

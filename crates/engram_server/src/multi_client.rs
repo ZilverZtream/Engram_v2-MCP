@@ -556,6 +556,24 @@ pub fn run_daemon_launcher() -> anyhow::Result<()> {
 /// otherwise exit quietly (another daemon won a startup race). Serves IPC
 /// sessions only — no stdio session — and exits after
 /// `multi_client_idle_timeout_secs` with zero connected clients.
+/// Trace a fatal daemon-startup failure so it survives the detached
+/// process's null stderr.
+///
+/// The daemon is spawned with `stderr = Stdio::null()`, so an `Err` returned
+/// from `main` is formatted to a discarded handle. Without this, a daemon
+/// that dies before binding its IPC endpoint leaves no trace at all: the log
+/// shows "daemon starting" and nothing more, while every client blocks until
+/// `multi_client_connect_timeout_secs` expires. Tracing the error routes it
+/// to the configured `log_file`, which is the only sink a detached daemon has.
+pub fn log_fatal_daemon_error(err: &anyhow::Error) {
+    tracing::error!(
+        error = %format!("{err:#}"),
+        "engram_server: daemon failed to start — no IPC endpoint was created, \
+         so every client will block until multi_client_connect_timeout_secs \
+         expires. Fix the cause above and restart your MCP client."
+    );
+}
+
 pub async fn run_daemon(cfg: Config) -> anyhow::Result<()> {
     let data_dir = cfg.data_dir.clone();
     std::fs::create_dir_all(&data_dir)?;
@@ -1487,5 +1505,57 @@ mod tests {
         let p = derive_socket_path(&long_dir);
         assert!(p.starts_with("/tmp/"), "expected /tmp fallback, got {p:?}");
         assert!(p.to_string_lossy().contains("engram-"));
+    }
+
+    // ── fatal daemon-startup error visibility ─────────────────────────────
+
+    /// A detached daemon runs with `stderr = Stdio::null()`, so an `Err`
+    /// bubbling out of `main` is written to a discarded handle and the
+    /// operator sees only a client that blocks until its connect timeout.
+    /// The failure must be traced instead, so it lands in `log_file`.
+    #[test]
+    fn fatal_daemon_error_is_traced_not_swallowed() {
+        use std::io;
+        use std::sync::{Arc, Mutex};
+
+        #[derive(Clone)]
+        struct Buf(Arc<Mutex<Vec<u8>>>);
+        impl io::Write for Buf {
+            fn write(&mut self, b: &[u8]) -> io::Result<usize> {
+                self.0.lock().expect("lock").extend_from_slice(b);
+                Ok(b.len())
+            }
+            fn flush(&mut self) -> io::Result<()> {
+                Ok(())
+            }
+        }
+        impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for Buf {
+            type Writer = Self;
+            fn make_writer(&'a self) -> Self::Writer {
+                self.clone()
+            }
+        }
+
+        let sink = Arc::new(Mutex::new(Vec::new()));
+        let sub = tracing_subscriber::fmt()
+            .with_writer(Buf(sink.clone()))
+            .with_ansi(false)
+            .finish();
+
+        tracing::subscriber::with_default(sub, || {
+            let err =
+                anyhow::anyhow!("config error: cannot canonicalize allowed root \"F:\\\\OciusX\"");
+            log_fatal_daemon_error(&err);
+        });
+
+        let out = String::from_utf8(sink.lock().expect("lock").clone()).expect("utf8");
+        assert!(
+            out.contains("cannot canonicalize allowed root"),
+            "the underlying cause must appear in the log, got: {out}"
+        );
+        assert!(
+            out.contains("ERROR"),
+            "must be logged at ERROR level, got: {out}"
+        );
     }
 }

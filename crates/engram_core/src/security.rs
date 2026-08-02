@@ -12,11 +12,38 @@ impl PathContext {
             return Err(EngramError::Config("allowed_roots cannot be empty".into()));
         }
         let mut roots = Vec::with_capacity(allowed_roots.len());
+        let mut skipped: Vec<String> = Vec::new();
         for r in allowed_roots {
-            let canon = std::fs::canonicalize(&r).map_err(|e| {
-                EngramError::Config(format!("cannot canonicalize allowed root {r:?}: {e}"))
-            })?;
-            roots.push(Self::strip_unc_prefix(&canon));
+            // A root that cannot be canonicalized right now (removed external
+            // drive, unmounted network share, BitLocker-locked volume) must not
+            // take the whole server down — it would make an unrelated, still
+            // reachable project unusable. Drop it and carry on.
+            //
+            // This is fail-closed: `resolve_path` only accepts paths under a
+            // surviving root, so a skipped root denies access to everything
+            // beneath it rather than widening the sandbox.
+            match std::fs::canonicalize(&r) {
+                Ok(canon) => roots.push(Self::strip_unc_prefix(&canon)),
+                Err(e) => {
+                    tracing::warn!(
+                        root = %r.display(),
+                        error = %e,
+                        "allowed root is unreachable — skipping it. Paths under this \
+                         root will be denied until it is available again and the \
+                         server is restarted."
+                    );
+                    skipped.push(format!("{} ({e})", r.display()));
+                }
+            }
+        }
+        if roots.is_empty() {
+            // Nothing survived: there is no usable sandbox, so this stays a
+            // hard config error rather than a silently empty allow-list.
+            return Err(EngramError::Config(format!(
+                "no usable allowed root remains — every configured allowed root \
+                 is unreachable: {}",
+                skipped.join("; ")
+            )));
         }
         Ok(Self {
             allowed_roots: roots,
@@ -967,6 +994,62 @@ mod tests {
         assert!(
             source.contains("TOCTOU"),
             "security.rs fallback must document the residual TOCTOU window (P1-0002)"
+        );
+    }
+
+    // ── PathContext::new: unreachable allowed roots ───────────────────────
+
+    /// A root that cannot be canonicalized (removed drive, unmounted share,
+    /// BitLocker-locked volume) must not take the whole server down. The
+    /// reachable roots stay usable; the unreachable one is dropped.
+    #[test]
+    fn path_context_skips_unreachable_root_and_keeps_reachable_ones() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let good = tmp.path().to_path_buf();
+        let missing = tmp.path().join("no-such-volume-root");
+
+        let ctx = PathContext::new(vec![missing.clone(), good.clone()])
+            .expect("an unreachable root must be skipped, not fatal");
+
+        // The reachable root still resolves.
+        let inside = good.join("file.txt");
+        assert!(
+            ctx.resolve_path(&inside).is_ok(),
+            "paths under a reachable root must still resolve"
+        );
+    }
+
+    /// Fail-closed: dropping an unreachable root must not widen the sandbox.
+    /// Paths under the skipped root are denied, not silently allowed.
+    #[test]
+    fn path_context_denies_paths_under_a_skipped_root() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let good = tmp.path().join("good");
+        std::fs::create_dir_all(&good).expect("mkdir good");
+        // Exists so it can be canonicalized by resolve_path, but is NOT a root.
+        let other = tmp.path().join("other");
+        std::fs::create_dir_all(&other).expect("mkdir other");
+
+        let ctx = PathContext::new(vec![tmp.path().join("gone"), good.clone()])
+            .expect("unreachable root skipped");
+
+        assert!(
+            ctx.resolve_path(other.join("secret.txt")).is_err(),
+            "a skipped root must not grant access to paths outside surviving roots"
+        );
+    }
+
+    /// If every configured root is unreachable there is no usable sandbox —
+    /// that is still a hard config error rather than an empty allow-list.
+    #[test]
+    fn path_context_errors_when_every_root_is_unreachable() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let err = PathContext::new(vec![tmp.path().join("gone-a"), tmp.path().join("gone-b")])
+            .expect_err("all-unreachable roots must be a config error");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("allowed root"),
+            "error should name the allowed-root problem, got: {msg}"
         );
     }
 }
