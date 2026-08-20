@@ -16,6 +16,39 @@ use crate::models::requests::GrepProjectRequest;
 use crate::services::project_service::ensure_project_record;
 use crate::tools::Engram;
 
+/// Read every indexed file's recorded (size, mtime) from the code graph.
+///
+/// ingest writes these onto file nodes as
+/// `{"mtime": <unix secs>, "size": <bytes>, "file_hash": <blake3>}`; the
+/// incremental change scan reads the same three keys to decide what to
+/// re-index. Anchoring the freshness guard here means "stale" and "an
+/// update would pick this up" are the same statement by construction.
+///
+/// A node with no fingerprint metadata yields (0, 0), which
+/// `check_freshness` skips rather than reporting as drift.
+fn indexed_file_stats(
+    graph: &engram_graph::GraphStore,
+    project_id: &str,
+) -> anyhow::Result<Vec<engram_index::grep::IndexedFileStat>> {
+    Ok(graph
+        .list_file_node_metadata(project_id)?
+        .into_iter()
+        .map(|(rel_path, meta)| {
+            let get = |key: &str| {
+                meta.as_ref()
+                    .and_then(|m| m.get(key))
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0)
+            };
+            engram_index::grep::IndexedFileStat {
+                rel_path: rel_path.as_str().to_string(),
+                size: get("size"),
+                mtime_secs: get("mtime"),
+            }
+        })
+        .collect())
+}
+
 impl Engram {
     pub async fn handle_grep_project(
         &self,
@@ -71,13 +104,16 @@ impl Engram {
             ));
         }
 
-        // Take the SHARED DocStore handle. Opening one per request used to
-        // look harmless ("redb handles its own concurrency"), but redb's
-        // MVCC applies WITHIN a handle — the handle itself holds an
-        // exclusive whole-file lock. Two greps in the same millisecond
-        // therefore raced and all but one failed with
-        // "Database already open. Cannot acquire lock." (live 2026-08-20).
-        let state = self.state.clone();
+        // Indexed file stats for the freshness guard come from the code
+        // graph's file nodes — the same (mtime, size, file_hash) the
+        // incremental change scan trusts to decide what to re-index. The
+        // guard used to read a separate document store that nothing has ever
+        // written to, so it compared against an empty set and could never
+        // report a stale file, while defaulting to "strict".
+        //
+        // grep_project no longer opens a redb database at all, which also
+        // retires the file-lock contention that made concurrent greps fail.
+        let graph = self.state.graph.clone();
         let project_id = req.project_id.clone();
         let namespace = req.namespace.clone();
         let pattern = req.pattern.clone();
@@ -91,9 +127,8 @@ impl Engram {
         let max_results = req.max_results;
         let engine = ps.search.clone();
 
-        let docstore_pid = project_id.clone();
+        let fingerprint_pid = project_id.clone();
         let result = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
-            let docstore = state.docstore_blocking(&docstore_pid)?;
             let gq = engram_index::grep::GrepQuery {
                 project_id,
                 namespace,
@@ -109,7 +144,9 @@ impl Engram {
                 max_results,
                 freshness,
             };
-            engram_index::grep::grep(&engine, &docstore, &project_dir, &gq)
+            engram_index::grep::grep(&engine, &project_dir, &gq, || {
+                indexed_file_stats(&graph, &fingerprint_pid)
+            })
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
@@ -152,7 +189,19 @@ fn render_markdown(r: &engram_index::grep::GrepResult, pattern: &str, regex: boo
         r.elapsed_ms,
     );
     if let Some(ref w) = r.index_stale_warning {
-        let _ = writeln!(out, "> ⚠️ {w}\n");
+        let _ = writeln!(out, "> ⚠️ {w}");
+        // Name the drifted files. A count alone is not actionable — the
+        // caller cannot tell whether the stale file is one their results
+        // depend on. JSON callers already got `stale_paths`; markdown
+        // callers were told only how many.
+        const SHOWN: usize = 10;
+        for p in r.stale_paths.iter().take(SHOWN) {
+            let _ = writeln!(out, "> - `{p}`");
+        }
+        if r.stale_paths.len() > SHOWN {
+            let _ = writeln!(out, "> - …and {} more", r.stale_paths.len() - SHOWN);
+        }
+        out.push('\n');
     }
     if r.matches.is_empty() {
         out.push_str("_No matches._\n");

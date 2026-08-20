@@ -1,5 +1,5 @@
 #![allow(clippy::unwrap_used)]
-//! Concurrent readers must not fight over a project's DocStore file lock.
+//! Nothing in the request path may open a redb database per call.
 //!
 //! Live incident 2026-08-20: three `grep_project` calls that arrived in the
 //! same millisecond all failed with
@@ -8,14 +8,18 @@
 //! Root cause: the handler opened its own `DocStore` per request. redb takes
 //! an EXCLUSIVE whole-file lock (`LockFile` on Windows, `flock` on unix) for
 //! the lifetime of a `Database` handle — its MVCC guarantees are per-handle,
-//! not per-file. So a *read-only* tool could not run concurrently with itself,
-//! nor with any other component that had the same file open.
+//! not per-file. So a *read-only* tool could not run concurrently with
+//! itself.
 //!
-//! The fix is one shared handle per project, cached on `AppState`.
+//! The store it was reading turned out to be one nothing ever writes, so the
+//! resolution was to stop opening it at all: freshness now reads the code
+//! graph's file-node fingerprints, and the full-scan tier reads Tantivy's
+//! stored chunk text. These tests pin both halves — the redb constraint that
+//! caused the failure, and the absence of any per-request open.
 
 use engram_core::Config;
 use engram_index::DocStore;
-use engram_server::state::AppState;
+use engram_server::AppState;
 
 fn make_cfg(data_dir: &std::path::Path) -> Config {
     Config {
@@ -26,12 +30,11 @@ fn make_cfg(data_dir: &std::path::Path) -> Config {
     }
 }
 
-/// Characterisation of the underlying redb behaviour that caused the
-/// incident. This is the mechanism the production fix must avoid — if redb
-/// ever starts allowing multiple handles, this test tells us the constraint
-/// is gone.
+/// Characterisation of the redb behaviour behind the incident. If redb ever
+/// starts allowing multiple handles, this test tells us the constraint is
+/// gone — until then, no code path may open one of these per request.
 #[test]
-fn two_handles_on_one_docstore_file_cannot_coexist() {
+fn two_handles_on_one_redb_file_cannot_coexist() {
     let tmp = tempfile::TempDir::new().unwrap();
     let path = tmp.path().join("docs.redb");
 
@@ -41,7 +44,7 @@ fn two_handles_on_one_docstore_file_cannot_coexist() {
     assert!(
         second.is_err(),
         "redb is expected to refuse a second handle on the same file — \
-         a per-request DocStore::open therefore cannot be concurrency-safe"
+         a per-request open therefore cannot be concurrency-safe"
     );
     let msg = format!("{}", second.err().unwrap());
     assert!(
@@ -52,63 +55,32 @@ fn two_handles_on_one_docstore_file_cannot_coexist() {
     drop(first);
 }
 
-/// The production accessor must serve every concurrent caller from ONE
-/// handle. Twelve threads racing on a cold cache reproduce the incident's
-/// shape (several requests landing in the same millisecond).
+/// The per-project `docs.redb` must not be created or locked as a side
+/// effect of serving requests — that is what put a request-path file lock
+/// there in the first place.
 #[test]
-fn concurrent_docstore_callers_all_succeed_and_share_one_handle() {
+fn serving_a_project_does_not_open_a_per_project_redb() {
     let tmp = tempfile::TempDir::new().unwrap();
     let data_dir = tmp.path().join("data");
     std::fs::create_dir_all(&data_dir).unwrap();
     let (state, _rx) = AppState::new(make_cfg(&data_dir)).unwrap();
 
     let pid = "11111111-2222-3333-4444-555555555555";
-
-    type OpenResult = Result<std::sync::Arc<DocStore>, String>;
-    let results: Vec<OpenResult> = std::thread::scope(|s| {
-        let handles: Vec<_> = (0..12)
-            .map(|_| {
-                let state = state.clone();
-                s.spawn(move || state.docstore_blocking(pid).map_err(|e| e.to_string()))
-            })
-            .collect();
-        handles.into_iter().map(|h| h.join().unwrap()).collect()
-    });
-
-    let failures: Vec<&String> = results.iter().filter_map(|r| r.as_ref().err()).collect();
-    assert!(
-        failures.is_empty(),
-        "every concurrent caller must get a handle; failures: {failures:?}"
-    );
-
-    let stores: Vec<_> = results.into_iter().map(|r| r.unwrap()).collect();
-    for other in &stores[1..] {
-        assert!(
-            std::sync::Arc::ptr_eq(&stores[0], other),
-            "all callers must share ONE handle, not open their own"
-        );
-    }
-}
-
-/// Deleting a project removes its data directory. On Windows an open redb
-/// handle keeps the file locked, so the cache must be evictable — otherwise
-/// caching the handle would trade a read failure for an undeletable project.
-#[test]
-fn closing_a_project_docstore_releases_the_file_lock() {
-    let tmp = tempfile::TempDir::new().unwrap();
-    let data_dir = tmp.path().join("data");
-    std::fs::create_dir_all(&data_dir).unwrap();
-    let (state, _rx) = AppState::new(make_cfg(&data_dir)).unwrap();
-
-    let pid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
-    let store = state.docstore_blocking(pid).expect("open");
-    drop(store);
-
-    state.close_docstore(pid);
-
     let path = data_dir.join("projects").join(pid).join("docs.redb");
+    assert!(!path.exists(), "precondition: nothing there yet");
+
+    drop(state);
+
     assert!(
-        DocStore::open(&path).is_ok(),
-        "after close_docstore the file lock must be released"
+        !path.exists(),
+        "a per-project redb appeared without anyone asking for it"
     );
+
+    // An explicit open still works, and releases its lock on drop — so the
+    // file stays deletable. Windows refuses to unlink a locked file, which
+    // is why a cached handle would have to be evicted before delete_project.
+    {
+        let _store = DocStore::open(&path).expect("explicit open still works");
+    }
+    std::fs::remove_file(&path).expect("the file must be deletable once the handle is dropped");
 }
