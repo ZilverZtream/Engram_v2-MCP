@@ -30,13 +30,22 @@ pub enum EngramError {
 
 impl From<EngramError> for McpError {
     fn from(e: EngramError) -> Self {
+        // The match picks the JSON-RPC CODE; the message always comes from
+        // the variant's own Display.
+        //
+        // Destructuring to get the message is how `ProjectNotFound` came to
+        // report a bare project_id: it carries the id, not a sentence, and
+        // its `#[error(...)]` attribute is what turns that into "Unknown
+        // project_id: '<id>'. Call list_projects …". Passing the inner
+        // String threw the guidance away — 24 times in the daemon log —
+        // and the same shape silently duplicated TooManyJobs's text here,
+        // where it had already drifted from the attribute above.
+        let message = e.to_string();
         match e {
-            EngramError::ProjectNotFound(msg) => McpError::invalid_params(msg, None),
-            EngramError::InvalidParams(msg) => McpError::invalid_params(msg, None),
-            EngramError::TooManyJobs(limit) => {
-                McpError::internal_error(format!("Too many concurrent jobs (limit: {limit})"), None)
+            EngramError::ProjectNotFound(_) | EngramError::InvalidParams(_) => {
+                McpError::invalid_params(message, None)
             }
-            other => McpError::internal_error(other.to_string(), None),
+            _ => McpError::internal_error(message, None),
         }
     }
 }
