@@ -39,7 +39,7 @@ while (Console.In.ReadLine() is { } line)
     {
         try
         {
-            emitter.BeginProject(request.ProjectRoot ?? string.Empty);
+            emitter.BeginProject(request.ProjectRoot ?? string.Empty, request.Files);
             Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse(), AppJsonContext.Default.SidecarResponse));
         }
         catch (Exception ex)
@@ -109,6 +109,13 @@ internal sealed class SidecarRequest
     /// <summary>Absolute paths for the `invalidate` command.</summary>
     [JsonPropertyName("paths")]
     public List<string>? Paths { get; set; }
+
+    /// <summary>
+    /// The exact files `begin_project` should parse, from the indexer.
+    /// Omitted by older callers, which fall back to a directory walk.
+    /// </summary>
+    [JsonPropertyName("files")]
+    public List<string>? Files { get; set; }
 }
 
 internal sealed class SidecarResponse

@@ -42,6 +42,11 @@ internal sealed class AstEmitter
         {
             ".git", ".hg", ".svn", ".vs", ".vscode", ".idea",
             "bin", "obj", "packages", "node_modules", "TestResults",
+            // Scratch trees. `.tmp` is not hypothetical: MiniLangCompiler
+            // keeps 56,432 generated .vb files there against 917 real
+            // sources in src/, and parsing them all is what made this
+            // sidecar time out and crash.
+            ".tmp", ".claude", "artifacts",
         };
 
     private static IEnumerable<string> EnumerateProjectVbFiles(string root)
@@ -92,7 +97,16 @@ internal sealed class AstEmitter
     /// NOT on every incremental update; use <see cref="InvalidateFiles"/>
     /// for that.
     /// </summary>
-    public void BeginProject(string projectRoot)
+    /// <param name="files">
+    /// The exact files to parse, as supplied by the indexer. When null or
+    /// empty the sidecar falls back to walking <paramref name="projectRoot"/>.
+    ///
+    /// The walk is NOT equivalent to the list: the indexer applies ignore
+    /// rules and extension presets that a bare directory walk knows nothing
+    /// about. Preferring the list keeps the compilation to exactly what is
+    /// being indexed.
+    /// </param>
+    public void BeginProject(string projectRoot, IReadOnlyList<string>? files = null)
     {
         _treesByPath.Clear();
         _projectRoot = null;
@@ -103,8 +117,12 @@ internal sealed class AstEmitter
             return;
         }
 
+        IEnumerable<string> sources = files is { Count: > 0 }
+            ? files
+            : EnumerateProjectVbFiles(projectRoot);
+
         var trees = new List<SyntaxTree>();
-        foreach (var vbPath in EnumerateProjectVbFiles(projectRoot))
+        foreach (var vbPath in sources)
         {
             try
             {
