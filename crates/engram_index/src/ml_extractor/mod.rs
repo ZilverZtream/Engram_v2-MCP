@@ -24,6 +24,53 @@ use std::path::Path;
 /// construct the compiler itself rejects). Control-flow blocks (`If`,
 /// `While`, `Try`, …) emit no symbols but MUST be tracked, otherwise their
 /// `End` lines would close the enclosing function early.
+/// Modifiers that may precede a declaration keyword.
+///
+/// Corpus census (MiniLangCompiler, every `.ml`/`.mlinc`, counting the token
+/// immediately before `Function`/`Sub`/`Type`/`Union`/`Enum`/`Interface`):
+/// `Public` 182, `Internal` 117, `Unique` 95, `Private` 12.
+///
+/// Only `Public` and `Private` were listed. `Internal` and `Unique` were
+/// therefore invisible in BOTH roles: the declaration produced no symbol,
+/// AND nothing was pushed onto the block stack for it — so its `End
+/// Function` / `End Type` popped the enclosing `Namespace` frame instead,
+/// and every declaration after it in the file lost its namespace
+/// qualification. Measured on the real corpus before the fix: 491 symbols
+/// across 19 namespaced files came out unqualified, and the daemon log
+/// carried 20,944 "block mismatch" warnings between 2026-07-29 and
+/// 2026-08-17.
+///
+/// `BorrowMut` (31 occurrences) is deliberately NOT here. It appears only
+/// on `Interface` method signatures — single-line rows with no body and no
+/// `End Function` — which the extractor already skips as members rather
+/// than opening a block for. Adding it would gain nothing and would risk
+/// turning those rows into unbalanced openers.
+pub(crate) const DECL_MODIFIERS: &[&str] = &["Public", "Private", "Internal", "Unique"];
+
+/// Strip any leading declaration modifiers, returning the rest of the line.
+///
+/// Loops rather than making one pass per modifier, so a stacked prefix is
+/// handled in any order. This exists once because the same list was
+/// previously copy-pasted into six call sites — which is precisely how two
+/// modifiers came to be missing from all of them at once.
+pub(crate) fn strip_decl_modifiers(trimmed: &str) -> &str {
+    let mut rest = trimmed;
+    loop {
+        let before_len = rest.len();
+        for modifier in DECL_MODIFIERS {
+            if let Some(r) = rest.strip_prefix(modifier)
+                && r.starts_with(' ')
+            {
+                rest = r.trim_start();
+                break;
+            }
+        }
+        if rest.len() == before_len {
+            return rest;
+        }
+    }
+}
+
 pub(crate) const BLOCK_KEYWORDS: &[&str] = &[
     // Declaration blocks — these produce symbols.
     "Namespace",
@@ -151,17 +198,12 @@ pub(crate) fn if_has_trailing_then_statement(after: &str) -> bool {
 
 /// The block keyword a line opens, if any.
 ///
-/// Skips optional `Public`/`Private` access modifiers. Anchors on the
-/// keyword being the FIRST significant token: this is what keeps the type
-/// annotation `Mapper As Function(T) As R` from registering as a
+/// Skips optional declaration modifiers (see [`DECL_MODIFIERS`]). Anchors
+/// on the keyword being the FIRST significant token: this is what keeps the
+/// type annotation `Mapper As Function(T) As R` from registering as a
 /// declaration.
 pub(crate) fn block_opener(trimmed: &str) -> Option<&'static str> {
-    let mut rest = trimmed;
-    for modifier in ["Public ", "Private "] {
-        if let Some(r) = rest.strip_prefix(modifier) {
-            rest = r.trim_start();
-        }
-    }
+    let mut rest = strip_decl_modifiers(trimmed);
     // `Parallel For …` / `Parallel For Each …` is MiniLang's explicit MIMD
     // parallel-loop form (real corpus: 60 occurrences across 21 files under
     // `tests/conformance/optimizer/`, e.g.
@@ -400,12 +442,7 @@ pub(crate) fn skip_as_member_row(top_kw: Option<&str>, trimmed: &str, keyword: &
 /// return clause's ` As Int` is further down the line, past the
 /// parameter list, so it never fools this check.
 pub(crate) fn member_shaped(trimmed: &str, keyword: &str) -> bool {
-    let mut rest = trimmed;
-    for modifier in ["Public ", "Private "] {
-        if let Some(r) = rest.strip_prefix(modifier) {
-            rest = r.trim_start();
-        }
-    }
+    let rest = strip_decl_modifiers(trimmed);
     rest.strip_prefix(keyword)
         .map(|after| after.starts_with(" As "))
         .unwrap_or(false)

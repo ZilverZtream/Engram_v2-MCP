@@ -154,12 +154,7 @@ pub(crate) fn open_declaration(
                         // every other declaration parser here does, or it
                         // leaks straight into the field NAME (`Public
                         // name:Str` instead of `name:Str`).
-                        let mut lhs = lhs.trim();
-                        for modifier in ["Public ", "Private "] {
-                            if let Some(r) = lhs.strip_prefix(modifier) {
-                                lhs = r.trim_start();
-                            }
-                        }
+                        let lhs = super::strip_decl_modifiers(lhs.trim());
                         // Strong `Ref(Of T)` fields can form ownership
                         // cycles; `Weak(Of T)` is the documented break edge.
                         let strength = if ty.starts_with("Weak(") {
@@ -315,12 +310,7 @@ fn parse_variant(row: &str) -> Option<String> {
 /// `Function BTreeMap_Get Of K, V(Borrow tree As …)`. A pattern demanding
 /// `name(` would miss every generic declaration in the standard library.
 pub(crate) fn declaration_name(trimmed: &str, keyword: &str) -> Option<String> {
-    let mut rest = trimmed;
-    for modifier in ["Public ", "Private "] {
-        if let Some(r) = rest.strip_prefix(modifier) {
-            rest = r.trim_start();
-        }
-    }
+    let rest = super::strip_decl_modifiers(trimmed);
     let rest = rest.strip_prefix(keyword)?.trim_start();
     let name: String = rest
         .chars()
@@ -350,8 +340,11 @@ pub(crate) fn qualify(parent_fqn: &str, name: &str) -> String {
 }
 
 /// `Public`/`Private` on a declaration line, or empty.
+/// Only the three ACCESS levels, not every strippable modifier: `Unique`
+/// is an ownership qualifier on a type, not a visibility level, and must
+/// not land in the `access` metadata.
 pub(crate) fn access_modifier(trimmed: &str) -> String {
-    for modifier in ["Public", "Private"] {
+    for modifier in ["Public", "Private", "Internal"] {
         if trimmed.starts_with(modifier) && trimmed[modifier.len()..].starts_with(' ') {
             return modifier.to_string();
         }
@@ -656,12 +649,7 @@ fn is_unsafe_include_path(raw: &str) -> bool {
 /// function nor any other, and silently produced no symbol at all.
 pub(crate) fn parse_ffi_binding(trimmed: &str, line_no: u32) -> Option<ExtractedSymbol> {
     let access = access_modifier(trimmed);
-    let mut rest = trimmed;
-    for modifier in ["Public ", "Private "] {
-        if let Some(r) = rest.strip_prefix(modifier) {
-            rest = r.trim_start();
-        }
-    }
+    let rest = super::strip_decl_modifiers(trimmed);
 
     let (binding, rest) = if let Some(r) = rest.strip_prefix("Declare ") {
         ("pinvoke", r)
@@ -741,12 +729,7 @@ pub(crate) fn parse_const(
     line_no: u32,
 ) -> Option<ExtractedSymbol> {
     let access = access_modifier(trimmed);
-    let mut rest = trimmed;
-    for modifier in ["Public ", "Private "] {
-        if let Some(r) = rest.strip_prefix(modifier) {
-            rest = r.trim_start();
-        }
-    }
+    let rest = super::strip_decl_modifiers(trimmed);
     let rest = rest.strip_prefix("Const")?;
     if !rest.starts_with(' ') {
         return None;
