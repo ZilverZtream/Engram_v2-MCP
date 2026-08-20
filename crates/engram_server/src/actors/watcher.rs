@@ -339,6 +339,11 @@ pub async fn run_watcher(
 /// writes and git's own index churn kept re-arming it. Each cycle then paid
 /// a project-wide VB sidecar `begin_project` (7-18 s) to discover
 /// `changed=1`.
+/// Deliberately conservative. `bin/` and `packages/` are NOT here even
+/// though they are .NET build output: `bin/` holds first-party entry scripts
+/// in plenty of repos, and a JS monorepo keeps ALL its source under
+/// `packages/`. Banning either would mean such a repo never updates at all.
+/// Their churn is build artefacts, which the extension rule below catches.
 const NON_INDEXABLE_DIRS: &[&str] = &[
     ".git",
     ".hg",
@@ -347,15 +352,45 @@ const NON_INDEXABLE_DIRS: &[&str] = &[
     ".vscode",
     ".idea",
     ".gradle",
+    ".nuget",
     ".venv",
     "venv",
     "__pycache__",
     "node_modules",
     "bower_components",
-    "packages",
-    "bin",
     "obj",
     "target",
+    "TestResults",
+];
+
+/// Compiler and packaging output. These never carry indexed source, and they
+/// are what actually churns inside directories we cannot ban by name.
+const NON_INDEXABLE_EXTENSIONS: &[&str] = &[
+    "dll",
+    "pdb",
+    "exe",
+    "obj",
+    "ilk",
+    "idb",
+    "lib",
+    "exp",
+    "res",
+    "nupkg",
+    "snupkg",
+    "cache",
+    "tlog",
+    "lastbuildstate",
+    "nuspec",
+    "so",
+    "dylib",
+    "class",
+    "pyc",
+    "pyo",
+    "o",
+    "a",
+    "rlib",
+    "rmeta",
+    "d",
 ];
 
 /// File-name shapes that are editor/OS scratch, not content.
@@ -393,6 +428,14 @@ pub(crate) fn watch_event_is_indexable(path: &std::path::Path) -> bool {
         {
             return false;
         }
+    }
+    if path.extension().is_some_and(|e| {
+        let e = e.to_string_lossy();
+        NON_INDEXABLE_EXTENSIONS
+            .iter()
+            .any(|x| e.eq_ignore_ascii_case(x))
+    }) {
+        return false;
     }
     match path.file_name() {
         Some(name) => !is_scratch_file_name(&name.to_string_lossy()),
@@ -474,6 +517,11 @@ mod tests {
             r"C:\repo\Site\Scripts\app.ts",
             r"C:\repo\dist\hand-written.js",
             r"C:\repo\build\first-party.cs",
+            // A JS monorepo keeps every package under packages/, and plenty
+            // of repos keep first-party entry scripts in bin/. Banning those
+            // directory names would stop such a repo updating at all.
+            r"C:\repo\packages\core\src\index.ts",
+            r"C:\repo\bin\deploy.sh",
         ] {
             assert!(
                 watch_event_is_indexable(Path::new(p)),
@@ -495,6 +543,7 @@ mod tests {
             r"C:\repo\node_modules\left-pad\index.js",
             r"C:\repo\packages\Newtonsoft.Json.13.0.1\lib\net45\x.dll",
             r"C:\repo\target\debug\build\x.rs",
+            r"C:\repo\Site\obj\Debug\Site.pdb",
         ] {
             assert!(
                 !watch_event_is_indexable(Path::new(p)),
