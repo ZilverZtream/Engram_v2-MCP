@@ -71,15 +71,13 @@ impl Engram {
             ));
         }
 
-        // Open the DocStore — one handle per request keeps the code
-        // simple. Redb holds its own concurrency guarantees.
-        let docstore_path = self
-            .state
-            .cfg
-            .data_dir
-            .join("projects")
-            .join(&req.project_id)
-            .join("docs.redb");
+        // Take the SHARED DocStore handle. Opening one per request used to
+        // look harmless ("redb handles its own concurrency"), but redb's
+        // MVCC applies WITHIN a handle — the handle itself holds an
+        // exclusive whole-file lock. Two greps in the same millisecond
+        // therefore raced and all but one failed with
+        // "Database already open. Cannot acquire lock." (live 2026-08-20).
+        let state = self.state.clone();
         let project_id = req.project_id.clone();
         let namespace = req.namespace.clone();
         let pattern = req.pattern.clone();
@@ -93,8 +91,9 @@ impl Engram {
         let max_results = req.max_results;
         let engine = ps.search.clone();
 
+        let docstore_pid = project_id.clone();
         let result = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
-            let docstore = engram_index::docstore::DocStore::open(&docstore_path)?;
+            let docstore = state.docstore_blocking(&docstore_pid)?;
             let gq = engram_index::grep::GrepQuery {
                 project_id,
                 namespace,

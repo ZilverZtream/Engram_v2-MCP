@@ -8,7 +8,7 @@
 use crate::state::AppState;
 use crate::utils::now_ms;
 use engram_core::metrics;
-use engram_index::docstore::{DocStore, DocSummary};
+use engram_index::docstore::DocSummary;
 use engram_index::hybrid::SearchDocSummary;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -190,16 +190,14 @@ pub async fn check_project_integrity_with_policy(
         tokio::task::spawn_blocking(move || search_t.list_docs_for_project(&pid_tantivy)).await??;
     let tantivy_count = tantivy_docs.len() as u64;
 
-    let docstore_path = state
-        .cfg
-        .data_dir
-        .join("projects")
-        .join(project_id)
-        .join("docs.redb");
+    // Shared handle — see AppState::docstore_blocking. The integrity check
+    // runs on a timer and used to open its own handle, so it could collide
+    // with a concurrent grep_project on the same file lock.
+    let state_docstore = state.clone();
     let pid_docstore = project_id.to_string();
     let (docstore_count, docstore_docs): (u64, Vec<DocSummary>) =
         tokio::task::spawn_blocking(move || -> anyhow::Result<(u64, Vec<DocSummary>)> {
-            let store = DocStore::open(&docstore_path)?;
+            let store = state_docstore.docstore_blocking(&pid_docstore)?;
             let count = store.count_docs_for_project(&pid_docstore)? as u64;
             let docs = store.list_doc_summaries_for_project(&pid_docstore)?;
             Ok((count, docs))
