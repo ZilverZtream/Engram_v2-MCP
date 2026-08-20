@@ -406,36 +406,31 @@ pub async fn repair_project_scoped(
     scope: &str,
 ) -> anyhow::Result<String> {
     let _lock = state.acquire_project_update_lock(project_id).await;
-    let _ps = ensure_project_runtime(state, project_id).await?;
+    let ps = ensure_project_runtime(state, project_id).await?;
     let generation = get_active_generation(state, project_id).await?;
 
     match scope {
-        "tantivy_only" => {
+        // `tantivy_only` and `vector_only` both used to write a registry key
+        // ("tantivy_needs_repair" / "vector_needs_repair") that NO code has
+        // ever read, then return Ok — so the integrity checker recorded a
+        // successful repair for work that never happened and re-ran it every
+        // hour forever (live 2026-08-20: three days of hourly vector_orphan
+        // repairs on one project). Both scopes now do the one repair that is
+        // actually available at this level — dropping index entries left
+        // behind by superseded generations — and say what they did.
+        "tantivy_only" | "vector_only" => {
             tracing::info!(
                 project_id,
                 generation,
-                "Scoped repair: flagging Tantivy for re-index"
+                scope,
+                "Scoped repair: purging superseded generations from the search index"
             );
-            let reg = state.registry.clone();
-            let pid = project_id.to_string();
-            tokio::task::spawn_blocking(move || reg.set_meta(&pid, "tantivy_needs_repair", "true"))
-                .await??;
+            ps.search
+                .purge_old_generations(project_id, generation)
+                .await?;
+            let remaining = ps.search.count_vectors(project_id).await.unwrap_or(0);
             Ok(format!(
-                "Tantivy flagged for re-index at generation {generation}"
-            ))
-        }
-        "vector_only" => {
-            tracing::info!(
-                project_id,
-                generation,
-                "Scoped repair: flagging vectors for rebuild"
-            );
-            let reg = state.registry.clone();
-            let pid = project_id.to_string();
-            tokio::task::spawn_blocking(move || reg.set_meta(&pid, "vector_needs_repair", "true"))
-                .await??;
-            Ok(format!(
-                "Vector index flagged for rebuild at generation {generation}"
+                "Purged index entries older than generation {generation}                  ({remaining} vector rows remain). If the mismatch persists, the                  surplus is inside the active generation and needs a rebuild:                  repair_project(project_id, wipe_and_reindex=true)."
             ))
         }
         "graph_only" => {
