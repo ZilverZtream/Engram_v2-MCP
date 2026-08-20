@@ -3047,6 +3047,32 @@ impl Engram {
         &self,
         req: MemorySectionRequest,
     ) -> Result<CallToolResult, McpError> {
+        // Remove the INDEXED copy first. update_memory_bank writes both the
+        // registry and the search index (namespace memory_bank, generation 0,
+        // KeepForever — deliberately reindex-proof); deleting only the
+        // registry row left the doc and its vector recallable forever: a
+        // ghost memory that search kept surfacing with no registry entry
+        // behind it. Index first so a failure leaves the memory intact and
+        // consistent rather than half-forgotten.
+        let ps = self.ensure_project_runtime(&req.project_id).await?;
+        let path = engram_core::RelPath::new(&format!("memory_bank:{}", req.section));
+        ps.search
+            .delete_files(
+                &req.project_id,
+                engram_core::namespaces::NAMESPACE_MEMORY_BANK,
+                std::slice::from_ref(&path),
+            )
+            .await
+            .map_err(|e| {
+                McpError::internal_error(
+                    format!(
+                        "delete_memory_bank: failed to remove the indexed copy — the section \
+                         was NOT deleted (it would otherwise keep surfacing in search): {e}"
+                    ),
+                    None,
+                )
+            })?;
+
         self.state
             .registry
             .delete_memory_section(&req.project_id, &req.section)
