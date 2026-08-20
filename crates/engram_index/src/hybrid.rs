@@ -2471,9 +2471,19 @@ impl HybridSearchEngine {
                 wc
             };
 
+            // Ask for COSINE explicitly. LanceDB defaults to DistanceType::L2,
+            // whose `_distance` is the SQUARED euclidean distance; for the unit
+            // vectors this crate produces that is `2 - 2*cos`, so the
+            // `1.0 - _distance` below reported `2*cos - 1` and went negative for
+            // every hit below cosine 0.5 — i.e. most genuinely relevant ones.
+            // Ranking was unaffected (the transform is monotonic) but the number
+            // vector_search exists to report was wrong. Safe to set per query:
+            // no ANN index is built for these tables, so there is no index metric
+            // to match.
             let mut results = table
                 .query()
                 .nearest_to(query_vec)?
+                .distance_type(lancedb::DistanceType::Cosine)
                 .only_if(where_clause)
                 .limit(q.top_k)
                 .execute()
@@ -2511,6 +2521,8 @@ impl HybridSearchEngine {
                         pk: pk_arr.value(i).to_string(),
                         chunk_id: chunk_id_arr.value(i),
                         path: RelPath::new(path_arr.value(i)),
+                        // Cosine distance is `1 - cos`, so this is the cosine
+                        // similarity itself.
                         score: 1.0 - score_arr.value(i),
                         centrality: 0.0,
                         snippet: None,

@@ -367,13 +367,17 @@ impl Engram {
         ));
 
         for (i, h) in hits.iter().enumerate() {
+            // doc_id is what get_chunk takes. The truncation notice below has
+            // always told callers to use it, but the result line never carried
+            // one — so every hit was a dead end.
             out.push_str(&format!(
-                "[{}] similarity={:.4} path={} lines={}-{} chunk_id={}\n",
+                "[{}] similarity={:.4} path={} lines={}-{} doc_id={} chunk_id={}\n",
                 i + 1,
                 h.score,
                 h.path,
                 h.start_line,
                 h.end_line,
+                h.doc_id,
                 h.chunk_id
             ));
 
