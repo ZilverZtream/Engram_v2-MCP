@@ -15,8 +15,7 @@ use std::process::Command;
 use std::time::Instant;
 
 use engram_core::{RelPath, namespaces};
-use engram_index::docstore::{DocRecord, DocStore, FileFingerprint};
-use engram_index::grep::{FreshnessMode, GrepQuery, GrepTier, grep};
+use engram_index::grep::{FreshnessMode, GrepQuery, GrepTier, IndexedFileStat, grep};
 use engram_index::{HybridSearchEngine, IndexDoc};
 use tokio_util::sync::CancellationToken;
 
@@ -79,18 +78,22 @@ fn make_fixture(root: &Path, count: usize) {
     }
 }
 
-/// Index every fixture file into Tantivy + DocStore so both the trigram
-/// index and the full-scan tier have content to work with.
+/// Index every fixture file into Tantivy, and return the file stats the
+/// freshness guard compares against.
+///
+/// This used to also populate a separate document store, purely as a test
+/// fixture — which is precisely how the full-scan tier and the freshness
+/// guard came to depend on a store that no production path writes. Both now
+/// read what production actually produces: Tantivy's stored chunk text, and
+/// (via the caller) the code graph's file-node fingerprints.
 async fn index_fixture(
     engine: &HybridSearchEngine,
-    docstore: &DocStore,
     root: &Path,
     project_id: &str,
-) {
+) -> Vec<IndexedFileStat> {
     let cancel = CancellationToken::new();
     let mut docs: Vec<IndexDoc> = Vec::new();
-    let mut doc_records: Vec<DocRecord> = Vec::new();
-    let mut per_file_doc_ids: Vec<(String, Vec<String>)> = Vec::new();
+    let mut stats: Vec<IndexedFileStat> = Vec::new();
     for entry in std::fs::read_dir(root).unwrap() {
         let entry = entry.unwrap();
         let path = entry.path();
@@ -112,7 +115,7 @@ async fn index_fixture(
         let doc_id = format!("doc_{rel}");
         docs.push(IndexDoc {
             generation: 1,
-            chunk_id: doc_records.len() as u64,
+            chunk_id: stats.len() as u64,
             path: RelPath::new(&rel),
             language: "vb".into(),
             content: content.clone(),
@@ -124,47 +127,24 @@ async fn index_fixture(
             doc_id: doc_id.clone(),
             content_hash: hash.clone(),
         });
-        doc_records.push(DocRecord {
-            doc_id: doc_id.clone(),
-            path: rel.clone(),
-            start_line: 1,
-            end_line: line_count,
-            language: "vb".into(),
-            content,
-            content_hash: hash,
-            namespace: namespaces::NAMESPACE_MEMORY.into(),
-            generation: 1,
-        });
-        per_file_doc_ids.push((rel.clone(), vec![doc_id]));
 
-        // Also write a fingerprint that matches disk reality — otherwise
-        // freshness checks flag every file stale.
+        // Record the stat signature that matches disk, so the freshness
+        // guard sees a clean project.
         let meta = std::fs::metadata(&path).unwrap();
-        let mtime_ms = meta
+        let mtime_secs = meta
             .modified()
             .unwrap()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_millis() as u64;
-        docstore
-            .set_fingerprint(
-                project_id,
-                &FileFingerprint {
-                    rel_path: rel,
-                    size: meta.len(),
-                    mtime_ms,
-                    file_hash: "test".into(),
-                },
-            )
-            .unwrap();
+            .as_secs();
+        stats.push(IndexedFileStat {
+            rel_path: rel,
+            size: meta.len(),
+            mtime_secs,
+        });
     }
     engine.index_docs(project_id, &docs, &cancel).await.unwrap();
-    docstore.put_docs(project_id, &doc_records).unwrap();
-    for (rel, ids) in per_file_doc_ids {
-        docstore
-            .set_docs_for_file(project_id, namespaces::NAMESPACE_MEMORY, &rel, &ids)
-            .unwrap();
-    }
+    stats
 }
 
 fn run_rg(root: &Path, pattern: &str) -> (usize, u128) {
@@ -189,16 +169,14 @@ async fn grep_term_index_beats_rg_on_ascii_identifier() {
     let root = tmp.join("project");
     let tantivy_dir = tmp.join("tantivy");
     let lancedb_dir = tmp.join("lancedb");
-    let docstore_path = tmp.join("docs.redb");
     make_fixture(&root, FIXTURE_FILE_COUNT);
 
     let cfg = engram_core::Config::default();
     let engine = HybridSearchEngine::new(tantivy_dir, lancedb_dir, &cfg)
         .await
         .unwrap();
-    let docstore = DocStore::open(&docstore_path).unwrap();
     let project_id = "bench";
-    index_fixture(&engine, &docstore, &root, project_id).await;
+    let indexed = index_fixture(&engine, &root, project_id).await;
 
     // Warm up both sides.
     let warm_q = GrepQuery {
@@ -216,7 +194,7 @@ async fn grep_term_index_beats_rg_on_ascii_identifier() {
         max_results: 10_000,
         freshness: FreshnessMode::Off, // freshness check is a separate concern
     };
-    let warm_result = grep(&engine, &docstore, &root, &warm_q).unwrap();
+    let warm_result = grep(&engine, &root, &warm_q, || Ok(indexed.clone())).unwrap();
 
     // Correctness: Tier 0 must trigger for an ASCII identifier.
     assert_eq!(
@@ -248,7 +226,7 @@ async fn grep_term_index_beats_rg_on_ascii_identifier() {
     let engram_timings: Vec<u128> = (0..WARM_ITERATIONS)
         .map(|_| {
             let s = Instant::now();
-            let r = grep(&engine, &docstore, &root, &warm_q).unwrap();
+            let r = grep(&engine, &root, &warm_q, || Ok(indexed.clone())).unwrap();
             assert_eq!(r.matches.len(), 2 * FIXTURE_FILE_COUNT);
             s.elapsed().as_micros()
         })
@@ -297,7 +275,6 @@ async fn grep_full_scan_still_returns_correct_matches() {
     let root = tmp.join("project");
     let tantivy_dir = tmp.join("tantivy");
     let lancedb_dir = tmp.join("lancedb");
-    let docstore_path = tmp.join("docs.redb");
     // Smaller fixture — full scan tests are correctness-only.
     make_fixture(&root, 10);
 
@@ -305,9 +282,8 @@ async fn grep_full_scan_still_returns_correct_matches() {
     let engine = HybridSearchEngine::new(tantivy_dir, lancedb_dir, &cfg)
         .await
         .unwrap();
-    let docstore = DocStore::open(&docstore_path).unwrap();
     let project_id = "bench_full";
-    index_fixture(&engine, &docstore, &root, project_id).await;
+    let indexed = index_fixture(&engine, &root, project_id).await;
 
     let q = GrepQuery {
         project_id: project_id.into(),
@@ -324,7 +300,7 @@ async fn grep_full_scan_still_returns_correct_matches() {
         max_results: 10_000,
         freshness: FreshnessMode::Off,
     };
-    let r = grep(&engine, &docstore, &root, &q).unwrap();
+    let r = grep(&engine, &root, &q, || Ok(indexed.clone())).unwrap();
     // Short literal 'ctx' takes Tier 0 (trigram can index 3-char lits).
     assert_eq!(r.tier_used, GrepTier::TermIndex);
     assert!(
@@ -348,16 +324,14 @@ async fn grep_full_benchmark_matrix_beats_rg() {
     let root = tmp.join("project");
     let tantivy_dir = tmp.join("tantivy");
     let lancedb_dir = tmp.join("lancedb");
-    let docstore_path = tmp.join("docs.redb");
     make_fixture(&root, LARGE_FIXTURE_FILE_COUNT);
 
     let cfg = engram_core::Config::default();
     let engine = HybridSearchEngine::new(tantivy_dir, lancedb_dir, &cfg)
         .await
         .unwrap();
-    let docstore = DocStore::open(&docstore_path).unwrap();
     let project_id = "bench_matrix";
-    index_fixture(&engine, &docstore, &root, project_id).await;
+    let indexed = index_fixture(&engine, &root, project_id).await;
 
     if !rg_available() {
         eprintln!("rg not on PATH — skipping benchmark matrix");
@@ -426,7 +400,7 @@ async fn grep_full_benchmark_matrix_beats_rg() {
             freshness: FreshnessMode::Off,
         };
         // Warm both.
-        let warm = grep(&engine, &docstore, &root, &q).unwrap();
+        let warm = grep(&engine, &root, &q, || Ok(indexed.clone())).unwrap();
         if let Some(tier) = expected_tier {
             if warm.tier_used != *tier {
                 failures.push(format!(
@@ -440,7 +414,7 @@ async fn grep_full_benchmark_matrix_beats_rg() {
         let engram_ts: Vec<u128> = (0..WARM_ITERATIONS)
             .map(|_| {
                 let s = Instant::now();
-                let _ = grep(&engine, &docstore, &root, &q).unwrap();
+                let _ = grep(&engine, &root, &q, || Ok(indexed.clone())).unwrap();
                 s.elapsed().as_micros()
             })
             .collect();
@@ -497,16 +471,14 @@ async fn grep_reports_stale_paths_when_files_change_after_index() {
     let root = tmp.join("project");
     let tantivy_dir = tmp.join("tantivy");
     let lancedb_dir = tmp.join("lancedb");
-    let docstore_path = tmp.join("docs.redb");
     make_fixture(&root, 5);
 
     let cfg = engram_core::Config::default();
     let engine = HybridSearchEngine::new(tantivy_dir, lancedb_dir, &cfg)
         .await
         .unwrap();
-    let docstore = DocStore::open(&docstore_path).unwrap();
     let project_id = "bench_stale";
-    index_fixture(&engine, &docstore, &root, project_id).await;
+    let indexed = index_fixture(&engine, &root, project_id).await;
 
     // Mutate one of the indexed files so its mtime/size diverges.
     let target = root.join("io_0000.vb");
@@ -529,7 +501,7 @@ async fn grep_reports_stale_paths_when_files_change_after_index() {
         max_results: 10_000,
         freshness: FreshnessMode::Strict,
     };
-    let r = grep(&engine, &docstore, &root, &q).unwrap();
+    let r = grep(&engine, &root, &q, || Ok(indexed.clone())).unwrap();
     assert!(
         r.stale_paths.iter().any(|p| p == "io_0000.vb"),
         "mutated file must appear in stale_paths, got {:?}",

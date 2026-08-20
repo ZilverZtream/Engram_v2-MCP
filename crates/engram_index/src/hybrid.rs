@@ -209,6 +209,15 @@ impl Drop for BulkWriterGuard {
     }
 }
 
+/// A chunk's stored fields, for callers that scan text directly.
+#[derive(Debug, Clone)]
+pub struct StoredChunk {
+    pub path: String,
+    pub language: String,
+    pub start_line: u32,
+    pub content: String,
+}
+
 pub struct HybridSearchEngine {
     tantivy_index: tantivy::Index,
     fields: Fields,
@@ -1263,6 +1272,91 @@ impl HybridSearchEngine {
     }
 
     /// Return lightweight metadata for all Tantivy docs in a project.
+    /// One indexed chunk's stored fields, as the grep full-scan tier needs
+    /// them.
+    ///
+    /// Tantivy already STORES chunk text, so a byte scan has no reason to
+    /// consult a second store for it.
+    pub fn stored_chunk_at(
+        &self,
+        searcher: &tantivy::Searcher,
+        addr: DocAddress,
+    ) -> anyhow::Result<StoredChunk> {
+        let doc: tantivy::TantivyDocument = searcher.doc(addr)?;
+        let get_str = |f| {
+            doc.get_first(f)
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string()
+        };
+        Ok(StoredChunk {
+            path: get_str(self.fields.path),
+            language: get_str(self.fields.language),
+            start_line: doc
+                .get_first(self.fields.start_line)
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u32,
+            content: get_str(self.fields.content),
+        })
+    }
+
+    /// Addresses of every chunk in one project/namespace/generation, plus the
+    /// searcher to read them from.
+    ///
+    /// Two-phase on purpose: collecting addresses touches no stored fields,
+    /// so a caller doing a full-corpus scan can fetch chunk text in parallel
+    /// and hold only one chunk per worker instead of the whole corpus.
+    ///
+    /// The generation clause follows the namespace's own versioning policy,
+    /// matching what search does — a Snapshot namespace pins the active
+    /// generation, AppendOnly takes everything up to it, GlobalMutable is
+    /// unversioned.
+    pub fn chunk_addresses(
+        &self,
+        project_id: &str,
+        namespace: &str,
+        generation: u64,
+    ) -> anyhow::Result<(tantivy::Searcher, Vec<DocAddress>)> {
+        let reader = self.tantivy_index.reader()?;
+        let searcher = reader.searcher();
+
+        let mut clauses: Vec<(Occur, Box<dyn tantivy::query::Query>)> = vec![
+            (
+                Occur::Must,
+                Box::new(TermQuery::new(
+                    Term::from_field_text(self.fields.project_id, project_id),
+                    IndexRecordOption::Basic,
+                )) as Box<dyn tantivy::query::Query>,
+            ),
+            (
+                Occur::Must,
+                Box::new(TermQuery::new(
+                    Term::from_field_text(self.fields.namespace, namespace),
+                    IndexRecordOption::Basic,
+                )),
+            ),
+        ];
+        self.add_generation_filter(namespace, generation, &mut clauses)?;
+        let query = BooleanQuery::new(clauses);
+
+        const PAGE_SIZE: usize = 4000;
+        let mut offset = 0usize;
+        let mut out = Vec::new();
+        loop {
+            let page: Vec<(Score, DocAddress)> =
+                searcher.search(&query, &TopDocs::with_limit(PAGE_SIZE).and_offset(offset))?;
+            if page.is_empty() {
+                break;
+            }
+            out.extend(page.iter().map(|(_, addr)| *addr));
+            offset = offset.saturating_add(page.len());
+            if page.len() < PAGE_SIZE {
+                break;
+            }
+        }
+        Ok((searcher, out))
+    }
+
     pub fn list_docs_for_project(&self, project_id: &str) -> anyhow::Result<Vec<SearchDocSummary>> {
         let reader = self.tantivy_index.reader()?;
         let searcher = reader.searcher();
@@ -2344,7 +2438,6 @@ impl HybridSearchEngine {
         }
     }
 
-    #[allow(dead_code)]
     fn add_generation_filter(
         &self,
         namespace: &str,

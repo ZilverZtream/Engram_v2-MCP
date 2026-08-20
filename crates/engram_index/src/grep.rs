@@ -19,8 +19,8 @@
 //!    the existing `content` field. Returns candidate chunks. For each
 //!    candidate, verify the literal actually appears (trigram matches
 //!    can false-positive) and pull the exact line number. The chunk
-//!    text is already STORED in Tantivy so no DocStore round-trip is
-//!    needed for short queries. Microseconds per result.
+//!    text is already STORED in Tantivy, so no second store is
+//!    consulted for it. Microseconds per result.
 //!
 //! 2. **Tier 1 — narrowed regex.** Extract the longest literal
 //!    substring from the regex, run a trigram prefilter against it,
@@ -29,19 +29,21 @@
 //!
 //! 3. **Tier 2 — full scan.** Patterns too short (< 3 chars) or too
 //!    regex-complex to prefilter fall through to a parallel scan over
-//!    DocStore-resident chunk content.
+//!    every stored chunk in the project.
 //!
-//! Every query begins with an optional freshness check that compares
-//! `FileFingerprint` size + mtime against disk. Stale files are listed
-//! in the result so callers can decide whether to fall back to a raw
-//! disk scan for the affected paths.
+//! Every query begins with an optional freshness check comparing the
+//! indexed (size, mtime) of each tracked file against disk. The caller
+//! supplies those stats — they live on the code graph's file nodes,
+//! written by ingest and trusted by the incremental change scan. Stale
+//! files are listed in the result, and a check that had NOTHING to
+//! compare against says so, rather than returning an empty list that
+//! reads like a clean bill of health.
 
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
 
-use crate::docstore::DocStore;
 use crate::hybrid::{HybridQuery, HybridSearchEngine};
 
 /// How to handle staleness between the index and disk state.
@@ -69,7 +71,7 @@ pub enum GrepTier {
     TermIndex,
     /// Trigram prefilter + full regex on narrowed chunks.
     TermNarrowed,
-    /// Parallel byte scan over DocStore content.
+    /// Parallel byte scan over every stored chunk.
     FullScan,
 }
 
@@ -147,12 +149,12 @@ fn resolve_case_sensitive(pattern: &str, flag: Option<bool>) -> bool {
 /// Guard against a SILENT wrong answer from the full-scan tier. FullScan
 /// is reached only for patterns the term index can't serve (a literal
 /// shorter than the trigram minimum, or a regex without a ≥3-char literal
-/// anchor) and it reads per-file content from the DocStore — which the
-/// production ingest path does not populate, so it scans nothing and
-/// returns 0 matches that read as "no matches exist". When a FullScan
-/// query scans zero files, surface that 0 is UNCONFIRMED coverage, not a
-/// proven absence, and tell the caller how to reformulate. Same
-/// fail-loud principle as the unknown-namespace guard.
+/// anchor). It now scans Tantivy's stored chunk text, but an empty or
+/// wrong-generation index would still scan nothing and return 0 matches
+/// that read as "no matches exist". When a FullScan query scans zero
+/// files, surface that 0 is UNCONFIRMED coverage, not a proven absence,
+/// and tell the caller how to reformulate. Same fail-loud principle as
+/// the unknown-namespace guard.
 fn full_scan_coverage_warning(tier: GrepTier, files_scanned: usize) -> Option<String> {
     if matches!(tier, GrepTier::FullScan) && files_scanned == 0 {
         Some(
@@ -170,68 +172,108 @@ fn full_scan_coverage_warning(tier: GrepTier, files_scanned: usize) -> Option<St
 
 // ── Freshness check ───────────────────────────────────────────────────────────
 
-/// Compare indexed fingerprints against disk state. Returns the list
-/// of tracked paths whose on-disk `(size, mtime)` no longer matches
-/// the indexed fingerprint.
+/// One indexed file's stat signature, as the indexer recorded it.
 ///
-/// mtime granularity varies by filesystem (NTFS ~100 ns, ext4 ns,
-/// APFS ns, FAT 2 s). We compare millisecond-quantised mtime so we're
-/// not too eager on NTFS. False positives here are acceptable (we
-/// might flag a file as stale when it's actually fine), false
-/// negatives are not (we must not silently serve stale content).
-pub fn check_freshness(
-    docstore: &DocStore,
+/// `mtime_secs` is SECONDS, not milliseconds: ingest stores second
+/// granularity on the graph's file nodes, and comparing a millisecond disk
+/// stamp against it would mark every file stale forever.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IndexedFileStat {
+    pub rel_path: String,
+    pub size: u64,
+    pub mtime_secs: u64,
+}
+
+/// Outcome of one freshness sweep.
+#[derive(Debug, Clone, Default)]
+pub struct FreshnessCheck {
+    /// Tracked paths whose on-disk `(size, mtime)` no longer matches.
+    pub stale_paths: Vec<String>,
+    /// How many indexed files were compared. **Zero means the check proved
+    /// nothing** — it had no fingerprints to compare against. The previous
+    /// implementation read an empty store and returned an empty stale list,
+    /// which is indistinguishable from "everything is current" unless the
+    /// count is carried out with it.
+    pub files_checked: usize,
+}
+
+/// Compare indexed file stats against disk.
+///
+/// The stats are supplied by the caller rather than read here, because the
+/// crate that owns them (the code graph) sits above this one. They come from
+/// the same file-node metadata the incremental change scan uses to decide
+/// what to re-index, so "stale" here means exactly "an update would pick
+/// this file up".
+///
+/// `indexed` is a closure so the TTL cache below can skip the read entirely
+/// on a hit — agents fire grep bursts, and both the stat sweep and the
+/// metadata read are O(files).
+///
+/// False positives are acceptable (a file flagged that is actually fine);
+/// false negatives are not — serving stale content silently is the failure
+/// this guard exists to prevent.
+pub fn check_freshness<F>(
+    indexed: F,
     project_id: &str,
     namespace: &str,
     project_root: &Path,
-) -> anyhow::Result<Vec<String>> {
+) -> anyhow::Result<FreshnessCheck>
+where
+    F: FnOnce() -> anyhow::Result<Vec<IndexedFileStat>>,
+{
     // TODO-46: agents fire grep bursts (many calls within seconds); the
-    // O(files) stat sweep is recomputed at most once per TTL per project.
+    // O(files) sweep is recomputed at most once per TTL per project.
     const FRESHNESS_TTL: std::time::Duration = std::time::Duration::from_secs(10);
+    #[allow(clippy::type_complexity)]
     static CACHE: std::sync::LazyLock<
         std::sync::Mutex<
-            std::collections::HashMap<(String, String), (std::time::Instant, Vec<String>)>,
+            std::collections::HashMap<(String, String), (std::time::Instant, FreshnessCheck)>,
         >,
     > = std::sync::LazyLock::new(Default::default);
     let cache_key = (project_id.to_string(), namespace.to_string());
     if let Ok(c) = CACHE.lock()
-        && let Some((at, stale)) = c.get(&cache_key)
+        && let Some((at, check)) = c.get(&cache_key)
         && at.elapsed() < FRESHNESS_TTL
     {
-        return Ok(stale.clone());
+        return Ok(check.clone());
     }
 
-    // One fingerprint range scan instead of list_tracked_paths + N point
-    // reads (TODO-46).
-    let _ = namespace; // fingerprints are project-scoped
-    let fingerprints = docstore.list_fingerprints(project_id)?;
-    let mut stale: Vec<String> = Vec::new();
-    for fp in fingerprints {
-        let rel_path = fp.rel_path.clone();
-        let abs = project_root.join(&rel_path);
+    let indexed = indexed()?;
+    let mut out = FreshnessCheck {
+        stale_paths: Vec::new(),
+        files_checked: indexed.len(),
+    };
+    for fp in indexed {
+        let abs = project_root.join(&fp.rel_path);
         let meta = match std::fs::metadata(&abs) {
             Ok(m) => m,
             Err(_) => {
                 // File disappeared or access denied — definitely stale.
-                stale.push(rel_path);
+                out.stale_paths.push(fp.rel_path);
                 continue;
             }
         };
-        let disk_size = meta.len();
-        let disk_mtime_ms = meta
+        // A file indexed before fingerprints were recorded carries no
+        // signature; skip it rather than crying wolf over the whole corpus.
+        if fp.size == 0 && fp.mtime_secs == 0 {
+            out.files_checked -= 1;
+            continue;
+        }
+        let disk_mtime_secs = meta
             .modified()
             .ok()
             .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-            .map(|d| d.as_millis() as u64)
+            .map(|d| d.as_secs())
             .unwrap_or(0);
-        if disk_size != fp.size || disk_mtime_ms != fp.mtime_ms {
-            stale.push(rel_path);
+        if meta.len() != fp.size || disk_mtime_secs != fp.mtime_secs {
+            out.stale_paths.push(fp.rel_path);
         }
     }
+    out.stale_paths.sort();
     if let Ok(mut c) = CACHE.lock() {
-        c.insert(cache_key, (std::time::Instant::now(), stale.clone()));
+        c.insert(cache_key, (std::time::Instant::now(), out.clone()));
     }
-    Ok(stale)
+    Ok(out)
 }
 
 // ── Tier selection ────────────────────────────────────────────────────────────
@@ -357,31 +399,49 @@ pub(crate) fn extract_literal_anchor(pattern: &str) -> Option<String> {
 /// Execute a grep query. Callers pass the same `HybridSearchEngine`
 /// that serves `search_memory` so the Tantivy reader is shared and
 /// warm across calls.
-pub fn grep(
+pub fn grep<F>(
     engine: &HybridSearchEngine,
-    docstore: &DocStore,
     project_root: &Path,
     q: &GrepQuery,
-) -> anyhow::Result<GrepResult> {
+    indexed_files: F,
+) -> anyhow::Result<GrepResult>
+where
+    F: FnOnce() -> anyhow::Result<Vec<IndexedFileStat>>,
+{
     let start = Instant::now();
 
     // ── Step 1: freshness check ──
-    let stale_paths = match q.freshness {
-        FreshnessMode::Off => Vec::new(),
+    let freshness = match q.freshness {
+        FreshnessMode::Off => FreshnessCheck::default(),
         FreshnessMode::Strict | FreshnessMode::Warn => {
-            check_freshness(docstore, &q.project_id, &q.namespace, project_root).unwrap_or_default()
+            check_freshness(indexed_files, &q.project_id, &q.namespace, project_root)
+                .unwrap_or_default()
         }
     };
-    let index_stale_warning = if stale_paths.is_empty() {
-        None
-    } else {
-        let msg = format!(
-            "{} file{} on disk do not match the indexed fingerprint{} — results for those files may be stale. Run `update_project` to refresh.",
+    let stale_paths = freshness.stale_paths.clone();
+    let index_stale_warning = if !stale_paths.is_empty() {
+        let one = stale_paths.len() == 1;
+        Some(format!(
+            "{} file{} on disk {} match the indexed fingerprint{} — results for {} may be stale. Run `update_project` to refresh.",
             stale_paths.len(),
-            if stale_paths.len() == 1 { "" } else { "s" },
-            if stale_paths.len() == 1 { "" } else { "s" },
-        );
-        Some(msg)
+            if one { "" } else { "s" },
+            if one { "does not" } else { "do not" },
+            if one { "" } else { "s" },
+            if one { "it" } else { "those files" },
+        ))
+    } else if !matches!(q.freshness, FreshnessMode::Off) && freshness.files_checked == 0 {
+        // The guard ran and had NOTHING to compare against. Silence here is
+        // exactly what let a decorative check pass for a real one: an empty
+        // fingerprint set yields an empty stale list, which reads identically
+        // to a clean bill of health. Say so instead.
+        Some(
+            "freshness could NOT be verified — this project has no indexed file \
+             fingerprints, so staleness was not checked. Treat these results as \
+             unverified against disk, and run `update_project` to record them."
+                .to_string(),
+        )
+    } else {
+        None
     };
 
     let tier = pick_tier(q);
@@ -389,9 +449,9 @@ pub fn grep(
 
     // ── Step 2: execute tier ──
     let (matches, chunks_scanned, files_scanned) = match tier {
-        GrepTier::TermIndex => execute_term_index(engine, docstore, q, case_sensitive)?,
-        GrepTier::TermNarrowed => execute_term_narrowed(engine, docstore, q, case_sensitive)?,
-        GrepTier::FullScan => execute_full_scan(docstore, q, case_sensitive)?,
+        GrepTier::TermIndex => execute_term_index(engine, q, case_sensitive)?,
+        GrepTier::TermNarrowed => execute_term_narrowed(engine, q, case_sensitive)?,
+        GrepTier::FullScan => execute_full_scan(engine, q, case_sensitive)?,
     };
 
     // Prefer a real staleness warning; otherwise fail loud if the
@@ -414,7 +474,6 @@ pub fn grep(
 
 fn execute_term_index(
     engine: &HybridSearchEngine,
-    _docstore: &DocStore,
     q: &GrepQuery,
     case_sensitive: bool,
 ) -> anyhow::Result<(Vec<GrepMatch>, usize, usize)> {
@@ -441,7 +500,7 @@ fn execute_term_index(
         use_mmr: false,
     };
     // `lexical_search_with_content` gives us each chunk's full stored
-    // content in a single Tantivy read — no DocStore round-trip per
+    // content in a single Tantivy read — no second-store round-trip per
     // chunk. This is the hot path and every microsecond of overhead
     // here directly widens the gap against rg.
     let hits = engine.lexical_search_with_content(&hybrid_q)?;
@@ -496,13 +555,12 @@ fn execute_term_index(
 /// every regex-with-literal-anchor query.
 fn execute_term_narrowed(
     engine: &HybridSearchEngine,
-    docstore: &DocStore,
     q: &GrepQuery,
     case_sensitive: bool,
 ) -> anyhow::Result<(Vec<GrepMatch>, usize, usize)> {
     let Some(anchor) = extract_literal_anchor(&q.pattern) else {
         // Shouldn't happen — pick_tier already checked. Safety net.
-        return execute_full_scan(docstore, q, case_sensitive);
+        return execute_full_scan(engine, q, case_sensitive);
     };
 
     // Oversample a bit more aggressively than Tier 0 because the
@@ -575,15 +633,15 @@ fn execute_term_narrowed(
     Ok((matches, chunks_scanned, files_seen.len()))
 }
 
-// ── Tier 2: full scan over DocStore content ──
+// ── Tier 2: full scan over stored chunk text ──
 
-/// Parallel byte scan over DocStore content. Each worker scans a
-/// disjoint subset of files; local match buffers are merged under a
-/// single mutex. An atomic counter lets workers bail early when the
-/// global `max_results` cap is reached — without the atomic, workers
-/// would keep producing matches long after the cap.
+/// Parallel byte scan over every stored chunk. Each worker scans a
+/// disjoint subset; local match buffers are merged under a single mutex.
+/// An atomic counter lets workers bail early when the global
+/// `max_results` cap is reached — without the atomic, workers would keep
+/// producing matches long after the cap.
 fn execute_full_scan(
-    docstore: &DocStore,
+    engine: &HybridSearchEngine,
     q: &GrepQuery,
     case_sensitive: bool,
 ) -> anyhow::Result<(Vec<GrepMatch>, usize, usize)> {
@@ -591,16 +649,23 @@ fn execute_full_scan(
     use std::sync::Mutex;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
-    let paths: Vec<String> = docstore
-        .list_tracked_paths(&q.project_id, &q.namespace)?
-        .into_iter()
-        .filter(|p| q.path_prefix.as_ref().is_none_or(|pre| p.starts_with(pre)))
-        .collect();
+    // Chunk text is STORED in Tantivy, so the scan reads it from there.
+    // This tier used to read a separate document store that no production
+    // code path has ever written to, which meant it scanned zero files and
+    // returned zero matches for every query that reached it.
+    //
+    // Two-phase: addresses first (no stored-field access), then one chunk
+    // per worker — a full-corpus scan never materialises the corpus.
+    let (searcher, addresses) =
+        engine.chunk_addresses(&q.project_id, &q.namespace, q.generation)?;
 
     let chunks_scanned = AtomicUsize::new(0);
-    let files_scanned = AtomicUsize::new(0);
     let total_matches = AtomicUsize::new(0);
     let matches_mutex: Mutex<Vec<GrepMatch>> = Mutex::new(Vec::with_capacity(q.max_results));
+    // Distinct file paths actually scanned. `files_scanned` feeds the
+    // coverage warning, so it has to count files, not chunks.
+    let files_seen: Mutex<std::collections::HashSet<String>> =
+        Mutex::new(std::collections::HashSet::new());
 
     // Compile the regex once up front (if we're in regex mode) so
     // workers don't each recompile on every line — saves tens of µs
@@ -615,11 +680,11 @@ fn execute_full_scan(
         None
     };
 
-    // We share a single Result slot so a DocStore error from any
-    // worker wins. Workers bail cooperatively on the first failure.
+    // We share a single Result slot so a store error from any worker wins.
+    // Workers bail cooperatively on the first failure.
     let first_error: Mutex<Option<anyhow::Error>> = Mutex::new(None);
 
-    paths.par_iter().for_each(|rel_path| {
+    addresses.par_iter().for_each(|addr| {
         if total_matches.load(Ordering::Relaxed) >= q.max_results {
             return;
         }
@@ -627,8 +692,8 @@ fn execute_full_scan(
             return;
         }
 
-        let docs = match docstore.get_all_docs_for_file(&q.project_id, &q.namespace, rel_path) {
-            Ok(v) => v,
+        let chunk = match engine.stored_chunk_at(&searcher, *addr) {
+            Ok(c) => c,
             Err(e) => {
                 if let Ok(mut g) = first_error.lock()
                     && g.is_none()
@@ -638,38 +703,40 @@ fn execute_full_scan(
                 return;
             }
         };
-        if docs.is_empty() {
+
+        if let Some(pre) = q.path_prefix.as_ref()
+            && !chunk.path.starts_with(pre)
+        {
             return;
         }
-        files_scanned.fetch_add(1, Ordering::Relaxed);
+        if let Some(lang) = q.language.as_ref()
+            && !chunk.language.eq_ignore_ascii_case(lang)
+        {
+            return;
+        }
+
+        chunks_scanned.fetch_add(1, Ordering::Relaxed);
+        if let Ok(mut seen) = files_seen.lock() {
+            seen.insert(chunk.path.clone());
+        }
 
         let mut local_matches: Vec<GrepMatch> = Vec::new();
-        for doc in docs {
-            if let Some(ref lang) = q.language
-                && !doc.language.eq_ignore_ascii_case(lang)
-            {
-                continue;
-            }
-            chunks_scanned.fetch_add(1, Ordering::Relaxed);
-            scan_chunk_with_precompiled(
-                &doc.content,
-                doc.start_line,
-                &q.pattern,
-                case_sensitive,
-                q.regex,
-                q.multiline,
-                compiled_regex.as_ref(),
-                rel_path,
-                0,
-                q.context_before,
-                q.context_after,
-                &mut local_matches,
-                q.max_results,
-            );
-            if local_matches.len() >= q.max_results {
-                break;
-            }
-        }
+        scan_chunk_with_precompiled(
+            &chunk.content,
+            chunk.start_line,
+            &q.pattern,
+            case_sensitive,
+            q.regex,
+            q.multiline,
+            compiled_regex.as_ref(),
+            &chunk.path,
+            0,
+            q.context_before,
+            q.context_after,
+            &mut local_matches,
+            q.max_results,
+        );
+
         if !local_matches.is_empty() {
             let mut global = match matches_mutex.lock() {
                 Ok(g) => g,
@@ -694,10 +761,14 @@ fn execute_full_scan(
     let matches = matches_mutex
         .into_inner()
         .unwrap_or_else(|p| p.into_inner());
+    let files_scanned = files_seen
+        .into_inner()
+        .unwrap_or_else(|p| p.into_inner())
+        .len();
     Ok((
         matches,
         chunks_scanned.load(Ordering::Relaxed),
-        files_scanned.load(Ordering::Relaxed),
+        files_scanned,
     ))
 }
 
