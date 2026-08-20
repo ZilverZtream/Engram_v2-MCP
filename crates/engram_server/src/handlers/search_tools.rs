@@ -67,6 +67,25 @@ impl Engram {
         req: SearchMemoryRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+
+        // `metadata_filter` is in the published schema but no code has ever
+        // read it. Silently ignoring a FILTER is the dangerous shape of that
+        // defect: the caller gets results that violate the constraint they
+        // asked for, with nothing to indicate it. Fail closed instead, the
+        // same way an unknown namespace and an invalid freshness mode
+        // already do. There is no metadata field in the index to filter on,
+        // so this is a rejection, not a TODO.
+        if req.metadata_filter.is_some() {
+            return Err(McpError::invalid_params(
+                "search_memory: `metadata_filter` is not implemented — the index has no \
+                 generic metadata field to filter on, and passing it would silently return \
+                 UNFILTERED results. Use include_path_prefixes / exclude_path_prefixes / \
+                 language_filters, which are applied."
+                    .to_string(),
+                None,
+            ));
+        }
+
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
 
