@@ -1,15 +1,19 @@
 //! Data integrity sentinels — cross-store consistency checks.
 //!
-//! After each generation switch, validates that Redb (registry), Tantivy (FTS),
-//! LanceDB (vectors), and the docstore are in agreement. When mismatches are
-//! detected, triggers scoped repair automatically if `integrity_auto_repair` is
-//! enabled in config.
+//! Validates that Tantivy (FTS) and LanceDB (vectors) agree on how much of
+//! the corpus they hold. When mismatches are detected, triggers scoped repair
+//! automatically if `integrity_auto_repair` is enabled in config — bounded by
+//! a convergence guard, because a repair that does not converge is worse than
+//! no repair at all.
+//!
+//! A third comparison used to sit here, against a separate document store.
+//! Nothing in production has ever written to that store, so those checks were
+//! gated on a count that was always zero and could not fire on any project.
+//! They are gone; see `build_integrity_mismatches`.
 
 use crate::state::AppState;
 use crate::utils::now_ms;
 use engram_core::metrics;
-use engram_index::docstore::DocSummary;
-use engram_index::hybrid::SearchDocSummary;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio_util::sync::CancellationToken;
@@ -24,7 +28,6 @@ pub struct IntegrityCheckResult {
     pub vector_doc_count: u64,
     pub graph_node_count: u64,
     pub graph_edge_count: u64,
-    pub docstore_doc_count: u64,
     pub mismatches: Vec<IntegrityMismatch>,
     pub repairs_attempted: Vec<RepairOutcome>,
     pub overall_healthy: bool,
@@ -40,11 +43,7 @@ pub struct IntegrityMismatch {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum MismatchKind {
-    /// Tantivy has docs not in docstore.
-    TantivyOrphan,
-    /// Docstore has docs not in Tantivy.
-    DocstoreOrphan,
-    /// Vector store has entries not in docstore.
+    /// Vector store has far more entries than Tantivy has docs.
     VectorOrphan,
     /// Vector store has FEWER entries than Tantivy when embeddings are
     /// expected — embedding failed for part of the corpus, silently
@@ -52,8 +51,6 @@ pub enum MismatchKind {
     VectorShortfall,
     /// Graph references non-existent generation.
     GraphStaleGeneration,
-    /// Tantivy and vector doc counts diverge beyond threshold.
-    CountDivergence,
     /// Registry metadata doesn't match active generation.
     RegistryMismatch,
 }
@@ -61,12 +58,9 @@ pub enum MismatchKind {
 impl std::fmt::Display for MismatchKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::TantivyOrphan => write!(f, "tantivy_orphan"),
-            Self::DocstoreOrphan => write!(f, "docstore_orphan"),
             Self::VectorOrphan => write!(f, "vector_orphan"),
             Self::VectorShortfall => write!(f, "vector_shortfall"),
             Self::GraphStaleGeneration => write!(f, "graph_stale_generation"),
-            Self::CountDivergence => write!(f, "count_divergence"),
             Self::RegistryMismatch => write!(f, "registry_mismatch"),
         }
     }
@@ -184,25 +178,14 @@ pub async fn check_project_integrity_with_policy(
     let search = ps.search.clone();
     let pid2 = project_id.to_string();
 
+    // A Count collector, not a full listing. The docstore comparison that
+    // needed every doc summary is gone, and materialising the whole corpus's
+    // stored fields on every integrity tick was never cheap.
     let search_t = search.clone();
     let pid_tantivy = pid2.clone();
-    let tantivy_docs: Vec<SearchDocSummary> =
-        tokio::task::spawn_blocking(move || search_t.list_docs_for_project(&pid_tantivy)).await??;
-    let tantivy_count = tantivy_docs.len() as u64;
-
-    // Shared handle — see AppState::docstore_blocking. The integrity check
-    // runs on a timer and used to open its own handle, so it could collide
-    // with a concurrent grep_project on the same file lock.
-    let state_docstore = state.clone();
-    let pid_docstore = project_id.to_string();
-    let (docstore_count, docstore_docs): (u64, Vec<DocSummary>) =
-        tokio::task::spawn_blocking(move || -> anyhow::Result<(u64, Vec<DocSummary>)> {
-            let store = state_docstore.docstore_blocking(&pid_docstore)?;
-            let count = store.count_docs_for_project(&pid_docstore)? as u64;
-            let docs = store.list_doc_summaries_for_project(&pid_docstore)?;
-            Ok((count, docs))
-        })
-        .await??;
+    let tantivy_count =
+        tokio::task::spawn_blocking(move || search_t.count_docs(&pid_tantivy).map(|c| c as u64))
+            .await??;
 
     // Vector count (async).
     // count_vectors returns Ok(0) when the vector feature is disabled or the
@@ -237,14 +220,7 @@ pub async fn check_project_integrity_with_policy(
     // fts_only / empty backend legitimately has no vectors; everything else
     // (local/ollama/openai/...) is expected to embed every doc.
     let embeddings_expected = !matches!(state.cfg.embedding_backend.as_str(), "fts_only" | "");
-    let mismatches = build_integrity_mismatches(
-        tantivy_count,
-        docstore_count,
-        vector_count,
-        embeddings_expected,
-        &tantivy_docs,
-        &docstore_docs,
-    );
+    let mismatches = build_integrity_mismatches(tantivy_count, vector_count, embeddings_expected);
 
     if !mismatches.is_empty() {
         metrics::metrics()
@@ -303,19 +279,10 @@ pub async fn check_project_integrity_with_policy(
         vector_doc_count: vector_count,
         graph_node_count: node_count,
         graph_edge_count: edge_count,
-        docstore_doc_count: docstore_count,
         mismatches,
         repairs_attempted: repairs,
         overall_healthy,
     })
-}
-
-fn summarize_samples<K: AsRef<str>>(samples: impl IntoIterator<Item = (K, String)>) -> String {
-    samples
-        .into_iter()
-        .map(|(id, path)| format!("{}@{}", id.as_ref(), path))
-        .collect::<Vec<_>>()
-        .join(", ")
 }
 
 /// Compute integrity mismatches given pre-fetched store summaries.
@@ -331,78 +298,24 @@ pub fn compute_overall_healthy(mismatch_count: usize, repairs: &[RepairOutcome])
     mismatch_count == 0 || (repairs.len() == mismatch_count && repairs.iter().all(|r| r.success))
 }
 
+/// Compute integrity mismatches given pre-fetched store counts.
+///
+/// Exposed as `pub` so integration tests can call the production detection
+/// path directly instead of re-implementing it (which risks logic drift).
+///
+/// Scope note: this used to also compare Tantivy against a separate document
+/// store. Those three checks (`tantivy_orphan`, `docstore_orphan`,
+/// `count_divergence`) were gated on that store being non-empty, and nothing
+/// in production has ever written to it — so they could not fire, on any
+/// project, ever, while their unit tests passed against synthetic input. They
+/// are gone rather than left as decoration. Tantivy-vs-vector below is a
+/// comparison between two stores that are genuinely both written.
 pub fn build_integrity_mismatches(
     tantivy_count: u64,
-    docstore_count: u64,
     vector_count: u64,
     embeddings_expected: bool,
-    tantivy_docs: &[SearchDocSummary],
-    docstore_docs: &[DocSummary],
 ) -> Vec<IntegrityMismatch> {
-    const SAMPLE_LIMIT: usize = 5;
     let mut mismatches = Vec::new();
-
-    let tantivy_map: HashMap<String, String> = tantivy_docs
-        .iter()
-        .map(|d| (format!("{}:{}", d.namespace, d.doc_id), d.path.clone()))
-        .collect();
-    let docstore_map: HashMap<String, String> = docstore_docs
-        .iter()
-        .map(|d| (format!("{}:{}", d.namespace, d.doc_id), d.path.clone()))
-        .collect();
-
-    let tantivy_orphans: Vec<(String, String)> = tantivy_map
-        .iter()
-        .filter(|(id, _)| !docstore_map.contains_key(*id))
-        .map(|(id, path)| (id.clone(), path.clone()))
-        .collect();
-    if docstore_count > 0 && !tantivy_orphans.is_empty() {
-        mismatches.push(IntegrityMismatch {
-            kind: MismatchKind::TantivyOrphan,
-            description: format!(
-                "Tantivy has {} docs missing from docstore (sample: [{}])",
-                tantivy_orphans.len(),
-                summarize_samples(tantivy_orphans.iter().take(SAMPLE_LIMIT).cloned())
-            ),
-            expected: 0,
-            actual: tantivy_orphans.len() as u64,
-        });
-    }
-
-    let docstore_orphans: Vec<(String, String)> = docstore_map
-        .iter()
-        .filter(|(id, _)| !tantivy_map.contains_key(*id))
-        .map(|(id, path)| (id.clone(), path.clone()))
-        .collect();
-    if docstore_count > 0 && !docstore_orphans.is_empty() {
-        mismatches.push(IntegrityMismatch {
-            kind: MismatchKind::DocstoreOrphan,
-            description: format!(
-                "Docstore has {} docs missing from Tantivy (sample: [{}])",
-                docstore_orphans.len(),
-                summarize_samples(docstore_orphans.iter().take(SAMPLE_LIMIT).cloned())
-            ),
-            expected: 0,
-            actual: docstore_orphans.len() as u64,
-        });
-    }
-
-    if docstore_count > 0 {
-        let diff = tantivy_count.abs_diff(docstore_count);
-        let threshold = (docstore_count as f64 * 0.05).max(5.0) as u64;
-        if diff > threshold {
-            mismatches.push(IntegrityMismatch {
-                kind: MismatchKind::CountDivergence,
-                description: format!(
-                    "Tantivy doc count ({tantivy_count}) diverges from docstore ({docstore_count}) by {diff}; tantivy_only_sample=[{}]; docstore_only_sample=[{}]",
-                    summarize_samples(tantivy_orphans.iter().take(SAMPLE_LIMIT).cloned()),
-                    summarize_samples(docstore_orphans.iter().take(SAMPLE_LIMIT).cloned())
-                ),
-                expected: docstore_count,
-                actual: tantivy_count,
-            });
-        }
-    }
 
     // Check: Vector store should have <= tantivy docs (some docs may lack embeddings)
     if vector_count > tantivy_count + 100 {
@@ -429,7 +342,9 @@ pub fn build_integrity_mismatches(
             mismatches.push(IntegrityMismatch {
                 kind: MismatchKind::VectorShortfall,
                 description: format!(
-                    "Vector store has only {vector_count} entries for {tantivy_count} Tantivy docs                      ({shortfall} missing embeddings) — hybrid search recall is degraded;                      re-embed with repair_project(scope=vector_only)"
+                    "Vector store has only {vector_count} entries for {tantivy_count} Tantivy docs \
+                     ({shortfall} missing embeddings) — hybrid search recall is degraded; \
+                     re-embed with repair_project(scope=vector_only)"
                 ),
                 expected: tantivy_count,
                 actual: vector_count,
@@ -510,39 +425,6 @@ async fn attempt_repair(
     metrics::metrics().repairs_triggered.inc();
 
     match mismatch.kind {
-        MismatchKind::CountDivergence
-        | MismatchKind::TantivyOrphan
-        | MismatchKind::DocstoreOrphan => {
-            // Trigger a targeted repair_project for the tantivy index
-            tracing::info!(
-                project_id,
-                mismatch_kind = %mismatch.kind,
-                "Triggering scoped Tantivy repair for integrity mismatch"
-            );
-            // We delegate to the existing repair infrastructure
-            let repair_result = crate::services::project_service::repair_project_scoped(
-                state,
-                project_id,
-                "tantivy_only",
-            )
-            .await;
-            let success = repair_result.is_ok();
-            if success {
-                metrics::metrics().repairs_succeeded.inc();
-            } else {
-                metrics::metrics().repairs_failed.inc();
-            }
-            RepairOutcome {
-                mismatch_kind: mismatch.kind.clone(),
-                action: "tantivy_generation_purge".into(),
-                success,
-                items_repaired: if success {
-                    mismatch.expected.abs_diff(mismatch.actual)
-                } else {
-                    0
-                },
-            }
-        }
         MismatchKind::VectorOrphan | MismatchKind::VectorShortfall => {
             tracing::info!(
                 project_id,
@@ -667,71 +549,11 @@ pub async fn run_integrity_checker(state: AppState, shutdown: CancellationToken)
 mod tests {
     use super::*;
 
-    fn tdoc(namespace: &str, doc_id: &str, path: &str) -> SearchDocSummary {
-        SearchDocSummary {
-            namespace: namespace.to_string(),
-            doc_id: doc_id.to_string(),
-            path: path.to_string(),
-        }
-    }
-
-    fn ddoc(namespace: &str, doc_id: &str, path: &str) -> DocSummary {
-        DocSummary {
-            namespace: namespace.to_string(),
-            doc_id: doc_id.to_string(),
-            path: path.to_string(),
-        }
-    }
-
-    #[test]
-    fn detects_tantivy_orphans_with_debug_samples() {
-        let mismatches = build_integrity_mismatches(
-            2,
-            1,
-            0,
-            false,
-            &[
-                tdoc("memory", "a", "src/a.rs"),
-                tdoc("memory", "b", "src/b.rs"),
-            ],
-            &[ddoc("memory", "a", "src/a.rs")],
-        );
-
-        let mm = mismatches
-            .iter()
-            .find(|m| m.kind == MismatchKind::TantivyOrphan)
-            .expect("expected tantivy orphan mismatch");
-        assert_eq!(mm.actual, 1);
-        assert!(mm.description.contains("memory:b@src/b.rs"));
-    }
-
-    #[test]
-    fn detects_docstore_orphans_with_debug_samples() {
-        let mismatches = build_integrity_mismatches(
-            1,
-            2,
-            0,
-            false,
-            &[tdoc("memory", "a", "src/a.rs")],
-            &[
-                ddoc("memory", "a", "src/a.rs"),
-                ddoc("memory", "z", "src/z.rs"),
-            ],
-        );
-
-        let mm = mismatches
-            .iter()
-            .find(|m| m.kind == MismatchKind::DocstoreOrphan)
-            .expect("expected docstore orphan mismatch");
-        assert_eq!(mm.actual, 1);
-        assert!(mm.description.contains("memory:z@src/z.rs"));
-    }
-
     #[test]
     fn vector_shortfall_flagged_when_embeddings_expected() {
         // 50 vectors for 200 docs with embeddings expected = 150 missing,
         // far past the 5%/20-floor threshold.
-        let mismatches = build_integrity_mismatches(200, 200, 50, true, &[], &[]);
+        let mismatches = build_integrity_mismatches(200, 50, true);
         let mm = mismatches
             .iter()
             .find(|m| m.kind == MismatchKind::VectorShortfall)
@@ -744,7 +566,7 @@ mod tests {
     #[test]
     fn vector_shortfall_suppressed_when_embeddings_not_expected() {
         // fts_only backend (embeddings_expected=false): zero vectors is fine.
-        let mismatches = build_integrity_mismatches(200, 200, 0, false, &[], &[]);
+        let mismatches = build_integrity_mismatches(200, 0, false);
         assert!(
             !mismatches
                 .iter()
@@ -757,53 +579,12 @@ mod tests {
     fn vector_shortfall_floored_for_small_gaps() {
         // 195 vectors for 200 docs = 5 missing, under the 20 absolute floor —
         // a handful of unembeddable docs must not trip the alarm.
-        let mismatches = build_integrity_mismatches(200, 200, 195, true, &[], &[]);
+        let mismatches = build_integrity_mismatches(200, 195, true);
         assert!(
             !mismatches
                 .iter()
                 .any(|m| m.kind == MismatchKind::VectorShortfall),
             "small shortfall under the floor must not flag: {mismatches:?}"
-        );
-    }
-
-    #[test]
-    fn empty_docstore_does_not_orphan_all_tantivy_docs() {
-        // pilot-validated regression: production indexing never populates
-        // the per-doc DOC_BY_ID table, so docstore_count is 0 for every real
-        // project. With the orphan checks ungated this flagged ALL tantivy
-        // docs as orphans. Empty docstore => orphan axis untracked, no flag.
-        let tdocs = vec![
-            tdoc("memory", "a", "a.rs"),
-            tdoc("memory", "b", "b.rs"),
-            tdoc("memory", "c", "c.rs"),
-        ];
-        let mismatches = build_integrity_mismatches(3, 0, 3, false, &tdocs, &[]);
-        assert!(
-            !mismatches
-                .iter()
-                .any(|m| m.kind == MismatchKind::TantivyOrphan),
-            "empty docstore must not orphan all tantivy docs: {mismatches:?}"
-        );
-        assert!(
-            !mismatches
-                .iter()
-                .any(|m| m.kind == MismatchKind::DocstoreOrphan),
-            "no docstore orphans when docstore is empty: {mismatches:?}"
-        );
-    }
-
-    #[test]
-    fn populated_docstore_still_detects_orphans() {
-        // The gate only suppresses the EMPTY case; a populated docstore
-        // still surfaces a genuine tantivy orphan.
-        let tdocs = vec![tdoc("memory", "a", "a.rs"), tdoc("memory", "b", "b.rs")];
-        let ddocs = vec![ddoc("memory", "a", "a.rs")];
-        let mismatches = build_integrity_mismatches(2, 1, 0, false, &tdocs, &ddocs);
-        assert!(
-            mismatches
-                .iter()
-                .any(|m| m.kind == MismatchKind::TantivyOrphan),
-            "populated docstore must still detect the real orphan: {mismatches:?}"
         );
     }
 
@@ -855,16 +636,14 @@ mod tests {
 
     #[test]
     fn mismatch_kind_display_strings() {
-        assert_eq!(MismatchKind::TantivyOrphan.to_string(), "tantivy_orphan");
-        assert_eq!(MismatchKind::DocstoreOrphan.to_string(), "docstore_orphan");
         assert_eq!(MismatchKind::VectorOrphan.to_string(), "vector_orphan");
+        assert_eq!(
+            MismatchKind::VectorShortfall.to_string(),
+            "vector_shortfall"
+        );
         assert_eq!(
             MismatchKind::GraphStaleGeneration.to_string(),
             "graph_stale_generation"
-        );
-        assert_eq!(
-            MismatchKind::CountDivergence.to_string(),
-            "count_divergence"
         );
         assert_eq!(
             MismatchKind::RegistryMismatch.to_string(),
@@ -874,101 +653,14 @@ mod tests {
 
     // ── build_integrity_mismatches: no mismatches ────────────────────────────
 
-    #[test]
-    fn no_mismatches_when_stores_agree() {
-        let docs = vec![
-            tdoc("memory", "a", "src/a.rs"),
-            tdoc("memory", "b", "src/b.rs"),
-        ];
-        let ddocs = vec![
-            ddoc("memory", "a", "src/a.rs"),
-            ddoc("memory", "b", "src/b.rs"),
-        ];
-        let mismatches = build_integrity_mismatches(2, 2, 1, false, &docs, &ddocs);
-        assert!(
-            mismatches.is_empty(),
-            "perfectly aligned stores should have no mismatches"
-        );
-    }
-
-    #[test]
-    fn no_mismatch_for_empty_stores() {
-        let mismatches = build_integrity_mismatches(0, 0, 0, false, &[], &[]);
-        assert!(mismatches.is_empty());
-    }
-
     // ── build_integrity_mismatches: count divergence threshold ───────────────
-
-    #[test]
-    fn count_divergence_triggers_above_5_percent_threshold() {
-        // docstore has 100 docs, threshold = max(5.0, 100*0.05) = 5
-        // tantivy has 90 → diff = 10 > 5 → divergence
-        let ddocs: Vec<DocSummary> = (0..100)
-            .map(|i| ddoc("ns", &i.to_string(), &format!("f{i}.rs")))
-            .collect();
-        let tdocs: Vec<SearchDocSummary> = (0..90)
-            .map(|i| tdoc("ns", &i.to_string(), &format!("f{i}.rs")))
-            .collect();
-        let mismatches = build_integrity_mismatches(90, 100, 0, false, &tdocs, &ddocs);
-        assert!(
-            mismatches
-                .iter()
-                .any(|m| m.kind == MismatchKind::CountDivergence),
-            "diff of 10 (>5% of 100) should trigger divergence"
-        );
-    }
-
-    #[test]
-    fn count_divergence_not_triggered_below_threshold() {
-        // docstore has 100 docs, threshold = 5. diff = 3 → no divergence
-        let ddocs: Vec<DocSummary> = (0..100)
-            .map(|i| ddoc("ns", &i.to_string(), &format!("f{i}.rs")))
-            .collect();
-        let tdocs: Vec<SearchDocSummary> = (0..97)
-            .map(|i| tdoc("ns", &i.to_string(), &format!("f{i}.rs")))
-            .collect();
-        // No orphans because all tantivy docs are subset of docstore
-        let mismatches = build_integrity_mismatches(97, 100, 0, false, &tdocs, &ddocs);
-        assert!(
-            !mismatches
-                .iter()
-                .any(|m| m.kind == MismatchKind::CountDivergence),
-            "diff of 3 (<5% of 100) should not trigger divergence"
-        );
-    }
-
-    #[test]
-    fn count_divergence_uses_minimum_threshold_of_5() {
-        // docstore has 10 docs, threshold = max(5.0, 10*0.05=0.5) = 5
-        // diff = 4 → no divergence (4 <= 5)
-        let ddocs: Vec<DocSummary> = (0..10)
-            .map(|i| ddoc("ns", &i.to_string(), &format!("f{i}.rs")))
-            .collect();
-        let tdocs: Vec<SearchDocSummary> = (0..6)
-            .map(|i| tdoc("ns", &i.to_string(), &format!("f{i}.rs")))
-            .collect();
-        let mismatches = build_integrity_mismatches(6, 10, 0, false, &tdocs, &ddocs);
-        assert!(
-            !mismatches
-                .iter()
-                .any(|m| m.kind == MismatchKind::CountDivergence),
-            "diff of 4 should not exceed minimum threshold of 5"
-        );
-    }
 
     // ── build_integrity_mismatches: vector orphan ────────────────────────────
 
     #[test]
     fn vector_orphan_triggered_when_exceeds_tantivy_by_100() {
         // vector_count = 1200, tantivy = 1000 → diff = 200 > 100 → VectorOrphan
-        let tdocs: Vec<SearchDocSummary> = (0..1000)
-            .map(|i| tdoc("ns", &i.to_string(), &format!("f{i}.rs")))
-            .collect();
-        let ddocs: Vec<DocSummary> = tdocs
-            .iter()
-            .map(|d| ddoc(&d.namespace, &d.doc_id, &d.path))
-            .collect();
-        let mismatches = build_integrity_mismatches(1000, 1000, 1200, false, &tdocs, &ddocs);
+        let mismatches = build_integrity_mismatches(1000, 1200, false);
         assert!(
             mismatches
                 .iter()
@@ -980,14 +672,7 @@ mod tests {
     #[test]
     fn vector_orphan_not_triggered_within_100_margin() {
         // vector = 1050, tantivy = 1000 → diff = 50 ≤ 100 → no orphan
-        let tdocs: Vec<SearchDocSummary> = (0..1000)
-            .map(|i| tdoc("ns", &i.to_string(), &format!("f{i}.rs")))
-            .collect();
-        let ddocs: Vec<DocSummary> = tdocs
-            .iter()
-            .map(|d| ddoc(&d.namespace, &d.doc_id, &d.path))
-            .collect();
-        let mismatches = build_integrity_mismatches(1000, 1000, 1050, false, &tdocs, &ddocs);
+        let mismatches = build_integrity_mismatches(1000, 1050, false);
         assert!(
             !mismatches
                 .iter()
@@ -998,68 +683,7 @@ mod tests {
 
     // ── build_integrity_mismatches: multiple mismatches at once ─────────────
 
-    #[test]
-    fn multiple_mismatches_can_be_detected_simultaneously() {
-        // tantivy has X, docstore has Y (different), vector way too high
-        let tdocs = vec![tdoc("ns", "a", "a.rs"), tdoc("ns", "extra", "extra.rs")];
-        let ddocs = vec![ddoc("ns", "a", "a.rs"), ddoc("ns", "missing", "missing.rs")];
-        let mismatches = build_integrity_mismatches(2, 2, 5000, false, &tdocs, &ddocs);
-        // Should detect both TantivyOrphan (extra) and DocstoreOrphan (missing)
-        assert!(
-            mismatches
-                .iter()
-                .any(|m| m.kind == MismatchKind::TantivyOrphan)
-        );
-        assert!(
-            mismatches
-                .iter()
-                .any(|m| m.kind == MismatchKind::DocstoreOrphan)
-        );
-        assert!(
-            mismatches
-                .iter()
-                .any(|m| m.kind == MismatchKind::VectorOrphan)
-        );
-    }
-
     // ── summarize_samples helper ─────────────────────────────────────────────
-
-    #[test]
-    fn tantivy_orphan_description_includes_sample_path() {
-        let tdocs = vec![
-            tdoc("memory", "doc1", "src/module/file.rs"),
-            tdoc("memory", "doc2", "src/other.rs"),
-        ];
-        let ddocs = vec![ddoc("memory", "doc1", "src/module/file.rs")];
-        let mismatches = build_integrity_mismatches(2, 1, 0, false, &tdocs, &ddocs);
-        let mm = mismatches
-            .iter()
-            .find(|m| m.kind == MismatchKind::TantivyOrphan)
-            .unwrap();
-        // description should include the orphan key formatted as namespace:doc_id@path
-        assert!(
-            mm.description.contains("memory:doc2@src/other.rs"),
-            "description should include orphan sample: {:?}",
-            mm.description
-        );
-    }
-
-    #[test]
-    fn docstore_orphan_actual_count_is_correct() {
-        let tdocs = vec![tdoc("ns", "a", "a.rs")];
-        let ddocs = vec![
-            ddoc("ns", "a", "a.rs"),
-            ddoc("ns", "b", "b.rs"),
-            ddoc("ns", "c", "c.rs"),
-        ];
-        let mismatches = build_integrity_mismatches(1, 3, 0, false, &tdocs, &ddocs);
-        let mm = mismatches
-            .iter()
-            .find(|m| m.kind == MismatchKind::DocstoreOrphan)
-            .unwrap();
-        assert_eq!(mm.actual, 2, "two docstore orphans");
-        assert_eq!(mm.expected, 0);
-    }
 
     // ── resolve_auto_repair edge cases ───────────────────────────────────────
 
@@ -1118,26 +742,7 @@ mod tests {
 
     #[test]
     fn overall_healthy_is_true_when_no_mismatches() {
-        let mismatches = build_integrity_mismatches(
-            5,
-            5,
-            3,
-            false,
-            &[
-                tdoc("ns", "a", "a.rs"),
-                tdoc("ns", "b", "b.rs"),
-                tdoc("ns", "c", "c.rs"),
-                tdoc("ns", "d", "d.rs"),
-                tdoc("ns", "e", "e.rs"),
-            ],
-            &[
-                ddoc("ns", "a", "a.rs"),
-                ddoc("ns", "b", "b.rs"),
-                ddoc("ns", "c", "c.rs"),
-                ddoc("ns", "d", "d.rs"),
-                ddoc("ns", "e", "e.rs"),
-            ],
-        );
+        let mismatches = build_integrity_mismatches(5, 3, false);
         let overall_healthy = mismatches.is_empty();
         assert!(overall_healthy, "no mismatches means healthy");
     }
@@ -1187,18 +792,11 @@ mod tests {
     fn test_vector_store_error_captured() {
         // Simulate what would happen if a real error were masked as 0:
         // vector_count=0 when the true count is 1200 → VectorOrphan is missed.
-        let tdocs: Vec<SearchDocSummary> = (0..1000)
-            .map(|i| tdoc("ns", &i.to_string(), &format!("f{i}.rs")))
-            .collect();
-        let ddocs: Vec<DocSummary> = tdocs
-            .iter()
-            .map(|d| ddoc(&d.namespace, &d.doc_id, &d.path))
-            .collect();
 
         // TODO-45: a masked vector=0 no longer slips through. It does not
         // trigger VectorOrphan (that's the overflow direction) but IS now
         // caught as a VectorShortfall when embeddings are expected.
-        let masked = build_integrity_mismatches(1000, 1000, 0, true, &tdocs, &ddocs);
+        let masked = build_integrity_mismatches(1000, 0, true);
         assert!(
             !masked.iter().any(|m| m.kind == MismatchKind::VectorOrphan),
             "masked zero is not an overflow VectorOrphan"
@@ -1211,7 +809,7 @@ mod tests {
         );
 
         // With the real over-count propagated → VectorOrphan is detected.
-        let real = build_integrity_mismatches(1000, 1000, 1200, true, &tdocs, &ddocs);
+        let real = build_integrity_mismatches(1000, 1200, true);
         assert!(
             real.iter().any(|m| m.kind == MismatchKind::VectorOrphan),
             "real count of 1200 vs 1000 must trigger VectorOrphan"

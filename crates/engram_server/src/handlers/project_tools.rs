@@ -2268,6 +2268,48 @@ impl Engram {
             .ok_or_else(|| McpError::internal_error(format!("project {pid} not found"), None))?;
         let dir = PathBuf::from(&rec.directory);
 
+        // Route the documented `scope`. It used to be accepted and ignored:
+        // every call ran a full repair, so a narrow request silently paid a
+        // full reindex — minutes of work, and every doc_id the caller was
+        // holding went stale with the generation bump — while a typo'd scope
+        // did the same instead of erroring.
+        let purge_graph_first = match req.scope.to_ascii_lowercase().as_str() {
+            "full" => false,
+            // Cheap and non-destructive: drop index entries left behind by
+            // superseded generations. No reindex, no generation bump.
+            scope @ ("tantivy_only" | "vector_only") => {
+                let msg = crate::services::project_service::repair_project_scoped(
+                    &self.state,
+                    &pid,
+                    scope,
+                )
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                return Ok(CallToolResult::success(vec![Content::text(format!(
+                    "✅ Scoped repair ({scope}) for project_id: {pid}
+{msg}"
+                ))]));
+            }
+            // graph_only purges the graph and then falls through to the
+            // indexing pass below, because that pass is what REBUILDS it.
+            // Delegating to repair_project_scoped("graph_only") would delete
+            // the graph and return Ok without rebuilding anything.
+            "graph_only" => true,
+            other => {
+                return Err(McpError::invalid_params(
+                    format!(
+                        "repair_project: invalid scope '{other}'. Expected one of:                          full, graph_only, tantivy_only, vector_only"
+                    ),
+                    None,
+                ));
+            }
+        };
+
+        if purge_graph_first {
+            tracing::info!(project_id = %pid, "repair_project(graph_only): purging graph before rebuild");
+            self.state.graph.delete_project_data(&pid).ok();
+        }
+
         if req.wipe_and_reindex {
             self.state.projects.remove(&pid);
             self.state.graph.delete_project_data(&pid).ok();
@@ -2474,10 +2516,6 @@ impl Engram {
         let project_dir = self.state.cfg.data_dir.join("projects").join(&pid);
 
         self.state.projects.remove(&pid);
-        // Release redb's file lock on docs.redb BEFORE remove_dir_all —
-        // Windows refuses to unlink a locked file, which would leave the
-        // project's data directory half-deleted.
-        self.state.close_docstore(&pid);
         self.state.project_update_locks.write().await.remove(&pid);
         self.state
             .registry
