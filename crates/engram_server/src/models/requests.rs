@@ -972,6 +972,10 @@ pub struct SearchMemoryRequest {
     pub exclude_path_prefixes: Option<Vec<String>>,
     #[serde(default)]
     pub language_filters: Option<Vec<String>>,
+    /// NOT IMPLEMENTED - supplying it is rejected rather than ignored.
+    /// The index has no generic metadata field to filter on. Use
+    /// `include_path_prefixes` / `exclude_path_prefixes` /
+    /// `language_filters`, which are applied.
     #[serde(default)]
     pub metadata_filter: Option<serde_json::Value>,
     /// When `false`, short-circuits the hybrid pipeline: skips vector
@@ -1343,6 +1347,8 @@ pub struct AnalyzeTemporalCouplingsRequest {
     pub min_frequency: usize,
     #[serde(default = "default_limit_50")]
     pub limit: usize,
+    /// Reserved: edges are not currently injected into the response, so this
+    /// is a no-op whichever way it is set. Kept for forward compatibility.
     #[serde(default = "default_true")]
     pub inject_edges: bool,
 }
@@ -1476,10 +1482,13 @@ pub struct GenerateMigrationBlueprintRequest {
     /// Return JSON instead of Markdown. Default: false.
     #[serde(default)]
     pub output_json: bool,
-    /// Filter BFS to specific edge kinds (e.g. ["dependency", "sql_calls"]). Default: all.
+    /// NOT IMPLEMENTED - supplying it is rejected rather than ignored, so
+    /// the blueprint is never presented as filtered when it is not. The BFS
+    /// covers all edge kinds.
     #[serde(default)]
     pub include_edge_kinds: Option<Vec<String>>,
-    /// Skip dead code nodes during BFS. Default: true.
+    /// Reserved: the BFS does not currently skip dead-code nodes, so this is
+    /// a no-op whichever way it is set. Kept for forward compatibility.
     #[serde(default = "default_true")]
     pub exclude_dead_code: bool,
 }
@@ -2054,8 +2063,9 @@ pub struct AutonomousDecisionGateRequest {
     /// Controls how much evidence ADP gathers itself via the Evidence Orchestration Engine.
     #[serde(default = "default_evidence_depth")]
     pub evidence_depth: String,
-    /// Runtime evidence batch JSON for reconciliation scoring.
-    /// If provided, replaces the boolean `has_runtime_evidence` with rich reconciliation data.
+    /// NOT IMPLEMENTED - supplying it is rejected rather than ignored, so a
+    /// gate verdict is never reported as evidence-backed when the evidence
+    /// was dropped. Use the boolean `has_runtime_evidence`.
     #[serde(default)]
     pub runtime_evidence_batch: Option<serde_json::Value>,
     /// Migration class for calibrated thresholds (e.g., "data_access", "webforms_page").
@@ -2466,7 +2476,8 @@ pub struct AnalyzeBusinessLogicRequest {
     /// Specific method to analyze (requires file_path).
     #[serde(default)]
     pub method_name: Option<String>,
-    /// Re-analyze even if cached results exist. Default: false.
+    /// Reserved: no analysis cache exists, so every call already re-analyzes
+    /// and this is a no-op. Kept for forward compatibility.
     #[serde(default)]
     pub force_refresh: bool,
     /// Max concurrent LLM calls. Default: 2.
@@ -2527,7 +2538,8 @@ pub struct GetSpDetailsRequest {
     /// Name of the stored procedure.
     #[serde(alias = "name", alias = "sp")]
     pub sp_name: String,
-    /// If true, re-analyze even if cached. Default: false.
+    /// Reserved: no analysis cache exists, so every call already re-analyzes
+    /// and this is a no-op. Kept for forward compatibility.
     #[serde(default)]
     pub force_refresh: bool,
 }

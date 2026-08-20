@@ -4130,6 +4130,19 @@ impl Engram {
         &self,
         req: crate::models::AutonomousDecisionGateRequest,
     ) -> Result<CallToolResult, McpError> {
+        // Advertised in the schema, never read. This one gates AUTONOMOUS
+        // decisions: silently dropping the evidence a caller supplied would
+        // let a verdict read as evidence-backed when it was not.
+        if req.runtime_evidence_batch.is_some() {
+            return Err(McpError::invalid_params(
+                "autonomous_decision_gate: `runtime_evidence_batch` is not implemented — the \
+                 evidence would be DROPPED and the verdict would still read as \
+                 evidence-backed. Use the boolean `has_runtime_evidence`, or ingest the \
+                 batch first with ingest_runtime_artifacts."
+                    .to_string(),
+                None,
+            ));
+        }
         let _ = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
 

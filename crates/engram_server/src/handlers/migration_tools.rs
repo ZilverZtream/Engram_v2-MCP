@@ -119,6 +119,19 @@ impl Engram {
         &self,
         req: GenerateMigrationBlueprintRequest,
     ) -> Result<CallToolResult, McpError> {
+        // Advertised in the schema, never read. A blueprint that ignores an
+        // edge-kind filter is presented as scoped when it is not, so reject
+        // rather than mislead.
+        if req.include_edge_kinds.is_some() {
+            return Err(McpError::invalid_params(
+                "generate_migration_blueprint: `include_edge_kinds` is not implemented — the \
+                 dependency walk covers all edge kinds, and passing this would return an \
+                 UNFILTERED blueprint. Omit it, or narrow the blueprint with `root_symbol` \
+                 and `max_depth`."
+                    .to_string(),
+                None,
+            ));
+        }
         let max_depth = req.sanitized_max_depth();
         let output_json = req.output_json;
         let graph = self.state.graph.clone();
