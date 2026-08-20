@@ -180,15 +180,28 @@ pub struct CoChangeCommit {
 }
 
 /// Cached co-change walk for one repo state.
+///
+/// Per-commit results are reusable forever: a commit's oid pins its diff, so
+/// a later walk only has to diff the oids it has not seen. The snapshot is
+/// therefore keyed by nothing — `walked_oids` IS the key, one entry per
+/// already-diffed commit.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct CoChangeSnapshot {
-    /// HEAD oid the walk was taken at — cache is valid only while it matches.
+    /// HEAD oid the walk was last extended at. Informational — reuse is
+    /// decided per oid, not per head.
     pub head: String,
     /// How many commits the walk covered (the sanitized max_commits used).
     pub walked: usize,
     /// Oldest→newest is NOT guaranteed; consumers score per-commit and don't
     /// depend on order beyond what the walker produced.
     pub commits: Vec<CoChangeCommit>,
+    /// Every oid already diffed, INCLUDING the ones dropped as shape noise
+    /// (bulk or empty commits). Without the dropped ones, each refresh would
+    /// re-diff them forever.
+    pub walked_oids: Vec<String>,
+    /// True when the walk stopped on its time budget rather than on
+    /// `max_commits`, so the caller can say the coverage is partial.
+    pub partial: bool,
 }
 
 impl AppState {
