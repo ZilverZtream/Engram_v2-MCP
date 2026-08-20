@@ -2445,6 +2445,10 @@ impl Engram {
         let project_dir = self.state.cfg.data_dir.join("projects").join(&pid);
 
         self.state.projects.remove(&pid);
+        // Release redb's file lock on docs.redb BEFORE remove_dir_all —
+        // Windows refuses to unlink a locked file, which would leave the
+        // project's data directory half-deleted.
+        self.state.close_docstore(&pid);
         self.state.project_update_locks.write().await.remove(&pid);
         self.state
             .registry

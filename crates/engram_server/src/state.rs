@@ -2,7 +2,7 @@ use crate::services::migration_progress_service::MigrationProgressStore;
 use dashmap::{DashMap, DashSet};
 use engram_core::{CheckpointStore, Config, MemoryBudget, PathContext, Registry};
 use engram_graph::GraphStore;
-use engram_index::HybridSearchEngine;
+use engram_index::{DocStore, HybridSearchEngine};
 use engram_ml::{DreamingEngine, ImmuneEngine, StyleMimicryEngine};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -149,6 +149,18 @@ pub struct AppState {
     /// slow walk across every connected session. Key: project_id.
     pub co_change_cache: Arc<DashMap<String, Arc<CoChangeSnapshot>>>,
 
+    /// Per-project DocStore handles, opened once and shared.
+    ///
+    /// redb takes an EXCLUSIVE whole-file lock for the lifetime of a
+    /// `Database` handle (`LockFile` on Windows, `flock` on unix); its MVCC
+    /// guarantees are per-handle, not per-file. Opening a handle per request
+    /// therefore made concurrent readers fail against each other with
+    /// `DatabaseAlreadyOpen` ("Database already open. Cannot acquire lock.")
+    /// — observed live on 2026-08-20 with three same-millisecond
+    /// `grep_project` calls. One cached handle per project removes the race
+    /// entirely; redb then serialises transactions inside it.
+    pub docstores: Arc<DashMap<String, Arc<DocStore>>>,
+
     /// ADP1: Runtime kill-switch for autonomous decisions.
     ///
     /// Initialised from OR(config.adp_kill_switch, registry-persisted value)
@@ -250,6 +262,7 @@ impl AppState {
                 pagerank_cache: Arc::new(DashMap::new()),
                 pagerank_inflight: Arc::new(DashSet::new()),
                 co_change_cache: Arc::new(DashMap::new()),
+                docstores: Arc::new(DashMap::new()),
                 adp_kill_switch: Arc::new(std::sync::atomic::AtomicBool::new(
                     effective_kill_switch,
                 )),
@@ -366,6 +379,9 @@ impl AppState {
                 tracing::debug!(evicted = %key, "LRU-evicting project from cache (max={})", MAX_CACHED_PROJECTS);
                 self.projects.remove(&key);
                 self.project_lru.remove(&key);
+                // Release the evicted project's redb file lock too, so the
+                // handle cache stays bounded by the same LRU policy.
+                self.docstores.remove(&key);
             } else {
                 // All cached projects are actively indexing — allow temporary overshoot.
                 tracing::warn!(
@@ -377,5 +393,50 @@ impl AppState {
         self.project_lru
             .insert(ps.info.project_id.clone(), std::time::Instant::now());
         self.projects.insert(ps.info.project_id.clone(), ps);
+    }
+
+    /// Filesystem location of a project's DocStore.
+    pub fn docstore_path(&self, project_id: &str) -> PathBuf {
+        self.cfg
+            .data_dir
+            .join("projects")
+            .join(project_id)
+            .join("docs.redb")
+    }
+
+    /// The shared DocStore handle for a project, opened on first use.
+    ///
+    /// BLOCKING: the first call per project does file I/O, so call this from
+    /// inside `spawn_blocking`. Concurrent callers for the same project are
+    /// serialised by the map entry and all receive the SAME handle — never a
+    /// second `Database::open`, which redb refuses while a handle is live.
+    pub fn docstore_blocking(&self, project_id: &str) -> anyhow::Result<Arc<DocStore>> {
+        // Fast path: already open. Avoids taking the shard's write lock.
+        if let Some(existing) = self.docstores.get(project_id) {
+            return Ok(existing.clone());
+        }
+        let path = self.docstore_path(project_id);
+        match self.docstores.entry(project_id.to_string()) {
+            // Another thread won the race while we were resolving the path.
+            dashmap::mapref::entry::Entry::Occupied(o) => Ok(o.get().clone()),
+            dashmap::mapref::entry::Entry::Vacant(v) => {
+                let store = Arc::new(DocStore::open(&path).map_err(|e| {
+                    anyhow::anyhow!(
+                        "opening DocStore for project {project_id} at {}: {e}",
+                        path.display()
+                    )
+                })?);
+                v.insert(store.clone());
+                Ok(store)
+            }
+        }
+    }
+
+    /// Drop the cached DocStore handle, releasing redb's file lock.
+    ///
+    /// Required before deleting or moving a project's data directory —
+    /// Windows refuses to unlink a file that still has an open locked handle.
+    pub fn close_docstore(&self, project_id: &str) {
+        self.docstores.remove(project_id);
     }
 }

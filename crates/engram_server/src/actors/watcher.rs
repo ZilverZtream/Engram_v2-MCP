@@ -311,8 +311,14 @@ pub async fn run_watcher(
                 let Some((pid, res)) = maybe_notify else { continue; };
                 match res {
                     Ok(event) => {
-                        if event.kind.is_modify() || event.kind.is_create() || event.kind.is_remove() {
+                        if event_should_arm_update(&event) {
                             pending_updates.insert(pid, Instant::now() + debounce_duration);
+                        } else {
+                            tracing::trace!(
+                                project_id = %pid,
+                                paths = ?event.paths,
+                                "Watcher: ignoring event on non-indexable path"
+                            );
                         }
                     }
                     Err(e) => tracing::error!("Watcher error for {}: {:?}", pid, e),
@@ -320,6 +326,94 @@ pub async fn run_watcher(
             }
         }
     }
+}
+
+/// Directory names whose contents are build output, VCS internals or IDE
+/// scratch — never indexed source, but written constantly while a developer
+/// has the solution open.
+///
+/// Live incident 2026-08-20: a single edited `.vb` file produced a watcher
+/// trigger every 13-25 seconds for 45 minutes. The watcher armed a full
+/// project update for ANY filesystem event under the project root, so
+/// Visual Studio's `.vs\` IntelliSense cache, MSBuild's `obj\`/`bin\`
+/// writes and git's own index churn kept re-arming it. Each cycle then paid
+/// a project-wide VB sidecar `begin_project` (7-18 s) to discover
+/// `changed=1`.
+const NON_INDEXABLE_DIRS: &[&str] = &[
+    ".git",
+    ".hg",
+    ".svn",
+    ".vs",
+    ".vscode",
+    ".idea",
+    ".gradle",
+    ".venv",
+    "venv",
+    "__pycache__",
+    "node_modules",
+    "bower_components",
+    "packages",
+    "bin",
+    "obj",
+    "target",
+];
+
+/// File-name shapes that are editor/OS scratch, not content.
+fn is_scratch_file_name(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    lower.ends_with('~')
+        || lower.starts_with("~$")
+        || lower.starts_with(".#")
+        || lower.ends_with(".tmp")
+        || lower.ends_with(".temp")
+        || lower.ends_with(".swp")
+        || lower.ends_with(".swo")
+        || lower.ends_with(".lock")
+        || lower.ends_with(".suo")
+        || lower.ends_with(".user")
+        || lower.ends_with(".orig")
+        || lower.ends_with(".rej")
+}
+
+/// True when a filesystem event on `path` could plausibly change what the
+/// index holds, i.e. it is worth arming a project update for.
+///
+/// Conservative by design: only universally-generated locations are
+/// rejected. `dist/` and `build/` are NOT filtered — apps legitimately keep
+/// first-party code there.
+pub(crate) fn watch_event_is_indexable(path: &std::path::Path) -> bool {
+    for component in path.components() {
+        let std::path::Component::Normal(seg) = component else {
+            continue;
+        };
+        let seg = seg.to_string_lossy();
+        if NON_INDEXABLE_DIRS
+            .iter()
+            .any(|d| seg.eq_ignore_ascii_case(d))
+        {
+            return false;
+        }
+    }
+    match path.file_name() {
+        Some(name) => !is_scratch_file_name(&name.to_string_lossy()),
+        // A bare root/prefix carries no name to judge; let it through rather
+        // than dropping a real event.
+        None => true,
+    }
+}
+
+/// Whether a notify event should arm an update.
+///
+/// An event with no paths (some backends emit these on rescan) is accepted:
+/// losing a real change is worse than one redundant update.
+fn event_should_arm_update(event: &notify::Event) -> bool {
+    if !(event.kind.is_modify() || event.kind.is_create() || event.kind.is_remove()) {
+        return false;
+    }
+    if event.paths.is_empty() {
+        return true;
+    }
+    event.paths.iter().any(|p| watch_event_is_indexable(p))
 }
 
 fn create_watcher(
@@ -367,6 +461,113 @@ fn create_watcher(
 
 #[cfg(test)]
 mod tests {
+    use super::{event_should_arm_update, watch_event_is_indexable};
+    use std::path::Path;
+
+    /// Real source edits must still arm an update — the filter must not
+    /// trade a reindex storm for a stale index.
+    #[test]
+    fn source_files_are_indexable() {
+        for p in [
+            r"C:\repo\Site\tf_costreport.vb",
+            r"C:\repo\src\main.rs",
+            r"C:\repo\Site\Scripts\app.ts",
+            r"C:\repo\dist\hand-written.js",
+            r"C:\repo\build\first-party.cs",
+        ] {
+            assert!(
+                watch_event_is_indexable(Path::new(p)),
+                "{p} is source and must arm an update"
+            );
+        }
+    }
+
+    /// The churn sources behind the 45-minute trigger loop.
+    #[test]
+    fn build_output_vcs_and_ide_caches_are_not_indexable() {
+        for p in [
+            r"C:\repo\.git\index.lock",
+            r"C:\repo\.git\objects\ab\cdef",
+            r"C:\repo\.vs\Solution\v17\.suo",
+            r"C:\repo\.vs\ProjectEvaluation\sln.projects.v9.bin",
+            r"C:\repo\Site\obj\Debug\project.assets.json",
+            r"C:\repo\Site\bin\Site.dll",
+            r"C:\repo\node_modules\left-pad\index.js",
+            r"C:\repo\packages\Newtonsoft.Json.13.0.1\lib\net45\x.dll",
+            r"C:\repo\target\debug\build\x.rs",
+        ] {
+            assert!(
+                !watch_event_is_indexable(Path::new(p)),
+                "{p} is generated/VCS churn and must NOT arm an update"
+            );
+        }
+    }
+
+    /// Editor and OS scratch files sit next to real source, so they need a
+    /// name-shape rule rather than a directory rule.
+    #[test]
+    fn editor_scratch_files_are_not_indexable() {
+        for p in [
+            r"C:\repo\Site\~$report.docx",
+            r"C:\repo\Site\tf_costreport.vb~",
+            r"C:\repo\Site\.#tf_costreport.vb",
+            r"C:\repo\Site\tf_costreport.vb.swp",
+            r"C:\repo\Site\Site.csproj.user",
+            r"C:\repo\Site\merge.orig",
+        ] {
+            assert!(
+                !watch_event_is_indexable(Path::new(p)),
+                "{p} is editor scratch and must NOT arm an update"
+            );
+        }
+    }
+
+    /// A modify event that only touches generated paths must be dropped,
+    /// but a mixed event still arms (one real file changed).
+    #[test]
+    fn event_arms_only_when_some_path_is_indexable() {
+        use notify::event::{EventKind, ModifyKind};
+
+        let generated_only = notify::Event {
+            kind: EventKind::Modify(ModifyKind::Any),
+            paths: vec![
+                std::path::PathBuf::from(r"C:\repo\.vs\x\v17\.suo"),
+                std::path::PathBuf::from(r"C:\repo\Site\obj\Debug\x.dll"),
+            ],
+            attrs: Default::default(),
+        };
+        assert!(
+            !event_should_arm_update(&generated_only),
+            "an all-generated event must not arm a project update"
+        );
+
+        let mixed = notify::Event {
+            kind: EventKind::Modify(ModifyKind::Any),
+            paths: vec![
+                std::path::PathBuf::from(r"C:\repo\.vs\x\v17\.suo"),
+                std::path::PathBuf::from(r"C:\repo\Site\tf_costreport.vb"),
+            ],
+            attrs: Default::default(),
+        };
+        assert!(
+            event_should_arm_update(&mixed),
+            "an event touching real source must arm an update"
+        );
+    }
+
+    /// Backends that emit path-less events (rescan hints) must not be
+    /// silently dropped — losing a real change is worse than one extra pass.
+    #[test]
+    fn pathless_event_still_arms() {
+        use notify::event::{EventKind, ModifyKind};
+        let ev = notify::Event {
+            kind: EventKind::Modify(ModifyKind::Any),
+            paths: vec![],
+            attrs: Default::default(),
+        };
+        assert!(event_should_arm_update(&ev));
+    }
+
     /// ENG-AUD-S1-0001: Watcher bootstrap must not silently swallow infra failures.
     /// Behavioral test: verify that a spawn_blocking panic propagates as JoinError
     /// (the mechanism the bootstrap error-logging fix relies on).
