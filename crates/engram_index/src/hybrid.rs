@@ -1447,7 +1447,10 @@ impl HybridSearchEngine {
         let total_files = files.len();
         stats.files = total_files;
 
-        crate::vb_extractor::begin_project(root);
+        // Warm (or incrementally refresh) the VB sidecar's shared
+        // compilation. A full index rebuilds it; an incremental update only
+        // drops the trees for the files it is about to re-parse.
+        crate::vb_extractor::prepare_project(root, &files);
 
         // Single Tantivy writer for the entire index_files run.
         // BulkWriterGuard commits + waits on Drop (cancel-safe).

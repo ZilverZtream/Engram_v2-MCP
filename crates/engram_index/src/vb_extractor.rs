@@ -128,6 +128,13 @@ struct Sidecar {
     child: Child,
     stdin: Option<ChildStdin>,
     stdout: Option<BufReader<ChildStdout>>,
+    /// Root the child's shared compilation was built from, if any. Lets an
+    /// incremental update skip the O(project) `begin_project` rebuild.
+    /// Reset on every respawn, because a fresh child has no compilation.
+    project_root: Option<PathBuf>,
+    /// False once a deployed sidecar has told us it does not know the
+    /// `invalidate` command, so we stop asking it every update.
+    supports_invalidate: bool,
 }
 
 static SIDECAR: OnceLock<Mutex<Option<Sidecar>>> = OnceLock::new();
@@ -180,6 +187,8 @@ fn ensure_sidecar(guard: &mut Option<Sidecar>) -> std::io::Result<&mut Sidecar> 
             child,
             stdin: Some(stdin),
             stdout: Some(stdout),
+            project_root: None,
+            supports_invalidate: true,
         });
     }
     Ok(guard.as_mut().expect("sidecar initialized"))
@@ -436,6 +445,93 @@ fn dedupe_fqn_metadata(mut m: HashMap<String, String>) -> HashMap<String, String
     m
 }
 
+/// Outcome of one small request/response exchange with the sidecar.
+enum Exchange {
+    Ok(serde_json::Value),
+    /// Protocol failure. `kill` means the child is in an unknown state and
+    /// must be torn down so the next call respawns it.
+    Failed {
+        kill: bool,
+    },
+}
+
+/// Send one small command and read its single-line response.
+///
+/// Only for commands whose request payload is tiny (no source text), so a
+/// blocking write cannot fill the pipe. The dead-child check is the part
+/// that matters — see the WEDGE note on `parse_via_sidecar`.
+fn exchange(sidecar: &mut Sidecar, req: &serde_json::Value, label: &str) -> Exchange {
+    if let Ok(Some(status)) = sidecar.child.try_wait() {
+        tracing::warn!("{label}: sidecar already exited ({status})");
+        return Exchange::Failed { kill: false };
+    }
+    let Some(stdin) = sidecar.stdin.as_mut() else {
+        tracing::warn!("{label}: sidecar stdin missing (prior write timed out)");
+        return Exchange::Failed { kill: true };
+    };
+    if let Err(e) = writeln!(stdin, "{}", req) {
+        tracing::warn!("{label} write failed: {e}");
+        return Exchange::Failed { kill: true };
+    }
+    if let Err(e) = stdin.flush() {
+        tracing::warn!("{label} flush failed: {e}");
+        return Exchange::Failed { kill: false };
+    }
+
+    let mut line = String::new();
+    let Some(stdout) = sidecar.stdout.as_mut() else {
+        tracing::warn!("{label} response read failed: sidecar stdout missing");
+        return Exchange::Failed { kill: true };
+    };
+    if let Err(e) = stdout.read_line(&mut line) {
+        tracing::warn!("{label} response read failed: {e}");
+        return Exchange::Failed { kill: false };
+    }
+    if line.trim().is_empty() {
+        tracing::warn!("{label} returned empty response");
+        return Exchange::Failed { kill: true };
+    }
+    match serde_json::from_str(&line) {
+        Ok(v) => Exchange::Ok(v),
+        Err(e) => {
+            tracing::warn!("{label} response parse failed: {e}");
+            Exchange::Failed { kill: true }
+        }
+    }
+}
+
+/// Run `exchange` against the locked sidecar, spawning it if needed and
+/// tearing it down on a fatal protocol failure.
+fn exchange_locked(
+    guard: &mut Option<Sidecar>,
+    req: &serde_json::Value,
+    label: &str,
+) -> Option<serde_json::Value> {
+    let outcome = match ensure_sidecar(guard) {
+        Ok(s) => exchange(s, req, label),
+        Err(e) => {
+            tracing::warn!("failed to spawn sidecar for {label}: {e}");
+            return None;
+        }
+    };
+    match outcome {
+        Exchange::Ok(v) => Some(v),
+        Exchange::Failed { kill } => {
+            if kill && let Some(s) = guard.as_mut() {
+                let _ = s.child.kill();
+            }
+            *guard = None;
+            None
+        }
+    }
+}
+
+/// Build the sidecar's shared project compilation from scratch.
+///
+/// O(project): the child re-parses every `.vb` file under `project_root`.
+/// On a large solution that is 7-18 seconds, so this belongs on a FULL
+/// index — `prepare_project` picks it only when the cheap path cannot
+/// apply.
 pub fn begin_project(project_root: &Path) {
     let mutex = get_or_spawn_sidecar();
     let mut guard = match mutex.lock() {
@@ -445,82 +541,163 @@ pub fn begin_project(project_root: &Path) {
             return;
         }
     };
+    begin_project_locked(&mut guard, project_root);
+}
 
-    let sidecar = match ensure_sidecar(&mut guard) {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::warn!("failed to spawn sidecar for begin_project: {e}");
-            return;
-        }
-    };
-
+fn begin_project_locked(guard: &mut Option<Sidecar>, project_root: &Path) -> bool {
     let req = serde_json::json!({
         "cmd": "begin_project",
         "project_root": project_root.display().to_string(),
     });
-
-    // Same liveness discipline as parse_via_sidecar; begin_project sends a
-    // tiny payload, so a blocking write cannot fill the pipe — the dead-child
-    // check is the part that matters.
-    if let Ok(Some(status)) = sidecar.child.try_wait() {
-        tracing::warn!("begin_project: sidecar already exited ({status})");
-        *guard = None;
-        return;
-    }
-    let Some(stdin) = sidecar.stdin.as_mut() else {
-        tracing::warn!("begin_project: sidecar stdin missing (prior write timed out)");
-        let _ = sidecar.child.kill();
-        *guard = None;
-        return;
-    };
-    if let Err(e) = writeln!(stdin, "{}", req) {
-        tracing::warn!("begin_project write failed: {e}");
-        let _ = sidecar.child.kill();
-        *guard = None;
-        return;
-    }
-    if let Err(e) = stdin.flush() {
-        tracing::warn!("begin_project flush failed: {e}");
-        return;
-    }
-
-    let mut line = String::new();
-    let Some(stdout) = sidecar.stdout.as_mut() else {
-        tracing::warn!("begin_project response read failed: sidecar stdout missing");
-        let _ = sidecar.child.kill();
-        *guard = None;
-        return;
-    };
-    if let Err(e) = stdout.read_line(&mut line) {
-        tracing::warn!("begin_project response read failed: {e}");
-        return;
-    }
-    if line.trim().is_empty() {
-        tracing::warn!("begin_project returned empty response");
-        let _ = sidecar.child.kill();
-        *guard = None;
-        return;
-    }
-    let parsed: serde_json::Value = match serde_json::from_str(&line) {
-        Ok(v) => v,
-        Err(e) => {
-            tracing::warn!("begin_project response parse failed: {e}");
-            let _ = sidecar.child.kill();
-            *guard = None;
-            return;
-        }
+    let Some(parsed) = exchange_locked(guard, &req, "begin_project") else {
+        return false;
     };
     if let Some(err) = parsed.get("error").and_then(|v| v.as_str()) {
         tracing::warn!("begin_project sidecar error: {err}");
-        let _ = sidecar.child.kill();
+        if let Some(s) = guard.as_mut() {
+            let _ = s.child.kill();
+        }
         *guard = None;
-        return;
+        return false;
     }
-
+    if let Some(s) = guard.as_mut() {
+        s.project_root = Some(project_root.to_path_buf());
+    }
     tracing::info!(
         "VB sidecar begin_project completed for {}",
         project_root.display()
     );
+    true
+}
+
+/// Result of asking the sidecar to drop cached trees.
+enum Invalidate {
+    Done,
+    /// The deployed sidecar predates the command; never ask it again.
+    Unsupported,
+    Failed,
+}
+
+fn invalidate_locked(guard: &mut Option<Sidecar>, paths: &[String]) -> Invalidate {
+    if paths.is_empty() {
+        return Invalidate::Done;
+    }
+    let req = serde_json::json!({ "cmd": "invalidate", "paths": paths });
+    let Some(parsed) = exchange_locked(guard, &req, "invalidate") else {
+        return Invalidate::Failed;
+    };
+    if let Some(err) = parsed.get("error").and_then(|v| v.as_str()) {
+        // An older deployed binary answers "unknown command invalidate".
+        // That is a protocol answer, not a broken child — keep it alive and
+        // fall back to the full rebuild from now on.
+        if err.contains("unknown command") {
+            tracing::info!(
+                "VB sidecar does not support incremental invalidate ({err}); \
+                 falling back to full begin_project — redeploy the sidecar to \
+                 get incremental updates"
+            );
+            if let Some(s) = guard.as_mut() {
+                s.supports_invalidate = false;
+            }
+            return Invalidate::Unsupported;
+        }
+        tracing::warn!("invalidate sidecar error: {err}");
+        if let Some(s) = guard.as_mut() {
+            let _ = s.child.kill();
+        }
+        *guard = None;
+        return Invalidate::Failed;
+    }
+    tracing::debug!(
+        dropped = parsed
+            .get("invalidated")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(-1),
+        requested = paths.len(),
+        "VB sidecar invalidated cached trees"
+    );
+    Invalidate::Done
+}
+
+/// Above this many changed files an incremental invalidate stops paying:
+/// each invalidated file is re-parsed individually during extraction, and a
+/// full `begin_project` batches that work into one compilation build.
+fn incremental_invalidate_max() -> usize {
+    std::env::var("ENGRAM_VB_SIDECAR_INCREMENTAL_MAX")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .unwrap_or(200)
+}
+
+fn vb_paths(paths: &[PathBuf]) -> Vec<String> {
+    paths
+        .iter()
+        .filter(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case("vb")))
+        .map(|p| p.display().to_string())
+        .collect()
+}
+
+/// Make the sidecar ready to extract `files` under `project_root`.
+///
+/// The whole point is to NOT pay a project-wide re-parse for an incremental
+/// update. Live 2026-08-20: a watcher update with `changed=1` still spent
+/// 7-18 s in `begin_project`, and the watcher fired every 13-25 s for 45
+/// minutes. When the child is already warm for this root and the change set
+/// is small, we drop just the stale trees instead — O(changed).
+pub fn prepare_project(project_root: &Path, files: &[PathBuf]) {
+    let mutex = get_or_spawn_sidecar();
+    let mut guard = match mutex.lock() {
+        Ok(g) => g,
+        Err(poisoned) => {
+            tracing::error!("VB sidecar mutex poisoned during prepare_project: {poisoned}");
+            return;
+        }
+    };
+
+    let warm = guard
+        .as_ref()
+        .is_some_and(|s| s.project_root.as_deref() == Some(project_root) && s.supports_invalidate);
+
+    if warm {
+        let changed_vb = vb_paths(files);
+        if changed_vb.len() <= incremental_invalidate_max() {
+            match invalidate_locked(&mut guard, &changed_vb) {
+                Invalidate::Done => return,
+                // Fall through to the full rebuild.
+                Invalidate::Unsupported | Invalidate::Failed => {}
+            }
+        }
+    }
+
+    begin_project_locked(&mut guard, project_root);
+}
+
+/// Drop the sidecar's cached trees for files that no longer exist.
+///
+/// Deletions never reach `prepare_project` (it only sees files to index), so
+/// without this a removed type would keep resolving until the next full
+/// rebuild.
+pub fn forget_files(paths: &[PathBuf]) {
+    let vb = vb_paths(paths);
+    if vb.is_empty() {
+        return;
+    }
+    let mutex = get_or_spawn_sidecar();
+    let mut guard = match mutex.lock() {
+        Ok(g) => g,
+        Err(poisoned) => {
+            tracing::error!("VB sidecar mutex poisoned during forget_files: {poisoned}");
+            return;
+        }
+    };
+    // Nothing to forget if the child was never warmed for a project.
+    if guard
+        .as_ref()
+        .is_none_or(|s| s.project_root.is_none() || !s.supports_invalidate)
+    {
+        return;
+    }
+    let _ = invalidate_locked(&mut guard, &vb);
 }
 
 pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
@@ -1420,6 +1597,25 @@ fn webforms_lifecycle_info(name: &str) -> Option<(&'static str, &'static str)> {
 mod tests {
     use super::extract_vb;
     use std::path::Path;
+
+    /// Only `.vb` files live in the sidecar's tree cache, so the invalidate
+    /// payload must not carry the rest of a mixed change set — an `.aspx` or
+    /// `.resx` path would just be a no-op round-trip on every update.
+    #[test]
+    fn vb_paths_filters_to_visual_basic_only() {
+        let input = [
+            std::path::PathBuf::from("repo/Site/a.vb"),
+            std::path::PathBuf::from("repo/Site/b.VB"),
+            std::path::PathBuf::from("repo/Site/c.aspx"),
+            std::path::PathBuf::from("repo/Site/d.designer.vb"),
+            std::path::PathBuf::from("repo/Site/no_extension"),
+        ];
+        let out = super::vb_paths(&input);
+        assert_eq!(out.len(), 3, "got {out:?}");
+        assert!(out.iter().any(|p| p.ends_with("a.vb")));
+        assert!(out.iter().any(|p| p.ends_with("b.VB")));
+        assert!(out.iter().any(|p| p.ends_with("d.designer.vb")));
+    }
 
     #[test]
     fn guard_regex_matches_checkreadwrite_and_project_access_families() {

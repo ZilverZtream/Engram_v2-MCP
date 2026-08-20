@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 
 var emitter = new AstEmitter();
@@ -51,6 +51,22 @@ while (Console.In.ReadLine() is { } line)
         continue;
     }
 
+    if (request.Cmd == "invalidate")
+    {
+        try
+        {
+            var removed = emitter.InvalidateFiles(request.Paths ?? new List<string>());
+            Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse { Invalidated = removed }, AppJsonContext.Default.SidecarResponse));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse { Error = ex.Message }, AppJsonContext.Default.SidecarResponse));
+        }
+
+        Console.Out.Flush();
+        continue;
+    }
+
     if (request.Cmd != "parse")
     {
         Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse { Path = request.Path, Error = $"unknown command {request.Cmd}" }, AppJsonContext.Default.SidecarResponse));
@@ -89,6 +105,10 @@ internal sealed class SidecarRequest
 
     [JsonPropertyName("project_root")]
     public string? ProjectRoot { get; set; }
+
+    /// <summary>Absolute paths for the `invalidate` command.</summary>
+    [JsonPropertyName("paths")]
+    public List<string>? Paths { get; set; }
 }
 
 internal sealed class SidecarResponse
@@ -104,6 +124,10 @@ internal sealed class SidecarResponse
 
     [JsonPropertyName("error")]
     public string? Error { get; set; }
+
+    /// <summary>How many cached trees the `invalidate` command dropped.</summary>
+    [JsonPropertyName("invalidated")]
+    public int? Invalidated { get; set; }
 }
 
 [JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]

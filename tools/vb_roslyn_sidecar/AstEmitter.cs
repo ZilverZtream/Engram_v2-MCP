@@ -1,4 +1,4 @@
-using Microsoft.CodeAnalysis;
+﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.CodeAnalysis.VisualBasic;
 using Microsoft.CodeAnalysis.VisualBasic.Syntax;
@@ -28,12 +28,74 @@ internal sealed class AstEmitter
         memberOptions: SymbolDisplayMemberOptions.IncludeContainingType);
 
     private VisualBasicCompilation? _projectCompilation;
+    private string? _projectRoot;
     private readonly Dictionary<string, SyntaxTree> _treesByPath =
         new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Directory names that hold build output, VCS internals or IDE caches.
+    /// Walking them costs real time on a large solution and the .vb files
+    /// found there are generated copies, never the source of truth.
+    /// </summary>
+    private static readonly HashSet<string> NonSourceDirs =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".git", ".hg", ".svn", ".vs", ".vscode", ".idea",
+            "bin", "obj", "packages", "node_modules", "TestResults",
+        };
+
+    private static IEnumerable<string> EnumerateProjectVbFiles(string root)
+    {
+        var stack = new Stack<string>();
+        stack.Push(root);
+        while (stack.Count > 0)
+        {
+            var dir = stack.Pop();
+            string[] subdirs;
+            try
+            {
+                subdirs = Directory.GetDirectories(dir);
+            }
+            catch
+            {
+                continue;
+            }
+
+            foreach (var sub in subdirs)
+            {
+                if (!NonSourceDirs.Contains(Path.GetFileName(sub)))
+                {
+                    stack.Push(sub);
+                }
+            }
+
+            string[] files;
+            try
+            {
+                files = Directory.GetFiles(dir, "*.vb");
+            }
+            catch
+            {
+                continue;
+            }
+
+            foreach (var f in files)
+            {
+                yield return f;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Parse every .vb file under <paramref name="projectRoot"/> into one
+    /// shared compilation. O(project) — call it when the project changes,
+    /// NOT on every incremental update; use <see cref="InvalidateFiles"/>
+    /// for that.
+    /// </summary>
     public void BeginProject(string projectRoot)
     {
         _treesByPath.Clear();
+        _projectRoot = null;
 
         if (string.IsNullOrWhiteSpace(projectRoot) || !Directory.Exists(projectRoot))
         {
@@ -42,7 +104,7 @@ internal sealed class AstEmitter
         }
 
         var trees = new List<SyntaxTree>();
-        foreach (var vbPath in Directory.EnumerateFiles(projectRoot, "*.vb", SearchOption.AllDirectories))
+        foreach (var vbPath in EnumerateProjectVbFiles(projectRoot))
         {
             try
             {
@@ -62,7 +124,48 @@ internal sealed class AstEmitter
 
         _projectCompilation = VisualBasicCompilation.Create("sidecar_project")
             .AddSyntaxTrees(trees);
+        _projectRoot = projectRoot;
     }
+
+    /// <summary>
+    /// Drop the cached syntax trees for the given paths, keeping the rest of
+    /// the project compilation warm. Used for incremental updates: a changed
+    /// file is then re-parsed from the source the caller sends with its next
+    /// parse request, and a deleted file simply leaves the compilation.
+    ///
+    /// Cost is O(changed), not O(project) — the point of the command.
+    /// </summary>
+    /// <returns>How many cached trees were actually removed.</returns>
+    public int InvalidateFiles(IEnumerable<string> paths)
+    {
+        if (_projectCompilation is null)
+        {
+            return 0;
+        }
+
+        var stale = new List<SyntaxTree>();
+        foreach (var path in paths)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                continue;
+            }
+            if (_treesByPath.TryGetValue(path, out var tree))
+            {
+                stale.Add(tree);
+                _treesByPath.Remove(path);
+            }
+        }
+
+        if (stale.Count > 0)
+        {
+            _projectCompilation = _projectCompilation.RemoveSyntaxTrees(stale);
+        }
+        return stale.Count;
+    }
+
+    /// <summary>The root the current compilation was built from, if any.</summary>
+    public string? ProjectRoot => _projectRoot;
 
     public (List<SymbolDto>, List<EdgeDto>) Extract(string path, string source)
     {
