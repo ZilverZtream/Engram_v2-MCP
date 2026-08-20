@@ -34,6 +34,25 @@ fn to_rel_paths(root: &Path, files: &[PathBuf]) -> Vec<String> {
         .collect()
 }
 
+/// Absolute paths with NATIVE separators for files that no longer exist.
+///
+/// `from_rel_paths` canonicalises through `safe_join`, which cannot resolve a
+/// deleted path. The VB sidecar keys its tree cache by the absolute path the
+/// directory walk produced, so the separator style has to match exactly.
+fn abs_paths_native(root: &Path, rels: &[engram_core::RelPath]) -> Vec<PathBuf> {
+    rels.iter()
+        .map(|r| {
+            let mut p = root.to_path_buf();
+            for seg in r.as_str().split(['/', '\\']) {
+                if !seg.is_empty() {
+                    p.push(seg);
+                }
+            }
+            p
+        })
+        .collect()
+}
+
 fn from_rel_paths(root: &Path, rels: &[String]) -> Vec<PathBuf> {
     // H-2 fix: use safe_join instead of lexical-only string checks.
     // The previous filter could be bypassed via Windows drive-letter paths
@@ -1325,6 +1344,11 @@ impl Engram {
                     .await;
 
                 if !deleted.is_empty() {
+                    // Drop the VB sidecar's cached trees for the removed
+                    // files. prepare_project only sees files to index, so
+                    // without this a deleted type keeps resolving until the
+                    // next full rebuild.
+                    engram_index::vb_extractor::forget_files(&abs_paths_native(&dir, &deleted));
                     ps.search
                         .delete_files(&project_id_for_job, "memory", &deleted)
                         .await?;
@@ -1769,6 +1793,11 @@ impl Engram {
         };
 
         self.enforce_project_byte_budget(&changed).await?;
+
+        if !deleted.is_empty() {
+            // See the job path: the sidecar must forget removed files.
+            engram_index::vb_extractor::forget_files(&abs_paths_native(&dir, &deleted));
+        }
 
         // Files whose stale graph generations are eligible for the scoped
         // purge after indexing: everything re-extracted this update plus
