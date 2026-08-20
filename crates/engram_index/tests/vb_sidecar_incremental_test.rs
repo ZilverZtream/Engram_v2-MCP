@@ -257,3 +257,103 @@ fn begin_project_skips_build_output_directories() {
         "real source must still be cached: {real}"
     );
 }
+
+/// `begin_project` must parse the file list the INDEXER supplies, not
+/// re-discover files by walking the tree.
+///
+/// The independent walk is not equivalent: the indexer applies ignore rules
+/// and extension presets, the walk does not. Live consequence
+/// (MiniLangCompiler, engram.log 2026-08-04 → 2026-08-20): the repo holds
+/// 73,072 `.vb` files, 56,432 of them under `.tmp/` scratch trees, against
+/// 917 real sources in `src/`. The sidecar parsed all of them into one
+/// compilation, then timed out (188 "parse response timed out after 60s")
+/// and exited (12 crashes, exit codes 0xc0000…), respawned, walked again.
+#[test]
+fn begin_project_uses_the_supplied_file_list() {
+    let Some(bin) = sidecar_path() else {
+        eprintln!("sidecar not published — skipping");
+        return;
+    };
+    let tmp = tempfile::TempDir::new().unwrap();
+    let real = tmp.path().join("real.vb");
+    std::fs::write(&real, SOURCE_V1).unwrap();
+
+    // A scratch tree the indexer would never hand over, in a directory the
+    // fallback walk does not know to skip.
+    let scratch_dir = tmp.path().join(".tmp").join("codex-suite");
+    std::fs::create_dir_all(&scratch_dir).unwrap();
+    let scratch = scratch_dir.join("generated.vb");
+    std::fs::write(&scratch, SOURCE_V2).unwrap();
+
+    let mut h = Harness::start(&bin);
+    let begun = h.send(serde_json::json!({
+        "cmd": "begin_project",
+        "project_root": tmp.path().display().to_string(),
+        "files": [real.display().to_string()],
+    }));
+    assert!(begun.get("error").is_none(), "begin_project: {begun}");
+
+    // The supplied file is cached...
+    let real_drop = h.send(serde_json::json!({
+        "cmd": "invalidate",
+        "paths": [real.display().to_string()],
+    }));
+    assert_eq!(
+        real_drop["invalidated"].as_i64(),
+        Some(1),
+        "the supplied file must be in the compilation: {real_drop}"
+    );
+
+    // ...and nothing else was pulled in behind the indexer's back.
+    let scratch_drop = h.send(serde_json::json!({
+        "cmd": "invalidate",
+        "paths": [scratch.display().to_string()],
+    }));
+    assert_eq!(
+        scratch_drop["invalidated"].as_i64(),
+        Some(0),
+        "a file the indexer did not supply must not be parsed: {scratch_drop}"
+    );
+}
+
+/// With no list supplied, the walk still runs — an older caller must keep
+/// working — and it skips scratch trees the indexer also ignores.
+#[test]
+fn begin_project_without_a_list_still_walks_and_skips_scratch_trees() {
+    let Some(bin) = sidecar_path() else {
+        eprintln!("sidecar not published — skipping");
+        return;
+    };
+    let tmp = tempfile::TempDir::new().unwrap();
+    let real = tmp.path().join("real.vb");
+    std::fs::write(&real, SOURCE_V1).unwrap();
+    let scratch_dir = tmp.path().join(".tmp");
+    std::fs::create_dir_all(&scratch_dir).unwrap();
+    let scratch = scratch_dir.join("generated.vb");
+    std::fs::write(&scratch, SOURCE_V2).unwrap();
+
+    let mut h = Harness::start(&bin);
+    h.send(serde_json::json!({
+        "cmd": "begin_project",
+        "project_root": tmp.path().display().to_string(),
+    }));
+
+    assert_eq!(
+        h.send(serde_json::json!({
+            "cmd": "invalidate",
+            "paths": [real.display().to_string()],
+        }))["invalidated"]
+            .as_i64(),
+        Some(1),
+        "the fallback walk must still find real sources"
+    );
+    assert_eq!(
+        h.send(serde_json::json!({
+            "cmd": "invalidate",
+            "paths": [scratch.display().to_string()],
+        }))["invalidated"]
+            .as_i64(),
+        Some(0),
+        ".tmp is a scratch tree — the walk must skip it"
+    );
+}

@@ -528,11 +528,11 @@ fn exchange_locked(
 
 /// Build the sidecar's shared project compilation from scratch.
 ///
-/// O(project): the child re-parses every `.vb` file under `project_root`.
-/// On a large solution that is 7-18 seconds, so this belongs on a FULL
-/// index — `prepare_project` picks it only when the cheap path cannot
-/// apply.
-pub fn begin_project(project_root: &Path) {
+/// O(files): the child parses each supplied `.vb` file into one shared
+/// compilation. On a large solution that is 7-18 seconds, so this belongs
+/// on a FULL index — `prepare_project` picks it only when the cheap path
+/// cannot apply.
+pub fn begin_project(project_root: &Path, files: &[String]) {
     let mutex = get_or_spawn_sidecar();
     let mut guard = match mutex.lock() {
         Ok(g) => g,
@@ -541,13 +541,24 @@ pub fn begin_project(project_root: &Path) {
             return;
         }
     };
-    begin_project_locked(&mut guard, project_root);
+    begin_project_locked(&mut guard, project_root, files);
 }
 
-fn begin_project_locked(guard: &mut Option<Sidecar>, project_root: &Path) -> bool {
+fn begin_project_locked(
+    guard: &mut Option<Sidecar>,
+    project_root: &Path,
+    files: &[String],
+) -> bool {
+    // Hand over the exact file list. Left to walk the tree itself the
+    // sidecar has no idea which files the indexer actually ingests — it
+    // applies no ignore rules and no extension presets. On MiniLangCompiler
+    // that difference is 73,072 `.vb` files (56,432 of them generated,
+    // under `.tmp/`) against 917 real sources, which is what produced 188
+    // 60-second parse timeouts and 12 sidecar crashes in the daemon log.
     let req = serde_json::json!({
         "cmd": "begin_project",
         "project_root": project_root.display().to_string(),
+        "files": files,
     });
     let Some(parsed) = exchange_locked(guard, &req, "begin_project") else {
         return false;
@@ -658,18 +669,26 @@ pub fn prepare_project(project_root: &Path, files: &[PathBuf]) {
         .as_ref()
         .is_some_and(|s| s.project_root.as_deref() == Some(project_root) && s.supports_invalidate);
 
-    if warm {
-        let changed_vb = vb_paths(files);
-        if changed_vb.len() <= incremental_invalidate_max() {
-            match invalidate_locked(&mut guard, &changed_vb) {
-                Invalidate::Done => return,
-                // Fall through to the full rebuild.
-                Invalidate::Unsupported | Invalidate::Failed => {}
-            }
+    let vb_files = vb_paths(files);
+    let is_small_batch = vb_files.len() <= incremental_invalidate_max();
+
+    if warm && is_small_batch {
+        match invalidate_locked(&mut guard, &vb_files) {
+            Invalidate::Done => return,
+            // Fall through to the full rebuild.
+            Invalidate::Unsupported | Invalidate::Failed => {}
         }
     }
 
-    begin_project_locked(&mut guard, project_root);
+    // `files` is what THIS run indexes, which is the whole project on a full
+    // index but only the changed files on an incremental one. Handing the
+    // sidecar a three-file compilation after a daemon restart would silently
+    // cost every cross-file resolution in the project, so a small batch
+    // against a cold child falls back to the sidecar's own walk — which is
+    // pruned of build output and scratch trees, and so is no longer the
+    // 73,072-file liability that made it time out.
+    let supplied: &[String] = if is_small_batch { &[] } else { &vb_files };
+    begin_project_locked(&mut guard, project_root, supplied);
 }
 
 /// Drop the sidecar's cached trees for files that no longer exist.
