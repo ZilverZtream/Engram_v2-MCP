@@ -337,13 +337,10 @@ impl Engram {
             // index_git_history.
             let stale: std::collections::BTreeSet<String> = ps
                 .search
-                .list_docs_for_project(&req.project_id)
+                .list_docs_in_namespace(&req.project_id, engram_core::namespaces::NAMESPACE_HISTORY)
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?
                 .into_iter()
-                .filter(|d| {
-                    d.namespace == engram_core::namespaces::NAMESPACE_HISTORY
-                        && d.path.starts_with("pr:")
-                })
+                .filter(|d| d.path.starts_with("pr:"))
                 .map(|d| d.path)
                 .collect();
             if !stale.is_empty() {

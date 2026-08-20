@@ -1041,7 +1041,25 @@ impl HybridSearchEngine {
                 .contains(&table_name)
             {
                 let table = self.lance_conn.open_table(&table_name).execute().await?;
-                crate::vector::purge_old_generations(&table, active_generation).await?;
+                // The Tantivy purge above has already COMMITTED. If the
+                // vector purge fails here the two stores are left skewed —
+                // Tantivy shed its superseded generations and LanceDB kept
+                // them — which is exactly the shape the integrity checker
+                // reports as `vector_orphan`. Both failure modes are in the
+                // daemon log ("Too many concurrent writers", "Access is
+                // denied"), so name the consequence rather than letting an
+                // hour-later mismatch look like spontaneous corruption.
+                crate::vector::purge_old_generations(&table, active_generation)
+                    .await
+                    .map_err(|e| {
+                        anyhow::anyhow!(
+                            "vector purge failed AFTER the Tantivy purge committed, so the \
+                             stores are now skewed for project {project_id} (Tantivy dropped \
+                             generations older than {active_generation}, LanceDB kept them). \
+                             This surfaces as a `vector_orphan` integrity mismatch until a \
+                             later GC tick succeeds: {e}"
+                        )
+                    })?;
             }
         }
 
@@ -1355,6 +1373,68 @@ impl HybridSearchEngine {
             }
         }
         Ok((searcher, out))
+    }
+
+    /// Doc summaries for one project, restricted to a single namespace.
+    ///
+    /// `list_docs_for_project` pages through EVERY doc in the project and
+    /// reads each one's stored fields. Callers that only want one namespace
+    /// (the `history` namespace's `pr:*` docs, say) were paying that for the
+    /// whole corpus and then discarding almost all of it. Pushing the
+    /// namespace into the query makes the cost proportional to the answer.
+    pub fn list_docs_in_namespace(
+        &self,
+        project_id: &str,
+        namespace: &str,
+    ) -> anyhow::Result<Vec<SearchDocSummary>> {
+        let reader = self.tantivy_index.reader()?;
+        let searcher = reader.searcher();
+        let query = BooleanQuery::new(vec![
+            (
+                Occur::Must,
+                Box::new(TermQuery::new(
+                    Term::from_field_text(self.fields.project_id, project_id),
+                    IndexRecordOption::Basic,
+                )) as Box<dyn tantivy::query::Query>,
+            ),
+            (
+                Occur::Must,
+                Box::new(TermQuery::new(
+                    Term::from_field_text(self.fields.namespace, namespace),
+                    IndexRecordOption::Basic,
+                )),
+            ),
+        ]);
+
+        const PAGE_SIZE: usize = 2000;
+        let mut offset = 0usize;
+        let mut out = Vec::new();
+        loop {
+            let page: Vec<(Score, DocAddress)> =
+                searcher.search(&query, &TopDocs::with_limit(PAGE_SIZE).and_offset(offset))?;
+            if page.is_empty() {
+                break;
+            }
+            for (_, addr) in page.iter().copied() {
+                let doc: tantivy::TantivyDocument = searcher.doc(addr)?;
+                let get = |f| {
+                    doc.get_first(f)
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string()
+                };
+                out.push(SearchDocSummary {
+                    namespace: get(self.fields.namespace),
+                    doc_id: get(self.fields.doc_id),
+                    path: get(self.fields.path),
+                });
+            }
+            offset = offset.saturating_add(page.len());
+            if page.len() < PAGE_SIZE {
+                break;
+            }
+        }
+        Ok(out)
     }
 
     pub fn list_docs_for_project(&self, project_id: &str) -> anyhow::Result<Vec<SearchDocSummary>> {

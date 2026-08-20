@@ -4328,14 +4328,14 @@ impl Engram {
                 let search = ps.search.clone();
                 let pid = req.project_id.clone();
                 tokio::task::spawn_blocking(move || {
+                    // Scoped to the history namespace in the QUERY. Listing
+                    // the whole project materialised every doc's stored
+                    // fields and then discarded all but the pr:* ones.
                     let mut pr_docs: Vec<(u64, String)> = search
-                        .list_docs_for_project(&pid)
+                        .list_docs_in_namespace(&pid, engram_core::namespaces::NAMESPACE_HISTORY)
                         .ok()?
                         .into_iter()
-                        .filter(|d| {
-                            d.namespace == engram_core::namespaces::NAMESPACE_HISTORY
-                                && d.path.starts_with("pr:")
-                        })
+                        .filter(|d| d.path.starts_with("pr:"))
                         .map(|d| {
                             let num = d.path[3..]
                                 .split(|c: char| !c.is_ascii_digit())
