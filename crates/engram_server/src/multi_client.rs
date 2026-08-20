@@ -940,6 +940,80 @@ async fn spawn_socket_listener(
     }
 }
 
+// ─── Handshake capture ───────────────────────────────────────────────────────
+
+/// How many bytes of a session's opening traffic to keep for diagnostics.
+/// Enough for an `initialize` request plus a little slack; a healthy session
+/// stops growing the buffer once it is full.
+const HANDSHAKE_CAPTURE_BYTES: usize = 8192;
+
+/// AsyncRead wrapper that keeps a copy of the first bytes a session sends.
+///
+/// rmcp turns an undeserialisable message into a SILENT stream close: its
+/// codec error is logged without the offending line at anything below
+/// `debug`, `receive()` returns `None`, and the server then reports only
+/// "connection closed: initialized request". Twenty of those appeared in the
+/// log across five days with no way to tell what the client had sent. The
+/// capture makes the failure self-describing.
+pub(crate) struct CapturingReader<R> {
+    inner: R,
+    captured: Arc<std::sync::Mutex<Vec<u8>>>,
+}
+
+impl<R> CapturingReader<R> {
+    pub(crate) fn new(inner: R, captured: Arc<std::sync::Mutex<Vec<u8>>>) -> Self {
+        Self { inner, captured }
+    }
+}
+
+impl<R: tokio::io::AsyncRead + Unpin> tokio::io::AsyncRead for CapturingReader<R> {
+    fn poll_read(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        let before = buf.filled().len();
+        let poll = std::pin::Pin::new(&mut self.inner).poll_read(cx, buf);
+        if let std::task::Poll::Ready(Ok(())) = &poll {
+            let new = &buf.filled()[before..];
+            if !new.is_empty()
+                && let Ok(mut c) = self.captured.lock()
+                && c.len() < HANDSHAKE_CAPTURE_BYTES
+            {
+                let room = HANDSHAKE_CAPTURE_BYTES - c.len();
+                c.extend_from_slice(&new[..room.min(new.len())]);
+            }
+        }
+        poll
+    }
+}
+
+/// Render captured handshake bytes for a log line: first line only, control
+/// characters escaped, bounded length.
+pub(crate) fn describe_capture(captured: &Arc<std::sync::Mutex<Vec<u8>>>) -> String {
+    const MAX_RENDERED: usize = 2048;
+    let Ok(bytes) = captured.lock() else {
+        return String::new();
+    };
+    if bytes.is_empty() {
+        return " (client sent no bytes before the connection closed)".to_string();
+    }
+    let text = String::from_utf8_lossy(&bytes);
+    let first_line = text.split(['\n', '\r']).find(|l| !l.trim().is_empty());
+    let Some(line) = first_line else {
+        return format!(" (client sent {} bytes, all blank)", bytes.len());
+    };
+    let mut rendered: String = line
+        .chars()
+        .take(MAX_RENDERED)
+        .map(|c| if c.is_control() { '\u{fffd}' } else { c })
+        .collect();
+    if line.chars().count() > MAX_RENDERED {
+        rendered.push_str("…[truncated]");
+    }
+    format!(" — first message from client: {rendered}")
+}
+
 #[cfg(windows)]
 async fn serve_pipe_session(
     pipe: tokio::net::windows::named_pipe::NamedPipeServer,
@@ -951,12 +1025,18 @@ async fn serve_pipe_session(
     // and hand to rmcp's transport adapter — same shape as the stdio /
     // Unix-socket paths.
     let (read, write) = tokio::io::split(pipe);
-    let transport = (read, write);
+    let captured: Arc<std::sync::Mutex<Vec<u8>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let transport = (CapturingReader::new(read, captured.clone()), write);
     let engram = crate::tools::Engram::new(state);
     let service = match engram.serve(transport).await {
         Ok(s) => s,
         Err(e) => {
-            tracing::warn!("named-pipe session handshake failed: {e}");
+            // Include what the client actually sent — rmcp reports only
+            // "connection closed" when it cannot deserialise a message.
+            tracing::warn!(
+                "named-pipe session handshake failed: {e}{}",
+                describe_capture(&captured)
+            );
             return;
         }
     };
@@ -983,12 +1063,16 @@ async fn serve_socket_session(
     // them to rmcp's (AsyncRead, AsyncWrite) transport adapter — same
     // shape as stdio.
     let (read, write) = sock.into_split();
-    let transport = (read, write);
+    let captured: Arc<std::sync::Mutex<Vec<u8>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let transport = (CapturingReader::new(read, captured.clone()), write);
     let engram = crate::tools::Engram::new(state);
     let service = match engram.serve(transport).await {
         Ok(s) => s,
         Err(e) => {
-            tracing::warn!("socket session handshake failed: {e}");
+            tracing::warn!(
+                "socket session handshake failed: {e}{}",
+                describe_capture(&captured)
+            );
             return;
         }
     };
@@ -1237,6 +1321,78 @@ async fn forward_stdio_to_socket(sock: tokio::net::UnixStream) -> anyhow::Result
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The capture must record what the client sent, so a handshake failure
+    /// says WHICH message could not be parsed instead of just "connection
+    /// closed".
+    #[tokio::test]
+    async fn capturing_reader_records_the_first_message() {
+        use tokio::io::AsyncReadExt as _;
+
+        let captured: Arc<std::sync::Mutex<Vec<u8>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let payload = br#"{"jsonrpc":"2.0","id":0,"method":"initialize"}"#;
+        let mut reader = CapturingReader::new(&payload[..], captured.clone());
+
+        let mut sink = Vec::new();
+        reader.read_to_end(&mut sink).await.unwrap();
+
+        assert_eq!(
+            sink, payload,
+            "the wrapper must pass bytes through verbatim"
+        );
+        let rendered = describe_capture(&captured);
+        assert!(
+            rendered.contains(r#""method":"initialize""#),
+            "capture must surface the message: {rendered}"
+        );
+    }
+
+    /// A healthy long-lived session must not accumulate its whole traffic in
+    /// the diagnostic buffer.
+    #[tokio::test]
+    async fn capturing_reader_is_bounded() {
+        use tokio::io::AsyncReadExt as _;
+
+        let captured: Arc<std::sync::Mutex<Vec<u8>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let payload = vec![b'x'; HANDSHAKE_CAPTURE_BYTES * 4];
+        let mut reader = CapturingReader::new(&payload[..], captured.clone());
+
+        let mut sink = Vec::new();
+        reader.read_to_end(&mut sink).await.unwrap();
+
+        assert_eq!(sink.len(), payload.len(), "pass-through must be complete");
+        assert_eq!(
+            captured.lock().unwrap().len(),
+            HANDSHAKE_CAPTURE_BYTES,
+            "the capture buffer must stop at its cap"
+        );
+    }
+
+    /// A client that connects and closes without sending anything must be
+    /// described as such, not as an unparseable message.
+    #[test]
+    fn describe_capture_reports_an_empty_handshake() {
+        let captured: Arc<std::sync::Mutex<Vec<u8>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let rendered = describe_capture(&captured);
+        assert!(rendered.contains("no bytes"), "got: {rendered}");
+    }
+
+    /// Control characters must not be able to forge log lines, and only the
+    /// first message is rendered.
+    #[test]
+    fn describe_capture_escapes_control_characters() {
+        let raw = b"{\"a\":\"b\x07\"}\nsecond line".to_vec();
+        let captured: Arc<std::sync::Mutex<Vec<u8>>> = Arc::new(std::sync::Mutex::new(raw));
+        let rendered = describe_capture(&captured);
+        assert!(
+            !rendered.contains('\u{7}'),
+            "bell must be escaped: {rendered:?}"
+        );
+        assert!(
+            !rendered.contains("second line"),
+            "only the first line is rendered: {rendered:?}"
+        );
+    }
 
     // TODO-38: the named-pipe transport must round-trip bytes the same way
     // the Unix-socket path does. Exercises ServerOptions/ClientOptions +
