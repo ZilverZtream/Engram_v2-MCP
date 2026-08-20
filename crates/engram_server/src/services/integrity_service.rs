@@ -253,11 +253,43 @@ pub async fn check_project_integrity_with_policy(
     }
 
     // Single pass behavior: detect all mismatches first, then apply scoped repairs.
+    //
+    // Counters for kinds that are no longer reported reset here, so a project
+    // that healed starts from a full repair budget next time.
+    let present: Vec<MismatchKind> = mismatches.iter().map(|m| m.kind.clone()).collect();
+    clear_repair_attempts_for_resolved(project_id, &present);
+
     let mut repairs = Vec::new();
     if auto_repair && !mismatches.is_empty() {
         for mm in &mismatches {
-            let repair = attempt_repair(state, project_id, mm).await;
-            repairs.push(repair);
+            match note_repair_attempt(project_id, &mm.kind) {
+                RepairDecision::Attempt { attempt } => {
+                    tracing::debug!(
+                        project_id,
+                        mismatch_kind = %mm.kind,
+                        attempt,
+                        max = MAX_AUTO_REPAIR_ATTEMPTS,
+                        "integrity auto-repair attempt"
+                    );
+                    repairs.push(attempt_repair(state, project_id, mm).await);
+                }
+                RepairDecision::Exhausted { attempts } => {
+                    tracing::error!(
+                        project_id,
+                        mismatch_kind = %mm.kind,
+                        attempts,
+                        detail = %mm.description,
+                        "integrity auto-repair stood down: {} survived {attempts} consecutive                          repair attempts. Automatic repair is now disabled for this project and                          mismatch until it clears. Run repair_project(project_id,                          wipe_and_reindex=true) to rebuild from scratch.",
+                        mm.kind
+                    );
+                    repairs.push(RepairOutcome {
+                        mismatch_kind: mm.kind.clone(),
+                        action: "auto_repair_exhausted".into(),
+                        success: false,
+                        items_repaired: 0,
+                    });
+                }
+            }
         }
     }
 
@@ -408,6 +440,67 @@ pub fn build_integrity_mismatches(
     mismatches
 }
 
+// ── Auto-repair convergence guard ────────────────────────────────────────────
+
+/// How many consecutive hourly attempts one project+kind gets before the
+/// auto-repair stands down.
+///
+/// Live 2026-08-20: the `vector_orphan` repair on one project had been
+/// running every hour for more than three days without converging, because
+/// it wrote a registry key nothing reads and therefore reported success
+/// every time. A repair that has not worked three times running will not
+/// work on the fourth — escalate to the operator instead of looping.
+pub const MAX_AUTO_REPAIR_ATTEMPTS: u32 = 3;
+
+/// What the integrity checker should do about one mismatch this tick.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RepairDecision {
+    /// Run the repair; this is attempt number `attempt` in a row.
+    Attempt { attempt: u32 },
+    /// The budget is spent — report the condition, do not repair again.
+    Exhausted { attempts: u32 },
+}
+
+type AttemptKey = (String, String);
+
+fn repair_attempts() -> &'static std::sync::Mutex<HashMap<AttemptKey, u32>> {
+    static ATTEMPTS: std::sync::LazyLock<std::sync::Mutex<HashMap<AttemptKey, u32>>> =
+        std::sync::LazyLock::new(Default::default);
+    &ATTEMPTS
+}
+
+fn attempt_key(project_id: &str, kind: &MismatchKind) -> AttemptKey {
+    (project_id.to_string(), kind.to_string())
+}
+
+/// Record that `kind` is still unresolved for `project_id` and decide
+/// whether to repair it again.
+pub fn note_repair_attempt(project_id: &str, kind: &MismatchKind) -> RepairDecision {
+    let key = attempt_key(project_id, kind);
+    let Ok(mut map) = repair_attempts().lock() else {
+        // A poisoned counter must not disable repairs; fall back to
+        // attempting, which is the pre-existing behaviour.
+        return RepairDecision::Attempt { attempt: 1 };
+    };
+    let counter = map.entry(key).or_insert(0);
+    if *counter >= MAX_AUTO_REPAIR_ATTEMPTS {
+        return RepairDecision::Exhausted { attempts: *counter };
+    }
+    *counter += 1;
+    RepairDecision::Attempt { attempt: *counter }
+}
+
+/// Reset the counters for every kind that is NOT in `still_present`, so a
+/// project that healed gets a full budget if the problem ever returns.
+pub fn clear_repair_attempts_for_resolved(project_id: &str, still_present: &[MismatchKind]) {
+    let keep: std::collections::HashSet<String> =
+        still_present.iter().map(|k| k.to_string()).collect();
+    let Ok(mut map) = repair_attempts().lock() else {
+        return;
+    };
+    map.retain(|(pid, kind), _| pid != project_id || keep.contains(kind));
+}
+
 /// Attempt to repair a specific mismatch.
 async fn attempt_repair(
     state: &AppState,
@@ -441,7 +534,7 @@ async fn attempt_repair(
             }
             RepairOutcome {
                 mismatch_kind: mismatch.kind.clone(),
-                action: "tantivy_reindex".into(),
+                action: "tantivy_generation_purge".into(),
                 success,
                 items_repaired: if success {
                     mismatch.expected.abs_diff(mismatch.actual)
@@ -454,7 +547,7 @@ async fn attempt_repair(
             tracing::info!(
                 project_id,
                 mismatch_kind = %mismatch.kind,
-                "Triggering scoped vector repair (re-embed) for vector mismatch"
+                "Triggering scoped vector repair (purge superseded generations)"
             );
             let repair_result = crate::services::project_service::repair_project_scoped(
                 state,
@@ -470,7 +563,7 @@ async fn attempt_repair(
             }
             RepairOutcome {
                 mismatch_kind: mismatch.kind.clone(),
-                action: "vector_reindex".into(),
+                action: "vector_generation_purge".into(),
                 success,
                 items_repaired: if success {
                     mismatch.expected.abs_diff(mismatch.actual)
@@ -718,7 +811,7 @@ mod tests {
     fn overall_healthy_requires_repaired_or_no_mismatches() {
         let ok = RepairOutcome {
             mismatch_kind: MismatchKind::VectorShortfall,
-            action: "vector_reindex".into(),
+            action: "vector_generation_purge".into(),
             success: true,
             items_repaired: 1,
         };
