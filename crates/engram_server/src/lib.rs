@@ -10,6 +10,7 @@ pub mod models;
 pub mod multi_client;
 pub mod services;
 pub mod state;
+pub mod tool_surface;
 pub mod tools;
 pub mod utils;
 
