@@ -695,8 +695,9 @@ pub fn default_pattern_examples() -> usize {
 
 /// TODO-28: one natural-language entry point. All fields past `question` are
 /// additive + serde-defaulted, so the legacy `{project_id, question}` call still
-/// deserializes unchanged.
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+/// deserializes unchanged. `Default` lets call sites use `..Default::default()`
+/// (empty depth/output_format parse to standard/markdown).
+#[derive(Debug, Clone, Default, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AskCodebaseRequest {
     pub project_id: String,

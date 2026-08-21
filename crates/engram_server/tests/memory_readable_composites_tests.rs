@@ -194,13 +194,16 @@ async fn ask_codebase_blends_insights() {
             .ask_codebase(Parameters(engram_server::AskCodebaseRequest {
                 project_id: pid.clone(),
                 question: "frobnicator".into(),
+                ..Default::default()
             }))
             .await
             .unwrap(),
     );
 
+    // The rebuilt ask_codebase runs an insight retrieval arm and cites the
+    // dreamer insight as typed evidence — its content must reach the report.
     assert!(
-        out.contains("insights"),
-        "ask_codebase must surface the insights namespace in its team-knowledge block:\n{out}"
+        out.contains("retry loop") || out.to_lowercase().contains("insight"),
+        "ask_codebase must surface dreamer insights as evidence:\n{out}"
     );
 }

@@ -70,12 +70,13 @@ fn search_arm(
     provider: &'static str,
     question: &str,
     top_k: usize,
+    generation: u64,
     deadline: Duration,
     cancel: CancellationToken,
 ) -> ArmFuture {
     let search = ctx.search.clone();
     let pid = ctx.project_id.clone();
-    let gen_ = ctx.generation;
+    let gen_ = generation;
     let q = question.to_string();
     Box::pin(async move {
         let fut = async move {
@@ -197,19 +198,19 @@ pub async fn gather_evidence(
 
     let mut arms: Vec<ArmFuture> = Vec::new();
     if want_code {
-        arms.push(search_arm(ctx, namespaces::NAMESPACE_MEMORY, EvidenceKind::SourceCode, Authority::CurrentCode, "code", question, top_k, deadline, cancel.clone()));
+        arms.push(search_arm(ctx, namespaces::NAMESPACE_MEMORY, EvidenceKind::SourceCode, Authority::CurrentCode, "code", question, top_k, ctx.generation, deadline, cancel.clone()));
     }
     if want_doc {
-        arms.push(search_arm(ctx, namespaces::NAMESPACE_MEMORY_BANK, EvidenceKind::DocSection, Authority::CurrentDocs, "doc", question, top_k, deadline, cancel.clone()));
+        arms.push(search_arm(ctx, namespaces::NAMESPACE_MEMORY_BANK, EvidenceKind::DocSection, Authority::CurrentDocs, "doc", question, top_k, 0, deadline, cancel.clone()));
     }
     if want_business {
-        arms.push(search_arm(ctx, namespaces::NAMESPACE_BUSINESS_LOGIC, EvidenceKind::BusinessRule, Authority::DerivedBusinessLogic, "business_logic", question, top_k, deadline, cancel.clone()));
+        arms.push(search_arm(ctx, namespaces::NAMESPACE_BUSINESS_LOGIC, EvidenceKind::BusinessRule, Authority::DerivedBusinessLogic, "business_logic", question, top_k, 0, deadline, cancel.clone()));
     }
     if want_insight {
-        arms.push(search_arm(ctx, namespaces::NAMESPACE_INSIGHTS, EvidenceKind::Insight, Authority::DreamerInsight, "insight", question, top_k, deadline, cancel.clone()));
+        arms.push(search_arm(ctx, namespaces::NAMESPACE_INSIGHTS, EvidenceKind::Insight, Authority::DreamerInsight, "insight", question, top_k, 0, deadline, cancel.clone()));
     }
     if want_history {
-        arms.push(search_arm(ctx, namespaces::NAMESPACE_HISTORY, EvidenceKind::HistoryCommit, Authority::MergedHistory, "history", question, top_k, deadline, cancel.clone()));
+        arms.push(search_arm(ctx, namespaces::NAMESPACE_HISTORY, EvidenceKind::HistoryCommit, Authority::MergedHistory, "history", question, top_k, 0, deadline, cancel.clone()));
     }
     if want_memory {
         arms.push(memory_arm(ctx, question, top_k, deadline));
