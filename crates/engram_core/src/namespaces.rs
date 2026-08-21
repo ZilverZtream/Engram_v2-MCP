@@ -48,6 +48,18 @@ pub const NAMESPACE_MEMORY_BANK: &str = "memory_bank";
 pub const NAMESPACE_INSIGHTS: &str = "insights";
 pub const NAMESPACE_BUSINESS_LOGIC: &str = "business_logic";
 
+/// The curated knowledge namespaces: agent-authored notes and the derived
+/// insight / review corpora — as distinct from `memory` (code) and `history`
+/// (git). These are what `search_memory`'s "knowledge" scope spans.
+pub const KNOWLEDGE_NAMESPACES: &[&str] = &[
+    NAMESPACE_MEMORY_BANK,
+    NAMESPACE_INSIGHTS,
+    NAMESPACE_BUSINESS_LOGIC,
+    NAMESPACE_ANTIPATTERN,
+    NAMESPACE_WONTFIX,
+    NAMESPACE_QUALITY_GATE,
+];
+
 pub const KNOWN_NAMESPACES: &[&str] = &[
     NAMESPACE_MEMORY,
     NAMESPACE_HISTORY,

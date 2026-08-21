@@ -413,7 +413,7 @@ impl Engram {
     // ---- Search + chunks ----
 
     #[tool(
-        description = "Hybrid lexical+vector search over indexed code/docs. Hits carry path, line range, doc_id, covering symbols (node_ids), and a 500-char snippet (include_content=true for full bodies). Page with offset. Set semantic=false for exact-identifier lookups (faster, BM25-only). For literal/regex matching prefer grep_project; for full chunk text use get_chunk."
+        description = "Hybrid lexical+vector search over indexed code/docs. Hits carry path, line range, doc_id, covering symbols (node_ids), and a 500-char snippet (include_content=true for full bodies). search_scope: 'code' (default) searches code; 'knowledge' searches curated agent memory (memory_bank notes, dreamer insights, business_logic, antipattern/wontfix/quality_gate rules); 'all' searches both, fused by rank and labelled by source — use it to recall what past sessions learned, not just where code lives. Filter by author_filter / date_after / date_before (unix ms). Page with offset. Set semantic=false for exact-identifier lookups. For literal/regex matching prefer grep_project; for full chunk text use get_chunk."
     )]
     pub async fn search_memory(
         &self,

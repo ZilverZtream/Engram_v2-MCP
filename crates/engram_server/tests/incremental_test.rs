@@ -121,6 +121,10 @@ async fn test_incremental_indexing() {
         exclude_path_prefixes: None,
         language_filters: None,
         metadata_filter: None,
+        search_scope: "code".into(),
+        author_filter: None,
+        date_after: None,
+        date_before: None,
         semantic: true,
     };
 
@@ -146,6 +150,10 @@ async fn test_incremental_indexing() {
         exclude_path_prefixes: None,
         language_filters: None,
         metadata_filter: None,
+        search_scope: "code".into(),
+        author_filter: None,
+        date_after: None,
+        date_before: None,
         semantic: true,
     };
     let res_b = engram
@@ -177,6 +185,10 @@ async fn test_incremental_indexing() {
         exclude_path_prefixes: None,
         language_filters: None,
         metadata_filter: None,
+        search_scope: "code".into(),
+        author_filter: None,
+        date_after: None,
+        date_before: None,
         semantic: true,
     };
     let res_c = engram
