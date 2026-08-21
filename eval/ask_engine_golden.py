@@ -40,7 +40,9 @@ def ask(project_id: str, question: str) -> tuple[dict, float]:
     )
     t0 = time.time()
     proc = subprocess.run(
-        [sys.executable, str(DRIVE), "tool", "ask_codebase", payload],
+        # 4th arg is engram_drive's output char cap; default 8000 would truncate
+        # a JSON report into invalid JSON, so pass a generous cap.
+        [sys.executable, str(DRIVE), "tool", "ask_codebase", payload, "400000"],
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -87,8 +89,8 @@ def main() -> int:
         report, dt = ask(project_id, row["question"])
         total_latency += dt
         status = report.get("status", "ERROR")
-        expect = row["expect_status"]
-        if status == expect:
+        expect = row["expect_status"]  # list of acceptable statuses
+        if status in expect:
             status_matches += 1
 
         if row.get("must_abstain"):
@@ -106,7 +108,8 @@ def main() -> int:
         else:
             cite_s = "-"
 
-        print(f"{row['id']:<14}{row['category']:<16}{status:<13}{expect:<13}{cite_s:<6}{int(dt*1000):>6}")
+        exp_s = "/".join(expect)
+        print(f"{row['id']:<14}{row['category']:<16}{status:<13}{exp_s:<20}{cite_s:<6}{int(dt*1000):>6}")
 
     n = len(rows)
     print("-" * 74)
