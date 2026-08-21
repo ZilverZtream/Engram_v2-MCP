@@ -1434,6 +1434,25 @@ impl Engram {
             .list_memory_sections(&pid)
             .unwrap_or_default();
         mem_sections.sort_by(|a, b| b.updated_at_ms.cmp(&a.updated_at_ms));
+        // Count STALE notes (P2 produced the flag; nothing consumed it). A note
+        // is stale when its review date lapsed or a referenced file changed
+        // since it was written — surfacing the count here closes that loop.
+        let graph_st = self.state.graph.clone();
+        let pid_st = pid.clone();
+        let stale_notes = {
+            let mtimes = tokio::task::spawn_blocking(move || {
+                crate::handlers::project_tools::indexed_file_mtimes_secs(&graph_st, &pid_st)
+            })
+            .await
+            .unwrap_or_default();
+            let now = crate::utils::now_ms();
+            mem_sections
+                .iter()
+                .filter(|s| {
+                    crate::handlers::project_tools::memory_stale_reason(s, now, &mtimes).is_some()
+                })
+                .count()
+        };
         let graph_mem = self.state.graph.clone();
         let pid_ins = pid.clone();
         let mut insight_nodes = tokio::task::spawn_blocking(move || {
@@ -1542,6 +1561,12 @@ impl Engram {
             let now = crate::utils::now_ms();
             out.push_str("\n--- Agent Memory ---\n");
             out.push_str(&format!("memory_bank_sections: {}\n", mem_sections.len()));
+            if stale_notes > 0 {
+                out.push_str(&format!(
+                    "  stale: {stale_notes} (review overdue or a referenced file changed since \
+                     written) — read_memory_bank shows why; update or delete_memory_bank.\n"
+                ));
+            }
             for s in mem_sections.iter().take(8) {
                 out.push_str(&format!(
                     "  {} ({})\n",

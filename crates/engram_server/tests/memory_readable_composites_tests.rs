@@ -207,3 +207,35 @@ async fn ask_codebase_blends_insights() {
         "ask_codebase must surface dreamer insights as evidence:\n{out}"
     );
 }
+
+/// get_codebase_overview must surface the STALE-note count — closing the P2
+/// loop where the flag was produced but nothing consumed it.
+#[tokio::test]
+async fn overview_surfaces_stale_note_count() {
+    let (_t, state, engram, pid) = setup().await;
+    let sec = engram_core::MemorySection {
+        section_id: "old-decision".into(),
+        title: "Old decision".into(),
+        content: "a decision recorded long ago".into(),
+        updated_at_ms: 1000,
+        created_at_ms: 1000,
+        author: None,
+        kind: Some("decision".into()),
+        review_after_ms: Some(1), // review date long past → stale
+        tags: vec![],
+        related_files: vec![],
+    };
+    state.registry.put_memory_section(&pid, &sec).unwrap();
+    let out = text(
+        &engram
+            .get_codebase_overview(Parameters(engram_server::ProjectIdRequest {
+                project_id: pid,
+            }))
+            .await
+            .unwrap(),
+    );
+    assert!(
+        out.contains("stale: 1"),
+        "overview must surface the stale-note count:\n{out}"
+    );
+}

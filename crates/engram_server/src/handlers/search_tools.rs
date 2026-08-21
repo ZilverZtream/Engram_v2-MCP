@@ -57,13 +57,20 @@ fn rrf_fuse_namespaces(
 ) -> Vec<(String, engram_index::HybridHit)> {
     const K: f32 = 60.0;
     let now = crate::utils::now_ms();
+    // Per-source cap: a namespace contributes at most this many hits to the
+    // fusion, so a huge corpus (quality_gate ~1.5k rules) cannot crowd out a
+    // small curated one (a gotcha note in memory_bank). RRF's rank scoring is
+    // already volume-robust, but without a cap the big corpus still fills the
+    // limited slots; sharing the budget keeps every source represented.
+    let non_empty = lists.iter().filter(|(_, h)| !h.is_empty()).count().max(1);
+    let per_source_cap = (limit / non_empty).max(2);
     let mut scored: Vec<(f32, String, engram_index::HybridHit)> = Vec::new();
     for (ns, hits) in lists {
         // `user:memory_bank` etc. are user-level knowledge — strip the tag
         // so the recency prior applies to them too.
         let ns_key = ns.strip_prefix("user:").unwrap_or(ns.as_str());
         let is_knowledge = engram_core::namespaces::KNOWLEDGE_NAMESPACES.contains(&ns_key);
-        for (rank, h) in hits.into_iter().enumerate() {
+        for (rank, h) in hits.into_iter().take(per_source_cap).enumerate() {
             let mut s = 1.0 / (K + rank as f32);
             // Recency prior for knowledge namespaces only: a fresher note is a
             // better recall than a stale one of equal textual relevance. The
@@ -1226,5 +1233,43 @@ mod p0_line_overlap_tests {
         assert!(!line_ranges_overlap(0, 0, 10, 20));
         assert!(!line_ranges_overlap(10, 20, 0, 0));
         assert!(!line_ranges_overlap(0, 0, 0, 0));
+    }
+}
+
+#[cfg(test)]
+mod rrf_tests {
+    use super::rrf_fuse_namespaces;
+
+    fn hit(doc_id: &str) -> engram_index::HybridHit {
+        engram_index::HybridHit {
+            pk: doc_id.into(),
+            chunk_id: 0,
+            path: engram_core::RelPath::new("x.rs"),
+            score: 1.0,
+            centrality: 0.0,
+            snippet: None,
+            doc_id: doc_id.into(),
+            start_line: 0,
+            end_line: 0,
+            snippet_truncated: false,
+            timestamp: None,
+        }
+    }
+
+    #[test]
+    fn per_source_cap_prevents_a_big_corpus_from_flooding() {
+        // quality_gate (~1.5k rules in prod) must not crowd out memory_bank's
+        // curated notes. per_source_cap = (8/2).max(2) = 4 → quality_gate
+        // contributes at most 4; both memory_bank notes survive.
+        let big: Vec<_> = (0..20).map(|i| hit(&format!("qg{i}"))).collect();
+        let small = vec![hit("mb1"), hit("mb2")];
+        let fused = rrf_fuse_namespaces(
+            vec![("quality_gate".into(), big), ("memory_bank".into(), small)],
+            8,
+        );
+        let qg = fused.iter().filter(|(ns, _)| ns == "quality_gate").count();
+        let mb = fused.iter().filter(|(ns, _)| ns == "memory_bank").count();
+        assert!(qg <= 4, "quality_gate capped at 4, got {qg}");
+        assert_eq!(mb, 2, "both memory_bank notes survive, got {mb}");
     }
 }
