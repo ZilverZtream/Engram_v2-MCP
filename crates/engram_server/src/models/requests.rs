@@ -693,13 +693,67 @@ pub fn default_pattern_examples() -> usize {
     3
 }
 
-/// TODO-28: one natural-language entry point.
+/// TODO-28: one natural-language entry point. All fields past `question` are
+/// additive + serde-defaulted, so the legacy `{project_id, question}` call still
+/// deserializes unchanged.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AskCodebaseRequest {
     pub project_id: String,
     /// Any question about the codebase, in plain language.
     pub question: String,
+    /// Optional conversation/session id (carried for future working memory).
+    #[serde(default)]
+    pub session_id: Option<String>,
+    /// Optional current task / user story for context.
+    #[serde(default)]
+    pub task_context: Option<String>,
+    /// Pin the answer to a branch/commit (branch is advisory in M1).
+    #[serde(default)]
+    pub as_of: Option<AsOf>,
+    /// Who is asking (role/permissions — carried for future ACL).
+    #[serde(default)]
+    pub audience: Option<Audience>,
+    /// "quick" | "standard" (default) | "deep" — controls arm breadth + budget.
+    #[serde(default = "default_ask_depth")]
+    pub depth: String,
+    /// "best_effort" (default) | "require_current" — gate on freshness.
+    #[serde(default = "default_ask_freshness")]
+    pub freshness_policy: String,
+    /// "markdown" (default) | "json" | "both".
+    #[serde(default = "default_ask_output")]
+    pub output_format: String,
+    /// Overall retrieval deadline in ms (default 15000, clamped 1000..60000).
+    #[serde(default)]
+    pub deadline_ms: Option<u64>,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AsOf {
+    #[serde(default)]
+    pub branch: Option<String>,
+    #[serde(default)]
+    pub commit: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Audience {
+    #[serde(default)]
+    pub role: Option<String>,
+    #[serde(default)]
+    pub permissions: Vec<String>,
+}
+
+fn default_ask_depth() -> String {
+    "standard".into()
+}
+fn default_ask_freshness() -> String {
+    "best_effort".into()
+}
+fn default_ask_output() -> String {
+    "markdown".into()
 }
 
 /// TODO-29: open an edit session — snapshot intent before editing.
