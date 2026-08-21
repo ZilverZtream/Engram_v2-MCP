@@ -438,7 +438,9 @@ pub fn concept_evidence(
         }
         *seen += 1;
         let (path, lines, name, gen_) = node_fields(&Some(n.clone()), &n.node_id);
-        let content = format!("{} ({}) matches concept '{concept}'", name, n.node_type);
+        // Describe the node itself; do NOT echo the concept/question (that would
+        // fool a downstream term-coverage adequacy check).
+        let content = format!("{} ({})", name, n.node_type);
         let mut it = graph_relation_item(
             "concept",
             n.node_id.clone(),
