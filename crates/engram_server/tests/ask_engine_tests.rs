@@ -989,3 +989,28 @@ fn compound_terms_across_different_hits_are_adequate() {
         "the set covers authentication + changed"
     );
 }
+
+#[test]
+fn unsupported_and_stale_guidance_recommends_grep_fallback() {
+    // The OciusX finding: a stale/empty index made agents report "cannot
+    // determine" instead of grepping the working tree. The tool's own guidance
+    // must push the grep fallback so agents without a prompt fix still recover.
+    use engram_server::services::ask_engine::report::next_best;
+    let plan = plan_query("does the flux capacitor exist");
+    let unsup = next_best(&plan, &[], AnswerStatus::Unsupported);
+    assert!(
+        unsup.iter().any(|s| s.contains("grep_project")),
+        "{unsup:?}"
+    );
+    assert!(
+        unsup
+            .iter()
+            .any(|s| s.to_lowercase().contains("cannot determine")),
+        "{unsup:?}"
+    );
+    let stale = next_best(&plan, &[], AnswerStatus::Stale);
+    assert!(
+        stale.iter().any(|s| s.contains("grep_project")),
+        "{stale:?}"
+    );
+}
