@@ -45,3 +45,53 @@ fn evidence_item_serializes_with_snake_case_kind() {
     assert!(j.get("warnings").is_none());
     assert!(j.get("score").is_none());
 }
+
+// ─── Task 2: deterministic multi-intent planner ──────────────────────────────
+use engram_server::services::ask_engine::plan::{EntityKind, Intent};
+use engram_server::services::ask_engine::planner::{extract_entities, plan_query};
+
+#[test]
+fn compound_question_yields_multiple_intents() {
+    let p = plan_query("How does authentication work, and what would break if we changed it?");
+    let intents: Vec<Intent> = p.intents.iter().map(|(i, _)| *i).collect();
+    assert!(intents.contains(&Intent::Explain), "{intents:?}");
+    assert!(intents.contains(&Intent::Impact), "{intents:?}");
+}
+
+#[test]
+fn extracts_file_entity_with_kind() {
+    let ents = extract_entities(
+        "What breaks if we change marker serialization in ImportService.vb from XML to JSON?",
+    );
+    assert!(
+        ents.iter()
+            .any(|e| e.text == "ImportService.vb" && e.guessed_kind == EntityKind::File),
+        "{ents:?}"
+    );
+}
+
+#[test]
+fn why_is_rationale_not_history() {
+    let p = plan_query("Why is customer status enforced on the server?");
+    assert_eq!(p.intents.first().unwrap().0, Intent::Rationale);
+}
+
+#[test]
+fn bare_topic_defaults_to_explain() {
+    let p = plan_query("marker clustering");
+    assert_eq!(p.intents.first().unwrap().0, Intent::Explain);
+}
+
+#[test]
+fn change_verb_qualifier_from_x_to_y() {
+    let p = plan_query("change serialization from XML to JSON");
+    assert_eq!(p.qualifiers.change, Some(("XML".into(), "JSON".into())));
+}
+
+#[test]
+fn captures_single_pascalcase_symbol_but_not_question_words() {
+    let ents = extract_entities("How does Authenticate work and where is Run used?");
+    assert!(ents.iter().any(|e| e.text == "Authenticate"), "{ents:?}");
+    assert!(ents.iter().any(|e| e.text == "Run"), "{ents:?}");
+    assert!(!ents.iter().any(|e| e.text.eq_ignore_ascii_case("How")), "{ents:?}");
+}
