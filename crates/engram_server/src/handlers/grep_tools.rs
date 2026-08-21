@@ -383,7 +383,7 @@ fn render_markdown(r: &engram_index::grep::GrepResult, pattern: &str, regex: boo
     // whose output accumulates in the model's request until it overflows (the
     // HTTP 400 this guards against). Stop rendering matches past the budget and
     // tell the caller how to get the rest.
-    const MATCHES_BUDGET: usize = 6_000;
+    const MATCHES_BUDGET: usize = 3_000;
     let matches_start = out.len();
     let mut shown = 0usize;
     for m in &r.matches {

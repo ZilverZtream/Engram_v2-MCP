@@ -458,13 +458,16 @@ pub struct GetConceptFootprintRequest {
     pub project_id: String,
     /// Domain term to map, e.g. "photo", "code category", "OrderStatus".
     pub concept: String,
-    /// Cap per output group. Default 15.
+    /// Cap per output group. Default 8.
     #[serde(default = "default_footprint_group_cap")]
     pub max_per_group: usize,
 }
 
 pub fn default_footprint_group_cap() -> usize {
-    15
+    // Was 15 (×2 for the consumers group = ~17 KB, the largest single response a
+    // review still emitted). 8 keeps the map readable while halving the payload;
+    // callers wanting the full fan-out pass a larger max_per_group.
+    8
 }
 
 /// Planning: historical changes most similar to a planned file set, plus the
@@ -1121,11 +1124,11 @@ pub struct GrepProjectRequest {
 fn default_grep_max_results() -> usize {
     // A review greps high-frequency tokens (`.Contains(`, `pr_id`, `innerHTML`)
     // and only needs to know WHERE a pattern lives, not 200 instances. At 200,
-    // a single common-token grep returned ~40 KB; a review makes dozens, and the
-    // accumulated tool output blew the model's request budget (HTTP 400). 40 is
-    // plenty to locate a pattern or enumerate a handful of call sites; callers
+    // a single common-token grep returned ~40 KB; a review makes DOZENS, and the
+    // accumulated tool output (re-sent every agent turn) blew the model's request
+    // budget (HTTP 400). 20 locates a pattern or a handful of call sites; callers
     // who want an exhaustive sweep pass a larger `max_results` explicitly.
-    40
+    20
 }
 
 fn default_grep_freshness() -> String {
