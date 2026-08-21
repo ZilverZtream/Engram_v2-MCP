@@ -271,3 +271,65 @@ async fn code_evidence_empty_is_not_failed() {
     assert!(items.is_empty());
     assert_eq!(outcome.status, ProviderStatus::Empty); // NOT Failed
 }
+
+// ─── Task 5: graph-backed evidence providers ─────────────────────────────────
+use engram_graph::{Edge, EdgeKind};
+
+fn seed_project_with_edges(
+    nodes: &[(&str, &str, &str, &str)],
+    edges: &[(&str, &str, EdgeKind, u32)],
+) -> (tempfile::TempDir, AppState, String) {
+    let (tmp, state, pid) = seed_project(nodes);
+    let gedges: Vec<Edge> = edges
+        .iter()
+        .map(|(s, t, k, w)| Edge {
+            source_id: (*s).into(),
+            target_id: (*t).into(),
+            namespace: "test".into(),
+            language: "vbnet".into(),
+            edge_kind: k.clone(),
+            weight: *w,
+            generation: 1,
+            metadata: None,
+            updated_at_ms: 0,
+        })
+        .collect();
+    state.graph.upsert_edges(&pid, &gedges).unwrap();
+    (tmp, state, pid)
+}
+
+#[test]
+fn impact_evidence_surfaces_incoming_callers_as_graph_relations() {
+    let (_tmp, state, pid) = seed_project_with_edges(
+        &[
+            ("sym:Save@a.vb", "function", "Save", "a.vb"),
+            ("sym:Caller@b.vb", "function", "Caller", "b.vb"),
+        ],
+        &[("sym:Caller@b.vb", "sym:Save@a.vb", EdgeKind::Calls, 3)],
+    );
+    let mut id = 0usize;
+    let (items, outcome) = providers::impact_evidence(&state.graph, &pid, "sym:Save@a.vb", 50, &mut id);
+    assert_eq!(outcome.status, ProviderStatus::Hit);
+    assert!(
+        items.iter().any(|e| e.kind == EvidenceKind::GraphRelation
+            && e.symbol_id.as_deref() == Some("sym:Caller@b.vb")
+            && e.authority == Authority::CurrentCode
+            && e.directness == Some(0.9)),
+        "{items:?}"
+    );
+}
+
+#[test]
+fn symbol_ref_evidence_finds_usages() {
+    let (_tmp, state, pid) = seed_project_with_edges(
+        &[
+            ("sym:Widget@w.vb", "function", "Widget", "w.vb"),
+            ("sym:Uses@u.vb", "function", "Uses", "u.vb"),
+        ],
+        &[("sym:Uses@u.vb", "sym:Widget@w.vb", EdgeKind::Calls, 1)],
+    );
+    let mut id = 0usize;
+    let (items, outcome) = providers::symbol_ref_evidence(&state.graph, &pid, "Widget", None, 25, &mut id);
+    assert_eq!(outcome.status, ProviderStatus::Hit, "{items:?}");
+    assert!(items.iter().any(|e| e.symbol_id.as_deref() == Some("sym:Uses@u.vb")));
+}
