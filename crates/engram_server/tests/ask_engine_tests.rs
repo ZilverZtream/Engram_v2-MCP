@@ -333,3 +333,99 @@ fn symbol_ref_evidence_finds_usages() {
     assert_eq!(outcome.status, ProviderStatus::Hit, "{items:?}");
     assert!(items.iter().any(|e| e.symbol_id.as_deref() == Some("sym:Uses@u.vb")));
 }
+
+// ─── Task 6: parallel intent-DAG retrieval ───────────────────────────────────
+use engram_server::services::ask_engine::retrieval::{Depth, RetrievalCtx, gather_evidence};
+use std::time::Duration;
+
+fn func_node(id: &str, name: &str, file: &str) -> Node {
+    Node {
+        node_id: id.into(),
+        node_type: "function".into(),
+        name: name.into(),
+        namespace: "test".into(),
+        language: "vbnet".into(),
+        file_path: RelPath::new(file),
+        start_line: 1,
+        end_line: 3,
+        generation: 1,
+        metadata: None,
+    }
+}
+
+#[tokio::test]
+async fn gather_runs_arms_for_intents_and_reports_per_provider() {
+    let (_tmp, state, pid) = index_fixture(&[(
+        "Save.vb",
+        "Public Function Save(id As Integer) As Boolean\n Return True\nEnd Function\n",
+    )])
+    .await;
+    // Seed a caller edge into the indexed project's graph.
+    state
+        .graph
+        .upsert_nodes(
+            &pid,
+            &[
+                func_node("sym:Save@Save.vb", "Save", "Save.vb"),
+                func_node("sym:Caller@c.vb", "Caller", "c.vb"),
+            ],
+        )
+        .unwrap();
+    state
+        .graph
+        .upsert_edges(
+            &pid,
+            &[Edge {
+                source_id: "sym:Caller@c.vb".into(),
+                target_id: "sym:Save@Save.vb".into(),
+                namespace: "test".into(),
+                language: "vbnet".into(),
+                edge_kind: EdgeKind::Calls,
+                weight: 2,
+                generation: 1,
+                metadata: None,
+                updated_at_ms: 0,
+            }],
+        )
+        .unwrap();
+
+    let ps = ensure_project_runtime(&state, &pid).await.unwrap();
+    let gen_ = get_active_generation(&state, &pid).await.unwrap();
+    let mut plan = plan_query("what breaks if I change Save?");
+    resolve_entities(&state.graph, &pid, &mut plan);
+
+    let ctx = RetrievalCtx {
+        search: ps.search.clone(),
+        graph: state.graph.clone(),
+        registry: state.registry.clone(),
+        project_id: pid.clone(),
+        generation: gen_,
+    };
+    let (evidence, reports) = gather_evidence(
+        &ctx,
+        &plan,
+        "what breaks if I change Save?",
+        Depth::Standard,
+        Duration::from_secs(10),
+        tokio_util::sync::CancellationToken::new(),
+    )
+    .await;
+
+    // Impact intent → the impact arm ran and surfaced the caller.
+    assert!(
+        reports
+            .iter()
+            .any(|r| r.provider == "impact" && r.status == ProviderStatus::Hit),
+        "reports: {reports:?}"
+    );
+    assert!(
+        evidence
+            .iter()
+            .any(|e| e.symbol_id.as_deref() == Some("sym:Caller@c.vb")),
+        "evidence: {evidence:?}"
+    );
+    // A code arm always runs; its report is present (Hit or Empty, never missing).
+    assert!(reports.iter().any(|r| r.provider == "code"), "reports: {reports:?}");
+    // Evidence ids are globally sequential.
+    assert!(evidence.iter().all(|e| e.evidence_id.starts_with("ev_")));
+}
