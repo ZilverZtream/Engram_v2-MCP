@@ -178,3 +178,96 @@ fn resolves_unique_symbol_and_marks_ambiguous() {
     );
     assert_eq!(run.resolved.len(), 1, "Run is unique");
 }
+
+// ─── Task 4: search-backed evidence providers ────────────────────────────────
+use engram_server::services::ask_engine::providers;
+use engram_server::services::ask_engine::status::ProviderStatus;
+use engram_server::services::project_service::{ensure_project_runtime, get_active_generation};
+use rmcp::handler::server::tool::Parameters;
+
+/// Build an fts_only AppState, write + index the given files, return the guard,
+/// state, and project_id. General project_type indexes .vb/.cs/etc. lexically
+/// without needing a language sidecar.
+async fn index_fixture(files: &[(&str, &str)]) -> (tempfile::TempDir, AppState, String) {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let data_dir = tmp.path().join("data");
+    let proj = tmp.path().join("project");
+    std::fs::create_dir_all(&data_dir).unwrap();
+    std::fs::create_dir_all(&proj).unwrap();
+    for (name, content) in files {
+        let p = proj.join(name);
+        if let Some(parent) = p.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+        std::fs::write(&p, content).unwrap();
+    }
+    let cfg = Config {
+        data_dir,
+        allowed_roots: vec![proj.clone()],
+        max_project_files: Some(100),
+        max_project_bytes: Some(1 << 20),
+        embedding_backend: "fts_only".into(),
+        embedding_model: None,
+        ollama_url: None,
+        openai_api_key: None,
+        max_concurrent_jobs: 2,
+        ..Default::default()
+    };
+    let (state, _rx) = AppState::new(cfg).unwrap();
+    let engram = engram_server::Engram::new(state.clone());
+    engram
+        .index_project(Parameters(engram_server::IndexProjectRequest {
+            directory: proj.to_string_lossy().to_string(),
+            project_name: "askfix".into(),
+            project_type: engram_server::models::ProjectType::General,
+            wait: true,
+            dedupe_by_directory: false,
+        }))
+        .await
+        .unwrap();
+    let pid = state.registry.list_projects().unwrap()[0].project_id.clone();
+    (tmp, state, pid)
+}
+
+#[tokio::test]
+async fn code_evidence_returns_typed_items_with_lines() {
+    let (_tmp, state, pid) = index_fixture(&[(
+        "Auth.vb",
+        "Public Function Authenticate(user As String) As Boolean\n  Return True\nEnd Function\n",
+    )])
+    .await;
+    let ps = ensure_project_runtime(&state, &pid).await.unwrap();
+    let gen_ = get_active_generation(&state, &pid).await.unwrap();
+    let mut id = 0usize;
+    let cancel = tokio_util::sync::CancellationToken::new();
+    let (items, outcome) =
+        providers::code_evidence(&ps.search, &pid, gen_, "Authenticate", 5, &cancel, &mut id).await;
+    assert_eq!(outcome.status, ProviderStatus::Hit, "note: {:?}", outcome.note);
+    assert!(!items.is_empty());
+    assert_eq!(items[0].kind, EvidenceKind::SourceCode);
+    assert_eq!(items[0].authority, Authority::CurrentCode);
+    assert_eq!(items[0].path.as_deref(), Some("Auth.vb"));
+    assert!(items[0].lines.is_some());
+    assert!(items[0].evidence_id.starts_with("ev_"));
+}
+
+#[tokio::test]
+async fn code_evidence_empty_is_not_failed() {
+    let (_tmp, state, pid) = index_fixture(&[("Auth.vb", "Public Sub Noop()\nEnd Sub\n")]).await;
+    let ps = ensure_project_runtime(&state, &pid).await.unwrap();
+    let gen_ = get_active_generation(&state, &pid).await.unwrap();
+    let mut id = 0usize;
+    let cancel = tokio_util::sync::CancellationToken::new();
+    let (items, outcome) = providers::code_evidence(
+        &ps.search,
+        &pid,
+        gen_,
+        "zzznothingmatcheszzz",
+        5,
+        &cancel,
+        &mut id,
+    )
+    .await;
+    assert!(items.is_empty());
+    assert_eq!(outcome.status, ProviderStatus::Empty); // NOT Failed
+}
