@@ -25,6 +25,38 @@ fn line_ranges_overlap(a_start: u32, a_end: u32, b_start: u32, b_end: u32) -> bo
 /// start_line, end_line).
 type SymbolSpan = (String, String, String, u32, u32);
 
+/// Rank-fuse ranked hit lists from several namespaces into one list (RRF).
+///
+/// Raw BM25 / vector scores are not comparable across namespaces, so fusion
+/// is by RANK POSITION: a hit's fused score is `1 / (K + rank)` within its
+/// own list. No summing is needed because each doc lives in exactly one
+/// namespace (doc_ids are namespace-scoped, so no doc appears in two lists).
+///
+/// For a SINGLE list this is an identity on order — `1/(K+rank)` is monotonic
+/// in rank — so `search_scope: "code"` is unchanged. The tiebreak (namespace,
+/// then doc_id) keeps the order deterministic when two lists' ranks collide.
+fn rrf_fuse_namespaces(
+    lists: Vec<(String, Vec<engram_index::HybridHit>)>,
+    limit: usize,
+) -> Vec<(String, engram_index::HybridHit)> {
+    const K: f32 = 60.0;
+    let mut scored: Vec<(f32, String, engram_index::HybridHit)> = Vec::new();
+    for (ns, hits) in lists {
+        for (rank, h) in hits.into_iter().enumerate() {
+            let s = 1.0 / (K + rank as f32);
+            scored.push((s, ns.clone(), h));
+        }
+    }
+    scored.sort_by(|a, b| {
+        b.0.partial_cmp(&a.0)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.1.cmp(&b.1))
+            .then_with(|| a.2.doc_id.cmp(&b.2.doc_id))
+    });
+    scored.truncate(limit);
+    scored.into_iter().map(|(_, ns, h)| (ns, h)).collect()
+}
+
 impl Engram {
     /// P0-8: bridge search → graph. For the final hit list, fetch each
     /// distinct file's symbol nodes in one blocking hop so hits can carry
@@ -85,6 +117,35 @@ impl Engram {
                 None,
             ));
         }
+
+        // Resolve which namespaces this search spans. Fail closed on an
+        // unknown scope, the same way metadata_filter and freshness do.
+        let namespaces: Vec<String> = match req.search_scope.to_ascii_lowercase().as_str() {
+            "code" => vec![req.namespace.clone()],
+            "knowledge" => engram_core::namespaces::KNOWLEDGE_NAMESPACES
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+            "all" => std::iter::once(engram_core::namespaces::NAMESPACE_MEMORY.to_string())
+                .chain(
+                    engram_core::namespaces::KNOWLEDGE_NAMESPACES
+                        .iter()
+                        .map(|s| s.to_string()),
+                )
+                .collect(),
+            other => {
+                return Err(McpError::invalid_params(
+                    format!(
+                        "search_memory: invalid search_scope '{other}'. Expected one of: \
+                         code (default), knowledge, all."
+                    ),
+                    None,
+                ));
+            }
+        };
+        // More than one namespace in play drives the per-hit source label; a
+        // single namespace (code scope) renders exactly as before.
+        let multi_ns = namespaces.len() > 1;
 
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
@@ -167,51 +228,62 @@ impl Engram {
         // Pagination: rank offset+max_results and slice the page out below.
         // Ranking is deterministic per generation, so pages don't overlap.
         let offset = req.sanitized_offset();
-        let hybrid_q = HybridQuery {
-            project_id: req.project_id.clone(),
-            namespace: req.namespace.clone(),
-            generation: gen_,
-            text: req.query.clone(),
-            top_k: req.sanitized_max_results() + offset,
-            fts_mode: req.fts_mode.as_str().to_owned(),
-            include_path_prefixes: req.include_path_prefixes.clone(),
-            exclude_path_prefixes: req.exclude_path_prefixes.clone(),
-            language_filters: req.language_filters.clone(),
-            author_filter: None,
-            date_after: None,
-            date_before: None,
-            use_mmr: req.use_mmr,
-        };
-        let hits = if req.semantic {
-            ps.search
-                .search(
-                    &hybrid_q,
-                    // `centrality` is `Option<Arc<CentralityMetrics>>`; deref
-                    // through the Arc to obtain `Option<&CentralityMetrics>`.
-                    centrality.as_deref().map(|c| &c.pagerank),
-                    &tokio_util::sync::CancellationToken::new(),
-                )
-                .await
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?
-        } else {
-            // Fast path: pure FTS via the existing `lexical_search`
-            // entry point. No vector embedding, no RRF, no MMR.
-            let engine = ps.search.clone();
-            let q_clone = hybrid_q.clone();
-            tokio::task::spawn_blocking(move || engine.lexical_search(&q_clone))
-                .await
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?
-        };
+        let per_ns_top_k = req.sanitized_max_results() + offset;
+        // `centrality` is `Option<Arc<CentralityMetrics>>`; deref through the
+        // Arc to `Option<&PageRankMap>`. Borrowed across the loop's awaits —
+        // `centrality` is owned here and outlives them.
+        let pagerank = centrality.as_deref().map(|c| &c.pagerank);
 
-        // Slice out the requested page. Done before the dreamer feed so
-        // co-occurrence edges reflect what the agent actually saw.
-        let hits: Vec<_> = hits.into_iter().skip(offset).collect();
+        // Run each target namespace through the same engine path search_memory
+        // has always used, then fuse the ranked lists by rank (RRF). For a
+        // single namespace the fusion is an identity on order, so
+        // `search_scope: "code"` is byte-for-byte the previous behaviour.
+        let mut lists: Vec<(String, Vec<engram_index::HybridHit>)> =
+            Vec::with_capacity(namespaces.len());
+        for ns in &namespaces {
+            let q = HybridQuery {
+                project_id: req.project_id.clone(),
+                namespace: ns.clone(),
+                generation: gen_,
+                text: req.query.clone(),
+                top_k: per_ns_top_k,
+                fts_mode: req.fts_mode.as_str().to_owned(),
+                include_path_prefixes: req.include_path_prefixes.clone(),
+                exclude_path_prefixes: req.exclude_path_prefixes.clone(),
+                language_filters: req.language_filters.clone(),
+                author_filter: req.author_filter.clone(),
+                date_after: req.date_after,
+                date_before: req.date_before,
+                use_mmr: req.use_mmr,
+            };
+            let ns_hits = if req.semantic {
+                ps.search
+                    .search(&q, pagerank, &tokio_util::sync::CancellationToken::new())
+                    .await
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            } else {
+                // Fast path: pure FTS. No vector embedding, no RRF, no MMR.
+                let engine = ps.search.clone();
+                let q_clone = q.clone();
+                tokio::task::spawn_blocking(move || engine.lexical_search(&q_clone))
+                    .await
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            };
+            lists.push((ns.clone(), ns_hits));
+        }
+
+        // Fuse, then slice out the requested page. Done before the dreamer
+        // feed so co-occurrence edges reflect what the agent actually saw.
+        let hits: Vec<(String, engram_index::HybridHit)> = rrf_fuse_namespaces(lists, per_ns_top_k)
+            .into_iter()
+            .skip(offset)
+            .collect();
 
         // Feed the dreamer co-occurrence graph (non-blocking).
         let lite: Vec<SearchHitLite> = hits
             .iter()
-            .map(|h| SearchHitLite {
+            .map(|(_, h)| SearchHitLite {
                 pk: h.pk.clone(),
                 doc_id: h.doc_id.clone(),
                 path: h.path.clone(),
@@ -264,8 +336,9 @@ impl Engram {
             }
         }
         out.push_str(&format!("active_generation: {gen_}\n"));
-        let symbols_by_path = self.symbols_for_hits(&req.project_id, &hits).await;
-        for (i, h) in hits.iter().enumerate() {
+        let hit_refs: Vec<engram_index::HybridHit> = hits.iter().map(|(_, h)| h.clone()).collect();
+        let symbols_by_path = self.symbols_for_hits(&req.project_id, &hit_refs).await;
+        for (i, (ns, h)) in hits.iter().enumerate() {
             out.push_str(&format!(
                 "\n#{}\ndoc_id: {}\nchunk_id: {}\npath: {}\nlines: {}-{}\nscore: {:.3}\n",
                 offset + i + 1,
@@ -276,6 +349,11 @@ impl Engram {
                 h.end_line,
                 h.score
             ));
+            // Label the source namespace only when more than one is in play,
+            // so the single-namespace (code) output is unchanged.
+            if multi_ns {
+                out.push_str(&format!("source: {ns}\n"));
+            }
 
             // P0-8: name the symbols this chunk covers, with node_ids usable
             // in find_symbol_references / compute_blast_radius / resolve_id.
@@ -294,7 +372,7 @@ impl Engram {
             if req.include_content {
                 if let Ok(Some((_, _, content, _, _))) =
                     ps.search
-                        .get_doc_by_doc_id(&req.project_id, &req.namespace, gen_, &h.doc_id)
+                        .get_doc_by_doc_id(&req.project_id, ns, gen_, &h.doc_id)
                 {
                     out.push_str("content:\n");
                     let limit = req.sanitized_max_content_chars_per_result();

@@ -81,6 +81,10 @@ async fn test_index_and_search_flow() {
         exclude_path_prefixes: None,
         language_filters: None,
         metadata_filter: None,
+        search_scope: "code".into(),
+        author_filter: None,
+        date_after: None,
+        date_before: None,
         semantic: true,
     };
 
@@ -426,6 +430,10 @@ async fn test_path_normalization() {
         exclude_path_prefixes: None,
         language_filters: None,
         metadata_filter: None,
+        search_scope: "code".into(),
+        author_filter: None,
+        date_after: None,
+        date_before: None,
         semantic: true,
     };
 
@@ -558,6 +566,10 @@ async fn test_memory_bank_persistence() {
             exclude_path_prefixes: None,
             language_filters: None,
             metadata_filter: None,
+            search_scope: "code".into(),
+            author_filter: None,
+            date_after: None,
+            date_before: None,
             semantic: true,
         }))
         .await
@@ -649,6 +661,10 @@ async fn test_indexing_deduplication() {
         exclude_path_prefixes: None,
         language_filters: None,
         metadata_filter: None,
+        search_scope: "code".into(),
+        author_filter: None,
+        date_after: None,
+        date_before: None,
         semantic: true,
     };
 
@@ -809,6 +825,10 @@ async fn test_gc_preserves_global_namespaces() {
                 exclude_path_prefixes: None,
                 language_filters: None,
                 metadata_filter: None,
+                search_scope: "code".into(),
+                author_filter: None,
+                date_after: None,
+                date_before: None,
                 semantic: true,
             }))
             .await
@@ -837,6 +857,10 @@ async fn test_gc_preserves_global_namespaces() {
             exclude_path_prefixes: None,
             language_filters: None,
             metadata_filter: None,
+            search_scope: "code".into(),
+            author_filter: None,
+            date_after: None,
+            date_before: None,
             semantic: true,
         }))
         .await
@@ -1259,6 +1283,10 @@ async fn test_watch_project() {
             exclude_path_prefixes: None,
             language_filters: None,
             metadata_filter: None,
+            search_scope: "code".into(),
+            author_filter: None,
+            date_after: None,
+            date_before: None,
             semantic: true,
         }))
         .await
@@ -1360,6 +1388,10 @@ async fn test_search_features() {
             exclude_path_prefixes: None,
             language_filters: None,
             metadata_filter: None,
+            search_scope: "code".into(),
+            author_filter: None,
+            date_after: None,
+            date_before: None,
             semantic: true,
         }))
         .await
@@ -1389,6 +1421,10 @@ async fn test_search_features() {
             exclude_path_prefixes: None,
             language_filters: None,
             metadata_filter: None,
+            search_scope: "code".into(),
+            author_filter: None,
+            date_after: None,
+            date_before: None,
             semantic: true,
         }))
         .await
@@ -1416,6 +1452,10 @@ async fn test_search_features() {
             exclude_path_prefixes: None,
             language_filters: Some(vec!["python".into()]),
             metadata_filter: None,
+            search_scope: "code".into(),
+            author_filter: None,
+            date_after: None,
+            date_before: None,
             semantic: true,
         }))
         .await
@@ -1443,6 +1483,10 @@ async fn test_search_features() {
             exclude_path_prefixes: None,
             language_filters: None,
             metadata_filter: None,
+            search_scope: "code".into(),
+            author_filter: None,
+            date_after: None,
+            date_before: None,
             semantic: true,
         }))
         .await
@@ -1517,6 +1561,10 @@ async fn test_get_chunk_hardening() {
             exclude_path_prefixes: None,
             language_filters: None,
             metadata_filter: None,
+            search_scope: "code".into(),
+            author_filter: None,
+            date_after: None,
+            date_before: None,
             semantic: true,
         }))
         .await

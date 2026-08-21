@@ -978,6 +978,27 @@ pub struct SearchMemoryRequest {
     /// `language_filters`, which are applied.
     #[serde(default)]
     pub metadata_filter: Option<serde_json::Value>,
+    /// Which namespaces to search. `"code"` (default) — the `memory`
+    /// namespace (or an explicit `namespace` override); today's behaviour,
+    /// unchanged. `"knowledge"` — all curated knowledge namespaces
+    /// (memory_bank, insights, business_logic, antipattern, wontfix_patterns,
+    /// quality_gate), fused by rank and labelled by source. `"all"` — code
+    /// plus knowledge. When scope is knowledge/all the `namespace` field is
+    /// ignored.
+    #[serde(default = "default_search_scope")]
+    pub search_scope: String,
+    /// Only return hits whose indexed author matches (history / PR docs carry
+    /// an author; code and memory notes do not). Default: none.
+    #[serde(default)]
+    pub author_filter: Option<String>,
+    /// Only return hits with an indexed timestamp at or after this unix-ms
+    /// value. Default: none. Useful for "insights from this week".
+    #[serde(default)]
+    pub date_after: Option<u64>,
+    /// Only return hits with an indexed timestamp before this unix-ms value.
+    /// Default: none.
+    #[serde(default)]
+    pub date_before: Option<u64>,
     /// When `false`, short-circuits the hybrid pipeline: skips vector
     /// search, RRF fusion, and MMR reranking, returning pure FTS
     /// results ranked by BM25. Use this when you want to find where
@@ -1663,6 +1684,10 @@ impl SearchMemoryRequest {
     }
 }
 
+fn default_search_scope() -> String {
+    "code".into()
+}
+
 impl Default for SearchMemoryRequest {
     fn default() -> Self {
         Self {
@@ -1680,6 +1705,10 @@ impl Default for SearchMemoryRequest {
             language_filters: None,
             metadata_filter: None,
             semantic: true,
+            search_scope: default_search_scope(),
+            author_filter: None,
+            date_after: None,
+            date_before: None,
         }
     }
 }
