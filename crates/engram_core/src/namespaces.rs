@@ -39,6 +39,14 @@ pub enum NamespaceScope {
     Global,
 }
 
+/// Reserved project id for USER-LEVEL memory — standing preferences and
+/// knowledge that span every repo ("eval agents are Sonnet-only"), rather
+/// than being scoped to one codebase. It is a real project in the registry
+/// (lazily created, no source directory) so all the memory tools work against
+/// it unchanged; `search_memory` folds its knowledge into every project's
+/// recall.
+pub const USER_PROJECT_ID: &str = "__user__";
+
 pub const NAMESPACE_MEMORY: &str = "memory";
 pub const NAMESPACE_HISTORY: &str = "history";
 pub const NAMESPACE_ANTIPATTERN: &str = "antipattern";

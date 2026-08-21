@@ -413,7 +413,7 @@ impl Engram {
     // ---- Search + chunks ----
 
     #[tool(
-        description = "Hybrid lexical+vector search over indexed code/docs. Hits carry path, line range, doc_id, covering symbols (node_ids), and a 500-char snippet (include_content=true for full bodies). search_scope: 'code' (default) searches code; 'knowledge' searches curated agent memory (memory_bank notes, dreamer insights, business_logic, antipattern/wontfix/quality_gate rules); 'all' searches both, fused by rank and labelled by source — use it to recall what past sessions learned, not just where code lives. Filter by author_filter / date_after / date_before (unix ms). Page with offset. Set semantic=false for exact-identifier lookups. For literal/regex matching prefer grep_project; for full chunk text use get_chunk."
+        description = "Hybrid lexical+vector search over indexed code/docs. Hits carry path, line range, doc_id, covering symbols (node_ids), and a 500-char snippet (include_content=true for full bodies). search_scope: 'code' (default) searches code; 'knowledge' searches curated agent memory (memory_bank notes, dreamer insights, business_logic, antipattern/wontfix/quality_gate rules); 'all' searches both, fused by rank and labelled by source — use it to recall what past sessions learned, not just where code lives. Knowledge scopes also fold in USER-LEVEL memory (the reserved __user__ project) so a standing preference recorded once surfaces everywhere, labelled source: user:* (set include_user_memory=false to exclude). Filter by author_filter / date_after / date_before (unix ms). Page with offset. Set semantic=false for exact-identifier lookups. For literal/regex matching prefer grep_project; for full chunk text use get_chunk."
     )]
     pub async fn search_memory(
         &self,
@@ -455,7 +455,7 @@ impl Engram {
     // ---- Memory bank + repo rules ----
 
     #[tool(
-        description = "Write a persistent agent note (named markdown section) scoped to the project. Survives reindexing and is searchable (recall via search_memory search_scope=knowledge) — use for decisions, gotchas, preferences, and session handoffs. Set kind (preference|decision|gotcha|reference|note), author, tags, and related_files (files/symbols the note is about) to make recall meaningful and staleness detectable. append=true adds to the existing body; pass expected_updated_at_ms (from read_memory_bank) to avoid clobbering a concurrent session's edit. Long bodies are chunked automatically."
+        description = "Write a persistent agent note (named markdown section) scoped to the project. Survives reindexing and is searchable (recall via search_memory search_scope=knowledge) — use for decisions, gotchas, preferences, and session handoffs. Set kind (preference|decision|gotcha|reference|note), author, tags, and related_files (files/symbols the note is about) to make recall meaningful and staleness detectable. append=true adds to the existing body; pass expected_updated_at_ms (from read_memory_bank) to avoid clobbering a concurrent session's edit. Long bodies are chunked automatically. Write to project_id=__user__ for cross-project preferences that should surface in every project's recall."
     )]
     pub async fn update_memory_bank(
         &self,
