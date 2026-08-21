@@ -384,7 +384,7 @@ namespace App {
     );
     assert!(text.contains("## Checklist"), "checklist section");
     assert!(
-        text.contains("find_similar_changes") && text.contains("pre_commit_review"),
-        "checklist must chain into the completeness and review tools"
+        text.contains("detect_incomplete_changes") && text.contains("pre_commit_review"),
+        "checklist must chain into the completeness (fast, precomputed) and review tools"
     );
 }
