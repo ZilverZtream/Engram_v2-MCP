@@ -90,7 +90,13 @@ pub fn init_tracing(log_file: Option<&Path>) {
     use tracing_subscriber::layer::SubscriberExt as _;
     use tracing_subscriber::util::SubscriberInitExt as _;
 
-    let env_filter = tracing_subscriber::EnvFilter::from_default_env();
+    // `from_default_env()` alone yields an (almost) empty filter when RUST_LOG
+    // is unset — which is exactly how the MCP host / detached daemon launches
+    // us, so the daemon logged NOTHING and every diagnosis had to run blind.
+    // Default to INFO when RUST_LOG is absent; honour RUST_LOG when present.
+    let env_filter = tracing_subscriber::EnvFilter::builder()
+        .with_default_directive(tracing::level_filters::LevelFilter::INFO.into())
+        .from_env_lossy();
     let stderr_layer = tracing_subscriber::fmt::layer().with_writer(std::io::stderr);
 
     let file_layer = log_file.and_then(|path| {
