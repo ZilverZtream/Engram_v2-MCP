@@ -953,3 +953,39 @@ fn resolved_entity_graph_relation_is_adequate_support() {
     ev[0].provider = "impact".into();
     assert!(has_adequate_support(q, &ev));
 }
+
+#[test]
+fn compound_terms_across_different_hits_are_adequate() {
+    // "authentication" in one file + "changed" in another: the evidence SET
+    // covers both distinctive terms, so it must NOT falsely abstain (the OciusX
+    // compound_1/bug_1 finding where per-hit coverage wrongly returned unsupported).
+    let q = "how does authentication work and what would break if we changed it";
+    let ev = vec![
+        mk_ev(
+            "ev_1",
+            EvidenceKind::SourceCode,
+            Authority::CurrentCode,
+            Some("Auth.vb"),
+            Some((1, 3)),
+            None,
+            None,
+            "Public Function Authenticate handles authentication",
+            0.03,
+        ),
+        mk_ev(
+            "ev_2",
+            EvidenceKind::SourceCode,
+            Authority::CurrentCode,
+            Some("Grid.vb"),
+            Some((1, 3)),
+            None,
+            None,
+            "SelectedIndexChanged handler updates the grid",
+            0.03,
+        ),
+    ];
+    assert!(
+        has_adequate_support(q, &ev),
+        "the set covers authentication + changed"
+    );
+}
