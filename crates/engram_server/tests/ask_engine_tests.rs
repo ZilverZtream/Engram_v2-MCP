@@ -619,3 +619,32 @@ fn ambiguous_entity_yields_ambiguous_status() {
     );
     assert_eq!(s, AnswerStatus::Ambiguous);
 }
+
+// ─── Task 9: request envelope ────────────────────────────────────────────────
+#[test]
+fn legacy_request_still_deserializes() {
+    let r: engram_server::AskCodebaseRequest =
+        serde_json::from_str(r#"{"project_id":"p","question":"q"}"#).unwrap();
+    assert_eq!(r.depth, "standard");
+    assert_eq!(r.output_format, "markdown");
+    assert_eq!(r.freshness_policy, "best_effort");
+    assert!(r.as_of.is_none());
+    assert!(r.session_id.is_none());
+    assert!(r.deadline_ms.is_none());
+}
+
+#[test]
+fn full_envelope_deserializes() {
+    let r: engram_server::AskCodebaseRequest = serde_json::from_str(
+        r#"{
+          "project_id":"p","question":"q","session_id":"s","task_context":"t",
+          "as_of":{"branch":"main"},"audience":{"role":"developer","permissions":[]},
+          "depth":"deep","freshness_policy":"require_current","output_format":"both","deadline_ms":15000
+        }"#,
+    )
+    .unwrap();
+    assert_eq!(r.depth, "deep");
+    assert_eq!(r.as_of.unwrap().branch.as_deref(), Some("main"));
+    assert_eq!(r.deadline_ms, Some(15000));
+    assert_eq!(r.output_format, "both");
+}
