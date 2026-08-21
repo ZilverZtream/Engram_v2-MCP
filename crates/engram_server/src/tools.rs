@@ -151,7 +151,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Map EVERY touchpoint of a domain concept (e.g. 'photo', 'code category'): tables, columns, stored procs, Session/ViewState keys, pages, controls, functions, endpoints, plus who reads/writes the core anchors and files that only mention it in text. Call this FIRST when a user story names a domain concept — it's how you avoid changing 2 of the 17 places the concept lives. Related: find_implementation_pattern, find_similar_changes."
+        description = "Map EVERY touchpoint of a domain concept (e.g. 'photo', 'code category'): tables, columns, stored procs, Session/ViewState keys, pages, controls, functions, endpoints, plus who reads/writes the core anchors and files that only mention it in text. Call this FIRST when a user story names a domain concept — it's how you avoid changing 2 of the 17 places the concept lives. Related: find_implementation_pattern, detect_incomplete_changes (fast, precomputed co-change)."
     )]
     pub async fn get_concept_footprint(
         &self,
@@ -251,7 +251,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Edit-completeness check: given the files you edited, reports the strong co-change partners you did NOT touch (with historical evidence) and state keys shared with untouched files. Run before committing any multi-file change — it is the 'you forgot the other side' detector. Related: pre_commit_review, find_similar_changes."
+        description = "Edit-completeness check: given the files you edited, reports the strong co-change partners you did NOT touch (with historical evidence) and state keys shared with untouched files. Run before committing any multi-file change — it is the 'you forgot the other side' detector. Related: pre_commit_review."
     )]
     pub async fn detect_incomplete_changes(
         &self,

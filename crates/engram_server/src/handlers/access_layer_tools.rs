@@ -546,6 +546,14 @@ fn method_not_found_message(
         }
         msg.push_str("Re-call with one of these exact names.");
     }
+    // A miss can just mean the method is in a file added/edited since the last
+    // index — not that it's absent. Point at the working tree so the agent
+    // doesn't infer a failure contract from the name or give up.
+    msg.push_str(
+        "\nIf the method is in a file changed since the last index it is invisible here — \
+         grep_project / read the working tree before inferring its return/failure contract \
+         from the name.",
+    );
     msg
 }
 

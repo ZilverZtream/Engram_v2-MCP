@@ -683,11 +683,16 @@ impl Engram {
         // post-query retain has enough candidates.  Then truncate to `max_incoming`.
 
         // Determine the incoming over-fetch limit.
+        // Over-fetch by +1 past max_incoming so we can DETECT (and honestly
+        // report) that a symbol has more call sites than we return — otherwise
+        // the truncation is silent and H1's sibling enumeration looks complete
+        // when it isn't.
         let incoming_fetch_limit = match &edge_kind_filter {
             Some(f) if !f.is_empty() => max_incoming
                 .saturating_mul(f.len())
-                .min(max_incoming.saturating_mul(EdgeKind::ALL.len())),
-            _ => max_incoming,
+                .min(max_incoming.saturating_mul(EdgeKind::ALL.len()))
+                .saturating_add(1),
+            _ => max_incoming.saturating_add(1),
         };
 
         // Build the outgoing kind list as an owned Vec so it can cross the
@@ -704,6 +709,9 @@ impl Engram {
             file_path: String, // RelPath rendered to string
             node_id: String,
             incoming: Vec<(String, EdgeKind, u32)>,
+            /// True when there are MORE incoming references than max_incoming —
+            /// so the caller knows the sibling list is not exhaustive (H1).
+            incoming_truncated: bool,
             outgoing: Vec<(String, EdgeKind, u32)>,
             /// (source_id \0 kind) → call-site line, from edge metadata.
             call_lines: std::collections::HashMap<String, u32>,
@@ -765,6 +773,7 @@ impl Engram {
                 if let Some(ref filter) = ekf_b {
                     incoming.retain(|(_, kind, _)| filter.contains(kind));
                 }
+                let incoming_truncated = incoming.len() > max_incoming;
                 incoming.truncate(max_incoming);
 
                 if let Some(ref scope) = file_scope_b {
@@ -824,6 +833,7 @@ impl Engram {
                         file_path: fp_str,
                         node_id: node.node_id,
                         incoming,
+                        incoming_truncated,
                         outgoing,
                         call_lines,
                     });
@@ -878,7 +888,16 @@ impl Engram {
             ));
 
             if !nr.incoming.is_empty() {
-                out.push_str(&format!("  Incoming references ({}):\n", nr.incoming.len()));
+                if nr.incoming_truncated {
+                    out.push_str(&format!(
+                        "  Incoming references ({}+, CAPPED at max_incoming — MORE call sites \
+                         exist; raise max_incoming to enumerate them all before concluding a \
+                         sibling list is complete):\n",
+                        nr.incoming.len()
+                    ));
+                } else {
+                    out.push_str(&format!("  Incoming references ({}):\n", nr.incoming.len()));
+                }
                 let mut by_kind: std::collections::HashMap<String, Vec<(&str, u32)>> =
                     std::collections::HashMap::new();
                 for (src_id, kind, weight) in &nr.incoming {
@@ -995,8 +1014,9 @@ impl Engram {
             return Ok(CallToolResult::success(vec![Content::text(
                 "No references found (graph and lexical search both empty). \
                  hints: check spelling/casing of the symbol; try search_memory with \
-                 fts_mode=\"loose\"; call get_index_freshness if the symbol was \
-                 added recently.",
+                 fts_mode=\"loose\". If the symbol lives in a file added or edited since \
+                 the last index it is invisible here — grep_project or read the working \
+                 tree before concluding it has no references; get_index_freshness to check.",
             )]));
         }
 

@@ -204,7 +204,12 @@ fn render_markdown(r: &engram_index::grep::GrepResult, pattern: &str, regex: boo
         out.push('\n');
     }
     if r.matches.is_empty() {
-        out.push_str("_No matches._\n");
+        out.push_str(
+            "_No matches in the index._ grep_project searches Engram's index, not the disk — a \
+             file added or edited since the last index is invisible here. The files are on disk \
+             and a working-tree grep always works: grep the working tree before concluding this \
+             string is absent. Reserve \"cannot determine\" for questions the source can't settle.\n",
+        );
         return out;
     }
     out.push_str("## Matches\n\n");
