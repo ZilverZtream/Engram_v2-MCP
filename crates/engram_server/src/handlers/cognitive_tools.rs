@@ -1230,6 +1230,14 @@ impl Engram {
         let graph = self.state.graph.clone();
         let pid_clone = pid.clone();
         let zip_path_clone = zip_path.clone();
+        // Memory sections travel with the pack — otherwise they die with
+        // registry.redb and the pack is not a real backup. Restored with
+        // import_memory_bank.
+        let mem_sections = self
+            .state
+            .registry
+            .list_memory_sections(&pid)
+            .unwrap_or_default();
         tokio::task::spawn_blocking(move || -> Result<(), String> {
             let file = std::fs::File::create(&zip_path_clone).map_err(|e| e.to_string())?;
             let writer = std::io::BufWriter::new(file);
@@ -1289,6 +1297,15 @@ impl Engram {
             zip.start_file("sql_map.json", options)
                 .map_err(|e| e.to_string())?;
             serde_json::to_writer_pretty(&mut zip, &sql_edges).map_err(|e| e.to_string())?;
+
+            // 5. memory/{section_id}.md — the portable, restorable form.
+            for sec in &mem_sections {
+                let safe = sec.section_id.replace(['/', '\\', '\0'], "_");
+                zip.start_file(format!("memory/{safe}.md"), options)
+                    .map_err(|e| e.to_string())?;
+                let md = crate::services::memory_portability::to_markdown(sec);
+                std::io::Write::write_all(&mut zip, md.as_bytes()).map_err(|e| e.to_string())?;
+            }
 
             zip.finish().map_err(|e| e.to_string())?;
             Ok(())

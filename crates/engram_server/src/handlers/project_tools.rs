@@ -254,6 +254,76 @@ impl Drop for JobCleanupGuard {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Project lifecycle helper methods on Engram.
+/// Why a memory section is stale, if it is. Two grounded signals:
+///  - a review-by date that has passed, and
+///  - a referenced file re-indexed more recently than the note was written
+///    (its `mtime`, in seconds, from the graph's file-node metadata), meaning
+///    the code the note describes has moved on.
+///
+/// `file_mtimes_secs` maps project-relative path → indexed mtime in SECONDS
+/// (the granularity ingest records). Returns `None` when the note is current.
+pub(crate) fn memory_stale_reason(
+    sec: &engram_core::MemorySection,
+    now_ms: u64,
+    file_mtimes_secs: &std::collections::HashMap<String, u64>,
+) -> Option<String> {
+    if let Some(r) = sec.review_after_ms
+        && now_ms > r
+    {
+        return Some("review overdue".to_string());
+    }
+    let updated_secs = sec.updated_at_ms / 1000;
+    for f in &sec.related_files {
+        if let Some(&mtime) = file_mtimes_secs.get(f)
+            && mtime > updated_secs
+        {
+            return Some(format!("referenced file {f} changed since written"));
+        }
+    }
+    None
+}
+
+/// Map of project-relative file path → indexed mtime (SECONDS), from the
+/// code graph's file-node metadata. The same fingerprints grep freshness
+/// reads; here they date a memory's referenced files.
+fn indexed_file_mtimes_secs(
+    graph: &engram_graph::GraphStore,
+    project_id: &str,
+) -> std::collections::HashMap<String, u64> {
+    graph
+        .list_file_node_metadata(project_id)
+        .map(|rows| {
+            rows.into_iter()
+                .filter_map(|(rel, meta)| {
+                    let mtime = meta
+                        .as_ref()
+                        .and_then(|m| m.get("mtime"))
+                        .and_then(|v| v.as_u64())?;
+                    Some((rel.as_str().to_string(), mtime))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Jaccard similarity of the whitespace token sets of two strings. Used to
+/// flag a near-duplicate memory section on write.
+fn token_jaccard(a: &str, b: &str) -> f32 {
+    fn tokens(s: &str) -> std::collections::HashSet<String> {
+        s.split(|c: char| !c.is_alphanumeric())
+            .filter(|t| t.len() > 2)
+            .map(|t| t.to_ascii_lowercase())
+            .collect()
+    }
+    let (ta, tb) = (tokens(a), tokens(b));
+    if ta.is_empty() || tb.is_empty() {
+        return 0.0;
+    }
+    let inter = ta.intersection(&tb).count() as f32;
+    let union = ta.union(&tb).count() as f32;
+    inter / union
+}
+
 impl Engram {
     pub(crate) async fn ensure_project_record(
         &self,
@@ -2926,6 +2996,62 @@ impl Engram {
         )]))
     }
 
+    /// (Re)index one memory section for search: clear the prior chunks by
+    /// path, then chunk the body (so recall can hit any paragraph) and index
+    /// each chunk at generation 0 (memory_bank is GlobalMutable). Shared by
+    /// update_memory_bank and import_memory_bank.
+    pub(crate) async fn index_memory_section_for_search(
+        &self,
+        project_id: &str,
+        section_id: &str,
+        content: &str,
+        author: Option<&str>,
+        timestamp_ms: u64,
+    ) -> Result<(), McpError> {
+        let ps = self.ensure_project_runtime(project_id).await?;
+        let namespace = engram_core::namespaces::NAMESPACE_MEMORY_BANK;
+        let path = format!("memory_bank:{section_id}");
+        let cancel = tokio_util::sync::CancellationToken::new();
+
+        ps.search
+            .delete_files(project_id, namespace, &[engram_core::RelPath::new(&path)])
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let max_chars = self.state.cfg.max_chunks_per_file;
+        let author = author.map(|a| a.to_string());
+        let docs: Vec<engram_index::IndexDoc> =
+            engram_index::chunking::chunk_lines(content, max_chars)
+                .into_iter()
+                .enumerate()
+                .map(|(i, mut c)| {
+                    c.set_doc_id(&path);
+                    engram_index::IndexDoc {
+                        doc_id: c.doc_id.0,
+                        content_hash: c.content_hash.0,
+                        path: engram_core::RelPath::new(&path),
+                        content: c.content,
+                        language: "markdown".into(),
+                        namespace: namespace.into(),
+                        generation: 0,
+                        chunk_id: i as u64,
+                        author: author.clone(),
+                        timestamp: Some(timestamp_ms),
+                        start_line: c.start_line,
+                        end_line: c.end_line,
+                    }
+                })
+                .collect();
+
+        if !docs.is_empty() {
+            ps.search
+                .index_docs(project_id, &docs, &cancel)
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        }
+        Ok(())
+    }
+
     pub async fn handle_update_memory_bank(
         &self,
         req: UpdateMemoryBankRequest,
@@ -3063,61 +3189,43 @@ impl Engram {
                 })?;
         }
 
-        // Re-index for search. memory_bank is GlobalMutable → generation 0.
-        let ps = self.ensure_project_runtime(&req.project_id).await?;
-        let namespace = engram_core::namespaces::NAMESPACE_MEMORY_BANK;
-        let path = format!("memory_bank:{section_id}");
-        let cancel = tokio_util::sync::CancellationToken::new();
+        // Re-index for search (chunked; clears the prior version's chunks).
+        self.index_memory_section_for_search(
+            &req.project_id,
+            &section_id,
+            &content,
+            author.as_deref(),
+            now,
+        )
+        .await?;
 
-        // Clear the prior version's chunks first: a shorter new body must not
-        // leave stale chunks behind. delete-by-path covers every chunk_id.
-        ps.search
-            .delete_files(
-                &req.project_id,
-                namespace,
-                &[engram_core::RelPath::new(&path)],
-            )
-            .await
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-
-        // Chunk the body so search can hit any paragraph, not just one doc
-        // truncated at the embedder's context — the audit flagged long
-        // doc-corpus sections indexing as a single gen-0 chunk. Same char
-        // budget as code indexing.
-        let max_chars = self.state.cfg.max_chunks_per_file;
-        let docs: Vec<engram_index::IndexDoc> =
-            engram_index::chunking::chunk_lines(&content, max_chars)
-                .into_iter()
-                .enumerate()
-                .map(|(i, mut c)| {
-                    c.set_doc_id(&path);
-                    engram_index::IndexDoc {
-                        doc_id: c.doc_id.0,
-                        content_hash: c.content_hash.0,
-                        path: engram_core::RelPath::new(&path),
-                        content: c.content,
-                        language: "markdown".into(),
-                        namespace: namespace.into(),
-                        generation: 0,
-                        chunk_id: i as u64,
-                        author: author.clone(),
-                        timestamp: Some(now),
-                        start_line: c.start_line,
-                        end_line: c.end_line,
-                    }
-                })
+        // Advisory near-duplicate check: warn if another section covers nearly
+        // the same ground, so knowledge doesn't fragment into rival notes.
+        // Non-blocking — the write already succeeded.
+        let mut msg = format!("✅ Updated memory_bank: {section_id}");
+        if let Ok(all) = self.state.registry.list_memory_sections(&req.project_id) {
+            let mut similar: Vec<(String, f32)> = all
+                .iter()
+                .filter(|s| s.section_id != section_id)
+                .map(|s| (s.section_id.clone(), token_jaccard(&content, &s.content)))
+                .filter(|(_, j)| *j >= 0.6)
                 .collect();
-
-        if !docs.is_empty() {
-            ps.search
-                .index_docs(&req.project_id, &docs, &cancel)
-                .await
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            similar.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+            if !similar.is_empty() {
+                let names: Vec<String> = similar
+                    .iter()
+                    .take(3)
+                    .map(|(id, j)| format!("{id} ({:.0}%)", j * 100.0))
+                    .collect();
+                msg.push_str(&format!(
+                    "\nnote: similar to existing section(s): {}. Consider updating one \
+                     instead of keeping duplicates.",
+                    names.join(", ")
+                ));
+            }
         }
 
-        Ok(CallToolResult::success(vec![Content::text(format!(
-            "✅ Updated memory_bank: {section_id}"
-        ))]))
+        Ok(CallToolResult::success(vec![Content::text(msg)]))
     }
 
     pub async fn handle_list_memory_bank(
@@ -3133,25 +3241,38 @@ impl Engram {
         // top.
         secs.sort_by(|a, b| b.updated_at_ms.cmp(&a.updated_at_ms));
         let now = crate::utils::now_ms();
+        // Indexed file mtimes (seconds) for the staleness signal — read once.
+        let file_mtimes = {
+            let graph = self.state.graph.clone();
+            let pid = req.project_id.clone();
+            tokio::task::spawn_blocking(move || indexed_file_mtimes_secs(&graph, &pid))
+                .await
+                .unwrap_or_default()
+        };
         let mut out = String::new();
         if secs.is_empty() {
             out.push_str("(no memory sections yet — write one with update_memory_bank)\n");
         }
         for s in secs {
             // Size and age let the caller judge relevance without read_memory_bank;
-            // kind (when set) tells a standing preference from a scratch note.
+            // kind (when set) tells a standing preference from a scratch note;
+            // STALE flags a note whose review lapsed or whose subject moved.
             let kind = s
                 .kind
                 .as_deref()
                 .map(|k| format!(" | {k}"))
                 .unwrap_or_default();
+            let stale = memory_stale_reason(&s, now, &file_mtimes)
+                .map(|r| format!(" | STALE: {r}"))
+                .unwrap_or_default();
             out.push_str(&format!(
-                "- {} | {} | {}B | {}{}\n",
+                "- {} | {} | {}B | {}{}{}\n",
                 s.section_id,
                 s.title,
                 s.content.len(),
                 crate::utils::humanize_age_ms(s.updated_at_ms, now),
                 kind,
+                stale,
             ));
         }
         Ok(CallToolResult::success(vec![Content::text(out)]))
@@ -3204,9 +3325,104 @@ impl Engram {
         if !s.related_files.is_empty() {
             header.push_str(&format!("related_files: {}\n", s.related_files.join(", ")));
         }
+        // Staleness: review lapsed, or a referenced file re-indexed since this
+        // was written.
+        if !s.related_files.is_empty() || s.review_after_ms.is_some() {
+            let graph = self.state.graph.clone();
+            let pid = req.project_id.clone();
+            let mtimes =
+                tokio::task::spawn_blocking(move || indexed_file_mtimes_secs(&graph, &pid))
+                    .await
+                    .unwrap_or_default();
+            if let Some(reason) = memory_stale_reason(&s, now, &mtimes) {
+                header.push_str(&format!("stale: {reason}\n"));
+            }
+        }
         header.push_str("---\n");
         header.push_str(&s.content);
         Ok(CallToolResult::success(vec![Content::text(header)]))
+    }
+
+    pub async fn handle_import_memory_bank(
+        &self,
+        req: crate::models::ImportMemoryBankRequest,
+    ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
+        let _ = self.ensure_project_record(&req.project_id).await?;
+
+        let parsed = crate::services::memory_portability::from_markdown(&req.markdown);
+        let section_id = req
+            .section_id
+            .clone()
+            .or_else(|| parsed.section_id.clone())
+            .ok_or_else(|| {
+                McpError::invalid_params(
+                    "import_memory_bank: no section_id — provide one, or include \
+                     `section_id:` in the markdown front-matter."
+                        .to_string(),
+                    None,
+                )
+            })?;
+        engram_core::security::validate_key_component("section_id", &section_id)
+            .map_err(|e| McpError::invalid_params(format!("invalid section_id: {e}"), None))?;
+
+        if let Some(k) = parsed.kind.as_deref()
+            && !crate::models::requests::MEMORY_KINDS.contains(&k)
+        {
+            return Err(McpError::invalid_params(
+                format!(
+                    "import_memory_bank: invalid kind '{k}'. Expected one of: {}.",
+                    crate::models::requests::MEMORY_KINDS.join(", ")
+                ),
+                None,
+            ));
+        }
+
+        let now = now_ms();
+        let sec = MemorySection {
+            section_id: section_id.clone(),
+            title: parsed.title.clone().unwrap_or_else(|| section_id.clone()),
+            content: parsed.content.clone(),
+            // updated_at is now (this import is the latest write); created_at
+            // is preserved from the export so the note keeps its real age.
+            updated_at_ms: now,
+            created_at_ms: parsed.created_at_ms.filter(|&c| c > 0).unwrap_or(now),
+            author: parsed.author.clone(),
+            kind: parsed.kind.clone(),
+            review_after_ms: parsed.review_after_ms,
+            tags: parsed.tags.clone(),
+            related_files: parsed.related_files.clone(),
+        };
+
+        {
+            let reg = self.state.registry.clone();
+            let pid = req.project_id.clone();
+            let sec_clone = sec.clone();
+            tokio::task::spawn_blocking(move || reg.put_memory_section(&pid, &sec_clone))
+                .await
+                .map_err(|e| {
+                    McpError::internal_error(format!("registry write task panicked: {e}"), None)
+                })?
+                .map_err(|e| {
+                    McpError::internal_error(
+                        format!("registry write failed — imported section not persisted: {e}"),
+                        None,
+                    )
+                })?;
+        }
+
+        self.index_memory_section_for_search(
+            &req.project_id,
+            &section_id,
+            &sec.content,
+            sec.author.as_deref(),
+            now,
+        )
+        .await?;
+
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "✅ Imported memory_bank: {section_id}"
+        ))]))
     }
 
     pub async fn handle_delete_memory_bank(

@@ -464,6 +464,16 @@ impl Engram {
         self.handle_update_memory_bank(params.0).await
     }
 
+    #[tool(
+        description = "Restore or copy a memory section from portable markdown (the `memory/*.md` files export_capture_pack produces). Front-matter (created_at, kind, author, tags, related_files) is preserved, so a restored note keeps its identity and age. Use to recover memories after a data_dir reset or to copy a note between projects."
+    )]
+    pub async fn import_memory_bank(
+        &self,
+        params: Parameters<crate::models::ImportMemoryBankRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_import_memory_bank(params.0).await
+    }
+
     #[tool(description = "List the project's memory bank section names.")]
     pub async fn list_memory_bank(
         &self,

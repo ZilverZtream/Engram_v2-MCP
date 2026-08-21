@@ -158,6 +158,10 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
+        key: "import_memory_bank",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
         key: "produce_support_kb",
         status: CapabilityStatus::Implemented,
     },
