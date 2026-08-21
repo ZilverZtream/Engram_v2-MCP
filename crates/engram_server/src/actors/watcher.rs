@@ -252,10 +252,23 @@ pub async fn run_watcher(
                             .update_project_impl(&pid, new_gen, max_commits, false, &cancel)
                             .await
                         {
-                            tracing::error!(
-                                project_id = %pid,
-                                "watcher-triggered update failed: {e:#}"
-                            );
+                            let msg = format!("{e:#}");
+                            if cancel.is_cancelled() || is_cancellation_error(&msg) {
+                                // A superseded update — or lance-io cancelling its
+                                // own spawned task under churn/cold-start — is
+                                // EXPECTED, not a failure: the generation stays at
+                                // the last good value and the next trigger re-runs.
+                                // Log quietly so it doesn't masquerade as a crash.
+                                tracing::debug!(
+                                    project_id = %pid,
+                                    "watcher update superseded/cancelled (expected): {msg}"
+                                );
+                            } else {
+                                tracing::error!(
+                                    project_id = %pid,
+                                    "watcher-triggered update failed: {msg}"
+                                );
+                            }
                         }
                         // _guard drops here, removing the in-flight marker.
                     });
@@ -394,6 +407,15 @@ const NON_INDEXABLE_EXTENSIONS: &[&str] = &[
 ];
 
 /// File-name shapes that are editor/OS scratch, not content.
+/// True when an update error is really a task cancellation (a superseded update,
+/// or lance-io cancelling its own spawned task under churn). These are expected
+/// and must not be logged as failures — the index stays at its last good
+/// generation and the next trigger re-runs.
+fn is_cancellation_error(msg: &str) -> bool {
+    let m = msg.to_ascii_lowercase();
+    m.contains("was cancelled") || m.contains("was canceled")
+}
+
 fn is_scratch_file_name(name: &str) -> bool {
     let lower = name.to_ascii_lowercase();
     lower.ends_with('~')
@@ -504,8 +526,20 @@ fn create_watcher(
 
 #[cfg(test)]
 mod tests {
-    use super::{event_should_arm_update, watch_event_is_indexable};
+    use super::{event_should_arm_update, is_cancellation_error, watch_event_is_indexable};
     use std::path::Path;
+
+    #[test]
+    fn lance_task_cancellation_is_recognized_as_cancellation_not_failure() {
+        // The exact shape seen in the daemon log — must be treated as an
+        // expected cancellation, not an alarming update failure.
+        let real = "lance error: LanceError(IO): Error joining spawned task: \
+                    task 168229 was cancelled";
+        assert!(is_cancellation_error(real));
+        assert!(is_cancellation_error("task 5 was canceled")); // US spelling
+        // A genuine IO failure must NOT be swallowed as a cancellation.
+        assert!(!is_cancellation_error("lance error: disk full"));
+    }
 
     /// Real source edits must still arm an update — the filter must not
     /// trade a reindex storm for a stale index.
