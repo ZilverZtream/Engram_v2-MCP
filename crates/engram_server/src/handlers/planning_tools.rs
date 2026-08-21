@@ -514,7 +514,9 @@ impl Engram {
                 "No touchpoints found for concept '{}' (stems tried: {}).\n\
                  hints: try a shorter stem (e.g. \"photo\" not \"photographs\"); \
                  search_memory with fts_mode=\"loose\" to discover the codebase's \
-                 actual vocabulary for this concept.",
+                 actual vocabulary for this concept. If the concept's files are new since \
+                 the last index they are invisible here — grep_project / read the working \
+                 tree before concluding it's absent.",
                 req.concept,
                 stems.join(", ")
             );
@@ -591,7 +593,9 @@ impl Engram {
 
         out.push_str(
             "\nnext: trace_state_usage for each state key; get_table_schema for each table; \
-             find_similar_changes once you know which files you'll touch.\n",
+             detect_incomplete_changes(files=...) for co-change partners (fast, precomputed). \
+             If a name isn't found here the index may be behind — grep_project / read the \
+             working tree before concluding it's absent.\n",
         );
         out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
         Ok(CallToolResult::success(vec![Content::text(out)]))
@@ -2167,8 +2171,8 @@ impl Engram {
              - [ ] Guards: match the house auth patterns — call map_guards_and_settings \
              with scope=<your service/page> and fix any UNGUARDED finding.\n\
              - [ ] Messages/UX: error/validation text wherever the rule can reject input.\n\
-             - [ ] Then run: find_similar_changes(files=<your planned file list>) and \
-             close every 'MISSING from your set' item.\n\
+             - [ ] Then run: detect_incomplete_changes(files=<your planned file list>) \
+             (fast, precomputed co-change) and close every 'MISSING from your set' item.\n\
              - [ ] Per touched method: check_edit_safety. Before commit: pre_commit_review.\n",
         );
         out.push_str(
@@ -5519,8 +5523,11 @@ impl Engram {
         }
         if partner_findings.is_empty() && state_findings.is_empty() && unwired_findings.is_empty() {
             out.push_str(
-                "\nNo strong couplings point outside your edit set. History and state \
-                 wiring are consistent with a complete change.\n",
+                "\nNo strong co-change or shared-state links point outside your edit set. \
+                 NOTE: co-change needs ingested git history (index_git_history) — if it was \
+                 never ingested this means 'no data to check', not 'confirmed complete'. \
+                 Confirm sibling-completeness (H-class rules: other call sites, both master \
+                 pages) with grep_project / a working-tree grep as well.\n",
             );
         } else {
             if !partner_findings.is_empty() {
