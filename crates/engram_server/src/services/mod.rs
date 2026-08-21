@@ -1,4 +1,5 @@
 pub mod ajax_region_service;
+pub mod ask_engine;
 pub mod auth_config_service;
 pub mod autonomous_decision_service;
 pub mod benchmark_service;
