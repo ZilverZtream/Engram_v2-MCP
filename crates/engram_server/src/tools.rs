@@ -1503,8 +1503,29 @@ impl ServerHandler for Engram {
         request: CallToolRequestParam,
         context: rmcp::service::RequestContext<rmcp::RoleServer>,
     ) -> Result<CallToolResult, McpError> {
+        // Per-call observability at INFO: tool name, RESPONSE SIZE, latency. The
+        // response size is what a review's cumulative request budget is spent on
+        // — logging it here is what turns "the review 400s somewhere" into
+        // "grep_project on <x> returned N bytes". One line per call, cheap.
+        let tool_name = request.name.to_string();
+        let started = std::time::Instant::now();
         let tcc = rmcp::handler::server::tool::ToolCallContext::new(self, request, context);
-        self.tool_router.call(tcc).await
+        let result = self.tool_router.call(tcc).await;
+        let ms = started.elapsed().as_millis();
+        match &result {
+            Ok(r) => {
+                let bytes: usize = r
+                    .content
+                    .iter()
+                    .filter_map(|c| c.as_text().map(|t| t.text.len()))
+                    .sum();
+                tracing::info!(tool = %tool_name, bytes, ms, "tool_call ok");
+            }
+            Err(e) => {
+                tracing::warn!(tool = %tool_name, ms, error = %e, "tool_call failed");
+            }
+        }
+        result
     }
 
     async fn list_tools(
