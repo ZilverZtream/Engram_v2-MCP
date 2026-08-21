@@ -593,7 +593,7 @@ fn requirement_contradicting_code_is_flagged() {
 // ─── Task 8: freshness snapshot + honest status ──────────────────────────────
 use engram_server::services::ask_engine::plan::ResolvedEntity;
 use engram_server::services::ask_engine::status::{
-    AnswerStatus, FreshnessSnapshot, ProviderReport, assess_status,
+    AnswerStatus, FreshnessSnapshot, ProviderReport, assess_status, has_adequate_support,
 };
 
 fn rep(p: &str, s: ProviderStatus) -> ProviderReport {
@@ -624,6 +624,7 @@ fn empty_everything_is_unsupported_not_answered() {
             rep("doc", ProviderStatus::Empty),
         ],
         &FreshnessSnapshot::default(),
+        false,
     );
     assert_eq!(s, AnswerStatus::Unsupported);
 }
@@ -636,6 +637,7 @@ fn all_failed_providers_is_failed() {
         &[],
         &[rep("code", ProviderStatus::Failed)],
         &FreshnessSnapshot::default(),
+        false,
     );
     assert_eq!(s, AnswerStatus::Failed);
 }
@@ -664,6 +666,7 @@ fn ambiguous_entity_yields_ambiguous_status() {
         &ev,
         &[rep("usage", ProviderStatus::Hit)],
         &FreshnessSnapshot::default(),
+        true,
     );
     assert_eq!(s, AnswerStatus::Ambiguous);
 }
@@ -846,4 +849,66 @@ fn ranking_tie_break_is_deterministic() {
     let ids1: Vec<_> = r1.iter().map(|e| e.evidence_id.clone()).collect();
     let ids2: Vec<_> = r2.iter().map(|e| e.evidence_id.clone()).collect();
     assert_eq!(ids1, ids2, "ranking must be deterministic");
+}
+
+// ─── Live-eval fix: honest abstention on weak coincidental matches ───────────
+#[test]
+fn weak_single_term_match_abstains_not_partial() {
+    // The OciusX eval showed nonsense questions returning partial: loose FTS
+    // finds a coincidental keyword on a big codebase. A multi-term question
+    // whose only evidence covers ONE query term must abstain (unsupported).
+    let q = "what is the flux capacitor calibration policy";
+    let plan = plan_query(q);
+    let ev = vec![mk_ev(
+        "ev_1",
+        EvidenceKind::SourceCode,
+        Authority::CurrentCode,
+        Some("Settings.vb"),
+        Some((1, 2)),
+        None,
+        None,
+        "public policy setting for uploads",
+        0.03,
+    )];
+    assert!(
+        !has_adequate_support(q, &ev),
+        "one coincidental term is not support"
+    );
+    let s = assess_status(
+        &plan,
+        &ev,
+        &[rep("code", ProviderStatus::Hit)],
+        &FreshnessSnapshot::default(),
+        has_adequate_support(q, &ev),
+    );
+    assert_eq!(s, AnswerStatus::Unsupported);
+}
+
+#[test]
+fn multi_term_match_is_supported_and_answered() {
+    let q = "how does marker clustering work";
+    let plan = plan_query(q);
+    let ev = vec![mk_ev(
+        "ev_1",
+        EvidenceKind::SourceCode,
+        Authority::CurrentCode,
+        Some("Map.vb"),
+        Some((1, 5)),
+        None,
+        None,
+        "marker clustering groups nearby markers on the map",
+        0.03,
+    )];
+    assert!(
+        has_adequate_support(q, &ev),
+        "a hit covering marker+clustering is adequate"
+    );
+    let s = assess_status(
+        &plan,
+        &ev,
+        &[rep("code", ProviderStatus::Hit)],
+        &FreshnessSnapshot::default(),
+        true,
+    );
+    assert_eq!(s, AnswerStatus::Answered); // Explanation primary = SourceCode, present
 }

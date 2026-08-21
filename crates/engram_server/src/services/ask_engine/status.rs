@@ -102,14 +102,63 @@ pub async fn build_snapshot(
     }
 }
 
+/// Is the evidence a REAL answer, or just coincidental keyword matches? On a
+/// large codebase loose FTS finds *something* for any question, so "evidence is
+/// non-empty" is not enough to claim support (the live OciusX eval showed
+/// nonsense questions returning partial instead of abstaining). Adequate support
+/// = a graph relation (a resolved-entity structural link), OR — for a
+/// multi-term question — a hit whose text covers ≥2 distinct query terms (a lone
+/// coincidental keyword is not an answer). A single-term question is satisfied
+/// by any lexical hit.
+pub fn has_adequate_support(question: &str, evidence: &[EvidenceItem]) -> bool {
+    if evidence
+        .iter()
+        .any(|e| e.kind == super::evidence::EvidenceKind::GraphRelation)
+    {
+        return true;
+    }
+    let terms: Vec<String> = question
+        .to_lowercase()
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|w| w.len() >= 4)
+        .map(|s| s.to_string())
+        .collect();
+    if terms.len() < 2 {
+        return !evidence.is_empty();
+    }
+    evidence.iter().any(|e| {
+        let hay = format!("{} {}", e.title.clone().unwrap_or_default(), e.content).to_lowercase();
+        terms.iter().filter(|t| hay.contains(t.as_str())).count() >= 2
+    })
+}
+
+/// The one evidence kind that most directly answers a given answer type. Used to
+/// decide Answered vs Partial without penalizing a project that simply doesn't
+/// index docs/business-rules/history (e.g. OciusX is code-only).
+fn primary_kind(t: super::plan::AnswerType) -> super::evidence::EvidenceKind {
+    use super::evidence::EvidenceKind as K;
+    use super::plan::AnswerType as A;
+    match t {
+        A::ImpactSet | A::UsageSites => K::GraphRelation,
+        A::Timeline => K::HistoryCommit,
+        A::RequirementRef => K::MemoryNote,
+        A::TestGuidance => K::TestRef,
+        // Explanation, Rationale, Plan, RootCause, Comparison, CoverageGaps
+        _ => K::SourceCode,
+    }
+}
+
 /// Calibrate the honest status from what the arms actually returned. Distinguishes
-/// unsupported (nothing of adequate authority) from failed (arms errored) from
-/// ambiguous (unresolved entity) from stale (behind snapshot) from partial.
+/// unsupported (no real answer) from failed (arms errored) from ambiguous
+/// (unresolved entity) from stale (behind snapshot) from partial/answered.
+/// `adequate_support` is computed by `has_adequate_support` (the orchestrator has
+/// the question text).
 pub fn assess_status(
     plan: &QueryPlan,
     evidence: &[EvidenceItem],
     providers: &[ProviderReport],
     snapshot: &FreshnessSnapshot,
+    adequate_support: bool,
 ) -> AnswerStatus {
     let ran: Vec<&ProviderReport> = providers
         .iter()
@@ -119,6 +168,8 @@ pub fn assess_status(
         && ran
             .iter()
             .all(|p| matches!(p.status, ProviderStatus::Failed | ProviderStatus::TimedOut));
+    // Abstain honestly: no evidence, only failed arms, or only coincidental
+    // keyword matches all mean "no answer of adequate support".
     if evidence.is_empty() {
         return if all_failed {
             AnswerStatus::Failed
@@ -129,22 +180,21 @@ pub fn assess_status(
     if plan.entities.iter().any(|e| e.resolved.len() > 1) {
         return AnswerStatus::Ambiguous;
     }
-    // Adequate authority = AgentMemory or stronger (excludes insight/semantic-only).
-    let has_adequate = evidence
+    let has_authority = evidence
         .iter()
         .any(|e| e.authority <= Authority::AgentMemory);
-    if !has_adequate {
+    if !adequate_support || !has_authority {
         return AnswerStatus::Unsupported;
     }
     if snapshot.reindex_required || snapshot.incompatible {
         return AnswerStatus::Stale;
     }
-    let gap = plan
-        .needed_evidence
-        .iter()
-        .any(|k| !evidence.iter().any(|e| e.kind == *k));
-    if gap {
-        return AnswerStatus::Partial;
+    // Answered when the answer type's PRIMARY evidence kind is present; otherwise
+    // there is adequate support but the ideal evidence is thin → partial.
+    let primary = primary_kind(plan.answer_type);
+    if evidence.iter().any(|e| e.kind == primary) {
+        AnswerStatus::Answered
+    } else {
+        AnswerStatus::Partial
     }
-    AnswerStatus::Answered
 }

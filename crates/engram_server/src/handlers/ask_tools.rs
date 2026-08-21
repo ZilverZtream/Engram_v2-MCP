@@ -69,7 +69,8 @@ impl Engram {
         // `incompatible` stays false: per-item snapshot mismatch can't be
         // reliably detected (graph nodes keep per-node generations); staleness
         // rides on reindex_required inside build_snapshot instead.
-        let st = status::assess_status(&plan, &evidence, &providers, &snapshot);
+        let adequate = status::has_adequate_support(&req.question, &evidence);
+        let st = status::assess_status(&plan, &evidence, &providers, &snapshot, adequate);
         let unknowns = report::coverage_gaps(&plan, &evidence, &providers);
         let next_best = report::next_best(&plan, &evidence, st);
 
