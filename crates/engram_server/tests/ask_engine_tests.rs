@@ -95,3 +95,86 @@ fn captures_single_pascalcase_symbol_but_not_question_words() {
     assert!(ents.iter().any(|e| e.text == "Run"), "{ents:?}");
     assert!(!ents.iter().any(|e| e.text.eq_ignore_ascii_case("How")), "{ents:?}");
 }
+
+// ─── Task 3: entity resolver ─────────────────────────────────────────────────
+use engram_core::RelPath;
+use engram_core::config::Config;
+use engram_graph::Node;
+use engram_server::services::ask_engine::resolver::resolve_entities;
+use engram_server::state::AppState;
+
+/// Build an fts_only AppState with a registered project and seed graph nodes
+/// directly (no indexing). Returns the TempDir guard (keep it alive), state, pid.
+fn seed_project(nodes: &[(&str, &str, &str, &str)]) -> (tempfile::TempDir, AppState, String) {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let data_dir = tmp.path().join("data");
+    let project_dir = tmp.path().join("project");
+    std::fs::create_dir_all(&data_dir).unwrap();
+    std::fs::create_dir_all(&project_dir).unwrap();
+    let cfg = Config {
+        data_dir,
+        allowed_roots: vec![project_dir.clone()],
+        max_project_files: None,
+        max_project_bytes: None,
+        embedding_backend: "fts_only".into(),
+        embedding_model: None,
+        ollama_url: None,
+        openai_api_key: None,
+        max_concurrent_jobs: 1,
+        ..Default::default()
+    };
+    let (state, _rx) = AppState::new(cfg).unwrap();
+    let pid = "ask-engine-test".to_string();
+    let rec = engram_core::ProjectRecord {
+        project_id: pid.clone(),
+        project_name: pid.clone(),
+        directory: project_dir.to_string_lossy().into_owned(),
+        project_type: "general".into(),
+        created_at_ms: 0,
+        updated_at_ms: 0,
+        reindex_required_since_ms: None,
+    };
+    state.registry.put_project(&rec).unwrap();
+    state
+        .registry
+        .set_meta(&pid, "active_generation", "1")
+        .unwrap();
+    let gnodes: Vec<Node> = nodes
+        .iter()
+        .map(|(id, ty, name, file)| Node {
+            node_id: (*id).into(),
+            node_type: (*ty).into(),
+            name: (*name).into(),
+            namespace: "test".into(),
+            language: "vbnet".into(),
+            file_path: RelPath::new(file),
+            start_line: 1,
+            end_line: 10,
+            generation: 1,
+            metadata: None,
+        })
+        .collect();
+    state.graph.upsert_nodes(&pid, &gnodes).unwrap();
+    (tmp, state, pid)
+}
+
+#[test]
+fn resolves_unique_symbol_and_marks_ambiguous() {
+    let (_tmp, state, pid) = seed_project(&[
+        ("sym:SaveMarker@a.vb", "function", "SaveMarker", "a.vb"),
+        ("sym:SaveMarker@b.vb", "function", "SaveMarker", "b.vb"),
+        ("sym:Run@import.vb", "function", "Run", "import.vb"),
+    ]);
+    let mut plan = plan_query("where is SaveMarker used and how does Run work?");
+    resolve_entities(&state.graph, &pid, &mut plan);
+
+    let sm = plan.entities.iter().find(|e| e.text == "SaveMarker").unwrap();
+    assert_eq!(sm.resolved.len(), 2, "SaveMarker ambiguous: {:?}", sm.resolved);
+    let run = plan.entities.iter().find(|e| e.text == "Run").unwrap();
+    assert!(
+        run.resolved.iter().any(|r| r.node_id.is_some()),
+        "Run resolved: {:?}",
+        run.resolved
+    );
+    assert_eq!(run.resolved.len(), 1, "Run is unique");
+}
