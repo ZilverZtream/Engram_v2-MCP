@@ -1,0 +1,12 @@
+{"id": "missing_1", "category": "missing_knowledge", "question": "What is the flux capacitor calibration policy?", "expect_status": "unsupported", "must_abstain": true, "must_cite_any": []}
+{"id": "missing_2", "category": "missing_knowledge", "question": "How does the quantum blockchain reconciliation subsystem work?", "expect_status": "unsupported", "must_abstain": true, "must_cite_any": []}
+{"id": "exact_1", "category": "exact_fact", "question": "Where is SaveMarker defined and who calls it?", "expect_status": "answered", "must_abstain": false, "must_cite_any": [".vb", ".aspx"]}
+{"id": "explain_1", "category": "multi_hop", "question": "How does marker clustering work?", "expect_status": "partial", "must_abstain": false, "must_cite_any": [".vb", ".js", ".aspx"]}
+{"id": "impact_1", "category": "impact", "question": "What breaks if I change how markers are serialized?", "expect_status": "partial", "must_abstain": false, "must_cite_any": [".vb"]}
+{"id": "rationale_1", "category": "rationale", "question": "Why are change requests gated by a system setting?", "expect_status": "partial", "must_abstain": false, "must_cite_any": [".vb", "setting"]}
+{"id": "usage_1", "category": "usage", "question": "Where is the change-request enabled setting used?", "expect_status": "partial", "must_abstain": false, "must_cite_any": [".vb", ".aspx"]}
+{"id": "compound_1", "category": "compound", "question": "How does authentication work, and what would break if we changed it?", "expect_status": "partial", "must_abstain": false, "must_cite_any": [".vb"]}
+{"id": "history_1", "category": "history", "question": "When was the upload flow last changed?", "expect_status": "partial", "must_abstain": false, "must_cite_any": []}
+{"id": "bug_1", "category": "bug", "question": "Why does import fail for some users?", "expect_status": "partial", "must_abstain": false, "must_cite_any": [".vb"]}
+{"id": "requirements_1", "category": "requirements", "question": "What requirement says a photo is mandatory on an inspection?", "expect_status": "unsupported", "must_abstain": false, "must_cite_any": []}
+{"id": "ambiguous_1", "category": "ambiguous", "question": "Where is Save used?", "expect_status": "ambiguous", "must_abstain": false, "must_cite_any": []}
