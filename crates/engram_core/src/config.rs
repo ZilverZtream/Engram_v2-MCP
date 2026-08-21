@@ -274,6 +274,16 @@ pub struct Config {
     #[serde(default)]
     pub log_file: Option<PathBuf>,
 
+    /// Advertise the FULL tool set in `tools/list`. Default true — every tool is
+    /// discoverable (their schemas are always sanitized: `$ref`/`definitions`
+    /// inlined, `T | null` collapsed, so a strict client like GitHub Copilot
+    /// never rejects the list). Set false to also HIDE the `[.NET legacy]`
+    /// (WebForms/VB migration) tools from discovery, shrinking the surface for a
+    /// client with a hard tool-count ceiling. Hidden tools remain fully
+    /// CALLABLE; this affects discovery only, never sanitization.
+    #[serde(default = "default_true")]
+    pub advertise_all_tools: bool,
+
     // --- ADP vNext ---
     /// Default evidence depth: "fast", "standard", or "deep". Default: "standard".
     #[serde(default = "default_adp_evidence_depth")]
@@ -570,6 +580,7 @@ impl Default for Config {
             multi_client_daemon: true,
             multi_client_connect_timeout_secs: default_multi_client_connect_timeout_secs(),
             log_file: None,
+            advertise_all_tools: true,
             adp_default_evidence_depth: default_adp_evidence_depth(),
             adp_cache_retrieval: default_adp_cache_retrieval(),
             adp_evidence_timeout_ms: default_adp_evidence_timeout_ms(),

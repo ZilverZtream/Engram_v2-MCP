@@ -4,7 +4,7 @@ use rmcp::{
     ErrorData as McpError, ServerHandler, ServiceExt,
     handler::server::{tool::Parameters, tool::ToolRouter},
     model::*,
-    tool, tool_handler, tool_router,
+    tool, tool_router,
     transport::stdio,
 };
 
@@ -1471,7 +1471,6 @@ impl Engram {
     }
 }
 
-#[tool_handler]
 impl ServerHandler for Engram {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
@@ -1492,6 +1491,36 @@ impl ServerHandler for Engram {
             capabilities: ServerCapabilities::builder().enable_tools().build(),
             ..Default::default()
         }
+    }
+
+    // Manual replacement for `#[tool_handler]`. `call_tool` still delegates to
+    // the full router, so every tool stays callable; only `list_tools` is
+    // curated + schema-sanitized (see crate::tool_surface) so a large or
+    // `$ref`-laden advertised surface can't make a strict client (GitHub
+    // Copilot) reject the whole request with HTTP 400.
+    async fn call_tool(
+        &self,
+        request: CallToolRequestParam,
+        context: rmcp::service::RequestContext<rmcp::RoleServer>,
+    ) -> Result<CallToolResult, McpError> {
+        let tcc = rmcp::handler::server::tool::ToolCallContext::new(self, request, context);
+        self.tool_router.call(tcc).await
+    }
+
+    async fn list_tools(
+        &self,
+        _request: Option<PaginatedRequestParam>,
+        _context: rmcp::service::RequestContext<rmcp::RoleServer>,
+    ) -> Result<ListToolsResult, McpError> {
+        let mut items = self.tool_router.list_all();
+        if !self.state.cfg.advertise_all_tools {
+            items.retain(|t| !crate::tool_surface::is_curated_out(t.description.as_deref()));
+        }
+        for t in items.iter_mut() {
+            let cleaned = crate::tool_surface::sanitize_schema(&t.input_schema);
+            t.input_schema = std::sync::Arc::new(cleaned);
+        }
+        Ok(ListToolsResult::with_all_items(items))
     }
 }
 
