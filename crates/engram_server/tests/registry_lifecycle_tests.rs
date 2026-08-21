@@ -34,6 +34,12 @@ fn make_memory_section(id: &str, title: &str) -> MemorySection {
         title: title.to_string(),
         content: "section content here".to_string(),
         updated_at_ms: 1_000_000,
+        created_at_ms: 1_000_000,
+        author: None,
+        kind: None,
+        review_after_ms: None,
+        tags: Vec::new(),
+        related_files: Vec::new(),
     }
 }
 

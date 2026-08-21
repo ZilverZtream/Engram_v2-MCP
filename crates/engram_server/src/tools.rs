@@ -455,7 +455,7 @@ impl Engram {
     // ---- Memory bank + repo rules ----
 
     #[tool(
-        description = "Write a persistent agent note (named markdown section) scoped to the project. Survives reindexing and is searchable — use for decisions, gotchas, and session handoffs."
+        description = "Write a persistent agent note (named markdown section) scoped to the project. Survives reindexing and is searchable (recall via search_memory search_scope=knowledge) — use for decisions, gotchas, preferences, and session handoffs. Set kind (preference|decision|gotcha|reference|note), author, tags, and related_files (files/symbols the note is about) to make recall meaningful and staleness detectable. append=true adds to the existing body; pass expected_updated_at_ms (from read_memory_bank) to avoid clobbering a concurrent session's edit. Long bodies are chunked automatically."
     )]
     pub async fn update_memory_bank(
         &self,

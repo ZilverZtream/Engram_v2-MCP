@@ -731,7 +731,7 @@ fn handle_update_memory_bank_registry_write_error_is_propagated_not_swallowed() 
         .expect("REG1/MCP1: handle_update_memory_bank must exist in project_tools.rs");
 
     // Take a window spanning the function â€” it's â‰ˆ 100 lines from the start.
-    let fn_body = &source[fn_start..fn_start + 3000.min(source.len() - fn_start)];
+    let fn_body = &source[fn_start..fn_start + 8000.min(source.len() - fn_start)];
 
     // spawn_blocking for registry write must be present.
     assert!(

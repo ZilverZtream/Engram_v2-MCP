@@ -72,6 +72,7 @@ async fn overview_surfaces_memory_sections_and_insights() {
             section_id: Some("deploy-note".into()),
             section: "Deploy note: restart the frobnicator".into(),
             content: "Restart the frobnicator service after every deploy.".into(),
+            ..Default::default()
         }))
         .await
         .unwrap();
@@ -140,6 +141,7 @@ async fn list_memory_bank_shows_age_and_size() {
             section_id: Some("sizing".into()),
             section: "Sizing note".into(),
             content: "This body is forty-two bytes long, precisely.".into(),
+            ..Default::default()
         }))
         .await
         .unwrap();
