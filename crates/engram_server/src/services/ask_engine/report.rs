@@ -70,15 +70,29 @@ pub fn next_best(plan: &QueryPlan, evidence: &[EvidenceItem], status: AnswerStat
         }
     }
     match status {
+        // An index miss is NOT proof the code is absent: the index can be behind
+        // the working tree. Tell the agent to grep before it concludes — a stale
+        // or empty lookup that makes an agent stop searching is worse than no
+        // index at all (reserve "cannot determine" for questions the source
+        // genuinely can't answer, like whether a value is user-controlled).
         AnswerStatus::Unsupported => out.push(
-            "no indexed knowledge matched; try search_memory with different terms, or index the relevant sources".into(),
+            "the index matched nothing — this may be an index miss, not genuine absence. \
+             grep_project (or read the files directly in the working tree) to confirm \
+             BEFORE concluding the code doesn't exist; do not answer \"cannot determine\" \
+             from an index miss. Also try search_memory with different terms."
+                .into(),
         ),
-        AnswerStatus::Stale => {
-            out.push("update_project — the index is behind the current tree".into())
-        }
-        AnswerStatus::Failed => {
-            out.push("get_index_freshness / project_health — a retrieval arm errored".into())
-        }
+        AnswerStatus::Stale => out.push(
+            "the index is BEHIND the working tree — a stale lookup is a failed lookup, not an \
+             answer. grep_project / read the working tree for this query now, and \
+             update_project to refresh the index."
+                .into(),
+        ),
+        AnswerStatus::Failed => out.push(
+            "a retrieval arm errored — grep_project as a fallback, and check \
+             get_index_freshness / project_health."
+                .into(),
+        ),
         _ => {}
     }
     if let Some(top) = evidence.first() {
