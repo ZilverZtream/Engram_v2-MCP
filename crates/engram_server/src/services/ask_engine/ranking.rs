@@ -38,9 +38,7 @@ fn default_directness(ev: &EvidenceItem) -> f32 {
 
 fn recency(ts: Option<u64>, now_ms: u64) -> f32 {
     match ts {
-        Some(t) if t > 0 && t <= now_ms => {
-            (0.5f64.powf((now_ms - t) as f64 / HALFLIFE_MS)) as f32
-        }
+        Some(t) if t > 0 && t <= now_ms => (0.5f64.powf((now_ms - t) as f64 / HALFLIFE_MS)) as f32,
         _ => 0.0,
     }
 }
@@ -91,7 +89,11 @@ pub fn rank_and_select(items: Vec<EvidenceItem>, cap: usize) -> Vec<EvidenceItem
 
     // Score.
     for it in items.iter_mut() {
-        let d = default_directness(it);
+        // Preserve a provider-set directness (companion 0.5, usage 0.85, …); only
+        // fall back to the kind default when the provider left it unset. Without
+        // this, a co-change companion (kind GraphRelation) would be scored as a
+        // direct 0.9 relation and outrank real dependency edges.
+        let d = it.directness.unwrap_or_else(|| default_directness(it));
         let corro = ((counts.get(&subject_key(it)).copied().unwrap_or(1) as f32 - 1.0) / 3.0)
             .clamp(0.0, 1.0);
         it.directness = Some(d);
@@ -101,19 +103,23 @@ pub fn rank_and_select(items: Vec<EvidenceItem>, cap: usize) -> Vec<EvidenceItem
         b.score
             .partial_cmp(&a.score)
             .unwrap_or(std::cmp::Ordering::Equal)
+            // Deterministic tie-break: identical-score items order stably by id
+            // (ids are assigned in a deterministic order upstream).
+            .then_with(|| a.evidence_id.cmp(&b.evidence_id))
     });
 
     // MMR-lite: greedily add, skipping near-duplicates of an already-chosen item
-    // (same file within 5 lines, or same title).
+    // (same file within 5 lines). NOT same title — distinct symbols routinely
+    // share a name (Page_Load, Execute, .ctor) across files, and collapsing on
+    // title would silently discard real, direct call-site evidence.
     let mut chosen: Vec<EvidenceItem> = Vec::new();
     for it in items {
         if chosen.len() >= cap {
             break;
         }
-        let dup = chosen.iter().any(|c| {
-            (c.path.is_some() && c.path == it.path && near_lines(c.lines, it.lines))
-                || (c.title.is_some() && c.title == it.title && it.title.is_some())
-        });
+        let dup = chosen
+            .iter()
+            .any(|c| c.path.is_some() && c.path == it.path && near_lines(c.lines, it.lines));
         if !dup {
             chosen.push(it);
         }
@@ -129,84 +135,143 @@ fn near_lines(a: Option<(u32, u32)>, b: Option<(u32, u32)>) -> bool {
 }
 
 const DENY: &[&str] = &[
-    "reject", "deny", "denied", "forbid", "forbidden", "never", "cannot", "not allowed",
-    "block", "blocked", "prevent", "disallow", "must not",
+    "reject",
+    "deny",
+    "denied",
+    "forbid",
+    "forbidden",
+    "never",
+    "cannot",
+    "not allowed",
+    "block",
+    "blocked",
+    "prevent",
+    "disallow",
+    "must not",
 ];
 const ALLOW: &[&str] = &[
-    "allow", "allowed", "permit", "permitted", "enable", "enabled", "grant", "granted",
-    "can ", "is allowed", "may ",
+    "allow",
+    "allowed",
+    "permit",
+    "permitted",
+    "enable",
+    "enabled",
+    "grant",
+    "granted",
+    "can ",
+    "is allowed",
+    "may ",
 ];
 
 fn has_any(hay: &str, needles: &[&str]) -> bool {
     needles.iter().any(|n| hay.contains(n))
 }
 
-/// Shared significant token (len ≥ 4) between two contents — a cheap "same
-/// subject" test for conflict detection.
-fn shares_token(a: &str, b: &str) -> Option<String> {
-    let bl = b.to_lowercase();
-    a.to_lowercase()
-        .split(|c: char| !c.is_ascii_alphanumeric())
-        .filter(|w| w.len() >= 4)
-        .find(|w| bl.contains(*w))
-        .map(|w| w.to_string())
+/// Common words that carry no subject identity — excluded as shared tokens so a
+/// generic word never anchors a spurious conflict.
+fn is_common_word(w: &str) -> bool {
+    matches!(
+        w,
+        "which"
+            | "there"
+            | "their"
+            | "these"
+            | "those"
+            | "where"
+            | "while"
+            | "would"
+            | "could"
+            | "should"
+            | "about"
+            | "after"
+            | "before"
+            | "value"
+            | "class"
+            | "using"
+            | "return"
+            | "function"
+            | "method"
+            | "public"
+            | "private"
+            | "static"
+            | "string"
+            | "object"
+    )
 }
 
-/// Detect conflicts to SURFACE (never to silently resolve): (1) an approved
-/// requirement / runtime observation that contradicts current code on the same
-/// subject; (2) evidence drawn from a stale generation next to current evidence.
-pub fn detect_conflicts(items: &[EvidenceItem], active_generation: u64) -> Vec<Conflict> {
-    let mut out = Vec::new();
+/// The ±`radius`-char window around the first occurrence of `token` in `s`,
+/// snapped to char boundaries so multibyte content never panics.
+fn window_around<'a>(s: &'a str, token: &str, radius: usize) -> Option<&'a str> {
+    let at = s.find(token)?;
+    let mut lo = at.saturating_sub(radius);
+    while lo > 0 && !s.is_char_boundary(lo) {
+        lo -= 1;
+    }
+    let mut hi = (at + token.len() + radius).min(s.len());
+    while hi < s.len() && !s.is_char_boundary(hi) {
+        hi += 1;
+    }
+    Some(&s[lo..hi])
+}
 
-    // (1) authority disagreement — requirement/runtime vs current code, opposing polarity.
-    for hi in items.iter().filter(|e| {
-        matches!(e.authority, Authority::ApprovedRequirement | Authority::RuntimeEvidence)
-    }) {
-        for code in items.iter().filter(|e| e.authority == Authority::CurrentCode) {
-            if let Some(tok) = shares_token(&hi.content, &code.content) {
-                let hi_l = hi.content.to_lowercase();
-                let code_l = code.content.to_lowercase();
-                let opposed = (has_any(&hi_l, DENY) && has_any(&code_l, ALLOW))
-                    || (has_any(&hi_l, ALLOW) && has_any(&code_l, DENY));
-                if opposed {
-                    out.push(Conflict {
-                        summary: format!(
-                            "'{}' evidence and current code disagree on '{tok}'",
-                            hi.provider
-                        ),
-                        left: hi.evidence_id.clone(),
-                        right: code.evidence_id.clone(),
-                        kind: "authority_disagreement".into(),
-                    });
-                }
-            }
+/// Significant tokens (len ≥ 5, not common words) shared between two contents.
+fn shared_tokens(a: &str, b: &str) -> Vec<String> {
+    let bl = b.to_lowercase();
+    let mut out: Vec<String> = Vec::new();
+    for w in a
+        .to_lowercase()
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|w| w.len() >= 5 && !is_common_word(w))
+    {
+        if bl.contains(w) && !out.iter().any(|x| x == w) {
+            out.push(w.to_string());
         }
     }
+    out
+}
 
-    // (2) snapshot mismatch — a stale-generation item beside current evidence on the same subject.
-    for stale in items
-        .iter()
-        .filter(|e| matches!(e.generation, Some(g) if g != active_generation))
-    {
-        for cur in items.iter().filter(|e| {
-            e.generation == Some(active_generation) || (e.generation.is_none() && e.path.is_some())
-        }) {
-            let same = match (&stale.symbol_id, &cur.symbol_id) {
-                (Some(a), Some(b)) => a == b,
-                _ => stale.path.is_some() && stale.path == cur.path,
+/// Detect conflicts to SURFACE (never silently resolve): an approved requirement
+/// / runtime observation that contradicts current code about the SAME subject —
+/// opposing polarity words must appear near the shared token in BOTH contents,
+/// not merely somewhere in the snippet (keeps false positives down). The
+/// snapshot/generation heuristic was removed: `Node.generation` is a per-node
+/// last-extracted marker (unchanged files legitimately keep old generations
+/// after incremental updates), so it cannot distinguish stale from fresh —
+/// reindex_required is the honest staleness signal instead.
+pub fn detect_conflicts(items: &[EvidenceItem], _active_generation: u64) -> Vec<Conflict> {
+    let mut out = Vec::new();
+    for hi in items.iter().filter(|e| {
+        matches!(
+            e.authority,
+            Authority::ApprovedRequirement | Authority::RuntimeEvidence
+        )
+    }) {
+        let hi_l = hi.content.to_lowercase();
+        for code in items
+            .iter()
+            .filter(|e| e.authority == Authority::CurrentCode)
+        {
+            let code_l = code.content.to_lowercase();
+            let Some(tok) = shared_tokens(&hi.content, &code.content)
+                .into_iter()
+                .find(|t| {
+                    let hw = window_around(&hi_l, t, 90).unwrap_or(&hi_l);
+                    let cw = window_around(&code_l, t, 90).unwrap_or(&code_l);
+                    (has_any(hw, DENY) && has_any(cw, ALLOW))
+                        || (has_any(hw, ALLOW) && has_any(cw, DENY))
+                })
+            else {
+                continue;
             };
-            if same {
-                out.push(Conflict {
-                    summary: format!(
-                        "evidence '{}' is from generation {:?}, not the active {active_generation}",
-                        stale.evidence_id, stale.generation
-                    ),
-                    left: stale.evidence_id.clone(),
-                    right: cur.evidence_id.clone(),
-                    kind: "snapshot_mismatch".into(),
-                });
-                break;
-            }
+            out.push(Conflict {
+                summary: format!(
+                    "'{}' evidence and current code disagree about '{tok}'",
+                    hi.provider
+                ),
+                left: hi.evidence_id.clone(),
+                right: code.evidence_id.clone(),
+                kind: "authority_disagreement".into(),
+            });
         }
     }
     out

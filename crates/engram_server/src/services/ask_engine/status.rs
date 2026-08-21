@@ -53,7 +53,7 @@ pub struct FreshnessSnapshot {
     pub last_index_ms: Option<u64>,     // meta "last_index_completed_ms"
     pub semantic_tier: String,          // "semantic" | "degraded_trigram" | "off"
     pub reindex_required: bool,         // ProjectRecord.reindex_required_since_ms.is_some()
-    pub incompatible: bool,             // an evidence item's generation != active gen
+    pub incompatible: bool,             // reserved: cross-snapshot incompatibility (unused in M1)
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -130,7 +130,9 @@ pub fn assess_status(
         return AnswerStatus::Ambiguous;
     }
     // Adequate authority = AgentMemory or stronger (excludes insight/semantic-only).
-    let has_adequate = evidence.iter().any(|e| e.authority <= Authority::AgentMemory);
+    let has_adequate = evidence
+        .iter()
+        .any(|e| e.authority <= Authority::AgentMemory);
     if !has_adequate {
         return AnswerStatus::Unsupported;
     }

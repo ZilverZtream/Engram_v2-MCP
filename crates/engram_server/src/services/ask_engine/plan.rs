@@ -38,8 +38,8 @@ pub enum EntityKind {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct EntityMention {
-    pub text: String,             // as found in the question
-    pub guessed_kind: EntityKind, // from surface form
+    pub text: String,                  // as found in the question
+    pub guessed_kind: EntityKind,      // from surface form
     pub resolved: Vec<ResolvedEntity>, // 0 = unresolved, >1 = ambiguous branch
 }
 
@@ -53,10 +53,10 @@ pub struct ResolvedEntity {
 
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct Qualifiers {
-    pub roles: Vec<String>,                // admin, tenant-admin, user
-    pub change: Option<(String, String)>,  // (from, to): XML → JSON
-    pub scopes: Vec<String>,               // import, export, ...
-    pub symptoms: Vec<String>,             // error strings / symptoms
+    pub roles: Vec<String>,               // admin, tenant-admin, user
+    pub change: Option<(String, String)>, // (from, to): XML → JSON
+    pub scopes: Vec<String>,              // import, export, ...
+    pub symptoms: Vec<String>,            // error strings / symptoms
     pub versions: Vec<String>,
 }
 

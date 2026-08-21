@@ -67,8 +67,8 @@ pub struct EvidenceItem {
     pub generation: Option<u64>,
     pub commit: Option<String>,
     pub timestamp: Option<u64>,
-    pub confidence: f32, // extraction/retrieval confidence 0..1
-    pub relevance: f32,  // query relevance from the arm 0..1
+    pub confidence: f32,           // extraction/retrieval confidence 0..1
+    pub relevance: f32,            // query relevance from the arm 0..1
     pub extraction_method: String, // ast | fts | vector | graph | git | memory
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub warnings: Vec<String>,
