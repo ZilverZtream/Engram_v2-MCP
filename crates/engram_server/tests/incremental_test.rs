@@ -126,6 +126,7 @@ async fn test_incremental_indexing() {
         date_after: None,
         date_before: None,
         semantic: true,
+        include_user_memory: true,
     };
 
     let res = engram.search_memory(Parameters(search_req)).await.unwrap();
@@ -155,6 +156,7 @@ async fn test_incremental_indexing() {
         date_after: None,
         date_before: None,
         semantic: true,
+        include_user_memory: true,
     };
     let res_b = engram
         .search_memory(Parameters(search_req_b))
@@ -190,6 +192,7 @@ async fn test_incremental_indexing() {
         date_after: None,
         date_before: None,
         semantic: true,
+        include_user_memory: true,
     };
     let res_c = engram
         .search_memory(Parameters(search_req_c))

@@ -1006,6 +1006,12 @@ pub struct SearchMemoryRequest {
     /// Default: `true` (full hybrid search).
     #[serde(default = "default_true")]
     pub semantic: bool,
+    /// Also fold in USER-LEVEL memory (the reserved `__user__` project) when
+    /// the scope covers knowledge. This is how a standing preference recorded
+    /// once surfaces in every project's recall. Default: true. No effect on
+    /// `code` scope, or when searching the user project itself.
+    #[serde(default = "default_true")]
+    pub include_user_memory: bool,
 }
 
 /// Fast literal / regex search over the indexed file set. Prefilters
@@ -1760,6 +1766,7 @@ impl Default for SearchMemoryRequest {
             author_filter: None,
             date_after: None,
             date_before: None,
+            include_user_memory: true,
         }
     }
 }

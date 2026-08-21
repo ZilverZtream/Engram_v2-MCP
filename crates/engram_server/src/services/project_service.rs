@@ -13,7 +13,28 @@ pub async fn ensure_project_record(
     let reg = state.registry.clone();
     let pid = project_id.to_string();
     let rec = tokio::task::spawn_blocking(move || reg.get_project(&pid)).await??;
-    rec.ok_or_else(|| EngramError::ProjectNotFound(project_id.to_string()))
+    if let Some(rec) = rec {
+        return Ok(rec);
+    }
+    // The reserved user-memory project is created on first use: it has no
+    // source directory to index, just a place to hold cross-project notes.
+    if project_id == engram_core::namespaces::USER_PROJECT_ID {
+        let now = crate::utils::now_ms();
+        let record = ProjectRecord {
+            project_id: project_id.to_string(),
+            project_name: "User Memory".to_string(),
+            project_type: "general".to_string(),
+            directory: String::new(),
+            created_at_ms: now,
+            updated_at_ms: now,
+            reindex_required_since_ms: None,
+        };
+        let reg = state.registry.clone();
+        let to_write = record.clone();
+        tokio::task::spawn_blocking(move || reg.put_project(&to_write)).await??;
+        return Ok(record);
+    }
+    Err(EngramError::ProjectNotFound(project_id.to_string()))
 }
 
 /// Validate that `project_id` contains only safe characters to prevent directory traversal.

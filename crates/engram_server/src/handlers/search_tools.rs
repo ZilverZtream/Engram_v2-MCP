@@ -59,7 +59,10 @@ fn rrf_fuse_namespaces(
     let now = crate::utils::now_ms();
     let mut scored: Vec<(f32, String, engram_index::HybridHit)> = Vec::new();
     for (ns, hits) in lists {
-        let is_knowledge = engram_core::namespaces::KNOWLEDGE_NAMESPACES.contains(&ns.as_str());
+        // `user:memory_bank` etc. are user-level knowledge — strip the tag
+        // so the recency prior applies to them too.
+        let ns_key = ns.strip_prefix("user:").unwrap_or(ns.as_str());
+        let is_knowledge = engram_core::namespaces::KNOWLEDGE_NAMESPACES.contains(&ns_key);
         for (rank, h) in hits.into_iter().enumerate() {
             let mut s = 1.0 / (K + rank as f32);
             // Recency prior for knowledge namespaces only: a fresher note is a
@@ -169,10 +172,6 @@ impl Engram {
                 ));
             }
         };
-        // More than one namespace in play drives the per-hit source label; a
-        // single namespace (code scope) renders exactly as before.
-        let multi_ns = namespaces.len() > 1;
-
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
 
@@ -299,6 +298,68 @@ impl Engram {
             lists.push((ns.clone(), ns_hits));
         }
 
+        // Fold in USER-LEVEL memory: a standing preference recorded once in
+        // the reserved __user__ project surfaces in every project's knowledge
+        // recall. Only the knowledge namespaces, only when the user project
+        // already exists (a search must not create it), and never when the
+        // search IS the user project. Tagged `user:<ns>` so the source is
+        // unmistakable.
+        let user_pid = engram_core::namespaces::USER_PROJECT_ID;
+        if req.include_user_memory && req.project_id != user_pid {
+            let user_namespaces: Vec<String> = namespaces
+                .iter()
+                .filter(|n| engram_core::namespaces::KNOWLEDGE_NAMESPACES.contains(&n.as_str()))
+                .cloned()
+                .collect();
+            let user_exists = {
+                let reg = self.state.registry.clone();
+                tokio::task::spawn_blocking(move || {
+                    reg.get_project(user_pid).ok().flatten().is_some()
+                })
+                .await
+                .unwrap_or(false)
+            };
+            if !user_namespaces.is_empty()
+                && user_exists
+                && let Ok(ups) = self.ensure_project_runtime(user_pid).await
+            {
+                for ns in &user_namespaces {
+                    let q = HybridQuery {
+                        project_id: user_pid.to_string(),
+                        namespace: ns.clone(),
+                        generation: 0, // knowledge namespaces are GlobalMutable (gen ignored)
+                        text: req.query.clone(),
+                        top_k: per_ns_top_k,
+                        fts_mode: req.fts_mode.as_str().to_owned(),
+                        include_path_prefixes: req.include_path_prefixes.clone(),
+                        exclude_path_prefixes: req.exclude_path_prefixes.clone(),
+                        language_filters: req.language_filters.clone(),
+                        author_filter: req.author_filter.clone(),
+                        date_after: req.date_after,
+                        date_before: req.date_before,
+                        use_mmr: req.use_mmr,
+                    };
+                    let ns_hits = if req.semantic {
+                        ups.search
+                            .search(&q, None, &tokio_util::sync::CancellationToken::new())
+                            .await
+                            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                    } else {
+                        let engine = ups.search.clone();
+                        let q_clone = q.clone();
+                        tokio::task::spawn_blocking(move || engine.lexical_search(&q_clone))
+                            .await
+                            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                    };
+                    lists.push((format!("user:{ns}"), ns_hits));
+                }
+            }
+        }
+        // User hits always carry a source label, even in an otherwise
+        // single-namespace search.
+        let multi_ns = lists.len() > 1;
+
         // Fuse, then slice out the requested page. Done before the dreamer
         // feed so co-occurrence edges reflect what the agent actually saw.
         let hits: Vec<(String, engram_index::HybridHit)> = rrf_fuse_namespaces(lists, per_ns_top_k)
@@ -395,7 +456,11 @@ impl Engram {
                 }
             }
 
-            if req.include_content {
+            // User-level hits live in the __user__ project's engine, not `ps`,
+            // and their `ns` is the `user:`-tagged label — so get_doc_by_doc_id
+            // on this project would not find them. Their snippet is already on
+            // the hit; fall through to it.
+            if req.include_content && !ns.starts_with("user:") {
                 if let Ok(Some((_, _, content, _, _))) =
                     ps.search
                         .get_doc_by_doc_id(&req.project_id, ns, gen_, &h.doc_id)
