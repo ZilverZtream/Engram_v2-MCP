@@ -3016,14 +3016,28 @@ impl Engram {
         &self,
         req: ProjectIdRequest,
     ) -> Result<CallToolResult, McpError> {
-        let secs = self
+        let mut secs = self
             .state
             .registry
             .list_memory_sections(&req.project_id)
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        // Freshest first, so an agent scanning the list sees current notes on
+        // top.
+        secs.sort_by(|a, b| b.updated_at_ms.cmp(&a.updated_at_ms));
+        let now = crate::utils::now_ms();
         let mut out = String::new();
+        if secs.is_empty() {
+            out.push_str("(no memory sections yet — write one with update_memory_bank)\n");
+        }
         for s in secs {
-            out.push_str(&format!("- {} | {}\n", s.section_id, s.title));
+            // Size and age let the caller judge relevance without read_memory_bank.
+            out.push_str(&format!(
+                "- {} | {} | {}B | {}\n",
+                s.section_id,
+                s.title,
+                s.content.len(),
+                crate::utils::humanize_age_ms(s.updated_at_ms, now),
+            ));
         }
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }

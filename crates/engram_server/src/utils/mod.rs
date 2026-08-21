@@ -17,6 +17,28 @@ pub fn now_ms() -> u64 {
         .as_millis() as u64
 }
 
+/// Compact relative age ("just now", "5m ago", "3h ago", "12d ago") for a
+/// unix-epoch millisecond timestamp, given the current time. Used to make
+/// memory listings scannable — an agent can see which notes are current
+/// without reading each one.
+pub fn humanize_age_ms(then_ms: u64, now_ms: u64) -> String {
+    let delta = now_ms.saturating_sub(then_ms);
+    let secs = delta / 1000;
+    if secs < 45 {
+        return "just now".to_string();
+    }
+    let mins = secs / 60;
+    if mins < 60 {
+        return format!("{mins}m ago");
+    }
+    let hours = mins / 60;
+    if hours < 24 {
+        return format!("{hours}h ago");
+    }
+    let days = hours / 24;
+    format!("{days}d ago")
+}
+
 /// `YYYY-MM-DD` (UTC) for a unix-epoch millisecond timestamp. Civil-from-days
 /// conversion (Howard Hinnant's algorithm) — avoids a chrono dependency for
 /// the one place a human-readable date is stamped into an artifact.

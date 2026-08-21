@@ -316,7 +316,10 @@ impl Engram {
                 // domain questions code search can't — the START-HERE tool
                 // must surface them, not just code hits.
                 let mut team = String::new();
-                for ns in ["memory_bank", "business_logic"] {
+                // `insights` is the dreamer's consolidated cross-session
+                // knowledge — the START-HERE tool must surface it, not just
+                // hand-authored notes.
+                for ns in ["memory_bank", "insights", "business_logic"] {
                     if let Ok(r) = self
                         .handle_search_memory(crate::models::SearchMemoryRequest {
                             query: subject.clone(),

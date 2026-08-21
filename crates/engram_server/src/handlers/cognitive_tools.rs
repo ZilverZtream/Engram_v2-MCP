@@ -1409,6 +1409,32 @@ impl Engram {
             .map(|v| v.len())
             .unwrap_or(0);
 
+        // Agent memory: recent notes + dreamer insights, so orientation
+        // includes what past sessions learned, not only code structure.
+        let mut mem_sections = self
+            .state
+            .registry
+            .list_memory_sections(&pid)
+            .unwrap_or_default();
+        mem_sections.sort_by(|a, b| b.updated_at_ms.cmp(&a.updated_at_ms));
+        let graph_mem = self.state.graph.clone();
+        let pid_ins = pid.clone();
+        let mut insight_nodes = tokio::task::spawn_blocking(move || {
+            graph_mem
+                .query_nodes(&pid_ins, Some("insight"), None, None, 200)
+                .unwrap_or_default()
+        })
+        .await
+        .unwrap_or_default();
+        let insight_created = |n: &engram_graph::Node| -> u64 {
+            n.metadata
+                .as_ref()
+                .and_then(|m| m.get("created_at_ms"))
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0)
+        };
+        insight_nodes.sort_by(|a, b| insight_created(b).cmp(&insight_created(a)));
+
         let tantivy_docs = ps.search.count_docs(&pid).unwrap_or(0);
         let lancedb_rows = ps.search.count_vectors(&pid).await.unwrap_or(0);
         let ns_counts = ps.search.count_docs_by_namespace(&pid).unwrap_or_default();
@@ -1492,6 +1518,32 @@ impl Engram {
         out.push_str(&format!("vectors_stored: {}\n", lancedb_rows));
         out.push_str(&format!("history_docs: {}\n", history_docs));
         out.push_str(&format!("antipattern_docs: {}\n", antipattern_docs));
+
+        // --- Agent Memory --- always shown, even at zero, so an agent learns
+        // the surface exists and can seed it with update_memory_bank.
+        {
+            let now = crate::utils::now_ms();
+            out.push_str("\n--- Agent Memory ---\n");
+            out.push_str(&format!("memory_bank_sections: {}\n", mem_sections.len()));
+            for s in mem_sections.iter().take(8) {
+                out.push_str(&format!(
+                    "  {} ({})\n",
+                    s.title,
+                    crate::utils::humanize_age_ms(s.updated_at_ms, now)
+                ));
+            }
+            out.push_str(&format!("insights: {}\n", insight_nodes.len()));
+            for n in insight_nodes.iter().take(6) {
+                out.push_str(&format!("  {}\n", n.name));
+            }
+            if mem_sections.is_empty() && insight_nodes.is_empty() {
+                out.push_str(
+                    "  (none yet — write notes with update_memory_bank; insights accrue \
+                     as the project is searched. Recall across all of it with \
+                     search_memory search_scope=knowledge.)\n",
+                );
+            }
+        }
 
         if !lang_counts.is_empty() {
             let mut lang_sorted: Vec<_> = lang_counts.into_iter().collect();
