@@ -429,3 +429,115 @@ async fn gather_runs_arms_for_intents_and_reports_per_provider() {
     // Evidence ids are globally sequential.
     assert!(evidence.iter().all(|e| e.evidence_id.starts_with("ev_")));
 }
+
+// ─── Task 7: ranking + conflict detection ────────────────────────────────────
+use engram_server::services::ask_engine::ranking::{detect_conflicts, rank_and_select};
+
+#[allow(clippy::too_many_arguments)]
+fn mk_ev(
+    id: &str,
+    kind: EvidenceKind,
+    authority: Authority,
+    path: Option<&str>,
+    lines: Option<(u32, u32)>,
+    symbol_id: Option<&str>,
+    title: Option<&str>,
+    content: &str,
+    relevance: f32,
+) -> EvidenceItem {
+    EvidenceItem {
+        evidence_id: id.into(),
+        kind,
+        authority,
+        path: path.map(|s| s.into()),
+        lines,
+        symbol_id: symbol_id.map(|s| s.into()),
+        title: title.map(|s| s.into()),
+        content: content.into(),
+        generation: None,
+        commit: None,
+        timestamp: None,
+        confidence: 0.8,
+        relevance,
+        extraction_method: "test".into(),
+        warnings: vec![],
+        provider: "test".into(),
+        score: None,
+        directness: None,
+    }
+}
+
+#[test]
+fn one_direct_code_relation_outranks_ten_weak_semantic_hits() {
+    let mut items = vec![mk_ev(
+        "ev_x",
+        EvidenceKind::GraphRelation,
+        Authority::CurrentCode,
+        Some("svc.vb"),
+        Some((10, 20)),
+        Some("sym:x"),
+        None,
+        "Caller calls Save",
+        0.3,
+    )];
+    for i in 0..10 {
+        items.push(mk_ev(
+            &format!("ev_{i}"),
+            EvidenceKind::SourceCode,
+            Authority::SemanticSimilarity,
+            Some(&format!("f{i}.vb")),
+            Some((1, 2)),
+            None,
+            None,
+            "vaguely related text",
+            0.6,
+        ));
+    }
+    let ranked = rank_and_select(items, 3);
+    assert_eq!(ranked[0].evidence_id, "ev_x", "ranked: {ranked:?}");
+}
+
+#[test]
+fn dedup_collapses_same_path_and_lines() {
+    let ranked = rank_and_select(
+        vec![
+            mk_ev("ev_1", EvidenceKind::SourceCode, Authority::CurrentCode, Some("a.vb"), Some((10, 20)), None, None, "x", 0.5),
+            mk_ev("ev_2", EvidenceKind::SourceCode, Authority::CurrentCode, Some("a.vb"), Some((10, 20)), None, None, "x", 0.9),
+        ],
+        5,
+    );
+    assert_eq!(ranked.len(), 1);
+}
+
+#[test]
+fn requirement_contradicting_code_is_flagged() {
+    let items = vec![
+        mk_ev(
+            "ev_req",
+            EvidenceKind::MemoryNote,
+            Authority::ApprovedRequirement,
+            None,
+            None,
+            None,
+            Some("Access rule"),
+            "Tenant admins must be rejected before import",
+            0.5,
+        ),
+        mk_ev(
+            "ev_code",
+            EvidenceKind::SourceCode,
+            Authority::CurrentCode,
+            Some("Import.vb"),
+            Some((1, 5)),
+            Some("sym:imp"),
+            None,
+            "tenant admins are allowed to import",
+            0.5,
+        ),
+    ];
+    let conflicts = detect_conflicts(&items, 3);
+    assert!(
+        conflicts.iter().any(|c| c.kind == "authority_disagreement"),
+        "conflicts: {conflicts:?}"
+    );
+}
