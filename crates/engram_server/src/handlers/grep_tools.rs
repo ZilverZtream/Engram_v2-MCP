@@ -67,6 +67,7 @@ fn disk_fallback_matches(
     cap: usize,
 ) -> (Vec<engram_index::grep::GrepMatch>, usize) {
     const MAX_FILE_BYTES: u64 = 2_000_000; // don't read a 26k-line designer file
+    const MAX_CANDIDATE_FILES: usize = 800; // bound the work on a very stale index
     // Smart case, matching the engine: honor an explicit flag; otherwise a
     // pattern with any uppercase is case-sensitive, all-lowercase is insensitive.
     let cs = case_sensitive.unwrap_or_else(|| pattern.chars().any(|c| c.is_uppercase()));
@@ -79,7 +80,7 @@ fn disk_fallback_matches(
     let mut out: Vec<engram_index::grep::GrepMatch> = Vec::new();
     let mut files_scanned = 0usize;
     for path in engram_index::ingest::iter_files(project_dir, exts) {
-        if out.len() >= cap {
+        if out.len() >= cap || files_scanned >= MAX_CANDIDATE_FILES {
             break;
         }
         let Ok(rel_os) = path.strip_prefix(project_dir) else {
@@ -242,11 +243,14 @@ impl Engram {
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        // Working-tree fallback: the engine searched only the INDEX. For a
-        // literal, line-based query, also scan files added/edited since the last
-        // index so a new/changed file is not invisible (the J5 failure). Regex/
-        // multiline queries keep the index-only path + the "grep the tree" hint.
-        if !req.regex && !req.multiline {
+        // Working-tree fallback — a TRUE fallback, only when the index found
+        // NOTHING. The engine searches only the index, so a string in a file
+        // added since the last index is invisible (the J5 failure). We scan the
+        // tree only on an index miss: augmenting non-empty results would bloat
+        // every grep (index + disk) and, across a review's dozens of calls, blow
+        // the caller's context budget. Regex/multiline keep the "grep the tree"
+        // hint instead.
+        if !req.regex && !req.multiline && result.matches.is_empty() {
             let graph2 = self.state.graph.clone();
             let pid2 = req.project_id.clone();
             let project_dir2 = PathBuf::from(rec.directory.clone());
@@ -271,6 +275,9 @@ impl Engram {
                     })
                     .unwrap_or_default();
                 let exts = crate::utils::files::exts_for_project_type(&ptype);
+                // Small cap: this is an index-miss fallback, so the agent just
+                // needs to know the string exists and roughly where in the
+                // new/changed files — not a full dump (context-budget safe).
                 disk_fallback_matches(
                     &project_dir2,
                     &exts,
@@ -278,7 +285,7 @@ impl Engram {
                     &pattern2,
                     case_sensitive2,
                     path_prefix2.as_deref(),
-                    50,
+                    15,
                 )
             })
             .await
