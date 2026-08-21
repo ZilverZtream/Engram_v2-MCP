@@ -872,103 +872,140 @@ impl Engram {
         // Same-name collisions are the norm in legacy WebForms (every page
         // has a Page_Load). Say up front how many DISTINCT symbols matched
         // so the agent scrolls with intent instead of assuming one match.
-        if graph_results.len() > 1 {
+        // High fan-out guard: a common name (e.g. a DAO's `GetByID`) can match
+        // dozens of distinct symbols. Dumping every one's full edge graph is both
+        // unusable and huge — GetByID matched 50 symbols for ~94 KB, a big slice
+        // of a review's whole request budget on its own. Past a small threshold,
+        // list the matches compactly so the caller disambiguates and re-queries
+        // the ONE they mean (via file_scope or node_id).
+        const FANOUT_SUMMARY_THRESHOLD: usize = 6;
+        if graph_results.len() > FANOUT_SUMMARY_THRESHOLD {
             out.push_str(&format!(
-                "⚠ {} distinct symbols match \"{}\" — results for each below. \
-                 Narrow with file_scope, or use the node_id of the one you mean.\n\n",
-                graph_results.len(),
-                req.symbol_name
+                "⚠ \"{}\" matches {} distinct symbols — too many to expand each. Pick the one you \
+                 mean and re-query with file_scope=<its file> or its node_id. Compact list \
+                 (incoming↓ / outgoing↑ edge counts):\n\n",
+                req.symbol_name,
+                graph_results.len()
             ));
-        }
-
-        for nr in &graph_results {
-            out.push_str(&format!(
-                "Symbol: {} ({}) in {}\n  node_id: {}\n",
-                nr.name, nr.node_type, nr.file_path, nr.node_id
-            ));
-
-            if !nr.incoming.is_empty() {
-                if nr.incoming_truncated {
-                    out.push_str(&format!(
-                        "  Incoming references ({}+, CAPPED at max_incoming — MORE call sites \
-                         exist; raise max_incoming to enumerate them all before concluding a \
-                         sibling list is complete):\n",
-                        nr.incoming.len()
-                    ));
+            const SHOWN: usize = 40;
+            for nr in graph_results.iter().take(SHOWN) {
+                let inc = if nr.incoming_truncated {
+                    format!("{}+", nr.incoming.len())
                 } else {
-                    out.push_str(&format!("  Incoming references ({}):\n", nr.incoming.len()));
-                }
-                let mut by_kind: std::collections::HashMap<String, Vec<(&str, u32)>> =
-                    std::collections::HashMap::new();
-                for (src_id, kind, weight) in &nr.incoming {
-                    by_kind
-                        .entry(kind.as_str().to_string())
-                        .or_default()
-                        .push((src_id.as_str(), *weight));
-                }
-                let mut kinds_sorted: Vec<_> = by_kind.into_iter().collect();
-                kinds_sorted.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
-                for (kind, refs) in &kinds_sorted {
-                    out.push_str(&format!("    [{}] ({}):\n", kind, refs.len()));
-                    for (src, w) in refs.iter().take(20) {
-                        // Call-SITE line (where the reference occurs), when
-                        // the edge recorded one — distinct from the caller's
-                        // declaration line in the label.
-                        // Structural containment is not a call site — the
-                        // recorded line echoes the declaration and reads as
-                        // noise (@L1 on file-level edges).
-                        let at = if *kind == "contains" {
-                            String::new()
-                        } else {
-                            nr.call_lines
-                                .get(&format!("{src}\0{kind}"))
-                                .map(|l| format!(" @L{l}"))
-                                .unwrap_or_default()
-                        };
-                        match endpoint_labels.get(*src) {
-                            Some(label) => {
-                                out.push_str(&format!("      <- {label}{at} [{src}] (w={w})\n"))
-                            }
-                            None => out.push_str(&format!("      <- {src}{at} (w={w})\n")),
-                        }
-                    }
-                    if refs.len() > 20 {
-                        out.push_str(&format!("      ... and {} more\n", refs.len() - 20));
-                    }
-                }
-            }
-
-            if !nr.outgoing.is_empty() {
+                    nr.incoming.len().to_string()
+                };
                 out.push_str(&format!(
-                    "  Outgoing dependencies ({}):\n",
+                    "- {} ({}) in {}  node_id: {}  [{}↓ {}↑]\n",
+                    nr.name,
+                    nr.node_type,
+                    nr.file_path,
+                    nr.node_id,
+                    inc,
                     nr.outgoing.len()
                 ));
-                let mut by_kind: std::collections::HashMap<String, Vec<(&str, u32)>> =
-                    std::collections::HashMap::new();
-                for (tgt_id, kind, weight) in &nr.outgoing {
-                    by_kind
-                        .entry(kind.as_str().to_string())
-                        .or_default()
-                        .push((tgt_id.as_str(), *weight));
-                }
-                let mut kinds_sorted: Vec<_> = by_kind.into_iter().collect();
-                kinds_sorted.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
-                for (kind, refs) in &kinds_sorted {
-                    out.push_str(&format!("    [{}] ({}):\n", kind, refs.len()));
-                    for (tgt, w) in refs.iter().take(20) {
-                        match endpoint_labels.get(*tgt) {
-                            Some(label) => {
-                                out.push_str(&format!("      -> {label} [{tgt}] (w={w})\n"))
+            }
+            if graph_results.len() > SHOWN {
+                out.push_str(&format!("- … and {} more\n", graph_results.len() - SHOWN));
+            }
+        } else {
+            if graph_results.len() > 1 {
+                out.push_str(&format!(
+                    "⚠ {} distinct symbols match \"{}\" — results for each below. \
+                 Narrow with file_scope, or use the node_id of the one you mean.\n\n",
+                    graph_results.len(),
+                    req.symbol_name
+                ));
+            }
+
+            for nr in &graph_results {
+                out.push_str(&format!(
+                    "Symbol: {} ({}) in {}\n  node_id: {}\n",
+                    nr.name, nr.node_type, nr.file_path, nr.node_id
+                ));
+
+                if !nr.incoming.is_empty() {
+                    if nr.incoming_truncated {
+                        out.push_str(&format!(
+                            "  Incoming references ({}+, CAPPED at max_incoming — MORE call sites \
+                         exist; raise max_incoming to enumerate them all before concluding a \
+                         sibling list is complete):\n",
+                            nr.incoming.len()
+                        ));
+                    } else {
+                        out.push_str(&format!("  Incoming references ({}):\n", nr.incoming.len()));
+                    }
+                    let mut by_kind: std::collections::HashMap<String, Vec<(&str, u32)>> =
+                        std::collections::HashMap::new();
+                    for (src_id, kind, weight) in &nr.incoming {
+                        by_kind
+                            .entry(kind.as_str().to_string())
+                            .or_default()
+                            .push((src_id.as_str(), *weight));
+                    }
+                    let mut kinds_sorted: Vec<_> = by_kind.into_iter().collect();
+                    kinds_sorted.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
+                    for (kind, refs) in &kinds_sorted {
+                        out.push_str(&format!("    [{}] ({}):\n", kind, refs.len()));
+                        for (src, w) in refs.iter().take(20) {
+                            // Call-SITE line (where the reference occurs), when
+                            // the edge recorded one — distinct from the caller's
+                            // declaration line in the label.
+                            // Structural containment is not a call site — the
+                            // recorded line echoes the declaration and reads as
+                            // noise (@L1 on file-level edges).
+                            let at = if *kind == "contains" {
+                                String::new()
+                            } else {
+                                nr.call_lines
+                                    .get(&format!("{src}\0{kind}"))
+                                    .map(|l| format!(" @L{l}"))
+                                    .unwrap_or_default()
+                            };
+                            match endpoint_labels.get(*src) {
+                                Some(label) => {
+                                    out.push_str(&format!("      <- {label}{at} [{src}] (w={w})\n"))
+                                }
+                                None => out.push_str(&format!("      <- {src}{at} (w={w})\n")),
                             }
-                            None => out.push_str(&format!("      -> {tgt} (w={w})\n")),
+                        }
+                        if refs.len() > 20 {
+                            out.push_str(&format!("      ... and {} more\n", refs.len() - 20));
                         }
                     }
-                    if refs.len() > 20 {
-                        out.push_str(&format!("      ... and {} more\n", refs.len() - 20));
+                }
+
+                if !nr.outgoing.is_empty() {
+                    out.push_str(&format!(
+                        "  Outgoing dependencies ({}):\n",
+                        nr.outgoing.len()
+                    ));
+                    let mut by_kind: std::collections::HashMap<String, Vec<(&str, u32)>> =
+                        std::collections::HashMap::new();
+                    for (tgt_id, kind, weight) in &nr.outgoing {
+                        by_kind
+                            .entry(kind.as_str().to_string())
+                            .or_default()
+                            .push((tgt_id.as_str(), *weight));
+                    }
+                    let mut kinds_sorted: Vec<_> = by_kind.into_iter().collect();
+                    kinds_sorted.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
+                    for (kind, refs) in &kinds_sorted {
+                        out.push_str(&format!("    [{}] ({}):\n", kind, refs.len()));
+                        for (tgt, w) in refs.iter().take(20) {
+                            match endpoint_labels.get(*tgt) {
+                                Some(label) => {
+                                    out.push_str(&format!("      -> {label} [{tgt}] (w={w})\n"))
+                                }
+                                None => out.push_str(&format!("      -> {tgt} (w={w})\n")),
+                            }
+                        }
+                        if refs.len() > 20 {
+                            out.push_str(&format!("      ... and {} more\n", refs.len() - 20));
+                        }
                     }
                 }
+                out.push('\n');
             }
-            out.push('\n');
         }
 
         if found_in_graph {

@@ -1119,7 +1119,13 @@ pub struct GrepProjectRequest {
 }
 
 fn default_grep_max_results() -> usize {
-    200
+    // A review greps high-frequency tokens (`.Contains(`, `pr_id`, `innerHTML`)
+    // and only needs to know WHERE a pattern lives, not 200 instances. At 200,
+    // a single common-token grep returned ~40 KB; a review makes dozens, and the
+    // accumulated tool output blew the model's request budget (HTTP 400). 40 is
+    // plenty to locate a pattern or enumerate a handful of call sites; callers
+    // who want an exhaustive sweep pass a larger `max_results` explicitly.
+    40
 }
 
 fn default_grep_freshness() -> String {

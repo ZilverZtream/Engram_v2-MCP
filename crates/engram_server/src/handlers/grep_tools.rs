@@ -378,7 +378,18 @@ fn render_markdown(r: &engram_index::grep::GrepResult, pattern: &str, regex: boo
         let clipped: String = s.chars().take(MAX).collect();
         std::borrow::Cow::Owned(format!("{clipped}…[+{} chars]", s.chars().count() - MAX))
     }
+    // Byte budget: even under the match-count cap, a pattern hitting many long
+    // lines can still emit a large block, and a review makes dozens of greps
+    // whose output accumulates in the model's request until it overflows (the
+    // HTTP 400 this guards against). Stop rendering matches past the budget and
+    // tell the caller how to get the rest.
+    const MATCHES_BUDGET: usize = 6_000;
+    let matches_start = out.len();
+    let mut shown = 0usize;
     for m in &r.matches {
+        if shown > 0 && out.len() - matches_start > MATCHES_BUDGET {
+            break;
+        }
         for (i, before) in m.context_before.iter().enumerate() {
             let ln = (m.line as usize).saturating_sub(m.context_before.len() - i);
             let _ = writeln!(out, "    {}:{}: {}", m.file_path, ln, clip(before));
@@ -396,6 +407,15 @@ fn render_markdown(r: &engram_index::grep::GrepResult, pattern: &str, regex: boo
             let _ = writeln!(out, "    {}:{}: {}", m.file_path, ln, clip(after));
         }
         out.push('\n');
+        shown += 1;
+    }
+    if shown < r.matches.len() {
+        let _ = writeln!(
+            out,
+            "\n_… {} more match(es) not shown (output budget reached). Narrow the pattern, pass \
+             `path_prefix`, or raise `max_results` for an exhaustive list._",
+            r.matches.len() - shown
+        );
     }
     out
 }
