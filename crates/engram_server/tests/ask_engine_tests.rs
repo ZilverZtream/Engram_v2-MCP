@@ -648,3 +648,48 @@ fn full_envelope_deserializes() {
     assert_eq!(r.deadline_ms, Some(15000));
     assert_eq!(r.output_format, "both");
 }
+
+// ─── Task 10: end-to-end orchestrator ────────────────────────────────────────
+#[tokio::test]
+async fn ask_returns_typed_report_with_citations_on_indexed_project() {
+    let (_tmp, state, pid) = index_fixture(&[(
+        "Auth.vb",
+        "Public Function Authenticate() As Boolean\n Return True\nEnd Function\n",
+    )])
+    .await;
+    let engram = engram_server::Engram::new(state.clone());
+    let res = engram
+        .handle_ask_codebase(engram_server::AskCodebaseRequest {
+            project_id: pid,
+            question: "how does Authenticate work?".into(),
+            output_format: "both".into(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    let out = res.content[0].as_text().unwrap().text.clone();
+    assert!(out.contains("retrieval_only"), "{out}");
+    assert!(out.contains("Auth.vb"), "citation missing:\n{out}");
+    assert!(out.to_lowercase().contains("status:"), "{out}");
+    // Not the old concatenation format.
+    assert!(!out.contains("#1"), "old concat format leaked:\n{out}");
+}
+
+#[tokio::test]
+async fn ask_abstains_when_knowledge_is_absent() {
+    let (_tmp, state, pid) = index_fixture(&[("a.vb", "Public Sub Noop()\nEnd Sub\n")]).await;
+    let engram = engram_server::Engram::new(state.clone());
+    let res = engram
+        .handle_ask_codebase(engram_server::AskCodebaseRequest {
+            project_id: pid,
+            question: "what is the flux capacitor calibration policy?".into(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    let out = res.content[0].as_text().unwrap().text.clone();
+    assert!(
+        out.to_lowercase().contains("unsupported"),
+        "should abstain, not fabricate:\n{out}"
+    );
+}

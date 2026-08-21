@@ -221,7 +221,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "ONE natural-language front door: ask anything ('what breaks if I change X?', 'where is Y used?', 'when did Z change?', 'how does W work?', or a feature request) and get routed to the right tools automatically, with provenance. START HERE when unsure which tool fits."
+        description = "ONE natural-language front door. Ask anything ('what breaks if I change X?', 'why is Y enforced?', 'where is Z used?', 'how does W work?') and get a deterministic, typed, authority-ranked EVIDENCE REPORT (retrieval_only): multi-intent query understanding, entity resolution, parallel retrieval across code/docs/memory/insights/business-rules/history/graph, conflict + freshness aware, with an HONEST status (answered/partial/ambiguous/stale/unsupported/failed) so it abstains rather than guessing. Cites path:lines per claim; you synthesize from the cited set. Optional envelope: depth (quick|standard|deep), as_of, output_format (markdown|json|both), deadline_ms. START HERE when unsure which tool fits."
     )]
     pub async fn ask_codebase(
         &self,
