@@ -60,13 +60,15 @@ impl Engram {
         // Rank (anti-anchoring), detect conflicts, snapshot, calibrate status.
         let evidence = ranking::rank_and_select(raw, depth.evidence_cap());
         let conflicts = ranking::detect_conflicts(&evidence, gen_);
-        let mut snapshot = status::build_snapshot(
+        let snapshot = status::build_snapshot(
             &ctx,
             &rec,
             req.as_of.as_ref().and_then(|a| a.branch.as_deref()),
         )
         .await;
-        snapshot.incompatible = conflicts.iter().any(|c| c.kind == "snapshot_mismatch");
+        // `incompatible` stays false: per-item snapshot mismatch can't be
+        // reliably detected (graph nodes keep per-node generations); staleness
+        // rides on reindex_required inside build_snapshot instead.
         let st = status::assess_status(&plan, &evidence, &providers, &snapshot);
         let unknowns = report::coverage_gaps(&plan, &evidence, &providers);
         let next_best = report::next_best(&plan, &evidence, st);

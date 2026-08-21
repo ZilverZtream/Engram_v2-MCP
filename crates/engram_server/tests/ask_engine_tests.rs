@@ -93,7 +93,10 @@ fn captures_single_pascalcase_symbol_but_not_question_words() {
     let ents = extract_entities("How does Authenticate work and where is Run used?");
     assert!(ents.iter().any(|e| e.text == "Authenticate"), "{ents:?}");
     assert!(ents.iter().any(|e| e.text == "Run"), "{ents:?}");
-    assert!(!ents.iter().any(|e| e.text.eq_ignore_ascii_case("How")), "{ents:?}");
+    assert!(
+        !ents.iter().any(|e| e.text.eq_ignore_ascii_case("How")),
+        "{ents:?}"
+    );
 }
 
 // ─── Task 3: entity resolver ─────────────────────────────────────────────────
@@ -168,8 +171,17 @@ fn resolves_unique_symbol_and_marks_ambiguous() {
     let mut plan = plan_query("where is SaveMarker used and how does Run work?");
     resolve_entities(&state.graph, &pid, &mut plan);
 
-    let sm = plan.entities.iter().find(|e| e.text == "SaveMarker").unwrap();
-    assert_eq!(sm.resolved.len(), 2, "SaveMarker ambiguous: {:?}", sm.resolved);
+    let sm = plan
+        .entities
+        .iter()
+        .find(|e| e.text == "SaveMarker")
+        .unwrap();
+    assert_eq!(
+        sm.resolved.len(),
+        2,
+        "SaveMarker ambiguous: {:?}",
+        sm.resolved
+    );
     let run = plan.entities.iter().find(|e| e.text == "Run").unwrap();
     assert!(
         run.resolved.iter().any(|r| r.node_id.is_some()),
@@ -225,7 +237,9 @@ async fn index_fixture(files: &[(&str, &str)]) -> (tempfile::TempDir, AppState, 
         }))
         .await
         .unwrap();
-    let pid = state.registry.list_projects().unwrap()[0].project_id.clone();
+    let pid = state.registry.list_projects().unwrap()[0]
+        .project_id
+        .clone();
     (tmp, state, pid)
 }
 
@@ -242,7 +256,12 @@ async fn code_evidence_returns_typed_items_with_lines() {
     let cancel = tokio_util::sync::CancellationToken::new();
     let (items, outcome) =
         providers::code_evidence(&ps.search, &pid, gen_, "Authenticate", 5, &cancel, &mut id).await;
-    assert_eq!(outcome.status, ProviderStatus::Hit, "note: {:?}", outcome.note);
+    assert_eq!(
+        outcome.status,
+        ProviderStatus::Hit,
+        "note: {:?}",
+        outcome.note
+    );
     assert!(!items.is_empty());
     assert_eq!(items[0].kind, EvidenceKind::SourceCode);
     assert_eq!(items[0].authority, Authority::CurrentCode);
@@ -308,7 +327,8 @@ fn impact_evidence_surfaces_incoming_callers_as_graph_relations() {
         &[("sym:Caller@b.vb", "sym:Save@a.vb", EdgeKind::Calls, 3)],
     );
     let mut id = 0usize;
-    let (items, outcome) = providers::impact_evidence(&state.graph, &pid, "sym:Save@a.vb", 50, &mut id);
+    let (items, outcome) =
+        providers::impact_evidence(&state.graph, &pid, "sym:Save@a.vb", 50, &mut id);
     assert_eq!(outcome.status, ProviderStatus::Hit);
     assert!(
         items.iter().any(|e| e.kind == EvidenceKind::GraphRelation
@@ -329,9 +349,14 @@ fn symbol_ref_evidence_finds_usages() {
         &[("sym:Uses@u.vb", "sym:Widget@w.vb", EdgeKind::Calls, 1)],
     );
     let mut id = 0usize;
-    let (items, outcome) = providers::symbol_ref_evidence(&state.graph, &pid, "Widget", None, 25, &mut id);
+    let (items, outcome) =
+        providers::symbol_ref_evidence(&state.graph, &pid, "Widget", None, 25, &mut id);
     assert_eq!(outcome.status, ProviderStatus::Hit, "{items:?}");
-    assert!(items.iter().any(|e| e.symbol_id.as_deref() == Some("sym:Uses@u.vb")));
+    assert!(
+        items
+            .iter()
+            .any(|e| e.symbol_id.as_deref() == Some("sym:Uses@u.vb"))
+    );
 }
 
 // ─── Task 6: parallel intent-DAG retrieval ───────────────────────────────────
@@ -425,7 +450,10 @@ async fn gather_runs_arms_for_intents_and_reports_per_provider() {
         "evidence: {evidence:?}"
     );
     // A code arm always runs; its report is present (Hit or Empty, never missing).
-    assert!(reports.iter().any(|r| r.provider == "code"), "reports: {reports:?}");
+    assert!(
+        reports.iter().any(|r| r.provider == "code"),
+        "reports: {reports:?}"
+    );
     // Evidence ids are globally sequential.
     assert!(evidence.iter().all(|e| e.evidence_id.starts_with("ev_")));
 }
@@ -501,8 +529,28 @@ fn one_direct_code_relation_outranks_ten_weak_semantic_hits() {
 fn dedup_collapses_same_path_and_lines() {
     let ranked = rank_and_select(
         vec![
-            mk_ev("ev_1", EvidenceKind::SourceCode, Authority::CurrentCode, Some("a.vb"), Some((10, 20)), None, None, "x", 0.5),
-            mk_ev("ev_2", EvidenceKind::SourceCode, Authority::CurrentCode, Some("a.vb"), Some((10, 20)), None, None, "x", 0.9),
+            mk_ev(
+                "ev_1",
+                EvidenceKind::SourceCode,
+                Authority::CurrentCode,
+                Some("a.vb"),
+                Some((10, 20)),
+                None,
+                None,
+                "x",
+                0.5,
+            ),
+            mk_ev(
+                "ev_2",
+                EvidenceKind::SourceCode,
+                Authority::CurrentCode,
+                Some("a.vb"),
+                Some((10, 20)),
+                None,
+                None,
+                "x",
+                0.9,
+            ),
         ],
         5,
     );
@@ -692,4 +740,110 @@ async fn ask_abstains_when_knowledge_is_absent() {
         out.to_lowercase().contains("unsupported"),
         "should abstain, not fabricate:\n{out}"
     );
+}
+
+// ─── Review fixes: anti-anchoring + determinism regressions ──────────────────
+#[test]
+fn provider_directness_preserved_so_cochange_does_not_outrank_direct() {
+    // #1: the ranker must keep a provider's directness (companion=0.5), not
+    // recompute 0.9 from kind, else a co-change correlation outranks a real edge.
+    let mut companion = mk_ev(
+        "ev_comp",
+        EvidenceKind::GraphRelation,
+        Authority::MergedHistory,
+        Some("far.vb"),
+        Some((1, 2)),
+        Some("sym:far"),
+        None,
+        "co-changes with X 12 times",
+        0.15,
+    );
+    companion.directness = Some(0.5);
+    let mut direct = mk_ev(
+        "ev_dir",
+        EvidenceKind::GraphRelation,
+        Authority::CurrentCode,
+        Some("svc.vb"),
+        Some((10, 20)),
+        Some("sym:dir"),
+        None,
+        "Caller calls X",
+        0.03,
+    );
+    direct.directness = Some(0.9);
+    let ranked = rank_and_select(vec![companion, direct], 5);
+    assert_eq!(
+        ranked[0].evidence_id, "ev_dir",
+        "a direct relation must outrank co-change: {ranked:?}"
+    );
+}
+
+#[test]
+fn distinct_same_name_callers_are_kept() {
+    // #4: two callers named Page_Load in different files are distinct evidence.
+    let a = mk_ev(
+        "ev_a",
+        EvidenceKind::GraphRelation,
+        Authority::CurrentCode,
+        Some("f1.vb"),
+        Some((10, 12)),
+        Some("sym:a"),
+        Some("Page_Load"),
+        "x",
+        0.03,
+    );
+    let b = mk_ev(
+        "ev_b",
+        EvidenceKind::GraphRelation,
+        Authority::CurrentCode,
+        Some("f2.vb"),
+        Some((20, 22)),
+        Some("sym:b"),
+        Some("Page_Load"),
+        "y",
+        0.03,
+    );
+    let ranked = rank_and_select(vec![a, b], 5);
+    assert_eq!(
+        ranked.len(),
+        2,
+        "distinct callers sharing a name must both survive: {ranked:?}"
+    );
+}
+
+#[test]
+fn ranking_tie_break_is_deterministic() {
+    // #6: identical-score items order stably by id (ascending).
+    let build = || {
+        vec![
+            mk_ev(
+                "ev_z",
+                EvidenceKind::GraphRelation,
+                Authority::CurrentCode,
+                Some("z.vb"),
+                Some((1, 2)),
+                Some("sym:z"),
+                None,
+                "x",
+                0.03,
+            ),
+            mk_ev(
+                "ev_a",
+                EvidenceKind::GraphRelation,
+                Authority::CurrentCode,
+                Some("a.vb"),
+                Some((1, 2)),
+                Some("sym:a"),
+                None,
+                "x",
+                0.03,
+            ),
+        ]
+    };
+    let r1 = rank_and_select(build(), 5);
+    let r2 = rank_and_select(build(), 5);
+    assert_eq!(r1[0].evidence_id, "ev_a");
+    let ids1: Vec<_> = r1.iter().map(|e| e.evidence_id.clone()).collect();
+    let ids2: Vec<_> = r2.iter().map(|e| e.evidence_id.clone()).collect();
+    assert_eq!(ids1, ids2, "ranking must be deterministic");
 }

@@ -180,8 +180,8 @@ pub async fn knowledge_evidence(
     id: &mut usize,
 ) -> (Vec<EvidenceItem>, ProviderOutcome) {
     search_arm(
-        search, project_id, namespace, generation, kind, authority, provider, query, top_k,
-        cancel, id,
+        search, project_id, namespace, generation, kind, authority, provider, query, top_k, cancel,
+        id,
     )
     .await
 }
@@ -314,11 +314,15 @@ pub fn impact_evidence(
     limit: usize,
     id: &mut usize,
 ) -> (Vec<EvidenceItem>, ProviderOutcome) {
-    let incoming =
-        match graph.find_incoming_edges_with_kind(project_id, None, target_node_id, limit.clamp(1, 1000)) {
-            Ok(v) => v,
-            Err(e) => return (vec![], ProviderOutcome::failed(e.to_string())),
-        };
+    let incoming = match graph.find_incoming_edges_with_kind(
+        project_id,
+        None,
+        target_node_id,
+        limit.clamp(1, 1000),
+    ) {
+        Ok(v) => v,
+        Err(e) => return (vec![], ProviderOutcome::failed(e.to_string())),
+    };
     if incoming.is_empty() {
         return (vec![], ProviderOutcome::empty());
     }
@@ -362,9 +366,13 @@ pub fn symbol_ref_evidence(
     }
     let mut items = Vec::new();
     for node in &nodes {
-        let incoming = graph
-            .find_incoming_edges_with_kind(project_id, None, &node.node_id, max)
-            .unwrap_or_default();
+        // Propagate a graph read error as Failed — never let it look like "no
+        // usages found" (the invariant this module's header states).
+        let incoming =
+            match graph.find_incoming_edges_with_kind(project_id, None, &node.node_id, max) {
+                Ok(v) => v,
+                Err(e) => return (vec![], ProviderOutcome::failed(e.to_string())),
+            };
         for (src, kind, weight) in incoming.into_iter().take(max) {
             let src_node = graph.get_node(project_id, &src).ok().flatten();
             let (path, lines, name, gen_) = node_fields(&src_node, &src);
@@ -461,17 +469,25 @@ pub fn companion_evidence(
     file_node_id: &str,
     id: &mut usize,
 ) -> (Vec<EvidenceItem>, ProviderOutcome) {
-    let couplings =
-        match engram_graph::algorithms::coupling::file_temporal_couplings(graph, project_id, file_node_id, 2, 20) {
-            Ok(c) => c,
-            Err(e) => return (vec![], ProviderOutcome::failed(e.to_string())),
-        };
+    let couplings = match engram_graph::algorithms::coupling::file_temporal_couplings(
+        graph,
+        project_id,
+        file_node_id,
+        2,
+        20,
+    ) {
+        Ok(c) => c,
+        Err(e) => return (vec![], ProviderOutcome::failed(e.to_string())),
+    };
     if couplings.is_empty() {
         return (vec![], ProviderOutcome::empty());
     }
     let mut items = Vec::new();
     for c in couplings {
-        let node = graph.get_node(project_id, &c.neighbor_node_id).ok().flatten();
+        let node = graph
+            .get_node(project_id, &c.neighbor_node_id)
+            .ok()
+            .flatten();
         let (path, lines, name, gen_) = node_fields(&node, &c.neighbor_node_id);
         let content = format!("co-changes with {file_node_id} ({} times)", c.weight);
         let mut it = graph_relation_item(

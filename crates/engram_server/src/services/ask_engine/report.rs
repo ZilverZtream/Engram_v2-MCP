@@ -15,10 +15,10 @@ pub struct AskReport {
     pub question: String,
     pub plan: QueryPlan,
     pub status: AnswerStatus,
-    pub mode: String, // "retrieval_only" (M1) | "synthesized" (M2)
+    pub mode: String,                // "retrieval_only" (M1) | "synthesized" (M2)
     pub evidence: Vec<EvidenceItem>, // ranked, deduped, bounded (high-signal)
     pub conflicts: Vec<Conflict>,
-    pub unknowns: Vec<String>, // coverage gaps
+    pub unknowns: Vec<String>,  // coverage gaps
     pub next_best: Vec<String>, // suggested follow-up investigations
     pub snapshot: FreshnessSnapshot,
     pub providers: Vec<ProviderReport>,
@@ -83,7 +83,9 @@ pub fn next_best(plan: &QueryPlan, evidence: &[EvidenceItem], status: AnswerStat
     }
     if let Some(top) = evidence.first() {
         if let Some(p) = &top.path {
-            out.push(format!("get_chunk / get_full_method_body on {p} for the full text"));
+            out.push(format!(
+                "get_chunk / get_full_method_body on {p} for the full text"
+            ));
         }
     }
     out

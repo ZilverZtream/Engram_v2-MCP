@@ -187,7 +187,12 @@ pub async fn gather_evidence(
         .flat_map(|e| e.resolved.iter().filter_map(|r| r.node_id.clone()))
         .take(3)
         .collect();
-    let symbol_names: Vec<String> = plan.entities.iter().map(|e| e.text.clone()).take(3).collect();
+    let symbol_names: Vec<String> = plan
+        .entities
+        .iter()
+        .map(|e| e.text.clone())
+        .take(3)
+        .collect();
     let companion_files: Vec<String> = plan
         .entities
         .iter()
@@ -198,19 +203,74 @@ pub async fn gather_evidence(
 
     let mut arms: Vec<ArmFuture> = Vec::new();
     if want_code {
-        arms.push(search_arm(ctx, namespaces::NAMESPACE_MEMORY, EvidenceKind::SourceCode, Authority::CurrentCode, "code", question, top_k, ctx.generation, deadline, cancel.clone()));
+        arms.push(search_arm(
+            ctx,
+            namespaces::NAMESPACE_MEMORY,
+            EvidenceKind::SourceCode,
+            Authority::CurrentCode,
+            "code",
+            question,
+            top_k,
+            ctx.generation,
+            deadline,
+            cancel.clone(),
+        ));
     }
     if want_doc {
-        arms.push(search_arm(ctx, namespaces::NAMESPACE_MEMORY_BANK, EvidenceKind::DocSection, Authority::CurrentDocs, "doc", question, top_k, 0, deadline, cancel.clone()));
+        arms.push(search_arm(
+            ctx,
+            namespaces::NAMESPACE_MEMORY_BANK,
+            EvidenceKind::DocSection,
+            Authority::CurrentDocs,
+            "doc",
+            question,
+            top_k,
+            0,
+            deadline,
+            cancel.clone(),
+        ));
     }
     if want_business {
-        arms.push(search_arm(ctx, namespaces::NAMESPACE_BUSINESS_LOGIC, EvidenceKind::BusinessRule, Authority::DerivedBusinessLogic, "business_logic", question, top_k, 0, deadline, cancel.clone()));
+        arms.push(search_arm(
+            ctx,
+            namespaces::NAMESPACE_BUSINESS_LOGIC,
+            EvidenceKind::BusinessRule,
+            Authority::DerivedBusinessLogic,
+            "business_logic",
+            question,
+            top_k,
+            0,
+            deadline,
+            cancel.clone(),
+        ));
     }
     if want_insight {
-        arms.push(search_arm(ctx, namespaces::NAMESPACE_INSIGHTS, EvidenceKind::Insight, Authority::DreamerInsight, "insight", question, top_k, 0, deadline, cancel.clone()));
+        arms.push(search_arm(
+            ctx,
+            namespaces::NAMESPACE_INSIGHTS,
+            EvidenceKind::Insight,
+            Authority::DreamerInsight,
+            "insight",
+            question,
+            top_k,
+            0,
+            deadline,
+            cancel.clone(),
+        ));
     }
     if want_history {
-        arms.push(search_arm(ctx, namespaces::NAMESPACE_HISTORY, EvidenceKind::HistoryCommit, Authority::MergedHistory, "history", question, top_k, 0, deadline, cancel.clone()));
+        arms.push(search_arm(
+            ctx,
+            namespaces::NAMESPACE_HISTORY,
+            EvidenceKind::HistoryCommit,
+            Authority::MergedHistory,
+            "history",
+            question,
+            top_k,
+            0,
+            deadline,
+            cancel.clone(),
+        ));
     }
     if want_memory {
         arms.push(memory_arm(ctx, question, top_k, deadline));
@@ -281,6 +341,19 @@ pub async fn gather_evidence(
             }),
         }
     }
+    // Arms complete in non-deterministic order; sort by a stable key BEFORE
+    // assigning ev_N ids so ids (and everything keyed off them) are reproducible
+    // run-to-run — the "deterministic evidence engine" contract.
+    evidence.sort_by(|a, b| {
+        a.provider
+            .cmp(&b.provider)
+            .then_with(|| a.path.cmp(&b.path))
+            .then_with(|| a.symbol_id.cmp(&b.symbol_id))
+            .then_with(|| a.lines.cmp(&b.lines))
+            .then_with(|| a.content.cmp(&b.content))
+    });
+    // Reports too, so the provider list renders stably.
+    reports.sort_by(|a, b| a.provider.cmp(&b.provider).then(a.count.cmp(&b.count)));
     for (i, ev) in evidence.iter_mut().enumerate() {
         ev.evidence_id = format!("ev_{}", i + 1);
     }

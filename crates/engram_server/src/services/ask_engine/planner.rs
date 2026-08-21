@@ -280,9 +280,9 @@ pub fn extract_entities(q: &str) -> Vec<EntityMention> {
     }
 
     // 2. Token scan for code-shaped identifiers.
-    for raw in q.split(|c: char| {
-        c.is_whitespace() || matches!(c, ',' | '(' | ')' | '?' | '!' | ';' | ':')
-    }) {
+    for raw in
+        q.split(|c: char| c.is_whitespace() || matches!(c, ',' | '(' | ')' | '?' | '!' | ';' | ':'))
+    {
         let t = raw.trim_matches(|c: char| matches!(c, '"' | '\'' | '`' | '.' | ','));
         if t.len() < 2 {
             continue;
@@ -291,8 +291,8 @@ pub fn extract_entities(q: &str) -> Vec<EntityMention> {
         if t.contains('.') && !t.starts_with('.') && !t.ends_with('.') {
             let tl = t.to_lowercase();
             let looks_file = [
-                ".cs", ".vb", ".ts", ".js", ".aspx", ".ascx", ".sql", ".resx", ".vbhtml",
-                ".razor", ".json", ".xml", ".config",
+                ".cs", ".vb", ".ts", ".js", ".aspx", ".ascx", ".sql", ".resx", ".vbhtml", ".razor",
+                ".json", ".xml", ".config",
             ]
             .iter()
             .any(|e| tl.ends_with(e));
@@ -344,7 +344,8 @@ pub fn extract_entities(q: &str) -> Vec<EntityMention> {
 fn is_stopword(w: &str) -> bool {
     matches!(
         w,
-        "the" | "and"
+        "the"
+            | "and"
             | "for"
             | "with"
             | "from"
@@ -414,18 +415,24 @@ pub fn extract_qualifiers(q: &str, lower: &str) -> Qualifiers {
         }
     }
     // "from X to Y" — slice the ORIGINAL string to preserve case (XML, not xml).
+    // Use `.get()` throughout: `pos`/`tp` are byte offsets into a lowercased copy
+    // and lowercasing is not always length-preserving, so a raw index could land
+    // off a char boundary and panic. `.get()` yields None there instead.
     if let Some(pos) = lower.find(" from ") {
-        let rest = &q[pos + 6..];
-        if let Some(tp) = rest.to_lowercase().find(" to ") {
-            let from = rest[..tp].trim().to_string();
-            let to = rest[tp + 4..]
-                .split(|c: char| c == ' ' || c == '?' || c == '.')
-                .next()
-                .unwrap_or("")
-                .trim()
-                .to_string();
-            if !from.is_empty() && !to.is_empty() {
-                ql.change = Some((from, to));
+        if let Some(rest) = q.get(pos + 6..) {
+            if let Some(tp) = rest.to_lowercase().find(" to ") {
+                if let (Some(from_s), Some(to_s)) = (rest.get(..tp), rest.get(tp + 4..)) {
+                    let from = from_s.trim().to_string();
+                    let to = to_s
+                        .split(|c: char| c == ' ' || c == '?' || c == '.')
+                        .next()
+                        .unwrap_or("")
+                        .trim()
+                        .to_string();
+                    if !from.is_empty() && !to.is_empty() {
+                        ql.change = Some((from, to));
+                    }
+                }
             }
         }
     }
