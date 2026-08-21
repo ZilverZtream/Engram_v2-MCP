@@ -61,6 +61,7 @@ async fn setup() -> (tempfile::TempDir, AppState, engram_server::Engram, String)
             section_id: Some("widget-cache".into()),
             section: "Widget cache".into(),
             content: "The widget cache warms lazily on first render.".into(),
+            ..Default::default()
         }))
         .await
         .unwrap();

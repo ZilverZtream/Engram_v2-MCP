@@ -1142,15 +1142,50 @@ pub struct AnalyzeErrorStackRequest {
 
 // -------------------- Memory bank --------------------
 
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct UpdateMemoryBankRequest {
     pub project_id: String,
     #[serde(default)]
     pub section_id: Option<String>,
+    /// The section's human title.
     pub section: String,
+    /// Markdown body. Long bodies are chunked so search can hit any part.
     pub content: String,
+    /// Append `content` to the existing section (with a newline) instead of
+    /// replacing it. On a section that does not exist yet, behaves as a
+    /// create. Default: false (replace).
+    #[serde(default)]
+    pub append: bool,
+    /// Optimistic-concurrency guard. If set and the section already exists
+    /// with a different `updated_at_ms`, the write is REJECTED as a conflict
+    /// so a concurrent session's change is not silently clobbered. Read the
+    /// section, then pass the `updated_at_ms` you saw.
+    #[serde(default)]
+    pub expected_updated_at_ms: Option<u64>,
+    /// The writing agent / session, recorded on the section.
+    #[serde(default)]
+    pub author: Option<String>,
+    /// One of: preference, decision, gotcha, reference, note. Rejected if it
+    /// is anything else. Default: unset.
+    #[serde(default)]
+    pub kind: Option<String>,
+    /// Optional review-by date (unix ms).
+    #[serde(default)]
+    pub review_after_ms: Option<u64>,
+    /// Free-form tags. Replaces the section's tags when provided.
+    #[serde(default)]
+    pub tags: Option<Vec<String>>,
+    /// Files (project-relative paths) or symbol node_ids this memory is
+    /// about. Replaces the section's list when provided. Drives the
+    /// staleness signal: a note is flagged stale when a referenced file is
+    /// re-indexed after the note was last written.
+    #[serde(default)]
+    pub related_files: Option<Vec<String>>,
 }
+
+/// The controlled vocabulary for `MemorySection::kind`.
+pub const MEMORY_KINDS: &[&str] = &["preference", "decision", "gotcha", "reference", "note"];
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

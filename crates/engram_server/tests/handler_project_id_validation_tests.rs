@@ -664,8 +664,8 @@ fn handle_update_memory_bank_validates_section_id_at_handler_boundary() {
     let fn_start = source
         .find("fn handle_update_memory_bank")
         .expect("REG2: handle_update_memory_bank must exist in project_tools.rs");
-    // Take a window spanning the function — 3000 chars is enough.
-    let fn_body = &source[fn_start..fn_start + 3000.min(source.len() - fn_start)];
+    // Take a window spanning the function — 8000 chars is enough.
+    let fn_body = &source[fn_start..fn_start + 8000.min(source.len() - fn_start)];
 
     // validate_key_component must be called on section_id before put_memory_section.
     let validate_pos = fn_body.find("validate_key_component").expect(

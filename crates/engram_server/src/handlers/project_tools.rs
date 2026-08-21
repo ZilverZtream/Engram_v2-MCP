@@ -729,6 +729,7 @@ impl Engram {
                     section_id: Some("engram/index_report".into()),
                     section: "Indexing Report".into(),
                     content: report.clone(),
+                    ..Default::default()
                 })
                 .await
             {
@@ -1154,6 +1155,7 @@ impl Engram {
                             section_id: Some("engram/index_report".into()),
                             section: "Indexing Report".into(),
                             content: report,
+                            ..Default::default()
                         })
                         .await;
                     // VEC1/D1: clear reindex-required flag now that a full index succeeded.
@@ -2931,26 +2933,119 @@ impl Engram {
         validate_project_id(&req.project_id)?;
         let _ = self.ensure_project_record(&req.project_id).await?;
 
-        let section_id = req.section_id.unwrap_or_else(|| req.section.clone());
+        let section_id = req
+            .section_id
+            .clone()
+            .unwrap_or_else(|| req.section.clone());
         // REG2: validate section_id at the handler boundary before it is used in
         // registry composite-key paths and search-index document identifiers.
-        // Delimiter bytes (\0, \n) are blocked by the registry layer, but broader
-        // character-class enforcement here prevents namespace/path semantics drift
-        // in downstream index identifiers even for delimiter-safe but structurally
-        // problematic strings (e.g. pure whitespace, empty, >256 chars).
         engram_core::security::validate_key_component("section_id", &section_id)
             .map_err(|e| McpError::invalid_params(format!("invalid section_id: {e}"), None))?;
-        let sec = MemorySection {
-            section_id: section_id.clone(),
-            title: req.section,
-            content: req.content.clone(),
-            updated_at_ms: now_ms(),
+
+        // Validate the optional kind against the controlled vocabulary — a
+        // free-form kind would make recall-by-kind meaningless.
+        if let Some(k) = req.kind.as_deref()
+            && !crate::models::requests::MEMORY_KINDS.contains(&k)
+        {
+            return Err(McpError::invalid_params(
+                format!(
+                    "update_memory_bank: invalid kind '{k}'. Expected one of: {}.",
+                    crate::models::requests::MEMORY_KINDS.join(", ")
+                ),
+                None,
+            ));
+        }
+
+        // Fetch the existing section: needed to preserve created_at, apply the
+        // append / optimistic-concurrency semantics, and carry forward
+        // metadata the caller did not re-supply.
+        let existing = {
+            let reg = self.state.registry.clone();
+            let pid = req.project_id.clone();
+            let sid = section_id.clone();
+            tokio::task::spawn_blocking(move || reg.get_memory_section(&pid, &sid))
+                .await
+                .map_err(|e| {
+                    McpError::internal_error(format!("registry read task panicked: {e}"), None)
+                })?
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?
         };
 
-        // Persist to registry — REG1/MCP1: propagate failure so the MCP caller
-        // receives a hard error rather than a silent success-but-not-persisted response.
-        // Prior `.ok()` swallowed both JoinError and registry write errors, making the
-        // handler lie to the caller about durable persistence.
+        // Optimistic concurrency: reject if the section moved under the caller
+        // rather than silently clobbering a concurrent session's write.
+        if let (Some(expected), Some(cur)) = (req.expected_updated_at_ms, existing.as_ref())
+            && cur.updated_at_ms != expected
+        {
+            return Err(McpError::invalid_params(
+                format!(
+                    "update_memory_bank: conflict — section '{section_id}' was modified since \
+                     you read it (expected updated_at_ms={expected}, current={}). Re-read it with \
+                     read_memory_bank and retry.",
+                    cur.updated_at_ms
+                ),
+                None,
+            ));
+        }
+
+        let now = now_ms();
+        let content = match (req.append, existing.as_ref()) {
+            (true, Some(cur)) if !cur.content.is_empty() => {
+                format!("{}\n{}", cur.content, req.content)
+            }
+            _ => req.content.clone(),
+        };
+        // created_at is set once and preserved; a legacy section (created_at 0)
+        // gets stamped now so it stops reading as unknown.
+        let created_at_ms = existing
+            .as_ref()
+            .map(|e| {
+                if e.created_at_ms > 0 {
+                    e.created_at_ms
+                } else {
+                    now
+                }
+            })
+            .unwrap_or(now);
+        let author = req
+            .author
+            .clone()
+            .or_else(|| existing.as_ref().and_then(|e| e.author.clone()));
+        let kind = req
+            .kind
+            .clone()
+            .or_else(|| existing.as_ref().and_then(|e| e.kind.clone()));
+        let review_after_ms = req
+            .review_after_ms
+            .or_else(|| existing.as_ref().and_then(|e| e.review_after_ms));
+        // tags / related_files REPLACE when provided, otherwise carry forward.
+        let tags = req.tags.clone().unwrap_or_else(|| {
+            existing
+                .as_ref()
+                .map(|e| e.tags.clone())
+                .unwrap_or_default()
+        });
+        let related_files = req.related_files.clone().unwrap_or_else(|| {
+            existing
+                .as_ref()
+                .map(|e| e.related_files.clone())
+                .unwrap_or_default()
+        });
+
+        let sec = MemorySection {
+            section_id: section_id.clone(),
+            title: req.section.clone(),
+            content: content.clone(),
+            updated_at_ms: now,
+            created_at_ms,
+            author: author.clone(),
+            kind,
+            review_after_ms,
+            tags,
+            related_files,
+        };
+
+        // Persist to registry (source of truth) — propagate failures so the
+        // caller is not told a write is durable when it is not.
         {
             let reg = self.state.registry.clone();
             let pid = req.project_id.clone();
@@ -2968,44 +3063,57 @@ impl Engram {
                 })?;
         }
 
-        // Index to search engine (namespace = memory_bank)
+        // Re-index for search. memory_bank is GlobalMutable → generation 0.
         let ps = self.ensure_project_runtime(&req.project_id).await?;
-        let gen_ = self.get_active_generation(&req.project_id).await?;
-
         let namespace = engram_core::namespaces::NAMESPACE_MEMORY_BANK;
-        let effective_gen = if let Ok(policy) = engram_core::get_policy(namespace) {
-            if policy.versioning == engram_core::NamespaceVersioning::GlobalMutable {
-                0
-            } else {
-                gen_
-            }
-        } else {
-            gen_
-        };
+        let path = format!("memory_bank:{section_id}");
+        let cancel = tokio_util::sync::CancellationToken::new();
 
-        let doc = engram_index::IndexDoc {
-            doc_id: engram_core::DocIdStr(format!("mb:{}", section_id)).0,
-            content_hash: engram_core::ContentHash(sec.content.clone()).0,
-            path: engram_core::RelPath::new(&format!("memory_bank:{}", section_id)),
-            content: sec.content,
-            language: "markdown".into(),
-            namespace: namespace.into(),
-            generation: effective_gen,
-            chunk_id: 0,
-            author: None,
-            timestamp: Some(sec.updated_at_ms),
-            start_line: 0,
-            end_line: 0,
-        };
-
+        // Clear the prior version's chunks first: a shorter new body must not
+        // leave stale chunks behind. delete-by-path covers every chunk_id.
         ps.search
-            .index_docs(
+            .delete_files(
                 &req.project_id,
-                &[doc],
-                &tokio_util::sync::CancellationToken::new(),
+                namespace,
+                &[engram_core::RelPath::new(&path)],
             )
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        // Chunk the body so search can hit any paragraph, not just one doc
+        // truncated at the embedder's context — the audit flagged long
+        // doc-corpus sections indexing as a single gen-0 chunk. Same char
+        // budget as code indexing.
+        let max_chars = self.state.cfg.max_chunks_per_file;
+        let docs: Vec<engram_index::IndexDoc> =
+            engram_index::chunking::chunk_lines(&content, max_chars)
+                .into_iter()
+                .enumerate()
+                .map(|(i, mut c)| {
+                    c.set_doc_id(&path);
+                    engram_index::IndexDoc {
+                        doc_id: c.doc_id.0,
+                        content_hash: c.content_hash.0,
+                        path: engram_core::RelPath::new(&path),
+                        content: c.content,
+                        language: "markdown".into(),
+                        namespace: namespace.into(),
+                        generation: 0,
+                        chunk_id: i as u64,
+                        author: author.clone(),
+                        timestamp: Some(now),
+                        start_line: c.start_line,
+                        end_line: c.end_line,
+                    }
+                })
+                .collect();
+
+        if !docs.is_empty() {
+            ps.search
+                .index_docs(&req.project_id, &docs, &cancel)
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        }
 
         Ok(CallToolResult::success(vec![Content::text(format!(
             "✅ Updated memory_bank: {section_id}"
@@ -3030,13 +3138,20 @@ impl Engram {
             out.push_str("(no memory sections yet — write one with update_memory_bank)\n");
         }
         for s in secs {
-            // Size and age let the caller judge relevance without read_memory_bank.
+            // Size and age let the caller judge relevance without read_memory_bank;
+            // kind (when set) tells a standing preference from a scratch note.
+            let kind = s
+                .kind
+                .as_deref()
+                .map(|k| format!(" | {k}"))
+                .unwrap_or_default();
             out.push_str(&format!(
-                "- {} | {} | {}B | {}\n",
+                "- {} | {} | {}B | {}{}\n",
                 s.section_id,
                 s.title,
                 s.content.len(),
                 crate::utils::humanize_age_ms(s.updated_at_ms, now),
+                kind,
             ));
         }
         Ok(CallToolResult::success(vec![Content::text(out)]))
@@ -3054,7 +3169,44 @@ impl Engram {
         let Some(s) = sec else {
             return Ok(CallToolResult::success(vec![Content::text("Not found.")]));
         };
-        Ok(CallToolResult::success(vec![Content::text(s.content)]))
+        // Prepend a compact provenance header so an agent sees the record's
+        // metadata — kind, author, age, tags, subject, and the
+        // updated_at_ms to pass back as expected_updated_at_ms for a safe
+        // concurrent edit — not just the raw body.
+        let now = crate::utils::now_ms();
+        let mut header = String::new();
+        header.push_str(&format!("section_id: {}\n", s.section_id));
+        header.push_str(&format!("title: {}\n", s.title));
+        if let Some(k) = &s.kind {
+            header.push_str(&format!("kind: {k}\n"));
+        }
+        if let Some(a) = &s.author {
+            header.push_str(&format!("author: {a}\n"));
+        }
+        header.push_str(&format!(
+            "updated: {} (updated_at_ms={})\n",
+            crate::utils::humanize_age_ms(s.updated_at_ms, now),
+            s.updated_at_ms
+        ));
+        if s.created_at_ms > 0 {
+            header.push_str(&format!(
+                "created: {}\n",
+                crate::utils::humanize_age_ms(s.created_at_ms, now)
+            ));
+        }
+        if let Some(r) = s.review_after_ms {
+            let status = if now > r { " (OVERDUE)" } else { "" };
+            header.push_str(&format!("review_after_ms: {r}{status}\n"));
+        }
+        if !s.tags.is_empty() {
+            header.push_str(&format!("tags: {}\n", s.tags.join(", ")));
+        }
+        if !s.related_files.is_empty() {
+            header.push_str(&format!("related_files: {}\n", s.related_files.join(", ")));
+        }
+        header.push_str("---\n");
+        header.push_str(&s.content);
+        Ok(CallToolResult::success(vec![Content::text(header)]))
     }
 
     pub async fn handle_delete_memory_bank(

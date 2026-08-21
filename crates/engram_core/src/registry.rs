@@ -46,6 +46,33 @@ pub struct MemorySection {
     pub title: String,
     pub content: String,
     pub updated_at_ms: u64,
+    /// When the section was first written. `0` for legacy sections written
+    /// before this field existed (age unknown). All fields below are
+    /// `#[serde(default)]` so those legacy JSON records still deserialize.
+    #[serde(default)]
+    pub created_at_ms: u64,
+    /// The agent / session that last wrote it. Free-form; with several
+    /// concurrent sessions this is how a note's origin is known.
+    #[serde(default)]
+    pub author: Option<String>,
+    /// A small controlled vocabulary — preference / decision / gotcha /
+    /// reference / note — so recall can distinguish a standing preference
+    /// from a scratch note. Validated at the write boundary.
+    #[serde(default)]
+    pub kind: Option<String>,
+    /// Optional review-by date (unix ms). A hint that the note should be
+    /// re-checked after this time; nothing enforces it yet.
+    #[serde(default)]
+    pub review_after_ms: Option<u64>,
+    /// Free-form tags for grouping.
+    #[serde(default)]
+    pub tags: Vec<String>,
+    /// Files (or symbol node_ids) this memory is about. Lets the note declare
+    /// its subject so staleness can be judged: if a referenced file is
+    /// re-indexed more recently than this memory was written, the note may no
+    /// longer match the code.
+    #[serde(default)]
+    pub related_files: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

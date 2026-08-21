@@ -75,6 +75,7 @@ async fn deleted_memory_stops_surfacing_in_search() {
             section_id: Some("deploy-gotcha".into()),
             section: "Deploy gotcha".into(),
             content: "The zorblatt registry must be restarted after every deploy.".into(),
+            ..Default::default()
         }))
         .await
         .unwrap();
@@ -117,6 +118,7 @@ async fn deleting_one_section_leaves_the_others() {
                 section_id: Some(id.into()),
                 section: id.into(),
                 content: content.into(),
+                ..Default::default()
             }))
             .await
             .unwrap();

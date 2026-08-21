@@ -535,6 +535,7 @@ async fn test_memory_bank_persistence() {
             section_id: Some("important_note".into()),
             section: "Architecture".into(),
             content: "We use a hybrid search engine with RRF.".into(),
+            ..Default::default()
         }))
         .await
         .unwrap();
@@ -777,6 +778,7 @@ async fn test_gc_preserves_global_namespaces() {
             section: "global_note".into(),
             content: "this should persist".into(),
             section_id: None,
+            ..Default::default()
         }))
         .await
         .unwrap();
@@ -1106,6 +1108,7 @@ async fn test_delete_project() {
             section: "Note".into(),
             content: "Some content".into(),
             section_id: None,
+            ..Default::default()
         }))
         .await
         .unwrap();
@@ -3509,6 +3512,7 @@ async fn test_gc_policy_preservation() {
             section: "global_note".into(),
             content: "this must persist across generations".into(),
             section_id: None,
+            ..Default::default()
         }))
         .await
         .unwrap();
