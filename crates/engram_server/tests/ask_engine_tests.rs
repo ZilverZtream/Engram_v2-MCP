@@ -541,3 +541,81 @@ fn requirement_contradicting_code_is_flagged() {
         "conflicts: {conflicts:?}"
     );
 }
+
+// ─── Task 8: freshness snapshot + honest status ──────────────────────────────
+use engram_server::services::ask_engine::plan::ResolvedEntity;
+use engram_server::services::ask_engine::status::{
+    AnswerStatus, FreshnessSnapshot, ProviderReport, assess_status,
+};
+
+fn rep(p: &str, s: ProviderStatus) -> ProviderReport {
+    ProviderReport {
+        provider: p.into(),
+        status: s,
+        count: if s == ProviderStatus::Hit { 1 } else { 0 },
+        note: None,
+    }
+}
+fn re(id: &str) -> ResolvedEntity {
+    ResolvedEntity {
+        kind: EntityKind::Symbol,
+        canonical: id.into(),
+        node_id: Some(format!("sym:{id}")),
+        confidence: 0.5,
+    }
+}
+
+#[test]
+fn empty_everything_is_unsupported_not_answered() {
+    let plan = plan_query("how does frobnicate work");
+    let s = assess_status(
+        &plan,
+        &[],
+        &[
+            rep("code", ProviderStatus::Empty),
+            rep("doc", ProviderStatus::Empty),
+        ],
+        &FreshnessSnapshot::default(),
+    );
+    assert_eq!(s, AnswerStatus::Unsupported);
+}
+
+#[test]
+fn all_failed_providers_is_failed() {
+    let plan = plan_query("frobnicate the thing");
+    let s = assess_status(
+        &plan,
+        &[],
+        &[rep("code", ProviderStatus::Failed)],
+        &FreshnessSnapshot::default(),
+    );
+    assert_eq!(s, AnswerStatus::Failed);
+}
+
+#[test]
+fn ambiguous_entity_yields_ambiguous_status() {
+    let mut plan = plan_query("where is SaveMarker used");
+    for e in plan.entities.iter_mut() {
+        if e.text == "SaveMarker" {
+            e.resolved = vec![re("a"), re("b")];
+        }
+    }
+    let ev = vec![mk_ev(
+        "ev_1",
+        EvidenceKind::GraphRelation,
+        Authority::CurrentCode,
+        Some("a.vb"),
+        Some((1, 2)),
+        Some("sym:a"),
+        None,
+        "x",
+        0.5,
+    )];
+    let s = assess_status(
+        &plan,
+        &ev,
+        &[rep("usage", ProviderStatus::Hit)],
+        &FreshnessSnapshot::default(),
+    );
+    assert_eq!(s, AnswerStatus::Ambiguous);
+}
