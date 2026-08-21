@@ -442,8 +442,10 @@ pub fn render_root_claude_md(snapshot: &ProjectSnapshot, max_lines: usize) -> St
     );
     out.push_str("4. `map_guards_and_settings` - permission checks + settings gating your area\n");
     out.push_str(
-        "5. `find_similar_changes` - companion artifacts past changes included that yours is \
-         missing (admin page, menu entry)\n",
+        "5. `detect_incomplete_changes(files=[...])` - companion artifacts past changes \
+         included that yours is missing (admin page, menu entry); fast, precomputed. \
+         (`find_similar_changes` answers the same but re-walks git history at call time — \
+         up to ~20s — use only as an optional deeper pass.)\n",
     );
     out.push_str(
         "6. `get_method_edit_context` before EVERY method edit; `check_edit_safety` + \

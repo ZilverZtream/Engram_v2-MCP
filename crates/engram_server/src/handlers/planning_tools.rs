@@ -2287,8 +2287,10 @@ MANDATORY — the tools exist because skipping them is how regressions ship.
 - Before modifying a method: `get_method_edit_context` or `check_edit_safety`.
 - `complete_edit_session(edited_files=[...])` when done — scope drift +
   completeness in one call.
-- After choosing your file set: `find_similar_changes(files=[...])` and close
-  every item under "MISSING from your set".
+- After choosing your file set: `detect_incomplete_changes(files=[...])` (fast,
+  precomputed co-change) and close every item under "MISSING from your set".
+  (`find_similar_changes` answers the same question but re-walks git history at
+  call time — up to ~20s — so use it only as an optional deeper pass.)
 
 ## Before every commit
 - `detect_incomplete_changes(edited_files=[...])` — history and state wiring

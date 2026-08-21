@@ -241,3 +241,26 @@ async fn full_scan_tier_finds_matches_the_term_index_cannot_serve() {
         "a scan that covered the corpus must not warn about zero coverage; got:\n{out}"
     );
 }
+
+/// The J5 fix: grep_project must find a string in a file added since the last
+/// index — by scanning the working tree, not just the index — instead of
+/// returning "no matches" and letting the agent conclude the code is absent.
+#[tokio::test]
+async fn grep_finds_a_new_unindexed_file_via_disk_fallback() {
+    let (_tmp, engram, pid, root) = setup().await;
+    // A brand-new file the index has never seen.
+    std::fs::write(
+        root.join("src/newly_added.rs"),
+        "pub fn frobnicate_widget() -> u8 {\n    42\n}\n",
+    )
+    .unwrap();
+    let out = grep(&engram, grep_request(&pid, "frobnicate_widget", "warn")).await;
+    assert!(
+        out.contains("newly_added.rs"),
+        "disk fallback must find the string in the new file:\n{out}"
+    );
+    assert!(
+        out.to_lowercase().contains("not in the index"),
+        "output must note the match came from the working tree:\n{out}"
+    );
+}
