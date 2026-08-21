@@ -111,25 +111,72 @@ pub async fn build_snapshot(
 /// coincidental keyword is not an answer). A single-term question is satisfied
 /// by any lexical hit.
 pub fn has_adequate_support(question: &str, evidence: &[EvidenceItem]) -> bool {
-    if evidence
-        .iter()
-        .any(|e| e.kind == super::evidence::EvidenceKind::GraphRelation)
-    {
+    use super::evidence::EvidenceKind::GraphRelation;
+    // Strong structural support = a graph relation from a RESOLVED-entity arm
+    // (impact / usage / companion). NOT the concept arm: it matches a node on a
+    // single name-stem, so a lone "…Policy" class would falsely support a
+    // nonsense multi-term question.
+    if evidence.iter().any(|e| {
+        e.kind == GraphRelation && matches!(e.provider.as_str(), "impact" | "usage" | "companion")
+    }) {
         return true;
     }
+    // Distinctive terms only: len >= 5 (drops "work"/"does"/"what"/"page"/…,
+    // which as short substrings would spuriously match code like "framework")
+    // and no filler words. A distinctive term substring-matching code is real
+    // signal; two of them in one hit means the hit is on-topic.
     let terms: Vec<String> = question
         .to_lowercase()
         .split(|c: char| !c.is_ascii_alphanumeric())
-        .filter(|w| w.len() >= 4)
+        .filter(|w| w.len() >= 5 && !is_filler_term(w))
         .map(|s| s.to_string())
         .collect();
+    // Concept matches (single-stem) are too weak to establish support alone.
+    let considered = || evidence.iter().filter(|e| e.provider != "concept");
     if terms.len() < 2 {
-        return !evidence.is_empty();
+        return considered().next().is_some();
     }
-    evidence.iter().any(|e| {
+    considered().any(|e| {
         let hay = format!("{} {}", e.title.clone().unwrap_or_default(), e.content).to_lowercase();
         terms.iter().filter(|t| hay.contains(t.as_str())).count() >= 2
     })
+}
+
+/// Common 5+ letter words that are not distinctive query subjects.
+fn is_filler_term(w: &str) -> bool {
+    matches!(
+        w,
+        "which"
+            | "there"
+            | "where"
+            | "their"
+            | "these"
+            | "those"
+            | "would"
+            | "could"
+            | "should"
+            | "about"
+            | "after"
+            | "before"
+            | "using"
+            | "based"
+            | "other"
+            | "every"
+            | "while"
+            | "doing"
+            | "being"
+            | "still"
+            | "again"
+            | "some"
+            | "thing"
+            | "things"
+            | "something"
+            | "anything"
+            | "everything"
+            | "please"
+            | "system"
+            | "systems"
+    )
 }
 
 /// The one evidence kind that most directly answers a given answer type. Used to

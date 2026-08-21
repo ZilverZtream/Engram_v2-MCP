@@ -912,3 +912,44 @@ fn multi_term_match_is_supported_and_answered() {
     );
     assert_eq!(s, AnswerStatus::Answered); // Explanation primary = SourceCode, present
 }
+
+#[test]
+fn a_lone_concept_match_is_not_adequate_support() {
+    // Single-stem concept match (a "…Policy" node) must NOT support a nonsense
+    // multi-term question — the OciusX eval's second abstain bug.
+    let q = "what is the flux capacitor calibration policy";
+    let mut ev = vec![mk_ev(
+        "ev_1",
+        EvidenceKind::GraphRelation,
+        Authority::CurrentCode,
+        Some("UploadPolicy.vb"),
+        Some((1, 2)),
+        Some("sym:UploadPolicy"),
+        Some("UploadPolicy"),
+        "UploadPolicy (class)",
+        0.03,
+    )];
+    ev[0].provider = "concept".into();
+    assert!(
+        !has_adequate_support(q, &ev),
+        "a lone concept match is not support: {ev:?}"
+    );
+}
+
+#[test]
+fn resolved_entity_graph_relation_is_adequate_support() {
+    let q = "what breaks if I change SaveMarker";
+    let mut ev = vec![mk_ev(
+        "ev_1",
+        EvidenceKind::GraphRelation,
+        Authority::CurrentCode,
+        Some("a.vb"),
+        Some((1, 2)),
+        Some("sym:Caller"),
+        Some("Caller"),
+        "Caller calls SaveMarker",
+        0.03,
+    )];
+    ev[0].provider = "impact".into();
+    assert!(has_adequate_support(q, &ev));
+}
