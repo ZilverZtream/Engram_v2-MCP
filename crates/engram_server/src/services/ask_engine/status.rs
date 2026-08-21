@@ -136,10 +136,19 @@ pub fn has_adequate_support(question: &str, evidence: &[EvidenceItem]) -> bool {
     if terms.len() < 2 {
         return considered().next().is_some();
     }
-    considered().any(|e| {
+    // Aggregate term coverage across the evidence SET, not per-hit: a compound
+    // question's distinctive terms ("authentication" + "changed") legitimately
+    // live in different files, so requiring both in one hit falsely abstains.
+    let mut covered: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    for e in considered() {
         let hay = format!("{} {}", e.title.clone().unwrap_or_default(), e.content).to_lowercase();
-        terms.iter().filter(|t| hay.contains(t.as_str())).count() >= 2
-    })
+        for t in &terms {
+            if hay.contains(t.as_str()) {
+                covered.insert(t.as_str());
+            }
+        }
+    }
+    covered.len() >= 2
 }
 
 /// Common 5+ letter words that are not distinctive query subjects.
