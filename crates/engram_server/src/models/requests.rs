@@ -1187,6 +1187,22 @@ pub struct UpdateMemoryBankRequest {
 /// The controlled vocabulary for `MemorySection::kind`.
 pub const MEMORY_KINDS: &[&str] = &["preference", "decision", "gotcha", "reference", "note"];
 
+/// Restore or copy a memory section from portable markdown (as produced by
+/// `export_capture_pack`). The front-matter's created_at / kind / author /
+/// tags / related_files are preserved, so a restored note keeps its identity.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ImportMemoryBankRequest {
+    pub project_id: String,
+    /// The section as portable markdown (a `---` front-matter block then the
+    /// body). A plain body with no front-matter is imported as content only.
+    pub markdown: String,
+    /// Overrides the section_id from the markdown (e.g. to copy a note under a
+    /// new id, or when the markdown carries none).
+    #[serde(default)]
+    pub section_id: Option<String>,
+}
+
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MemorySectionRequest {

@@ -25,6 +25,22 @@ fn line_ranges_overlap(a_start: u32, a_end: u32, b_start: u32, b_end: u32) -> bo
 /// start_line, end_line).
 type SymbolSpan = (String, String, String, u32, u32);
 
+/// Recency bonus for a knowledge hit, added to its RRF score.
+///
+/// Exponential decay, halving every 30 days, capped at `RECENCY_MAX`. That
+/// cap is ~2 adjacent RRF rank-gaps, so a same-day note can edge past an
+/// equally-relevant note a couple of positions older, but recency can never
+/// overturn a clearly stronger textual match (whose RRF lead is far larger).
+fn recency_bonus(timestamp_ms: u64, now_ms: u64) -> f32 {
+    const RECENCY_MAX: f32 = 0.0006;
+    const HALFLIFE_DAYS: f32 = 30.0;
+    if timestamp_ms == 0 || timestamp_ms > now_ms {
+        return 0.0;
+    }
+    let age_days = (now_ms - timestamp_ms) as f32 / 86_400_000.0;
+    RECENCY_MAX * 0.5_f32.powf(age_days / HALFLIFE_DAYS)
+}
+
 /// Rank-fuse ranked hit lists from several namespaces into one list (RRF).
 ///
 /// Raw BM25 / vector scores are not comparable across namespaces, so fusion
@@ -40,10 +56,20 @@ fn rrf_fuse_namespaces(
     limit: usize,
 ) -> Vec<(String, engram_index::HybridHit)> {
     const K: f32 = 60.0;
+    let now = crate::utils::now_ms();
     let mut scored: Vec<(f32, String, engram_index::HybridHit)> = Vec::new();
     for (ns, hits) in lists {
+        let is_knowledge = engram_core::namespaces::KNOWLEDGE_NAMESPACES.contains(&ns.as_str());
         for (rank, h) in hits.into_iter().enumerate() {
-            let s = 1.0 / (K + rank as f32);
+            let mut s = 1.0 / (K + rank as f32);
+            // Recency prior for knowledge namespaces only: a fresher note is a
+            // better recall than a stale one of equal textual relevance. The
+            // bonus is deliberately bounded to ~two rank-positions so it
+            // nudges without overriding a clearly stronger match, and never
+            // touches code hits — so `search_scope: "code"` is unchanged.
+            if is_knowledge && let Some(ts) = h.timestamp {
+                s += recency_bonus(ts, now);
+            }
             scored.push((s, ns.clone(), h));
         }
     }

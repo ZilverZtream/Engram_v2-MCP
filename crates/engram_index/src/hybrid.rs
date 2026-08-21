@@ -48,6 +48,10 @@ pub struct HybridHit {
     /// True when `snippet` was cut short of the full chunk content. Callers
     /// should surface this so agents know to fetch the rest via get_chunk.
     pub snippet_truncated: bool,
+    /// The doc's indexed timestamp (unix ms), when it carries one. Memory,
+    /// insight, and history docs do; ordinary code chunks usually do not
+    /// (`None`). Drives the recency term when recalling knowledge.
+    pub timestamp: Option<u64>,
 }
 
 /// Character budget for search-hit snippets. Generous enough to show a whole
@@ -2218,6 +2222,10 @@ impl HybridSearchEngine {
                 .and_then(|v| v.as_u64())
                 .unwrap_or(0) as u32;
 
+            let timestamp = doc
+                .get_first(self.fields.timestamp)
+                .and_then(|v| v.as_u64())
+                .filter(|&t| t > 0);
             out.push(HybridHit {
                 pk,
                 chunk_id,
@@ -2228,6 +2236,7 @@ impl HybridSearchEngine {
                 doc_id: doc_id_str,
                 start_line,
                 end_line,
+                timestamp,
                 snippet_truncated,
             });
         }
@@ -2398,6 +2407,10 @@ impl HybridSearchEngine {
                 .and_then(|v| v.as_u64())
                 .unwrap_or(0) as u32;
 
+            let timestamp = doc
+                .get_first(self.fields.timestamp)
+                .and_then(|v| v.as_u64())
+                .filter(|&t| t > 0);
             out.push((
                 HybridHit {
                     pk,
@@ -2410,6 +2423,7 @@ impl HybridSearchEngine {
                     start_line,
                     end_line,
                     snippet_truncated: false,
+                    timestamp,
                 },
                 content,
                 start_line,
@@ -2515,7 +2529,30 @@ impl HybridSearchEngine {
                     hit.snippet_truncated = truncated;
                 }
             }
+            // Vector rows carry no timestamp column; fill it from Tantivy so
+            // the recency term works on the semantic path too. Bounded: only
+            // the final, truncated result list reaches here.
+            if hit.timestamp.is_none() {
+                hit.timestamp = self.timestamp_by_pk(&hit.pk);
+            }
         }
+    }
+
+    /// The indexed timestamp (unix ms) of one doc, by pk. `None` when the doc
+    /// has no timestamp or is not found.
+    fn timestamp_by_pk(&self, pk: &str) -> Option<u64> {
+        let reader = self.tantivy_index.reader().ok()?;
+        let searcher = reader.searcher();
+        let pk_q = TermQuery::new(
+            Term::from_field_text(self.fields.pk, pk),
+            IndexRecordOption::Basic,
+        );
+        let top: Vec<(Score, DocAddress)> = searcher.search(&pk_q, &TopDocs::with_limit(1)).ok()?;
+        let (_, addr) = *top.first()?;
+        let doc: tantivy::TantivyDocument = searcher.doc(addr).ok()?;
+        doc.get_first(self.fields.timestamp)
+            .and_then(|v| v.as_u64())
+            .filter(|&t| t > 0)
     }
 
     fn add_generation_filter(
@@ -2705,6 +2742,9 @@ impl HybridSearchEngine {
                         start_line: 0,
                         end_line: 0,
                         snippet_truncated: false,
+                        // Enriched from Tantivy (with the timestamp) in
+                        // enrich_hits_from_store — lance rows carry no line cols.
+                        timestamp: None,
                     });
                 }
             }
