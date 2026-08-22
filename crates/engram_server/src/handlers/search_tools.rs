@@ -637,6 +637,25 @@ impl Engram {
                 .await;
         }
 
+        // Safety cap: a chunk is normally a bounded window (a method/section),
+        // but a pathological unsplit chunk (a giant generated/designer file)
+        // could blow the caller's request budget the way an uncapped grep did.
+        // Truncate very large chunks with a pointer; a `logical_slice` narrows.
+        const MAX_CHUNK_BYTES: usize = 40_000;
+        if display_content.len() > MAX_CHUNK_BYTES {
+            let full_len = display_content.len();
+            let mut end = MAX_CHUNK_BYTES;
+            while end > 0 && !display_content.is_char_boundary(end) {
+                end -= 1;
+            }
+            display_content.truncate(end);
+            display_content.push_str(&format!(
+                "\n… [chunk truncated: {end} of {full_len} bytes shown — pass a `logical_slice` \
+                 (event_handlers/ui_methods/data_methods/sql_queries/state_access) to narrow, or \
+                 open the file directly]"
+            ));
+        }
+
         // Compute confidence footer for WebForms files.
         let confidence_footer = self.confidence_footer(&path, &lang);
 

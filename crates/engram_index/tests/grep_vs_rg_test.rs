@@ -141,6 +141,7 @@ async fn index_fixture(
             rel_path: rel,
             size: meta.len(),
             mtime_secs,
+            file_hash: None,
         });
     }
     engine.index_docs(project_id, &docs, &cancel).await.unwrap();
