@@ -1386,7 +1386,7 @@ async fn generalize_rule_text(
     project_id: &str,
     c: &ReviewCluster,
 ) -> Option<String> {
-    let cache_key = format!("cr_generic:v2:{}", c.cluster_id);
+    let cache_key = format!("cr_generic:v3:{}", c.cluster_id);
     if let Ok(Some(cached)) = state.registry.get_meta(project_id, &cache_key) {
         let t = cached.trim().to_string();
         if !t.is_empty() {
@@ -1432,8 +1432,8 @@ async fn generalize_rule_text(
         .await
         .ok()?;
     let upper = text.to_ascii_uppercase();
-    let candidate = match upper.rfind("RULE:") {
-        Some(idx) => text[idx + 5..].lines().next().unwrap_or("").to_string(),
+    let raw_after = match upper.rfind("RULE:") {
+        Some(idx) => text[idx + 5..].to_string(),
         // No marker (rare): take the last non-empty line as a best effort.
         None => text
             .lines()
@@ -1442,9 +1442,35 @@ async fn generalize_rule_text(
             .unwrap_or("")
             .to_string(),
     };
+    // Collapse any wrap/whitespace so a rule split across lines stays whole.
+    let mut candidate: String = raw_after.split_whitespace().collect::<Vec<_>>().join(" ");
+    // If the model wrapped the rule in double quotes, keep only what's inside.
+    if let Some(q1) = candidate.find('"') {
+        let rest = candidate[q1 + 1..].to_string();
+        candidate = match rest.find('"') {
+            Some(q2) => rest[..q2].to_string(),
+            None => candidate[..q1].to_string(),
+        };
+    }
+    // Drop a trailing meta clause the model sometimes tacks on.
+    for marker in [
+        ". That",
+        "; That",
+        " That's",
+        " Generic enough",
+        " (10 words",
+        " (14 words",
+        " — generic",
+    ] {
+        if let Some(p) = candidate.find(marker) {
+            candidate.truncate(p);
+        }
+    }
     let cleaned = candidate
         .trim()
-        .trim_matches(|ch: char| ch == '"' || ch == '`' || ch == '*' || ch == '.' || ch == ' ')
+        .trim_matches(|ch: char| ch == '"' || ch == '`' || ch == '*' || ch == ' ')
+        .trim_end_matches('.')
+        .trim()
         .to_string();
     // Reject empties / runaways / leaked meta-commentary; fall back to canonical.
     let looks_meta = {
