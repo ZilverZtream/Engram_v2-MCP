@@ -5566,6 +5566,40 @@ impl Engram {
         // already answered the companion-artifact question from precomputed
         // temporal-coupling edges, while find_similar_changes re-walks git
         // history. Agents followed the hint straight into that walk.
+        // House conventions: surface the CodeRabbit-derived repo rules whose
+        // pattern matches any edited file, ONCE for the whole changeset. These
+        // are the team's tacit conventions (promoted by ingest_code_review_
+        // history) that a new dev does not know yet — the class this tool exists
+        // to shift left. This is the only place the review flow sees them.
+        {
+            use crate::utils::files::pattern_match;
+            let reg = self.state.registry.clone();
+            let pid = req.project_id.clone();
+            let rules = tokio::task::spawn_blocking(move || reg.list_repo_rules(&pid))
+                .await
+                .ok()
+                .and_then(|r| r.ok())
+                .unwrap_or_default();
+            let mut applicable: Vec<String> = Vec::new();
+            let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+            for f in &req.edited_files {
+                for r in &rules {
+                    if pattern_match(f, &r.file_pattern) && seen.insert(r.rule_id.clone()) {
+                        applicable.push(r.rule_text.clone());
+                    }
+                }
+            }
+            if !applicable.is_empty() {
+                out.push_str(&format!(
+                    "\n## House conventions for these files ({})\nLearned from this repo's \
+                     CodeRabbit history — check each change against them:\n",
+                    applicable.len()
+                ));
+                for t in applicable.iter().take(40) {
+                    out.push_str(&format!("- {t}\n"));
+                }
+            }
+        }
         out.push_str("\nnext: pre_commit_review before committing.\n");
         out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
         Ok(CallToolResult::success(vec![Content::text(out)]))
