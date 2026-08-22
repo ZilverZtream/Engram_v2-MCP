@@ -598,10 +598,21 @@ pub async fn ingest_code_review_history(
                 Some(e) => format!("**/*.{e}"),
                 None => "**/*".into(),
             };
+            // Generalize the rule text into a transferable pattern whenever an
+            // LLM backend is configured (bounded to promoted clusters, cached) —
+            // decoupled from the expensive per-thread classification opt-in.
+            // Falls back to the canonical finding text.
+            let base_text = if !state.cfg.llm_backend.trim().is_empty() {
+                generalize_rule_text(state, project_id, c)
+                    .await
+                    .unwrap_or_else(|| c.canonical.rule_text.clone())
+            } else {
+                c.canonical.rule_text.clone()
+            };
             let rule = RepoRule {
                 rule_id: format!("cr_{}", &c.cluster_id[..12]),
                 file_pattern: rule_pattern,
-                rule_text: format!("{} — CodeRabbit pattern, {how}", c.canonical.rule_text),
+                rule_text: format!("{base_text} — CodeRabbit pattern, {how}"),
                 priority: (c.confidence * 100.0) as i32,
                 updated_at_ms: now_ms(),
             };
@@ -1361,6 +1372,72 @@ async fn classify_ambiguous(
     } else {
         None
     }
+}
+
+/// Generalize a promoted cluster's rule text into a TRANSFERABLE house rule.
+/// The canonical finding names specific variables/tables (`projectSubTagId`,
+/// `iok_benamning`), which are useless on other files. This asks the LLM to
+/// strip the specifics and keep only the pattern, so the rule fires usefully
+/// "anywhere". Runs only for the handful of promoted clusters, cached by
+/// cluster_id (stable across re-ingests), and falls back to the canonical text
+/// on any failure or when no LLM backend is configured.
+async fn generalize_rule_text(
+    state: &AppState,
+    project_id: &str,
+    c: &ReviewCluster,
+) -> Option<String> {
+    let cache_key = format!("cr_generic:v1:{}", c.cluster_id);
+    if let Ok(Some(cached)) = state.registry.get_meta(project_id, &cache_key) {
+        let t = cached.trim().to_string();
+        if !t.is_empty() {
+            return Some(t);
+        }
+    }
+    // Up to 4 distinct member phrasings as evidence of the shared pattern.
+    let mut examples: Vec<&str> = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for m in &c.members {
+        let t = m.rule_text.trim();
+        if !t.is_empty() && seen.insert(t) {
+            examples.push(t);
+        }
+        if examples.len() >= 4 {
+            break;
+        }
+    }
+    if examples.is_empty() {
+        return None;
+    }
+    let joined = examples
+        .iter()
+        .enumerate()
+        .map(|(i, t)| format!("{}. {t}", i + 1))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let prompt = format!(
+        "These are instances of ONE recurring code-review rule in a VB.NET / TypeScript / ASP.NET \
+         WebForms codebase:\n{joined}\n\nWrite a SINGLE generic, transferable version of this rule \
+         as one imperative instruction a reviewer can apply to ANY file. Strip every specific \
+         variable name, method name, table/column name and id — keep only the transferable pattern \
+         and the concrete API/keyword it is about (e.g. `.Contains`, `SubmitChanges`, redirect, \
+         null guard). Max 14 words. Output only the rule, no quotes, no trailing period."
+    );
+    let text = state
+        .dreaming
+        .generate_text(&prompt, 40, std::time::Duration::from_secs(12))
+        .await
+        .ok()?;
+    let cleaned = text
+        .trim()
+        .trim_matches(|ch| ch == '"' || ch == '`' || ch == '.')
+        .trim()
+        .to_string();
+    // Reject empties / runaways / obvious refusals; fall back to canonical.
+    if cleaned.is_empty() || cleaned.chars().count() > 180 || cleaned.chars().count() < 8 {
+        return None;
+    }
+    let _ = state.registry.set_meta(project_id, &cache_key, &cleaned);
+    Some(cleaned)
 }
 
 fn parse_llm_single_letter(text: &str) -> Option<LlmResolution> {
