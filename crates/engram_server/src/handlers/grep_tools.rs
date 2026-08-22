@@ -40,10 +40,16 @@ fn indexed_file_stats(
                     .and_then(|v| v.as_u64())
                     .unwrap_or(0)
             };
+            let file_hash = meta
+                .as_ref()
+                .and_then(|m| m.get("file_hash"))
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
             engram_index::grep::IndexedFileStat {
                 rel_path: rel_path.as_str().to_string(),
                 size: get("size"),
                 mtime_secs: get("mtime"),
+                file_hash,
             }
         })
         .collect())

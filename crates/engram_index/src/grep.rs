@@ -182,6 +182,12 @@ pub struct IndexedFileStat {
     pub rel_path: String,
     pub size: u64,
     pub mtime_secs: u64,
+    /// blake3 hex of the file's bytes at index time, when recorded. Lets the
+    /// freshness check CONFIRM a size/mtime mismatch against content before
+    /// reporting "stale" — an editor save, a git checkout, or a plain touch
+    /// bumps mtime without changing what we indexed, and that false-stale is
+    /// what trained agents to distrust the index and fall back to grep.
+    pub file_hash: Option<String>,
 }
 
 /// Outcome of one freshness sweep.
@@ -244,6 +250,14 @@ where
         files_checked: indexed.len(),
     };
     for fp in indexed {
+        // Never flag VCS/internal files: they are not part of the searchable
+        // corpus and editors/git rewrite them constantly, which is the bulk of
+        // the false-"stale" noise (they should not be indexed in the first
+        // place; this shields the check if they slip in).
+        if fp.rel_path.starts_with(".git/") || fp.rel_path.starts_with(".git\\") {
+            out.files_checked -= 1;
+            continue;
+        }
         let abs = project_root.join(&fp.rel_path);
         let meta = match std::fs::metadata(&abs) {
             Ok(m) => m,
@@ -265,8 +279,30 @@ where
             .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
             .map(|d| d.as_secs())
             .unwrap_or(0);
-        if meta.len() != fp.size || disk_mtime_secs != fp.mtime_secs {
-            out.stale_paths.push(fp.rel_path);
+        if meta.len() == fp.size && disk_mtime_secs == fp.mtime_secs {
+            continue; // size AND mtime unchanged → certainly fresh
+        }
+        // Size or mtime differs — but that is not proof of a content change. A
+        // save-without-edit, a git checkout, or a `touch` moves mtime (and CRLF
+        // normalisation can move size) without changing the bytes we indexed.
+        // Confirm against the content hash before reporting stale, when we have
+        // one and the file is small enough to re-hash cheaply.
+        const HASH_CONFIRM_MAX_BYTES: u64 = 8_000_000;
+        match &fp.file_hash {
+            Some(indexed_hash) if meta.len() <= HASH_CONFIRM_MAX_BYTES => match std::fs::read(&abs)
+            {
+                Ok(bytes) => {
+                    let disk_hash = blake3::hash(&bytes).to_hex().to_string();
+                    if disk_hash != *indexed_hash {
+                        out.stale_paths.push(fp.rel_path); // content genuinely changed
+                    }
+                    // else: touched but content-identical → NOT stale.
+                }
+                Err(_) => out.stale_paths.push(fp.rel_path),
+            },
+            // No recorded hash (older index) or too big to re-hash cheaply:
+            // fall back to the size/mtime signal.
+            _ => out.stale_paths.push(fp.rel_path),
         }
     }
     out.stale_paths.sort();
@@ -1250,5 +1286,72 @@ mod tests {
             3,
         );
         assert_eq!(matches.len(), 3);
+    }
+
+    #[test]
+    fn freshness_hash_confirms_touched_but_unchanged_file() {
+        use std::io::Write as _;
+        let dir = std::env::temp_dir().join(format!("engram_fresh_{}_unch", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        let content = b"Class A\n  Sub Foo()\n  End Sub\nEnd Class\n";
+        std::fs::File::create(dir.join("a.vb"))
+            .unwrap()
+            .write_all(content)
+            .unwrap();
+        // Indexed stat carries the REAL content hash but a deliberately stale
+        // mtime — as if an editor/git touched the file after indexing without
+        // changing a byte. This must NOT be reported stale.
+        let stat = IndexedFileStat {
+            rel_path: "a.vb".to_string(),
+            size: content.len() as u64,
+            mtime_secs: 1, // != disk mtime → forces the hash-confirm path
+            file_hash: Some(blake3::hash(content).to_hex().to_string()),
+        };
+        let pid = format!("freshtest_unch_{}", std::process::id());
+        let check = check_freshness(|| Ok(vec![stat]), &pid, "code", &dir).unwrap();
+        assert!(
+            check.stale_paths.is_empty(),
+            "touched-but-unchanged file must NOT be stale: {:?}",
+            check.stale_paths
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn freshness_flags_changed_content_and_skips_git() {
+        use std::io::Write as _;
+        let dir = std::env::temp_dir().join(format!("engram_fresh_{}_chg", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        let content = b"real disk content\n";
+        std::fs::File::create(dir.join("b.vb"))
+            .unwrap()
+            .write_all(content)
+            .unwrap();
+        // Indexed hash is for DIFFERENT content → genuinely changed → stale.
+        let changed = IndexedFileStat {
+            rel_path: "b.vb".to_string(),
+            size: content.len() as u64,
+            mtime_secs: 1,
+            file_hash: Some(
+                blake3::hash(b"old different content\n")
+                    .to_hex()
+                    .to_string(),
+            ),
+        };
+        // A `.git/` file is never corpus and must be skipped outright.
+        let git = IndexedFileStat {
+            rel_path: ".git/index".to_string(),
+            size: 999,
+            mtime_secs: 1,
+            file_hash: Some("whatever".to_string()),
+        };
+        let pid = format!("freshtest_chg_{}", std::process::id());
+        let check = check_freshness(|| Ok(vec![changed, git]), &pid, "code", &dir).unwrap();
+        assert_eq!(
+            check.stale_paths,
+            vec!["b.vb".to_string()],
+            "changed content flagged; .git/ skipped"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
