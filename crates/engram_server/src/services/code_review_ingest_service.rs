@@ -1386,7 +1386,7 @@ async fn generalize_rule_text(
     project_id: &str,
     c: &ReviewCluster,
 ) -> Option<String> {
-    let cache_key = format!("cr_generic:v1:{}", c.cluster_id);
+    let cache_key = format!("cr_generic:v2:{}", c.cluster_id);
     if let Ok(Some(cached)) = state.registry.get_meta(project_id, &cache_key) {
         let t = cached.trim().to_string();
         if !t.is_empty() {
@@ -1415,25 +1415,49 @@ async fn generalize_rule_text(
         .collect::<Vec<_>>()
         .join("\n");
     let prompt = format!(
-        "These are instances of ONE recurring code-review rule in a VB.NET / TypeScript / ASP.NET \
-         WebForms codebase:\n{joined}\n\nWrite a SINGLE generic, transferable version of this rule \
-         as one imperative instruction a reviewer can apply to ANY file. Strip every specific \
-         variable name, method name, table/column name and id — keep only the transferable pattern \
-         and the concrete API/keyword it is about (e.g. `.Contains`, `SubmitChanges`, redirect, \
-         null guard). Max 14 words. Output only the rule, no quotes, no trailing period."
+        "You are distilling a recurring code-review finding into ONE reusable rule for a VB.NET / \
+         TypeScript / ASP.NET WebForms codebase.\n\nInstances (same underlying rule, different \
+         code):\n{joined}\n\nProduce ONE generic, transferable rule: an imperative a reviewer can \
+         apply to ANY file. Strip every specific variable, method, table/column name and id — keep \
+         only the transferable pattern and the concrete API or keyword it concerns (for example \
+         .Contains, SubmitChanges, redirect, null guard). At most 14 words.\n\nThink briefly if you \
+         must, then output the final rule on the LAST line prefixed EXACTLY with `RULE: ` and \
+         nothing after it."
     );
+    // Reasoning model: give it room to think, then extract only the marked
+    // final line so its chain-of-thought never leaks into the rule.
     let text = state
         .dreaming
-        .generate_text(&prompt, 40, std::time::Duration::from_secs(12))
+        .generate_text(&prompt, 400, std::time::Duration::from_secs(25))
         .await
         .ok()?;
-    let cleaned = text
+    let upper = text.to_ascii_uppercase();
+    let candidate = match upper.rfind("RULE:") {
+        Some(idx) => text[idx + 5..].lines().next().unwrap_or("").to_string(),
+        // No marker (rare): take the last non-empty line as a best effort.
+        None => text
+            .lines()
+            .rev()
+            .find(|l| !l.trim().is_empty())
+            .unwrap_or("")
+            .to_string(),
+    };
+    let cleaned = candidate
         .trim()
-        .trim_matches(|ch| ch == '"' || ch == '`' || ch == '.')
-        .trim()
+        .trim_matches(|ch: char| ch == '"' || ch == '`' || ch == '*' || ch == '.' || ch == ' ')
         .to_string();
-    // Reject empties / runaways / obvious refusals; fall back to canonical.
-    if cleaned.is_empty() || cleaned.chars().count() > 180 || cleaned.chars().count() < 8 {
+    // Reject empties / runaways / leaked meta-commentary; fall back to canonical.
+    let looks_meta = {
+        let l = cleaned.to_ascii_lowercase();
+        l.contains("rule:")
+            || l.contains("something like")
+            || l.contains("we need")
+            || l.contains("i need")
+            || l.contains("14 words")
+            || l.starts_with("okay")
+            || l.starts_with("here")
+    };
+    if cleaned.chars().count() < 8 || cleaned.chars().count() > 160 || looks_meta {
         return None;
     }
     let _ = state.registry.set_meta(project_id, &cache_key, &cleaned);
