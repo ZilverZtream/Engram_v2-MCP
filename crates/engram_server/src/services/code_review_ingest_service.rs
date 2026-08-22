@@ -581,13 +581,26 @@ pub async fn ingest_code_review_history(
                     lift * 100.0,
                 )
             };
+            // Broad, MATCH-ROBUST pattern: `**/*.<ext>`. The per-finding
+            // patterns from derive_file_pattern (`/app_code/.../**/*.vb`) never
+            // match the indexed paths (`Site/App_Code/.../Foo.vb`) — wrong case,
+            // missing `Site/` prefix, and `/**/*.ext` needs a subdirectory. A
+            // promoted house convention is language-wide, so scope it to the
+            // file TYPE, which matches regardless of casing or root prefix.
+            let ext = c
+                .canonical
+                .file_path
+                .rsplit('.')
+                .next()
+                .filter(|e| !e.is_empty() && !e.contains('/'))
+                .map(|e| e.to_ascii_lowercase());
+            let rule_pattern = match ext {
+                Some(e) => format!("**/*.{e}"),
+                None => "**/*".into(),
+            };
             let rule = RepoRule {
                 rule_id: format!("cr_{}", &c.cluster_id[..12]),
-                file_pattern: c
-                    .file_patterns
-                    .first()
-                    .cloned()
-                    .unwrap_or_else(|| "**/*".into()),
+                file_pattern: rule_pattern,
                 rule_text: format!("{} — CodeRabbit pattern, {how}", c.canonical.rule_text),
                 priority: (c.confidence * 100.0) as i32,
                 updated_at_ms: now_ms(),

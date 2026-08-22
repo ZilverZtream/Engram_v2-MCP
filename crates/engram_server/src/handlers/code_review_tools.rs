@@ -112,7 +112,7 @@ impl Engram {
             stats.graph_nodes_created, stats.graph_edges_created
         ));
         out.push_str(&format!(
-            "**Repo rules auto-promoted**: {} (fix_rate ≥ 0.7, PRs ≥ 3)\n",
+            "**Repo rules auto-promoted**: {} (strict fix-rate/PR bar OR author-adjusted lift)\n",
             stats.repo_rules_promoted
         ));
         if stats.incremental_skipped_prs > 0 {
