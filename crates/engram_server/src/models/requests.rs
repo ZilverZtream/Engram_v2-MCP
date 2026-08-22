@@ -3233,6 +3233,9 @@ fn default_promote_fix_rate() -> f32 {
 fn default_promote_min_prs() -> usize {
     3
 }
+fn default_promote_lift() -> f32 {
+    0.15
+}
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -3300,6 +3303,14 @@ pub struct IngestCodeReviewHistoryRequest {
     /// promotion.
     #[serde(default = "default_promote_min_prs")]
     pub promote_min_prs: usize,
+    /// Author-adjusted promotion threshold: a cluster ALSO promotes to a repo
+    /// rule when its fix-rate is at least this far ABOVE the mean of its
+    /// authors' own baselines (the "lift"), fixed by ≥2 distinct authors across
+    /// ≥2 PRs. De-confounds a corpus where one high-volume author dismisses most
+    /// findings. Default 0.15; raise to require a bigger surprise, lower (even
+    /// negative) to promote more permissively.
+    #[serde(default = "default_promote_lift")]
+    pub promote_min_lift: f32,
 }
 
 // ─── Support KB ──────────────────────────────────────────────────────────────
