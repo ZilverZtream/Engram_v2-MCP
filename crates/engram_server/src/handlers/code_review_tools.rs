@@ -78,6 +78,7 @@ impl Engram {
             // (only promote patterns the team has agreed on many times).
             promote_repo_rule_fix_rate: req.promote_min_fix_rate.clamp(0.0, 1.0),
             promote_repo_rule_min_prs: req.promote_min_prs.max(1),
+            promote_lift_threshold: req.promote_min_lift.clamp(-1.0, 1.0),
             ..Default::default()
         };
 

@@ -223,6 +223,11 @@ pub struct ParsedRule {
     pub llm_resolution: Option<LlmResolution>,
     pub pr_id: u64,
     pub pr_url: String,
+    /// PR author — carried so promotion can DE-CONFOUND fix-rate by the
+    /// author's own baseline. A house convention a dismissive author (a CTO
+    /// who wontFixes most things) owns would otherwise never reach the fix-rate
+    /// bar and never promote, so a new dev never gets warned about it.
+    pub pr_author: String,
     pub thread_id: u64,
     pub pr_date: String,
     /// Unique identity of this specific (pr_id, thread_id) review —
@@ -282,6 +287,13 @@ pub struct IngestConfig {
     pub max_findings: usize,
     pub promote_repo_rule_fix_rate: f32,
     pub promote_repo_rule_min_prs: usize,
+    /// Author-adjusted promotion: a cluster ALSO promotes when its fix-rate
+    /// exceeds the mean of its authors' OWN baselines by at least this much
+    /// (the "lift"), fixed by ≥2 distinct authors across ≥2 PRs. This rescues a
+    /// genuine house convention that a dismissive high-volume author (e.g. a
+    /// CTO who wontFixes 57%) would otherwise drag below the raw fix-rate bar.
+    /// Default 0.15.
+    pub promote_lift_threshold: f32,
     pub force_full_rescan: bool,
     /// When `true`, closed threads without a `✅ Addressed in
     /// commits` marker are classified by the configured LLM backend
@@ -305,6 +317,7 @@ impl Default for IngestConfig {
             max_findings: 10_000,
             promote_repo_rule_fix_rate: 0.7,
             promote_repo_rule_min_prs: 3,
+            promote_lift_threshold: 0.15,
             force_full_rescan: false,
             use_llm_for_ambiguous: false,
         }
@@ -412,6 +425,39 @@ pub async fn ingest_code_review_history(
     // clustering we split into sinks.
     let all_clusters = cluster_rules(parsed, config.token_overlap_threshold);
 
+    // Per-author baseline fix-rate over the whole decided corpus. Promotion
+    // uses it to DE-CONFOUND: a house convention a dismissive high-volume
+    // author owns should still promote when it's fixed above THAT author's own
+    // normal rate. Authors with too few decisions fall back to the global rate.
+    let mut auth_fixed: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
+    let mut auth_decided: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
+    let (mut g_fixed, mut g_decided) = (0u32, 0u32);
+    for c in &all_clusters {
+        for m in &c.members {
+            let is_fixed = matches!(m.fix_status, ThreadStatus::Fixed)
+                || matches!(m.llm_resolution, Some(LlmResolution::Fixed));
+            if is_fixed || is_suppression(m) {
+                g_decided += 1;
+                *auth_decided.entry(m.pr_author.clone()).or_default() += 1;
+                if is_fixed {
+                    g_fixed += 1;
+                    *auth_fixed.entry(m.pr_author.clone()).or_default() += 1;
+                }
+            }
+        }
+    }
+    let global_baseline = if g_decided > 0 {
+        g_fixed as f32 / g_decided as f32
+    } else {
+        0.5
+    };
+    let author_baseline = |a: &str| -> f32 {
+        match auth_decided.get(a) {
+            Some(d) if *d >= 5 => auth_fixed.get(a).copied().unwrap_or(0) as f32 / *d as f32,
+            _ => global_baseline,
+        }
+    };
+
     // A cluster contributes to the positive antipattern index when its
     // fix_rate meets the threshold — computed over (fixed ∪
     // llm-fixed) / (fixed ∪ llm-fixed ∪ wontFix ∪ llm-dismissed).
@@ -494,9 +540,47 @@ pub async fn ingest_code_review_history(
 
     // 4d. Registry: auto-promote high-confidence clusters to repo rules.
     for c in &positive_clusters {
-        if c.fix_rate >= config.promote_repo_rule_fix_rate
-            && c.pr_ids.len() >= config.promote_repo_rule_min_prs
-        {
+        let pr_span = c.pr_ids.len();
+        // Path A — the original strict rate/volume bar.
+        let strict = c.fix_rate >= config.promote_repo_rule_fix_rate
+            && pr_span >= config.promote_repo_rule_min_prs;
+        // Path B — author-adjusted merit. Fixed notably ABOVE the mean baseline
+        // of the authors who own this cluster, by >=2 distinct people across
+        // >=2 PRs. Rescues a real convention a dismissive author would sink.
+        let expected: f32 = if c.members.is_empty() {
+            global_baseline
+        } else {
+            c.members
+                .iter()
+                .map(|m| author_baseline(&m.pr_author))
+                .sum::<f32>()
+                / c.members.len() as f32
+        };
+        let lift = c.fix_rate - expected;
+        let distinct_fixers = c
+            .members
+            .iter()
+            .filter(|m| {
+                matches!(m.fix_status, ThreadStatus::Fixed)
+                    || matches!(m.llm_resolution, Some(LlmResolution::Fixed))
+            })
+            .map(|m| m.pr_author.as_str())
+            .collect::<std::collections::HashSet<_>>()
+            .len();
+        let merit = lift >= config.promote_lift_threshold
+            && c.fix_rate >= 0.5
+            && pr_span >= 2
+            && distinct_fixers >= 2;
+        if strict || merit {
+            let how = if strict {
+                format!("{pr_span} PRs, {:.0}% fix rate", c.fix_rate * 100.0)
+            } else {
+                format!(
+                    "{pr_span} PRs, {:.0}% fix rate (+{:.0}pt vs authors' baseline, {distinct_fixers} distinct fixers)",
+                    c.fix_rate * 100.0,
+                    lift * 100.0,
+                )
+            };
             let rule = RepoRule {
                 rule_id: format!("cr_{}", &c.cluster_id[..12]),
                 file_pattern: c
@@ -504,12 +588,7 @@ pub async fn ingest_code_review_history(
                     .first()
                     .cloned()
                     .unwrap_or_else(|| "**/*".into()),
-                rule_text: format!(
-                    "{} — CodeRabbit pattern, {} PRs, {:.0}% fix rate",
-                    c.canonical.rule_text,
-                    c.pr_ids.len(),
-                    c.fix_rate * 100.0
-                ),
+                rule_text: format!("{} — CodeRabbit pattern, {how}", c.canonical.rule_text),
                 priority: (c.confidence * 100.0) as i32,
                 updated_at_ms: now_ms(),
             };
@@ -1194,6 +1273,7 @@ pub fn parse_comment(raw: &RawReviewComment) -> Option<ParsedRule> {
         llm_resolution: None,
         pr_id: raw.pr_id,
         pr_url: raw.pr_url.clone(),
+        pr_author: raw.pr_author.clone(),
         thread_id: raw.thread_id,
         pr_date: raw.pr_date.clone(),
         content_hash,
@@ -2306,6 +2386,7 @@ mod tests {
     #[test]
     fn cluster_rules_groups_same_pattern_across_prs() {
         let make = |pr: u64, tokens: &[&str]| ParsedRule {
+            pr_author: String::new(),
             rule_text: "Move cache".into(),
             pattern_tokens: tokens.iter().map(|s| s.to_string()).collect(),
             file_path: "/Site/Export.vb".into(),
@@ -2343,6 +2424,7 @@ mod tests {
     #[test]
     fn cluster_rules_separates_different_patterns() {
         let make = |tokens: &[&str]| ParsedRule {
+            pr_author: String::new(),
             rule_text: "r".into(),
             pattern_tokens: tokens.iter().map(|s| s.to_string()).collect(),
             file_path: "/f.vb".into(),
@@ -2372,6 +2454,7 @@ mod tests {
     #[test]
     fn cluster_rules_respects_language_boundary() {
         let a = ParsedRule {
+            pr_author: String::new(),
             rule_text: "".into(),
             pattern_tokens: vec!["DeleteAllOnSubmit".into(), "SubmitChanges".into()],
             file_path: "f.vb".into(),
@@ -2403,6 +2486,7 @@ mod tests {
     #[test]
     fn fix_rate_excludes_active_threads_from_denominator() {
         let tpl = |status| ParsedRule {
+            pr_author: String::new(),
             rule_text: "r".into(),
             pattern_tokens: vec!["TokA".into(), "TokB".into(), "TokC".into()],
             file_path: "f.vb".into(),
@@ -2517,6 +2601,7 @@ mod tests {
     #[test]
     fn llm_resolution_fixed_caps_at_085() {
         let rule = ParsedRule {
+            pr_author: String::new(),
             rule_text: "rule".into(),
             pattern_tokens: vec!["TokA".into(), "TokB".into(), "TokC".into()],
             file_path: "/f.ts".into(),
@@ -2542,6 +2627,7 @@ mod tests {
     #[test]
     fn llm_resolution_dismissed_goes_to_suppression() {
         let rule = ParsedRule {
+            pr_author: String::new(),
             rule_text: "rule".into(),
             pattern_tokens: vec!["TokA".into(), "TokB".into(), "TokC".into()],
             file_path: "/f.ts".into(),
@@ -2650,6 +2736,7 @@ mod tests {
         // 1 Fixed + 1 LLM-Fixed (closed) + 1 WontFix → fix_rate = 2/3.
         let mk = |status: ThreadStatus, llm: Option<LlmResolution>, pr: u64| -> ParsedRule {
             ParsedRule {
+                pr_author: String::new(),
                 rule_text: "r".into(),
                 pattern_tokens: vec!["TokA".into(), "TokB".into(), "TokC".into()],
                 file_path: "/x.ts".into(),
@@ -2725,6 +2812,7 @@ mod tests {
     #[test]
     fn suppression_cluster_gets_zero_fix_rate() {
         let rule = ParsedRule {
+            pr_author: String::new(),
             rule_text: "suppress me".into(),
             pattern_tokens: vec!["gQtyManager".into(), "validate".into(), "window".into()],
             file_path: "/Site/ts/qty/qtyManager.ts".into(),

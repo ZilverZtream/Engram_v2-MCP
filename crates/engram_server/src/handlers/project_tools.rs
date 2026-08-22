@@ -1739,6 +1739,7 @@ impl Engram {
                                 use_llm_for_ambiguous: false,
                                 promote_min_fix_rate: 0.7,
                                 promote_min_prs: 3,
+                                promote_min_lift: 0.15,
                             },
                         )
                         .await
