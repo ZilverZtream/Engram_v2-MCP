@@ -446,14 +446,16 @@ impl Gate for BlastRadiusGate {
                 label,
                 format!(
                     "`{}` has {ge}{} causal dependents (things that may break) and {} historical \
-                     companions (usually co-edited). Changes here ripple outward; verify you \
-                     tested the affected call sites.",
+                     companions (usually co-edited). This is 1-hop exposure with no change \
+                     semantics (a comment edit and a signature change read the same here); \
+                     verify you tested the direct call sites.",
                     df.path, report.causal_dependents, report.historical_companions
                 ),
                 format!(
-                    "Run `impact_analysis(file_path=\"{}\")` for the full dependent list. \
-                     If any caller lives in a different tier (view ↔ service ↔ DAL), \
-                     review their code paths as well.",
+                    "Run `impact_analysis(file_path=\"{}\")` for the named 1-hop causal \
+                     dependents (capped; it reports its own per-tier coverage). If any caller \
+                     lives in a different tier (view ↔ service ↔ DAL), review their code paths \
+                     as well.",
                     df.path
                 ),
             )

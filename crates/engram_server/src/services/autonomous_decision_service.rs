@@ -1845,7 +1845,7 @@ mod tests {
     /// old format buried the qualifier and a skimming reader could
     /// miss the override.
     #[test]
-    fn format_shadow_deny_leads_with_warning() {
+    fn format_shadow_abstain_leads_with_warning() {
         let mut input = make_default_input();
         // Force a deny verdict (high blast radius threshold breach).
         input.blast_radius_risk = Some(9);
@@ -1877,7 +1877,7 @@ mod tests {
     /// Advisory override works the same shape as shadow — different label
     /// but same prominence.
     #[test]
-    fn format_advisory_deny_leads_with_warning() {
+    fn format_advisory_abstain_leads_with_warning() {
         let mut input = make_default_input();
         input.blast_radius_risk = Some(9);
         input.risk_profile = RiskProfile::High;
