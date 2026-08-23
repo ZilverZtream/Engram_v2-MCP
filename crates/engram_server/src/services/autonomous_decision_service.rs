@@ -558,21 +558,35 @@ fn evaluate_blast_radius_gate(input: &AdpInput) -> GateResult {
                 .as_ref()
                 .map(|b| b.to_string())
                 .unwrap_or_else(|| "unknown".into());
+            // Confidence is NOT `1 - risk/10`. The blast-radius score is an
+            // uncalibrated 1-hop migration-complexity heuristic whose counts
+            // are capped and which mixes co-change history into "dependents";
+            // converting it into evidence confidence let a low heuristic score
+            // read as near-certainty for autonomous edits. A pass on this gate
+            // is ADVISORY: bounded confidence that never approaches 1.0, and
+            // the detail says so, so the downstream decision cannot treat the
+            // heuristic as authorization.
+            const ADVISORY_CONFIDENCE_CEILING: f64 = 0.6;
             GateResult {
                 gate_id: "blast_radius".into(),
                 gate_name: "Blast Radius / Risk".into(),
                 passed,
                 confidence: if passed {
-                    1.0 - (risk as f64 / 10.0)
+                    // Scale within [0.3, 0.6]: lower risk → higher, but capped.
+                    0.3 + (1.0 - (risk as f64 / 10.0)) * (ADVISORY_CONFIDENCE_CEILING - 0.3)
                 } else {
                     0.1
                 },
                 detail: format!(
-                    "Migration risk {}/10 ({}) — max allowed for auto-apply: {}/10 (downstream: {})",
+                    "Migration risk {}/10 ({}) — max allowed for auto-apply: {}/10 (1-hop degree: {}). \
+                     ADVISORY: this is an uncalibrated 1-hop heuristic with capped counts, not a \
+                     transitive change-impact analysis; confidence is bounded at {:.1} and must not \
+                     be read as authorization for an autonomous edit.",
                     risk,
                     band,
                     max_allowed,
-                    input.blast_radius_downstream.unwrap_or(0)
+                    input.blast_radius_downstream.unwrap_or(0),
+                    ADVISORY_CONFIDENCE_CEILING,
                 ),
                 skipped: false,
             }
