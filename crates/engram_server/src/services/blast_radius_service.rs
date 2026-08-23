@@ -184,16 +184,30 @@ pub fn is_causal_dependency(kind: &EdgeKind) -> bool {
             | EdgeKind::ExposesHttpHandler
             | EdgeKind::ExposesWcfService
             | EdgeKind::ExposesWebService
-            | EdgeKind::ObservedRuntimeControl
-            | EdgeKind::ObservedRuntimeSql
-            // Settings/inheritance/tests: a setting change reaches its readers,
-            // a base/interface change reaches derived types, a target change
-            // reaches its tests. These were missing and contradicted the
-            // polymorphism score, which already knew about derived types.
+            // Settings/inheritance: a setting change reaches its readers, a
+            // base/interface change reaches derived types. These were missing
+            // and contradicted the polymorphism score, which already knew
+            // about derived types.
             | EdgeKind::ReadsSetting
             | EdgeKind::InheritsFrom
             | EdgeKind::Implements
-            | EdgeKind::TestOracle
+    )
+    // Deliberately NOT causal-incoming:
+    // - TestOracle runs source-program → oracle file. Incoming-to-target means
+    //   the target IS the oracle; changing an oracle does not break the
+    //   program. Following it needs the OUTGOING direction (a change-aware
+    //   engine concern), so it is excluded from this incoming-only model.
+    // - ObservedRuntimeControl/Sql prove an interaction OCCURRED, not that a
+    //   change breaks the source — see `is_possible_dependency`.
+}
+
+/// Runtime-observed evidence: an interaction was seen to happen, which is
+/// weaker than a compiler-resolved call. Reported as a separate "possible"
+/// tier, never folded into confirmed causal counts or the score.
+pub fn is_possible_dependency(kind: &EdgeKind) -> bool {
+    matches!(
+        kind,
+        EdgeKind::ObservedRuntimeControl | EdgeKind::ObservedRuntimeSql
     )
 }
 
