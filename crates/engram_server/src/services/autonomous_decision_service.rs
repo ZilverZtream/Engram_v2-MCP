@@ -277,14 +277,21 @@ pub fn evaluate_gates(input: &AdpInput) -> AdpDecision {
     let g5 = evaluate_blast_radius_gate(input);
     if !g5.passed && !g5.skipped {
         if input.blast_radius_risk.is_some() {
-            // High risk profile can tolerate higher blast radius
-            if input.risk_profile == RiskProfile::High {
-                // Already factored in — this is a hard deny for critical
-                has_hard_deny = true;
-            } else {
-                has_hard_deny = true;
-            }
-            reasons.push(g5.detail.clone());
+            // The blast-radius score is an UNCALIBRATED 1-hop heuristic (capped
+            // counts, no change semantics, no transitive propagation). Until
+            // OciusX calibration shows the scalar predicts real failures it may
+            // block an automatic Allow and demand more evidence — it must
+            // NEVER independently produce a hard Deny. A hard deny needs a
+            // calibrated causal result or a separate deterministic policy
+            // (protected files, forbidden operations). So: ABSTAIN, not Deny.
+            has_abstain = true;
+            reasons.push(format!("{} (advisory: abstain, not deny)", g5.detail));
+            followups.push(
+                "Blast-radius heuristic exceeded the auto-apply bar — supply causal/runtime \
+                 evidence (impact_analysis on the changed symbols, tests, or a human review) \
+                 before applying autonomously"
+                    .into(),
+            );
         } else {
             has_abstain = true;
             followups.push("Run compute_blast_radius on affected files to assess risk".into());
@@ -1777,13 +1784,32 @@ mod tests {
     }
 
     #[test]
-    fn deny_on_high_blast_radius() {
+    fn high_blast_radius_abstains_never_hard_denies_alone() {
+        // The blast-radius score is an uncalibrated heuristic: on its own it
+        // may block an automatic Allow (abstain + demand evidence) but must
+        // never independently produce a hard Deny.
         let mut input = make_default_input();
         input.blast_radius_risk = Some(9);
         input.blast_radius_band = Some(RiskBand::Critical);
         let decision = evaluate_gates(&input);
-        assert_eq!(decision.verdict, AdpVerdict::Deny);
+        assert_ne!(
+            decision.verdict,
+            AdpVerdict::Deny,
+            "an uncalibrated heuristic must not hard-deny by itself"
+        );
+        assert_ne!(
+            decision.verdict,
+            AdpVerdict::Allow,
+            "it must still block an automatic Allow"
+        );
         assert!(decision.failed_gates.contains(&"blast_radius".to_string()));
+        assert!(
+            decision
+                .required_followups
+                .iter()
+                .any(|f| f.contains("causal/runtime evidence")),
+            "must ask for more evidence rather than deny"
+        );
     }
 
     #[test]
@@ -2275,11 +2301,11 @@ mod tests {
                     vec!["safety_policy".into()],
                 ),
                 scenario(
-                    "s007_deny_blast_exceeds_max",
-                    "Blast radius > max allowed",
+                    "s007_abstain_blast_exceeds_max",
+                    "Blast radius > max allowed: uncalibrated heuristic -> abstain, never hard deny",
                     "high",
                     s007,
-                    "deny",
+                    "abstain",
                     vec!["blast_radius".into()],
                 ),
                 scenario(
@@ -2307,11 +2333,11 @@ mod tests {
                     vec!["retrieval_quality".into()],
                 ),
                 scenario(
-                    "s011_deny_blast_critical",
-                    "Blast radius at critical level",
+                    "s011_abstain_blast_critical",
+                    "Blast radius at critical level: still abstain (demand causal evidence), not deny",
                     "high",
                     s011,
-                    "deny",
+                    "abstain",
                     vec!["blast_radius".into()],
                 ),
                 scenario(
@@ -2404,8 +2430,10 @@ mod tests {
         let matrix = AdpConfusionMatrix::from_results(&results);
         assert_eq!(matrix.total, 20);
         assert_eq!(matrix.true_allow, 5, "5 allow scenarios must all pass");
-        assert_eq!(matrix.true_deny, 8, "8 deny scenarios must all pass");
-        assert_eq!(matrix.true_abstain, 7, "7 abstain scenarios must all pass");
+        // s007/s011 (blast-radius over the bar) moved deny -> abstain: an
+        // uncalibrated heuristic may block auto-Allow but never hard-deny alone.
+        assert_eq!(matrix.true_deny, 6, "6 deny scenarios must all pass");
+        assert_eq!(matrix.true_abstain, 9, "9 abstain scenarios must all pass");
         assert_eq!(matrix.false_allow, 0, "no false-allow predictions");
         assert_eq!(matrix.false_deny, 0, "no false-deny predictions");
         assert!(
@@ -2431,8 +2459,7 @@ mod tests {
     #[test]
     fn kill_switch_overrides_deny_to_deny() {
         let mut input = make_default_input();
-        input.blast_radius_risk = Some(9);
-        input.blast_radius_band = Some(RiskBand::Critical);
+        input.immune_verdict = Some("BLOCK".into()); // deterministic hard-deny source
         let decision = evaluate_gates(&input);
         assert_eq!(decision.verdict, AdpVerdict::Deny);
 
@@ -2445,8 +2472,7 @@ mod tests {
     #[test]
     fn shadow_phase_overrides_deny_to_allow() {
         let mut input = make_default_input();
-        input.blast_radius_risk = Some(9);
-        input.blast_radius_band = Some(RiskBand::Critical);
+        input.immune_verdict = Some("BLOCK".into()); // deterministic hard-deny source
         let decision = evaluate_gates(&input);
         assert_eq!(decision.verdict, AdpVerdict::Deny);
 
@@ -2458,8 +2484,7 @@ mod tests {
     #[test]
     fn advisory_phase_overrides_deny_to_allow_with_warning() {
         let mut input = make_default_input();
-        input.blast_radius_risk = Some(9);
-        input.blast_radius_band = Some(RiskBand::Critical);
+        input.immune_verdict = Some("BLOCK".into()); // deterministic hard-deny source
         let decision = evaluate_gates(&input);
         assert_eq!(decision.verdict, AdpVerdict::Deny);
 
@@ -2471,8 +2496,7 @@ mod tests {
     #[test]
     fn guarded_phase_preserves_deny() {
         let mut input = make_default_input();
-        input.blast_radius_risk = Some(9);
-        input.blast_radius_band = Some(RiskBand::Critical);
+        input.immune_verdict = Some("BLOCK".into()); // deterministic hard-deny source
         let decision = evaluate_gates(&input);
         assert_eq!(decision.verdict, AdpVerdict::Deny);
 
@@ -2851,8 +2875,7 @@ mod tests {
     #[test]
     fn wave_single_deny_vetoes_wave() {
         let mut deny_input = make_default_input();
-        deny_input.blast_radius_risk = Some(9);
-        deny_input.blast_radius_band = Some(RiskBand::Critical);
+        deny_input.immune_verdict = Some("BLOCK".into()); // deterministic hard-deny source
 
         let items = vec![
             ("good.aspx".into(), make_default_input()),

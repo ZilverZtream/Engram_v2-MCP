@@ -413,15 +413,31 @@ impl Gate for BlastRadiusGate {
             } else {
                 "Medium-blast-radius file modified"
             };
+            // Evidence uses the CAUSAL count (what may break) with honest
+            // coverage, not the raw incoming+outgoing degree that mixed in
+            // co-change history and the file's own dependencies.
+            let ge = if report.coverage.truncated { ">=" } else { "" };
             let evidence = vec![
                 format!(
-                    "migration_risk = {}/10 ({})",
+                    "migration_risk = {}/10 ({}) [advisory 1-hop heuristic]",
                     report.migration_risk,
                     report.risk_band.as_str()
                 ),
-                format!("total_incoming = {}", report.total_incoming),
-                format!("total_outgoing = {}", report.total_outgoing),
-                format!("total_downstream = {}", report.total_downstream),
+                format!("causal_dependents = {ge}{}", report.causal_dependents),
+                format!(
+                    "historical_companions = {} (co-change, not breakage)",
+                    report.historical_companions
+                ),
+                format!(
+                    "raw_degree: incoming {ge}{}, outgoing {ge}{}{}",
+                    report.total_incoming,
+                    report.total_outgoing,
+                    if report.coverage.truncated {
+                        " (LOWER BOUNDS — fetch cap hit)"
+                    } else {
+                        ""
+                    }
+                ),
             ];
             let f = ReviewFinding::new(
                 severity,
@@ -429,9 +445,10 @@ impl Gate for BlastRadiusGate {
                 df.path.clone(),
                 label,
                 format!(
-                    "`{}` has {} incoming dependents and {} outgoing dependencies. Changes \
-                     here ripple outward; verify you tested the affected call sites.",
-                    df.path, report.total_incoming, report.total_outgoing
+                    "`{}` has {ge}{} causal dependents (things that may break) and {} historical \
+                     companions (usually co-edited). Changes here ripple outward; verify you \
+                     tested the affected call sites.",
+                    df.path, report.causal_dependents, report.historical_companions
                 ),
                 format!(
                     "Run `impact_analysis(file_path=\"{}\")` for the full dependent list. \
