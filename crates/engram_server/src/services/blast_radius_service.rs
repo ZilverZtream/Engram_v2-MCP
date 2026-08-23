@@ -87,6 +87,23 @@ pub struct GuidanceItem {
     pub modern_pattern: Option<String>,
 }
 
+/// Honest coverage of the counts in a report. Every edge fetch in this
+/// service is capped (500 outgoing per kind, 1000 incoming, 1000 touching per
+/// contained symbol); on an OciusX-sized graph those caps are HIT (resource
+/// files report exactly 1000/500, a designer file ~9.6k). Presenting a capped
+/// count as exact turned a lower bound into a "fact" that agents then trusted
+/// as a risk oracle. This struct says which counts are lower bounds.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CountCoverage {
+    /// True when ANY fetch hit its cap — every count is then a LOWER BOUND.
+    pub truncated: bool,
+    /// Which fetches hit their cap ("incoming", "outgoing:<kind>", "contained:<sym>").
+    pub truncated_fetches: Vec<String>,
+    /// The caps that applied, so a reader can interpret a count equal to one.
+    pub cap_incoming: usize,
+    pub cap_outgoing_per_kind: usize,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlastRadiusReport {
     pub target: String,
@@ -99,7 +116,65 @@ pub struct BlastRadiusReport {
     pub guidance: Vec<GuidanceItem>,
     pub total_incoming: usize,
     pub total_outgoing: usize,
+    /// DEPRECATED semantics: this is `total_incoming + total_outgoing`, a
+    /// 1-hop degree, NOT a transitive blast radius. Outgoing edges are things
+    /// the target depends on; they do not break when the target changes.
+    /// Prefer `causal_dependents` for "what may break".
     pub total_downstream: usize,
+    /// Incoming edges of CAUSAL kinds only (calls, dependency, imports,
+    /// inheritance, setting/state/table reads, API calls, data binding). This
+    /// excludes temporal coupling, search co-occurrence, insight, anti-pattern
+    /// and containment edges, which are historical/associative/structural and
+    /// were previously counted as if they were things that break.
+    #[serde(default)]
+    pub causal_dependents: usize,
+    /// Incoming TemporalCoupling edges — "usually changed together". Companion
+    /// evidence for planning, NEVER causal impact. Reported separately.
+    #[serde(default)]
+    pub historical_companions: usize,
+    #[serde(default)]
+    pub coverage: CountCoverage,
+}
+
+/// Does an INCOMING edge of this kind mean "the source may BREAK when the
+/// target changes"? Only these kinds count toward `causal_dependents`.
+/// Historical (TemporalCoupling), associative (CoOccurrence, Insight,
+/// AntiPattern, UiLayoutNeighbor, StateAffinity), structural (Contains,
+/// ContainsUi, HasColumn) and unresolved kinds are NOT causal: "usually
+/// changed together" and "often searched together" are not "will break".
+pub fn is_causal_dependency(kind: &EdgeKind) -> bool {
+    matches!(
+        kind,
+        EdgeKind::Calls
+            | EdgeKind::Dependency
+            | EdgeKind::Imports
+            | EdgeKind::IncludesFile
+            | EdgeKind::ApiCall
+            | EdgeKind::DataBinding
+            | EdgeKind::ParameterBinding
+            | EdgeKind::ReadsState
+            | EdgeKind::WritesState
+            | EdgeKind::QueriesTable
+            | EdgeKind::ReadsColumn
+            | EdgeKind::ForeignKey
+            | EdgeKind::SqlCalls
+            | EdgeKind::CallsStoredProcedure
+            | EdgeKind::StoredProcReadsTable
+            | EdgeKind::StoredProcWritesTable
+            | EdgeKind::SpatialCall
+            | EdgeKind::InjectsScript
+            | EdgeKind::ManipulatesDom
+            | EdgeKind::RegistersHandler
+            | EdgeKind::RegistersControl
+            | EdgeKind::RegistersModule
+            | EdgeKind::TriggersPostback
+            | EdgeKind::FillsRegion
+            | EdgeKind::ExposesHttpHandler
+            | EdgeKind::ExposesWcfService
+            | EdgeKind::ExposesWebService
+            | EdgeKind::ObservedRuntimeControl
+            | EdgeKind::ObservedRuntimeSql
+    )
 }
 
 fn meta_bool(metadata: Option<&serde_json::Value>, key: &str) -> bool {
@@ -199,17 +274,40 @@ pub fn compute_blast_radius(
         .map(|n| n.node_type.clone())
         .unwrap_or_else(|| "unknown".into());
 
+    // Every fetch below is capped. Record which caps were HIT so the report
+    // can say "lower bound" instead of presenting a capped count as exact.
+    const CAP_OUT_PER_KIND: usize = 500;
+    const CAP_INCOMING: usize = 1000;
+    const CAP_TOUCHING: usize = 1000;
+    let mut coverage = CountCoverage {
+        truncated: false,
+        truncated_fetches: Vec::new(),
+        cap_incoming: CAP_INCOMING,
+        cap_outgoing_per_kind: CAP_OUT_PER_KIND,
+    };
+
     // 2. Count outgoing edges by kind
     let mut out_counts: HashMap<EdgeKind, usize> = HashMap::new();
     for kind in EdgeKind::ALL {
-        let neighbors = graph.neighbors(project_id, kind.clone(), target_id, 500)?;
+        let neighbors = graph.neighbors(project_id, kind.clone(), target_id, CAP_OUT_PER_KIND)?;
+        if neighbors.len() >= CAP_OUT_PER_KIND {
+            coverage.truncated = true;
+            coverage
+                .truncated_fetches
+                .push(format!("outgoing:{}", kind.as_str()));
+        }
         if !neighbors.is_empty() {
             out_counts.insert(kind.clone(), neighbors.len());
         }
     }
 
     // 3. Count incoming edges by kind
-    let incoming = graph.find_incoming_edges_with_kind(project_id, None, target_id, 1000)?;
+    let incoming =
+        graph.find_incoming_edges_with_kind(project_id, None, target_id, CAP_INCOMING)?;
+    if incoming.len() >= CAP_INCOMING {
+        coverage.truncated = true;
+        coverage.truncated_fetches.push("incoming".to_string());
+    }
     let mut in_counts: HashMap<EdgeKind, usize> = HashMap::new();
     let mut in_sources_by_kind: HashMap<EdgeKind, HashSet<String>> = HashMap::new();
     // TODO-12: bare-name bindings count at their confidence, not 1.0 —
@@ -301,7 +399,16 @@ pub fn compute_blast_radius(
             // endpoints, but the old single scan visited it once.
             let mut seen_edges: HashSet<(String, String, String)> = HashSet::new();
             for sym_id in &contained_symbols {
-                for edge in graph.edges_touching(project_id, sym_id, 1000)? {
+                let touching = graph.edges_touching(project_id, sym_id, CAP_TOUCHING)?;
+                if touching.len() >= CAP_TOUCHING {
+                    coverage.truncated = true;
+                    if coverage.truncated_fetches.len() < 20 {
+                        coverage
+                            .truncated_fetches
+                            .push(format!("contained:{sym_id}"));
+                    }
+                }
+                for edge in touching {
                     if !seen_edges.insert((
                         edge.edge_kind.as_str().to_string(),
                         edge.source_id.clone(),
@@ -411,7 +518,11 @@ pub fn compute_blast_radius(
     // O(degree) adjacency lookup — this used to be a full structural-edge
     // table scan on EVERY call (the dominant cost of check_edit_safety and
     // the per-file loop in pre_commit_review on large graphs).
-    let touching_edges = graph.edges_touching(project_id, target_id, 1000)?;
+    let touching_edges = graph.edges_touching(project_id, target_id, CAP_TOUCHING)?;
+    if touching_edges.len() >= CAP_TOUCHING {
+        coverage.truncated = true;
+        coverage.truncated_fetches.push("touching".to_string());
+    }
 
     let node_meta = node.as_ref().and_then(|n| n.metadata.as_ref());
     let mut dynamic_ui_signals = usize::from(meta_bool(node_meta, "dynamic_control"));
@@ -469,6 +580,19 @@ pub fn compute_blast_radius(
     let total_incoming: usize = in_counts.values().sum();
     let total_outgoing: usize = out_counts.values().sum();
     let total_downstream: usize = total_incoming + total_outgoing;
+    // Split incoming into what may BREAK (causal) vs what merely correlates
+    // (historical companions) — previously both fed the same "dependents"
+    // number, so a resource file that co-changed with everything looked like
+    // a hub that everything depended on.
+    let causal_dependents: usize = in_counts
+        .iter()
+        .filter(|(k, _)| is_causal_dependency(k))
+        .map(|(_, n)| *n)
+        .sum();
+    let historical_companions: usize = in_counts
+        .get(&EdgeKind::TemporalCoupling)
+        .copied()
+        .unwrap_or(0);
     let dependency_density_score =
         normalize_score(discounted_incoming.round() as usize, DEPENDENCY_SATURATION);
 
@@ -561,7 +685,7 @@ pub fn compute_blast_radius(
         }
         if sql_concat_score > 5.0 {
             guidance.push(GuidanceItem {
-                concern: "SQL Injection Risk / Data Access Coupling".into(),
+                concern: "Data Access Coupling (NOT an injection analysis)".into(),
                 severity: if sql_concat_score > 7.0 {
                     "high"
                 } else {
@@ -691,6 +815,9 @@ pub fn compute_blast_radius(
         total_incoming,
         total_outgoing,
         total_downstream,
+        causal_dependents,
+        historical_companions,
+        coverage,
     })
 }
 
@@ -698,19 +825,36 @@ pub fn compute_blast_radius(
 pub fn format_report(report: &BlastRadiusReport) -> String {
     let mut out = String::with_capacity(2048);
 
+    // Honest counts: say "lower bound" when a fetch cap was hit, and lead
+    // with the CAUSAL dependents (what may break) rather than the raw
+    // incoming+outgoing degree that mixed in co-change history.
+    let ge = if report.coverage.truncated { ">=" } else { "" };
     out.push_str(&format!(
         "Migration Blast Radius: {}\n\
          Type: {}\n\
          Risk Score: {}/10 ({})\n\
-         Total Downstream Nodes: {} (incoming: {}, outgoing: {})\n\n",
+         Causal dependents (1-hop, may break if this changes): {ge}{}\n\
+         Historical companions (usually changed together, NOT causal): {}\n\
+         Raw 1-hop degree: incoming {ge}{}, outgoing {ge}{} (outgoing = things this depends on; they do not break)\n",
         report.target,
         report.target_type,
         report.migration_risk,
         report.risk_band,
-        report.total_downstream,
+        report.causal_dependents,
+        report.historical_companions,
         report.total_incoming,
         report.total_outgoing,
     ));
+    if report.coverage.truncated {
+        out.push_str(&format!(
+            "⚠ COUNTS ARE LOWER BOUNDS: a fetch cap was hit ({}); the true numbers are higher. \
+             Caps: incoming {}, outgoing {} per edge kind. Do not treat these as exact.\n",
+            report.coverage.truncated_fetches.join(", "),
+            report.coverage.cap_incoming,
+            report.coverage.cap_outgoing_per_kind,
+        ));
+    }
+    out.push('\n');
 
     out.push_str("Complexity Breakdown:\n");
     let bd = &report.complexity_breakdown;
@@ -719,7 +863,7 @@ pub fn format_report(report: &BlastRadiusReport) -> String {
         bd.dependency_density_score
     ));
     out.push_str(&format!(
-        "  SQL Risk:         {:.1}/10\n",
+        "  Data Access:      {:.1}/10 (coupling, not injection)\n",
         bd.sql_concat_score
     ));
     out.push_str(&format!(
@@ -915,11 +1059,14 @@ mod tests {
             total_incoming: 10,
             total_outgoing: 5,
             total_downstream: 15,
+            causal_dependents: 0,
+            historical_companions: 0,
+            coverage: CountCoverage::default(),
         };
         let text = format_report(&report);
         assert!(text.contains("7/10"));
         assert!(text.contains("High"));
-        assert!(text.contains("SQL Risk"));
+        assert!(text.contains("Data Access:"));
     }
 
     // ── normalize_score boundary cases ──────────────────────────────────────
@@ -1129,6 +1276,9 @@ mod tests {
             total_incoming: 3,
             total_outgoing: 5,
             total_downstream: 8,
+            causal_dependents: 0,
+            historical_companions: 0,
+            coverage: CountCoverage::default(),
         };
         let text = format_report(&report);
         assert!(text.contains("5/10"), "should contain risk score");
@@ -1146,12 +1296,78 @@ mod tests {
             "should list seam candidates"
         );
         assert!(text.contains("Migration Guidance"), "should list guidance");
-        assert!(text.contains("SQL Risk"), "should show concern");
+        assert!(text.contains("Data Access"), "should show concern");
         assert!(text.contains("Dapper"), "should show modern pattern");
+        // The header no longer presents incoming+outgoing as "downstream
+        // nodes": it leads with causal dependents and labels the raw degree.
         assert!(
-            text.contains("Total Downstream Nodes: 8"),
-            "should show downstream count"
+            text.contains("Causal dependents (1-hop, may break if this changes)"),
+            "should lead with causal dependents"
         );
+        assert!(
+            text.contains("Raw 1-hop degree: incoming"),
+            "should label the raw degree honestly"
+        );
+    }
+
+    #[test]
+    fn truncated_counts_are_flagged_as_lower_bounds() {
+        let report = BlastRadiusReport {
+            target: "file:Resources.resx".into(),
+            target_type: "file".into(),
+            migration_risk: 4,
+            risk_band: RiskBand::Medium,
+            complexity_breakdown: ComplexityBreakdown {
+                handles_clause_score: 0.0,
+                sql_concat_score: 0.0,
+                pagerank_score: 1.0,
+                state_coupling_score: 0.0,
+                gis_coupling_score: 0.0,
+                polymorphism_score: 0.0,
+                script_injection_score: 0.0,
+                dependency_density_score: 10.0,
+            },
+            uncertainty_breakdown: UncertaintyBreakdown {
+                dynamic_ui_uncertainty_score: 0.0,
+                late_binding_uncertainty_score: 0.0,
+                dynamic_sql_uncertainty_score: 0.0,
+            },
+            seam_candidates: vec![],
+            guidance: vec![],
+            total_incoming: 1000,
+            total_outgoing: 500,
+            total_downstream: 1500,
+            causal_dependents: 12,
+            historical_companions: 988,
+            coverage: CountCoverage {
+                truncated: true,
+                truncated_fetches: vec!["incoming".into()],
+                cap_incoming: 1000,
+                cap_outgoing_per_kind: 500,
+            },
+        };
+        let text = format_report(&report);
+        assert!(
+            text.contains(">=1000"),
+            "a capped count must render as a lower bound: {text}"
+        );
+        assert!(
+            text.contains("COUNTS ARE LOWER BOUNDS"),
+            "must warn that counts are truncated"
+        );
+    }
+
+    #[test]
+    fn temporal_coupling_is_not_a_causal_dependency() {
+        assert!(!is_causal_dependency(&EdgeKind::TemporalCoupling));
+        assert!(!is_causal_dependency(&EdgeKind::CoOccurrence));
+        assert!(!is_causal_dependency(&EdgeKind::Insight));
+        assert!(!is_causal_dependency(&EdgeKind::AntiPattern));
+        assert!(!is_causal_dependency(&EdgeKind::Contains));
+        assert!(is_causal_dependency(&EdgeKind::Calls));
+        assert!(is_causal_dependency(&EdgeKind::Dependency));
+        assert!(is_causal_dependency(&EdgeKind::ReadsState));
+        assert!(is_causal_dependency(&EdgeKind::QueriesTable));
     }
 
     #[test]
@@ -1181,6 +1397,9 @@ mod tests {
             total_incoming: 0,
             total_outgoing: 0,
             total_downstream: 0,
+            causal_dependents: 0,
+            historical_companions: 0,
+            coverage: CountCoverage::default(),
         };
         let text = format_report(&report);
         assert!(
@@ -1220,6 +1439,9 @@ mod tests {
             total_incoming: 1,
             total_outgoing: 1,
             total_downstream: 2,
+            causal_dependents: 0,
+            historical_companions: 0,
+            coverage: CountCoverage::default(),
         };
         let text = format_report(&report);
         // {:.1} formatting means 3.333 → "3.3" and 7.777 → "7.8"
@@ -1310,6 +1532,9 @@ EndProject
             total_incoming: 4,
             total_outgoing: 6,
             total_downstream: 10,
+            causal_dependents: 0,
+            historical_companions: 0,
+            coverage: CountCoverage::default(),
         };
 
         // Apply the multiplier manually (simulating what compute_blast_radius_with_solution does)

@@ -3137,17 +3137,33 @@ impl Engram {
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
+        // Lead with CAUSAL dependents (what may break), not the raw
+        // incoming+outgoing degree that counted co-change history and the
+        // target's own dependencies as "dependents". Flag lower bounds.
+        let ge = if report.coverage.truncated { ">=" } else { "" };
         let mut out = format!(
             "# Blast Radius Analysis: {}\n\n\
-             **Overall Risk**: {}/10 ({})\n\
-             **Direct dependents (1-hop, NOT transitive)**: {} (incoming: {}, outgoing: {})\n",
+             **Overall Risk**: {}/10 ({}) — an uncalibrated 1-hop heuristic, NOT a transitive \
+             change-impact analysis; treat as advisory\n\
+             **Causal dependents (1-hop, may break if this changes)**: {ge}{}\n\
+             **Historical companions (usually changed together, NOT causal)**: {}\n\
+             **Raw 1-hop degree**: incoming {ge}{}, outgoing {ge}{} (outgoing = this target's own \
+             dependencies; they do not break when it changes)\n",
             report.target,
             report.migration_risk,
             report.risk_band,
-            report.total_downstream,
+            report.causal_dependents,
+            report.historical_companions,
             report.total_incoming,
             report.total_outgoing
         );
+        if report.coverage.truncated {
+            out.push_str(&format!(
+                "⚠ **COUNTS ARE LOWER BOUNDS** — a fetch cap was hit ({}); true numbers are higher. \
+                 Do not treat these as exact.\n",
+                report.coverage.truncated_fetches.join(", ")
+            ));
+        }
 
         let bd = &report.complexity_breakdown;
         out.push_str("\n**Complexity Breakdown**:\n");
