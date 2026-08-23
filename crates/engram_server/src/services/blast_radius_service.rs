@@ -132,6 +132,11 @@ pub struct BlastRadiusReport {
     /// evidence for planning, NEVER causal impact. Reported separately.
     #[serde(default)]
     pub historical_companions: usize,
+    /// File targets only: edges with BOTH endpoints inside the file. Internal
+    /// complexity/cohesion — excluded from every external count and from the
+    /// score (previously each one inflated incoming AND outgoing AND risk).
+    #[serde(default)]
+    pub internal_edges: usize,
     #[serde(default)]
     pub coverage: CountCoverage,
 }
@@ -174,6 +179,14 @@ pub fn is_causal_dependency(kind: &EdgeKind) -> bool {
             | EdgeKind::ExposesWebService
             | EdgeKind::ObservedRuntimeControl
             | EdgeKind::ObservedRuntimeSql
+            // Settings/inheritance/tests: a setting change reaches its readers,
+            // a base/interface change reaches derived types, a target change
+            // reaches its tests. These were missing and contradicted the
+            // polymorphism score, which already knew about derived types.
+            | EdgeKind::ReadsSetting
+            | EdgeKind::InheritsFrom
+            | EdgeKind::Implements
+            | EdgeKind::TestOracle
     )
 }
 
@@ -289,8 +302,9 @@ pub fn compute_blast_radius(
     // 2. Count outgoing edges by kind
     let mut out_counts: HashMap<EdgeKind, usize> = HashMap::new();
     for kind in EdgeKind::ALL {
-        let neighbors = graph.neighbors(project_id, kind.clone(), target_id, CAP_OUT_PER_KIND)?;
-        if neighbors.len() >= CAP_OUT_PER_KIND {
+        let neighbors =
+            graph.neighbors(project_id, kind.clone(), target_id, CAP_OUT_PER_KIND + 1)?;
+        if neighbors.len() > CAP_OUT_PER_KIND {
             coverage.truncated = true;
             coverage
                 .truncated_fetches
@@ -303,8 +317,8 @@ pub fn compute_blast_radius(
 
     // 3. Count incoming edges by kind
     let incoming =
-        graph.find_incoming_edges_with_kind(project_id, None, target_id, CAP_INCOMING)?;
-    if incoming.len() >= CAP_INCOMING {
+        graph.find_incoming_edges_with_kind(project_id, None, target_id, CAP_INCOMING + 1)?;
+    if incoming.len() > CAP_INCOMING {
         coverage.truncated = true;
         coverage.truncated_fetches.push("incoming".to_string());
     }
@@ -313,7 +327,13 @@ pub fn compute_blast_radius(
     // TODO-12: bare-name bindings count at their confidence, not 1.0 —
     // app JS calling `new Map()` must not give a class named `Map`
     // hundreds of phantom callers and a RED edit-safety verdict.
-    let mut discounted_incoming: f32 = 0.0;
+    // The SCORE input. Previously every incoming edge of every kind summed into
+    // `discounted_incoming` → dependency_density_score → migration_risk, so
+    // TemporalCoupling / CoOccurrence / Contains contaminated the risk that
+    // gates and agents consume, and one caller reaching the target through
+    // several edge kinds counted several times. Now: CAUSAL kinds only, UNIQUE
+    // source nodes, each at its best (max) edge confidence. Historical and
+    // associative evidence never influences causal exposure.
     let mut low_confidence_incoming: usize = 0;
     for (source_id, kind, _weight) in &incoming {
         *in_counts.entry(kind.clone()).or_default() += 1;
@@ -328,17 +348,32 @@ pub fn compute_blast_radius(
         .iter()
         .map(|(source_id, kind, _)| (kind.clone(), source_id.clone(), target_id.to_string()))
         .collect();
-    if let Ok(confs) = graph.get_edge_confidences(project_id, &conf_queries) {
-        for conf in confs {
-            let c = conf.unwrap_or(1.0).clamp(0.0, 1.0);
-            discounted_incoming += c;
-            if c < 0.6 {
-                low_confidence_incoming += 1;
-            }
+    // source_id -> best confidence among its CAUSAL edges to the target.
+    let mut causal_source_conf: HashMap<&str, f32> = HashMap::new();
+    let confs: Vec<Option<f32>> = match graph.get_edge_confidences(project_id, &conf_queries) {
+        Ok(c) => c,
+        // Unknown confidence stays UNKNOWN (None), not laundered to 1.0.
+        Err(_) => vec![None; incoming.len()],
+    };
+    for ((source_id, kind, _), conf) in incoming.iter().zip(confs.iter()) {
+        if !is_causal_dependency(kind) {
+            continue;
         }
-    } else {
-        discounted_incoming = incoming.len() as f32;
+        // An unknown confidence contributes a conservative 0.5, not certainty.
+        let c = conf.unwrap_or(0.5).clamp(0.0, 1.0);
+        if c < 0.6 {
+            low_confidence_incoming += 1;
+        }
+        let e = causal_source_conf.entry(source_id.as_str()).or_insert(0.0);
+        if c > *e {
+            *e = c;
+        }
     }
+    let mut discounted_incoming: f32 = causal_source_conf.values().sum();
+    // File-level aggregation (below) adds EXTERNAL causal sources reaching the
+    // file's contained symbols; internal wiring is counted separately.
+    let mut file_causal_conf: HashMap<String, f32> = HashMap::new();
+    let mut internal_edges: usize = 0;
 
     // 3b. Transitive aggregation for file-level targets.
     //
@@ -399,8 +434,8 @@ pub fn compute_blast_radius(
             // endpoints, but the old single scan visited it once.
             let mut seen_edges: HashSet<(String, String, String)> = HashSet::new();
             for sym_id in &contained_symbols {
-                let touching = graph.edges_touching(project_id, sym_id, CAP_TOUCHING)?;
-                if touching.len() >= CAP_TOUCHING {
+                let touching = graph.edges_touching(project_id, sym_id, CAP_TOUCHING + 1)?;
+                if touching.len() > CAP_TOUCHING {
                     coverage.truncated = true;
                     if coverage.truncated_fetches.len() < 20 {
                         coverage
@@ -428,29 +463,62 @@ pub fn compute_blast_radius(
                     {
                         continue;
                     }
-                    if contained_symbols.contains(&edge.source_id) {
+                    // COMPONENT BOUNDARY CUT. An edge with BOTH endpoints inside
+                    // the file is internal wiring (method A calls method B in
+                    // the same file): it is internal complexity, never an
+                    // external dependent. Previously it incremented outgoing
+                    // AND incoming AND the score — a file's own cohesion was
+                    // reported as blast radius. Only edges that CROSS the
+                    // boundary count.
+                    let src_inside = contained_symbols.contains(&edge.source_id);
+                    let tgt_inside = contained_symbols.contains(&edge.target_id);
+                    if src_inside && tgt_inside {
+                        internal_edges += 1;
+                        continue;
+                    }
+                    if src_inside {
                         *out_counts.entry(edge.edge_kind.clone()).or_default() += 1;
                     }
-                    if contained_symbols.contains(&edge.target_id) {
+                    if tgt_inside {
                         *in_counts.entry(edge.edge_kind.clone()).or_default() += 1;
                         in_sources_by_kind
                             .entry(edge.edge_kind.clone())
                             .or_default()
                             .insert(edge.source_id.clone());
-                        let conf = edge
-                            .metadata
-                            .as_ref()
-                            .and_then(|m| m.get("confidence"))
-                            .and_then(|v| v.as_str())
-                            .and_then(|s| s.parse::<f32>().ok())
-                            .unwrap_or(1.0);
-                        discounted_incoming += conf.clamp(0.0, 1.0);
-                        if conf < 0.6 {
-                            low_confidence_incoming += 1;
+                        // Score input: causal kinds only, unique external
+                        // source, best confidence. Unknown confidence is a
+                        // conservative 0.5, not a laundered 1.0.
+                        if is_causal_dependency(&edge.edge_kind) {
+                            let conf = edge
+                                .metadata
+                                .as_ref()
+                                .and_then(|m| m.get("confidence"))
+                                .and_then(|v| v.as_str())
+                                .and_then(|s| s.parse::<f32>().ok())
+                                .unwrap_or(0.5)
+                                .clamp(0.0, 1.0);
+                            if conf < 0.6 {
+                                low_confidence_incoming += 1;
+                            }
+                            let e = file_causal_conf
+                                .entry(edge.source_id.clone())
+                                .or_insert(0.0);
+                            if conf > *e {
+                                *e = conf;
+                            }
                         }
                     }
                 }
             }
+        }
+    }
+
+    // Fold the file-level external causal sources into the score input. A
+    // source already counted at the file node itself keeps its best value.
+    for (src, conf) in &file_causal_conf {
+        let prev = causal_source_conf.get(src.as_str()).copied().unwrap_or(0.0);
+        if *conf > prev {
+            discounted_incoming += conf - prev;
         }
     }
 
@@ -518,8 +586,8 @@ pub fn compute_blast_radius(
     // O(degree) adjacency lookup — this used to be a full structural-edge
     // table scan on EVERY call (the dominant cost of check_edit_safety and
     // the per-file loop in pre_commit_review on large graphs).
-    let touching_edges = graph.edges_touching(project_id, target_id, CAP_TOUCHING)?;
-    if touching_edges.len() >= CAP_TOUCHING {
+    let touching_edges = graph.edges_touching(project_id, target_id, CAP_TOUCHING + 1)?;
+    if touching_edges.len() > CAP_TOUCHING {
         coverage.truncated = true;
         coverage.truncated_fetches.push("touching".to_string());
     }
@@ -584,11 +652,20 @@ pub fn compute_blast_radius(
     // (historical companions) — previously both fed the same "dependents"
     // number, so a resource file that co-changed with everything looked like
     // a hub that everything depended on.
-    let causal_dependents: usize = in_counts
-        .iter()
-        .filter(|(k, _)| is_causal_dependency(k))
-        .map(|(_, n)| *n)
-        .sum();
+    // UNIQUE external source NODES with a causal edge to the target (or to a
+    // contained symbol), not an edge sum: one caller reaching the target via
+    // three edge kinds, or three contained symbols, is ONE dependent.
+    let causal_dependents: usize = {
+        let mut uniq: HashSet<&str> = HashSet::new();
+        for (kind, sources) in &in_sources_by_kind {
+            if is_causal_dependency(kind) {
+                for s in sources {
+                    uniq.insert(s.as_str());
+                }
+            }
+        }
+        uniq.len()
+    };
     let historical_companions: usize = in_counts
         .get(&EdgeKind::TemporalCoupling)
         .copied()
@@ -817,6 +894,7 @@ pub fn compute_blast_radius(
         total_downstream,
         causal_dependents,
         historical_companions,
+        internal_edges,
         coverage,
     })
 }
@@ -1061,6 +1139,7 @@ mod tests {
             total_downstream: 15,
             causal_dependents: 0,
             historical_companions: 0,
+            internal_edges: 0,
             coverage: CountCoverage::default(),
         };
         let text = format_report(&report);
@@ -1278,6 +1357,7 @@ mod tests {
             total_downstream: 8,
             causal_dependents: 0,
             historical_companions: 0,
+            internal_edges: 0,
             coverage: CountCoverage::default(),
         };
         let text = format_report(&report);
@@ -1339,6 +1419,7 @@ mod tests {
             total_downstream: 1500,
             causal_dependents: 12,
             historical_companions: 988,
+            internal_edges: 0,
             coverage: CountCoverage {
                 truncated: true,
                 truncated_fetches: vec!["incoming".into()],
@@ -1399,6 +1480,7 @@ mod tests {
             total_downstream: 0,
             causal_dependents: 0,
             historical_companions: 0,
+            internal_edges: 0,
             coverage: CountCoverage::default(),
         };
         let text = format_report(&report);
@@ -1441,6 +1523,7 @@ mod tests {
             total_downstream: 2,
             causal_dependents: 0,
             historical_companions: 0,
+            internal_edges: 0,
             coverage: CountCoverage::default(),
         };
         let text = format_report(&report);
@@ -1534,6 +1617,7 @@ EndProject
             total_downstream: 10,
             causal_dependents: 0,
             historical_companions: 0,
+            internal_edges: 0,
             coverage: CountCoverage::default(),
         };
 
@@ -2128,6 +2212,152 @@ EndProject
             "aggregated incoming → dependency density > 0; got {}",
             report.complexity_breakdown.dependency_density_score
         );
+    }
+
+    /// ACCEPTANCE: adding temporal-coupling edges must not change causal
+    /// impact or the risk score. "Usually changed together" is companion
+    /// evidence, never "will break".
+    #[test]
+    fn temporal_edges_cannot_change_causal_impact_or_risk() {
+        let (_tmp, store) = tmp_graph();
+        let project = "proj";
+        let file_id = "file:test.vb";
+        let mut nodes = vec![make_file_node(file_id)];
+        let inner = "sym:function:test.vb:Inner:10".to_string();
+        nodes.push(make_sym_node_in_file(&inner, "test.vb"));
+        let callers: Vec<String> = (0..3)
+            .map(|i| format!("sym:function:other{i}.vb:Caller:0"))
+            .collect();
+        for (i, cid) in callers.iter().enumerate() {
+            nodes.push(make_sym_node_in_file(cid, &format!("other{i}.vb")));
+        }
+        // 50 "companion" files that only co-change with the target.
+        let companions: Vec<String> = (0..50).map(|i| format!("file:companion{i}.resx")).collect();
+        for c in &companions {
+            nodes.push(make_file_node(c));
+        }
+        store.upsert_nodes(project, &nodes).expect("upsert nodes");
+
+        let causal: Vec<_> = callers
+            .iter()
+            .map(|c| make_typed_edge(c, &inner, EdgeKind::Calls))
+            .collect();
+        store.upsert_edges(project, &causal).expect("upsert causal");
+        let before = compute_blast_radius(&store, project, file_id, 1, false).expect("before");
+
+        let temporal: Vec<_> = companions
+            .iter()
+            .map(|c| make_typed_edge(c, file_id, EdgeKind::TemporalCoupling))
+            .collect();
+        store
+            .upsert_edges(project, &temporal)
+            .expect("upsert temporal");
+        let after = compute_blast_radius(&store, project, file_id, 1, false).expect("after");
+
+        assert_eq!(
+            after.causal_dependents, before.causal_dependents,
+            "temporal edges must not change causal dependents"
+        );
+        assert_eq!(
+            after.complexity_breakdown.dependency_density_score,
+            before.complexity_breakdown.dependency_density_score,
+            "temporal edges must not change the dependency-density score"
+        );
+        assert_eq!(
+            after.migration_risk, before.migration_risk,
+            "temporal edges must not change migration_risk"
+        );
+        assert_eq!(
+            after.historical_companions, 50,
+            "companions reported separately"
+        );
+        assert_eq!(before.causal_dependents, 3, "3 unique callers");
+    }
+
+    /// ACCEPTANCE: intra-file calls (both endpoints inside the file) are
+    /// internal complexity and must not change external dependent counts or
+    /// the score.
+    #[test]
+    fn intra_file_calls_cannot_change_external_dependents() {
+        let (_tmp, store) = tmp_graph();
+        let project = "proj";
+        let file_id = "file:test.vb";
+        let mut nodes = vec![make_file_node(file_id)];
+        let inner: Vec<String> = (0..6)
+            .map(|i| format!("sym:function:test.vb:Inner{i}:{}", i * 10))
+            .collect();
+        for s in &inner {
+            nodes.push(make_sym_node_in_file(s, "test.vb"));
+        }
+        let ext = "sym:function:other.vb:Caller:0".to_string();
+        nodes.push(make_sym_node_in_file(&ext, "other.vb"));
+        store.upsert_nodes(project, &nodes).expect("upsert nodes");
+
+        store
+            .upsert_edges(
+                project,
+                &[make_typed_edge(&ext, &inner[0], EdgeKind::Calls)],
+            )
+            .expect("upsert ext");
+        let before = compute_blast_radius(&store, project, file_id, 1, false).expect("before");
+
+        // 5 internal calls Inner0 -> Inner1 -> ... inside the same file.
+        let internal: Vec<_> = (0..5)
+            .map(|i| make_typed_edge(&inner[i], &inner[i + 1], EdgeKind::Calls))
+            .collect();
+        store
+            .upsert_edges(project, &internal)
+            .expect("upsert internal");
+        let after = compute_blast_radius(&store, project, file_id, 1, false).expect("after");
+
+        assert_eq!(
+            after.causal_dependents, before.causal_dependents,
+            "internal wiring must not add external dependents"
+        );
+        assert_eq!(
+            after.total_incoming, before.total_incoming,
+            "internal wiring must not inflate incoming"
+        );
+        assert_eq!(
+            after.migration_risk, before.migration_risk,
+            "internal wiring must not change risk"
+        );
+        assert_eq!(
+            after.internal_edges, 5,
+            "internal edges reported as complexity"
+        );
+        assert_eq!(before.causal_dependents, 1);
+    }
+
+    /// ACCEPTANCE: exactly-at-cap is complete; only cap+1 is truncated.
+    #[test]
+    fn cap_boundary_is_exact() {
+        let (_tmp, store) = tmp_graph();
+        let project = "proj";
+        let target = "sym:function:t.vb:Target:0";
+        let mut nodes = vec![make_sym_node_in_file(target, "t.vb")];
+        // Exactly CAP_INCOMING (1000) distinct callers: must NOT be truncated.
+        let callers: Vec<String> = (0..1000)
+            .map(|i| format!("sym:function:c{i}.vb:C:0"))
+            .collect();
+        for (i, c) in callers.iter().enumerate() {
+            nodes.push(make_sym_node_in_file(c, &format!("c{i}.vb")));
+        }
+        store.upsert_nodes(project, &nodes).expect("nodes");
+        let edges: Vec<_> = callers
+            .iter()
+            .map(|c| make_typed_edge(c, target, EdgeKind::Calls))
+            .collect();
+        store.upsert_edges(project, &edges).expect("edges");
+        let r = compute_blast_radius(&store, project, target, 1, false).expect("report");
+        assert!(
+            !r.coverage
+                .truncated_fetches
+                .contains(&"incoming".to_string()),
+            "exactly 1000 incoming must be COMPLETE, not truncated: {:?}",
+            r.coverage.truncated_fetches
+        );
+        assert_eq!(r.causal_dependents, 1000);
     }
 
     /// Symbol-level queries must be unaffected by the transitive pass —

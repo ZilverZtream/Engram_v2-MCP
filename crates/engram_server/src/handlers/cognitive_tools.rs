@@ -3098,7 +3098,7 @@ impl Engram {
         let include_guidance = req.include_guidance;
 
         type TopDependent = (String, String, u32); // label, kind, weight
-        let (report, top_dependents) = tokio::task::spawn_blocking(move || {
+        let (report, (top_dependents, top_companions)) = tokio::task::spawn_blocking(move || {
             let report = crate::services::blast_radius_service::compute_blast_radius(
                 &graph,
                 &pid,
@@ -3106,32 +3106,75 @@ impl Engram {
                 gen_,
                 include_guidance,
             )?;
-            // A score without names is unactionable: resolve the heaviest
-            // incoming dependents to name (file:line) so the caller knows
-            // exactly WHAT breaks first.
-            let mut deps: Vec<TopDependent> = graph
-                .find_incoming_edges_with_kind(&pid, None, &target_id, 200)
-                .unwrap_or_default()
-                .into_iter()
-                .map(|(src, kind, w)| {
-                    let label = graph
-                        .get_node(&pid, &src)
-                        .ok()
-                        .flatten()
-                        .map(|n| {
-                            if n.file_path.as_str().is_empty() {
-                                n.name
-                            } else {
-                                format!("{} ({}:{})", n.name, n.file_path, n.start_line)
-                            }
-                        })
-                        .unwrap_or(src);
-                    (label, kind.as_str().to_string(), w)
+            // Named dependents, from the SAME population the count uses:
+            // CAUSAL kinds only (a TemporalCoupling edge with a huge co-change
+            // weight used to outrank a real compiler-resolved call and get
+            // labelled "what breaks first"). Ranked by causal directness
+            // (Calls/Dependency first), then weight, then deterministic id so
+            // two identical requests list identical names. Companions are
+            // listed separately, never as breakages.
+            use crate::services::blast_radius_service::is_causal_dependency;
+            let incoming = graph
+                .find_incoming_edges_with_kind(&pid, None, &target_id, 500)
+                .unwrap_or_default();
+            let label_of = |src: &str| -> String {
+                graph
+                    .get_node(&pid, src)
+                    .ok()
+                    .flatten()
+                    .map(|n| {
+                        if n.file_path.as_str().is_empty() {
+                            n.name
+                        } else {
+                            format!("{} ({}:{})", n.name, n.file_path, n.start_line)
+                        }
+                    })
+                    .unwrap_or_else(|| src.to_string())
+            };
+            let tier = |k: &engram_graph::EdgeKind| -> u8 {
+                match k {
+                    engram_graph::EdgeKind::Calls | engram_graph::EdgeKind::Dependency => 0,
+                    engram_graph::EdgeKind::InheritsFrom
+                    | engram_graph::EdgeKind::Implements
+                    | engram_graph::EdgeKind::Imports
+                    | engram_graph::EdgeKind::IncludesFile => 1,
+                    _ => 2,
+                }
+            };
+            let mut causal: Vec<(u8, String, String, String, u32)> = incoming
+                .iter()
+                .filter(|(_, k, _)| is_causal_dependency(k))
+                .map(|(src, k, w)| {
+                    (
+                        tier(k),
+                        src.clone(),
+                        k.as_str().to_string(),
+                        String::new(),
+                        *w,
+                    )
                 })
                 .collect();
-            deps.sort_by(|a, b| b.2.cmp(&a.2));
-            deps.truncate(10);
-            Ok::<_, anyhow::Error>((report, deps))
+            // Dedup by source node (one caller via several kinds = one entry,
+            // keep its most direct tier).
+            causal.sort_by(|a, b| a.0.cmp(&b.0).then(b.4.cmp(&a.4)).then(a.1.cmp(&b.1)));
+            causal.dedup_by(|a, b| a.1 == b.1);
+            causal.truncate(10);
+            let deps: Vec<TopDependent> = causal
+                .into_iter()
+                .map(|(_, src, kind, _, w)| (label_of(&src), kind, w))
+                .collect();
+            let mut companions: Vec<(String, u32)> = incoming
+                .iter()
+                .filter(|(_, k, _)| matches!(k, engram_graph::EdgeKind::TemporalCoupling))
+                .map(|(src, _, w)| (src.clone(), *w))
+                .collect();
+            companions.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+            companions.truncate(5);
+            let companions: Vec<(String, u32)> = companions
+                .into_iter()
+                .map(|(src, w)| (label_of(&src), w))
+                .collect();
+            Ok::<_, anyhow::Error>((report, (deps, companions)))
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
@@ -3193,10 +3236,27 @@ impl Engram {
             bd.script_injection_score
         ));
 
+        if report.internal_edges > 0 {
+            out.push_str(&format!(
+                "**Internal wiring**: {} edges between this file's own symbols (cohesion/complexity, \
+                 not external blast; excluded from every count above)\n",
+                report.internal_edges
+            ));
+        }
         if !top_dependents.is_empty() {
-            out.push_str("\n## Top incoming dependents (what breaks first)\n");
+            out.push_str(
+                "\n## Top causal dependents (1-hop; may break — same population as the count above)\n",
+            );
             for (label, kind, w) in &top_dependents {
                 out.push_str(&format!("- {label} [{kind}] (weight {w})\n"));
+            }
+        }
+        if !top_companions.is_empty() {
+            out.push_str(
+                "\n## Historical companions (usually changed together — plan/co-edit evidence, NOT breakage)\n",
+            );
+            for (label, w) in &top_companions {
+                out.push_str(&format!("- {label} (co-changes {w})\n"));
             }
         }
 

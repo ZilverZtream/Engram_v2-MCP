@@ -1017,7 +1017,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "1-10 impact score for changing a file/symbol, with incoming/outgoing/downstream counts and the contributing edges. Call before risky edits; treat 7+ as 'plan carefully'. Quick verdict variant: check_edit_safety."
+        description = "ADVISORY 1-hop exposure profile for a file/symbol: causal dependents (what may break), historical companions (co-change, NOT breakage), raw degree, and a 1-10 heuristic risk. NOT a transitive change-impact analysis and it takes no proposed change (a comment edit and a signature change score the same). Counts are capped and flagged as lower bounds when truncated. Use it to orient, not to authorize; treat 7+ as 'plan carefully'. Quick verdict variant: check_edit_safety."
     )]
     pub async fn compute_blast_radius(
         &self,
