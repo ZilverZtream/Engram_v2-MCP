@@ -852,12 +852,31 @@ impl GraphStore {
         node_id: &str,
         per_direction_limit: usize,
     ) -> anyhow::Result<Vec<Edge>> {
+        Ok(self
+            .edges_touching_with_coverage(project_id, node_id, per_direction_limit)?
+            .0)
+    }
+
+    /// Structural edges touching a node with a PRECISE cap contract:
+    /// `per_direction_limit` bounds outgoing and incoming SEPARATELY, and the
+    /// returned flag says whether EITHER direction was truncated. The old
+    /// version's outgoing `break` only left the inner per-kind loop, so the
+    /// total could exceed the limit across kinds and `len >= limit` was a
+    /// meaningless truncation signal.
+    pub fn edges_touching_with_coverage(
+        &self,
+        project_id: &str,
+        node_id: &str,
+        per_direction_limit: usize,
+    ) -> anyhow::Result<(Vec<Edge>, bool)> {
         let rtx = self.db.begin_read()?;
         let et = rtx.open_table(EDGES)?;
         let mut out: Vec<Edge> = Vec::new();
+        let mut truncated = false;
 
-        // Outgoing: prefix seek per structural kind.
-        for kind in EdgeKind::ALL {
+        // Outgoing: prefix seek per structural kind, ONE shared budget.
+        let mut out_count = 0usize;
+        'outgoing: for kind in EdgeKind::ALL {
             if matches!(kind, EdgeKind::TemporalCoupling | EdgeKind::CoOccurrence) {
                 continue;
             }
@@ -867,17 +886,22 @@ impl GraphStore {
                 if !k.value().starts_with(&prefix) {
                     break;
                 }
-                out.push(bincode::deserialize(v.value())?);
-                if out.len() >= per_direction_limit {
-                    break;
+                if out_count >= per_direction_limit {
+                    truncated = true;
+                    break 'outgoing;
                 }
+                out.push(bincode::deserialize(v.value())?);
+                out_count += 1;
             }
         }
 
-        // Incoming: ADJ_IN gives (source, kind); point-lookup the edge row.
+        // Incoming: fetch limit+1 so exactly-limit is complete.
         let incoming =
-            self.find_incoming_edges_with_kind(project_id, None, node_id, per_direction_limit)?;
-        for (source_id, kind, _w) in incoming {
+            self.find_incoming_edges_with_kind(project_id, None, node_id, per_direction_limit + 1)?;
+        if incoming.len() > per_direction_limit {
+            truncated = true;
+        }
+        for (source_id, kind, _w) in incoming.into_iter().take(per_direction_limit) {
             if matches!(kind, EdgeKind::TemporalCoupling | EdgeKind::CoOccurrence) {
                 continue;
             }
@@ -886,7 +910,7 @@ impl GraphStore {
                 out.push(bincode::deserialize(v.value())?);
             }
         }
-        Ok(out)
+        Ok((out, truncated))
     }
 
     /// Get weighted incoming neighbors for `target_id`.

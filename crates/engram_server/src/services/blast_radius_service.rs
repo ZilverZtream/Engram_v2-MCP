@@ -137,6 +137,13 @@ pub struct BlastRadiusReport {
     /// score (previously each one inflated incoming AND outgoing AND risk).
     #[serde(default)]
     pub internal_edges: usize,
+    /// Named causal dependents from the SAME unique-source population the
+    /// `causal_dependents` count uses (direct + file-aggregated), ranked
+    /// directness → confidence → node id. Renderers must use this rather than
+    /// re-querying the graph, so count and examples describe one population.
+    /// Each: (source node id, most direct edge kind, best confidence).
+    #[serde(default)]
+    pub top_causal_dependents: Vec<(String, String, f32)>,
     #[serde(default)]
     pub coverage: CountCoverage,
 }
@@ -315,13 +322,60 @@ pub fn compute_blast_radius(
         }
     }
 
-    // 3. Count incoming edges by kind
-    let incoming =
+    // COMPONENT = {target} ∪ {contained symbols}, built BEFORE any edge is
+    // counted so that DIRECT edges to a file node and AGGREGATED edges to its
+    // symbols pass through the same boundary. (Previously direct edges were
+    // gathered before containment was known and never went through the cut.)
+    let is_file_target = target_id.starts_with("file:");
+    let file_rel_path: String = node
+        .as_ref()
+        .map(|n| n.file_path.as_str().to_string())
+        .unwrap_or_else(|| {
+            target_id
+                .strip_prefix("file:")
+                .unwrap_or(target_id)
+                .to_string()
+        });
+    const CAP_CONTAINED: usize = 50_000;
+    let contained_symbols: HashSet<String> = if is_file_target {
+        let found =
+            graph.query_nodes(project_id, None, None, Some(&file_rel_path), CAP_CONTAINED)?;
+        if found.len() >= CAP_CONTAINED {
+            coverage.truncated = true;
+            coverage
+                .truncated_fetches
+                .push("contained-symbol scan".to_string());
+        }
+        found
+            .into_iter()
+            .filter(|n| n.node_id != target_id && n.file_path.as_str() == file_rel_path)
+            .map(|n| n.node_id)
+            .collect()
+    } else {
+        HashSet::new()
+    };
+    let in_component = |id: &str| id == target_id || contained_symbols.contains(id);
+
+    // 3. Count incoming edges by kind — direct edges, boundary applied.
+    let incoming_raw =
         graph.find_incoming_edges_with_kind(project_id, None, target_id, CAP_INCOMING + 1)?;
-    if incoming.len() > CAP_INCOMING {
+    if incoming_raw.len() > CAP_INCOMING {
         coverage.truncated = true;
         coverage.truncated_fetches.push("incoming".to_string());
     }
+    let mut internal_edges: usize = 0;
+    let incoming: Vec<(String, EdgeKind, u32)> = incoming_raw
+        .into_iter()
+        .take(CAP_INCOMING)
+        .filter(|(src, _, _)| {
+            if in_component(src) {
+                internal_edges += 1;
+                false
+            } else {
+                true
+            }
+        })
+        .collect();
     let mut in_counts: HashMap<EdgeKind, usize> = HashMap::new();
     let mut in_sources_by_kind: HashMap<EdgeKind, HashSet<String>> = HashMap::new();
     // TODO-12: bare-name bindings count at their confidence, not 1.0 —
@@ -373,7 +427,6 @@ pub fn compute_blast_radius(
     // File-level aggregation (below) adds EXTERNAL causal sources reaching the
     // file's contained symbols; internal wiring is counted separately.
     let mut file_causal_conf: HashMap<String, f32> = HashMap::new();
-    let mut internal_edges: usize = 0;
 
     // 3b. Transitive aggregation for file-level targets.
     //
@@ -393,22 +446,9 @@ pub fn compute_blast_radius(
     // Without this pass a file with 700 callers of its internal functions
     // reports total_incoming=0 — that's the file-level regression that
     // shows up on real projects.
-    if target_id.starts_with("file:") {
-        let file_rel_path = node
-            .as_ref()
-            .map(|n| n.file_path.as_str().to_string())
-            .unwrap_or_else(|| target_id[5..].to_string());
-
-        // Pre-filter via query_nodes (`file_path` substring / case-insens
-        // normalisation), then re-check with exact equality so two files
-        // that share a suffix do not bleed into each other.
-        let contained_symbols: HashSet<String> = graph
-            .query_nodes(project_id, None, None, Some(&file_rel_path), 50_000)?
-            .into_iter()
-            .filter(|n| n.node_id != target_id && n.file_path.as_str() == file_rel_path)
-            .map(|n| n.node_id)
-            .collect();
-
+    if is_file_target {
+        // `contained_symbols` was discovered up front (so the boundary could
+        // apply to direct edges too); reuse it here.
         if !contained_symbols.is_empty() {
             // The synthesized file->symbol Contains edges (TODO-16) describe
             // membership, not wiring: drop them from this file's outgoing
@@ -434,8 +474,9 @@ pub fn compute_blast_radius(
             // endpoints, but the old single scan visited it once.
             let mut seen_edges: HashSet<(String, String, String)> = HashSet::new();
             for sym_id in &contained_symbols {
-                let touching = graph.edges_touching(project_id, sym_id, CAP_TOUCHING + 1)?;
-                if touching.len() > CAP_TOUCHING {
+                let (touching, touching_trunc) =
+                    graph.edges_touching_with_coverage(project_id, sym_id, CAP_TOUCHING)?;
+                if touching_trunc {
                     coverage.truncated = true;
                     if coverage.truncated_fetches.len() < 20 {
                         coverage
@@ -470,8 +511,8 @@ pub fn compute_blast_radius(
                     // AND incoming AND the score — a file's own cohesion was
                     // reported as blast radius. Only edges that CROSS the
                     // boundary count.
-                    let src_inside = contained_symbols.contains(&edge.source_id);
-                    let tgt_inside = contained_symbols.contains(&edge.target_id);
+                    let src_inside = in_component(&edge.source_id);
+                    let tgt_inside = in_component(&edge.target_id);
                     if src_inside && tgt_inside {
                         internal_edges += 1;
                         continue;
@@ -586,8 +627,9 @@ pub fn compute_blast_radius(
     // O(degree) adjacency lookup — this used to be a full structural-edge
     // table scan on EVERY call (the dominant cost of check_edit_safety and
     // the per-file loop in pre_commit_review on large graphs).
-    let touching_edges = graph.edges_touching(project_id, target_id, CAP_TOUCHING + 1)?;
-    if touching_edges.len() > CAP_TOUCHING {
+    let (touching_edges, touching_edges_trunc) =
+        graph.edges_touching_with_coverage(project_id, target_id, CAP_TOUCHING)?;
+    if touching_edges_trunc {
         coverage.truncated = true;
         coverage.truncated_fetches.push("touching".to_string());
     }
@@ -655,17 +697,48 @@ pub fn compute_blast_radius(
     // UNIQUE external source NODES with a causal edge to the target (or to a
     // contained symbol), not an edge sum: one caller reaching the target via
     // three edge kinds, or three contained symbols, is ONE dependent.
-    let causal_dependents: usize = {
-        let mut uniq: HashSet<&str> = HashSet::new();
-        for (kind, sources) in &in_sources_by_kind {
-            if is_causal_dependency(kind) {
-                for s in sources {
-                    uniq.insert(s.as_str());
-                }
+    // Unique causal sources with their most-direct kind and best confidence —
+    // ONE population for both the count and the named examples.
+    let directness = |k: &EdgeKind| -> u8 {
+        match k {
+            EdgeKind::Calls | EdgeKind::Dependency | EdgeKind::SqlCalls => 0,
+            EdgeKind::InheritsFrom | EdgeKind::Implements | EdgeKind::Imports => 1,
+            _ => 2,
+        }
+    };
+    let mut causal_sources: HashMap<&str, (u8, &EdgeKind)> = HashMap::new();
+    for (kind, sources) in &in_sources_by_kind {
+        if !is_causal_dependency(kind) {
+            continue;
+        }
+        let d = directness(kind);
+        for s in sources {
+            let e = causal_sources.entry(s.as_str()).or_insert((d, kind));
+            if d < e.0 {
+                *e = (d, kind);
             }
         }
-        uniq.len()
-    };
+    }
+    let causal_dependents: usize = causal_sources.len();
+    let mut top_causal_dependents: Vec<(String, String, f32)> = causal_sources
+        .iter()
+        .map(|(src, (_, kind))| {
+            let conf = causal_source_conf
+                .get(src)
+                .copied()
+                .or_else(|| file_causal_conf.get(*src).copied())
+                .unwrap_or(0.5);
+            (src.to_string(), kind.as_str().to_string(), conf)
+        })
+        .collect();
+    top_causal_dependents.sort_by(|a, b| {
+        let da = causal_sources.get(a.0.as_str()).map(|e| e.0).unwrap_or(9);
+        let db = causal_sources.get(b.0.as_str()).map(|e| e.0).unwrap_or(9);
+        da.cmp(&db)
+            .then_with(|| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal))
+            .then(a.0.cmp(&b.0))
+    });
+    top_causal_dependents.truncate(10);
     let historical_companions: usize = in_counts
         .get(&EdgeKind::TemporalCoupling)
         .copied()
@@ -895,6 +968,7 @@ pub fn compute_blast_radius(
         causal_dependents,
         historical_companions,
         internal_edges,
+        top_causal_dependents,
         coverage,
     })
 }
@@ -1140,6 +1214,7 @@ mod tests {
             causal_dependents: 0,
             historical_companions: 0,
             internal_edges: 0,
+            top_causal_dependents: vec![],
             coverage: CountCoverage::default(),
         };
         let text = format_report(&report);
@@ -1358,6 +1433,7 @@ mod tests {
             causal_dependents: 0,
             historical_companions: 0,
             internal_edges: 0,
+            top_causal_dependents: vec![],
             coverage: CountCoverage::default(),
         };
         let text = format_report(&report);
@@ -1420,6 +1496,7 @@ mod tests {
             causal_dependents: 12,
             historical_companions: 988,
             internal_edges: 0,
+            top_causal_dependents: vec![],
             coverage: CountCoverage {
                 truncated: true,
                 truncated_fetches: vec!["incoming".into()],
@@ -1481,6 +1558,7 @@ mod tests {
             causal_dependents: 0,
             historical_companions: 0,
             internal_edges: 0,
+            top_causal_dependents: vec![],
             coverage: CountCoverage::default(),
         };
         let text = format_report(&report);
@@ -1524,6 +1602,7 @@ mod tests {
             causal_dependents: 0,
             historical_companions: 0,
             internal_edges: 0,
+            top_causal_dependents: vec![],
             coverage: CountCoverage::default(),
         };
         let text = format_report(&report);
@@ -1618,6 +1697,7 @@ EndProject
             causal_dependents: 0,
             historical_companions: 0,
             internal_edges: 0,
+            top_causal_dependents: vec![],
             coverage: CountCoverage::default(),
         };
 

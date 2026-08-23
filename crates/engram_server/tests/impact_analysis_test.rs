@@ -303,3 +303,160 @@ async fn missing_target_is_not_found_not_empty() {
         "file_path AND symbol_fqn together must be rejected"
     );
 }
+
+/// P0 ADVERSARIAL: a flood of heavy non-causal edges must NOT consume the
+/// budget and hide causal dependents (caps are per tier/kind, after
+/// classification).
+#[tokio::test]
+async fn noncausal_flood_cannot_hide_causal_dependents() {
+    let (_tmp, engram, state, pid) = graph_fixture();
+    let target = "sym:function:t.vb:Target:1";
+    let mut nodes = vec![node(target, "Target", "t.vb", "function")];
+    let mut edges = Vec::new();
+    // 3 real callers at weight 1.
+    for i in 0..3 {
+        let c = format!("sym:function:c{i}.vb:Caller{i}:1");
+        nodes.push(node(
+            &c,
+            &format!("Caller{i}"),
+            &format!("c{i}.vb"),
+            "function",
+        ));
+        edges.push(edge(&c, target, engram_graph::EdgeKind::Calls));
+    }
+    // 600 temporal edges at weight 9999 — would have crowded out every call
+    // under the old all-kinds weight-ranked cap.
+    for i in 0..600 {
+        let f = format!("file:hist{i}.sql");
+        nodes.push(node(
+            &f,
+            &format!("hist{i}.sql"),
+            &format!("hist{i}.sql"),
+            "file",
+        ));
+        let mut e = edge(&f, target, engram_graph::EdgeKind::TemporalCoupling);
+        e.weight = 9999;
+        edges.push(e);
+    }
+    state.graph.upsert_nodes(&pid, &nodes).unwrap();
+    state.graph.upsert_edges(&pid, &edges).unwrap();
+    let text = run(&engram, &pid, target).await;
+    assert!(
+        text.contains("3 causal (may break)"),
+        "all 3 causal dependents must survive a 600-edge temporal flood: {text}"
+    );
+    assert!(
+        !text.contains("CAUSAL is a LOWER BOUND"),
+        "causal coverage must be complete (temporal truncation is a separate tier): {text}"
+    );
+}
+
+/// P0 ADVERSARIAL: a file whose contained symbols have hundreds of INTERNAL
+/// callers plus one external caller must report the external caller, never
+/// "no edges" (internal edges are filtered BEFORE they count toward any cap).
+#[tokio::test]
+async fn internal_flood_cannot_hide_external_caller() {
+    let (_tmp, engram, state, pid) = graph_fixture();
+    let file_id = "file:t.vb";
+    let mut nodes = vec![node(file_id, "t.vb", "t.vb", "file")];
+    let hub = "sym:function:t.vb:Hub:1".to_string();
+    nodes.push(node(&hub, "Hub", "t.vb", "function"));
+    let mut edges = Vec::new();
+    // 250 internal callers (inside t.vb) of Hub.
+    for i in 0..250 {
+        let s = format!("sym:function:t.vb:Inner{i}:{}", i + 10);
+        nodes.push(node(&s, &format!("Inner{i}"), "t.vb", "function"));
+        edges.push(edge(&s, &hub, engram_graph::EdgeKind::Calls));
+    }
+    // ONE external caller.
+    let ext = "sym:function:other.vb:External:1";
+    nodes.push(node(ext, "External", "other.vb", "function"));
+    edges.push(edge(ext, &hub, engram_graph::EdgeKind::Calls));
+    state.graph.upsert_nodes(&pid, &nodes).unwrap();
+    state.graph.upsert_edges(&pid, &edges).unwrap();
+
+    let res = engram
+        .impact_analysis(Parameters(engram_server::ImpactAnalysisRequest {
+            project_id: pid.clone(),
+            file_path: Some("t.vb".into()),
+            symbol_fqn: None,
+            limit: 50,
+        }))
+        .await
+        .unwrap();
+    let text = res.content[0].as_text().unwrap().text.clone();
+    assert!(
+        text.contains("1 causal (may break)"),
+        "the single external caller must be found behind 250 internal ones: {text}"
+    );
+    assert!(text.contains("External"), "external caller named: {text}");
+    assert!(
+        !text.contains("no external incoming edges"),
+        "must not report 'no edges' when an external caller exists: {text}"
+    );
+}
+
+/// A source with BOTH a causal and a temporal edge is one causal dependent AND
+/// one companion — the companion fact is not swallowed into the causal line.
+#[tokio::test]
+async fn mixed_tier_source_counted_in_both_tiers() {
+    let (_tmp, engram, state, pid) = graph_fixture();
+    let target = "sym:function:t.vb:Target:1";
+    let caller = "sym:function:c.vb:Caller:1";
+    let nodes = vec![
+        node(target, "Target", "t.vb", "function"),
+        node(caller, "Caller", "c.vb", "function"),
+    ];
+    let edges = vec![
+        edge(caller, target, engram_graph::EdgeKind::Calls),
+        edge(caller, target, engram_graph::EdgeKind::TemporalCoupling),
+    ];
+    state.graph.upsert_nodes(&pid, &nodes).unwrap();
+    state.graph.upsert_edges(&pid, &edges).unwrap();
+    let text = run(&engram, &pid, target).await;
+    assert!(text.contains("1 causal (may break)"), "{text}");
+    assert!(text.contains("1 historical companions"), "{text}");
+    let causal_section = text
+        .split("## Causal dependents")
+        .nth(1)
+        .and_then(|s| s.split("\n## ").next())
+        .unwrap_or("");
+    assert!(
+        !causal_section.contains("often changed with this"),
+        "the temporal relation must not render inside the causal line: {causal_section}"
+    );
+}
+
+/// Dangling sources (edge with no node record) are quarantined: listed under
+/// Unresolved, EXCLUDED from the confirmed causal count.
+#[tokio::test]
+async fn dangling_sources_excluded_from_confirmed_counts() {
+    let (_tmp, engram, state, pid) = graph_fixture();
+    let target = "sym:function:t.vb:Target:1";
+    let real = "sym:function:c.vb:Real:1";
+    let nodes = vec![
+        node(target, "Target", "t.vb", "function"),
+        node(real, "Real", "c.vb", "function"),
+    ];
+    let edges = vec![
+        edge(real, target, engram_graph::EdgeKind::Calls),
+        // No node record for this source: a dangling causal edge.
+        edge(
+            "sym:function:ghost.vb:Ghost:1",
+            target,
+            engram_graph::EdgeKind::Calls,
+        ),
+    ];
+    state.graph.upsert_nodes(&pid, &nodes).unwrap();
+    state.graph.upsert_edges(&pid, &edges).unwrap();
+    let text = run(&engram, &pid, target).await;
+    assert!(
+        text.contains("1 causal (may break)"),
+        "only the resolved caller is a confirmed causal dependent: {text}"
+    );
+    assert!(
+        text.contains("1 UNRESOLVED endpoints"),
+        "the dangling source is reported as unresolved: {text}"
+    );
+    assert!(text.contains("## Unresolved endpoints"), "{text}");
+}

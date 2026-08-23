@@ -294,37 +294,27 @@ impl Engram {
             };
             let is_file_target = target_id.starts_with("file:");
 
-            // ── 2. Gather incoming edges with honest truncation. ──
-            // Caps are fetched at cap+1 so "exactly cap" is COMPLETE and only
-            // cap+1 is truncated.
-            const CAP_DIRECT: usize = 1000;
-            const CAP_PER_SYMBOL: usize = 200;
-            let mut truncated: Vec<String> = Vec::new();
+            // ── 2. Component, then ONE boundary-aware gathering pipeline. ──
+            //
+            // The component is {target} ∪ {contained symbols} (for a file).
+            // Built BEFORE any edge is counted so direct edges to the file
+            // node and aggregated edges to its symbols pass through the SAME
+            // boundary: a source inside the component is internal wiring.
+            //
+            // Fetches are PER TIER, PER KIND. The store ranks across kinds by
+            // weight, so one all-kinds fetch lets 900 heavy temporal edges
+            // consume the cap and hide every real call; and filtering internal
+            // edges AFTER a cap could leave zero edges and return "no edges"
+            // while coverage was actually incomplete. Each causal kind gets
+            // its own budget, internal edges are dropped BEFORE they count,
+            // and truncation is recorded per tier.
+            const CAP_PER_KIND: usize = 500;
+            const CAP_COMPANION: usize = 300;
+            const CAP_STRUCTURAL: usize = 200;
+            const CAP_CONTAINED: usize = 50_000;
 
-            // (source, kind, weight, reached_via) — `reached_via` is the
-            // contained symbol an external source actually touches, so the
-            // report can say "OrderPage.Save() is affected through
-            // SharedValidation.ValidatePhotoCount()" instead of losing the path.
-            let mut edges: Vec<(String, EdgeKind, u32, String)> = Vec::new();
-            let mut conf_triples: Vec<(EdgeKind, String, String)> = Vec::new();
-
-            let direct = graph
-                .find_incoming_edges_with_kind(&req.project_id, None, &target_id, CAP_DIRECT + 1)
-                .map_err(|e| e.to_string())?;
-            if direct.len() > CAP_DIRECT {
-                truncated.push(format!("direct incoming (>{CAP_DIRECT})"));
-            }
-            for (src, kind, w) in direct.into_iter().take(CAP_DIRECT) {
-                conf_triples.push((kind.clone(), src.clone(), target_id.clone()));
-                edges.push((src, kind, w, target_id.clone()));
-            }
-
-            // File target: aggregate edges reaching the file's contained
-            // symbols, with a COMPONENT BOUNDARY: an edge whose source is
-            // also inside the file (ANY kind, not just Contains) is internal
-            // wiring, excluded from impact and counted separately.
-            let mut internal_edges = 0usize;
-            let mut contained_count = 0usize;
+            let mut contained: Vec<String> = Vec::new();
+            let mut contained_truncated = false;
             if is_file_target {
                 let file_rel_path = graph
                     .get_node(&req.project_id, &target_id)
@@ -332,82 +322,199 @@ impl Engram {
                     .flatten()
                     .map(|n| n.file_path.as_str().to_string())
                     .unwrap_or_else(|| target_id[5..].to_string());
-                // Sorted Vec, not HashSet: iteration order is now deterministic
-                // so two identical requests return identical results.
-                let mut contained: Vec<String> = graph
-                    .query_nodes(&req.project_id, None, None, Some(&file_rel_path), 50_000)
-                    .map_err(|e| e.to_string())?
+                let found = graph
+                    .query_nodes(&req.project_id, None, None, Some(&file_rel_path), CAP_CONTAINED)
+                    .map_err(|e| e.to_string())?;
+                if found.len() >= CAP_CONTAINED {
+                    contained_truncated = true;
+                }
+                // Sorted + deduped: deterministic iteration across runs.
+                contained = found
                     .into_iter()
                     .filter(|n| n.node_id != target_id && n.file_path.as_str() == file_rel_path)
                     .map(|n| n.node_id)
                     .collect();
                 contained.sort();
                 contained.dedup();
-                contained_count = contained.len();
-                let inside: std::collections::HashSet<&str> =
-                    contained.iter().map(|s| s.as_str()).collect();
-                for sym_id in &contained {
-                    let Ok(sym_in) = graph.find_incoming_edges_with_kind(
+            }
+            let contained_count = contained.len();
+            let component: std::collections::HashSet<&str> = std::iter::once(target_id.as_str())
+                .chain(contained.iter().map(|s| s.as_str()))
+                .collect();
+            // Every node whose incoming edges we gather: the target itself plus
+            // its contained symbols. `reached_via` records which one.
+            let endpoints: Vec<&str> = std::iter::once(target_id.as_str())
+                .chain(contained.iter().map(|s| s.as_str()))
+                .collect();
+
+            // Per-tier coverage (not one global flag).
+            let mut causal_truncated: Vec<String> = Vec::new();
+            let mut companion_truncated = false;
+            let mut structural_truncated = false;
+            let mut fetch_errors = 0usize;
+            let mut internal_edges = 0usize;
+
+            // (source, kind, weight, reached_via)
+            let mut edges: Vec<(String, EdgeKind, u32, String)> = Vec::new();
+            let mut conf_triples: Vec<(EdgeKind, String, String)> = Vec::new();
+
+            let causal_kinds: Vec<&EdgeKind> =
+                EdgeKind::ALL.iter().filter(|k| is_causal_dependency(k)).collect();
+            let companion_kinds = [
+                EdgeKind::TemporalCoupling,
+                EdgeKind::CoOccurrence,
+                EdgeKind::StateAffinity,
+            ];
+
+            // A. Causal: per endpoint, per kind, own budget, boundary first.
+            for ep in &endpoints {
+                for kind in &causal_kinds {
+                    let fetched = match graph.find_incoming_edges_with_kind(
                         &req.project_id,
-                        None,
-                        sym_id,
-                        CAP_PER_SYMBOL + 1,
-                    ) else {
-                        continue;
-                    };
-                    if sym_in.len() > CAP_PER_SYMBOL {
-                        if truncated.len() < 12 {
-                            truncated.push(format!("{sym_id} (>{CAP_PER_SYMBOL})"));
+                        Some((*kind).clone()),
+                        ep,
+                        CAP_PER_KIND + 1,
+                    ) {
+                        Ok(v) => v,
+                        Err(_) => {
+                            fetch_errors += 1;
+                            continue;
                         }
+                    };
+                    if fetched.len() > CAP_PER_KIND && causal_truncated.len() < 12 {
+                        causal_truncated.push(format!("{}:{}", kind.as_str(), ep));
                     }
-                    for (src, kind, w) in sym_in.into_iter().take(CAP_PER_SYMBOL) {
-                        if src == target_id || inside.contains(src.as_str()) {
+                    for (src, k, w) in fetched.into_iter().take(CAP_PER_KIND) {
+                        if component.contains(src.as_str()) {
                             internal_edges += 1;
                             continue;
                         }
-                        conf_triples.push((kind.clone(), src.clone(), sym_id.clone()));
-                        edges.push((src, kind, w, sym_id.clone()));
+                        conf_triples.push((k.clone(), src.clone(), ep.to_string()));
+                        edges.push((src, k, w, ep.to_string()));
+                    }
+                }
+            }
+            // B. Companions: a separate, smaller budget — they never compete
+            //    with causal edges for room.
+            for ep in &endpoints {
+                for kind in &companion_kinds {
+                    let Ok(fetched) = graph.find_incoming_edges_with_kind(
+                        &req.project_id,
+                        Some(kind.clone()),
+                        ep,
+                        CAP_COMPANION + 1,
+                    ) else {
+                        fetch_errors += 1;
+                        continue;
+                    };
+                    if fetched.len() > CAP_COMPANION {
+                        companion_truncated = true;
+                    }
+                    for (src, k, w) in fetched.into_iter().take(CAP_COMPANION) {
+                        if component.contains(src.as_str()) {
+                            internal_edges += 1;
+                            continue;
+                        }
+                        edges.push((src, k, w, ep.to_string()));
+                    }
+                }
+            }
+            // C. Structural/annotation/unresolved: smallest budget, context only.
+            for ep in &endpoints {
+                for kind in EdgeKind::ALL {
+                    if is_causal_dependency(kind) || companion_kinds.contains(kind) {
+                        continue;
+                    }
+                    let Ok(fetched) = graph.find_incoming_edges_with_kind(
+                        &req.project_id,
+                        Some(kind.clone()),
+                        ep,
+                        CAP_STRUCTURAL + 1,
+                    ) else {
+                        fetch_errors += 1;
+                        continue;
+                    };
+                    if fetched.len() > CAP_STRUCTURAL {
+                        structural_truncated = true;
+                    }
+                    for (src, k, w) in fetched.into_iter().take(CAP_STRUCTURAL) {
+                        if component.contains(src.as_str()) {
+                            internal_edges += 1;
+                            continue;
+                        }
+                        edges.push((src, k, w, ep.to_string()));
                     }
                 }
             }
 
             if edges.is_empty() {
-                return Ok(format!(
-                    "Impact analysis for {target_id}: no incoming edges of any kind (target \
-                     exists; {contained_count} contained symbols checked; {internal_edges} \
-                     internal edges). A genuinely unreferenced target, or callers the index has \
-                     not seen — grep the working tree for the name to confirm.\n\
-                     next: find_symbol_references(<name>) for a lexical fallback; \
-                     get_index_freshness if the code is newer than the index."
-                ));
+                let mut msg = format!(
+                    "Impact analysis for {target_id}: no external incoming edges of any kind \
+                     (target exists; {contained_count} contained symbols checked; \
+                     {internal_edges} internal edges excluded)."
+                );
+                if !causal_truncated.is_empty() || fetch_errors > 0 || contained_truncated {
+                    msg.push_str(&format!(
+                        " ⚠ COVERAGE INCOMPLETE ({} causal fetch(es) capped, {fetch_errors} \
+                         fetch error(s){}) — this is NOT a proven absence.",
+                        causal_truncated.len(),
+                        if contained_truncated { ", contained-symbol scan capped" } else { "" }
+                    ));
+                } else {
+                    msg.push_str(
+                        " A genuinely unreferenced target, or callers the index has not seen — \
+                         grep the working tree for the name to confirm.",
+                    );
+                }
+                msg.push_str(
+                    "\nnext: find_symbol_references(<name>) for a lexical fallback; \
+                     get_index_freshness if the code is newer than the index.",
+                );
+                return Ok(msg);
             }
 
             // ── 3. Confidence stays attached to the PATH; unknown stays unknown. ──
+            // Only causal edges were put in conf_triples (in the same order
+            // they were pushed to `edges`), so map them back by position.
             let confs: Vec<Option<f32>> = graph
                 .get_edge_confidences(&req.project_id, &conf_triples)
-                .unwrap_or_else(|_| vec![None; edges.len()]);
+                .unwrap_or_else(|_| vec![None; conf_triples.len()]);
 
-            // ── 4. Group by source node into TIERS. ──
-            // causal: may break. companion: co-change/co-search history.
-            // structural: containment/layout. Never one list.
+            // ── 4. Resolve nodes in ONE transaction (needed before grouping so
+            //      dangling sources can be quarantined out of confirmed tiers). ──
+            let mut ids: Vec<String> = edges.iter().map(|e| e.0.clone()).collect();
+            ids.sort();
+            ids.dedup();
+            let nodes = graph
+                .get_nodes(&req.project_id, &ids)
+                .map_err(|e| e.to_string())?;
+
+            // ── 5. Group by (source, TIER) — never collapse tiers. ──
+            // A caller with both a Calls edge and a TemporalCoupling edge is
+            // one causal dependent AND one companion; the companion fact is
+            // not swallowed into its causal line, and the companion weight
+            // never ranks the causal entry.
+            //   tier 0 = confirmed causal (resolved source, causal kind)
+            //   tier 1 = possible / runtime-observed
+            //   tier 2 = structural context
+            //   tier 3 = historical companions
+            //   tier 4 = annotation (insight / anti-pattern)
+            //   tier 5 = unresolved endpoint (dangling source) — NOT confirmed
             #[derive(Default)]
             struct Dep {
                 kinds: Vec<EdgeKind>,
                 via: std::collections::BTreeSet<String>,
                 best_conf: Option<f32>,
                 weight: u32,
-                tier: u8, // 0 = causal, 1 = structural, 2 = companion
             }
             let tier_of = |k: &EdgeKind| -> u8 {
-                if is_causal_dependency(k) {
-                    0
-                } else if matches!(
-                    k,
-                    EdgeKind::TemporalCoupling | EdgeKind::CoOccurrence | EdgeKind::StateAffinity
-                ) {
-                    2
-                } else {
-                    1
+                match k {
+                    EdgeKind::ObservedRuntimeControl | EdgeKind::ObservedRuntimeSql => 1,
+                    EdgeKind::TemporalCoupling | EdgeKind::CoOccurrence | EdgeKind::StateAffinity => 3,
+                    EdgeKind::Insight | EdgeKind::AntiPattern => 4,
+                    EdgeKind::UnresolvedStateRead | EdgeKind::UnresolvedStateWrite => 5,
+                    k if is_causal_dependency(k) => 0,
+                    _ => 2,
                 }
             };
             let directness = |k: &EdgeKind| -> u8 {
@@ -417,21 +524,26 @@ impl Engram {
                     _ => 2,
                 }
             };
-            let mut deps: std::collections::BTreeMap<String, Dep> =
+            let mut deps: std::collections::BTreeMap<(u8, String), Dep> =
                 std::collections::BTreeMap::new();
-            for (i, (src, kind, w, via)) in edges.into_iter().enumerate() {
-                let d = deps.entry(src).or_default();
-                let t = tier_of(&kind);
-                if d.kinds.is_empty() || t < d.tier {
-                    d.tier = t;
-                }
-                // A source's confidence is the BEST of its causal paths (a
-                // verified static call is not dragged down by a weak co-edge).
-                if t == 0 {
-                    if let Some(Some(c)) = confs.get(i) {
-                        let c = c.clamp(0.0, 1.0);
-                        d.best_conf = Some(d.best_conf.map_or(c, |b| b.max(c)));
-                    }
+            let mut conf_i = 0usize;
+            for (src, kind, w, via) in edges.into_iter() {
+                let causal = is_causal_dependency(&kind);
+                let conf = if causal {
+                    let c = confs.get(conf_i).copied().flatten();
+                    conf_i += 1;
+                    c
+                } else {
+                    None
+                };
+                // A source with NO node record is an unresolved endpoint
+                // regardless of kind: quarantined from every confirmed tier.
+                let resolved = nodes.get(&src).map(|n| n.is_some()).unwrap_or(false);
+                let tier = if resolved { tier_of(&kind) } else { 5 };
+                let d = deps.entry((tier, src)).or_default();
+                if let Some(c) = conf {
+                    let c = c.clamp(0.0, 1.0);
+                    d.best_conf = Some(d.best_conf.map_or(c, |b| b.max(c)));
                 }
                 if w > d.weight {
                     d.weight = w;
@@ -443,27 +555,20 @@ impl Engram {
                     d.via.insert(via);
                 }
             }
+            let count_tier = |t: u8| deps.keys().filter(|(tier, _)| *tier == t).count();
+            let causal_total = count_tier(0);
+            let possible_total = count_tier(1);
+            let structural_total = count_tier(2);
+            let companion_total = count_tier(3);
+            let annotation_total = count_tier(4);
+            let unresolved_total = count_tier(5);
 
-            // Per-tier unique-node counts (the limit applies to UNIQUE
-            // dependents, after grouping — not to raw edges).
-            let causal_total = deps.values().filter(|d| d.tier == 0).count();
-            let companion_total = deps.values().filter(|d| d.tier == 2).count();
-            let structural_total = deps.values().filter(|d| d.tier == 1).count();
-
-            // ── 5. Batch-resolve nodes (ONE transaction, not N+1). ──
-            let ids: Vec<String> = deps.keys().cloned().collect();
-            let nodes = graph
-                .get_nodes(&req.project_id, &ids)
-                .map_err(|e| e.to_string())?;
-            let mut dangling = 0usize;
-
-            // ── 6. Rank: tier → directness → confidence → weight → id. ──
-            let mut ranked: Vec<(String, Dep)> = deps.into_iter().collect();
-            ranked.sort_by(|(ida, a), (idb, b)| {
+            // ── 6. Rank within tier: directness → confidence → weight → id. ──
+            let mut ranked: Vec<((u8, String), Dep)> = deps.into_iter().collect();
+            ranked.sort_by(|((ta, ida), a), ((tb, idb), b)| {
                 let da = a.kinds.iter().map(directness).min().unwrap_or(9);
                 let db = b.kinds.iter().map(directness).min().unwrap_or(9);
-                a.tier
-                    .cmp(&b.tier)
+                ta.cmp(tb)
                     .then(da.cmp(&db))
                     .then_with(|| {
                         b.best_conf
@@ -480,31 +585,40 @@ impl Engram {
                     EdgeKind::Calls => "calls this",
                     EdgeKind::Dependency => "uses this",
                     EdgeKind::Imports => "imports this",
+                    EdgeKind::IncludesFile => "includes this file",
                     EdgeKind::InheritsFrom => "inherits from this",
                     EdgeKind::Implements => "implements this",
                     EdgeKind::SqlCalls => "executes this SQL",
+                    EdgeKind::CallsStoredProcedure => "calls this stored procedure",
                     EdgeKind::QueriesTable => "queries this table",
                     EdgeKind::ReadsColumn => "reads this column",
                     EdgeKind::ReadsState => "reads this state",
                     EdgeKind::WritesState => "writes this state",
                     EdgeKind::ReadsSetting => "reads this setting",
                     EdgeKind::DataBinding => "data-binds to this",
+                    EdgeKind::ParameterBinding => "binds parameters to this",
                     EdgeKind::ApiCall => "calls this API",
-                    EdgeKind::TestOracle => "tests this",
+                    EdgeKind::ObservedRuntimeControl => "observed at runtime (control)",
+                    EdgeKind::ObservedRuntimeSql => "observed at runtime (SQL)",
                     EdgeKind::Contains => "contains this",
+                    EdgeKind::ContainsUi => "contains this (UI)",
                     EdgeKind::HasColumn => "has column",
                     EdgeKind::ForeignKey => "foreign key",
+                    EdgeKind::UiLayoutNeighbor => "UI layout neighbor",
                     EdgeKind::TemporalCoupling => "often changed with this",
                     EdgeKind::CoOccurrence => "often searched with this",
+                    EdgeKind::StateAffinity => "shares state affinity",
+                    EdgeKind::Insight => "insight about this",
+                    EdgeKind::AntiPattern => "anti-pattern noted here",
+                    EdgeKind::UnresolvedStateRead => "reads state (unresolved)",
+                    EdgeKind::UnresolvedStateWrite => "writes state (unresolved)",
                     _ => "related",
                 }
             };
-            let render = |id: &str, d: &Dep, out: &mut String, dangling: &mut usize| {
+            let render = |id: &str, d: &Dep, out: &mut String| {
                 let node = nodes.get(id).and_then(|n| n.as_ref());
                 let (disp, ntype) = match node {
                     Some(n) => {
-                        // FQN first (what humans/agents identify symbols by),
-                        // then file:line.
                         let fqn = n
                             .metadata
                             .as_ref()
@@ -520,10 +634,7 @@ impl Engram {
                             n.node_type.as_str(),
                         )
                     }
-                    None => {
-                        *dangling += 1;
-                        (format!("{id} [DANGLING — no node record]"), "unresolved")
-                    }
+                    None => (id.to_string(), "no node record"),
                 };
                 let mut kinds: Vec<&str> = d.kinds.iter().map(label).collect();
                 kinds.sort();
@@ -531,19 +642,26 @@ impl Engram {
                 let conf = match d.best_conf {
                     Some(c) if c < 0.6 => format!(" conf {c:.2} (LOW — verify with grep)"),
                     Some(c) => format!(" conf {c:.2}"),
-                    None if d.tier == 0 => " conf unknown".to_string(),
                     None => String::new(),
                 };
                 let via = if d.via.is_empty() {
                     String::new()
                 } else {
-                    let mut v: Vec<String> = d
+                    let all: Vec<String> = d
                         .via
                         .iter()
                         .map(|s| s.rsplit(':').nth(1).unwrap_or(s).to_string())
                         .collect();
-                    v.truncate(3);
-                    format!(" — via {}", v.join(", "))
+                    let shown: Vec<&String> = all.iter().take(3).collect();
+                    let more = if all.len() > 3 {
+                        format!(" (+{} more)", all.len() - 3)
+                    } else {
+                        String::new()
+                    };
+                    format!(
+                        " — via {}{more}",
+                        shown.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ")
+                    )
                 };
                 out.push_str(&format!(
                     "- {disp} [{ntype}] {}{conf}{via}\n",
@@ -551,7 +669,7 @@ impl Engram {
                 ));
             };
 
-            // ── 7. Render by tier. ──
+            // ── 7. Render by tier with per-tier coverage. ──
             let limit = req.limit.clamp(1, 1000);
             let mut out = format!("# Impact analysis: {target_id}\n\n");
             out.push_str(
@@ -561,78 +679,135 @@ impl Engram {
                  signature change would read the same here.\n",
             );
             out.push_str(&format!(
-                "**Unique dependents**: {causal_total} causal (may break), {structural_total} \
-                 structural, {companion_total} historical companions",
+                "**Confirmed unique dependents**: {causal_total} causal (may break), \
+                 {possible_total} possible (runtime-observed), {structural_total} structural, \
+                 {companion_total} historical companions, {annotation_total} annotations"
             ));
+            if unresolved_total > 0 {
+                out.push_str(&format!(
+                    " | {unresolved_total} UNRESOLVED endpoints (excluded from the confirmed counts)"
+                ));
+            }
             if is_file_target {
                 out.push_str(&format!(
                     " | {contained_count} contained symbols, {internal_edges} internal edges \
-                     (inside the file; excluded from impact)"
+                     (inside the component; excluded)"
                 ));
             }
             out.push('\n');
-            if !truncated.is_empty() {
-                out.push_str(&format!(
-                    "⚠ **INCOMPLETE**: fetch caps hit ({}); the causal list below is a LOWER \
-                     BOUND — narrow the target (a symbol instead of the file) for exact results.\n",
-                    truncated.join("; ")
+            // Per-tier coverage: a capped companion fetch does NOT make the
+            // causal count a lower bound, and vice versa.
+            let mut cov: Vec<String> = Vec::new();
+            if !causal_truncated.is_empty() {
+                cov.push(format!(
+                    "CAUSAL is a LOWER BOUND ({} kind/endpoint fetch(es) hit {CAP_PER_KIND}: {})",
+                    causal_truncated.len(),
+                    causal_truncated.join(", ")
                 ));
             }
-
-            let mut shown_causal = 0usize;
-            out.push_str("\n## Causal dependents (may break if this changes)\n");
-            for (id, d) in ranked.iter().filter(|(_, d)| d.tier == 0) {
-                if shown_causal >= limit {
-                    break;
-                }
-                render(id, d, &mut out, &mut dangling);
-                shown_causal += 1;
+            if companion_truncated {
+                cov.push("companions truncated".into());
             }
+            if structural_truncated {
+                cov.push("structural truncated".into());
+            }
+            if contained_truncated {
+                cov.push(format!("contained-symbol scan hit {CAP_CONTAINED}").into());
+            }
+            if fetch_errors > 0 {
+                cov.push(format!("{fetch_errors} fetch error(s) skipped"));
+            }
+            if cov.is_empty() {
+                out.push_str("**Coverage**: complete for every tier.\n");
+            } else {
+                out.push_str(&format!("⚠ **Coverage**: {}.\n", cov.join("; ")));
+            }
+
+            let section = |out: &mut String,
+                            tier: u8,
+                            title: &str,
+                            total: usize,
+                            cap: usize,
+                            ranked: &[((u8, String), Dep)]| {
+                if total == 0 {
+                    return;
+                }
+                out.push_str(&format!("\n## {title}\n"));
+                let mut n = 0;
+                for ((t, id), d) in ranked.iter().filter(|((t, _), _)| *t == tier) {
+                    let _ = t;
+                    if n >= cap {
+                        out.push_str(&format!("… and {} more\n", total - n));
+                        break;
+                    }
+                    render(id, d, out);
+                    n += 1;
+                }
+            };
+            out.push_str("\n## Causal dependents (confirmed; may break if this changes)\n");
             if causal_total == 0 {
                 out.push_str("(none — no calls/uses/imports/state/table/api edges reach this)\n");
-            } else if causal_total > shown_causal {
-                out.push_str(&format!(
-                    "… and {} more causal dependents (raise `limit`)\n",
-                    causal_total - shown_causal
-                ));
-            }
-
-            if structural_total > 0 {
-                out.push_str("\n## Structural (containment/layout — context, not breakage)\n");
+            } else {
                 let mut n = 0;
-                for (id, d) in ranked.iter().filter(|(_, d)| d.tier == 1) {
-                    if n >= 10 {
-                        out.push_str(&format!("… and {} more\n", structural_total - n));
+                for ((t, id), d) in ranked.iter().filter(|((t, _), _)| *t == 0) {
+                    let _ = t;
+                    if n >= limit {
+                        out.push_str(&format!(
+                            "… and {} more causal dependents (raise `limit`)\n",
+                            causal_total - n
+                        ));
                         break;
                     }
-                    render(id, d, &mut out, &mut dangling);
+                    render(id, d, &mut out);
                     n += 1;
                 }
             }
-
-            if companion_total > 0 {
-                out.push_str(
-                    "\n## Historical companions (usually changed/searched together — plan to \
-                     co-edit; NOT breakage)\n",
-                );
+            section(
+                &mut out,
+                1,
+                "Possible dependents (runtime-observed interaction — evidence, not a compiler-resolved call)",
+                possible_total,
+                10,
+                &ranked,
+            );
+            section(
+                &mut out,
+                2,
+                "Structural (containment/layout — context, not breakage)",
+                structural_total,
+                10,
+                &ranked,
+            );
+            section(
+                &mut out,
+                3,
+                "Historical companions (usually changed/searched together — plan to co-edit; NOT breakage)",
+                companion_total,
+                10,
+                &ranked,
+            );
+            section(&mut out, 4, "Annotations (insights / anti-patterns)", annotation_total, 5, &ranked);
+            if unresolved_total > 0 {
+                out.push_str(&format!(
+                    "\n## Unresolved endpoints ({unresolved_total}) — NOT confirmed dependents\n\
+                     Edges whose source has no node record. Two known causes: (1) history/co-change \
+                     ingestion wrote a historical repo-relative path (e.g. `file:App_Code/...` missing \
+                     the current `Site/` prefix) as if it were a current node id; (2) a causal edge \
+                     survived from a stale generation. Neither is verified impact. No repair tool \
+                     currently reconciles these endpoints (check_integrity does not scan edge \
+                     endpoints; repair_project does not re-ingest history) — treat as an integrity \
+                     backlog item, and grep for the name to confirm any you care about.\n"
+                ));
                 let mut n = 0;
-                for (id, d) in ranked.iter().filter(|(_, d)| d.tier == 2) {
-                    if n >= 10 {
-                        out.push_str(&format!("… and {} more\n", companion_total - n));
+                for ((t, id), d) in ranked.iter().filter(|((t, _), _)| *t == 5) {
+                    let _ = t;
+                    if n >= 8 {
+                        out.push_str(&format!("… and {} more\n", unresolved_total - n));
                         break;
                     }
-                    render(id, d, &mut out, &mut dangling);
+                    render(id, d, &mut out);
                     n += 1;
                 }
-            }
-
-            if dangling > 0 {
-                out.push_str(&format!(
-                    "\n⚠ {dangling} edge source(s) have no node record (DANGLING). This is an \
-                     indexing-integrity warning, not verified impact: these are listed for \
-                     transparency but were NOT treated as confirmed dependents. Run \
-                     check_integrity / repair_project.\n"
-                ));
             }
             out.push_str(
                 "\nnext: compute_blast_radius(<symbol>) for the advisory exposure profile; \
@@ -3218,73 +3393,68 @@ impl Engram {
                 gen_,
                 include_guidance,
             )?;
-            // Named dependents, from the SAME population the count uses:
-            // CAUSAL kinds only (a TemporalCoupling edge with a huge co-change
-            // weight used to outrank a real compiler-resolved call and get
-            // labelled "what breaks first"). Ranked by causal directness
-            // (Calls/Dependency first), then weight, then deterministic id so
-            // two identical requests list identical names. Companions are
-            // listed separately, never as breakages.
-            use crate::services::blast_radius_service::is_causal_dependency;
-            let incoming = graph
-                .find_incoming_edges_with_kind(&pid, None, &target_id, 500)
-                .unwrap_or_default();
+            // Named dependents come FROM THE SERVICE (report.top_causal_dependents):
+            // the same unique-source population (direct + file-aggregated) that
+            // produced `causal_dependents`, so count and examples describe one
+            // population. The renderer no longer queries the graph on its own
+            // (the old query hit only direct file-node edges and missed every
+            // symbol-level caller the score was built from). Companions are
+            // the one thing still read here, and only for display.
+            let ids: Vec<String> = report
+                .top_causal_dependents
+                .iter()
+                .map(|(id, _, _)| id.clone())
+                .collect();
+            let node_map = graph.get_nodes(&pid, &ids).unwrap_or_default();
             let label_of = |src: &str| -> String {
-                graph
-                    .get_node(&pid, src)
-                    .ok()
-                    .flatten()
+                node_map
+                    .get(src)
+                    .and_then(|n| n.as_ref())
                     .map(|n| {
                         if n.file_path.as_str().is_empty() {
-                            n.name
+                            n.name.clone()
                         } else {
                             format!("{} ({}:{})", n.name, n.file_path, n.start_line)
                         }
                     })
-                    .unwrap_or_else(|| src.to_string())
+                    .unwrap_or_else(|| format!("{src} [no node record]"))
             };
-            let tier = |k: &engram_graph::EdgeKind| -> u8 {
-                match k {
-                    engram_graph::EdgeKind::Calls | engram_graph::EdgeKind::Dependency => 0,
-                    engram_graph::EdgeKind::InheritsFrom
-                    | engram_graph::EdgeKind::Implements
-                    | engram_graph::EdgeKind::Imports
-                    | engram_graph::EdgeKind::IncludesFile => 1,
-                    _ => 2,
-                }
-            };
-            let mut causal: Vec<(u8, String, String, String, u32)> = incoming
+            let deps: Vec<TopDependent> = report
+                .top_causal_dependents
                 .iter()
-                .filter(|(_, k, _)| is_causal_dependency(k))
-                .map(|(src, k, w)| {
-                    (
-                        tier(k),
-                        src.clone(),
-                        k.as_str().to_string(),
-                        String::new(),
-                        *w,
-                    )
-                })
+                .map(|(id, kind, conf)| (label_of(id), kind.clone(), (conf * 100.0) as u32))
                 .collect();
-            // Dedup by source node (one caller via several kinds = one entry,
-            // keep its most direct tier).
-            causal.sort_by(|a, b| a.0.cmp(&b.0).then(b.4.cmp(&a.4)).then(a.1.cmp(&b.1)));
-            causal.dedup_by(|a, b| a.1 == b.1);
-            causal.truncate(10);
-            let deps: Vec<TopDependent> = causal
+            let mut companions: Vec<(String, u32)> = graph
+                .find_incoming_edges_with_kind(
+                    &pid,
+                    Some(engram_graph::EdgeKind::TemporalCoupling),
+                    &target_id,
+                    200,
+                )
+                .unwrap_or_default()
                 .into_iter()
-                .map(|(_, src, kind, _, w)| (label_of(&src), kind, w))
-                .collect();
-            let mut companions: Vec<(String, u32)> = incoming
-                .iter()
-                .filter(|(_, k, _)| matches!(k, engram_graph::EdgeKind::TemporalCoupling))
-                .map(|(src, _, w)| (src.clone(), *w))
+                .map(|(src, _, w)| (src, w))
                 .collect();
             companions.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
             companions.truncate(5);
+            let cids: Vec<String> = companions.iter().map(|(s, _)| s.clone()).collect();
+            let cmap = graph.get_nodes(&pid, &cids).unwrap_or_default();
             let companions: Vec<(String, u32)> = companions
                 .into_iter()
-                .map(|(src, w)| (label_of(&src), w))
+                .map(|(src, w)| {
+                    let l = cmap
+                        .get(&src)
+                        .and_then(|n| n.as_ref())
+                        .map(|n| {
+                            if n.file_path.as_str().is_empty() {
+                                n.name.clone()
+                            } else {
+                                format!("{} ({}:{})", n.name, n.file_path, n.start_line)
+                            }
+                        })
+                        .unwrap_or_else(|| format!("{src} [no node record]"));
+                    (l, w)
+                })
                 .collect();
             Ok::<_, anyhow::Error>((report, (deps, companions)))
         })
