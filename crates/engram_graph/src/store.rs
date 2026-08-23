@@ -952,6 +952,32 @@ impl GraphStore {
         Ok(Some(bincode::deserialize(v.value())?))
     }
 
+    /// Batch node lookup in ONE read transaction. Replaces N+1 `get_node`
+    /// calls (each opening its own transaction) when rendering a dependent
+    /// list. Missing ids map to `None` so callers can tell "dangling edge"
+    /// from "found".
+    pub fn get_nodes(
+        &self,
+        project_id: &str,
+        node_ids: &[String],
+    ) -> anyhow::Result<std::collections::HashMap<String, Option<Node>>> {
+        let rtx = self.db.begin_read()?;
+        let nt = rtx.open_table(NODES)?;
+        let mut out = std::collections::HashMap::with_capacity(node_ids.len());
+        for id in node_ids {
+            if out.contains_key(id) {
+                continue;
+            }
+            let key = format!("{project_id}\0{id}");
+            let node = match nt.get(key.as_str())? {
+                Some(v) => Some(bincode::deserialize(v.value())?),
+                None => None,
+            };
+            out.insert(id.clone(), node);
+        }
+        Ok(out)
+    }
+
     pub fn list_edges(
         &self,
         project_id: &str,

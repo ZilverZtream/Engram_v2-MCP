@@ -210,35 +210,56 @@ impl Engram {
         validate_project_id(&req.project_id)?;
         let _ = self.ensure_project_runtime(&req.project_id).await?;
 
-        if req.symbol_fqn.is_none() && req.file_path.is_none() {
-            return Err(McpError::invalid_params(
-                "Either file_path or symbol_fqn must be provided.",
-                None,
-            ));
+        // Exactly one target. Previously both were accepted and the symbol
+        // silently won.
+        match (&req.symbol_fqn, &req.file_path) {
+            (None, None) => {
+                return Err(McpError::invalid_params(
+                    "Either file_path or symbol_fqn must be provided.",
+                    None,
+                ));
+            }
+            (Some(_), Some(_)) => {
+                return Err(McpError::invalid_params(
+                    "Provide file_path OR symbol_fqn, not both (they resolve to different \
+                     targets and one would silently win).",
+                    None,
+                ));
+            }
+            _ => {}
         }
 
         let file_path_for_confidence = req.file_path.clone();
         let project_id_outer = req.project_id.clone();
         let graph = self.state.graph.clone();
         let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
+            use crate::services::blast_radius_service::is_causal_dependency;
+            use engram_graph::EdgeKind;
+
+            // ── 1. Resolve the target; "not found" is NOT "no dependents". ──
             let target_id = if let Some(ref fqn) = req.symbol_fqn {
-                if fqn.starts_with("sym:") {
+                if fqn.starts_with("sym:")
+                    || fqn.starts_with("sql:")
+                    || fqn.starts_with("table:")
+                    || fqn.starts_with("state:")
+                {
+                    // Every id form is existence-checked now (sql:/table:/state:
+                    // used to bypass the check and report "no dependents").
                     if graph
                         .get_node(&req.project_id, fqn)
                         .map_err(|e| e.to_string())?
                         .is_none()
                     {
-                        return Ok(format!("node_id '{fqn}' not found in project."));
+                        return Ok(format!(
+                            "TARGET NOT FOUND: node_id '{fqn}' does not exist in this project \
+                             (this is a resolution failure, not an empty impact). Use \
+                             query_graph_nodes / resolve_id to find the exact node_id."
+                        ));
                     }
-                    fqn.clone()
-                } else if fqn.starts_with("sql:")
-                    || fqn.starts_with("table:")
-                    || fqn.starts_with("state:")
-                {
                     fqn.clone()
                 } else {
                     match graph
-                        .resolve_symbol(&req.project_id, fqn, None, req.file_path.as_deref())
+                        .resolve_symbol(&req.project_id, fqn, None, None)
                         .map_err(|e| e.to_string())?
                     {
                         ResolveResult::Unique(node) => node.node_id,
@@ -247,285 +268,376 @@ impl Engram {
                         }
                         ResolveResult::NotFound => {
                             return Ok(format!(
-                                "Symbol '{fqn}' was not found. Use query_graph_nodes to find the exact node_id/name, then retry with that node_id."
+                                "TARGET NOT FOUND: symbol '{fqn}' is not in the graph (resolution \
+                                 failure, not an empty impact). Use query_graph_nodes to find the \
+                                 exact node_id/name, then retry with that node_id."
                             ));
                         }
                     }
                 }
-            } else if let Some(ref path) = req.file_path {
-                engram_core::ids::NodeId::file(path).0
             } else {
-                unreachable!()
+                let path = req.file_path.as_deref().unwrap_or_default();
+                let id = engram_core::ids::NodeId::file(path).0;
+                if graph
+                    .get_node(&req.project_id, &id)
+                    .map_err(|e| e.to_string())?
+                    .is_none()
+                {
+                    return Ok(format!(
+                        "TARGET NOT FOUND: no file node for '{path}' (expected id '{id}'). This is \
+                         a resolution failure, not an empty impact — the file may be unindexed \
+                         (run update_project) or the path may need to be project-relative. Use \
+                         query_graph_nodes(node_type=\"file\", name_pattern=...) to find it."
+                    ));
+                }
+                id
             };
+            let is_file_target = target_id.starts_with("file:");
 
-            tracing::info!(
-                project_id = %req.project_id,
-                symbol_fqn = ?req.symbol_fqn,
-                resolved_target_id = %target_id,
-                "impact_analysis: resolved symbol to node_id"
-            );
+            // ── 2. Gather incoming edges with honest truncation. ──
+            // Caps are fetched at cap+1 so "exactly cap" is COMPLETE and only
+            // cap+1 is truncated.
+            const CAP_DIRECT: usize = 1000;
+            const CAP_PER_SYMBOL: usize = 200;
+            let mut truncated: Vec<String> = Vec::new();
 
-            let capped_limit = req.limit.clamp(1, 1000);
-            let mut incoming = graph
-                .find_incoming_edges_with_kind(&req.project_id, None, &target_id, capped_limit)
+            // (source, kind, weight, reached_via) — `reached_via` is the
+            // contained symbol an external source actually touches, so the
+            // report can say "OrderPage.Save() is affected through
+            // SharedValidation.ValidatePhotoCount()" instead of losing the path.
+            let mut edges: Vec<(String, EdgeKind, u32, String)> = Vec::new();
+            let mut conf_triples: Vec<(EdgeKind, String, String)> = Vec::new();
+
+            let direct = graph
+                .find_incoming_edges_with_kind(&req.project_id, None, &target_id, CAP_DIRECT + 1)
                 .map_err(|e| e.to_string())?;
-            // Parallel list of (kind, source, REAL target) triples for the
-            // confidence batch lookup — kept in lockstep with `incoming`.
-            let mut conf_triples: Vec<(engram_graph::EdgeKind, String, String)> = incoming
-                .iter()
-                .map(|(src, kind, _)| (kind.clone(), src.clone(), target_id.clone()))
-                .collect();
+            if direct.len() > CAP_DIRECT {
+                truncated.push(format!("direct incoming (>{CAP_DIRECT})"));
+            }
+            for (src, kind, w) in direct.into_iter().take(CAP_DIRECT) {
+                conf_triples.push((kind.clone(), src.clone(), target_id.clone()));
+                edges.push((src, kind, w, target_id.clone()));
+            }
 
-            // File-level transitive aggregation — mirrors what
-            // `compute_blast_radius` does in `blast_radius_service.rs`.
-            // A raw `file:…` node carries almost no direct incoming
-            // edges on a typical project; every real dependent lands
-            // on the symbols inside the file via `Contains`. Without
-            // this pass, `impact_analysis` on a shared utility file
-            // (e.g. `Site/App_Code/shared-code/sharedfunc.vb` on
-            // the pilot corpus — 1000+ real dependents) returned zero.
-            if target_id.starts_with("file:") {
-                // Resolve the file's rel_path. Prefer the persisted
-                // node metadata (handles slash / encoding quirks) and
-                // fall back to stripping the `file:` prefix off the
-                // id. This mirrors what `compute_blast_radius` does
-                // in commit `64637ce`.
+            // File target: aggregate edges reaching the file's contained
+            // symbols, with a COMPONENT BOUNDARY: an edge whose source is
+            // also inside the file (ANY kind, not just Contains) is internal
+            // wiring, excluded from impact and counted separately.
+            let mut internal_edges = 0usize;
+            let mut contained_count = 0usize;
+            if is_file_target {
                 let file_rel_path = graph
                     .get_node(&req.project_id, &target_id)
                     .ok()
                     .flatten()
                     .map(|n| n.file_path.as_str().to_string())
                     .unwrap_or_else(|| target_id[5..].to_string());
-
-                // IMPORTANT: do NOT use `graph.neighbors(Contains, …)`
-                // to find contained symbols. On several projects the
-                // Contains edges for file-shaped sources live in the
-                // EDGES table but not in ADJ_OUT (verified by
-                // `traverse_graph(file:…, contains, outgoing)`
-                // returning zero on the pilot corpus). The authoritative
-                // containment signal is `Node.file_path` equality —
-                // every symbol node stores its owning file.
-                //
-                // `query_nodes` with a `Some(file_path)` filter already
-                // does case-insensitive + slash-normalised substring
-                // matching; we add an exact-equality post-filter so a
-                // file whose path is a suffix of another file's path
-                // can't bleed symbols in.
-                let contained: std::collections::HashSet<String> = graph
+                // Sorted Vec, not HashSet: iteration order is now deterministic
+                // so two identical requests return identical results.
+                let mut contained: Vec<String> = graph
                     .query_nodes(&req.project_id, None, None, Some(&file_rel_path), 50_000)
                     .map_err(|e| e.to_string())?
                     .into_iter()
-                    .filter(|n| {
-                        n.node_id != target_id && n.file_path.as_str() == file_rel_path
-                    })
+                    .filter(|n| n.node_id != target_id && n.file_path.as_str() == file_rel_path)
                     .map(|n| n.node_id)
                     .collect();
-
-                tracing::info!(
-                    project_id = %req.project_id,
-                    target_id = %target_id,
-                    file_rel_path = %file_rel_path,
-                    contained_symbols = contained.len(),
-                    "impact_analysis: resolved contained symbols via file_path equality"
-                );
-
-                if !contained.is_empty() {
-                    // O(sum of in-degrees) via ADJ_IN per contained symbol —
-                    // this used to be `list_edges(None)`, a full scan of
-                    // EVERY edge in the project on each file-level call.
-                    let mut added = 0usize;
-                    'agg: for sym_id in &contained {
-                        let Ok(sym_incoming) = graph.find_incoming_edges_with_kind(
-                            &req.project_id,
-                            None,
-                            sym_id,
-                            200,
-                        ) else {
-                            continue;
-                        };
-                        for (src, kind, weight) in sym_incoming {
-                            if src == target_id {
-                                continue;
-                            }
-                            // Do not re-include intra-file Contains edges
-                            // (namespace → class, class → function) as
-                            // "dependents" — structural parents, not usages.
-                            if contained.contains(&src)
-                                && kind == engram_graph::EdgeKind::Contains
-                            {
-                                continue;
-                            }
-                            conf_triples.push((kind.clone(), src.clone(), sym_id.clone()));
-                            incoming.push((src, kind, weight));
-                            added += 1;
-                            if incoming.len() >= capped_limit {
-                                break 'agg;
-                            }
+                contained.sort();
+                contained.dedup();
+                contained_count = contained.len();
+                let inside: std::collections::HashSet<&str> =
+                    contained.iter().map(|s| s.as_str()).collect();
+                for sym_id in &contained {
+                    let Ok(sym_in) = graph.find_incoming_edges_with_kind(
+                        &req.project_id,
+                        None,
+                        sym_id,
+                        CAP_PER_SYMBOL + 1,
+                    ) else {
+                        continue;
+                    };
+                    if sym_in.len() > CAP_PER_SYMBOL {
+                        if truncated.len() < 12 {
+                            truncated.push(format!("{sym_id} (>{CAP_PER_SYMBOL})"));
                         }
                     }
-                    tracing::info!(
-                        project_id = %req.project_id,
-                        target_id = %target_id,
-                        contained_symbols = contained.len(),
-                        transitive_added = added,
-                        "impact_analysis: file-level transitive aggregation"
-                    );
+                    for (src, kind, w) in sym_in.into_iter().take(CAP_PER_SYMBOL) {
+                        if src == target_id || inside.contains(src.as_str()) {
+                            internal_edges += 1;
+                            continue;
+                        }
+                        conf_triples.push((kind.clone(), src.clone(), sym_id.clone()));
+                        edges.push((src, kind, w, sym_id.clone()));
+                    }
                 }
             }
 
-            if incoming.is_empty() {
+            if edges.is_empty() {
                 return Ok(format!(
-                    "No dependent nodes found for {target_id}.\n\
+                    "Impact analysis for {target_id}: no incoming edges of any kind (target \
+                     exists; {contained_count} contained symbols checked; {internal_edges} \
+                     internal edges). A genuinely unreferenced target, or callers the index has \
+                     not seen — grep the working tree for the name to confirm.\n\
                      next: find_symbol_references(<name>) for a lexical fallback; \
-                     resolve_id(<name>) to check you targeted the right node; \
                      get_index_freshness if the code is newer than the index."
                 ));
             }
-            let incoming_edge_count = incoming.len();
 
-            // Same phantom-edge discount blast_radius applies (TODO-12):
-            // bare-name bindings (app JS calling `new Map()` hitting a class
-            // named Map) carry extraction confidence < 1.0 — without the
-            // discount they inflate the dependent list at full weight.
-            let confidences: Vec<f32> = graph
+            // ── 3. Confidence stays attached to the PATH; unknown stays unknown. ──
+            let confs: Vec<Option<f32>> = graph
                 .get_edge_confidences(&req.project_id, &conf_triples)
-                .map(|v| {
-                    v.into_iter()
-                        .map(|c| c.unwrap_or(1.0).clamp(0.0, 1.0))
-                        .collect()
-                })
-                .unwrap_or_else(|_| vec![1.0; incoming.len()]);
+                .unwrap_or_else(|_| vec![None; edges.len()]);
 
-            let mut out = format!("Impact Analysis for {target_id}:\n\n");
-            out.push_str("Nodes that depend on or are related to this:\n");
-
-            type Grouped = (Vec<engram_graph::EdgeKind>, u32, f32);
-            let mut grouped: std::collections::HashMap<String, Grouped> =
-                std::collections::HashMap::new();
-            for (i, (src_id, kind, weight)) in incoming.into_iter().enumerate() {
-                let conf = confidences.get(i).copied().unwrap_or(1.0);
-                let entry = grouped.entry(src_id).or_insert((Vec::new(), 0, 1.0));
-                entry.0.push(kind);
-                if weight > entry.1 {
-                    entry.1 = weight;
+            // ── 4. Group by source node into TIERS. ──
+            // causal: may break. companion: co-change/co-search history.
+            // structural: containment/layout. Never one list.
+            #[derive(Default)]
+            struct Dep {
+                kinds: Vec<EdgeKind>,
+                via: std::collections::BTreeSet<String>,
+                best_conf: Option<f32>,
+                weight: u32,
+                tier: u8, // 0 = causal, 1 = structural, 2 = companion
+            }
+            let tier_of = |k: &EdgeKind| -> u8 {
+                if is_causal_dependency(k) {
+                    0
+                } else if matches!(
+                    k,
+                    EdgeKind::TemporalCoupling | EdgeKind::CoOccurrence | EdgeKind::StateAffinity
+                ) {
+                    2
+                } else {
+                    1
                 }
-                if conf < entry.2 {
-                    entry.2 = conf;
+            };
+            let directness = |k: &EdgeKind| -> u8 {
+                match k {
+                    EdgeKind::Calls | EdgeKind::Dependency | EdgeKind::SqlCalls => 0,
+                    EdgeKind::InheritsFrom | EdgeKind::Implements | EdgeKind::Imports => 1,
+                    _ => 2,
+                }
+            };
+            let mut deps: std::collections::BTreeMap<String, Dep> =
+                std::collections::BTreeMap::new();
+            for (i, (src, kind, w, via)) in edges.into_iter().enumerate() {
+                let d = deps.entry(src).or_default();
+                let t = tier_of(&kind);
+                if d.kinds.is_empty() || t < d.tier {
+                    d.tier = t;
+                }
+                // A source's confidence is the BEST of its causal paths (a
+                // verified static call is not dragged down by a weak co-edge).
+                if t == 0 {
+                    if let Some(Some(c)) = confs.get(i) {
+                        let c = c.clamp(0.0, 1.0);
+                        d.best_conf = Some(d.best_conf.map_or(c, |b| b.max(c)));
+                    }
+                }
+                if w > d.weight {
+                    d.weight = w;
+                }
+                if !d.kinds.contains(&kind) {
+                    d.kinds.push(kind);
+                }
+                if via != target_id {
+                    d.via.insert(via);
                 }
             }
 
-            let mut sorted: Vec<_> = grouped.into_iter().collect();
-            // Confident dependents first; low-confidence (bare-name) ones
-            // are still listed but demoted and tagged, not silently counted
-            // at full strength.
-            sorted.sort_by(|a, b| {
-                let a_low = a.1.2 < 0.6;
-                let b_low = b.1.2 < 0.6;
-                a_low
-                    .cmp(&b_low)
-                    .then_with(|| b.1.1.cmp(&a.1.1))
+            // Per-tier unique-node counts (the limit applies to UNIQUE
+            // dependents, after grouping — not to raw edges).
+            let causal_total = deps.values().filter(|d| d.tier == 0).count();
+            let companion_total = deps.values().filter(|d| d.tier == 2).count();
+            let structural_total = deps.values().filter(|d| d.tier == 1).count();
+
+            // ── 5. Batch-resolve nodes (ONE transaction, not N+1). ──
+            let ids: Vec<String> = deps.keys().cloned().collect();
+            let nodes = graph
+                .get_nodes(&req.project_id, &ids)
+                .map_err(|e| e.to_string())?;
+            let mut dangling = 0usize;
+
+            // ── 6. Rank: tier → directness → confidence → weight → id. ──
+            let mut ranked: Vec<(String, Dep)> = deps.into_iter().collect();
+            ranked.sort_by(|(ida, a), (idb, b)| {
+                let da = a.kinds.iter().map(directness).min().unwrap_or(9);
+                let db = b.kinds.iter().map(directness).min().unwrap_or(9);
+                a.tier
+                    .cmp(&b.tier)
+                    .then(da.cmp(&db))
+                    .then_with(|| {
+                        b.best_conf
+                            .unwrap_or(0.0)
+                            .partial_cmp(&a.best_conf.unwrap_or(0.0))
+                            .unwrap_or(std::cmp::Ordering::Equal)
+                    })
+                    .then(b.weight.cmp(&a.weight))
+                    .then(ida.cmp(idb))
             });
 
-            tracing::info!(
-                project_id = %req.project_id,
-                target_id = %target_id,
-                incoming_edge_count = incoming_edge_count,
-                grouped_source_count = sorted.len(),
-                "impact_analysis: pre-render counts"
-            );
-
-            let mut unresolved_count = 0usize;
-            let mut low_conf_count = 0usize;
-            for (src_id, (kinds, weight, min_conf)) in sorted {
-                let src_node = graph
-                    .get_node(&req.project_id, &src_id)
-                    .map_err(|e| e.to_string())?;
-
-                if src_node.is_none() {
-                    unresolved_count += 1;
-                    tracing::debug!(
-                        project_id = %req.project_id,
-                        src_id = %src_id,
-                        "impact_analysis: source node_id has no persisted node record"
-                    );
+            let label = |k: &EdgeKind| -> &'static str {
+                match k {
+                    EdgeKind::Calls => "calls this",
+                    EdgeKind::Dependency => "uses this",
+                    EdgeKind::Imports => "imports this",
+                    EdgeKind::InheritsFrom => "inherits from this",
+                    EdgeKind::Implements => "implements this",
+                    EdgeKind::SqlCalls => "executes this SQL",
+                    EdgeKind::QueriesTable => "queries this table",
+                    EdgeKind::ReadsColumn => "reads this column",
+                    EdgeKind::ReadsState => "reads this state",
+                    EdgeKind::WritesState => "writes this state",
+                    EdgeKind::ReadsSetting => "reads this setting",
+                    EdgeKind::DataBinding => "data-binds to this",
+                    EdgeKind::ApiCall => "calls this API",
+                    EdgeKind::TestOracle => "tests this",
+                    EdgeKind::Contains => "contains this",
+                    EdgeKind::HasColumn => "has column",
+                    EdgeKind::ForeignKey => "foreign key",
+                    EdgeKind::TemporalCoupling => "often changed with this",
+                    EdgeKind::CoOccurrence => "often searched with this",
+                    _ => "related",
                 }
-
-                let mut reasons = Vec::new();
-                for ek in kinds {
-                    let r = match ek {
-                        engram_graph::EdgeKind::Calls => "Calls this",
-                        engram_graph::EdgeKind::Dependency => "Calls/Uses this",
-                        engram_graph::EdgeKind::Contains => "Contains this",
-                        engram_graph::EdgeKind::Imports => "Imports this",
-                        engram_graph::EdgeKind::SqlCalls => "Executes this SQL",
-                        engram_graph::EdgeKind::CoOccurrence => {
-                            "Often searched with this (Co-occurrence)"
-                        }
-                        engram_graph::EdgeKind::TemporalCoupling => {
-                            "Often changed with this (Temporal coupling)"
-                        }
-                        engram_graph::EdgeKind::QueriesTable => "Queries this table",
-                        engram_graph::EdgeKind::ReadsState => "Reads this state",
-                        engram_graph::EdgeKind::WritesState => "Writes this state",
-                        engram_graph::EdgeKind::HasColumn => "Has column",
-                        engram_graph::EdgeKind::ForeignKey => "Foreign key reference",
-                        _ => "Related",
-                    };
-                    reasons.push(r);
-                }
-                reasons.sort();
-                reasons.dedup();
-
-                let reason_str = if reasons.is_empty() {
-                    "Dependent".to_string()
-                } else {
-                    reasons.join(", ")
+            };
+            let render = |id: &str, d: &Dep, out: &mut String, dangling: &mut usize| {
+                let node = nodes.get(id).and_then(|n| n.as_ref());
+                let (disp, ntype) = match node {
+                    Some(n) => {
+                        // FQN first (what humans/agents identify symbols by),
+                        // then file:line.
+                        let fqn = n
+                            .metadata
+                            .as_ref()
+                            .and_then(|m| m.get("fqn"))
+                            .and_then(|v| v.as_str())
+                            .unwrap_or(n.name.as_str());
+                        (
+                            if n.file_path.as_str().is_empty() {
+                                fqn.to_string()
+                            } else {
+                                format!("{fqn} ({}:{})", n.file_path, n.start_line)
+                            },
+                            n.node_type.as_str(),
+                        )
+                    }
+                    None => {
+                        *dangling += 1;
+                        (format!("{id} [DANGLING — no node record]"), "unresolved")
+                    }
                 };
-                let (display_id, display_type) = match src_node.as_ref() {
-                    Some(n) => (n.node_id.as_str(), n.node_type.as_str()),
-                    None => (src_id.as_str(), "unresolved"),
+                let mut kinds: Vec<&str> = d.kinds.iter().map(label).collect();
+                kinds.sort();
+                kinds.dedup();
+                let conf = match d.best_conf {
+                    Some(c) if c < 0.6 => format!(" conf {c:.2} (LOW — verify with grep)"),
+                    Some(c) => format!(" conf {c:.2}"),
+                    None if d.tier == 0 => " conf unknown".to_string(),
+                    None => String::new(),
                 };
-                // Show the FQN alongside the location-based node_id — that's
-                // the name humans and agents actually identify symbols by.
-                let fqn_suffix = src_node
-                    .as_ref()
-                    .and_then(|n| n.metadata.as_ref())
-                    .and_then(|m| m.get("fqn"))
-                    .and_then(|v| v.as_str())
-                    .map(|f| format!(" ({f})"))
-                    .unwrap_or_default();
-
-                let conf_tag = if min_conf < 0.6 {
-                    low_conf_count += 1;
-                    format!(" ⚠ low-confidence match ({min_conf:.2}) — likely bare-name collision")
-                } else {
+                let via = if d.via.is_empty() {
                     String::new()
+                } else {
+                    let mut v: Vec<String> = d
+                        .via
+                        .iter()
+                        .map(|s| s.rsplit(':').nth(1).unwrap_or(s).to_string())
+                        .collect();
+                    v.truncate(3);
+                    format!(" — via {}", v.join(", "))
                 };
                 out.push_str(&format!(
-                    "- {}{} [{}] (weight: {weight}) - {reason_str}{conf_tag}\n",
-                    display_id, fqn_suffix, display_type
+                    "- {disp} [{ntype}] {}{conf}{via}\n",
+                    kinds.join(", ")
+                ));
+            };
+
+            // ── 7. Render by tier. ──
+            let limit = req.limit.clamp(1, 1000);
+            let mut out = format!("# Impact analysis: {target_id}\n\n");
+            out.push_str(
+                "**Scope**: 1-hop incoming (direct dependents of the target and, for a file, of its \
+                 contained symbols). NOT transitive. **Change**: unknown — no change spec was \
+                 supplied, so this is the conservative whole-target exposure; a comment edit and a \
+                 signature change would read the same here.\n",
+            );
+            out.push_str(&format!(
+                "**Unique dependents**: {causal_total} causal (may break), {structural_total} \
+                 structural, {companion_total} historical companions",
+            ));
+            if is_file_target {
+                out.push_str(&format!(
+                    " | {contained_count} contained symbols, {internal_edges} internal edges \
+                     (inside the file; excluded from impact)"
+                ));
+            }
+            out.push('\n');
+            if !truncated.is_empty() {
+                out.push_str(&format!(
+                    "⚠ **INCOMPLETE**: fetch caps hit ({}); the causal list below is a LOWER \
+                     BOUND — narrow the target (a symbol instead of the file) for exact results.\n",
+                    truncated.join("; ")
                 ));
             }
 
-            if low_conf_count > 0 {
+            let mut shown_causal = 0usize;
+            out.push_str("\n## Causal dependents (may break if this changes)\n");
+            for (id, d) in ranked.iter().filter(|(_, d)| d.tier == 0) {
+                if shown_causal >= limit {
+                    break;
+                }
+                render(id, d, &mut out, &mut dangling);
+                shown_causal += 1;
+            }
+            if causal_total == 0 {
+                out.push_str("(none — no calls/uses/imports/state/table/api edges reach this)\n");
+            } else if causal_total > shown_causal {
                 out.push_str(&format!(
-                    "\n({low_conf_count} dependent(s) are LOW-CONFIDENCE bare-name matches — \
-                     demoted to the bottom; verify with grep_project before treating them \
-                     as real callers.)\n"
+                    "… and {} more causal dependents (raise `limit`)\n",
+                    causal_total - shown_causal
                 ));
             }
-            if unresolved_count > 0 {
+
+            if structural_total > 0 {
+                out.push_str("\n## Structural (containment/layout — context, not breakage)\n");
+                let mut n = 0;
+                for (id, d) in ranked.iter().filter(|(_, d)| d.tier == 1) {
+                    if n >= 10 {
+                        out.push_str(&format!("… and {} more\n", structural_total - n));
+                        break;
+                    }
+                    render(id, d, &mut out, &mut dangling);
+                    n += 1;
+                }
+            }
+
+            if companion_total > 0 {
+                out.push_str(
+                    "\n## Historical companions (usually changed/searched together — plan to \
+                     co-edit; NOT breakage)\n",
+                );
+                let mut n = 0;
+                for (id, d) in ranked.iter().filter(|(_, d)| d.tier == 2) {
+                    if n >= 10 {
+                        out.push_str(&format!("… and {} more\n", companion_total - n));
+                        break;
+                    }
+                    render(id, d, &mut out, &mut dangling);
+                    n += 1;
+                }
+            }
+
+            if dangling > 0 {
                 out.push_str(&format!(
-                    "\n(Note: {unresolved_count} source edges pointed at node_ids with no persisted node record. \
-                     This indicates an indexing integrity issue — edges were created but corresponding nodes \
-                     were not. The entries above are still real dependencies.)\n"
+                    "\n⚠ {dangling} edge source(s) have no node record (DANGLING). This is an \
+                     indexing-integrity warning, not verified impact: these are listed for \
+                     transparency but were NOT treated as confirmed dependents. Run \
+                     check_integrity / repair_project.\n"
                 ));
             }
             out.push_str(
-                "\nnext: compute_blast_radius(<symbol>) for the risk score + seam candidates; \
+                "\nnext: compute_blast_radius(<symbol>) for the advisory exposure profile; \
                  check_edit_safety(<method>) before editing.\n",
             );
-
             Ok(out)
         })
         .await
