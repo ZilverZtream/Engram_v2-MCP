@@ -225,7 +225,7 @@ async fn untouched_partner_and_state_key_surface() {
         .unwrap();
     let text3 = text_of(&r3);
     assert!(
-        text3.contains("consistent with a complete change"),
+        text3.contains("No strong co-change or shared-state links point outside your edit set"),
         "complete edit set must pass clean:\n{text3}"
     );
 }
@@ -267,7 +267,7 @@ async fn session_bookends_track_scope_drift() {
     let open_text = text_of(&open);
     assert!(open_text.contains("Edit session OPEN"), "{open_text}");
     assert!(
-        open_text.contains("consistent with a complete change"),
+        open_text.contains("No strong co-change or shared-state links point outside your edit set"),
         "planned pair covers the coupling:
 {open_text}"
     );

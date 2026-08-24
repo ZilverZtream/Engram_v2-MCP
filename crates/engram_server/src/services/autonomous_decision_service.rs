@@ -175,6 +175,10 @@ pub struct AdpInput {
     pub blast_radius_risk: Option<u8>,
     pub blast_radius_band: Option<RiskBand>,
     pub blast_radius_downstream: Option<usize>,
+    /// True when the blast report's CAUSAL coverage was truncated — the score
+    /// was computed from a subset of the causal callers. Incomplete causal
+    /// evidence must never pass the blast gate, independent of the scalar.
+    pub blast_causal_truncated: Option<bool>,
 
     // ── Anti-pattern ──
     /// Immune check verdict: "PASS", "WARN", "BLOCK".
@@ -559,7 +563,12 @@ fn evaluate_blast_radius_gate(input: &AdpInput) -> GateResult {
     match input.blast_radius_risk {
         Some(risk) => {
             let max_allowed = input.max_blast_radius_for_auto;
-            let passed = risk <= max_allowed;
+            // Incomplete causal evidence fails the gate no matter how low the
+            // scalar is: a truncated sweep can hide the very callers that
+            // would have raised the score (auditor P0: coverage was discarded
+            // before autonomous decisions).
+            let incomplete = input.blast_causal_truncated.unwrap_or(false);
+            let passed = risk <= max_allowed && !incomplete;
             let band = input
                 .blast_radius_band
                 .as_ref()
@@ -585,12 +594,17 @@ fn evaluate_blast_radius_gate(input: &AdpInput) -> GateResult {
                     0.1
                 },
                 detail: format!(
-                    "Migration risk {}/10 ({}) — max allowed for auto-apply: {}/10 (1-hop degree: {}). \
+                    "Migration risk {}/10 ({}){} — max allowed for auto-apply: {}/10 (1-hop degree: {}). \
                      ADVISORY: this is an uncalibrated 1-hop heuristic with capped counts, not a \
                      transitive change-impact analysis; confidence is bounded at {:.1} and must not \
                      be read as authorization for an autonomous edit.",
                     risk,
                     band,
+                    if incomplete {
+                        " [CAUSAL COVERAGE INCOMPLETE — score computed from a subset; gate fails on that alone]"
+                    } else {
+                        ""
+                    },
                     max_allowed,
                     input.blast_radius_downstream.unwrap_or(0),
                     ADVISORY_CONFIDENCE_CEILING,
@@ -1506,6 +1520,7 @@ pub fn replay_from_scenario(
         blast_radius_risk: scenario_input.blast_radius_risk,
         blast_radius_band,
         blast_radius_downstream: scenario_input.blast_radius_downstream,
+        blast_causal_truncated: scenario_input.blast_causal_truncated,
         immune_verdict: scenario_input.immune_verdict.clone(),
         immune_confidence: scenario_input.immune_confidence,
         require_runtime_evidence: scenario_input.require_runtime_evidence,
@@ -1669,6 +1684,7 @@ mod tests {
             blast_radius_risk: Some(3),
             blast_radius_band: Some(RiskBand::Low),
             blast_radius_downstream: Some(5),
+            blast_causal_truncated: None,
             immune_verdict: Some("PASS".into()),
             immune_confidence: Some(0.05),
             require_runtime_evidence: false,
@@ -1969,6 +1985,7 @@ mod tests {
             blast_radius_risk: Some(3),
             blast_radius_band: Some("Low".into()),
             blast_radius_downstream: Some(5),
+            blast_causal_truncated: None,
             immune_verdict: Some("PASS".into()),
             immune_confidence: Some(0.05),
             require_runtime_evidence: false,
@@ -2014,6 +2031,33 @@ mod tests {
         si.blast_radius_downstream = Some(3);
         let decision = replay_from_scenario(&si).unwrap();
         assert_eq!(decision.verdict, AdpVerdict::Allow);
+    }
+
+    #[test]
+    fn replay_incomplete_causal_coverage_fails_blast_gate() {
+        // Identical to the allow scenario EXCEPT the coverage flag: a low
+        // risk score computed from a truncated causal sweep must not pass —
+        // the subset could be hiding the very callers that would have raised
+        // it. Abstain (gather evidence), never hard-deny on this alone.
+        let mut si = make_scenario_input();
+        si.extraction_confidence = Some(0.9);
+        si.retrieval_ndcg = Some(0.8);
+        si.retrieval_recall = Some(0.9);
+        si.blast_radius_risk = Some(2);
+        si.blast_radius_downstream = Some(3);
+        si.blast_causal_truncated = Some(true);
+        let decision = replay_from_scenario(&si).unwrap();
+        assert_eq!(
+            decision.verdict,
+            AdpVerdict::Abstain,
+            "incomplete causal evidence must abstain, not allow (and not hard-deny alone)"
+        );
+        assert!(decision.failed_gates.contains(&"blast_radius".into()));
+        // Control: same scenario with complete coverage allows (proves the
+        // flag alone flipped the verdict — this test can FAIL).
+        si.blast_causal_truncated = Some(false);
+        let control = replay_from_scenario(&si).unwrap();
+        assert_eq!(control.verdict, AdpVerdict::Allow);
     }
 
     #[test]
@@ -2787,6 +2831,7 @@ mod tests {
             blast_radius_risk: Some(2),
             blast_radius_band: Some("Low".into()),
             blast_radius_downstream: Some(3),
+            blast_causal_truncated: None,
             immune_verdict: Some("PASS".into()),
             immune_confidence: Some(0.05),
             require_runtime_evidence: true,
@@ -2826,6 +2871,7 @@ mod tests {
             blast_radius_risk: Some(2),
             blast_radius_band: Some("Low".into()),
             blast_radius_downstream: Some(3),
+            blast_causal_truncated: None,
             immune_verdict: Some("PASS".into()),
             immune_confidence: Some(0.05),
             require_runtime_evidence: false,

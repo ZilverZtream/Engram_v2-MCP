@@ -1019,6 +1019,19 @@ impl GraphStore {
         cap_in: &dyn Fn(&EdgeKind) -> usize,
         cap_out: &dyn Fn(&EdgeKind) -> usize,
     ) -> anyhow::Result<ComponentAdjacency> {
+        // Contract enforcement, not caller trust: endpoints are deduplicated
+        // (a duplicate endpoint would double-count every edge) and the
+        // component is unioned with the endpoints (the boundary invariant
+        // "endpoints are component members" holds by construction).
+        let mut endpoints: Vec<String> = endpoints.to_vec();
+        endpoints.sort();
+        endpoints.dedup();
+        let mut component_owned: std::collections::HashSet<&str> =
+            component.iter().map(|s| s.as_str()).collect();
+        for ep in &endpoints {
+            component_owned.insert(ep.as_str());
+        }
+        let component = &component_owned;
         let rtx = self.db.begin_read()?;
         let adj_in = rtx.open_table(ADJ_IN)?;
         let adj_out = rtx.open_table(ADJ_OUT)?;
@@ -1029,7 +1042,7 @@ impl GraphStore {
             if icap == 0 && ocap == 0 {
                 continue;
             }
-            for ep in endpoints {
+            for ep in &endpoints {
                 let prefix = adj_key(project_id, kind, ep);
                 if icap > 0 {
                     let mut accepted = 0usize;
@@ -2990,7 +3003,9 @@ pub struct ComponentAdjacency {
     /// (kind, endpoint) pairs where an ACCEPTED edge beyond the cap exists.
     pub truncated_in: Vec<(EdgeKind, String)>,
     pub truncated_out: Vec<(EdgeKind, String)>,
-    /// Edges skipped because the other end was inside the component.
+    /// OBSERVED edges skipped because the other end was inside the component.
+    /// Exact only when no sweep was truncated: a sweep stops at its accepted-
+    /// external cap, so internal edges ordered after that point are unvisited.
     pub internal_skipped: usize,
 }
 
@@ -3910,5 +3925,290 @@ mod tests {
             EdgeKind::ALL.contains(&EdgeKind::TestOracle),
             "TestOracle must be in ALL or count-by-kind reporting silently omits it"
         );
+    }
+
+    // ── component_adjacency / file_component_members contract suite ─────────
+    // The substrate contract: "first N+1 ACCEPTED external neighbors after
+    // kind, direction, and component policy" — consumer tests do not replace
+    // these (auditor: missing foundational tests).
+
+    fn ca_edge(src: &str, dst: &str, kind: EdgeKind, weight: u32) -> Edge {
+        Edge {
+            source_id: src.to_string(),
+            target_id: dst.to_string(),
+            namespace: "memory".to_string(),
+            language: "vb".to_string(),
+            edge_kind: kind,
+            weight,
+            generation: 1,
+            metadata: None,
+            updated_at_ms: 1,
+        }
+    }
+
+    fn ca_setup(edges: &[Edge]) -> GraphStore {
+        let store = test_store();
+        let mut ids: Vec<String> = Vec::new();
+        for e in edges {
+            ids.push(e.source_id.clone());
+            ids.push(e.target_id.clone());
+        }
+        ids.sort();
+        ids.dedup();
+        let nodes: Vec<Node> = ids
+            .iter()
+            .map(|id| test_node(id, "function", id, "f.vb"))
+            .collect();
+        store.upsert_nodes("p", &nodes).expect("nodes");
+        store.upsert_edges("p", edges).expect("edges");
+        store
+    }
+
+    fn comp(ids: &[&str]) -> std::collections::HashSet<String> {
+        ids.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn ca_incoming_and_outgoing_directions() {
+        let t = "sym:t";
+        let store = ca_setup(&[
+            ca_edge("sym:a", t, EdgeKind::Calls, 1),
+            ca_edge(t, "sym:b", EdgeKind::Calls, 1),
+        ]);
+        let r = store
+            .component_adjacency("p", &[t.to_string()], &comp(&[t]), &|_| 10, &|_| 10)
+            .unwrap();
+        assert_eq!(r.incoming.len(), 1);
+        assert_eq!(r.incoming[0].0, "sym:a");
+        assert_eq!(r.outgoing.len(), 1);
+        assert_eq!(r.outgoing[0].0, "sym:b");
+    }
+
+    #[test]
+    fn ca_exact_cap_is_complete_cap_plus_one_truncates() {
+        let t = "sym:t";
+        let mut edges: Vec<Edge> = (0..3)
+            .map(|i| ca_edge(&format!("sym:c{i}"), t, EdgeKind::Calls, 1))
+            .collect();
+        let store = ca_setup(&edges);
+        let r = store
+            .component_adjacency("p", &[t.to_string()], &comp(&[t]), &|_| 3, &|_| 0)
+            .unwrap();
+        assert_eq!(r.incoming.len(), 3);
+        assert!(r.truncated_in.is_empty(), "exactly-at-cap must be complete");
+        edges.push(ca_edge("sym:c3", t, EdgeKind::Calls, 1));
+        let store = ca_setup(&edges);
+        let r = store
+            .component_adjacency("p", &[t.to_string()], &comp(&[t]), &|_| 3, &|_| 0)
+            .unwrap();
+        assert_eq!(r.incoming.len(), 3);
+        assert_eq!(r.truncated_in.len(), 1, "cap+1 accepted must truncate");
+    }
+
+    #[test]
+    fn ca_internal_before_cap() {
+        // 5 internal sources sorting BEFORE 2 external ones, cap 2: internals
+        // must not consume the budget; both externals returned, complete.
+        let t = "sym:t";
+        let mut edges: Vec<Edge> = (0..5)
+            .map(|i| ca_edge(&format!("sym:a_int{i}"), t, EdgeKind::Calls, 9999))
+            .collect();
+        edges.push(ca_edge("sym:z_ext0", t, EdgeKind::Calls, 1));
+        edges.push(ca_edge("sym:z_ext1", t, EdgeKind::Calls, 1));
+        let store = ca_setup(&edges);
+        let component = comp(&[
+            "sym:t",
+            "sym:a_int0",
+            "sym:a_int1",
+            "sym:a_int2",
+            "sym:a_int3",
+            "sym:a_int4",
+        ]);
+        let r = store
+            .component_adjacency("p", &[t.to_string()], &component, &|_| 2, &|_| 0)
+            .unwrap();
+        let srcs: Vec<&str> = r.incoming.iter().map(|e| e.0.as_str()).collect();
+        assert_eq!(srcs, vec!["sym:z_ext0", "sym:z_ext1"]);
+        assert!(
+            r.truncated_in.is_empty(),
+            "internal edges must not cause truncation"
+        );
+        assert_eq!(r.internal_skipped, 5);
+    }
+
+    #[test]
+    fn ca_internal_after_external_truncation_is_observed_not_exact() {
+        // Externals sort BEFORE the internal; cap 1 stops the sweep at the
+        // second accepted external, so the internal after it is unvisited.
+        // Contract: internal_skipped is OBSERVED, exact only when complete.
+        let t = "sym:t";
+        let edges = [
+            ca_edge("sym:a_ext0", t, EdgeKind::Calls, 1),
+            ca_edge("sym:b_ext1", t, EdgeKind::Calls, 1),
+            ca_edge("sym:z_int0", t, EdgeKind::Calls, 1),
+        ];
+        let store = ca_setup(&edges);
+        let component = comp(&["sym:t", "sym:z_int0"]);
+        let r = store
+            .component_adjacency("p", &[t.to_string()], &component, &|_| 1, &|_| 0)
+            .unwrap();
+        assert_eq!(r.incoming.len(), 1);
+        assert_eq!(r.truncated_in.len(), 1);
+        assert_eq!(
+            r.internal_skipped, 0,
+            "documented observed-count semantics: unvisited internals are not counted"
+        );
+    }
+
+    #[test]
+    fn ca_multiple_endpoints_and_kinds_with_via() {
+        let store = ca_setup(&[
+            ca_edge("sym:x", "sym:e1", EdgeKind::Calls, 1),
+            ca_edge("sym:y", "sym:e2", EdgeKind::Imports, 1),
+        ]);
+        let eps = vec!["sym:e1".to_string(), "sym:e2".to_string()];
+        let r = store
+            .component_adjacency("p", &eps, &comp(&["sym:e1", "sym:e2"]), &|_| 10, &|_| 0)
+            .unwrap();
+        assert_eq!(r.incoming.len(), 2);
+        let via_x = r.incoming.iter().find(|e| e.0 == "sym:x").unwrap();
+        assert_eq!(via_x.3, "sym:e1", "endpoint reached must be preserved");
+        let via_y = r.incoming.iter().find(|e| e.0 == "sym:y").unwrap();
+        assert_eq!(via_y.3, "sym:e2");
+        assert_eq!(via_y.1, EdgeKind::Imports);
+    }
+
+    #[test]
+    fn ca_self_edge_is_internal() {
+        let t = "sym:t";
+        let store = ca_setup(&[ca_edge(t, t, EdgeKind::Calls, 1)]);
+        let r = store
+            .component_adjacency("p", &[t.to_string()], &comp(&[t]), &|_| 10, &|_| 10)
+            .unwrap();
+        assert!(r.incoming.is_empty());
+        assert!(r.outgoing.is_empty());
+        assert!(r.internal_skipped >= 1, "self-edge is internal wiring");
+    }
+
+    #[test]
+    fn ca_duplicate_endpoints_do_not_double_count() {
+        let t = "sym:t";
+        let store = ca_setup(&[ca_edge("sym:a", t, EdgeKind::Calls, 1)]);
+        let eps = vec![t.to_string(), t.to_string(), t.to_string()];
+        let r = store
+            .component_adjacency("p", &eps, &comp(&[t]), &|_| 10, &|_| 0)
+            .unwrap();
+        assert_eq!(
+            r.incoming.len(),
+            1,
+            "duplicate endpoints must be deduplicated"
+        );
+    }
+
+    #[test]
+    fn ca_endpoint_outside_component_is_unioned_in() {
+        // Contract enforcement: an endpoint missing from the component set is
+        // treated as a member (its self-referential edges are internal).
+        let t = "sym:t";
+        let store = ca_setup(&[ca_edge(t, t, EdgeKind::Calls, 1)]);
+        let r = store
+            .component_adjacency(
+                "p",
+                &[t.to_string()],
+                &std::collections::HashSet::new(),
+                &|_| 10,
+                &|_| 10,
+            )
+            .unwrap();
+        assert!(
+            r.incoming.is_empty(),
+            "endpoint is unioned into the component"
+        );
+        assert!(r.internal_skipped >= 1);
+    }
+
+    #[test]
+    fn ca_zero_cap_kind_is_skipped() {
+        let t = "sym:t";
+        let store = ca_setup(&[
+            ca_edge("sym:a", t, EdgeKind::Calls, 1),
+            ca_edge("file:h.sql", t, EdgeKind::TemporalCoupling, 1),
+        ]);
+        let r = store
+            .component_adjacency(
+                "p",
+                &[t.to_string()],
+                &comp(&[t]),
+                &|k| if *k == EdgeKind::Calls { 10 } else { 0 },
+                &|_| 0,
+            )
+            .unwrap();
+        assert_eq!(r.incoming.len(), 1);
+        assert_eq!(r.incoming[0].1, EdgeKind::Calls);
+        assert!(
+            r.truncated_in.is_empty(),
+            "zero-cap kinds are skipped, not truncated"
+        );
+    }
+
+    #[test]
+    fn ca_stable_ordering_across_calls() {
+        let t = "sym:t";
+        let edges: Vec<Edge> = (0..20)
+            .map(|i| ca_edge(&format!("sym:c{i:02}"), t, EdgeKind::Calls, (i % 5) as u32))
+            .collect();
+        let store = ca_setup(&edges);
+        let a = store
+            .component_adjacency("p", &[t.to_string()], &comp(&[t]), &|_| 50, &|_| 0)
+            .unwrap();
+        let b = store
+            .component_adjacency("p", &[t.to_string()], &comp(&[t]), &|_| 50, &|_| 0)
+            .unwrap();
+        assert_eq!(
+            a.incoming, b.incoming,
+            "identical calls must return identical order"
+        );
+    }
+
+    #[test]
+    fn fcm_exact_path_beats_suffix_collision() {
+        let store = test_store();
+        let nodes = vec![
+            test_node("file:a/b.vb", "file", "b.vb", "a/b.vb"),
+            test_node("sym:a/b.vb:M", "function", "M", "a/b.vb"),
+            test_node("file:xa/b.vb", "file", "b.vb", "xa/b.vb"),
+            test_node("sym:xa/b.vb:N", "function", "N", "xa/b.vb"),
+        ];
+        store.upsert_nodes("p", &nodes).unwrap();
+        let (members, trunc) = store
+            .file_component_members("p", "a/b.vb", "file:a/b.vb", 100)
+            .unwrap();
+        assert_eq!(members, vec!["sym:a/b.vb:M".to_string()]);
+        assert!(!trunc);
+    }
+
+    #[test]
+    fn fcm_exact_cap_complete_cap_plus_one_truncates() {
+        let store = test_store();
+        let mut nodes = vec![test_node("file:f.vb", "file", "f.vb", "f.vb")];
+        for i in 0..3 {
+            nodes.push(test_node(
+                &format!("sym:f.vb:M{i}"),
+                "function",
+                "M",
+                "f.vb",
+            ));
+        }
+        store.upsert_nodes("p", &nodes).unwrap();
+        let (members, trunc) = store
+            .file_component_members("p", "f.vb", "file:f.vb", 3)
+            .unwrap();
+        assert_eq!(members.len(), 3);
+        assert!(!trunc, "exactly-at-cap must be complete");
+        let (members, trunc) = store
+            .file_component_members("p", "f.vb", "file:f.vb", 2)
+            .unwrap();
+        assert_eq!(members.len(), 2);
+        assert!(trunc, "cap+1 accepted member must truncate");
     }
 }

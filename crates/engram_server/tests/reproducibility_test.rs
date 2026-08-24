@@ -629,6 +629,7 @@ fn all_green_input() -> RepAdpInput {
         blast_radius_risk: Some(2),
         blast_radius_band: Some(engram_server::services::blast_radius_service::RiskBand::Low),
         blast_radius_downstream: Some(3),
+        blast_causal_truncated: None,
         immune_verdict: Some("PASS".into()),
         immune_confidence: Some(0.05),
         require_runtime_evidence: false,
@@ -760,10 +761,13 @@ fn compound_safety_blast_failure_lower_confidence_than_single_failure() {
         RepAdpVerdict::Deny,
         "safety-only failure must Deny"
     );
+    // POLICY (round-2 audit fix): the blast score is an uncalibrated 1-hop
+    // heuristic — failing it ALONE abstains (demand more evidence); it must
+    // never independently hard-deny. Auto-apply is still blocked either way.
     assert_eq!(
         blast_only_dec.verdict,
-        RepAdpVerdict::Deny,
-        "blast-only failure must Deny"
+        RepAdpVerdict::Abstain,
+        "blast-only failure must Abstain (advisory heuristic, never hard-deny alone)"
     );
     assert_eq!(
         both_dec.verdict,

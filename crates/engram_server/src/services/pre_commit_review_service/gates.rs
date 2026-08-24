@@ -443,8 +443,20 @@ impl Gate for BlastRadiusGate {
             // Evidence uses the CAUSAL count (what may break) with honest
             // coverage, not the raw incoming+outgoing degree that mixed in
             // co-change history and the file's own dependencies.
+            // Per-metric markers: causal ge from CAUSAL truncation, raw-degree
+            // ge from ANY truncation (they were conflated: outgoing/companion
+            // truncation left raw counts unmarked).
             let ge = if report.coverage.causal_truncated {
                 ">="
+            } else {
+                ""
+            };
+            let ge_raw = if report.coverage.truncated { ">=" } else { "" };
+            // A 4-10 score computed under causal truncation is ALSO from
+            // incomplete evidence — say so, don't present it as an ordinary
+            // medium/high score (the 0-3 branch above already abstains).
+            let incomplete_note = if report.coverage.causal_truncated {
+                " Computed from INCOMPLETE causal evidence (fetch cap hit) — treat as a lower bound."
             } else {
                 ""
             };
@@ -460,7 +472,7 @@ impl Gate for BlastRadiusGate {
                     report.historical_companions
                 ),
                 format!(
-                    "raw_degree: incoming {ge}{}, outgoing {ge}{}{}",
+                    "raw_degree: incoming {ge_raw}{}, outgoing {ge_raw}{}{}",
                     report.total_incoming,
                     report.total_outgoing,
                     if report.coverage.truncated {
@@ -479,7 +491,7 @@ impl Gate for BlastRadiusGate {
                     "`{}` has {ge}{} causal dependents (things that may break) and {} historical \
                      companions (usually co-edited). This is 1-hop exposure with no change \
                      semantics (a comment edit and a signature change read the same here); \
-                     verify you tested the direct call sites.",
+                     verify you tested the direct call sites.{incomplete_note}",
                     df.path, report.causal_dependents, report.historical_companions
                 ),
                 format!(

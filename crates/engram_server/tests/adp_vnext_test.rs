@@ -46,6 +46,7 @@ fn all_green_input() -> AdpInput {
         blast_radius_risk: Some(2),
         blast_radius_band: Some(engram_server::services::blast_radius_service::RiskBand::Low),
         blast_radius_downstream: Some(3),
+        blast_causal_truncated: None,
         immune_verdict: Some("PASS".into()),
         immune_confidence: Some(0.05),
         require_runtime_evidence: false,

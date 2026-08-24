@@ -94,7 +94,7 @@ pub async fn gather_evidence(
     let blast_radius_fut = derive_blast_radius(state, project_id, target_files, generation);
 
     let (graph_impact, blast_result) = tokio::join!(graph_impact_fut, blast_radius_fut);
-    let (blast_risk, blast_band, blast_downstream) = blast_result;
+    let (blast_risk, blast_band, blast_downstream, blast_causal_truncated) = blast_result;
 
     // ── Phase 2: Safety evaluation (uses graph impact) ──
     let safety_decision = if let Some(ref sd) = overrides.safety_decision {
@@ -174,6 +174,7 @@ pub async fn gather_evidence(
         blast_radius_risk: blast_risk,
         blast_radius_band: blast_band,
         blast_radius_downstream: blast_downstream,
+        blast_causal_truncated,
         immune_verdict: overrides.immune_verdict.clone(),
         immune_confidence: overrides.immune_confidence,
         require_runtime_evidence,
@@ -274,9 +275,10 @@ async fn derive_blast_radius(
     Option<u8>,
     Option<blast_radius_service::RiskBand>,
     Option<usize>,
+    Option<bool>,
 ) {
     if target_files.is_empty() {
-        return (None, None, None);
+        return (None, None, None, None);
     }
 
     let graph = state.graph.clone();
@@ -288,6 +290,7 @@ async fn derive_blast_radius(
         let mut best_risk: Option<u8> = None;
         let mut best_band: Option<blast_radius_service::RiskBand> = None;
         let mut total_downstream: usize = 0;
+        let mut any_causal_truncated = false;
 
         for file in &files {
             let target_id = format!("file:{}", file);
@@ -317,6 +320,10 @@ async fn derive_blast_radius(
                     // Union of downstream counts (deduplicated by summing; a true
                     // set-union would require collecting node IDs which is expensive).
                     total_downstream += report.total_downstream;
+                    // Coverage travels WITH the evidence: a truncated causal
+                    // sweep must reach ADP/edit-safety, not die here (auditor
+                    // P0: coverage was discarded before autonomous decisions).
+                    any_causal_truncated |= report.coverage.causal_truncated;
                 }
                 // ENG-AUD-2026-S9-0002: log per-file blast errors so failures are observable.
                 Err(ref e) => {
@@ -328,7 +335,12 @@ async fn derive_blast_radius(
             }
         }
 
-        (best_risk, best_band, if best_band.is_some() { Some(total_downstream) } else { None })
+        (
+            best_risk,
+            best_band,
+            if best_band.is_some() { Some(total_downstream) } else { None },
+            if best_band.is_some() { Some(any_causal_truncated) } else { None },
+        )
     })
     .await
     {
@@ -339,7 +351,7 @@ async fn derive_blast_radius(
                 "ENG-AUD-2026-X14-0004: derive_blast_radius spawn_blocking join failed — \
                  returning no blast signal: {e}"
             );
-            (None, None, None)
+            (None, None, None, None)
         }
     }
 }
@@ -1073,6 +1085,7 @@ mod tests {
             blast_radius_risk: Some(2),
             blast_radius_band: Some(RiskBand::Low),
             blast_radius_downstream: Some(1),
+            blast_causal_truncated: None,
             immune_verdict: Some("PASS".into()),
             immune_confidence: Some(0.05),
             require_runtime_evidence: false,
