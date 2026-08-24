@@ -270,11 +270,14 @@ async fn impact_analysis_is_deterministic() {
     state.graph.upsert_edges(&pid, &edges).unwrap();
     let a = run(&engram, &pid, target).await;
     let b = run(&engram, &pid, target).await;
+    // The freshness footer renders wall-clock index age, so the COMPLETE
+    // response is inherently time-dependent; the guarantee (and the public
+    // contract) is a byte-identical EVIDENCE BODY, footer excluded.
     let strip = |s: &str| s.split("\n---").next().unwrap_or(s).to_string();
     assert_eq!(
         strip(&a),
         strip(&b),
-        "identical requests must render identically"
+        "identical requests must render an identical evidence body"
     );
 }
 
@@ -362,15 +365,20 @@ async fn internal_flood_cannot_hide_external_caller() {
     let hub = "sym:function:t.vb:Hub:1".to_string();
     nodes.push(node(&hub, "Hub", "t.vb", "function"));
     let mut edges = Vec::new();
-    // 250 internal callers (inside t.vb) of Hub.
-    for i in 0..250 {
-        let s = format!("sym:function:t.vb:Inner{i}:{}", i + 10);
+    // The auditor's fixture: 501 HIGH-WEIGHT internal callers (over the
+    // 500/kind causal cap) whose ids sort BEFORE the external one — under a
+    // raw first-N fetch they consume the entire budget and the external
+    // caller is silently lost.
+    for i in 0..501 {
+        let s = format!("sym:function:t.vb:Inner{i:04}:{}", i + 10);
         nodes.push(node(&s, &format!("Inner{i}"), "t.vb", "function"));
-        edges.push(edge(&s, &hub, engram_graph::EdgeKind::Calls));
+        let mut e = edge(&s, &hub, engram_graph::EdgeKind::Calls);
+        e.weight = 9999;
+        edges.push(e);
     }
-    // ONE external caller.
-    let ext = "sym:function:other.vb:External:1";
-    nodes.push(node(ext, "External", "other.vb", "function"));
+    // ONE low-weight external caller, id sorting AFTER every internal id.
+    let ext = "sym:function:zz_other.vb:ZzExternal:1";
+    nodes.push(node(ext, "ZzExternal", "zz_other.vb", "function"));
     edges.push(edge(ext, &hub, engram_graph::EdgeKind::Calls));
     state.graph.upsert_nodes(&pid, &nodes).unwrap();
     state.graph.upsert_edges(&pid, &edges).unwrap();
@@ -389,7 +397,11 @@ async fn internal_flood_cannot_hide_external_caller() {
         text.contains("1 causal (may break)"),
         "the single external caller must be found behind 250 internal ones: {text}"
     );
-    assert!(text.contains("External"), "external caller named: {text}");
+    assert!(text.contains("ZzExternal"), "external caller named: {text}");
+    assert!(
+        !text.contains("CAUSAL is a LOWER BOUND"),
+        "internal edges must not consume the causal cap: {text}"
+    );
     assert!(
         !text.contains("no external incoming edges"),
         "must not report 'no edges' when an external caller exists: {text}"

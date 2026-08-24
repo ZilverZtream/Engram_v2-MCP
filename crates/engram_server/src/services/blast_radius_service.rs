@@ -97,6 +97,11 @@ pub struct GuidanceItem {
 pub struct CountCoverage {
     /// True when ANY fetch hit its cap — every count is then a LOWER BOUND.
     pub truncated: bool,
+    /// True only when a CAUSAL-kind incoming fetch hit its cap — the causal
+    /// count specifically is a lower bound. A truncated companion/structural
+    /// fetch does not set this (per-metric coverage, not one global flag).
+    #[serde(default)]
+    pub causal_truncated: bool,
     /// Which fetches hit their cap ("incoming", "outgoing:<kind>", "contained:<sym>").
     pub truncated_fetches: Vec<String>,
     /// The caps that applied, so a reader can interpret a count equal to one.
@@ -132,6 +137,15 @@ pub struct BlastRadiusReport {
     /// evidence for planning, NEVER causal impact. Reported separately.
     #[serde(default)]
     pub historical_companions: usize,
+    /// Unique sources whose only evidence is runtime observation
+    /// (ObservedRuntimeControl/Sql): an interaction occurred, which is weaker
+    /// than a compiler-resolved call — never folded into causal counts/score.
+    #[serde(default)]
+    pub possible_dependents: usize,
+    /// Causal edges whose SOURCE has no node record (dangling). Quarantined:
+    /// excluded from causal_dependents, the named list, and the score.
+    #[serde(default)]
+    pub unresolved_endpoints: usize,
     /// File targets only: edges with BOTH endpoints inside the file. Internal
     /// complexity/cohesion — excluded from every external count and from the
     /// score (previously each one inflated incoming AND outgoing AND risk).
@@ -315,31 +329,20 @@ pub fn compute_blast_radius(
     const CAP_TOUCHING: usize = 1000;
     let mut coverage = CountCoverage {
         truncated: false,
+        causal_truncated: false,
         truncated_fetches: Vec::new(),
         cap_incoming: CAP_INCOMING,
         cap_outgoing_per_kind: CAP_OUT_PER_KIND,
     };
 
-    // 2. Count outgoing edges by kind
-    let mut out_counts: HashMap<EdgeKind, usize> = HashMap::new();
-    for kind in EdgeKind::ALL {
-        let neighbors =
-            graph.neighbors(project_id, kind.clone(), target_id, CAP_OUT_PER_KIND + 1)?;
-        if neighbors.len() > CAP_OUT_PER_KIND {
-            coverage.truncated = true;
-            coverage
-                .truncated_fetches
-                .push(format!("outgoing:{}", kind.as_str()));
-        }
-        if !neighbors.is_empty() {
-            out_counts.insert(kind.clone(), neighbors.len());
-        }
-    }
-
-    // COMPONENT = {target} ∪ {contained symbols}, built BEFORE any edge is
-    // counted so that DIRECT edges to a file node and AGGREGATED edges to its
-    // symbols pass through the same boundary. (Previously direct edges were
-    // gathered before containment was known and never went through the cut.)
+    // 2+3. One substrate sweep: outgoing, direct incoming, and file-level
+    // aggregation all come from `component_adjacency`, which applies the
+    // component boundary BEFORE its accepted-result caps, per (kind,
+    // endpoint), in a single read transaction. This replaces three separate
+    // traversals that each applied raw caps first (so >cap higher-weight
+    // internal or historical edges could hide external causal callers and
+    // produce a falsely LOW score from incomplete evidence), plus the
+    // per-symbol transaction storm on file targets.
     let is_file_target = target_id.starts_with("file:");
     let file_rel_path: String = node
         .as_ref()
@@ -351,232 +354,118 @@ pub fn compute_blast_radius(
                 .to_string()
         });
     const CAP_CONTAINED: usize = 50_000;
-    let contained_symbols: HashSet<String> = if is_file_target {
-        let found =
-            graph.query_nodes(project_id, None, None, Some(&file_rel_path), CAP_CONTAINED)?;
-        if found.len() >= CAP_CONTAINED {
+    let contained_symbols: Vec<String> = if is_file_target {
+        // Exact-equality membership BEFORE the cap, cap+1 detection, sorted —
+        // in the store (`query_nodes`' substring pre-filter let suffix
+        // collisions consume the budget, and exactly-at-cap read as truncated).
+        let (members, trunc) =
+            graph.file_component_members(project_id, &file_rel_path, target_id, CAP_CONTAINED)?;
+        if trunc {
             coverage.truncated = true;
             coverage
                 .truncated_fetches
                 .push("contained-symbol scan".to_string());
         }
-        found
-            .into_iter()
-            .filter(|n| n.node_id != target_id && n.file_path.as_str() == file_rel_path)
-            .map(|n| n.node_id)
-            .collect()
+        members
     } else {
-        HashSet::new()
+        Vec::new()
     };
-    let in_component = |id: &str| id == target_id || contained_symbols.contains(id);
-
-    // 3. Count incoming edges by kind — direct edges, boundary applied.
-    let incoming_raw =
-        graph.find_incoming_edges_with_kind(project_id, None, target_id, CAP_INCOMING + 1)?;
-    if incoming_raw.len() > CAP_INCOMING {
-        coverage.truncated = true;
-        coverage.truncated_fetches.push("incoming".to_string());
-    }
-    let mut internal_edges: usize = 0;
-    let incoming: Vec<(String, EdgeKind, u32)> = incoming_raw
-        .into_iter()
-        .take(CAP_INCOMING)
-        .filter(|(src, _, _)| {
-            if in_component(src) {
-                internal_edges += 1;
-                false
-            } else {
-                true
-            }
-        })
+    let component: HashSet<String> = std::iter::once(target_id.to_string())
+        .chain(contained_symbols.iter().cloned())
         .collect();
+    let endpoints: Vec<String> = std::iter::once(target_id.to_string())
+        .chain(contained_symbols.iter().cloned())
+        .collect();
+
+    let adjacency = graph.component_adjacency(
+        project_id,
+        &endpoints,
+        &component,
+        &|_| CAP_INCOMING,
+        &|_| CAP_OUT_PER_KIND,
+    )?;
+    let internal_edges: usize = adjacency.internal_skipped;
+    for (kind, ep) in &adjacency.truncated_in {
+        coverage.truncated = true;
+        if is_causal_dependency(kind) {
+            coverage.causal_truncated = true;
+        }
+        if coverage.truncated_fetches.len() < 20 {
+            coverage
+                .truncated_fetches
+                .push(format!("incoming:{}:{}", kind.as_str(), ep));
+        }
+    }
+    for (kind, ep) in &adjacency.truncated_out {
+        coverage.truncated = true;
+        if coverage.truncated_fetches.len() < 20 {
+            coverage
+                .truncated_fetches
+                .push(format!("outgoing:{}:{}", kind.as_str(), ep));
+        }
+    }
+
+    let mut out_counts: HashMap<EdgeKind, usize> = HashMap::new();
+    for (_tgt, kind, _w, _ep) in &adjacency.outgoing {
+        *out_counts.entry(kind.clone()).or_default() += 1;
+    }
     let mut in_counts: HashMap<EdgeKind, usize> = HashMap::new();
     let mut in_sources_by_kind: HashMap<EdgeKind, HashSet<String>> = HashMap::new();
-    // TODO-12: bare-name bindings count at their confidence, not 1.0 —
-    // app JS calling `new Map()` must not give a class named `Map`
-    // hundreds of phantom callers and a RED edit-safety verdict.
-    // The SCORE input. Previously every incoming edge of every kind summed into
-    // `discounted_incoming` → dependency_density_score → migration_risk, so
-    // TemporalCoupling / CoOccurrence / Contains contaminated the risk that
-    // gates and agents consume, and one caller reaching the target through
-    // several edge kinds counted several times. Now: CAUSAL kinds only, UNIQUE
-    // source nodes, each at its best (max) edge confidence. Historical and
-    // associative evidence never influences causal exposure.
-    let mut low_confidence_incoming: usize = 0;
-    for (source_id, kind, _weight) in &incoming {
+    for (src, kind, _w, _ep) in &adjacency.incoming {
         *in_counts.entry(kind.clone()).or_default() += 1;
         in_sources_by_kind
             .entry(kind.clone())
             .or_default()
-            .insert(source_id.clone());
+            .insert(src.clone());
     }
-    // One read transaction for all confidence lookups (per-edge
-    // transactions made multi-target sweeps crawl).
-    let conf_queries: Vec<(EdgeKind, String, String)> = incoming
+
+    // The SCORE input: CAUSAL kinds only, UNIQUE RESOLVED source nodes, each
+    // at its best edge confidence. Unknown confidence contributes a
+    // conservative 0.5, never a laundered 1.0. Dangling sources (edge with no
+    // node record) are quarantined: they appear in `unresolved_endpoints`,
+    // never in the causal count, the named list, or the score.
+    let causal_edges: Vec<&(String, EdgeKind, u32, String)> = adjacency
+        .incoming
         .iter()
-        .map(|(source_id, kind, _)| (kind.clone(), source_id.clone(), target_id.to_string()))
+        .filter(|(_, kind, _, _)| is_causal_dependency(kind))
         .collect();
-    // source_id -> best confidence among its CAUSAL edges to the target.
-    let mut causal_source_conf: HashMap<&str, f32> = HashMap::new();
+    let conf_queries: Vec<(EdgeKind, String, String)> = causal_edges
+        .iter()
+        .map(|(src, kind, _, ep)| (kind.clone(), src.clone(), ep.clone()))
+        .collect();
     let confs: Vec<Option<f32>> = match graph.get_edge_confidences(project_id, &conf_queries) {
         Ok(c) => c,
-        // Unknown confidence stays UNKNOWN (None), not laundered to 1.0.
-        Err(_) => vec![None; incoming.len()],
+        Err(_) => vec![None; causal_edges.len()],
     };
-    for ((source_id, kind, _), conf) in incoming.iter().zip(confs.iter()) {
-        if !is_causal_dependency(kind) {
+    // Batch-resolve causal sources once to quarantine dangling ones.
+    let mut causal_ids: Vec<String> = causal_edges.iter().map(|(s, ..)| s.clone()).collect();
+    causal_ids.sort();
+    causal_ids.dedup();
+    let causal_nodes = graph.get_nodes(project_id, &causal_ids)?;
+    let mut low_confidence_incoming: usize = 0;
+    let mut causal_source_conf: HashMap<&str, f32> = HashMap::new();
+    let mut unresolved_endpoints_set: HashSet<&str> = HashSet::new();
+    for ((src, kind, _w, _ep), conf) in causal_edges.iter().zip(confs.iter()) {
+        if causal_nodes
+            .get(src.as_str())
+            .map(|n| n.is_none())
+            .unwrap_or(true)
+        {
+            unresolved_endpoints_set.insert(src.as_str());
             continue;
         }
-        // An unknown confidence contributes a conservative 0.5, not certainty.
         let c = conf.unwrap_or(0.5).clamp(0.0, 1.0);
         if c < 0.6 {
             low_confidence_incoming += 1;
         }
-        let e = causal_source_conf.entry(source_id.as_str()).or_insert(0.0);
+        let e = causal_source_conf.entry(src.as_str()).or_insert(0.0);
         if c > *e {
             *e = c;
         }
+        let _ = kind;
     }
-    let mut discounted_incoming: f32 = causal_source_conf.values().sum();
-    // File-level aggregation (below) adds EXTERNAL causal sources reaching the
-    // file's contained symbols; internal wiring is counted separately.
-    let mut file_causal_conf: HashMap<String, f32> = HashMap::new();
-
-    // 3b. Transitive aggregation for file-level targets.
-    //
-    // A raw `file:<path>` node typically carries only a handful of direct
-    // edges (codebehind link, imports, a few stray Contains). All the real
-    // "what breaks when I change this file" mass lives on the symbols
-    // inside the file, which is where every incoming `Calls` / `Dependency`
-    // / `SqlCalls` / etc. actually lands.
-    //
-    // Containment discovery: the language extractors emit Contains edges
-    // as `namespace → class` and `class → function`, *not* `file →
-    // symbol`, so following `Contains` from the file node returns nothing
-    // for ordinary .vb / .cs files. Every symbol node, however, stores
-    // its owning file in `Node.file_path`, so file_path equality is the
-    // authoritative containment signal.
-    //
-    // Without this pass a file with 700 callers of its internal functions
-    // reports total_incoming=0 — that's the file-level regression that
-    // shows up on real projects.
-    if is_file_target {
-        // `contained_symbols` was discovered up front (so the boundary could
-        // apply to direct edges too); reuse it here.
-        if !contained_symbols.is_empty() {
-            // The synthesized file->symbol Contains edges (TODO-16) describe
-            // membership, not wiring: drop them from this file's outgoing
-            // counts so handles/event scoring keeps its meaning.
-            let synthesized = contained_symbols
-                .iter()
-                .filter(|id| id.starts_with("sym:"))
-                .count();
-            if synthesized > 0
-                && let Some(c) = out_counts.get_mut(&EdgeKind::Contains)
-            {
-                *c = c.saturating_sub(synthesized);
-                if *c == 0 {
-                    out_counts.remove(&EdgeKind::Contains);
-                }
-            }
-
-            // O(sum of contained-symbol degrees) via the indexed
-            // edges_touching path — this was the LAST full structural-edge
-            // scan in blast radius, paid on every file-level target (and up
-            // to 20× per pre_commit_review). Dedupe by edge identity: an
-            // edge between two contained symbols is returned from BOTH
-            // endpoints, but the old single scan visited it once.
-            let mut seen_edges: HashSet<(String, String, String)> = HashSet::new();
-            for sym_id in &contained_symbols {
-                let (touching, touching_trunc) =
-                    graph.edges_touching_with_coverage(project_id, sym_id, CAP_TOUCHING)?;
-                if touching_trunc {
-                    coverage.truncated = true;
-                    if coverage.truncated_fetches.len() < 20 {
-                        coverage
-                            .truncated_fetches
-                            .push(format!("contained:{sym_id}"));
-                    }
-                }
-                for edge in touching {
-                    if !seen_edges.insert((
-                        edge.edge_kind.as_str().to_string(),
-                        edge.source_id.clone(),
-                        edge.target_id.clone(),
-                    )) {
-                        continue;
-                    }
-                    // Membership edges are not dependencies — counting them
-                    // would inflate every file's incoming density by its own
-                    // symbol count.
-                    if edge
-                        .metadata
-                        .as_ref()
-                        .and_then(|m| m.get("containment"))
-                        .and_then(|v| v.as_str())
-                        == Some("file")
-                    {
-                        continue;
-                    }
-                    // COMPONENT BOUNDARY CUT. An edge with BOTH endpoints inside
-                    // the file is internal wiring (method A calls method B in
-                    // the same file): it is internal complexity, never an
-                    // external dependent. Previously it incremented outgoing
-                    // AND incoming AND the score — a file's own cohesion was
-                    // reported as blast radius. Only edges that CROSS the
-                    // boundary count.
-                    let src_inside = in_component(&edge.source_id);
-                    let tgt_inside = in_component(&edge.target_id);
-                    if src_inside && tgt_inside {
-                        internal_edges += 1;
-                        continue;
-                    }
-                    if src_inside {
-                        *out_counts.entry(edge.edge_kind.clone()).or_default() += 1;
-                    }
-                    if tgt_inside {
-                        *in_counts.entry(edge.edge_kind.clone()).or_default() += 1;
-                        in_sources_by_kind
-                            .entry(edge.edge_kind.clone())
-                            .or_default()
-                            .insert(edge.source_id.clone());
-                        // Score input: causal kinds only, unique external
-                        // source, best confidence. Unknown confidence is a
-                        // conservative 0.5, not a laundered 1.0.
-                        if is_causal_dependency(&edge.edge_kind) {
-                            let conf = edge
-                                .metadata
-                                .as_ref()
-                                .and_then(|m| m.get("confidence"))
-                                .and_then(|v| v.as_str())
-                                .and_then(|s| s.parse::<f32>().ok())
-                                .unwrap_or(0.5)
-                                .clamp(0.0, 1.0);
-                            if conf < 0.6 {
-                                low_confidence_incoming += 1;
-                            }
-                            let e = file_causal_conf
-                                .entry(edge.source_id.clone())
-                                .or_insert(0.0);
-                            if conf > *e {
-                                *e = conf;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Fold the file-level external causal sources into the score input. A
-    // source already counted at the file node itself keeps its best value.
-    for (src, conf) in &file_causal_conf {
-        let prev = causal_source_conf.get(src.as_str()).copied().unwrap_or(0.0);
-        if *conf > prev {
-            discounted_incoming += conf - prev;
-        }
-    }
-
+    let unresolved_endpoints = unresolved_endpoints_set.len();
+    let discounted_incoming: f32 = causal_source_conf.values().sum();
     // 4. Compute sub-scores
     // Handles/event complexity: incoming Dependency + Contains edges → event wiring complexity
     let handles_count = in_counts.get(&EdgeKind::Dependency).copied().unwrap_or(0)
@@ -720,6 +609,9 @@ pub fn compute_blast_radius(
             _ => 2,
         }
     };
+    // Confirmed causal source ⇔ it survived the dangling quarantine, i.e. it
+    // has a `causal_source_conf` entry. Dangling sources are counted in
+    // `unresolved_endpoints`, never here.
     let mut causal_sources: HashMap<&str, (u8, &EdgeKind)> = HashMap::new();
     for (kind, sources) in &in_sources_by_kind {
         if !is_causal_dependency(kind) {
@@ -727,8 +619,14 @@ pub fn compute_blast_radius(
         }
         let d = directness(kind);
         for s in sources {
+            if !causal_source_conf.contains_key(s.as_str()) {
+                continue; // dangling — quarantined
+            }
             let e = causal_sources.entry(s.as_str()).or_insert((d, kind));
-            if d < e.0 {
+            // Deterministic selection: most direct kind wins; equal directness
+            // breaks on the kind's stable string (HashMap iteration order must
+            // never decide what a report says).
+            if d < e.0 || (d == e.0 && kind.as_str() < e.1.as_str()) {
                 *e = (d, kind);
             }
         }
@@ -737,11 +635,7 @@ pub fn compute_blast_radius(
     let mut top_causal_dependents: Vec<(String, String, f32)> = causal_sources
         .iter()
         .map(|(src, (_, kind))| {
-            let conf = causal_source_conf
-                .get(src)
-                .copied()
-                .or_else(|| file_causal_conf.get(*src).copied())
-                .unwrap_or(0.5);
+            let conf = causal_source_conf.get(src).copied().unwrap_or(0.5);
             (src.to_string(), kind.as_str().to_string(), conf)
         })
         .collect();
@@ -757,6 +651,19 @@ pub fn compute_blast_radius(
         .get(&EdgeKind::TemporalCoupling)
         .copied()
         .unwrap_or(0);
+    // Runtime-observed interaction: evidence an interaction occurred, weaker
+    // than a compiler-resolved call — a separate "possible" population.
+    let possible_dependents: usize = {
+        let mut uniq: HashSet<&str> = HashSet::new();
+        for (kind, sources) in &in_sources_by_kind {
+            if is_possible_dependency(kind) {
+                for s in sources {
+                    uniq.insert(s.as_str());
+                }
+            }
+        }
+        uniq.len()
+    };
     let dependency_density_score =
         normalize_score(discounted_incoming.round() as usize, DEPENDENCY_SATURATION);
 
@@ -981,6 +888,8 @@ pub fn compute_blast_radius(
         total_downstream,
         causal_dependents,
         historical_companions,
+        possible_dependents,
+        unresolved_endpoints,
         internal_edges,
         top_causal_dependents,
         coverage,
@@ -994,20 +903,31 @@ pub fn format_report(report: &BlastRadiusReport) -> String {
     // Honest counts: say "lower bound" when a fetch cap was hit, and lead
     // with the CAUSAL dependents (what may break) rather than the raw
     // incoming+outgoing degree that mixed in co-change history.
+    // Per-metric: the causal count is a lower bound only when a CAUSAL-kind
+    // fetch was truncated; the raw degree when anything was.
+    let ge_causal = if report.coverage.causal_truncated {
+        ">="
+    } else {
+        ""
+    };
     let ge = if report.coverage.truncated { ">=" } else { "" };
     out.push_str(&format!(
         "Migration Blast Radius: {}\n\
          Type: {}\n\
          Risk Score: {}/10 ({})\n\
-         Causal dependents (1-hop, may break if this changes): {ge}{}\n\
+         Causal dependents (1-hop, may break if this changes): {ge_causal}{}\n\
+         Possible dependents (runtime-observed only): {}\n\
          Historical companions (usually changed together, NOT causal): {}\n\
+         Unresolved endpoints (dangling causal edges, quarantined): {}\n\
          Raw 1-hop degree: incoming {ge}{}, outgoing {ge}{} (outgoing = things this depends on; they do not break)\n",
         report.target,
         report.target_type,
         report.migration_risk,
         report.risk_band,
         report.causal_dependents,
+        report.possible_dependents,
         report.historical_companions,
+        report.unresolved_endpoints,
         report.total_incoming,
         report.total_outgoing,
     ));
@@ -1227,6 +1147,8 @@ mod tests {
             total_downstream: 15,
             causal_dependents: 0,
             historical_companions: 0,
+            possible_dependents: 0,
+            unresolved_endpoints: 0,
             internal_edges: 0,
             top_causal_dependents: vec![],
             coverage: CountCoverage::default(),
@@ -1446,6 +1368,8 @@ mod tests {
             total_downstream: 8,
             causal_dependents: 0,
             historical_companions: 0,
+            possible_dependents: 0,
+            unresolved_endpoints: 0,
             internal_edges: 0,
             top_causal_dependents: vec![],
             coverage: CountCoverage::default(),
@@ -1509,10 +1433,13 @@ mod tests {
             total_downstream: 1500,
             causal_dependents: 12,
             historical_companions: 988,
+            possible_dependents: 0,
+            unresolved_endpoints: 0,
             internal_edges: 0,
             top_causal_dependents: vec![],
             coverage: CountCoverage {
                 truncated: true,
+                causal_truncated: true,
                 truncated_fetches: vec!["incoming".into()],
                 cap_incoming: 1000,
                 cap_outgoing_per_kind: 500,
@@ -1571,6 +1498,8 @@ mod tests {
             total_downstream: 0,
             causal_dependents: 0,
             historical_companions: 0,
+            possible_dependents: 0,
+            unresolved_endpoints: 0,
             internal_edges: 0,
             top_causal_dependents: vec![],
             coverage: CountCoverage::default(),
@@ -1615,6 +1544,8 @@ mod tests {
             total_downstream: 2,
             causal_dependents: 0,
             historical_companions: 0,
+            possible_dependents: 0,
+            unresolved_endpoints: 0,
             internal_edges: 0,
             top_causal_dependents: vec![],
             coverage: CountCoverage::default(),
@@ -1710,6 +1641,8 @@ EndProject
             total_downstream: 10,
             causal_dependents: 0,
             historical_companions: 0,
+            possible_dependents: 0,
+            unresolved_endpoints: 0,
             internal_edges: 0,
             top_causal_dependents: vec![],
             coverage: CountCoverage::default(),
@@ -2421,6 +2354,60 @@ EndProject
             "internal edges reported as complexity"
         );
         assert_eq!(before.causal_dependents, 1);
+    }
+
+    /// AUDITOR'S FIXTURE: 1001 high-weight internal Calls (over the 1000/kind
+    /// incoming cap) + 1 low-weight external Calls whose id sorts after every
+    /// internal id. Under a raw first-N fetch the internal edges consume the
+    /// budget and the external caller vanishes, producing a falsely LOW score.
+    #[test]
+    fn internal_flood_cannot_hide_external_caller_in_blast() {
+        let (_tmp, store) = tmp_graph();
+        let project = "proj";
+        let file_id = "file:test.vb";
+        let mut nodes = vec![make_file_node(file_id)];
+        let hub = "sym:function:test.vb:Hub:1".to_string();
+        nodes.push(make_sym_node_in_file(&hub, "test.vb"));
+        let mut edges = Vec::new();
+        for i in 0..1001 {
+            let s = format!("sym:function:test.vb:Inner{i:04}:{}", i + 10);
+            nodes.push(make_sym_node_in_file(&s, "test.vb"));
+            let mut e = make_typed_edge(&s, &hub, EdgeKind::Calls);
+            e.weight = 9999;
+            edges.push(e);
+        }
+        let ext = "sym:function:zz_other.vb:ZzExternal:1";
+        nodes.push(make_sym_node_in_file(ext, "zz_other.vb"));
+        edges.push(make_typed_edge(ext, &hub, EdgeKind::Calls));
+        store.upsert_nodes(project, &nodes).expect("nodes");
+        store.upsert_edges(project, &edges).expect("edges");
+
+        let report = compute_blast_radius(&store, project, file_id, 1, false).expect("report");
+        assert_eq!(
+            report.causal_dependents, 1,
+            "the single external caller must survive 1001 internal ones"
+        );
+        assert!(
+            !report.coverage.causal_truncated,
+            "internal edges never consume the causal cap: {:?}",
+            report.coverage.truncated_fetches
+        );
+        assert!(report.internal_edges >= 1001, "internal wiring counted");
+    }
+
+    /// Classification regression: oracle and runtime kinds are never
+    /// incoming-causal; runtime kinds are "possible".
+    #[test]
+    fn oracle_and_runtime_kinds_are_not_causal() {
+        assert!(!is_causal_dependency(&EdgeKind::TestOracle));
+        assert!(!is_causal_dependency(&EdgeKind::ObservedRuntimeControl));
+        assert!(!is_causal_dependency(&EdgeKind::ObservedRuntimeSql));
+        assert!(is_possible_dependency(&EdgeKind::ObservedRuntimeControl));
+        assert!(is_possible_dependency(&EdgeKind::ObservedRuntimeSql));
+        assert!(!is_possible_dependency(&EdgeKind::Calls));
+        assert!(is_causal_dependency(&EdgeKind::ReadsSetting));
+        assert!(is_causal_dependency(&EdgeKind::InheritsFrom));
+        assert!(is_causal_dependency(&EdgeKind::Implements));
     }
 
     /// ACCEPTANCE: exactly-at-cap is complete; only cap+1 is truncated.

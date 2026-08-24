@@ -404,6 +404,33 @@ impl Gate for BlastRadiusGate {
             }
 
             let severity = match report.migration_risk {
+                // A low score computed from TRUNCATED evidence is not a clean
+                // pass: causal callers may have been hidden by the caps, so
+                // the risk is UNKNOWN, not low. Emit an advisory instead of
+                // silently skipping — incomplete evidence must never read as
+                // "low risk, nothing to see".
+                0..=3 if report.coverage.causal_truncated => {
+                    findings.push(ReviewFinding::new(
+                        Severity::Info,
+                        "blast_radius",
+                        df.path.clone(),
+                        "Blast-radius evidence incomplete",
+                        format!(
+                            "`{}` scored {}/10 but a CAUSAL-kind fetch hit its cap ({}), so the \
+                             score is computed from a subset and the real risk is UNKNOWN, not \
+                             low.",
+                            df.path,
+                            report.migration_risk,
+                            report.coverage.truncated_fetches.join(", ")
+                        ),
+                        format!(
+                            "Run `impact_analysis(file_path=\"{}\")` (per-tier caps, per-tier \
+                             coverage) to enumerate the causal dependents before trusting this.",
+                            df.path
+                        ),
+                    ));
+                    continue;
+                }
                 0..=3 => continue,
                 4..=6 => Severity::Info,
                 _ => Severity::Warning,
@@ -416,7 +443,11 @@ impl Gate for BlastRadiusGate {
             // Evidence uses the CAUSAL count (what may break) with honest
             // coverage, not the raw incoming+outgoing degree that mixed in
             // co-change history and the file's own dependencies.
-            let ge = if report.coverage.truncated { ">=" } else { "" };
+            let ge = if report.coverage.causal_truncated {
+                ">="
+            } else {
+                ""
+            };
             let evidence = vec![
                 format!(
                     "migration_risk = {}/10 ({}) [advisory 1-hop heuristic]",

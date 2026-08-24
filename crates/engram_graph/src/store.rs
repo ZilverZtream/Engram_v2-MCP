@@ -895,19 +895,33 @@ impl GraphStore {
             }
         }
 
-        // Incoming: fetch limit+1 so exactly-limit is complete.
-        let incoming =
-            self.find_incoming_edges_with_kind(project_id, None, node_id, per_direction_limit + 1)?;
-        if incoming.len() > per_direction_limit {
-            truncated = true;
-        }
-        for (source_id, kind, _w) in incoming.into_iter().take(per_direction_limit) {
+        // Incoming: per-kind prefix scans with historical kinds excluded
+        // BEFORE the shared budget (the old all-kinds fetch was weight-ranked,
+        // so heavy temporal edges consumed the cap and hid structural/causal
+        // touching edges), and accepted-cap detection so exactly-at-limit is
+        // complete.
+        let adj = rtx.open_table(ADJ_IN)?;
+        let mut in_count = 0usize;
+        'incoming: for kind in EdgeKind::ALL {
             if matches!(kind, EdgeKind::TemporalCoupling | EdgeKind::CoOccurrence) {
                 continue;
             }
-            let key = edge_key(project_id, &kind, &source_id, node_id);
-            if let Some(v) = et.get(key.as_str())? {
-                out.push(bincode::deserialize(v.value())?);
+            let prefix = adj_key(project_id, kind, node_id);
+            for r in adj.range((prefix.as_str(), "")..)? {
+                let (k, _v) = r?;
+                let (pfx, source_id) = k.value();
+                if pfx != prefix.as_str() {
+                    break;
+                }
+                if in_count >= per_direction_limit {
+                    truncated = true;
+                    break 'incoming;
+                }
+                let key = edge_key(project_id, kind, source_id, node_id);
+                if let Some(v) = et.get(key.as_str())? {
+                    out.push(bincode::deserialize(v.value())?);
+                    in_count += 1;
+                }
             }
         }
         Ok((out, truncated))
@@ -974,6 +988,144 @@ impl GraphStore {
             return Ok(None);
         };
         Ok(Some(bincode::deserialize(v.value())?))
+    }
+
+    /// One-hop adjacency of a COMPONENT with the policy applied BEFORE the
+    /// accepted-result caps — the substrate contract the impact tools need:
+    /// "return the first N+1 ACCEPTED external neighbors after kind,
+    /// direction, and component-boundary policy", which no post-hoc handler
+    /// filtering can recover from a raw first-N fetch (>N higher-weight
+    /// internal or non-causal edges would consume the budget and silently
+    /// hide external causal ones). ONE read transaction for every (kind,
+    /// endpoint) pair — replaces the per-symbol per-kind transaction storm.
+    ///
+    /// - `endpoints`: the component members whose edges we sweep (target node
+    ///   plus, for a file, its contained symbols).
+    /// - `component`: the full membership set; an edge whose OTHER end is
+    ///   inside it is internal wiring — counted, never returned, and it never
+    ///   consumes cap budget.
+    /// - `cap_in` / `cap_out`: accepted-result cap per (kind, endpoint);
+    ///   return 0 to skip a kind entirely. A (kind, endpoint) pair lands in
+    ///   `truncated_*` only when an accepted edge BEYOND the cap exists —
+    ///   exactly-at-cap is complete.
+    ///
+    /// Iteration is in key order (source id) per (kind, endpoint), so results
+    /// are deterministic across runs; callers rank for display themselves.
+    pub fn component_adjacency(
+        &self,
+        project_id: &str,
+        endpoints: &[String],
+        component: &std::collections::HashSet<String>,
+        cap_in: &dyn Fn(&EdgeKind) -> usize,
+        cap_out: &dyn Fn(&EdgeKind) -> usize,
+    ) -> anyhow::Result<ComponentAdjacency> {
+        let rtx = self.db.begin_read()?;
+        let adj_in = rtx.open_table(ADJ_IN)?;
+        let adj_out = rtx.open_table(ADJ_OUT)?;
+        let mut result = ComponentAdjacency::default();
+        for kind in EdgeKind::ALL {
+            let icap = cap_in(kind);
+            let ocap = cap_out(kind);
+            if icap == 0 && ocap == 0 {
+                continue;
+            }
+            for ep in endpoints {
+                let prefix = adj_key(project_id, kind, ep);
+                if icap > 0 {
+                    let mut accepted = 0usize;
+                    for r in adj_in.range((prefix.as_str(), "")..)? {
+                        let (k, v) = r?;
+                        let (pfx, source_id) = k.value();
+                        if pfx != prefix.as_str() {
+                            break;
+                        }
+                        if component.contains(source_id) {
+                            result.internal_skipped += 1;
+                            continue; // internal wiring never consumes cap
+                        }
+                        if accepted >= icap {
+                            result.truncated_in.push((kind.clone(), ep.clone()));
+                            break;
+                        }
+                        let (weight, _ts) = decode_adj_value(v.value())?;
+                        result.incoming.push((
+                            source_id.to_string(),
+                            kind.clone(),
+                            weight,
+                            ep.clone(),
+                        ));
+                        accepted += 1;
+                    }
+                }
+                if ocap > 0 {
+                    let mut accepted = 0usize;
+                    for r in adj_out.range((prefix.as_str(), "")..)? {
+                        let (k, v) = r?;
+                        let (pfx, target_id) = k.value();
+                        if pfx != prefix.as_str() {
+                            break;
+                        }
+                        if component.contains(target_id) {
+                            // Counted once, on the INCOMING view (every
+                            // internal edge has its target inside too), so
+                            // `internal_skipped` is an exact edge count, not
+                            // a per-endpoint view count.
+                            continue;
+                        }
+                        if accepted >= ocap {
+                            result.truncated_out.push((kind.clone(), ep.clone()));
+                            break;
+                        }
+                        let (weight, _ts) = decode_adj_value(v.value())?;
+                        result.outgoing.push((
+                            target_id.to_string(),
+                            kind.clone(),
+                            weight,
+                            ep.clone(),
+                        ));
+                        accepted += 1;
+                    }
+                }
+            }
+        }
+        Ok(result)
+    }
+
+    /// Resolve a file's component members with EXACT `file_path` equality
+    /// applied BEFORE the cap (the generic `query_nodes` substring pre-filter
+    /// lets suffix-colliding paths consume the budget, and requesting exactly
+    /// `cap` made exactly-`cap` results read as truncated). Returns the sorted
+    /// member node ids and whether an accepted member beyond `cap` exists.
+    pub fn file_component_members(
+        &self,
+        project_id: &str,
+        file_rel_path: &str,
+        file_node_id: &str,
+        cap: usize,
+    ) -> anyhow::Result<(Vec<String>, bool)> {
+        let prefix = format!("{project_id}\0");
+        let rtx = self.db.begin_read()?;
+        let nt = rtx.open_table(NODES)?;
+        let mut members: Vec<String> = Vec::new();
+        let mut truncated = false;
+        for r in nt.range(prefix.as_str()..)? {
+            let (k, v) = r?;
+            if !k.value().starts_with(&prefix) {
+                break;
+            }
+            let node: Node = bincode::deserialize(v.value())?;
+            if node.node_id == file_node_id || node.file_path.as_str() != file_rel_path {
+                continue;
+            }
+            if members.len() >= cap {
+                truncated = true;
+                break;
+            }
+            members.push(node.node_id);
+        }
+        members.sort();
+        members.dedup();
+        Ok((members, truncated))
     }
 
     /// Batch node lookup in ONE read transaction. Replaces N+1 `get_node`
@@ -2826,6 +2978,20 @@ fn edge_key(project_id: &str, kind: &EdgeKind, source_id: &str, target_id: &str)
 
 fn adj_key(project_id: &str, kind: &EdgeKind, node_id: &str) -> String {
     format!("{project_id}\0{}\0{node_id}", kind.as_str())
+}
+
+/// Result of a component-scoped one-hop sweep (`component_adjacency`).
+/// Tuples are (other_node_id, kind, weight, endpoint_reached) — the endpoint
+/// is which component member the edge touches, preserving the "via" path.
+#[derive(Debug, Clone, Default)]
+pub struct ComponentAdjacency {
+    pub incoming: Vec<(String, EdgeKind, u32, String)>,
+    pub outgoing: Vec<(String, EdgeKind, u32, String)>,
+    /// (kind, endpoint) pairs where an ACCEPTED edge beyond the cap exists.
+    pub truncated_in: Vec<(EdgeKind, String)>,
+    pub truncated_out: Vec<(EdgeKind, String)>,
+    /// Edges skipped because the other end was inside the component.
+    pub internal_skipped: usize,
 }
 
 /// Case-insensitive ASCII substring check without heap allocation.
