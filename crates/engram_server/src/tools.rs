@@ -631,7 +631,7 @@ impl Engram {
     // ---- Agent / cognitive tools ----
 
     #[tool(
-        description = "1-HOP incoming impact of a file or symbol (NOT transitive; no ripple beyond direct dependents). Separates CAUSAL dependents (calls/uses/imports/state/table/api — may break) from structural context and historical companions (co-change — not breakage), names the contained symbol each dependent reaches, reports unique-node counts with honest truncation, and is deterministic across runs. Takes no change spec: results are whole-target exposure. Use compute_blast_radius for the advisory risk profile."
+        description = "1-HOP incoming impact of a file or symbol (NOT transitive; no ripple beyond direct dependents). Separates CAUSAL dependents (calls/uses/imports/state/table/api — may break) from structural context and historical companions (co-change — not breakage), names the contained symbol each dependent reaches, reports unique-node counts with honest truncation, and the evidence body is deterministic across runs (the trailing freshness footer varies with index age). Takes no change spec: results are whole-target exposure. Use compute_blast_radius for the advisory risk profile."
     )]
     pub async fn impact_analysis(
         &self,

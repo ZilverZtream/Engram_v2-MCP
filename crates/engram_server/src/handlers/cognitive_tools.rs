@@ -294,23 +294,21 @@ impl Engram {
             };
             let is_file_target = target_id.starts_with("file:");
 
-            // ── 2. Component, then ONE boundary-aware gathering pipeline. ──
+            // ── 2. Component, then ONE substrate call. ──
             //
-            // The component is {target} ∪ {contained symbols} (for a file).
-            // Built BEFORE any edge is counted so direct edges to the file
-            // node and aggregated edges to its symbols pass through the SAME
-            // boundary: a source inside the component is internal wiring.
-            //
-            // Fetches are PER TIER, PER KIND. The store ranks across kinds by
-            // weight, so one all-kinds fetch lets 900 heavy temporal edges
-            // consume the cap and hide every real call; and filtering internal
-            // edges AFTER a cap could leave zero edges and return "no edges"
-            // while coverage was actually incomplete. Each causal kind gets
-            // its own budget, internal edges are dropped BEFORE they count,
-            // and truncation is recorded per tier.
-            const CAP_PER_KIND: usize = 500;
+            // The boundary/policy work now lives in the STORE
+            // (`component_adjacency`): it returns the first N+1 ACCEPTED
+            // external sources per (kind, endpoint) AFTER the component cut,
+            // in one read transaction. The previous handler-side version
+            // fetched the first N RAW sources per kind and filtered
+            // afterwards, so >N higher-weight internal callers could consume
+            // the entire budget and silently hide every external caller — the
+            // cap-before-boundary P0 this replaces. It also opened one
+            // transaction per (kind, endpoint): ~44 × (symbols+1) per file
+            // request.
+            const CAP_CAUSAL_PER_KIND: usize = 500;
             const CAP_COMPANION: usize = 300;
-            const CAP_STRUCTURAL: usize = 200;
+            const CAP_CONTEXT: usize = 200;
             const CAP_CONTAINED: usize = 50_000;
 
             let mut contained: Vec<String> = Vec::new();
@@ -322,129 +320,84 @@ impl Engram {
                     .flatten()
                     .map(|n| n.file_path.as_str().to_string())
                     .unwrap_or_else(|| target_id[5..].to_string());
-                let found = graph
-                    .query_nodes(&req.project_id, None, None, Some(&file_rel_path), CAP_CONTAINED)
+                // Exact-equality membership applied BEFORE the cap, cap+1
+                // detection (exactly-at-cap is complete), sorted for
+                // determinism — all inside the store.
+                let (members, trunc) = graph
+                    .file_component_members(
+                        &req.project_id,
+                        &file_rel_path,
+                        &target_id,
+                        CAP_CONTAINED,
+                    )
                     .map_err(|e| e.to_string())?;
-                if found.len() >= CAP_CONTAINED {
-                    contained_truncated = true;
-                }
-                // Sorted + deduped: deterministic iteration across runs.
-                contained = found
-                    .into_iter()
-                    .filter(|n| n.node_id != target_id && n.file_path.as_str() == file_rel_path)
-                    .map(|n| n.node_id)
-                    .collect();
-                contained.sort();
-                contained.dedup();
+                contained = members;
+                contained_truncated = trunc;
             }
             let contained_count = contained.len();
-            let component: std::collections::HashSet<&str> = std::iter::once(target_id.as_str())
-                .chain(contained.iter().map(|s| s.as_str()))
-                .collect();
-            // Every node whose incoming edges we gather: the target itself plus
-            // its contained symbols. `reached_via` records which one.
-            let endpoints: Vec<&str> = std::iter::once(target_id.as_str())
-                .chain(contained.iter().map(|s| s.as_str()))
-                .collect();
+            let component: std::collections::HashSet<String> =
+                std::iter::once(target_id.clone()).chain(contained.iter().cloned()).collect();
+            let endpoints: Vec<String> =
+                std::iter::once(target_id.clone()).chain(contained.iter().cloned()).collect();
 
-            // Per-tier coverage (not one global flag).
-            let mut causal_truncated: Vec<String> = Vec::new();
-            let mut companion_truncated = false;
-            let mut structural_truncated = false;
-            let mut fetch_errors = 0usize;
-            let mut internal_edges = 0usize;
+            let companion_kind = |k: &EdgeKind| {
+                matches!(
+                    k,
+                    EdgeKind::TemporalCoupling | EdgeKind::CoOccurrence | EdgeKind::StateAffinity
+                )
+            };
+            let adjacency = graph
+                .component_adjacency(
+                    &req.project_id,
+                    &endpoints,
+                    &component,
+                    &|k| {
+                        if is_causal_dependency(k) {
+                            CAP_CAUSAL_PER_KIND
+                        } else if companion_kind(k) {
+                            CAP_COMPANION
+                        } else {
+                            CAP_CONTEXT
+                        }
+                    },
+                    &|_| 0, // incoming-only tool
+                )
+                .map_err(|e| e.to_string())?;
+            let internal_edges = adjacency.internal_skipped;
 
-            // (source, kind, weight, reached_via)
+            // Per-tier coverage from the substrate's per-(kind, endpoint)
+            // truncation records — a capped companion fetch never marks the
+            // causal count a lower bound, and vice versa. Totals are exact;
+            // the display list of capped causal fetches is bounded separately.
+            let causal_truncated_total = adjacency
+                .truncated_in
+                .iter()
+                .filter(|(k, _)| is_causal_dependency(k))
+                .count();
+            let causal_truncated_examples: Vec<String> = adjacency
+                .truncated_in
+                .iter()
+                .filter(|(k, _)| is_causal_dependency(k))
+                .take(12)
+                .map(|(k, ep)| format!("{}:{}", k.as_str(), ep))
+                .collect();
+            let companion_truncated = adjacency
+                .truncated_in
+                .iter()
+                .any(|(k, _)| companion_kind(k));
+            let structural_truncated = adjacency
+                .truncated_in
+                .iter()
+                .any(|(k, _)| !is_causal_dependency(k) && !companion_kind(k));
+
+            // (source, kind, weight, reached_via) + causal confidence triples.
             let mut edges: Vec<(String, EdgeKind, u32, String)> = Vec::new();
             let mut conf_triples: Vec<(EdgeKind, String, String)> = Vec::new();
-
-            let causal_kinds: Vec<&EdgeKind> =
-                EdgeKind::ALL.iter().filter(|k| is_causal_dependency(k)).collect();
-            let companion_kinds = [
-                EdgeKind::TemporalCoupling,
-                EdgeKind::CoOccurrence,
-                EdgeKind::StateAffinity,
-            ];
-
-            // A. Causal: per endpoint, per kind, own budget, boundary first.
-            for ep in &endpoints {
-                for kind in &causal_kinds {
-                    let fetched = match graph.find_incoming_edges_with_kind(
-                        &req.project_id,
-                        Some((*kind).clone()),
-                        ep,
-                        CAP_PER_KIND + 1,
-                    ) {
-                        Ok(v) => v,
-                        Err(_) => {
-                            fetch_errors += 1;
-                            continue;
-                        }
-                    };
-                    if fetched.len() > CAP_PER_KIND && causal_truncated.len() < 12 {
-                        causal_truncated.push(format!("{}:{}", kind.as_str(), ep));
-                    }
-                    for (src, k, w) in fetched.into_iter().take(CAP_PER_KIND) {
-                        if component.contains(src.as_str()) {
-                            internal_edges += 1;
-                            continue;
-                        }
-                        conf_triples.push((k.clone(), src.clone(), ep.to_string()));
-                        edges.push((src, k, w, ep.to_string()));
-                    }
+            for (src, kind, w, ep) in adjacency.incoming {
+                if is_causal_dependency(&kind) {
+                    conf_triples.push((kind.clone(), src.clone(), ep.clone()));
                 }
-            }
-            // B. Companions: a separate, smaller budget — they never compete
-            //    with causal edges for room.
-            for ep in &endpoints {
-                for kind in &companion_kinds {
-                    let Ok(fetched) = graph.find_incoming_edges_with_kind(
-                        &req.project_id,
-                        Some(kind.clone()),
-                        ep,
-                        CAP_COMPANION + 1,
-                    ) else {
-                        fetch_errors += 1;
-                        continue;
-                    };
-                    if fetched.len() > CAP_COMPANION {
-                        companion_truncated = true;
-                    }
-                    for (src, k, w) in fetched.into_iter().take(CAP_COMPANION) {
-                        if component.contains(src.as_str()) {
-                            internal_edges += 1;
-                            continue;
-                        }
-                        edges.push((src, k, w, ep.to_string()));
-                    }
-                }
-            }
-            // C. Structural/annotation/unresolved: smallest budget, context only.
-            for ep in &endpoints {
-                for kind in EdgeKind::ALL {
-                    if is_causal_dependency(kind) || companion_kinds.contains(kind) {
-                        continue;
-                    }
-                    let Ok(fetched) = graph.find_incoming_edges_with_kind(
-                        &req.project_id,
-                        Some(kind.clone()),
-                        ep,
-                        CAP_STRUCTURAL + 1,
-                    ) else {
-                        fetch_errors += 1;
-                        continue;
-                    };
-                    if fetched.len() > CAP_STRUCTURAL {
-                        structural_truncated = true;
-                    }
-                    for (src, k, w) in fetched.into_iter().take(CAP_STRUCTURAL) {
-                        if component.contains(src.as_str()) {
-                            internal_edges += 1;
-                            continue;
-                        }
-                        edges.push((src, k, w, ep.to_string()));
-                    }
-                }
+                edges.push((src, kind, w, ep));
             }
 
             if edges.is_empty() {
@@ -453,12 +406,15 @@ impl Engram {
                      (target exists; {contained_count} contained symbols checked; \
                      {internal_edges} internal edges excluded)."
                 );
-                if !causal_truncated.is_empty() || fetch_errors > 0 || contained_truncated {
+                if causal_truncated_total > 0 || contained_truncated {
                     msg.push_str(&format!(
-                        " ⚠ COVERAGE INCOMPLETE ({} causal fetch(es) capped, {fetch_errors} \
-                         fetch error(s){}) — this is NOT a proven absence.",
-                        causal_truncated.len(),
-                        if contained_truncated { ", contained-symbol scan capped" } else { "" }
+                        " ⚠ COVERAGE INCOMPLETE ({causal_truncated_total} causal fetch(es) \
+                         capped{}) — this is NOT a proven absence.",
+                        if contained_truncated {
+                            ", contained-symbol scan capped"
+                        } else {
+                            ""
+                        }
                     ));
                 } else {
                     msg.push_str(
@@ -476,9 +432,13 @@ impl Engram {
             // ── 3. Confidence stays attached to the PATH; unknown stays unknown. ──
             // Only causal edges were put in conf_triples (in the same order
             // they were pushed to `edges`), so map them back by position.
+            let mut conf_lookup_failed = false;
             let confs: Vec<Option<f32>> = graph
                 .get_edge_confidences(&req.project_id, &conf_triples)
-                .unwrap_or_else(|_| vec![None; conf_triples.len()]);
+                .unwrap_or_else(|_| {
+                    conf_lookup_failed = true;
+                    vec![None; conf_triples.len()]
+                });
 
             // ── 4. Resolve nodes in ONE transaction (needed before grouping so
             //      dangling sources can be quarantined out of confirmed tiers). ──
@@ -509,10 +469,12 @@ impl Engram {
             }
             let tier_of = |k: &EdgeKind| -> u8 {
                 match k {
-                    EdgeKind::ObservedRuntimeControl | EdgeKind::ObservedRuntimeSql => 1,
+                    // Shared classifier — the same one blast radius uses.
+                    k if crate::services::blast_radius_service::is_possible_dependency(k) => 1,
                     EdgeKind::TemporalCoupling | EdgeKind::CoOccurrence | EdgeKind::StateAffinity => 3,
                     EdgeKind::Insight | EdgeKind::AntiPattern => 4,
-                    EdgeKind::UnresolvedStateRead | EdgeKind::UnresolvedStateWrite => 5,
+                    // UnresolvedState*: the SOURCE node is resolved; only the
+                    // state KEY is unresolved — context, never "no node record".
                     k if is_causal_dependency(k) => 0,
                     _ => 2,
                 }
@@ -698,11 +660,11 @@ impl Engram {
             // Per-tier coverage: a capped companion fetch does NOT make the
             // causal count a lower bound, and vice versa.
             let mut cov: Vec<String> = Vec::new();
-            if !causal_truncated.is_empty() {
+            if causal_truncated_total > 0 {
                 cov.push(format!(
-                    "CAUSAL is a LOWER BOUND ({} kind/endpoint fetch(es) hit {CAP_PER_KIND}: {})",
-                    causal_truncated.len(),
-                    causal_truncated.join(", ")
+                    "CAUSAL is a LOWER BOUND ({causal_truncated_total} kind/endpoint fetch(es) hit                      {CAP_CAUSAL_PER_KIND}; showing {}: {})",
+                    causal_truncated_examples.len(),
+                    causal_truncated_examples.join(", ")
                 ));
             }
             if companion_truncated {
@@ -714,8 +676,8 @@ impl Engram {
             if contained_truncated {
                 cov.push(format!("contained-symbol scan hit {CAP_CONTAINED}").into());
             }
-            if fetch_errors > 0 {
-                cov.push(format!("{fetch_errors} fetch error(s) skipped"));
+            if conf_lookup_failed {
+                cov.push("edge-confidence lookup failed (confidences shown as unknown)".into());
             }
             if cov.is_empty() {
                 out.push_str("**Coverage**: complete for every tier.\n");
@@ -3465,20 +3427,29 @@ impl Engram {
         // Lead with CAUSAL dependents (what may break), not the raw
         // incoming+outgoing degree that counted co-change history and the
         // target's own dependencies as "dependents". Flag lower bounds.
+        let ge_causal = if report.coverage.causal_truncated {
+            ">="
+        } else {
+            ""
+        };
         let ge = if report.coverage.truncated { ">=" } else { "" };
         let mut out = format!(
             "# Blast Radius Analysis: {}\n\n\
              **Overall Risk**: {}/10 ({}) — an uncalibrated 1-hop heuristic, NOT a transitive \
              change-impact analysis; treat as advisory\n\
-             **Causal dependents (1-hop, may break if this changes)**: {ge}{}\n\
+             **Causal dependents (1-hop, may break if this changes)**: {ge_causal}{}\n\
+             **Possible dependents (runtime-observed only)**: {}\n\
              **Historical companions (usually changed together, NOT causal)**: {}\n\
+             **Unresolved endpoints (dangling causal edges, quarantined from all counts)**: {}\n\
              **Raw 1-hop degree**: incoming {ge}{}, outgoing {ge}{} (outgoing = this target's own \
              dependencies; they do not break when it changes)\n",
             report.target,
             report.migration_risk,
             report.risk_band,
             report.causal_dependents,
+            report.possible_dependents,
             report.historical_companions,
+            report.unresolved_endpoints,
             report.total_incoming,
             report.total_outgoing
         );
@@ -3496,7 +3467,10 @@ impl Engram {
             "- Dependency density: {:.1}/10\n",
             bd.dependency_density_score
         ));
-        out.push_str(&format!("- SQL risk: {:.1}/10\n", bd.sql_concat_score));
+        out.push_str(&format!(
+            "- Data-access coupling (NOT an injection analysis): {:.1}/10\n",
+            bd.sql_concat_score
+        ));
         out.push_str(&format!(
             "- State coupling: {:.1}/10\n",
             bd.state_coupling_score
@@ -3530,12 +3504,18 @@ impl Engram {
                 "\n## Top causal dependents (1-hop; may break — same population as the count above)\n",
             );
             for (label, kind, w) in &top_dependents {
-                out.push_str(&format!("- {label} [{kind}] (weight {w})\n"));
+                // `w` carries confidence×100 from the service population.
+                out.push_str(&format!(
+                    "- {label} [{kind}] (conf {:.2})\n",
+                    *w as f32 / 100.0
+                ));
             }
         }
         if !top_companions.is_empty() {
             out.push_str(
-                "\n## Historical companions (usually changed together — plan/co-edit evidence, NOT breakage)\n",
+                "\n## Historical companions (direct co-changes of the target node only — the \
+                 count above also aggregates contained symbols; plan/co-edit evidence, NOT \
+                 breakage)\n",
             );
             for (label, w) in &top_companions {
                 out.push_str(&format!("- {label} (co-changes {w})\n"));
