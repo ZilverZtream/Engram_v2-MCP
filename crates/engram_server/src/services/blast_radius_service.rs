@@ -133,8 +133,8 @@ pub struct BlastRadiusReport {
     /// were previously counted as if they were things that break.
     #[serde(default)]
     pub causal_dependents: usize,
-    /// Incoming TemporalCoupling edges — "usually changed together". Companion
-    /// evidence for planning, NEVER causal impact. Reported separately.
+    /// UNIQUE sources with a TemporalCoupling edge — "usually changed
+    /// together". Companion evidence for planning, NEVER causal impact.
     #[serde(default)]
     pub historical_companions: usize,
     /// Unique sources whose only evidence is runtime observation
@@ -647,9 +647,12 @@ pub fn compute_blast_radius(
             .then(a.0.cmp(&b.0))
     });
     top_causal_dependents.truncate(10);
-    let historical_companions: usize = in_counts
+    // UNIQUE co-change partners, consistent with causal_dependents (unique
+    // nodes) and with impact_analysis — an edge count triple-counted a file
+    // that co-changed with three contained symbols.
+    let historical_companions: usize = in_sources_by_kind
         .get(&EdgeKind::TemporalCoupling)
-        .copied()
+        .map(|s| s.len())
         .unwrap_or(0);
     // Runtime-observed interaction: evidence an interaction occurred, weaker
     // than a compiler-resolved call — a separate "possible" population.
