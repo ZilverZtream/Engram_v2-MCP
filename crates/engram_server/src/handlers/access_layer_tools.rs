@@ -1006,8 +1006,35 @@ fn compute_edit_safety(
         "green"
     };
 
+    // Coverage floor (auditor P0: coverage was discarded before decisions).
+    // A verdict computed from a TRUNCATED causal sweep can be missing the very
+    // callers that would have raised it — incomplete evidence is never green.
+    let incomplete_causal = blast_radius
+        .map(|b| b.coverage.causal_truncated)
+        .unwrap_or(false);
+    let verdict = if incomplete_causal && verdict == "green" {
+        reasons.push(
+            "Blast-radius causal coverage INCOMPLETE (fetch cap hit) — dependents may be \
+             hidden; safety is unknown, not green"
+                .to_string(),
+        );
+        pre_checklist.push(
+            "Enumerate callers with impact_analysis (per-tier coverage) before editing".into(),
+        );
+        "yellow"
+    } else {
+        if incomplete_causal {
+            reasons.push(
+                "Blast-radius causal coverage INCOMPLETE — treat the risk inputs as lower bounds"
+                    .to_string(),
+            );
+        }
+        verdict
+    };
+
     let confidence = match verdict {
         "green" => 0.9,
+        "yellow" if incomplete_causal => 0.5,
         "yellow" => 0.7,
         _ => 0.5,
     };

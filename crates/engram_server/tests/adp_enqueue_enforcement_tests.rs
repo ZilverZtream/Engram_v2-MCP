@@ -32,6 +32,7 @@ fn abstain_input() -> AdpInput {
         blast_radius_risk: None,
         blast_radius_band: None,
         blast_radius_downstream: None,
+        blast_causal_truncated: None,
         immune_verdict: None,
         immune_confidence: None,
         require_runtime_evidence: false,
@@ -69,6 +70,7 @@ fn deny_input() -> AdpInput {
         blast_radius_risk: Some(3),
         blast_radius_band: None,
         blast_radius_downstream: Some(5),
+        blast_causal_truncated: None,
         immune_verdict: Some("PASS".into()),
         immune_confidence: Some(0.92),
         require_runtime_evidence: false,
@@ -106,6 +108,7 @@ fn allow_input() -> AdpInput {
         blast_radius_risk: Some(2),
         blast_radius_band: None,
         blast_radius_downstream: Some(3),
+        blast_causal_truncated: None,
         immune_verdict: Some("PASS".into()),
         immune_confidence: Some(0.97),
         require_runtime_evidence: false,
@@ -308,7 +311,7 @@ fn adp_deny_verdict_is_unambiguous() {
 /// Gate 5 is a hard-deny path: any change with blast_radius_risk > threshold is
 /// blocked unconditionally. Proves this gate cannot be bypassed by other passing gates.
 #[test]
-fn blast_radius_above_threshold_produces_deny_in_guarded_mode() {
+fn blast_radius_above_threshold_produces_abstain_in_guarded_mode() {
     let input = AdpInput {
         extraction_confidence: Some(0.95),
         extraction_band: Some("high".into()),
@@ -329,6 +332,7 @@ fn blast_radius_above_threshold_produces_deny_in_guarded_mode() {
         blast_radius_risk: Some(9),
         blast_radius_band: None,
         blast_radius_downstream: Some(20),
+        blast_causal_truncated: None,
         immune_verdict: Some("PASS".into()),
         immune_confidence: Some(0.95),
         require_runtime_evidence: false,
@@ -345,18 +349,21 @@ fn blast_radius_above_threshold_produces_deny_in_guarded_mode() {
     };
 
     let raw = evaluate_gates(&input);
+    // POLICY (round-2 audit fix): the blast score is an uncalibrated 1-hop
+    // heuristic — failing it ALONE abstains (demand more evidence); it must
+    // never independently hard-deny. Auto-apply is still blocked either way.
     assert_eq!(
         raw.verdict,
-        AdpVerdict::Deny,
-        "Gate 5: blast_radius_risk=9 > max=5 must produce Deny; \
+        AdpVerdict::Abstain,
+        "Gate 5: blast_radius_risk=9 > max=5 must Abstain; \
          an over-blast-radius change cannot auto-proceed regardless of other gates"
     );
 
     let enforced = apply_rollout_policy(&raw, RolloutPhase::Guarded, false);
     assert_eq!(
         enforced.verdict,
-        AdpVerdict::Deny,
-        "Gate 5 Deny must survive apply_rollout_policy in Guarded mode"
+        AdpVerdict::Abstain,
+        "Gate 5 Abstain must survive apply_rollout_policy in Guarded mode"
     );
     assert!(
         enforced.failed_gates.iter().any(|g| g.contains("blast")),
@@ -390,6 +397,7 @@ fn low_extraction_confidence_produces_deny_in_guarded_mode() {
         blast_radius_risk: Some(2),
         blast_radius_band: None,
         blast_radius_downstream: Some(3),
+        blast_causal_truncated: None,
         immune_verdict: Some("PASS".into()),
         immune_confidence: Some(0.95),
         require_runtime_evidence: false,
@@ -444,6 +452,7 @@ fn immune_block_verdict_produces_deny_in_guarded_mode() {
         blast_radius_risk: Some(2),
         blast_radius_band: None,
         blast_radius_downstream: Some(3),
+        blast_causal_truncated: None,
         // BLOCK verdict → gate 6 hard-deny
         immune_verdict: Some("BLOCK".into()),
         immune_confidence: Some(0.90),
@@ -596,10 +605,12 @@ fn wave_with_one_deny_item_produces_wave_deny() {
 
 // ── ADP1: extended scenario corpus ───────────────────────────────────────────
 
-/// ADP1: blast-radius-only deny — no safety failure, but blast_radius_risk exceeds
-/// the max_blast_radius_for_auto threshold.
+/// ADP1: blast-radius-only failure — no safety failure, but blast_radius_risk
+/// exceeds the max_blast_radius_for_auto threshold. POLICY (round-2 audit
+/// fix): the uncalibrated 1-hop heuristic alone ABSTAINS (blocks auto-apply,
+/// demands more evidence) — it never independently hard-denies.
 #[test]
-fn adp_high_blast_radius_produces_deny_without_safety_failure() {
+fn adp_high_blast_radius_produces_abstain_without_safety_failure() {
     let input = AdpInput {
         extraction_confidence: Some(0.95),
         extraction_band: Some("high".into()),
@@ -619,6 +630,7 @@ fn adp_high_blast_radius_produces_deny_without_safety_failure() {
         blast_radius_risk: Some(20), // exceeds max of 5
         blast_radius_band: None,
         blast_radius_downstream: Some(50),
+        blast_causal_truncated: None,
         immune_verdict: Some("PASS".into()),
         immune_confidence: Some(0.97),
         require_runtime_evidence: false,
@@ -637,9 +649,15 @@ fn adp_high_blast_radius_produces_deny_without_safety_failure() {
     let raw = evaluate_gates(&input);
     assert_eq!(
         raw.verdict,
-        AdpVerdict::Deny,
-        "ADP1: blast_radius_risk=20 > max_blast_radius_for_auto=5 must produce Deny \
-         even when all other gates pass — high blast radius alone must block auto-apply"
+        AdpVerdict::Abstain,
+        "ADP1: blast_radius_risk=20 > max_blast_radius_for_auto=5 must Abstain \
+         even when all other gates pass — high blast radius alone must block \
+         auto-apply (advisory heuristic: abstain, never hard-deny alone)"
+    );
+    assert!(
+        raw.failed_gates.iter().any(|g| g.contains("blast")),
+        "blast_radius gate must appear in failed_gates; got: {:?}",
+        raw.failed_gates
     );
 }
 
@@ -666,6 +684,7 @@ fn adp_low_extraction_confidence_produces_deny() {
         blast_radius_risk: Some(2),
         blast_radius_band: None,
         blast_radius_downstream: Some(3),
+        blast_causal_truncated: None,
         immune_verdict: Some("PASS".into()),
         immune_confidence: Some(0.97),
         require_runtime_evidence: false,
@@ -706,6 +725,7 @@ fn adp_missing_required_runtime_evidence_produces_deny() {
         blast_radius_risk: Some(2),
         blast_radius_band: None,
         blast_radius_downstream: Some(3),
+        blast_causal_truncated: None,
         immune_verdict: Some("PASS".into()),
         immune_confidence: Some(0.97),
         require_runtime_evidence: true, // required
@@ -830,6 +850,7 @@ fn make_passing_adp_input() -> AdpInput {
         blast_radius_risk: Some(2),
         blast_radius_band: None,
         blast_radius_downstream: Some(4),
+        blast_causal_truncated: None,
         immune_verdict: Some("PASS".into()),
         immune_confidence: Some(0.95),
         require_runtime_evidence: false,

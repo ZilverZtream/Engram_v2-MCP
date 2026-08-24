@@ -143,6 +143,14 @@ pub struct AdpScenarioInput {
     /// Migration class for calibrated thresholds (e.g., "data_access", "webforms_page").
     #[serde(default)]
     pub migration_class: Option<String>,
+
+    /// True when the blast report's CAUSAL coverage was truncated (fetch cap
+    /// hit) — the risk score was computed from a subset of the causal callers.
+    /// The gate must treat incomplete causal evidence as a failure (abstain),
+    /// so the corpus must be able to express it; `serde(default)` keeps every
+    /// existing scenario file valid (absent = None = coverage not recorded).
+    #[serde(default)]
+    pub blast_causal_truncated: Option<bool>,
 }
 
 // ── Trace Scenario Library (WebForms) ───────────────────────────────────────
@@ -513,6 +521,7 @@ mod tests {
                     reconciliation_static_paths: None,
                     retrieval_mode: None,
                     migration_class: None,
+                    blast_causal_truncated: None,
                 },
                 expected_verdict: "allow".into(),
                 expected_failed_gates: vec![],

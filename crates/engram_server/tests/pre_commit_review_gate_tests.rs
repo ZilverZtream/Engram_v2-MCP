@@ -300,12 +300,19 @@ diff --git a/src/hub.rs b/src/hub.rs
             .graph
             .upsert_nodes("proj-t", &[make_file_node(&caller_path)])
             .unwrap();
-        edges.push(edge(
+        // Confirmed-confidence calls: the score discounts each causal source
+        // by its best edge confidence (unknown → 0.5), so a fixture without
+        // confidence metadata models 50 UNCERTAIN callers (~25 expected),
+        // which legitimately scores low. This test's claim is about 50
+        // CONFIRMED callers.
+        let mut e = edge(
             &format!("file:{caller_path}"),
             "file:src/hub.rs",
             EdgeKind::Calls,
             1,
-        ));
+        );
+        e.metadata = Some(serde_json::json!({"confidence": "1.0"}));
+        edges.push(e);
     }
     c.state.graph.upsert_edges("proj-t", &edges).unwrap();
 

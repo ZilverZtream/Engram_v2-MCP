@@ -102,6 +102,10 @@ pub struct CountCoverage {
     /// fetch does not set this (per-metric coverage, not one global flag).
     #[serde(default)]
     pub causal_truncated: bool,
+    /// True when a companion-kind (TemporalCoupling/CoOccurrence/StateAffinity)
+    /// fetch hit its cap — historical_companions is then a lower bound.
+    #[serde(default)]
+    pub companion_truncated: bool,
     /// Which fetches hit their cap ("incoming", "outgoing:<kind>", "contained:<sym>").
     pub truncated_fetches: Vec<String>,
     /// The caps that applied, so a reader can interpret a count equal to one.
@@ -146,9 +150,11 @@ pub struct BlastRadiusReport {
     /// excluded from causal_dependents, the named list, and the score.
     #[serde(default)]
     pub unresolved_endpoints: usize,
-    /// File targets only: edges with BOTH endpoints inside the file. Internal
-    /// complexity/cohesion — excluded from every external count and from the
-    /// score (previously each one inflated incoming AND outgoing AND risk).
+    /// File targets only: OBSERVED edges with both endpoints inside the
+    /// component — exact only when every sweep completed (a sweep stops at its
+    /// accepted-external cap, so internal edges ordered after that point are
+    /// not visited). Internal complexity/cohesion, excluded from every
+    /// external count and from the score.
     #[serde(default)]
     pub internal_edges: usize,
     /// Named causal dependents from the SAME unique-source population the
@@ -330,6 +336,7 @@ pub fn compute_blast_radius(
     let mut coverage = CountCoverage {
         truncated: false,
         causal_truncated: false,
+        companion_truncated: false,
         truncated_fetches: Vec::new(),
         cap_incoming: CAP_INCOMING,
         cap_outgoing_per_kind: CAP_OUT_PER_KIND,
@@ -390,6 +397,12 @@ pub fn compute_blast_radius(
         if is_causal_dependency(kind) {
             coverage.causal_truncated = true;
         }
+        if matches!(
+            kind,
+            EdgeKind::TemporalCoupling | EdgeKind::CoOccurrence | EdgeKind::StateAffinity
+        ) {
+            coverage.companion_truncated = true;
+        }
         if coverage.truncated_fetches.len() < 20 {
             coverage
                 .truncated_fetches
@@ -409,25 +422,42 @@ pub fn compute_blast_radius(
     for (_tgt, kind, _w, _ep) in &adjacency.outgoing {
         *out_counts.entry(kind.clone()).or_default() += 1;
     }
+    // Resolve EVERY unique incoming source ONCE, before any counting: a
+    // dangling source (edge with no node record) is quarantined from ALL
+    // incoming counts — previously it was excluded only from dependency
+    // density while still feeding event-wiring, data-access, state,
+    // polymorphism, GIS and script scores through `in_counts` (auditor P1),
+    // and blast counted dangling temporal sources as companions while impact
+    // quarantined them (inconsistency).
+    let mut all_in_ids: Vec<String> = adjacency.incoming.iter().map(|(s, ..)| s.clone()).collect();
+    all_in_ids.sort();
+    all_in_ids.dedup();
+    let in_nodes = graph.get_nodes(project_id, &all_in_ids)?;
+    let is_resolved = |src: &str| in_nodes.get(src).map(|n| n.is_some()).unwrap_or(false);
+
     let mut in_counts: HashMap<EdgeKind, usize> = HashMap::new();
     let mut in_sources_by_kind: HashMap<EdgeKind, HashSet<String>> = HashMap::new();
+    let mut unresolved_endpoints_set: HashSet<&str> = HashSet::new();
     for (src, kind, _w, _ep) in &adjacency.incoming {
+        if !is_resolved(src) {
+            unresolved_endpoints_set.insert(src.as_str());
+            continue;
+        }
         *in_counts.entry(kind.clone()).or_default() += 1;
         in_sources_by_kind
             .entry(kind.clone())
             .or_default()
             .insert(src.clone());
     }
+    let unresolved_endpoints = unresolved_endpoints_set.len();
 
     // The SCORE input: CAUSAL kinds only, UNIQUE RESOLVED source nodes, each
     // at its best edge confidence. Unknown confidence contributes a
-    // conservative 0.5, never a laundered 1.0. Dangling sources (edge with no
-    // node record) are quarantined: they appear in `unresolved_endpoints`,
-    // never in the causal count, the named list, or the score.
+    // conservative 0.5, never a laundered 1.0.
     let causal_edges: Vec<&(String, EdgeKind, u32, String)> = adjacency
         .incoming
         .iter()
-        .filter(|(_, kind, _, _)| is_causal_dependency(kind))
+        .filter(|(src, kind, _, _)| is_causal_dependency(kind) && is_resolved(src))
         .collect();
     let conf_queries: Vec<(EdgeKind, String, String)> = causal_edges
         .iter()
@@ -437,23 +467,9 @@ pub fn compute_blast_radius(
         Ok(c) => c,
         Err(_) => vec![None; causal_edges.len()],
     };
-    // Batch-resolve causal sources once to quarantine dangling ones.
-    let mut causal_ids: Vec<String> = causal_edges.iter().map(|(s, ..)| s.clone()).collect();
-    causal_ids.sort();
-    causal_ids.dedup();
-    let causal_nodes = graph.get_nodes(project_id, &causal_ids)?;
     let mut low_confidence_incoming: usize = 0;
     let mut causal_source_conf: HashMap<&str, f32> = HashMap::new();
-    let mut unresolved_endpoints_set: HashSet<&str> = HashSet::new();
-    for ((src, kind, _w, _ep), conf) in causal_edges.iter().zip(confs.iter()) {
-        if causal_nodes
-            .get(src.as_str())
-            .map(|n| n.is_none())
-            .unwrap_or(true)
-        {
-            unresolved_endpoints_set.insert(src.as_str());
-            continue;
-        }
+    for ((src, _kind, _w, _ep), conf) in causal_edges.iter().zip(confs.iter()) {
         let c = conf.unwrap_or(0.5).clamp(0.0, 1.0);
         if c < 0.6 {
             low_confidence_incoming += 1;
@@ -462,9 +478,7 @@ pub fn compute_blast_radius(
         if c > *e {
             *e = c;
         }
-        let _ = kind;
     }
-    let unresolved_endpoints = unresolved_endpoints_set.len();
     let discounted_incoming: f32 = causal_source_conf.values().sum();
     // 4. Compute sub-scores
     // Handles/event complexity: incoming Dependency + Contains edges → event wiring complexity
@@ -913,6 +927,11 @@ pub fn format_report(report: &BlastRadiusReport) -> String {
     } else {
         ""
     };
+    let ge_comp = if report.coverage.companion_truncated {
+        ">="
+    } else {
+        ""
+    };
     let ge = if report.coverage.truncated { ">=" } else { "" };
     out.push_str(&format!(
         "Migration Blast Radius: {}\n\
@@ -920,7 +939,7 @@ pub fn format_report(report: &BlastRadiusReport) -> String {
          Risk Score: {}/10 ({})\n\
          Causal dependents (1-hop, may break if this changes): {ge_causal}{}\n\
          Possible dependents (runtime-observed only): {}\n\
-         Historical companions (usually changed together, NOT causal): {}\n\
+         Historical companions (usually changed together, NOT causal): {ge_comp}{}\n\
          Unresolved endpoints (dangling causal edges, quarantined): {}\n\
          Raw 1-hop degree: incoming {ge}{}, outgoing {ge}{} (outgoing = things this depends on; they do not break)\n",
         report.target,
@@ -1443,6 +1462,7 @@ mod tests {
             coverage: CountCoverage {
                 truncated: true,
                 causal_truncated: true,
+                companion_truncated: false,
                 truncated_fetches: vec!["incoming".into()],
                 cap_incoming: 1000,
                 cap_outgoing_per_kind: 500,

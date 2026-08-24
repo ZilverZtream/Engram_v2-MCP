@@ -385,10 +385,23 @@ impl Engram {
                 .truncated_in
                 .iter()
                 .any(|(k, _)| companion_kind(k));
-            let structural_truncated = adjacency
+            use crate::services::blast_radius_service::is_possible_dependency;
+            let annotation_kind =
+                |k: &EdgeKind| matches!(k, EdgeKind::Insight | EdgeKind::AntiPattern);
+            let possible_truncated = adjacency
                 .truncated_in
                 .iter()
-                .any(|(k, _)| !is_causal_dependency(k) && !companion_kind(k));
+                .any(|(k, _)| is_possible_dependency(k));
+            let annotation_truncated = adjacency
+                .truncated_in
+                .iter()
+                .any(|(k, _)| annotation_kind(k));
+            let structural_truncated = adjacency.truncated_in.iter().any(|(k, _)| {
+                !is_causal_dependency(k)
+                    && !companion_kind(k)
+                    && !is_possible_dependency(k)
+                    && !annotation_kind(k)
+            });
 
             // (source, kind, weight, reached_via) + causal confidence triples.
             let mut edges: Vec<(String, EdgeKind, u32, String)> = Vec::new();
@@ -669,6 +682,12 @@ impl Engram {
             }
             if companion_truncated {
                 cov.push("companions truncated".into());
+            }
+            if possible_truncated {
+                cov.push("possible (runtime-observed) truncated".into());
+            }
+            if annotation_truncated {
+                cov.push("annotations truncated".into());
             }
             if structural_truncated {
                 cov.push("structural truncated".into());
@@ -3432,6 +3451,11 @@ impl Engram {
         } else {
             ""
         };
+        let ge_comp = if report.coverage.companion_truncated {
+            ">="
+        } else {
+            ""
+        };
         let ge = if report.coverage.truncated { ">=" } else { "" };
         let mut out = format!(
             "# Blast Radius Analysis: {}\n\n\
@@ -3439,8 +3463,8 @@ impl Engram {
              change-impact analysis; treat as advisory\n\
              **Causal dependents (1-hop, may break if this changes)**: {ge_causal}{}\n\
              **Possible dependents (runtime-observed only)**: {}\n\
-             **Historical companions (usually changed together, NOT causal)**: {}\n\
-             **Unresolved endpoints (dangling causal edges, quarantined from all counts)**: {}\n\
+             **Historical companions (usually changed together, NOT causal)**: {ge_comp}{}\n\
+             **Unresolved endpoints (dangling sources, quarantined from every incoming count and the score)**: {}\n\
              **Raw 1-hop degree**: incoming {ge}{}, outgoing {ge}{} (outgoing = this target's own \
              dependencies; they do not break when it changes)\n",
             report.target,
@@ -3501,7 +3525,14 @@ impl Engram {
         }
         if !top_dependents.is_empty() {
             out.push_str(
-                "\n## Top causal dependents (1-hop; may break — same population as the count above)\n",
+                if report.coverage.causal_truncated {
+                    // Under truncation the retained slice is id-order sampled:
+                    // higher-confidence callers beyond the cap cannot appear.
+                    "\n## Top causal dependents (1-hop; SAMPLED — causal coverage incomplete, \
+                     higher-confidence callers beyond the cap may be missing)\n"
+                } else {
+                    "\n## Top causal dependents (1-hop; may break — same population as the count above)\n"
+                },
             );
             for (label, kind, w) in &top_dependents {
                 // `w` carries confidence×100 from the service population.
