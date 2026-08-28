@@ -1,0 +1,61 @@
+# Engram "brain" audit program (2026-08-28)
+
+External audit verdict: Engram has the right ingredients for a project brain,
+but the OciusX integration is not reliable enough to trust autonomously. The
+largest problems are broken agent wiring, incomplete scope discovery, noisy
+evidence, and safety tools that can silently lose evidence.
+
+This directory holds one improvement document per vital CAPABILITY (not per
+tool: tools in a row share a substrate, so per-tool docs would duplicate
+findings and fixes). Each document is written before its implementation
+starts and is the auditor's checklist afterwards.
+
+## Document rules (learned the expensive way — see blast-radius rounds 1-5)
+
+1. Every defect claim is grep-verified against live code with `file:line`.
+   Claims from the external audit are re-verified, not copied.
+2. Live evidence is the ACTUAL tool output on the OciusX index (project
+   `5a35e8e0-d37a-41b3-a250-a26957e7aedb`), not a paraphrase.
+3. The redesign section is split: **A. defects to fix now** (cheap, each
+   with a test that fails first) vs **B. redesign that needs an A/B or
+   golden-suite result first** — engines are not rebuilt on assertion.
+4. A measurable acceptance gate, stated before implementation.
+5. A disposition table filled at implementation time: every item is
+   `fixed@mechanism` or `deferred@reason`; nothing falls off the list.
+6. Definition of done for the implementation: full
+   `cargo test -p engram_server --tests --lib --no-fail-fast` green,
+   commit + push, release build, deploy to the live daemon, live re-run of
+   the evidence section, memory updated.
+
+## Rows and status
+
+| # | Capability | Main tools | Doc | Status |
+|---|---|---|---|---|
+| 0 | Integration P0 block | generate_agent_integration, produce_claude_md, tool surface | (this file, below) | **DONE 2026-08-28** — see disposition |
+| 1 | Story-to-change scope | get_change_set (+ detect_incomplete_changes, find_similar_changes) | `03-story-to-change-scope.md` | queued (3rd) |
+| 2 | Follow the code before editing | get_method_edit_context, check_edit_safety, get_page_context | [`02-edit-context-and-edit-safety.md`](02-edit-context-and-edit-safety.md) | **doc written** — implementation next |
+| 3 | Pre-commit defect prevention | pre_commit_review, pre_push_audit | `05-pre-commit-gates.md` | queued (5th) |
+| 4 | Exact entity/consumer discovery | get_concept_footprint, find_symbol_references | `04-concept-and-consumer-discovery.md` | queued (4th) |
+| 5 | House pattern + UI conformance | find_implementation_pattern, analyze_file_coding_style, get_ui_conformance (M0 A/B) | `07-ui-conformance.md` | queued (7th) |
+| 6 | NL project understanding | ask_codebase | — | healthy (M1 shipped 2026-08-21); larger golden suite later |
+| 7 | Causal UI/data tracing | trace_ui_event, trace_data_flow, find_connection_path | `06-causal-trace-engine.md` | queued (6th) |
+| 8 | Security / settings / durable laws | map_guards_and_settings, repo rules, immune_check | `08-guards-and-settings.md` | queued |
+| 9 | "You forgot the other side" | edit sessions, detect_incomplete_changes, find_similar_changes | folded into row 1 doc | queued |
+| 10 | Change exposure / edit risk | impact_analysis, compute_blast_radius, check_edit_safety | `docs/AUDIT_R5.md` + ImpactEngine one-hop slice | round 5 accepted 2026-08-24; orientation tool, not authority |
+
+Implementation order (auditor's, adopted): 0 → 2 → 1 → 4 → 3 → 7 → 5 → 10/dream.
+
+## Row 0 — Integration P0 block (disposition)
+
+All six audit claims re-verified before fixing (grep evidence in the commit).
+
+| Item | Disposition |
+|---|---|
+| Generated `detect_incomplete_changes(files=…)` (3 sites) — real field is `edited_files` | **fixed** — text corrected; new contract test `agent_integration_tests::*_only_name_real_tools_and_fields` binds every `tool(param=` mention in generated text (rules, hooks, plan_user_story checklist, concept-footprint footer, AGENTS.md) to the live tool registry's input schemas (`Engram::tool_registry()`), so this class cannot recur |
+| Generated `pre_commit_review(diff_source="staged")` (3 sites) — real field is `diff` | **fixed** — same mechanism |
+| Rules text said "eleven gates"; header said `Gates run: N/10`; registry has 17 | **fixed** — both derive from `gates::all_gates().len()`; tests `workflow_rules_report_the_registered_gate_count`, `header_reports_the_registered_gate_total_not_a_literal` |
+| Stale project id baked into OciusX files after the 2026-07-19 data-dir reset | **fixed** — rules now carry the indexed directory and a recovery path (`list_projects`, match directory, regenerate); OciusX `.claude/orchestration/config.md` + `.claude/settings.json` hook text corrected by hand; rules file + AGENTS.md regenerated from the deployed binary |
+| No AGENTS.md; `.mcp.json` exposes only DevOps | **fixed** — `generate_agent_integration` now writes `AGENTS.md` (never clobbers an existing one) and EMITS a mergeable `.mcp.json` entry for this binary (never written: repo-committed file, machine-specific path). OciusX `.mcp.json` is Visual Studio format (`servers`), left for the user to merge |
+| Duplicate `engram:begin/end` blocks in OciusX CLAUDE.md | **fixed by rerun** — current splicer already collapses first-begin..last-end (`produce_claude_md_service.rs:1880-1925`); the duplicate came from an older splicer. Re-run with `overwrite_existing=true, merge_mode=splice` |
+| "Encoding corruption" in OciusX CLAUDE.md | **not reproduced** — file is valid UTF-8, zero mojibake/U+FFFD lines (python scan); likely a cp1252 terminal on the auditor's side. Left as-is |
+| 143 tools advertised (`advertise_all_tools` default true) | **deferred, with reason** — the only existing knob hides the 33 `[.NET legacy]` tools, which are the RELEVANT ones for a VB.NET WebForms shop; flipping it hurts OciusX. The real fix is a tiered surface (core decision surface ≈ the 10 rows' tools, extended, legacy) — designed in row 2/3 docs once the vital-tool list is stable. The generated CLAUDE.md/rules ARE the decision surface today |

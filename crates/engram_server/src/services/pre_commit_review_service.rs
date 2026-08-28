@@ -1797,7 +1797,8 @@ pub fn render_markdown(
     let total = findings.len();
     out.push_str(&format!(
         "**Findings**: {total} total ({crit} critical · {warn} warning · {info} info · {style} style) \
-         | **Files analysed**: {files_analysed} | **Gates run**: {gates_run}/10 | **Time**: {elapsed_ms}ms\n\n",
+         | **Files analysed**: {files_analysed} | **Gates run**: {gates_run}/{gates_total} | **Time**: {elapsed_ms}ms\n\n",
+        gates_total = gates::all_gates().len(),
         crit = counts.get(&Severity::Critical).copied().unwrap_or(0),
         warn = counts.get(&Severity::Warning).copied().unwrap_or(0),
         info = counts.get(&Severity::Info).copied().unwrap_or(0),
@@ -3002,6 +3003,29 @@ interface IProduct { id: number; }
         assert!(
             primary_positions.iter().all(|&p| p < meta_pos),
             "corroboration meta must sort after all same-severity primaries"
+        );
+    }
+}
+
+#[cfg(test)]
+mod header_gate_total_tests {
+    use super::*;
+
+    #[test]
+    fn header_reports_the_registered_gate_total_not_a_literal() {
+        let n = gates::all_gates().len();
+        let out = render_markdown(&[], 3, n, 12);
+        let header = out.lines().find(|l| l.contains("Gates run")).unwrap_or("");
+        assert!(
+            header.contains(&format!("**Gates run**: {n}/{n}")),
+            "header must show gates_run over the REGISTERED total ({n}); got: {header}"
+        );
+        // A skipped gate lowers the numerator only.
+        let out = render_markdown(&[], 3, n - 2, 12);
+        let header = out.lines().find(|l| l.contains("Gates run")).unwrap_or("");
+        assert!(
+            header.contains(&format!("**Gates run**: {}/{n}", n - 2)),
+            "got: {header}"
         );
     }
 }
