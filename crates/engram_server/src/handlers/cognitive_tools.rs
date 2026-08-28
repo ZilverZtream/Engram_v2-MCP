@@ -59,6 +59,24 @@ fn path_confidence_score(path: &[engram_graph::Node], fallback_penalty: f64) -> 
 /// equality, globs with `*` / `?`, and plain substring for short patterns
 /// without metacharacters. Slash direction is normalised so Windows
 /// callers don't get tripped up by backslashes.
+/// What an anti-pattern hit prints. The indexed document is
+/// `ANTI-PATTERN / Original Commit / Reverted in Commit / Path` + blank
+/// line + the reverted code: the metadata header is always shown (it is
+/// the evidence an agent needs), the CODE only with `include_content`
+/// (row-8 audit A6 — before, everything printed unconditionally).
+fn antipattern_hit_text(snippet: Option<&str>, include_content: bool) -> String {
+    let Some(s) = snippet else {
+        return "(no snippet)".into();
+    };
+    if include_content {
+        return s.to_string();
+    }
+    let header: Vec<&str> = s.lines().take_while(|l| !l.trim().is_empty()).collect();
+    let mut out = header.join("\n");
+    out.push_str("\n(code hidden — pass include_content=true to see the reverted code)");
+    out
+}
+
 fn immune_rule_matches_path(file_pattern: &str, target_path: &str) -> bool {
     if file_pattern.is_empty() {
         return false;
@@ -2670,7 +2688,13 @@ impl Engram {
         } else {
             req.file_path.clone()
         };
-        let cache_key = format!("style_guide:{}:{}", cache_subject, latest_oid);
+        // Versioned: a binary with a new output format must never serve a
+        // previous binary's cached text as current (live, 2026-08-29).
+        const STYLE_GUIDE_FORMAT: &str = "v2";
+        let cache_key = format!(
+            "style_guide:{STYLE_GUIDE_FORMAT}:{}:{}",
+            cache_subject, latest_oid
+        );
 
         if let Some(mut cached) = self
             .state
@@ -2791,12 +2815,15 @@ impl Engram {
         // similarity score. A CLEAN verdict on a snippet that deletes rows
         // from a previously-reverted DAL file is a false negative that
         // turns the tool into noise.
+        let mut repo_rule_failure: Option<String> = None;
         let (is_immune_flagged, immune_rule_ids) = if let Some(ref fp) = req.file_path {
-            let rules = self
-                .state
-                .registry
-                .list_repo_rules(&req.project_id)
-                .unwrap_or_default();
+            let rules = match self.state.registry.list_repo_rules(&req.project_id) {
+                Ok(r) => r,
+                Err(e) => {
+                    repo_rule_failure = Some(format!("repo rules unavailable: {e}"));
+                    Vec::new()
+                }
+            };
             let mut matched: Vec<String> = Vec::new();
             for rule in rules {
                 if !rule.rule_id.starts_with("immune_") {
@@ -2823,10 +2850,22 @@ impl Engram {
 
         let match_count = hits.len();
         let mut highest_score = 0.0;
+        let cap = req.sanitized_top_k();
         let mut out = format!(
-            "# Immune Check Result\n\n**Matches Found**: {}\n\n",
-            match_count
+            "# Immune Check Result\n\n**Matches Found**: {} shown (cap top_k={}{})\n\n",
+            match_count,
+            cap,
+            if match_count >= cap {
+                " — the cap was filled; raise top_k for more"
+            } else {
+                ""
+            }
         );
+        if let Some(ref f) = repo_rule_failure {
+            out.push_str(&format!(
+                "FAILURE: {f} — immune-file escalation could not run\n\n"
+            ));
+        }
         for (i, hit) in hits.iter().enumerate() {
             if hit.score > highest_score {
                 highest_score = hit.score;
@@ -2836,7 +2875,7 @@ impl Engram {
                 i + 1,
                 hit.path,
                 hit.score,
-                hit.snippet.as_deref().unwrap_or("(no snippet)")
+                &antipattern_hit_text(hit.snippet.as_deref(), req.include_content)
             ));
         }
 
