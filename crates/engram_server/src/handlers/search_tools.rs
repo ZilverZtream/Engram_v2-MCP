@@ -744,10 +744,24 @@ impl Engram {
 
         // Execute all blocking graph I/O in one dedicated OS thread.
         type EndpointLabels = std::collections::HashMap<String, String>;
-        let (graph_results, endpoint_labels, found_in_graph): (
+        /// Symbols fetched for a name (cap+1 so truncation is a fact).
+        const SYMBOL_FETCH_CAP: usize = 50;
+        /// Endpoint labels resolved per call.
+        const LABEL_CAP: usize = 400;
+        let (
+            graph_results,
+            endpoint_labels,
+            found_in_graph,
+            symbols_truncated,
+            labels_total,
+            graph_failures,
+        ): (
             Vec<NodeGraphResult>,
             EndpointLabels,
             bool,
+            bool,
+            usize,
+            Vec<String>,
         ) = tokio::task::spawn_blocking(move || {
             // The match ladder (exact / `.`-suffix / `::`-suffix / node-id
             // suffix) and the result cap now live TOGETHER in the store.
@@ -761,10 +775,21 @@ impl Engram {
             // Do NOT reintroduce a post-hoc name filter here. A second copy
             // of the rule is precisely how the ProjectType serde alias list
             // drifted from `from_registry_str`.
-            let nodes = graph_b
-                .query_nodes_by_symbol_name(&project_id_b, &needle_b, file_scope_b.as_deref(), 50)
-                .unwrap_or_default();
-
+            let mut graph_failures: Vec<String> = Vec::new();
+            let mut nodes = match graph_b.query_nodes_by_symbol_name(
+                &project_id_b,
+                &needle_b,
+                file_scope_b.as_deref(),
+                SYMBOL_FETCH_CAP + 1,
+            ) {
+                Ok(n) => n,
+                Err(e) => {
+                    graph_failures.push(format!("symbol lookup failed: {e}"));
+                    Vec::new()
+                }
+            };
+            let symbols_truncated = nodes.len() > SYMBOL_FETCH_CAP;
+            nodes.truncate(SYMBOL_FETCH_CAP);
             let mut results: Vec<NodeGraphResult> = Vec::new();
 
             for node in nodes {
@@ -780,14 +805,19 @@ impl Engram {
                 // Fix 8: Fetch all incoming kinds unconditionally; the
                 // post-query retain handles kind-level filtering.  Over-fetch
                 // to ensure enough candidates survive the retain step.
-                let mut incoming = graph_b
-                    .find_incoming_edges_with_kind(
-                        &project_id_b,
-                        None, // always fetch all kinds
-                        &node.node_id,
-                        incoming_fetch_limit,
-                    )
-                    .unwrap_or_default();
+                let mut incoming = match graph_b.find_incoming_edges_with_kind(
+                    &project_id_b,
+                    None, // always fetch all kinds
+                    &node.node_id,
+                    incoming_fetch_limit,
+                ) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        graph_failures
+                            .push(format!("incoming edges of {} failed: {e}", node.node_id));
+                        Vec::new()
+                    }
+                };
 
                 if let Some(ref filter) = ekf_b {
                     incoming.retain(|(_, kind, _)| filter.contains(kind));
@@ -863,9 +893,12 @@ impl Engram {
             // callers don't need a second lookup per reference (bounded).
             let mut labels: std::collections::HashMap<String, String> =
                 std::collections::HashMap::new();
+            let mut labels_total: std::collections::HashSet<&str> =
+                std::collections::HashSet::new();
             for nr in &results {
                 for (id, _, _) in nr.incoming.iter().chain(nr.outgoing.iter()) {
-                    if labels.len() >= 400 || labels.contains_key(id) {
+                    labels_total.insert(id.as_str());
+                    if labels.len() >= LABEL_CAP || labels.contains_key(id) {
                         continue;
                     }
                     if let Ok(Some(n)) = graph_b.get_node(&project_id_b, id) {
@@ -880,10 +913,18 @@ impl Engram {
             }
 
             let found = !results.is_empty();
-            (results, labels, found)
+            let labels_total = labels_total.len();
+            (
+                results,
+                labels,
+                found,
+                symbols_truncated,
+                labels_total,
+                graph_failures,
+            )
         })
         .await
-        .unwrap_or((Vec::new(), std::collections::HashMap::new(), false));
+        .map_err(|e| McpError::internal_error(format!("graph join failed: {e}"), None))?;
 
         // Format output from the non-blocking data collected above.
         let mut out = String::with_capacity(4096);
@@ -900,11 +941,16 @@ impl Engram {
         const FANOUT_SUMMARY_THRESHOLD: usize = 6;
         if graph_results.len() > FANOUT_SUMMARY_THRESHOLD {
             out.push_str(&format!(
-                "⚠ \"{}\" matches {} distinct symbols — too many to expand each. Pick the one you \
+                "⚠ \"{}\" matches {}{} distinct symbols — too many to expand each. Pick the one you \
                  mean and re-query with file_scope=<its file> or its node_id. Compact list \
                  (incoming↓ / outgoing↑ edge counts):\n\n",
                 req.symbol_name,
-                graph_results.len()
+                graph_results.len(),
+                if symbols_truncated {
+                    format!("+ (fetch cap {SYMBOL_FETCH_CAP} — more exist; narrow with file_scope)")
+                } else {
+                    String::new()
+                }
             ));
             const SHOWN: usize = 40;
             for nr in graph_results.iter().take(SHOWN) {
@@ -1028,6 +1074,34 @@ impl Engram {
         }
 
         if found_in_graph {
+            // Row-4 audit A8: every cap is a fact in the output.
+            out.push_str("\n## Coverage\n");
+            out.push_str(&format!(
+                "- symbols: {}{} (fetch cap {SYMBOL_FETCH_CAP})\n",
+                graph_results.len(),
+                if symbols_truncated {
+                    "+ — more exist, narrow with file_scope"
+                } else {
+                    ""
+                }
+            ));
+            out.push_str(&format!(
+                "- labels resolved for {} of {} endpoint(s) (cap {LABEL_CAP}){}\n",
+                endpoint_labels.len(),
+                labels_total,
+                if labels_total > LABEL_CAP {
+                    " — endpoints beyond the cap are shown by node_id"
+                } else {
+                    ""
+                }
+            ));
+            if graph_failures.is_empty() {
+                out.push_str("- failures: none\n");
+            } else {
+                for f in &graph_failures {
+                    out.push_str(&format!("- FAILURE: {f}\n"));
+                }
+            }
             // The next-step hint used to be appended to the WRONG buffer
             // (`out`, after `text` was snapshotted) — composed, then thrown
             // away. Agents never saw the pointer into the verification loop.
