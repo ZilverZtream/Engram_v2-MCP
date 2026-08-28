@@ -220,6 +220,27 @@ pub enum GateStatus {
     Failed(String),
     Panicked(String),
     Skipped(String),
+    /// The gate ran and returned, but a provider it depends on failed
+    /// inside it (file unreadable, graph/search error, runtime missing ⇒
+    /// regex-only fallback). Its findings are real; its silence is not.
+    Degraded {
+        findings: usize,
+        notes: Vec<String>,
+    },
+}
+
+impl GateStatus {
+    /// Status from a gate's findings and the provider-failure notes it
+    /// recorded on its context while running.
+    pub fn from_run(findings: usize, notes: Vec<String>) -> Self {
+        if !notes.is_empty() {
+            Self::Degraded { findings, notes }
+        } else if findings == 0 {
+            Self::Passed
+        } else {
+            Self::Findings(findings)
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -236,6 +257,10 @@ impl GateOutcome {
             GateStatus::Failed(_) | GateStatus::Panicked(_) | GateStatus::Skipped(_)
         )
     }
+
+    pub fn is_degraded(&self) -> bool {
+        matches!(self.status, GateStatus::Degraded { .. })
+    }
 }
 
 impl Verdict {
@@ -243,9 +268,12 @@ impl Verdict {
     /// not deliver cannot make the diff green (row-3 audit A2).
     pub fn with_outcomes(findings: &[ReviewFinding], outcomes: &[GateOutcome]) -> Self {
         let base = Self::from_findings(findings);
-        let missing = outcomes
-            .iter()
-            .any(|o| matches!(o.status, GateStatus::Failed(_) | GateStatus::Panicked(_)));
+        let missing = outcomes.iter().any(|o| {
+            matches!(
+                o.status,
+                GateStatus::Failed(_) | GateStatus::Panicked(_) | GateStatus::Degraded { .. }
+            )
+        });
         if base == Self::Green && missing {
             Self::Yellow
         } else {
@@ -407,6 +435,41 @@ pub struct GateContext<'a> {
     /// `None` when the project has no detectable audit convention —
     /// Gate 6 (audit) short-circuits in that case.
     pub audit_function: Option<String>,
+    /// Provider failures the running gate chose to survive (row-3 A3).
+    /// Drained by the runner into `GateStatus::Degraded`.
+    pub degraded: std::sync::Mutex<Vec<String>>,
+}
+
+impl GateContext<'_> {
+    /// Record that a provider this gate depends on failed, so the gate's
+    /// (partial) result is reported as DEGRADED instead of clean.
+    pub fn degrade(&self, note: impl Into<String>) {
+        let note = note.into();
+        if let Ok(mut v) = self.degraded.lock()
+            && !v.iter().any(|n| *n == note)
+        {
+            v.push(note);
+        }
+    }
+
+    pub fn take_degraded(&self) -> Vec<String> {
+        self.degraded
+            .lock()
+            .map(|mut v| std::mem::take(&mut *v))
+            .unwrap_or_default()
+    }
+
+    /// Read a working-tree file for a gate; an unreadable file is a
+    /// provider failure (degrades the gate), never silently "empty".
+    pub fn read_project_file(&self, rel: &str) -> Vec<u8> {
+        match std::fs::read(self.project_dir.join(rel)) {
+            Ok(b) => b,
+            Err(e) => {
+                self.degrade(format!("could not read {rel} from the working tree: {e}"));
+                Vec::new()
+            }
+        }
+    }
 }
 
 /// Gate trait. Every gate has a stable name + an implementation that
@@ -1824,6 +1887,7 @@ pub fn render_markdown(
 ) -> String {
     let verdict = Verdict::with_outcomes(findings, outcomes);
     let not_run: Vec<&GateOutcome> = outcomes.iter().filter(|o| o.did_not_run()).collect();
+    let degraded: Vec<&GateOutcome> = outcomes.iter().filter(|o| o.is_degraded()).collect();
     let mut out = String::new();
     out.push_str(&format!(
         "# Pre-Commit Review — {emoji} **{verdict}**\n\n",
@@ -1843,10 +1907,11 @@ pub fn render_markdown(
         "**Findings**: {total} total ({crit} critical · {warn} warning · {info} info · {style} style) \
          | **Files analysed**: {files_analysed} | **Gates run**: {gates_run}/{gates_total}{not_run_note} | **Time**: {elapsed_ms}ms\n\n",
         gates_total = gates::all_gates().len(),
-        not_run_note = if not_run.is_empty() {
-            String::new()
-        } else {
-            format!(" ({} did not run)", not_run.len())
+        not_run_note = match (not_run.len(), degraded.len()) {
+            (0, 0) => String::new(),
+            (n, 0) => format!(" ({n} did not run)"),
+            (0, d) => format!(" ({d} DEGRADED)"),
+            (n, d) => format!(" ({n} did not run, {d} DEGRADED)"),
         },
         crit = counts.get(&Severity::Critical).copied().unwrap_or(0),
         warn = counts.get(&Severity::Warning).copied().unwrap_or(0),
@@ -1868,16 +1933,35 @@ pub fn render_markdown(
         out.push('\n');
     }
 
+    if !degraded.is_empty() {
+        out.push_str(
+            "## ⚠ Gates that ran DEGRADED — a provider failed inside them, evidence is PARTIAL\n\n",
+        );
+        for o in &degraded {
+            if let GateStatus::Degraded { findings, notes } = &o.status {
+                out.push_str(&format!(
+                    "- `{}` ({findings} finding(s) from what it could see):\n",
+                    o.name
+                ));
+                for n in notes {
+                    out.push_str(&format!("  - {n}\n"));
+                }
+            }
+        }
+        out.push('\n');
+    }
+
     if total == 0 {
-        if not_run.is_empty() {
+        if not_run.is_empty() && degraded.is_empty() {
             out.push_str(
                 "_No findings — diff passed all gates cleanly. Verify manually before merging._\n",
             );
         } else {
             out.push_str(&format!(
-                "_No findings from the {} gate(s) that ran; {} did not run (above) — this is NOT a clean bill._\n",
-                gates_run.saturating_sub(not_run.len()),
-                not_run.len()
+                "_No findings from the {} gate(s) that ran fully; {} did not run, {} ran degraded (above) — this is NOT a clean bill._\n",
+                gates_run.saturating_sub(not_run.len() + degraded.len()),
+                not_run.len(),
+                degraded.len()
             ));
         }
         return out;
@@ -1968,6 +2052,7 @@ pub struct ReviewSummary {
     pub gates_failed: usize,
     pub gates_panicked: usize,
     pub gates_skipped: usize,
+    pub gates_degraded: usize,
     pub elapsed_ms: u128,
 }
 
@@ -1999,6 +2084,7 @@ pub fn render_json(
             .iter()
             .filter(|o| matches!(o.status, GateStatus::Skipped(_)))
             .count(),
+        gates_degraded: outcomes.iter().filter(|o| o.is_degraded()).count(),
         elapsed_ms,
     };
     for f in &findings {
@@ -2143,7 +2229,7 @@ pub async fn run_pre_commit_review_with(
     // the sync bucket.
     let mut sync_handles: Vec<(
         &'static str,
-        tokio::task::JoinHandle<(anyhow::Result<Vec<ReviewFinding>>, u128)>,
+        tokio::task::JoinHandle<(anyhow::Result<Vec<ReviewFinding>>, u128, Vec<String>)>,
     )> = Vec::new();
     let mut async_gates: Vec<Box<dyn Gate>> = Vec::new();
     let mut gates_run = 0usize;
@@ -2175,7 +2261,8 @@ pub async fn run_pre_commit_review_with(
         let handle = tokio::task::spawn_blocking(move || {
             let started = std::time::Instant::now();
             let ctx = shared.as_borrowed(&state_clone);
-            (gate.run(&ctx), started.elapsed().as_millis())
+            let r = gate.run(&ctx);
+            (r, started.elapsed().as_millis(), ctx.take_degraded())
         });
         sync_handles.push((name, handle));
     }
@@ -2185,19 +2272,15 @@ pub async fn run_pre_commit_review_with(
         let mut sync_outcomes: Vec<GateOutcome> = Vec::new();
         for (name, h) in sync_handles {
             match h.await {
-                Ok((Ok(fs), ms)) => {
+                Ok((Ok(fs), ms, notes)) => {
                     sync_outcomes.push(GateOutcome {
                         name,
-                        status: if fs.is_empty() {
-                            GateStatus::Passed
-                        } else {
-                            GateStatus::Findings(fs.len())
-                        },
+                        status: GateStatus::from_run(fs.len(), notes),
                         elapsed_ms: ms,
                     });
                     out.extend(fs);
                 }
-                Ok((Err(e), ms)) => {
+                Ok((Err(e), ms, _notes)) => {
                     tracing::warn!(gate = %name, "pre_commit_review gate failed: {e}");
                     sync_outcomes.push(GateOutcome {
                         name,
@@ -2230,15 +2313,12 @@ pub async fn run_pre_commit_review_with(
                 .catch_unwind()
                 .await;
             let ms = started.elapsed().as_millis();
+            let notes = ctx.take_degraded();
             match result {
                 Ok(Ok(fs)) => {
                     async_outcomes.push(GateOutcome {
                         name,
-                        status: if fs.is_empty() {
-                            GateStatus::Passed
-                        } else {
-                            GateStatus::Findings(fs.len())
-                        },
+                        status: GateStatus::from_run(fs.len(), notes),
                         elapsed_ms: ms,
                     });
                     out.extend(fs);
@@ -2322,6 +2402,7 @@ impl SharedGateData {
             repo_rules: self.repo_rules.clone(),
             files_by_parent: self.files_by_parent.clone(),
             audit_function: self.audit_function.clone(),
+            degraded: std::sync::Mutex::new(Vec::new()),
         }
     }
 }
