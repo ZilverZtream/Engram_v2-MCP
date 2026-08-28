@@ -109,15 +109,42 @@ checks zero rules.
 | G5 | Latency not worse | cold 23.0 s / warm 5.7 s today on the 21-file diff; re-measure after |
 | G6 | Full `--tests --lib` sweep green; the 24 existing gate tests untouched or re-expected with reasons | sweep |
 
-## 6. Disposition table (fill at implementation)
+## 6. Disposition table (implementation in slices — slice 1 landed 2026-08-28)
 
 | Item | Disposition |
 |---|---|
-| A1 | |
-| A2 | |
-| A3 | |
-| A4 | |
-| A5 | |
-| A6 | |
-| A7 | |
-| G1-G6 | |
+| A1 | **fixed (slice 1)** — `GateOutcome { name, status: Passed \| Findings(n) \| Failed \| Panicked \| Skipped, elapsed_ms }` for every gate in both buckets (async gates under `catch_unwind`; `skip_gates` recorded as Skipped); `ReviewSummary` gains `gates_failed` / `gates_panicked` / `gates_skipped`; JSON `gate_status[]`; markdown header "(K did not run)" + a "⚠ Gates that did not run — evidence is INCOMPLETE" section |
+| A2 | **fixed (slice 1)** — `Verdict::with_outcomes`: any Failed/Panicked gate keeps a Green diff at Yellow; the clean-bill line prints only when every gate ran, otherwise "No findings from the N gate(s) that ran; K did not run — NOT a clean bill". Applied to ALL gates rather than a required subset (a gate that did not run is missing evidence whatever its tier) |
+| A3 | **open (next slice)** — per-gate provider-failure swallows inside the 17 gates (antipattern regex-only fallback, runtime-missing ⇒ empty, graph errors ⇒ empty, unreadable file ⇒ empty) still render as "clean"; needs `GateRun { findings, degraded }` per gate |
+| A4 | **open** — in-gate caps unreported |
+| A5 | **open** — `unwired` graph-error false positive |
+| A6 | **open** — `pre_push_audit` tally + INACTIVE notice; OciusX rule ingestion |
+| A7 | **partly (slice 1)** — `tests/pre_commit_gate_outcomes_tests.rs` (bail + panic gates ⇒ recorded, not green, both renderers; all-passing stays green); the verdict rule mutation-checked. Per-gate degraded tests come with A3 |
+| G1 | **met** — a forced Err/panic can no longer render Green or the clean-bill line (test) |
+| G3 | **met** — JSON carries per-gate status |
+| G2, G4-G6 | with the next slices |
+
+## 7. Live evidence — slice 1 (2026-08-28, commit 777c951, OciusX gen 828)
+
+`pre_commit_review {"diff":"head","output_json":true}` on the live OciusX
+checkout (21 files analysed, 3.3 s):
+
+```
+verdict yellow | gates_run 17 failed 0 panicked 0 skipped 0 | findings 24
+gate_status: immune passed · blast_radius findings · style passed · temporal findings ·
+             state passed · audit findings · new_file passed · test_coverage findings ·
+             secret_leakage passed · guard_parity passed · unwired passed · sync_contract passed ·
+             complexity_budget findings · added_conventions passed · antipattern findings ·
+             product_intent passed · co_added_family passed
+markdown header: **Gates run**: 17/17
+```
+
+Every gate ran on this diff, so the live output exercises the
+all-ran path (per-gate status visible, header `17/17`); the
+did-not-run rendering ("(K did not run)" header, "⚠ Gates that did not
+run — evidence is INCOMPLETE" section, verdict floor at Yellow, clean-bill
+suppressed) is proven by `tests/pre_commit_gate_outcomes_tests.rs`
+(injected bail + panic gates), not by a live run — stated as such.
+
+Not yet proven live: per-gate DEGRADED status (A3) — a gate whose provider
+failed inside still renders `passed`; that is the next slice.

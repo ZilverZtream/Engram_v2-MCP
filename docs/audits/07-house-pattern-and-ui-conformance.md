@@ -138,5 +138,5 @@ its extractor.
 | A6 | |
 | A7 | |
 | A8 | |
-| M0 A/B | |
+| M0 A/B | **blocked on user opt-in (2026-08-28)** — the replay needs either the OciusX `/story` dry-run orchestrator (registered domain agents + two human gates, run from an OciusX session) or the Engram Phase-2 A/B (in-session agents via the Workflow tool, which requires explicit opt-in). Inputs are ready (`eval/data/p2/pr1908.json`, `pr1937.json` + dossiers). Ask: hand-author the icon-label contract, then run both replays twice (with/without) — ~1 h of Sonnet agent time |
 | G1-G7 | |

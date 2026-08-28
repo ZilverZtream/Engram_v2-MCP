@@ -125,16 +125,16 @@ distinct symbols` — the 50 is the fetch cap (D9).
 | Item | Disposition |
 |---|---|
 | A1 | **partly fixed (slice 1)** — the lexical layer now PAGES the FTS index (`top_k = LEXICAL_PAGE + 1` = 2001, was 50) and reports complete/truncated from the extra hit; still a term search over the index rather than body-level entity matching — the graph match is name-only until A4/A5 |
-| A2 | **open** — repository-literal pass inside the tool (the G1 script `row4_g1.sh` is the external stand-in today) |
+| A2 | **fixed (slice 3)** — literal (substring, case-insensitive) pass over the indexed chunk text via `engram_index::grep::grep` (the grep_project backend), `LITERAL_CAP` = 5000 with status from the cap; distinct files merged into "Mentioned only in text" (`footprint_text_only_files`, vendor-filtered, deduplicated); coverage line `- literal: …`; failure is a named line. Tests `footprint_literal_tests` x3 |
 | A3 | **fixed (slice 1)** — every matching table/state node is an anchor up to `ANCHOR_CAP` = 50 (reported when hit), consumer expansion fetches `CONSUMER_CAP_PER_ANCHOR + 1` = 201 per anchor so truncation is a fact; the 6-kind consumer whitelist is unchanged and now visible as a cap line |
 | A4 | **open** — alias layer (table ↔ dbml entity ↔ designer member ↔ class ↔ nav-property) |
-| A5 | **open (next slice)** — LINQ nav-property reads as `QueriesTable`/`ReadsColumn` edges in the VB extractor; regression fixture `redovisningsartiklar.vb:51-52` |
+| A5 | **fixed (slice 2)** — VB extractor: `rangeVar.<table-shaped member>.column` chains on LINQ query-clause lines become `queries_table` READ edges (`orm=nav`), one per (function, table), skipped when a context access already covers the pair; PascalCase EF nav-properties deliberately not matched (need the DDL table set). Tests `linq_navigation_property_tests` x3 (fixture = the audit's `redovisningsartiklar.vb:51-52` shape). Live effect needs a full OciusX reindex — §7 |
 | A6 | **open** — consumer classification |
 | A7 | **fixed (slice 1)** — `FootprintCoverage` → `## Coverage` block: node scan (complete/truncated/failed), anchors matched/expanded (cap), consumers (status, edge count, per-anchor cap), lexical (status, files/hits/page), failures; the node-scan / consumer / lexical swallows are gone |
 | A8 | **open** — `find_symbol_references` cap+1 on the symbol fetch, outgoing truncation flag, label-cap note |
 | A9 | **open** — shared incoming-count function (edit tools 76 vs blast 98 for `Check_pr_id`) |
 | A10 | **partly** — `footprint_coverage_tests` x3 (paging status, anchor cap, coverage block); the fixture-repo golden footprint comes with A4/A5 |
-| G1 | baseline 60/240 = 25 % (5 concepts: redovisningskategori 5/25, installationsobjekt 21/130, arbetslag 19/46, personalliggare 15/38, tidrapport 0/1); after-deploy number in §7 |
+| G1 | baseline 60/240 = 25 % → slice 1 84/240 = 35 % → **slices 2+3 (+ full reindex) 225/240 = 94 %** (redovisningskategori 25/25, installationsobjekt 116/130, arbetslag 46/46, personalliggare 37/38, tidrapport 1/1) — §7; the 15 residual misses are one root cause (case-preserving trigram index), slice 4 |
 | G2-G6 | per slice in §7 |
 
 ## 7. Live evidence — slice 1 (2026-08-28, binary 20:35, OciusX healed graph)
@@ -161,3 +161,43 @@ reaches 25. That is defect D3's real shape and the reason A2 (an in-tool
 literal pass) is next, not a bigger page. Anchors: `arbetslag` and
 `tidrapport` match no table/state node at all, so the consumer arm has
 nothing to expand — also now visible rather than silent.
+
+## 7b. Live evidence — slices 2 + 3 (2026-08-28, commits 09aac51 + 1499b3f, OciusX wipe_and_reindex gen 828, 2,274 files / 18,144 functions)
+
+Same G1 harness (`row4_g1.sh`, `max_per_group: 100`):
+
+| concept | literal-scan files | after slice 1 | **after slices 2+3** | coverage line (after) |
+|---|---|---|---|---|
+| redovisningskategori | 25 | 5 (20 %) | **25 (100 %)** | anchors 1/1 · consumers complete (6 edges — was 4: the two LINQ nav-property reads) · lexical complete (35 files/117 hits) · literal complete (35 files/246 matches; cap 5000) |
+| installationsobjekt | 130 | 42 (32 %) | **116 (89 %)** | lexical complete (166 files/755 hits) · literal complete (166 files/2137 matches); text-only section 137 files, 100 shown + "… and 37 more" |
+| arbetslag | 46 | 19 (41 %) | **46 (100 %)** | anchors 0 · literal complete |
+| personalliggare | 38 | 18 (47 %) | **37 (97 %)** | anchors 2/2 · lexical complete (47 files/151 hits) · literal complete (46 files/281 matches) |
+| tidrapport | 1 | 0 | **1 (100 %)** | literal complete |
+| **all** | 240 | 84 (35 %) | **225 (94 %)** | |
+
+Slice 2 visible on the live graph: `sym:function:Site/App_Code/redovisning/code/redovisningsartiklar.vb:_rv.redovisningsartiklar.GetByProjectId:46 -> rk_redovisningskategorier` is now a `[queries_table]` consumer edge (the audit's D5 example, `orm=nav`).
+
+**Residual (15 files) diagnosed — one root cause, not the cap.** Every
+miss is a file whose only occurrence of the concept is a differently
+cased spelling: `' PERSONALLIGGARE` (`api-broker.vb:252`),
+`_io.InstallationsObjektProjektPropertiesLog` (`marker_property_logs.aspx.vb:58`),
+`InstallationsObjekt…` in `assetaccessrequest_edit.aspx:322`. Live
+repro with `grep_project` (same backend as the footprint's lexical page and
+literal pass): `personalliggare`, case-insensitive, no prefix → 151 chunks /
+46 files, reports `complete`, **api-broker.vb absent**; `PERSONALLIGGARE`
+with `case_sensitive:true` → found (tier `term_index`). Cause: the
+`content` field is trigram-tokenised with `NgramTokenizer::new(3, 3, false)`
+and NO lowercasing (`tantivy_index.rs:95`), so a lower-case pattern's
+exact trigrams cannot occur in a chunk whose only spelling is upper or
+mixed case — the term-index tier silently narrows to one spelling while
+its coverage line says `complete`. This affects `grep_project` itself (a
+quiet-failure of the "reports complete while missing" class), not only
+the footprint. Slice 4 (`grep_case_variants_test.rs`, RED first): a
+case-insensitive literal builds a case-variant trigram conjunction at
+QUERY time (no reindex, no old-index regression), for both the
+term-index and term-narrowed tiers.
+
+The `max_per_group` ceiling (clamp 1..=100) is reported ("… and 37 more")
+but makes a 137-file text section unreachable by any caller; left as is
+for now — the harness measures what the agent is shown, and the honest
+line is there.
