@@ -553,8 +553,10 @@ pub struct IngestReviewFindingsRequest {
 #[serde(deny_unknown_fields)]
 pub struct GenerateAgentIntegrationRequest {
     pub project_id: String,
-    /// Write the files into the project's .claude/ directory (never
-    /// overwrites an existing settings.json). Default false: return contents.
+    /// Write `.claude/rules/engram-workflow.md`, `.claude/settings.json`
+    /// and `AGENTS.md` into the project (never overwrites an existing
+    /// settings.json or AGENTS.md; the `.mcp.json` entry is only emitted).
+    /// Default false: return contents.
     #[serde(default)]
     pub write_files: bool,
     /// Generate Windows (PowerShell) hook commands. Default true.

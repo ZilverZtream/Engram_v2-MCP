@@ -23,6 +23,13 @@ impl Engram {
         }
     }
 
+    /// The full tool registry (names + input schemas) without an `AppState`.
+    /// Lets generated agent-facing text be checked against the schemas the
+    /// server actually advertises.
+    pub fn tool_registry() -> ToolRouter<Engram> {
+        Self::tool_router()
+    }
+
     pub async fn process_ingest_stats_for_test(
         &self,
         project_id: &str,
@@ -391,7 +398,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Generate the Claude Code integration pack for a project: .claude/rules/engram-workflow.md (the mandated planning/safety loop) and .claude/settings.json reminder hooks that re-inject the workflow at edit/stop time. write_files=true installs them into the project (never overwrites an existing settings.json). Run once per project after indexing."
+        description = "Generate the agent integration pack for a project: .claude/rules/engram-workflow.md (the mandated planning/safety loop, Claude Code), AGENTS.md (same loop for Codex/Copilot/other agents), .claude/settings.json reminder hooks that re-inject the workflow at edit/stop time, and a mergeable .mcp.json entry for this server. write_files=true installs the files into the project (never overwrites an existing settings.json or AGENTS.md; .mcp.json is only emitted). Re-run after every reindex that changes the project_id."
     )]
     pub async fn generate_agent_integration(
         &self,
