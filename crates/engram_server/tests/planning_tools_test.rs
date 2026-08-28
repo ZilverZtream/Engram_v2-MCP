@@ -247,6 +247,7 @@ namespace App {{
                 project_id: project_id.clone(),
                 pattern_query: "SaveSettings".into(),
                 max_examples: 3,
+                output_json: false,
             },
         ))
         .await
@@ -313,6 +314,7 @@ namespace App {
             engram_server::models::MapGuardsAndSettingsRequest {
                 project_id: project_id.clone(),
                 scope: Some("AdminApi".into()),
+                output_json: false,
             },
         ))
         .await
