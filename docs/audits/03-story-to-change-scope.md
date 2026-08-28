@@ -135,9 +135,9 @@ row-4 doc §3 (45 files).
 
 | Item | Disposition |
 |---|---|
-| A1 | **deferred to slice 4** — TaskSpec extraction changes what the eval measured; gated by the implementation-score harness (Sonnet arms) |
-| A2 | **deferred to slice 4** — same gate; slice 1 ships the per-file `why` the ranking will consume |
-| A3 | **deferred to slice 3** — cohort precompute after per-arm timings (now in coverage) show where the 27-32 s go |
+| A1 | **built, gate FAILED, shipped OPT-IN** — `extract_story_concept_candidates` (recipe + parenthesized glosses + noun phrases) and `resolve_story_concepts` (index-corroborated; compound suffix split `huvudredovisningskategori → redovisningskategori`) exist and are always REPORTED (`coverage.concept_candidates`, markdown line); retrieving on them is `expand_concepts=true` only — on the 5-PR gate they inflated the weak tier past the tail cap: recall 89.2% → 86.5%, precision 5.1% → 4.8% (§7) |
+| A2 | **fixed (neutral on the gate)** — `change_set_tier` ranks by evidence directness (golden > concept+associative > concept alone > associative-only; two weak signals no longer outrank an entity match); 5-PR gate: recall 33/37 → 33/37, precision 5.1% → 5.0%, candidates 649 → 655 — no regression, no gain; kept for the principle, measured honestly |
+| A3 | **open** — per-arm timings (slice 1) show the co-change arm at 3-6 s of a 9.7 s call; the rest is the post-render sections. Cohort precompute deferred: the gate shows the real problem is precision (5%, ~130 candidates), not latency |
 | A4 | **fixed (slice 2)** — one `NodeSnapshot` (Arc<Vec<Node>>) per call shared by every `detect_incomplete_changes` pass via `detect_incomplete_changes_with`; `coverage.node_scans` reports the count (test `one_call_performs_one_full_node_scan`) |
 | A5 | **fixed (slice 1)** — vector arm reports `failed — vector search unavailable: …` / `complete (N hits)`; every arm has an `ArmCoverage` (status, hits, ms, note); the `if let Ok` swallows are gone |
 | A6 | **fixed (slice 1)** — candidates rendered as the INDEXED path (case + `Site/` restored) via `list_file_node_metadata`; unindexed paths kept and labelled `historical` (markdown suffix + JSON flag); test `candidate_paths_are_the_indexed_canonical_forms` |
@@ -181,3 +181,34 @@ What this slice did NOT change (and the numbers show): concept extraction is
 still `main, reporting, category` (A1), the candidate count is still ~150
 (A2), the co-change arm still walks git in-call (A3). Those are slices 3-4
 with the eval gate.
+
+## 7b. Slices 2 and 4 — gate results (2026-08-28)
+
+Gate = `eval/_recall_subset.py` on dossiers regenerated through the deployed
+binary (`eval/phase2_prep.py --pr N --reuse`, daemon stopped) for PRs 1908,
+1913, 1937, 1933, 1967 — the same `covered()` rule as `_recall_sweep.py`,
+plus precision. The harness parses the RENDERED candidate list, so files
+cut by the 18-per-layer tail cap cost recall.
+
+| variant | recall | precision | candidates (sum) |
+|---|---|---|---|
+| baseline (slice 2 binary) | 33/37 = 89.2 % | 33/649 = 5.1 % | 649 |
+| A1 + A2 (concept expansion on) | 32/37 = **86.5 %** | 4.8 % | 662 |
+| A2 only (shipped default) | 33/37 = 89.2 % | 5.0 % | 655 |
+
+The A1 loss on PR 1913 was `app_code/users-security/code/aspnetusers.vb`,
+a weak-signal candidate pushed past the tail cap once the extra concepts
+added ~75 concept hits (live: 103 → 179). Decision: expansion is opt-in
+(`expand_concepts`), always reported; A2 stays (neutral).
+
+Live (gated binary, 20:08): `node scans: 1`; advisory line
+`entity candidates … redovisningskategori, production code list, code list category`
+— the compound split reaches the code's vocabulary without touching
+retrieval; concept 103 hits / 492 ms, co-change 87 / 6 178 ms (cold cache
+this run), vector 21 / 699 ms.
+
+What the gate says about the remaining work: precision (5 %, ~130
+candidates) is the actual defect and neither more concepts nor re-tiering
+moves it; it needs the weak-tier policy revisited against the
+implementation-score A/B (in-session Opus/Sonnet agents via the Workflow
+tool — requires the user's opt-in), not another retrieval knob.

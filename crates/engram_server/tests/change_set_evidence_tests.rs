@@ -248,3 +248,41 @@ async fn one_call_performs_one_full_node_scan() {
         v["coverage"]
     );
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn concept_expansion_is_reported_but_off_by_default() {
+    // Gate decision (docs/audits/03 §7): on the 5-PR harness the extra
+    // concepts inflated the weak tier past the tail cap and cost recall, so
+    // they are advisory unless expand_concepts=true.
+    let (_tmp, state) = build_state();
+    seed(&state);
+    let engram = Engram::new(state);
+
+    let v = change_set(
+        &engram,
+        json!({"project_id": PID, "story": STORY, "output_json": true}),
+    )
+    .await;
+    let concepts = v["concepts"].as_array().unwrap();
+    assert_eq!(
+        concepts.len(),
+        3,
+        "default = the three recipe concepts: {concepts:?}"
+    );
+    let cands = v["coverage"]["concept_candidates"].as_array().unwrap();
+    assert!(
+        cands.len() > 3,
+        "index-corroborated extras must still be REPORTED: {cands:?}"
+    );
+
+    let v = change_set(
+        &engram,
+        json!({"project_id": PID, "story": STORY, "output_json": true, "expand_concepts": true}),
+    )
+    .await;
+    assert!(
+        v["concepts"].as_array().unwrap().len() > 3,
+        "opt-in expands retrieval: {}",
+        v["concepts"]
+    );
+}

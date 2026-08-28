@@ -120,18 +120,44 @@ distinct symbols` — the 50 is the fetch cap (D9).
 | G5 | Latency | ≤ 2 s per concept on OciusX (today 0.47 s; A1/A2 add work — budgeted) |
 | G6 | Sweep green; new tests mutation-checked | |
 
-## 6. Disposition table (fill at implementation)
+## 6. Disposition table (implementation in slices — slice 1 landed 2026-08-28)
 
 | Item | Disposition |
 |---|---|
-| A1 | |
-| A2 | |
-| A3 | |
-| A4 | |
-| A5 | |
-| A6 | |
-| A7 | |
-| A8 | |
-| A9 | |
-| A10 | |
-| G1-G6 | |
+| A1 | **partly fixed (slice 1)** — the lexical layer now PAGES the FTS index (`top_k = LEXICAL_PAGE + 1` = 2001, was 50) and reports complete/truncated from the extra hit; still a term search over the index rather than body-level entity matching — the graph match is name-only until A4/A5 |
+| A2 | **open** — repository-literal pass inside the tool (the G1 script `row4_g1.sh` is the external stand-in today) |
+| A3 | **fixed (slice 1)** — every matching table/state node is an anchor up to `ANCHOR_CAP` = 50 (reported when hit), consumer expansion fetches `CONSUMER_CAP_PER_ANCHOR + 1` = 201 per anchor so truncation is a fact; the 6-kind consumer whitelist is unchanged and now visible as a cap line |
+| A4 | **open** — alias layer (table ↔ dbml entity ↔ designer member ↔ class ↔ nav-property) |
+| A5 | **open (next slice)** — LINQ nav-property reads as `QueriesTable`/`ReadsColumn` edges in the VB extractor; regression fixture `redovisningsartiklar.vb:51-52` |
+| A6 | **open** — consumer classification |
+| A7 | **fixed (slice 1)** — `FootprintCoverage` → `## Coverage` block: node scan (complete/truncated/failed), anchors matched/expanded (cap), consumers (status, edge count, per-anchor cap), lexical (status, files/hits/page), failures; the node-scan / consumer / lexical swallows are gone |
+| A8 | **open** — `find_symbol_references` cap+1 on the symbol fetch, outgoing truncation flag, label-cap note |
+| A9 | **open** — shared incoming-count function (edit tools 76 vs blast 98 for `Check_pr_id`) |
+| A10 | **partly** — `footprint_coverage_tests` x3 (paging status, anchor cap, coverage block); the fixture-repo golden footprint comes with A4/A5 |
+| G1 | baseline 60/240 = 25 % (5 concepts: redovisningskategori 5/25, installationsobjekt 21/130, arbetslag 19/46, personalliggare 15/38, tidrapport 0/1); after-deploy number in §7 |
+| G2-G6 | per slice in §7 |
+
+## 7. Live evidence — slice 1 (2026-08-28, binary 20:35, OciusX healed graph)
+
+G1 harness: `row4_g1.sh` — for each concept, the `.vb`/`.aspx`/`.ascx` files a
+case-insensitive literal scan of the working tree finds vs the files
+`get_concept_footprint` names in any section.
+
+| concept | literal-scan files | named BEFORE (top-50 lexical, 5 anchors) | named AFTER slice 1 | coverage line (after) |
+|---|---|---|---|---|
+| redovisningskategori | 25 | 5 (20 %) | 5 (20 %) | anchors 1/1 · consumers complete (4 edges) · lexical complete (10 files from 65 hits) |
+| installationsobjekt | 130 | 21 (16 %) | **42 (32 %)** | anchors 7/7 · consumers complete (3) · lexical complete (35 files from 413 hits) |
+| arbetslag | 46 | 19 (41 %) | 19 (41 %) | anchors 0 · lexical complete (21 files from 53 hits) |
+| personalliggare | 38 | 15 (39 %) | 18 (47 %) | anchors 2/2 · lexical complete (17 files from 75 hits) |
+| tidrapport | 1 | 0 | 0 | lexical complete (1 file from 1 hit) |
+| **all** | 240 | 60 (25 %) | **84 (35 %)** | |
+
+What the coverage line proves: every lexical page is `complete` — the
+index simply does not contain the other files for these terms. The
+literal scan matches the stem INSIDE identifiers (`rk_redovisningskategorier`,
+`Redovisningskategori #id`); the FTS tokenizer indexes the identifier
+whole, so `redovisningskategori` reaches 10 files where the literal scan
+reaches 25. That is defect D3's real shape and the reason A2 (an in-tool
+literal pass) is next, not a bigger page. Anchors: `arbetslag` and
+`tidrapport` match no table/state node at all, so the consumer arm has
+nothing to expand — also now visible rather than silent.

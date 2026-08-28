@@ -618,6 +618,14 @@ pub struct GetChangeSetRequest {
     /// Default false.
     #[serde(default)]
     pub output_json: bool,
+    /// Also retrieve on the story's index-corroborated entity names
+    /// (parenthesized glosses, noun phrases, compound splits) on top of the
+    /// three document-order concepts. Off by default: on the 5-PR gate the
+    /// extra concepts inflated the weak tier past the tail cap and cost
+    /// recall (89.2% -> 86.5%). The candidates are always REPORTED in
+    /// `coverage.concept_candidates`.
+    #[serde(default)]
+    pub expand_concepts: bool,
 }
 
 /// Stage-3 quality gates: ingest a project's accumulated "what to avoid" knowledge
