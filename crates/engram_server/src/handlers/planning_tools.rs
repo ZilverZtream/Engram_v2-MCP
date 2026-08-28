@@ -1144,14 +1144,33 @@ impl Engram {
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
         let max_examples = req.max_examples.clamp(1, 10);
+        let kind = infer_pattern_kind(&req.pattern_query);
+        let mut coverage = PatternCoverage {
+            lexical_hits: 0,
+            lexical_cap: PATTERN_LEXICAL_CAP,
+            lexical_status: "complete".into(),
+            lexical_files: 0,
+            kind_filter: kind.as_str().into(),
+            kind_filter_applied: false,
+            kind_matched_files: 0,
+            candidates_considered: 0,
+            candidates_cap: PATTERN_CANDIDATES,
+            exemplar_cap: max_examples,
+            handlers_cap: PATTERN_HANDLERS_CAP,
+            controls_cap: PATTERN_CONTROLS_CAP,
+            data_cap: PATTERN_DATA_CAP,
+            chain_depth_cap: PATTERN_CHAIN_DEPTH,
+            failures: Vec::new(),
+        };
 
+        // Lexical candidates: cap+1 so truncation is a fact, not a guess.
         let engine = ps.search.clone();
         let q = HybridQuery {
             project_id: req.project_id.clone(),
             namespace: "memory".into(),
             generation: gen_,
             text: req.pattern_query.clone(),
-            top_k: 30,
+            top_k: PATTERN_LEXICAL_CAP + 1,
             fts_mode: "loose".into(),
             include_path_prefixes: None,
             exclude_path_prefixes: None,
@@ -1164,8 +1183,11 @@ impl Engram {
         let hits = tokio::task::spawn_blocking(move || engine.lexical_search(&q))
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-
+            .map_err(|e| McpError::internal_error(format!("lexical search failed: {e}"), None))?;
+        coverage.lexical_hits = hits.len().min(PATTERN_LEXICAL_CAP);
+        if hits.len() > PATTERN_LEXICAL_CAP {
+            coverage.lexical_status = "truncated".into();
+        }
         if hits.is_empty() {
             let mut out = format!(
                 "No code matching pattern '{}' found.\n\
@@ -1177,16 +1199,16 @@ impl Engram {
             return Ok(CallToolResult::success(vec![Content::text(out)]));
         }
 
-        // Rank candidate files by hit count then best score; prefer directory
-        // diversity so three exemplars aren't three siblings of one another.
+        // Per-file aggregate: hit count, best score, best snippet + line.
         let mut per_file: BTreeMap<String, (usize, f32, String, u32)> = BTreeMap::new();
-        for h in &hits {
-            let entry = per_file.entry(h.path.as_str().to_string()).or_insert((
-                0,
-                f32::MIN,
-                String::new(),
-                0,
-            ));
+        for h in hits.iter().take(PATTERN_LEXICAL_CAP) {
+            let path = h.path.as_str().replace('\\', "/");
+            if engram_core::is_vendor_path(&path) {
+                continue;
+            }
+            let entry = per_file
+                .entry(path)
+                .or_insert((0, f32::MIN, String::new(), 0));
             entry.0 += 1;
             if h.score > entry.1 {
                 entry.1 = h.score;
@@ -1194,138 +1216,806 @@ impl Engram {
                 entry.3 = h.start_line;
             }
         }
-        let mut ranked: Vec<(String, (usize, f32, String, u32))> = per_file.into_iter().collect();
-        ranked.sort_by(|a, b| {
+        coverage.lexical_files = per_file.len();
+
+        // Kind filter (A1): a page query cannot have a script as exemplar.
+        let mut candidates: Vec<(String, (usize, f32, String, u32))> =
+            per_file.into_iter().collect();
+        if kind != PatternKind::Any {
+            let kept: Vec<_> = candidates
+                .iter()
+                .filter(|(p, _)| kind_matches(kind, p))
+                .cloned()
+                .collect();
+            coverage.kind_matched_files = kept.len();
+            if kept.is_empty() {
+                coverage.failures.push(format!(
+                    "no {} file among the {} lexical files — kind filter NOT applied, showing all kinds",
+                    kind.as_str(),
+                    candidates.len()
+                ));
+            } else {
+                candidates = kept;
+                coverage.kind_filter_applied = true;
+            }
+        }
+        // Lexical pre-rank so the structural pass looks at the strongest N.
+        candidates.sort_by(|a, b| {
             b.1.0.cmp(&a.1.0).then(
                 b.1.1
                     .partial_cmp(&a.1.1)
                     .unwrap_or(std::cmp::Ordering::Equal),
             )
         });
-        let mut exemplars: Vec<(String, usize, f32, String, u32)> = Vec::new();
+        candidates.truncate(PATTERN_CANDIDATES);
+        coverage.candidates_considered = candidates.len();
+
+        // Structural pass (A3): shape from the graph + the .aspx on disk.
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let project_dir = self
+            .state
+            .registry
+            .get_project(&req.project_id)
+            .ok()
+            .flatten()
+            .map(|r| r.directory)
+            .unwrap_or_default();
+        let paths: Vec<String> = candidates.iter().map(|(p, _)| p.clone()).collect();
+        let shapes: Vec<(String, ExemplarShape, Vec<String>, Vec<String>)> =
+            tokio::task::spawn_blocking(move || {
+                let root = std::path::PathBuf::from(project_dir);
+                paths
+                    .into_iter()
+                    .map(|path| {
+                        let mut failures = Vec::new();
+                        let (shape, coupled) =
+                            derive_exemplar_shape(&graph, &pid, &root, &path, &mut failures);
+                        (path, shape, coupled, failures)
+                    })
+                    .collect()
+            })
+            .await
+            .map_err(|e| McpError::internal_error(format!("shape pass panicked: {e}"), None))?;
+
+        let mut ranked: Vec<PatternExemplar> = Vec::new();
+        for ((path, (hits_n, score, snippet, line)), (_, shape, coupled, failures)) in
+            candidates.into_iter().zip(shapes.into_iter())
+        {
+            coverage.failures.extend(failures);
+            let structural = shape.structural_score();
+            ranked.push(PatternExemplar {
+                path: path.clone(),
+                rank: 0,
+                kind_match: kind_matches(kind, &path),
+                hits: hits_n,
+                score,
+                structural,
+                shape,
+                coupled,
+                snippet,
+                line,
+            });
+        }
+        // A2: structural fit first, then lexical evidence.
+        ranked.sort_by(|a, b| {
+            b.kind_match
+                .cmp(&a.kind_match)
+                .then(b.structural.cmp(&a.structural))
+                .then(b.hits.cmp(&a.hits))
+                .then(
+                    b.score
+                        .partial_cmp(&a.score)
+                        .unwrap_or(std::cmp::Ordering::Equal),
+                )
+        });
+        let mut exemplars: Vec<PatternExemplar> = Vec::new();
         let mut seen_dirs: HashSet<String> = HashSet::new();
-        for (path, (hits_n, score, snippet, line)) in &ranked {
-            let dir = path
+        let total = ranked.len();
+        for ex in &ranked {
+            if exemplars.len() >= max_examples {
+                break;
+            }
+            let dir = ex
+                .path
                 .rsplit_once('/')
                 .map(|(d, _)| d.to_string())
                 .unwrap_or_default();
-            if exemplars.len() >= max_examples {
-                break;
-            }
-            if seen_dirs.contains(&dir) && ranked.len() > max_examples {
+            if seen_dirs.contains(&dir) && total > max_examples {
                 continue;
             }
             seen_dirs.insert(dir);
-            exemplars.push((path.clone(), *hits_n, *score, snippet.clone(), *line));
+            exemplars.push(ex.clone());
         }
-        // Backfill if directory diversity left slots empty.
-        for (path, (hits_n, score, snippet, line)) in &ranked {
+        for ex in &ranked {
             if exemplars.len() >= max_examples {
                 break;
             }
-            if !exemplars.iter().any(|(p, ..)| p == path) {
-                exemplars.push((path.clone(), *hits_n, *score, snippet.clone(), *line));
+            if !exemplars.iter().any(|e| e.path == ex.path) {
+                exemplars.push(ex.clone());
             }
         }
+        for (i, ex) in exemplars.iter_mut().enumerate() {
+            ex.rank = i + 1;
+        }
 
-        // Graph context per exemplar in one blocking hop.
-        let graph = self.state.graph.clone();
-        let pid = req.project_id.clone();
-        let paths: Vec<String> = exemplars.iter().map(|(p, ..)| p.clone()).collect();
-        type FileCtx = (Vec<String>, Vec<String>, Vec<String>); // symbols, data_edges, coupled
-        let contexts: HashMap<String, FileCtx> = tokio::task::spawn_blocking(move || {
-            let mut map = HashMap::new();
-            for path in paths {
-                let nodes = graph
-                    .query_nodes(&pid, None, None, Some(&path), 200)
-                    .unwrap_or_default();
-                let mut symbols = Vec::new();
-                let mut data_edges: Vec<String> = Vec::new();
-                for n in &nodes {
-                    if matches!(n.node_type.as_str(), "function" | "class") && symbols.len() < 10 {
-                        symbols.push(format!(
-                            "{} ({}) line {}",
-                            n.name, n.node_type, n.start_line
-                        ));
-                    }
-                    if n.node_type == "function" {
-                        for kind in [
-                            EdgeKind::SqlCalls,
-                            EdgeKind::QueriesTable,
-                            EdgeKind::ReadsState,
-                            EdgeKind::WritesState,
-                        ] {
-                            if let Ok(neigh) = graph.neighbors(&pid, kind.clone(), &n.node_id, 10) {
-                                for (target, _) in neigh {
-                                    data_edges.push(format!("[{}] {target}", kind.as_str()));
-                                }
+        // Common shapes: handler chains (bare method names) shared by ≥ 2 exemplars.
+        let mut shape_counts: HashMap<String, usize> = HashMap::new();
+        for ex in &exemplars {
+            let mut seen: HashSet<&String> = HashSet::new();
+            for chain in &ex.shape.handlers {
+                if seen.insert(chain) {
+                    *shape_counts.entry(common_shape_key(chain)).or_default() += 1;
+                }
+            }
+        }
+        let mut common_shapes: Vec<CommonShape> = shape_counts
+            .into_iter()
+            .filter(|(_, c)| *c >= 2)
+            .map(|(shape, count)| CommonShape { shape, count })
+            .collect();
+        common_shapes.sort_by(|a, b| b.count.cmp(&a.count).then(a.shape.cmp(&b.shape)));
+
+        let result = PatternJson {
+            query: req.pattern_query.clone(),
+            inferred_kind: kind.as_str().into(),
+            exemplars,
+            common_shapes,
+            coverage,
+        };
+        if req.output_json {
+            let text = serde_json::to_string_pretty(&result)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(text)]));
+        }
+        let mut out = render_pattern_markdown(&result);
+        out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+}
+
+// ── find_implementation_pattern: kinds, shapes, coverage (row-5 audit) ────
+
+/// Lexical candidates fetched (cap+1 for an honest status).
+pub(crate) const PATTERN_LEXICAL_CAP: usize = 200;
+/// Files that get the structural (graph) pass.
+pub(crate) const PATTERN_CANDIDATES: usize = 15;
+pub(crate) const PATTERN_HANDLERS_CAP: usize = 12;
+pub(crate) const PATTERN_CONTROLS_CAP: usize = 30;
+pub(crate) const PATTERN_DATA_CAP: usize = 12;
+/// Handler chains follow `Calls` edges this deep (handler = depth 1).
+pub(crate) const PATTERN_CHAIN_DEPTH: usize = 3;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PatternKind {
+    Page,
+    Class,
+    Script,
+    Any,
+}
+
+impl PatternKind {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Page => "page",
+            Self::Class => "class",
+            Self::Script => "script",
+            Self::Any => "any",
+        }
+    }
+}
+
+/// What kind of exemplar the query asks for. Page words win over class
+/// words (an "admin page … helper" is still a page); script words are
+/// explicit.
+pub(crate) fn infer_pattern_kind(query: &str) -> PatternKind {
+    let q = query.to_ascii_lowercase();
+    let has = |words: &[&str]| {
+        q.split(|c: char| !c.is_ascii_alphanumeric())
+            .any(|t| words.contains(&t))
+    };
+    if has(&[
+        "page",
+        "pages",
+        "aspx",
+        "ascx",
+        "webform",
+        "webforms",
+        "usercontrol",
+        "gridview",
+        "postback",
+        "codebehind",
+        "code-behind",
+        "listview",
+        "repeater",
+        "dropdownlist",
+    ]) {
+        PatternKind::Page
+    } else if has(&[
+        "typescript",
+        "javascript",
+        "script",
+        "ts",
+        "js",
+        "jquery",
+        "ajax",
+        "dom",
+    ]) {
+        PatternKind::Script
+    } else if has(&[
+        "class",
+        "helper",
+        "service",
+        "repository",
+        "dal",
+        "domain",
+        "module",
+        "api",
+        "endpoint",
+        "handler",
+        "function",
+    ]) {
+        PatternKind::Class
+    } else {
+        PatternKind::Any
+    }
+}
+
+pub(crate) fn kind_matches(kind: PatternKind, path: &str) -> bool {
+    let p = path.to_ascii_lowercase();
+    let is_page = p.ends_with(".aspx.vb")
+        || p.ends_with(".aspx.cs")
+        || p.ends_with(".ascx.vb")
+        || p.ends_with(".ascx.cs")
+        || p.ends_with(".master.vb")
+        || p.ends_with(".master.cs");
+    match kind {
+        PatternKind::Any => true,
+        PatternKind::Page => is_page,
+        PatternKind::Script => {
+            (p.ends_with(".ts") || p.ends_with(".js") || p.ends_with(".tsx") || p.ends_with(".jsx"))
+                && !p.ends_with(".d.ts")
+        }
+        PatternKind::Class => (p.ends_with(".vb") || p.ends_with(".cs")) && !is_page,
+    }
+}
+
+#[derive(Debug, Clone, Default, serde::Serialize)]
+pub(crate) struct ExemplarShape {
+    /// Ordered handler chains: `Page_Load → BindGrid → GetAll` (by the
+    /// handler's line), through `Calls` edges up to the depth cap.
+    pub handlers: Vec<String>,
+    pub handlers_total: usize,
+    /// Server controls from the sibling .aspx/.ascx: `ID (Type)`.
+    pub controls: Vec<String>,
+    pub controls_total: usize,
+    /// Data/state edges of the file's functions.
+    pub data: Vec<String>,
+    pub data_total: usize,
+    pub chain_depth_cap_hit: bool,
+}
+
+impl ExemplarShape {
+    pub(crate) fn structural_score(&self) -> usize {
+        let chains_with_calls = self.handlers.iter().filter(|h| h.contains(" → ")).count();
+        self.handlers_total * 3
+            + chains_with_calls * 2
+            + self.controls_total.min(10)
+            + self.data_total.min(6)
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub(crate) struct PatternExemplar {
+    pub path: String,
+    pub rank: usize,
+    pub kind_match: bool,
+    pub hits: usize,
+    pub score: f32,
+    pub structural: usize,
+    pub shape: ExemplarShape,
+    pub coupled: Vec<String>,
+    /// The FTS snippet — matched text, NOT the pattern.
+    pub snippet: String,
+    pub line: u32,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub(crate) struct CommonShape {
+    pub shape: String,
+    pub count: usize,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub(crate) struct PatternCoverage {
+    pub lexical_hits: usize,
+    pub lexical_cap: usize,
+    pub lexical_status: String,
+    pub lexical_files: usize,
+    pub kind_filter: String,
+    pub kind_filter_applied: bool,
+    pub kind_matched_files: usize,
+    pub candidates_considered: usize,
+    pub candidates_cap: usize,
+    pub exemplar_cap: usize,
+    pub handlers_cap: usize,
+    pub controls_cap: usize,
+    pub data_cap: usize,
+    pub chain_depth_cap: usize,
+    pub failures: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub(crate) struct PatternJson {
+    pub query: String,
+    pub inferred_kind: String,
+    pub exemplars: Vec<PatternExemplar>,
+    pub common_shapes: Vec<CommonShape>,
+    pub coverage: PatternCoverage,
+}
+
+/// The house-pattern key of a handler chain: every target reduced to its
+/// bare method name so `btnSave_Click → _rv.categories.Save → BindGrid` and
+/// `btnSave_Click → _rv.units.Save → BindGrid` are the SAME shape.
+pub(crate) fn common_shape_key(chain: &str) -> String {
+    chain
+        .split(" → ")
+        .map(|step| {
+            let mut names: Vec<&str> = step
+                .split(" | ")
+                .map(|t| t.rsplit('.').next().unwrap_or(t).trim())
+                .collect();
+            names.sort_unstable();
+            names.dedup();
+            names.join(" | ")
+        })
+        .collect::<Vec<_>>()
+        .join(" → ")
+}
+
+const HANDLER_SUFFIXES: &[&str] = &[
+    "Load",
+    "Init",
+    "PreRender",
+    "Click",
+    "Command",
+    "SelectedIndexChanged",
+    "TextChanged",
+    "CheckedChanged",
+    "RowDataBound",
+    "RowCommand",
+    "RowEditing",
+    "RowUpdating",
+    "RowDeleting",
+    "RowCancelingEdit",
+    "PageIndexChanging",
+    "PageIndexChanged",
+    "Sorting",
+    "Selecting",
+    "Inserting",
+    "Inserted",
+    "Updating",
+    "Updated",
+    "Deleting",
+    "Deleted",
+    "ItemCommand",
+    "ItemDataBound",
+    "DataBound",
+    "ServerValidate",
+    "Tick",
+    "Unload",
+];
+
+pub(crate) fn is_handler_name(name: &str) -> bool {
+    let bare = name.rsplit('.').next().unwrap_or(name);
+    if bare.eq_ignore_ascii_case("Page_Load")
+        || bare.eq_ignore_ascii_case("Page_Init")
+        || bare.eq_ignore_ascii_case("Page_PreRender")
+    {
+        return true;
+    }
+    match bare.rsplit_once('_') {
+        Some((_, suffix)) => HANDLER_SUFFIXES
+            .iter()
+            .any(|s| s.eq_ignore_ascii_case(suffix)),
+        None => false,
+    }
+}
+
+/// `sym:function:<path>:<Class.Method>:<line>` → (`Class.Method`, `Method`).
+fn pattern_node_names(node_id: &str) -> (String, String) {
+    // Dangling targets (`sym:function:::_rv.x.Save`) have empty segments;
+    // a real id is `sym:function:<path>:<Class.Method>:<line>`.
+    let parts: Vec<&str> = node_id.split(':').filter(|p| !p.is_empty()).collect();
+    let qualified = match parts.len() {
+        0 => node_id.to_string(),
+        n if n >= 5 => parts[n - 2].to_string(),
+        n => parts[n - 1].to_string(),
+    };
+    let bare = qualified
+        .rsplit('.')
+        .next()
+        .unwrap_or(&qualified)
+        .to_string();
+    (qualified, bare)
+}
+
+/// Shape of one candidate file: handler chains through `Calls` edges,
+/// controls from the sibling markup, data/state edges. Every provider
+/// failure is a named line, never an empty section.
+pub(crate) fn derive_exemplar_shape(
+    graph: &std::sync::Arc<engram_graph::GraphStore>,
+    pid: &str,
+    root: &std::path::Path,
+    path: &str,
+    failures: &mut Vec<String>,
+) -> (ExemplarShape, Vec<String>) {
+    let mut shape = ExemplarShape::default();
+    let nodes = match graph.query_nodes(pid, None, None, Some(path), 500) {
+        Ok(n) => n,
+        Err(e) => {
+            failures.push(format!("{path}: graph node query failed: {e}"));
+            Vec::new()
+        }
+    };
+    let mut functions: Vec<&engram_graph::Node> =
+        nodes.iter().filter(|n| n.node_type == "function").collect();
+    functions.sort_by_key(|n| n.start_line);
+    let in_file: HashSet<&str> = functions.iter().map(|n| n.node_id.as_str()).collect();
+    let by_id: HashMap<&str, &engram_graph::Node> =
+        functions.iter().map(|n| (n.node_id.as_str(), *n)).collect();
+    let by_bare: HashMap<String, &str> = functions
+        .iter()
+        .map(|n| {
+            let bare = n
+                .name
+                .rsplit('.')
+                .next()
+                .unwrap_or(&n.name)
+                .to_ascii_lowercase();
+            (bare, n.node_id.as_str())
+        })
+        .collect();
+    let source_lines: Vec<String> = match std::fs::read_to_string(root.join(path)) {
+        Ok(t) => t.lines().map(|l| l.to_string()).collect(),
+        Err(e) => {
+            failures.push(format!(
+                "{path}: unreadable — in-file call chains come from the graph only: {e}"
+            ));
+            Vec::new()
+        }
+    };
+    // Bare in-class calls in a node's body → sibling function node ids.
+    let textual_callees = |id: &str| -> Vec<String> {
+        static RE_BARE_CALL: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+            regex::Regex::new(r"(?:^|[^.\w])([A-Za-z_]\w*)\s*\(").expect("RE_BARE_CALL")
+        });
+        let Some(n) = by_id.get(id) else {
+            return Vec::new();
+        };
+        let start = (n.start_line.max(1) - 1) as usize;
+        let end = (n.end_line as usize).min(source_lines.len());
+        if start >= end {
+            return Vec::new();
+        }
+        let mut out = Vec::new();
+        for line in &source_lines[start..end] {
+            let code = line.split('\'').next().unwrap_or(line);
+            for cap in RE_BARE_CALL.captures_iter(code) {
+                let callee = cap[1].to_ascii_lowercase();
+                if let Some(target) = by_bare.get(&callee)
+                    && *target != id
+                {
+                    out.push((*target).to_string());
+                }
+            }
+        }
+        out
+    };
+
+    let handlers: Vec<&engram_graph::Node> = functions
+        .iter()
+        .copied()
+        .filter(|n| is_handler_name(&n.name))
+        .collect();
+    shape.handlers_total = handlers.len();
+    for h in handlers.iter().take(PATTERN_HANDLERS_CAP) {
+        let (_, bare) = pattern_node_names(&h.node_id);
+        let mut chain: Vec<String> = vec![bare];
+        let mut frontier: Vec<String> = vec![h.node_id.clone()];
+        let mut visited: HashSet<String> = HashSet::new();
+        visited.insert(h.node_id.clone());
+        for depth in 2..=PATTERN_CHAIN_DEPTH + 1 {
+            let mut next: Vec<String> = Vec::new();
+            for id in &frontier {
+                match graph.neighbors(pid, EdgeKind::Calls, id, 20) {
+                    Ok(neigh) => {
+                        for (target, _) in neigh {
+                            if visited.insert(target.clone()) {
+                                next.push(target);
                             }
                         }
                     }
+                    Err(e) => failures.push(format!("{path}: calls of {id} failed: {e}")),
                 }
-                data_edges.sort();
-                data_edges.dedup();
-                data_edges.truncate(12);
-
-                let file_node = format!("file:{path}");
-                let coupled: Vec<String> = graph
-                    .neighbors(&pid, EdgeKind::TemporalCoupling, &file_node, 3)
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(|(id, w)| format!("{} (co-changed {w}x)", id.trim_start_matches("file:")))
-                    .collect();
-                map.insert(path, (symbols, data_edges, coupled));
-            }
-            map
-        })
-        .await
-        .unwrap_or_default();
-
-        let mut out = format!(
-            "# Implementation pattern exemplars: '{}'\n",
-            req.pattern_query
-        );
-        let mut ingredient_counts: HashMap<String, usize> = HashMap::new();
-        for (i, (path, hits_n, score, snippet, line)) in exemplars.iter().enumerate() {
-            out.push_str(&format!(
-                "\n## Exemplar #{}: {path} ({hits_n} match(es), score {score:.2})\n",
-                i + 1
-            ));
-            if let Some((symbols, data_edges, coupled)) = contexts.get(path) {
-                if !symbols.is_empty() {
-                    out.push_str(&format!("symbols: {}\n", symbols.join("; ")));
-                }
-                if !data_edges.is_empty() {
-                    out.push_str(&format!("data/state: {}\n", data_edges.join("; ")));
-                    for e in data_edges {
-                        *ingredient_counts.entry(e.clone()).or_default() += 1;
+                if in_file.contains(id.as_str()) {
+                    for target in textual_callees(id) {
+                        if visited.insert(target.clone()) {
+                            next.push(target);
+                        }
                     }
                 }
-                if !coupled.is_empty() {
-                    out.push_str(&format!("co-changes with: {}\n", coupled.join("; ")));
-                }
             }
-            if !snippet.is_empty() {
-                let trimmed: String = snippet.chars().take(600).collect();
-                out.push_str(&format!("snippet (line {line}):\n```\n{trimmed}\n```\n"));
+            if next.is_empty() {
+                break;
             }
+            if depth > PATTERN_CHAIN_DEPTH {
+                shape.chain_depth_cap_hit = true;
+                break;
+            }
+            let mut names: Vec<String> = next
+                .iter()
+                .map(|t| {
+                    let (qualified, bare) = pattern_node_names(t);
+                    if in_file.contains(t.as_str()) {
+                        bare
+                    } else {
+                        qualified
+                    }
+                })
+                .collect();
+            names.sort();
+            names.dedup();
+            chain.push(names.join(" | "));
+            frontier = next;
         }
+        shape.handlers.push(chain.join(" → "));
+    }
 
-        let mut common: Vec<(&String, &usize)> =
-            ingredient_counts.iter().filter(|(_, c)| **c >= 2).collect();
-        common.sort_by(|a, b| b.1.cmp(a.1).then(a.0.cmp(b.0)));
-        if !common.is_empty() {
-            out.push_str("\n## Common ingredients (in ≥2 exemplars — the house pattern)\n");
-            for (ing, c) in common.iter().take(10) {
-                out.push_str(&format!("- {ing} ({c}x)\n"));
+    // Controls from the sibling markup (the extractor's page model parses
+    // the same file; a read failure is a provider failure).
+    let lower = path.to_ascii_lowercase();
+    let markup = if lower.ends_with(".vb") || lower.ends_with(".cs") {
+        let cut = path.len() - 3;
+        let m = &path[..cut];
+        let ml = m.to_ascii_lowercase();
+        if ml.ends_with(".aspx") || ml.ends_with(".ascx") || ml.ends_with(".master") {
+            Some(m.to_string())
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    if let Some(m) = markup {
+        match std::fs::read_to_string(root.join(&m)) {
+            Ok(text) => {
+                static RE_CONTROL: std::sync::LazyLock<regex::Regex> =
+                    std::sync::LazyLock::new(|| {
+                        regex::Regex::new(r#"(?i)<asp:(\w+)\s[^>]*?\bID\s*=\s*"(\w+)""#)
+                            .expect("RE_CONTROL")
+                    });
+                let mut all: Vec<String> = RE_CONTROL
+                    .captures_iter(&text)
+                    .map(|c| format!("{} ({})", &c[2], &c[1]))
+                    .collect();
+                shape.controls_total = all.len();
+                all.truncate(PATTERN_CONTROLS_CAP);
+                shape.controls = all;
+            }
+            Err(e) => failures.push(format!("{path}: markup {m} unreadable: {e}")),
+        }
+    }
+
+    // Data/state edges of the file's functions.
+    let mut data: Vec<String> = Vec::new();
+    for n in &functions {
+        for kind in [
+            EdgeKind::SqlCalls,
+            EdgeKind::QueriesTable,
+            EdgeKind::ReadsState,
+            EdgeKind::WritesState,
+        ] {
+            match graph.neighbors(pid, kind.clone(), &n.node_id, 10) {
+                Ok(neigh) => {
+                    for (target, _) in neigh {
+                        data.push(format!("[{}] {target}", kind.as_str()));
+                    }
+                }
+                Err(e) => failures.push(format!(
+                    "{path}: {} edges of {} failed: {e}",
+                    kind.as_str(),
+                    n.name
+                )),
             }
         }
-        out.push_str(
-            "\nnext: get_chunk / get_full_method_body on the best exemplar to imitate it; \
-             get_concept_footprint for the domain concept you're wiring in.\n",
+    }
+    data.sort();
+    data.dedup();
+    shape.data_total = data.len();
+    data.truncate(PATTERN_DATA_CAP);
+    shape.data = data;
+
+    let file_node = format!("file:{path}");
+    let coupled: Vec<String> = match graph.neighbors(pid, EdgeKind::TemporalCoupling, &file_node, 3)
+    {
+        Ok(v) => v
+            .into_iter()
+            .map(|(id, w)| format!("{} (co-changed {w}x)", id.trim_start_matches("file:")))
+            .collect(),
+        Err(e) => {
+            failures.push(format!("{path}: co-change lookup failed: {e}"));
+            Vec::new()
+        }
+    };
+    (shape, coupled)
+}
+
+pub(crate) fn render_pattern_markdown(r: &PatternJson) -> String {
+    let cov = &r.coverage;
+    let mut out = format!("# Implementation pattern exemplars: '{}'\n", r.query);
+    out.push_str(&format!(
+        "inferred kind: {}{}\n",
+        r.inferred_kind,
+        if cov.kind_filter_applied {
+            format!(
+                " (filter applied: {} of {} lexical files are {} files)",
+                cov.kind_matched_files, cov.lexical_files, r.inferred_kind
+            )
+        } else {
+            String::new()
+        }
+    ));
+    for ex in &r.exemplars {
+        out.push_str(&format!(
+            "\n## Exemplar #{}: {} ({} match(es), score {:.2}, structural {})\n",
+            ex.rank, ex.path, ex.hits, ex.score, ex.structural
+        ));
+        if ex.shape.handlers.is_empty() {
+            out.push_str("shape: no event handlers found in the graph for this file\n");
+        } else {
+            out.push_str(&format!(
+                "shape — handler chains ({} of {}, depth ≤ {}{}):\n",
+                ex.shape.handlers.len(),
+                ex.shape.handlers_total,
+                cov.chain_depth_cap,
+                if ex.shape.chain_depth_cap_hit {
+                    ", depth cap hit"
+                } else {
+                    ""
+                }
+            ));
+            for h in &ex.shape.handlers {
+                out.push_str(&format!("- {h}\n"));
+            }
+        }
+        if !ex.shape.controls.is_empty() {
+            out.push_str(&format!(
+                "controls ({} of {}): {}\n",
+                ex.shape.controls.len(),
+                ex.shape.controls_total,
+                ex.shape.controls.join(", ")
+            ));
+        }
+        if !ex.shape.data.is_empty() {
+            out.push_str(&format!(
+                "data/state ({} of {}): {}\n",
+                ex.shape.data.len(),
+                ex.shape.data_total,
+                ex.shape.data.join("; ")
+            ));
+        }
+        if !ex.coupled.is_empty() {
+            out.push_str(&format!("co-changes with: {}\n", ex.coupled.join("; ")));
+        }
+        if !ex.snippet.is_empty() {
+            let trimmed: String = ex.snippet.chars().take(600).collect();
+            out.push_str(&format!(
+                "matched text (FTS snippet, line {} — evidence of the match, not the pattern):\n```\n{trimmed}\n```\n",
+                ex.line
+            ));
+        }
+    }
+    if r.common_shapes.is_empty() {
+        out.push_str("\n## Common shapes\n_No handler chain is shared by ≥ 2 exemplars — no house pattern can be claimed from these files._\n");
+    } else {
+        out.push_str("\n## Common shapes (in ≥ 2 exemplars — the house pattern)\n");
+        for c in &r.common_shapes {
+            out.push_str(&format!("- {} ({}x)\n", c.shape, c.count));
+        }
+    }
+    out.push_str("\n## Coverage\n");
+    out.push_str(&format!(
+        "- lexical: {} ({} hits, cap {}; {} files)\n",
+        cov.lexical_status, cov.lexical_hits, cov.lexical_cap, cov.lexical_files
+    ));
+    out.push_str(&format!(
+        "- kind filter: {} ({})\n",
+        cov.kind_filter,
+        if cov.kind_filter_applied {
+            "applied"
+        } else {
+            "not applied"
+        }
+    ));
+    out.push_str(&format!(
+        "- structural pass: {} candidate(s) (cap {}); exemplars cap {}; handlers cap {}; controls cap {}; data cap {}; chain depth cap {}\n",
+        cov.candidates_considered,
+        cov.candidates_cap,
+        cov.exemplar_cap,
+        cov.handlers_cap,
+        cov.controls_cap,
+        cov.data_cap,
+        cov.chain_depth_cap
+    ));
+    if cov.failures.is_empty() {
+        out.push_str("- failures: none\n");
+    } else {
+        for f in &cov.failures {
+            out.push_str(&format!("- FAILURE: {f}\n"));
+        }
+    }
+    out.push_str(
+        "\nnext: get_full_method_body on the best exemplar's handlers to imitate the chain; \
+         get_page_context on its .aspx for the control wiring; get_concept_footprint for the \
+         domain concept you're wiring in.\n",
+    );
+    out
+}
+
+#[cfg(test)]
+mod implementation_pattern_unit_tests {
+    use super::*;
+
+    #[test]
+    fn kind_inference_prefers_page_words() {
+        assert_eq!(
+            infer_pattern_kind("admin page with a GridView and a save button"),
+            PatternKind::Page
         );
-        out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
-        Ok(CallToolResult::success(vec![Content::text(out)]))
+        assert_eq!(
+            infer_pattern_kind("helper class that validates input"),
+            PatternKind::Class
+        );
+        assert_eq!(
+            infer_pattern_kind("typescript quantity manager"),
+            PatternKind::Script
+        );
+        assert_eq!(
+            infer_pattern_kind("something else entirely"),
+            PatternKind::Any
+        );
+    }
+
+    #[test]
+    fn kind_matching_by_path() {
+        assert!(kind_matches(PatternKind::Page, "Site/a/b.aspx.vb"));
+        assert!(!kind_matches(PatternKind::Page, "Site/ts/x.ts"));
+        assert!(!kind_matches(PatternKind::Class, "Site/a/b.aspx.vb"));
+        assert!(kind_matches(PatternKind::Class, "Site/App_Code/x.vb"));
+        assert!(kind_matches(PatternKind::Script, "Site/ts/x.ts"));
+        assert!(!kind_matches(PatternKind::Script, "Site/ts/x.d.ts"));
+    }
+
+    #[test]
+    fn common_shape_key_drops_class_qualifiers() {
+        assert_eq!(
+            common_shape_key("btnSave_Click → _rv.categories.Save | BindGrid → GetAll"),
+            "btnSave_Click → BindGrid | Save → GetAll"
+        );
+        assert_eq!(
+            common_shape_key("btnSave_Click → _rv.units.Save | BindGrid → GetAll"),
+            common_shape_key("btnSave_Click → _rv.categories.Save | BindGrid → GetAll")
+        );
+    }
+
+    #[test]
+    fn handler_names() {
+        assert!(is_handler_name("Page_Load"));
+        assert!(is_handler_name("system_project_project.btnSok_Click"));
+        assert!(is_handler_name("ddlType_SelectedIndexChanged"));
+        assert!(!is_handler_name("BindTypeDropDown"));
+        assert!(!is_handler_name("GetAll"));
     }
 }
 
@@ -1791,6 +2481,536 @@ mod tests {
 // ── map_guards_and_settings + plan_user_story ────────────────────────────────
 
 /// Settings-shaped table names: tables that store configuration rows.
+// ── map_guards_and_settings: three-state verdicts, helper credit, coverage ─
+
+/// Functions / helper names printed per markdown list before "… and N more".
+pub(crate) const GUARD_LIST_CAP: usize = 25;
+pub(crate) const GUARD_SETTINGS_FN_CAP: usize = 300;
+pub(crate) const GUARD_SETTINGS_EDGE_CAP: usize = 20;
+pub(crate) const GUARD_SETTINGS_TABLE_CAP: usize = 10;
+pub(crate) const GUARD_HELPER_HOP_CAP: usize = 50;
+pub(crate) const GUARD_HOUSE_CAP: usize = 8;
+pub(crate) const GUARD_ROLES_CAP: usize = 10;
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub(crate) struct GuardVerdict {
+    pub name: String,
+    pub file: String,
+    pub line: u32,
+    /// `guarded` | `unguarded` | `unknown`
+    pub verdict: String,
+    /// The guard family/checks credited (`CheckRead;CheckWrite`).
+    pub family: String,
+    /// `role` for the check families the extractor recognises; object /
+    /// tenant scoping is not detected yet (row-8 A2) and is reported so.
+    pub level: Option<String>,
+    pub roles: String,
+    /// The helper the guard was inherited from (one hop through Calls).
+    pub via: Option<String>,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Default, serde::Serialize)]
+pub(crate) struct GuardsCoverage {
+    /// `complete` | `truncated` — the project-wide function scan that feeds
+    /// the house patterns.
+    pub node_scan: String,
+    pub scanned: usize,
+    pub node_scan_cap: usize,
+    /// `store` (file/path scope queried at the store), `filter` (name scope
+    /// or store miss ⇒ substring filter over the scan), `none`.
+    pub scope_query: String,
+    pub in_scope_functions: usize,
+    pub caps: Vec<String>,
+    pub failures: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, serde::Serialize)]
+pub(crate) struct GuardsReport {
+    pub scope: Option<String>,
+    pub functions: Vec<GuardVerdict>,
+    pub guarded: Vec<String>,
+    pub unguarded: Vec<String>,
+    pub unknown: Vec<String>,
+    pub house_patterns: Vec<(String, usize)>,
+    pub roles_seen: Vec<(String, usize)>,
+    pub settings_read: Vec<(String, Vec<String>)>,
+    pub settings_tables: Vec<(String, usize)>,
+    pub app_settings_defined: usize,
+    pub coverage: GuardsCoverage,
+}
+
+fn node_meta_str<'a>(n: &'a engram_graph::Node, key: &str) -> &'a str {
+    n.metadata
+        .as_ref()
+        .and_then(|m| m.get(key))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+}
+
+fn guard_level_for(checks: &str) -> Option<String> {
+    if checks.is_empty() {
+        None
+    } else {
+        // Every family the extractor recognises today (CheckRead/CheckWrite,
+        // IsInRole, check_pr_id, …) is a ROLE-level check; object/tenant
+        // scoping needs the body (A2).
+        Some("role".into())
+    }
+}
+
+pub(crate) fn build_guards_report(
+    graph: &std::sync::Arc<engram_graph::GraphStore>,
+    pid: &str,
+    scope: Option<&str>,
+) -> GuardsReport {
+    let mut cov = GuardsCoverage {
+        node_scan: "complete".into(),
+        node_scan_cap: crate::handlers::NODE_SCAN_LIMIT,
+        scope_query: "none".into(),
+        caps: vec![
+            format!(
+                "project-wide node scan {}",
+                crate::handlers::NODE_SCAN_LIMIT
+            ),
+            format!(
+                "settings: functions {GUARD_SETTINGS_FN_CAP}, edges per function {GUARD_SETTINGS_EDGE_CAP}, tables {GUARD_SETTINGS_TABLE_CAP}"
+            ),
+            format!("helper hop: {GUARD_HELPER_HOP_CAP} calls per function"),
+            format!("markdown lists {GUARD_LIST_CAP} per section (full lists in JSON)"),
+            format!("house patterns {GUARD_HOUSE_CAP}, roles {GUARD_ROLES_CAP}"),
+        ],
+        ..Default::default()
+    };
+    let scope_lc = scope.map(|s| s.to_lowercase());
+
+    // Project-wide scan (house patterns, settings tables, app settings).
+    let all_nodes = match graph.query_nodes(pid, None, None, None, crate::handlers::NODE_SCAN_LIMIT)
+    {
+        Ok(n) => n,
+        Err(e) => {
+            cov.failures
+                .push(format!("project-wide node scan failed: {e}"));
+            Vec::new()
+        }
+    };
+    cov.scanned = all_nodes.len();
+    if all_nodes.len() >= crate::handlers::NODE_SCAN_LIMIT {
+        cov.node_scan = "truncated".into();
+    }
+
+    // Scoped function set: a path-like scope is a STORE query.
+    let mut scoped: Vec<engram_graph::Node> = Vec::new();
+    if let Some(sc) = scope {
+        let path_like = sc.contains('/') || sc.contains('.');
+        if path_like {
+            match graph.query_nodes(
+                pid,
+                Some("function"),
+                None,
+                Some(sc),
+                crate::handlers::NODE_SCAN_LIMIT,
+            ) {
+                Ok(n) if !n.is_empty() => {
+                    cov.scope_query = "store".into();
+                    scoped = n;
+                }
+                Ok(_) => {}
+                Err(e) => cov.failures.push(format!("scoped store query failed: {e}")),
+            }
+        }
+        if scoped.is_empty() {
+            cov.scope_query = "filter".into();
+            let s = scope_lc.clone().unwrap_or_default();
+            scoped = all_nodes
+                .iter()
+                .filter(|n| n.node_type == "function")
+                .filter(|n| {
+                    let fp = n.file_path.as_str().replace('\\', "/").to_lowercase();
+                    fp.contains(&s) || n.name.to_lowercase() == s
+                })
+                .cloned()
+                .collect();
+        }
+    } else {
+        scoped = all_nodes
+            .iter()
+            .filter(|n| n.node_type == "function")
+            .cloned()
+            .collect();
+    }
+    scoped.sort_by(|a, b| {
+        a.file_path
+            .as_str()
+            .cmp(b.file_path.as_str())
+            .then(a.start_line.cmp(&b.start_line))
+    });
+    cov.in_scope_functions = scoped.len();
+
+    let mut report = GuardsReport {
+        scope: scope.map(|s| s.to_string()),
+        app_settings_defined: 0,
+        ..Default::default()
+    };
+
+    // House patterns from the project-wide scan.
+    let mut house: HashMap<String, usize> = HashMap::new();
+    let mut roles_seen: HashMap<String, usize> = HashMap::new();
+    let mut settings_tables: Vec<(String, String)> = Vec::new();
+    for n in &all_nodes {
+        if n.node_type == "function" {
+            let checks = node_meta_str(n, "permission_checks");
+            if !checks.is_empty() {
+                for g in checks.split(';').filter(|g| !g.is_empty()) {
+                    *house.entry(g.to_string()).or_default() += 1;
+                }
+                for r in node_meta_str(n, "guard_roles")
+                    .split(';')
+                    .filter(|r| !r.is_empty())
+                {
+                    *roles_seen.entry(r.to_string()).or_default() += 1;
+                }
+            }
+        } else if n.node_type == "app_setting" {
+            report.app_settings_defined += 1;
+        } else if n.node_type == "db_table" && is_settings_table_name(&n.name) {
+            settings_tables.push((n.node_id.clone(), n.name.clone()));
+        }
+    }
+    let mut hs: Vec<(String, usize)> = house.into_iter().collect();
+    hs.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+    report.house_patterns = hs;
+    let mut rs: Vec<(String, usize)> = roles_seen.into_iter().collect();
+    rs.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+    report.roles_seen = rs;
+
+    // Verdict per scoped function (A1 + A3).
+    for n in &scoped {
+        let checks = node_meta_str(n, "permission_checks").to_string();
+        let roles = node_meta_str(n, "guard_roles").to_string();
+        let fallback = node_meta_str(n, "extraction_fallback") == "true";
+        let bare = n.name.rsplit('.').next().unwrap_or(&n.name).to_string();
+        let file = n.file_path.as_str().replace('\\', "/");
+        let mut v = GuardVerdict {
+            name: bare.clone(),
+            file: file.clone(),
+            line: n.start_line,
+            verdict: String::new(),
+            family: checks.clone(),
+            level: guard_level_for(&checks),
+            roles: roles.clone(),
+            via: None,
+            reason: String::new(),
+        };
+        if !checks.is_empty() {
+            v.verdict = "guarded".into();
+            v.reason = "permission check in the function body (extractor metadata)".into();
+        } else if fallback {
+            v.verdict = "unknown".into();
+            v.reason =
+                "symbol came from the extraction fallback — its guard metadata cannot be trusted"
+                    .into();
+        } else {
+            // One hop through Calls: a helper that itself checks.
+            match graph.neighbors(pid, EdgeKind::Calls, &n.node_id, GUARD_HELPER_HOP_CAP) {
+                Ok(neigh) => {
+                    for (target, _) in neigh {
+                        match graph.get_node(pid, &target) {
+                            Ok(Some(t)) => {
+                                let tc = node_meta_str(&t, "permission_checks");
+                                if !tc.is_empty() {
+                                    let tb =
+                                        t.name.rsplit('.').next().unwrap_or(&t.name).to_string();
+                                    v.verdict = "guarded".into();
+                                    v.family = tc.to_string();
+                                    v.level = guard_level_for(tc);
+                                    v.roles = node_meta_str(&t, "guard_roles").to_string();
+                                    v.via = Some(tb.clone());
+                                    v.reason =
+                                        format!("inherited from helper {tb} (one Calls hop)");
+                                    break;
+                                }
+                            }
+                            Ok(None) => {}
+                            Err(e) => cov
+                                .failures
+                                .push(format!("{bare}: helper lookup {target} failed: {e}")),
+                        }
+                    }
+                }
+                Err(e) => cov
+                    .failures
+                    .push(format!("{bare}: Calls lookup failed: {e}")),
+            }
+            if v.verdict.is_empty() {
+                v.verdict = "unguarded".into();
+                v.reason =
+                    "no permission check in the body and none in any directly called helper".into();
+            }
+        }
+        match v.verdict.as_str() {
+            "guarded" => report.guarded.push(bare.clone()),
+            "unknown" => report.unknown.push(bare.clone()),
+            _ => report.unguarded.push(bare.clone()),
+        }
+        report.functions.push(v);
+    }
+
+    // Settings read by scoped functions (bounded, reported).
+    let mut settings_read: HashMap<String, Vec<String>> = HashMap::new();
+    for n in scoped.iter().take(GUARD_SETTINGS_FN_CAP) {
+        match graph.neighbors(
+            pid,
+            EdgeKind::ReadsSetting,
+            &n.node_id,
+            GUARD_SETTINGS_EDGE_CAP,
+        ) {
+            Ok(neigh) => {
+                for (target, _) in neigh {
+                    let key = if let Some(rest) = target.strip_prefix("::") {
+                        format!("{rest} (not in web.config — DB/env setting?)")
+                    } else {
+                        match graph.get_node(pid, &target) {
+                            Ok(Some(t)) => t.name,
+                            Ok(None) => target.clone(),
+                            Err(e) => {
+                                cov.failures
+                                    .push(format!("setting node {target} lookup failed: {e}"));
+                                target.clone()
+                            }
+                        }
+                    };
+                    settings_read.entry(key).or_default().push(n.name.clone());
+                }
+            }
+            Err(e) => cov
+                .failures
+                .push(format!("{}: ReadsSetting lookup failed: {e}", n.name)),
+        }
+    }
+    if scoped.len() > GUARD_SETTINGS_FN_CAP {
+        cov.caps.push(format!(
+            "settings read: only the first {GUARD_SETTINGS_FN_CAP} of {} in-scope functions were expanded",
+            scoped.len()
+        ));
+    }
+    let mut sr: Vec<(String, Vec<String>)> = settings_read
+        .into_iter()
+        .map(|(k, mut v)| {
+            v.sort();
+            v.dedup();
+            (k, v)
+        })
+        .collect();
+    sr.sort_by(|a, b| a.0.cmp(&b.0));
+    report.settings_read = sr;
+
+    if settings_tables.len() > GUARD_SETTINGS_TABLE_CAP {
+        cov.caps.push(format!(
+            "settings tables: {} found, consumers counted for the first {GUARD_SETTINGS_TABLE_CAP}",
+            settings_tables.len()
+        ));
+    }
+    for (table_id, table_name) in settings_tables.iter().take(GUARD_SETTINGS_TABLE_CAP) {
+        match graph.find_incoming_edges_with_kind(pid, None, table_id, 500) {
+            Ok(v) => {
+                let count = v
+                    .into_iter()
+                    .filter(|(_, k, _)| {
+                        matches!(
+                            k,
+                            EdgeKind::QueriesTable
+                                | EdgeKind::SqlCalls
+                                | EdgeKind::ReadsColumn
+                                | EdgeKind::StoredProcReadsTable
+                                | EdgeKind::StoredProcWritesTable
+                        )
+                    })
+                    .count();
+                report.settings_tables.push((table_name.clone(), count));
+            }
+            Err(e) => cov.failures.push(format!(
+                "consumers of settings table {table_name} failed: {e}"
+            )),
+        }
+    }
+    report.coverage = cov;
+    report
+}
+
+fn push_list(out: &mut String, items: &[String], render: impl Fn(&String) -> String) {
+    for it in items.iter().take(GUARD_LIST_CAP) {
+        out.push_str(&render(it));
+    }
+    if items.len() > GUARD_LIST_CAP {
+        out.push_str(&format!(
+            "  … and {} more (full list: output_json=true)\n",
+            items.len() - GUARD_LIST_CAP
+        ));
+    }
+}
+
+pub(crate) fn render_guards_markdown(r: &GuardsReport) -> String {
+    let mut out = format!(
+        "# Guards & settings{}\n",
+        r.scope
+            .as_deref()
+            .map(|s| format!(" — scope: {s}"))
+            .unwrap_or_else(|| " — project-wide".into())
+    );
+    let total = r.functions.len();
+    out.push_str(&format!(
+        "\n## Guard parity\n{} guarded · {} UNGUARDED · {} UNKNOWN of {} function(s) in scope.\n",
+        r.guarded.len(),
+        r.unguarded.len(),
+        r.unknown.len(),
+        total
+    ));
+    out.push_str(
+        "Level: every credited check is ROLE-level; object/tenant scoping (does the check cover the \
+         client-supplied pr_id?) is not detected by this slice — verify by reading the body.\n",
+    );
+    if !r.unguarded.is_empty() {
+        out.push_str("\n## Unguarded functions in scope (verify each is intentionally public)\n");
+        let items: Vec<String> = r
+            .functions
+            .iter()
+            .filter(|f| f.verdict == "unguarded")
+            .map(|f| format!("- UNGUARDED: {} ({}:{})\n", f.name, f.file, f.line))
+            .collect();
+        push_list(&mut out, &items, |s| s.clone());
+    }
+    if !r.unknown.is_empty() {
+        out.push_str("\n## UNKNOWN — guard status cannot be trusted\n");
+        let items: Vec<String> = r
+            .functions
+            .iter()
+            .filter(|f| f.verdict == "unknown")
+            .map(|f| format!("- {} ({}:{}) — {}\n", f.name, f.file, f.line, f.reason))
+            .collect();
+        push_list(&mut out, &items, |s| s.clone());
+    }
+    if !r.guarded.is_empty() {
+        out.push_str("\n## Guarded functions in scope\n");
+        let items: Vec<String> = r
+            .functions
+            .iter()
+            .filter(|f| f.verdict == "guarded")
+            .map(|f| {
+                let role_str = if f.roles.is_empty() {
+                    String::new()
+                } else {
+                    format!(" roles=[{}]", f.roles)
+                };
+                let via = f
+                    .via
+                    .as_deref()
+                    .map(|v| format!(" via {v}"))
+                    .unwrap_or_default();
+                format!(
+                    "- {} ({}:{}) checks: {}{}{} [{}]\n",
+                    f.name,
+                    f.file,
+                    f.line,
+                    f.family,
+                    via,
+                    role_str,
+                    f.level.as_deref().unwrap_or("?")
+                )
+            })
+            .collect();
+        push_list(&mut out, &items, |s| s.clone());
+    }
+    if !r.settings_read.is_empty() {
+        out.push_str("\n## Settings read in scope\n");
+        let items: Vec<String> = r
+            .settings_read
+            .iter()
+            .map(|(k, fns)| format!("- {k} <- read by {}\n", fns.join(", ")))
+            .collect();
+        push_list(&mut out, &items, |s| s.clone());
+    }
+    if !r.settings_tables.is_empty() {
+        out.push_str("\n## Settings-shaped tables (config stored in the DB)\n");
+        for (table, count) in &r.settings_tables {
+            out.push_str(&format!(
+                "- {table} — {count} code/SP consumer edge(s); changes to settings semantics ripple here\n"
+            ));
+        }
+    }
+    if r.house_patterns.is_empty() {
+        out.push_str(
+            "\n## House auth patterns\nNo guard calls detected anywhere — either the project predates \
+             this extraction (re-run update_project) or authorization is enforced purely via web.config \
+             (see map_auth_config).\n",
+        );
+    } else {
+        out.push_str("\n## House auth patterns (project-wide guard helpers)\n");
+        for (g, c) in r.house_patterns.iter().take(GUARD_HOUSE_CAP) {
+            out.push_str(&format!("- {g} ({c} function(s))\n"));
+        }
+        if r.house_patterns.len() > GUARD_HOUSE_CAP {
+            out.push_str(&format!(
+                "  … and {} more\n",
+                r.house_patterns.len() - GUARD_HOUSE_CAP
+            ));
+        }
+        if !r.roles_seen.is_empty() {
+            let names: Vec<String> = r
+                .roles_seen
+                .iter()
+                .take(GUARD_ROLES_CAP)
+                .map(|(role, c)| format!("{role} ({c})"))
+                .collect();
+            out.push_str(&format!("roles referenced: {}\n", names.join(", ")));
+        }
+    }
+    let c = &r.coverage;
+    out.push_str("\n## Coverage\n");
+    out.push_str(&format!(
+        "- node scan: {} ({} nodes, cap {}) · scope query: {} · in-scope functions: {}\n",
+        c.node_scan, c.scanned, c.node_scan_cap, c.scope_query, c.in_scope_functions
+    ));
+    for cap in &c.caps {
+        out.push_str(&format!("- cap: {cap}\n"));
+    }
+    if c.failures.is_empty() {
+        out.push_str("- failures: none\n");
+    } else {
+        for f in &c.failures {
+            out.push_str(&format!("- FAILURE: {f}\n"));
+        }
+    }
+    out.push_str(&format!(
+        "\napp settings defined in config files: {}\n\
+         next: map_auth_config for web.config authorization rules; get_table_schema for each \
+         settings table; trace_state_usage for role/session keys.\n",
+        r.app_settings_defined
+    ));
+    out
+}
+
+#[cfg(test)]
+mod guards_unit_tests {
+    use super::*;
+
+    #[test]
+    fn markdown_lists_are_cut_with_a_stated_remainder() {
+        let items: Vec<String> = (0..30).map(|i| format!("- f{i}\n")).collect();
+        let mut out = String::new();
+        push_list(&mut out, &items, |s| s.clone());
+        assert!(out.contains("- f24\n"));
+        assert!(!out.contains("- f25\n"));
+        assert!(out.contains("… and 5 more"));
+    }
+
+    #[test]
+    fn role_level_only_when_a_check_exists() {
+        assert_eq!(guard_level_for(""), None);
+        assert_eq!(guard_level_for("CheckRead").as_deref(), Some("role"));
+    }
+}
+
 pub(crate) fn is_settings_table_name(name: &str) -> bool {
     let lower = name.to_lowercase();
     ["setting", "config", "option", "param", "preference"]
@@ -2159,233 +3379,23 @@ impl Engram {
         req: crate::models::MapGuardsAndSettingsRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
-        let _ps = self.ensure_project_runtime(&req.project_id).await?;
-        let gen_ = self.get_active_generation(&req.project_id).await?;
-        let scope = req
-            .scope
-            .as_deref()
-            .map(|s| s.replace('\\', "/").to_lowercase());
-
+        let scope_raw = req.scope.as_deref().map(|s| s.replace('\\', "/"));
         let graph = self.state.graph.clone();
         let pid = req.project_id.clone();
-        let scope_b = scope.clone();
+        let scope_b = scope_raw.clone();
         let report = tokio::task::spawn_blocking(move || {
-            let nodes = graph
-                .query_nodes(&pid, None, None, None, crate::handlers::NODE_SCAN_LIMIT)
-                .unwrap_or_default();
-
-            let in_scope = |file_path: &str, name: &str| -> bool {
-                match &scope_b {
-                    None => true,
-                    Some(s) => {
-                        let fp = file_path.replace('\\', "/").to_lowercase();
-                        fp.contains(s.as_str()) || name.to_lowercase() == *s
-                    }
-                }
-            };
-
-            let mut fn_total = 0usize;
-            let mut guarded: Vec<(String, String, String, String)> = Vec::new();
-            let mut unguarded: Vec<(String, String)> = Vec::new();
-            let mut house: HashMap<String, usize> = HashMap::new();
-            let mut roles_seen: HashMap<String, usize> = HashMap::new();
-            let mut scoped_fn_ids: Vec<(String, String)> = Vec::new();
-            let mut app_settings_defined = 0usize;
-            let mut settings_tables: Vec<(String, String)> = Vec::new();
-
-            for n in &nodes {
-                let checks = n
-                    .metadata
-                    .as_ref()
-                    .and_then(|m| m.get("permission_checks"))
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
-                let roles = n
-                    .metadata
-                    .as_ref()
-                    .and_then(|m| m.get("guard_roles"))
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
-                if n.node_type == "function" {
-                    if !checks.is_empty() {
-                        for g in checks.split(';') {
-                            *house.entry(g.to_string()).or_default() += 1;
-                        }
-                        for r in roles.split(';').filter(|r| !r.is_empty()) {
-                            *roles_seen.entry(r.to_string()).or_default() += 1;
-                        }
-                    }
-                    if in_scope(n.file_path.as_str(), &n.name) {
-                        fn_total += 1;
-                        scoped_fn_ids.push((n.node_id.clone(), n.name.clone()));
-                        if checks.is_empty() {
-                            unguarded.push((n.name.clone(), n.file_path.as_str().to_string()));
-                        } else {
-                            guarded.push((
-                                n.name.clone(),
-                                n.file_path.as_str().to_string(),
-                                checks.to_string(),
-                                roles.to_string(),
-                            ));
-                        }
-                    }
-                } else if n.node_type == "app_setting" {
-                    app_settings_defined += 1;
-                } else if n.node_type == "db_table" && is_settings_table_name(&n.name) {
-                    settings_tables.push((n.node_id.clone(), n.name.clone()));
-                }
-            }
-
-            // Settings consumed by in-scope functions (bounded).
-            let mut settings_read: HashMap<String, Vec<String>> = HashMap::new();
-            for (fn_id, fn_name) in scoped_fn_ids.iter().take(300) {
-                if let Ok(neigh) = graph.neighbors(&pid, EdgeKind::ReadsSetting, fn_id, 20) {
-                    for (target, _) in neigh {
-                        let key = if let Some(rest) = target.strip_prefix("::") {
-                            format!("{rest} (not in web.config — DB/env setting?)")
-                        } else {
-                            graph
-                                .get_node(&pid, &target)
-                                .ok()
-                                .flatten()
-                                .map(|n| n.name)
-                                .unwrap_or(target)
-                        };
-                        settings_read.entry(key).or_default().push(fn_name.clone());
-                    }
-                }
-            }
-
-            // Settings-table consumer counts.
-            let mut table_consumers: Vec<(String, usize)> = Vec::new();
-            for (table_id, table_name) in settings_tables.iter().take(10) {
-                let count = graph
-                    .find_incoming_edges_with_kind(&pid, None, table_id, 500)
-                    .map(|v| {
-                        v.into_iter()
-                            .filter(|(_, k, _)| {
-                                matches!(
-                                    k,
-                                    EdgeKind::QueriesTable
-                                        | EdgeKind::SqlCalls
-                                        | EdgeKind::ReadsColumn
-                                        | EdgeKind::StoredProcReadsTable
-                                        | EdgeKind::StoredProcWritesTable
-                                )
-                            })
-                            .count()
-                    })
-                    .unwrap_or(0);
-                table_consumers.push((table_name.clone(), count));
-            }
-
-            (
-                fn_total,
-                guarded,
-                unguarded,
-                house,
-                roles_seen,
-                settings_read,
-                table_consumers,
-                app_settings_defined,
-            )
+            build_guards_report(&graph, &pid, scope_b.as_deref())
         })
         .await
-        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        let (
-            fn_total,
-            guarded,
-            unguarded,
-            house,
-            roles_seen,
-            settings_read,
-            table_consumers,
-            app_settings_count,
-        ) = report;
-
-        let mut out = format!(
-            "# Guards & settings{}\n",
-            scope
-                .as_deref()
-                .map(|s| format!(" — scope: {s}"))
-                .unwrap_or_else(|| " — project-wide".into())
-        );
-        out.push_str(&format!(
-            "\n## Guard parity\n{} of {} function(s) in scope have permission checks.\n",
-            guarded.len(),
-            fn_total
-        ));
-        if !guarded.is_empty() && !unguarded.is_empty() && scope.is_some() {
-            out.push_str(
-                "WARNING: mixed guarding in this scope — verify each unguarded function is \
-                 intentionally public:\n",
-            );
-            for (name, file) in unguarded.iter().take(10) {
-                out.push_str(&format!("  - UNGUARDED: {name} ({file})\n"));
-            }
+        .map_err(|e| McpError::internal_error(format!("guards scan panicked: {e}"), None))?;
+        if req.output_json {
+            let text = serde_json::to_string_pretty(&report)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(text)]));
         }
-        if !guarded.is_empty() {
-            out.push_str("\n## Guarded functions in scope\n");
-            for (name, file, checks, roles) in guarded.iter().take(20) {
-                let role_str = if roles.is_empty() {
-                    String::new()
-                } else {
-                    format!(" roles=[{roles}]")
-                };
-                out.push_str(&format!("- {name} ({file}) checks: {checks}{role_str}\n"));
-            }
-        }
-        if !settings_read.is_empty() {
-            out.push_str("\n## Settings read in scope\n");
-            let mut keys: Vec<_> = settings_read.iter().collect();
-            keys.sort_by_key(|(k, _)| k.to_string());
-            for (key, fns) in keys.iter().take(20) {
-                let mut consumers = fns.to_vec();
-                consumers.sort();
-                consumers.dedup();
-                out.push_str(&format!("- {key} <- read by {}\n", consumers.join(", ")));
-            }
-        }
-        if !table_consumers.is_empty() {
-            out.push_str("\n## Settings-shaped tables (config stored in the DB)\n");
-            for (table, count) in &table_consumers {
-                out.push_str(&format!(
-                    "- {table} — {count} code/SP consumer edge(s); changes to settings \
-                     semantics ripple here\n"
-                ));
-            }
-        }
-        if !house.is_empty() {
-            let mut house_sorted: Vec<_> = house.into_iter().collect();
-            house_sorted.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
-            out.push_str("\n## House auth patterns (project-wide guard helpers)\n");
-            for (g, c) in house_sorted.iter().take(8) {
-                out.push_str(&format!("- {g} ({c} function(s))\n"));
-            }
-            if !roles_seen.is_empty() {
-                let mut rs: Vec<_> = roles_seen.into_iter().collect();
-                rs.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
-                let names: Vec<String> = rs
-                    .into_iter()
-                    .take(10)
-                    .map(|(r, c)| format!("{r} ({c})"))
-                    .collect();
-                out.push_str(&format!("roles referenced: {}\n", names.join(", ")));
-            }
-        } else {
-            out.push_str(
-                "\n## House auth patterns\nNo guard calls detected anywhere — either the \
-                 project predates this extraction (re-run update_project) or authorization \
-                 is enforced purely via web.config (see map_auth_config).\n",
-            );
-        }
-        out.push_str(&format!(
-            "\napp settings defined in config files: {app_settings_count}\n\
-             next: map_auth_config for web.config authorization rules; \
-             get_table_schema for each settings table; trace_state_usage for role/session keys.\n"
-        ));
-        out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
-        Ok(CallToolResult::success(vec![Content::text(out)]))
+        Ok(CallToolResult::success(vec![Content::text(
+            render_guards_markdown(&report),
+        )]))
     }
 
     /// One call: a weak user story in, an implementation brief out.
@@ -2443,6 +3453,7 @@ impl Engram {
                 project_id: req.project_id.clone(),
                 pattern_query: concepts.join(" "),
                 max_examples: 2,
+                output_json: false,
             })
             .await?;
         if let Some(text) = sub.content.first().and_then(|c| c.as_text()) {
@@ -2461,6 +3472,7 @@ impl Engram {
             .handle_map_guards_and_settings(crate::models::MapGuardsAndSettingsRequest {
                 project_id: req.project_id.clone(),
                 scope: None,
+                output_json: false,
             })
             .await?;
         if let Some(text) = sub.content.first().and_then(|c| c.as_text()) {

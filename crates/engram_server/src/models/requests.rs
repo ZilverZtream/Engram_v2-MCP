@@ -512,6 +512,10 @@ pub struct MapGuardsAndSettingsRequest {
     /// analysis to. Omit for a project-wide view.
     #[serde(default)]
     pub scope: Option<String>,
+    /// Return the full report (every function's verdict, full lists,
+    /// coverage) as JSON instead of markdown.
+    #[serde(default)]
+    pub output_json: bool,
 }
 
 /// One external review finding (CTO comment, SonarQube issue, CodeRabbit nit).
@@ -705,6 +709,10 @@ pub struct FindImplementationPatternRequest {
     /// How many exemplar files to expand. Default 3.
     #[serde(default = "default_pattern_examples")]
     pub max_examples: usize,
+    /// Return the full result (exemplars, shapes, common shapes, coverage)
+    /// as JSON instead of markdown.
+    #[serde(default)]
+    pub output_json: bool,
 }
 
 pub fn default_pattern_examples() -> usize {
