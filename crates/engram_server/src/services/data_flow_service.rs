@@ -194,6 +194,27 @@ pub struct DataFlowTrace {
     /// Calls in the body that could not be resolved to a graph node
     /// (row-7 audit A2): the trace stopped there, and says so.
     pub unresolved_calls: usize,
+    /// Bounded follow through `Calls` edges (row-7 A3): what was followed,
+    /// the caps, and every stop with its reason.
+    pub follow: FollowCoverage,
+}
+
+/// Depth cap for the bounded follow: entry = depth 1, its callees depth 2,
+/// their callees depth 3. Deeper chains are reported as stops.
+pub const FOLLOW_DEPTH_CAP: usize = 3;
+/// Edges fetched per node (cap+1 semantics: `truncated` is a fact).
+pub const FOLLOW_EDGE_CAP: usize = 500;
+
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct FollowCoverage {
+    pub depth_cap: usize,
+    pub edge_cap: usize,
+    /// Callee nodes whose edges were expanded.
+    pub followed: usize,
+    /// Nodes whose edge fetch hit `edge_cap` (their evidence is partial).
+    pub truncated_nodes: usize,
+    /// Every place the follow stopped, with the reason.
+    pub stops: Vec<String>,
 }
 
 /// A single ordered step in a data flow trace.
@@ -658,7 +679,11 @@ pub fn trace_data_flow(
                 seen.push(expr.clone());
                 let resolved = graph
                     .query_nodes(project_id, Some("function"), Some(&last), None, 25)
-                    .map(|nodes| nodes.iter().any(|n| n.name.eq_ignore_ascii_case(&last)))
+                    .map(|nodes| {
+                        nodes
+                            .iter()
+                            .any(|n| callee_name_matches(&n.name, &expr, &last))
+                    })
                     .unwrap_or(false);
                 if !resolved {
                     unresolved_calls += 1;
@@ -685,7 +710,7 @@ pub fn trace_data_flow(
         }
     }
 
-    let graph_steps = collect_graph_steps(
+    let (graph_steps, entry_ids, entry_truncated) = collect_graph_steps(
         graph,
         project_id,
         file_path,
@@ -697,8 +722,31 @@ pub fn trace_data_flow(
     let code_step_count = steps.len();
     for mut gs in graph_steps {
         gs.sequence += code_step_count;
+        gs.details.insert("depth".into(), "1".into());
         steps.push(gs);
     }
+    let mut follow = FollowCoverage {
+        depth_cap: FOLLOW_DEPTH_CAP,
+        edge_cap: FOLLOW_EDGE_CAP,
+        followed: 0,
+        truncated_nodes: entry_truncated,
+        stops: Vec::new(),
+    };
+    if entry_truncated > 0 {
+        follow.stops.push(format!(
+            "{entry_point}: more than {FOLLOW_EDGE_CAP} edges on the entry node — its own edges are partial"
+        ));
+    }
+    follow_calls(
+        graph,
+        project_id,
+        &entry_ids,
+        &mut steps,
+        &mut tables_touched,
+        &mut state_reads,
+        &mut state_writes,
+        &mut follow,
+    )?;
 
     // ── Step 4: re-sequence all steps ────────────────────────────────────────
     for (i, step) in steps.iter_mut().enumerate() {
@@ -736,12 +784,41 @@ pub fn trace_data_flow(
         methods_called,
         unresolved_calls,
         modern_flow_hint,
+        follow,
     })
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 /// Infer a human-readable trigger description from the handler name.
+/// Does an indexed function node NAME denote the callee of `expr`?
+/// Page members are indexed bare (`Page_Load`); App_Code class members are
+/// indexed QUALIFIED (`_io.installationsobjektprojekt.GetAllByCheckingTotalProject`),
+/// so a bare comparison reported every domain-helper call as unresolved
+/// (live, 2026-08-28). Match the bare name, or a qualified name whose last
+/// segments agree with the expression's `Class.Method` tail.
+pub(crate) fn callee_name_matches(node_name: &str, expr: &str, last: &str) -> bool {
+    let node_bare = node_name.rsplit('.').next().unwrap_or(node_name);
+    if !node_bare.eq_ignore_ascii_case(last) {
+        return false;
+    }
+    // `a.b.Method` → require the node to be `…b.Method` when it is qualified.
+    let expr_parts: Vec<&str> = expr.split('.').collect();
+    let node_parts: Vec<&str> = node_name.split('.').collect();
+    if expr_parts.len() >= 2 && node_parts.len() >= 2 {
+        let expr_class = expr_parts[expr_parts.len() - 2];
+        let node_class = node_parts[node_parts.len() - 2];
+        return expr_class.eq_ignore_ascii_case(node_class)
+            // `_io.x.Method` vs node `x.Method` / `_io.x.Method`: the receiver
+            // variable (`_io`, `_rv`) is not a class; accept a class match at
+            // either position.
+            || (expr_parts.len() >= 3
+                && node_parts.len() >= 3
+                && expr_parts[expr_parts.len() - 3].eq_ignore_ascii_case(node_parts[node_parts.len() - 3]));
+    }
+    true
+}
+
 fn infer_trigger(entry_point: &str) -> String {
     if entry_point.eq_ignore_ascii_case("Page_Load") {
         "Page load".into()
@@ -944,9 +1021,10 @@ fn collect_graph_steps(
     tables_touched: &mut Vec<String>,
     state_reads: &mut Vec<StateAccessInfo>,
     state_writes: &mut Vec<StateAccessInfo>,
-) -> anyhow::Result<Vec<DataFlowStep>> {
+) -> anyhow::Result<(Vec<DataFlowStep>, Vec<String>, usize)> {
     let mut steps: Vec<DataFlowStep> = Vec::new();
     let mut seq = 1usize;
+    let truncated_entries = std::cell::Cell::new(0usize);
 
     // Row-7 audit A1: graph steps belong to the traced METHOD NODE(S) — never
     // to another method in the same file (the live false step: a Session
@@ -969,7 +1047,11 @@ fn collect_graph_steps(
     let fetch = |kind: EdgeKind| -> anyhow::Result<Vec<engram_graph::Edge>> {
         let mut out = Vec::new();
         for id in &entry_ids {
-            let (edges, _truncated) = graph.edges_touching_with_coverage(project_id, id, 500)?;
+            let (edges, truncated) =
+                graph.edges_touching_with_coverage(project_id, id, FOLLOW_EDGE_CAP)?;
+            if truncated {
+                truncated_entries.set(truncated_entries.get() + 1);
+            }
             out.extend(
                 edges
                     .into_iter()
@@ -1124,7 +1206,161 @@ fn collect_graph_steps(
         seq += 1;
     }
 
-    Ok(steps)
+    // `fetch` ran once per kind (4x): count each entry node once.
+    let truncated = truncated_entries.get().div_ceil(4);
+    Ok((steps, entry_ids, truncated))
+}
+
+/// Bounded follow (row-7 A3): from the entry nodes' outgoing `Calls`
+/// edges, expand each callee's own edges — table/SQL/state access is a
+/// terminal step at that depth, further `Calls` go one level deeper —
+/// until `FOLLOW_DEPTH_CAP`. Every stop is recorded with its reason.
+#[allow(clippy::too_many_arguments)]
+fn follow_calls(
+    graph: &Arc<GraphStore>,
+    project_id: &str,
+    entry_ids: &[String],
+    steps: &mut Vec<DataFlowStep>,
+    tables_touched: &mut Vec<String>,
+    state_reads: &mut Vec<StateAccessInfo>,
+    state_writes: &mut Vec<StateAccessInfo>,
+    follow: &mut FollowCoverage,
+) -> anyhow::Result<()> {
+    use std::collections::{HashSet, VecDeque};
+    let mut visited: HashSet<String> = entry_ids.iter().cloned().collect();
+    let mut queue: VecDeque<(String, usize)> = VecDeque::new();
+    for id in entry_ids {
+        let (edges, _) = graph.edges_touching_with_coverage(project_id, id, FOLLOW_EDGE_CAP)?;
+        for e in edges
+            .into_iter()
+            .filter(|e| e.edge_kind == EdgeKind::Calls && &e.source_id == id)
+        {
+            if visited.insert(e.target_id.clone()) {
+                queue.push_back((e.target_id, 2));
+            }
+        }
+    }
+    while let Some((node_id, depth)) = queue.pop_front() {
+        let name = node_display_name(&node_id);
+        if depth > FOLLOW_DEPTH_CAP {
+            // Unreachable by construction (deeper calls are stopped where
+            // they are seen); kept so a future change cannot follow past
+            // the cap silently.
+            follow.stops.push(format!(
+                "{name} (depth {depth}): beyond depth cap {FOLLOW_DEPTH_CAP} — not followed"
+            ));
+            continue;
+        }
+        let (edges, truncated) =
+            graph.edges_touching_with_coverage(project_id, &node_id, FOLLOW_EDGE_CAP)?;
+        follow.followed += 1;
+        if truncated {
+            follow.truncated_nodes += 1;
+            follow.stops.push(format!(
+                "{name}: more than {FOLLOW_EDGE_CAP} edges — its evidence is partial"
+            ));
+        }
+        let mut terminal = false;
+        let mut deeper = 0usize;
+        for e in edges.into_iter().filter(|e| e.source_id == node_id) {
+            match e.edge_kind {
+                EdgeKind::QueriesTable | EdgeKind::SqlCalls => {
+                    terminal = true;
+                    let table = e
+                        .target_id
+                        .strip_prefix("table:")
+                        .unwrap_or(&e.target_id)
+                        .to_string();
+                    if !tables_touched.contains(&table) {
+                        tables_touched.push(table.clone());
+                    }
+                    let mut details = HashMap::new();
+                    details.insert("depth".into(), depth.to_string());
+                    details.insert("node_id".into(), node_id.clone());
+                    steps.push(DataFlowStep {
+                        sequence: steps.len() + 1,
+                        step_type: "GraphEdge".into(),
+                        description: format!(
+                            "↳ depth {depth}: {name} {} `{table}`",
+                            if e.edge_kind == EdgeKind::SqlCalls {
+                                "runs SQL against"
+                            } else {
+                                "queries"
+                            }
+                        ),
+                        source: name.clone(),
+                        target: table,
+                        details,
+                        resolved: None,
+                    });
+                }
+                EdgeKind::ReadsState | EdgeKind::WritesState => {
+                    terminal = true;
+                    let (state_type, key) = parse_state_target(&e.target_id);
+                    let writes = e.edge_kind == EdgeKind::WritesState;
+                    let info = StateAccessInfo {
+                        state_type: state_type.clone(),
+                        key: key.clone(),
+                        direction: if writes {
+                            "write".into()
+                        } else {
+                            "read".into()
+                        },
+                        method_context: name.clone(),
+                    };
+                    if writes {
+                        state_writes.push(info);
+                    } else {
+                        state_reads.push(info);
+                    }
+                    let mut details = HashMap::new();
+                    details.insert("depth".into(), depth.to_string());
+                    details.insert("node_id".into(), node_id.clone());
+                    steps.push(DataFlowStep {
+                        sequence: steps.len() + 1,
+                        step_type: "GraphEdge".into(),
+                        description: format!(
+                            "↳ depth {depth}: {name} {} {state_type}[\"{key}\"]",
+                            if writes { "writes" } else { "reads" }
+                        ),
+                        source: name.clone(),
+                        target: e.target_id.clone(),
+                        details,
+                        resolved: None,
+                    });
+                }
+                EdgeKind::Calls => {
+                    if depth + 1 > FOLLOW_DEPTH_CAP {
+                        deeper += 1;
+                        follow.stops.push(format!(
+                            "{name} (depth {depth}) → {}: depth cap {FOLLOW_DEPTH_CAP} reached — not followed",
+                            node_display_name(&e.target_id)
+                        ));
+                    } else if visited.insert(e.target_id.clone()) {
+                        deeper += 1;
+                        queue.push_back((e.target_id, depth + 1));
+                    }
+                }
+                _ => {}
+            }
+        }
+        if !terminal && deeper == 0 {
+            follow.stops.push(format!(
+                "{name} (depth {depth}): no data/state access and no further calls in the graph"
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// `sym:function:<path>:<Class.Method>:<line>` → `Class.Method`.
+fn node_display_name(node_id: &str) -> String {
+    let parts: Vec<&str> = node_id.split(':').collect();
+    if parts.len() >= 4 {
+        parts[parts.len() - 2].to_string()
+    } else {
+        node_id.to_string()
+    }
 }
 
 /// Parse a state edge target_id like "state:Session:UserName" into
@@ -1723,6 +1959,28 @@ protected void btnLoad_Click(object sender, EventArgs e)
     // ── Additional: trigger inference ─────────────────────────────────────────
 
     #[test]
+    fn callee_names_bare_and_qualified() {
+        assert!(callee_name_matches("Page_Load", "Page_Load", "Page_Load"));
+        assert!(callee_name_matches(
+            "_io.installationsobjektprojekt.GetAllByCheckingTotalProject",
+            "_io.installationsobjektprojekt.GetAllByCheckingTotalProject",
+            "GetAllByCheckingTotalProject"
+        ));
+        assert!(callee_name_matches(
+            "installationsobjektprojekt.GetAllByCheckingTotalProject",
+            "_io.installationsobjektprojekt.GetAllByCheckingTotalProject",
+            "GetAllByCheckingTotalProject"
+        ));
+        // Same method name on a different class is NOT the callee.
+        assert!(!callee_name_matches(
+            "_rv.other.GetAllByCheckingTotalProject",
+            "_io.installationsobjektprojekt.GetAllByCheckingTotalProject",
+            "GetAllByCheckingTotalProject"
+        ));
+        assert!(!callee_name_matches("SetOK", "s.SetError", "SetError"));
+    }
+
+    #[test]
     fn trigger_inference_variants() {
         assert_eq!(infer_trigger("Page_Load"), "Page load");
         assert_eq!(infer_trigger("btnOk_Click"), "Button click (postback)");
@@ -1785,6 +2043,20 @@ pub fn render_data_flow_markdown(t: &DataFlowTrace) -> String {
         t.methods_called.len(),
         t.unresolved_calls
     ));
+    md.push_str(&format!(
+        "## Follow — depth cap {}, edge cap {}: {} callee node(s) expanded, {} node(s) truncated, {} stop(s)\n\n",
+        t.follow.depth_cap,
+        t.follow.edge_cap,
+        t.follow.followed,
+        t.follow.truncated_nodes,
+        t.follow.stops.len()
+    ));
+    for x in &t.follow.stops {
+        md.push_str(&format!("- stop: {x}\n"));
+    }
+    if !t.follow.stops.is_empty() {
+        md.push('\n');
+    }
     md.push_str("## Steps\n\n");
     for st in &t.steps {
         md.push_str(&format!(

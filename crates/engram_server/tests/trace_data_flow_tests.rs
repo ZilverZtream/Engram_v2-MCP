@@ -274,3 +274,67 @@ async fn ui_event_no_path_message_states_the_searched_depth() {
         "the default max_hops (10) is clamped to 8 for the search — the message must say 8:\n{text}"
     );
 }
+
+/// Live finding (OciusX, 2026-08-28, slice 1 deployed): App_Code class
+/// members are indexed with QUALIFIED names (`_io.installationsobjektprojekt.GetAllByCheckingTotalProject`),
+/// so a bare-name comparison reported 8 of 10 real calls as UNRESOLVED —
+/// including the one helper the audit's G3 is about.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_call_to_a_qualified_indexed_member_is_resolved() {
+    let (_tmp, state, dir) = build_state();
+    seed(&state, &dir);
+    let io = "Site/App_Code/io/installationsobjektprojekt.vb";
+    std::fs::create_dir_all(dir.join("Site/App_Code/io")).unwrap();
+    std::fs::write(
+        dir.join(io),
+        "Public Class installationsobjektprojekt\n    Public Function GetAllByCheckingTotalProject(pr_id As Integer, db As Ctx) As List\n    End Function\nEnd Class\n",
+    )
+    .unwrap();
+    state
+        .graph
+        .upsert_nodes(
+            PID,
+            &[Node {
+                node_id: format!(
+                    "sym:function:{io}:_io.installationsobjektprojekt.GetAllByCheckingTotalProject:2"
+                ),
+                node_type: "function".into(),
+                name: "_io.installationsobjektprojekt.GetAllByCheckingTotalProject".into(),
+                namespace: "installationsobjektprojekt".into(),
+                language: "vbnet".into(),
+                file_path: RelPath::new(io),
+                start_line: 2,
+                end_line: 3,
+                generation: 1,
+                metadata: None,
+            }],
+        )
+        .unwrap();
+    let engram = Engram::new(state);
+    let out = trace(
+        &engram,
+        json!({"project_id": PID, "file_path": FILE, "entry_point": "Filter", "output_json": true}),
+    )
+    .await;
+    let v: Value = serde_json::from_str(&out).unwrap();
+    let call = v["steps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| {
+            s["description"]
+                .as_str()
+                .is_some_and(|d| d.contains("GetAllByCheckingTotalProject"))
+        })
+        .cloned()
+        .unwrap_or_else(|| {
+            panic!(
+                "no call step for GetAllByCheckingTotalProject: {}",
+                v["steps"]
+            )
+        });
+    assert_eq!(
+        call["resolved"], true,
+        "a qualified indexed member must resolve: {call}"
+    );
+}
