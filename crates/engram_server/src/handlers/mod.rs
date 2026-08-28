@@ -64,6 +64,34 @@ pub(crate) fn incoming_caller_edges(
     out
 }
 
+/// Error-aware, cap-exact variant of [`incoming_caller_edges`]: the
+/// deduplicated callers (best edge per source, weight-desc) plus whether MORE
+/// than `limit` distinct callers exist. Fetches `limit + 1` per kind so the
+/// flag is exact, and propagates store errors instead of rendering them as
+/// "no callers" (row-2 audit D4/D8).
+pub(crate) fn incoming_caller_edges_checked(
+    graph: &engram_graph::GraphStore,
+    project_id: &str,
+    node_id: &str,
+    limit: usize,
+) -> anyhow::Result<(Vec<(String, engram_graph::EdgeKind, u32)>, bool)> {
+    let mut out: Vec<(String, engram_graph::EdgeKind, u32)> = Vec::new();
+    for kind in CALLER_EDGE_KINDS {
+        out.extend(graph.find_incoming_edges_with_kind(
+            project_id,
+            Some(kind),
+            node_id,
+            limit + 1,
+        )?);
+    }
+    out.sort_by(|a, b| a.0.cmp(&b.0).then(b.2.cmp(&a.2)));
+    out.dedup_by(|next, kept| next.0 == kept.0);
+    out.sort_by(|a, b| b.2.cmp(&a.2));
+    let truncated = out.len() > limit;
+    out.truncate(limit);
+    Ok((out, truncated))
+}
+
 // ─── REG1/MCP1: Shared handler-boundary validation ───────────────────────────
 
 /// Validate a user-supplied project_id at the MCP handler boundary.

@@ -135,17 +135,22 @@ no way to tell "the page has none" from "the scan never reached them".
 | G6 | Latency | p50 of `get_method_edit_context` on the 20-method set not worse than today (measure first; A5 should make it faster by removing four 5000-edge scans) |
 | G7 | Suite | full `--tests --lib` sweep green; the new tests fail when their fix is reverted (mutation-checked) |
 
-## 6. Disposition table (fill at implementation)
+## 6. Disposition table (implementation 2026-08-28)
 
 | Item | Disposition |
 |---|---|
-| A1 | |
-| A2 | |
-| A3 | |
-| A4 | |
-| A5 | |
-| A6 | |
-| A7 | |
-| A8 | |
-| A9 | |
-| G1-G7 | |
+| A1 | **fixed** — `ProviderStatus` (`Complete` / `Truncated{shown,cap,known_total}` / `Failed{reason}` / `NotRun{reason}`) + `EditContextCompleteness` (blast, callers, callers_dangling, body, complexity, db_tables, stored_procs, session_reads, session_writes, vb_traps, sync_hazards) on `EditSafetyResult`; `## Coverage` block in both markdown renderers; `completeness` object in both JSON outputs; `blast_radius_score` is `Option<f32>` (null, never 0.0) |
+| A2 | **fixed** — provider floor in `compute_edit_safety`: blast / callers / complexity `Failed`/`NotRun` ⇒ never green ("Evidence INCOMPLETE — … — safety is unknown, not green"), confidence 0.5; unit tests `failed_blast_provider_is_never_green`, `unmeasured_complexity_is_never_green` |
+| A3 | **fixed** — one `assemble_edit_evidence` used by BOTH handlers (body read, complexity estimated, hazard scans, blast with identical args); test `check_edit_safety_agrees_with_get_method_edit_context` asserts byte-identical `edit_safety` JSON; `check_edit_safety_measures_complexity_from_the_body` |
+| A4 | **fixed** — `incoming_caller_edges_checked` (cap+1 per kind, errors propagated) counts the EXACT total up to 5,000 while the list is capped at 50; text renders `55 callers` / `≥50 callers (capped)`, never a bare capped count; renderer `## Callers (3 shown of 55)`; test `capped_callers_report_the_exact_total_not_the_cap` |
+| A5 | **fixed** — the four global `list_edges_by_kind(..,5000)` scans in `build_method_info` and the six in `get_page_context` replaced by per-node adjacency seeks (`neighbors` / `edges_touching_with_coverage` / `find_incoming_edges_with_kind`), each with cap+1 truncation detection and a status; the legacy `.Name` suffix matching is gone (test `page_context_does_not_attribute_another_pages_tables` seeds a legacy-form id and fails on the old code) |
+| A6 | **fixed** — `include_business_logic` wired (search of the `business_logic` namespace for the method; empty namespace says how to populate it, lookup failure says it failed — never silent); `include_master_page` / `include_codebehind` honoured with `NotRun` coverage; tests `business_logic_flag_is_honoured`, `page_context_honours_its_include_flags` |
+| A7 | **fixed** — `select_method_node`: exact name beats the substring match `query_nodes` performs (test seeds `ALoad` sorting before `Load`); same-class overloads refused with the candidate list until `line=<start>` selects one (new optional `line` field on both requests); tests `same_class_overloads_are_ambiguous_until_line_is_given`, `exact_name_beats_substring_match` |
+| A8 | **fixed** — `is_orphan` requires callers `Complete` and `callers_dangling == 0`; otherwise "callers unknown (provider FAILED: …)" / "N dangling caller edge(s) … fan-in is a lower bound", never the reflection RED; tests `unresolvable_callers_are_not_an_orphan_red`, `dangling_callers_are_not_an_orphan_red`, `dangling_caller_is_counted_and_does_not_make_an_orphan_red` |
+| A9 | **fixed** — 7 unit tests (`edit_safety_tests`) + 10 handler tests (`tests/edit_context_tests.rs`) against a temp graph + working tree; every test watched failing first (RED run); the two that passed on old code by luck were sharpened and mutation-checked |
+| G1 | **met (code)** — no provider result in the three handlers is converted to 0 / empty / None without a `ProviderStatus`; remaining `.ok()` sites are static regex compiles, a caller-body read that renders "(source unavailable …)", and `get_active_generation().unwrap_or(1)`. AJAX analysis failure now reported (`ajax` status) — no fault-injection seam exists to test that path; stated rather than claimed |
+| G2-G4, G6 | **live evidence in §7** (after deploy) |
+| G5 | **met** — every field of the three request structs is read (`include_business_logic`, `include_master_page`, `include_codebehind`, new `line`); the handler tests exercise each |
+| G7 | **met** — full `--tests --lib` sweep green (see commit) |
+| Deferred | Blast "edge-kind boundary" seam candidates fire for nearly every LEAF method (incoming kind set ≠ outgoing kind set) and `has_triggers` turns that into YELLOW — a migration heuristic used as an edit trigger. Live: the 1-caller API method in §3 is yellow for that reason alone. Row 10 (ImpactEngine slice: score-dimension separation), not changed here |
+| Deferred | Cross-tool caller-count agreement (78 / 98 / 50 for `Check_pr_id`) — row 4 A9 (shared count layer); this row makes the edit tools' own count exact and labelled |

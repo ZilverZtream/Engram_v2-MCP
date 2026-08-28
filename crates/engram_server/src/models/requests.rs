@@ -2919,12 +2919,18 @@ pub struct GetMethodEditContextRequest {
     /// auditing a hot method's full fan-in.
     #[serde(default = "default_max_callers_3")]
     pub max_callers: usize,
-    /// Include business logic analysis from DocStore. Default: true.
+    /// Include business-rule evidence for this method from the
+    /// `business_logic` namespace (populated by `analyze_business_logic`).
+    /// Default: true.
     #[serde(default = "default_true")]
     pub include_business_logic: bool,
     /// Output as JSON instead of Markdown. Default: false.
     #[serde(default)]
     pub output_json: bool,
+    /// Start line of the overload to analyze when the same class declares
+    /// the method more than once (the AMBIGUOUS error lists them).
+    #[serde(default)]
+    pub line: Option<u32>,
 }
 
 /// Full page context: control tree, all event handlers with bodies, data layer,
@@ -3123,6 +3129,10 @@ pub struct CheckEditSafetyRequest {
     /// Output as JSON instead of Markdown. Default: false.
     #[serde(default)]
     pub output_json: bool,
+    /// Start line of the overload to analyze when the same class declares
+    /// the method more than once (the AMBIGUOUS error lists them).
+    #[serde(default)]
+    pub line: Option<u32>,
 }
 
 // ── produce_claude_md ──────────────────────────────────────────────────────
