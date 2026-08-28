@@ -35,9 +35,30 @@ pub async fn record_search_session(
 // Style analysis (v1 dreaming.py::analyze_file_style)
 // ---------------------------------------------------------------------------
 
+/// What the style guide is based on (row-5 audit A5-A7): an agent must
+/// know whether it is reading history-derived, file-derived, or LLM prose.
+#[derive(Debug, Clone, Default, serde::Serialize)]
+pub struct StyleBasis {
+    pub commits: usize,
+    pub diff_limit: usize,
+    pub file_read: bool,
+    /// The language-specific static analyser ran on the file content.
+    pub static_analyser_ran: bool,
+    /// … and it was the VB analyser (`.vb`).
+    pub vb_analyser_ran: bool,
+    pub static_bullets: usize,
+    pub mimicry_bullets: usize,
+    pub llm_used: bool,
+    /// Provider failures survived (git history, file read, …).
+    pub failures: Vec<String>,
+}
+
 /// Result of a style analysis for a single file.
 #[derive(Debug, Clone)]
 pub struct StyleAnalysisResult {
+    /// The mimicry engine's computed confidence (0..=1), never a constant.
+    pub confidence: f32,
+    pub basis: StyleBasis,
     /// Actionable style guide bullets (None if insufficient data).
     pub style_guide: Option<String>,
     /// Commit hashes that were analyzed.
@@ -69,6 +90,11 @@ pub async fn analyze_file_style(
         Ok(Some(r)) => r,
         _ => {
             return StyleAnalysisResult {
+                confidence: 0.0,
+                basis: StyleBasis {
+                    diff_limit,
+                    ..Default::default()
+                },
                 style_guide: None,
                 analyzed_commits: Vec::new(),
                 file_path: file_path.to_string(),
@@ -80,13 +106,28 @@ pub async fn analyze_file_style(
     let directory = std::path::PathBuf::from(&rec.directory);
     let fp = file_path.to_string();
     let limit = diff_limit;
+    let mut basis = StyleBasis {
+        diff_limit,
+        ..Default::default()
+    };
 
     // CPU-bound git I/O.
     let diffs: Vec<(String, String, String)> =
-        tokio::task::spawn_blocking(move || collect_file_diffs(&directory, &fp, limit))
-            .await
-            .unwrap_or_else(|_| Ok(Vec::new()))
-            .unwrap_or_default();
+        match tokio::task::spawn_blocking(move || collect_file_diffs(&directory, &fp, limit)).await
+        {
+            Ok(Ok(d)) => d,
+            Ok(Err(e)) => {
+                basis
+                    .failures
+                    .push(format!("git history unavailable for {file_path}: {e}"));
+                Vec::new()
+            }
+            Err(e) => {
+                basis.failures.push(format!("git history task failed: {e}"));
+                Vec::new()
+            }
+        };
+    basis.commits = diffs.len();
 
     // Always read the current file content — the mimicry engine's
     // language-specific detectors and the new static fallback both need
@@ -98,17 +139,31 @@ pub async fn analyze_file_style(
     let file_content: Option<String> = {
         let dir = std::path::PathBuf::from(&rec.directory);
         let fp = file_path.to_string();
-        tokio::task::spawn_blocking(move || match engram_core::safe_join(&dir, &fp) {
-            Ok(full) => std::fs::read_to_string(full).ok(),
-            Err(_) => None,
+        match tokio::task::spawn_blocking(move || match engram_core::safe_join(&dir, &fp) {
+            Ok(full) => {
+                std::fs::read_to_string(&full).map_err(|e| format!("{}: {e}", full.display()))
+            }
+            Err(e) => Err(e.to_string()),
         })
         .await
-        .ok()
-        .flatten()
+        {
+            Ok(Ok(c)) => Some(c),
+            Ok(Err(e)) => {
+                basis.failures.push(format!("file unreadable: {e}"));
+                None
+            }
+            Err(e) => {
+                basis.failures.push(format!("file read task failed: {e}"));
+                None
+            }
+        }
     };
+    basis.file_read = file_content.is_some();
 
     if diffs.is_empty() && file_content.is_none() {
         return StyleAnalysisResult {
+            confidence: 0.0,
+            basis,
             style_guide: None,
             analyzed_commits: Vec::new(),
             file_path: file_path.to_string(),
@@ -144,8 +199,10 @@ pub async fn analyze_file_style(
     let diff_snippets: Vec<String> = diffs.iter().map(|(_, _, d)| d.clone()).collect();
     let mimicry_guide = state
         .mimicry
-        .analyze(&diff_snippets, file_content.as_deref())
-        .bullets;
+        .analyze(&diff_snippets, file_content.as_deref());
+    let confidence = mimicry_guide.confidence;
+    basis.mimicry_bullets = mimicry_guide.bullets.len();
+    let mimicry_guide = mimicry_guide.bullets;
 
     // Static fallback: when git history is shallow (< 5 diffs) and we
     // have the file body, run a light language-specific static pass
@@ -153,12 +210,15 @@ pub async fn analyze_file_style(
     // discipline, Is-Nothing guards, etc.). Static bullets are MERGED
     // after git/mimicry bullets — git signals take priority because
     // they represent active choices by the team, static fills the gaps.
-    const SHALLOW_HISTORY_THRESHOLD: usize = 5;
+    // The static analyser reads the FILE; history depth is irrelevant to
+    // it (the old `< 5 commits` gate gave the most-edited files the least
+    // specific guide — row-5 audit D7).
     let mut merged_bullets: Vec<String> = mimicry_guide;
-    if diffs.len() < SHALLOW_HISTORY_THRESHOLD
-        && let Some(ref content) = file_content
-    {
+    if let Some(ref content) = file_content {
         let static_bullets = static_analyze_file_style(content, file_path);
+        basis.static_analyser_ran = true;
+        basis.vb_analyser_ran = file_path.to_ascii_lowercase().ends_with(".vb");
+        basis.static_bullets = static_bullets.len();
         for b in static_bullets {
             // Dedup on exact bullet text — cheap because counts are small.
             if !merged_bullets.iter().any(|existing| existing == &b) {
@@ -171,6 +231,7 @@ pub async fn analyze_file_style(
 
     // Try LLM enhancement with the style-analysis prompt.
     let llm_guide = try_llm_style_analysis(state, file_path, &diffs_text).await;
+    basis.llm_used = llm_guide.is_some();
 
     // Merge policy:
     //
@@ -197,6 +258,8 @@ pub async fn analyze_file_style(
 
     if style_guide.is_none() {
         return StyleAnalysisResult {
+            confidence,
+            basis,
             style_guide: None,
             analyzed_commits,
             file_path: file_path.to_string(),
@@ -205,6 +268,8 @@ pub async fn analyze_file_style(
     }
 
     StyleAnalysisResult {
+        confidence,
+        basis,
         style_guide,
         analyzed_commits,
         file_path: file_path.to_string(),

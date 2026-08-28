@@ -2695,7 +2695,25 @@ impl Engram {
         }
 
         let mut out = format!("Style Guide for {}\n\n", req.file_path);
-        out.push_str("Confidence: 1.00\n\n");
+        // The engine's computed confidence — a constant 1.00 was printed
+        // here before (row-5 audit D6).
+        out.push_str(&format!("Confidence: {:.2}\n", result.confidence));
+        let b = &result.basis;
+        out.push_str(&format!(
+            "Basis: {} commit(s) (limit {}) · file read: {} · {} analyser: {} ({} rule(s)) · mimicry: {} bullet(s) · LLM: {}\n",
+            b.commits,
+            b.diff_limit,
+            if b.file_read { "yes" } else { "NO" },
+            if b.vb_analyser_ran { "VB" } else { "static" },
+            if b.static_analyser_ran { "ran" } else { "skipped" },
+            b.static_bullets,
+            b.mimicry_bullets,
+            if b.llm_used { "yes" } else { "no" }
+        ));
+        for f in &b.failures {
+            out.push_str(&format!("FAILURE: {f}\n"));
+        }
+        out.push('\n');
 
         if let Some(guide) = result.style_guide {
             out.push_str(&guide);
@@ -2709,10 +2727,14 @@ impl Engram {
             result.analyzed_commits.len()
         ));
 
-        let _ = self
+        if let Err(e) = self
             .state
             .registry
-            .set_meta(&req.project_id, &cache_key, &out);
+            .set_meta(&req.project_id, &cache_key, &out)
+        {
+            tracing::warn!(project = %req.project_id, "style guide cache write failed: {e}");
+            out.push_str(&format!("\n(not cached: {e})"));
+        }
 
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
