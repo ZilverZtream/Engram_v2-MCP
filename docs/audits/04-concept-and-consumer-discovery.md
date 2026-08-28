@@ -125,7 +125,7 @@ distinct symbols` — the 50 is the fetch cap (D9).
 | Item | Disposition |
 |---|---|
 | A1 | **partly fixed (slice 1)** — the lexical layer now PAGES the FTS index (`top_k = LEXICAL_PAGE + 1` = 2001, was 50) and reports complete/truncated from the extra hit; still a term search over the index rather than body-level entity matching — the graph match is name-only until A4/A5 |
-| A2 | **fixed (slice 3)** — literal (substring, case-insensitive) pass over the indexed chunk text via `engram_index::grep::grep` (the grep_project backend), `LITERAL_CAP` = 5000 with status from the cap; distinct files merged into "Mentioned only in text" (`footprint_text_only_files`, vendor-filtered, deduplicated); coverage line `- literal: …`; failure is a named line. Tests `footprint_literal_tests` x3 |
+| A2 | **fixed (slice 3)** — literal (substring, case-insensitive) pass over the indexed chunk text via `engram_index::grep::grep` (the grep_project backend), `LITERAL_CAP` = 5000 with status from the cap; distinct files merged into "Mentioned only in text" (`footprint_text_only_files`, vendor-filtered, deduplicated); coverage line `- literal: …`; failure is a named line. Tests `footprint_literal_tests` x3. **Slice 4 (root cause of the 15 residual misses, §7b):** the trigram index is case-preserving, so the term-index tier could only reach one spelling — fixed at query time with a case-variant trigram conjunction (`fts_mode: literal_ci`, `case_variants`) for the term-index and term-narrowed tiers; `grep_case_variants_test.rs` x2 RED→GREEN + 3 units. Affects `grep_project` too |
 | A3 | **fixed (slice 1)** — every matching table/state node is an anchor up to `ANCHOR_CAP` = 50 (reported when hit), consumer expansion fetches `CONSUMER_CAP_PER_ANCHOR + 1` = 201 per anchor so truncation is a fact; the 6-kind consumer whitelist is unchanged and now visible as a cap line |
 | A4 | **open** — alias layer (table ↔ dbml entity ↔ designer member ↔ class ↔ nav-property) |
 | A5 | **fixed (slice 2)** — VB extractor: `rangeVar.<table-shaped member>.column` chains on LINQ query-clause lines become `queries_table` READ edges (`orm=nav`), one per (function, table), skipped when a context access already covers the pair; PascalCase EF nav-properties deliberately not matched (need the DDL table set). Tests `linq_navigation_property_tests` x3 (fixture = the audit's `redovisningsartiklar.vb:51-52` shape). Live effect needs a full OciusX reindex — §7 |
@@ -134,6 +134,7 @@ distinct symbols` — the 50 is the fetch cap (D9).
 | A8 | **open** — `find_symbol_references` cap+1 on the symbol fetch, outgoing truncation flag, label-cap note |
 | A9 | **open** — shared incoming-count function (edit tools 76 vs blast 98 for `Check_pr_id`) |
 | A10 | **partly** — `footprint_coverage_tests` x3 (paging status, anchor cap, coverage block); the fixture-repo golden footprint comes with A4/A5 |
+| A11 | **in flight (slice 5)** — `max_per_group` ceiling 100 → `FOOTPRINT_GROUP_CEILING` 500 so a caller can list a whole "Mentioned only in text" section (the last 14 G1 misses sat behind the ceiling; the cut was reported, the ceiling made it permanent). `tests/footprint_ceiling_tests.rs` x2 on a real 120-file project, RED first |
 | G1 | baseline 60/240 = 25 % → slice 1 84/240 = 35 % → **slices 2+3 (+ full reindex) 225/240 = 94 %** (redovisningskategori 25/25, installationsobjekt 116/130, arbetslag 46/46, personalliggare 37/38, tidrapport 1/1) — §7; the 15 residual misses are one root cause (case-preserving trigram index), slice 4 |
 | G2-G6 | per slice in §7 |
 
@@ -201,3 +202,21 @@ The `max_per_group` ceiling (clamp 1..=100) is reported ("… and 37 more")
 but makes a 137-file text section unreachable by any caller; left as is
 for now — the harness measures what the agent is shown, and the honest
 line is there.
+
+## 7c. Live evidence — slice 4 (2026-08-28, commit 59f2005 deployed 22:56, OciusX gen 828)
+
+`grep_project personalliggare` (case-insensitive, no prefix, cap 5000):
+before 281 matches / 46 files, `api-broker.vb` absent, `complete` →
+**after 290 matches / 49 files, `api-broker.vb` present**; against the
+38-file literal scan: **38/38 found** (was 36/38). Tier stays
+`term_index` (137 ms).
+
+G1 after slice 4: **226/240** — `personalliggare` 38/38 (100 %, was 37),
+`redovisningskategori` 25/25, `arbetslag` 46/46, `tidrapport` 1/1,
+`installationsobjekt` 116/130 (89 %, unchanged). The 14 remaining
+`installationsobjekt` misses (`assetaccessrequest.aspx`, `…aspx.vb`, …)
+sit in the "Mentioned only in text" section beyond position 100: the
+section prints "… and 37 more" and `max_per_group` is clamped to ≤ 100,
+so no caller can see them. That is the reported cap, not a silent one;
+raising the ceiling is a one-line follow-up (A11, not a discovery
+defect).

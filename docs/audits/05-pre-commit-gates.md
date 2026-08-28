@@ -115,14 +115,15 @@ checks zero rules.
 |---|---|
 | A1 | **fixed (slice 1)** — `GateOutcome { name, status: Passed \| Findings(n) \| Failed \| Panicked \| Skipped, elapsed_ms }` for every gate in both buckets (async gates under `catch_unwind`; `skip_gates` recorded as Skipped); `ReviewSummary` gains `gates_failed` / `gates_panicked` / `gates_skipped`; JSON `gate_status[]`; markdown header "(K did not run)" + a "⚠ Gates that did not run — evidence is INCOMPLETE" section |
 | A2 | **fixed (slice 1)** — `Verdict::with_outcomes`: any Failed/Panicked gate keeps a Green diff at Yellow; the clean-bill line prints only when every gate ran, otherwise "No findings from the N gate(s) that ran; K did not run — NOT a clean bill". Applied to ALL gates rather than a required subset (a gate that did not run is missing evidence whatever its tier) |
-| A3 | **open (next slice)** — per-gate provider-failure swallows inside the 17 gates (antipattern regex-only fallback, runtime-missing ⇒ empty, graph errors ⇒ empty, unreadable file ⇒ empty) still render as "clean"; needs `GateRun { findings, degraded }` per gate |
+| A3 | **fixed (slice 2)** — `GateContext.degrade(note)` sink + `read_project_file` (unreadable ⇒ degraded, never "empty"); runner drains notes into `GateStatus::Degraded { findings, notes }`; verdict floors at Yellow, clean bill suppressed, markdown "⚠ Gates that ran DEGRADED — evidence is PARTIAL" + JSON `gates_degraded` / `kind: degraded`. Instrumented: 3 file reads (guard_parity, complexity_budget, added_conventions), blast_radius lookup, temporal + test_coverage neighbours, antipattern corpus-missing fallback + 2 searches, unwired + sync_contract query_nodes x3, product_intent + co_added_family searches. Left: per-hit `get_doc_by_pk` failures (3 sites) need an aggregated counter |
 | A4 | **open** — in-gate caps unreported |
 | A5 | **open** — `unwired` graph-error false positive |
 | A6 | **open** — `pre_push_audit` tally + INACTIVE notice; OciusX rule ingestion |
-| A7 | **partly (slice 1)** — `tests/pre_commit_gate_outcomes_tests.rs` (bail + panic gates ⇒ recorded, not green, both renderers; all-passing stays green); the verdict rule mutation-checked. Per-gate degraded tests come with A3 |
+| A7 | **partly (slices 1+2)** — `tests/pre_commit_gate_outcomes_tests.rs` (bail + panic) and `tests/pre_commit_degraded_tests.rs` (injected provider outage; the REAL complexity_budget gate on a file missing from disk ⇒ "could not read"), both mutation-checked. Still open: A4 cap tests, A5 unwired false positive, A6 pre_push_audit |
 | G1 | **met** — a forced Err/panic can no longer render Green or the clean-bill line (test) |
 | G3 | **met** — JSON carries per-gate status |
-| G2, G4-G6 | with the next slices |
+| G2 | **met by construction** — a degraded provider can no longer render `passed` (test); live proof needs a provider outage, none observed on the healthy daemon |
+| G4-G6 | with the next slices |
 
 ## 7. Live evidence — slice 1 (2026-08-28, commit 777c951, OciusX gen 828)
 

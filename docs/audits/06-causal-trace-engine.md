@@ -114,15 +114,49 @@ Honest and useful; the searched kind set is not stated.
 | G6 | Latency ≤ 2 s per trace at depth 3 on OciusX | today 0.18 s, shallow |
 | G7 | Sweep green; new tests mutation-checked | |
 
-## 6. Disposition table (fill at implementation)
+## 6. Disposition table (slice 1 landed 2026-08-28, b0369f6)
 
 | Item | Disposition |
 |---|---|
-| A1 | |
-| A2 | |
-| A3 | |
-| A4 | |
-| A5 | |
-| A6 | |
-| A7 | |
-| G1-G7 | |
+| A1 | **fixed (slice 1)** — entry node ids resolved by `query_nodes(function, name, file)`; graph steps come from `edges_touching_with_coverage` on THOSE ids only; a step from another method in the file is impossible by construction (regression test with two methods in one file) |
+| A2 | **fixed (slice 1)** — every call expression (dotted, with arguments) is a `MethodCall` step with `resolved: Some(bool)`; keywords excluded; `unresolved_calls` counted on the trace header |
+| A3 | **fixed (slice 2)** — `follow_calls`: from the entry nodes' outgoing `Calls` edges, each callee's own edges are expanded (table/SQL/state = terminal step `↳ depth N: …` with `details.depth`; further `Calls` one level deeper) up to `FOLLOW_DEPTH_CAP` = 3; `FollowCoverage { depth_cap, edge_cap, followed, truncated_nodes, stops }` on the trace + markdown; every stop stated ("A (depth 3) → B: depth cap 3 reached — not followed", "> 500 edges — partial", "no data/state access and no further calls") |
+| A4 | **fixed (slice 1)** — `render_data_flow_markdown` (steps / tables / state / controls / methods / hint); `output_json` serialises the same struct |
+| A5 | **fixed (slice 2)** — per-node edge lookups; the 500-edge cap is reported for the entry node (`truncated_nodes`, stop line) and for every followed node |
+| A6 | **fixed (slices 1+3)** — `trace_ui_event` message uses the sanitized hop count (test); `find_connection_path`'s no-path message states the kind set ("all edge kinds, directed then undirected; synthesized file-membership edges excluded") and the clamp ("max_depth is clamped to 1..=12 (requested 50, searched 12)") — `tests/connection_path_message_tests.rs`, RED first |
+| A7 | **partly (slices 1+2)** — `tests/trace_data_flow_tests.rs` x5 (+ qualified-member resolution, a LIVE finding: App_Code members are indexed as `_rv.x.Method`, slice 1 compared bare names ⇒ 8/10 real calls "unresolved"; `callee_name_matches` + 5 unit cases), `tests/trace_data_flow_follow_tests.rs` x2 (depth-2 table reached with the depth on the step; depth-5 table NOT reached, stop names node + call). Open: `find_connection_path` kind-set statement (A6) |
+| G1 | **met (test + live)** — §7: 0 occurrences of the other method's Session write on the probe |
+| G2 | **met (live)** — 10 of the 8+ real calls are steps (audit: 0); after the resolver fix the helper resolves (test; live after the slice-2 deploy) |
+| G3 | **met (test)** — depth-2 follow reaches `GetAllByCheckingTotalProject`'s table; live after the slice-2 deploy |
+| G4 | **met (test)** |
+| G5 | **met (test)** |
+| G6 | **met (live, slice 1)** — probe trace 0.2 s class; slice-2 depth-3 latency measured after its deploy |
+| G7 | sweep10 green (110 suites, slice 1); slice 2 in sweep12 |
+
+## 7. Live evidence — slice 1 (2026-08-28, commit b0369f6 deployed 22:56, OciusX gen 828)
+
+`trace_data_flow` on `api.ioGetIdsFilteredByMarkerCheckListItemStatus`
+(`Site/App_Code/installationsobjekt/api-json/api-installationsobjektprojekt.vb`):
+
+```
+# Data flow: `ioGetIdsFilteredByMarkerCheckListItemStatus`
+steps 15 · tables 0 · state reads 0 · writes 0 · controls read 0 · written 0 · calls 10 (8 unresolved)
+1-5 [Conditional] … (the same branches as before)
+6  [MethodCall] Call: s.SetError(…) — resolved to an indexed function
+7  [MethodCall] Call: _us.UserAccess.CheckRead(…) — UNRESOLVED (no indexed function named CheckRead)
+8  … GetDictionaryIntegerValue — UNRESOLVED
+12 [MethodCall] Call: _io.installationsobjektprojekt.GetAllByCheckingTotalProject(…) — UNRESOLVED   ← wrong, see below
+13 [MethodCall] Call: markerIds.AddRange(…) — resolved
+… 15 steps; output_json: true → the same structure, `unresolved_calls: 8`
+```
+
+- **G1 (false step)**: `map_iomarker_export_ids` — 0 occurrences (the audit's step 6 is gone).
+- **G2 (calls visible)**: 10 call steps, each with `resolved: bool` (audit: 0).
+- **G5**: `trace_ui_event(rowInsert)` → "No paths found … **within 8 hops**" (was 10).
+- **New defect found by the live run**: `GetAllByCheckingTotalProject` and
+  every other App_Code member reported UNRESOLVED because those nodes are
+  indexed with qualified names (`_io.installationsobjektprojekt.GetAllByCheckingTotalProject`)
+  and slice 1 compared the bare name. Also `s.SetError` / `markerIds.AddRange`
+  "resolved" by bare-name coincidence. Fixed in slice 2
+  (`callee_name_matches`, RED test with a qualified node) — the live
+  re-run of this probe after the slice-2 deploy is the acceptance for G2/G3.

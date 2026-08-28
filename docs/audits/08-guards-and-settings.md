@@ -117,15 +117,20 @@ ingestion; no cap note (none needed).
 | G5 | Latency ≤ 1 s per scope (today 0.18 s with a full-project scan; store-scoped should be faster) | |
 | G6 | Sweep green; new tests mutation-checked | |
 
-## 6. Disposition table (fill at implementation)
+## 6. Disposition table (slice 1 landed 2026-08-28)
 
 | Item | Disposition |
 |---|---|
-| A1 | |
-| A2 | |
-| A3 | |
-| A4 | |
-| A5 | |
-| A6 | |
-| A7 | |
-| G1-G6 | |
+| A1 | **fixed (slice 1)** — `GuardVerdict { verdict: guarded \| unguarded \| unknown, family, level, roles, via, reason }` per in-scope function; UNKNOWN when the symbol carries `extraction_fallback` and no check; `level` is `role` for every family the extractor recognises — object/tenant is A2 and the markdown says it is not detected |
+| A2 | **open (slice 2)** — client-input rule (reads `pr_id` from the request without an object-level guard ⇒ ROLE-ONLY finding) needs the body |
+| A3 | **fixed (slice 1)** — one hop through `Calls`: a directly called helper whose own metadata has checks guards the caller (`via`), inherited family/roles named; mutation-checked |
+| A4 | **fixed (slice 1)** — path scopes queried at the store (`scope_query: store`), name scopes / misses fall back to the substring filter and say so; project-wide scan reports complete/truncated; markdown lists cut at 25 with "… and N more (full list: output_json=true)"; every cap (settings 300/20/10, helper hop 50, house 8, roles 10) a line; `output_json` |
+| A5 | **fixed (slice 1)** — every graph failure is a `coverage.failures[]` / FAILURE line (scan, scoped query, Calls/helper lookups, settings edges, settings tables) |
+| A6 | **open (slice 2)** — `immune_check` include_content / top_k-as-cap / escalation on rule kind / repo-rule failure |
+| A7 | **partly (slice 1)** — `tests/guards_map_tests.rs` x3 (13 unguarded all reachable; helper-wrapped ⇒ guarded via, fallback ⇒ unknown, bare ⇒ unguarded, role level; store scope + coverage); unit x2. The role-only / object-level / conditional cases come with A2 |
+| G1 | **partly (slice 1)** — `ioGetCountByCategory` reachable (lists never cut, full JSON); `ioUpdateBaseTypeInBulk` / `iopDeleteInBulk` credited to `CanUserBulkUpdate` by construction (test); the five `pr_id` readers flagged ROLE-ONLY needs A2 — live truth table in §7 after the deploy |
+| G2 | **met (test)** — 0 silent cuts (25 + "… and N more"), every cap a line, path scope at the store (`coverage.scope_query == "store"`) |
+| G3 | **met (test)** — `unknown` verdicts for `extraction_fallback` symbols, counted in the header; live count in §7 |
+| G4 | open (A6, slice 2) |
+| G5 | measured after the deploy |
+| G6 | sweep13; helper credit mutation-checked |

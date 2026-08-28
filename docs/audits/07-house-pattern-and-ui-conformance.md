@@ -130,13 +130,19 @@ its extractor.
 
 | Item | Disposition |
 |---|---|
-| A1 | |
-| A2 | |
-| A3 | |
-| A4 | |
-| A5 | |
-| A6 | |
-| A7 | |
-| A8 | |
+| A1 | **fixed (slice 1)** — `infer_pattern_kind` (page / class / script / any from the query's words) + `kind_matches` on the path; applied only when ≥ 1 candidate matches, otherwise reported as NOT applied. Still lexical retrieval underneath (the hybrid/vector fusion is not needed for kind correctness; revisit if G1 fails live) |
+| A2 | **fixed (slice 1)** — rank = kind match → structural score (handlers ×3, chains with calls ×2, controls ≤ 10, data ≤ 6) → lexical hits → score; directory diversity kept |
+| A3 | **fixed (slice 1)** — per exemplar: ordered handler chains through `Calls` edges (depth ≤ 3) complemented by bare in-class calls read from the handler body (the VB extractor emits `Calls` for qualified calls only); controls `ID (Type)` from the sibling markup; data/state edges; co-changes. Common shapes = chains shared by ≥ 2 exemplars with class qualifiers dropped |
+| A4 | **fixed (slice 1)** — `PatternCoverage`: lexical hits/cap/status (cap+1, 200), files, kind filter, candidates/cap 15, exemplar/handlers/controls/data/chain caps, `failures[]`; `output_json` |
+| A5 | **fixed (slice 2)** — the handler prints the mimicry engine's computed `confidence` (`StyleAnalysisResult.confidence`) and a `Basis:` line (N commits (limit L) · file read · VB/static analyser ran (K rules) · mimicry M bullets · LLM yes/no) |
+| A6 | **fixed (slice 2)** — the static analyser runs whenever the file is readable (the `< 5 commits` gate is gone); `StyleBasis.vb_analyser_ran` / `static_bullets` say so |
+| A7 | **fixed (slice 2)** — git-history and file-read failures are `basis.failures[]` lines (the guide is still produced from what could be read); a cache-write failure is logged and printed "(not cached: …)" |
+| A8 | **fixed (slices 1+2)** — `tests/implementation_pattern_tests.rs` x3 (real mini WebForms project via index_project) + `tests/coding_style_basis_tests.rs` x3 (real git repo, 6 commits: VB analyser ran + basis; printed confidence = engine's; non-git project reports the git failure and still gets the static guide). Unit x4 |
 | M0 A/B | **blocked on user opt-in (2026-08-28)** — the replay needs either the OciusX `/story` dry-run orchestrator (registered domain agents + two human gates, run from an OciusX session) or the Engram Phase-2 A/B (in-session agents via the Workflow tool, which requires explicit opt-in). Inputs are ready (`eval/data/p2/pr1908.json`, `pr1937.json` + dossiers). Ask: hand-author the icon-label contract, then run both replays twice (with/without) — ~1 h of Sonnet agent time |
-| G1-G7 | |
+| G1 | test: page beats the TS decoy; live 5-query run after the deploy (§7) |
+| G2 | test: `Page_Load → BindGrid`, `btnSave_Click → … Save`; live after the deploy |
+| G3 | **met by construction** (every cap in `PatternCoverage`; failures listed) |
+| G4 | **met (test)** — `Confidence:` is the engine's value; two files with different evidence print different values by construction (live check after the deploy) |
+| G5 | M0 A/B — blocked on user opt-in (see M0 row) |
+| G6 | measured after the deploy |
+| G7 | sweep12 |
