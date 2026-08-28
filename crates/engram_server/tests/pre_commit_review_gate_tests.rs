@@ -182,6 +182,7 @@ fn as_gate_ctx<'a>(c: &'a Ctx) -> GateContext<'a> {
         repo_rules,
         files_by_parent: Arc::new(files_by_parent),
         audit_function,
+        degraded: std::sync::Mutex::new(Vec::new()),
     }
 }
 

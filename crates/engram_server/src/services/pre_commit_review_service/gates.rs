@@ -107,7 +107,7 @@ impl Gate for GuardParityGate {
             // disk. Lossy-decode — a stray non-UTF-8 byte anywhere in a
             // legacy file must not silently blank out `disk` (and thus
             // hide real sibling guards) or, worse, propagate a hard error.
-            let disk_bytes = std::fs::read(ctx.project_dir.join(&df.path)).unwrap_or_default();
+            let disk_bytes = ctx.read_project_file(&df.path);
             let disk = String::from_utf8_lossy(&disk_bytes);
             let sibling_guards = guard_names_in(&disk);
             if sibling_guards.is_empty() {
@@ -395,7 +395,11 @@ impl Gate for BlastRadiusGate {
                 false,
             ) {
                 Ok(r) => r,
-                Err(_) => continue, // File not in graph yet / unknown → skip
+                Err(e) => {
+                    // Not "file unknown": the graph call itself failed.
+                    ctx.degrade(format!("blast radius of {} failed: {e}", df.path));
+                    continue;
+                }
             };
 
             // New files land with empty edge-sets — don't spam INFO findings.
@@ -1011,7 +1015,10 @@ impl Gate for TemporalGate {
             let neighbors = ctx
                 .graph
                 .neighbors(ctx.project_id, EdgeKind::TemporalCoupling, &node_id, 20)
-                .unwrap_or_default();
+                .unwrap_or_else(|e| {
+                    ctx.degrade(format!("co-change neighbours of {} failed: {e}", df.path));
+                    Vec::new()
+                });
             // Multiple historical spellings can resolve to the same
             // current file — emit each partner once per diff file
             // (neighbors are weight-sorted, so the strongest wins).
@@ -1325,7 +1332,12 @@ impl Gate for AntiPatternGate {
         .await
         {
             Ok(p) => p,
-            Err(_) => return Ok(self.destructive_only(ctx)),
+            Err(e) => {
+                ctx.degrade(format!(
+                    "antipattern corpus unavailable ({e}) — regex-only destructive-pattern fallback"
+                ));
+                return Ok(self.destructive_only(ctx));
+            }
         };
 
         let mut findings = self.destructive_only(ctx);
@@ -1396,8 +1408,14 @@ impl Gate for AntiPatternGate {
             let hits_fut = ps.search.search(&ap_query, None, &cancel);
             let supp_fut = ps.search.search(&supp_query, None, &cancel);
             let (hits, supp_hits) = tokio::join!(hits_fut, supp_fut);
-            let hits = hits.unwrap_or_default();
-            let supp_hits = supp_hits.unwrap_or_default();
+            let hits = hits.unwrap_or_else(|e| {
+                ctx.degrade(format!("antipattern search failed for {}: {e}", df.path));
+                Vec::new()
+            });
+            let supp_hits = supp_hits.unwrap_or_else(|e| {
+                ctx.degrade(format!("wontfix search failed for {}: {e}", df.path));
+                Vec::new()
+            });
 
             // Hybrid scores are RRF rank-fusion values (~0.03 at rank 1
             // regardless of match quality) — the old `score > 0.3`
@@ -1816,7 +1834,10 @@ impl Gate for TestCoverageGate {
             let neighbors = ctx
                 .graph
                 .neighbors(ctx.project_id, EdgeKind::TemporalCoupling, &node_id, 30)
-                .unwrap_or_default();
+                .unwrap_or_else(|e| {
+                    ctx.degrade(format!("co-change neighbours of {} failed: {e}", df.path));
+                    Vec::new()
+                });
             let coupled_tests_raw: Vec<(String, u32)> = neighbors
                 .into_iter()
                 .filter(|(id, _)| {
@@ -2312,7 +2333,10 @@ impl Gate for UnwiredGate {
             let nodes = ctx
                 .graph
                 .query_nodes(ctx.project_id, Some("function"), Some(&cand.name), None, 10)
-                .unwrap_or_default();
+                .unwrap_or_else(|e| {
+                    ctx.degrade(format!("graph lookup of {} failed: {e}", cand.name));
+                    Vec::new()
+                });
             // VB/C# member nodes carry QUALIFIED names ("api.StartTransaction")
             // while the diff regex captures the bare member name — match on
             // the last dot-segment or the whole name, else a wired function
@@ -2423,7 +2447,10 @@ impl Gate for SyncContractGate {
         let contracts = ctx
             .graph
             .query_nodes(ctx.project_id, Some("sync_contract"), None, None, 300)
-            .unwrap_or_default();
+            .unwrap_or_else(|e| {
+                ctx.degrade(format!("sync_contract nodes could not be listed: {e}"));
+                Vec::new()
+            });
         for c in contracts {
             let Some(meta) = &c.metadata else { continue };
             let Some(sites_raw) = meta.get("sites").and_then(|v| v.as_str()) else {
@@ -2451,7 +2478,10 @@ impl Gate for SyncContractGate {
                     let nodes = ctx
                         .graph
                         .query_nodes(ctx.project_id, Some("function"), Some(&tail), None, 10)
-                        .unwrap_or_default();
+                        .unwrap_or_else(|e| {
+                            ctx.degrade(format!("graph lookup of {tail} failed: {e}"));
+                            Vec::new()
+                        });
                     let via_graph = nodes
                         .iter()
                         .filter(|n| bare_name_matches(&n.name, &tail))
@@ -2686,7 +2716,10 @@ impl Gate for ProductIntentGate {
             .search
             .search(&hq, None, &cancel)
             .await
-            .unwrap_or_default();
+            .unwrap_or_else(|e| {
+                ctx.degrade(format!("product-intent search failed: {e}"));
+                Vec::new()
+            });
 
         // Hybrid scores are RRF (rank-fusion) values — ~0.03 at rank 1
         // regardless of match quality — so an absolute score threshold
@@ -2896,7 +2929,10 @@ impl Gate for CoAddedFamilyGate {
                 .search
                 .search(&hq, None, &cancel)
                 .await
-                .unwrap_or_default();
+                .unwrap_or_else(|e| {
+                    ctx.degrade(format!("co-added-family search failed: {e}"));
+                    Vec::new()
+                });
 
             // Exemplars: PRs whose shipped-file list includes an ADD
             // under this family dir.
@@ -3236,7 +3272,7 @@ impl Gate for ComplexityGate {
             // B. Complexity of functions this diff touches, measured on the
             // post-change file. New-over-budget = hard warning; touched
             // legacy-over-budget = the clean-as-you-code nudge.
-            let disk_bytes = std::fs::read(ctx.project_dir.join(&df.path)).unwrap_or_default();
+            let disk_bytes = ctx.read_project_file(&df.path);
             if disk_bytes.is_empty() {
                 continue;
             }
@@ -3497,7 +3533,7 @@ impl Gate for AddedConventionsGate {
             if !is_code {
                 continue;
             }
-            let disk_bytes = std::fs::read(ctx.project_dir.join(&df.path)).unwrap_or_default();
+            let disk_bytes = ctx.read_project_file(&df.path);
             let disk = String::from_utf8_lossy(&disk_bytes);
 
             // (a) Undocumented ADDED public members. Evidence basis, either:
