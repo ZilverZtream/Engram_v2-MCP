@@ -2273,6 +2273,48 @@ impl HybridSearchEngine {
     ///
     /// Returns `Vec<(HybridHit, content, start_line)>` so the caller
     /// can feed each hit directly into the per-chunk scanner.
+    /// Conjunction over the pattern's trigrams where each trigram matches
+    /// ANY of its case variants (`per` | `Per` | `pER` | …, ≤ 8 for three
+    /// letters). Falls back to the strict parser for patterns shorter than
+    /// one trigram. Only the candidate set is widened — literal
+    /// verification happens in the grep scanner.
+    fn case_variant_trigram_query(
+        &self,
+        text: &str,
+    ) -> anyhow::Result<Box<dyn tantivy::query::Query>> {
+        let mut analyzer = self
+            .tantivy_index
+            .tokenizer_for_field(self.fields.content)?;
+        let mut stream = analyzer.token_stream(text);
+        let mut trigrams: Vec<String> = Vec::new();
+        while stream.advance() {
+            trigrams.push(stream.token().text.clone());
+        }
+        trigrams.sort();
+        trigrams.dedup();
+        if trigrams.is_empty() {
+            let mut parser = QueryParser::for_index(&self.tantivy_index, vec![self.fields.content]);
+            parser.set_conjunction_by_default();
+            return Ok(parser.parse_query(&escape_tantivy_literal(text))?);
+        }
+        let mut must: Vec<(Occur, Box<dyn tantivy::query::Query>)> =
+            Vec::with_capacity(trigrams.len());
+        for tri in &trigrams {
+            let should: Vec<(Occur, Box<dyn tantivy::query::Query>)> = case_variants(tri)
+                .into_iter()
+                .map(|v| {
+                    let tq: Box<dyn tantivy::query::Query> = Box::new(TermQuery::new(
+                        Term::from_field_text(self.fields.content, &v),
+                        IndexRecordOption::Basic,
+                    ));
+                    (Occur::Should, tq)
+                })
+                .collect();
+            must.push((Occur::Must, Box::new(BooleanQuery::new(should))));
+        }
+        Ok(Box::new(BooleanQuery::new(must)))
+    }
+
     pub fn lexical_search_with_content(
         &self,
         q: &HybridQuery,
@@ -2310,8 +2352,20 @@ impl HybridSearchEngine {
                 parser.set_conjunction_by_default();
                 parser.parse_query(&escape_tantivy_literal(&q.text))?
             }
+            // Case-insensitive literal over the case-PRESERVING trigram
+            // index: the content field is tokenised by
+            // `NgramTokenizer::new(3, 3, false)` with no lowercasing, so a
+            // lower-case pattern's exact trigrams never occur in a chunk
+            // whose only occurrence is `PERSONALLIGGARE` or
+            // `InstallationsObjekt…` (live miss, OciusX 2026-08-28). Every
+            // trigram becomes a Should-set of its case variants, Must
+            // across trigrams; the caller verifies each candidate chunk,
+            // so a superset of candidates is correct and complete.
+            "literal_ci" => self.case_variant_trigram_query(&q.text)?,
             unknown => {
-                anyhow::bail!("unknown fts_mode '{unknown}': must be strict, loose, or regex")
+                anyhow::bail!(
+                    "unknown fts_mode '{unknown}': must be strict, loose, regex, or literal_ci"
+                )
             }
         };
 
@@ -3359,5 +3413,59 @@ mod p0_core_loop_tests {
         let (sn, truncated) = snippet_of(&content, 500);
         assert!(truncated);
         assert_eq!(sn.chars().count(), 500);
+    }
+}
+
+/// All case spellings of a short token (each letter lower/upper), for the
+/// case-insensitive trigram query. Letters without a distinct other case
+/// contribute one spelling; the result is deduplicated and sorted.
+pub(crate) fn case_variants(token: &str) -> Vec<String> {
+    let mut out: Vec<String> = vec![String::new()];
+    for c in token.chars() {
+        let lower: Vec<char> = c.to_lowercase().collect();
+        let upper: Vec<char> = c.to_uppercase().collect();
+        let mut forms: Vec<Vec<char>> = vec![lower.clone()];
+        if upper != lower {
+            forms.push(upper);
+        }
+        let mut next = Vec::with_capacity(out.len() * forms.len());
+        for prefix in &out {
+            for f in &forms {
+                let mut s = prefix.clone();
+                s.extend(f.iter());
+                next.push(s);
+            }
+        }
+        out = next;
+    }
+    out.sort();
+    out.dedup();
+    out
+}
+
+#[cfg(test)]
+mod case_variant_tests {
+    use super::case_variants;
+
+    #[test]
+    fn three_letters_give_eight_spellings() {
+        let v = case_variants("per");
+        assert_eq!(v.len(), 8);
+        assert!(v.contains(&"per".to_string()));
+        assert!(v.contains(&"PER".to_string()));
+        assert!(v.contains(&"pEr".to_string()));
+    }
+
+    #[test]
+    fn caseless_characters_do_not_multiply() {
+        assert_eq!(case_variants("_1."), vec!["_1.".to_string()]);
+        assert_eq!(case_variants("a_1").len(), 2);
+    }
+
+    #[test]
+    fn non_ascii_letters_get_both_cases() {
+        let v = case_variants("åäö");
+        assert_eq!(v.len(), 8);
+        assert!(v.contains(&"ÅÄÖ".to_string()));
     }
 }
