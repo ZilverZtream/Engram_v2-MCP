@@ -1627,138 +1627,256 @@ pub(crate) fn is_history_log_table_name(name: &str) -> bool {
 }
 
 /// Stopword filter for deterministic concept extraction from a user story.
+/// Words that never name a domain concept in a user story.
+const STORY_STOPWORDS: &[&str] = &[
+    "as",
+    "an",
+    "a",
+    "the",
+    "i",
+    "we",
+    "to",
+    "of",
+    "in",
+    "on",
+    "for",
+    "and",
+    "or",
+    "is",
+    "are",
+    "be",
+    "able",
+    "would",
+    "like",
+    "want",
+    "need",
+    "needs",
+    "should",
+    "must",
+    "can",
+    "could",
+    "set",
+    "sets",
+    "add",
+    "adds",
+    "new",
+    "get",
+    // Generic CRUD / UI verbs: almost never the DISTINCTIVE concept (the
+    // domain noun or identifier is). Demoting them stops the narrative
+    // preamble ("update invoice status") from crowding out the high-signal
+    // token the story actually names (e.g. the API resource `roqentries`).
+    // Keep DOMAIN nouns/features (report, export, import, search, filter,
+    // map, invoice, status, …) as real concepts — only pure verbs here.
+    // NOTE: only UNAMBIGUOUS generic verbs. Deliberately NOT stopwording
+    // verbs that double as domain nouns in the pilot corpus — change ("Change Requests"),
+    // view (DB/map views), select (SQL), process (business process), create
+    // (creation flows) — to avoid hurting recall on those concepts.
+    "update",
+    "updates",
+    "modify",
+    "edit",
+    "edits",
+    "include",
+    "includes",
+    "included",
+    "including",
+    "display",
+    "show",
+    "shows",
+    "manage",
+    "enable",
+    "enabled",
+    "disable",
+    "disabled",
+    "toggle",
+    "choose",
+    "save",
+    "remove",
+    "delete",
+    "handle",
+    "avoid",
+    "prevent",
+    // Story-structure / Gherkin labels and HTTP verbs: scaffolding, not
+    // domain concepts (they otherwise steal a top-3 slot from real tokens).
+    "acceptance",
+    "criteria",
+    "scenario",
+    "given",
+    "post",
+    "patch",
+    "call",
+    "calls",
+    "have",
+    "has",
+    "when",
+    "with",
+    "that",
+    "this",
+    "it",
+    "my",
+    "our",
+    "so",
+    "user",
+    "users",
+    "admin",
+    "admins",
+    "administrator",
+    "system",
+    "page",
+    "allow",
+    "allows",
+    "make",
+    "required",
+    "require",
+    "minimum",
+    "maximum",
+    "number",
+    "amount",
+    "count",
+    "via",
+    "from",
+    "into",
+    "their",
+    "them",
+    "they",
+    "if",
+    "then",
+    "also",
+    "story",
+];
+
+/// The acceptable-token filter behind story concept extraction: lowercase,
+/// >= 4 chars, not a stopword, not hash/ID garbage.
+pub(crate) fn story_token(w: &str) -> Option<String> {
+    let lower = w.to_lowercase();
+    if lower.len() < 4 || STORY_STOPWORDS.contains(&lower.as_str()) {
+        return None;
+    }
+    // Reject hash/ID garbage that leaks into PR-derived stories: commit SHAs
+    // ("a778c06a"), usernames/board IDs, ticket numbers. A real
+    // domain concept almost never carries 3+ digits; such tokens otherwise
+    // steal the limited concept slots and tank recall. Generic, no per-repo
+    // names — robustness to noisy story input.
+    if lower.chars().filter(char::is_ascii_digit).count() >= 3 {
+        return None;
+    }
+    Some(lower)
+}
+
+/// Story concept CANDIDATES (row-1 audit A1). The plain document-order
+/// recipe comes first and is never dropped (it is what the eval validated);
+/// then the author's own domain names: parenthesized glosses ("… category
+/// (huvudredovisningskategori)") and adjacent non-stopword pairs/triples
+/// (noun phrases). [`resolve_story_concepts`] decides which of the extras
+/// survive by asking the index.
+pub(crate) fn extract_story_concept_candidates(story: &str) -> Vec<String> {
+    let mut out = extract_story_concepts(story);
+    let mut seen: HashSet<String> = out.iter().cloned().collect();
+
+    // Parenthesized glosses: a story author naming the entity in the
+    // code's own language (or a synonym) is the strongest cue there is.
+    let re_paren = regex::Regex::new(r"\(([^()]{4,60})\)").expect("paren regex");
+    for cap in re_paren.captures_iter(story) {
+        let inner = cap[1].trim().to_lowercase();
+        let plain = inner
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == ' ' || c == '-' || c == '_');
+        let digits = inner.chars().filter(char::is_ascii_digit).count();
+        if plain && digits < 3 && seen.insert(inner.clone()) {
+            out.push(inner);
+        }
+    }
+
+    // Noun phrases: runs of acceptable tokens, longest window first.
+    let toks: Vec<Option<String>> = story
+        .split(|c: char| !c.is_alphanumeric())
+        .map(story_token)
+        .collect();
+    for win in [3usize, 2] {
+        if toks.len() < win {
+            continue;
+        }
+        for i in 0..=toks.len() - win {
+            let slice = &toks[i..i + win];
+            if slice.iter().all(Option::is_some) {
+                let phrase = slice
+                    .iter()
+                    .map(|t| t.clone().unwrap_or_default())
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                if seen.insert(phrase.clone()) {
+                    out.push(phrase);
+                }
+            }
+        }
+    }
+    out.truncate(24);
+    out
+}
+
+/// Keep the first three candidates unconditionally (the recipe), then
+/// append extras the INDEX corroborates, up to `max`:
+/// - a phrase whose compact form (spaces removed) occurs in some indexed
+///   path;
+/// - a single token >= 5 chars that occurs in some indexed path;
+/// - a long single token (>= 10 chars) that does NOT occur as-is but whose
+///   SUFFIX (>= 8 chars) does — a compound split ("huvudredovisningskategori"
+///   -> "redovisningskategori"), which is how the story's language reaches
+///   the code's.
+/// Uncorroborated extras are dropped; with an empty index the result is the
+/// plain recipe.
+pub(crate) fn resolve_story_concepts(
+    cands: &[String],
+    index: &[String],
+    max: usize,
+) -> Vec<String> {
+    let paths: Vec<String> = index
+        .iter()
+        .map(|p| p.replace('\\', "/").to_lowercase())
+        .collect();
+    let occurs = |needle: &str| -> bool { paths.iter().any(|p| p.contains(needle)) };
+    let mut out: Vec<String> = cands.iter().take(3).cloned().collect();
+    let mut seen: HashSet<String> = out.iter().cloned().collect();
+    for c in cands.iter().skip(3) {
+        if out.len() >= max {
+            break;
+        }
+        let c = c.to_lowercase();
+        if seen.contains(&c) {
+            continue;
+        }
+        if c.contains(' ') {
+            let compact: String = c.chars().filter(|ch| !ch.is_whitespace()).collect();
+            if compact.len() >= 6 && occurs(&compact) && seen.insert(c.clone()) {
+                out.push(c);
+            }
+            continue;
+        }
+        if c.len() >= 5 && occurs(&c) {
+            if seen.insert(c.clone()) {
+                out.push(c);
+            }
+            continue;
+        }
+        if c.chars().count() >= 10 {
+            // Compound split: the longest corroborated suffix wins.
+            let chars: Vec<char> = c.chars().collect();
+            for k in 1..=chars.len().saturating_sub(8) {
+                let suffix: String = chars[k..].iter().collect();
+                if occurs(&suffix) {
+                    if seen.insert(suffix.clone()) {
+                        out.push(suffix);
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    out
+}
+
 pub(crate) fn extract_story_concepts(story: &str) -> Vec<String> {
-    const STOPWORDS: &[&str] = &[
-        "as",
-        "an",
-        "a",
-        "the",
-        "i",
-        "we",
-        "to",
-        "of",
-        "in",
-        "on",
-        "for",
-        "and",
-        "or",
-        "is",
-        "are",
-        "be",
-        "able",
-        "would",
-        "like",
-        "want",
-        "need",
-        "needs",
-        "should",
-        "must",
-        "can",
-        "could",
-        "set",
-        "sets",
-        "add",
-        "adds",
-        "new",
-        "get",
-        // Generic CRUD / UI verbs: almost never the DISTINCTIVE concept (the
-        // domain noun or identifier is). Demoting them stops the narrative
-        // preamble ("update invoice status") from crowding out the high-signal
-        // token the story actually names (e.g. the API resource `roqentries`).
-        // Keep DOMAIN nouns/features (report, export, import, search, filter,
-        // map, invoice, status, …) as real concepts — only pure verbs here.
-        // NOTE: only UNAMBIGUOUS generic verbs. Deliberately NOT stopwording
-        // verbs that double as domain nouns in the pilot corpus — change ("Change Requests"),
-        // view (DB/map views), select (SQL), process (business process), create
-        // (creation flows) — to avoid hurting recall on those concepts.
-        "update",
-        "updates",
-        "modify",
-        "edit",
-        "edits",
-        "include",
-        "includes",
-        "included",
-        "including",
-        "display",
-        "show",
-        "shows",
-        "manage",
-        "enable",
-        "enabled",
-        "disable",
-        "disabled",
-        "toggle",
-        "choose",
-        "save",
-        "remove",
-        "delete",
-        "handle",
-        "avoid",
-        "prevent",
-        // Story-structure / Gherkin labels and HTTP verbs: scaffolding, not
-        // domain concepts (they otherwise steal a top-3 slot from real tokens).
-        "acceptance",
-        "criteria",
-        "scenario",
-        "given",
-        "post",
-        "patch",
-        "call",
-        "calls",
-        "have",
-        "has",
-        "when",
-        "with",
-        "that",
-        "this",
-        "it",
-        "my",
-        "our",
-        "so",
-        "user",
-        "users",
-        "admin",
-        "admins",
-        "administrator",
-        "system",
-        "page",
-        "allow",
-        "allows",
-        "make",
-        "required",
-        "require",
-        "minimum",
-        "maximum",
-        "number",
-        "amount",
-        "count",
-        "via",
-        "from",
-        "into",
-        "their",
-        "them",
-        "they",
-        "if",
-        "then",
-        "also",
-        "story",
-    ];
-    let candidate = |w: &str| -> Option<String> {
-        let lower = w.to_lowercase();
-        if lower.len() < 4 || STOPWORDS.contains(&lower.as_str()) {
-            return None;
-        }
-        // Reject hash/ID garbage that leaks into PR-derived stories: commit SHAs
-        // ("a778c06a"), usernames/board IDs, ticket numbers. A real
-        // domain concept almost never carries 3+ digits; such tokens otherwise
-        // steal the limited concept slots and tank recall. Generic, no per-repo
-        // names — robustness to noisy story input.
-        if lower.chars().filter(char::is_ascii_digit).count() >= 3 {
-            return None;
-        }
-        Some(lower)
-    };
+    let candidate = story_token;
     let mut seen = HashSet::new();
     let mut out: Vec<String> = Vec::new();
 
@@ -3001,14 +3119,19 @@ fn find_analog_cohort(
 /// Co-change-first tier for ranking: history/co-change (the most predictive
 /// signal) ranks above multi-arm, above concept-only, above graph-only.
 fn change_set_tier(sigs: &BTreeSet<&'static str>) -> u8 {
+    // Evidence DIRECTNESS, not signal count (row-1 audit A2): golden
+    // (co-change/history) first; then an entity match corroborated by an
+    // associative signal; then the entity match alone; two associative
+    // signals (vector/graph) never outrank a precise concept hit.
     let golden = sigs.contains("cochange") || sigs.contains("history");
+    let concept = sigs.contains("concept");
     if golden && sigs.len() >= 2 {
         0
     } else if golden {
         1
-    } else if sigs.len() >= 2 {
+    } else if concept && sigs.len() >= 2 {
         2
-    } else if sigs.contains("concept") {
+    } else if concept {
         3
     } else {
         4
@@ -3933,9 +4056,24 @@ impl Engram {
                 req.story = format!("{}\n\n## Work item (full text)\n{}", req.story.trim(), wi);
             }
         }
+        // Indexed file paths, loaded ONCE for this call: concept resolution
+        // here; canonical paths and family expansion further down.
+        let index_paths: Vec<String> = self
+            .state
+            .graph
+            .list_file_node_metadata(&req.project_id)
+            .map(|m| {
+                m.iter()
+                    .map(|(rp, _)| rp.as_str().replace('\\', "/"))
+                    .collect()
+            })
+            .unwrap_or_default();
         let mut concepts: Vec<String> = match &req.concepts {
             Some(c) if !c.is_empty() => c.iter().take(3).cloned().collect(),
-            _ => extract_story_concepts(&story_for_concepts(&req.story)),
+            _ => {
+                let cands = extract_story_concept_candidates(&story_for_concepts(&req.story));
+                resolve_story_concepts(&cands, &index_paths, 6)
+            }
         };
 
         // Row-1 audit: every candidate carries WHY it is here and every arm
@@ -4042,7 +4180,7 @@ impl Engram {
             .unwrap_or_default();
             let mut added = 0usize;
             for t in picked {
-                if concepts.len() < 5 {
+                if concepts.len() < 8 {
                     concepts.push(t);
                     added += 1;
                 }
@@ -7490,5 +7628,113 @@ mod change_set_rows_tests {
             rows.iter()
                 .any(|r| r.path.ends_with(".resx") && !r.signals.contains(&"family"))
         );
+    }
+}
+
+#[cfg(test)]
+mod story_concept_resolution_tests {
+    //! Row-1 slice 4 / A1: concepts are ENTITIES resolved against the index,
+    //! not the first three acceptable words. Additive: the three document-
+    //! order words are kept (the eval-validated recipe), the new ones are
+    //! appended when the index corroborates them.
+    use super::*;
+
+    const STORY: &str = "As an admin I want to set a main reporting category (huvudredovisningskategori) \
+                         on a production code list category so that time reports roll up to it";
+
+    #[test]
+    fn candidates_include_parenthesized_domain_terms_and_noun_phrases() {
+        let c = extract_story_concept_candidates(STORY);
+        assert!(
+            c.iter().any(|x| x == "huvudredovisningskategori"),
+            "a parenthesized gloss is the author naming the domain entity: {c:?}"
+        );
+        assert!(
+            c.iter().any(|x| x == "reporting category"),
+            "adjacent non-stopword pairs are noun-phrase candidates: {c:?}"
+        );
+        assert!(
+            c.iter()
+                .any(|x| x == "code list category" || x == "list category"),
+            "{c:?}"
+        );
+        // The document-order words are still there, first.
+        assert_eq!(&c[..3], &["main", "reporting", "category"]);
+    }
+
+    #[test]
+    fn resolution_keeps_only_index_corroborated_candidates_and_splits_compounds() {
+        let index = vec![
+            "Site/App_Code/redovisning/code/redovisningskategorier.vb".to_string(),
+            "Site/modules/dashboard/pages/admin/production/productioncodelistcategory.aspx.vb"
+                .to_string(),
+            "db-ociusx.sql/dbo/Tables/rk_redovisningskategorier.sql".to_string(),
+        ];
+        let cands = vec![
+            "main".to_string(),
+            "reporting".to_string(),
+            "category".to_string(),
+            "huvudredovisningskategori".to_string(),
+            "reporting category".to_string(),
+            "code list category".to_string(),
+            "unicorn".to_string(),
+        ];
+        let resolved = resolve_story_concepts(&cands, &index, 6);
+        // The first three are never dropped (no regression on the recipe).
+        assert_eq!(&resolved[..3], &["main", "reporting", "category"]);
+        assert!(
+            resolved.iter().any(|x| x == "redovisningskategori"),
+            "the Swedish compound must resolve to the indexed stem (suffix split): {resolved:?}"
+        );
+        assert!(
+            resolved
+                .iter()
+                .any(|x| x == "codelistcategory" || x == "code list category"),
+            "a noun phrase whose compact form names a file is corroborated: {resolved:?}"
+        );
+        assert!(!resolved.iter().any(|x| x == "unicorn"), "{resolved:?}");
+        assert!(resolved.len() <= 6);
+    }
+
+    #[test]
+    fn resolution_without_index_evidence_is_the_plain_recipe() {
+        let cands = vec![
+            "main".into(),
+            "reporting".into(),
+            "category".into(),
+            "zzz qqq".into(),
+        ];
+        let resolved = resolve_story_concepts(&cands, &[], 6);
+        assert_eq!(resolved, vec!["main", "reporting", "category"]);
+    }
+}
+
+#[cfg(test)]
+mod change_set_tier_tests {
+    //! Row-1 audit A2: rank by evidence DIRECTNESS, not signal count. A precise
+    //! concept (entity) match outranks two weak associative signals.
+    use super::*;
+
+    fn t(sigs: &[&'static str]) -> u8 {
+        change_set_tier(&sigs.iter().copied().collect::<BTreeSet<&'static str>>())
+    }
+
+    #[test]
+    fn golden_signals_stay_on_top() {
+        assert_eq!(t(&["cochange", "concept"]), 0);
+        assert_eq!(t(&["history"]), 1);
+        assert!(t(&["history"]) < t(&["concept", "vector"]));
+    }
+
+    #[test]
+    fn concept_plus_weak_beats_concept_alone_which_beats_weak_pairs() {
+        assert!(t(&["concept", "vector"]) < t(&["concept"]));
+        assert!(
+            t(&["concept"]) < t(&["vector", "graph"]),
+            "two associative signals must not outrank an entity match: concept={} vector+graph={}",
+            t(&["concept"]),
+            t(&["vector", "graph"])
+        );
+        assert!(t(&["vector", "graph"]) <= t(&["vector"]));
     }
 }
