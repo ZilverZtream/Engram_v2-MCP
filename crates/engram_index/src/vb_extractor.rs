@@ -108,6 +108,40 @@ static RE_VB_CTX_WRITE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)\b(\w+)\.(\w+)\.(?:InsertOnSubmit|InsertAllOnSubmit|DeleteOnSubmit|DeleteAllOnSubmit|Add|AddRange|Remove|RemoveRange)\s*\(")
         .expect("valid ctx write regex")
 });
+/// LINQ navigation chain `rangeVar.NavProp.Column` — the middle member is
+/// a related TABLE reached through a foreign key (LINQ-to-SQL / EF
+/// association property), read by the query even though no context
+/// variable names it. Only considered on query-clause lines (see
+/// `is_linq_query_clause`) and only for table-shaped members.
+static RE_VB_NAV_CHAIN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\b([A-Za-z_]\w*)\.([A-Za-z_]\w*)\.([A-Za-z_]\w*)\b")
+        .expect("valid VB nav chain regex")
+});
+
+/// A LINQ query-expression clause line: `From x In …`, `Where …`,
+/// `Order By …`, `Select …`, `Group By …`, `Join … On …`.
+fn is_linq_query_clause(lower: &str) -> bool {
+    lower.starts_with("where ")
+        || lower.starts_with("order by ")
+        || lower.starts_with("select ")
+        || lower.starts_with("group by ")
+        || lower.starts_with("join ")
+        || (lower.contains(" from ") && lower.contains(" in "))
+        || lower.starts_with("from ")
+}
+
+/// Table-shaped identifier for an ORM association: a schema-style
+/// `prefix_name` (underscore, no uppercase) — the naming LINQ-to-SQL keeps
+/// from the DDL. PascalCase EF navigation properties are not matched (they
+/// need the DDL table set to disambiguate from ordinary members).
+fn looks_like_table_member(member: &str) -> bool {
+    member.contains('_')
+        && member.len() >= 4
+        && !member.chars().any(|c| c.is_ascii_uppercase())
+        && !member.starts_with('_')
+        && !member.ends_with('_')
+}
+
 /// Context members that are ORM machinery, not tables.
 const CTX_NON_TABLE_MEMBERS: [&str; 12] = [
     "connection",
@@ -827,6 +861,10 @@ fn enrich_vb_source(source: &str, symbols: &mut [ExtractedSymbol], edges: &mut V
         std::collections::HashSet::new();
     let mut table_access_lines: std::collections::HashMap<(String, String), u32> =
         std::collections::HashMap::new();
+    let mut nav_accesses: std::collections::HashSet<(String, String)> =
+        std::collections::HashSet::new();
+    let mut nav_access_lines: std::collections::HashMap<(String, String), u32> =
+        std::collections::HashMap::new();
 
     for (idx, raw_line) in source.lines().enumerate() {
         let line_no = idx as u32 + 1;
@@ -904,6 +942,30 @@ fn enrich_vb_source(source: &str, symbols: &mut [ExtractedSymbol], edges: &mut V
                     .entry((func.clone(), table_l.clone()))
                     .or_insert(line_no);
                 table_accesses.insert((func, table_l, "read"));
+            }
+        }
+
+        // Navigation-property reads inside query clauses (row-4 audit A5).
+        if is_linq_query_clause(&lower) {
+            for cap in RE_VB_NAV_CHAIN.captures_iter(line) {
+                let (Some(var), Some(member)) = (cap.get(1), cap.get(2)) else {
+                    continue;
+                };
+                if ctx_vars.contains(&var.as_str().to_lowercase()) {
+                    continue; // `db.Table.Column` is the ctx path above
+                }
+                if !looks_like_table_member(member.as_str()) {
+                    continue;
+                }
+                let table_l = member.as_str().to_lowercase();
+                if CTX_NON_TABLE_MEMBERS.contains(&table_l.as_str()) {
+                    continue;
+                }
+                let func = enclosing(&fn_ranges, line_no).unwrap_or_else(|| "file".to_string());
+                nav_access_lines
+                    .entry((func.clone(), table_l.clone()))
+                    .or_insert(line_no);
+                nav_accesses.insert((func, table_l));
             }
         }
 
@@ -1058,6 +1120,38 @@ fn enrich_vb_source(source: &str, symbols: &mut [ExtractedSymbol], edges: &mut V
         });
     }
 
+    // Navigation-property reads (row-4 audit A5): one READ edge per
+    // (function, table) not already covered by a context access.
+    let covered: std::collections::HashSet<(String, String)> = edges
+        .iter()
+        .filter(|e| e.kind == "queries_table")
+        .map(|e| (e.source_name.clone(), e.target_name.to_lowercase()))
+        .collect();
+    let mut nav_sorted: Vec<(String, String)> = nav_accesses.into_iter().collect();
+    nav_sorted.sort();
+    for (func, table) in nav_sorted {
+        if covered.contains(&(func.clone(), table.clone())) {
+            continue;
+        }
+        let line = nav_access_lines
+            .get(&(func.clone(), table.clone()))
+            .copied()
+            .unwrap_or(0);
+        let mut meta = HashMap::new();
+        meta.insert("orm".to_string(), "nav".to_string());
+        meta.insert("access".to_string(), "read".to_string());
+        edges.push(ExtractedEdge {
+            source_name: func,
+            source_kind: "function".to_string(),
+            source_start_line: line,
+            source_language: "vb".to_string(),
+            target_name: table,
+            target_kind: Some("db_table".to_string()),
+            target_start_line: None,
+            kind: "queries_table".to_string(),
+            metadata: Some(meta),
+        });
+    }
     // Range-based guard annotation (shared with the C# extractor).
     crate::cs_extractor::annotate_guards(symbols, &guard_hits, &role_hits);
 }
@@ -1867,5 +1961,84 @@ End Class";
         let (symbols, edges) = extract_vb(Path::new("App_Code/SharedFunc.vb"), code);
         assert!(!symbols.is_empty(), "expected sidecar/fallback symbols");
         assert!(edges.iter().any(|e| e.kind == "contains"));
+    }
+}
+
+#[cfg(test)]
+mod linq_navigation_property_tests {
+    //! Row-4 audit A5 (ingestion gap D8): a LINQ range-variable navigation
+    //! chain `ra.rk_redovisningskategorier.pr_id` inside a query clause is a
+    //! read of that table — the extractor only saw `<ctx>.<Table>` members of
+    //! a declared DataContext variable.
+    use super::*;
+
+    const SRC: &str = "Public Class redovisningsartiklar\n\
+    Public Shared Function GetAll(projectId As Integer) As List(Of ra_redovisningsartiklar)\n\
+        Using db As New iFaltDataContext()\n\
+            Dim q = From ra In db.ra_redovisningsartiklars\n\
+                    Where ra.rk_redovisningskategorier.pr_id = projectId\n\
+                    Order By ra.rk_redovisningskategorier.rk_ordning, ra.ra_ordning\n\
+                    Select ra\n\
+            Return q.ToList()\n\
+        End Using\n\
+    End Function\n\
+End Class\n";
+
+    fn queries_table_edges(src: &str) -> Vec<ExtractedEdge> {
+        let (_symbols, edges) = extract_vb_fallback_for_eval(
+            Path::new("Site/App_Code/redovisning/code/redovisningsartiklar.vb"),
+            src,
+        );
+        edges
+            .into_iter()
+            .filter(|e| e.kind == "queries_table")
+            .collect()
+    }
+
+    fn targets(src: &str) -> Vec<String> {
+        let mut t: Vec<String> = queries_table_edges(src)
+            .iter()
+            .map(|e| e.target_name.to_lowercase())
+            .collect();
+        t.sort();
+        t.dedup();
+        t
+    }
+
+    #[test]
+    fn navigation_property_reads_become_queries_table_edges() {
+        let t = targets(SRC);
+        assert!(
+            t.iter().any(|x| x == "ra_redovisningsartiklars"),
+            "the FROM table (ctx member) must still be an edge: {t:?}"
+        );
+        assert!(
+            t.iter().any(|x| x == "rk_redovisningskategorier"),
+            "the navigation-property table must be an edge too: {t:?}"
+        );
+    }
+
+    #[test]
+    fn navigation_edges_carry_the_nav_marker_and_a_read_access() {
+        let edges = queries_table_edges(SRC);
+        let nav = edges
+            .iter()
+            .find(|e| {
+                e.target_name
+                    .eq_ignore_ascii_case("rk_redovisningskategorier")
+            })
+            .expect("nav edge");
+        let meta = nav.metadata.as_ref().expect("metadata");
+        assert_eq!(meta.get("orm").map(String::as_str), Some("nav"));
+        assert_eq!(meta.get("access").map(String::as_str), Some("read"));
+        assert!(nav.source_name.ends_with("GetAll"), "{}", nav.source_name);
+    }
+
+    #[test]
+    fn ordinary_member_access_is_not_a_table() {
+        // `item.statusId`, `s.SetOK(qry.params)` — no table-shaped member in
+        // a query clause.
+        let src = "Public Class api\n    Public Function f() As String\n        Dim v = item.statusId\n        s.SetOK(qry.params)\n        Return v\n    End Function\nEnd Class\n";
+        assert!(targets(src).is_empty(), "{:?}", targets(src));
     }
 }
