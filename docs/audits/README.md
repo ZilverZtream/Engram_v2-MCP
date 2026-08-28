@@ -33,7 +33,7 @@ starts and is the auditor's checklist afterwards.
 |---|---|---|---|---|
 | 0 | Integration P0 block | generate_agent_integration, produce_claude_md, tool surface | (this file, below) | **DONE + deployed + live-verified 2026-08-28** (fef66ca) — see disposition |
 | 1 | Story-to-change scope | get_change_set (+ detect_incomplete_changes, find_similar_changes) | [`03-story-to-change-scope.md`](03-story-to-change-scope.md) | **doc written** (3rd to implement) |
-| 2 | Follow the code before editing | get_method_edit_context, check_edit_safety, get_page_context | [`02-edit-context-and-edit-safety.md`](02-edit-context-and-edit-safety.md) | **doc written** — implementation next |
+| 2 | Follow the code before editing | get_method_edit_context, check_edit_safety, get_page_context | [`02-edit-context-and-edit-safety.md`](02-edit-context-and-edit-safety.md) | **IMPLEMENTED + deployed + live-verified 2026-08-28** (604f488; §6 disposition, §7 live gates 20/20) |
 | 3 | Pre-commit defect prevention | pre_commit_review, pre_push_audit | [`05-pre-commit-gates.md`](05-pre-commit-gates.md) | **doc written** (5th to implement) |
 | 4 | Exact entity/consumer discovery | get_concept_footprint, find_symbol_references | [`04-concept-and-consumer-discovery.md`](04-concept-and-consumer-discovery.md) | **doc written** (4th to implement) |
 | 5 | House pattern + UI conformance | find_implementation_pattern, analyze_file_coding_style, get_ui_conformance (M0 A/B) | [`07-house-pattern-and-ui-conformance.md`](07-house-pattern-and-ui-conformance.md) | **doc written** (7th; M0 A/B first) |
@@ -43,7 +43,7 @@ starts and is the auditor's checklist afterwards.
 | 9 | "You forgot the other side" | edit sessions, detect_incomplete_changes, find_similar_changes | folded into row 1 doc | queued |
 | 10 | Change exposure / edit risk | impact_analysis, compute_blast_radius, check_edit_safety | `docs/AUDIT_R5.md` + ImpactEngine one-hop slice | round 5 accepted 2026-08-24; orientation tool, not authority |
 
-Implementation order (auditor's, adopted): 0 → 2 → 1 → 4 → 3 → 7 → 5 → 10/dream.
+Implementation order (auditor's, adopted): 0 → 2 → 1 → 4 → 3 → 7 → 5 → 10/dream. Row 0b (index GC) was inserted when found live.
 
 ## Row 0b — Index layer: hourly GC deleted every incrementally indexed file (found live 2026-08-28)
 

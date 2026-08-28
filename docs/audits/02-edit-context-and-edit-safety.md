@@ -154,3 +154,75 @@ no way to tell "the page has none" from "the scan never reached them".
 | G7 | **met** — full `--tests --lib` sweep green (see commit) |
 | Deferred | Blast "edge-kind boundary" seam candidates fire for nearly every LEAF method (incoming kind set ≠ outgoing kind set) and `has_triggers` turns that into YELLOW — a migration heuristic used as an edit trigger. Live: the 1-caller API method in §3 is yellow for that reason alone. Row 10 (ImpactEngine slice: score-dimension separation), not changed here |
 | Deferred | Cross-tool caller-count agreement (78 / 98 / 50 for `Check_pr_id`) — row 4 A9 (shared count layer); this row makes the edit tools' own count exact and labelled |
+
+## 7. Live evidence after deploy (2026-08-28, binary 18:11, OciusX gen 826 → healed)
+
+Caveat first: the first live run after deploy hit an unrelated index-layer
+P0 (hourly GC deleting incrementally indexed nodes — see README row 0b);
+the numbers below are from the healed graph (2,274 files / 18,144
+functions, the morning's counts).
+
+`get_method_edit_context` on `_us.accessctrl.Check_pr_id` (§3 method):
+
+```
+# Edit Context: `_us.accessctrl.Check_pr_id`  🔴 RED
+## Callers (3 shown of 76)
+- **Blast radius**: 40 (Medium)
+- 76 callers — high blast radius
+## Coverage
+- callers: 50 shown of 76 (display cap 50)
+- complexity: complete
+```
+
+The bare "50 callers" is gone; the edit tools' own kind set counts 76
+exact (blast's causal set counts 98 — the cross-tool kind-set difference
+is row 4 A9, now labelled rather than hidden).
+
+`check_edit_safety` on `api.ioGetIdsFilteredByMarkerCheckListItemStatus`:
+verdict yellow 0.7, complexity status `complete` (15, measured from the
+body — was structurally 0), callers `complete`, blast `complete`.
+
+`get_page_context` on `Site/kmlquery.aspx`: 13 methods, coverage line
+`code-behind complete · methods complete · controls complete · runtime
+complete · wiring complete · data edges complete · master page complete ·
+ajax complete`.
+
+`eval/edit_context_parity.py` — 20 OciusX methods (10 hot helpers, 10
+endpoints/page methods), each through both tools:
+
+| method | verdict | parity | callers listed / total | complexity | wall s |
+|---|---|---|---|---|---|
+| Check_pr_id | red | yes | 50 / 76 (truncated) | 3 | 0.15 |
+| CheckRead | red | yes | 50 / 56 (truncated) | 1 | 0.16 |
+| CheckWrite | red | yes | 50 / 66 (truncated) | 1 | 0.14 |
+| SafeRedirect | red | yes | 19 (complete) | 1 | 0.14 |
+| LogError | red | yes | 0 (complete) | 3 | 0.14 |
+| GetDictionaryIntegerValue | red | yes | 50 / 63 (truncated) | 5 | 0.15 |
+| GetDictionaryStringValue | red | yes | 27 (complete) | 5 | 0.15 |
+| CheckIfAdminOrArbetsledare | red | yes | 50 / 84 (truncated) | 7 | 0.14 |
+| GetAllByCheckingTotalProject | red | yes | 0 (complete) | 3 | 0.13 |
+| GetByID | yellow | yes | 1 (complete) | 1 | 0.14 |
+| ioGetIdsFilteredByMarkerCheckListItemStatus | yellow | yes | 1 (complete) | 15 | 0.15 |
+| ioGetCountByCategory | yellow | yes | 1 (complete) | 4 | 0.15 |
+| ioUpdateBaseTypeInBulk | yellow | yes | 1 (complete) | 17 | 0.16 |
+| iopDeleteInBulk | yellow | yes | 1 (complete) | 10 | 0.16 |
+| iomsBulkUpdate | **red** | yes | 1 (complete) | **46** | 0.15 |
+| iomsBulkPreCheck | yellow | yes | 1 (complete) | 11 | 0.15 |
+| kmlquery_Load | yellow | yes | 0 (complete), 1 dangling | 7 | 0.14 |
+| GetMimeType | yellow | yes | 2 (complete) | 6 | 0.14 |
+| BuildAttachmentContentDisposition | yellow | yes | 2 (complete) | 1 | 0.14 |
+| GetGisFile | yellow | yes | 1 (complete) | 5 | 0.14 |
+
+| Gate | Result |
+|---|---|
+| G2 verdict parity | **20/20** identical `edit_safety` JSON |
+| G3 caller honesty | **20/20** exact or labelled `truncated` with the known total; 0 bare caps |
+| G4 complexity honesty | **20/20** measured by both tools (`iomsBulkUpdate` = 46 ⇒ RED, invisible before) |
+| G6 latency | max 0.16 s per call incl. client spawn (was ~0.15 s; A5 removed four project-wide scans) |
+
+Observations worth carrying forward: `LogError` and
+`GetAllByCheckingTotalProject` report 0 callers `complete` although they
+are called project-wide — their call sites are not `Calls` edges in the
+graph (VB extractor / sidecar coverage), a row-4/ingestion item, now
+visible instead of hidden; `kmlquery_Load` has 1 dangling caller edge
+(source symbol not indexed), reported rather than dropped.
