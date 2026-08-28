@@ -1164,7 +1164,7 @@ impl Engram {
                  - if the control lives on a MasterPage/UserControl, trace from THAT \
                  file's handler instead\n\
                  - grep_project(\"<control id>\") to see every literal wiring site",
-                req.max_hops
+                req.sanitized_max_hops()
             ))]));
         }
 
