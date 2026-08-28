@@ -139,10 +139,34 @@ its extractor.
 | A7 | **fixed (slice 2)** — git-history and file-read failures are `basis.failures[]` lines (the guide is still produced from what could be read); a cache-write failure is logged and printed "(not cached: …)" |
 | A8 | **fixed (slices 1+2)** — `tests/implementation_pattern_tests.rs` x3 (real mini WebForms project via index_project) + `tests/coding_style_basis_tests.rs` x3 (real git repo, 6 commits: VB analyser ran + basis; printed confidence = engine's; non-git project reports the git failure and still gets the static guide). Unit x4 |
 | M0 A/B | **blocked on user opt-in (2026-08-28)** — the replay needs either the OciusX `/story` dry-run orchestrator (registered domain agents + two human gates, run from an OciusX session) or the Engram Phase-2 A/B (in-session agents via the Workflow tool, which requires explicit opt-in). Inputs are ready (`eval/data/p2/pr1908.json`, `pr1937.json` + dossiers). Ask: hand-author the icon-label contract, then run both replays twice (with/without) — ~1 h of Sonnet agent time |
-| G1 | test: page beats the TS decoy; live 5-query run after the deploy (§7) |
-| G2 | test: `Page_Load → BindGrid`, `btnSave_Click → … Save`; live after the deploy |
+| G1 | **4/5 live** (§7) — the miss ("user control with a dropdown …" ⇒ `any`) is fixed in slice 3 (control-side page words) |
+| G2 | **met (live)** — ordered chains with resolved DAL calls on the real pages (`btnSave_Click → … _cf.Form.Create | _cf.Form.Update`, `btnCopy_Click → _pp.mal.CopyForecastQtyByPrID | _rv.malredovisningsartiklar.…`) |
 | G3 | **met by construction** (every cap in `PatternCoverage`; failures listed) |
-| G4 | **met (test)** — `Confidence:` is the engine's value; two files with different evidence print different values by construction (live check after the deploy) |
+| G4 | **met (test); live served the OLD cache** — the deployed handler returned the previous binary's cached "Confidence: 1.00" (key = file + HEAD oid). Slice 3 versions the cache key (`style_guide:v2:…`, test RED first); live check after its deploy |
 | G5 | M0 A/B — blocked on user opt-in (see M0 row) |
-| G6 | measured after the deploy |
-| G7 | sweep12 |
+| G6 | **met** — 0.85–1.06 s per query incl. the JSON-RPC round trip (target ≤ 2 s) |
+| G7 | sweep13 (116 suites) |
+
+## 7. Live evidence — slices 1+2 (2026-08-29 00:17 deploy, commits 95ac7d8 + 451d5d0, OciusX gen 828)
+
+`find_implementation_pattern`, five queries with a known exemplar kind, `output_json`:
+
+| query (kind) | inferred | filter | exemplar #1 | chains | lexical | ms |
+|---|---|---|---|---|---|---|
+| admin page … GridView … save button (page) | page | applied | `…/admin/system/customform/form_edit.aspx.vb` | 31 | truncated 200/200 | 998 |
+| helper class … installationsobjekt … data context (class) | class | applied | `App_Code/installationsobjekt/api-json/api-installationsobjektprojekt.vb` | 0 | truncated | 983 |
+| typescript module … quantities … marker dialog (script) | script | applied | `Site/ts/qty/qtyManager.ts` | 0 | truncated | 847 |
+| user control with a dropdown … search button (page) | **any** | not applied | `…/projectplanner/planner.aspx` (markup) | 31 | truncated | 1060 |
+| api endpoint that validates pr_id … json (class) | class | applied | `App_Code/redovisning/api-json/api-redovisning.vb` | 0 | truncated | 895 |
+
+4/5 kind-correct, 0 wrong-language exemplars, every lexical page reported
+`truncated 200/200` (the cap fills on every query — honest), 0 provider
+failures. Chains are real house shapes:
+`btnBack_Click → sharedfunc.SafeRedirect → .CompleteRequest | …Response.Redirect`,
+`btnSave_Click → GetAccessLevel | Integer.TryParse | ShowHideCustomExports | … | _cf.Form.Create | _cf.Form.Update`.
+`common_shapes` was empty for every query — three different pages rarely
+share an exact chain; the key normalisation helps only within a family.
+
+`analyze_file_coding_style` on `productioncodelistcategory.aspx.vb`:
+returned `Confidence: 1.00 / Analysed 1 commits.` — the previous binary's
+cached text (cache key = file + HEAD oid). Slice 3 versions the key.

@@ -122,15 +122,36 @@ ingestion; no cap note (none needed).
 | Item | Disposition |
 |---|---|
 | A1 | **fixed (slice 1)** — `GuardVerdict { verdict: guarded \| unguarded \| unknown, family, level, roles, via, reason }` per in-scope function; UNKNOWN when the symbol carries `extraction_fallback` and no check; `level` is `role` for every family the extractor recognises — object/tenant is A2 and the markdown says it is not detected |
-| A2 | **open (slice 2)** — client-input rule (reads `pr_id` from the request without an object-level guard ⇒ ROLE-ONLY finding) needs the body |
 | A3 | **fixed (slice 1)** — one hop through `Calls`: a directly called helper whose own metadata has checks guards the caller (`via`), inherited family/roles named; mutation-checked |
 | A4 | **fixed (slice 1)** — path scopes queried at the store (`scope_query: store`), name scopes / misses fall back to the substring filter and say so; project-wide scan reports complete/truncated; markdown lists cut at 25 with "… and N more (full list: output_json=true)"; every cap (settings 300/20/10, helper hop 50, house 8, roles 10) a line; `output_json` |
 | A5 | **fixed (slice 1)** — every graph failure is a `coverage.failures[]` / FAILURE line (scan, scoped query, Calls/helper lookups, settings edges, settings tables) |
-| A6 | **open (slice 2)** — `immune_check` include_content / top_k-as-cap / escalation on rule kind / repo-rule failure |
+| A6 | **fixed (slice 2)** — `immune_check`: each hit prints the anti-pattern METADATA header always and the reverted CODE only with `include_content` (the field was never read; sweep14 caught a first cut that hid the header too — the e2e immune test asserts it); "Matches Found: N shown (cap top_k=K — the cap was filled; raise top_k)"; repo-rule lookup failure is a FAILURE line. Escalation stays keyed on the `immune_` id prefix — that IS the revert-derived rule kind (`render_immune_rule_text`); OciusX simply has none yet |
+| A2 | **fixed (slice 2)** — bodies read from the working tree; `client_scope_reads` (qry.params / Request / GetDictionary…Value keys) + `has_object_level_guard` (`check_pr_id(…)`, `CheckAccess…(…)`) ⇒ `level: object`; guarded + client scope key + no object guard ⇒ `role_only` with a ROLE-ONLY section and parity counts. `tests/guards_client_input_tests.rs`, RED first |
 | A7 | **partly (slice 1)** — `tests/guards_map_tests.rs` x3 (13 unguarded all reachable; helper-wrapped ⇒ guarded via, fallback ⇒ unknown, bare ⇒ unguarded, role level; store scope + coverage); unit x2. The role-only / object-level / conditional cases come with A2 |
-| G1 | **partly (slice 1)** — `ioGetCountByCategory` reachable (lists never cut, full JSON); `ioUpdateBaseTypeInBulk` / `iopDeleteInBulk` credited to `CanUserBulkUpdate` by construction (test); the five `pr_id` readers flagged ROLE-ONLY needs A2 — live truth table in §7 after the deploy |
+| G1 | **partly (live, §7)** — `ioGetCountByCategory` printed as UNGUARDED ✓; `ioUpdateBaseTypeInBulk` / `iopDeleteInBulk` credited `checkwrite` from their own metadata (the helper credit applies only when a function has no check of its own; the audit's point — the body's `CheckWrite` is conditional — needs condition analysis, open); the five `pr_id` readers ⇒ ROLE-ONLY lands with slice 2 (sweep14) |
 | G2 | **met (test)** — 0 silent cuts (25 + "… and N more"), every cap a line, path scope at the store (`coverage.scope_query == "store"`) |
-| G3 | **met (test)** — `unknown` verdicts for `extraction_fallback` symbols, counted in the header; live count in §7 |
-| G4 | open (A6, slice 2) |
-| G5 | measured after the deploy |
-| G6 | sweep13; helper credit mutation-checked |
+| G3 | **met (test)** — live: 0 unknown in the probe file (no fallback symbols there) |
+| G4 | **met (test)** — `include_content` gates the reverted code (metadata header always shown); "Matches Found: N shown (cap top_k=K …)" |
+| G5 | **met** — 0.38 s incl. the JSON-RPC round trip with a store-scoped query (target ≤ 1 s) |
+| G6 | sweep13 (116 suites, slice 1); slice 2 in sweep15 — sweep14 caught the header regression; helper credit mutation-checked |
+
+## 7. Live evidence — slice 1 (2026-08-29 00:17 deploy, commit 95ac7d8, OciusX gen 828)
+
+`map_guards_and_settings {scope: ".../api-installationsobjektprojekt.vb", output_json: true}` — 0.38 s:
+
+```
+in scope: 50 | guarded 32 unguarded 18 unknown 0
+coverage: node_scan complete (49,471 nodes) · scope_query store · in_scope_functions 50 · failures []
+ioGetIdsFilteredByMarkerCheckListItemStatus  guarded   checkread   role
+ioGetCountByCategory                         UNGUARDED               ← printed (was cut by take(10))
+ioUpdateBaseTypeInBulk                       guarded   checkwrite  role
+iopDeleteInBulk                              guarded   checkwrite  role   ← own (conditional) CheckWrite credited, not the helper
+iomsBulkUpdate / iomsBulkPreCheck            guarded   checkwrite  role
+CanUserBulkUpdate                            guarded   checkwrite  role
+```
+
+Markdown: 18 unguarded listed in full, guarded cut at 25 with "… and 7
+more (full list: output_json=true)", house patterns "… and 22 more",
+`## Coverage` with every cap. What slice 1 does NOT do: say that the
+five `pr_id` readers are ROLE-ONLY (slice 2, `role_only` + a ROLE-ONLY
+section — RED→GREEN, in sweep14) and see through a conditional check.
