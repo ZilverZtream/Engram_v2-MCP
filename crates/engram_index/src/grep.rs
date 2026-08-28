@@ -526,7 +526,13 @@ fn execute_term_index(
         generation: q.generation,
         text: q.pattern.clone(),
         top_k: oversample,
-        fts_mode: "strict".into(),
+        // The trigram index preserves case; a case-insensitive literal
+        // must reach every spelling (row-4 slice 4, live miss).
+        fts_mode: if case_sensitive {
+            "strict".into()
+        } else {
+            "literal_ci".into()
+        },
         include_path_prefixes: q.path_prefix.as_ref().map(|p| vec![p.clone()]),
         exclude_path_prefixes: None,
         language_filters: q.language.as_ref().map(|l| vec![l.clone()]),
@@ -608,7 +614,12 @@ fn execute_term_narrowed(
         generation: q.generation,
         text: anchor,
         top_k: oversample,
-        fts_mode: "strict".into(),
+        // Same case rule as the term-index tier: the anchor is a literal.
+        fts_mode: if case_sensitive {
+            "strict".into()
+        } else {
+            "literal_ci".into()
+        },
         include_path_prefixes: q.path_prefix.as_ref().map(|p| vec![p.clone()]),
         exclude_path_prefixes: None,
         language_filters: q.language.as_ref().map(|l| vec![l.clone()]),
