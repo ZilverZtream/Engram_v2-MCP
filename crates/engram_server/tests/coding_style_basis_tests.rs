@@ -190,3 +190,50 @@ async fn a_missing_git_history_is_a_reported_failure_not_silence() {
     );
     assert!(r.basis.vb_analyser_ran, "{:?}", r.basis);
 }
+
+/// Live finding (OciusX, 2026-08-29): the style-guide cache is keyed by
+/// file + HEAD oid only, so a binary with a NEW output format kept serving
+/// the previous binary's cached text ("Confidence: 1.00") as current. The
+/// key must carry the output-format version.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn an_old_format_cache_entry_is_never_served_by_a_new_format() {
+    let (_tmp, state, engram, pid) = build_with_history().await;
+    // Plant what the previous binary would have cached under the OLD key.
+    let head = {
+        let repo =
+            git2::Repository::open(state.registry.get_project(&pid).unwrap().unwrap().directory)
+                .unwrap();
+        repo.head()
+            .unwrap()
+            .peel_to_commit()
+            .unwrap()
+            .id()
+            .to_string()
+    };
+    let old_key = format!("style_guide:{FILE}:{head}");
+    state
+        .registry
+        .set_meta(
+            &pid,
+            &old_key,
+            "Style Guide (OLD FORMAT)\n\nConfidence: 1.00\n",
+        )
+        .unwrap();
+    let req: AnalyzeFileCodingStyleRequest =
+        serde_json::from_value(json!({"project_id": pid, "file_path": FILE, "diff_limit": 10}))
+            .unwrap();
+    let out = engram
+        .handle_analyze_file_coding_style(req)
+        .await
+        .unwrap()
+        .content[0]
+        .as_text()
+        .unwrap()
+        .text
+        .clone();
+    assert!(
+        !out.contains("OLD FORMAT"),
+        "an old-format cache entry was served as current:\n{out}"
+    );
+    assert!(out.contains("Basis:"), "{out}");
+}

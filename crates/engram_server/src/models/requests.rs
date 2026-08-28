@@ -458,7 +458,8 @@ pub struct GetConceptFootprintRequest {
     pub project_id: String,
     /// Domain term to map, e.g. "photo", "code category", "OrderStatus".
     pub concept: String,
-    /// Cap per output group. Default 8.
+    /// Cap per output group. Default 8, ceiling 500; a cut is always
+    /// reported as "… and N more" — raise this to see a whole section.
     #[serde(default = "default_footprint_group_cap")]
     pub max_per_group: usize,
 }

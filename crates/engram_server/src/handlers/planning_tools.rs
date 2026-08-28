@@ -62,6 +62,10 @@ pub(crate) struct FootprintCoverage {
 
 /// Matches requested = cap; a full page means more may exist.
 pub(crate) const LITERAL_CAP: usize = 5000;
+/// Ceiling for `max_per_group`: a discovery tool must let a caller list a
+/// whole section (live: 137 text-only files were unreachable behind a
+/// ceiling of 100 — row-4 A11). A cut is always printed as "… and N more".
+pub(crate) const FOOTPRINT_GROUP_CEILING: usize = 500;
 
 pub(crate) fn footprint_literal_status(matches: usize, cap: usize) -> &'static str {
     if matches >= cap {
@@ -486,7 +490,7 @@ impl Engram {
         }
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
-        let cap = req.max_per_group.clamp(1, 100);
+        let cap = req.max_per_group.clamp(1, FOOTPRINT_GROUP_CEILING);
         let stems = concept_stems(&req.concept);
 
         // One graph scan + bounded consumer expansion, all in one blocking hop.
@@ -1429,6 +1433,16 @@ pub(crate) fn infer_pattern_kind(query: &str) -> PatternKind {
         "listview",
         "repeater",
         "dropdownlist",
+        // live G1 miss 2026-08-29: control-side words without "page"
+        "control",
+        "controls",
+        "dropdown",
+        "textbox",
+        "checkbox",
+        "listbox",
+        "datagrid",
+        "updatepanel",
+        "master",
     ]) {
         PatternKind::Page
     } else if has(&[
@@ -1973,6 +1987,14 @@ mod implementation_pattern_unit_tests {
             infer_pattern_kind("admin page with a GridView and a save button"),
             PatternKind::Page
         );
+        // Live miss (OciusX G1, 2026-08-29): "user control" / "dropdown" are
+        // page-side words too.
+        assert_eq!(
+            infer_pattern_kind(
+                "user control with a dropdown bound to a lookup table and a search button"
+            ),
+            PatternKind::Page
+        );
         assert_eq!(
             infer_pattern_kind("helper class that validates input"),
             PatternKind::Class
@@ -2508,6 +2530,12 @@ pub(crate) struct GuardVerdict {
     /// The helper the guard was inherited from (one hop through Calls).
     pub via: Option<String>,
     pub reason: String,
+    /// Scope keys read from CLIENT input in the body (`qry.params("pr_id")`,
+    /// `Request("pr_id")`, `GetDictionary…Value(qry.params, "pr_id")`).
+    pub scope_reads: Vec<String>,
+    /// Reads a client scope key and no object-level guard covers it —
+    /// the role check alone does not scope the data (row-8 A2).
+    pub role_only: bool,
 }
 
 #[derive(Debug, Clone, Default, serde::Serialize)]
@@ -2532,6 +2560,9 @@ pub(crate) struct GuardsReport {
     pub guarded: Vec<String>,
     pub unguarded: Vec<String>,
     pub unknown: Vec<String>,
+    /// Guarded functions whose role check does not cover the client
+    /// scope key they read (A2).
+    pub role_only: Vec<String>,
     pub house_patterns: Vec<(String, usize)>,
     pub roles_seen: Vec<(String, usize)>,
     pub settings_read: Vec<(String, Vec<String>)>,
@@ -2559,10 +2590,47 @@ fn guard_level_for(checks: &str) -> Option<String> {
     }
 }
 
+/// Client-supplied scope keys read in a function body.
+pub(crate) fn client_scope_reads(body: &str) -> Vec<String> {
+    static RE_READS: std::sync::LazyLock<Vec<regex::Regex>> = std::sync::LazyLock::new(|| {
+        [
+            r#"(?i)qry\.params\s*\(\s*"(\w+)"\s*\)"#,
+            r#"(?i)GetDictionary\w*Value\s*\(\s*qry\.params\s*,\s*"(\w+)"\s*\)"#,
+            r#"(?i)\bRequest(?:\.QueryString|\.Form|\.Params)?\s*\(\s*"(\w+)"\s*\)"#,
+        ]
+        .iter()
+        .map(|p| regex::Regex::new(p).expect("RE_READS"))
+        .collect()
+    });
+    let mut keys: Vec<String> = Vec::new();
+    for re in RE_READS.iter() {
+        for cap in re.captures_iter(body) {
+            let k = cap[1].to_string();
+            if !keys.contains(&k) {
+                keys.push(k);
+            }
+        }
+    }
+    keys
+}
+
+/// An OBJECT-level guard in the body: the check takes the scope value
+/// (`check_pr_id(pr_id)`, `CheckAccessToProject(pr_id)`, …).
+pub(crate) fn has_object_level_guard(body: &str) -> bool {
+    static RE_OBJ: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(
+            r"(?i)\b(?:check_pr_id|check_\w+_id|CheckAccess\w*|CheckProjectAccess|HasAccessTo\w*|IsOwnerOf\w*|CanAccess\w*)\s*\(",
+        )
+        .expect("RE_OBJ")
+    });
+    RE_OBJ.is_match(body)
+}
+
 pub(crate) fn build_guards_report(
     graph: &std::sync::Arc<engram_graph::GraphStore>,
     pid: &str,
     scope: Option<&str>,
+    root: &std::path::Path,
 ) -> GuardsReport {
     let mut cov = GuardsCoverage {
         node_scan: "complete".into(),
@@ -2684,23 +2752,50 @@ pub(crate) fn build_guards_report(
     rs.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
     report.roles_seen = rs;
 
-    // Verdict per scoped function (A1 + A3).
+    // Verdict per scoped function (A1 + A3), client-input rule (A2).
+    let mut file_lines: HashMap<String, Option<Vec<String>>> = HashMap::new();
     for n in &scoped {
         let checks = node_meta_str(n, "permission_checks").to_string();
         let roles = node_meta_str(n, "guard_roles").to_string();
         let fallback = node_meta_str(n, "extraction_fallback") == "true";
         let bare = n.name.rsplit('.').next().unwrap_or(&n.name).to_string();
         let file = n.file_path.as_str().replace('\\', "/");
+        let body: Option<String> = {
+            let lines = file_lines.entry(file.clone()).or_insert_with(|| {
+                match std::fs::read_to_string(root.join(&file)) {
+                    Ok(t) => Some(t.lines().map(|l| l.to_string()).collect::<Vec<_>>()),
+                    Err(e) => {
+                        cov.failures.push(format!(
+                            "{file}: unreadable — client-input reads not analysed: {e}"
+                        ));
+                        None
+                    }
+                }
+            });
+            lines.as_ref().and_then(|ls| {
+                let start = (n.start_line.max(1) - 1) as usize;
+                let end = (n.end_line as usize).min(ls.len());
+                (start < end).then(|| ls[start..end].join("\n"))
+            })
+        };
+        let scope_reads = body.as_deref().map(client_scope_reads).unwrap_or_default();
+        let object_level = body.as_deref().is_some_and(has_object_level_guard);
         let mut v = GuardVerdict {
             name: bare.clone(),
             file: file.clone(),
             line: n.start_line,
             verdict: String::new(),
             family: checks.clone(),
-            level: guard_level_for(&checks),
+            level: if object_level {
+                Some("object".into())
+            } else {
+                guard_level_for(&checks)
+            },
             roles: roles.clone(),
             via: None,
             reason: String::new(),
+            scope_reads,
+            role_only: false,
         };
         if !checks.is_empty() {
             v.verdict = "guarded".into();
@@ -2747,6 +2842,18 @@ pub(crate) fn build_guards_report(
                 v.reason =
                     "no permission check in the body and none in any directly called helper".into();
             }
+        }
+        if v.verdict == "guarded"
+            && !v.scope_reads.is_empty()
+            && v.level.as_deref() != Some("object")
+        {
+            v.role_only = true;
+            v.reason = format!(
+                "{} — reads client {} but no object-level guard covers it (ROLE-ONLY)",
+                v.reason,
+                v.scope_reads.join(", ")
+            );
+            report.role_only.push(bare.clone());
         }
         match v.verdict.as_str() {
             "guarded" => report.guarded.push(bare.clone()),
@@ -2866,10 +2973,35 @@ pub(crate) fn render_guards_markdown(r: &GuardsReport) -> String {
         r.unknown.len(),
         total
     ));
-    out.push_str(
-        "Level: every credited check is ROLE-level; object/tenant scoping (does the check cover the \
-         client-supplied pr_id?) is not detected by this slice — verify by reading the body.\n",
-    );
+    out.push_str(&format!(
+        "Level: {} object-level, {} ROLE-ONLY (a role check that does not cover the client scope key the \
+         function reads), {} role-level without client scope reads.\n",
+        r.functions.iter().filter(|f| f.level.as_deref() == Some("object")).count(),
+        r.role_only.len(),
+        r.functions
+            .iter()
+            .filter(|f| f.verdict == "guarded" && !f.role_only && f.level.as_deref() != Some("object"))
+            .count()
+    ));
+    if !r.role_only.is_empty() {
+        out.push_str("\n## ROLE-ONLY — client scope keys read without an object-level guard\n");
+        let items: Vec<String> = r
+            .functions
+            .iter()
+            .filter(|f| f.role_only)
+            .map(|f| {
+                format!(
+                    "- ROLE-ONLY: {} ({}:{}) reads client {} — guard: {}\n",
+                    f.name,
+                    f.file,
+                    f.line,
+                    f.scope_reads.join(", "),
+                    f.family
+                )
+            })
+            .collect();
+        push_list(&mut out, &items, |s| s.clone());
+    }
     if !r.unguarded.is_empty() {
         out.push_str("\n## Unguarded functions in scope (verify each is intentionally public)\n");
         let items: Vec<String> = r
@@ -3002,6 +3134,25 @@ mod guards_unit_tests {
         assert!(out.contains("- f24\n"));
         assert!(!out.contains("- f25\n"));
         assert!(out.contains("… and 5 more"));
+    }
+
+    #[test]
+    fn client_scope_reads_and_object_guards() {
+        let body = "Dim pr_id = GetDictionaryIntegerValue(qry.params, \"pr_id\")\nDim x = Request(\"id\")\n";
+        assert_eq!(
+            client_scope_reads(body),
+            vec!["pr_id".to_string(), "id".to_string()]
+        );
+        assert!(!has_object_level_guard(body));
+        assert!(has_object_level_guard(
+            "If Not _us.accessctrl.check_pr_id(pr_id) Then Return"
+        ));
+        assert!(has_object_level_guard(
+            "If Not CheckAccessToProject(prId) Then"
+        ));
+        assert!(!has_object_level_guard(
+            "If Not _us.UserAccess.CheckRead(x) Then"
+        ));
     }
 
     #[test]
@@ -3383,8 +3534,17 @@ impl Engram {
         let graph = self.state.graph.clone();
         let pid = req.project_id.clone();
         let scope_b = scope_raw.clone();
+        let project_dir = self
+            .state
+            .registry
+            .get_project(&req.project_id)
+            .ok()
+            .flatten()
+            .map(|r| r.directory)
+            .unwrap_or_default();
         let report = tokio::task::spawn_blocking(move || {
-            build_guards_report(&graph, &pid, scope_b.as_deref())
+            let root = std::path::PathBuf::from(project_dir);
+            build_guards_report(&graph, &pid, scope_b.as_deref(), &root)
         })
         .await
         .map_err(|e| McpError::internal_error(format!("guards scan panicked: {e}"), None))?;
