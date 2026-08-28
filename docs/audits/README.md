@@ -31,15 +31,15 @@ starts and is the auditor's checklist afterwards.
 
 | # | Capability | Main tools | Doc | Status |
 |---|---|---|---|---|
-| 0 | Integration P0 block | generate_agent_integration, produce_claude_md, tool surface | (this file, below) | **DONE 2026-08-28** — see disposition |
-| 1 | Story-to-change scope | get_change_set (+ detect_incomplete_changes, find_similar_changes) | `03-story-to-change-scope.md` | queued (3rd) |
+| 0 | Integration P0 block | generate_agent_integration, produce_claude_md, tool surface | (this file, below) | **DONE + deployed + live-verified 2026-08-28** (fef66ca) — see disposition |
+| 1 | Story-to-change scope | get_change_set (+ detect_incomplete_changes, find_similar_changes) | [`03-story-to-change-scope.md`](03-story-to-change-scope.md) | **doc written** (3rd to implement) |
 | 2 | Follow the code before editing | get_method_edit_context, check_edit_safety, get_page_context | [`02-edit-context-and-edit-safety.md`](02-edit-context-and-edit-safety.md) | **doc written** — implementation next |
-| 3 | Pre-commit defect prevention | pre_commit_review, pre_push_audit | `05-pre-commit-gates.md` | queued (5th) |
-| 4 | Exact entity/consumer discovery | get_concept_footprint, find_symbol_references | `04-concept-and-consumer-discovery.md` | queued (4th) |
-| 5 | House pattern + UI conformance | find_implementation_pattern, analyze_file_coding_style, get_ui_conformance (M0 A/B) | `07-ui-conformance.md` | queued (7th) |
+| 3 | Pre-commit defect prevention | pre_commit_review, pre_push_audit | [`05-pre-commit-gates.md`](05-pre-commit-gates.md) | **doc written** (5th to implement) |
+| 4 | Exact entity/consumer discovery | get_concept_footprint, find_symbol_references | [`04-concept-and-consumer-discovery.md`](04-concept-and-consumer-discovery.md) | **doc written** (4th to implement) |
+| 5 | House pattern + UI conformance | find_implementation_pattern, analyze_file_coding_style, get_ui_conformance (M0 A/B) | [`07-house-pattern-and-ui-conformance.md`](07-house-pattern-and-ui-conformance.md) | **doc written** (7th; M0 A/B first) |
 | 6 | NL project understanding | ask_codebase | — | healthy (M1 shipped 2026-08-21); larger golden suite later |
-| 7 | Causal UI/data tracing | trace_ui_event, trace_data_flow, find_connection_path | `06-causal-trace-engine.md` | queued (6th) |
-| 8 | Security / settings / durable laws | map_guards_and_settings, repo rules, immune_check | `08-guards-and-settings.md` | queued |
+| 7 | Causal UI/data tracing | trace_ui_event, trace_data_flow, find_connection_path | [`06-causal-trace-engine.md`](06-causal-trace-engine.md) | **doc written** (6th to implement) |
+| 8 | Security / settings / durable laws | map_guards_and_settings, repo rules, immune_check | [`08-guards-and-settings.md`](08-guards-and-settings.md) | **doc written** (after 5) |
 | 9 | "You forgot the other side" | edit sessions, detect_incomplete_changes, find_similar_changes | folded into row 1 doc | queued |
 | 10 | Change exposure / edit risk | impact_analysis, compute_blast_radius, check_edit_safety | `docs/AUDIT_R5.md` + ImpactEngine one-hop slice | round 5 accepted 2026-08-24; orientation tool, not authority |
 
@@ -48,6 +48,12 @@ Implementation order (auditor's, adopted): 0 → 2 → 1 → 4 → 3 → 7 → 5
 ## Row 0 — Integration P0 block (disposition)
 
 All six audit claims re-verified before fixing (grep evidence in the commit).
+Live verification after deploy (2026-08-28, OciusX): `generate_agent_integration`
+wrote the rules file (live id + directory + recovery path) and `AGENTS.md`, skipped the
+existing `settings.json` with a hooks block that now says `diff=staged`, emitted the
+`.mcp.json` entry; `produce_claude_md` (splice) collapsed the two engram blocks to one
+(backup `CLAUDE.md.<ts>.bak`); `pre_commit_review` header reads `Gates run: 17/17`.
+New customer-repo artifacts (`AGENTS.md`, `CLAUDE.md.*.bak`) added to `.git/info/exclude`.
 
 | Item | Disposition |
 |---|---|
