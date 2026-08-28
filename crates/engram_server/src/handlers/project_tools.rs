@@ -2710,7 +2710,23 @@ impl Engram {
         let pid = req.project_id;
         let ps = self.ensure_project_runtime(&pid).await?;
         let active_gen = self.get_active_generation(&pid).await?;
+        // Graph baseline: the LAST FULL INDEX generation. Incremental updates
+        // bump active_generation while unchanged files keep older nodes, so
+        // purging the graph against the incremental counter deletes them.
+        let full_gen: Option<u64> = {
+            let reg = self.state.registry.clone();
+            let pid_meta = pid.clone();
+            tokio::task::spawn_blocking(move || {
+                reg.get_meta(&pid_meta, "last_full_index_generation")
+                    .ok()
+                    .flatten()
+                    .and_then(|v| v.parse::<u64>().ok())
+            })
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        };
         let target_gen = req.target_generation.unwrap_or(active_gen);
+        let graph_baseline = req.target_generation.or(full_gen);
 
         // Fix 3: Acquire the per-project serialisation lock before mutating
         // graph and search stores. Without this, GC can delete generations out
@@ -2725,16 +2741,27 @@ impl Engram {
         let pre_tantivy = ps.search.count_docs(&pid).unwrap_or(0);
         let pre_vectors = ps.search.count_vectors(&pid).await.unwrap_or(0);
 
-        let graph = self.state.graph.clone();
-        let pid_gc = pid.clone();
-        tokio::task::spawn_blocking(move || graph.purge_old_generations(&pid_gc, target_gen))
-            .await
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        steps.push(format!(
-            "Purged graph generations older than {}.",
-            target_gen
-        ));
+        match graph_baseline {
+            Some(baseline) => {
+                let graph = self.state.graph.clone();
+                let pid_gc = pid.clone();
+                let (nodes, edges) = tokio::task::spawn_blocking(move || {
+                    graph.purge_generations_below(&pid_gc, baseline)
+                })
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                steps.push(format!(
+                    "Purged graph entries below generation {baseline} (last full index; \
+                     {nodes} nodes, {edges} edges removed)."
+                ));
+            }
+            None => steps.push(
+                "Skipped the graph purge: no last_full_index_generation baseline \
+                 (incremental generations must not purge the graph)."
+                    .into(),
+            ),
+        }
 
         ps.search
             .purge_old_generations(&pid, target_gen)

@@ -112,7 +112,21 @@ pub async fn purge_project_old_gens(state: &AppState, project_id: &str) -> anyho
     // per-file scoped purge in update_project_impl documents the same
     // invariant: "a GLOBAL purge is unsafe after incremental updates".
     match full_gen_opt {
-        Some(full_gen) => state.graph.purge_old_generations(project_id, full_gen)?,
+        Some(full_gen) => {
+            // "Stale" = OLDER than the last full index. Incremental updates
+            // write ABOVE it; `purge_old_generations` (`!= baseline`) would
+            // delete them and the watcher would re-add them every hour.
+            let (nodes, edges) = state.graph.purge_generations_below(project_id, full_gen)?;
+            if nodes > 0 || edges > 0 {
+                tracing::info!(
+                    project_id = project_id,
+                    baseline = full_gen,
+                    nodes,
+                    edges,
+                    "GC: purged graph entries below the last full-index generation"
+                );
+            }
+        }
         None => tracing::info!(
             project_id = project_id,
             "GC: skipping GRAPH purge — no last_full_index_generation baseline \

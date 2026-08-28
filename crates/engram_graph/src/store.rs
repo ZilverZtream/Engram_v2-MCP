@@ -2041,11 +2041,68 @@ impl GraphStore {
 
     // ── Purge (composite-key point deletes — no list manipulation) ───────────
 
+    /// Global purge with the namespace retention policy read as "anything
+    /// not at `active_generation` is stale" (KeepLatestOnly). Correct ONLY
+    /// when every file was just re-indexed at `active_generation` (a full
+    /// index). After INCREMENTAL updates use [`Self::purge_generations_below`].
     pub fn purge_old_generations(
         &self,
         project_id: &str,
         active_generation: u64,
     ) -> anyhow::Result<()> {
+        self.purge_where(project_id, &|namespace: &str, generation: u64| {
+            match engram_core::get_policy(namespace) {
+                Ok(policy) => match policy.retention {
+                    engram_core::NamespaceRetention::KeepLatestOnly => {
+                        generation != active_generation
+                    }
+                    engram_core::NamespaceRetention::KeepLastGenerations(n_keep) => {
+                        let min_keep = active_generation.saturating_sub(n_keep as u64 - 1);
+                        generation < min_keep
+                    }
+                    engram_core::NamespaceRetention::KeepForever => false,
+                },
+                Err(_) => false,
+            }
+        })
+        .map(|_| ())
+    }
+
+    /// Global purge baselined on the LAST FULL INDEX generation: only nodes
+    /// and edges OLDER than `baseline` are stale. Incremental updates write
+    /// at generations ABOVE the last full index (the graph has no
+    /// copy-forward), so a `!= baseline` reading — what
+    /// [`Self::purge_old_generations`] does — deleted every incrementally
+    /// re-indexed file's nodes at each GC tick. Returns (nodes, edges)
+    /// removed.
+    pub fn purge_generations_below(
+        &self,
+        project_id: &str,
+        baseline: u64,
+    ) -> anyhow::Result<(usize, usize)> {
+        self.purge_where(project_id, &|namespace: &str, generation: u64| {
+            match engram_core::get_policy(namespace) {
+                Ok(policy) => match policy.retention {
+                    engram_core::NamespaceRetention::KeepLatestOnly => generation < baseline,
+                    engram_core::NamespaceRetention::KeepLastGenerations(n_keep) => {
+                        let min_keep = baseline.saturating_sub(n_keep as u64 - 1);
+                        generation < min_keep
+                    }
+                    engram_core::NamespaceRetention::KeepForever => false,
+                },
+                Err(_) => false,
+            }
+        })
+    }
+
+    /// Shared purge core: remove every node and edge of `project_id` for
+    /// which `is_stale(namespace, generation)` holds, in batches, keeping
+    /// the adjacency tables consistent. Returns (nodes, edges) removed.
+    fn purge_where(
+        &self,
+        project_id: &str,
+        is_stale: &dyn Fn(&str, u64) -> bool,
+    ) -> anyhow::Result<(usize, usize)> {
         let prefix = format!("{project_id}\0");
         const BATCH_SIZE: usize = 1000;
 
@@ -2060,20 +2117,8 @@ impl GraphStore {
                     break;
                 }
                 let n: Node = bincode::deserialize(v.value())?;
-                if let Ok(policy) = engram_core::get_policy(&n.namespace) {
-                    let stale = match policy.retention {
-                        engram_core::NamespaceRetention::KeepLatestOnly => {
-                            n.generation != active_generation
-                        }
-                        engram_core::NamespaceRetention::KeepLastGenerations(n_keep) => {
-                            let min_keep = active_generation.saturating_sub(n_keep as u64 - 1);
-                            n.generation < min_keep
-                        }
-                        engram_core::NamespaceRetention::KeepForever => false,
-                    };
-                    if stale {
-                        keys.push(k.value().to_string());
-                    }
+                if is_stale(&n.namespace, n.generation) {
+                    keys.push(k.value().to_string());
                 }
             }
             keys
@@ -2101,20 +2146,8 @@ impl GraphStore {
                     break;
                 }
                 let e: Edge = bincode::deserialize(v.value())?;
-                if let Ok(policy) = engram_core::get_policy(&e.namespace) {
-                    let stale = match policy.retention {
-                        engram_core::NamespaceRetention::KeepLatestOnly => {
-                            e.generation != active_generation
-                        }
-                        engram_core::NamespaceRetention::KeepLastGenerations(n_keep) => {
-                            let min_keep = active_generation.saturating_sub(n_keep as u64 - 1);
-                            e.generation < min_keep
-                        }
-                        engram_core::NamespaceRetention::KeepForever => false,
-                    };
-                    if stale {
-                        keys.push(k.value().to_string());
-                    }
+                if is_stale(&e.namespace, e.generation) {
+                    keys.push(k.value().to_string());
                 }
             }
             keys
@@ -2150,7 +2183,7 @@ impl GraphStore {
             }
             wtx.commit()?;
         }
-        Ok(())
+        Ok((node_keys_to_remove.len(), edge_keys_to_remove.len()))
     }
 
     /// Remove stale-generation nodes (and edges touching them) for the given
@@ -4210,5 +4243,96 @@ mod tests {
             .unwrap();
         assert_eq!(members.len(), 2);
         assert!(trunc, "cap+1 accepted member must truncate");
+    }
+}
+
+#[cfg(test)]
+mod purge_baseline_tests {
+    //! Incremental updates write nodes at generations ABOVE the last full
+    //! index; a global purge must only remove what is OLDER than that
+    //! baseline. (`purge_old_generations` treats `!= baseline` as stale,
+    //! which deleted every incrementally re-indexed file hourly.)
+    use super::*;
+    use engram_core::RelPath;
+
+    fn store() -> GraphStore {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let path = tmp.path().join("g.redb");
+        let s = GraphStore::open(&path).expect("open");
+        std::mem::forget(tmp);
+        s
+    }
+
+    fn node(id: &str, generation: u64) -> Node {
+        Node {
+            node_id: id.into(),
+            node_type: "function".into(),
+            name: id.into(),
+            namespace: "memory".into(),
+            language: "vbnet".into(),
+            file_path: RelPath::new("a.vb"),
+            start_line: 1,
+            end_line: 2,
+            generation,
+            metadata: None,
+        }
+    }
+
+    fn edge(src: &str, dst: &str, generation: u64) -> Edge {
+        Edge {
+            source_id: src.into(),
+            target_id: dst.into(),
+            namespace: "memory".into(),
+            language: "vbnet".into(),
+            edge_kind: EdgeKind::Calls,
+            weight: 1,
+            generation,
+            metadata: None,
+            updated_at_ms: 1,
+        }
+    }
+
+    #[test]
+    fn purge_below_baseline_keeps_generations_at_or_above_it() {
+        let s = store();
+        s.upsert_nodes("p", &[node("full", 1), node("incr", 5)])
+            .unwrap();
+        s.upsert_edges("p", &[edge("incr", "full", 5)]).unwrap();
+
+        let (n, e) = s.purge_generations_below("p", 1).unwrap();
+        assert_eq!((n, e), (0, 0), "nothing is older than the full index");
+        assert!(s.get_node("p", "full").unwrap().is_some());
+        assert!(
+            s.get_node("p", "incr").unwrap().is_some(),
+            "incremental node deleted"
+        );
+        assert_eq!(
+            s.find_incoming_edges_with_kind("p", Some(EdgeKind::Calls), "full", 10)
+                .unwrap()
+                .len(),
+            1,
+            "incremental edge deleted"
+        );
+    }
+
+    #[test]
+    fn purge_below_baseline_removes_only_older_generations() {
+        let s = store();
+        s.upsert_nodes("p", &[node("full", 1), node("incr", 5)])
+            .unwrap();
+        s.upsert_edges("p", &[edge("full", "incr", 1), edge("incr", "full", 5)])
+            .unwrap();
+
+        // A later FULL reindex landed at gen 5: only gen-1 leftovers are stale.
+        let (n, e) = s.purge_generations_below("p", 5).unwrap();
+        assert_eq!((n, e), (1, 1));
+        assert!(s.get_node("p", "full").unwrap().is_none());
+        assert!(s.get_node("p", "incr").unwrap().is_some());
+        assert!(
+            s.find_incoming_edges_with_kind("p", Some(EdgeKind::Calls), "incr", 10)
+                .unwrap()
+                .is_empty(),
+            "the gen-1 edge must go with its generation"
+        );
     }
 }

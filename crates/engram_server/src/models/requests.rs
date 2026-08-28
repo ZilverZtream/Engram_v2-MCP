@@ -1665,7 +1665,9 @@ pub struct AstDependencyGraphRequest {
 #[serde(deny_unknown_fields)]
 pub struct IncrementalIndexingGcRequest {
     pub project_id: String,
-    /// Target generation to GC up to (exclusive). If omitted, uses active_generation.
+    /// Generation to GC up to (exclusive). If omitted: the GRAPH is purged below the
+    /// last full-index generation (incremental generations must never purge the
+    /// graph) and the search index against active_generation.
     #[serde(default)]
     pub target_generation: Option<u64>,
     /// Also compact LanceDB (reclaim tombstone space). Default: true.

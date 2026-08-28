@@ -45,6 +45,27 @@ starts and is the auditor's checklist afterwards.
 
 Implementation order (auditor's, adopted): 0 → 2 → 1 → 4 → 3 → 7 → 5 → 10/dream.
 
+## Row 0b — Index layer: hourly GC deleted every incrementally indexed file (found live 2026-08-28)
+
+Not on the auditor's list; found while re-running row-2 evidence after a
+deploy. Symptom: `get_codebase_overview` 18,144 → 9,904 functions between
+two runs the same day, `query_graph_nodes` blank for `Check_pr_id`,
+`get_page_context` 0 methods — while `get_index_freshness` said "index is
+current and the watcher is active". Mechanism (daemon log): the hourly GC
+purged the GRAPH against `last_full_index_generation` with the
+KeepLatestOnly policy read as `generation != baseline`; every node an
+incremental update had written at a NEWER generation was deleted, the
+watcher re-indexed the same 175 files as `[node_missing]`, the next tick
+deleted them again. The GC's own comment stated the right invariant
+("never the incremental counter"); the store call did not implement it.
+
+| Item | Disposition |
+|---|---|
+| Hourly GC deletes nodes newer than the last full index | **fixed** — `GraphStore::purge_generations_below` (stale = OLDER than the baseline); GC uses it and logs counts; test `hourly_gc_keeps_nodes_newer_than_the_last_full_index` reproduces the live deletion and fails on the old code |
+| Manual `incremental_indexing_gc` defaulted the graph purge to `active_generation` | **fixed** — defaults to the full-index baseline, skips with a message when missing; test `manual_gc_defaults_to_the_full_index_baseline` |
+| "Index is current" while the graph oscillates | **open (row 10 / freshness)** — `get_index_freshness` reports file mtimes, not graph integrity; a node-count-vs-file-count consistency check belongs in `project_health` |
+| VB sidecar does not support incremental `invalidate` (daemon log: "redeploy the sidecar") | **open** — incremental VB updates fall back to a full `begin_project`; correct but slow; redeploy the sidecar build |
+
 ## Row 0 — Integration P0 block (disposition)
 
 All six audit claims re-verified before fixing (grep evidence in the commit).
