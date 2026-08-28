@@ -615,10 +615,14 @@ impl Engram {
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        Ok(CallToolResult::success(vec![Content::text(format!(
-            "Trace: {:?}",
-            result.steps
-        ))]))
+        if req.output_json {
+            let json = serde_json::to_string_pretty(&result)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+        Ok(CallToolResult::success(vec![Content::text(
+            crate::services::data_flow_service::render_data_flow_markdown(&result),
+        )]))
     }
 
     pub async fn handle_get_migration_dossier(

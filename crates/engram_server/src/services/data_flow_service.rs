@@ -79,6 +79,85 @@ static RE_REDIRECT: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// Helper method call: BindGrid(), LoadData(), etc. — bare call on its own line
+/// Any call expression with a receiver chain and/or arguments:
+/// `_io.x.GetAll(pr_id, db)`, `GetDictionaryIntegerValue(qry.params, "pr_id")`,
+/// `_us.UserAccess.CheckRead(obj)`. Bare `Name()` lines are RE_METHOD_CALL.
+static RE_CALL_EXPR: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\b([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*\(")
+        .expect("RE_CALL_EXPR")
+});
+const CALL_KEYWORDS: &[&str] = &[
+    "if",
+    "not",
+    "and",
+    "or",
+    "andalso",
+    "orelse",
+    "return",
+    "new",
+    "cint",
+    "cstr",
+    "cdbl",
+    "clng",
+    "cbool",
+    "ctype",
+    "directcast",
+    "trycast",
+    "string",
+    "integer",
+    "isnothing",
+    "typeof",
+    "gettype",
+    "throw",
+    "catch",
+    "try",
+    "while",
+    "for",
+    "each",
+    "select",
+    "case",
+    "of",
+    "list",
+    "dictionary",
+    "nameof",
+    "function",
+    "sub",
+    "then",
+    "else",
+    "elseif",
+    "console",
+    "math",
+    "sum",
+    "count",
+    "any",
+    "where",
+    "orderby",
+    "first",
+    "firstordefault",
+    "tolist",
+    "toarray",
+    "trim",
+    "tolower",
+    "toupper",
+    "split",
+    "join",
+    "format",
+    "isnullorempty",
+    "isnullorwhitespace",
+    "parse",
+    "tryparse",
+    "tostring",
+    "equals",
+    "contains",
+    "startswith",
+    "endswith",
+    "replace",
+    "substring",
+    "add",
+    "remove",
+    "clear",
+];
+
 static RE_METHOD_CALL: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?m)^\s*([A-Z][a-zA-Z0-9_]+)\s*\(\s*\)\s*;?\s*$").expect("RE_METHOD_CALL")
 });
@@ -112,6 +191,9 @@ pub struct DataFlowTrace {
     pub methods_called: Vec<String>,
     /// Suggested modern pattern equivalent.
     pub modern_flow_hint: String,
+    /// Calls in the body that could not be resolved to a graph node
+    /// (row-7 audit A2): the trace stopped there, and says so.
+    pub unresolved_calls: usize,
 }
 
 /// A single ordered step in a data flow trace.
@@ -131,6 +213,10 @@ pub struct DataFlowStep {
     pub target: String,
     /// Additional free-form context key→value pairs.
     pub details: HashMap<String, String>,
+    /// For `MethodCall` steps: whether the callee resolved to an indexed
+    /// function node (`None` for every other step kind).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resolved: Option<bool>,
 }
 
 /// A state access (read or write) found in the handler.
@@ -227,6 +313,7 @@ pub fn trace_data_flow(
                     source: rhs,
                     target: format!("{state_type}[\"{key}\"]"),
                     details,
+                    resolved: None,
                 });
                 continue;
             } // end !is_double_eq
@@ -258,6 +345,7 @@ pub fn trace_data_flow(
                     source: format!("{state_type}[\"{key}\"]"),
                     target: "local variable".into(),
                     details: HashMap::new(),
+                    resolved: None,
                 });
             }
             continue;
@@ -292,6 +380,7 @@ pub fn trace_data_flow(
                     source: format!("{state_type}[\"{key}\"]"),
                     target: lhs.clone(),
                     details,
+                    resolved: None,
                 });
             }
             continue;
@@ -328,6 +417,7 @@ pub fn trace_data_flow(
                 source: sql_hint,
                 target: table,
                 details,
+                resolved: None,
             });
             continue;
         }
@@ -353,6 +443,7 @@ pub fn trace_data_flow(
                 source: sql_src,
                 target: method,
                 details,
+                resolved: None,
             });
             // Only clear pending_sql after a final execution
             if matches!(
@@ -381,6 +472,7 @@ pub fn trace_data_flow(
                     source: rhs,
                     target: lhs,
                     details,
+                    resolved: None,
                 });
             } else {
                 let mut details = HashMap::new();
@@ -392,6 +484,7 @@ pub fn trace_data_flow(
                     source: "data source".into(),
                     target: lhs,
                     details,
+                    resolved: None,
                 });
             }
             continue;
@@ -414,6 +507,7 @@ pub fn trace_data_flow(
                 source: entry_point.to_string(),
                 target: url,
                 details,
+                resolved: None,
             });
             continue;
         }
@@ -442,6 +536,7 @@ pub fn trace_data_flow(
                     source: rhs,
                     target: format!("{control}.{prop}"),
                     details,
+                    resolved: None,
                 });
             }
             continue;
@@ -474,6 +569,7 @@ pub fn trace_data_flow(
                     source: format!("{control}.{prop}"),
                     target: "local variable".into(),
                     details,
+                    resolved: None,
                 });
             }
             continue;
@@ -501,6 +597,7 @@ pub fn trace_data_flow(
                 source: condition,
                 target: String::new(),
                 details,
+                resolved: None,
             });
             continue;
         }
@@ -523,12 +620,71 @@ pub fn trace_data_flow(
                     source: entry_point.to_string(),
                     target: name,
                     details: HashMap::new(),
+                    resolved: None,
                 });
             }
         }
     }
 
     // ── Step 3: supplement with graph edges ──────────────────────────────────
+    // Row-7 audit A2: every dotted / argument-bearing call is a step, and
+    // says whether the callee is an indexed function. The old pass only saw
+    // bare `Name()` lines, so `_rv.x.Method(a)` chains were invisible.
+    let mut unresolved_calls = 0usize;
+    {
+        let mut seen: Vec<String> = Vec::new();
+        for line in method_body.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with('\'') {
+                continue;
+            }
+            for cap in RE_CALL_EXPR.captures_iter(trimmed) {
+                let expr = cap[1].to_string();
+                let last = expr.rsplit('.').next().unwrap_or(&expr).to_string();
+                if CALL_KEYWORDS.contains(&last.to_lowercase().as_str())
+                    || CALL_KEYWORDS.contains(&expr.to_lowercase().as_str())
+                    || last.len() < 3
+                    || expr.eq_ignore_ascii_case(entry_point)
+                {
+                    continue;
+                }
+                // Bare `Name()` on its own line is already a step above.
+                if !expr.contains('.') && methods_called.contains(&expr) {
+                    continue;
+                }
+                if seen.contains(&expr) {
+                    continue;
+                }
+                seen.push(expr.clone());
+                let resolved = graph
+                    .query_nodes(project_id, Some("function"), Some(&last), None, 25)
+                    .map(|nodes| nodes.iter().any(|n| n.name.eq_ignore_ascii_case(&last)))
+                    .unwrap_or(false);
+                if !resolved {
+                    unresolved_calls += 1;
+                }
+                if !methods_called.contains(&expr) {
+                    methods_called.push(expr.clone());
+                }
+                let mut details = HashMap::new();
+                details.insert("expr".into(), expr.clone());
+                steps.push(DataFlowStep {
+                    sequence: steps.len() + 1,
+                    step_type: "MethodCall".into(),
+                    description: if resolved {
+                        format!("Call: {expr}(…) — resolved to an indexed function")
+                    } else {
+                        format!("Call: {expr}(…) — UNRESOLVED (no indexed function named {last}); the trace stops here")
+                    },
+                    source: entry_point.to_string(),
+                    target: last,
+                    details,
+                    resolved: Some(resolved),
+                });
+            }
+        }
+    }
+
     let graph_steps = collect_graph_steps(
         graph,
         project_id,
@@ -578,6 +734,7 @@ pub fn trace_data_flow(
         controls_read,
         controls_written,
         methods_called,
+        unresolved_calls,
         modern_flow_hint,
     })
 }
@@ -791,13 +948,39 @@ fn collect_graph_steps(
     let mut steps: Vec<DataFlowStep> = Vec::new();
     let mut seq = 1usize;
 
-    // Helper: is an edge relevant to this handler?
-    let relevant = |source_id: &str| -> bool {
-        source_id.contains(entry_point) || source_id.contains(file_path)
+    // Row-7 audit A1: graph steps belong to the traced METHOD NODE(S) — never
+    // to another method in the same file (the live false step: a Session
+    // write from lines 111/113 attributed to a method at 2205-2261).
+    let entry_ids: Vec<String> = graph
+        .query_nodes(
+            project_id,
+            Some("function"),
+            Some(entry_point),
+            Some(file_path),
+            50,
+        )?
+        .into_iter()
+        .filter(|n| n.name.eq_ignore_ascii_case(entry_point))
+        .map(|n| n.node_id)
+        .collect();
+    let relevant = |source_id: &str| -> bool { entry_ids.iter().any(|id| id == source_id) };
+    // Per-node adjacency (O(degree)) instead of four project-wide
+    // first-10,000-edges scans (audit A5).
+    let fetch = |kind: EdgeKind| -> anyhow::Result<Vec<engram_graph::Edge>> {
+        let mut out = Vec::new();
+        for id in &entry_ids {
+            let (edges, _truncated) = graph.edges_touching_with_coverage(project_id, id, 500)?;
+            out.extend(
+                edges
+                    .into_iter()
+                    .filter(|e| e.edge_kind == kind && &e.source_id == id),
+            );
+        }
+        Ok(out)
     };
 
     // SqlCalls
-    let sql_edges = graph.list_edges_by_kind(project_id, EdgeKind::SqlCalls, 10_000)?;
+    let sql_edges = fetch(EdgeKind::SqlCalls)?;
     for edge in &sql_edges {
         if !relevant(&edge.source_id) {
             continue;
@@ -840,12 +1023,13 @@ fn collect_graph_steps(
             source: sql_text,
             target: table,
             details,
+            resolved: None,
         });
         seq += 1;
     }
 
     // ReadsState
-    let rs_edges = graph.list_edges_by_kind(project_id, EdgeKind::ReadsState, 10_000)?;
+    let rs_edges = fetch(EdgeKind::ReadsState)?;
     for edge in &rs_edges {
         if !relevant(&edge.source_id) {
             continue;
@@ -874,12 +1058,13 @@ fn collect_graph_steps(
             source: format!("{state_type}[\"{key}\"]"),
             target: "local variable".into(),
             details,
+            resolved: None,
         });
         seq += 1;
     }
 
     // WritesState
-    let ws_edges = graph.list_edges_by_kind(project_id, EdgeKind::WritesState, 10_000)?;
+    let ws_edges = fetch(EdgeKind::WritesState)?;
     for edge in &ws_edges {
         if !relevant(&edge.source_id) {
             continue;
@@ -908,12 +1093,13 @@ fn collect_graph_steps(
             source: "value".into(),
             target: format!("{state_type}[\"{key}\"]"),
             details,
+            resolved: None,
         });
         seq += 1;
     }
 
     // DataBinding edges
-    let db_edges = graph.list_edges_by_kind(project_id, EdgeKind::DataBinding, 10_000)?;
+    let db_edges = fetch(EdgeKind::DataBinding)?;
     for edge in &db_edges {
         if !relevant(&edge.source_id) {
             continue;
@@ -933,6 +1119,7 @@ fn collect_graph_steps(
             source: "data source".into(),
             target: control,
             details,
+            resolved: None,
         });
         seq += 1;
     }
@@ -1101,6 +1288,24 @@ mod tests {
             generation: 1,
             metadata: meta_json.map(|s| serde_json::from_str(s).unwrap_or_default()),
             updated_at_ms: 0,
+        }
+    }
+
+    /// The extractor always writes the function node whose id the edges
+    /// hang off; graph attribution is BY NODE (row-7 slice 1), so a
+    /// fixture that only upserts edges is not what production writes.
+    fn make_fn_node(id: &str, file: &str, name: &str) -> engram_graph::Node {
+        engram_graph::Node {
+            node_id: id.into(),
+            node_type: "function".into(),
+            name: name.into(),
+            namespace: "test".into(),
+            language: "csharp".into(),
+            file_path: engram_core::RelPath::new(file),
+            start_line: 1,
+            end_line: 3,
+            generation: 1,
+            metadata: None,
         }
     }
 
@@ -1403,6 +1608,17 @@ protected void btnDummy_Click(object sender, EventArgs e)
         // Use metadata: None — bincode (used by GraphStore) does not support
         // deserializing serde_json::Value via deserialize_any, so we rely on
         // target_id for the table name.
+        graph
+            .upsert_nodes(
+                "proj",
+                &[make_fn_node(
+                    "fn:Search.aspx.cs:btnSearch_Click",
+                    "Search.aspx.cs",
+                    "btnSearch_Click",
+                )],
+            )
+            .expect("upsert entry node");
+
         let sql_edge = make_edge(
             "fn:Search.aspx.cs:btnSearch_Click",
             "table:Orders",
@@ -1552,4 +1768,56 @@ protected void btnLoad_Click(object sender, EventArgs e)
         assert_eq!(t, "Session");
         assert_eq!(k, "SomeKey");
     }
+}
+
+/// Human-readable rendering of a trace (row-7 audit A4 — the tool used to
+/// return `format!("{:?}", steps)`).
+pub fn render_data_flow_markdown(t: &DataFlowTrace) -> String {
+    let mut md = format!("# Data flow: `{}` ({})\n\n", t.entry_point, t.trigger);
+    md.push_str(&format!(
+        "steps {} · tables {} · state reads {} · writes {} · controls read {} · written {} · calls {} ({} unresolved)\n\n",
+        t.steps.len(),
+        t.tables_touched.len(),
+        t.state_reads.len(),
+        t.state_writes.len(),
+        t.controls_read.len(),
+        t.controls_written.len(),
+        t.methods_called.len(),
+        t.unresolved_calls
+    ));
+    md.push_str("## Steps\n\n");
+    for st in &t.steps {
+        md.push_str(&format!(
+            "{}. [{}] {}\n",
+            st.sequence, st.step_type, st.description
+        ));
+    }
+    if !t.tables_touched.is_empty() {
+        md.push_str("\n## Tables\n\n");
+        for x in &t.tables_touched {
+            md.push_str(&format!("- `{x}`\n"));
+        }
+    }
+    if !t.state_reads.is_empty() || !t.state_writes.is_empty() {
+        md.push_str("\n## State\n\n");
+        for x in &t.state_reads {
+            md.push_str(&format!("- reads {}[\"{}\"]\n", x.state_type, x.key));
+        }
+        for x in &t.state_writes {
+            md.push_str(&format!("- writes {}[\"{}\"]\n", x.state_type, x.key));
+        }
+    }
+    if !t.methods_called.is_empty() {
+        md.push_str(&format!(
+            "\n## Calls ({} unresolved — the trace stops at those)\n\n",
+            t.unresolved_calls
+        ));
+        for x in &t.methods_called {
+            md.push_str(&format!("- `{x}`\n"));
+        }
+    }
+    if !t.modern_flow_hint.is_empty() {
+        md.push_str(&format!("\n_hint: {}_\n", t.modern_flow_hint));
+    }
+    md
 }
