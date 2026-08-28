@@ -26,7 +26,7 @@ use crate::tools::Engram;
 ///
 /// A node with no fingerprint metadata yields (0, 0), which
 /// `check_freshness` skips rather than reporting as drift.
-fn indexed_file_stats(
+pub(crate) fn indexed_file_stats(
     graph: &engram_graph::GraphStore,
     project_id: &str,
 ) -> anyhow::Result<Vec<engram_index::grep::IndexedFileStat>> {

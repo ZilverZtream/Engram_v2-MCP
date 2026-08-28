@@ -51,9 +51,44 @@ pub(crate) struct FootprintCoverage {
     pub lexical_files: usize,
     pub lexical_hits: usize,
     pub lexical_page: usize,
+    /// Literal (substring, case-insensitive) pass over the indexed chunk
+    /// text — sees a stem INSIDE an identifier the tokenizer keeps whole.
+    pub literal: String,
+    pub literal_files: usize,
+    pub literal_matches: usize,
+    pub literal_cap: usize,
     pub failures: Vec<String>,
 }
 
+/// Matches requested = cap; a full page means more may exist.
+pub(crate) const LITERAL_CAP: usize = 5000;
+
+pub(crate) fn footprint_literal_status(matches: usize, cap: usize) -> &'static str {
+    if matches >= cap {
+        "truncated"
+    } else {
+        "complete"
+    }
+}
+
+/// Files mentioned only in text: lexical + literal hits minus graph-bearing
+/// files and vendor paths, sorted and deduplicated.
+pub(crate) fn footprint_text_only_files(
+    graph_files: &HashSet<&str>,
+    lexical: &[String],
+    literal: &[String],
+) -> Vec<String> {
+    let mut out: Vec<String> = lexical
+        .iter()
+        .chain(literal.iter())
+        .filter(|f| !graph_files.contains(f.as_str()))
+        .filter(|f| !engram_core::is_vendor_path(f))
+        .cloned()
+        .collect();
+    out.sort();
+    out.dedup();
+    out
+}
 
 /// `complete` when the page was not filled past its size (we ask for
 /// page + 1 hits), `truncated` otherwise.
@@ -87,6 +122,10 @@ pub(crate) fn render_footprint_coverage(c: &FootprintCoverage) -> String {
     s.push_str(&format!(
         "- lexical: {} ({} files from {} hits; page {}, cap+1 fetch)\n",
         c.lexical, c.lexical_files, c.lexical_hits, c.lexical_page
+    ));
+    s.push_str(&format!(
+        "- literal: {} ({} files from {} matches; cap {})\n",
+        c.literal, c.literal_files, c.literal_matches, c.literal_cap
     ));
     if !c.failures.is_empty() {
         s.push_str(&format!("- failures: {}\n", c.failures.join("; ")));
@@ -460,6 +499,7 @@ impl Engram {
                 anchor_cap: ANCHOR_CAP,
                 consumer_cap_per_anchor: CONSUMER_CAP_PER_ANCHOR,
                 lexical_page: LEXICAL_PAGE,
+                literal_cap: LITERAL_CAP,
                 ..Default::default()
             };
             let nodes =
@@ -607,6 +647,65 @@ impl Engram {
             None => footprint_lexical_status(lexical_hits, LEXICAL_PAGE).into(),
         };
 
+        // Literal pass (row-4 audit A2): substring, case-insensitive, over the
+        // indexed chunk text — the tokenized index cannot see the stem inside
+        // `rk_redovisningskategorier`; this can.
+        let rec_dir = self
+            .ensure_project_record(&req.project_id)
+            .await
+            .map(|r| r.directory)
+            .unwrap_or_default();
+        let (literal_files, literal_matches, literal_err): (Vec<String>, usize, Option<String>) = {
+            let engine = ps.search.clone();
+            let graph = self.state.graph.clone();
+            let pid = req.project_id.clone();
+            let gq = engram_index::grep::GrepQuery {
+                project_id: req.project_id.clone(),
+                namespace: "memory".into(),
+                generation: gen_,
+                pattern: req.concept.trim().to_string(),
+                regex: false,
+                case_sensitive: Some(false),
+                multiline: false,
+                path_prefix: None,
+                language: None,
+                context_before: 0,
+                context_after: 0,
+                max_results: LITERAL_CAP,
+                freshness: engram_index::grep::FreshnessMode::Off,
+            };
+            let root = std::path::PathBuf::from(rec_dir);
+            tokio::task::spawn_blocking(move || {
+                match engram_index::grep::grep(&engine, &root, &gq, || {
+                    crate::handlers::grep_tools::indexed_file_stats(&graph, &pid)
+                }) {
+                    Ok(r) => {
+                        let n = r.matches.len();
+                        let mut files: Vec<String> = r
+                            .matches
+                            .iter()
+                            .map(|m| m.file_path.replace('\\', "/"))
+                            .collect();
+                        files.sort();
+                        files.dedup();
+                        (files, n, None)
+                    }
+                    Err(e) => (Vec::new(), 0, Some(e.to_string())),
+                }
+            })
+            .await
+            .unwrap_or_else(|e| (Vec::new(), 0, Some(format!("literal task failed: {e}"))))
+        };
+        cov.literal_matches = literal_matches;
+        cov.literal_files = literal_files.len();
+        cov.literal = match literal_err {
+            Some(e) => {
+                cov.failures.push(format!("literal pass failed: {e}"));
+                "failed".into()
+            }
+            None => footprint_literal_status(literal_matches, LITERAL_CAP).into(),
+        };
+
         let grouped_files: HashSet<&str> = groups
             .values()
             .flatten()
@@ -617,11 +716,9 @@ impl Engram {
         // concept-footprint lexical layer was the dominant noise source handed to
         // the model (precision ~5%); these generated files are never the change
         // target and crowd out the real files.
-        let lexical_only: Vec<&String> = lexical_files
-            .iter()
-            .filter(|f| !grouped_files.contains(f.as_str()))
-            .filter(|f| !engram_core::is_vendor_path(f))
-            .collect();
+        let text_only: Vec<String> =
+            footprint_text_only_files(&grouped_files, &lexical_files, &literal_files);
+        let lexical_only: Vec<&String> = text_only.iter().collect();
 
         let total: usize = groups.values().map(Vec::len).sum();
         if total == 0 && lexical_only.is_empty() {
@@ -695,9 +792,10 @@ impl Engram {
 
         if !lexical_only.is_empty() {
             out.push_str(&format!(
-                "\n## Mentioned only in text — {} file(s) the graph has no concept edge for (verify manually; lexical {})\n",
+                "\n## Mentioned only in text — {} file(s) the graph has no concept edge for (verify manually; lexical {}, literal {})\n",
                 lexical_only.len(),
-                cov.lexical
+                cov.lexical,
+                cov.literal
             ));
             for f in lexical_only.iter().take(cap) {
                 out.push_str(&format!("- {f}\n"));
@@ -7930,5 +8028,57 @@ mod footprint_coverage_tests {
         let (used, truncated) = footprint_select_anchors(&many);
         assert_eq!(used.len(), ANCHOR_CAP);
         assert!(truncated);
+    }
+}
+
+#[cfg(test)]
+mod footprint_literal_tests {
+    //! Row-4 audit A2: the footprint runs a LITERAL (substring, case-
+    //! insensitive) pass over the indexed chunk text, because the tokenized
+    //! index cannot see a stem inside an identifier
+    //! (`rk_redovisningskategorier`). Its caps and status are reported.
+    use super::*;
+
+    #[test]
+    fn literal_status_is_complete_unless_the_match_cap_was_filled() {
+        assert_eq!(footprint_literal_status(0, 5000), "complete");
+        assert_eq!(footprint_literal_status(4999, 5000), "complete");
+        assert_eq!(footprint_literal_status(5000, 5000), "truncated");
+    }
+
+    #[test]
+    fn coverage_block_reports_the_literal_pass() {
+        let cov = FootprintCoverage {
+            node_scan: "complete".into(),
+            literal: "truncated".into(),
+            literal_files: 25,
+            literal_matches: 5000,
+            literal_cap: 5000,
+            ..Default::default()
+        };
+        let md = render_footprint_coverage(&cov);
+        assert!(
+            md.contains("- literal: truncated (25 files from 5000 matches; cap 5000)"),
+            "{md}"
+        );
+    }
+
+    #[test]
+    fn literal_files_are_merged_into_the_text_section_and_deduped() {
+        let graph_files: HashSet<&str> = ["Site/App_Code/a.vb"].into_iter().collect();
+        let lexical = vec![
+            "Site/App_Code/b.vb".to_string(),
+            "Site/App_Code/a.vb".to_string(),
+        ];
+        let literal = vec![
+            "Site/App_Code/c.aspx.vb".to_string(),
+            "Site/App_Code/b.vb".to_string(),
+            "node_modules/x/y.js".to_string(),
+        ];
+        let merged = footprint_text_only_files(&graph_files, &lexical, &literal);
+        assert_eq!(
+            merged,
+            vec!["Site/App_Code/b.vb", "Site/App_Code/c.aspx.vb"]
+        );
     }
 }
