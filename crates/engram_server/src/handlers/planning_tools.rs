@@ -3489,6 +3489,199 @@ mod symmetric_sibling_tests {
 /// Render the change set: layer-grouped, co-change-first, with a completeness
 /// checklist. Golden (co-change/history) files are never capped; the concept/
 /// graph tail is capped per layer so flood can't crowd out real companions.
+/// Layers of the change set (extension-based). ONE definition shared by the
+/// markdown renderer and the JSON payload so they cannot drift.
+pub(crate) const CHANGE_SET_LAYERS: &[(&str, &[&str])] = &[
+    (
+        "Server (VB / code-behind / markup)",
+        &[
+            ".vb", ".cs", ".aspx", ".ascx", ".master", ".asmx", ".ashx", ".svc", ".asax",
+        ],
+    ),
+    (
+        "Client (TypeScript / JavaScript)",
+        &[".ts", ".tsx", ".js", ".jsx"],
+    ),
+    ("Resources (.resx — translate EVERY language)", &[".resx"]),
+    ("Data (SQL)", &[".sql"]),
+    (
+        "Markup / styles / config",
+        &[".html", ".css", ".config", ".vbhtml", ".cshtml"],
+    ),
+];
+
+pub(crate) fn change_set_layer_index(p: &str) -> usize {
+    let pl = p.to_lowercase();
+    for (i, (_, exts)) in CHANGE_SET_LAYERS.iter().enumerate() {
+        if exts.iter().any(|e| pl.ends_with(*e)) {
+            return i;
+        }
+    }
+    CHANGE_SET_LAYERS.len()
+}
+
+pub(crate) fn change_set_layer_name(i: usize) -> &'static str {
+    CHANGE_SET_LAYERS.get(i).map(|(n, _)| *n).unwrap_or("Other")
+}
+
+/// Per-layer cap on WEAK-signal candidates (tier ≥ 2, not `vtop`/`family`).
+/// The eval sweet spot (45cf172); what it cuts is now REPORTED as omissions.
+pub(crate) const CHANGE_SET_TAIL_CAP: usize = 18;
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub(crate) struct ChangeSetOmission {
+    pub path: String,
+    pub layer: &'static str,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub(crate) struct ChangeSetRow {
+    pub path: String,
+    pub layer: &'static str,
+    pub layer_index: usize,
+    pub tier: u8,
+    pub signals: Vec<&'static str>,
+    pub omitted: bool,
+}
+
+/// Ranked rows in render order (layer, tier, depth, path) with the tail-cap
+/// decision applied — the single place both renderers read from.
+pub(crate) fn change_set_rows(
+    prov: &BTreeMap<String, BTreeSet<&'static str>>,
+) -> (Vec<ChangeSetRow>, Vec<ChangeSetOmission>) {
+    let mut rows = Vec::new();
+    let mut omissions = Vec::new();
+    for li in 0..=CHANGE_SET_LAYERS.len() {
+        let mut items: Vec<(&String, &BTreeSet<&'static str>)> = prov
+            .iter()
+            .filter(|(p, _)| change_set_layer_index(p) == li)
+            .collect();
+        if items.is_empty() {
+            continue;
+        }
+        items.sort_by(|a, b| {
+            change_set_tier(a.1)
+                .cmp(&change_set_tier(b.1))
+                .then(a.0.matches('/').count().cmp(&b.0.matches('/').count()))
+                .then(a.0.cmp(b.0))
+        });
+        let lname = change_set_layer_name(li);
+        let mut tail = 0usize;
+        for (p, sigs) in items {
+            let tier = change_set_tier(sigs);
+            let exempt = sigs.contains("vtop") || sigs.contains("family");
+            let mut omitted = false;
+            if tier >= 2 && !exempt {
+                tail += 1;
+                if tail > CHANGE_SET_TAIL_CAP {
+                    omitted = true;
+                    omissions.push(ChangeSetOmission {
+                        path: p.clone(),
+                        layer: lname,
+                        reason: format!(
+                            "weak-signal tail cap ({CHANGE_SET_TAIL_CAP} per layer) in '{lname}'"
+                        ),
+                    });
+                }
+            }
+            let signals: Vec<&'static str> = sigs
+                .iter()
+                .filter(|s| **s != "family")
+                .map(|s| if *s == "vtop" { "vector" } else { *s })
+                .collect();
+            rows.push(ChangeSetRow {
+                path: p.clone(),
+                layer: lname,
+                layer_index: li,
+                tier,
+                signals,
+                omitted,
+            });
+        }
+    }
+    (rows, omissions)
+}
+
+/// What one retrieval arm of get_change_set delivered.
+#[derive(Debug, Clone, Default, serde::Serialize)]
+pub(crate) struct ArmCoverage {
+    /// `complete` | `truncated` | `failed` | `not_run`
+    pub status: String,
+    pub hits: usize,
+    pub ms: u128,
+    pub note: String,
+}
+
+impl ArmCoverage {
+    fn complete(hits: usize, ms: u128) -> Self {
+        Self {
+            status: "complete".into(),
+            hits,
+            ms,
+            note: String::new(),
+        }
+    }
+    fn truncated(hits: usize, ms: u128, note: String) -> Self {
+        Self {
+            status: "truncated".into(),
+            hits,
+            ms,
+            note,
+        }
+    }
+    fn failed(note: String, ms: u128) -> Self {
+        Self {
+            status: "failed".into(),
+            hits: 0,
+            ms,
+            note,
+        }
+    }
+    fn not_run(note: &str) -> Self {
+        Self {
+            status: "not_run".into(),
+            hits: 0,
+            ms: 0,
+            note: note.into(),
+        }
+    }
+    fn line(&self) -> String {
+        let mut l = format!("{} ({} hits, {} ms)", self.status, self.hits, self.ms);
+        if !self.note.is_empty() {
+            l.push_str(" — ");
+            l.push_str(&self.note);
+        }
+        l
+    }
+}
+
+#[derive(Debug, Clone, Default, serde::Serialize)]
+pub(crate) struct ChangeSetCoverage {
+    pub concept: ArmCoverage,
+    pub history: ArmCoverage,
+    pub cochange: ArmCoverage,
+    pub vector: ArmCoverage,
+    pub kb_bridge: ArmCoverage,
+    pub family: ArmCoverage,
+}
+
+fn render_change_set_coverage(cov: &ChangeSetCoverage, omitted: usize) -> String {
+    let mut s = String::from("\n## Coverage\n");
+    s.push_str(&format!("- concept: {}\n", cov.concept.line()));
+    s.push_str(&format!("- history: {}\n", cov.history.line()));
+    s.push_str(&format!("- co-change: {}\n", cov.cochange.line()));
+    s.push_str(&format!("- vector: {}\n", cov.vector.line()));
+    s.push_str(&format!("- kb bridge: {}\n", cov.kb_bridge.line()));
+    s.push_str(&format!("- family: {}\n", cov.family.line()));
+    if omitted > 0 {
+        s.push_str(&format!(
+            "- omitted by the per-layer tail cap: {omitted} (paths in output_json.omissions)\n"
+        ));
+    }
+    s
+}
+
 fn render_change_set(
     story: &str,
     concepts: &[String],
@@ -3496,7 +3689,8 @@ fn render_change_set(
     temporal_section: Option<&str>,
     sibling_section: Option<&str>,
     setting_prior: Option<(usize, usize)>,
-) -> String {
+    historical: &BTreeSet<String>,
+) -> (String, Vec<ChangeSetOmission>) {
     const LAYERS: &[(&str, &[&str])] = &[
         (
             "Server (VB / code-behind / markup)",
@@ -3515,14 +3709,6 @@ fn render_change_set(
             &[".html", ".css", ".config", ".vbhtml", ".cshtml"],
         ),
     ];
-    let layer_of = |p: &str| -> usize {
-        for (i, (_, exts)) in LAYERS.iter().enumerate() {
-            if exts.iter().any(|e| p.ends_with(*e)) {
-                return i;
-            }
-        }
-        LAYERS.len()
-    };
     let mut s = String::new();
     s.push_str("# Change set — candidate files for this story\n\n");
     s.push_str(&format!(
@@ -3652,49 +3838,33 @@ fn render_change_set(
     );
     s.push_str("## Candidate files (grouped by layer — order within a group is NOT priority)\n");
 
-    let layer_names: Vec<&str> = LAYERS
-        .iter()
-        .map(|(n, _)| *n)
-        .chain(std::iter::once("Other"))
-        .collect();
-    for (li, lname) in layer_names.iter().enumerate() {
-        let mut items: Vec<(&String, &BTreeSet<&'static str>)> =
-            prov.iter().filter(|(p, _)| layer_of(p) == li).collect();
-        if items.is_empty() {
-            continue;
+    let _ = LAYERS; // layers now come from the shared model (CHANGE_SET_LAYERS)
+    let (rows, omissions) = change_set_rows(prov);
+    let mut current_layer: Option<usize> = None;
+    for r in rows.iter().filter(|r| !r.omitted) {
+        if current_layer != Some(r.layer_index) {
+            current_layer = Some(r.layer_index);
+            s.push_str(&format!("\n**{}:**\n", r.layer));
         }
-        items.sort_by(|a, b| {
-            change_set_tier(a.1)
-                .cmp(&change_set_tier(b.1))
-                .then(a.0.matches('/').count().cmp(&b.0.matches('/').count()))
-                .then(a.0.cmp(b.0))
-        });
-        s.push_str(&format!("\n**{lname}:**\n"));
-        let mut tail = 0usize;
-        for (p, sigs) in &items {
-            // Exempt from the concept/graph tail cap: (1) "vtop" top-rank vector
-            // hits (the cross-language bridge, bounded by the vector arm); (2)
-            // "family" resx language siblings (an atomic localized set — never show
-            // it half-complete). Both are bounded, so they can't flood; without the
-            // exemption a busy layer's concept matches crowd them out (tier-4).
-            let exempt = sigs.contains("vtop") || sigs.contains("family");
-            if change_set_tier(sigs) >= 2 && !exempt {
-                tail += 1;
-                if tail > 18 {
-                    continue;
-                }
-            }
-            // Display: "vtop" is just a high-rank vector hit; "family" is an
-            // internal completeness marker — neither belongs in the signal labels.
-            let labels: Vec<&str> = sigs
-                .iter()
-                .filter(|s| **s != "family")
-                .map(|s| if *s == "vtop" { "vector" } else { *s })
-                .collect();
-            s.push_str(&format!("- `{p}`  [{}]\n", labels.join("|")));
-        }
+        let hist = if historical.contains(&r.path) {
+            "  (historical path — not in the current index)"
+        } else {
+            ""
+        };
+        s.push_str(&format!(
+            "- `{}`  [{}]{hist}\n",
+            r.path,
+            r.signals.join("|")
+        ));
     }
-    s
+    if !omissions.is_empty() {
+        s.push_str(&format!(
+            "\n_{} weak-signal candidate(s) omitted by the per-layer tail cap \
+             ({CHANGE_SET_TAIL_CAP}); listed under `omissions` in output_json._\n",
+            omissions.len()
+        ));
+    }
+    (s, omissions)
 }
 
 impl Engram {
@@ -3760,6 +3930,10 @@ impl Engram {
             _ => extract_story_concepts(&story_for_concepts(&req.story)),
         };
 
+        // Row-1 audit: every candidate carries WHY it is here and every arm
+        // reports what it delivered (never a silent `if let Ok`).
+        let mut why: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        let mut cov = ChangeSetCoverage::default();
         // KB language bridge: the team's wiki/docs corpus (memory_bank
         // sections) frequently names the same feature in BOTH the story's
         // language and the code's (English story "resource planning" vs
@@ -3768,7 +3942,15 @@ impl Engram {
         // sections, (b) are NOT already reachable from the story's own
         // concepts, and (c) actually exist in the code graph - and add up
         // to TWO of them as extra concepts. Generic: no language tables.
-        if let Ok(ps) = self.ensure_project_runtime(&req.project_id).await {
+        let t_kb = std::time::Instant::now();
+        let kb_runtime = self.ensure_project_runtime(&req.project_id).await;
+        if let Err(e) = &kb_runtime {
+            cov.kb_bridge = ArmCoverage::failed(
+                format!("search runtime unavailable: {e}"),
+                t_kb.elapsed().as_millis(),
+            );
+        }
+        if let Ok(ps) = kb_runtime {
             let q = engram_index::HybridQuery {
                 project_id: req.project_id.clone(),
                 namespace: engram_core::namespaces::NAMESPACE_MEMORY_BANK.into(),
@@ -3785,11 +3967,23 @@ impl Engram {
                 use_mmr: false,
             };
             let engine = ps.search.clone();
-            let hits = tokio::task::spawn_blocking(move || engine.lexical_search(&q))
-                .await
-                .ok()
-                .and_then(|r| r.ok())
-                .unwrap_or_default();
+            let hits = match tokio::task::spawn_blocking(move || engine.lexical_search(&q)).await {
+                Ok(Ok(h)) => h,
+                Ok(Err(e)) => {
+                    cov.kb_bridge = ArmCoverage::failed(
+                        format!("memory-bank search failed: {e}"),
+                        t_kb.elapsed().as_millis(),
+                    );
+                    Vec::new()
+                }
+                Err(e) => {
+                    cov.kb_bridge = ArmCoverage::failed(
+                        format!("memory-bank search task failed: {e}"),
+                        t_kb.elapsed().as_millis(),
+                    );
+                    Vec::new()
+                }
+            };
             let mut counts: std::collections::HashMap<String, usize> = Default::default();
             for h in hits.iter().take(3) {
                 let Ok(Some((_, _, content, _, _))) = ps.search.get_doc_by_doc_id(
@@ -3838,41 +4032,66 @@ impl Engram {
             })
             .await
             .unwrap_or_default();
+            let mut added = 0usize;
             for t in picked {
                 if concepts.len() < 5 {
                     concepts.push(t);
+                    added += 1;
                 }
+            }
+            if cov.kb_bridge.status.is_empty() {
+                cov.kb_bridge = ArmCoverage::complete(added, t_kb.elapsed().as_millis());
             }
         }
         let mut prov: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
         let mut seed_order: Vec<String> = Vec::new(); // concept hits in relevance order
 
         // Concept arm — typed footprint of each domain concept.
+        let t_concept = std::time::Instant::now();
+        let mut concept_hits = 0usize;
+        let mut concept_failures: Vec<String> = Vec::new();
         for c in &concepts {
-            if let Ok(r) = self
+            match self
                 .handle_get_concept_footprint(crate::models::GetConceptFootprintRequest {
                     project_id: req.project_id.clone(),
                     concept: c.clone(),
                     max_per_group: 12,
                 })
                 .await
-                && let Some(t) = r.content.first().and_then(|x| x.as_text())
             {
-                for p in change_set_paths(&t.text) {
-                    if !engram_core::is_vendor_path(&p) {
-                        if !prov.contains_key(&p) {
-                            seed_order.push(p.clone());
+                Ok(r) => {
+                    if let Some(t) = r.content.first().and_then(|x| x.as_text()) {
+                        for p in change_set_paths(&t.text) {
+                            if !engram_core::is_vendor_path(&p) {
+                                if !prov.contains_key(&p) {
+                                    seed_order.push(p.clone());
+                                }
+                                concept_hits += 1;
+                                why.entry(p.clone())
+                                    .or_default()
+                                    .push(format!("name/content matches concept '{c}'"));
+                                prov.entry(p).or_default().insert("concept");
+                            }
                         }
-                        prov.entry(p).or_default().insert("concept");
                     }
                 }
+                Err(e) => concept_failures.push(format!("'{c}': {e}")),
             }
         }
+        cov.concept = if concept_failures.is_empty() {
+            ArmCoverage::complete(concept_hits, t_concept.elapsed().as_millis())
+        } else {
+            ArmCoverage::failed(
+                format!("footprint failed for {}", concept_failures.join("; ")),
+                t_concept.elapsed().as_millis(),
+            )
+        };
 
         // History arm — commit-message search surfaces the files of past similar
         // changes (the universal co-change signal; carries stories whose real
         // files share no concept keyword). Golden tier.
-        if let Ok(r) = self
+        let t_hist = std::time::Instant::now();
+        match self
             .handle_search_history(crate::models::SearchHistoryRequest {
                 project_id: req.project_id.clone(),
                 query: req.story.clone(),
@@ -3887,15 +4106,31 @@ impl Engram {
                 max_content_chars: 0,
             })
             .await
-            && let Some(t) = r.content.first().and_then(|x| x.as_text())
         {
-            for p in change_set_paths(&t.text) {
-                if !engram_core::is_vendor_path(&p) {
-                    if !prov.contains_key(&p) {
-                        seed_order.push(p.clone());
+            Ok(r) => {
+                let mut n = 0usize;
+                if let Some(t) = r.content.first().and_then(|x| x.as_text()) {
+                    for p in change_set_paths(&t.text) {
+                        if !engram_core::is_vendor_path(&p) {
+                            if !prov.contains_key(&p) {
+                                seed_order.push(p.clone());
+                            }
+                            n += 1;
+                            why.entry(p.clone()).or_default().push(
+                                "past commits matching the story touched it (history search)"
+                                    .into(),
+                            );
+                            prov.entry(p).or_default().insert("history");
+                        }
                     }
-                    prov.entry(p).or_default().insert("history");
                 }
+                cov.history = ArmCoverage::complete(n, t_hist.elapsed().as_millis());
+            }
+            Err(e) => {
+                cov.history = ArmCoverage::failed(
+                    format!("history search failed: {e}"),
+                    t_hist.elapsed().as_millis(),
+                );
             }
         }
 
@@ -3925,6 +4160,9 @@ impl Engram {
                 ranked.push(p.clone());
             }
         }
+        if ranked.is_empty() {
+            cov.cochange = ArmCoverage::not_run("no concept/history seeds to anchor on");
+        }
         if !ranked.is_empty() {
             // Resx are family LEAVES, not co-change ANCHORS: a resource file
             // co-changes only with its own language siblings, never with the
@@ -3937,8 +4175,11 @@ impl Engram {
             let anchor = |p: &&String| !p.ends_with(".resx");
             let fsc_seed: Vec<String> = ranked.iter().filter(anchor).take(12).cloned().collect();
             let dic_seed: Vec<String> = ranked.iter().filter(anchor).take(40).cloned().collect();
+            let t_cc = std::time::Instant::now();
             let mut texts: Vec<String> = Vec::new();
-            if let Ok(r) = self
+            let mut cc_notes: Vec<String> = Vec::new();
+            let mut cc_partial = false;
+            match self
                 .handle_find_similar_changes(crate::models::FindSimilarChangesRequest {
                     project_id: req.project_id.clone(),
                     files: fsc_seed,
@@ -3946,28 +4187,55 @@ impl Engram {
                     top: 8,
                 })
                 .await
-                && let Some(t) = r.content.first().and_then(|x| x.as_text())
             {
-                texts.push(t.text.clone());
+                Ok(r) => {
+                    if let Some(t) = r.content.first().and_then(|x| x.as_text()) {
+                        // The walk's own completeness marker must reach the
+                        // caller instead of dying at this tool boundary.
+                        if let Some(line) = t.text.lines().find(|l| l.contains("PARTIAL")) {
+                            cc_partial = true;
+                            cc_notes.push(line.trim().to_string());
+                        }
+                        texts.push(t.text.clone());
+                    }
+                }
+                Err(e) => cc_notes.push(format!("find_similar_changes failed: {e}")),
             }
-            if let Ok(r) = self
+            match self
                 .handle_detect_incomplete_changes(crate::models::DetectIncompleteChangesRequest {
                     project_id: req.project_id.clone(),
                     edited_files: dic_seed,
                     max_partners: 12,
                 })
                 .await
-                && let Some(t) = r.content.first().and_then(|x| x.as_text())
             {
-                texts.push(t.text.clone());
+                Ok(r) => {
+                    if let Some(t) = r.content.first().and_then(|x| x.as_text()) {
+                        texts.push(t.text.clone());
+                    }
+                }
+                Err(e) => cc_notes.push(format!("detect_incomplete_changes failed: {e}")),
             }
+            let mut n = 0usize;
             for text in texts {
                 for p in change_set_paths(&text) {
                     if !engram_core::is_vendor_path(&p) {
+                        n += 1;
+                        why.entry(p.clone())
+                            .or_default()
+                            .push("co-changed with the seed files in merged history".into());
                         prov.entry(p).or_default().insert("cochange");
                     }
                 }
             }
+            let ms = t_cc.elapsed().as_millis();
+            cov.cochange = if cc_notes.iter().any(|x| x.contains("failed")) && !cc_partial {
+                ArmCoverage::failed(cc_notes.join("; "), ms)
+            } else if cc_partial {
+                ArmCoverage::truncated(n, ms, cc_notes.join("; "))
+            } else {
+                ArmCoverage::complete(n, ms)
+            };
         }
 
         // Semantic arm — embedding search reaches files the LEXICAL signals miss:
@@ -3977,7 +4245,8 @@ impl Engram {
         // vector. Tagged "vector"; ranked LOW alone (semantic hits are noisier),
         // so it fills the capped tail to reach those files without displacing the
         // corroborated ones. MMR for file diversity. Generic; no per-repo logic.
-        if let Ok(r) = self
+        let t_vec = std::time::Instant::now();
+        let vector_result = self
             .handle_vector_search(crate::models::VectorSearchRequest {
                 project_id: req.project_id.clone(),
                 query: req.story.clone(),
@@ -3990,9 +4259,17 @@ impl Engram {
                 include_content: false,
                 max_content_chars: 0,
             })
-            .await
+            .await;
+        if let Err(e) = &vector_result {
+            cov.vector = ArmCoverage::failed(
+                format!("vector search unavailable: {e}"),
+                t_vec.elapsed().as_millis(),
+            );
+        }
+        if let Ok(r) = vector_result
             && let Some(t) = r.content.first().and_then(|x| x.as_text())
         {
+            let mut n = 0usize;
             // change_set_paths preserves the similarity order of the results.
             // The TOP-12 distinct hits are the cross-LANGUAGE bridge — an English
             // story matching Swedish/internal code identifiers that concept and
@@ -4005,10 +4282,15 @@ impl Engram {
                 .filter(|p| !engram_core::is_vendor_path(p))
                 .enumerate()
             {
+                n += 1;
+                why.entry(p.clone())
+                    .or_default()
+                    .push(format!("semantic match to the story (rank {})", i + 1));
                 prov.entry(p)
                     .or_default()
                     .insert(if i < 12 { "vtop" } else { "vector" });
             }
+            cov.vector = ArmCoverage::complete(n, t_vec.elapsed().as_millis());
         }
 
         // TS -> committed JS/CSS BUNDLE via co-change. A .ts usually ships with a
@@ -4057,6 +4339,10 @@ impl Engram {
                 let pl = p.to_lowercase();
                 if PRESENTATION.iter().any(|e| pl.ends_with(e)) && !engram_core::is_vendor_path(&p)
                 {
+                    why.entry(p.clone()).or_default().push(
+                        "presentation-layer co-change partner (bundle / markup / stylesheet)"
+                            .into(),
+                    );
                     prov.entry(p).or_default().insert("cochange");
                 }
             }
@@ -4080,6 +4366,9 @@ impl Engram {
                     for ext in [".vb", ".cs", ".designer.vb", ".designer.cs"] {
                         let sib = format!("{ps}{ext}");
                         if index_set.contains(&sib) {
+                            why.entry(sib.clone())
+                                .or_default()
+                                .push(format!("code-behind/designer companion of {p}"));
                             fam.push((sib, sigs.clone()));
                         }
                     }
@@ -4100,6 +4389,9 @@ impl Engram {
                                 // seeded family is never shown half-complete.
                                 let mut fs = sigs.clone();
                                 fs.insert("family");
+                                why.entry(f.clone())
+                                    .or_default()
+                                    .push(format!("localized .resx sibling of {p} (atomic set)"));
                                 fam.push((f.clone(), fs));
                             }
                         }
@@ -4111,12 +4403,18 @@ impl Engram {
                 // partner that EXISTS in the index.
                 for c in transpile_pair_candidates(&ps) {
                     if index_set.contains(&c) {
+                        why.entry(c.clone())
+                            .or_default()
+                            .push(format!("compiled bundle / source pair of {p}"));
                         fam.push((c, sigs.clone()));
                     }
                 }
                 // Interface <-> implementation (.NET IService convention).
                 for c in interface_pair_candidates(&ps) {
                     if index_set.contains(&c) {
+                        why.entry(c.clone())
+                            .or_default()
+                            .push(format!("interface/implementation pair of {p}"));
                         fam.push((c, sigs.clone()));
                     }
                 }
@@ -4127,12 +4425,18 @@ impl Engram {
             // exempt from the tail cap like the resx language sets).
             if prov.keys().any(|p| is_api_code_path(&strip(p))) {
                 for f in api_spec_docs(&index) {
+                    why.entry(f.clone())
+                        .or_default()
+                        .push("API contract document (API-layer code is in the set)".into());
                     fam.push((f, BTreeSet::from(["family"])));
                 }
             }
+            cov.family = ArmCoverage::complete(fam.len(), 0);
             for (k, v) in fam {
                 prov.entry(k).or_default().extend(v);
             }
+        } else {
+            cov.family = ArmCoverage::failed("file index unavailable".into(), 0);
         }
 
         // Collapse path-prefix variants. The graph stores some files under two
@@ -4163,12 +4467,49 @@ impl Engram {
             }
             if !remap.is_empty() {
                 let mut merged: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
+                let mut merged_why: BTreeMap<String, Vec<String>> = BTreeMap::new();
                 for (p, sigs) in std::mem::take(&mut prov) {
-                    let key = remap.get(&p).cloned().unwrap_or(p);
-                    merged.entry(key).or_default().extend(sigs);
+                    let key = remap.get(&p).cloned().unwrap_or(p.clone());
+                    merged.entry(key.clone()).or_default().extend(sigs);
+                    if let Some(w) = why.remove(&p) {
+                        merged_why.entry(key).or_default().extend(w);
+                    }
                 }
                 prov = merged;
+                why = merged_why;
             }
+        }
+
+        // Canonical indexed paths (row-1 audit D9): every candidate is the
+        // path the INDEX knows (case and `Site/` prefix restored); a path
+        // that no longer exists in the index is kept but labelled historical.
+        let mut historical: BTreeSet<String> = BTreeSet::new();
+        if let Ok(meta) = self.state.graph.list_file_node_metadata(&req.project_id) {
+            let norm = |p: &str| -> String {
+                let p = p.replace('\\', "/").to_lowercase();
+                p.strip_prefix("site/").unwrap_or(&p).to_string()
+            };
+            let index_map: HashMap<String, String> = meta
+                .iter()
+                .map(|(rp, _)| (norm(rp.as_str()), rp.as_str().replace('\\', "/")))
+                .collect();
+            let mut canon: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
+            let mut canon_why: BTreeMap<String, Vec<String>> = BTreeMap::new();
+            for (p, sigs) in std::mem::take(&mut prov) {
+                let key = match index_map.get(&norm(&p)) {
+                    Some(c) => c.clone(),
+                    None => {
+                        historical.insert(p.clone());
+                        p.clone()
+                    }
+                };
+                canon.entry(key.clone()).or_default().extend(sigs);
+                if let Some(w) = why.remove(&p) {
+                    canon_why.entry(key).or_default().extend(w);
+                }
+            }
+            prov = canon;
+            why = canon_why;
         }
 
         // Temporal-analytics expansion: a story asking for analytics OVER TIME
@@ -4472,14 +4813,44 @@ impl Engram {
                 None
             };
 
-        let mut out = render_change_set(
+        let (mut out, omissions) = render_change_set(
             req.story.trim(),
             &concepts,
             &prov,
             temporal_section.as_deref(),
             sibling_section.as_deref(),
             setting_prior,
+            &historical,
         );
+        out.push_str(&render_change_set_coverage(&cov, omissions.len()));
+
+        if req.output_json {
+            let (rows, omissions) = change_set_rows(&prov);
+            let files: Vec<serde_json::Value> = rows
+                .iter()
+                .filter(|r| !r.omitted)
+                .map(|r| {
+                    serde_json::json!({
+                        "path": r.path,
+                        "layer": r.layer,
+                        "tier": r.tier,
+                        "signals": r.signals,
+                        "why": why.get(&r.path).cloned().unwrap_or_default(),
+                        "historical": historical.contains(&r.path),
+                    })
+                })
+                .collect();
+            let payload = serde_json::json!({
+                "story": req.story.trim(),
+                "concepts": concepts,
+                "files": files,
+                "coverage": cov,
+                "omissions": omissions,
+            });
+            return Ok(CallToolResult::success(vec![Content::text(
+                serde_json::to_string_pretty(&payload).unwrap_or_default(),
+            )]));
+        }
 
         // Scaffold template: when the story ADDS a new API/structural feature,
         // surface the codebase's existing feature COHORT as a template to mirror.
@@ -7031,5 +7402,48 @@ mod agent_integration_tests {
             render_mcp_json_snippet(std::path::Path::new("/usr/bin/engram_server"), None);
         let v: serde_json::Value = serde_json::from_str(&without_cfg).unwrap();
         assert!(v["mcpServers"]["engram"].get("env").is_none());
+    }
+}
+
+#[cfg(test)]
+mod change_set_rows_tests {
+    use super::*;
+
+    #[test]
+    fn tail_cap_cuts_are_reported_as_omissions_not_dropped() {
+        // 20 weak (concept-only, tier 3) server files + 1 golden co-change
+        // file: the cap keeps 18 weak ones, reports 2, never touches golden.
+        let mut prov: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
+        for i in 0..20 {
+            prov.insert(
+                format!("site/app_code/weak{i:02}.vb"),
+                BTreeSet::from(["concept"]),
+            );
+        }
+        prov.insert(
+            "site/app_code/golden.vb".into(),
+            BTreeSet::from(["cochange"]),
+        );
+        let (rows, omissions) = change_set_rows(&prov);
+        assert_eq!(rows.len(), 21);
+        assert_eq!(omissions.len(), 2, "{omissions:?}");
+        assert!(omissions.iter().all(|o| o.reason.contains("tail cap")));
+        assert!(rows.iter().filter(|r| !r.omitted).count() == 19);
+        assert!(
+            !rows
+                .iter()
+                .any(|r| r.path.ends_with("golden.vb") && r.omitted)
+        );
+        // family / vtop rows are exempt from the cap
+        prov.insert(
+            "site/app_code/res.en.resx".into(),
+            BTreeSet::from(["concept", "family"]),
+        );
+        let (rows, _) = change_set_rows(&prov);
+        assert!(!rows.iter().any(|r| r.path.ends_with(".resx") && r.omitted));
+        assert!(
+            rows.iter()
+                .any(|r| r.path.ends_with(".resx") && !r.signals.contains(&"family"))
+        );
     }
 }
