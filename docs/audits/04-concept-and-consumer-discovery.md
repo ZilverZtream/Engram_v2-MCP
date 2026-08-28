@@ -134,7 +134,7 @@ distinct symbols` — the 50 is the fetch cap (D9).
 | A8 | **open** — `find_symbol_references` cap+1 on the symbol fetch, outgoing truncation flag, label-cap note |
 | A9 | **open** — shared incoming-count function (edit tools 76 vs blast 98 for `Check_pr_id`) |
 | A10 | **partly** — `footprint_coverage_tests` x3 (paging status, anchor cap, coverage block); the fixture-repo golden footprint comes with A4/A5 |
-| A11 | **in flight (slice 5)** — `max_per_group` ceiling 100 → `FOOTPRINT_GROUP_CEILING` 500 so a caller can list a whole "Mentioned only in text" section (the last 14 G1 misses sat behind the ceiling; the cut was reported, the ceiling made it permanent). `tests/footprint_ceiling_tests.rs` x2 on a real 120-file project, RED first |
+| A11 | **fixed (slice 5, sweep14)** — `max_per_group` ceiling 100 → `FOOTPRINT_GROUP_CEILING` 500 so a caller can list a whole "Mentioned only in text" section (the last 14 G1 misses sat behind the ceiling; the cut was reported, the ceiling made it permanent). `tests/footprint_ceiling_tests.rs` x2 on a real 120-file project, RED first |
 | G1 | baseline 60/240 = 25 % → slice 1 84/240 = 35 % → **slices 2+3 (+ full reindex) 225/240 = 94 %** (redovisningskategori 25/25, installationsobjekt 116/130, arbetslag 46/46, personalliggare 37/38, tidrapport 1/1) — §7; the 15 residual misses are one root cause (case-preserving trigram index), slice 4 |
 | G2-G6 | per slice in §7 |
 

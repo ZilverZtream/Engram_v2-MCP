@@ -126,8 +126,8 @@ Honest and useful; the searched kind set is not stated.
 | A6 | **fixed (slices 1+3)** — `trace_ui_event` message uses the sanitized hop count (test); `find_connection_path`'s no-path message states the kind set ("all edge kinds, directed then undirected; synthesized file-membership edges excluded") and the clamp ("max_depth is clamped to 1..=12 (requested 50, searched 12)") — `tests/connection_path_message_tests.rs`, RED first |
 | A7 | **partly (slices 1+2)** — `tests/trace_data_flow_tests.rs` x5 (+ qualified-member resolution, a LIVE finding: App_Code members are indexed as `_rv.x.Method`, slice 1 compared bare names ⇒ 8/10 real calls "unresolved"; `callee_name_matches` + 5 unit cases), `tests/trace_data_flow_follow_tests.rs` x2 (depth-2 table reached with the depth on the step; depth-5 table NOT reached, stop names node + call). Open: `find_connection_path` kind-set statement (A6) |
 | G1 | **met (test + live)** — §7: 0 occurrences of the other method's Session write on the probe |
-| G2 | **met (live)** — 10 of the 8+ real calls are steps (audit: 0); after the resolver fix the helper resolves (test; live after the slice-2 deploy) |
-| G3 | **met (test)** — depth-2 follow reaches `GetAllByCheckingTotalProject`'s table; live after the slice-2 deploy |
+| G2 | **met (live)** — 10 calls are steps; after slice 2, 7/10 resolve live (the 3 left are framework calls: JsonConvert, the DataContext constructor, `s.SetOK`) |
+| G3 | **met (test); live FAILED after slice 2, cause found and fixed in slice 3** — the live follow expanded 0 nodes because the ENTRY node is indexed as `api.ioGetIds…` and the entry filter compared bare names (`entry_ids` empty on every App_Code method — which also means slice 1's live "no false step" was vacuous). Fixed with the callee rule; live re-run after the slice-3 deploy |
 | G4 | **met (test)** |
 | G5 | **met (test)** |
 | G6 | **met (live, slice 1)** — probe trace 0.2 s class; slice-2 depth-3 latency measured after its deploy |
@@ -160,3 +160,23 @@ steps 15 · tables 0 · state reads 0 · writes 0 · controls read 0 · written 
   "resolved" by bare-name coincidence. Fixed in slice 2
   (`callee_name_matches`, RED test with a qualified node) — the live
   re-run of this probe after the slice-2 deploy is the acceptance for G2/G3.
+
+## 7b. Live evidence — slice 2 (2026-08-29 00:17 deploy, commit e400653)
+
+Same probe. `calls 10 (3 unresolved)` — was 8 unresolved: `_us.UserAccess.CheckRead`,
+`GetDictionaryIntegerValue/StringValue`, `LogError` and
+`_io.installationsobjektprojekt.GetAllByCheckingTotalProject` now resolve
+(qualified member names). 0.64 s incl. the JSON-RPC round trip.
+
+```
+## Follow — depth cap 3, edge cap 500: 0 callee node(s) expanded, 0 node(s) truncated, 0 stop(s)
+```
+
+**Gate G3 FAILED live**: nothing was followed. Diagnosis: `collect_graph_steps`
+resolved the entry node with `name == entry_point`; the live node is named
+`api.ioGetIdsFilteredByMarkerCheckListItemStatus`, so `entry_ids` was
+empty — no graph steps, no follow, and the slice-1 "no false step" result
+was vacuous for App_Code methods (page methods, indexed bare, were fine).
+Slice 3 applies the callee rule to the entry (`tests/trace_data_flow_tests.rs`
+`a_qualified_entry_node_still_gets_its_graph_steps_and_follow`, RED first);
+the probe is re-run after its deploy.
