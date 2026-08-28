@@ -1398,7 +1398,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Pre-edit oracle: assembles method info, full body, top callers (signatures; include_caller_bodies=true for source), database footprint, session state flows, VB traps, sync hazards, blast radius, and edit-safety verdict in one response. Call this BEFORE modifying any method."
+        description = "Pre-edit oracle: assembles method info, full body, top callers (signatures; include_caller_bodies=true for source; the TRUE caller total is reported, not the display cap), database footprint, session state flows, VB traps, sync hazards, blast radius, business-rule evidence, and the edit-safety verdict in one response, with per-provider COVERAGE (complete / truncated / failed / not run) — missing evidence is never rendered green. Same-class overloads are refused until `line` selects one. Call this BEFORE modifying any method."
     )]
     pub async fn get_method_edit_context(
         &self,
@@ -1408,7 +1408,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "[.NET legacy] Full page context for a WebForms page: control tree, all event handlers with complete bodies, data layer, session state, AJAX regions, validation, auth requirements. The starting point for all WebForms work."
+        description = "[.NET legacy] Full page context for a WebForms page: control tree, event handlers (bodies opt-in), data layer, session state, AJAX regions, validation, auth requirements, with per-provider coverage; include_master_page / include_codebehind are honoured. The starting point for all WebForms work."
     )]
     pub async fn get_page_context(
         &self,
@@ -1468,7 +1468,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Standalone edit safety check: returns green/yellow/red verdict for a method based on blast radius, caller count, session writes, triggers, and complexity. Faster than get_method_edit_context when you only need the verdict."
+        description = "Standalone edit safety check: green/yellow/red verdict for a method from blast radius, exact caller count, session writes, triggers, and complexity (measured from the body), computed from the SAME evidence as get_method_edit_context and reported with per-provider coverage — missing evidence is never green. Use when you only need the verdict."
     )]
     pub async fn check_edit_safety(
         &self,

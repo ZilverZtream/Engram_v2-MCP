@@ -16,7 +16,7 @@ use engram_core::safe_join;
 use engram_graph::{EdgeKind, GraphStore, Node};
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, Content};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
@@ -56,6 +56,9 @@ pub struct CallerLocation {
     pub fqn: String,
     pub file_path: String,
     pub line: u32,
+    pub line_end: u32,
+    /// Edge kind that made this a caller (`calls`, `dependency`, …).
+    pub edge_kind: String,
 }
 
 /// Result of get_full_method_body.
@@ -92,9 +95,12 @@ pub struct MethodEditContextResult {
     pub caller_bodies: Vec<CallerBody>,
     pub vb_traps: Vec<VbTrapSummary>,
     pub sync_hazards: Vec<SyncHazardSummary>,
-    pub blast_radius_score: f32,
+    /// `None` when the blast provider failed — never a fake 0.0.
+    pub blast_radius_score: Option<f32>,
     pub risk_band: String,
     pub edit_safety: EditSafetyResult,
+    /// Present only when `include_business_logic` was requested.
+    pub business_logic: Option<BusinessLogicSection>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -129,6 +135,103 @@ pub struct EditSafetyResult {
     pub reasons: Vec<String>,
     pub pre_edit_checklist: Vec<String>,
     pub post_edit_checklist: Vec<String>,
+    /// What each evidence provider delivered. A verdict is only as good as
+    /// the evidence behind it; missing or capped providers are listed here
+    /// and floor the verdict (never green on missing evidence).
+    pub completeness: EditContextCompleteness,
+}
+
+/// What one evidence provider actually delivered (row-2 audit). Missing or
+/// truncated evidence must be visible to the verdict and to the reader —
+/// `None`/empty was previously indistinguishable from "nothing there".
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum ProviderStatus {
+    Complete,
+    Truncated {
+        shown: usize,
+        cap: usize,
+        known_total: Option<usize>,
+    },
+    Failed {
+        reason: String,
+    },
+    NotRun {
+        reason: String,
+    },
+}
+
+impl Default for ProviderStatus {
+    fn default() -> Self {
+        ProviderStatus::NotRun {
+            reason: "not run".into(),
+        }
+    }
+}
+
+impl ProviderStatus {
+    /// Failed or never ran — the verdict must not treat the axis as "clean".
+    pub fn is_missing(&self) -> bool {
+        matches!(
+            self,
+            ProviderStatus::Failed { .. } | ProviderStatus::NotRun { .. }
+        )
+    }
+}
+
+/// Per-provider completeness for the pre-edit oracle. Shared by
+/// `get_method_edit_context` and `check_edit_safety` so both tools report
+/// (and floor on) the same facts.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct EditContextCompleteness {
+    pub blast: ProviderStatus,
+    pub callers: ProviderStatus,
+    /// Incoming caller edges whose source node does not exist (dangling).
+    /// Quarantined from the caller list; reported so "no callers" is never
+    /// confused with "callers not resolvable".
+    pub callers_dangling: usize,
+    pub body: ProviderStatus,
+    pub complexity: ProviderStatus,
+    pub db_tables: ProviderStatus,
+    pub stored_procs: ProviderStatus,
+    pub session_reads: ProviderStatus,
+    pub session_writes: ProviderStatus,
+    pub vb_traps: ProviderStatus,
+    pub sync_hazards: ProviderStatus,
+}
+
+impl EditContextCompleteness {
+    pub fn all_complete() -> Self {
+        Self {
+            blast: ProviderStatus::Complete,
+            callers: ProviderStatus::Complete,
+            callers_dangling: 0,
+            body: ProviderStatus::Complete,
+            complexity: ProviderStatus::Complete,
+            db_tables: ProviderStatus::Complete,
+            stored_procs: ProviderStatus::Complete,
+            session_reads: ProviderStatus::Complete,
+            session_writes: ProviderStatus::Complete,
+            vb_traps: ProviderStatus::Complete,
+            sync_hazards: ProviderStatus::Complete,
+        }
+    }
+}
+
+/// Business-rule evidence for the method (from the `business_logic`
+/// namespace populated by `analyze_business_logic`).
+#[derive(Debug, Clone, Serialize)]
+pub struct BusinessLogicSection {
+    pub hits: Vec<BusinessLogicHit>,
+    /// Human note: how many stored, or how to populate the namespace.
+    pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BusinessLogicHit {
+    pub path: String,
+    pub score: f32,
+    pub content: String,
 }
 
 // ── Phase 38-4 Output Types ──────────────────────────────────────────────────
@@ -159,6 +262,34 @@ pub struct PageContextResult {
     pub vb_traps_summary: Vec<String>,
     pub requires_authentication: bool,
     pub total_methods: usize,
+    /// What each graph/file provider behind this page context delivered.
+    pub completeness: PageContextCompleteness,
+}
+
+/// Per-provider completeness for `get_page_context` (row-2 audit D6/D7).
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct PageContextCompleteness {
+    pub codebehind: ProviderStatus,
+    pub methods: ProviderStatus,
+    pub controls: ProviderStatus,
+    pub runtime: ProviderStatus,
+    pub wiring: ProviderStatus,
+    pub data_edges: ProviderStatus,
+    pub master_page: ProviderStatus,
+    pub ajax: ProviderStatus,
+}
+
+/// Fold two provider statuses: Failed > Truncated > NotRun > Complete.
+fn worse_status(a: ProviderStatus, b: ProviderStatus) -> ProviderStatus {
+    fn rank(p: &ProviderStatus) -> u8 {
+        match p {
+            ProviderStatus::Complete => 0,
+            ProviderStatus::NotRun { .. } => 1,
+            ProviderStatus::Truncated { .. } => 2,
+            ProviderStatus::Failed { .. } => 3,
+        }
+    }
+    if rank(&b) > rank(&a) { b } else { a }
 }
 
 /// A server control found in ASPX markup.
@@ -662,12 +793,82 @@ fn edge_has_runtime_provenance(edge: &engram_graph::Edge) -> bool {
         .unwrap_or(false)
 }
 
-/// Build MethodInfoResult from a graph Node + edge lookups.
+/// Caller list display cap. The TOTAL is still counted exactly (up to
+/// `CALLER_COUNT_CEILING`) so the verdict and the renderer can say
+/// "3 shown of 98" instead of presenting the cap as the count.
+const CALLER_CAP: usize = 50;
+/// Above this many distinct callers the total is reported as a lower bound.
+const CALLER_COUNT_CEILING: usize = 5_000;
+/// Per-kind cap on the method's own outgoing data/state edges.
+const DATA_EDGE_CAP: usize = 200;
+
+/// What the per-node edge lookups behind a `MethodInfoResult` delivered.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct MethodInfoCoverage {
+    pub callers: ProviderStatus,
+    pub callers_dangling: usize,
+    pub db_tables: ProviderStatus,
+    pub stored_procs: ProviderStatus,
+    pub session_reads: ProviderStatus,
+    pub session_writes: ProviderStatus,
+}
+
+/// Outgoing edge targets of ONE kind for ONE node, exact up to
+/// `DATA_EDGE_CAP` (O(degree) adjacency seek — never a project-wide
+/// first-N-edges scan filtered by name suffix).
+fn outgoing_targets(
+    graph: &GraphStore,
+    project_id: &str,
+    kind: EdgeKind,
+    node_id: &str,
+) -> (Vec<String>, ProviderStatus) {
+    match graph.neighbors(project_id, kind, node_id, DATA_EDGE_CAP + 1) {
+        Ok(v) => {
+            let truncated = v.len() > DATA_EDGE_CAP;
+            let mut targets: Vec<String> = v
+                .into_iter()
+                .take(DATA_EDGE_CAP)
+                .map(|(id, _)| id)
+                .collect();
+            targets.sort();
+            targets.dedup();
+            let status = if truncated {
+                ProviderStatus::Truncated {
+                    shown: DATA_EDGE_CAP,
+                    cap: DATA_EDGE_CAP,
+                    known_total: None,
+                }
+            } else {
+                ProviderStatus::Complete
+            };
+            (targets, status)
+        }
+        Err(e) => (
+            Vec::new(),
+            ProviderStatus::Failed {
+                reason: e.to_string(),
+            },
+        ),
+    }
+}
+
+/// Build MethodInfoResult from a graph Node + edge lookups (coverage dropped —
+/// for callers that only need the facts).
 fn build_method_info_from_node(
     node: &Node,
     graph: &Arc<GraphStore>,
     project_id: &str,
 ) -> MethodInfoResult {
+    build_method_info_with_coverage(node, graph, project_id).0
+}
+
+/// Build MethodInfoResult from a graph Node + edge lookups, reporting what
+/// each lookup delivered.
+fn build_method_info_with_coverage(
+    node: &Node,
+    graph: &Arc<GraphStore>,
+    project_id: &str,
+) -> (MethodInfoResult, MethodInfoCoverage) {
     let fqn = fqn_from_node(node);
     let effects = meta_csv(node, "effects");
     let kind = full_mig::classify_method_kind_pub(&node.name, &effects, &node.metadata);
@@ -690,80 +891,81 @@ fn build_method_info_from_node(
         1
     };
 
-    // Gather edge data for this specific node.
-    // We use node_id_suffix2 to fuzzy-match edge source IDs that may include
-    // class-qualified names (e.g., "file::ClassName.MethodName").
-    let node_id_suffix2 = format!(".{}", node.name);
-
-    // Called-by: incoming Calls + Dependency edges where target matches this node
-    let called_by = crate::handlers::incoming_caller_edges(graph, project_id, &node.node_id, 50)
-        .into_iter()
-        .filter_map(|(source_id, _kind, _weight)| {
-            // Resolve source node for file + line info
-            graph
-                .get_node(project_id, &source_id)
-                .ok()
-                .flatten()
-                .map(|src| CallerLocation {
-                    fqn: fqn_from_node(&src),
-                    file_path: src.file_path.as_str().to_string(),
-                    line: src.start_line,
-                })
-        })
-        .collect::<Vec<_>>();
+    // Called-by: incoming caller edges. The total is counted exactly (up to
+    // CALLER_COUNT_CEILING); the LIST is capped at CALLER_CAP for display.
+    // Sources whose node does not exist are dangling: quarantined from the
+    // list and COUNTED, so "no callers" is never confused with "callers not
+    // resolvable".
+    let mut called_by: Vec<CallerLocation> = Vec::new();
+    let mut callers_dangling = 0usize;
+    let mut callers_status = ProviderStatus::Complete;
+    match crate::handlers::incoming_caller_edges_checked(
+        graph,
+        project_id,
+        &node.node_id,
+        CALLER_COUNT_CEILING,
+    ) {
+        Ok((edges, over_ceiling)) => {
+            let distinct = edges.len();
+            for (source_id, kind, _weight) in &edges {
+                match graph.get_node(project_id, source_id) {
+                    Ok(Some(src)) => {
+                        if called_by.len() < CALLER_CAP {
+                            called_by.push(CallerLocation {
+                                fqn: fqn_from_node(&src),
+                                file_path: src.file_path.as_str().to_string(),
+                                line: src.start_line,
+                                line_end: src.end_line,
+                                edge_kind: kind.as_str().to_string(),
+                            });
+                        }
+                    }
+                    Ok(None) => callers_dangling += 1,
+                    Err(e) => {
+                        callers_status = ProviderStatus::Failed {
+                            reason: format!("caller node lookup failed: {e}"),
+                        };
+                        break;
+                    }
+                }
+            }
+            let resolved_total = distinct.saturating_sub(callers_dangling);
+            if !matches!(callers_status, ProviderStatus::Failed { .. })
+                && (over_ceiling || resolved_total > called_by.len())
+            {
+                callers_status = ProviderStatus::Truncated {
+                    shown: called_by.len(),
+                    cap: CALLER_CAP,
+                    known_total: if over_ceiling {
+                        None
+                    } else {
+                        Some(resolved_total)
+                    },
+                };
+            }
+        }
+        Err(e) => {
+            callers_status = ProviderStatus::Failed {
+                reason: format!("caller lookup failed: {e}"),
+            };
+        }
+    }
 
     // Calls-methods: extract from metadata (populated during extraction).
     // We don't have a direct find_outgoing_edges API; metadata is the authoritative source.
     let calls_from_meta = meta_csv(node, "calls_methods");
 
-    // DB tables accessed: from QueriesTable / SqlCalls edges
-    let mut db_tables: Vec<String> = Vec::new();
-    if let Ok(edges) = graph.list_edges_by_kind(project_id, EdgeKind::QueriesTable, 5000) {
-        for e in &edges {
-            if e.source_id == node.node_id || e.source_id.ends_with(&node_id_suffix2) {
-                db_tables.push(e.target_id.clone());
-            }
-        }
-    }
-
-    // Stored procs called: from SqlCalls edges
-    let mut stored_procs: Vec<String> = Vec::new();
-    if let Ok(edges) = graph.list_edges_by_kind(project_id, EdgeKind::SqlCalls, 5000) {
-        for e in &edges {
-            if e.source_id == node.node_id || e.source_id.ends_with(&node_id_suffix2) {
-                stored_procs.push(e.target_id.clone());
-            }
-        }
-    }
-
-    // Session state reads/writes
-    let mut session_reads: Vec<String> = Vec::new();
-    let mut session_writes: Vec<String> = Vec::new();
-    if let Ok(edges) = graph.list_edges_by_kind(project_id, EdgeKind::ReadsState, 5000) {
-        for e in &edges {
-            if e.source_id == node.node_id || e.source_id.ends_with(&node_id_suffix2) {
-                session_reads.push(e.target_id.clone());
-            }
-        }
-    }
-    if let Ok(edges) = graph.list_edges_by_kind(project_id, EdgeKind::WritesState, 5000) {
-        for e in &edges {
-            if e.source_id == node.node_id || e.source_id.ends_with(&node_id_suffix2) {
-                session_writes.push(e.target_id.clone());
-            }
-        }
-    }
-
-    // Deduplicate edge results — fuzzy matching via ends_with() can produce dupes
-    // when multiple node IDs share the same suffix.
-    db_tables.sort();
-    db_tables.dedup();
-    stored_procs.sort();
-    stored_procs.dedup();
-    session_reads.sort();
-    session_reads.dedup();
-    session_writes.sort();
-    session_writes.dedup();
+    // Data/state edges: exact per-node adjacency seeks (row-2 audit D5 —
+    // the previous project-wide first-5000-edges scans were silently
+    // truncated on large graphs and suffix-matched other methods' edges).
+    let (db_tables, db_tables_status) =
+        outgoing_targets(graph, project_id, EdgeKind::QueriesTable, &node.node_id);
+    let (stored_procs, stored_procs_status) =
+        outgoing_targets(graph, project_id, EdgeKind::SqlCalls, &node.node_id);
+    let (session_reads, session_reads_status) =
+        outgoing_targets(graph, project_id, EdgeKind::ReadsState, &node.node_id);
+    let (session_writes, session_writes_status) =
+        outgoing_targets(graph, project_id, EdgeKind::WritesState, &node.node_id);
 
     // Compute complexity from body if available, else from metadata
     let complexity = node
@@ -780,7 +982,7 @@ fn build_method_info_from_node(
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
 
-    MethodInfoResult {
+    let info = MethodInfoResult {
         fqn,
         file_path: node.file_path.as_str().to_string(),
         class_name: class_of_node(node),
@@ -811,7 +1013,16 @@ fn build_method_info_from_node(
         session_keys_written: session_writes,
         complexity_score: complexity,
         body_preview,
-    }
+    };
+    let coverage = MethodInfoCoverage {
+        callers: callers_status,
+        callers_dangling,
+        db_tables: db_tables_status,
+        stored_procs: stored_procs_status,
+        session_reads: session_reads_status,
+        session_writes: session_writes_status,
+    };
+    (info, coverage)
 }
 
 /// Table names referenced by FROM/JOIN/INTO/UPDATE/DELETE in a SQL
@@ -896,17 +1107,359 @@ fn read_lines_from_file(
     Ok((body, context))
 }
 
+/// Select the ONE method node a request means. Refuses cross-class AND
+/// same-class-overload ambiguity instead of taking `candidates[0]`, and
+/// prefers an exact name over the substring match `query_nodes` performs
+/// ("Load" must not resolve to "Page_Load"). Row-2 audit D9.
+fn select_method_node(
+    graph: &GraphStore,
+    project_id: &str,
+    file_path: &str,
+    method_name: &str,
+    class_name: Option<&str>,
+    line: Option<u32>,
+) -> Result<Node, String> {
+    let mut candidates = graph
+        .query_nodes(
+            project_id,
+            Some("function"),
+            Some(method_name),
+            Some(file_path),
+            50,
+        )
+        .map_err(|e| format!("method lookup failed: {e}"))?;
+    if let Some(cls) = class_name {
+        let cls_lower = cls.to_lowercase();
+        candidates.retain(|n| n.namespace.to_lowercase().contains(&cls_lower));
+    }
+    if candidates.is_empty() {
+        return Err(method_not_found_message(
+            graph,
+            project_id,
+            method_name,
+            Some(file_path),
+        ));
+    }
+    let exact: Vec<Node> = candidates
+        .iter()
+        .filter(|n| n.name.eq_ignore_ascii_case(method_name))
+        .cloned()
+        .collect();
+    if !exact.is_empty() {
+        candidates = exact;
+    }
+    // Same-name methods in DIFFERENT classes: describing the wrong one
+    // poisons the edit that follows.
+    let mut namespaces: Vec<&str> = candidates.iter().map(|n| n.namespace.as_str()).collect();
+    namespaces.sort_unstable();
+    namespaces.dedup();
+    if namespaces.len() > 1 {
+        let mut msg = format!(
+            "AMBIGUOUS: '{}' exists in {} classes in '{}'. Re-call with class_name set:\n",
+            method_name,
+            namespaces.len(),
+            file_path
+        );
+        for n in candidates.iter().take(10) {
+            msg.push_str(&format!(
+                "- {} (lines {}-{})\n",
+                fqn_from_node(n),
+                n.start_line,
+                n.end_line
+            ));
+        }
+        return Err(msg);
+    }
+    if let Some(l) = line {
+        candidates.retain(|n| n.start_line == l);
+        if candidates.is_empty() {
+            return Err(format!(
+                "No declaration of '{method_name}' starts at line {l} in '{file_path}'. \
+                 Omit `line` to see the candidates."
+            ));
+        }
+    }
+    // Same-class overloads (distinct spans): a verdict for the wrong overload
+    // is worse than no verdict.
+    let mut starts: Vec<u32> = candidates.iter().map(|n| n.start_line).collect();
+    starts.sort_unstable();
+    starts.dedup();
+    if starts.len() > 1 {
+        let mut msg = format!(
+            "AMBIGUOUS: '{}' is declared {} times in '{}' (overloads). Re-call with line=<start line>:\n",
+            method_name,
+            starts.len(),
+            file_path
+        );
+        for n in candidates.iter().take(10) {
+            let sig = meta_str(n, "signature");
+            msg.push_str(&format!(
+                "- {} (lines {}-{}) {} -> line={}\n",
+                fqn_from_node(n),
+                n.start_line,
+                n.end_line,
+                if sig.is_empty() {
+                    String::new()
+                } else {
+                    format!("— `{sig}`")
+                },
+                n.start_line
+            ));
+        }
+        return Err(msg);
+    }
+    Ok(candidates.swap_remove(0))
+}
+
+/// Everything the pre-edit oracle knows about ONE method, with per-provider
+/// completeness. Shared by `get_method_edit_context` and `check_edit_safety`
+/// so both compute the verdict from the SAME facts (row-2 audit D3/D10).
+struct EditEvidence {
+    node: Node,
+    method_info: MethodInfoResult,
+    full_body: Option<String>,
+    vb_traps: Vec<VbTrapSummary>,
+    sync_hazards: Vec<SyncHazardSummary>,
+    blast: Option<crate::services::blast_radius_service::BlastRadiusReport>,
+    edit_safety: EditSafetyResult,
+}
+
+fn assemble_edit_evidence(
+    graph: &Arc<GraphStore>,
+    project_id: &str,
+    project_dir: &str,
+    node: Node,
+) -> Result<EditEvidence, String> {
+    let (mut method_info, cov) = build_method_info_with_coverage(&node, graph, project_id);
+    let mut completeness = EditContextCompleteness {
+        callers: cov.callers,
+        callers_dangling: cov.callers_dangling,
+        db_tables: cov.db_tables,
+        stored_procs: cov.stored_procs,
+        session_reads: cov.session_reads,
+        session_writes: cov.session_writes,
+        ..Default::default()
+    };
+    let file_path = node.file_path.as_str().to_string();
+    let full_path = safe_join(Path::new(project_dir), &file_path)
+        .map_err(|e| format!("Path validation: {e}"))?;
+
+    // Body — always read: complexity and the hazard scans depend on it.
+    let full_body = match read_lines_from_file(&full_path, node.start_line, node.end_line, 0) {
+        Ok((body, _)) => {
+            completeness.body = ProviderStatus::Complete;
+            Some(body)
+        }
+        Err(e) => {
+            completeness.body = ProviderStatus::Failed {
+                reason: format!("could not read {file_path}: {e}"),
+            };
+            None
+        }
+    };
+
+    // Complexity: no extractor writes a complexity_score metadata key, so
+    // estimate from the body; without a body it is NOT measured (never 0).
+    if method_info.complexity_score > 0 {
+        completeness.complexity = ProviderStatus::Complete;
+    } else if let Some(ref body) = full_body {
+        method_info.complexity_score = estimate_complexity(body);
+        completeness.complexity = ProviderStatus::Complete;
+    } else {
+        completeness.complexity = ProviderStatus::NotRun {
+            reason: "body not read; no extractor writes complexity_score".into(),
+        };
+    }
+
+    // File-level scans filtered to the method span.
+    let content = std::fs::read_to_string(&full_path);
+    let is_vb = file_path.to_lowercase().ends_with(".vb");
+    let vb_traps: Vec<VbTrapSummary> = match (&content, is_vb) {
+        (Ok(c), true) => {
+            completeness.vb_traps = ProviderStatus::Complete;
+            let files = vec![(file_path.as_str(), c.as_str())];
+            engram_index::vb_translation_traps::detect_vb_translation_traps(&files)
+                .traps
+                .into_iter()
+                .filter(|t| {
+                    t.location
+                        .rsplit(':')
+                        .next()
+                        .and_then(|s| s.parse::<u32>().ok())
+                        .map(|l| l >= node.start_line && l <= node.end_line)
+                        .unwrap_or(false)
+                })
+                .map(|t| VbTrapSummary {
+                    location: t.location,
+                    trap: t.trap,
+                    risk: t.risk,
+                    guidance: t.guidance,
+                })
+                .collect()
+        }
+        (Ok(_), false) => {
+            completeness.vb_traps = ProviderStatus::NotRun {
+                reason: "not a VB file".into(),
+            };
+            Vec::new()
+        }
+        (Err(e), _) => {
+            completeness.vb_traps = ProviderStatus::Failed {
+                reason: e.to_string(),
+            };
+            Vec::new()
+        }
+    };
+    let sync_hazards: Vec<SyncHazardSummary> = match &content {
+        Ok(c) => {
+            completeness.sync_hazards = ProviderStatus::Complete;
+            engram_index::sync_hazard_detector::detect_sync_hazards(c, is_vb)
+                .hazards
+                .into_iter()
+                .filter(|h| {
+                    h.line_number >= node.start_line as usize
+                        && h.line_number <= node.end_line as usize
+                })
+                .map(|h| SyncHazardSummary {
+                    line: h.line_number as u32,
+                    pattern: h.pattern_type,
+                    severity: format!("{:?}", h.severity),
+                    modern_equivalent: h.modern_equivalent,
+                })
+                .collect()
+        }
+        Err(e) => {
+            completeness.sync_hazards = ProviderStatus::Failed {
+                reason: e.to_string(),
+            };
+            Vec::new()
+        }
+    };
+
+    // Blast radius: failure is reported, never converted to "no risk".
+    let blast = match crate::services::blast_radius_service::compute_blast_radius(
+        graph,
+        project_id,
+        &node.node_id,
+        node.generation,
+        false,
+    ) {
+        Ok(r) => {
+            completeness.blast = if r.coverage.causal_truncated {
+                ProviderStatus::Truncated {
+                    shown: r.causal_dependents,
+                    cap: r.coverage.cap_incoming,
+                    known_total: None,
+                }
+            } else {
+                ProviderStatus::Complete
+            };
+            Some(r)
+        }
+        Err(e) => {
+            completeness.blast = ProviderStatus::Failed {
+                reason: e.to_string(),
+            };
+            None
+        }
+    };
+
+    let edit_safety = compute_edit_safety(&method_info, blast.as_ref(), &completeness);
+    Ok(EditEvidence {
+        node,
+        method_info,
+        full_body,
+        vb_traps,
+        sync_hazards,
+        blast,
+        edit_safety,
+    })
+}
+
+fn provider_text(p: &ProviderStatus) -> String {
+    match p {
+        ProviderStatus::Complete => "complete".into(),
+        ProviderStatus::Truncated {
+            shown,
+            cap,
+            known_total: Some(t),
+        } => format!("{shown} shown of {t} (display cap {cap})"),
+        ProviderStatus::Truncated { shown, cap, .. } => {
+            format!("≥{shown} (capped at {cap}; total unknown)")
+        }
+        ProviderStatus::Failed { reason } => format!("FAILED — {reason}"),
+        ProviderStatus::NotRun { reason } => format!("not run — {reason}"),
+    }
+}
+
+/// Markdown block listing what every provider delivered.
+fn render_coverage_block(c: &EditContextCompleteness) -> String {
+    let mut md = String::from("## Coverage\n\n");
+    for (name, st) in [
+        ("blast radius", &c.blast),
+        ("callers", &c.callers),
+        ("body", &c.body),
+        ("complexity", &c.complexity),
+        ("db tables", &c.db_tables),
+        ("stored procs", &c.stored_procs),
+        ("session reads", &c.session_reads),
+        ("session writes", &c.session_writes),
+        ("vb traps", &c.vb_traps),
+        ("sync hazards", &c.sync_hazards),
+    ] {
+        md.push_str(&format!("- {name}: {}\n", provider_text(st)));
+    }
+    if c.callers_dangling > 0 {
+        md.push_str(&format!(
+            "- dangling caller edges (source not indexed, quarantined): {}\n",
+            c.callers_dangling
+        ));
+    }
+    md.push('\n');
+    md
+}
+
 /// Shared edit safety computation used by both get_method_edit_context (38-3) and
 /// check_edit_safety (38-10). Centralizes all scoring logic so thresholds and
 /// reason messages never drift between the two tools.
 fn compute_edit_safety(
     method_info: &MethodInfoResult,
     blast_radius: Option<&crate::services::blast_radius_service::BlastRadiusReport>,
+    completeness: &EditContextCompleteness,
 ) -> EditSafetyResult {
+    // A missing blast report is UNKNOWN risk, never 0.0 (row-2 audit D1):
+    // the numeric contribution stays 0 but the provider floor below keeps
+    // the verdict off green and says why.
     let br_score = blast_radius
         .map(|b| b.migration_risk as f32 * 10.0)
         .unwrap_or(0.0);
-    let caller_count = method_info.called_by.len();
+    let blast_status = if blast_radius.is_none() && !completeness.blast.is_missing() {
+        ProviderStatus::NotRun {
+            reason: "no blast report".into(),
+        }
+    } else {
+        completeness.blast.clone()
+    };
+    // Callers: thresholds use the EXACT total when known; the display list
+    // may be capped. Text never presents a cap as a count (audit D4).
+    let listed_callers = method_info.called_by.len();
+    let callers_known_total = match &completeness.callers {
+        ProviderStatus::Truncated {
+            known_total: Some(t),
+            ..
+        } => Some(*t),
+        ProviderStatus::Complete => Some(listed_callers),
+        _ => None,
+    };
+    let caller_count = callers_known_total.unwrap_or(listed_callers);
+    let caller_count_text = match (&completeness.callers, callers_known_total) {
+        (ProviderStatus::Truncated { .. }, Some(t)) => format!("{t} callers"),
+        (ProviderStatus::Truncated { shown, .. }, None) => {
+            format!("≥{shown} callers (capped)")
+        }
+        _ => format!("{listed_callers} callers"),
+    };
+    let callers_unknown = completeness.callers.is_missing();
     let has_session_writes = !method_info.session_keys_written.is_empty();
     let has_triggers = blast_radius
         .map(|b| !b.seam_candidates.is_empty())
@@ -917,9 +1470,13 @@ fn compute_edit_safety(
         .any(|e| e.contains("On_Error_Resume_Next") || e.contains("OnErrorResumeNext"));
     let complexity = method_info.complexity_score;
     let is_web_service = method_info.method_kind == "WebMethod";
+    // "No callers found" is only an orphan when the caller lookup ran to
+    // completion AND no incoming edge was left unresolved (audit D11).
     let is_orphan = method_info.called_by.is_empty()
         && method_info.handles_clause.is_empty()
-        && method_info.method_kind != "Lifecycle";
+        && method_info.method_kind != "Lifecycle"
+        && !callers_unknown
+        && completeness.callers_dangling == 0;
 
     let mut reasons = Vec::new();
     let mut pre_checklist = Vec::new();
@@ -943,7 +1500,7 @@ fn compute_edit_safety(
             ));
         }
         if caller_count > 15 {
-            reasons.push(format!("{} callers — high blast radius", caller_count));
+            reasons.push(format!("{caller_count_text} — high blast radius"));
         }
         if is_web_service {
             reasons.push("WebMethod — external consumers may depend on exact behavior".to_string());
@@ -982,7 +1539,7 @@ fn compute_edit_safety(
             ));
         }
         if caller_count > 3 {
-            reasons.push(format!("{} callers — moderate blast radius", caller_count));
+            reasons.push(format!("{caller_count_text} — moderate blast radius"));
         }
         if has_session_writes {
             reasons.push("Writes session state — changes affect other pages".to_string());
@@ -1032,19 +1589,64 @@ fn compute_edit_safety(
         verdict
     };
 
+    // Provider floor (row-2 audit A2): evidence that FAILED or never ran is
+    // not "clean". Required axes: blast radius, callers, complexity.
+    let mut missing: Vec<String> = Vec::new();
+    for (name, status) in [
+        ("blast radius", &blast_status),
+        ("callers", &completeness.callers),
+        ("complexity", &completeness.complexity),
+    ] {
+        match status {
+            ProviderStatus::Failed { reason } => {
+                missing.push(format!("{name} unknown (provider FAILED: {reason})"))
+            }
+            ProviderStatus::NotRun { reason } => {
+                missing.push(format!("{name} not measured ({reason})"))
+            }
+            _ => {}
+        }
+    }
+    if completeness.callers_dangling > 0 {
+        reasons.push(format!(
+            "{} dangling caller edge(s) (source symbol not indexed) — fan-in is a lower bound",
+            completeness.callers_dangling
+        ));
+    }
+    let verdict = if !missing.is_empty() && verdict == "green" {
+        reasons.push(format!(
+            "Evidence INCOMPLETE — {} — safety is unknown, not green",
+            missing.join("; ")
+        ));
+        pre_checklist.push(
+            "Gather the missing evidence (impact_analysis / find_symbol_references, or reindex) \
+             before editing"
+                .to_string(),
+        );
+        "yellow"
+    } else {
+        if !missing.is_empty() {
+            reasons.push(format!("Evidence INCOMPLETE — {}", missing.join("; ")));
+        }
+        verdict
+    };
+
     let confidence = match verdict {
         "green" => 0.9,
-        "yellow" if incomplete_causal => 0.5,
+        "yellow" if incomplete_causal || !missing.is_empty() => 0.5,
         "yellow" => 0.7,
         _ => 0.5,
     };
 
+    let mut completeness = completeness.clone();
+    completeness.blast = blast_status;
     EditSafetyResult {
         verdict: verdict.to_string(),
         confidence,
         reasons,
         pre_edit_checklist: pre_checklist,
         post_edit_checklist: post_checklist,
+        completeness,
     }
 }
 
@@ -1287,9 +1889,19 @@ fn render_method_edit_context_markdown(ctx: &MethodEditContextResult) -> String 
     // Callers: compact identity lines by default; fenced bodies only when
     // the caller opted into include_caller_bodies (source_code non-empty).
     if !ctx.caller_bodies.is_empty() {
+        let total = match &ctx.edit_safety.completeness.callers {
+            ProviderStatus::Truncated {
+                known_total: Some(t),
+                ..
+            } => t.to_string(),
+            ProviderStatus::Truncated { shown, .. } => format!("≥{shown} (capped)"),
+            ProviderStatus::Complete => ctx.method_info.called_by.len().to_string(),
+            _ => "unknown".to_string(),
+        };
         md.push_str(&format!(
-            "## Callers ({} shown)\n\n",
-            ctx.caller_bodies.len()
+            "## Callers ({} shown of {})\n\n",
+            ctx.caller_bodies.len(),
+            total
         ));
         for cb in &ctx.caller_bodies {
             if cb.source_code.is_empty() {
@@ -1362,10 +1974,16 @@ fn render_method_edit_context_markdown(ctx: &MethodEditContextResult) -> String 
         badge,
         ctx.edit_safety.confidence * 100.0
     ));
-    md.push_str(&format!(
-        "- **Blast radius**: {:.0} ({})\n",
-        ctx.blast_radius_score, ctx.risk_band
-    ));
+    match ctx.blast_radius_score {
+        Some(score) => md.push_str(&format!(
+            "- **Blast radius**: {:.0} ({})\n",
+            score, ctx.risk_band
+        )),
+        None => md.push_str(&format!(
+            "- **Blast radius**: UNKNOWN — {}\n",
+            provider_text(&ctx.edit_safety.completeness.blast)
+        )),
+    }
     for r in &ctx.edit_safety.reasons {
         md.push_str(&format!("- {}\n", r));
     }
@@ -1387,6 +2005,20 @@ fn render_method_edit_context_markdown(ctx: &MethodEditContextResult) -> String 
         md.push('\n');
     }
 
+    md.push_str(&render_coverage_block(&ctx.edit_safety.completeness));
+
+    if let Some(ref bl) = ctx.business_logic {
+        md.push_str("## Business Logic\n\n");
+        md.push_str(&format!("_{}_\n\n", bl.note));
+        for h in &bl.hits {
+            let body: String = h.content.chars().take(600).collect();
+            md.push_str(&format!(
+                "### {} (score {:.3})\n\n{}\n\n",
+                h.path, h.score, body
+            ));
+        }
+    }
+
     md
 }
 
@@ -1397,6 +2029,20 @@ fn render_page_context_markdown(ctx: &PageContextResult) -> String {
     md.push_str(&format!("- **Code-behind**: `{}`\n", ctx.codebehind_file));
     md.push_str(&format!("- **Class**: `{}`\n", ctx.class_name));
     md.push_str(&format!("- **Language**: {}\n", ctx.language));
+    {
+        let c = &ctx.completeness;
+        md.push_str(&format!(
+            "- **Coverage**: code-behind {} · methods {} · controls {} · runtime {} · wiring {} · data edges {} · master page {} · ajax {}\n",
+            provider_text(&c.codebehind),
+            provider_text(&c.methods),
+            provider_text(&c.controls),
+            provider_text(&c.runtime),
+            provider_text(&c.wiring),
+            provider_text(&c.data_edges),
+            provider_text(&c.master_page),
+            provider_text(&c.ajax),
+        ));
+    }
     if let Some(ref mp) = ctx.master_page {
         md.push_str(&format!("- **Master page**: `{}`\n", mp));
     }
@@ -2132,239 +2778,80 @@ impl Engram {
         let file_path = req.file_path.clone();
         let method_name = req.method_name.clone();
         let class_name = req.class_name.clone();
+        let line = req.line;
         let include_full_body = req.include_full_body;
         let include_caller_bodies = req.include_caller_bodies;
         let max_callers = req.max_callers;
-        let _include_biz_logic = req.include_business_logic;
         let output_json = req.output_json;
 
         let result = tokio::task::spawn_blocking(move || {
-            // 1. Find the method node in the graph
-            let mut candidates = graph
-                .query_nodes(
-                    &project_id,
-                    Some("function"),
-                    Some(&method_name),
-                    Some(&file_path),
-                    50,
-                )
-                .unwrap_or_default();
-
-            // Filter by class name if provided
-            if let Some(ref cls) = class_name {
-                let cls_lower = cls.to_lowercase();
-                candidates.retain(|n| n.namespace.to_lowercase().contains(&cls_lower));
-            }
-
-            if candidates.is_empty() {
-                return Err(method_not_found_message(
-                    &graph,
-                    &project_id,
-                    &method_name,
-                    Some(&file_path),
-                ));
-            }
-
-            // Same-name methods in DIFFERENT classes within this file are a
-            // real ambiguity — describing the wrong one poisons the edit that
-            // follows. Same-class multiples (overloads / partial matches)
-            // keep the historical first-candidate behavior.
-            {
-                let mut namespaces: Vec<&str> =
-                    candidates.iter().map(|n| n.namespace.as_str()).collect();
-                namespaces.sort_unstable();
-                namespaces.dedup();
-                if namespaces.len() > 1 {
-                    let mut msg = format!(
-                        "AMBIGUOUS: '{}' exists in {} classes in '{}'. Re-call with class_name set:\n",
-                        method_name,
-                        namespaces.len(),
-                        file_path
-                    );
-                    for n in candidates.iter().take(10) {
-                        msg.push_str(&format!(
-                            "- {} (lines {}-{})\n",
-                            fqn_from_node(n),
-                            n.start_line,
-                            n.end_line
-                        ));
-                    }
-                    return Err(msg);
-                }
-            }
-
-            let node = &candidates[0];
-            let mut method_info = build_method_info_from_node(node, &graph, &project_id);
-
-            // 2. Read full method body from disk
-            let full_body = if include_full_body {
-                let full_path = safe_join(Path::new(&project_dir), &file_path)
-                    .map_err(|e| format!("Path validation: {e}"))?;
-                read_lines_from_file(&full_path, node.start_line, node.end_line, 0)
-                    .ok()
-                    .map(|(body, _)| body)
-            } else {
-                None
-            };
-
-            // No extractor writes a complexity_score metadata key, so the
-            // graph value is always 0 — estimate from the body we just
-            // read so the edit-safety heuristics and the header show a
-            // real number.
-            if method_info.complexity_score == 0
-                && let Some(ref body) = full_body
-            {
-                method_info.complexity_score = estimate_complexity(body);
-            }
-
-            // 3. Callers. Identities (fqn + location) are ALWAYS collected —
-            // an agent must know who calls the method it is about to edit.
-            // Full caller SOURCE is opt-in: with the old always-bodies
-            // behavior a well-connected method returned tens of thousands
-            // of tokens from this one section.
-            let mut caller_bodies: Vec<CallerBody> = Vec::new();
-            {
-                let callers = crate::handlers::incoming_caller_edges(
-                    &graph,
-                    &project_id,
-                    &node.node_id,
-                    max_callers,
-                );
-
-                for (source_id, kind, _weight) in callers.iter().take(max_callers) {
-                    if let Ok(Some(src_node)) = graph.get_node(&project_id, source_id) {
-                        let source_code = if include_caller_bodies {
-                            let Ok(src_full) =
-                                safe_join(Path::new(&project_dir), src_node.file_path.as_str())
-                            else {
-                                continue;
-                            };
-                            match read_lines_from_file(
-                                &src_full,
-                                src_node.start_line,
-                                src_node.end_line,
-                                0,
-                            ) {
-                                Ok((src_body, _)) => src_body,
-                                Err(_) => continue,
-                            }
-                        } else {
-                            String::new()
-                        };
-                        caller_bodies.push(CallerBody {
-                            fqn: fqn_from_node(&src_node),
-                            file_path: src_node.file_path.as_str().to_string(),
-                            line_start: src_node.start_line,
-                            line_end: src_node.end_line,
-                            source_code,
-                            how_it_calls: format!("{} edge → {}", kind.as_str(), method_name),
-                        });
-                    }
-                }
-            }
-
-            // 4. VB translation traps in this file
-            let vb_traps = if file_path.to_lowercase().ends_with(".vb") {
-                let full_path = safe_join(Path::new(&project_dir), &file_path)
-                    .map_err(|e| format!("Path validation: {e}"))?;
-                if let Ok(content) = std::fs::read_to_string(&full_path) {
-                    let files = vec![(file_path.as_str(), content.as_str())];
-                    let report =
-                        engram_index::vb_translation_traps::detect_vb_translation_traps(&files);
-                    // Filter to traps within the method's line range
-                    report
-                        .traps
-                        .into_iter()
-                        .filter(|t| {
-                            // Parse line number from location (e.g., "file.vb:42")
-                            t.location
-                                .rsplit(':')
-                                .next()
-                                .and_then(|s| s.parse::<u32>().ok())
-                                .map(|line| line >= node.start_line && line <= node.end_line)
-                                .unwrap_or(false)
-                        })
-                        .collect::<Vec<_>>()
-                } else {
-                    vec![]
-                }
-            } else {
-                vec![]
-            };
-
-            // 5. Sync hazards in this method
-            let sync_hazards = {
-                let full_path = safe_join(Path::new(&project_dir), &file_path)
-                    .map_err(|e| format!("Path validation: {e}"))?;
-                if let Ok(content) = std::fs::read_to_string(&full_path) {
-                    let is_vb = file_path.to_lowercase().ends_with(".vb");
-                    let report =
-                        engram_index::sync_hazard_detector::detect_sync_hazards(&content, is_vb);
-                    // Filter to hazards within method's line range
-                    report
-                        .hazards
-                        .into_iter()
-                        .filter(|h| {
-                            h.line_number >= node.start_line as usize
-                                && h.line_number <= node.end_line as usize
-                        })
-                        .collect::<Vec<_>>()
-                } else {
-                    vec![]
-                }
-            };
-
-            // 6. Blast radius
-            let blast_radius = crate::services::blast_radius_service::compute_blast_radius(
+            let node = select_method_node(
                 &graph,
                 &project_id,
-                &node.node_id,
-                node.generation,
-                true,
-            )
-            .ok();
+                &file_path,
+                &method_name,
+                class_name.as_deref(),
+                line,
+            )?;
+            let ev = assemble_edit_evidence(&graph, &project_id, &project_dir, node)?;
 
-            // 7. Compute edit safety verdict via shared function
-            let edit_safety = compute_edit_safety(&method_info, blast_radius.as_ref());
+            // Callers: identities always (from the same exact list the
+            // verdict used); full SOURCE only on request — a well-connected
+            // method returned tens of thousands of tokens from this section.
+            let mut caller_bodies: Vec<CallerBody> = Vec::new();
+            for c in ev.method_info.called_by.iter().take(max_callers) {
+                let source_code = if include_caller_bodies {
+                    match safe_join(Path::new(&project_dir), &c.file_path)
+                        .ok()
+                        .and_then(|p| read_lines_from_file(&p, c.line, c.line_end, 0).ok())
+                    {
+                        Some((body, _)) => body,
+                        None => format!("(source unavailable: could not read {})", c.file_path),
+                    }
+                } else {
+                    String::new()
+                };
+                caller_bodies.push(CallerBody {
+                    fqn: c.fqn.clone(),
+                    file_path: c.file_path.clone(),
+                    line_start: c.line,
+                    line_end: c.line_end,
+                    source_code,
+                    how_it_calls: format!("{} edge → {}", c.edge_kind, ev.node.name),
+                });
+            }
 
-            // Assemble the edit context
-            Ok(MethodEditContextResult {
-                method_info,
-                full_source: full_body,
-                caller_bodies,
-                vb_traps: vb_traps
-                    .iter()
-                    .map(|t| VbTrapSummary {
-                        location: t.location.clone(),
-                        trap: t.trap.clone(),
-                        risk: t.risk.clone(),
-                        guidance: t.guidance.clone(),
-                    })
-                    .collect(),
-                sync_hazards: sync_hazards
-                    .iter()
-                    .map(|h| SyncHazardSummary {
-                        line: h.line_number as u32,
-                        pattern: h.pattern_type.clone(),
-                        severity: format!("{:?}", h.severity),
-                        modern_equivalent: h.modern_equivalent.clone(),
-                    })
-                    .collect(),
-                blast_radius_score: blast_radius
-                    .as_ref()
-                    .map(|b| b.migration_risk as f32 * 10.0)
-                    .unwrap_or(0.0),
-                risk_band: blast_radius
+            Ok::<MethodEditContextResult, String>(MethodEditContextResult {
+                blast_radius_score: ev.blast.as_ref().map(|b| b.migration_risk as f32 * 10.0),
+                risk_band: ev
+                    .blast
                     .as_ref()
                     .map(|b| format!("{:?}", b.risk_band))
                     .unwrap_or_else(|| "Unknown".to_string()),
-                edit_safety,
+                method_info: ev.method_info,
+                full_source: if include_full_body {
+                    ev.full_body
+                } else {
+                    None
+                },
+                caller_bodies,
+                vb_traps: ev.vb_traps,
+                sync_hazards: ev.sync_hazards,
+                edit_safety: ev.edit_safety,
+                business_logic: None,
             })
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        let ctx = result.map_err(|e| McpError::invalid_params(e, None))?;
+        let mut ctx = result.map_err(|e| McpError::invalid_params(e, None))?;
+
+        if req.include_business_logic {
+            ctx.business_logic = Some(
+                self.business_logic_for_method(&req.project_id, &ctx.method_info)
+                    .await,
+            );
+        }
 
         if output_json {
             let json = serde_json::to_string_pretty(&ctx)
@@ -2381,6 +2868,71 @@ impl Engram {
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
+    /// Business-rule evidence for a method from the `business_logic`
+    /// namespace. Never silent: an empty namespace says how to populate it
+    /// and a failed lookup says it failed.
+    async fn business_logic_for_method(
+        &self,
+        project_id: &str,
+        info: &MethodInfoResult,
+    ) -> BusinessLogicSection {
+        let ps = match self.ensure_project_runtime(project_id).await {
+            Ok(ps) => ps,
+            Err(e) => {
+                return BusinessLogicSection {
+                    hits: Vec::new(),
+                    note: format!("business-logic lookup FAILED: {e}"),
+                };
+            }
+        };
+        let gen_ = self.get_active_generation(project_id).await.unwrap_or(1);
+        let query = engram_index::HybridQuery {
+            text: format!("{} {}", info.class_name, info.method_name),
+            project_id: project_id.to_string(),
+            namespace: "business_logic".to_string(),
+            generation: gen_,
+            top_k: 5,
+            fts_mode: "loose".to_string(),
+            include_path_prefixes: None,
+            exclude_path_prefixes: None,
+            language_filters: None,
+            author_filter: None,
+            date_after: None,
+            date_before: None,
+            use_mmr: false,
+        };
+        match ps
+            .search
+            .search(&query, None, &tokio_util::sync::CancellationToken::new())
+            .await
+        {
+            Ok(hits) if hits.is_empty() => BusinessLogicSection {
+                hits: Vec::new(),
+                note: "no business-logic analysis stored for this method — run \
+                       analyze_business_logic (file mode) to populate the business_logic namespace"
+                    .into(),
+            },
+            Ok(hits) => {
+                let n = hits.len();
+                BusinessLogicSection {
+                    hits: hits
+                        .into_iter()
+                        .map(|h| BusinessLogicHit {
+                            path: h.path.as_str().to_string(),
+                            score: h.score as f32,
+                            content: h.snippet.unwrap_or_default(),
+                        })
+                        .collect(),
+                    note: format!("{n} stored business-logic document(s) matched (top 5)"),
+                }
+            }
+            Err(e) => BusinessLogicSection {
+                hits: Vec::new(),
+                note: format!("business-logic search FAILED: {e}"),
+            },
+        }
+    }
+
     // ── 38-4: get_page_context ────────────────────────────────────────────
 
     pub async fn handle_get_page_context(
@@ -2393,8 +2945,8 @@ impl Engram {
         let project_id = req.project_id.clone();
         let aspx_file = req.aspx_file.clone();
         let include_method_bodies = req.include_method_bodies;
-        let _include_master = req.include_master_page;
-        let _include_cb = req.include_codebehind;
+        let include_master = req.include_master_page;
+        let include_cb = req.include_codebehind;
         let output_json = req.output_json;
 
         let result = tokio::task::spawn_blocking(move || {
@@ -2435,10 +2987,18 @@ impl Engram {
                 })
                 .unwrap_or_else(|| "Unknown".to_string());
 
-            // 4. Extract master page from @Page directive
-            let master_page = {
+            let mut page_cov = PageContextCompleteness::default();
+
+            // 4. Extract master page from @Page directive (opt-out honoured)
+            let master_page = if include_master {
+                page_cov.master_page = ProviderStatus::Complete;
                 let re = regex::Regex::new(r#"(?i)MasterPageFile\s*=\s*"([^"]+)""#).ok();
                 re.and_then(|r| r.captures(&aspx_content).map(|cap| cap[1].to_string()))
+            } else {
+                page_cov.master_page = ProviderStatus::NotRun {
+                    reason: "include_master_page=false".into(),
+                };
+                None
             };
 
             // 5. Extract ContentPlaceHolder IDs from aspx
@@ -2455,28 +3015,108 @@ impl Engram {
             // 6. Extract controls from ASPX (server controls with runat="server")
             let mut controls = extract_aspx_controls(&aspx_content);
 
-            // 7. Get all methods from the code-behind via graph
-            let method_nodes = graph
-                .query_nodes(&project_id, Some("function"), None, Some(&cb_path), 500)
-                .unwrap_or_default();
-            let observed_runtime_control_edges = graph
-                .list_edges_by_kind(&project_id, EdgeKind::ObservedRuntimeControl, 5000)
-                .unwrap_or_default();
-            let observed_runtime_sql_edges = graph
-                .list_edges_by_kind(&project_id, EdgeKind::ObservedRuntimeSql, 5000)
-                .unwrap_or_default();
+            // 7. Methods from the code-behind via graph (opt-out honoured;
+            //    cap+1 fetch so truncation is a fact, not a guess).
+            const METHOD_CAP: usize = 500;
+            let method_nodes: Vec<Node> = if include_cb {
+                match graph.query_nodes(
+                    &project_id,
+                    Some("function"),
+                    None,
+                    Some(&cb_path),
+                    METHOD_CAP + 1,
+                ) {
+                    Ok(mut v) => {
+                        if v.len() > METHOD_CAP {
+                            v.truncate(METHOD_CAP);
+                            page_cov.methods = ProviderStatus::Truncated {
+                                shown: METHOD_CAP,
+                                cap: METHOD_CAP,
+                                known_total: None,
+                            };
+                        } else {
+                            page_cov.methods = ProviderStatus::Complete;
+                        }
+                        page_cov.codebehind = ProviderStatus::Complete;
+                        v
+                    }
+                    Err(e) => {
+                        page_cov.methods = ProviderStatus::Failed {
+                            reason: e.to_string(),
+                        };
+                        page_cov.codebehind = ProviderStatus::Failed {
+                            reason: e.to_string(),
+                        };
+                        Vec::new()
+                    }
+                }
+            } else {
+                page_cov.methods = ProviderStatus::NotRun {
+                    reason: "include_codebehind=false".into(),
+                };
+                page_cov.codebehind = ProviderStatus::NotRun {
+                    reason: "include_codebehind=false".into(),
+                };
+                Vec::new()
+            };
 
+            // Runtime evidence per METHOD NODE (O(degree) adjacency), never a
+            // project-wide first-5000-edges scan filtered by name suffix.
+            page_cov.runtime = ProviderStatus::Complete;
             let mut runtime_method_sources: HashSet<String> = HashSet::new();
-            let mut runtime_control_targets: HashSet<String> = HashSet::new();
-            for e in observed_runtime_control_edges
-                .iter()
-                .chain(observed_runtime_sql_edges.iter())
-            {
-                runtime_method_sources.insert(e.source_id.clone());
+            let mut runtime_observed_edges = 0usize;
+            let mut runtime_sql_set: HashSet<String> = HashSet::new();
+            for node in &method_nodes {
+                for kind in [
+                    EdgeKind::ObservedRuntimeControl,
+                    EdgeKind::ObservedRuntimeSql,
+                ] {
+                    let is_sql = matches!(kind, EdgeKind::ObservedRuntimeSql);
+                    match graph.neighbors(&project_id, kind, &node.node_id, DATA_EDGE_CAP + 1) {
+                        Ok(v) => {
+                            if !v.is_empty() {
+                                runtime_method_sources.insert(node.node_id.clone());
+                            }
+                            if v.len() > DATA_EDGE_CAP {
+                                page_cov.runtime = worse_status(
+                                    page_cov.runtime.clone(),
+                                    ProviderStatus::Truncated {
+                                        shown: DATA_EDGE_CAP,
+                                        cap: DATA_EDGE_CAP,
+                                        known_total: None,
+                                    },
+                                );
+                            }
+                            runtime_observed_edges += v.len().min(DATA_EDGE_CAP);
+                            if is_sql {
+                                for (t, _) in v.into_iter().take(DATA_EDGE_CAP) {
+                                    runtime_sql_set.insert(t);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            page_cov.runtime = ProviderStatus::Failed {
+                                reason: e.to_string(),
+                            };
+                        }
+                    }
+                }
             }
-            for e in &observed_runtime_control_edges {
-                runtime_control_targets.insert(e.target_id.clone());
-            }
+
+            // Control nodes of this page (runtime lookups + dynamic controls).
+            let control_nodes: Vec<Node> =
+                match graph.query_nodes(&project_id, Some("control"), None, Some(&cb_path), 1000) {
+                    Ok(v) => {
+                        page_cov.controls = ProviderStatus::Complete;
+                        v
+                    }
+                    Err(e) => {
+                        page_cov.controls = ProviderStatus::Failed {
+                            reason: e.to_string(),
+                        };
+                        Vec::new()
+                    }
+                };
 
             let mut methods: Vec<PageMethodSummary> = Vec::new();
             for node in &method_nodes {
@@ -2525,56 +3165,72 @@ impl Engram {
             });
 
             for c in &mut controls {
-                let synthetic_id = format!("control:{}:{}", aspx_file, c.server_id);
-                c.observed_at_runtime = runtime_control_targets.contains(&synthetic_id)
-                    || observed_runtime_control_edges.iter().any(|e| {
-                        e.target_id.ends_with(&format!(":{}", c.server_id))
-                            || e.target_id.ends_with(&format!(".{}", c.server_id))
-                    });
+                let mut ids = vec![format!("control:{}:{}", aspx_file, c.server_id)];
+                ids.extend(
+                    control_nodes
+                        .iter()
+                        .filter(|n| n.name.eq_ignore_ascii_case(&c.server_id))
+                        .map(|n| n.node_id.clone()),
+                );
+                c.observed_at_runtime = ids.iter().any(|id| {
+                    matches!(
+                        graph.find_incoming_edges_with_kind(
+                            &project_id,
+                            Some(EdgeKind::ObservedRuntimeControl),
+                            id,
+                            1,
+                        ),
+                        Ok(v) if !v.is_empty()
+                    )
+                });
             }
 
             // Runtime UI caveat detection for dynamic controls / wiring.
             // Event wiring may be recorded on either caller edge kind
             // (Dependency from the heuristic extractors, Calls from the
             // Roslyn path) — scan both.
-            let all_dependency_edges: Vec<_> = graph
-                .list_edges_by_kind(&project_id, EdgeKind::Dependency, 5000)
-                .unwrap_or_default()
-                .into_iter()
-                .chain(
-                    graph
-                        .list_edges_by_kind(&project_id, EdgeKind::Calls, 5000)
-                        .unwrap_or_default(),
-                )
-                .collect();
-
             let mut dynamic_ui_evidence: Vec<String> = Vec::new();
             let mut add_handler_count = 0usize;
             let mut lifecycle_dynamic_methods: Vec<String> = Vec::new();
             let mut synthetic_dynamic_controls: Vec<String> = Vec::new();
 
             let mut method_names: HashSet<String> = HashSet::new();
-            let mut method_ids: HashSet<String> = HashSet::new();
             for node in &method_nodes {
                 method_names.insert(node.name.to_ascii_lowercase());
-                method_ids.insert(node.node_id.clone());
             }
 
-            for edge in &all_dependency_edges {
-                let edge_kind = edge_meta_str(edge, "kind");
-                let wiring = edge_meta_str(edge, "wiring");
-                let is_related = method_ids.contains(&edge.source_id)
-                    || method_ids.contains(&edge.target_id)
-                    || method_nodes.iter().any(|n| {
-                        edge.source_id.ends_with(&format!(".{}", n.name))
-                            || edge.target_id.ends_with(&format!(".{}", n.name))
-                    });
-
-                if is_related
-                    && edge_kind.eq_ignore_ascii_case("event_wiring")
-                    && wiring.eq_ignore_ascii_case("AddHandler")
-                {
-                    add_handler_count += 1;
+            // Event wiring per METHOD NODE (both directions, O(degree)).
+            page_cov.wiring = ProviderStatus::Complete;
+            let mut seen_wiring: HashSet<(String, String)> = HashSet::new();
+            for node in &method_nodes {
+                match graph.edges_touching_with_coverage(&project_id, &node.node_id, 500) {
+                    Ok((edges, truncated)) => {
+                        if truncated {
+                            page_cov.wiring = worse_status(
+                                page_cov.wiring.clone(),
+                                ProviderStatus::Truncated {
+                                    shown: 500,
+                                    cap: 500,
+                                    known_total: None,
+                                },
+                            );
+                        }
+                        for edge in edges {
+                            if matches!(edge.edge_kind, EdgeKind::Dependency | EdgeKind::Calls)
+                                && edge_meta_str(&edge, "kind").eq_ignore_ascii_case("event_wiring")
+                                && edge_meta_str(&edge, "wiring").eq_ignore_ascii_case("AddHandler")
+                                && seen_wiring
+                                    .insert((edge.source_id.clone(), edge.target_id.clone()))
+                            {
+                                add_handler_count += 1;
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        page_cov.wiring = ProviderStatus::Failed {
+                            reason: e.to_string(),
+                        };
+                    }
                 }
             }
 
@@ -2584,12 +3240,9 @@ impl Engram {
                 }
             }
 
-            let control_nodes = graph
-                .query_nodes(&project_id, Some("control"), None, Some(&cb_path), 1000)
-                .unwrap_or_default();
-            for control in control_nodes {
-                if meta_bool(&control, "dynamic_control") {
-                    synthetic_dynamic_controls.push(control.name);
+            for control in &control_nodes {
+                if meta_bool(control, "dynamic_control") {
+                    synthetic_dynamic_controls.push(control.name.clone());
                 }
             }
 
@@ -2622,60 +3275,46 @@ impl Engram {
                 "Runtime controls likely present; static ASPX tree incomplete.".to_string(),
             );
 
-            // 8. AJAX analysis
-            let ajax_map = crate::services::ajax_region_service::analyze_ajax_regions(
+            // 8. AJAX analysis (failure is reported in coverage, not hidden)
+            let ajax_map = match crate::services::ajax_region_service::analyze_ajax_regions(
                 &graph,
                 &project_id,
                 &aspx_file,
                 &aspx_content,
-            )
-            .ok();
+            ) {
+                Ok(m) => {
+                    page_cov.ajax = ProviderStatus::Complete;
+                    Some(m)
+                }
+                Err(e) => {
+                    page_cov.ajax = ProviderStatus::Failed {
+                        reason: e.to_string(),
+                    };
+                    None
+                }
+            };
 
-            // 9. Collect tables and SPs referenced by this page's methods.
-            //    Load each edge kind ONCE (O(E)) rather than N times inside the loop.
-            let all_queries_table_edges = graph
-                .list_edges_by_kind(&project_id, EdgeKind::QueriesTable, 5000)
-                .unwrap_or_default();
-            let all_sql_calls_edges = graph
-                .list_edges_by_kind(&project_id, EdgeKind::SqlCalls, 5000)
-                .unwrap_or_default();
-            let all_reads_state_edges = graph
-                .list_edges_by_kind(&project_id, EdgeKind::ReadsState, 5000)
-                .unwrap_or_default();
-            let all_writes_state_edges = graph
-                .list_edges_by_kind(&project_id, EdgeKind::WritesState, 5000)
-                .unwrap_or_default();
-
+            // 9. Tables, SPs and state keys of THIS page's methods: exact
+            //    per-node adjacency seeks (the previous project-wide
+            //    first-5000-edges scans were silently truncated on large
+            //    graphs and suffix-matched other pages' same-named methods).
+            page_cov.data_edges = ProviderStatus::Complete;
             let mut tables_set: HashSet<String> = HashSet::new();
             let mut sps_set: HashSet<String> = HashSet::new();
             let mut session_set: HashSet<String> = HashSet::new();
-            let mut runtime_sql_set: HashSet<String> = HashSet::new();
-
             for node in &method_nodes {
-                let node_suffix = format!(".{}", node.name);
-
-                for e in &all_queries_table_edges {
-                    if e.source_id == node.node_id || e.source_id.ends_with(&node_suffix) {
-                        tables_set.insert(e.target_id.clone());
-                    }
-                }
-                for e in &all_sql_calls_edges {
-                    if e.source_id == node.node_id || e.source_id.ends_with(&node_suffix) {
-                        sps_set.insert(e.target_id.clone());
-                    }
-                }
-                for e in all_reads_state_edges
-                    .iter()
-                    .chain(all_writes_state_edges.iter())
-                {
-                    if e.source_id == node.node_id || e.source_id.ends_with(&node_suffix) {
-                        session_set.insert(e.target_id.clone());
-                    }
-                }
-                for e in &observed_runtime_sql_edges {
-                    if e.source_id == node.node_id || e.source_id.ends_with(&node_suffix) {
-                        runtime_sql_set.insert(e.target_id.clone());
-                    }
+                let (t, st) =
+                    outgoing_targets(&graph, &project_id, EdgeKind::QueriesTable, &node.node_id);
+                tables_set.extend(t);
+                page_cov.data_edges = worse_status(page_cov.data_edges.clone(), st);
+                let (t, st) =
+                    outgoing_targets(&graph, &project_id, EdgeKind::SqlCalls, &node.node_id);
+                sps_set.extend(t);
+                page_cov.data_edges = worse_status(page_cov.data_edges.clone(), st);
+                for kind in [EdgeKind::ReadsState, EdgeKind::WritesState] {
+                    let (t, st) = outgoing_targets(&graph, &project_id, kind, &node.node_id);
+                    session_set.extend(t);
+                    page_cov.data_edges = worse_status(page_cov.data_edges.clone(), st);
                 }
             }
 
@@ -2688,8 +3327,9 @@ impl Engram {
             session_keys.sort();
             runtime_sql_observations.sort();
 
-            // 10. VB traps for the entire code-behind
-            let vb_traps = if let Some(ref content) = cb_content {
+            // 10. VB traps for the entire code-behind (code-behind analysis
+            //     is opt-out via include_codebehind)
+            let vb_traps = if let (true, Some(content)) = (include_cb, cb_content.as_ref()) {
                 if language == "vbnet" {
                     let files = vec![(cb_path.as_str(), content.as_str())];
                     let report =
@@ -2725,8 +3365,7 @@ impl Engram {
                 dynamic_ui_detected,
                 dynamic_ui_evidence,
                 runtime_controls_warning,
-                runtime_observed_edges: observed_runtime_control_edges.len()
-                    + observed_runtime_sql_edges.len(),
+                runtime_observed_edges,
                 controls,
                 methods,
                 tables_used,
@@ -2758,6 +3397,7 @@ impl Engram {
                 vb_traps_summary,
                 requires_authentication: requires_auth,
                 total_methods,
+                completeness: page_cov,
             })
         })
         .await
@@ -4252,80 +4892,29 @@ impl Engram {
         req: CheckEditSafetyRequest,
     ) -> Result<CallToolResult, McpError> {
         let rec = self.ensure_project_record(&req.project_id).await?;
+        let project_dir = rec.directory.clone();
         let graph = self.state.graph.clone();
         let project_id = req.project_id.clone();
         let file_path = req.file_path.clone();
         let method_name = req.method_name.clone();
         let class_name = req.class_name.clone();
+        let line = req.line;
         let output_json = req.output_json;
 
         let result = tokio::task::spawn_blocking(move || {
-            // Find the method
-            let mut candidates = graph
-                .query_nodes(
-                    &project_id,
-                    Some("function"),
-                    Some(&method_name),
-                    Some(&file_path),
-                    50,
-                )
-                .unwrap_or_default();
-
-            if let Some(ref cls) = class_name {
-                let cls_lower = cls.to_lowercase();
-                candidates.retain(|n| n.namespace.to_lowercase().contains(&cls_lower));
-            }
-
-            if candidates.is_empty() {
-                return Err(method_not_found_message(
-                    &graph,
-                    &project_id,
-                    &method_name,
-                    Some(&file_path),
-                ));
-            }
-
-            // A safety VERDICT for the wrong method is worse than no verdict:
-            // refuse when the name matches methods in different classes and
-            // no class_name was given (same guard as get_method_edit_context).
-            {
-                let mut namespaces: Vec<&str> =
-                    candidates.iter().map(|n| n.namespace.as_str()).collect();
-                namespaces.sort_unstable();
-                namespaces.dedup();
-                if namespaces.len() > 1 {
-                    let mut msg = format!(
-                        "AMBIGUOUS: '{}' exists in {} classes in '{}'. Re-call with class_name set:\n",
-                        method_name,
-                        namespaces.len(),
-                        file_path
-                    );
-                    for n in candidates.iter().take(10) {
-                        msg.push_str(&format!(
-                            "- {} (lines {}-{})\n",
-                            fqn_from_node(n),
-                            n.start_line,
-                            n.end_line
-                        ));
-                    }
-                    return Err(msg);
-                }
-            }
-
-            let node = &candidates[0];
-            let method_info = build_method_info_from_node(node, &graph, &project_id);
-
-            // Compute blast radius
-            let blast_radius = crate::services::blast_radius_service::compute_blast_radius(
+            let node = select_method_node(
                 &graph,
                 &project_id,
-                &node.node_id,
-                node.generation,
-                false,
-            )
-            .ok();
-
-            Ok(compute_edit_safety(&method_info, blast_radius.as_ref()))
+                &file_path,
+                &method_name,
+                class_name.as_deref(),
+                line,
+            )?;
+            // Same evidence assembly as get_method_edit_context: the verdict
+            // is computed from identical facts (body read, complexity
+            // estimated, blast attempted, coverage recorded).
+            let ev = assemble_edit_evidence(&graph, &project_id, &project_dir, node)?;
+            Ok::<EditSafetyResult, String>(ev.edit_safety)
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -4370,8 +4959,11 @@ impl Engram {
             }
         }
 
+        md.push('\n');
+        md.push_str(&render_coverage_block(&safety.completeness));
+
         md.push_str(
-            "\nnext: find_symbol_references(<method>) for the caller list; \
+            "next: find_symbol_references(<method>) for the caller list; \
              get_method_edit_context before making the edit.\n",
         );
         let (banner, footer) = self
@@ -4562,5 +5154,188 @@ mod diagnostic_scope_tests {
     #[test]
     fn empty_claimable_keeps_the_finding() {
         assert!(diagnostic_belongs_to_context(1, 5, 5, &[]));
+    }
+}
+
+#[cfg(test)]
+mod edit_safety_tests {
+    //! Row-2 audit (docs/audits/02): a verdict computed from providers that
+    //! failed or never ran must not be green, a caller cap must render as a
+    //! lower bound, and "no callers found" must not become RED when the
+    //! callers were simply not resolvable.
+    use super::*;
+
+    fn info(callers: usize, complexity: u32, session_writes: usize) -> MethodInfoResult {
+        MethodInfoResult {
+            fqn: "ns.cls.M".into(),
+            file_path: "Site/App_Code/x.vb".into(),
+            class_name: "cls".into(),
+            method_name: "M".into(),
+            signature: "M()".into(),
+            return_type: "Sub".into(),
+            access_level: "Public".into(),
+            line_start: 1,
+            line_end: 10,
+            line_count: 10,
+            language: "vbnet".into(),
+            method_kind: "Helper".into(),
+            effects: vec![],
+            calls_methods: vec![],
+            called_by: (0..callers)
+                .map(|i| CallerLocation {
+                    fqn: format!("ns.c{i}.F"),
+                    file_path: format!("Site/App_Code/c{i}.vb"),
+                    line: 1,
+                    line_end: 3,
+                    edge_kind: "calls".into(),
+                })
+                .collect(),
+            handles_clause: vec![],
+            db_tables_accessed: vec![],
+            stored_procs_called: vec![],
+            session_keys_read: vec![],
+            session_keys_written: (0..session_writes)
+                .map(|i| format!("Session:k{i}"))
+                .collect(),
+            complexity_score: complexity,
+            body_preview: None,
+        }
+    }
+
+    fn complete() -> EditContextCompleteness {
+        EditContextCompleteness::all_complete()
+    }
+
+    #[test]
+    fn failed_blast_provider_is_never_green() {
+        // Low-risk facts on every other axis: 1 caller, trivial complexity,
+        // no session writes. Today this renders GREEN with risk 0.0.
+        let mut c = complete();
+        c.blast = ProviderStatus::Failed {
+            reason: "graph read failed".into(),
+        };
+        let r = compute_edit_safety(&info(1, 3, 0), None, &c);
+        assert_ne!(
+            r.verdict, "green",
+            "missing blast evidence rendered green: {r:?}"
+        );
+        assert!(
+            r.reasons
+                .iter()
+                .any(|s| s.contains("blast") && s.contains("graph read failed")),
+            "reason must name the failed provider: {:?}",
+            r.reasons
+        );
+        assert!(r.confidence <= 0.5, "confidence {} > 0.5", r.confidence);
+        assert_eq!(r.completeness.blast, c.blast);
+    }
+
+    #[test]
+    fn unmeasured_complexity_is_never_green() {
+        let mut c = complete();
+        c.complexity = ProviderStatus::NotRun {
+            reason: "body not read".into(),
+        };
+        let r = compute_edit_safety(&info(1, 0, 0), None, &c);
+        assert_ne!(r.verdict, "green");
+        assert!(
+            r.reasons
+                .iter()
+                .any(|s| s.contains("complexity") && s.contains("body not read")),
+            "{:?}",
+            r.reasons
+        );
+    }
+
+    #[test]
+    fn unresolvable_callers_are_not_an_orphan_red() {
+        // called_by is empty because the caller lookup FAILED, not because
+        // nobody calls it. Today: RED "may be invoked via reflection".
+        let mut c = complete();
+        c.callers = ProviderStatus::Failed {
+            reason: "adjacency read failed".into(),
+        };
+        let r = compute_edit_safety(&info(0, 3, 0), None, &c);
+        assert_ne!(
+            r.verdict, "red",
+            "provider failure became an orphan RED: {r:?}"
+        );
+        assert!(
+            r.reasons.iter().any(|s| s.contains("callers unknown")),
+            "{:?}",
+            r.reasons
+        );
+        assert!(
+            !r.reasons.iter().any(|s| s.contains("reflection")),
+            "the reflection guess must not appear when callers were not resolved: {:?}",
+            r.reasons
+        );
+    }
+
+    #[test]
+    fn dangling_callers_are_not_an_orphan_red() {
+        // Incoming edges exist but every source node is unresolved.
+        let mut c = complete();
+        c.callers_dangling = 3;
+        let r = compute_edit_safety(&info(0, 3, 0), None, &c);
+        assert_ne!(r.verdict, "red", "{r:?}");
+        assert!(
+            r.reasons.iter().any(|s| s.contains("3 dangling")),
+            "{:?}",
+            r.reasons
+        );
+    }
+
+    #[test]
+    fn capped_callers_render_as_a_lower_bound() {
+        let mut c = complete();
+        c.callers = ProviderStatus::Truncated {
+            shown: 50,
+            cap: 50,
+            known_total: None,
+        };
+        let r = compute_edit_safety(&info(50, 3, 0), None, &c);
+        assert_eq!(r.verdict, "red");
+        assert!(
+            r.reasons.iter().any(|s| s.contains("≥50 callers")),
+            "cap must render as a lower bound, got {:?}",
+            r.reasons
+        );
+        assert!(
+            !r.reasons.iter().any(|s| s.contains("50 callers —")),
+            "a bare capped count must not appear: {:?}",
+            r.reasons
+        );
+    }
+
+    #[test]
+    fn exact_caller_total_is_used_when_known() {
+        let mut c = complete();
+        c.callers = ProviderStatus::Truncated {
+            shown: 50,
+            cap: 50,
+            known_total: Some(98),
+        };
+        let r = compute_edit_safety(&info(50, 3, 0), None, &c);
+        assert!(
+            r.reasons.iter().any(|s| s.contains("98 callers")),
+            "{:?}",
+            r.reasons
+        );
+    }
+
+    #[test]
+    fn completeness_travels_in_the_result_json() {
+        let mut c = complete();
+        c.session_writes = ProviderStatus::Truncated {
+            shown: 200,
+            cap: 200,
+            known_total: None,
+        };
+        let r = compute_edit_safety(&info(1, 3, 0), None, &c);
+        let v = serde_json::to_value(&r).unwrap();
+        assert_eq!(v["completeness"]["session_writes"]["status"], "truncated");
+        assert_eq!(v["completeness"]["session_writes"]["cap"], 200);
+        assert_eq!(v["completeness"]["callers"]["status"], "complete");
     }
 }
