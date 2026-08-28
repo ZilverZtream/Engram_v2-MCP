@@ -338,3 +338,80 @@ async fn a_call_to_a_qualified_indexed_member_is_resolved() {
         "a qualified indexed member must resolve: {call}"
     );
 }
+
+/// Live finding #2 (OciusX, 2026-08-29, slice 2 deployed): the ENTRY node
+/// of an App_Code method is also indexed with a qualified name
+/// (`api.ioGetIdsFilteredByMarkerCheckListItemStatus`), so the entry
+/// filter `name == entry_point` matched nothing — no graph steps, no
+/// follow (`followed: 0`), and the false-step check passed vacuously.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_qualified_entry_node_still_gets_its_graph_steps_and_follow() {
+    let (_tmp, state, dir) = build_state();
+    std::fs::create_dir_all(dir.join("Site/App_Code/api")).unwrap();
+    std::fs::write(dir.join(FILE), SRC).unwrap();
+    let entry = Node {
+        node_id: format!("sym:function:{FILE}:api.Filter:7"),
+        node_type: "function".into(),
+        name: "api.Filter".into(),
+        namespace: "api".into(),
+        language: "vbnet".into(),
+        file_path: RelPath::new(FILE),
+        start_line: 7,
+        end_line: 12,
+        generation: 1,
+        metadata: None,
+    };
+    let helper = Node {
+        node_id: "sym:function:Site/App_Code/io/x.vb:_io.installationsobjektprojekt.GetAllByCheckingTotalProject:2".into(),
+        node_type: "function".into(),
+        name: "_io.installationsobjektprojekt.GetAllByCheckingTotalProject".into(),
+        namespace: "installationsobjektprojekt".into(),
+        language: "vbnet".into(),
+        file_path: RelPath::new("Site/App_Code/io/x.vb"),
+        start_line: 2,
+        end_line: 4,
+        generation: 1,
+        metadata: None,
+    };
+    let (eid, hid) = (entry.node_id.clone(), helper.node_id.clone());
+    state.graph.upsert_nodes(PID, &[entry, helper]).unwrap();
+    state
+        .graph
+        .upsert_edges(
+            PID,
+            &[
+                edge(&eid, "state:Session:filter_last_pr", EdgeKind::WritesState),
+                edge(&eid, &hid, EdgeKind::Calls),
+                edge(
+                    &hid,
+                    "table:iom_installationsobjektmoments",
+                    EdgeKind::QueriesTable,
+                ),
+            ],
+        )
+        .unwrap();
+    let engram = Engram::new(state);
+    let out = trace(
+        &engram,
+        json!({"project_id": PID, "file_path": FILE, "entry_point": "Filter", "output_json": true}),
+    )
+    .await;
+    let v: Value = serde_json::from_str(&out).unwrap();
+    assert!(
+        v["steps"].to_string().contains("filter_last_pr"),
+        "the qualified entry node's own Session write must be a step:\n{}",
+        v["steps"]
+    );
+    assert!(
+        v["follow"]["followed"].as_u64().unwrap_or(0) >= 1,
+        "the follow must expand the callee of a qualified entry node: {}",
+        v["follow"]
+    );
+    assert!(
+        v["tables_touched"]
+            .to_string()
+            .contains("iom_installationsobjektmoments"),
+        "{}",
+        v["tables_touched"]
+    );
+}

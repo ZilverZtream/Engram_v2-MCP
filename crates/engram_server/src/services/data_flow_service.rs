@@ -1038,7 +1038,10 @@ fn collect_graph_steps(
             50,
         )?
         .into_iter()
-        .filter(|n| n.name.eq_ignore_ascii_case(entry_point))
+        // The entry node may be indexed with a QUALIFIED name
+        // (`api.ioGetIds…` — live finding 2026-08-29); match the bare
+        // tail the same way callees are matched.
+        .filter(|n| callee_name_matches(&n.name, entry_point, entry_point))
         .map(|n| n.node_id)
         .collect();
     let relevant = |source_id: &str| -> bool { entry_ids.iter().any(|id| id == source_id) };
