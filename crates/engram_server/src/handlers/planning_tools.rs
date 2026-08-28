@@ -3664,7 +3664,14 @@ pub(crate) struct ChangeSetCoverage {
     pub vector: ArmCoverage,
     pub kb_bridge: ArmCoverage,
     pub family: ArmCoverage,
+    /// Full project node scans performed by this call (audit D7: the
+    /// repeated detect_incomplete_changes passes used to re-scan 200k nodes
+    /// each; they now share one snapshot).
+    pub node_scans: usize,
 }
+
+/// A full project node scan shared across the sub-calls of one request.
+pub(crate) type NodeSnapshot = std::sync::Arc<Vec<engram_graph::Node>>;
 
 fn render_change_set_coverage(cov: &ChangeSetCoverage, omitted: usize) -> String {
     let mut s = String::from("\n## Coverage\n");
@@ -3674,6 +3681,7 @@ fn render_change_set_coverage(cov: &ChangeSetCoverage, omitted: usize) -> String
     s.push_str(&format!("- vector: {}\n", cov.vector.line()));
     s.push_str(&format!("- kb bridge: {}\n", cov.kb_bridge.line()));
     s.push_str(&format!("- family: {}\n", cov.family.line()));
+    s.push_str(&format!("- node scans: {}\n", cov.node_scans));
     if omitted > 0 {
         s.push_str(&format!(
             "- omitted by the per-layer tail cap: {omitted} (paths in output_json.omissions)\n"
@@ -4160,6 +4168,21 @@ impl Engram {
                 ranked.push(p.clone());
             }
         }
+        // ONE full node scan for every pass of this call (audit D7).
+        let snapshot: NodeSnapshot = {
+            let graph = self.state.graph.clone();
+            let pid = req.project_id.clone();
+            tokio::task::spawn_blocking(move || {
+                std::sync::Arc::new(
+                    graph
+                        .query_nodes(&pid, None, None, None, crate::handlers::NODE_SCAN_LIMIT)
+                        .unwrap_or_default(),
+                )
+            })
+            .await
+            .unwrap_or_default()
+        };
+        cov.node_scans = 1;
         if ranked.is_empty() {
             cov.cochange = ArmCoverage::not_run("no concept/history seeds to anchor on");
         }
@@ -4202,11 +4225,14 @@ impl Engram {
                 Err(e) => cc_notes.push(format!("find_similar_changes failed: {e}")),
             }
             match self
-                .handle_detect_incomplete_changes(crate::models::DetectIncompleteChangesRequest {
-                    project_id: req.project_id.clone(),
-                    edited_files: dic_seed,
-                    max_partners: 12,
-                })
+                .detect_incomplete_changes_with(
+                    crate::models::DetectIncompleteChangesRequest {
+                        project_id: req.project_id.clone(),
+                        edited_files: dic_seed,
+                        max_partners: 12,
+                    },
+                    Some(snapshot.clone()),
+                )
                 .await
             {
                 Ok(r) => {
@@ -4323,15 +4349,18 @@ impl Engram {
             .collect();
         if !pres_anchors.is_empty()
             && let Ok(r) = self
-                .handle_detect_incomplete_changes(crate::models::DetectIncompleteChangesRequest {
-                    project_id: req.project_id.clone(),
-                    // Wider than the per-file default: this seeds the WHOLE
-                    // presentation anchor set in one call, so a small cap would let
-                    // strong anchors' partners crowd out a specific bundle (e.g.
-                    // roqQtyManager.js, weight ~8) under truncation.
-                    edited_files: pres_anchors,
-                    max_partners: 25,
-                })
+                .detect_incomplete_changes_with(
+                    crate::models::DetectIncompleteChangesRequest {
+                        project_id: req.project_id.clone(),
+                        // Wider than the per-file default: this seeds the WHOLE
+                        // presentation anchor set in one call, so a small cap would let
+                        // strong anchors' partners crowd out a specific bundle (e.g.
+                        // roqQtyManager.js, weight ~8) under truncation.
+                        edited_files: pres_anchors,
+                        max_partners: 25,
+                    },
+                    Some(snapshot.clone()),
+                )
                 .await
             && let Some(t) = r.content.first().and_then(|x| x.as_text())
         {
@@ -5704,6 +5733,17 @@ impl Engram {
         &self,
         req: crate::models::DetectIncompleteChangesRequest,
     ) -> Result<CallToolResult, McpError> {
+        self.detect_incomplete_changes_with(req, None).await
+    }
+
+    /// `detect_incomplete_changes` with an optional shared node snapshot so a
+    /// composite call (get_change_set runs this 2-3 times) scans the project
+    /// ONCE instead of once per pass.
+    pub(crate) async fn detect_incomplete_changes_with(
+        &self,
+        req: crate::models::DetectIncompleteChangesRequest,
+        snapshot: Option<NodeSnapshot>,
+    ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
         if req.edited_files.is_empty() {
             return Err(McpError::invalid_params(
@@ -5862,9 +5902,14 @@ impl Engram {
                 // Symbols in edited files -> state targets -> other touchers.
                 let mut state_findings: Vec<(String, String)> = Vec::new();
                 let mut seen_keys: HashSet<String> = HashSet::new();
-                let nodes = graph
-                    .query_nodes(&pid, None, None, None, crate::handlers::NODE_SCAN_LIMIT)
-                    .unwrap_or_default();
+                let nodes: NodeSnapshot = match snapshot {
+                    Some(shared) => shared,
+                    None => std::sync::Arc::new(
+                        graph
+                            .query_nodes(&pid, None, None, None, crate::handlers::NODE_SCAN_LIMIT)
+                            .unwrap_or_default(),
+                    ),
+                };
                 let edited_symbol_ids: Vec<String> = nodes
                     .iter()
                     .filter(|n| covered(n.file_path.as_str()))

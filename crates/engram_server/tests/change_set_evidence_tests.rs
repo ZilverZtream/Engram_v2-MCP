@@ -226,3 +226,25 @@ async fn json_flag_is_rejected_nowhere_and_markdown_stays_default() {
         "{md}"
     );
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn one_call_performs_one_full_node_scan() {
+    // Slice 2 (audit D7): the 2-3 detect_incomplete_changes passes inside a
+    // single get_change_set call share ONE node snapshot instead of each
+    // re-scanning the whole project (200k-node cap, twice, every call).
+    let (_tmp, state) = build_state();
+    seed(&state);
+    let engram = Engram::new(state);
+
+    let v = change_set(
+        &engram,
+        json!({"project_id": PID, "story": STORY, "output_json": true}),
+    )
+    .await;
+
+    assert_eq!(
+        v["coverage"]["node_scans"], 1,
+        "full node scans per call must be reported and be exactly one: {}",
+        v["coverage"]
+    );
+}
