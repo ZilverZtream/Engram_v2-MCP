@@ -139,10 +139,10 @@ its extractor.
 | A7 | **fixed (slice 2)** — git-history and file-read failures are `basis.failures[]` lines (the guide is still produced from what could be read); a cache-write failure is logged and printed "(not cached: …)" |
 | A8 | **fixed (slices 1+2)** — `tests/implementation_pattern_tests.rs` x3 (real mini WebForms project via index_project) + `tests/coding_style_basis_tests.rs` x3 (real git repo, 6 commits: VB analyser ran + basis; printed confidence = engine's; non-git project reports the git failure and still gets the static guide). Unit x4 |
 | M0 A/B | **blocked on user opt-in (2026-08-28)** — the replay needs either the OciusX `/story` dry-run orchestrator (registered domain agents + two human gates, run from an OciusX session) or the Engram Phase-2 A/B (in-session agents via the Workflow tool, which requires explicit opt-in). Inputs are ready (`eval/data/p2/pr1908.json`, `pr1937.json` + dossiers). Ask: hand-author the icon-label contract, then run both replays twice (with/without) — ~1 h of Sonnet agent time |
-| G1 | **4/5 live** (§7) — the miss ("user control with a dropdown …" ⇒ `any`) is fixed in slice 3 (control-side page words) |
+| G1 | **5/5 live** after slice 3 (§7b: the "user control … dropdown" query now infers `page` and returns `producedq.aspx.vb` first) |
 | G2 | **met (live)** — ordered chains with resolved DAL calls on the real pages (`btnSave_Click → … _cf.Form.Create | _cf.Form.Update`, `btnCopy_Click → _pp.mal.CopyForecastQtyByPrID | _rv.malredovisningsartiklar.…`) |
 | G3 | **met by construction** (every cap in `PatternCoverage`; failures listed) |
-| G4 | **met (test); live served the OLD cache** — the deployed handler returned the previous binary's cached "Confidence: 1.00" (key = file + HEAD oid). Slice 3 versions the cache key (`style_guide:v2:…`, test RED first); live check after its deploy |
+| G4 | **met (live, slice 3, §7b)** — `Confidence: 0.30` (1 commit, VB analyser 6 rules, mimicry 3) vs `0.60` (5 commits, 7 rules, mimicry 6): the value varies with the evidence; the versioned key retired the stale entry |
 | G5 | M0 A/B — blocked on user opt-in (see M0 row) |
 | G6 | **met** — 0.85–1.06 s per query incl. the JSON-RPC round trip (target ≤ 2 s) |
 | G7 | sweep13 (116 suites) |
@@ -170,3 +170,14 @@ share an exact chain; the key normalisation helps only within a family.
 `analyze_file_coding_style` on `productioncodelistcategory.aspx.vb`:
 returned `Confidence: 1.00 / Analysed 1 commits.` — the previous binary's
 cached text (cache key = file + HEAD oid). Slice 3 versions the key.
+
+## 7b. Live evidence — slice 3 (2026-08-29 01:21 deploy, commit 8ff187f)
+
+- `find_implementation_pattern("user control with a dropdown bound to a lookup table and a search button")`
+  → `inferred_kind: page`, filter applied, exemplar #1
+  `Site/modules/dashboard/pages/public/producedq/producedq.aspx.vb` (was
+  `any` / a markup file). The five-query kind check is now **5/5**.
+- `analyze_file_coding_style`:
+  `productioncodelistcategory.aspx.vb` → `Confidence: 0.30 · Basis: 1 commit(s) (limit 10) · file read: yes · VB analyser: ran (6 rule(s)) · mimicry: 3 bullet(s) · LLM: no`;
+  `api-installationsobjektprojekt.vb` → `Confidence: 0.60 · 5 commit(s) · VB analyser: ran (7 rule(s)) · mimicry: 6`.
+  No "(cached)" — the versioned key retired the previous binary's entry.

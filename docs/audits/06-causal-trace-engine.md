@@ -127,10 +127,10 @@ Honest and useful; the searched kind set is not stated.
 | A7 | **partly (slices 1+2)** — `tests/trace_data_flow_tests.rs` x5 (+ qualified-member resolution, a LIVE finding: App_Code members are indexed as `_rv.x.Method`, slice 1 compared bare names ⇒ 8/10 real calls "unresolved"; `callee_name_matches` + 5 unit cases), `tests/trace_data_flow_follow_tests.rs` x2 (depth-2 table reached with the depth on the step; depth-5 table NOT reached, stop names node + call). Open: `find_connection_path` kind-set statement (A6) |
 | G1 | **met (test + live)** — §7: 0 occurrences of the other method's Session write on the probe |
 | G2 | **met (live)** — 10 calls are steps; after slice 2, 7/10 resolve live (the 3 left are framework calls: JsonConvert, the DataContext constructor, `s.SetOK`) |
-| G3 | **met (test); live FAILED after slice 2, cause found and fixed in slice 3** — the live follow expanded 0 nodes because the ENTRY node is indexed as `api.ioGetIds…` and the entry filter compared bare names (`entry_ids` empty on every App_Code method — which also means slice 1's live "no false step" was vacuous). Fixed with the callee rule; live re-run after the slice-3 deploy |
+| G3 | **met (live, slice 3, §7c)** — after the entry-node fix the follow expanded 38 callee nodes on the probe and reached `io_pr_installationsobjektprojekts` / `pr_projekts` at depth 2 and Session keys at depth 3; the slice-2 live failure (entry named `api.ioGetIds…`, `entry_ids` empty) is recorded in §7b |
 | G4 | **met (test)** |
 | G5 | **met (test)** |
-| G6 | **met (live, slice 1)** — probe trace 0.2 s class; slice-2 depth-3 latency measured after its deploy |
+| G6 | **met (live)** — 0.58 s incl. the JSON-RPC round trip with the depth-3 follow (38 nodes expanded) |
 | G7 | sweep10 green (110 suites, slice 1); slice 2 in sweep12 |
 
 ## 7. Live evidence — slice 1 (2026-08-28, commit b0369f6 deployed 22:56, OciusX gen 828)
@@ -180,3 +180,26 @@ was vacuous for App_Code methods (page methods, indexed bare, were fine).
 Slice 3 applies the callee rule to the entry (`tests/trace_data_flow_tests.rs`
 `a_qualified_entry_node_still_gets_its_graph_steps_and_follow`, RED first);
 the probe is re-run after its deploy.
+
+## 7c. Live evidence — slice 3 (2026-08-29 01:21 deploy, commit 74575ee)
+
+Same probe (`api.ioGetIdsFilteredByMarkerCheckListItemStatus`), 0.58 s:
+
+```
+steps 21 · calls 10 (3 unresolved) · GraphEdge 6
+tables: io_pr_installationsobjektprojekts, pr_projekts
+state writes: IsAuthorizedForCurrentTenant, IsLeftMenuHiddenByUser
+follow: depth cap 3, edge cap 500 — 38 callee node(s) expanded, 1 truncated, 44 stop(s)
+  ↳ depth 2: _io.installationsobjektprojekt.GetAllByCheckingTotalProject queries `io_pr_installationsobjektprojekts`
+  ↳ depth 2: _io.installationsobjektprojekt.GetAllByCheckingTotalProject queries `pr_projekts`
+  ↳ depth 3: _us.aspnetUsers.CanUserAccessAllProjects reads/writes Session["IsAuthorizedForCurrentTenant"], ["IsLeftMenuHiddenByUser"]
+  stop: ::JsonConvert.DeserializeObject(…) (depth 2): no data/state access and no further calls in the graph
+  stop: ::d.io_pr_iom_installationsobjektprojektmoments.Where(…) (depth 2): no data/state access …   ← LINQ on a dangling call target
+```
+
+What this says honestly: the domain helper's table access IS reached
+(G3), but the method's own LINQ (`d.io_pr_iom_installationsobjektprojektmoments.Where`)
+appears only as a dangling call target with "no data/state access" —
+the extractor emits a Calls edge for the expression, not a QueriesTable
+edge for the entity (row-4 A4 alias layer / a LINQ-entity extractor
+rule would close it). One node hit the 500-edge cap and says so.

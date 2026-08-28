@@ -131,7 +131,7 @@ distinct symbols` — the 50 is the fetch cap (D9).
 | A5 | **fixed (slice 2)** — VB extractor: `rangeVar.<table-shaped member>.column` chains on LINQ query-clause lines become `queries_table` READ edges (`orm=nav`), one per (function, table), skipped when a context access already covers the pair; PascalCase EF nav-properties deliberately not matched (need the DDL table set). Tests `linq_navigation_property_tests` x3 (fixture = the audit's `redovisningsartiklar.vb:51-52` shape). Live effect needs a full OciusX reindex — §7 |
 | A6 | **open** — consumer classification |
 | A7 | **fixed (slice 1)** — `FootprintCoverage` → `## Coverage` block: node scan (complete/truncated/failed), anchors matched/expanded (cap), consumers (status, edge count, per-anchor cap), lexical (status, files/hits/page), failures; the node-scan / consumer / lexical swallows are gone |
-| A8 | **open** — `find_symbol_references` cap+1 on the symbol fetch, outgoing truncation flag, label-cap note |
+| A8 | **fixed (slice 6, sweep16)** — symbol fetch cap+1 ("matches 50+ distinct symbols (fetch cap 50 — more exist; narrow with file_scope)"), symbol-lookup / incoming-fetch failures as FAILURE lines, the blocking-join failure is an error not "no references", `## Coverage` with the 400-label cap ("labels resolved for X of Y endpoint(s)"). `tests/symbol_references_caps_tests.rs` x2, RED first. Outgoing per-kind truncation note still open |
 | A9 | **open** — shared incoming-count function (edit tools 76 vs blast 98 for `Check_pr_id`) |
 | A10 | **partly** — `footprint_coverage_tests` x3 (paging status, anchor cap, coverage block); the fixture-repo golden footprint comes with A4/A5 |
 | A11 | **fixed (slice 5, sweep14)** — `max_per_group` ceiling 100 → `FOOTPRINT_GROUP_CEILING` 500 so a caller can list a whole "Mentioned only in text" section (the last 14 G1 misses sat behind the ceiling; the cut was reported, the ceiling made it permanent). `tests/footprint_ceiling_tests.rs` x2 on a real 120-file project, RED first |
@@ -220,3 +220,12 @@ section prints "… and 37 more" and `max_per_group` is clamped to ≤ 100,
 so no caller can see them. That is the reported cap, not a silent one;
 raising the ceiling is a one-line follow-up (A11, not a discovery
 defect).
+
+## 7d. Live evidence — slice 5 (2026-08-29 01:21 deploy, commit 8ff187f)
+
+`get_concept_footprint("installationsobjekt", max_per_group: 500)`: the
+"Mentioned only in text" section lists all **138** files (no cut line);
+against the 130-file literal scan: **130/130**. With the ceiling raised,
+G1 = **240/240 (100 %)** across the five concepts (25/25, 130/130,
+46/46, 38/38, 1/1). The default cap (8) and any cap below the section
+size still print "... and N more".

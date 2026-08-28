@@ -126,9 +126,9 @@ ingestion; no cap note (none needed).
 | A4 | **fixed (slice 1)** — path scopes queried at the store (`scope_query: store`), name scopes / misses fall back to the substring filter and say so; project-wide scan reports complete/truncated; markdown lists cut at 25 with "… and N more (full list: output_json=true)"; every cap (settings 300/20/10, helper hop 50, house 8, roles 10) a line; `output_json` |
 | A5 | **fixed (slice 1)** — every graph failure is a `coverage.failures[]` / FAILURE line (scan, scoped query, Calls/helper lookups, settings edges, settings tables) |
 | A6 | **fixed (slice 2)** — `immune_check`: each hit prints the anti-pattern METADATA header always and the reverted CODE only with `include_content` (the field was never read; sweep14 caught a first cut that hid the header too — the e2e immune test asserts it); "Matches Found: N shown (cap top_k=K — the cap was filled; raise top_k)"; repo-rule lookup failure is a FAILURE line. Escalation stays keyed on the `immune_` id prefix — that IS the revert-derived rule kind (`render_immune_rule_text`); OciusX simply has none yet |
-| A2 | **fixed (slice 2)** — bodies read from the working tree; `client_scope_reads` (qry.params / Request / GetDictionary…Value keys) + `has_object_level_guard` (`check_pr_id(…)`, `CheckAccess…(…)`) ⇒ `level: object`; guarded + client scope key + no object guard ⇒ `role_only` with a ROLE-ONLY section and parity counts. `tests/guards_client_input_tests.rs`, RED first |
+| A2 | **fixed (slice 2)** — bodies read from the working tree; `client_scope_reads` (qry.params / Request / GetDictionary…Value keys) + `has_object_level_guard` (`check_pr_id(…)`, `CheckAccess…(…)`) ⇒ `level: object`; guarded + client scope key + no object guard ⇒ `role_only` with a ROLE-ONLY section and parity counts. `tests/guards_client_input_tests.rs`, RED first. **Slice 3 (live finding, §7b):** the bulk endpoints read the POST body — `GetDictionaryIntegerValue(qry.data, "pr_id")` — so `qry.data` is client input beside `qry.params` (RED first) |
 | A7 | **partly (slice 1)** — `tests/guards_map_tests.rs` x3 (13 unguarded all reachable; helper-wrapped ⇒ guarded via, fallback ⇒ unknown, bare ⇒ unguarded, role level; store scope + coverage); unit x2. The role-only / object-level / conditional cases come with A2 |
-| G1 | **partly (live, §7)** — `ioGetCountByCategory` printed as UNGUARDED ✓; `ioUpdateBaseTypeInBulk` / `iopDeleteInBulk` credited `checkwrite` from their own metadata (the helper credit applies only when a function has no check of its own; the audit's point — the body's `CheckWrite` is conditional — needs condition analysis, open); the five `pr_id` readers ⇒ ROLE-ONLY lands with slice 2 (sweep14) |
+| G1 | **mostly met (live, §7b)** — `ioGetCountByCategory` UNGUARDED (reads `pr_id, iok_id`) ✓; `ioGetIdsFilteredByMarkerCheckListItemStatus` ROLE-ONLY (reads `pr_id, markerStatuses`, guard `checkread`) ✓ = the PR-2032 finding; 13 ROLE-ONLY in the file. NOT met: the four bulk endpoints show no client reads (their read form is not one of the three patterns — open), and the conditional own `CheckWrite` is still credited over `CanUserBulkUpdate` (open) |
 | G2 | **met (test)** — 0 silent cuts (25 + "… and N more"), every cap a line, path scope at the store (`coverage.scope_query == "store"`) |
 | G3 | **met (test)** — live: 0 unknown in the probe file (no fallback symbols there) |
 | G4 | **met (test)** — `include_content` gates the reverted code (metadata header always shown); "Matches Found: N shown (cap top_k=K …)" |
@@ -155,3 +155,25 @@ more (full list: output_json=true)", house patterns "… and 22 more",
 `## Coverage` with every cap. What slice 1 does NOT do: say that the
 five `pr_id` readers are ROLE-ONLY (slice 2, `role_only` + a ROLE-ONLY
 section — RED→GREEN, in sweep14) and see through a conditional check.
+
+## 7b. Live evidence — slice 2 (2026-08-29 01:21 deploy, commit 8ff187f)
+
+`map_guards_and_settings {scope: ".../api-installationsobjektprojekt.vb", output_json: true}`:
+
+```
+in scope 50 | guarded 32 · unguarded 18 · unknown 0 · ROLE-ONLY 13 | failures []
+Level: 0 object-level, 13 ROLE-ONLY, 19 role-level without client scope reads
+ioGetIdsFilteredByMarkerCheckListItemStatus  guarded  role  ROLE-ONLY  reads pr_id, markerStatuses   ← the audit's finding
+ioGetCountByCategory                         UNGUARDED            reads pr_id, iok_id
+ioUpdateBaseTypeInBulk / iopDeleteInBulk / iomsBulkUpdate / iomsBulkPreCheck   guarded role, scope_reads []   ← reads NOT detected
+## ROLE-ONLY — client scope keys read without an object-level guard
+- ROLE-ONLY: cacheSelectedMarkerIds (…:128) reads client markerIDs — guard: checkread
+- ROLE-ONLY: ioGenerateExportFile (…:177) reads client pr_id, markerIds, exportFile…
+- ROLE-ONLY: ioUpdateBaseType (…:756) reads client io_pr_id, newBaseType …
+```
+
+Open from this run: the four bulk endpoints read `pr_id` through a form
+the three patterns do not cover (the audit cites `prId` from the DTO /
+`_gd.projekt.GetByID(prId)`) — a DTO-field rule is the next slice; the
+conditional own-check credit stays open. 0 object-level guards in the
+file is itself the finding the auditor asked for.
