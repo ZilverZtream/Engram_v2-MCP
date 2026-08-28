@@ -600,8 +600,14 @@ impl Engram {
             None => {
                 out.push_str(&format!(
                     "No path within {max_depth} hops between\n  {from_id}\n  {to_id}\n\
-                     (searched directed then undirected; synthesized file-membership edges excluded).\n\
-                     Try a larger max_depth, or check both endpoints with resolve_id.\n"
+                     Searched: all edge kinds, directed then undirected; synthesized \
+                     file-membership edges excluded; max_depth is clamped to 1..=12{}.\n\
+                     Try a larger max_depth (up to 12), or check both endpoints with resolve_id.\n",
+                    if req.max_depth != max_depth {
+                        format!(" (requested {}, searched {max_depth})", req.max_depth)
+                    } else {
+                        String::new()
+                    }
                 ));
             }
         }
