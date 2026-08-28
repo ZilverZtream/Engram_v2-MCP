@@ -33,6 +33,67 @@ use std::path::PathBuf;
 /// a naive singular (trailing 's' stripped), the clean `ies`->`y` / `es`
 /// singular, and a compacted form without separators so "code category" also
 /// matches "CodeCategory"/"code_category".
+/// Row-4 audit: caps of the concept footprint, all REPORTED.
+pub(crate) const ANCHOR_CAP: usize = 50;
+pub(crate) const CONSUMER_CAP_PER_ANCHOR: usize = 200;
+pub(crate) const LEXICAL_PAGE: usize = 2000;
+
+#[derive(Debug, Clone, Default, serde::Serialize)]
+pub(crate) struct FootprintCoverage {
+    pub node_scan: String,
+    pub anchors_matched: usize,
+    pub anchors_used: usize,
+    pub anchor_cap: usize,
+    pub consumers: String,
+    pub consumer_edges: usize,
+    pub consumer_cap_per_anchor: usize,
+    pub lexical: String,
+    pub lexical_files: usize,
+    pub lexical_hits: usize,
+    pub lexical_page: usize,
+    pub failures: Vec<String>,
+}
+
+
+/// `complete` when the page was not filled past its size (we ask for
+/// page + 1 hits), `truncated` otherwise.
+pub(crate) fn footprint_lexical_status(hits: usize, page: usize) -> &'static str {
+    if hits > page { "truncated" } else { "complete" }
+}
+
+/// Every matching table/state node is an anchor, bounded by ANCHOR_CAP
+/// (reported when hit) — not the first five.
+pub(crate) fn footprint_select_anchors(
+    matched: &[(String, String)],
+) -> (Vec<(String, String)>, bool) {
+    let truncated = matched.len() > ANCHOR_CAP;
+    (
+        matched.iter().take(ANCHOR_CAP).cloned().collect(),
+        truncated,
+    )
+}
+
+pub(crate) fn render_footprint_coverage(c: &FootprintCoverage) -> String {
+    let mut s = String::from("\n## Coverage\n");
+    s.push_str(&format!("- node scan: {}\n", c.node_scan));
+    s.push_str(&format!(
+        "- anchors: {} matched, {} expanded (cap {})\n",
+        c.anchors_matched, c.anchors_used, c.anchor_cap
+    ));
+    s.push_str(&format!(
+        "- consumers: {} ({} edges; per-anchor cap {}, cap+1 fetch)\n",
+        c.consumers, c.consumer_edges, c.consumer_cap_per_anchor
+    ));
+    s.push_str(&format!(
+        "- lexical: {} ({} files from {} hits; page {}, cap+1 fetch)\n",
+        c.lexical, c.lexical_files, c.lexical_hits, c.lexical_page
+    ));
+    if !c.failures.is_empty() {
+        s.push_str(&format!("- failures: {}\n", c.failures.join("; ")));
+    }
+    s
+}
+
 pub(crate) fn concept_stems(concept: &str) -> Vec<String> {
     let lower = concept.trim().to_lowercase();
     let mut stems = vec![lower.clone()];
@@ -394,11 +455,29 @@ impl Engram {
         let pid = req.project_id.clone();
         let stems_b = stems.clone();
         type Entry = (String, String, String, u32); // name, node_id, file, line
-        let (groups, consumers, scan_truncated) = tokio::task::spawn_blocking(move || {
-            let nodes = graph
-                .query_nodes(&pid, None, None, None, crate::handlers::NODE_SCAN_LIMIT)
-                .unwrap_or_default();
+        let (groups, consumers, scan_truncated, mut cov) = tokio::task::spawn_blocking(move || {
+            let mut cov = FootprintCoverage {
+                anchor_cap: ANCHOR_CAP,
+                consumer_cap_per_anchor: CONSUMER_CAP_PER_ANCHOR,
+                lexical_page: LEXICAL_PAGE,
+                ..Default::default()
+            };
+            let nodes =
+                match graph.query_nodes(&pid, None, None, None, crate::handlers::NODE_SCAN_LIMIT) {
+                    Ok(n) => {
+                        cov.node_scan = "complete".into();
+                        n
+                    }
+                    Err(e) => {
+                        cov.node_scan = "failed".into();
+                        cov.failures.push(format!("node scan failed: {e}"));
+                        Vec::new()
+                    }
+                };
             let scan_truncated = nodes.len() >= crate::handlers::NODE_SCAN_LIMIT;
+            if scan_truncated {
+                cov.node_scan = "truncated".into();
+            }
 
             let mut groups: BTreeMap<&'static str, Vec<Entry>> = BTreeMap::new();
             let mut anchors: Vec<(String, String)> = Vec::new(); // (node_id, name)
@@ -416,8 +495,7 @@ impl Engram {
                     "file" => "files",
                     _ => continue,
                 };
-                if matches!(n.node_type.as_str(), "db_table" | "global_state") && anchors.len() < 5
-                {
+                if matches!(n.node_type.as_str(), "db_table" | "global_state") {
                     anchors.push((n.node_id.clone(), n.name.clone()));
                 }
                 groups.entry(group).or_default().push((
@@ -433,29 +511,57 @@ impl Engram {
             }
 
             // Consumers of the anchor tables / state keys: who reads/writes.
+            cov.anchors_matched = anchors.len();
+            let (anchors, anchors_truncated) = footprint_select_anchors(&anchors);
+            cov.anchors_used = anchors.len();
+            if anchors_truncated {
+                cov.failures.push(format!(
+                    "anchors capped at {ANCHOR_CAP} of {}",
+                    cov.anchors_matched
+                ));
+            }
             let mut consumers: Vec<(String, String, String)> = Vec::new(); // anchor, kind, src
+            cov.consumers = "complete".into();
             for (anchor_id, anchor_name) in &anchors {
-                if let Ok(incoming) =
-                    graph.find_incoming_edges_with_kind(&pid, None, anchor_id, 200)
-                {
-                    for (src, kind, _w) in incoming {
-                        if matches!(
-                            kind,
-                            EdgeKind::QueriesTable
-                                | EdgeKind::ReadsColumn
-                                | EdgeKind::ReadsState
-                                | EdgeKind::WritesState
-                                | EdgeKind::SqlCalls
-                                | EdgeKind::DataBinding
-                        ) {
-                            consumers.push((anchor_name.clone(), kind.as_str().to_string(), src));
+                match graph.find_incoming_edges_with_kind(
+                    &pid,
+                    None,
+                    anchor_id,
+                    CONSUMER_CAP_PER_ANCHOR + 1,
+                ) {
+                    Ok(incoming) => {
+                        if incoming.len() > CONSUMER_CAP_PER_ANCHOR {
+                            cov.consumers = "truncated".into();
                         }
+                        for (src, kind, _w) in incoming.into_iter().take(CONSUMER_CAP_PER_ANCHOR) {
+                            cov.consumer_edges += 1;
+                            if matches!(
+                                kind,
+                                EdgeKind::QueriesTable
+                                    | EdgeKind::ReadsColumn
+                                    | EdgeKind::ReadsState
+                                    | EdgeKind::WritesState
+                                    | EdgeKind::SqlCalls
+                                    | EdgeKind::DataBinding
+                            ) {
+                                consumers.push((
+                                    anchor_name.clone(),
+                                    kind.as_str().to_string(),
+                                    src,
+                                ));
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        cov.consumers = "failed".into();
+                        cov.failures
+                            .push(format!("consumer lookup failed for {anchor_name}: {e}"));
                     }
                 }
             }
             consumers.sort();
             consumers.dedup();
-            (groups, consumers, scan_truncated)
+            (groups, consumers, scan_truncated, cov)
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -467,7 +573,7 @@ impl Engram {
             namespace: "memory".into(),
             generation: gen_,
             text: req.concept.clone(),
-            top_k: 50,
+            top_k: LEXICAL_PAGE + 1,
             fts_mode: "loose".into(),
             include_path_prefixes: None,
             exclude_path_prefixes: None,
@@ -477,20 +583,29 @@ impl Engram {
             date_before: None,
             use_mmr: false,
         };
-        let lexical_files: Vec<String> = tokio::task::spawn_blocking(move || {
-            engine
-                .lexical_search(&q)
-                .map(|hits| {
+        let (lexical_files, lexical_hits, lexical_err): (Vec<String>, usize, Option<String>) =
+            tokio::task::spawn_blocking(move || match engine.lexical_search(&q) {
+                Ok(hits) => {
+                    let n = hits.len();
                     let mut files: Vec<String> =
                         hits.iter().map(|h| h.path.as_str().to_string()).collect();
                     files.sort();
                     files.dedup();
-                    files
-                })
-                .unwrap_or_default()
-        })
-        .await
-        .unwrap_or_default();
+                    (files, n, None)
+                }
+                Err(e) => (Vec::new(), 0, Some(e.to_string())),
+            })
+            .await
+            .unwrap_or_else(|e| (Vec::new(), 0, Some(format!("lexical task failed: {e}"))));
+        cov.lexical_hits = lexical_hits;
+        cov.lexical_files = lexical_files.len();
+        cov.lexical = match lexical_err {
+            Some(e) => {
+                cov.failures.push(format!("lexical search failed: {e}"));
+                "failed".into()
+            }
+            None => footprint_lexical_status(lexical_hits, LEXICAL_PAGE).into(),
+        };
 
         let grouped_files: HashSet<&str> = groups
             .values()
@@ -580,8 +695,9 @@ impl Engram {
 
         if !lexical_only.is_empty() {
             out.push_str(&format!(
-                "\n## Mentioned only in text — {} file(s) the graph has no concept edge for (verify manually)\n",
-                lexical_only.len()
+                "\n## Mentioned only in text — {} file(s) the graph has no concept edge for (verify manually; lexical {})\n",
+                lexical_only.len(),
+                cov.lexical
             ));
             for f in lexical_only.iter().take(cap) {
                 out.push_str(&format!("- {f}\n"));
@@ -591,6 +707,7 @@ impl Engram {
             }
         }
 
+        out.push_str(&render_footprint_coverage(&cov));
         out.push_str(NEXT_STEPS_CONCEPT_FOOTPRINT);
         out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
         Ok(CallToolResult::success(vec![Content::text(out)]))
@@ -3791,6 +3908,10 @@ pub(crate) struct ChangeSetCoverage {
     /// repeated detect_incomplete_changes passes used to re-scan 200k nodes
     /// each; they now share one snapshot).
     pub node_scans: usize,
+    /// Index-corroborated entity names found in the story (advisory unless
+    /// `expand_concepts` is set): the three recipe concepts first, then the
+    /// resolved extras.
+    pub concept_candidates: Vec<String>,
 }
 
 /// A full project node scan shared across the sub-calls of one request.
@@ -3805,6 +3926,12 @@ fn render_change_set_coverage(cov: &ChangeSetCoverage, omitted: usize) -> String
     s.push_str(&format!("- kb bridge: {}\n", cov.kb_bridge.line()));
     s.push_str(&format!("- family: {}\n", cov.family.line()));
     s.push_str(&format!("- node scans: {}\n", cov.node_scans));
+    if cov.concept_candidates.len() > 3 {
+        s.push_str(&format!(
+            "- entity candidates (index-corroborated, advisory — expand_concepts=true to retrieve on them): {}\n",
+            cov.concept_candidates[3..].join(", ")
+        ));
+    }
     if omitted > 0 {
         s.push_str(&format!(
             "- omitted by the per-layer tail cap: {omitted} (paths in output_json.omissions)\n"
@@ -4068,18 +4195,23 @@ impl Engram {
                     .collect()
             })
             .unwrap_or_default();
+        // Entity candidates are always RESOLVED and REPORTED; they only
+        // drive retrieval when the caller opts in (see the request doc).
+        let concept_candidates: Vec<String> = {
+            let cands = extract_story_concept_candidates(&story_for_concepts(&req.story));
+            resolve_story_concepts(&cands, &index_paths, 6)
+        };
         let mut concepts: Vec<String> = match &req.concepts {
             Some(c) if !c.is_empty() => c.iter().take(3).cloned().collect(),
-            _ => {
-                let cands = extract_story_concept_candidates(&story_for_concepts(&req.story));
-                resolve_story_concepts(&cands, &index_paths, 6)
-            }
+            _ if req.expand_concepts => concept_candidates.clone(),
+            _ => extract_story_concepts(&story_for_concepts(&req.story)),
         };
 
         // Row-1 audit: every candidate carries WHY it is here and every arm
         // reports what it delivered (never a silent `if let Ok`).
         let mut why: BTreeMap<String, Vec<String>> = BTreeMap::new();
         let mut cov = ChangeSetCoverage::default();
+        cov.concept_candidates = concept_candidates.clone();
         // KB language bridge: the team's wiki/docs corpus (memory_bank
         // sections) frequently names the same feature in BOTH the story's
         // language and the code's (English story "resource planning" vs
@@ -7736,5 +7868,67 @@ mod change_set_tier_tests {
             t(&["vector", "graph"])
         );
         assert!(t(&["vector", "graph"]) <= t(&["vector"]));
+    }
+}
+
+#[cfg(test)]
+mod footprint_coverage_tests {
+    //! Row-4 audit A1/A3/A7: the footprint pages the lexical index instead of
+    //! stopping at 50 hits, expands ALL matching anchors with a per-anchor
+    //! cap+1, and reports every cap and failure in a coverage block.
+    use super::*;
+
+    #[test]
+    fn lexical_paging_reports_completeness_from_the_extra_hit() {
+        assert_eq!(footprint_lexical_status(12, 2000), "complete");
+        assert_eq!(footprint_lexical_status(2000, 2000), "complete");
+        assert_eq!(footprint_lexical_status(2001, 2000), "truncated");
+    }
+
+    #[test]
+    fn coverage_block_names_every_provider_and_cap() {
+        let cov = FootprintCoverage {
+            node_scan: "complete".into(),
+            anchors_matched: 7,
+            anchors_used: 7,
+            anchor_cap: 50,
+            consumers: "truncated".into(),
+            consumer_edges: 401,
+            consumer_cap_per_anchor: 200,
+            lexical: "truncated".into(),
+            lexical_files: 45,
+            lexical_hits: 2001,
+            lexical_page: 2000,
+            failures: vec!["lexical search failed: boom".into()],
+            ..Default::default()
+        };
+        let md = render_footprint_coverage(&cov);
+        assert!(md.starts_with("\n## Coverage\n"), "{md}");
+        for needle in [
+            "- node scan: complete",
+            "- anchors: 7 matched, 7 expanded (cap 50)",
+            "- consumers: truncated (401 edges; per-anchor cap 200",
+            "- lexical: truncated (45 files from 2001 hits; page 2000",
+            "- failures: lexical search failed: boom",
+        ] {
+            assert!(md.contains(needle), "missing {needle:?} in:\n{md}");
+        }
+    }
+
+    #[test]
+    fn anchors_are_no_longer_capped_at_five() {
+        // Ten matching tables: all ten are anchors (bounded by ANCHOR_CAP).
+        let matched: Vec<(String, String)> = (0..10)
+            .map(|i| (format!("table:t{i}"), format!("t{i}")))
+            .collect();
+        let (used, truncated) = footprint_select_anchors(&matched);
+        assert_eq!(used.len(), 10);
+        assert!(!truncated);
+        let many: Vec<(String, String)> = (0..ANCHOR_CAP + 3)
+            .map(|i| (format!("table:t{i}"), format!("t{i}")))
+            .collect();
+        let (used, truncated) = footprint_select_anchors(&many);
+        assert_eq!(used.len(), ANCHOR_CAP);
+        assert!(truncated);
     }
 }
