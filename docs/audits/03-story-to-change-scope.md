@@ -131,16 +131,17 @@ row-4 doc §3 (45 files).
 | G6 | Paths 100 % canonical | 0 bare/historical paths without label |
 | G7 | Sweep green; new tests mutation-checked | |
 
-## 6. Disposition table (fill at implementation)
+## 6. Disposition table (implementation in slices — slice 1 landed 2026-08-28)
 
 | Item | Disposition |
 |---|---|
-| A1 | |
-| A2 | |
-| A3 | |
-| A4 | |
-| A5 | |
-| A6 | |
-| A7 | |
-| A8 | |
-| G1-G7 | |
+| A1 | **deferred to slice 4** — TaskSpec extraction changes what the eval measured; gated by the implementation-score harness (Sonnet arms) |
+| A2 | **deferred to slice 4** — same gate; slice 1 ships the per-file `why` the ranking will consume |
+| A3 | **deferred to slice 3** — cohort precompute after per-arm timings (now in coverage) show where the 27-32 s go |
+| A4 | **deferred to slice 2** — single node-scan snapshot for the 2-3 `detect_incomplete_changes` calls |
+| A5 | **fixed (slice 1)** — vector arm reports `failed — vector search unavailable: …` / `complete (N hits)`; every arm has an `ArmCoverage` (status, hits, ms, note); the `if let Ok` swallows are gone |
+| A6 | **fixed (slice 1)** — candidates rendered as the INDEXED path (case + `Site/` restored) via `list_file_node_metadata`; unindexed paths kept and labelled `historical` (markdown suffix + JSON flag); test `candidate_paths_are_the_indexed_canonical_forms` |
+| A7 | **fixed (slice 1)** — `output_json` payload {concepts, files[{path, layer, tier, signals, why, historical}], coverage, omissions}; tail-cap cuts reported (markdown note + `omissions[]` with layer/reason) instead of silent `continue`; PARTIAL from `find_similar_changes` propagates as `cochange.status = truncated` with the walk's own line as the note; one shared `change_set_rows` feeds both renderers |
+| A8 | **partly (slice 1)** — omission reporting + coverage + canonical-path tests in place (`tests/change_set_evidence_tests.rs` x4, unit `change_set_rows_tests` mutation-checked); extractor/ranking/PARTIAL-under-budget tests come with their slices |
+| D10 | **open** — permission-gates section `take(10)` still silent (slice 2 with the shared snapshot) |
+| G1-G7 | slice 4 gate (eval) + live evidence per slice in §7 |

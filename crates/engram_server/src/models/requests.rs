@@ -613,6 +613,11 @@ pub struct GetChangeSetRequest {
     /// coordinates saved by the last refresh_corpora stage-4 run.
     #[serde(default)]
     pub pat_token: Option<String>,
+    /// Return the structured JSON payload (concepts, per-file evidence with
+    /// rationale, per-arm coverage, omissions) instead of markdown.
+    /// Default false.
+    #[serde(default)]
+    pub output_json: bool,
 }
 
 /// Stage-3 quality gates: ingest a project's accumulated "what to avoid" knowledge
