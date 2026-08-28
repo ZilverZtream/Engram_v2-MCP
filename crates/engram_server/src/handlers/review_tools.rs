@@ -53,7 +53,7 @@ impl Engram {
             output_json: req.output_json,
         };
 
-        let (findings, gates_run, files_analysed) = run_pre_commit_review(
+        let (findings, gates_run, files_analysed, outcomes) = run_pre_commit_review(
             &self.state,
             &req.project_id,
             &project_dir,
@@ -76,11 +76,11 @@ impl Engram {
         );
 
         let body = if config.output_json {
-            let payload = render_json(findings, files_analysed, gates_run, elapsed_ms);
+            let payload = render_json(findings, files_analysed, gates_run, elapsed_ms, &outcomes);
             serde_json::to_string_pretty(&payload)
                 .map_err(|e| McpError::internal_error(format!("json render: {e}"), None))?
         } else {
-            render_markdown(&findings, files_analysed, gates_run, elapsed_ms)
+            render_markdown(&findings, files_analysed, gates_run, elapsed_ms, &outcomes)
         };
 
         Ok(CallToolResult::success(vec![Content::text(body)]))

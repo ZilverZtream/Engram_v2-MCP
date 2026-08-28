@@ -210,7 +210,49 @@ pub enum Verdict {
     Red,
 }
 
+/// What one gate did during a review (row-3 audit A1). A gate that errored,
+/// panicked or was skipped is MISSING EVIDENCE, not a clean pass.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(tag = "kind", content = "detail", rename_all = "snake_case")]
+pub enum GateStatus {
+    Passed,
+    Findings(usize),
+    Failed(String),
+    Panicked(String),
+    Skipped(String),
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct GateOutcome {
+    pub name: &'static str,
+    pub status: GateStatus,
+    pub elapsed_ms: u128,
+}
+
+impl GateOutcome {
+    pub fn did_not_run(&self) -> bool {
+        matches!(
+            self.status,
+            GateStatus::Failed(_) | GateStatus::Panicked(_) | GateStatus::Skipped(_)
+        )
+    }
+}
+
 impl Verdict {
+    /// Verdict from the findings AND the gate outcomes: evidence a gate did
+    /// not deliver cannot make the diff green (row-3 audit A2).
+    pub fn with_outcomes(findings: &[ReviewFinding], outcomes: &[GateOutcome]) -> Self {
+        let base = Self::from_findings(findings);
+        let missing = outcomes
+            .iter()
+            .any(|o| matches!(o.status, GateStatus::Failed(_) | GateStatus::Panicked(_)));
+        if base == Self::Green && missing {
+            Self::Yellow
+        } else {
+            base
+        }
+    }
+
     pub fn from_findings(findings: &[ReviewFinding]) -> Self {
         if findings.iter().any(|f| f.severity == Severity::Critical) {
             Self::Red
@@ -1778,8 +1820,10 @@ pub fn render_markdown(
     files_analysed: usize,
     gates_run: usize,
     elapsed_ms: u128,
+    outcomes: &[GateOutcome],
 ) -> String {
-    let verdict = Verdict::from_findings(findings);
+    let verdict = Verdict::with_outcomes(findings, outcomes);
+    let not_run: Vec<&GateOutcome> = outcomes.iter().filter(|o| o.did_not_run()).collect();
     let mut out = String::new();
     out.push_str(&format!(
         "# Pre-Commit Review — {emoji} **{verdict}**\n\n",
@@ -1797,18 +1841,45 @@ pub fn render_markdown(
     let total = findings.len();
     out.push_str(&format!(
         "**Findings**: {total} total ({crit} critical · {warn} warning · {info} info · {style} style) \
-         | **Files analysed**: {files_analysed} | **Gates run**: {gates_run}/{gates_total} | **Time**: {elapsed_ms}ms\n\n",
+         | **Files analysed**: {files_analysed} | **Gates run**: {gates_run}/{gates_total}{not_run_note} | **Time**: {elapsed_ms}ms\n\n",
         gates_total = gates::all_gates().len(),
+        not_run_note = if not_run.is_empty() {
+            String::new()
+        } else {
+            format!(" ({} did not run)", not_run.len())
+        },
         crit = counts.get(&Severity::Critical).copied().unwrap_or(0),
         warn = counts.get(&Severity::Warning).copied().unwrap_or(0),
         info = counts.get(&Severity::Info).copied().unwrap_or(0),
         style = counts.get(&Severity::Style).copied().unwrap_or(0),
     ));
 
+    if !not_run.is_empty() {
+        out.push_str("## ⚠ Gates that did not run — evidence is INCOMPLETE\n\n");
+        for o in &not_run {
+            let what = match &o.status {
+                GateStatus::Failed(r) => format!("FAILED — {r}"),
+                GateStatus::Panicked(r) => format!("PANICKED — {r}"),
+                GateStatus::Skipped(r) => format!("skipped — {r}"),
+                _ => String::new(),
+            };
+            out.push_str(&format!("- `{}`: {what}\n", o.name));
+        }
+        out.push('\n');
+    }
+
     if total == 0 {
-        out.push_str(
-            "_No findings — diff passed all gates cleanly. Verify manually before merging._\n",
-        );
+        if not_run.is_empty() {
+            out.push_str(
+                "_No findings — diff passed all gates cleanly. Verify manually before merging._\n",
+            );
+        } else {
+            out.push_str(&format!(
+                "_No findings from the {} gate(s) that ran; {} did not run (above) — this is NOT a clean bill._\n",
+                gates_run.saturating_sub(not_run.len()),
+                not_run.len()
+            ));
+        }
         return out;
     }
 
@@ -1879,6 +1950,9 @@ pub struct ReviewJson {
     pub verdict: Verdict,
     pub summary: ReviewSummary,
     pub findings: Vec<ReviewFinding>,
+    /// Per-gate outcome (row-3 audit A1): passed / findings / failed /
+    /// panicked / skipped, with elapsed time.
+    pub gate_status: Vec<GateOutcome>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1889,7 +1963,11 @@ pub struct ReviewSummary {
     pub info: usize,
     pub style: usize,
     pub files_analysed: usize,
+    /// Gates dispatched (skips excluded).
     pub gates_run: usize,
+    pub gates_failed: usize,
+    pub gates_panicked: usize,
+    pub gates_skipped: usize,
     pub elapsed_ms: u128,
 }
 
@@ -1898,8 +1976,9 @@ pub fn render_json(
     files_analysed: usize,
     gates_run: usize,
     elapsed_ms: u128,
+    outcomes: &[GateOutcome],
 ) -> ReviewJson {
-    let verdict = Verdict::from_findings(&findings);
+    let verdict = Verdict::with_outcomes(&findings, outcomes);
     let mut s = ReviewSummary {
         total_findings: findings.len(),
         critical: 0,
@@ -1908,6 +1987,18 @@ pub fn render_json(
         style: 0,
         files_analysed,
         gates_run,
+        gates_failed: outcomes
+            .iter()
+            .filter(|o| matches!(o.status, GateStatus::Failed(_)))
+            .count(),
+        gates_panicked: outcomes
+            .iter()
+            .filter(|o| matches!(o.status, GateStatus::Panicked(_)))
+            .count(),
+        gates_skipped: outcomes
+            .iter()
+            .filter(|o| matches!(o.status, GateStatus::Skipped(_)))
+            .count(),
         elapsed_ms,
     };
     for f in &findings {
@@ -1922,6 +2013,7 @@ pub fn render_json(
         verdict,
         summary: s,
         findings,
+        gate_status: outcomes.to_vec(),
     }
 }
 
@@ -1969,10 +2061,33 @@ pub async fn run_pre_commit_review(
     generation: u64,
     diff_text: &str,
     config: &ReviewConfig,
-) -> anyhow::Result<(Vec<ReviewFinding>, usize, usize)> {
+) -> anyhow::Result<(Vec<ReviewFinding>, usize, usize, Vec<GateOutcome>)> {
+    run_pre_commit_review_with(
+        state,
+        project_id,
+        project_dir,
+        generation,
+        diff_text,
+        config,
+        gates::all_gates(),
+    )
+    .await
+}
+
+/// The review with an explicit gate list (tests inject failing gates).
+/// Returns (findings, gates dispatched, files analysed, per-gate outcomes).
+pub async fn run_pre_commit_review_with(
+    state: &AppState,
+    project_id: &str,
+    project_dir: &Path,
+    generation: u64,
+    diff_text: &str,
+    config: &ReviewConfig,
+    gate_list: Vec<Box<dyn Gate>>,
+) -> anyhow::Result<(Vec<ReviewFinding>, usize, usize, Vec<GateOutcome>)> {
     let diff_files = parse_unified_diff(diff_text);
     if diff_files.is_empty() {
-        return Ok((Vec::new(), 0, 0));
+        return Ok((Vec::new(), 0, 0, Vec::new()));
     }
 
     // ── Pre-computed shared data (loaded once) ────────────────────────
@@ -2028,7 +2143,7 @@ pub async fn run_pre_commit_review(
     // the sync bucket.
     let mut sync_handles: Vec<(
         &'static str,
-        tokio::task::JoinHandle<anyhow::Result<Vec<ReviewFinding>>>,
+        tokio::task::JoinHandle<(anyhow::Result<Vec<ReviewFinding>>, u128)>,
     )> = Vec::new();
     let mut async_gates: Vec<Box<dyn Gate>> = Vec::new();
     let mut gates_run = 0usize;
@@ -2038,9 +2153,15 @@ pub async fn run_pre_commit_review(
     // to spawn_blocking for true parallelism.
     const ASYNC_GATES: &[&str] = &["antipattern", "product_intent", "co_added_family"];
 
-    for gate in gates::all_gates() {
+    let mut outcomes: Vec<GateOutcome> = Vec::new();
+    for gate in gate_list {
         let name = gate.name();
         if config.skip_gates.iter().any(|s| s.as_str() == name) {
+            outcomes.push(GateOutcome {
+                name,
+                status: GateStatus::Skipped("skip_gates".into()),
+                elapsed_ms: 0,
+            });
             continue;
         }
         gates_run += 1;
@@ -2052,45 +2173,108 @@ pub async fn run_pre_commit_review(
         let shared = shared.clone();
         let state_clone = state.clone(); // AppState is Clone (all Arc fields)
         let handle = tokio::task::spawn_blocking(move || {
+            let started = std::time::Instant::now();
             let ctx = shared.as_borrowed(&state_clone);
-            gate.run(&ctx)
+            (gate.run(&ctx), started.elapsed().as_millis())
         });
         sync_handles.push((name, handle));
     }
 
     let sync_future = async move {
         let mut out: Vec<ReviewFinding> = Vec::new();
+        let mut sync_outcomes: Vec<GateOutcome> = Vec::new();
         for (name, h) in sync_handles {
             match h.await {
-                Ok(Ok(fs)) => out.extend(fs),
-                Ok(Err(e)) => {
+                Ok((Ok(fs), ms)) => {
+                    sync_outcomes.push(GateOutcome {
+                        name,
+                        status: if fs.is_empty() {
+                            GateStatus::Passed
+                        } else {
+                            GateStatus::Findings(fs.len())
+                        },
+                        elapsed_ms: ms,
+                    });
+                    out.extend(fs);
+                }
+                Ok((Err(e), ms)) => {
                     tracing::warn!(gate = %name, "pre_commit_review gate failed: {e}");
+                    sync_outcomes.push(GateOutcome {
+                        name,
+                        status: GateStatus::Failed(e.to_string()),
+                        elapsed_ms: ms,
+                    });
                 }
                 Err(e) => {
                     tracing::warn!(gate = %name, "pre_commit_review gate panicked: {e}");
+                    sync_outcomes.push(GateOutcome {
+                        name,
+                        status: GateStatus::Panicked(e.to_string()),
+                        elapsed_ms: 0,
+                    });
                 }
             }
         }
-        out
+        (out, sync_outcomes)
     };
 
     let async_future = async {
+        use futures::FutureExt;
         let mut out: Vec<ReviewFinding> = Vec::new();
+        let mut async_outcomes: Vec<GateOutcome> = Vec::new();
         for gate in async_gates {
+            let name = gate.name();
+            let started = std::time::Instant::now();
             let ctx = shared.as_borrowed(state);
-            match gate.run_async(&ctx).await {
-                Ok(fs) => out.extend(fs),
-                Err(e) => {
-                    tracing::warn!(gate = gate.name(), "pre_commit_review gate failed: {e}");
+            let result = std::panic::AssertUnwindSafe(gate.run_async(&ctx))
+                .catch_unwind()
+                .await;
+            let ms = started.elapsed().as_millis();
+            match result {
+                Ok(Ok(fs)) => {
+                    async_outcomes.push(GateOutcome {
+                        name,
+                        status: if fs.is_empty() {
+                            GateStatus::Passed
+                        } else {
+                            GateStatus::Findings(fs.len())
+                        },
+                        elapsed_ms: ms,
+                    });
+                    out.extend(fs);
+                }
+                Ok(Err(e)) => {
+                    tracing::warn!(gate = name, "pre_commit_review gate failed: {e}");
+                    async_outcomes.push(GateOutcome {
+                        name,
+                        status: GateStatus::Failed(e.to_string()),
+                        elapsed_ms: ms,
+                    });
+                }
+                Err(payload) => {
+                    let reason = payload
+                        .downcast_ref::<String>()
+                        .cloned()
+                        .or_else(|| payload.downcast_ref::<&str>().map(|s| s.to_string()))
+                        .unwrap_or_else(|| "panic".into());
+                    tracing::warn!(gate = name, "pre_commit_review gate panicked: {reason}");
+                    async_outcomes.push(GateOutcome {
+                        name,
+                        status: GateStatus::Panicked(reason),
+                        elapsed_ms: ms,
+                    });
                 }
             }
         }
-        out
+        (out, async_outcomes)
     };
 
-    let (sync_findings, async_findings) = tokio::join!(sync_future, async_future);
+    let ((sync_findings, sync_outcomes), (async_findings, async_outcomes)) =
+        tokio::join!(sync_future, async_future);
     let mut findings = sync_findings;
     findings.extend(async_findings);
+    outcomes.extend(sync_outcomes);
+    outcomes.extend(async_outcomes);
 
     let finalised = aggregate_findings(
         findings,
@@ -2098,7 +2282,7 @@ pub async fn run_pre_commit_review(
         config.min_severity,
         config.max_findings,
     );
-    Ok((finalised, gates_run, diff_files.len()))
+    Ok((finalised, gates_run, diff_files.len(), outcomes))
 }
 
 /// Owned snapshot of everything a gate might need. Cheap to clone
@@ -3014,14 +3198,14 @@ mod header_gate_total_tests {
     #[test]
     fn header_reports_the_registered_gate_total_not_a_literal() {
         let n = gates::all_gates().len();
-        let out = render_markdown(&[], 3, n, 12);
+        let out = render_markdown(&[], 3, n, 12, &[]);
         let header = out.lines().find(|l| l.contains("Gates run")).unwrap_or("");
         assert!(
             header.contains(&format!("**Gates run**: {n}/{n}")),
             "header must show gates_run over the REGISTERED total ({n}); got: {header}"
         );
         // A skipped gate lowers the numerator only.
-        let out = render_markdown(&[], 3, n - 2, 12);
+        let out = render_markdown(&[], 3, n - 2, 12, &[]);
         let header = out.lines().find(|l| l.contains("Gates run")).unwrap_or("");
         assert!(
             header.contains(&format!("**Gates run**: {}/{n}", n - 2)),
