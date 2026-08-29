@@ -4890,7 +4890,10 @@ fn change_set_tier(sigs: &BTreeSet<&'static str>) -> u8 {
     // signals (vector/graph) never outrank a precise concept hit.
     // External audit 2026-08-29 P0-3: a file matching the story's explicit
     // gloss is the entity the author named — as direct as history.
-    let golden = sigs.contains("cochange") || sigs.contains("history") || sigs.contains("gloss");
+    let golden = sigs.contains("cochange")
+        || sigs.contains("history")
+        || sigs.contains("gloss")
+        || sigs.contains("lexicon");
     let concept = sigs.contains("concept");
     if golden && sigs.len() >= 2 {
         0
@@ -5460,7 +5463,10 @@ pub(crate) fn change_set_rows(
         let mut tail = 0usize;
         for (p, sigs) in items {
             let tier = change_set_tier(sigs);
-            let exempt = sigs.contains("vtop") || sigs.contains("family") || sigs.contains("gloss");
+            let exempt = sigs.contains("vtop")
+                || sigs.contains("family")
+                || sigs.contains("gloss")
+                || sigs.contains("lexicon");
             let mut omitted = false;
             if tier >= 2 && !exempt {
                 tail += 1;
@@ -5566,6 +5572,10 @@ pub(crate) struct ChangeSetCoverage {
     /// retrieved by default (a subset of `concept_candidates`).
     #[serde(default)]
     pub gloss_concepts: Vec<String>,
+    /// External audit 2026-08-29 row 1: `english phrase → swedish term` pairs the
+    /// project's .resx lexicon contributed as default concepts.
+    #[serde(default)]
+    pub lexicon_concepts: Vec<String>,
 }
 
 /// A full project node scan shared across the sub-calls of one request.
@@ -5580,6 +5590,12 @@ fn render_change_set_coverage(cov: &ChangeSetCoverage, omitted: usize) -> String
     s.push_str(&format!("- kb bridge: {}\n", cov.kb_bridge.line()));
     s.push_str(&format!("- family: {}\n", cov.family.line()));
     s.push_str(&format!("- node scans: {}\n", cov.node_scans));
+    if !cov.lexicon_concepts.is_empty() {
+        s.push_str(&format!(
+            "- lexicon (the project's .resx EN→SV pairs) translated the story: {}\n",
+            cov.lexicon_concepts.join(", ")
+        ));
+    }
     if !cov.gloss_concepts.is_empty() {
         s.push_str(&format!(
             "- explicit story gloss(es) retrieved by default: {}\n",
@@ -5867,12 +5883,32 @@ impl Engram {
             .into_iter()
             .cloned()
             .collect();
+        // External audit 2026-08-29 row 1: the project's own .resx pairs translate
+        // the story's English domain phrases into the Swedish code terms.
+        let (lexicon_hits, lexicon_concepts) = {
+            let dir = self
+                .state
+                .registry
+                .get_project(&req.project_id)
+                .ok()
+                .flatten()
+                .map(|r| std::path::PathBuf::from(r.directory));
+            match dir {
+                Some(d) => crate::services::lexicon::story_lexicon_concepts(
+                    &self.state,
+                    &req.project_id,
+                    &d,
+                    &story_for_concepts(&req.story),
+                ),
+                None => (Vec::new(), Vec::new()),
+            }
+        };
         let mut concepts: Vec<String> = match &req.concepts {
             Some(c) if !c.is_empty() => c.iter().take(3).cloned().collect(),
             _ if req.expand_concepts => concept_candidates.clone(),
             _ => {
                 let mut base = extract_story_concepts(&story_for_concepts(&req.story));
-                for g in &gloss_concepts {
+                for g in gloss_concepts.iter().chain(lexicon_concepts.iter()) {
                     if !base.contains(g) {
                         base.push(g.clone());
                     }
@@ -5887,6 +5923,10 @@ impl Engram {
         let mut cov = ChangeSetCoverage::default();
         cov.concept_candidates = concept_candidates.clone();
         cov.gloss_concepts = gloss_concepts.clone();
+        cov.lexicon_concepts = lexicon_hits
+            .iter()
+            .map(|h| format!("{} → {}", h.en, h.sv))
+            .collect();
         // KB language bridge: the team's wiki/docs corpus (memory_bank
         // sections) frequently names the same feature in BOTH the story's
         // language and the code's (English story "resource planning" vs
@@ -6021,8 +6061,11 @@ impl Engram {
                                 }
                                 concept_hits += 1;
                                 let from_gloss = gloss_concepts.contains(c);
+                                let from_lexicon = lexicon_concepts.contains(c);
                                 why.entry(p.clone()).or_default().push(if from_gloss {
                                     format!("matches the story's explicit gloss '{c}'")
+                                } else if from_lexicon {
+                                    format!("matches '{c}' — the project's .resx translation of the story's English term")
                                 } else {
                                     format!("name/content matches concept '{c}'")
                                 });
@@ -6030,6 +6073,9 @@ impl Engram {
                                 e.insert("concept");
                                 if from_gloss {
                                     e.insert("gloss");
+                                }
+                                if from_lexicon {
+                                    e.insert("lexicon");
                                 }
                             }
                         }

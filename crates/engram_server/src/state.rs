@@ -152,6 +152,9 @@ pub struct AppState {
     /// commit lands, and the long-lived shared daemon amortises the one
     /// slow walk across every connected session. Key: project_id.
     pub co_change_cache: Arc<DashMap<String, Arc<CoChangeSnapshot>>>,
+    /// External audit 2026-08-29 row 1: the project's resx-derived EN↔SV lexicon,
+    /// rebuilt when its resource files change (signature check on use).
+    pub lexicon_cache: Arc<DashMap<String, Arc<crate::services::lexicon::Lexicon>>>,
 
     /// ADP1: Runtime kill-switch for autonomous decisions.
     ///
@@ -268,6 +271,7 @@ impl AppState {
                 pagerank_cache: Arc::new(DashMap::new()),
                 pagerank_inflight: Arc::new(DashSet::new()),
                 co_change_cache: Arc::new(DashMap::new()),
+                lexicon_cache: Arc::new(DashMap::new()),
                 adp_kill_switch: Arc::new(std::sync::atomic::AtomicBool::new(
                     effective_kill_switch,
                 )),
