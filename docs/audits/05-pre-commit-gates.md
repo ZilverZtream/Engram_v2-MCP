@@ -118,6 +118,7 @@ checks zero rules.
 | A3 | **fixed (slice 2)** — `GateContext.degrade(note)` sink + `read_project_file` (unreadable ⇒ degraded, never "empty"); runner drains notes into `GateStatus::Degraded { findings, notes }`; verdict floors at Yellow, clean bill suppressed, markdown "⚠ Gates that ran DEGRADED — evidence is PARTIAL" + JSON `gates_degraded` / `kind: degraded`. Instrumented: 3 file reads (guard_parity, complexity_budget, added_conventions), blast_radius lookup, temporal + test_coverage neighbours, antipattern corpus-missing fallback + 2 searches, unwired + sync_contract query_nodes x3, product_intent + co_added_family searches. Left: per-hit `get_doc_by_pk` failures (3 sites) need an aggregated counter |
 | A4 | **fixed (slice 3, 6f149c8, sweep17)** — `GateContext::note_cap` → `GateOutcome::caps` (JSON `gate_status[].caps`, markdown "## Caps hit"); instrumented: blast_radius FILE_CAP 20, temporal/test_coverage neighbour caps 20/30, unwired candidates 25, antipattern first 5 hits, sync_contract 300 contracts, product_intent first 5 hits, co_added_family first 4 families, complexity_budget 3 most complex. `tests/pre_commit_gate_caps_tests.rs` x2, RED first |
 | A5 | **fixed (slice 4, af737da, deployed 03:15)** — `UnwiredVerdict { Unknown, Wired, Unwired }` + pure `unwired_verdict`; a failed node or caller lookup degrades the gate AND skips the candidate (a finding needs positive evidence). `tests/unwired_verdict_tests.rs`, RED first |
+| A7 | **fixed (slice 6, 850d07f; sweep23 129/0; release 18)** — `source_type=rules|copilot` with JSON content parses the objects structurally (`rule` + examples), not as markdown lines; `clear_existing=true` purges the project's `quality_gate` namespace before ingesting (was a no-op). RED tests first |
 | A6 | **fixed (d1252ca, deployed 04:31)** — `count_docs_by_namespace` before the search: 0 rules ⇒ "INACTIVE — 0 quality-gate rules are ingested … NOTHING was checked … run ingest_quality_gates"; no match ⇒ "N rule(s) exist and were searched (top_k K); 0 checked"; matches ⇒ "Checked: M of N (top_k K …)"; count failure a FAILURE line. `tests/pre_push_audit_tally_tests.rs` x2, RED first. OciusX rule ingestion itself (an ADO PAT + `ingest_quality_gates`) stays a user action |
 | A7 | **partly (slices 1-3)** — `tests/pre_commit_gate_outcomes_tests.rs` (bail + panic), `tests/pre_commit_degraded_tests.rs` (injected provider outage; the REAL complexity_budget gate on a file missing from disk ⇒ "could not read"), `tests/pre_commit_gate_caps_tests.rs` (injected cap on the outcome/JSON/markdown; the REAL blast_radius gate on a 25-file diff ⇒ "20 of 25"), the first two mutation-checked. Still open: A5 unwired false positive (now DEGRADED rather than a finding-on-error, not yet skipped), A6 pre_push_audit |
 | G1 | **met** — a forced Err/panic can no longer render Green or the clean-bill line (test) |
@@ -181,3 +182,39 @@ is proven by `tests/unwired_verdict_tests.rs`.
 checked. Run ingest_quality_gates …"** — the previous release said "no
 matching rules", which read as a pass. `pre_commit_review {"diff":"head"}`:
 17 gates run, 0 degraded, unwired passed.
+
+## 7e. Live — rules ingested into the live OciusX project (2026-08-29 07:20, user-directed)
+
+Ingested from the local corpora (no DevOps call needed): copilot-instructions.md
+101 rules, `generic_rules.json` 258 (the June-distilled generic set), the
+"PR Feedback Learning" board 14 — **373 in the `quality_gate` namespace**.
+`pre_push_audit` on the same probe now says **"Checked: 12 rule(s) retrieved of
+373 in the namespace (top_k 12 — the cap was filled; raise top_k for more)"**
+and leads with real team rules ([Data Access] return `IQueryable`, [Database]
+naming, SSDT schema model …).
+
+**Finding (→ A7, slice 6):** the `generic_rules.json` hits render as raw JSON
+fragments (`"bad_example": "Dim cat = pr.parent.category …"`): `source_type=rules`
+routes to the MARKDOWN parser, which turns a JSON array of `{rule, bad_example,
+good_example, …}` objects into line-shaped junk. And `clear_existing` is a
+documented no-op ("reserved"), so the junk cannot be replaced by re-ingesting —
+the quiet-failure class "schema param no handler reads".
+
+## 7f. Live evidence — slice 6 / A7 (2026-08-29 08:00 deploy, commit 850d07f)
+
+Re-ingest of the OciusX corpus through the new binary:
+
+```
+ingest copilot (clear_existing=true):  "clear_existing=true: purged 373 existing quality-gate rule(s) from the `quality_gate` namespace before ingesting." → 101 rules
+ingest generic_rules.json (rules):     258 rules [115 high, 31 low, 112 medium], category from the JSON (null-handling, …) — was "258 medium" line-shaped junk
+ingest board:                          14 rules
+pre_push_audit (same probe):           "Checked: 12 rule(s) retrieved of 373 in the namespace (top_k 12 …)"; JSON fragments in the hits: 0
+  - [generic_rules.json] Guard every reference-type value for Nothing before dereferencing it, including: lookup/repository results …
+  - [generic_rules.json] Guard aggregate/statistical calls (.Min/.Max/etc.) against empty sequences …
+```
+
+The purge is stated, the count is unchanged (373 = 101 + 258 + 14), and the
+generic rules now retrieve as rule sentences with their severity instead of
+`"bad_example": …` fragments. Temp copies lived in the OciusX working tree's
+git-excluded `_engram_tmp/` for the duration of the call and were removed;
+nothing was committed there.
