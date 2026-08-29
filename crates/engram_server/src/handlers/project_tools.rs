@@ -824,6 +824,22 @@ impl Engram {
                 })
                 .await;
             }
+            // External audit 2026-08-29 row 9: leave the co-change snapshot warm so
+            // get_change_set / find_similar_changes never walk git at call time.
+            {
+                let st = self.state.clone();
+                let pid_w = project_id.clone();
+                let _ = tokio::task::spawn_blocking(move || {
+                    if let Err(e) =
+                        crate::handlers::planning_tools::warm_co_change_snapshot_blocking(
+                            &st, &pid_w,
+                        )
+                    {
+                        tracing::warn!(project_id = %pid_w, "co-change warm-up skipped: {e:#}");
+                    }
+                })
+                .await;
+            }
 
             return Ok(CallToolResult::success(vec![Content::text(format!(
                 "✅ Indexed project_id: {project_id}\n\n{report}"
@@ -1253,6 +1269,19 @@ impl Engram {
                             "last_full_index_generation",
                             &gen_full.to_string(),
                         )
+                    })
+                    .await;
+                    // External audit 2026-08-29 row 9: warm the co-change snapshot.
+                    let st = engram.state.clone();
+                    let pid_w = pid.clone();
+                    let _ = tokio::task::spawn_blocking(move || {
+                        if let Err(e) =
+                            crate::handlers::planning_tools::warm_co_change_snapshot_blocking(
+                                &st, &pid_w,
+                            )
+                        {
+                            tracing::warn!(project_id = %pid_w, "co-change warm-up skipped: {e:#}");
+                        }
                     })
                     .await;
                 }
@@ -2054,6 +2083,20 @@ impl Engram {
             .purge_old_generations(project_id, new_gen)
             .await
             .ok();
+        // External audit 2026-08-29 row 9: refresh the co-change snapshot
+        // (incremental by walked commit) so the next get_change_set only reads.
+        {
+            let st = self.state.clone();
+            let pid_w = project_id.to_string();
+            let _ = tokio::task::spawn_blocking(move || {
+                if let Err(e) =
+                    crate::handlers::planning_tools::warm_co_change_snapshot_blocking(&st, &pid_w)
+                {
+                    tracing::warn!(project_id = %pid_w, "co-change warm-up skipped: {e:#}");
+                }
+            })
+            .await;
+        }
 
         // Eagerly purge stale GRAPH generations for the files this update
         // actually re-indexed (plus deletions): a symbol whose declaration
