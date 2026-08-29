@@ -598,6 +598,13 @@ pub struct GetChangeSetRequest {
     pub merged_before: Option<String>,
     /// The user story, verbatim.
     pub story: String,
+    /// Carry the `ui_contract` section (the UI families the top-tier
+    /// candidate markup belongs to). OPT-IN: two A/Bs measured it negative on
+    /// file-F1 (region-pulled −4.1, in-dossier −9.7 at n = 8 — the section is
+    /// story-invariant on a Bootstrap WebForms app), so a default change set
+    /// stays clean while the v3 conformance program measures markup instead.
+    #[serde(default)]
+    pub include_ui_contract: Option<bool>,
     /// Override the automatically extracted domain concepts (max 3 used).
     #[serde(default)]
     pub concepts: Option<Vec<String>>,
