@@ -2536,6 +2536,10 @@ pub(crate) struct GuardVerdict {
     /// Reads a client scope key and no object-level guard covers it —
     /// the role check alone does not scope the data (row-8 A2).
     pub role_only: bool,
+    /// Every own check sits inside a branch (`If x Then … Check… End If`)
+    /// — it does not guard every path; a helper that guards
+    /// unconditionally is credited instead when one is called (row-8 D8).
+    pub own_check_conditional: bool,
 }
 
 #[derive(Debug, Clone, Default, serde::Serialize)]
@@ -2615,6 +2619,48 @@ pub(crate) fn client_scope_reads(body: &str) -> Vec<String> {
     }
     found.sort_by_key(|(at, _)| *at);
     found.into_iter().map(|(_, k)| k).collect()
+}
+
+/// True when every line of `body` that mentions one of `checks` (the
+/// extractor's `permission_checks`, `;`-separated, lower-case) is indented
+/// deeper than the function's top-level statements — i.e. the check runs
+/// only on some branch. False when at least one check is a top-level guard
+/// clause, or when no check line is found at all.
+pub(crate) fn own_checks_all_conditional(body: &str, checks: &str) -> bool {
+    let names: Vec<String> = checks
+        .split(';')
+        .map(|c| c.trim().to_ascii_lowercase())
+        .filter(|c| !c.is_empty())
+        .collect();
+    if names.is_empty() {
+        return false;
+    }
+    let lines: Vec<&str> = body.lines().collect();
+    // Top-level statement indent: the smallest indent of a non-blank line
+    // after the declaration line, excluding `End …` lines.
+    let top = lines
+        .iter()
+        .skip(1)
+        .filter(|l| {
+            let t = l.trim();
+            !t.is_empty() && !t.to_ascii_lowercase().starts_with("end ")
+        })
+        .map(|l| l.len() - l.trim_start().len())
+        .min()
+        .unwrap_or(0);
+    let mut seen = false;
+    for l in lines.iter().skip(1) {
+        let lower = l.to_ascii_lowercase();
+        if !names.iter().any(|n| lower.contains(n)) {
+            continue;
+        }
+        seen = true;
+        let indent = l.len() - l.trim_start().len();
+        if indent <= top {
+            return false; // a top-level guard clause
+        }
+    }
+    seen
 }
 
 /// An OBJECT-level guard in the body: the check takes the scope value
@@ -2799,10 +2845,40 @@ pub(crate) fn build_guards_report(
             reason: String::new(),
             scope_reads,
             role_only: false,
+            own_check_conditional: false,
         };
         if !checks.is_empty() {
             v.verdict = "guarded".into();
             v.reason = "permission check in the function body (extractor metadata)".into();
+            if body
+                .as_deref()
+                .is_some_and(|b| own_checks_all_conditional(b, &checks))
+            {
+                v.own_check_conditional = true;
+                v.reason = "own permission check runs only on a branch".into();
+                // A directly called helper that checks unconditionally is the
+                // real guard (live: CanUserBulkUpdate over a branch-only CheckWrite).
+                if let Ok(neigh) =
+                    graph.neighbors(pid, EdgeKind::Calls, &n.node_id, GUARD_HELPER_HOP_CAP)
+                {
+                    for (target, _) in neigh {
+                        if let Ok(Some(t)) = graph.get_node(pid, &target) {
+                            let tc = node_meta_str(&t, "permission_checks");
+                            if !tc.is_empty() {
+                                let tb = t.name.rsplit('.').next().unwrap_or(&t.name).to_string();
+                                v.family = tc.to_string();
+                                v.level = guard_level_for(tc);
+                                v.roles = node_meta_str(&t, "guard_roles").to_string();
+                                v.via = Some(tb.clone());
+                                v.reason = format!(
+                                    "own check runs only on a branch; guarded by helper {tb} (one Calls hop)"
+                                );
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
         } else if fallback {
             v.verdict = "unknown".into();
             v.reason =
@@ -3042,6 +3118,11 @@ pub(crate) fn render_guards_markdown(r: &GuardsReport) -> String {
                     .as_deref()
                     .map(|v| format!(" via {v}"))
                     .unwrap_or_default();
+                let via = if f.own_check_conditional {
+                    format!("{via} (own check is branch-only)")
+                } else {
+                    via
+                };
                 format!(
                     "- {} ({}:{}) checks: {}{}{} [{}]\n",
                     f.name,
@@ -3137,6 +3218,15 @@ mod guards_unit_tests {
         assert!(out.contains("- f24\n"));
         assert!(!out.contains("- f25\n"));
         assert!(out.contains("… and 5 more"));
+    }
+
+    #[test]
+    fn conditional_own_checks_are_detected_by_indent() {
+        let cond = "Public Function F() As String\n    If isUpdatingAR Then\n        If Not _us.UserAccess.CheckWrite(x) Then Return s\n    End If\n    Return \"ok\"\nEnd Function\n";
+        assert!(own_checks_all_conditional(cond, "checkwrite"));
+        let guard = "Public Function F() As String\n    If Not _us.UserAccess.CheckWrite(x) Then Return s\n    Return \"ok\"\nEnd Function\n";
+        assert!(!own_checks_all_conditional(guard, "checkwrite"));
+        assert!(!own_checks_all_conditional(cond, ""));
     }
 
     #[test]
