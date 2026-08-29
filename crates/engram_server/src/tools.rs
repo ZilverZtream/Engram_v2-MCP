@@ -126,6 +126,39 @@ impl Engram {
     }
 
     #[tool(
+        description = "UI conformance (spec Layer 2, external audit row 5): PULL the house family contract for a region (a file, a directory prefix, or a glob) - exemplar + typed axes with evidence counts - BEFORE writing UI there; with candidate_classes, CHECK that class list against the same contract and get every axis at once (ok / deviation with the expected value). Derived from the indexed ui_container/control_layout nodes; nothing is a default."
+    )]
+    pub async fn get_ui_conformance(
+        &self,
+        params: Parameters<GetUiConformanceRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let region = req.region.clone();
+        let min = req.min_instances.unwrap_or(2).max(2);
+        let families = tokio::task::spawn_blocking(move || {
+            crate::services::ui_catalog::families_for_region(&graph, &pid, &region, min)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        if families.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(format!(
+                "result: no_families\nregion: {}\nNo UI family with >= {min} instances has an instance in this region - there is no house contract to conform to here. Try the nearest sibling directory, a wider glob, or index the project first.",
+                req.region
+            ))]));
+        }
+        let verdicts = req
+            .candidate_classes
+            .as_deref()
+            .map(|c| crate::services::ui_catalog::check_classes(&families[0], c));
+        Ok(CallToolResult::success(vec![Content::text(
+            crate::services::ui_catalog::render_conformance(&families, verdicts.as_deref()),
+        )]))
+    }
+
+    #[tool(
         description = "Index health snapshot: generation, graph node/edge counts, doc/vector counts, and semantic-search tier. Use right after indexing to verify it worked, or when any tool returns surprisingly little."
     )]
     pub async fn project_health(
