@@ -117,7 +117,7 @@ checks zero rules.
 | A2 | **fixed (slice 1)** — `Verdict::with_outcomes`: any Failed/Panicked gate keeps a Green diff at Yellow; the clean-bill line prints only when every gate ran, otherwise "No findings from the N gate(s) that ran; K did not run — NOT a clean bill". Applied to ALL gates rather than a required subset (a gate that did not run is missing evidence whatever its tier) |
 | A3 | **fixed (slice 2)** — `GateContext.degrade(note)` sink + `read_project_file` (unreadable ⇒ degraded, never "empty"); runner drains notes into `GateStatus::Degraded { findings, notes }`; verdict floors at Yellow, clean bill suppressed, markdown "⚠ Gates that ran DEGRADED — evidence is PARTIAL" + JSON `gates_degraded` / `kind: degraded`. Instrumented: 3 file reads (guard_parity, complexity_budget, added_conventions), blast_radius lookup, temporal + test_coverage neighbours, antipattern corpus-missing fallback + 2 searches, unwired + sync_contract query_nodes x3, product_intent + co_added_family searches. Left: per-hit `get_doc_by_pk` failures (3 sites) need an aggregated counter |
 | A4 | **fixed (slice 3, 6f149c8, sweep17)** — `GateContext::note_cap` → `GateOutcome::caps` (JSON `gate_status[].caps`, markdown "## Caps hit"); instrumented: blast_radius FILE_CAP 20, temporal/test_coverage neighbour caps 20/30, unwired candidates 25, antipattern first 5 hits, sync_contract 300 contracts, product_intent first 5 hits, co_added_family first 4 families, complexity_budget 3 most complex. `tests/pre_commit_gate_caps_tests.rs` x2, RED first |
-| A5 | **in flight (slice 4)** — `UnwiredVerdict { Unknown, Wired, Unwired }` + pure `unwired_verdict`; a failed node or caller lookup degrades the gate AND skips the candidate (a finding needs positive evidence). `tests/unwired_verdict_tests.rs`, RED first |
+| A5 | **fixed (slice 4, af737da, deployed 03:15)** — `UnwiredVerdict { Unknown, Wired, Unwired }` + pure `unwired_verdict`; a failed node or caller lookup degrades the gate AND skips the candidate (a finding needs positive evidence). `tests/unwired_verdict_tests.rs`, RED first |
 | A6 | **in flight (slice 5)** — `count_docs_by_namespace` before the search: 0 rules ⇒ "INACTIVE — 0 quality-gate rules are ingested … NOTHING was checked … run ingest_quality_gates"; no match ⇒ "N rule(s) exist and were searched (top_k K); 0 checked"; matches ⇒ "Checked: M of N (top_k K …)"; count failure a FAILURE line. `tests/pre_push_audit_tally_tests.rs` x2, RED first. OciusX rule ingestion itself (an ADO PAT + `ingest_quality_gates`) stays a user action |
 | A7 | **partly (slices 1-3)** — `tests/pre_commit_gate_outcomes_tests.rs` (bail + panic), `tests/pre_commit_degraded_tests.rs` (injected provider outage; the REAL complexity_budget gate on a file missing from disk ⇒ "could not read"), `tests/pre_commit_gate_caps_tests.rs` (injected cap on the outcome/JSON/markdown; the REAL blast_radius gate on a 25-file diff ⇒ "20 of 25"), the first two mutation-checked. Still open: A5 unwired false positive (now DEGRADED rather than a finding-on-error, not yet skipped), A6 pre_push_audit |
 | G1 | **met** — a forced Err/panic can no longer render Green or the clean-bill line (test) |
@@ -166,3 +166,10 @@ gates with caps: 3
 
 Before this slice the same review rendered exactly like one that had
 looked at every file and every neighbour.
+
+## 7c. Live evidence — slice 4 (2026-08-29 03:15 deploy, commit af737da)
+
+`pre_commit_review {"diff":"head"}`: `unwired` → `passed`, 0 degraded
+gates — on a healthy daemon a failed lookup does not occur, so the live
+run proves only the absence of false positives; the skip-on-failure rule
+is proven by `tests/unwired_verdict_tests.rs`.
