@@ -163,6 +163,12 @@ pub struct AppState {
     /// settings gating is a property of the merged-PR corpus, not of the story —
     /// cached per project generation (it cost 1.3 s on every call).
     pub setting_prior_cache: Arc<DashMap<String, (u64, Option<(usize, usize)>)>>,
+    /// External audit 2026-08-29 row 5: the project's UI family catalog
+    /// (services::ui_catalog) behind the change-set UI contract, cached per
+    /// project generation — the container nodes only change when a
+    /// generation is published; the warm-up primes it.
+    pub ui_catalog_cache:
+        Arc<DashMap<String, (u64, Arc<Vec<crate::services::ui_catalog::UiFamily>>)>>,
 
     /// ADP1: Runtime kill-switch for autonomous decisions.
     ///
@@ -282,6 +288,7 @@ impl AppState {
                 lexicon_cache: Arc::new(DashMap::new()),
                 node_snapshot_cache: Arc::new(DashMap::new()),
                 setting_prior_cache: Arc::new(DashMap::new()),
+                ui_catalog_cache: Arc::new(DashMap::new()),
                 adp_kill_switch: Arc::new(std::sync::atomic::AtomicBool::new(
                     effective_kill_switch,
                 )),

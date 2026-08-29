@@ -459,3 +459,33 @@ pub fn render_conformance(families: &[UiFamily], verdicts: Option<&[AxisVerdict]
     }
     s
 }
+
+/// The catalog cached per project GENERATION — shared by the change-set UI
+/// contract and the warm-up prime (external audit 2026-08-29 row 5 + P0-3):
+/// the container nodes only change when a generation is published, and the
+/// full container scan is the cost the ≤ 5 s change-set gate cannot absorb
+/// on every call.
+pub fn families_cached(
+    state: &crate::state::AppState,
+    project_id: &str,
+) -> anyhow::Result<std::sync::Arc<Vec<UiFamily>>> {
+    let gen_now: u64 = state
+        .registry
+        .get_meta(project_id, "active_generation")
+        .ok()
+        .flatten()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0);
+    if let Some(e) = state
+        .ui_catalog_cache
+        .get(project_id)
+        .filter(|e| e.value().0 == gen_now)
+    {
+        return Ok(e.value().1.clone());
+    }
+    let fams = std::sync::Arc::new(build_families(&state.graph, project_id, 2)?);
+    state
+        .ui_catalog_cache
+        .insert(project_id.to_string(), (gen_now, fams.clone()));
+    Ok(fams)
+}
