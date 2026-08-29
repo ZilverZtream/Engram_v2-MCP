@@ -212,3 +212,23 @@ candidates) is the actual defect and neither more concepts nor re-tiering
 moves it; it needs the weak-tier policy revisited against the
 implementation-score A/B (in-session Opus/Sonnet agents via the Workflow
 tool — requires the user's opt-in), not another retrieval knob.
+
+## 7c. Live evidence — slice 3 / D10 (2026-08-29 05:06 deploy, commit 8ea94c9)
+
+Story "As an administrator I want to bulk update installation objects on a
+project …" on OciusX:
+
+```
+## Permission gates in the candidate set
+- checkwrite (22 gated symbol(s) in the set)
+- checkread (14 …)  - checkuserroletoupdatemarker (5)  - check_pr_id (4)  - checkisuserinrole (4)  - check_fj_id (2)  - checktaskupdatepermission (2)
+Gate definitions: `Site/App_Code/users-security/code/accessctrl.vb` defines check_fj_id, check_pr_id …
+Gate definitions: `Site/App_Code/users-security/code/useraccess.vb` defines checkread, checkwrite …
+  ... and 3 more gate-definition file(s) (cap 2)
+```
+
+`output_json.permission_gates = {cap 10, total 7, shown 7, listed [7], omitted []}`
+— before this slice the JSON carried no gates at all (the branch returned
+before the scan). Seven gate types fit under the cap here; the
+gate-DEFINITION cut (5 files, cap 2) is the one that fires live and is
+now stated.
