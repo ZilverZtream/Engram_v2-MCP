@@ -1502,7 +1502,15 @@ impl HybridSearchEngine {
         let reader = self.tantivy_index.reader()?;
         let searcher = reader.searcher();
         let mut counts = std::collections::HashMap::new();
-        for ns in &["memory", "history", "antipattern", "vfs"] {
+        for ns in &[
+            "memory",
+            "history",
+            "antipattern",
+            "vfs",
+            // pre_push_audit's rule namespace (row-3 audit A6): an empty
+            // namespace must be reportable as INACTIVE.
+            "quality_gate",
+        ] {
             let q = BooleanQuery::new(vec![
                 (
                     Occur::Must,
