@@ -131,8 +131,8 @@ distinct symbols` — the 50 is the fetch cap (D9).
 | A5 | **fixed (slice 2)** — VB extractor: `rangeVar.<table-shaped member>.column` chains on LINQ query-clause lines become `queries_table` READ edges (`orm=nav`), one per (function, table), skipped when a context access already covers the pair; PascalCase EF nav-properties deliberately not matched (need the DDL table set). Tests `linq_navigation_property_tests` x3 (fixture = the audit's `redovisningsartiklar.vb:51-52` shape). Live effect needs a full OciusX reindex — §7 |
 | A6 | **open** — consumer classification |
 | A7 | **fixed (slice 1)** — `FootprintCoverage` → `## Coverage` block: node scan (complete/truncated/failed), anchors matched/expanded (cap), consumers (status, edge count, per-anchor cap), lexical (status, files/hits/page), failures; the node-scan / consumer / lexical swallows are gone |
-| A8 | **fixed (slice 6, sweep16)** — symbol fetch cap+1 ("matches 50+ distinct symbols (fetch cap 50 — more exist; narrow with file_scope)"), symbol-lookup / incoming-fetch failures as FAILURE lines, the blocking-join failure is an error not "no references", `## Coverage` with the 400-label cap ("labels resolved for X of Y endpoint(s)"). `tests/symbol_references_caps_tests.rs` x2, RED first. Outgoing per-kind truncation note still open |
-| A9 | **open** — shared incoming-count function (edit tools 76 vs blast 98 for `Check_pr_id`) |
+| A8 | **fixed (slice 6, 2b85769, deployed 02:29)** — symbol fetch cap+1 ("matches 50+ distinct symbols (fetch cap 50 — more exist; narrow with file_scope)"), symbol-lookup / incoming-fetch failures as FAILURE lines, the blocking-join failure is an error not "no references", `## Coverage` with the 400-label cap ("labels resolved for X of Y endpoint(s)"). `tests/symbol_references_caps_tests.rs` x2, RED first. Outgoing per-kind truncation note still open |
+| A9 | **in flight (slice 7)** — not one number but one RULE per number: `find_symbol_references` prints "N edges, all kinds; D distinct caller(s) via calls+dependency — the number check_edit_safety / blast_radius use"; the edit tools print "N distinct callers (calls+dependency, dedup by caller[; capped])"; blast_radius already says "causal 1-hop, dangling quarantined". `tests/incoming_count_parity_tests.rs` x2, RED first |
 | A10 | **partly** — `footprint_coverage_tests` x3 (paging status, anchor cap, coverage block); the fixture-repo golden footprint comes with A4/A5 |
 | A11 | **fixed (slice 5, sweep14)** — `max_per_group` ceiling 100 → `FOOTPRINT_GROUP_CEILING` 500 so a caller can list a whole "Mentioned only in text" section (the last 14 G1 misses sat behind the ceiling; the cut was reported, the ceiling made it permanent). `tests/footprint_ceiling_tests.rs` x2 on a real 120-file project, RED first |
 | G1 | baseline 60/240 = 25 % → slice 1 84/240 = 35 % → **slices 2+3 (+ full reindex) 225/240 = 94 %** (redovisningskategori 25/25, installationsobjekt 116/130, arbetslag 46/46, personalliggare 37/38, tidrapport 1/1) — §7; the 15 residual misses are one root cause (case-preserving trigram index), slice 4 |
@@ -229,3 +229,20 @@ against the 130-file literal scan: **130/130**. With the ceiling raised,
 G1 = **240/240 (100 %)** across the five concepts (25/25, 130/130,
 46/46, 38/38, 1/1). The default cap (8) and any cap below the section
 size still print "... and N more".
+
+## 7e. Live evidence — slice 6 (2026-08-29 02:29 deploy, commit 2b85769)
+
+`find_symbol_references("GetByID")` — 0.24 s:
+
+```
+⚠ "GetByID" matches 50+ (fetch cap 50 — more exist; narrow with file_scope) distinct symbols — too many to expand each …
+## Coverage
+- symbols: 50+ — more exist, narrow with file_scope (fetch cap 50)
+- labels resolved for 275 of 349 endpoint(s) (cap 400)     ← 74 endpoints are dangling ids (no node), not the cap
+```
+
+`find_symbol_references("Check_pr_id")`: "Incoming references (78)", `symbols: 1
+(fetch cap 50)`, `labels resolved for 79 of 79 endpoint(s) (cap 400)`.
+The "exactly 50" of the audit is now a stated cap; the label line shows
+the unresolved remainder, which is dangling endpoints rather than the 400
+cap on these two symbols.
