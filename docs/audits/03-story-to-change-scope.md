@@ -143,7 +143,7 @@ row-4 doc §3 (45 files).
 | A6 | **fixed (slice 1)** — candidates rendered as the INDEXED path (case + `Site/` restored) via `list_file_node_metadata`; unindexed paths kept and labelled `historical` (markdown suffix + JSON flag); test `candidate_paths_are_the_indexed_canonical_forms` |
 | A7 | **fixed (slice 1)** — `output_json` payload {concepts, files[{path, layer, tier, signals, why, historical}], coverage, omissions}; tail-cap cuts reported (markdown note + `omissions[]` with layer/reason) instead of silent `continue`; PARTIAL from `find_similar_changes` propagates as `cochange.status = truncated` with the walk's own line as the note; one shared `change_set_rows` feeds both renderers |
 | A8 | **partly (slice 1)** — omission reporting + coverage + canonical-path tests in place (`tests/change_set_evidence_tests.rs` x4, unit `change_set_rows_tests` mutation-checked); extractor/ranking/PARTIAL-under-budget tests come with their slices |
-| D10 | **open** — permission-gates section `take(10)` still silent (slice 2 with the shared snapshot) |
+| D10 | **GREEN locally 2026-08-29 04:35 (slice 3, sweep21 pending)** — the gate scan moves before the JSON early-return (output_json never carried the section); `output_json.permission_gates = {cap, total, shown, listed, omitted}`; markdown states "... and N more gate type(s)" and the gate-definition-file cut; `tests/change_set_gate_cap_tests.rs` (2) RED first — observed 2026-08-29 04:27: JSON carries no `permission_gates` at all; the markdown lists ten and states no cut |
 | G1-G7 | slice 4 gate (eval) + live evidence per slice in §7 |
 
 ## 7. Live evidence after deploy — slice 1 (2026-08-28, binary 18:52, OciusX healed graph 2,274 / 18,144)

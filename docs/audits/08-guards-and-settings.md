@@ -128,7 +128,7 @@ ingestion; no cap note (none needed).
 | A6 | **fixed (slice 2)** — `immune_check`: each hit prints the anti-pattern METADATA header always and the reverted CODE only with `include_content` (the field was never read; sweep14 caught a first cut that hid the header too — the e2e immune test asserts it); "Matches Found: N shown (cap top_k=K — the cap was filled; raise top_k)"; repo-rule lookup failure is a FAILURE line. Escalation stays keyed on the `immune_` id prefix — that IS the revert-derived rule kind (`render_immune_rule_text`); OciusX simply has none yet |
 | A2 | **fixed (slice 2)** — bodies read from the working tree; `client_scope_reads` (qry.params / Request / GetDictionary…Value keys) + `has_object_level_guard` (`check_pr_id(…)`, `CheckAccess…(…)`) ⇒ `level: object`; guarded + client scope key + no object guard ⇒ `role_only` with a ROLE-ONLY section and parity counts. `tests/guards_client_input_tests.rs`, RED first. **Slice 3 (live finding, §7b; 195d3c8, sweep17):** the bulk endpoints read the POST body — `GetDictionaryIntegerValue(qry.data, "pr_id")` — so `qry.data` is client input beside `qry.params` (RED first); reads listed in source order |
 | A7 | **partly (slices 1-3)** — `tests/guards_map_tests.rs` x3 (13 unguarded all reachable; helper-wrapped ⇒ guarded via, fallback ⇒ unknown, bare ⇒ unguarded, role level; store scope + coverage), `tests/guards_client_input_tests.rs` (role-only vs object-level vs no-input, POST-body reader ⇒ ROLE-ONLY; immune_check header/code/cap); unit x3. The conditional-own-check case is slice 4 (next row) |
-| D2/D8 slice 5 | **in flight** — `helper_candidates` reads bare in-class calls from the body first (no `Calls` edge exists for them), then the graph's targets; `guard_level_for` derives `object` from the credited family (`check_<x>_id`, `CheckAccess…`, `HasAccessTo…`, `IsOwnerOf…`, `CanAccess…`); a role-level own check + a called helper with an object family ⇒ `level: object`, not ROLE-ONLY; `via` stays the credited guard helper (CanUserBulkUpdate) when there is one, the scoping helper (GetByID) is named in the reason and becomes `via` only when no guard helper was credited. `tests/guards_conditional_check_tests.rs` extended (the live shape), RED first |
+| D2/D8 slice 5 | **fixed (1134950, deployed 04:31)** — `helper_candidates` reads bare in-class calls from the body first (no `Calls` edge exists for them), then the graph's targets; `guard_level_for` derives `object` from the credited family (`check_<x>_id`, `CheckAccess…`, `HasAccessTo…`, `IsOwnerOf…`, `CanAccess…`); a role-level own check + a called helper with an object family ⇒ `level: object`, not ROLE-ONLY; `via` stays the credited guard helper (CanUserBulkUpdate) when there is one, the scoping helper (GetByID) is named in the reason and becomes `via` only when no guard helper was credited. `tests/guards_conditional_check_tests.rs` extended (the live shape), RED first |
 | D8 | **fixed (slice 4, f4bc30f) — refined by slice 5 (live finding)** — `own_checks_all_conditional` (every own check line indented below the function's top-level statements ⇒ branch-only); `GuardVerdict::own_check_conditional`; a directly called helper with unconditional checks is credited (`via`) with the reason "own check runs only on a branch; guarded by helper X" — the live `ioUpdateBaseTypeInBulk` / `CanUserBulkUpdate` shape. `tests/guards_conditional_check_tests.rs`, RED first |
 | G1 | **met on level/scope (live, §7c)** — all six endpoints of the truth table now carry the right verdict, level and client reads: `ioGetCountByCategory` UNGUARDED; the five `pr_id` readers ROLE-ONLY with their keys (`pr_id, markerStatuses` / `pr_id, oldMarkerTypeID, newMarkerTypeID, targetMarkerIDs` / …); 21 ROLE-ONLY in the file. Remaining: the helper credit for the branch-only `CheckWrite` (slice 4, in sweep18) |
 | G2 | **met (test)** — 0 silent cuts (25 + "… and N more"), every cap a line, path scope at the store (`coverage.scope_query == "store"`) |
@@ -221,3 +221,20 @@ helper is `GetByID`, not `CanUserBulkUpdate()`. Two facts behind that:
    family instead of calling everything `role`. Endpoints that only have
    `_us.UserAccess.Check*` and read `pr_id` without such a helper stay
    ROLE-ONLY; the 21 above will shrink to the ones that truly are.
+
+## 7e. Live evidence — slice 5 (2026-08-29 04:31 deploy, commit 1134950)
+
+```
+in scope 50 | ROLE-ONLY 2 (was 21) | conditional own checks 3
+ioUpdateBaseTypeInBulk  guarded  checkwrite  via CanUserBulkUpdate  own_check_conditional=true  [object]
+iopDeleteInBulk         guarded  checkwrite  via CanUserBulkUpdate  own_check_conditional=true  [object]
+iomsBulkUpdate          guarded  checkwrite  via GetByID (object scoping by helper, check_pr_id)  [object]
+iomsBulkPreCheck        guarded  isinrole;isuserinrole  via CheckIfAdminOrArbetsledare  own_check_conditional=true
+```
+
+The bare in-class `CanUserBulkUpdate()` is now the credited guard for both
+bulk endpoints (read from the body, no `Calls` edge needed) and the object
+scoping inside the DAL helper (`_gd.projekt.GetByID` → `check_pr_id`) makes
+them `[object]`. ROLE-ONLY fell from 21 to 2 — those two are the endpoints
+that read a client `pr_id` and call NO object-scoping helper; that is the
+list a reviewer must open. Unwired gate: passed, 0 degraded (17 gates).
