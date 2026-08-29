@@ -127,6 +127,7 @@ async fn main() -> anyhow::Result<()> {
         state.clone(),
         shutdown.clone(),
     ));
+    tokio::spawn(actors::warmup::run_warmup(state.clone(), shutdown.clone()));
     tokio::spawn(actors::immune::run_immune_actor(
         state.clone(),
         shutdown.clone(),
