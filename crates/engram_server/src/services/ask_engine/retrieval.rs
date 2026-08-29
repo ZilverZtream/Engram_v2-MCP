@@ -51,6 +51,9 @@ pub fn parse_depth(s: &str) -> Depth {
 }
 
 pub struct RetrievalCtx {
+    /// Dream ablation switch (external audit 2026-08-29): when false the
+    /// dreamer's `insights` arm is not run — and nothing else changes.
+    pub insights_enabled: bool,
     pub search: Arc<HybridSearchEngine>,
     pub graph: Arc<GraphStore>,
     pub registry: Arc<Registry>,
@@ -146,6 +149,12 @@ where
     })
 }
 
+/// Whether the dreamer-insight arm runs: Explain-intent questions only, and
+/// only while insights are enabled (the Dream on/off ablation switch).
+pub fn insight_arm_enabled(intents: &HashSet<Intent>, insights_enabled: bool) -> bool {
+    insights_enabled && intents.contains(&Intent::Explain)
+}
+
 /// Run the intent-specific retrieval arms concurrently; return globally-re-id'd
 /// evidence plus one ProviderReport per arm.
 pub async fn gather_evidence(
@@ -169,7 +178,7 @@ pub async fn gather_evidence(
         || has(Intent::Compare)
         || has(Intent::Unknowns);
     let want_business = has(Intent::Explain) || has(Intent::Impact) || has(Intent::BugDiagnosis);
-    let want_insight = has(Intent::Explain);
+    let want_insight = insight_arm_enabled(&intents, ctx.insights_enabled);
     let want_history = has(Intent::History) || has(Intent::Rationale) || has(Intent::Compare);
     let want_memory = has(Intent::Explain)
         || has(Intent::Rationale)

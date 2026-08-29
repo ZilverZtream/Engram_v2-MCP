@@ -48,6 +48,7 @@ impl Engram {
 
         // Retrieve across the intent-specific arms.
         let ctx = RetrievalCtx {
+            insights_enabled: req.include_insights.unwrap_or(true),
             search: ps.search.clone(),
             graph: self.state.graph.clone(),
             registry: self.state.registry.clone(),
