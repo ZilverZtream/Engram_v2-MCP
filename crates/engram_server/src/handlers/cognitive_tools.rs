@@ -1897,18 +1897,7 @@ impl Engram {
             }
         }
 
-        if !edge_kind_counts.is_empty() {
-            let mut eks: Vec<_> = edge_kind_counts.iter().collect();
-            eks.sort_by(|a, b| b.1.cmp(a.1));
-            let total_edges: usize = edge_kind_counts.values().sum();
-            out.push_str(&format!("\n--- Edge Types ({} total) ---\n", total_edges));
-            for (ekind, count) in eks.iter().take(15) {
-                out.push_str(&format!("  {}: {}\n", ekind, count));
-            }
-            if eks.len() > 15 {
-                out.push_str(&format!("  ... and {} more kinds\n", eks.len() - 15));
-            }
-        }
+        out.push_str(&render_edge_kind_histogram(&edge_kind_counts));
 
         {
             let files = node_type_counts.get("file").copied().unwrap_or(0);
@@ -6087,4 +6076,28 @@ mod tests {
             "DROPPED_COLUMN_NAME identifier must not trigger DROP TABLE, got: {hits:?}"
         );
     }
+}
+
+/// The graph's edge-kind histogram, EVERY kind listed, largest first.
+///
+/// External audit 2026-08-29: the overview used to print the 15 most frequent
+/// kinds and hide the rest behind "... and N more kinds" — a live graph with
+/// 180 fresh `co_occurrence` edges read as having none. A histogram that hides
+/// kinds is not a histogram; the ~30 kinds fit on one screen.
+pub fn render_edge_kind_histogram(counts: &std::collections::HashMap<String, usize>) -> String {
+    if counts.is_empty() {
+        return String::new();
+    }
+    let mut eks: Vec<(&String, &usize)> = counts.iter().collect();
+    eks.sort_by(|a, b| b.1.cmp(a.1).then_with(|| a.0.cmp(b.0)));
+    let total_edges: usize = counts.values().sum();
+    let mut out = format!(
+        "\n--- Edge Types ({} total, {} kinds) ---\n",
+        total_edges,
+        eks.len()
+    );
+    for (ekind, count) in eks {
+        out.push_str(&format!("  {}: {}\n", ekind, count));
+    }
+    out
 }
