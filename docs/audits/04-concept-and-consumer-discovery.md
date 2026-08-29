@@ -129,7 +129,7 @@ distinct symbols` — the 50 is the fetch cap (D9).
 | A3 | **fixed (slice 1)** — every matching table/state node is an anchor up to `ANCHOR_CAP` = 50 (reported when hit), consumer expansion fetches `CONSUMER_CAP_PER_ANCHOR + 1` = 201 per anchor so truncation is a fact; the 6-kind consumer whitelist is unchanged and now visible as a cap line |
 | A4 | **slice 1 fixed (05ec8fb, deployed 04:31): D5 Swedish morphology** — `concept_stems` strips erna/arna/orna/na, er/ar/or, en/et and vowel+n (base ≥ 4) so a Swedish plural/definite concept reaches the singular identifier; `tests/footprint_swedish_morphology_tests.rs` (3) RED first. **alias layer: deferred on evidence** — live `redovisningskategori` (release 13/15) already lists the table `rk_redovisningskategorier`, the designer members `_rk_redovisningskategorier(s)` and the class `_rv.redovisningskategorier` in one footprint through token-boundary prefix matching (48 touchpoints); no miss that an explicit alias would have caught has been observed on OciusX. Reopen on the first such miss |
 | A5 | **fixed (slice 2)** — VB extractor: `rangeVar.<table-shaped member>.column` chains on LINQ query-clause lines become `queries_table` READ edges (`orm=nav`), one per (function, table), skipped when a context access already covers the pair; PascalCase EF nav-properties deliberately not matched (need the DDL table set). Tests `linq_navigation_property_tests` x3 (fixture = the audit's `redovisningsartiklar.vb:51-52` shape). Live effect needs a full OciusX reindex — §7 |
-| A6 | **fixed (a6825ce, deployed 04:31) — refined by slice 10 (edfe856, live finding: "report" is not an export word) and slice 11 (in flight: `file:` consumers classified by their own path)** — `consumer_role(kind, src)` from edge kind + source member name/path (test > export > delete > write > read; `sql?` when a SqlCalls name states no verb); every consumer line `[role:kind]`, header tallies the roles and states the limit (bodies not inspected). `tests/footprint_consumer_role_tests.rs` (2) written RED first |
+| A6 | **fixed (a6825ce, deployed 04:31) — refined by slice 10 (edfe856, live finding: "report" is not an export word) and slice 11 (c84b407, sweep22 128/0: `file:` consumers classified by their own path)** — `consumer_role(kind, src)` from edge kind + source member name/path (test > export > delete > write > read; `sql?` when a SqlCalls name states no verb); every consumer line `[role:kind]`, header tallies the roles and states the limit (bodies not inspected). `tests/footprint_consumer_role_tests.rs` (2) written RED first |
 | A7 | **fixed (slice 1)** — `FootprintCoverage` → `## Coverage` block: node scan (complete/truncated/failed), anchors matched/expanded (cap), consumers (status, edge count, per-anchor cap), lexical (status, files/hits/page), failures; the node-scan / consumer / lexical swallows are gone |
 | A8 | **fixed (slice 6, 2b85769, deployed 02:29)** — symbol fetch cap+1 ("matches 50+ distinct symbols (fetch cap 50 — more exist; narrow with file_scope)"), symbol-lookup / incoming-fetch failures as FAILURE lines, the blocking-join failure is an error not "no references", `## Coverage` with the 400-label cap ("labels resolved for X of Y endpoint(s)"). `tests/symbol_references_caps_tests.rs` x2, RED first. Outgoing per-kind truncation note still open |
 | A9 | **in flight (slice 7)** — not one number but one RULE per number: `find_symbol_references` prints "N edges, all kinds; D distinct caller(s) via calls+dependency — the number check_edit_safety / blast_radius use"; the edit tools print "N distinct callers (calls+dependency, dedup by caller[; capped])"; blast_radius already says "causal 1-hop, dangling quarantined". `tests/incoming_count_parity_tests.rs` x2, RED first |
@@ -286,3 +286,18 @@ second id segment, the role rule read the third (`sym:` layout), and the
 matched by accident. Slice 11: `file:<path>` → (path, no member); RED test
 `a_file_node_consumer_is_classified_by_its_own_path` (.rdl → export,
 `test_` file → test, page → read).
+
+## 7h. Live evidence — slice 11 (2026-08-29 05:38 deploy, commit c84b407)
+
+```
+redovisningskategori:  Consumers of core anchors — 6 (write 0, read 2, delete 0, export 4, test 0, sql? 0)
+  - [export:queries_table] file:Site/Reports/redovisning/redovisning.en.rdl -> rk_redovisningskategorier   (×4 locales)
+  - [read:queries_table]   …_rv.redovisningsartiklar.GetByProjectId:46 -> rk_redovisningskategorier
+  - [read:queries_table]   …_rv.redovisningsartiklar.GetCodeWithEstimateAndReportedQty:65 -> rk_redovisningskategorier
+projekt:               Consumers of core anchors — 37 (write 18, read 17, delete 1, export 1, test 0, sql? 0)
+```
+
+The four `.rdl` report definitions are `export` again — by their own path
+this time, not by the accident of "report" in the id — and the two DAL
+readers are `read`. This is the truth table the A6 rule was written for;
+the remaining known limit is stated in every header (bodies not inspected).
