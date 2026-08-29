@@ -677,6 +677,7 @@ fn all_gates_returns_expected_roster_in_order() {
             "co_added_family",
             "complexity_budget",
             "added_conventions",
+            "ui_house_style",
         ]
     );
 }
