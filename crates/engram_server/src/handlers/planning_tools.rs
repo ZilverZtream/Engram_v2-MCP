@@ -7149,9 +7149,10 @@ impl Engram {
         // is checked first, so a change set without markup pays nothing.
         let ui_contract: Option<UiContract> = {
             let (rows_all, _) = change_set_rows(&prov);
-            if rows_all
-                .iter()
-                .any(|r| !r.omitted && r.tier <= UI_CONTRACT_MAX_TIER && is_markup_path(&r.path))
+            if req.include_ui_contract.unwrap_or(false)
+                && rows_all.iter().any(|r| {
+                    !r.omitted && r.tier <= UI_CONTRACT_MAX_TIER && is_markup_path(&r.path)
+                })
             {
                 let st = self.state.clone();
                 let pid_u = req.project_id.clone();

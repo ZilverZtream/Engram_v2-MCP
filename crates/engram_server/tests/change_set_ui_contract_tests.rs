@@ -158,13 +158,44 @@ async fn build(candidate_page_has_family: bool) -> (tempfile::TempDir, Engram, A
     (tmp, engram, state, pid)
 }
 
-async fn change_set(engram: &Engram, pid: &str, output_json: bool) -> String {
-    let req: GetChangeSetRequest = serde_json::from_value(
-        json!({"project_id": pid, "story": STORY, "output_json": output_json}),
-    )
-    .unwrap();
+/// The section is OPT-IN (`include_ui_contract`): both A/Bs measured it
+/// negative on file-F1 (region-pulled −4.1, in-dossier −9.7 at n = 8), so a
+/// default change set stays clean; the v3 program (owner 2026-08-29 22:50)
+/// measures markup conformance on the implementation instead.
+async fn change_set_with(
+    engram: &Engram,
+    pid: &str,
+    output_json: bool,
+    include: Option<bool>,
+) -> String {
+    let mut body = json!({"project_id": pid, "story": STORY, "output_json": output_json});
+    if let Some(i) = include {
+        body["include_ui_contract"] = json!(i);
+    }
+    let req: GetChangeSetRequest = serde_json::from_value(body).unwrap();
     let res = engram.handle_get_change_set(req).await.unwrap();
     res.content[0].as_text().unwrap().text.clone()
+}
+
+async fn change_set(engram: &Engram, pid: &str, output_json: bool) -> String {
+    change_set_with(engram, pid, output_json, Some(true)).await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_section_is_opt_in_a_default_change_set_never_carries_it() {
+    let (_tmp, engram, _state, pid) = build(true).await;
+    let t = change_set_with(&engram, &pid, true, None).await;
+    let v: Value = serde_json::from_str(&t).unwrap_or_else(|e| panic!("not JSON ({e}):\n{t}"));
+    assert!(
+        v.get("ui_contract").is_some_and(|c| c.is_null()),
+        "without include_ui_contract the key is null even though a family lives on the candidate page: {}",
+        v["ui_contract"]
+    );
+    let md = change_set_with(&engram, &pid, false, None).await;
+    assert!(
+        !md.contains("## UI contract"),
+        "a default change set carries no UI contract section:\n{md}"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
