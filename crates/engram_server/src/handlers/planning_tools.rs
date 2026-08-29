@@ -5583,6 +5583,13 @@ pub(crate) struct ChangeSetCoverage {
     pub wall_ms: u128,
     #[serde(default)]
     pub stages: std::collections::BTreeMap<String, u128>,
+    /// The settings house prior came from the per-generation cache (no corpus scan).
+    #[serde(default)]
+    pub house_prior_cached: bool,
+    /// Presentation-layer anchors the bundle/markup co-change pass was seeded with
+    /// (bounded by `PRESENTATION_ANCHOR_CAP`).
+    #[serde(default)]
+    pub presentation_anchors: usize,
     /// External audit 2026-08-29 row 1: `english phrase → swedish term` pairs the
     /// project's .resx lexicon contributed as default concepts.
     #[serde(default)]
@@ -5599,6 +5606,9 @@ fn render_change_set_coverage(cov: &ChangeSetCoverage, omitted: usize) -> String
     s.push_str(&format!("- co-change: {}\n", cov.cochange.line()));
     s.push_str(&format!("- vector: {}\n", cov.vector.line()));
     s.push_str(&format!("- kb bridge: {}\n", cov.kb_bridge.line()));
+    if cov.house_prior_cached {
+        s.push_str("- house prior: from the per-generation cache\n");
+    }
     if cov.wall_ms > 0 {
         let cps: Vec<String> = cov.stages.iter().map(|(k, v)| format!("{k} {v}")).collect();
         s.push_str(&format!(
@@ -6395,14 +6405,24 @@ impl Engram {
         const PRESENTATION: &[&str] = &[
             ".ts", ".tsx", ".js", ".jsx", ".aspx", ".ascx", ".master", ".vbhtml", ".cshtml", ".css",
         ];
-        let pres_anchors: Vec<String> = prov
-            .keys()
-            .filter(|p| {
+        // External audit 2026-08-29 P0-3 (≤ 5 s): the pass costs per anchor (live
+        // 1.9 s unbounded) — seed it with the strongest presentation anchors only.
+        const PRESENTATION_ANCHOR_CAP: usize = 20;
+        let mut pres_ranked: Vec<(usize, String)> = prov
+            .iter()
+            .filter(|(p, _)| {
                 let pl = p.to_lowercase();
                 PRESENTATION.iter().any(|e| pl.ends_with(e))
             })
-            .cloned()
+            .map(|(p, sigs)| (sigs.len(), p.clone()))
             .collect();
+        pres_ranked.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+        let pres_anchors: Vec<String> = pres_ranked
+            .into_iter()
+            .take(PRESENTATION_ANCHOR_CAP)
+            .map(|(_, p)| p)
+            .collect();
+        cov.presentation_anchors = pres_anchors.len();
         if !pres_anchors.is_empty()
             && let Ok(r) = self
                 .detect_incomplete_changes_with(
@@ -6886,71 +6906,97 @@ impl Engram {
         // the literal word "setting"; it hides inside compound path tokens
         // like "systemsettings", which FTS won't split). Degrades to the
         // soft decision line when the corpus is absent or the sample thin.
-        let setting_prior: Option<(usize, usize)> =
-            if let Ok(ps) = self.ensure_project_runtime(&req.project_id).await {
-                let search = ps.search.clone();
-                let pid = req.project_id.clone();
-                tokio::task::spawn_blocking(move || {
-                    // Scoped to the history namespace in the QUERY. Listing
-                    // the whole project materialised every doc's stored
-                    // fields and then discarded all but the pr:* ones.
-                    let mut pr_docs: Vec<(u64, String)> = search
-                        .list_docs_in_namespace(&pid, engram_core::namespaces::NAMESPACE_HISTORY)
-                        .ok()?
-                        .into_iter()
-                        .filter(|d| d.path.starts_with("pr:"))
-                        .map(|d| {
-                            let num = d.path[3..]
-                                .split(|c: char| !c.is_ascii_digit())
-                                .next()
-                                .and_then(|s| s.parse::<u64>().ok())
-                                .unwrap_or(0);
-                            (num, d.doc_id)
-                        })
-                        .collect();
-                    pr_docs.sort_by(|a, b| b.0.cmp(&a.0));
-                    let mut scanned = 0usize;
-                    let mut matched = 0usize;
-                    for (_, doc_id) in pr_docs.into_iter().take(60) {
-                        let Ok(Some((_, _, content, _, _))) = search.get_doc_by_doc_id(
-                            &pid,
-                            engram_core::namespaces::NAMESPACE_HISTORY,
-                            0,
-                            &doc_id,
-                        ) else {
-                            continue;
-                        };
-                        let files =
+        let setting_prior: Option<(usize, usize)> = {
+            // External audit 2026-08-29 P0-3 (≤ 5 s): the prior is a property of the
+            // merged-PR corpus, not of the story — cached per project generation
+            // (live: 1.3 s on every call before).
+            let cached = self
+                .state
+                .setting_prior_cache
+                .get(&req.project_id)
+                .filter(|e| e.value().0 == gen_now)
+                .map(|e| e.value().1);
+            match cached {
+                Some(v) => {
+                    cov.house_prior_cached = true;
+                    v
+                }
+                None => {
+                    let v: Option<(usize, usize)> =
+                        if let Ok(ps) = self.ensure_project_runtime(&req.project_id).await {
+                            let search = ps.search.clone();
+                            let pid = req.project_id.clone();
+                            tokio::task::spawn_blocking(move || {
+                                // Scoped to the history namespace in the QUERY. Listing
+                                // the whole project materialised every doc's stored
+                                // fields and then discarded all but the pr:* ones.
+                                let mut pr_docs: Vec<(u64, String)> = search
+                                    .list_docs_in_namespace(
+                                        &pid,
+                                        engram_core::namespaces::NAMESPACE_HISTORY,
+                                    )
+                                    .ok()?
+                                    .into_iter()
+                                    .filter(|d| d.path.starts_with("pr:"))
+                                    .map(|d| {
+                                        let num = d.path[3..]
+                                            .split(|c: char| !c.is_ascii_digit())
+                                            .next()
+                                            .and_then(|s| s.parse::<u64>().ok())
+                                            .unwrap_or(0);
+                                        (num, d.doc_id)
+                                    })
+                                    .collect();
+                                pr_docs.sort_by(|a, b| b.0.cmp(&a.0));
+                                let mut scanned = 0usize;
+                                let mut matched = 0usize;
+                                for (_, doc_id) in pr_docs.into_iter().take(60) {
+                                    let Ok(Some((_, _, content, _, _))) = search.get_doc_by_doc_id(
+                                        &pid,
+                                        engram_core::namespaces::NAMESPACE_HISTORY,
+                                        0,
+                                        &doc_id,
+                                    ) else {
+                                        continue;
+                                    };
+                                    let files =
                             crate::services::pre_commit_review_service::gates::parse_pr_doc_files(
                                 &content,
                             );
-                        if files.is_empty() {
-                            continue;
-                        }
-                        scanned += 1;
-                        let n = files
-                            .iter()
-                            .filter(|f| {
-                                let fl = f.to_lowercase();
-                                fl.rsplit('/').next().unwrap_or(&fl).contains("setting")
+                                    if files.is_empty() {
+                                        continue;
+                                    }
+                                    scanned += 1;
+                                    let n = files
+                                        .iter()
+                                        .filter(|f| {
+                                            let fl = f.to_lowercase();
+                                            fl.rsplit('/').next().unwrap_or(&fl).contains("setting")
+                                        })
+                                        .count();
+                                    if n >= 2 {
+                                        matched += 1;
+                                    }
+                                }
+                                if scanned >= 10 {
+                                    Some((matched, scanned))
+                                } else {
+                                    None
+                                }
                             })
-                            .count();
-                        if n >= 2 {
-                            matched += 1;
-                        }
-                    }
-                    if scanned >= 10 {
-                        Some((matched, scanned))
-                    } else {
-                        None
-                    }
-                })
-                .await
-                .ok()
-                .flatten()
-            } else {
-                None
-            };
+                            .await
+                            .ok()
+                            .flatten()
+                        } else {
+                            None
+                        };
+                    self.state
+                        .setting_prior_cache
+                        .insert(req.project_id.clone(), (gen_now, v));
+                    v
+                }
+            }
+        };
 
         cov.stages
             .insert("before_render".into(), t_all.elapsed().as_millis());
