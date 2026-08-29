@@ -24,6 +24,7 @@ const SRC: &str = r#"Public Class api
     Public Function UpdateInBulk(qry As Query) As String
         If Not CanUserBulkUpdate() Then Return s
         Dim projectID = GetDictionaryIntegerValue(qry.data, "pr_id")
+        Dim proj = _gd.projekt.GetByID(projectID)
         If isUpdatingAR Then
             If Not _us.UserAccess.CheckWrite(_us.UserAccessObject.vs_ata) Then Return s
         End If
@@ -39,6 +40,24 @@ const SRC: &str = r#"Public Class api
     Public Function PlainGuard(qry As Query) As String
         If Not _us.UserAccess.CheckWrite(_us.UserAccessObject.vs_karta_io_objekt) Then Return s
         Return "ok"
+    End Function
+
+    Public Function ScopedByDal(qry As Query) As String
+        If Not _us.UserAccess.CheckRead(_us.UserAccessObject.vs_karta_io_objekt) Then Return s
+        Dim projectID = GetDictionaryIntegerValue(qry.data, "pr_id")
+        Dim proj = _gd.projekt.GetByID(projectID)
+        Return "ok"
+    End Function
+End Class
+"#;
+
+/// The DAL helper every endpoint above calls; it does the object-level
+/// scoping (`check_pr_id`) itself — live: `_gd.projekt.GetByID`.
+const DAL: &str = "Site/App_Code/gd/projekt.vb";
+const DAL_SRC: &str = r#"Public Class projekt
+    Public Function GetByID(id As Integer) As pr_projekt
+        If Not _us.accessctrl.check_pr_id(id) Then Return Nothing
+        Return db.pr_projekts.FirstOrDefault(Function(p) p.pr_id = id)
     End Function
 End Class
 "#;
@@ -114,23 +133,50 @@ fn calls(src: &str, tgt: &str) -> Edge {
 async fn a_conditional_own_check_yields_to_the_helper_that_guards_unconditionally() {
     let (_tmp, state, dir) = build_state();
     std::fs::create_dir_all(dir.join("Site/App_Code/api")).unwrap();
+    std::fs::create_dir_all(dir.join("Site/App_Code/gd")).unwrap();
     std::fs::write(dir.join(FILE), SRC).unwrap();
+    std::fs::write(dir.join(DAL), DAL_SRC).unwrap();
     // The extractor records the regex-visible CheckWrite on UpdateInBulk
     // (it cannot see CanUserBulkUpdate) — exactly the live metadata.
-    let bulk = func("UpdateInBulk", 2, 9, "checkwrite");
+    let bulk = func("UpdateInBulk", 2, 10, "checkwrite");
     let helper = func(
         "CanUserBulkUpdate",
-        11,
-        15,
+        12,
+        16,
         "checkifadminorarbetsledare;checkwrite",
     );
-    let plain = func("PlainGuard", 17, 20, "checkwrite");
-    let (bid, hid) = (bulk.node_id.clone(), helper.node_id.clone());
+    let plain = func("PlainGuard", 18, 21, "checkwrite");
+    let scoped = func("ScopedByDal", 23, 28, "checkread");
+    // The DAL helper is indexed with a qualified name and carries the
+    // object-level check itself (live: `_gd.projekt.GetByID` → check_pr_id).
+    let dal = Node {
+        node_id: format!("sym:function:{DAL}:_gd.projekt.GetByID:2"),
+        node_type: "function".into(),
+        name: "_gd.projekt.GetByID".into(),
+        namespace: "projekt".into(),
+        language: "vbnet".into(),
+        file_path: RelPath::new(DAL),
+        start_line: 2,
+        end_line: 5,
+        generation: 1,
+        metadata: Some(json!({"permission_checks": "check_pr_id", "guard_roles": ""})),
+    };
+    let (bid, sid, did) = (
+        bulk.node_id.clone(),
+        scoped.node_id.clone(),
+        dal.node_id.clone(),
+    );
     state
         .graph
-        .upsert_nodes(PID, &[bulk, helper, plain])
+        .upsert_nodes(PID, &[bulk, helper, plain, scoped, dal])
         .unwrap();
-    state.graph.upsert_edges(PID, &[calls(&bid, &hid)]).unwrap();
+    // LIVE SHAPE: the VB extractor emits Calls edges for QUALIFIED calls
+    // (`_gd.projekt.GetByID`) but none for the bare in-class
+    // `CanUserBulkUpdate()` — the in-file call must be found from the body.
+    state
+        .graph
+        .upsert_edges(PID, &[calls(&bid, &did), calls(&sid, &did)])
+        .unwrap();
     let engram = Engram::new(state);
     let req: MapGuardsAndSettingsRequest =
         serde_json::from_value(json!({"project_id": PID, "scope": FILE, "output_json": true}))
@@ -158,4 +204,20 @@ async fn a_conditional_own_check_yields_to_the_helper_that_guards_unconditionall
     let plain = find("PlainGuard");
     assert_eq!(plain["own_check_conditional"], false, "{plain}");
     assert!(plain["via"].is_null(), "{plain}");
+
+    // Live finding (release 13): the object-level scoping of the bulk
+    // endpoints lives INSIDE the DAL helper (`_gd.projekt.GetByID` →
+    // check_pr_id). A role-level own check + a called helper that checks
+    // the object is OBJECT-level via that helper, not ROLE-ONLY.
+    let scoped = find("ScopedByDal");
+    assert_eq!(scoped["verdict"], "guarded", "{scoped}");
+    assert_eq!(
+        scoped["level"], "object",
+        "check_pr_id inside the called DAL helper scopes the object: {scoped}"
+    );
+    assert_eq!(scoped["via"], "GetByID", "{scoped}");
+    assert_eq!(
+        scoped["role_only"], false,
+        "the client pr_id IS object-checked (by the helper): {scoped}"
+    );
 }
