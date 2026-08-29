@@ -18,6 +18,7 @@ pub mod explain_change_service;
 pub mod full_project_migration_service;
 pub mod git_service;
 pub mod graph_service;
+pub mod house_style;
 pub mod ingest_service;
 pub mod instrumentation_service;
 pub mod integrity_service;

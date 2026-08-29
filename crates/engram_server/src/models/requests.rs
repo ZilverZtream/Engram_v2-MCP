@@ -2990,6 +2990,12 @@ pub struct GetPageContextRequest {
     /// Include code-behind analysis. Default: true.
     #[serde(default = "default_true")]
     pub include_codebehind: bool,
+    /// Include the house-style section: the nearest sibling pages of this
+    /// page's territory and the idioms they share (user controls, resource
+    /// families, classes) — what to copy from next door before writing
+    /// markup here. Default: true.
+    #[serde(default = "default_true")]
+    pub include_house_style: bool,
     /// Output as JSON instead of Markdown. Default: false.
     #[serde(default)]
     pub output_json: bool,

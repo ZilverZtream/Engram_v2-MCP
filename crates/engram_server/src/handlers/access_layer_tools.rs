@@ -264,6 +264,9 @@ pub struct PageContextResult {
     pub total_methods: usize,
     /// What each graph/file provider behind this page context delivered.
     pub completeness: PageContextCompleteness,
+    /// External audit 2026-08-29 row 5 v3: the house style of the page's
+    /// territory — nearest siblings and the idioms they share.
+    pub house_style: Option<crate::services::house_style::HouseStyle>,
 }
 
 /// Per-provider completeness for `get_page_context` (row-2 audit D6/D7).
@@ -2198,6 +2201,11 @@ fn render_page_context_markdown(ctx: &PageContextResult) -> String {
         md.push('\n');
     }
 
+    // Row 5 v3: house style of the territory
+    if let Some(hs) = &ctx.house_style {
+        md.push_str(&crate::services::house_style::render_house_style(hs));
+    }
+
     // VB traps summary
     if !ctx.vb_traps_summary.is_empty() {
         md.push_str("## VB Translation Traps\n\n");
@@ -2951,6 +2959,7 @@ impl Engram {
         let include_method_bodies = req.include_method_bodies;
         let include_master = req.include_master_page;
         let include_cb = req.include_codebehind;
+        let include_house = req.include_house_style;
         let output_json = req.output_json;
 
         let result = tokio::task::spawn_blocking(move || {
@@ -3358,8 +3367,19 @@ impl Engram {
                 .map(|t| format!("{}: {} ({})", t.location, t.trap, t.risk))
                 .collect();
 
+            // Row 5 v3: what next door looks like (nearest siblings + shared idioms).
+            let house_style = if include_house {
+                Some(crate::services::house_style::house_style_for(
+                    Path::new(&project_dir),
+                    &aspx_file,
+                    &aspx_content,
+                ))
+            } else {
+                None
+            };
             Ok(PageContextResult {
                 aspx_file: aspx_file.clone(),
+                house_style,
                 codebehind_file: cb_path,
                 class_name,
                 master_page,
