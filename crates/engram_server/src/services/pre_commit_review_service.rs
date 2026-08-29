@@ -248,6 +248,10 @@ pub struct GateOutcome {
     pub name: &'static str,
     pub status: GateStatus,
     pub elapsed_ms: u128,
+    /// Internal caps the gate hit while running (row-3 A4): "looked at 20
+    /// of 25 files (FILE_CAP)". A clean gate that stopped looking says so.
+    #[serde(default)]
+    pub caps: Vec<String>,
 }
 
 impl GateOutcome {
@@ -438,6 +442,9 @@ pub struct GateContext<'a> {
     /// Provider failures the running gate chose to survive (row-3 A3).
     /// Drained by the runner into `GateStatus::Degraded`.
     pub degraded: std::sync::Mutex<Vec<String>>,
+    /// Internal caps the running gate hit (row-3 A4). Drained by the
+    /// runner into `GateOutcome::caps`.
+    pub caps: std::sync::Mutex<Vec<String>>,
 }
 
 impl GateContext<'_> {
@@ -450,6 +457,23 @@ impl GateContext<'_> {
         {
             v.push(note);
         }
+    }
+
+    /// Record an internal cap the gate hit ("looked at 20 of 25 files").
+    pub fn note_cap(&self, note: impl Into<String>) {
+        let note = note.into();
+        if let Ok(mut v) = self.caps.lock()
+            && !v.iter().any(|n| *n == note)
+        {
+            v.push(note);
+        }
+    }
+
+    pub fn take_caps(&self) -> Vec<String> {
+        self.caps
+            .lock()
+            .map(|mut v| std::mem::take(&mut *v))
+            .unwrap_or_default()
     }
 
     pub fn take_degraded(&self) -> Vec<String> {
@@ -1933,6 +1957,17 @@ pub fn render_markdown(
         out.push('\n');
     }
 
+    let capped: Vec<&GateOutcome> = outcomes.iter().filter(|o| !o.caps.is_empty()).collect();
+    if !capped.is_empty() {
+        out.push_str("## Caps hit — these gates stopped looking at a limit\n\n");
+        for o in &capped {
+            for c in &o.caps {
+                out.push_str(&format!("- `{}`: {c}\n", o.name));
+            }
+        }
+        out.push('\n');
+    }
+
     if !degraded.is_empty() {
         out.push_str(
             "## ⚠ Gates that ran DEGRADED — a provider failed inside them, evidence is PARTIAL\n\n",
@@ -2229,7 +2264,12 @@ pub async fn run_pre_commit_review_with(
     // the sync bucket.
     let mut sync_handles: Vec<(
         &'static str,
-        tokio::task::JoinHandle<(anyhow::Result<Vec<ReviewFinding>>, u128, Vec<String>)>,
+        tokio::task::JoinHandle<(
+            anyhow::Result<Vec<ReviewFinding>>,
+            u128,
+            Vec<String>,
+            Vec<String>,
+        )>,
     )> = Vec::new();
     let mut async_gates: Vec<Box<dyn Gate>> = Vec::new();
     let mut gates_run = 0usize;
@@ -2246,6 +2286,7 @@ pub async fn run_pre_commit_review_with(
             outcomes.push(GateOutcome {
                 name,
                 status: GateStatus::Skipped("skip_gates".into()),
+                caps: Vec::new(),
                 elapsed_ms: 0,
             });
             continue;
@@ -2262,7 +2303,12 @@ pub async fn run_pre_commit_review_with(
             let started = std::time::Instant::now();
             let ctx = shared.as_borrowed(&state_clone);
             let r = gate.run(&ctx);
-            (r, started.elapsed().as_millis(), ctx.take_degraded())
+            (
+                r,
+                started.elapsed().as_millis(),
+                ctx.take_degraded(),
+                ctx.take_caps(),
+            )
         });
         sync_handles.push((name, handle));
     }
@@ -2272,19 +2318,21 @@ pub async fn run_pre_commit_review_with(
         let mut sync_outcomes: Vec<GateOutcome> = Vec::new();
         for (name, h) in sync_handles {
             match h.await {
-                Ok((Ok(fs), ms, notes)) => {
+                Ok((Ok(fs), ms, notes, caps)) => {
                     sync_outcomes.push(GateOutcome {
                         name,
                         status: GateStatus::from_run(fs.len(), notes),
                         elapsed_ms: ms,
+                        caps,
                     });
                     out.extend(fs);
                 }
-                Ok((Err(e), ms, _notes)) => {
+                Ok((Err(e), ms, _notes, _caps)) => {
                     tracing::warn!(gate = %name, "pre_commit_review gate failed: {e}");
                     sync_outcomes.push(GateOutcome {
                         name,
                         status: GateStatus::Failed(e.to_string()),
+                        caps: Vec::new(),
                         elapsed_ms: ms,
                     });
                 }
@@ -2293,6 +2341,7 @@ pub async fn run_pre_commit_review_with(
                     sync_outcomes.push(GateOutcome {
                         name,
                         status: GateStatus::Panicked(e.to_string()),
+                        caps: Vec::new(),
                         elapsed_ms: 0,
                     });
                 }
@@ -2314,12 +2363,14 @@ pub async fn run_pre_commit_review_with(
                 .await;
             let ms = started.elapsed().as_millis();
             let notes = ctx.take_degraded();
+            let caps = ctx.take_caps();
             match result {
                 Ok(Ok(fs)) => {
                     async_outcomes.push(GateOutcome {
                         name,
                         status: GateStatus::from_run(fs.len(), notes),
                         elapsed_ms: ms,
+                        caps,
                     });
                     out.extend(fs);
                 }
@@ -2328,6 +2379,7 @@ pub async fn run_pre_commit_review_with(
                     async_outcomes.push(GateOutcome {
                         name,
                         status: GateStatus::Failed(e.to_string()),
+                        caps: Vec::new(),
                         elapsed_ms: ms,
                     });
                 }
@@ -2341,6 +2393,7 @@ pub async fn run_pre_commit_review_with(
                     async_outcomes.push(GateOutcome {
                         name,
                         status: GateStatus::Panicked(reason),
+                        caps: Vec::new(),
                         elapsed_ms: ms,
                     });
                 }
@@ -2403,6 +2456,7 @@ impl SharedGateData {
             files_by_parent: self.files_by_parent.clone(),
             audit_function: self.audit_function.clone(),
             degraded: std::sync::Mutex::new(Vec::new()),
+            caps: std::sync::Mutex::new(Vec::new()),
         }
     }
 }

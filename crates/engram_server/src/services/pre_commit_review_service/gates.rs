@@ -381,8 +381,14 @@ impl Gate for BlastRadiusGate {
         // Prefer shallower paths first — they tend to be higher-blast
         // shared modules.
         files.sort_by_key(|f| f.path.matches('/').count());
+        let total_files = files.len();
         let truncated = files.len() > FILE_CAP;
         files.truncate(FILE_CAP);
+        if truncated {
+            ctx.note_cap(format!(
+                "looked at {FILE_CAP} of {total_files} changed files (FILE_CAP {FILE_CAP}) — shallower paths first"
+            ));
+        }
 
         let mut findings = Vec::new();
         for df in files {
@@ -1019,6 +1025,12 @@ impl Gate for TemporalGate {
                     ctx.degrade(format!("co-change neighbours of {} failed: {e}", df.path));
                     Vec::new()
                 });
+            if neighbors.len() >= 20 {
+                ctx.note_cap(format!(
+                    "co-change neighbours of {}: first 20 only",
+                    df.path
+                ));
+            }
             // Multiple historical spellings can resolve to the same
             // current file — emit each partner once per diff file
             // (neighbors are weight-sorted, so the strongest wins).
@@ -1426,6 +1438,13 @@ impl Gate for AntiPatternGate {
             // fetched by pk — exact, generation-proof.
             let query_text = crate::utils::text::code_to_query(&df.added_content);
             let mut relevant: Vec<(String, f32)> = Vec::new(); // (display path, overlap)
+            if hits.len() > 5 {
+                ctx.note_cap(format!(
+                    "antipattern: examined the first 5 of {} corpus hits for {}",
+                    hits.len(),
+                    df.path
+                ));
+            }
             for h in hits.into_iter().take(5) {
                 // Vendored/minified artifacts in the antipattern corpus
                 // (a revert that touched `*.min.js`) match everything —
@@ -1838,6 +1857,12 @@ impl Gate for TestCoverageGate {
                     ctx.degrade(format!("co-change neighbours of {} failed: {e}", df.path));
                     Vec::new()
                 });
+            if neighbors.len() >= 30 {
+                ctx.note_cap(format!(
+                    "co-change neighbours of {}: first 30 only",
+                    df.path
+                ));
+            }
             let coupled_tests_raw: Vec<(String, u32)> = neighbors
                 .into_iter()
                 .filter(|(id, _)| {
@@ -2325,7 +2350,14 @@ impl Gate for UnwiredGate {
         let mut findings = Vec::new();
         // Bounded graph lookups — a huge WIP diff shouldn't turn the
         // backstop into dozens of scans.
-        for cand in unwired_candidates(ctx.diff_files).into_iter().take(25) {
+        let unwired_all = unwired_candidates(ctx.diff_files);
+        if unwired_all.len() > 25 {
+            ctx.note_cap(format!(
+                "checked 25 of {} new definitions (candidate cap)",
+                unwired_all.len()
+            ));
+        }
+        for cand in unwired_all.into_iter().take(25) {
             // Graph backstop: a same-named function already known to the
             // graph with at least one caller (pre-existing overload,
             // partial-class twin, or a markup-wired handler the indexer
@@ -2451,6 +2483,9 @@ impl Gate for SyncContractGate {
                 ctx.degrade(format!("sync_contract nodes could not be listed: {e}"));
                 Vec::new()
             });
+        if contracts.len() >= 300 {
+            ctx.note_cap("sync_contract: first 300 contract nodes only");
+        }
         for c in contracts {
             let Some(meta) = &c.metadata else { continue };
             let Some(sites_raw) = meta.get("sites").and_then(|v| v.as_str()) else {
@@ -2734,6 +2769,12 @@ impl Gate for ProductIntentGate {
             query = %query,
             "product_intent search returned"
         );
+        if hits.len() > 5 {
+            ctx.note_cap(format!(
+                "product_intent: examined the first 5 of {} memory-bank hits",
+                hits.len()
+            ));
+        }
         for h in hits.into_iter().take(5) {
             let raw = h.path.as_str();
             let section = raw.strip_prefix("memory_bank:").unwrap_or(raw).to_string();
@@ -2905,6 +2946,12 @@ impl Gate for CoAddedFamilyGate {
         ordered.sort_by_key(|f| (f.matches('/').count(), f.clone()));
 
         let mut findings = Vec::new();
+        if ordered.len() > 4 {
+            ctx.note_cap(format!(
+                "co_added_family: checked the first 4 of {} new-file families",
+                ordered.len()
+            ));
+        }
         for family in ordered.into_iter().take(4) {
             // Lexical search over the PR corpus for docs referencing the
             // family dir; loose mode tokenizes the path segments.
@@ -3299,6 +3346,13 @@ impl Gate for ComplexityGate {
                 }
             }
             over.sort_by(|a, b| b.0.cmp(&a.0));
+            if over.len() > 3 {
+                ctx.note_cap(format!(
+                    "complexity_budget: reported the 3 most complex of {} over-budget functions in {}",
+                    over.len(),
+                    df.path
+                ));
+            }
             for (cx, start, name, is_new) in over.into_iter().take(3) {
                 let (sev, title, detail, suggestion) = if is_new {
                     (
