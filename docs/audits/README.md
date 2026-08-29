@@ -32,7 +32,7 @@ starts and is the auditor's checklist afterwards.
 | # | Capability | Main tools | Doc | Status |
 |---|---|---|---|---|
 | 0 | Integration P0 block | generate_agent_integration, produce_claude_md, tool surface | (this file, below) | **DONE + deployed + live-verified 2026-08-28** (fef66ca) — see disposition |
-| 1 | Story-to-change scope | get_change_set (+ detect_incomplete_changes, find_similar_changes) | [`03-story-to-change-scope.md`](03-story-to-change-scope.md) | **slices 1-3 IMPLEMENTED + deployed 2026-08-29 05:06** (8ea94c9 D10: permission-gates cut stated in markdown + JSON — live). Open: A3/D4 precision — blocked on the user's A/B opt-in (see below) |
+| 1 | Story-to-change scope | get_change_set (+ detect_incomplete_changes, find_similar_changes) | [`03-story-to-change-scope.md`](03-story-to-change-scope.md) | **slices 1-3 IMPLEMENTED + deployed; precision A/B RUN 2026-08-29 (30 Sonnet plans): weak-tier cut REJECTED — it holds 25 % of the real files while implementation F1 is unchanged (03 §7d); D4 closed on evidence** |
 | 2 | Follow the code before editing | get_method_edit_context, check_edit_safety, get_page_context | [`02-edit-context-and-edit-safety.md`](02-edit-context-and-edit-safety.md) | **IMPLEMENTED + deployed + live-verified 2026-08-28** (604f488; §6 disposition, §7 live gates 20/20) |
 | 3 | Pre-commit defect prevention | pre_commit_review, pre_push_audit | [`05-pre-commit-gates.md`](05-pre-commit-gates.md) | **slices 1-5 IMPLEMENTED + deployed 2026-08-29 04:31** (777c951 gate outcomes; 9da8522 DEGRADED; 6f149c8 in-gate caps live; af737da unwired failed-lookup ⇒ skip; d1252ca pre_push_audit INACTIVE on an empty rule namespace — live). Remaining: OciusX rule ingestion is a user action (ADO PAT) |
 | 4 | Exact entity/consumer discovery | get_concept_footprint, find_symbol_references | [`04-concept-and-consumer-discovery.md`](04-concept-and-consumer-discovery.md) | **slices 1-11 IMPLEMENTED + deployed 2026-08-29 05:38** (… a6825ce consumer roles; 05ec8fb Swedish stems; edfe856 + c84b407 export-role fixes from two live findings — live: redovisningskategori export 4 / read 2). A4 alias layer deferred on evidence |
@@ -47,7 +47,7 @@ starts and is the auditor's checklist afterwards.
 
 | Item | Needs | Why it cannot proceed autonomously |
 |---|---|---|
-| Row 1 precision (A3 / D4): weak-tier policy vs implementation score | opt-in to the in-session Opus/Sonnet A/B via the Workflow tool (or the OciusX `/story` dry-run) | the 5-PR gate shows 5 % precision is the defect; no retrieval knob moves it (03 §7) — only an implementation-score A/B can decide the weak-tier cut |
+| ~~Row 1 precision (A3 / D4)~~ | done 2026-08-29 (user opted in) | weak-tier cut rejected on evidence (03 §7d) |
 | ~~Row 5 M0 A/B~~ | done 2026-08-29 (user opted in) | NEGATIVE — idea dropped (07 §7c) |
 | Row 3 rule ingestion on OciusX | a fresh Azure DevOps PAT + `ingest_quality_gates` | `pre_push_audit` is honest now (INACTIVE) but checks nothing until rules are ingested (05 §7d) |
 

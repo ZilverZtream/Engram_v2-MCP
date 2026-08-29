@@ -137,7 +137,8 @@ row-4 doc §3 (45 files).
 |---|---|
 | A1 | **built, gate FAILED, shipped OPT-IN** — `extract_story_concept_candidates` (recipe + parenthesized glosses + noun phrases) and `resolve_story_concepts` (index-corroborated; compound suffix split `huvudredovisningskategori → redovisningskategori`) exist and are always REPORTED (`coverage.concept_candidates`, markdown line); retrieving on them is `expand_concepts=true` only — on the 5-PR gate they inflated the weak tier past the tail cap: recall 89.2% → 86.5%, precision 5.1% → 4.8% (§7) |
 | A2 | **fixed (neutral on the gate)** — `change_set_tier` ranks by evidence directness (golden > concept+associative > concept alone > associative-only; two weak signals no longer outrank an entity match); 5-PR gate: recall 33/37 → 33/37, precision 5.1% → 5.0%, candidates 649 → 655 — no regression, no gain; kept for the principle, measured honestly |
-| A3 | **blocked on user opt-in (2026-08-29)** — per-arm timings (slice 1) show the co-change arm at 3-6 s of a 9.7 s call; cohort precompute is deferred because the gate shows the real defect is precision (5 %, ~130 candidates), and §7 concludes that moving it needs the weak-tier policy revisited against the implementation-score A/B (in-session Opus/Sonnet agents via the Workflow tool) — which requires the user's opt-in, like row 7's M0 A/B |
+| D4 | **closed on evidence (2026-08-29 §7d)** — the weak tier holds 9/36 real files (25 % of recall); cutting it leaves implementation F1 unchanged (48.9 → 50.5, noise). The dossier keeps every candidate |
+| A3 | **A/B RUN 2026-08-29 07:47 (user opt-in, Workflow tool) — weak-tier cut REJECTED on evidence (§7d)**; earlier note:  per-arm timings (slice 1) show the co-change arm at 3-6 s of a 9.7 s call; cohort precompute is deferred because the gate shows the real defect is precision (5 %, ~130 candidates), and §7 concludes that moving it needs the weak-tier policy revisited against the implementation-score A/B (in-session Opus/Sonnet agents via the Workflow tool) — which requires the user's opt-in, like row 7's M0 A/B |
 | A4 | **fixed (slice 2)** — one `NodeSnapshot` (Arc<Vec<Node>>) per call shared by every `detect_incomplete_changes` pass via `detect_incomplete_changes_with`; `coverage.node_scans` reports the count (test `one_call_performs_one_full_node_scan`) |
 | A5 | **fixed (slice 1)** — vector arm reports `failed — vector search unavailable: …` / `complete (N hits)`; every arm has an `ArmCoverage` (status, hits, ms, note); the `if let Ok` swallows are gone |
 | A6 | **fixed (slice 1)** — candidates rendered as the INDEXED path (case + `Site/` restored) via `list_file_node_metadata`; unindexed paths kept and labelled `historical` (markdown suffix + JSON flag); test `candidate_paths_are_the_indexed_canonical_forms` |
@@ -232,3 +233,52 @@ Gate definitions: `Site/App_Code/users-security/code/useraccess.vb` defines chec
 before the scan). Seven gate types fit under the cap here; the
 gate-DEFINITION cut (5 files, cap 2) is the one that fires live and is
 now stated.
+
+## 7d. Precision A/B — executed 2026-08-29 07:27-07:47 (user opt-in via the Workflow tool)
+
+Question (D4/A3): does cutting the weak tier from the dossier move the
+implementation score? Protocol: the canonical arm-B plan replay — Sonnet
+agents plan READ-ONLY against the leak-safe snapshot, given the story + a
+dossier; scored by `eval/_armb_score.py` (file-F1 vs the merged PR, exact and
+name-tolerant). Two dossier variants on the 5-PR gate: **baseline** = the
+shipped `get_change_set` markdown; **cut** = the same with every candidate that
+carries a SINGLE weak signal (`[concept]`, `[vector]`, `[]`) removed from the
+list (40-74 of 101-148 candidates per PR, i.e. the list halves). 5 PRs × 2
+arms × 3 reps = 30 agents, 20.5 min, 4.5 M tokens.
+
+| PR | baseline (mean ± sd, n=3) | cut (n=3) | name-tolerant baseline → cut |
+|---|---|---|---|
+| 1908 | 100.0 ± 0.0 | 100.0 ± 0.0 | 100 → 100 |
+| 1913 | 66.7 ± 0.0 | 59.9 ± 9.7 | 83.3 → 76.0 |
+| 1937 | 46.7 ± 4.7 | 55.6 ± 7.9 | 46.7 → 66.7 |
+| 1933 | 15.4 ± 0.0 | 15.4 ± 0.0 | 15.4 → 15.4 |
+| 1967 | 15.7 ± 11.2 | 21.7 ± 16.5 | 15.7 → 21.7 |
+| **mean (n=15)** | **48.9** | **50.5** | **52.2 → 56.0** |
+
+Implementation score is insensitive to the weak tier: +1.6 exact / +3.8
+name-tolerant, inside the per-PR noise (sd up to 16.5; 2026-07-10 lesson).
+
+**But the weak tier is where 25 % of the real files live.** Measured on the
+same dossiers against the merged PRs (modified files only): the rendered
+baseline list covers 33/36 real files (91.7 %); the cut list covers 24/36
+(66.7 %). The nine lost files are all single-signal true positives:
+
+```
+1908  text.resx, text.de/en/es/no/pt/sl.resx   [concept]   (the resource family)
+1913  aspnetusers.vb                            [concept]   (the permission helper file)
+1933  ioroqfiltermanager.ts                     [vector]    (the primary TS source)
+```
+
+The plans did not lose F1 because Sonnet recovered those files from the
+story/AC and house knowledge (every 1908 plan listed all seven resx siblings
+without the dossier naming them) — that is the agent's knowledge, not the
+dossier's, and it is exactly what a weaker planner or a different story does
+not have.
+
+**Decision: the weak-tier cut is rejected — the dossier keeps every candidate.**
+Precision (5 %, ~130 candidates) is not fixable by dropping the weak tier
+without giving up a quarter of the recall the row is measured on; the
+evidence also shows the extra candidates do not degrade the implementation
+score. D4 is closed on evidence; ranking within the list (A2, neutral) stays
+as shipped. Seals: `eval/data/p2/armB_<pr>_prec_{baseline,cut}_r{1,2,3}.md`
+(local eval data).
