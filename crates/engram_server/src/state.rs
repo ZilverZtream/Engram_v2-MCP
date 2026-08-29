@@ -159,6 +159,10 @@ pub struct AppState {
     /// get_change_set needs, cached per project GENERATION — the index only
     /// changes when a generation is published, the scan cost 1.75 s per call.
     pub node_snapshot_cache: Arc<DashMap<String, (u64, Arc<Vec<engram_graph::Node>>)>>,
+    /// External audit 2026-08-29 P0-3 (≤ 5 s): get_change_set's house prior on
+    /// settings gating is a property of the merged-PR corpus, not of the story —
+    /// cached per project generation (it cost 1.3 s on every call).
+    pub setting_prior_cache: Arc<DashMap<String, (u64, Option<(usize, usize)>)>>,
 
     /// ADP1: Runtime kill-switch for autonomous decisions.
     ///
@@ -277,6 +281,7 @@ impl AppState {
                 co_change_cache: Arc::new(DashMap::new()),
                 lexicon_cache: Arc::new(DashMap::new()),
                 node_snapshot_cache: Arc::new(DashMap::new()),
+                setting_prior_cache: Arc::new(DashMap::new()),
                 adp_kill_switch: Arc::new(std::sync::atomic::AtomicBool::new(
                     effective_kill_switch,
                 )),
