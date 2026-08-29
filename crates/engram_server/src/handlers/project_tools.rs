@@ -1824,6 +1824,9 @@ impl Engram {
         cancel: &tokio_util::sync::CancellationToken,
     ) -> anyhow::Result<String> {
         let _update_guard = self.state.acquire_project_update_lock(project_id).await;
+        // External audit 2026-08-29 P0-1: the watcher and update_project(wait=true)
+        // reach this path without a job guard, so the GC never saw the update.
+        let _indexing_slot = crate::state::ActiveIndexingSlot::acquire(&self.state);
 
         let ps = self
             .ensure_project_runtime(project_id)
