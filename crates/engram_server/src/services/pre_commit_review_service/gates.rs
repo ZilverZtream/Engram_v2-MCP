@@ -29,6 +29,7 @@ use engram_index::hybrid::HybridQuery;
 pub fn all_gates() -> Vec<Box<dyn Gate>> {
     vec![
         Box::new(ImmuneGate),
+        Box::new(RepoRuleGate),
         Box::new(BlastRadiusGate),
         Box::new(StyleGate),
         Box::new(TemporalGate),
@@ -4637,5 +4638,172 @@ diff --git a/tests/fixtures/fake.env b/tests/fixtures/fake.env
         assert_eq!(complexity_gate_ext("Form1.vb"), Some(true));
         assert_eq!(complexity_gate_ext("Program.cs"), Some(false));
         assert_eq!(complexity_gate_ext("README.md"), None);
+    }
+}
+
+// ── Gate: enforced repo rules (external audit 2026-08-29 row 8) ──────────────
+//
+// Repo rules — and the quality-gate mandates promoted into them — reached the
+// review only as advisory text. A rule whose text carries a checkable clause
+// is ENFORCED on the diff's ADDED lines of files matching its pattern:
+//
+//   [check: forbid=<regex>]                  an added line matching <regex> is a finding
+//   [check: require=<regex> when=<regex>]    a file whose added lines match `when` but
+//                                             never `require` is a finding
+//
+// Severity follows the rule's priority (>= 80 Critical, >= 50 Warning, else
+// Info); the rule text is the detail and the suggestion. Rules without a
+// clause stay advisory (no finding), exactly as before.
+
+pub struct RepoRuleGate;
+
+/// A parsed `[check: …]` clause.
+#[derive(Debug)]
+pub(crate) struct RuleCheck {
+    pub forbid: Option<regex::Regex>,
+    pub require: Option<regex::Regex>,
+    pub when: Option<regex::Regex>,
+}
+
+/// Parse the clause out of a rule text. Keys: forbid / require / when; a
+/// value runs to the next ` <key>=` or the closing `]`. Invalid regexes make
+/// the clause unusable (None) — the rule then stays advisory rather than
+/// silently enforcing a broken pattern.
+pub(crate) fn parse_rule_check(rule_text: &str) -> Option<RuleCheck> {
+    let start = rule_text.find("[check:")?;
+    let rest = &rule_text[start + "[check:".len()..];
+    let end = rest.rfind(']')?;
+    let body = rest[..end].trim();
+    let mut forbid = None;
+    let mut require = None;
+    let mut when = None;
+    // split on " key=" boundaries while keeping the values intact
+    let keys = ["forbid=", "require=", "when="];
+    let mut positions: Vec<(usize, &str)> = Vec::new();
+    for k in keys {
+        let mut from = 0;
+        while let Some(i) = body[from..].find(k) {
+            let at = from + i;
+            if at == 0 || body.as_bytes()[at - 1].is_ascii_whitespace() {
+                positions.push((at, k));
+            }
+            from = at + k.len();
+        }
+    }
+    positions.sort_by_key(|p| p.0);
+    for (idx, (at, k)) in positions.iter().enumerate() {
+        let val_start = at + k.len();
+        let val_end = positions.get(idx + 1).map(|p| p.0).unwrap_or(body.len());
+        let val = body[val_start..val_end].trim();
+        if val.is_empty() {
+            continue;
+        }
+        let re = regex::Regex::new(val).ok()?;
+        match *k {
+            "forbid=" => forbid = Some(re),
+            "require=" => require = Some(re),
+            _ => when = Some(re),
+        }
+    }
+    if forbid.is_none() && require.is_none() {
+        return None;
+    }
+    Some(RuleCheck {
+        forbid,
+        require,
+        when,
+    })
+}
+
+fn severity_for_priority(priority: i32) -> Severity {
+    if priority >= 80 {
+        Severity::Critical
+    } else if priority >= 50 {
+        Severity::Warning
+    } else {
+        Severity::Info
+    }
+}
+
+impl Gate for RepoRuleGate {
+    fn name(&self) -> &'static str {
+        "repo_rules"
+    }
+
+    fn run(&self, ctx: &GateContext<'_>) -> anyhow::Result<Vec<ReviewFinding>> {
+        let checked: Vec<(&RepoRule, RuleCheck)> = ctx
+            .repo_rules
+            .iter()
+            .filter_map(|r| parse_rule_check(&r.rule_text).map(|c| (r, c)))
+            .collect();
+        if checked.is_empty() {
+            return Ok(Vec::new());
+        }
+        let mut findings = Vec::new();
+        for df in ctx.diff_files {
+            if df.is_binary || matches!(df.change_type, ChangeType::Deleted) {
+                continue;
+            }
+            for (rule, check) in &checked {
+                if !path_pattern_matches(&rule.file_pattern, &df.path) {
+                    continue;
+                }
+                let prose = rule.rule_text.split("[check:").next().unwrap_or("").trim();
+                if let Some(forbid) = &check.forbid {
+                    let hits: Vec<usize> = df
+                        .added_lines
+                        .iter()
+                        .filter(|(_, l)| forbid.is_match(l))
+                        .map(|(n, _)| *n)
+                        .collect();
+                    if !hits.is_empty() {
+                        let mut f = ReviewFinding::new(
+                            severity_for_priority(rule.priority),
+                            "repo_rules",
+                            df.path.clone(),
+                            format!("Repo rule violated: {}", rule.rule_id),
+                            format!(
+                                "{prose} — added line(s) {:?} match the rule's forbid pattern.",
+                                hits
+                            ),
+                            format!("Rewrite the added line(s) so the rule holds: {prose}"),
+                        );
+                        f.lines = hits;
+                        findings.push(f);
+                    }
+                }
+                if let Some(require) = &check.require {
+                    let triggered: Vec<usize> = match &check.when {
+                        Some(w) => df
+                            .added_lines
+                            .iter()
+                            .filter(|(_, l)| w.is_match(l))
+                            .map(|(n, _)| *n)
+                            .collect(),
+                        None => df.added_lines.iter().map(|(n, _)| *n).collect(),
+                    };
+                    if triggered.is_empty() {
+                        continue;
+                    }
+                    let satisfied = df.added_lines.iter().any(|(_, l)| require.is_match(l));
+                    if !satisfied {
+                        let mut f = ReviewFinding::new(
+                            severity_for_priority(rule.priority),
+                            "repo_rules",
+                            df.path.clone(),
+                            format!("Repo rule unmet: {}", rule.rule_id),
+                            format!(
+                                "{prose} — the added code triggers the rule at line(s) {:?} but never matches its required pattern.",
+                                triggered
+                            ),
+                            format!("Add what the rule requires: {prose}"),
+                        );
+                        f.lines = triggered;
+                        findings.push(f);
+                    }
+                }
+            }
+        }
+        Ok(findings)
     }
 }
