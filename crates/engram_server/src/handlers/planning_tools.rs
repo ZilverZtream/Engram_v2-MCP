@@ -3621,6 +3621,43 @@ pub(crate) fn story_token(w: &str) -> Option<String> {
 /// (huvudredovisningskategori)") and adjacent non-stopword pairs/triples
 /// (noun phrases). [`resolve_story_concepts`] decides which of the extras
 /// survive by asking the index.
+/// External audit 2026-08-29 P0-3: the parenthesized glosses of a story —
+/// "a main reporting category (huvudredovisningskategori)" — are the author
+/// naming the entity in the code's own language. They are the one class of
+/// candidate that retrieves BY DEFAULT (index-corroborated, compound suffix
+/// split by `resolve_story_concepts`); noun-phrase expansions stay opt-in
+/// because they inflated the weak tier on the 5-PR gate (03 §7).
+pub(crate) fn extract_story_gloss_concepts(story: &str) -> Vec<String> {
+    let re_paren = regex::Regex::new(r"\(([^()]{4,60})\)").expect("paren regex");
+    let mut out: Vec<String> = Vec::new();
+    for cap in re_paren.captures_iter(story) {
+        let inner = cap[1].trim().to_lowercase();
+        let plain = inner
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == ' ' || c == '-' || c == '_');
+        let digits = inner.chars().filter(char::is_ascii_digit).count();
+        if plain && digits < 3 && !out.contains(&inner) {
+            out.push(inner);
+        }
+    }
+    out
+}
+
+/// Which resolved candidates came from a gloss: the gloss itself, its
+/// compacted form, or a compound suffix of it (`huvudredovisningskategori`
+/// → `redovisningskategori`).
+pub(crate) fn gloss_derived<'a>(glosses: &[String], candidates: &'a [String]) -> Vec<&'a String> {
+    candidates
+        .iter()
+        .filter(|c| {
+            glosses.iter().any(|g| {
+                let compact: String = g.chars().filter(|ch| !ch.is_whitespace()).collect();
+                g == *c || compact == **c || (c.len() >= 8 && compact.ends_with(c.as_str()))
+            })
+        })
+        .collect()
+}
+
 pub(crate) fn extract_story_concept_candidates(story: &str) -> Vec<String> {
     let mut out = extract_story_concepts(story);
     let mut seen: HashSet<String> = out.iter().cloned().collect();
@@ -4776,7 +4813,9 @@ fn change_set_tier(sigs: &BTreeSet<&'static str>) -> u8 {
     // (co-change/history) first; then an entity match corroborated by an
     // associative signal; then the entity match alone; two associative
     // signals (vector/graph) never outrank a precise concept hit.
-    let golden = sigs.contains("cochange") || sigs.contains("history");
+    // External audit 2026-08-29 P0-3: a file matching the story's explicit
+    // gloss is the entity the author named — as direct as history.
+    let golden = sigs.contains("cochange") || sigs.contains("history") || sigs.contains("gloss");
     let concept = sigs.contains("concept");
     if golden && sigs.len() >= 2 {
         0
@@ -5346,7 +5385,7 @@ pub(crate) fn change_set_rows(
         let mut tail = 0usize;
         for (p, sigs) in items {
             let tier = change_set_tier(sigs);
-            let exempt = sigs.contains("vtop") || sigs.contains("family");
+            let exempt = sigs.contains("vtop") || sigs.contains("family") || sigs.contains("gloss");
             let mut omitted = false;
             if tier >= 2 && !exempt {
                 tail += 1;
@@ -5448,6 +5487,10 @@ pub(crate) struct ChangeSetCoverage {
     /// `expand_concepts` is set): the three recipe concepts first, then the
     /// resolved extras.
     pub concept_candidates: Vec<String>,
+    /// External audit 2026-08-29 P0-3: the gloss-derived concepts that
+    /// retrieved by default (a subset of `concept_candidates`).
+    #[serde(default)]
+    pub gloss_concepts: Vec<String>,
 }
 
 /// A full project node scan shared across the sub-calls of one request.
@@ -5462,6 +5505,12 @@ fn render_change_set_coverage(cov: &ChangeSetCoverage, omitted: usize) -> String
     s.push_str(&format!("- kb bridge: {}\n", cov.kb_bridge.line()));
     s.push_str(&format!("- family: {}\n", cov.family.line()));
     s.push_str(&format!("- node scans: {}\n", cov.node_scans));
+    if !cov.gloss_concepts.is_empty() {
+        s.push_str(&format!(
+            "- explicit story gloss(es) retrieved by default: {}\n",
+            cov.gloss_concepts.join(", ")
+        ));
+    }
     if cov.concept_candidates.len() > 3 {
         s.push_str(&format!(
             "- entity candidates (index-corroborated, advisory — expand_concepts=true to retrieve on them): {}\n",
@@ -5737,10 +5786,24 @@ impl Engram {
             let cands = extract_story_concept_candidates(&story_for_concepts(&req.story));
             resolve_story_concepts(&cands, &index_paths, 6)
         };
+        // External audit 2026-08-29 P0-3: an explicit gloss retrieves by DEFAULT.
+        let gloss_terms = extract_story_gloss_concepts(&story_for_concepts(&req.story));
+        let gloss_concepts: Vec<String> = gloss_derived(&gloss_terms, &concept_candidates)
+            .into_iter()
+            .cloned()
+            .collect();
         let mut concepts: Vec<String> = match &req.concepts {
             Some(c) if !c.is_empty() => c.iter().take(3).cloned().collect(),
             _ if req.expand_concepts => concept_candidates.clone(),
-            _ => extract_story_concepts(&story_for_concepts(&req.story)),
+            _ => {
+                let mut base = extract_story_concepts(&story_for_concepts(&req.story));
+                for g in &gloss_concepts {
+                    if !base.contains(g) {
+                        base.push(g.clone());
+                    }
+                }
+                base
+            }
         };
 
         // Row-1 audit: every candidate carries WHY it is here and every arm
@@ -5748,6 +5811,7 @@ impl Engram {
         let mut why: BTreeMap<String, Vec<String>> = BTreeMap::new();
         let mut cov = ChangeSetCoverage::default();
         cov.concept_candidates = concept_candidates.clone();
+        cov.gloss_concepts = gloss_concepts.clone();
         // KB language bridge: the team's wiki/docs corpus (memory_bank
         // sections) frequently names the same feature in BOTH the story's
         // language and the code's (English story "resource planning" vs
@@ -5881,10 +5945,17 @@ impl Engram {
                                     seed_order.push(p.clone());
                                 }
                                 concept_hits += 1;
-                                why.entry(p.clone())
-                                    .or_default()
-                                    .push(format!("name/content matches concept '{c}'"));
-                                prov.entry(p).or_default().insert("concept");
+                                let from_gloss = gloss_concepts.contains(c);
+                                why.entry(p.clone()).or_default().push(if from_gloss {
+                                    format!("matches the story's explicit gloss '{c}'")
+                                } else {
+                                    format!("name/content matches concept '{c}'")
+                                });
+                                let e = prov.entry(p).or_default();
+                                e.insert("concept");
+                                if from_gloss {
+                                    e.insert("gloss");
+                                }
                             }
                         }
                     }
