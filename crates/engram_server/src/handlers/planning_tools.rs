@@ -6183,21 +6183,47 @@ impl Engram {
                 ranked.push(p.clone());
             }
         }
-        // ONE full node scan for every pass of this call (audit D7).
-        let snapshot: NodeSnapshot = {
-            let graph = self.state.graph.clone();
-            let pid = req.project_id.clone();
-            tokio::task::spawn_blocking(move || {
-                std::sync::Arc::new(
-                    graph
-                        .query_nodes(&pid, None, None, None, crate::handlers::NODE_SCAN_LIMIT)
-                        .unwrap_or_default(),
-                )
-            })
-            .await
-            .unwrap_or_default()
+        // ONE full node scan for every pass of this call (audit D7) — cached per
+        // project generation (external audit 2026-08-29 P0-3, ≤ 5 s): a repeat
+        // call on an unchanged index performs no scan.
+        let gen_now: u64 = self
+            .state
+            .registry
+            .get_meta(&req.project_id, "active_generation")
+            .ok()
+            .flatten()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0);
+        let cached: Option<NodeSnapshot> = self
+            .state
+            .node_snapshot_cache
+            .get(&req.project_id)
+            .filter(|e| e.value().0 == gen_now)
+            .map(|e| e.value().1.clone());
+        let snapshot: NodeSnapshot = match cached {
+            Some(s) => {
+                cov.node_scans = 0;
+                s
+            }
+            None => {
+                let graph = self.state.graph.clone();
+                let pid = req.project_id.clone();
+                let s: NodeSnapshot = tokio::task::spawn_blocking(move || {
+                    std::sync::Arc::new(
+                        graph
+                            .query_nodes(&pid, None, None, None, crate::handlers::NODE_SCAN_LIMIT)
+                            .unwrap_or_default(),
+                    )
+                })
+                .await
+                .unwrap_or_default();
+                self.state
+                    .node_snapshot_cache
+                    .insert(req.project_id.clone(), (gen_now, s.clone()));
+                cov.node_scans = 1;
+                s
+            }
         };
-        cov.node_scans = 1;
         cov.stages
             .insert("node_scan".into(), t_all.elapsed().as_millis());
         if ranked.is_empty() {
@@ -6728,8 +6754,10 @@ impl Engram {
             // files that can hold control/function nodes (see the helper's
             // doc for the two live traps this avoids).
             let top_files = top_node_bearing_files(&prov, 10);
-            let graph = self.state.graph.clone();
-            let pid_s = req.project_id.clone();
+            // External audit 2026-08-29 P0-3 (≤ 5 s): read the control/function
+            // nodes from the call's node snapshot instead of ten per-file graph
+            // queries (≈ 1.9 s live).
+            let snap = snapshot.clone();
             tokio::task::spawn_blocking(move || {
                 const MAX_ROWS: usize = 12;
                 let mut seen_pairs: HashSet<(String, String)> = HashSet::new();
@@ -6742,12 +6770,17 @@ impl Engram {
                 let mut rows: Vec<(String, String, String)> = Vec::new();
                 for f in &top_files {
                     let mut names: Vec<String> = Vec::new();
-                    for nt in ["control", "function"] {
-                        for n in graph
-                            .query_nodes(&pid_s, Some(nt), None, Some(f), 500)
-                            .unwrap_or_default()
+                    let f_norm = f.replace('\\', "/").to_lowercase();
+                    let mut taken = 0usize;
+                    for n in snap.iter() {
+                        if taken >= 1000 {
+                            break;
+                        }
+                        if (n.node_type == "control" || n.node_type == "function")
+                            && n.file_path.as_str().to_lowercase().contains(&f_norm)
                         {
-                            names.push(n.name);
+                            names.push(n.name.clone());
+                            taken += 1;
                         }
                     }
                     for (a, b) in symmetric_sibling_pairs(&names) {

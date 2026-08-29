@@ -155,6 +155,10 @@ pub struct AppState {
     /// External audit 2026-08-29 row 1: the project's resx-derived EN↔SV lexicon,
     /// rebuilt when its resource files change (signature check on use).
     pub lexicon_cache: Arc<DashMap<String, Arc<crate::services::lexicon::Lexicon>>>,
+    /// External audit 2026-08-29 P0-3 (≤ 5 s): the full graph node scan that
+    /// get_change_set needs, cached per project GENERATION — the index only
+    /// changes when a generation is published, the scan cost 1.75 s per call.
+    pub node_snapshot_cache: Arc<DashMap<String, (u64, Arc<Vec<engram_graph::Node>>)>>,
 
     /// ADP1: Runtime kill-switch for autonomous decisions.
     ///
@@ -272,6 +276,7 @@ impl AppState {
                 pagerank_inflight: Arc::new(DashSet::new()),
                 co_change_cache: Arc::new(DashMap::new()),
                 lexicon_cache: Arc::new(DashMap::new()),
+                node_snapshot_cache: Arc::new(DashMap::new()),
                 adp_kill_switch: Arc::new(std::sync::atomic::AtomicBool::new(
                     effective_kill_switch,
                 )),
