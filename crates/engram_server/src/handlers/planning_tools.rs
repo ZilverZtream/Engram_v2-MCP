@@ -2594,24 +2594,27 @@ fn guard_level_for(checks: &str) -> Option<String> {
 pub(crate) fn client_scope_reads(body: &str) -> Vec<String> {
     static RE_READS: std::sync::LazyLock<Vec<regex::Regex>> = std::sync::LazyLock::new(|| {
         [
-            r#"(?i)qry\.params\s*\(\s*"(\w+)"\s*\)"#,
-            r#"(?i)GetDictionary\w*Value\s*\(\s*qry\.params\s*,\s*"(\w+)"\s*\)"#,
+            r#"(?i)qry\.(?:params|data)\s*\(\s*"(\w+)"\s*\)"#,
+            r#"(?i)GetDictionary\w*Value\s*\(\s*qry\.(?:params|data)\s*,\s*"(\w+)"\s*\)"#,
             r#"(?i)\bRequest(?:\.QueryString|\.Form|\.Params)?\s*\(\s*"(\w+)"\s*\)"#,
         ]
         .iter()
         .map(|p| regex::Regex::new(p).expect("RE_READS"))
         .collect()
     });
-    let mut keys: Vec<String> = Vec::new();
+    // Source order (first read first), whichever pattern matched it.
+    let mut found: Vec<(usize, String)> = Vec::new();
     for re in RE_READS.iter() {
         for cap in re.captures_iter(body) {
             let k = cap[1].to_string();
-            if !keys.contains(&k) {
-                keys.push(k);
+            let at = cap.get(1).map(|m| m.start()).unwrap_or(0);
+            if !found.iter().any(|(_, existing)| *existing == k) {
+                found.push((at, k));
             }
         }
     }
-    keys
+    found.sort_by_key(|(at, _)| *at);
+    found.into_iter().map(|(_, k)| k).collect()
 }
 
 /// An OBJECT-level guard in the body: the check takes the scope value
@@ -3144,6 +3147,12 @@ mod guards_unit_tests {
             vec!["pr_id".to_string(), "id".to_string()]
         );
         assert!(!has_object_level_guard(body));
+        // POST body (live: the bulk endpoints) — same rule.
+        let post = "Dim projectID = GetDictionaryIntegerValue(qry.data, \"pr_id\")\nDim t = qry.data(\"typeID\")\n";
+        assert_eq!(
+            client_scope_reads(post),
+            vec!["pr_id".to_string(), "typeID".to_string()]
+        );
         assert!(has_object_level_guard(
             "If Not _us.accessctrl.check_pr_id(pr_id) Then Return"
         ));

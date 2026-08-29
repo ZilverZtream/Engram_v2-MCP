@@ -39,6 +39,13 @@ const SRC: &str = "Public Class api\n\
         If Not _us.UserAccess.CheckRead(_us.UserAccessObject.vs_karta_io_objekt) Then Return s\n\
         Return \"ok\"\n\
     End Function\n\
+\n\
+    Public Function BulkPost(qry As Query) As String\n\
+        If Not _us.UserAccess.CheckWrite(_us.UserAccessObject.vs_karta_io_objekt) Then Return s\n\
+        Dim projectID = GetDictionaryIntegerValue(qry.data, \"pr_id\")\n\
+        Dim ids = GetDictionaryStringValue(qry.data, \"markerIDs\")\n\
+        Return _io.installationsobjektprojekt.DeleteInBulk(projectID, ids, db)\n\
+    End Function\n\
 End Class\n";
 
 fn build_state() -> (tempfile::TempDir, AppState, std::path::PathBuf) {
@@ -107,6 +114,7 @@ fn seed(state: &AppState, dir: &std::path::Path) {
                 func("RoleOnly", 2, 6),
                 func("ObjectGuarded", 8, 13),
                 func("NoInput", 15, 18),
+                func("BulkPost", 20, 25),
             ],
         )
         .unwrap();
@@ -159,9 +167,22 @@ async fn a_client_scope_key_read_without_an_object_guard_is_role_only() {
         "{no_input}"
     );
     assert!(no_input["role_only"] == false, "{no_input}");
+    // Live (OciusX 2026-08-29): the four bulk endpoints read the POST body
+    // — `GetDictionaryIntegerValue(qry.data, "pr_id")` — and were reported
+    // with no client reads at all.
+    let bulk = find("BulkPost");
+    assert!(
+        bulk["role_only"] == true,
+        "a qry.data reader with a role-level CheckWrite is ROLE-ONLY: {bulk}"
+    );
+    let reads = bulk["scope_reads"].to_string();
+    assert!(
+        reads.contains("pr_id") && reads.contains("markerIDs"),
+        "both POST-body keys must be named: {bulk}"
+    );
     assert_eq!(
         v["role_only"].as_array().unwrap().len(),
-        1,
+        2,
         "{}",
         v["role_only"]
     );
