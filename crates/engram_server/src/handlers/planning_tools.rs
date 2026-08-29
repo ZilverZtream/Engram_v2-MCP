@@ -6066,15 +6066,18 @@ impl Engram {
         let t_concept = std::time::Instant::now();
         let mut concept_hits = 0usize;
         let mut concept_failures: Vec<String> = Vec::new();
-        for c in &concepts {
-            match self
-                .handle_get_concept_footprint(crate::models::GetConceptFootprintRequest {
-                    project_id: req.project_id.clone(),
-                    concept: c.clone(),
-                    max_per_group: 12,
-                })
-                .await
-            {
+        // External audit 2026-08-29 P0-3 (≤ 5 s): the per-concept footprints are
+        // independent — run them concurrently (live: 3–4 × ~350 ms sequential).
+        let footprints = futures::future::join_all(concepts.iter().map(|c| {
+            self.handle_get_concept_footprint(crate::models::GetConceptFootprintRequest {
+                project_id: req.project_id.clone(),
+                concept: c.clone(),
+                max_per_group: 12,
+            })
+        }))
+        .await;
+        for (c, res) in concepts.iter().zip(footprints) {
+            match res {
                 Ok(r) => {
                     if let Some(t) = r.content.first().and_then(|x| x.as_text()) {
                         for p in change_set_paths(&t.text) {
@@ -6313,6 +6316,8 @@ impl Engram {
             };
         }
 
+        cov.stages
+            .insert("cochange_done".into(), t_all.elapsed().as_millis());
         // Semantic arm — embedding search reaches files the LEXICAL signals miss:
         // a new architectural layer (e.g. an api-v2 controller) with sparse git
         // history is invisible to concept/co-change/history, but its meaning
@@ -6368,6 +6373,8 @@ impl Engram {
             cov.vector = ArmCoverage::complete(n, t_vec.elapsed().as_millis());
         }
 
+        cov.stages
+            .insert("vector_done".into(), t_all.elapsed().as_millis());
         // TS -> committed JS/CSS BUNDLE via co-change. A .ts usually ships with a
         // compiled bundle, but MANY .ts often compile into ONE module bundle with
         // a DIFFERENT basename (map.ts/iomarker.ts/… -> map.js), so the 1:1
@@ -6426,6 +6433,8 @@ impl Engram {
             }
         }
 
+        cov.stages
+            .insert("presentation_done".into(), t_all.elapsed().as_millis());
         // Family expansion — add deterministic .NET companions that EXIST in the
         // index: code-behind/designer of a page, and the full .resx language set.
         // Generic framework patterns, not per-repo. Match prefix-insensitively
@@ -6555,6 +6564,8 @@ impl Engram {
         } else {
             cov.family = ArmCoverage::failed("file index unavailable".into(), 0);
         }
+        cov.stages
+            .insert("family_done".into(), t_all.elapsed().as_millis());
 
         // Collapse path-prefix variants. The graph stores some files under two
         // node spellings — index_project keeps the web-root prefix
@@ -6865,6 +6876,8 @@ impl Engram {
             .flatten()
         };
 
+        cov.stages
+            .insert("symmetry_done".into(), t_all.elapsed().as_millis());
         // House-prior mining: the team's revealed preference on setting-
         // gating, from the merged-PR corpus (>=2 "setting"-named files in
         // one PR's shipped list = a settings change: store + resx family
