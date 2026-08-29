@@ -100,6 +100,31 @@ update → copy-forward overlaps purge → incomplete generation published".
 | 9 | "You forgot the other side" | edit sessions, detect_incomplete_changes, find_similar_changes | proven value; needs denoising + precomputation | precomputed co-change/family cohorts; measured false-positive rate |
 | 10 | Change exposure and edit risk | impact_analysis, compute_blast_radius, check_edit_safety | advisory, not an authority | shared ImpactEngine/ChangeSpec; one authority for the count |
 
+
+## Status at a glance (2026-08-29, releases 19–23 live on OciusX; release 24 in flight)
+
+| Item | Disposition | Live evidence (OciusX) |
+|---|---|---|
+| P0-1 GC/watcher race + corpus | **fixed** 2f6fc31 (r19) | in-place repair → 31,073 chunks; survives watcher updates + hourly GC (gen 832→835, complete) |
+| P0-2 health/freshness integrity | **fixed** a345710+9e4214d (r20) | `Health: OK — generation completeness … complete`; `generation_complete: true` (CORRUPT on a 20 % corpus in the RED test) |
+| P0-3 change-set reference story | **fixed 6/6 files (r24); latency OPEN** 49c7622, 78019b6, 1cda265, dbe4418 (r21–r23); markup half + warm-up in r24 | 6/6 named files on r24 (markup + code-behind, .sql, .vb, api, .dbml); warm call 6.7 s vs ≤ 5 s gate; first call after restart 14 s (was 38 s) with the warm-up actor **Markup family fixed@d438735 + warm-up@3009878 (sweep 30: 156 suites, 3,543 tests, 0 failed)**: a code-behind/designer hit pulls its page markup (both directions; the reverse merges onto the existing path spelling so signals combine), `tests/change_set_markup_family_tests.rs`; `actors::warmup` opens every project runtime + co-change snapshot at daemon start, `tests/warmup_tests.rs`. **LIVE r24 2026-08-29 17:08 (release 24)**: the reference story renders **6/6 named files** on both calls (markup + code-behind, .sql, .vb, api, .dbml) — the file gate is met. Warm-up at daemon start opened 19 project runtimes in ≈ 40 s; the first user call after the restart took 14 s (was 38 s; cochange 5.1 s and node scan 2.3 s are cold OS/db caches), the second 6.7 s (`node_scans: 0`; cochange 1,626, concept 1,060, vector 425, history 339; ≈ 1.9 s unattributed inside the arms region; post-arm 1.33 s). **Only the ≤ 5 s gate stays open** — next cut: finer checkpoints + running the independent arms (concept / history / vector) concurrently. |
+| P0-4 pre-commit fail-open | **fixed** b6c3cce+9e4214d (r20); `pre_push_audit` closed@code-read | 17 gates run, 0 degraded on the complete generation; degrade path proven by the RED test |
+| Integration `produce_claude_md` | **fixed** 83b966a (r20) | `.claude/rules/engram-workflow.md` + `CLAUDE.engram.md` say `edited_files=[...]`; contract test guards every emitted example |
+| Row 1 story-to-change (EN↔SV) | **fixed** f697df9, 0c2e08e (r22–r23) | English-only story → Swedish concepts/files in 8 s (was: none, 38 s) |
+| Row 2 edit context | **kept** | parity 20/20 on every release (0.14 s) |
+| Row 3 defect prevention | **fixed** (P0-4 + row 8) | see P0-4 / row 8 |
+| Row 4 entity/consumer discovery | **kept** | G1 literal complete on 5 concepts, ≤ 1 s; callers exact-or-labelled |
+| Row 5 UI conformance | **built + A/B positive-with-caveats** dd39632, c1d8168, ed15384 (r21–r23) | 7 families with region exemplars on a real region; A/B n=5: +4.4 F1, 4/5 stories non-negative |
+| Row 6 ask_codebase | **fixed** 36ecb71, 4b24ee5 (r20–r21) | golden 35 q: 32/35 = 91 % status-match, abstain 4/4 (was 74 %) |
+| Row 7 causal tracing | **kept** (auditor-verified) | — |
+| Row 8 enforcement | **fixed** 217dae3 (r21) | probe rule → Critical finding, verdict red; clean diff none |
+| Row 9 change completeness | **fixed** f9124b2 (r21) | find_similar_changes 0.0 s (warm snapshot) |
+| Row 10 impact authority | **fixed** 4297711 (r21) | find_symbol_references 76 = impact_analysis 76, `failures: none` |
+| Dream | **closed as measured** (owner) 62f179a, e0cf8a8 | ablation ON = OFF (0 insight items in 35 q); histogram lists every kind |
+| 143-tool surface | **fixed** 4c4e9c9 (r20) | 32 core advertised, 112 via `list_advanced_tools` |
+
+Open after release 24 (measured 17:08): the ≤ 5 s gate on the reference story (warm 6.7 s on r23; per-stage checkpoints in coverage; next cut = concurrent arms) — everything else is fixed@commit + live, or closed by the owner with the measurement stated.
+
 ## Disposition (filled as work lands — every row ends fixed@commit+live, or impossible@evidence)
 
 | Item | Status |
