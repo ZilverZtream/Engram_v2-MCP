@@ -294,6 +294,22 @@ pub async fn gather_evidence(
             }));
         }
     }
+    // Definition arm (golden `ox_exact_6`): a RESOLVED symbol's own location is
+    // evidence for any question that names it — "which file exposes X" must
+    // not depend on a usage intent to find where X lives.
+    for nid in plan
+        .entities
+        .iter()
+        .flat_map(|e| e.resolved.iter().filter_map(|r| r.node_id.clone()))
+        .take(3)
+    {
+        let graph = ctx.graph.clone();
+        let pid = ctx.project_id.clone();
+        arms.push(graph_arm("definition", deadline, move || {
+            let mut id = 0usize;
+            providers::definition_evidence(&graph, &pid, &nid, &mut id)
+        }));
+    }
     if want_symbolrefs {
         for name in symbol_names {
             let graph = ctx.graph.clone();

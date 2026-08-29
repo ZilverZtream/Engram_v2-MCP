@@ -510,3 +510,46 @@ pub fn companion_evidence(
     }
     (items, ProviderOutcome::hit())
 }
+
+/// The resolved symbol's OWN location (golden `ox_exact_6`: "Which API file
+/// exposes ioUpdateBaseTypeInBulk?" resolved the symbol yet no arm returned
+/// where it lives). A definition is evidence for any question that names the
+/// symbol, independent of the usage intent.
+pub fn definition_evidence(
+    graph: &GraphStore,
+    project_id: &str,
+    node_id: &str,
+    id: &mut usize,
+) -> (Vec<EvidenceItem>, ProviderOutcome) {
+    let node = match graph.get_node(project_id, node_id) {
+        Ok(n) => n,
+        Err(e) => return (vec![], ProviderOutcome::failed(e.to_string())),
+    };
+    let Some(n) = node else {
+        return (vec![], ProviderOutcome::empty());
+    };
+    let some = Some(n.clone());
+    let (path, lines, name, gen_) = node_fields(&some, node_id);
+    let content = format!(
+        "{name} ({}) is defined in {}{}",
+        n.node_type,
+        path.clone().unwrap_or_default(),
+        lines
+            .map(|(a, b)| format!(" lines {a}-{b}"))
+            .unwrap_or_default()
+    );
+    let item = graph_relation_item(
+        "definition",
+        node_id.to_string(),
+        path,
+        lines,
+        name,
+        content,
+        gen_,
+        1,
+        1.0,
+        Authority::CurrentCode,
+        id,
+    );
+    (vec![item], ProviderOutcome::hit())
+}
