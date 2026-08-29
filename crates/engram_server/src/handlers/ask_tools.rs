@@ -71,7 +71,18 @@ impl Engram {
         // rides on reindex_required inside build_snapshot instead.
         let adequate = status::has_adequate_support(&req.question, &evidence);
         let st = status::assess_status(&plan, &evidence, &providers, &snapshot, adequate);
-        let unknowns = report::coverage_gaps(&plan, &evidence, &providers);
+        let mut unknowns = report::coverage_gaps(&plan, &evidence, &providers);
+        // Name the premise terms nothing supports, first — the reader must not
+        // fill them in from the answer's other evidence.
+        for t in status::uncovered_named_terms(&req.question, &evidence)
+            .into_iter()
+            .rev()
+        {
+            unknowns.insert(
+                0,
+                format!("no evidence mentions `{t}` — the question's premise may be false; do not assume it exists"),
+            );
+        }
         let next_best = report::next_best(&plan, &evidence, st);
 
         let out = AskReport {
