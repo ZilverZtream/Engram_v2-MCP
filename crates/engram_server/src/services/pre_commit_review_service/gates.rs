@@ -2340,6 +2340,43 @@ pub(crate) fn unwired_candidates(diff_files: &[DiffFile]) -> Vec<AddedFunction> 
     defs
 }
 
+/// The unwired gate's decision for one new definition (row-3 audit A5).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnwiredVerdict {
+    /// The graph lookup FAILED — no evidence either way; the candidate is
+    /// skipped and the gate is degraded, never reported as unwired.
+    Unknown,
+    /// A same-named graph node with at least one caller exists.
+    Wired,
+    /// Nothing in the diff and nothing in the graph references it.
+    Unwired,
+}
+
+/// `callers` = (node_id, incoming caller count) for the looked-up nodes
+/// that may suppress the candidate (same class / same file); computed by
+/// the gate so this decision stays pure and unit-testable.
+pub fn unwired_verdict(
+    _name: &str,
+    lookup: anyhow::Result<Vec<engram_graph::Node>>,
+    callers: &[(String, usize)],
+) -> UnwiredVerdict {
+    match lookup {
+        Err(_) => UnwiredVerdict::Unknown,
+        Ok(nodes) => {
+            let wired = nodes.iter().any(|n| {
+                callers
+                    .iter()
+                    .any(|(id, count)| *id == n.node_id && *count > 0)
+            });
+            if wired {
+                UnwiredVerdict::Wired
+            } else {
+                UnwiredVerdict::Unwired
+            }
+        }
+    }
+}
+
 #[async_trait]
 impl Gate for UnwiredGate {
     fn name(&self) -> &'static str {
@@ -2362,13 +2399,17 @@ impl Gate for UnwiredGate {
             // graph with at least one caller (pre-existing overload,
             // partial-class twin, or a markup-wired handler the indexer
             // recovered) is not unwired.
-            let nodes = ctx
-                .graph
-                .query_nodes(ctx.project_id, Some("function"), Some(&cand.name), None, 10)
-                .unwrap_or_else(|e| {
-                    ctx.degrade(format!("graph lookup of {} failed: {e}", cand.name));
-                    Vec::new()
-                });
+            let lookup =
+                ctx.graph
+                    .query_nodes(ctx.project_id, Some("function"), Some(&cand.name), None, 10);
+            if let Err(e) = &lookup {
+                ctx.degrade(format!(
+                    "graph lookup of {} failed — candidate skipped: {e}",
+                    cand.name
+                ));
+                continue;
+            }
+            let nodes = lookup.as_ref().map(|n| n.clone()).unwrap_or_default();
             // VB/C# member nodes carry QUALIFIED names ("api.StartTransaction")
             // while the diff regex captures the bare member name — match on
             // the last dot-segment or the whole name, else a wired function
@@ -2377,7 +2418,9 @@ impl Gate for UnwiredGate {
             // enclosing CLASS is known, only same-class (or same-file) nodes
             // may suppress — a common name like `Create` must not be
             // suppressed by some other class's `Create` that has callers.
-            let has_graph_caller = nodes
+            let mut callers: Vec<(String, usize)> = Vec::new();
+            let mut caller_lookup_failed = false;
+            for n in nodes
                 .iter()
                 .filter(|n| bare_name_matches(&n.name, &cand.name))
                 .filter(|n| match &cand.class_name {
@@ -2388,17 +2431,30 @@ impl Gate for UnwiredGate {
                     }
                     None => true,
                 })
-                .any(|n| {
-                    !crate::handlers::incoming_caller_edges(
-                        &ctx.graph,
-                        ctx.project_id,
-                        &n.node_id,
-                        1,
-                    )
-                    .is_empty()
-                });
-            if has_graph_caller {
+            {
+                match crate::handlers::incoming_caller_edges_checked(
+                    &ctx.graph,
+                    ctx.project_id,
+                    &n.node_id,
+                    1,
+                ) {
+                    Ok((edges, _truncated)) => callers.push((n.node_id.clone(), edges.len())),
+                    Err(e) => {
+                        ctx.degrade(format!(
+                            "callers of {} failed — candidate {} skipped: {e}",
+                            n.node_id, cand.name
+                        ));
+                        caller_lookup_failed = true;
+                        break;
+                    }
+                }
+            }
+            if caller_lookup_failed {
                 continue;
+            }
+            match unwired_verdict(&cand.name, lookup, &callers) {
+                UnwiredVerdict::Unknown | UnwiredVerdict::Wired => continue,
+                UnwiredVerdict::Unwired => {}
             }
             findings.push(
                 ReviewFinding::new(
