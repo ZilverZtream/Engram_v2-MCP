@@ -330,17 +330,20 @@ pub fn assess_status(
             AnswerStatus::Unsupported
         };
     }
-    // Ambiguous means genuinely DIFFERENT symbols: one name resolved under two
-    // node kinds (a table and its .sql file) is one thing, not two branches.
+    // Ambiguous means genuinely DIFFERENT symbols of the SAME kind: one name
+    // resolved under two node kinds (a table and its .sql file; a function and
+    // a session key named after it — golden `ox_exact_5`) is one thing, not
+    // two branches.
     if plan.entities.iter().any(|e| {
-        let mut names: Vec<String> = e
-            .resolved
-            .iter()
-            .map(|r| r.canonical.to_lowercase())
-            .collect();
-        names.sort();
-        names.dedup();
-        names.len() > 1
+        let mut by_kind: std::collections::BTreeMap<String, std::collections::BTreeSet<String>> =
+            std::collections::BTreeMap::new();
+        for r in &e.resolved {
+            by_kind
+                .entry(format!("{:?}", r.kind))
+                .or_default()
+                .insert(r.canonical.to_lowercase());
+        }
+        by_kind.values().any(|names| names.len() > 1)
     }) {
         return AnswerStatus::Ambiguous;
     }
