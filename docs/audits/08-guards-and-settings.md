@@ -237,4 +237,11 @@ bulk endpoints (read from the body, no `Calls` edge needed) and the object
 scoping inside the DAL helper (`_gd.projekt.GetByID` → `check_pr_id`) makes
 them `[object]`. ROLE-ONLY fell from 21 to 2 — those two are the endpoints
 that read a client `pr_id` and call NO object-scoping helper; that is the
-list a reviewer must open. Unwired gate: passed, 0 degraded (17 gates).
+list a reviewer must open:
+
+```
+ROLE-ONLY: ioGenerateExportFile (…api-installationsobjektprojekt.vb:177)  reads client pr_id, markerIds, exportFileType, …  guard: checkisuserinrole
+ROLE-ONLY: ioGetIdsFilteredByRoQData (…:1973)                            reads client pr_id, startDate, endDate, companyId, userId, …
+```
+
+Unwired gate: passed, 0 degraded (17 gates).

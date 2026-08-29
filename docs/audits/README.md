@@ -43,6 +43,15 @@ starts and is the auditor's checklist afterwards.
 | 9 | "You forgot the other side" | edit sessions, detect_incomplete_changes, find_similar_changes | folded into row 1 doc | queued |
 | 10 | Change exposure / edit risk | impact_analysis, compute_blast_radius, check_edit_safety | `docs/AUDIT_R5.md` + ImpactEngine one-hop slice | round 5 accepted 2026-08-24; orientation tool, not authority |
 
+## Blocked on the user (2026-08-29) — everything else in rows 0-8 is fixed@mechanism or deferred@evidence
+
+| Item | Needs | Why it cannot proceed autonomously |
+|---|---|---|
+| Row 1 precision (A3 / D4): weak-tier policy vs implementation score | opt-in to the in-session Opus/Sonnet A/B via the Workflow tool (or the OciusX `/story` dry-run) | the 5-PR gate shows 5 % precision is the defect; no retrieval knob moves it (03 §7) — only an implementation-score A/B can decide the weak-tier cut |
+| Row 5 M0 A/B (`get_ui_conformance` proof) | same opt-in (Workflow tool / `/story` orchestrator run from an OciusX session) | the replay needs registered domain agents + two human gates (07 §6) |
+| Row 3 rule ingestion on OciusX | a fresh Azure DevOps PAT + `ingest_quality_gates` | `pre_push_audit` is honest now (INACTIVE) but checks nothing until rules are ingested (05 §7d) |
+
+
 Implementation order (auditor's, adopted): 0 → 2 → 1 → 4 → 3 → 7 → 5 → 10/dream. Row 0b (index GC) was inserted when found live.
 
 ## Row 0b — Index layer: hourly GC deleted every incrementally indexed file (found live 2026-08-28)
