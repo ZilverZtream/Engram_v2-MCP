@@ -1452,12 +1452,16 @@ fn compute_edit_safety(
         _ => None,
     };
     let caller_count = callers_known_total.unwrap_or(listed_callers);
+    // Row-4 audit A9: name the counting rule so the number can be reconciled
+    // with find_symbol_references (all-kinds edges) and blast_radius (causal).
     let caller_count_text = match (&completeness.callers, callers_known_total) {
-        (ProviderStatus::Truncated { .. }, Some(t)) => format!("{t} callers"),
-        (ProviderStatus::Truncated { shown, .. }, None) => {
-            format!("≥{shown} callers (capped)")
+        (ProviderStatus::Truncated { .. }, Some(t)) => {
+            format!("{t} distinct callers (calls+dependency, dedup by caller)")
         }
-        _ => format!("{listed_callers} callers"),
+        (ProviderStatus::Truncated { shown, .. }, None) => {
+            format!("≥{shown} distinct callers (calls+dependency, dedup by caller; capped)")
+        }
+        _ => format!("{listed_callers} distinct callers (calls+dependency, dedup by caller)"),
     };
     let callers_unknown = completeness.callers.is_missing();
     let has_session_writes = !method_info.session_keys_written.is_empty();
@@ -1899,7 +1903,7 @@ fn render_method_edit_context_markdown(ctx: &MethodEditContextResult) -> String 
             _ => "unknown".to_string(),
         };
         md.push_str(&format!(
-            "## Callers ({} shown of {})\n\n",
+            "## Callers ({} shown of {} distinct callers — calls+dependency, dedup by caller)\n\n",
             ctx.caller_bodies.len(),
             total
         ));
@@ -5297,12 +5301,12 @@ mod edit_safety_tests {
         let r = compute_edit_safety(&info(50, 3, 0), None, &c);
         assert_eq!(r.verdict, "red");
         assert!(
-            r.reasons.iter().any(|s| s.contains("≥50 callers")),
+            r.reasons.iter().any(|s| s.contains("≥50 distinct callers")),
             "cap must render as a lower bound, got {:?}",
             r.reasons
         );
         assert!(
-            !r.reasons.iter().any(|s| s.contains("50 callers —")),
+            !r.reasons.iter().any(|s| s.starts_with("50 distinct callers")),
             "a bare capped count must not appear: {:?}",
             r.reasons
         );
@@ -5318,7 +5322,7 @@ mod edit_safety_tests {
         };
         let r = compute_edit_safety(&info(50, 3, 0), None, &c);
         assert!(
-            r.reasons.iter().any(|s| s.contains("98 callers")),
+            r.reasons.iter().any(|s| s.contains("98 distinct callers")),
             "{:?}",
             r.reasons
         );

@@ -184,12 +184,13 @@ async fn capped_callers_report_the_exact_total_not_the_cap() {
         .await
         .unwrap(),
     );
+    // Row-4 A9: the count names its rule ("distinct callers — calls+dependency").
     assert!(
-        md.contains("## Callers (3 shown of 55)"),
+        md.contains("## Callers (3 shown of 55 distinct callers"),
         "renderer must show the true total behind the display cap:\n{md}"
     );
     assert!(
-        md.contains("55 callers"),
+        md.contains("55 distinct callers"),
         "the verdict reason must use the exact total, not the 50 cap:\n{md}"
     );
     assert!(
