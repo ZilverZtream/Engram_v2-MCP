@@ -1201,6 +1201,80 @@ impl HybridSearchEngine {
 
     /// Delete all docs for given paths from GlobalMutable/AppendOnly namespaces.
     /// For Snapshot namespaces, use copy-forward instead; this is a no-op for those.
+    /// Delete EVERY doc of one namespace for one project — the purge behind
+    /// `ingest_quality_gates {clear_existing: true}` (row-3 audit A7: a corpus
+    /// ingested by a broken parser could never be replaced). Returns the number
+    /// of Tantivy docs that matched before the delete. Same store order as
+    /// `delete_files`: LanceDB first, Tantivy commits only after it succeeds.
+    pub async fn delete_namespace(
+        &self,
+        project_id: &str,
+        namespace: &str,
+    ) -> anyhow::Result<usize> {
+        let query = BooleanQuery::new(vec![
+            (
+                Occur::Must,
+                Box::new(TermQuery::new(
+                    Term::from_field_text(self.fields.project_id, project_id),
+                    IndexRecordOption::Basic,
+                )),
+            ),
+            (
+                Occur::Must,
+                Box::new(TermQuery::new(
+                    Term::from_field_text(self.fields.namespace, namespace),
+                    IndexRecordOption::Basic,
+                )),
+            ),
+        ]);
+        let matched = {
+            let reader = self.tantivy_index.reader()?;
+            let searcher = reader.searcher();
+            searcher.search(&query, &tantivy::collector::Count)?
+        };
+        if matched == 0 {
+            return Ok(0);
+        }
+
+        #[cfg(feature = "vector")]
+        {
+            let table_name = format!("project_{}", project_id.replace('-', "_"));
+            if self
+                .lance_conn
+                .table_names()
+                .execute()
+                .await?
+                .contains(&table_name)
+            {
+                let table = self.lance_conn.open_table(&table_name).execute().await?;
+                let safe_ns = namespace.replace('\'', "''");
+                table.delete(&format!("namespace = '{safe_ns}'")).await?;
+            }
+        }
+
+        {
+            let _tantivy_guard = self
+                .memory_budget
+                .as_ref()
+                .map(|budget| {
+                    AllocationGuard::try_new(
+                        budget,
+                        self.tantivy_writer_memory as u64,
+                        Subsystem::Tantivy,
+                        "tantivy delete writer",
+                    )
+                })
+                .transpose()?;
+            let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> = self
+                .acquire_writer("delete_namespace", &CancellationToken::new())
+                .await?;
+            writer.delete_query(Box::new(query))?;
+            writer.commit()?;
+            writer.wait_merging_threads()?;
+        }
+        Ok(matched)
+    }
+
     pub async fn delete_files(
         &self,
         project_id: &str,

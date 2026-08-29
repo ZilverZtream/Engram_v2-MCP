@@ -84,6 +84,24 @@ pub fn parse_quality_source(
 ) -> Vec<QualityRule> {
     match source {
         QualitySource::CopilotInstructions | QualitySource::CodingRulesMd => {
+            // Row-3 audit A7 (live finding): a JSON array of `{rule, …}` objects
+            // (the distilled generic rules) routed here became line-shaped junk
+            // under the markdown parser. JSON content is parsed structurally.
+            let head = content.trim_start();
+            if head.starts_with('[') || head.starts_with('{') {
+                let rules: Vec<QualityRule> = parse_distilled_rules(content, origin)
+                    .into_iter()
+                    .map(|mut r| {
+                        if r.category == "distilled" {
+                            r.category = source.category().to_string();
+                        }
+                        r
+                    })
+                    .collect();
+                if !rules.is_empty() {
+                    return rules;
+                }
+            }
             parse_markdown_rules(content, source.category(), origin)
         }
         QualitySource::CodeRabbit | QualitySource::SonarQube | QualitySource::DevOpsBoard => {
@@ -314,6 +332,12 @@ pub struct DistilledRule {
     pub languages: Vec<String>,
     #[serde(default)]
     pub evidence_count: u32,
+    /// Row-3 audit A7: the June-distilled generic rules carry examples; they
+    /// travel with the rule text instead of leaking as JSON fragments.
+    #[serde(default)]
+    pub bad_example: String,
+    #[serde(default)]
+    pub good_example: String,
 }
 
 /// Split a finding corpus into batches of at most `batch_size` for per-batch
@@ -386,6 +410,12 @@ pub fn parse_distilled_rules(raw: &str, origin: &str) -> Vec<QualityRule> {
             let mut text = r.rule.trim().to_string();
             if !r.why.trim().is_empty() {
                 text = format!("{text} — {}", r.why.trim());
+            }
+            if !r.bad_example.trim().is_empty() {
+                text = format!("{text} — Bad: {}", r.bad_example.trim());
+            }
+            if !r.good_example.trim().is_empty() {
+                text = format!("{text} — Good: {}", r.good_example.trim());
             }
             if !r.languages.is_empty() {
                 text = format!("{text} [{}]", r.languages.join(","));
@@ -502,6 +532,46 @@ mod tests {
         assert!(parse_distilled_rules("I could not produce rules.", "cr").is_empty());
     }
 
+    /// Row-3 audit A7 (live finding 2026-08-29): `source_type=rules` with a
+    /// JSON array of `{rule, bad_example, good_example, …}` objects was routed
+    /// to the MARKDOWN parser and produced line-shaped junk (`"bad_example":
+    /// "Dim cat = …"` surfaced as a rule in pre_push_audit). JSON content must
+    /// be parsed structurally: the rule sentence is the text, the examples
+    /// travel with it, severity/category are honoured.
+    #[test]
+    fn coding_rules_json_is_parsed_structurally_not_as_markdown_lines() {
+        let json = r#"[
+  {"rule": "Guard every reference-type value for Nothing before dereferencing it", "bad_example": "Dim cat = pr.parent.category", "good_example": "If pr IsNot Nothing Then", "category": "null-safety", "severity": "high"},
+  {"rule": "Wrap every fallible operation in Try/Catch", "why": "unhandled exceptions leak to the client"}
+]"#;
+        let rules = parse_quality_source(json, QualitySource::CodingRulesMd, "generic_rules.json");
+        assert_eq!(rules.len(), 2, "one rule per object: {rules:?}");
+        assert!(
+            rules[0]
+                .text
+                .starts_with("Guard every reference-type value"),
+            "the rule sentence is the text: {}",
+            rules[0].text
+        );
+        assert!(
+            rules
+                .iter()
+                .all(|r| !r.text.contains("\"bad_example\"") && !r.text.contains("\"rule\"")),
+            "no JSON syntax may leak into a rule text: {rules:?}"
+        );
+        assert!(
+            rules[0].text.contains("Dim cat = pr.parent.category"),
+            "the example travels with its rule: {}",
+            rules[0].text
+        );
+        assert_eq!(rules[0].severity, "high");
+        assert_eq!(rules[0].category, "null-safety");
+        assert!(
+            rules[1].text.contains("unhandled exceptions leak"),
+            "{}",
+            rules[1].text
+        );
+    }
     #[test]
     fn from_str_aliases() {
         assert_eq!(
