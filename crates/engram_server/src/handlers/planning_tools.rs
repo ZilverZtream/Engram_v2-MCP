@@ -539,6 +539,190 @@ pub(crate) fn dir_ext_shape(path: &str) -> Option<String> {
 /// repo that is minutes, and the caller has no way to cancel it. Past the
 /// budget the walk stops and the answer says its coverage is partial;
 /// subsequent calls resume from the cache and finish the rest.
+/// External audit 2026-08-29 row 9 / P0-3 latency: the co-change snapshot
+/// (per-commit incremental walk, disk-persisted) used to be built by the
+/// FIRST caller of find_similar_changes / get_change_set — 11.7 s live. It is
+/// now built here and warmed at index / update time, so call time only reads.
+/// Returns the snapshot plus this walk's commits, its walked count, the number
+/// of fresh diffs and whether the time budget cut the walk short.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn build_co_change_snapshot(
+    cache: &dashmap::DashMap<String, std::sync::Arc<crate::state::CoChangeSnapshot>>,
+    cache_key: String,
+    disk_path: &std::path::Path,
+    repo_dir: &std::path::Path,
+    max_commits: usize,
+    budget: std::time::Duration,
+    started: std::time::Instant,
+) -> anyhow::Result<(
+    std::sync::Arc<crate::state::CoChangeSnapshot>,
+    Vec<crate::state::CoChangeCommit>,
+    usize,
+    usize,
+    bool,
+)> {
+    let repo = GitWalker::open_repo(repo_dir)?;
+    let repo = GitWalker::open_repo(&repo_dir)?;
+    let head = repo
+        .head()
+        .ok()
+        .and_then(|h| h.target())
+        .map(|o| o.to_string())
+        .unwrap_or_default();
+
+    // Reuse is per COMMIT, not per HEAD. The old cache was keyed on
+    // HEAD, so a single new commit invalidated the whole snapshot and
+    // the next call re-diffed every one of max_commits commits — the
+    // reason this tool could sit for minutes on an active repo while
+    // detect_incomplete_changes answered the neighbouring question
+    // instantly from precomputed edges.
+    let cached: Option<std::sync::Arc<crate::state::CoChangeSnapshot>> = match cache.get(&cache_key)
+    {
+        Some(s) => Some(s.clone()),
+        None => std::fs::read(&disk_path)
+            .ok()
+            .and_then(|bytes| bincode::deserialize(&bytes).ok())
+            .map(std::sync::Arc::new),
+    };
+
+    let mut known: HashMap<String, crate::state::CoChangeCommit> = HashMap::new();
+    let mut already_diffed: HashSet<String> = HashSet::new();
+    if let Some(prev) = &cached {
+        already_diffed.extend(prev.walked_oids.iter().cloned());
+        for c in &prev.commits {
+            known.insert(c.oid.clone(), c.clone());
+        }
+        // Snapshots written before walked_oids existed carry only the
+        // surviving commits; treat those as the diffed set so they are
+        // still reusable.
+        if prev.walked_oids.is_empty() {
+            already_diffed.extend(known.keys().cloned());
+        }
+    }
+
+    // Walking oids is cheap; only the per-commit diff is not.
+    let cancel = tokio_util::sync::CancellationToken::new();
+    let oids = GitWalker::walk_older_commits(
+        &repo,
+        None,
+        max_commits,
+        MergeCommitPolicy::FirstParentOnly,
+        &cancel,
+    )?;
+
+    let mut commits = Vec::with_capacity(oids.len());
+    let mut walked_oids = Vec::with_capacity(oids.len());
+    let mut partial = false;
+    let mut fresh_diffs = 0usize;
+    for oid in &oids {
+        let key = oid.to_string();
+        if already_diffed.contains(&key) {
+            walked_oids.push(key.clone());
+            if let Some(c) = known.get(&key) {
+                commits.push(c.clone());
+            }
+            continue;
+        }
+
+        // Budget guard. A cold walk on a big repo must degrade to
+        // partial coverage, never to a multi-minute hang that the
+        // caller cannot cancel.
+        if started.elapsed() >= budget {
+            partial = true;
+            break;
+        }
+
+        let Ok(changes) = GitWalker::files_changed_in_commit(&repo, *oid) else {
+            continue;
+        };
+        fresh_diffs += 1;
+        walked_oids.push(key.clone());
+        // Bulk commits (vendoring, formatting) are shape noise. They
+        // still go in walked_oids so they are never re-diffed.
+        if changes.len() > 80 || changes.is_empty() {
+            continue;
+        }
+        let files: Vec<String> = changes
+            .iter()
+            .map(|c| c.path().as_str().replace('\\', "/"))
+            .collect();
+        let summary = repo
+            .find_commit(*oid)
+            .ok()
+            .and_then(|c| c.summary().map(|s| s.to_string()))
+            .unwrap_or_default();
+        let commit = crate::state::CoChangeCommit {
+            oid: key.clone(),
+            summary,
+            files,
+        };
+        commits.push(commit.clone());
+        known.insert(key, commit);
+    }
+
+    // Anything the previous snapshot knew about but this walk did not
+    // reach (deeper history from a larger earlier max_commits) stays
+    // reusable for a later, deeper call.
+    let reached: HashSet<&String> = walked_oids.iter().collect();
+    let mut carried_oids: Vec<String> = already_diffed
+        .iter()
+        .filter(|o| !reached.contains(*o))
+        .cloned()
+        .collect();
+    carried_oids.sort();
+    let mut all_oids = walked_oids.clone();
+    all_oids.extend(carried_oids.iter().cloned());
+    let mut all_commits = commits.clone();
+    for o in &carried_oids {
+        if let Some(c) = known.get(o) {
+            all_commits.push(c.clone());
+        }
+    }
+
+    let snap = std::sync::Arc::new(crate::state::CoChangeSnapshot {
+        head,
+        walked: max_commits.max(cached.as_ref().map(|c| c.walked).unwrap_or(0)),
+        commits: all_commits,
+        walked_oids: all_oids,
+        partial,
+    });
+    cache.insert(cache_key, snap.clone());
+    // Best-effort disk persist for the next cold start.
+    if let Ok(bytes) = bincode::serialize(snap.as_ref())
+        && let Some(parent) = disk_path.parent()
+    {
+        let _ = std::fs::create_dir_all(parent);
+        let _ = std::fs::write(&disk_path, bytes);
+    }
+    Ok((snap, commits, walked_oids.len(), fresh_diffs, partial))
+}
+
+/// Warm the co-change snapshot for a project (index / update completion).
+pub(crate) fn warm_co_change_snapshot_blocking(
+    state: &crate::state::AppState,
+    project_id: &str,
+) -> anyhow::Result<()> {
+    let rec = state
+        .registry
+        .get_project(project_id)?
+        .ok_or_else(|| anyhow::anyhow!("project {project_id} not registered"))?;
+    let disk_path = state
+        .cfg
+        .data_dir
+        .join("co_change")
+        .join(format!("{project_id}.bin"));
+    let _ = build_co_change_snapshot(
+        &state.co_change_cache,
+        project_id.to_string(),
+        &disk_path,
+        std::path::Path::new(&rec.directory),
+        500,
+        co_change_budget(),
+        std::time::Instant::now(),
+    )?;
+    Ok(())
+}
+
 fn co_change_budget() -> std::time::Duration {
     let secs = std::env::var("ENGRAM_CO_CHANGE_BUDGET_SECS")
         .ok()
@@ -941,149 +1125,27 @@ impl Engram {
             .join(format!("{}.bin", req.project_id));
         let budget = co_change_budget();
         let result = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
-            let repo = GitWalker::open_repo(&repo_dir)?;
-            let head = repo
-                .head()
-                .ok()
-                .and_then(|h| h.target())
-                .map(|o| o.to_string())
-                .unwrap_or_default();
-
-            // Reuse is per COMMIT, not per HEAD. The old cache was keyed on
-            // HEAD, so a single new commit invalidated the whole snapshot and
-            // the next call re-diffed every one of max_commits commits — the
-            // reason this tool could sit for minutes on an active repo while
-            // detect_incomplete_changes answered the neighbouring question
-            // instantly from precomputed edges.
-            let cached: Option<std::sync::Arc<crate::state::CoChangeSnapshot>> =
-                match cache.get(&cache_key) {
-                    Some(s) => Some(s.clone()),
-                    None => std::fs::read(&disk_path)
-                        .ok()
-                        .and_then(|bytes| bincode::deserialize(&bytes).ok())
-                        .map(std::sync::Arc::new),
-                };
-
-            let mut known: HashMap<String, crate::state::CoChangeCommit> = HashMap::new();
-            let mut already_diffed: HashSet<String> = HashSet::new();
-            if let Some(prev) = &cached {
-                already_diffed.extend(prev.walked_oids.iter().cloned());
-                for c in &prev.commits {
-                    known.insert(c.oid.clone(), c.clone());
-                }
-                // Snapshots written before walked_oids existed carry only the
-                // surviving commits; treat those as the diffed set so they are
-                // still reusable.
-                if prev.walked_oids.is_empty() {
-                    already_diffed.extend(known.keys().cloned());
-                }
-            }
-
-            // Walking oids is cheap; only the per-commit diff is not.
-            let cancel = tokio_util::sync::CancellationToken::new();
-            let oids = GitWalker::walk_older_commits(
-                &repo,
-                None,
+            let (_snap, commits, scanned_len, fresh_diffs, partial) = build_co_change_snapshot(
+                &cache,
+                cache_key,
+                &disk_path,
+                &repo_dir,
                 max_commits,
-                MergeCommitPolicy::FirstParentOnly,
-                &cancel,
+                budget,
+                started,
             )?;
-
-            let mut commits = Vec::with_capacity(oids.len());
-            let mut walked_oids = Vec::with_capacity(oids.len());
-            let mut partial = false;
-            let mut fresh_diffs = 0usize;
-            for oid in &oids {
-                let key = oid.to_string();
-                if already_diffed.contains(&key) {
-                    walked_oids.push(key.clone());
-                    if let Some(c) = known.get(&key) {
-                        commits.push(c.clone());
-                    }
-                    continue;
-                }
-
-                // Budget guard. A cold walk on a big repo must degrade to
-                // partial coverage, never to a multi-minute hang that the
-                // caller cannot cancel.
-                if started.elapsed() >= budget {
-                    partial = true;
-                    break;
-                }
-
-                let Ok(changes) = GitWalker::files_changed_in_commit(&repo, *oid) else {
-                    continue;
-                };
-                fresh_diffs += 1;
-                walked_oids.push(key.clone());
-                // Bulk commits (vendoring, formatting) are shape noise. They
-                // still go in walked_oids so they are never re-diffed.
-                if changes.len() > 80 || changes.is_empty() {
-                    continue;
-                }
-                let files: Vec<String> = changes
-                    .iter()
-                    .map(|c| c.path().as_str().replace('\\', "/"))
-                    .collect();
-                let summary = repo
-                    .find_commit(*oid)
-                    .ok()
-                    .and_then(|c| c.summary().map(|s| s.to_string()))
-                    .unwrap_or_default();
-                let commit = crate::state::CoChangeCommit {
-                    oid: key.clone(),
-                    summary,
-                    files,
-                };
-                commits.push(commit.clone());
-                known.insert(key, commit);
-            }
-
-            // Anything the previous snapshot knew about but this walk did not
-            // reach (deeper history from a larger earlier max_commits) stays
-            // reusable for a later, deeper call.
-            let reached: HashSet<&String> = walked_oids.iter().collect();
-            let mut carried_oids: Vec<String> = already_diffed
-                .iter()
-                .filter(|o| !reached.contains(*o))
-                .cloned()
-                .collect();
-            carried_oids.sort();
-            let mut all_oids = walked_oids.clone();
-            all_oids.extend(carried_oids.iter().cloned());
-            let mut all_commits = commits.clone();
-            for o in &carried_oids {
-                if let Some(c) = known.get(o) {
-                    all_commits.push(c.clone());
-                }
-            }
-
-            let snap = std::sync::Arc::new(crate::state::CoChangeSnapshot {
-                head,
-                walked: max_commits.max(cached.as_ref().map(|c| c.walked).unwrap_or(0)),
-                commits: all_commits,
-                walked_oids: all_oids,
-                partial,
-            });
-            cache.insert(cache_key, snap.clone());
-            // Best-effort disk persist for the next cold start.
-            if let Ok(bytes) = bincode::serialize(snap.as_ref())
-                && let Some(parent) = disk_path.parent()
-            {
-                let _ = std::fs::create_dir_all(parent);
-                let _ = std::fs::write(&disk_path, bytes);
-            }
+            let walked_oids_len = scanned_len;
             if fresh_diffs > 0 {
                 tracing::debug!(
                     fresh_diffs,
-                    reused = walked_oids.len().saturating_sub(fresh_diffs),
+                    reused = walked_oids_len.saturating_sub(fresh_diffs),
                     partial,
                     elapsed_ms = started.elapsed().as_millis() as u64,
                     "find_similar_changes: co-change walk"
                 );
             }
 
-            let scanned = walked_oids.len();
+            let scanned = walked_oids_len;
             let mut scored: Vec<(f64, String, String, Vec<String>)> = Vec::new();
             for c in &commits {
                 let score = bag_jaccard(&input_bag, &path_token_bag(&c.files));
