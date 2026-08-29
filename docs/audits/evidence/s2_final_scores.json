@@ -1,0 +1,3730 @@
+[
+ {
+  "pr_id": "1828",
+  "arm": "dossier",
+  "rep": 1,
+  "score": 0.5863603988603989,
+  "files": [
+   {
+    "path": "modules/dashboard/dashboard.master",
+    "untouched": false,
+    "score": 0.5863603988603989,
+    "axes": {
+     "tags": 0.888888888888889,
+     "classes": 0.30769230769230765,
+     "idioms": 0.5625
+    },
+    "dev": {
+     "tags": [
+      "a",
+      "i",
+      "li",
+      "span",
+      "ul"
+     ],
+     "classes": [
+      "active",
+      "arrow",
+      "collapse",
+      "fa",
+      "fa-fw",
+      "fa-layer-group",
+      "fa-level-up",
+      "fa-sitemap",
+      "fa-solid",
+      "in",
+      "is-expanded",
+      "li-overview",
+      "nav",
+      "nav-dashboard-level1",
+      "nav-dashboard-level2",
+      "nav-second-level",
+      "overview-toggle",
+      "selected",
+      "statusbullet",
+      "trim-menu-project-name"
+     ],
+     "idioms": [
+      "attr:aria-expanded",
+      "attr:class",
+      "attr:data-project-id",
+      "attr:data-tp-overview-item",
+      "attr:data-tp-overview-toggle",
+      "attr:data-tp-project",
+      "attr:data-tp-subproject",
+      "attr:href",
+      "attr:id",
+      "attr:onclick",
+      "attr:role",
+      "attr:style",
+      "attr:title",
+      "attr:tp",
+      "nugget:#eval",
+      "nugget:#if",
+      "nugget:#isselected",
+      "nugget:=isselected",
+      "nugget:=resources"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "a",
+      "i",
+      "li",
+      "span"
+     ],
+     "classes": [
+      "arrow",
+      "fa",
+      "fa-bars",
+      "fa-fw",
+      "fa-solid",
+      "nav-tp-functions-toggle"
+     ],
+     "idioms": [
+      "attr:aria-expanded",
+      "attr:aria-haspopup",
+      "attr:class",
+      "attr:href",
+      "attr:onclick",
+      "attr:role",
+      "attr:style",
+      "attr:title",
+      "nugget:",
+      "nugget:#if",
+      "nugget:#tpfunctionselected",
+      "nugget:=resources",
+      "nugget:=tpfunctionselected"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1828",
+  "arm": "dossier",
+  "rep": 2,
+  "score": 0.8106332138590203,
+  "files": [
+   {
+    "path": "modules/dashboard/dashboard.master",
+    "untouched": false,
+    "score": 0.8106332138590203,
+    "axes": {
+     "tags": 1.0,
+     "classes": 0.7222222222222223,
+     "idioms": 0.7096774193548387
+    },
+    "dev": {
+     "tags": [
+      "a",
+      "i",
+      "li",
+      "span",
+      "ul"
+     ],
+     "classes": [
+      "active",
+      "arrow",
+      "collapse",
+      "fa",
+      "fa-fw",
+      "fa-layer-group",
+      "fa-level-up",
+      "fa-sitemap",
+      "fa-solid",
+      "in",
+      "is-expanded",
+      "li-overview",
+      "nav",
+      "nav-dashboard-level1",
+      "nav-dashboard-level2",
+      "nav-second-level",
+      "overview-toggle",
+      "selected",
+      "statusbullet",
+      "trim-menu-project-name"
+     ],
+     "idioms": [
+      "attr:aria-expanded",
+      "attr:class",
+      "attr:data-project-id",
+      "attr:data-tp-overview-item",
+      "attr:data-tp-overview-toggle",
+      "attr:data-tp-project",
+      "attr:data-tp-subproject",
+      "attr:href",
+      "attr:id",
+      "attr:onclick",
+      "attr:role",
+      "attr:style",
+      "attr:title",
+      "attr:tp",
+      "nugget:#eval",
+      "nugget:#if",
+      "nugget:#isselected",
+      "nugget:=isselected",
+      "nugget:=resources"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "a",
+      "i",
+      "li",
+      "span",
+      "ul"
+     ],
+     "classes": [
+      "active",
+      "arrow",
+      "collapse",
+      "fa",
+      "fa-fw",
+      "fa-list-ul",
+      "fa-sitemap",
+      "fa-solid",
+      "in",
+      "nav",
+      "nav-dashboard-level1",
+      "nav-dashboard-tp-functions-toggle",
+      "nav-second-level",
+      "selected",
+      "tp-functions-collapsed",
+      "trim-menu-project-name"
+     ],
+     "idioms": [
+      "attr:aria-expanded",
+      "attr:aria-haspopup",
+      "attr:class",
+      "attr:href",
+      "attr:onclick",
+      "attr:role",
+      "attr:style",
+      "attr:title",
+      "nugget:#if",
+      "nugget:#isselected",
+      "nugget:=isselected",
+      "nugget:=resources"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1828",
+  "arm": "exemplar",
+  "rep": 1,
+  "score": 0.6119929453262787,
+  "files": [
+   {
+    "path": "modules/dashboard/dashboard.master",
+    "untouched": false,
+    "score": 0.6119929453262787,
+    "axes": {
+     "tags": 0.888888888888889,
+     "classes": 0.4285714285714285,
+     "idioms": 0.5185185185185185
+    },
+    "dev": {
+     "tags": [
+      "a",
+      "i",
+      "li",
+      "span",
+      "ul"
+     ],
+     "classes": [
+      "active",
+      "arrow",
+      "collapse",
+      "fa",
+      "fa-fw",
+      "fa-layer-group",
+      "fa-level-up",
+      "fa-sitemap",
+      "fa-solid",
+      "in",
+      "is-expanded",
+      "li-overview",
+      "nav",
+      "nav-dashboard-level1",
+      "nav-dashboard-level2",
+      "nav-second-level",
+      "overview-toggle",
+      "selected",
+      "statusbullet",
+      "trim-menu-project-name"
+     ],
+     "idioms": [
+      "attr:aria-expanded",
+      "attr:class",
+      "attr:data-project-id",
+      "attr:data-tp-overview-item",
+      "attr:data-tp-overview-toggle",
+      "attr:data-tp-project",
+      "attr:data-tp-subproject",
+      "attr:href",
+      "attr:id",
+      "attr:onclick",
+      "attr:role",
+      "attr:style",
+      "attr:title",
+      "attr:tp",
+      "nugget:#eval",
+      "nugget:#if",
+      "nugget:#isselected",
+      "nugget:=isselected",
+      "nugget:=resources"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "a",
+      "li",
+      "span",
+      "ul"
+     ],
+     "classes": [
+      "arrow",
+      "collapse",
+      "fa",
+      "nav",
+      "nav-second-level",
+      "total-project-functions",
+      "total-project-functions-toggle",
+      "trim-menu-project-name"
+     ],
+     "idioms": [
+      "attr:aria-expanded",
+      "attr:class",
+      "attr:href",
+      "attr:onclick",
+      "attr:title",
+      "nugget:",
+      "nugget:#if",
+      "nugget:=resources"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1828",
+  "arm": "exemplar",
+  "rep": 2,
+  "score": 0.7960061443932411,
+  "files": [
+   {
+    "path": "modules/dashboard/dashboard.master",
+    "untouched": false,
+    "score": 0.7960061443932411,
+    "axes": {
+     "tags": 1.0,
+     "classes": 0.7428571428571429,
+     "idioms": 0.6451612903225806
+    },
+    "dev": {
+     "tags": [
+      "a",
+      "i",
+      "li",
+      "span",
+      "ul"
+     ],
+     "classes": [
+      "active",
+      "arrow",
+      "collapse",
+      "fa",
+      "fa-fw",
+      "fa-layer-group",
+      "fa-level-up",
+      "fa-sitemap",
+      "fa-solid",
+      "in",
+      "is-expanded",
+      "li-overview",
+      "nav",
+      "nav-dashboard-level1",
+      "nav-dashboard-level2",
+      "nav-second-level",
+      "overview-toggle",
+      "selected",
+      "statusbullet",
+      "trim-menu-project-name"
+     ],
+     "idioms": [
+      "attr:aria-expanded",
+      "attr:class",
+      "attr:data-project-id",
+      "attr:data-tp-overview-item",
+      "attr:data-tp-overview-toggle",
+      "attr:data-tp-project",
+      "attr:data-tp-subproject",
+      "attr:href",
+      "attr:id",
+      "attr:onclick",
+      "attr:role",
+      "attr:style",
+      "attr:title",
+      "attr:tp",
+      "nugget:#eval",
+      "nugget:#if",
+      "nugget:#isselected",
+      "nugget:=isselected",
+      "nugget:=resources"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "a",
+      "i",
+      "li",
+      "span",
+      "ul"
+     ],
+     "classes": [
+      "active",
+      "arrow",
+      "collapse",
+      "fa",
+      "fa-fw",
+      "fa-list",
+      "fa-sitemap",
+      "fa-solid",
+      "in",
+      "nav",
+      "nav-dashboard-level1",
+      "nav-second-level",
+      "selected",
+      "tp-functions-toggle",
+      "trim-menu-project-name"
+     ],
+     "idioms": [
+      "attr:aria-expanded",
+      "attr:class",
+      "attr:data-tp-fn",
+      "attr:href",
+      "attr:onclick",
+      "attr:style",
+      "attr:title",
+      "nugget:#if",
+      "nugget:#isselected",
+      "nugget:=if",
+      "nugget:=isselected",
+      "nugget:=resources"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1837",
+  "arm": "dossier",
+  "rep": 1,
+  "score": 0.3153508771929825,
+  "files": [
+   {
+    "path": "modules/dashboard/pages/public/map/map.aspx",
+    "untouched": false,
+    "score": 0.3153508771929825,
+    "axes": {
+     "tags": 0.4,
+     "classes": 0.125,
+     "idioms": 0.4210526315789474
+    },
+    "dev": {
+     "tags": [
+      "button",
+      "div",
+      "i",
+      "span",
+      "td",
+      "th"
+     ],
+     "classes": [
+      "btn",
+      "btn-primary",
+      "btn-xs",
+      "bulk-status-update",
+      "fa",
+      "fa-fw",
+      "fa-wrench",
+      "glyphicon",
+      "glyphicon-plus",
+      "modal-content",
+      "modal-dialog"
+     ],
+     "idioms": [
+      "attr:class",
+      "attr:ctrl",
+      "attr:style",
+      "attr:type",
+      "attr:width",
+      "nugget:=resources",
+      "nugget:end",
+      "nugget:if"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "button",
+      "div",
+      "h4",
+      "select"
+     ],
+     "classes": [
+      "alert",
+      "alert-warning",
+      "btn",
+      "btn-default",
+      "btn-md",
+      "btn-primary",
+      "close",
+      "col-xs-12",
+      "fade",
+      "form-control",
+      "hidden",
+      "in",
+      "modal",
+      "modal-backdrop",
+      "modal-footer",
+      "modal-header",
+      "modal-title",
+      "pull-left",
+      "pull-right",
+      "row",
+      "show"
+     ],
+     "idioms": [
+      "attr:class",
+      "attr:globalmapvariables",
+      "attr:id",
+      "attr:role",
+      "attr:style",
+      "attr:title",
+      "attr:type",
+      "attr:useraccess",
+      "nugget:",
+      "nugget:=",
+      "nugget:=resources"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1837",
+  "arm": "dossier",
+  "rep": 2,
+  "score": 0.44257703081232497,
+  "files": [
+   {
+    "path": "modules/dashboard/pages/public/map/map.aspx",
+    "untouched": false,
+    "score": 0.44257703081232497,
+    "axes": {
+     "tags": 0.4705882352941177,
+     "classes": 0.28571428571428575,
+     "idioms": 0.5714285714285714
+    },
+    "dev": {
+     "tags": [
+      "button",
+      "div",
+      "i",
+      "span",
+      "td",
+      "th"
+     ],
+     "classes": [
+      "btn",
+      "btn-primary",
+      "btn-xs",
+      "bulk-status-update",
+      "fa",
+      "fa-fw",
+      "fa-wrench",
+      "glyphicon",
+      "glyphicon-plus",
+      "modal-content",
+      "modal-dialog"
+     ],
+     "idioms": [
+      "attr:class",
+      "attr:ctrl",
+      "attr:style",
+      "attr:type",
+      "attr:width",
+      "nugget:=resources",
+      "nugget:end",
+      "nugget:if"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "a",
+      "button",
+      "div",
+      "h4",
+      "i",
+      "label",
+      "li",
+      "p",
+      "select",
+      "span",
+      "ul"
+     ],
+     "classes": [
+      "alert",
+      "alert-warning",
+      "btn",
+      "btn-default",
+      "btn-group",
+      "btn-md",
+      "btn-primary",
+      "btn-sm",
+      "caret",
+      "close",
+      "dropdown-menu",
+      "dropdown-toggle",
+      "fa",
+      "fa-fw",
+      "fa-random",
+      "fa-trash",
+      "fa-wrench",
+      "form-control",
+      "hidden",
+      "modal-backdrop",
+      "modal-body",
+      "modal-footer",
+      "modal-header",
+      "modal-title"
+     ],
+     "idioms": [
+      "attr:aria-expanded",
+      "attr:class",
+      "attr:data-toggle",
+      "attr:for",
+      "attr:href",
+      "attr:id",
+      "attr:style",
+      "attr:title",
+      "attr:type",
+      "nugget:",
+      "nugget:=resources",
+      "nugget:end",
+      "nugget:if"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1837",
+  "arm": "exemplar",
+  "rep": 1,
+  "score": 0.5468883205456095,
+  "files": [
+   {
+    "path": "modules/dashboard/pages/public/map/map.aspx",
+    "untouched": false,
+    "score": 0.5468883205456095,
+    "axes": {
+     "tags": 0.5,
+     "classes": 0.43478260869565216,
+     "idioms": 0.7058823529411765
+    },
+    "dev": {
+     "tags": [
+      "button",
+      "div",
+      "i",
+      "span",
+      "td",
+      "th"
+     ],
+     "classes": [
+      "btn",
+      "btn-primary",
+      "btn-xs",
+      "bulk-status-update",
+      "fa",
+      "fa-fw",
+      "fa-wrench",
+      "glyphicon",
+      "glyphicon-plus",
+      "modal-content",
+      "modal-dialog"
+     ],
+     "idioms": [
+      "attr:class",
+      "attr:ctrl",
+      "attr:style",
+      "attr:type",
+      "attr:width",
+      "nugget:=resources",
+      "nugget:end",
+      "nugget:if"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "a",
+      "button",
+      "div",
+      "li",
+      "span",
+      "ul"
+     ],
+     "classes": [
+      "btn",
+      "btn-group",
+      "btn-primary",
+      "btn-xs",
+      "caret",
+      "dropdown-menu",
+      "dropdown-menu-right",
+      "dropdown-toggle",
+      "fa",
+      "fa-trash",
+      "glyphicon",
+      "glyphicon-cog"
+     ],
+     "idioms": [
+      "attr:aria-expanded",
+      "attr:class",
+      "attr:ctrl",
+      "attr:data-toggle",
+      "attr:href",
+      "attr:type",
+      "nugget:=resources",
+      "nugget:end",
+      "nugget:if"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1837",
+  "arm": "exemplar",
+  "rep": 2,
+  "score": 0.6484593837535014,
+  "files": [
+   {
+    "path": "modules/dashboard/pages/public/map/map.aspx",
+    "untouched": false,
+    "score": 0.6484593837535014,
+    "axes": {
+     "tags": 0.5,
+     "classes": 0.5882352941176471,
+     "idioms": 0.8571428571428571
+    },
+    "dev": {
+     "tags": [
+      "button",
+      "div",
+      "i",
+      "span",
+      "td",
+      "th"
+     ],
+     "classes": [
+      "btn",
+      "btn-primary",
+      "btn-xs",
+      "bulk-status-update",
+      "fa",
+      "fa-fw",
+      "fa-wrench",
+      "glyphicon",
+      "glyphicon-plus",
+      "modal-content",
+      "modal-dialog"
+     ],
+     "idioms": [
+      "attr:class",
+      "attr:ctrl",
+      "attr:style",
+      "attr:type",
+      "attr:width",
+      "nugget:=resources",
+      "nugget:end",
+      "nugget:if"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "button",
+      "span"
+     ],
+     "classes": [
+      "btn",
+      "btn-primary",
+      "btn-xs",
+      "bulk-status-update",
+      "glyphicon",
+      "glyphicon-cog"
+     ],
+     "idioms": [
+      "attr:class",
+      "attr:ctrl",
+      "attr:type",
+      "nugget:=resources",
+      "nugget:end",
+      "nugget:if"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1877",
+  "arm": "dossier",
+  "rep": 1,
+  "score": 0.5446407946407946,
+  "files": [
+   {
+    "path": "modules/dashboard/pages/admin/system/markers/marker_edit.aspx",
+    "untouched": false,
+    "score": 0.5446407946407946,
+    "axes": {
+     "tags": 0.5833333333333334,
+     "classes": 0.4864864864864865,
+     "idioms": 0.5641025641025641
+    },
+    "dev": {
+     "tags": [
+      "a",
+      "asp:boundfield",
+      "asp:button",
+      "asp:gridview",
+      "asp:hiddenfield",
+      "asp:label",
+      "asp:linkbutton",
+      "asp:panel",
+      "asp:templatefield",
+      "br",
+      "columns",
+      "div",
+      "h3",
+      "i",
+      "itemtemplate",
+      "pagerstyle",
+      "span"
+     ],
+     "classes": [
+      "alert",
+      "alert-danger",
+      "bootstrap-dialog",
+      "bootstrap-dialog-title",
+      "btn",
+      "btn-default",
+      "btn-md",
+      "close",
+      "fa-fw",
+      "fade",
+      "glyphicon",
+      "glyphicon-list-alt",
+      "in",
+      "modal",
+      "modal-backdrop",
+      "modal-body",
+      "modal-content",
+      "modal-dialog",
+      "modal-footer",
+      "modal-header",
+      "modal-title",
+      "pagination-ys",
+      "show",
+      "table",
+      "table-bordered",
+      "table-hover",
+      "table-striped",
+      "type-warning"
+     ],
+     "idioms": [
+      "attr:allowpaging",
+      "attr:autogeneratecolumns",
+      "attr:class",
+      "attr:cssclass",
+      "attr:datafield",
+      "attr:headertext",
+      "attr:href",
+      "attr:id",
+      "attr:onclick",
+      "attr:onpageindexchanging",
+      "attr:pagesize",
+      "attr:role",
+      "attr:runat",
+      "attr:showfooter",
+      "attr:showheaderwhenempty",
+      "attr:style",
+      "attr:target",
+      "attr:text",
+      "attr:tp",
+      "attr:value",
+      "attr:visible",
+      "attr:width",
+      "nugget:",
+      "nugget:#eval",
+      "nugget:=resources",
+      "res:control.close",
+      "res:label.count",
+      "res:label.project_name"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "asp:button",
+      "asp:label",
+      "asp:linkbutton",
+      "asp:panel",
+      "div",
+      "i",
+      "span"
+     ],
+     "classes": [
+      "btn",
+      "btn-default",
+      "btn-md",
+      "close",
+      "fa-fw",
+      "glyphicon",
+      "glyphicon-list-alt",
+      "modal-backdrop",
+      "modal-footer"
+     ],
+     "idioms": [
+      "attr:class",
+      "attr:cssclass",
+      "attr:id",
+      "attr:onclick",
+      "attr:runat",
+      "attr:style",
+      "attr:text",
+      "attr:visible",
+      "nugget:",
+      "nugget:=resources",
+      "res:control.close"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1877",
+  "arm": "dossier",
+  "rep": 2,
+  "score": 0.706031746031746,
+  "files": [
+   {
+    "path": "modules/dashboard/pages/admin/system/markers/marker_edit.aspx",
+    "untouched": false,
+    "score": 0.706031746031746,
+    "axes": {
+     "tags": 0.6666666666666667,
+     "classes": 0.88,
+     "idioms": 0.5714285714285714
+    },
+    "dev": {
+     "tags": [
+      "a",
+      "asp:boundfield",
+      "asp:button",
+      "asp:gridview",
+      "asp:hiddenfield",
+      "asp:label",
+      "asp:linkbutton",
+      "asp:panel",
+      "asp:templatefield",
+      "br",
+      "columns",
+      "div",
+      "h3",
+      "i",
+      "itemtemplate",
+      "pagerstyle",
+      "span"
+     ],
+     "classes": [
+      "alert",
+      "alert-danger",
+      "bootstrap-dialog",
+      "bootstrap-dialog-title",
+      "btn",
+      "btn-default",
+      "btn-md",
+      "close",
+      "fa-fw",
+      "fade",
+      "glyphicon",
+      "glyphicon-list-alt",
+      "in",
+      "modal",
+      "modal-backdrop",
+      "modal-body",
+      "modal-content",
+      "modal-dialog",
+      "modal-footer",
+      "modal-header",
+      "modal-title",
+      "pagination-ys",
+      "show",
+      "table",
+      "table-bordered",
+      "table-hover",
+      "table-striped",
+      "type-warning"
+     ],
+     "idioms": [
+      "attr:allowpaging",
+      "attr:autogeneratecolumns",
+      "attr:class",
+      "attr:cssclass",
+      "attr:datafield",
+      "attr:headertext",
+      "attr:href",
+      "attr:id",
+      "attr:onclick",
+      "attr:onpageindexchanging",
+      "attr:pagesize",
+      "attr:role",
+      "attr:runat",
+      "attr:showfooter",
+      "attr:showheaderwhenempty",
+      "attr:style",
+      "attr:target",
+      "attr:text",
+      "attr:tp",
+      "attr:value",
+      "attr:visible",
+      "attr:width",
+      "nugget:",
+      "nugget:#eval",
+      "nugget:=resources",
+      "res:control.close",
+      "res:label.count",
+      "res:label.project_name"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "asp:button",
+      "asp:linkbutton",
+      "asp:linqdatasource",
+      "asp:panel",
+      "br",
+      "div",
+      "h3",
+      "i",
+      "pagerstyle",
+      "span"
+     ],
+     "classes": [
+      "bootstrap-dialog",
+      "bootstrap-dialog-title",
+      "btn",
+      "btn-default",
+      "btn-md",
+      "close",
+      "fa-fw",
+      "fade",
+      "glyphicon",
+      "glyphicon-list-alt",
+      "in",
+      "modal",
+      "modal-backdrop",
+      "modal-body",
+      "modal-content",
+      "modal-dialog",
+      "modal-footer",
+      "modal-header",
+      "modal-title",
+      "pagination-ys",
+      "show",
+      "type-warning"
+     ],
+     "idioms": [
+      "attr:class",
+      "attr:contexttypename",
+      "attr:cssclass",
+      "attr:id",
+      "attr:onclick",
+      "attr:role",
+      "attr:runat",
+      "attr:style",
+      "attr:tablename",
+      "attr:text",
+      "attr:visible",
+      "nugget:",
+      "nugget:=resources",
+      "res:control.close"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1877",
+  "arm": "exemplar",
+  "rep": 1,
+  "score": 0.21764705882352942,
+  "files": [
+   {
+    "path": "modules/dashboard/pages/admin/system/markers/marker_edit.aspx",
+    "untouched": false,
+    "score": 0.21764705882352942,
+    "axes": {
+     "tags": 0.3,
+     "classes": 0.0,
+     "idioms": 0.35294117647058826
+    },
+    "dev": {
+     "tags": [
+      "a",
+      "asp:boundfield",
+      "asp:button",
+      "asp:gridview",
+      "asp:hiddenfield",
+      "asp:label",
+      "asp:linkbutton",
+      "asp:panel",
+      "asp:templatefield",
+      "br",
+      "columns",
+      "div",
+      "h3",
+      "i",
+      "itemtemplate",
+      "pagerstyle",
+      "span"
+     ],
+     "classes": [
+      "alert",
+      "alert-danger",
+      "bootstrap-dialog",
+      "bootstrap-dialog-title",
+      "btn",
+      "btn-default",
+      "btn-md",
+      "close",
+      "fa-fw",
+      "fade",
+      "glyphicon",
+      "glyphicon-list-alt",
+      "in",
+      "modal",
+      "modal-backdrop",
+      "modal-body",
+      "modal-content",
+      "modal-dialog",
+      "modal-footer",
+      "modal-header",
+      "modal-title",
+      "pagination-ys",
+      "show",
+      "table",
+      "table-bordered",
+      "table-hover",
+      "table-striped",
+      "type-warning"
+     ],
+     "idioms": [
+      "attr:allowpaging",
+      "attr:autogeneratecolumns",
+      "attr:class",
+      "attr:cssclass",
+      "attr:datafield",
+      "attr:headertext",
+      "attr:href",
+      "attr:id",
+      "attr:onclick",
+      "attr:onpageindexchanging",
+      "attr:pagesize",
+      "attr:role",
+      "attr:runat",
+      "attr:showfooter",
+      "attr:showheaderwhenempty",
+      "attr:style",
+      "attr:target",
+      "attr:text",
+      "attr:tp",
+      "attr:value",
+      "attr:visible",
+      "attr:width",
+      "nugget:",
+      "nugget:#eval",
+      "nugget:=resources",
+      "res:control.close",
+      "res:label.count",
+      "res:label.project_name"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "asp:hiddenfield",
+      "asp:label",
+      "asp:linkbutton"
+     ],
+     "classes": [],
+     "idioms": [
+      "attr:id",
+      "attr:onclick",
+      "attr:runat",
+      "attr:visible",
+      "nugget:",
+      "nugget:=resources"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1877",
+  "arm": "exemplar",
+  "rep": 2,
+  "score": 0.6830917874396135,
+  "files": [
+   {
+    "path": "modules/dashboard/pages/admin/system/markers/marker_edit.aspx",
+    "untouched": false,
+    "score": 0.6830917874396135,
+    "axes": {
+     "tags": 0.6666666666666667,
+     "classes": 0.782608695652174,
+     "idioms": 0.6
+    },
+    "dev": {
+     "tags": [
+      "a",
+      "asp:boundfield",
+      "asp:button",
+      "asp:gridview",
+      "asp:hiddenfield",
+      "asp:label",
+      "asp:linkbutton",
+      "asp:panel",
+      "asp:templatefield",
+      "br",
+      "columns",
+      "div",
+      "h3",
+      "i",
+      "itemtemplate",
+      "pagerstyle",
+      "span"
+     ],
+     "classes": [
+      "alert",
+      "alert-danger",
+      "bootstrap-dialog",
+      "bootstrap-dialog-title",
+      "btn",
+      "btn-default",
+      "btn-md",
+      "close",
+      "fa-fw",
+      "fade",
+      "glyphicon",
+      "glyphicon-list-alt",
+      "in",
+      "modal",
+      "modal-backdrop",
+      "modal-body",
+      "modal-content",
+      "modal-dialog",
+      "modal-footer",
+      "modal-header",
+      "modal-title",
+      "pagination-ys",
+      "show",
+      "table",
+      "table-bordered",
+      "table-hover",
+      "table-striped",
+      "type-warning"
+     ],
+     "idioms": [
+      "attr:allowpaging",
+      "attr:autogeneratecolumns",
+      "attr:class",
+      "attr:cssclass",
+      "attr:datafield",
+      "attr:headertext",
+      "attr:href",
+      "attr:id",
+      "attr:onclick",
+      "attr:onpageindexchanging",
+      "attr:pagesize",
+      "attr:role",
+      "attr:runat",
+      "attr:showfooter",
+      "attr:showheaderwhenempty",
+      "attr:style",
+      "attr:target",
+      "attr:text",
+      "attr:tp",
+      "attr:value",
+      "attr:visible",
+      "attr:width",
+      "nugget:",
+      "nugget:#eval",
+      "nugget:=resources",
+      "res:control.close",
+      "res:label.count",
+      "res:label.project_name"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "asp:button",
+      "asp:label",
+      "asp:linkbutton",
+      "asp:panel",
+      "br",
+      "div",
+      "h3",
+      "i",
+      "span",
+      "uc:imagegrouplabel"
+     ],
+     "classes": [
+      "bootstrap-dialog",
+      "bootstrap-dialog-title",
+      "btn",
+      "btn-default",
+      "btn-md",
+      "close",
+      "fa-fw",
+      "fade",
+      "glyphicon",
+      "glyphicon-list-alt",
+      "in",
+      "modal",
+      "modal-backdrop",
+      "modal-dialog",
+      "modal-footer",
+      "modal-title",
+      "show",
+      "type-warning"
+     ],
+     "idioms": [
+      "attr:class",
+      "attr:cssclass",
+      "attr:id",
+      "attr:onclick",
+      "attr:role",
+      "attr:runat",
+      "attr:style",
+      "attr:text",
+      "attr:visible",
+      "nugget:",
+      "nugget:=resources",
+      "res:control.close"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1893",
+  "arm": "dossier",
+  "rep": 1,
+  "score": 0.7624132119986519,
+  "files": [
+   {
+    "path": "modules/dashboard/pages/admin/system/markers/marker_edit.aspx",
+    "untouched": false,
+    "score": 0.7624132119986519,
+    "axes": {
+     "tags": 0.8695652173913043,
+     "classes": 0.6976744186046512,
+     "idioms": 0.72
+    },
+    "dev": {
+     "tags": [
+      "a",
+      "asp:checkbox",
+      "asp:linkbutton",
+      "asp:panel",
+      "asp:textbox",
+      "button",
+      "div",
+      "h4",
+      "i",
+      "label",
+      "li"
+     ],
+     "classes": [
+      "alert",
+      "alert-danger",
+      "btn",
+      "btn-default",
+      "btn-primary",
+      "close",
+      "fa",
+      "fa-clone",
+      "fa-fw",
+      "fade",
+      "form-control",
+      "form-group",
+      "modal",
+      "modal-body",
+      "modal-content",
+      "modal-dialog",
+      "modal-footer",
+      "modal-header",
+      "modal-title"
+     ],
+     "idioms": [
+      "attr:checked",
+      "attr:class",
+      "attr:clientidmode",
+      "attr:cssclass",
+      "attr:data-dismiss",
+      "attr:data-target",
+      "attr:data-toggle",
+      "attr:href",
+      "attr:id",
+      "attr:maxlength",
+      "attr:onclick",
+      "attr:onclientclick",
+      "attr:role",
+      "attr:runat",
+      "attr:style",
+      "attr:text",
+      "attr:type",
+      "attr:visible",
+      "nugget:",
+      "nugget:=resources",
+      "res:label.clone_checklist_items",
+      "res:label.clone_form_links_and_flags",
+      "res:label.clone_inspection_items",
+      "res:label.clone_marker_level_image_group_labels",
+      "res:label.clone_per_checklist_item_image_group_labels"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "a",
+      "asp:button",
+      "asp:checkbox",
+      "asp:linkbutton",
+      "asp:textbox",
+      "button",
+      "div",
+      "h4",
+      "i",
+      "label",
+      "li",
+      "span"
+     ],
+     "classes": [
+      "btn",
+      "btn-circle",
+      "btn-default",
+      "btn-md",
+      "btn-success",
+      "btn-xs",
+      "close",
+      "control-label",
+      "fa",
+      "fa-check",
+      "fa-copy",
+      "fa-fw",
+      "fade",
+      "form-control",
+      "form-group",
+      "input-md",
+      "modal",
+      "modal-body",
+      "modal-content",
+      "modal-dialog",
+      "modal-footer",
+      "modal-header",
+      "modal-title",
+      "required"
+     ],
+     "idioms": [
+      "attr:autocompletetype",
+      "attr:checked",
+      "attr:class",
+      "attr:clientidmode",
+      "attr:commandname",
+      "attr:cssclass",
+      "attr:data-dismiss",
+      "attr:href",
+      "attr:id",
+      "attr:maxlength",
+      "attr:onclick",
+      "attr:onclientclick",
+      "attr:required",
+      "attr:role",
+      "attr:runat",
+      "attr:style",
+      "attr:text",
+      "attr:textalign",
+      "attr:tooltip",
+      "attr:type",
+      "attr:visible",
+      "nugget:",
+      "nugget:#resources",
+      "nugget:=resources",
+      "res:control.save"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1893",
+  "arm": "dossier",
+  "rep": 2,
+  "score": 0.74,
+  "files": [
+   {
+    "path": "modules/dashboard/pages/admin/system/markers/marker_edit.aspx",
+    "untouched": false,
+    "score": 0.74,
+    "axes": {
+     "tags": 0.7200000000000001,
+     "classes": 0.7272727272727272,
+     "idioms": 0.7727272727272727
+    },
+    "dev": {
+     "tags": [
+      "a",
+      "asp:checkbox",
+      "asp:linkbutton",
+      "asp:panel",
+      "asp:textbox",
+      "button",
+      "div",
+      "h4",
+      "i",
+      "label",
+      "li"
+     ],
+     "classes": [
+      "alert",
+      "alert-danger",
+      "btn",
+      "btn-default",
+      "btn-primary",
+      "close",
+      "fa",
+      "fa-clone",
+      "fa-fw",
+      "fade",
+      "form-control",
+      "form-group",
+      "modal",
+      "modal-body",
+      "modal-content",
+      "modal-dialog",
+      "modal-footer",
+      "modal-header",
+      "modal-title"
+     ],
+     "idioms": [
+      "attr:checked",
+      "attr:class",
+      "attr:clientidmode",
+      "attr:cssclass",
+      "attr:data-dismiss",
+      "attr:data-target",
+      "attr:data-toggle",
+      "attr:href",
+      "attr:id",
+      "attr:maxlength",
+      "attr:onclick",
+      "attr:onclientclick",
+      "attr:role",
+      "attr:runat",
+      "attr:style",
+      "attr:text",
+      "attr:type",
+      "attr:visible",
+      "nugget:",
+      "nugget:=resources",
+      "res:label.clone_checklist_items",
+      "res:label.clone_form_links_and_flags",
+      "res:label.clone_inspection_items",
+      "res:label.clone_marker_level_image_group_labels",
+      "res:label.clone_per_checklist_item_image_group_labels"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "a",
+      "asp:button",
+      "asp:checkbox",
+      "asp:label",
+      "asp:textbox",
+      "b",
+      "button",
+      "div",
+      "h4",
+      "hr",
+      "i",
+      "label",
+      "li",
+      "script"
+     ],
+     "classes": [
+      "btn",
+      "btn-default",
+      "btn-success",
+      "close",
+      "col-md-3",
+      "col-md-9",
+      "control-label",
+      "fa",
+      "fa-clone",
+      "fa-fw",
+      "fade",
+      "form-control",
+      "form-group",
+      "form-horizontal",
+      "glyphicon",
+      "glyphicon-map-marker",
+      "input-md",
+      "modal",
+      "modal-body",
+      "modal-content",
+      "modal-dialog",
+      "modal-footer",
+      "modal-header",
+      "modal-title",
+      "required"
+     ],
+     "idioms": [
+      "attr:autocompletetype",
+      "attr:checked",
+      "attr:class",
+      "attr:clientidmode",
+      "attr:cssclass",
+      "attr:data-dismiss",
+      "attr:href",
+      "attr:id",
+      "attr:maxlength",
+      "attr:onclick",
+      "attr:onclientclick",
+      "attr:role",
+      "attr:runat",
+      "attr:style",
+      "attr:text",
+      "attr:type",
+      "nugget:",
+      "nugget:=resources",
+      "res:control.save"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1893",
+  "arm": "exemplar",
+  "rep": 1,
+  "score": 0.6720549981419547,
+  "files": [
+   {
+    "path": "modules/dashboard/pages/admin/system/markers/marker_edit.aspx",
+    "untouched": false,
+    "score": 0.6720549981419547,
+    "axes": {
+     "tags": 0.6956521739130435,
+     "classes": 0.6666666666666667,
+     "idioms": 0.6538461538461539
+    },
+    "dev": {
+     "tags": [
+      "a",
+      "asp:checkbox",
+      "asp:linkbutton",
+      "asp:panel",
+      "asp:textbox",
+      "button",
+      "div",
+      "h4",
+      "i",
+      "label",
+      "li"
+     ],
+     "classes": [
+      "alert",
+      "alert-danger",
+      "btn",
+      "btn-default",
+      "btn-primary",
+      "close",
+      "fa",
+      "fa-clone",
+      "fa-fw",
+      "fade",
+      "form-control",
+      "form-group",
+      "modal",
+      "modal-body",
+      "modal-content",
+      "modal-dialog",
+      "modal-footer",
+      "modal-header",
+      "modal-title"
+     ],
+     "idioms": [
+      "attr:checked",
+      "attr:class",
+      "attr:clientidmode",
+      "attr:cssclass",
+      "attr:data-dismiss",
+      "attr:data-target",
+      "attr:data-toggle",
+      "attr:href",
+      "attr:id",
+      "attr:maxlength",
+      "attr:onclick",
+      "attr:onclientclick",
+      "attr:role",
+      "attr:runat",
+      "attr:style",
+      "attr:text",
+      "attr:type",
+      "attr:visible",
+      "nugget:",
+      "nugget:=resources",
+      "res:label.clone_checklist_items",
+      "res:label.clone_form_links_and_flags",
+      "res:label.clone_inspection_items",
+      "res:label.clone_marker_level_image_group_labels",
+      "res:label.clone_per_checklist_item_image_group_labels"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "a",
+      "asp:asyncpostbacktrigger",
+      "asp:button",
+      "asp:checkbox",
+      "asp:textbox",
+      "button",
+      "div",
+      "h5",
+      "i",
+      "label",
+      "li",
+      "uc:imagegrouplabel"
+     ],
+     "classes": [
+      "btn",
+      "btn-default",
+      "btn-success",
+      "checkbox-form-group",
+      "fa",
+      "fa-clone",
+      "fa-fw",
+      "fade",
+      "form-control",
+      "form-group",
+      "input-md",
+      "modal",
+      "modal-footer",
+      "modal-title"
+     ],
+     "idioms": [
+      "attr:autocompletetype",
+      "attr:checked",
+      "attr:class",
+      "attr:clientidmode",
+      "attr:controlid",
+      "attr:cssclass",
+      "attr:data-dismiss",
+      "attr:eventname",
+      "attr:href",
+      "attr:id",
+      "attr:maxlength",
+      "attr:onclick",
+      "attr:onclientclick",
+      "attr:role",
+      "attr:runat",
+      "attr:style",
+      "attr:text",
+      "attr:textalign",
+      "attr:type",
+      "nugget:",
+      "nugget:=resources",
+      "res:control.save",
+      "res:text.clone_checklist_items",
+      "res:text.clone_form_links_and_flags",
+      "res:text.clone_inspection_items",
+      "res:text.clone_marker_level_image_group_labels",
+      "res:text.clone_per_checklist_item_image_group_labels"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1893",
+  "arm": "exemplar",
+  "rep": 2,
+  "score": 0.7177589852008457,
+  "files": [
+   {
+    "path": "modules/dashboard/pages/admin/system/markers/marker_edit.aspx",
+    "untouched": false,
+    "score": 0.7177589852008457,
+    "axes": {
+     "tags": 0.7272727272727273,
+     "classes": 0.744186046511628,
+     "idioms": 0.6818181818181819
+    },
+    "dev": {
+     "tags": [
+      "a",
+      "asp:checkbox",
+      "asp:linkbutton",
+      "asp:panel",
+      "asp:textbox",
+      "button",
+      "div",
+      "h4",
+      "i",
+      "label",
+      "li"
+     ],
+     "classes": [
+      "alert",
+      "alert-danger",
+      "btn",
+      "btn-default",
+      "btn-primary",
+      "close",
+      "fa",
+      "fa-clone",
+      "fa-fw",
+      "fade",
+      "form-control",
+      "form-group",
+      "modal",
+      "modal-body",
+      "modal-content",
+      "modal-dialog",
+      "modal-footer",
+      "modal-header",
+      "modal-title"
+     ],
+     "idioms": [
+      "attr:checked",
+      "attr:class",
+      "attr:clientidmode",
+      "attr:cssclass",
+      "attr:data-dismiss",
+      "attr:data-target",
+      "attr:data-toggle",
+      "attr:href",
+      "attr:id",
+      "attr:maxlength",
+      "attr:onclick",
+      "attr:onclientclick",
+      "attr:role",
+      "attr:runat",
+      "attr:style",
+      "attr:text",
+      "attr:type",
+      "attr:visible",
+      "nugget:",
+      "nugget:=resources",
+      "res:label.clone_checklist_items",
+      "res:label.clone_form_links_and_flags",
+      "res:label.clone_inspection_items",
+      "res:label.clone_marker_level_image_group_labels",
+      "res:label.clone_per_checklist_item_image_group_labels"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "a",
+      "asp:button",
+      "asp:checkbox",
+      "asp:hiddenfield",
+      "asp:textbox",
+      "button",
+      "div",
+      "h5",
+      "i",
+      "label",
+      "li"
+     ],
+     "classes": [
+      "btn",
+      "btn-default",
+      "btn-success",
+      "close",
+      "col-md-3",
+      "col-md-9",
+      "col-md-offset-3",
+      "control-label",
+      "fa",
+      "fa-clone",
+      "fa-fw",
+      "fade",
+      "form-control",
+      "form-group",
+      "form-horizontal",
+      "input-md",
+      "modal",
+      "modal-body",
+      "modal-content",
+      "modal-dialog",
+      "modal-footer",
+      "modal-header",
+      "modal-title",
+      "required"
+     ],
+     "idioms": [
+      "attr:autocompletetype",
+      "attr:class",
+      "attr:clientidmode",
+      "attr:cssclass",
+      "attr:data-dismiss",
+      "attr:id",
+      "attr:maxlength",
+      "attr:onchange",
+      "attr:onclick",
+      "attr:onclientclick",
+      "attr:role",
+      "attr:runat",
+      "attr:style",
+      "attr:text",
+      "attr:textalign",
+      "attr:type",
+      "nugget:",
+      "nugget:=resources",
+      "res:control.save"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1899",
+  "arm": "dossier",
+  "rep": 1,
+  "score": null,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/admin/system/user/user.aspx",
+    "na": true,
+    "untouched": true,
+    "score": null,
+    "dev": {
+     "tags": [],
+     "classes": [],
+     "idioms": []
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1899",
+  "arm": "dossier",
+  "rep": 2,
+  "score": null,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/admin/system/user/user.aspx",
+    "na": true,
+    "untouched": true,
+    "score": null,
+    "dev": {
+     "tags": [],
+     "classes": [],
+     "idioms": []
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1899",
+  "arm": "exemplar",
+  "rep": 1,
+  "score": null,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/admin/system/user/user.aspx",
+    "na": true,
+    "untouched": true,
+    "score": null,
+    "dev": {
+     "tags": [],
+     "classes": [],
+     "idioms": []
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1899",
+  "arm": "exemplar",
+  "rep": 2,
+  "score": null,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/admin/system/user/user.aspx",
+    "na": true,
+    "untouched": true,
+    "score": null,
+    "dev": {
+     "tags": [],
+     "classes": [],
+     "idioms": []
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1904",
+  "arm": "dossier",
+  "rep": 1,
+  "score": 0.3333333333333333,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/public/map/map.aspx",
+    "untouched": false,
+    "score": 0.3333333333333333,
+    "axes": {
+     "tags": 0.0,
+     "classes": 1.0,
+     "idioms": 0.0
+    },
+    "dev": {
+     "tags": [
+      "option"
+     ],
+     "classes": [],
+     "idioms": [
+      "attr:value",
+      "nugget:=string"
+     ]
+    },
+    "impl": {
+     "tags": [],
+     "classes": [],
+     "idioms": []
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1904",
+  "arm": "dossier",
+  "rep": 2,
+  "score": 0.0,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/public/map/map.aspx",
+    "untouched": true,
+    "score": 0.0,
+    "dev": {
+     "tags": [
+      "option"
+     ],
+     "classes": [],
+     "idioms": [
+      "attr:value",
+      "nugget:=string"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1904",
+  "arm": "exemplar",
+  "rep": 1,
+  "score": 1.0,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/public/map/map.aspx",
+    "untouched": false,
+    "score": 1.0,
+    "axes": {
+     "tags": 1.0,
+     "classes": 1.0,
+     "idioms": 1.0
+    },
+    "dev": {
+     "tags": [
+      "option"
+     ],
+     "classes": [],
+     "idioms": [
+      "attr:value",
+      "nugget:=string"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "option"
+     ],
+     "classes": [],
+     "idioms": [
+      "attr:value",
+      "nugget:=string"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1904",
+  "arm": "exemplar",
+  "rep": 2,
+  "score": 0.2814814814814815,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/public/map/map.aspx",
+    "untouched": false,
+    "score": 0.2814814814814815,
+    "axes": {
+     "tags": 0.4,
+     "classes": 0.0,
+     "idioms": 0.4444444444444445
+    },
+    "dev": {
+     "tags": [
+      "option"
+     ],
+     "classes": [],
+     "idioms": [
+      "attr:value",
+      "nugget:=string"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "div",
+      "label",
+      "option",
+      "select"
+     ],
+     "classes": [
+      "col-xs-6",
+      "form-control"
+     ],
+     "idioms": [
+      "attr:class",
+      "attr:id",
+      "attr:selected",
+      "attr:value",
+      "nugget:=enumhelper",
+      "nugget:=resources",
+      "nugget:=string"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1908",
+  "arm": "dossier",
+  "rep": 1,
+  "score": 0.6793650793650794,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/public/shared/ctrl_files.ascx",
+    "untouched": false,
+    "score": 0.6793650793650794,
+    "axes": {
+     "tags": 0.5714285714285715,
+     "classes": 0.6666666666666666,
+     "idioms": 0.7999999999999999
+    },
+    "dev": {
+     "tags": [
+      "asp:label",
+      "asp:panel"
+     ],
+     "classes": [
+      "alert",
+      "alert-info"
+     ],
+     "idioms": [
+      "attr:cssclass",
+      "attr:id",
+      "attr:runat",
+      "attr:text",
+      "attr:visible",
+      "nugget:#eval",
+      "nugget:=resources"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "asp:label",
+      "asp:panel",
+      "asp:repeater",
+      "div",
+      "itemtemplate"
+     ],
+     "classes": [
+      "alert",
+      "alert-info",
+      "col-md-12",
+      "row"
+     ],
+     "idioms": [
+      "attr:class",
+      "attr:cssclass",
+      "attr:id",
+      "attr:runat",
+      "attr:text",
+      "attr:visible",
+      "nugget:",
+      "nugget:#eval"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1908",
+  "arm": "dossier",
+  "rep": 2,
+  "score": 0.6507936507936508,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/public/shared/ctrl_files.ascx",
+    "untouched": false,
+    "score": 0.6507936507936508,
+    "axes": {
+     "tags": 0.5714285714285715,
+     "classes": 0.6666666666666666,
+     "idioms": 0.7142857142857143
+    },
+    "dev": {
+     "tags": [
+      "asp:label",
+      "asp:panel"
+     ],
+     "classes": [
+      "alert",
+      "alert-info"
+     ],
+     "idioms": [
+      "attr:cssclass",
+      "attr:id",
+      "attr:runat",
+      "attr:text",
+      "attr:visible",
+      "nugget:#eval",
+      "nugget:=resources"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "asp:label",
+      "asp:panel",
+      "asp:repeater",
+      "div",
+      "itemtemplate"
+     ],
+     "classes": [
+      "alert",
+      "alert-info",
+      "col-md-12",
+      "row"
+     ],
+     "idioms": [
+      "attr:class",
+      "attr:cssclass",
+      "attr:id",
+      "attr:runat",
+      "attr:text",
+      "attr:visible",
+      "nugget:#container"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1908",
+  "arm": "exemplar",
+  "rep": 1,
+  "score": 0.8888888888888888,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/public/shared/ctrl_files.ascx",
+    "untouched": false,
+    "score": 0.8888888888888888,
+    "axes": {
+     "tags": 1.0,
+     "classes": 1.0,
+     "idioms": 0.6666666666666666
+    },
+    "dev": {
+     "tags": [
+      "asp:label",
+      "asp:panel"
+     ],
+     "classes": [
+      "alert",
+      "alert-info"
+     ],
+     "idioms": [
+      "attr:cssclass",
+      "attr:id",
+      "attr:runat",
+      "attr:text",
+      "attr:visible",
+      "nugget:#eval",
+      "nugget:=resources"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "asp:label",
+      "asp:panel"
+     ],
+     "classes": [
+      "alert",
+      "alert-info"
+     ],
+     "idioms": [
+      "attr:cssclass",
+      "attr:id",
+      "attr:runat",
+      "attr:visible",
+      "nugget:"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1908",
+  "arm": "exemplar",
+  "rep": 2,
+  "score": 0.8888888888888888,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/public/shared/ctrl_files.ascx",
+    "untouched": false,
+    "score": 0.8888888888888888,
+    "axes": {
+     "tags": 1.0,
+     "classes": 1.0,
+     "idioms": 0.6666666666666666
+    },
+    "dev": {
+     "tags": [
+      "asp:label",
+      "asp:panel"
+     ],
+     "classes": [
+      "alert",
+      "alert-info"
+     ],
+     "idioms": [
+      "attr:cssclass",
+      "attr:id",
+      "attr:runat",
+      "attr:text",
+      "attr:visible",
+      "nugget:#eval",
+      "nugget:=resources"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "asp:label",
+      "asp:panel"
+     ],
+     "classes": [
+      "alert",
+      "alert-info"
+     ],
+     "idioms": [
+      "attr:cssclass",
+      "attr:id",
+      "attr:runat",
+      "attr:visible",
+      "nugget:"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1941",
+  "arm": "dossier",
+  "rep": 1,
+  "score": 0.0,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/dashboard.master",
+    "untouched": true,
+    "score": 0.0,
+    "dev": {
+     "tags": [],
+     "classes": [],
+     "idioms": [
+      "nugget:",
+      "nugget:end",
+      "nugget:if"
+     ]
+    }
+   },
+   {
+    "path": "Site/modules/dashboard/pages/admin/system/jobnumber/jobnumber.aspx",
+    "na": true,
+    "untouched": true,
+    "score": null,
+    "dev": {
+     "tags": [],
+     "classes": [],
+     "idioms": []
+    }
+   },
+   {
+    "path": "Site/modules/dashboard/pages/admin/projectresult/projectresult.aspx",
+    "untouched": true,
+    "score": 0.0,
+    "dev": {
+     "tags": [],
+     "classes": [],
+     "idioms": [
+      "nugget:end",
+      "nugget:if"
+     ]
+    }
+   },
+   {
+    "path": "Site/modules/dashboard/pages/admin/system/project/project_edit.aspx",
+    "na": true,
+    "untouched": true,
+    "score": null,
+    "dev": {
+     "tags": [],
+     "classes": [],
+     "idioms": []
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1941",
+  "arm": "dossier",
+  "rep": 2,
+  "score": 0.4666666666666667,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/dashboard.master",
+    "untouched": false,
+    "score": 0.9333333333333333,
+    "axes": {
+     "tags": 1.0,
+     "classes": 1.0,
+     "idioms": 0.8
+    },
+    "dev": {
+     "tags": [],
+     "classes": [],
+     "idioms": [
+      "nugget:",
+      "nugget:end",
+      "nugget:if"
+     ]
+    },
+    "impl": {
+     "tags": [],
+     "classes": [],
+     "idioms": [
+      "nugget:end",
+      "nugget:if"
+     ]
+    }
+   },
+   {
+    "path": "Site/modules/dashboard/pages/admin/system/jobnumber/jobnumber.aspx",
+    "na": true,
+    "untouched": true,
+    "score": null,
+    "dev": {
+     "tags": [],
+     "classes": [],
+     "idioms": []
+    }
+   },
+   {
+    "path": "Site/modules/dashboard/pages/admin/projectresult/projectresult.aspx",
+    "untouched": true,
+    "score": 0.0,
+    "dev": {
+     "tags": [],
+     "classes": [],
+     "idioms": [
+      "nugget:end",
+      "nugget:if"
+     ]
+    }
+   },
+   {
+    "path": "Site/modules/dashboard/pages/admin/system/project/project_edit.aspx",
+    "na": true,
+    "untouched": true,
+    "score": null,
+    "dev": {
+     "tags": [],
+     "classes": [],
+     "idioms": []
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1941",
+  "arm": "exemplar",
+  "rep": 1,
+  "score": 0.4166666666666667,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/dashboard.master",
+    "untouched": false,
+    "score": 0.8333333333333334,
+    "axes": {
+     "tags": 1.0,
+     "classes": 1.0,
+     "idioms": 0.5
+    },
+    "dev": {
+     "tags": [],
+     "classes": [],
+     "idioms": [
+      "nugget:",
+      "nugget:end",
+      "nugget:if"
+     ]
+    },
+    "impl": {
+     "tags": [],
+     "classes": [],
+     "idioms": [
+      "nugget:if"
+     ]
+    }
+   },
+   {
+    "path": "Site/modules/dashboard/pages/admin/system/jobnumber/jobnumber.aspx",
+    "na": true,
+    "untouched": true,
+    "score": null,
+    "dev": {
+     "tags": [],
+     "classes": [],
+     "idioms": []
+    }
+   },
+   {
+    "path": "Site/modules/dashboard/pages/admin/projectresult/projectresult.aspx",
+    "untouched": true,
+    "score": 0.0,
+    "dev": {
+     "tags": [],
+     "classes": [],
+     "idioms": [
+      "nugget:end",
+      "nugget:if"
+     ]
+    }
+   },
+   {
+    "path": "Site/modules/dashboard/pages/admin/system/project/project_edit.aspx",
+    "na": true,
+    "untouched": true,
+    "score": null,
+    "dev": {
+     "tags": [],
+     "classes": [],
+     "idioms": []
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1941",
+  "arm": "exemplar",
+  "rep": 2,
+  "score": 0.4166666666666667,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/dashboard.master",
+    "untouched": false,
+    "score": 0.8333333333333334,
+    "axes": {
+     "tags": 1.0,
+     "classes": 1.0,
+     "idioms": 0.5
+    },
+    "dev": {
+     "tags": [],
+     "classes": [],
+     "idioms": [
+      "nugget:",
+      "nugget:end",
+      "nugget:if"
+     ]
+    },
+    "impl": {
+     "tags": [],
+     "classes": [],
+     "idioms": [
+      "nugget:if"
+     ]
+    }
+   },
+   {
+    "path": "Site/modules/dashboard/pages/admin/system/jobnumber/jobnumber.aspx",
+    "na": true,
+    "untouched": true,
+    "score": null,
+    "dev": {
+     "tags": [],
+     "classes": [],
+     "idioms": []
+    }
+   },
+   {
+    "path": "Site/modules/dashboard/pages/admin/projectresult/projectresult.aspx",
+    "untouched": true,
+    "score": 0.0,
+    "dev": {
+     "tags": [],
+     "classes": [],
+     "idioms": [
+      "nugget:end",
+      "nugget:if"
+     ]
+    }
+   },
+   {
+    "path": "Site/modules/dashboard/pages/admin/system/project/project_edit.aspx",
+    "na": true,
+    "untouched": true,
+    "score": null,
+    "dev": {
+     "tags": [],
+     "classes": [],
+     "idioms": []
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1946",
+  "arm": "dossier",
+  "rep": 1,
+  "score": 1.0,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/admin/system/access/project_access.aspx",
+    "untouched": false,
+    "score": 1.0,
+    "axes": {
+     "tags": 1.0,
+     "classes": 1.0,
+     "idioms": 1.0
+    },
+    "dev": {
+     "tags": [
+      "asp:button",
+      "asp:gridview",
+      "asp:linkbutton",
+      "span"
+     ],
+     "classes": [
+      "btn",
+      "btn-md",
+      "btn-primary",
+      "fa",
+      "fa-trash",
+      "icon-red",
+      "table",
+      "table-bordered",
+      "table-hover",
+      "table-striped"
+     ],
+     "idioms": [
+      "attr:allowpaging",
+      "attr:allowsorting",
+      "attr:autogeneratecolumns",
+      "attr:class",
+      "attr:clientidrowsuffix",
+      "attr:commandargument",
+      "attr:commandname",
+      "attr:cssclass",
+      "attr:datakeynames",
+      "attr:datasourceid",
+      "attr:id",
+      "attr:pagesize",
+      "attr:runat",
+      "attr:showheaderwhenempty",
+      "attr:text",
+      "attr:tooltip",
+      "attr:width",
+      "nugget:",
+      "nugget:#eval",
+      "res:control.add",
+      "res:control.remove"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "asp:button",
+      "asp:gridview",
+      "asp:linkbutton",
+      "span"
+     ],
+     "classes": [
+      "btn",
+      "btn-md",
+      "btn-primary",
+      "fa",
+      "fa-trash",
+      "icon-red",
+      "table",
+      "table-bordered",
+      "table-hover",
+      "table-striped"
+     ],
+     "idioms": [
+      "attr:allowpaging",
+      "attr:allowsorting",
+      "attr:autogeneratecolumns",
+      "attr:class",
+      "attr:clientidrowsuffix",
+      "attr:commandargument",
+      "attr:commandname",
+      "attr:cssclass",
+      "attr:datakeynames",
+      "attr:datasourceid",
+      "attr:id",
+      "attr:pagesize",
+      "attr:runat",
+      "attr:showheaderwhenempty",
+      "attr:text",
+      "attr:tooltip",
+      "attr:width",
+      "nugget:",
+      "nugget:#eval",
+      "res:control.add",
+      "res:control.remove"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1946",
+  "arm": "dossier",
+  "rep": 2,
+  "score": 1.0,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/admin/system/access/project_access.aspx",
+    "untouched": false,
+    "score": 1.0,
+    "axes": {
+     "tags": 1.0,
+     "classes": 1.0,
+     "idioms": 1.0
+    },
+    "dev": {
+     "tags": [
+      "asp:button",
+      "asp:gridview",
+      "asp:linkbutton",
+      "span"
+     ],
+     "classes": [
+      "btn",
+      "btn-md",
+      "btn-primary",
+      "fa",
+      "fa-trash",
+      "icon-red",
+      "table",
+      "table-bordered",
+      "table-hover",
+      "table-striped"
+     ],
+     "idioms": [
+      "attr:allowpaging",
+      "attr:allowsorting",
+      "attr:autogeneratecolumns",
+      "attr:class",
+      "attr:clientidrowsuffix",
+      "attr:commandargument",
+      "attr:commandname",
+      "attr:cssclass",
+      "attr:datakeynames",
+      "attr:datasourceid",
+      "attr:id",
+      "attr:pagesize",
+      "attr:runat",
+      "attr:showheaderwhenempty",
+      "attr:text",
+      "attr:tooltip",
+      "attr:width",
+      "nugget:",
+      "nugget:#eval",
+      "res:control.add",
+      "res:control.remove"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "asp:button",
+      "asp:gridview",
+      "asp:linkbutton",
+      "span"
+     ],
+     "classes": [
+      "btn",
+      "btn-md",
+      "btn-primary",
+      "fa",
+      "fa-trash",
+      "icon-red",
+      "table",
+      "table-bordered",
+      "table-hover",
+      "table-striped"
+     ],
+     "idioms": [
+      "attr:allowpaging",
+      "attr:allowsorting",
+      "attr:autogeneratecolumns",
+      "attr:class",
+      "attr:clientidrowsuffix",
+      "attr:commandargument",
+      "attr:commandname",
+      "attr:cssclass",
+      "attr:datakeynames",
+      "attr:datasourceid",
+      "attr:id",
+      "attr:pagesize",
+      "attr:runat",
+      "attr:showheaderwhenempty",
+      "attr:text",
+      "attr:tooltip",
+      "attr:width",
+      "nugget:",
+      "nugget:#eval",
+      "res:control.add",
+      "res:control.remove"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1946",
+  "arm": "exemplar",
+  "rep": 1,
+  "score": 1.0,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/admin/system/access/project_access.aspx",
+    "untouched": false,
+    "score": 1.0,
+    "axes": {
+     "tags": 1.0,
+     "classes": 1.0,
+     "idioms": 1.0
+    },
+    "dev": {
+     "tags": [
+      "asp:button",
+      "asp:gridview",
+      "asp:linkbutton",
+      "span"
+     ],
+     "classes": [
+      "btn",
+      "btn-md",
+      "btn-primary",
+      "fa",
+      "fa-trash",
+      "icon-red",
+      "table",
+      "table-bordered",
+      "table-hover",
+      "table-striped"
+     ],
+     "idioms": [
+      "attr:allowpaging",
+      "attr:allowsorting",
+      "attr:autogeneratecolumns",
+      "attr:class",
+      "attr:clientidrowsuffix",
+      "attr:commandargument",
+      "attr:commandname",
+      "attr:cssclass",
+      "attr:datakeynames",
+      "attr:datasourceid",
+      "attr:id",
+      "attr:pagesize",
+      "attr:runat",
+      "attr:showheaderwhenempty",
+      "attr:text",
+      "attr:tooltip",
+      "attr:width",
+      "nugget:",
+      "nugget:#eval",
+      "res:control.add",
+      "res:control.remove"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "asp:button",
+      "asp:gridview",
+      "asp:linkbutton",
+      "span"
+     ],
+     "classes": [
+      "btn",
+      "btn-md",
+      "btn-primary",
+      "fa",
+      "fa-trash",
+      "icon-red",
+      "table",
+      "table-bordered",
+      "table-hover",
+      "table-striped"
+     ],
+     "idioms": [
+      "attr:allowpaging",
+      "attr:allowsorting",
+      "attr:autogeneratecolumns",
+      "attr:class",
+      "attr:clientidrowsuffix",
+      "attr:commandargument",
+      "attr:commandname",
+      "attr:cssclass",
+      "attr:datakeynames",
+      "attr:datasourceid",
+      "attr:id",
+      "attr:pagesize",
+      "attr:runat",
+      "attr:showheaderwhenempty",
+      "attr:text",
+      "attr:tooltip",
+      "attr:width",
+      "nugget:",
+      "nugget:#eval",
+      "res:control.add",
+      "res:control.remove"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1946",
+  "arm": "exemplar",
+  "rep": 2,
+  "score": 1.0,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/admin/system/access/project_access.aspx",
+    "untouched": false,
+    "score": 1.0,
+    "axes": {
+     "tags": 1.0,
+     "classes": 1.0,
+     "idioms": 1.0
+    },
+    "dev": {
+     "tags": [
+      "asp:button",
+      "asp:gridview",
+      "asp:linkbutton",
+      "span"
+     ],
+     "classes": [
+      "btn",
+      "btn-md",
+      "btn-primary",
+      "fa",
+      "fa-trash",
+      "icon-red",
+      "table",
+      "table-bordered",
+      "table-hover",
+      "table-striped"
+     ],
+     "idioms": [
+      "attr:allowpaging",
+      "attr:allowsorting",
+      "attr:autogeneratecolumns",
+      "attr:class",
+      "attr:clientidrowsuffix",
+      "attr:commandargument",
+      "attr:commandname",
+      "attr:cssclass",
+      "attr:datakeynames",
+      "attr:datasourceid",
+      "attr:id",
+      "attr:pagesize",
+      "attr:runat",
+      "attr:showheaderwhenempty",
+      "attr:text",
+      "attr:tooltip",
+      "attr:width",
+      "nugget:",
+      "nugget:#eval",
+      "res:control.add",
+      "res:control.remove"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "asp:button",
+      "asp:gridview",
+      "asp:linkbutton",
+      "span"
+     ],
+     "classes": [
+      "btn",
+      "btn-md",
+      "btn-primary",
+      "fa",
+      "fa-trash",
+      "icon-red",
+      "table",
+      "table-bordered",
+      "table-hover",
+      "table-striped"
+     ],
+     "idioms": [
+      "attr:allowpaging",
+      "attr:allowsorting",
+      "attr:autogeneratecolumns",
+      "attr:class",
+      "attr:clientidrowsuffix",
+      "attr:commandargument",
+      "attr:commandname",
+      "attr:cssclass",
+      "attr:datakeynames",
+      "attr:datasourceid",
+      "attr:id",
+      "attr:pagesize",
+      "attr:runat",
+      "attr:showheaderwhenempty",
+      "attr:text",
+      "attr:tooltip",
+      "attr:width",
+      "nugget:",
+      "nugget:#eval",
+      "res:control.add",
+      "res:control.remove"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1955",
+  "arm": "dossier",
+  "rep": 1,
+  "score": 0.0,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/public/map/map.aspx",
+    "untouched": true,
+    "score": 0.0,
+    "dev": {
+     "tags": [],
+     "classes": [],
+     "idioms": [
+      "nugget:if"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1955",
+  "arm": "dossier",
+  "rep": 2,
+  "score": 0.6666666666666666,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/public/map/map.aspx",
+    "untouched": false,
+    "score": 0.6666666666666666,
+    "axes": {
+     "tags": 1.0,
+     "classes": 1.0,
+     "idioms": 0.0
+    },
+    "dev": {
+     "tags": [],
+     "classes": [],
+     "idioms": [
+      "nugget:if"
+     ]
+    },
+    "impl": {
+     "tags": [],
+     "classes": [],
+     "idioms": [
+      "attr:autoeventwireup",
+      "attr:codefile",
+      "attr:enableeventvalidation",
+      "attr:inherits",
+      "attr:language",
+      "attr:masterpagefile",
+      "attr:viewstatemode"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1955",
+  "arm": "exemplar",
+  "rep": 1,
+  "score": 1.0,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/public/map/map.aspx",
+    "untouched": false,
+    "score": 1.0,
+    "axes": {
+     "tags": 1.0,
+     "classes": 1.0,
+     "idioms": 1.0
+    },
+    "dev": {
+     "tags": [],
+     "classes": [],
+     "idioms": [
+      "nugget:if"
+     ]
+    },
+    "impl": {
+     "tags": [],
+     "classes": [],
+     "idioms": [
+      "nugget:if"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1955",
+  "arm": "exemplar",
+  "rep": 2,
+  "score": 0.6666666666666666,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/public/map/map.aspx",
+    "untouched": false,
+    "score": 0.6666666666666666,
+    "axes": {
+     "tags": 1.0,
+     "classes": 1.0,
+     "idioms": 0.0
+    },
+    "dev": {
+     "tags": [],
+     "classes": [],
+     "idioms": [
+      "nugget:if"
+     ]
+    },
+    "impl": {
+     "tags": [],
+     "classes": [],
+     "idioms": []
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1967",
+  "arm": "dossier",
+  "rep": 1,
+  "score": 0.0,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/public/taskmanagement/taskmanagement.aspx",
+    "untouched": true,
+    "score": 0.0,
+    "dev": {
+     "tags": [
+      "asp:dropdownlist",
+      "div",
+      "label"
+     ],
+     "classes": [
+      "col-md-3",
+      "disableonpostback",
+      "form-control",
+      "input-md",
+      "select2"
+     ],
+     "idioms": [
+      "attr:class",
+      "attr:cssclass",
+      "attr:datatextfield",
+      "attr:datavaluefield",
+      "attr:id",
+      "attr:onchange",
+      "attr:runat",
+      "nugget:=resources"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1967",
+  "arm": "dossier",
+  "rep": 2,
+  "score": 0.0,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/public/taskmanagement/taskmanagement.aspx",
+    "untouched": true,
+    "score": 0.0,
+    "dev": {
+     "tags": [
+      "asp:dropdownlist",
+      "div",
+      "label"
+     ],
+     "classes": [
+      "col-md-3",
+      "disableonpostback",
+      "form-control",
+      "input-md",
+      "select2"
+     ],
+     "idioms": [
+      "attr:class",
+      "attr:cssclass",
+      "attr:datatextfield",
+      "attr:datavaluefield",
+      "attr:id",
+      "attr:onchange",
+      "attr:runat",
+      "nugget:=resources"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1967",
+  "arm": "exemplar",
+  "rep": 1,
+  "score": 0.0,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/public/taskmanagement/taskmanagement.aspx",
+    "untouched": true,
+    "score": 0.0,
+    "dev": {
+     "tags": [
+      "asp:dropdownlist",
+      "div",
+      "label"
+     ],
+     "classes": [
+      "col-md-3",
+      "disableonpostback",
+      "form-control",
+      "input-md",
+      "select2"
+     ],
+     "idioms": [
+      "attr:class",
+      "attr:cssclass",
+      "attr:datatextfield",
+      "attr:datavaluefield",
+      "attr:id",
+      "attr:onchange",
+      "attr:runat",
+      "nugget:=resources"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1967",
+  "arm": "exemplar",
+  "rep": 2,
+  "score": 0.0,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/public/taskmanagement/taskmanagement.aspx",
+    "untouched": true,
+    "score": 0.0,
+    "dev": {
+     "tags": [
+      "asp:dropdownlist",
+      "div",
+      "label"
+     ],
+     "classes": [
+      "col-md-3",
+      "disableonpostback",
+      "form-control",
+      "input-md",
+      "select2"
+     ],
+     "idioms": [
+      "attr:class",
+      "attr:cssclass",
+      "attr:datatextfield",
+      "attr:datavaluefield",
+      "attr:id",
+      "attr:onchange",
+      "attr:runat",
+      "nugget:=resources"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1974",
+  "arm": "dossier",
+  "rep": 1,
+  "score": 0.0,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/public/map/map.aspx",
+    "untouched": true,
+    "score": 0.0,
+    "dev": {
+     "tags": [
+      "a",
+      "li",
+      "style"
+     ],
+     "classes": [
+      "geospatial-export-option"
+     ],
+     "idioms": [
+      "attr:aria-expanded",
+      "attr:aria-haspopup",
+      "attr:class",
+      "attr:href",
+      "attr:onclick",
+      "attr:role",
+      "attr:type",
+      "nugget:=",
+      "nugget:=string",
+      "nugget:end",
+      "nugget:if"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1974",
+  "arm": "dossier",
+  "rep": 2,
+  "score": 0.0,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/public/map/map.aspx",
+    "untouched": false,
+    "score": 0.0,
+    "axes": {
+     "tags": 0.0,
+     "classes": 0.0,
+     "idioms": 0.0
+    },
+    "dev": {
+     "tags": [
+      "a",
+      "li",
+      "style"
+     ],
+     "classes": [
+      "geospatial-export-option"
+     ],
+     "idioms": [
+      "attr:aria-expanded",
+      "attr:aria-haspopup",
+      "attr:class",
+      "attr:href",
+      "attr:onclick",
+      "attr:role",
+      "attr:type",
+      "nugget:=",
+      "nugget:=string",
+      "nugget:end",
+      "nugget:if"
+     ]
+    },
+    "impl": {
+     "tags": [],
+     "classes": [],
+     "idioms": []
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1974",
+  "arm": "exemplar",
+  "rep": 1,
+  "score": 0.5019607843137255,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/public/map/map.aspx",
+    "untouched": false,
+    "score": 0.5019607843137255,
+    "axes": {
+     "tags": 0.8,
+     "classes": 0.0,
+     "idioms": 0.7058823529411764
+    },
+    "dev": {
+     "tags": [
+      "a",
+      "li",
+      "style"
+     ],
+     "classes": [
+      "geospatial-export-option"
+     ],
+     "idioms": [
+      "attr:aria-expanded",
+      "attr:aria-haspopup",
+      "attr:class",
+      "attr:href",
+      "attr:onclick",
+      "attr:role",
+      "attr:type",
+      "nugget:=",
+      "nugget:=string",
+      "nugget:end",
+      "nugget:if"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "a",
+      "li"
+     ],
+     "classes": [],
+     "idioms": [
+      "attr:href",
+      "attr:onclick",
+      "nugget:=",
+      "nugget:=string",
+      "nugget:end",
+      "nugget:if"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1974",
+  "arm": "exemplar",
+  "rep": 2,
+  "score": 0.10256410256410257,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/public/map/map.aspx",
+    "untouched": false,
+    "score": 0.10256410256410257,
+    "axes": {
+     "tags": 0.0,
+     "classes": 0.0,
+     "idioms": 0.3076923076923077
+    },
+    "dev": {
+     "tags": [
+      "a",
+      "li",
+      "style"
+     ],
+     "classes": [
+      "geospatial-export-option"
+     ],
+     "idioms": [
+      "attr:aria-expanded",
+      "attr:aria-haspopup",
+      "attr:class",
+      "attr:href",
+      "attr:onclick",
+      "attr:role",
+      "attr:type",
+      "nugget:=",
+      "nugget:=string",
+      "nugget:end",
+      "nugget:if"
+     ]
+    },
+    "impl": {
+     "tags": [],
+     "classes": [],
+     "idioms": [
+      "nugget:end",
+      "nugget:if"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1979",
+  "arm": "dossier",
+  "rep": 1,
+  "score": 0.0,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/admin/system/accountrequest/user_account_request.aspx",
+    "untouched": false,
+    "score": 0.0,
+    "axes": {
+     "tags": 0.0,
+     "classes": 0.0,
+     "idioms": 0.0
+    },
+    "dev": {
+     "tags": [
+      "asp:templatefield",
+      "i",
+      "itemtemplate",
+      "span"
+     ],
+     "classes": [
+      "fa",
+      "fa-spin",
+      "fa-spinner",
+      "request-table-email-cell"
+     ],
+     "idioms": [
+      "attr:class",
+      "attr:headertext",
+      "attr:id",
+      "attr:style",
+      "attr:title",
+      "nugget:",
+      "nugget:#server",
+      "res:label.email"
+     ]
+    },
+    "impl": {
+     "tags": [],
+     "classes": [],
+     "idioms": []
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1979",
+  "arm": "dossier",
+  "rep": 2,
+  "score": 0.44107744107744107,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/admin/system/accountrequest/user_account_request.aspx",
+    "untouched": false,
+    "score": 0.44107744107744107,
+    "axes": {
+     "tags": 0.3333333333333333,
+     "classes": 0.5454545454545454,
+     "idioms": 0.4444444444444445
+    },
+    "dev": {
+     "tags": [
+      "asp:templatefield",
+      "i",
+      "itemtemplate",
+      "span"
+     ],
+     "classes": [
+      "fa",
+      "fa-spin",
+      "fa-spinner",
+      "request-table-email-cell"
+     ],
+     "idioms": [
+      "attr:class",
+      "attr:headertext",
+      "attr:id",
+      "attr:style",
+      "attr:title",
+      "nugget:",
+      "nugget:#server",
+      "res:label.email"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "asp:button",
+      "i"
+     ],
+     "classes": [
+      "btn",
+      "btn-md",
+      "btn-success",
+      "fa",
+      "fa-spin",
+      "fa-spinner",
+      "hidden"
+     ],
+     "idioms": [
+      "attr:aria-hidden",
+      "attr:class",
+      "attr:cssclass",
+      "attr:id",
+      "attr:onclientclick",
+      "attr:runat",
+      "attr:style",
+      "attr:text",
+      "nugget:",
+      "res:control.save"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1979",
+  "arm": "exemplar",
+  "rep": 1,
+  "score": 0.14285714285714285,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/admin/system/accountrequest/user_account_request.aspx",
+    "untouched": false,
+    "score": 0.14285714285714285,
+    "axes": {
+     "tags": 0.0,
+     "classes": 0.0,
+     "idioms": 0.42857142857142855
+    },
+    "dev": {
+     "tags": [
+      "asp:templatefield",
+      "i",
+      "itemtemplate",
+      "span"
+     ],
+     "classes": [
+      "fa",
+      "fa-spin",
+      "fa-spinner",
+      "request-table-email-cell"
+     ],
+     "idioms": [
+      "attr:class",
+      "attr:headertext",
+      "attr:id",
+      "attr:style",
+      "attr:title",
+      "nugget:",
+      "nugget:#server",
+      "res:label.email"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "img"
+     ],
+     "classes": [],
+     "idioms": [
+      "attr:alt",
+      "attr:id",
+      "attr:src",
+      "attr:style",
+      "attr:title",
+      "nugget:=resources"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "pr_id": "1979",
+  "arm": "exemplar",
+  "rep": 2,
+  "score": 0.6897546897546897,
+  "files": [
+   {
+    "path": "Site/modules/dashboard/pages/admin/system/accountrequest/user_account_request.aspx",
+    "untouched": false,
+    "score": 0.6897546897546897,
+    "axes": {
+     "tags": 0.6666666666666666,
+     "classes": 0.8571428571428571,
+     "idioms": 0.5454545454545454
+    },
+    "dev": {
+     "tags": [
+      "asp:templatefield",
+      "i",
+      "itemtemplate",
+      "span"
+     ],
+     "classes": [
+      "fa",
+      "fa-spin",
+      "fa-spinner",
+      "request-table-email-cell"
+     ],
+     "idioms": [
+      "attr:class",
+      "attr:headertext",
+      "attr:id",
+      "attr:style",
+      "attr:title",
+      "nugget:",
+      "nugget:#server",
+      "res:label.email"
+     ]
+    },
+    "impl": {
+     "tags": [
+      "i",
+      "span"
+     ],
+     "classes": [
+      "fa",
+      "fa-spin",
+      "fa-spinner"
+     ],
+     "idioms": [
+      "attr:class",
+      "attr:id",
+      "attr:style"
+     ]
+    }
+   }
+  ]
+ }
+]
