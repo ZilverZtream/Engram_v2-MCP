@@ -200,11 +200,21 @@ def main():
     arms = sorted({a for _, a in by}, key=str)
     for pr in sorted({p for p, _ in by}):
         print(f"{pr:>5} " + " | ".join(f"{arm}: {statistics.mean(by[(pr, arm)]):.2f} (n={len(by[(pr, arm)])})" for arm in arms if (pr, arm) in by))
-    print("\n== overall mean per arm")
+    print("\n== overall mean per arm (PRIMARY: untouched truth files score 0)")
     for arm in arms:
         v = [s for (p, ar), ss in by.items() if ar == arm for s in ss]
         if v:
             print(f"  {str(arm):>9}: {statistics.mean(v):.3f} (n={len(v)} runs, {len({p for (p, ar) in by if ar == arm})} stories)")
+    # SECONDARY (declared before the exemplar run): conformance of the markup
+    # the implementer actually wrote — mean over TOUCHED, measurable truth
+    # files — separates "wrote it differently" from "never opened the page".
+    print("\n== touched-only conformance per arm (SECONDARY)")
+    for arm in arms:
+        touched = [f["score"] for x in rows if x["arm"] == arm for f in x["files"]
+                   if f.get("score") is not None and not f.get("untouched")]
+        total = [f for x in rows if x["arm"] == arm for f in x["files"] if f.get("score") is not None]
+        if total:
+            print(f"  {str(arm):>9}: {statistics.mean(touched) if touched else float('nan'):.3f} over {len(touched)} touched of {len(total)} measurable file-runs ({100 * len(touched) / len(total):.0f}% touched)")
     if a.out:
         io.open(a.out, "w", encoding="utf-8").write(json.dumps(rows, indent=1, ensure_ascii=False))
         print("wrote", a.out)
