@@ -54,6 +54,9 @@ pub struct UiFamily {
     pub axes: Vec<UiAxis>,
     /// Every instance's file (relative path) — for region matching.
     pub instance_paths: Vec<String>,
+    /// The instances carrying the canonical class set, in (path, line) order —
+    /// a region pull cites the first one inside the region.
+    pub carriers: Vec<UiExemplar>,
 }
 
 /// Node types the extractor emits for UI containers.
@@ -80,6 +83,29 @@ fn set_key(set: &BTreeSet<String>) -> String {
     set.iter().cloned().collect::<Vec<_>>().join(" ")
 }
 
+/// Utility / spacing classes (Bootstrap-style margins, paddings, grid
+/// columns, text/display helpers) carry no family identity: `form-group row`
+/// and `form-group row mt-3` are one family with a spacing deviation.
+fn is_utility_class(c: &str) -> bool {
+    static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let re = RE.get_or_init(|| {
+        regex::Regex::new(
+            r"^(?:[mp][tblrxy]?-(?:\d+|auto)|col(?:-(?:xs|sm|md|lg|xl|xxl))?(?:-(?:\d+|auto))?|(?:text|d|float|w|h|justify|align|bg|border|rounded|shadow|flex|order|offset|gap|fw|fs|lh|position|overflow|visible|invisible|clearfix)(?:-.*)?)$",
+        )
+        .expect("static utility-class regex")
+    });
+    re.is_match(c)
+}
+
+/// The class SET minus utility classes — the family identity of an instance
+/// (external audit 2026-08-29 row 5, owner decision 15:23).
+pub fn base_class_set(css: &str) -> BTreeSet<String> {
+    class_set(css)
+        .into_iter()
+        .filter(|c| !is_utility_class(c))
+        .collect()
+}
+
 /// Cluster the project's UI container nodes into families with at least
 /// `min_instances` members and derive their contracts.
 pub fn build_families(
@@ -91,19 +117,26 @@ pub fn build_families(
     for t in CONTAINER_TYPES {
         nodes.extend(graph.query_nodes(project_id, Some(t), None, None, 50_000)?);
     }
-    // Cluster key: what kind of container it is and how it lays out.
-    let mut clusters: BTreeMap<(String, String), Vec<&engram_graph::Node>> = BTreeMap::new();
+    // Cluster key: what kind of container it is, how it lays out, and its BASE
+    // class set. A class-less instance is an orphan, not a family member —
+    // live OciusX otherwise produced one 6,475-instance `div` "family".
+    let mut clusters: BTreeMap<(String, String, String), Vec<&engram_graph::Node>> =
+        BTreeMap::new();
     for n in &nodes {
         let ct = meta_str(n, "container_type");
         if ct.is_empty() {
             continue;
         }
+        let base = set_key(&base_class_set(&meta_str(n, "css_class")));
+        if base.is_empty() {
+            continue;
+        }
         let ls = meta_str(n, "layout_style");
-        clusters.entry((ct, ls)).or_default().push(n);
+        clusters.entry((ct, ls, base)).or_default().push(n);
     }
 
     let mut out = Vec::new();
-    for ((ct, ls), members) in clusters {
+    for ((ct, ls, base), members) in clusters {
         if members.len() < min_instances.max(2) {
             continue;
         }
@@ -133,7 +166,15 @@ pub fn build_families(
             sets.push((set, n));
         }
         let mut ranked: Vec<(String, usize)> = counts.into_iter().collect();
-        ranked.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        ranked.sort_by(|a, b| {
+            b.1.cmp(&a.1)
+                .then_with(|| {
+                    a.0.split_whitespace()
+                        .count()
+                        .cmp(&b.0.split_whitespace().count())
+                })
+                .then_with(|| a.0.cmp(&b.0))
+        });
         let (canonical_key, canonical_count) = ranked
             .first()
             .cloned()
@@ -169,16 +210,12 @@ pub fn build_families(
         });
         let ex = carriers.first().copied().unwrap_or(members[0]);
 
-        let family_name = if canonical_key.is_empty() {
-            format!("{ct} ({ls})")
-        } else {
-            format!("{ct} ({ls}) .{}", canonical_key.replace(' ', "."))
-        };
+        let family_name = format!("{ct} ({ls}) .{}", base.replace(' ', "."));
         let family_id = format!(
             "ui:{}:{}:{}",
             ct.to_ascii_lowercase(),
             ls.to_ascii_lowercase(),
-            canonical_key.replace(' ', "+")
+            base.replace(' ', "+")
         );
         out.push(UiFamily {
             family_id,
@@ -194,6 +231,14 @@ pub fn build_families(
             instance_paths: members
                 .iter()
                 .map(|n| n.file_path.as_str().to_string())
+                .collect(),
+            carriers: carriers
+                .iter()
+                .map(|n| UiExemplar {
+                    path: n.file_path.as_str().to_string(),
+                    node_id: n.node_id.clone(),
+                    line: n.start_line,
+                })
                 .collect(),
         });
     }
@@ -280,6 +325,12 @@ pub fn families_for_region(
     Ok(all
         .into_iter()
         .filter(|f| f.instance_paths.iter().any(|p| region_matches(region, p)))
+        .map(|mut f| {
+            if let Some(c) = f.carriers.iter().find(|c| region_matches(region, &c.path)) {
+                f.exemplar = c.clone();
+            }
+            f
+        })
         .collect())
 }
 
