@@ -200,6 +200,27 @@ pub(crate) fn concept_stems(concept: &str) -> Vec<String> {
     {
         stems.push(base.to_string());
     }
+    // Swedish morphology (row-4 audit D5): plural / definite suffixes so a
+    // Swedish concept in either form matches the identifier in the other —
+    // "kategorier" → "kategori", "projekten" → "projekt", "objektet" →
+    // "objekt", "personalliggarna" → "personalliggar" (a prefix of the
+    // singular). Base length ≥ 4 keeps tiny over-matching stems out
+    // ("order" must not yield "ord").
+    for suffix in ["erna", "arna", "orna", "na", "er", "ar", "or", "en", "et"] {
+        if let Some(base) = lower.strip_suffix(suffix)
+            && base.len() >= 4
+            && !stems.iter().any(|s| s == base)
+        {
+            stems.push(base.to_string());
+        }
+    }
+    if let Some(base) = lower.strip_suffix('n')
+        && base.len() >= 4
+        && base.ends_with(['a', 'e', 'i', 'o'])
+        && !stems.iter().any(|s| s == base)
+    {
+        stems.push(base.to_string());
+    }
     let compact: String = lower.chars().filter(|c| c.is_alphanumeric()).collect();
     if !stems.contains(&compact) && compact.len() >= 3 {
         stems.push(compact);
