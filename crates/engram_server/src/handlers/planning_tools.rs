@@ -5572,6 +5572,14 @@ pub(crate) struct ChangeSetCoverage {
     /// retrieved by default (a subset of `concept_candidates`).
     #[serde(default)]
     pub gloss_concepts: Vec<String>,
+    /// External audit 2026-08-29 P0-3 (≤ 5 s gate): wall-clock of the call and
+    /// cumulative checkpoints (ms since start) — `node_scan`, `arms_done`,
+    /// `before_render`, `render` — so the time outside the timed arms is
+    /// visible instead of inferred.
+    #[serde(default)]
+    pub wall_ms: u128,
+    #[serde(default)]
+    pub stages: std::collections::BTreeMap<String, u128>,
     /// External audit 2026-08-29 row 1: `english phrase → swedish term` pairs the
     /// project's .resx lexicon contributed as default concepts.
     #[serde(default)]
@@ -5588,6 +5596,14 @@ fn render_change_set_coverage(cov: &ChangeSetCoverage, omitted: usize) -> String
     s.push_str(&format!("- co-change: {}\n", cov.cochange.line()));
     s.push_str(&format!("- vector: {}\n", cov.vector.line()));
     s.push_str(&format!("- kb bridge: {}\n", cov.kb_bridge.line()));
+    if cov.wall_ms > 0 {
+        let cps: Vec<String> = cov.stages.iter().map(|(k, v)| format!("{k} {v}")).collect();
+        s.push_str(&format!(
+            "- wall: {} ms (checkpoints: {})\n",
+            cov.wall_ms,
+            cps.join(", ")
+        ));
+    }
     s.push_str(&format!("- family: {}\n", cov.family.line()));
     s.push_str(&format!("- node scans: {}\n", cov.node_scans));
     if !cov.lexicon_concepts.is_empty() {
@@ -5921,6 +5937,7 @@ impl Engram {
         // reports what it delivered (never a silent `if let Ok`).
         let mut why: BTreeMap<String, Vec<String>> = BTreeMap::new();
         let mut cov = ChangeSetCoverage::default();
+        let t_all = std::time::Instant::now();
         cov.concept_candidates = concept_candidates.clone();
         cov.gloss_concepts = gloss_concepts.clone();
         cov.lexicon_concepts = lexicon_hits
@@ -6181,6 +6198,8 @@ impl Engram {
             .unwrap_or_default()
         };
         cov.node_scans = 1;
+        cov.stages
+            .insert("node_scan".into(), t_all.elapsed().as_millis());
         if ranked.is_empty() {
             cov.cochange = ArmCoverage::not_run("no concept/history seeds to anchor on");
         }
@@ -6702,6 +6721,8 @@ impl Engram {
         // the twin). Scan control + function nodes in the top provisional
         // files and surface one-token-apart name pairs. Generic: name-shape
         // scan, no per-repo names.
+        cov.stages
+            .insert("arms_done".into(), t_all.elapsed().as_millis());
         let sibling_section: Option<String> = {
             // "Top" = corroboration tier, then MORE signals, restricted to
             // files that can hold control/function nodes (see the helper's
@@ -6840,6 +6861,8 @@ impl Engram {
                 None
             };
 
+        cov.stages
+            .insert("before_render".into(), t_all.elapsed().as_millis());
         let (mut out, omissions) = render_change_set(
             req.story.trim(),
             &concepts,
@@ -6849,6 +6872,9 @@ impl Engram {
             setting_prior,
             &historical,
         );
+        cov.stages
+            .insert("render".into(), t_all.elapsed().as_millis());
+        cov.wall_ms = t_all.elapsed().as_millis();
         out.push_str(&render_change_set_coverage(&cov, omissions.len()));
 
         let graph = self.state.graph.clone();
