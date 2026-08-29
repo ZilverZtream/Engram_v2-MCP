@@ -39,5 +39,6 @@ pub mod session_workflow_service;
 pub mod slice_service;
 pub mod state_migration_service;
 pub mod strangler_fig_service;
+pub mod ui_catalog;
 pub mod validation_mapping_service;
 pub mod viewstate_service;
