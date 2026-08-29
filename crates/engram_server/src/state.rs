@@ -95,6 +95,10 @@ pub struct AppState {
     /// Counter for active indexing jobs (to throttle dreamer).
     pub active_indexing_count: Arc<std::sync::atomic::AtomicUsize>,
 
+    /// Completed GC sweeps (external audit 2026-08-29 P0-1: lets a test prove
+    /// the scheduler's first sweep is delayed instead of firing at startup).
+    pub gc_sweeps_completed: Arc<std::sync::atomic::AtomicU64>,
+
     /// Semaphore bounding concurrent parse/chunking blocking tasks.
     pub parse_semaphore: Arc<Semaphore>,
 
@@ -254,6 +258,7 @@ impl AppState {
                 gc_nudge: Arc::new(tokio::sync::Notify::new()),
                 cancellation_tokens: Arc::new(RwLock::new(HashMap::new())),
                 active_indexing_count: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
+                gc_sweeps_completed: Arc::new(std::sync::atomic::AtomicU64::new(0)),
                 parse_semaphore: Arc::new(Semaphore::new(parse_concurrency)),
                 project_update_locks: Arc::new(RwLock::new(HashMap::new())),
                 events_tx,
@@ -390,5 +395,26 @@ impl AppState {
         self.project_lru
             .insert(ps.info.project_id.clone(), std::time::Instant::now());
         self.projects.insert(ps.info.project_id.clone(), ps);
+    }
+}
+
+/// RAII registration in `active_indexing_count` (external audit 2026-08-29
+/// P0-1): every path that writes a generation — index jobs AND incremental
+/// updates from the watcher or `update_project(wait=true)` — holds one of
+/// these for its whole duration, so the GC's JOB1/JOB3 guards see it.
+pub struct ActiveIndexingSlot(Arc<std::sync::atomic::AtomicUsize>);
+
+impl ActiveIndexingSlot {
+    pub fn acquire(state: &AppState) -> Self {
+        state
+            .active_indexing_count
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Self(state.active_indexing_count.clone())
+    }
+}
+
+impl Drop for ActiveIndexingSlot {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
     }
 }

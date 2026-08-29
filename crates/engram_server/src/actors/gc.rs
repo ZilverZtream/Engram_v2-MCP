@@ -8,8 +8,20 @@ use tokio_util::sync::CancellationToken;
 /// JOB1: skips the purge tick when active indexing is in progress to prevent a GC generation
 /// deletion from racing with an in-flight index job that is still writing to the same generation.
 pub async fn run_gc_scheduler(state: AppState, shutdown: CancellationToken) {
+    run_gc_scheduler_with_delay(state, shutdown, Duration::from_secs(3600)).await
+}
+
+/// External audit 2026-08-29 P0-1: `tokio::time::interval` ticks immediately,
+/// so the first purge ran while the watcher was restoring projects and
+/// starting incremental updates at daemon start. The first sweep now waits
+/// `initial_delay` (one hour in production; tests pass milliseconds).
+pub async fn run_gc_scheduler_with_delay(
+    state: AppState,
+    shutdown: CancellationToken,
+    initial_delay: Duration,
+) {
     let tick = Duration::from_secs(3600); // Once an hour
-    let mut interval = tokio::time::interval(tick);
+    let mut interval = tokio::time::interval_at(tokio::time::Instant::now() + initial_delay, tick);
 
     loop {
         tokio::select! {
@@ -73,10 +85,27 @@ pub async fn run_gc_scheduler(state: AppState, shutdown: CancellationToken) {
                 tracing::error!("GC error for project {}: {:?}", pid, e);
             }
         }
+        state
+            .gc_sweeps_completed
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     }
 }
 
 pub async fn purge_project_old_gens(state: &AppState, project_id: &str) -> anyhow::Result<()> {
+    // External audit 2026-08-29 P0-1: the guard lives HERE too, not only in the
+    // scheduler loop, so every caller (nudge, tests, tools) skips a project
+    // while any generation is being written.
+    let active = state
+        .active_indexing_count
+        .load(std::sync::atomic::Ordering::SeqCst);
+    if active > 0 {
+        tracing::info!(
+            project_id = project_id,
+            active_jobs = active,
+            "GC: skipping purge — {active} indexing job(s) in progress"
+        );
+        return Ok(());
+    }
     let reg = state.registry.clone();
     let pid = project_id.to_string();
     let (active_gen_opt, full_gen_opt) = tokio::task::spawn_blocking(move || {

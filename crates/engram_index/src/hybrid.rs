@@ -964,6 +964,25 @@ impl HybridSearchEngine {
 
                     match policy.retention {
                         engram_core::NamespaceRetention::KeepLatestOnly => {
+                            // External audit 2026-08-29 P0-1: "latest only" used to mean
+                            // "everything that is NOT the published generation" — which
+                            // also deleted the generation an incremental update was still
+                            // building by copy-forward (OciusX collapsed to 56 chunks).
+                            // Stale is OLDER than the published generation; newer
+                            // generations belong to an update in flight and are kept.
+                            if active_generation == 0 {
+                                continue;
+                            }
+                            let parser = QueryParser::for_index(
+                                &self.tantivy_index,
+                                vec![self.fields.generation],
+                            );
+                            let Ok(older) = parser.parse_query(&format!(
+                                "generation:[* TO {}]",
+                                active_generation - 1
+                            )) else {
+                                continue;
+                            };
                             let query = BooleanQuery::new(vec![
                                 (
                                     Occur::Must,
@@ -973,16 +992,7 @@ impl HybridSearchEngine {
                                     Occur::Must,
                                     Box::new(TermQuery::new(ns_term, IndexRecordOption::Basic)),
                                 ),
-                                (
-                                    Occur::MustNot,
-                                    Box::new(TermQuery::new(
-                                        Term::from_field_u64(
-                                            self.fields.generation,
-                                            active_generation,
-                                        ),
-                                        IndexRecordOption::Basic,
-                                    )),
-                                ),
+                                (Occur::Must, older),
                             ]);
                             writer.delete_query(Box::new(query))?;
                         }
@@ -1569,6 +1579,43 @@ impl HybridSearchEngine {
     }
 
     /// Count docs per namespace for a project (memory, history, antipattern, etc.).
+    /// Docs of one namespace at one exact generation — the generation
+    /// completeness signal (external audit 2026-08-29 P0-2): the published
+    /// generation of the code namespace must carry the whole corpus.
+    pub fn count_docs_in_generation(
+        &self,
+        project_id: &str,
+        namespace: &str,
+        generation: u64,
+    ) -> anyhow::Result<usize> {
+        let reader = self.tantivy_index.reader()?;
+        let searcher = reader.searcher();
+        let q = BooleanQuery::new(vec![
+            (
+                Occur::Must,
+                Box::new(TermQuery::new(
+                    Term::from_field_text(self.fields.project_id, project_id),
+                    IndexRecordOption::Basic,
+                )),
+            ),
+            (
+                Occur::Must,
+                Box::new(TermQuery::new(
+                    Term::from_field_text(self.fields.namespace, namespace),
+                    IndexRecordOption::Basic,
+                )),
+            ),
+            (
+                Occur::Must,
+                Box::new(TermQuery::new(
+                    Term::from_field_u64(self.fields.generation, generation),
+                    IndexRecordOption::Basic,
+                )),
+            ),
+        ]);
+        Ok(searcher.search(&q, &tantivy::collector::Count)?)
+    }
+
     pub fn count_docs_by_namespace(
         &self,
         project_id: &str,
