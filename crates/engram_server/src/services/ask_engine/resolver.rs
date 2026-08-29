@@ -83,22 +83,55 @@ pub fn resolve_entities_in_context(
             }
             Ok(ResolveResult::Ambiguous(v)) => {
                 let toks = qualifier_tokens(question, &m.text);
-                let narrowed: Vec<&Node> = if toks.is_empty() {
+                // Match STRENGTH (release 30 live, golden `ox_impact_4`): a qualifier
+                // that names a candidate's class or file stem EXACTLY outranks one
+                // that merely occurs inside a longer name — `projekt` is the class
+                // of `_gd.projekt.GetByID` / `projekt.vb` and only a substring of
+                // `installationsobjektprojekt`. The strongest tier alone survives.
+                let scored: Vec<(u8, &Node)> = if toks.is_empty() {
                     Vec::new()
                 } else {
                     v.iter()
-                        .filter(|n| {
-                            let hay = format!(
-                                "{} {} {}",
-                                n.file_path.as_str().replace('\\', "/"),
-                                n.node_id,
-                                n.name
-                            )
-                            .to_lowercase();
-                            toks.iter().any(|t| hay.contains(t.as_str()))
+                        .filter_map(|n| {
+                            let path = n.file_path.as_str().replace('\\', "/").to_lowercase();
+                            let stem = path
+                                .rsplit('/')
+                                .next()
+                                .unwrap_or("")
+                                .split('.')
+                                .next()
+                                .unwrap_or("")
+                                .to_string();
+                            let segments: Vec<String> = n
+                                .name
+                                .to_lowercase()
+                                .split(|c: char| c == '.' || c == ':')
+                                .map(|s| s.to_string())
+                                .collect();
+                            let hay = format!("{path} {} {}", n.node_id, n.name).to_lowercase();
+                            let strength = toks
+                                .iter()
+                                .map(|t| {
+                                    if stem == *t || segments.iter().any(|s| s == t) {
+                                        2
+                                    } else if hay.contains(t.as_str()) {
+                                        1
+                                    } else {
+                                        0
+                                    }
+                                })
+                                .max()
+                                .unwrap_or(0);
+                            (strength > 0).then_some((strength, n))
                         })
                         .collect()
                 };
+                let best = scored.iter().map(|(s, _)| *s).max().unwrap_or(0);
+                let narrowed: Vec<&Node> = scored
+                    .iter()
+                    .filter(|(s, _)| *s == best)
+                    .map(|(_, n)| *n)
+                    .collect();
                 m.resolved = if !narrowed.is_empty() && narrowed.len() < v.len() {
                     let conf = if narrowed.len() == 1 { 0.8 } else { 0.5 };
                     narrowed
