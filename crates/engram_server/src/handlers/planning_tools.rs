@@ -34,6 +34,9 @@ use std::path::PathBuf;
 /// singular, and a compacted form without separators so "code category" also
 /// matches "CodeCategory"/"code_category".
 /// Row-4 audit: caps of the concept footprint, all REPORTED.
+/// External audit 2026-08-29 row 1: the resx lexicon contributes at most this many
+/// concept terms (most specific first) — each concept runs a footprint (~1 s live).
+pub const LEXICON_CONCEPT_CAP: usize = 4;
 pub(crate) const ANCHOR_CAP: usize = 50;
 pub(crate) const CONSUMER_CAP_PER_ANCHOR: usize = 200;
 pub(crate) const LEXICAL_PAGE: usize = 2000;
@@ -5924,7 +5927,10 @@ impl Engram {
             _ if req.expand_concepts => concept_candidates.clone(),
             _ => {
                 let mut base = extract_story_concepts(&story_for_concepts(&req.story));
-                for g in gloss_concepts.iter().chain(lexicon_concepts.iter()) {
+                for g in gloss_concepts
+                    .iter()
+                    .chain(lexicon_concepts.iter().take(LEXICON_CONCEPT_CAP))
+                {
                     if !base.contains(g) {
                         base.push(g.clone());
                     }
