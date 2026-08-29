@@ -62,6 +62,8 @@ pub fn guess_language(path: &std::path::Path) -> &'static str {
         "csproj" | "vbproj" => "xml",
         "sql" => "sql",
         "rdlc" | "rdl" => "xml",
+        // ORM model files are XML (LINQ-to-SQL / Entity Framework).
+        "dbml" | "edmx" => "xml",
         "asp" => "asp_classic",
         "rpt" => "text",
         _ => "text",
