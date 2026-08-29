@@ -5306,7 +5306,9 @@ mod edit_safety_tests {
             r.reasons
         );
         assert!(
-            !r.reasons.iter().any(|s| s.starts_with("50 distinct callers")),
+            !r.reasons
+                .iter()
+                .any(|s| s.starts_with("50 distinct callers")),
             "a bare capped count must not appear: {:?}",
             r.reasons
         );
