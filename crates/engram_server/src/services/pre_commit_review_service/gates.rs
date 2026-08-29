@@ -46,6 +46,9 @@ pub fn all_gates() -> Vec<Box<dyn Gate>> {
         Box::new(CoAddedFamilyGate),
         Box::new(ComplexityGate),
         Box::new(AddedConventionsGate),
+        // External audit 2026-08-29 row 5 v3 slice 3: advisory house-style check
+        // on added markup vs the page's nearest siblings (never blocking).
+        Box::new(UiHouseStyleGate),
     ]
 }
 
@@ -4802,6 +4805,148 @@ impl Gate for RepoRuleGate {
                         findings.push(f);
                     }
                 }
+            }
+        }
+        Ok(findings)
+    }
+}
+
+// ── Gate: UI house style (external audit 2026-08-29 row 5 v3 slice 3) ─────
+
+/// Advisory: added markup in a .aspx/.ascx/.master file is compared with the
+/// page's TERRITORY (the sibling pages next door, `services::house_style`).
+/// A CSS class, resource family or user control that no sibling uses is
+/// named together with what the siblings use instead. Info only — the house
+/// style is advice, never a blocker; a page without siblings is silent.
+pub struct UiHouseStyleGate;
+
+fn is_markup_file(path: &str) -> bool {
+    let l = path.to_lowercase();
+    l.ends_with(".aspx") || l.ends_with(".ascx") || l.ends_with(".master")
+}
+
+impl Gate for UiHouseStyleGate {
+    fn name(&self) -> &'static str {
+        "ui_house_style"
+    }
+
+    fn run(&self, ctx: &GateContext<'_>) -> anyhow::Result<Vec<ReviewFinding>> {
+        use crate::services::house_style::{markup_idioms, scan_siblings};
+        let mut findings = Vec::new();
+        for df in ctx.diff_files {
+            if df.is_binary
+                || matches!(df.change_type, ChangeType::Deleted)
+                || !is_markup_file(&df.path)
+                || df.added_lines.is_empty()
+            {
+                continue;
+            }
+            let (territory, siblings) = scan_siblings(ctx.project_dir, &df.path);
+            if siblings.is_empty() {
+                continue;
+            }
+            let added = markup_idioms(&df.added_content);
+            let mut sib_classes: std::collections::BTreeSet<String> = Default::default();
+            let mut sib_families: std::collections::BTreeSet<String> = Default::default();
+            let mut sib_ucs: std::collections::BTreeSet<String> = Default::default();
+            let mut sib_panels: std::collections::BTreeSet<String> = Default::default();
+            for (_, m) in &siblings {
+                sib_classes.extend(m.classes.iter().cloned());
+                sib_families.extend(m.resource_families.iter().cloned());
+                sib_ucs.extend(m.user_controls.iter().cloned());
+                sib_panels.extend(m.message_panels.iter().map(|p| p.to_lowercase()));
+            }
+            let new_classes: Vec<&String> = added
+                .classes
+                .iter()
+                .filter(|c| !sib_classes.contains(*c))
+                .collect();
+            let new_families: Vec<&String> = added
+                .resource_families
+                .iter()
+                .filter(|f| !sib_families.contains(*f))
+                .collect();
+            let new_ucs: Vec<&String> = added
+                .user_controls
+                .iter()
+                .filter(|u| !sib_ucs.contains(*u))
+                .collect();
+            let n = siblings.len();
+            let sib_list = |set: &std::collections::BTreeSet<String>| {
+                set.iter().take(10).cloned().collect::<Vec<_>>().join(", ")
+            };
+            if !new_classes.is_empty() {
+                let mut f = ReviewFinding::new(
+                    Severity::Info,
+                    "ui_house_style",
+                    df.path.clone(),
+                    format!(
+                        "Added markup uses class(es) no sibling page in `{territory}` uses: {}",
+                        new_classes
+                            .iter()
+                            .map(|c| format!("`{c}`"))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ),
+                    format!(
+                        "The {n} sibling page(s) next door use: {}{}",
+                        sib_list(&sib_classes),
+                        if sib_panels.is_empty() {
+                            String::new()
+                        } else {
+                            format!("; their message panels are `{}`", sib_list(&sib_panels))
+                        }
+                    ),
+                    "Copy the sibling's container and class spelling unless the story asks for a new look.",
+                );
+                f.lines = df.added_lines.iter().map(|(l, _)| *l).take(5).collect();
+                findings.push(f);
+            }
+            if !new_families.is_empty() {
+                let mut f = ReviewFinding::new(
+                    Severity::Info,
+                    "ui_house_style",
+                    df.path.clone(),
+                    format!(
+                        "Added markup reads resource famil{} no sibling page in `{territory}` reads: {}",
+                        if new_families.len() == 1 { "y" } else { "ies" },
+                        new_families
+                            .iter()
+                            .map(|c| format!("`Resources.{c}`"))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ),
+                    format!("The sibling page(s) read: {}", sib_list(&sib_families)),
+                    "Put the new key in the resource family the territory already uses.",
+                );
+                f.lines = df.added_lines.iter().map(|(l, _)| *l).take(5).collect();
+                findings.push(f);
+            }
+            if !new_ucs.is_empty() {
+                let mut f = ReviewFinding::new(
+                    Severity::Info,
+                    "ui_house_style",
+                    df.path.clone(),
+                    format!(
+                        "Added markup uses user control(s) no sibling page in `{territory}` uses: {}",
+                        new_ucs
+                            .iter()
+                            .map(|c| format!("`{c}`"))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ),
+                    format!(
+                        "The sibling page(s) reuse: {}",
+                        if sib_ucs.is_empty() {
+                            "no user control".to_string()
+                        } else {
+                            sib_list(&sib_ucs)
+                        }
+                    ),
+                    "Prefer the user control the territory already reuses for this kind of UI.",
+                );
+                f.lines = df.added_lines.iter().map(|(l, _)| *l).take(5).collect();
+                findings.push(f);
             }
         }
         Ok(findings)
