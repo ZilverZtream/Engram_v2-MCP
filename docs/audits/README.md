@@ -1,5 +1,10 @@
 # Engram "brain" audit program (2026-08-28)
 
+> **2026-08-29 — external audit: REJECTED.** The verbatim audit, the 10-tool gold-standard scorecard and the
+> per-item disposition table (RED → GREEN → sweep → commit → release → live evidence on OciusX) live in
+> [`09-external-audit-2026-08-29-rejected.md`](09-external-audit-2026-08-29-rejected.md). Rows 1–8 below are the
+> earlier per-tool audits; doc 09 supersedes their status columns.
+
 External audit verdict: Engram has the right ingredients for a project brain,
 but the OciusX integration is not reliable enough to trust autonomously. The
 largest problems are broken agent wiring, incomplete scope discovery, noisy
