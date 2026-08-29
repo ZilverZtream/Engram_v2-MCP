@@ -2160,16 +2160,30 @@ impl Engram {
         pid: &str,
         generation: u64,
     ) -> anyhow::Result<GenerationCompleteness> {
-        let ps = self
-            .ensure_project_runtime(pid)
+        self.ensure_project_runtime(pid)
             .await
             .map_err(|e| anyhow::anyhow!(e.message))?;
+        generation_completeness_for(&self.state, pid, generation).await
+    }
+}
+
+/// The completeness check for callers that hold only an `AppState` (the
+/// pre-commit review harness). The project runtime must already be loaded.
+pub(crate) async fn generation_completeness_for(
+    state: &crate::state::AppState,
+    pid: &str,
+    generation: u64,
+) -> anyhow::Result<GenerationCompleteness> {
+    {
+        let ps = state
+            .get_project_cached(pid)
+            .ok_or_else(|| anyhow::anyhow!("project runtime for {pid} is not loaded"))?;
         let code_chunks = ps.search.count_docs_in_generation(
             pid,
             engram_core::namespaces::NAMESPACE_MEMORY,
             generation,
         )?;
-        let graph = self.state.graph.clone();
+        let graph = state.graph.clone();
         let pid_owned = pid.to_string();
         let files = tokio::task::spawn_blocking(move || {
             graph
@@ -2190,7 +2204,9 @@ impl Engram {
             complete: files == 0 || ratio >= 0.5,
         })
     }
+}
 
+impl Engram {
     pub async fn handle_project_health(
         &self,
         req: ProjectIdRequest,
