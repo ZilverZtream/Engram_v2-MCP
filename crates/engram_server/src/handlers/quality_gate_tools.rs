@@ -59,6 +59,29 @@ impl Engram {
                 req.source_type
             ))]));
         }
+        // Row-3 audit A7: `clear_existing` was a documented no-op. It purges the
+        // project's whole `quality_gate` namespace — only after the new source
+        // parsed, so a bad file never wipes a good corpus — and states it.
+        let purged = if req.clear_existing {
+            match ps
+                .search
+                .delete_namespace(&req.project_id, QG_NAMESPACE)
+                .await
+            {
+                Ok(n) => Some(n),
+                Err(e) => {
+                    return Err(McpError::internal_error(
+                        format!(
+                            "clear_existing: purging the `{QG_NAMESPACE}` namespace failed: {e}"
+                        ),
+                        None,
+                    ));
+                }
+            }
+        } else {
+            None
+        };
+        {}
 
         let mut docs = Vec::with_capacity(rules.len());
         let mut by_sev = std::collections::BTreeMap::<String, usize>::new();
@@ -168,8 +191,15 @@ impl Engram {
             .map(|(k, v)| format!("{v} {k}"))
             .collect::<Vec<_>>()
             .join(", ");
+        let purge_line = match purged {
+            Some(n) => format!(
+                "clear_existing=true: purged {n} existing quality-gate rule(s) from the \
+                 `{QG_NAMESPACE}` namespace before ingesting.\n"
+            ),
+            None => String::new(),
+        };
         Ok(CallToolResult::success(vec![Content::text(format!(
-            "Ingested {} quality-gate rules from {origin} (source_type={}, category={}) into the \
+            "{purge_line}Ingested {} quality-gate rules from {origin} (source_type={}, category={}) into the \
              `{QG_NAMESPACE}` namespace [{sev}]. {promoted} high-severity mandate(s) auto-promoted \
              to repo rules (gates + rule injection read those). Use pre_push_audit to check a \
              change against them.",

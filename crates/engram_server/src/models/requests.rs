@@ -644,8 +644,10 @@ pub struct IngestQualityGatesRequest {
     pub source_path: String,
     /// Source kind: copilot | rules | coderabbit | sonarqube | board | text.
     pub source_type: String,
-    /// Reserved: re-ingesting is idempotent (rules dedup by content), so this is
-    /// currently a no-op; kept for forward compatibility.
+    /// When true, EVERY existing rule in the project's `quality_gate` namespace
+    /// is purged before this source is ingested (all sources, not just this
+    /// file) — the way to replace a corpus. Re-ingesting without it accumulates
+    /// (rules dedup by content).
     #[serde(default)]
     pub clear_existing: bool,
 }
