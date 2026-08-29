@@ -3796,3 +3796,12 @@ mod project_type_round_trip_tests {
         }
     }
 }
+
+/// External audit 2026-08-29 (auditor P0 #6): the tiered tool surface.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ListAdvancedToolsRequest {
+    /// Optional case-insensitive substring on tool name or description.
+    #[serde(default)]
+    pub filter: Option<String>,
+}

@@ -274,14 +274,14 @@ pub struct Config {
     #[serde(default)]
     pub log_file: Option<PathBuf>,
 
-    /// Advertise the FULL tool set in `tools/list`. Default true — every tool is
-    /// discoverable (their schemas are always sanitized: `$ref`/`definitions`
-    /// inlined, `T | null` collapsed, so a strict client like GitHub Copilot
-    /// never rejects the list). Set false to also HIDE the `[.NET legacy]`
-    /// (WebForms/VB migration) tools from discovery, shrinking the surface for a
-    /// client with a hard tool-count ceiling. Hidden tools remain fully
-    /// CALLABLE; this affects discovery only, never sanitization.
-    #[serde(default = "default_true")]
+    /// Tiered tool surface (external audit 2026-08-29, auditor P0 #6). Default
+    /// FALSE: `tools/list` advertises the core tier only (the tools behind the
+    /// ten vital capabilities + index/health/search essentials, see
+    /// `tool_surface::CORE_TOOLS`); every other tool stays fully CALLABLE and is
+    /// discoverable through `list_advanced_tools`. Set true to advertise the
+    /// whole surface (schemas are always sanitized: `$ref`/`definitions`
+    /// inlined, `T | null` collapsed, so a strict client never rejects the list).
+    #[serde(default = "default_false")]
     pub advertise_all_tools: bool,
 
     // --- ADP vNext ---
@@ -513,6 +513,10 @@ fn default_scaffold_target_stack() -> String {
     "blazor".into()
 }
 
+fn default_false() -> bool {
+    false
+}
+
 fn default_true() -> bool {
     true
 }
@@ -580,7 +584,7 @@ impl Default for Config {
             multi_client_daemon: true,
             multi_client_connect_timeout_secs: default_multi_client_connect_timeout_secs(),
             log_file: None,
-            advertise_all_tools: true,
+            advertise_all_tools: false,
             adp_default_evidence_depth: default_adp_evidence_depth(),
             adp_cache_retrieval: default_adp_cache_retrieval(),
             adp_evidence_timeout_ms: default_adp_evidence_timeout_ms(),

@@ -159,6 +159,80 @@ pub fn is_curated_out(description: Option<&str>) -> bool {
         .unwrap_or(false)
 }
 
+/// External audit 2026-08-29 (auditor P0 #6, row 0; owner decision 09:32):
+/// the tools behind the ten vital capabilities plus the index/health/search
+/// essentials. Advertised by default; every other tool stays CALLABLE and is
+/// listed by `list_advanced_tools` (or `advertise_all_tools = true`).
+pub const CORE_TOOLS: &[&str] = &[
+    // 6 natural-language understanding + identity
+    "ask_codebase",
+    "resolve_id",
+    // 1 story-to-change scope
+    "plan_user_story",
+    "get_change_set",
+    // 4 exact entity / consumer discovery
+    "get_concept_footprint",
+    "find_symbol_references",
+    // 2 follow the code before editing
+    "get_method_edit_context",
+    "get_page_context",
+    // 10 change exposure and edit risk
+    "check_edit_safety",
+    "compute_blast_radius",
+    "impact_analysis",
+    // 3 pre-commit defect prevention
+    "pre_commit_review",
+    "pre_push_audit",
+    // 8 security, settings, durable laws
+    "map_guards_and_settings",
+    "immune_check",
+    // 5 house implementation pattern + style
+    "find_implementation_pattern",
+    "analyze_file_coding_style",
+    // 7 causal UI / data tracing
+    "trace_ui_event",
+    "trace_data_flow",
+    "find_connection_path",
+    // 9 "you forgot the other side"
+    "detect_incomplete_changes",
+    "find_similar_changes",
+    "begin_edit_session",
+    "complete_edit_session",
+    // essentials: index lifecycle, health, raw search, integration, discovery
+    "index_project",
+    "update_project",
+    "project_health",
+    "get_index_freshness",
+    "grep_project",
+    "search_memory",
+    "produce_claude_md",
+    "list_advanced_tools",
+];
+
+/// The one filter `list_tools` applies. `advertise_all = false` (the default)
+/// advertises exactly the core tier; `true` advertises everything except the
+/// `[.NET legacy]`-curated tools' legacy marker rule, which still applies.
+pub fn advertised(items: Vec<rmcp::model::Tool>, advertise_all: bool) -> Vec<rmcp::model::Tool> {
+    items
+        .into_iter()
+        .filter(|t| {
+            if advertise_all {
+                true
+            } else {
+                CORE_TOOLS.contains(&t.name.as_ref())
+            }
+        })
+        .collect()
+}
+
+/// Tools that are callable but not advertised by default.
+pub fn advanced(items: Vec<rmcp::model::Tool>) -> Vec<rmcp::model::Tool> {
+    items
+        .into_iter()
+        .filter(|t| !CORE_TOOLS.contains(&t.name.as_ref()))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
