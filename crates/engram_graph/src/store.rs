@@ -1695,12 +1695,20 @@ impl GraphStore {
         // sharing it. A caller who mistypes a path must get NotFound, not an
         // ambiguity list of 40 unrelated same-extension files.
         let short = input.split('.').next_back().unwrap_or(input);
+        //
+        // The match rule applies DURING the scan (`query_nodes_by_symbol_name`,
+        // the same fix `find_symbol_references` needed): a 50-node SUBSTRING
+        // window let a big project's real candidates fall outside it — golden
+        // `ox_impact_4` ("GetByID in the projekt DAL") never saw
+        // `_grunddata.projekt.GetByID` in the ambiguity list, only four
+        // `_ata.*` names, so the question's qualifier had nothing to narrow.
         if !looks_like_path
-            && let Ok(nodes) = self.query_nodes(project_id, node_type, Some(short), None, 50)
+            && let Ok(nodes) = self.query_nodes_by_symbol_name(project_id, short, None, 500)
         {
             let suffix = format!(".{short}");
             let exact_short: Vec<Node> = nodes
                 .into_iter()
+                .filter(|n| node_type.is_none_or(|t| n.node_type == t))
                 .filter(|n| n.name == short || n.name.ends_with(&suffix))
                 .collect();
             if exact_short.len() == 1 {
