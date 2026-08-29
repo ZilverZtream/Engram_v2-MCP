@@ -2150,6 +2150,47 @@ impl Engram {
         ))]))
     }
 
+    /// External audit 2026-08-29 P0-2: does the PUBLISHED generation actually
+    /// hold the corpus? Code chunks live in the `memory` namespace, one or
+    /// more per indexed file; a generation with fewer chunks than half the
+    /// tracked files has lost its corpus (OciusX: 105 chunks for 2,274 files
+    /// while health said OK). Cheap: two counts.
+    pub(crate) async fn generation_completeness(
+        &self,
+        pid: &str,
+        generation: u64,
+    ) -> anyhow::Result<GenerationCompleteness> {
+        let ps = self
+            .ensure_project_runtime(pid)
+            .await
+            .map_err(|e| anyhow::anyhow!(e.message))?;
+        let code_chunks = ps.search.count_docs_in_generation(
+            pid,
+            engram_core::namespaces::NAMESPACE_MEMORY,
+            generation,
+        )?;
+        let graph = self.state.graph.clone();
+        let pid_owned = pid.to_string();
+        let files = tokio::task::spawn_blocking(move || {
+            graph
+                .count_nodes_by_type(&pid_owned)
+                .map(|m| m.get("file").copied().unwrap_or(0))
+        })
+        .await??;
+        let ratio = if files == 0 {
+            1.0
+        } else {
+            code_chunks as f64 / files as f64
+        };
+        Ok(GenerationCompleteness {
+            generation,
+            code_chunks,
+            files,
+            ratio,
+            complete: files == 0 || ratio >= 0.5,
+        })
+    }
+
     pub async fn handle_project_health(
         &self,
         req: ProjectIdRequest,
@@ -2161,20 +2202,81 @@ impl Engram {
 
         let graph = self.state.graph.clone();
         let pid_clone = pid.clone();
-        let (graph_nodes, graph_edges) = tokio::task::spawn_blocking(move || {
-            let nodes = graph.count_nodes(&pid_clone).unwrap_or(0);
-            let edges = graph.count_edges(&pid_clone).unwrap_or(0);
+        let mut failures: Vec<String> = Vec::new();
+        let (graph_nodes, graph_edges) = match tokio::task::spawn_blocking(move || {
+            let nodes = graph.count_nodes(&pid_clone);
+            let edges = graph.count_edges(&pid_clone);
             (nodes, edges)
         })
         .await
-        .unwrap_or_default();
+        {
+            Ok((Ok(n), Ok(e))) => (n, e),
+            Ok((n, e)) => {
+                if let Err(err) = &n {
+                    failures.push(format!("graph node count failed: {err}"));
+                }
+                if let Err(err) = &e {
+                    failures.push(format!("graph edge count failed: {err}"));
+                }
+                (n.unwrap_or(0), e.unwrap_or(0))
+            }
+            Err(err) => {
+                failures.push(format!("graph counts panicked: {err}"));
+                (0, 0)
+            }
+        };
 
-        let ns_counts = ps.search.count_docs_by_namespace(&pid).unwrap_or_default();
+        let ns_counts = match ps.search.count_docs_by_namespace(&pid) {
+            Ok(m) => m,
+            Err(e) => {
+                failures.push(format!("search doc counts failed: {e}"));
+                Default::default()
+            }
+        };
         let total_docs: usize = ns_counts.values().sum();
-        let lancedb_rows = ps.search.count_vectors(&pid).await.unwrap_or(0);
-
-        let mut out = String::from("Health: OK\n");
+        let lancedb_rows = match ps.search.count_vectors(&pid).await {
+            Ok(n) => n,
+            Err(e) => {
+                failures.push(format!("vector row count failed: {e}"));
+                0
+            }
+        };
+        // External audit 2026-08-29 P0-2: "Health: OK" was the INITIAL value of
+        // the answer, not a conclusion. The verdict is computed from the
+        // evidence — generation completeness first, provider failures second.
+        let completeness = self.generation_completeness(&pid, generation).await;
+        let verdict = match &completeness {
+            Ok(c) if !c.complete => format!(
+                "Health: CORRUPT — active generation {} is INCOMPLETE ({} code chunks for {} tracked files, {:.1} %); searchable evidence is missing — run index_project (full re-index)",
+                c.generation,
+                c.code_chunks,
+                c.files,
+                c.ratio * 100.0
+            ),
+            Err(e) => {
+                failures.push(format!("generation completeness check failed: {e}"));
+                "Health: DEGRADED — completeness unknown".to_string()
+            }
+            Ok(_) if !failures.is_empty() => {
+                "Health: DEGRADED — a provider failed (see failures)".to_string()
+            }
+            Ok(_) => "Health: OK".to_string(),
+        };
+        let mut out = format!("{verdict}\n");
         out.push_str(&format!("active_generation: {generation}\n"));
+        if let Ok(c) = &completeness {
+            out.push_str(&format!(
+                "generation completeness: {} code chunks in generation {} for {} tracked files ({:.1} %) — {}\n",
+                c.code_chunks,
+                c.generation,
+                c.files,
+                c.ratio * 100.0,
+                if c.complete { "complete" } else { "INCOMPLETE" }
+            ));
+        }
+        for f in &failures {
+            out.push_str(&format!("failure: {f}\n"));
+        }
         out.push_str(&format!("graph_nodes: {graph_nodes}\n"));
         out.push_str(&format!("graph_edges: {graph_edges}\n"));
         out.push_str(&format!("tantivy_docs_total: {total_docs}\n"));
@@ -2283,7 +2385,31 @@ impl Engram {
             out.push_str(&format!("files_modified_since_index: {count}\n"));
         }
 
-        let advice = if rec.reindex_required_since_ms.is_some() {
+        // External audit 2026-08-29 P0-2: timestamps and modified files say
+        // nothing about whether the published generation still HOLDS the
+        // corpus. Completeness is checked here and outranks every other advice.
+        let generation = self.get_active_generation(&pid).await.unwrap_or(1);
+        let completeness = self.generation_completeness(&pid, generation).await;
+        let incomplete = match &completeness {
+            Ok(c) => {
+                out.push_str(&format!(
+                    "generation_complete: {} ({} code chunks in generation {} for {} tracked files, {:.1} %)\n",
+                    c.complete,
+                    c.code_chunks,
+                    c.generation,
+                    c.files,
+                    c.ratio * 100.0
+                ));
+                !c.complete
+            }
+            Err(e) => {
+                out.push_str(&format!("generation_complete: unknown ({e})\n"));
+                false
+            }
+        };
+        let advice = if incomplete {
+            "active generation is INCOMPLETE — the searchable corpus is missing; run index_project (full re-index). update_project cannot repair it"
+        } else if rec.reindex_required_since_ms.is_some() {
             "run update_project now — vector data was lost and must be rebuilt"
         } else if matches!(dirty_files, Some(n) if n > 0) {
             "index is stale — run update_project (or enable watch_project for auto-updates)"
@@ -3747,4 +3873,14 @@ mod inv_tag_tests {
             "Cancellation must produce 'cancelled' regardless of enrichment warnings"
         );
     }
+}
+
+/// External audit 2026-08-29 P0-2: the generation completeness signal.
+#[derive(Debug, Clone, serde::Serialize)]
+pub(crate) struct GenerationCompleteness {
+    pub generation: u64,
+    pub code_chunks: usize,
+    pub files: usize,
+    pub ratio: f64,
+    pub complete: bool,
 }
