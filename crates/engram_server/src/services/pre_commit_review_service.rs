@@ -441,6 +441,10 @@ pub struct GateContext<'a> {
     pub audit_function: Option<String>,
     /// Provider failures the running gate chose to survive (row-3 A3).
     /// Drained by the runner into `GateStatus::Degraded`.
+    /// External audit 2026-08-29 P0-4: when the published search generation is
+    /// incomplete, every search-backed gate degrades itself with this note
+    /// instead of passing against a fraction of the corpus.
+    pub search_index_note: Option<String>,
     pub degraded: std::sync::Mutex<Vec<String>>,
     /// Internal caps the running gate hit (row-3 A4). Drained by the
     /// runner into `GateOutcome::caps`.
@@ -2239,6 +2243,25 @@ pub async fn run_pre_commit_review_with(
         Arc::new(build_files_by_parent(&state.graph, project_id));
     let audit_function = detect_audit_function(&state.graph, project_id);
 
+    // External audit 2026-08-29 P0-4: a structurally incomplete index returns
+    // no error, so the review checks generation completeness ONCE and every
+    // search-backed gate degrades itself on the verdict.
+    let search_index_note = match crate::handlers::project_tools::generation_completeness_for(
+        state, project_id, generation,
+    )
+    .await
+    {
+        Ok(c) if !c.complete => Some(format!(
+            "search index generation {} is INCOMPLETE ({} code chunks for {} tracked files, {:.1} %) — searched evidence is unreliable; run index_project (full re-index)",
+            c.generation,
+            c.code_chunks,
+            c.files,
+            c.ratio * 100.0
+        )),
+        Ok(_) => None,
+        Err(e) => Some(format!("search index completeness unknown: {e}")),
+    };
+
     // Context shared across all gates. Wrapped in Arc so we can clone
     // cheaply into spawn_blocking closures.
     let shared = Arc::new(SharedGateData {
@@ -2253,6 +2276,7 @@ pub async fn run_pre_commit_review_with(
         repo_rules: repo_rules.clone(),
         files_by_parent: files_by_parent.clone(),
         audit_function: audit_function.clone(),
+        search_index_note,
     });
 
     // ── Gate dispatch ─────────────────────────────────────────────────
@@ -2438,6 +2462,7 @@ struct SharedGateData {
     repo_rules: Arc<Vec<RepoRule>>,
     files_by_parent: Arc<HashMap<String, Vec<String>>>,
     audit_function: Option<String>,
+    search_index_note: Option<String>,
 }
 
 impl SharedGateData {
@@ -2455,6 +2480,7 @@ impl SharedGateData {
             repo_rules: self.repo_rules.clone(),
             files_by_parent: self.files_by_parent.clone(),
             audit_function: self.audit_function.clone(),
+            search_index_note: self.search_index_note.clone(),
             degraded: std::sync::Mutex::new(Vec::new()),
             caps: std::sync::Mutex::new(Vec::new()),
         }

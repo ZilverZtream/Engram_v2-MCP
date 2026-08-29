@@ -1157,14 +1157,32 @@ impl Gate for StateGate {
             for ((store, key), lines) in per_file {
                 // Graph stores state keys with nodeId "state:<Store>:<key>".
                 let node_id = format!("state:{store}:{key}");
-                let readers = ctx
-                    .graph
-                    .find_incoming_edges(ctx.project_id, Some(EdgeKind::ReadsState), &node_id, 50)
-                    .unwrap_or_default();
-                let writers = ctx
-                    .graph
-                    .find_incoming_edges(ctx.project_id, Some(EdgeKind::WritesState), &node_id, 50)
-                    .unwrap_or_default();
+                // External audit 2026-08-29 P0-4: a failed lookup is NOT "nobody
+                // else reads/writes this key" — it degrades the gate.
+                let readers = match ctx.graph.find_incoming_edges(
+                    ctx.project_id,
+                    Some(EdgeKind::ReadsState),
+                    &node_id,
+                    50,
+                ) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        ctx.degrade(format!("state readers lookup failed for {node_id}: {e}"));
+                        Vec::new()
+                    }
+                };
+                let writers = match ctx.graph.find_incoming_edges(
+                    ctx.project_id,
+                    Some(EdgeKind::WritesState),
+                    &node_id,
+                    50,
+                ) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        ctx.degrade(format!("state writers lookup failed for {node_id}: {e}"));
+                        Vec::new()
+                    }
+                };
                 // Filter out the current file — we only care about OTHER
                 // readers/writers affected by this change.
                 let other_readers: Vec<String> = readers
@@ -1331,6 +1349,11 @@ impl Gate for AntiPatternGate {
     }
 
     async fn run_async(&self, ctx: &GateContext<'_>) -> anyhow::Result<Vec<ReviewFinding>> {
+        // External audit 2026-08-29 P0-4: this gate searches the index; an
+        // incomplete generation makes its silence meaningless.
+        if let Some(note) = &ctx.search_index_note {
+            ctx.degrade(note.clone());
+        }
         // ENSURE the project-runtime search engine — a fresh daemon has
         // no cached ProjectState, and a `get_project_cached`-only lookup
         // silently no-ops the whole search branch on the first review of
@@ -1452,13 +1475,16 @@ impl Gate for AntiPatternGate {
                 if h.path.as_str().to_ascii_lowercase().contains(".min.") {
                     continue;
                 }
-                let content = ps
-                    .search
-                    .get_doc_by_pk(&h.pk)
-                    .ok()
-                    .flatten()
-                    .map(|(_, _, c, _, _)| c)
-                    .unwrap_or_default();
+                let content = match ps.search.get_doc_by_pk(&h.pk) {
+                    Ok(Some((_, _, c, _, _))) => c,
+                    Ok(None) => String::new(),
+                    Err(e) => {
+                        // External audit 2026-08-29 P0-4: a hit whose content
+                        // cannot be read is a degraded gate, not a skipped hit.
+                        ctx.degrade(format!("hit {} unreadable: {e}", h.pk));
+                        continue;
+                    }
+                };
                 if content.is_empty() {
                     continue;
                 }
@@ -2771,6 +2797,11 @@ impl Gate for ProductIntentGate {
     }
 
     async fn run_async(&self, ctx: &GateContext<'_>) -> anyhow::Result<Vec<ReviewFinding>> {
+        // External audit 2026-08-29 P0-4: this gate searches the index; an
+        // incomplete generation makes its silence meaningless.
+        if let Some(note) = &ctx.search_index_note {
+            ctx.degrade(note.clone());
+        }
         // ENSURE the runtime — get_project_cached alone returns None on a
         // fresh daemon and silently no-ops the gate (see AntiPatternGate).
         let Ok(ps) =
@@ -2843,13 +2874,15 @@ impl Gate for ProductIntentGate {
             // while a doc_id lookup would rebuild the pk with the
             // CURRENT generation — wrong for docs ingested at an older
             // one.
-            let content = ps
-                .search
-                .get_doc_by_pk(&h.pk)
-                .ok()
-                .flatten()
-                .map(|(_, _, c, _, _)| c)
-                .unwrap_or_default();
+            let content = match ps.search.get_doc_by_pk(&h.pk) {
+                Ok(Some((_, _, c, _, _))) => c,
+                Ok(None) => String::new(),
+                Err(e) => {
+                    // External audit 2026-08-29 P0-4: unreadable hit => degraded gate.
+                    ctx.degrade(format!("hit {} unreadable: {e}", h.pk));
+                    continue;
+                }
+            };
             let (matched_n, total_n, matched) = query_overlap(&content, &query);
             let overlap = matched_n as f32 / total_n.max(1) as f32;
             tracing::debug!(
@@ -2975,6 +3008,11 @@ impl Gate for CoAddedFamilyGate {
     }
 
     async fn run_async(&self, ctx: &GateContext<'_>) -> anyhow::Result<Vec<ReviewFinding>> {
+        // External audit 2026-08-29 P0-4: this gate searches the index; an
+        // incomplete generation makes its silence meaningless.
+        if let Some(note) = &ctx.search_index_note {
+            ctx.degrade(note.clone());
+        }
         use std::collections::{BTreeMap, BTreeSet};
 
         // Only fires when the diff ADDS files — the companion contract
@@ -3045,8 +3083,14 @@ impl Gate for CoAddedFamilyGate {
                 if !h.path.as_str().starts_with("pr:") {
                     continue;
                 }
-                let Ok(Some((_, _, content, _, _))) = ps.search.get_doc_by_pk(&h.pk) else {
-                    continue;
+                let content = match ps.search.get_doc_by_pk(&h.pk) {
+                    Ok(Some((_, _, c, _, _))) => c,
+                    Ok(None) => continue,
+                    Err(e) => {
+                        // External audit 2026-08-29 P0-4: unreadable hit => degraded gate.
+                        ctx.degrade(format!("hit {} unreadable: {e}", h.pk));
+                        continue;
+                    }
                 };
                 let files = parse_pr_doc_files(&content);
                 let in_family = files.iter().any(|f| f.to_lowercase().contains(&family));
