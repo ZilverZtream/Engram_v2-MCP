@@ -37,6 +37,11 @@ use std::path::PathBuf;
 pub(crate) const ANCHOR_CAP: usize = 50;
 pub(crate) const CONSUMER_CAP_PER_ANCHOR: usize = 200;
 pub(crate) const LEXICAL_PAGE: usize = 2000;
+/// Row-1 audit D10: gate types listed in the change-set brief's
+/// "Permission gates" section; the cut is REPORTED (markdown + JSON).
+pub(crate) const GATE_TYPE_CAP: usize = 10;
+/// Gate DEFINITION files named in the same section; the cut is reported.
+pub(crate) const GATE_DEF_FILE_CAP: usize = 2;
 
 /// Row-4 audit A6/D6: the role a consumer plays towards an anchor table /
 /// state key, derived from the edge kind + the source member name/path
@@ -6644,6 +6649,92 @@ impl Engram {
         );
         out.push_str(&render_change_set_coverage(&cov, omissions.len()));
 
+        let graph = self.state.graph.clone();
+        let pid_g = req.project_id.clone();
+        // Same trap as the sibling scan: a plain `prov.keys().take(15)` is
+        // BTreeMap-alphabetical, so the App_GlobalResources/*.resx family
+        // (tier-0 via inherited co-change) ate the whole scan budget and
+        // the gated code files (role.vb, *.aspx.vb) were never queried —
+        // the section silently vanished. Pick node-bearing code files,
+        // strongest corroboration first.
+        let top_files = top_node_bearing_files(&prov, 15);
+        let (gates, helper_files, gate_def_files) = tokio::task::spawn_blocking(move || {
+            let mut gates: std::collections::BTreeMap<String, usize> = Default::default();
+            for f in &top_files {
+                for n in graph
+                    .query_nodes(&pid_g, None, None, Some(f), 500)
+                    .unwrap_or_default()
+                {
+                    let Some(meta) = n.metadata.as_ref() else {
+                        continue;
+                    };
+                    for key in ["permission_checks", "guard_roles"] {
+                        if let Some(v) = meta.get(key).and_then(|v| v.as_str()) {
+                            for g in v.split(';').filter(|g| !g.trim().is_empty()) {
+                                *gates.entry(g.trim().to_string()).or_default() += 1;
+                            }
+                        }
+                    }
+                }
+            }
+            // House auth-helper convention: where Can* permission
+            // helpers are DEFINED. Two arm-B autopsies missed the same
+            // class (PR1890 role.vb, PR1913 aspnetUsers.vb): the team
+            // routes new permission surface through its user/role
+            // helper file, and nothing in the brief named that file.
+            let mut helper_files: HashMap<String, usize> = HashMap::new();
+            // Gate DEFINITION sites: method-shaped gates (check_pr_id,
+            // CheckWrite, checkread) are function nodes — one scan maps
+            // each gate to the file DEFINING it. That file is the
+            // permission catalog/helper class a new gated surface edits
+            // (the miss class of two arm-B audits: role.vb,
+            // aspnetUsers.vb) — derived from the graph, no name
+            // convention needed.
+            let mut def_files: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+            if !gates.is_empty() {
+                let gate_names: HashSet<String> = gates.keys().map(|g| g.to_lowercase()).collect();
+                for n in graph
+                    .query_nodes(&pid_g, Some("function"), None, None, usize::MAX)
+                    .unwrap_or_default()
+                {
+                    let last = n.name.rsplit('.').next().unwrap_or(&n.name).to_lowercase();
+                    if gate_names.contains(&last) {
+                        def_files
+                            .entry(n.file_path.as_str().replace('\\', "/"))
+                            .or_default()
+                            .insert(last);
+                    }
+                    if is_can_helper_name(&n.name) {
+                        *helper_files
+                            .entry(n.file_path.as_str().replace('\\', "/"))
+                            .or_default() += 1;
+                    }
+                }
+            }
+            (gates, helper_files, def_files)
+        })
+        .await
+        .unwrap_or_default();
+        // Gate types, most frequent first (name asc on ties) — shared by the
+        // JSON payload and the markdown section so both state the same cut.
+        let gate_rows: Vec<(usize, String)> = {
+            let mut rows: Vec<(usize, String)> =
+                gates.iter().map(|(g, n)| (*n, g.clone())).collect();
+            rows.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+            rows
+        };
+        let permission_gates_json = serde_json::json!({
+            "cap": GATE_TYPE_CAP,
+            "total": gate_rows.len(),
+            "shown": gate_rows.len().min(GATE_TYPE_CAP),
+            "listed": gate_rows.iter().take(GATE_TYPE_CAP)
+                .map(|(n, g)| serde_json::json!({"gate": g, "gated_symbols": n}))
+                .collect::<Vec<_>>(),
+            "omitted": gate_rows.iter().skip(GATE_TYPE_CAP)
+                .map(|(_, g)| g.clone())
+                .collect::<Vec<_>>(),
+        });
+
         if req.output_json {
             let (rows, omissions) = change_set_rows(&prov);
             let files: Vec<serde_json::Value> = rows
@@ -6666,6 +6757,7 @@ impl Engram {
                 "files": files,
                 "coverage": cov,
                 "omissions": omissions,
+                "permission_gates": permission_gates_json,
             });
             return Ok(CallToolResult::success(vec![Content::text(
                 serde_json::to_string_pretty(&payload).unwrap_or_default(),
@@ -7075,73 +7167,6 @@ impl Engram {
         // planners miss permission-catalog changes because nothing in the
         // brief said the surface was gated (PR1890's role.vb lesson).
         {
-            let graph = self.state.graph.clone();
-            let pid_g = req.project_id.clone();
-            // Same trap as the sibling scan: a plain `prov.keys().take(15)` is
-            // BTreeMap-alphabetical, so the App_GlobalResources/*.resx family
-            // (tier-0 via inherited co-change) ate the whole scan budget and
-            // the gated code files (role.vb, *.aspx.vb) were never queried —
-            // the section silently vanished. Pick node-bearing code files,
-            // strongest corroboration first.
-            let top_files = top_node_bearing_files(&prov, 15);
-            let (gates, helper_files, gate_def_files) = tokio::task::spawn_blocking(move || {
-                let mut gates: std::collections::BTreeMap<String, usize> = Default::default();
-                for f in &top_files {
-                    for n in graph
-                        .query_nodes(&pid_g, None, None, Some(f), 500)
-                        .unwrap_or_default()
-                    {
-                        let Some(meta) = n.metadata.as_ref() else {
-                            continue;
-                        };
-                        for key in ["permission_checks", "guard_roles"] {
-                            if let Some(v) = meta.get(key).and_then(|v| v.as_str()) {
-                                for g in v.split(';').filter(|g| !g.trim().is_empty()) {
-                                    *gates.entry(g.trim().to_string()).or_default() += 1;
-                                }
-                            }
-                        }
-                    }
-                }
-                // House auth-helper convention: where Can* permission
-                // helpers are DEFINED. Two arm-B autopsies missed the same
-                // class (PR1890 role.vb, PR1913 aspnetUsers.vb): the team
-                // routes new permission surface through its user/role
-                // helper file, and nothing in the brief named that file.
-                let mut helper_files: HashMap<String, usize> = HashMap::new();
-                // Gate DEFINITION sites: method-shaped gates (check_pr_id,
-                // CheckWrite, checkread) are function nodes — one scan maps
-                // each gate to the file DEFINING it. That file is the
-                // permission catalog/helper class a new gated surface edits
-                // (the miss class of two arm-B audits: role.vb,
-                // aspnetUsers.vb) — derived from the graph, no name
-                // convention needed.
-                let mut def_files: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-                if !gates.is_empty() {
-                    let gate_names: HashSet<String> =
-                        gates.keys().map(|g| g.to_lowercase()).collect();
-                    for n in graph
-                        .query_nodes(&pid_g, Some("function"), None, None, usize::MAX)
-                        .unwrap_or_default()
-                    {
-                        let last = n.name.rsplit('.').next().unwrap_or(&n.name).to_lowercase();
-                        if gate_names.contains(&last) {
-                            def_files
-                                .entry(n.file_path.as_str().replace('\\', "/"))
-                                .or_default()
-                                .insert(last);
-                        }
-                        if is_can_helper_name(&n.name) {
-                            *helper_files
-                                .entry(n.file_path.as_str().replace('\\', "/"))
-                                .or_default() += 1;
-                        }
-                    }
-                }
-                (gates, helper_files, def_files)
-            })
-            .await
-            .unwrap_or_default();
             if !gates.is_empty() {
                 out.push_str(
                     "\n## Permission gates in the candidate set\n\
@@ -7149,11 +7174,14 @@ impl Engram {
                      your change needs a NEW permission-catalog entry (and its admin \
                      wiring) or reuses one of these:\n",
                 );
-                let mut rows: Vec<(usize, String)> =
-                    gates.into_iter().map(|(g, n)| (n, g)).collect();
-                rows.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
-                for (n, g) in rows.into_iter().take(10) {
+                for (n, g) in gate_rows.iter().take(GATE_TYPE_CAP) {
                     out.push_str(&format!("- {g} ({n} gated symbol(s) in the set)\n"));
+                }
+                if gate_rows.len() > GATE_TYPE_CAP {
+                    out.push_str(&format!(
+                        "  ... and {} more gate type(s) (cap {GATE_TYPE_CAP}; names in output_json.permission_gates.omitted)\n",
+                        gate_rows.len() - GATE_TYPE_CAP
+                    ));
                 }
                 // Definition sites: the file(s) DEFINING these gate checks —
                 // a new gated surface usually adds its check/helper THERE.
@@ -7162,11 +7190,18 @@ impl Engram {
                     .map(|(f, gs)| (gs.len(), f, gs.into_iter().collect()))
                     .collect();
                 df.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
-                for (_, f, gs) in df.into_iter().take(2) {
+                let def_total = df.len();
+                for (_, f, gs) in df.into_iter().take(GATE_DEF_FILE_CAP) {
                     out.push_str(&format!(
                         "Gate definitions: `{f}` defines {} — permission-surface changes \
                          usually land there too.\n",
                         gs.join(", ")
+                    ));
+                }
+                if def_total > GATE_DEF_FILE_CAP {
+                    out.push_str(&format!(
+                        "  ... and {} more gate-definition file(s) (cap {GATE_DEF_FILE_CAP})\n",
+                        def_total - GATE_DEF_FILE_CAP
                     ));
                 }
                 // Only a real convention is worth a line: >=3 Can* helpers
