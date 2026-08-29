@@ -118,18 +118,40 @@ pub async fn build_snapshot(
 /// answer must not be asserted from the OTHER terms — that is anchoring on a
 /// false premise. Returned in question order, original spelling, deduped.
 pub fn uncovered_named_terms(question: &str, evidence: &[EvidenceItem]) -> Vec<String> {
-    let hay: String = evidence
+    uncovered_named_terms_with(question, evidence, &[])
+}
+
+/// Everything the evidence set says, lowercased: path, title, symbol id,
+/// content — plus the terms the planner RESOLVED (`known`), because a name
+/// the index resolved is covered by definition even when a relation's prose
+/// only says "X calls the target" (row 6 slice 2).
+fn evidence_haystack(evidence: &[EvidenceItem], known: &[String]) -> String {
+    let mut hay: String = evidence
         .iter()
         .map(|e| {
             format!(
-                "{} {} {}\n",
+                "{} {} {} {}\n",
                 e.path.clone().unwrap_or_default(),
                 e.title.clone().unwrap_or_default(),
+                e.symbol_id.clone().unwrap_or_default(),
                 e.content
             )
         })
-        .collect::<String>()
-        .to_lowercase();
+        .collect();
+    for k in known {
+        hay.push_str(k);
+        hay.push('\n');
+    }
+    hay.to_lowercase()
+}
+
+/// `uncovered_named_terms` with the planner's resolved terms counted as covered.
+pub fn uncovered_named_terms_with(
+    question: &str,
+    evidence: &[EvidenceItem],
+    known: &[String],
+) -> Vec<String> {
+    let hay = evidence_haystack(evidence, known);
     let mut out: Vec<String> = Vec::new();
     for (i, raw) in question.split_whitespace().enumerate() {
         let tok = raw
@@ -157,11 +179,22 @@ pub fn uncovered_named_terms(question: &str, evidence: &[EvidenceItem]) -> Vec<S
 }
 
 pub fn has_adequate_support(question: &str, evidence: &[EvidenceItem]) -> bool {
+    has_adequate_support_with(question, evidence, &[])
+}
+
+/// `has_adequate_support` with the planner's resolved terms: a resolved
+/// entity that the evidence actually contains anchors support on its own —
+/// the index found the thing that was asked about (row 6 slice 2).
+pub fn has_adequate_support_with(
+    question: &str,
+    evidence: &[EvidenceItem],
+    known: &[String],
+) -> bool {
     use super::evidence::EvidenceKind::GraphRelation;
     // A named premise nobody has evidence for is not supported by evidence
     // for the question's other terms (row 6: "Which Redis cluster caches the
     // redovisningskategori list?" was answered from the real term alone).
-    if !uncovered_named_terms(question, evidence).is_empty() {
+    if !uncovered_named_terms_with(question, evidence, known).is_empty() {
         return false;
     }
     // Strong structural support = a graph relation from a RESOLVED-entity arm
@@ -172,6 +205,18 @@ pub fn has_adequate_support(question: &str, evidence: &[EvidenceItem]) -> bool {
         e.kind == GraphRelation && matches!(e.provider.as_str(), "impact" | "usage" | "companion")
     }) {
         return true;
+    }
+    // A resolved entity present in the evidence (text, path or symbol id) is
+    // structural support: the index found the asked-about thing.
+    {
+        let hay = evidence_haystack(evidence, &[]);
+        if known
+            .iter()
+            .filter(|k| k.len() >= 4)
+            .any(|k| hay.contains(&k.to_lowercase()))
+        {
+            return true;
+        }
     }
     // Distinctive terms only: len >= 5 (drops "work"/"does"/"what"/"page"/…,
     // which as short substrings would spuriously match code like "framework")

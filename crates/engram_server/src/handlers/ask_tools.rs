@@ -70,12 +70,22 @@ impl Engram {
         // `incompatible` stays false: per-item snapshot mismatch can't be
         // reliably detected (graph nodes keep per-node generations); staleness
         // rides on reindex_required inside build_snapshot instead.
-        let adequate = status::has_adequate_support(&req.question, &evidence);
+        // Row 6 slice 2: the planner's resolved terms count as covered/anchoring.
+        let known: Vec<String> = plan
+            .entities
+            .iter()
+            .flat_map(|e| {
+                std::iter::once(e.text.clone())
+                    .filter(|_| !e.resolved.is_empty())
+                    .chain(e.resolved.iter().map(|r| r.canonical.clone()))
+            })
+            .collect();
+        let adequate = status::has_adequate_support_with(&req.question, &evidence, &known);
         let st = status::assess_status(&plan, &evidence, &providers, &snapshot, adequate);
         let mut unknowns = report::coverage_gaps(&plan, &evidence, &providers);
         // Name the premise terms nothing supports, first — the reader must not
         // fill them in from the answer's other evidence.
-        for t in status::uncovered_named_terms(&req.question, &evidence)
+        for t in status::uncovered_named_terms_with(&req.question, &evidence, &known)
             .into_iter()
             .rev()
         {
