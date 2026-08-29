@@ -192,7 +192,21 @@ impl Engram {
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
         let top_k = req.top_k.clamp(1, 50);
-
+        // Row-3 audit A6: the mandated pre-push step must say what it
+        // checked. An empty namespace means it checked NOTHING.
+        let (rules_total, count_failure): (usize, Option<String>) =
+            match ps.search.count_docs_by_namespace(&req.project_id) {
+                Ok(m) => (m.get(QG_NAMESPACE).copied().unwrap_or(0), None),
+                Err(e) => (0, Some(format!("quality-gate rule count failed: {e}"))),
+            };
+        if rules_total == 0 && count_failure.is_none() {
+            return Ok(CallToolResult::success(vec![Content::text(
+                "Pre-push audit: INACTIVE — 0 quality-gate rules are ingested for this project, so \
+                 NOTHING was checked. Run ingest_quality_gates (DevOps rules / copilot-instructions / \
+                 CodeRabbit history) and re-run; until then this step is not evidence."
+                    .to_string(),
+            )]));
+        }
         let query = crate::utils::text::code_to_query(&req.code);
         let cancel = tokio_util::sync::CancellationToken::new();
         let hits = ps
@@ -220,11 +234,15 @@ impl Engram {
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         if hits.is_empty() {
-            return Ok(CallToolResult::success(vec![Content::text(
-                "Pre-push audit: no quality-gate rules matched this change. (If you haven't run \
-                 ingest_quality_gates for this project, there are no rules to check yet.)"
-                    .to_string(),
-            )]));
+            let mut msg = format!(
+                "Pre-push audit: no quality-gate rules matched this change — {rules_total} rule(s) \
+                 exist in the `{QG_NAMESPACE}` namespace and were searched (top_k {top_k}); 0 checked \
+                 against this code."
+            );
+            if let Some(f) = &count_failure {
+                msg.push_str(&format!("\nFAILURE: {f}"));
+            }
+            return Ok(CallToolResult::success(vec![Content::text(msg)]));
         }
 
         // Rules scoped to the edited file rank first.
@@ -243,6 +261,20 @@ impl Engram {
              CodeRabbit/SonarQube history, the recurring-issues board). Confirm your change does NOT \
              violate them before pushing.\n\n",
         );
+        out.push_str(&format!(
+            "Checked: {} rule(s) retrieved of {} in the namespace (top_k {}{})\n\n",
+            hits.len(),
+            rules_total,
+            top_k,
+            if hits.len() >= top_k {
+                " — the cap was filled; raise top_k for more"
+            } else {
+                ""
+            }
+        ));
+        if let Some(f) = &count_failure {
+            out.push_str(&format!("FAILURE: {f}\n\n"));
+        }
         let mut scoped = Vec::new();
         let mut general = Vec::new();
         for h in &hits {
