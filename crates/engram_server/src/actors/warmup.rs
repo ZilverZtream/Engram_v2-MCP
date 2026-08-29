@@ -41,6 +41,28 @@ pub async fn warm_all_projects(state: &AppState) -> usize {
                     ms = t0.elapsed().as_millis() as u64,
                     "warm-up: project runtime (+ co-change snapshot) ready"
                 );
+                // Prime the change-set caches (node snapshot, settings prior, the
+                // co-change partner path) with one background call — release 26
+                // live: the first user call after a restart still took 9.6 s.
+                let t1 = std::time::Instant::now();
+                let req: Result<crate::models::GetChangeSetRequest, _> =
+                    serde_json::from_value(serde_json::json!({
+                        "project_id": pid,
+                        "story": "warm-up: prime the change-set caches",
+                    }));
+                if let Ok(req) = req {
+                    let eng = crate::tools::Engram::new(state.clone());
+                    match eng.handle_get_change_set(req).await {
+                        Ok(_) => tracing::info!(
+                            project_id = %pid,
+                            ms = t1.elapsed().as_millis() as u64,
+                            "warm-up: change-set caches primed"
+                        ),
+                        Err(e) => {
+                            tracing::debug!(project_id = %pid, "warm-up: change-set prime skipped: {e}")
+                        }
+                    }
+                }
             }
             Err(e) => tracing::warn!(project_id = %pid, "warm-up: runtime load failed: {e}"),
         }
