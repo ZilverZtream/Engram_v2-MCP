@@ -241,6 +241,67 @@ async fn a_reported_quantity_reader_is_a_reader_not_an_export() {
     );
 }
 
+fn file_node(path: &str) -> Node {
+    Node {
+        node_id: format!("file:{path}"),
+        node_type: "file".into(),
+        name: path.rsplit('/').next().unwrap().into(),
+        namespace: "memory".into(),
+        language: "vbnet".into(),
+        file_path: RelPath::new(path),
+        start_line: 0,
+        end_line: 0,
+        generation: 1,
+        metadata: None,
+    }
+}
+
+/// Live finding (release 16, `redovisningskategori`): the `.rdl` report
+/// definitions are FILE nodes (`file:<path>`), whose path is the second id
+/// segment, not the third — after "report" left the export words they fell
+/// to `read`. The role rule must read the path from a `file:` id too.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_file_node_consumer_is_classified_by_its_own_path() {
+    let (_tmp, state) = build_state();
+    let t = table("personalliggare");
+    let rdl = file_node("Site/Reports/personalliggare/personalliggare.en.rdl");
+    let test_file = file_node("Site/App_Code/test_personalliggare.vb");
+    let plain = file_node("Site/pages/PL/list.aspx");
+    state
+        .graph
+        .upsert_nodes(
+            PID,
+            &[t.clone(), rdl.clone(), test_file.clone(), plain.clone()],
+        )
+        .unwrap();
+    state
+        .graph
+        .upsert_edges(
+            PID,
+            &[
+                edge(&rdl.node_id, &t.node_id, EdgeKind::QueriesTable),
+                edge(&test_file.node_id, &t.node_id, EdgeKind::QueriesTable),
+                edge(&plain.node_id, &t.node_id, EdgeKind::DataBinding),
+            ],
+        )
+        .unwrap();
+    let engram = Engram::new(state.clone());
+
+    let out = footprint(&engram).await;
+
+    for (needle, role) in [
+        ("personalliggare.en.rdl", "export"),
+        ("test_personalliggare.vb", "test"),
+        ("PL/list.aspx", "read"),
+    ] {
+        let line = consumer_line(&out, needle);
+        assert!(
+            line.starts_with(&format!("- [{role}:")),
+            "file node {needle} must be classified by its path as {role}:\n{line}"
+        );
+    }
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn an_sql_call_with_an_unknown_verb_is_not_guessed() {
     let (_tmp, state) = build_state();

@@ -55,8 +55,15 @@ pub(crate) const GATE_DEF_FILE_CAP: usize = 2;
 pub(crate) fn consumer_role(kind: &EdgeKind, src: &str) -> &'static str {
     let lower = src.to_ascii_lowercase();
     let segs: Vec<&str> = lower.split(':').collect();
-    let path = segs.get(2).copied().unwrap_or("");
-    let member = segs.get(3).copied().unwrap_or(lower.as_str());
+    // `file:<path>` (report definitions, pages) vs `sym:<kind>:<path>:<member>:<line>`
+    // — a file node has a path and no member; live, the `.rdl` reports are
+    // file nodes and were classified as if their id had a third segment.
+    let (path, member): (&str, &str) = match segs.as_slice() {
+        ["file", p, ..] => (p, ""),
+        [_, _, p, m, ..] => (p, m),
+        [_, _, p] => (p, ""),
+        _ => ("", lower.as_str()),
+    };
     if crate::services::pre_commit_review_service::is_test_path(path) {
         return "test";
     }
