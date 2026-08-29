@@ -138,12 +138,12 @@ its extractor.
 | A6 | **fixed (slice 2)** — the static analyser runs whenever the file is readable (the `< 5 commits` gate is gone); `StyleBasis.vb_analyser_ran` / `static_bullets` say so |
 | A7 | **fixed (slice 2)** — git-history and file-read failures are `basis.failures[]` lines (the guide is still produced from what could be read); a cache-write failure is logged and printed "(not cached: …)" |
 | A8 | **fixed (slices 1+2)** — `tests/implementation_pattern_tests.rs` x3 (real mini WebForms project via index_project) + `tests/coding_style_basis_tests.rs` x3 (real git repo, 6 commits: VB analyser ran + basis; printed confidence = engine's; non-git project reports the git failure and still gets the static guide). Unit x4 |
-| M0 A/B | **contract AUTHORED 2026-08-29 (`eval/data/p2/contract_icon_label.{md,json}`, derived at base 5b3e9a3774 from a git-grep census of the map territory: structure consistent; icon library / gap / localization chaotic → prescribe or per-file conform; state = class toggling 571 vs opacity 61; wiring = addEventListener 94; leak-safe exemplars) — the REPLAY is still blocked on user opt-in (2026-08-28)** — the replay needs either the OciusX `/story` dry-run orchestrator (registered domain agents + two human gates, run from an OciusX session) or the Engram Phase-2 A/B (in-session agents via the Workflow tool, which requires explicit opt-in). Inputs are ready (`eval/data/p2/pr1908.json`, `pr1937.json` + dossiers). Ask: hand-author the icon-label contract, then run both replays twice (with/without) — ~1 h of Sonnet agent time |
+| M0 A/B | **RUN 2026-08-29 07:35 — NEGATIVE, idea dropped per the kill-switch (§7c)**; contract AUTHORED 2026-08-29 (`eval/data/p2/contract_icon_label.{md,json}`, derived at base 5b3e9a3774 from a git-grep census of the map territory: structure consistent; icon library / gap / localization chaotic → prescribe or per-file conform; state = class toggling 571 vs opacity 61; wiring = addEventListener 94; leak-safe exemplars) — the REPLAY is still blocked on user opt-in (2026-08-28)** — the replay needs either the OciusX `/story` dry-run orchestrator (registered domain agents + two human gates, run from an OciusX session) or the Engram Phase-2 A/B (in-session agents via the Workflow tool, which requires explicit opt-in). Inputs are ready (`eval/data/p2/pr1908.json`, `pr1937.json` + dossiers). Ask: hand-author the icon-label contract, then run both replays twice (with/without) — ~1 h of Sonnet agent time |
 | G1 | **5/5 live** after slice 3 (§7b: the "user control … dropdown" query now infers `page` and returns `producedq.aspx.vb` first) |
 | G2 | **met (live)** — ordered chains with resolved DAL calls on the real pages (`btnSave_Click → … _cf.Form.Create | _cf.Form.Update`, `btnCopy_Click → _pp.mal.CopyForecastQtyByPrID | _rv.malredovisningsartiklar.…`) |
 | G3 | **met by construction** (every cap in `PatternCoverage`; failures listed) |
 | G4 | **met (live, slice 3, §7b)** — `Confidence: 0.30` (1 commit, VB analyser 6 rules, mimicry 3) vs `0.60` (5 commits, 7 rules, mimicry 6): the value varies with the evidence; the versioned key retired the stale entry |
-| G5 | M0 A/B — contract authored; the replay is blocked on user opt-in (see M0 row) |
+| G5 | M0 A/B executed and recorded (§7c): 1908 100 → 100 (saturated), 1937 61.9 → 41.9 (n=3 each, Sonnet arm-B plans, file-F1) — no lift, the Catalog is NOT built |
 | G6 | **met** — 0.85–1.06 s per query incl. the JSON-RPC round trip (target ≤ 2 s) |
 | G7 | sweep13 (116 suites) |
 
@@ -181,3 +181,35 @@ cached text (cache key = file + HEAD oid). Slice 3 versions the key.
   `productioncodelistcategory.aspx.vb` → `Confidence: 0.30 · Basis: 1 commit(s) (limit 10) · file read: yes · VB analyser: ran (6 rule(s)) · mimicry: 3 bullet(s) · LLM: no`;
   `api-installationsobjektprojekt.vb` → `Confidence: 0.60 · 5 commit(s) · VB analyser: ran (7 rule(s)) · mimicry: 6`.
   No "(cached)" — the versioned key retired the previous binary's entry.
+
+## 7c. M0 kill-switch A/B — executed 2026-08-29 07:35 (user opt-in via the Workflow tool)
+
+Protocol: the canonical arm-B plan replay — Sonnet agents plan READ-ONLY
+against the leak-safe snapshot at `base_commit`, given the story + the shipped
+`get_change_set` dossier; the WITH arm additionally reads the hand-authored
+icon-label contract (`eval/data/p2/contract_icon_label.md`, advisory). Plans
+are scored by `eval/_armb_score.py` (file-F1 vs the merged PR, exact and
+name-tolerant). 2 PRs × 2 arms × 3 reps = 12 agents, 11 min, 1.7 M tokens.
+
+| PR | dossier only (mean ± sd, n=3) | dossier + contract (n=3) | canonical single-run |
+|---|---|---|---|
+| 1908 "upload map-marker icons safely" | **100.0 ± 0.0** | **100.0 ± 0.0** | 100 |
+| 1937 "camera icon doesn't go back to dimmed" | **61.9 ± 16.8** (50 / 85.7 / 50) | **41.9 ± 35.0** (40 / 85.7 / 0) | 85.7 |
+| overall | 81.0 | 71.0 | — |
+
+Autopsy of 1937 (the only story with room): the real PR touched the server
+count source (`api-installationsobjektprojekt.vb`) AND the client
+(`ioMarkerMoment.ts` + compiled `map.js`). Without the contract 2/3 plans took
+the server-only fork (F1 50), 1/3 the full set (85.7). With the contract the
+"drive icon state from a class toggled where the model changes" axis pulled
+one plan into two `map.css` files (FP, F1 unchanged at 85.7), one into
+`api-images.vb` only (F1 0), one into server + `api-images.vb` (40). The
+contract did not resolve the layer fork — it added a plausible-but-wrong
+surface to touch. 1908 is saturated in both arms (9/9 files).
+
+**Decision (the spec's own kill-switch, §9 M0): the score did not move up —
+the UI Family Catalog is not built and `get_ui_conformance` M1-M5 are
+dropped.** The contract artifact stays as evidence. n=3 is small (the
+2026-07-10 lesson: fork PRs swing ±35), but the direction is against the idea
+on the one story that could show it, and nothing in the 1908 plans used the
+contract at all.
