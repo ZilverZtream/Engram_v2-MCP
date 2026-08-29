@@ -110,8 +110,60 @@ pub async fn build_snapshot(
 /// multi-term question — a hit whose text covers ≥2 distinct query terms (a lone
 /// coincidental keyword is not an answer). A single-term question is satisfied
 /// by any lexical hit.
+/// The question's NAMED terms that no evidence mentions (external audit
+/// 2026-08-29 row 6). A named term is identifier-like (`Check_pr_id`,
+/// `api.GetAll`), CamelCase, or a capitalised word that is not sentence-
+/// initial ("Which Redis cluster …"). Such a term is the question's premise:
+/// when nothing in the evidence set (path, title, content) contains it, the
+/// answer must not be asserted from the OTHER terms — that is anchoring on a
+/// false premise. Returned in question order, original spelling, deduped.
+pub fn uncovered_named_terms(question: &str, evidence: &[EvidenceItem]) -> Vec<String> {
+    let hay: String = evidence
+        .iter()
+        .map(|e| {
+            format!(
+                "{} {} {}\n",
+                e.path.clone().unwrap_or_default(),
+                e.title.clone().unwrap_or_default(),
+                e.content
+            )
+        })
+        .collect::<String>()
+        .to_lowercase();
+    let mut out: Vec<String> = Vec::new();
+    for (i, raw) in question.split_whitespace().enumerate() {
+        let tok = raw
+            .trim_matches(|c: char| !c.is_ascii_alphanumeric() && c != '_' && c != '.')
+            .trim_matches('.');
+        if tok.len() < 3 || !tok.chars().any(|c| c.is_ascii_alphabetic()) {
+            continue;
+        }
+        let upper_start = tok.chars().next().is_some_and(|c| c.is_ascii_uppercase());
+        let inner_upper = tok.chars().skip(1).any(|c| c.is_ascii_uppercase());
+        let identifier = tok.contains('_') || tok.contains('.');
+        let named = identifier || inner_upper || (upper_start && i > 0);
+        if !named {
+            continue;
+        }
+        let lower = tok.to_lowercase();
+        if is_filler_term(&lower) || hay.contains(&lower) {
+            continue;
+        }
+        if !out.iter().any(|o| o.eq_ignore_ascii_case(tok)) {
+            out.push(tok.to_string());
+        }
+    }
+    out
+}
+
 pub fn has_adequate_support(question: &str, evidence: &[EvidenceItem]) -> bool {
     use super::evidence::EvidenceKind::GraphRelation;
+    // A named premise nobody has evidence for is not supported by evidence
+    // for the question's other terms (row 6: "Which Redis cluster caches the
+    // redovisningskategori list?" was answered from the real term alone).
+    if !uncovered_named_terms(question, evidence).is_empty() {
+        return false;
+    }
     // Strong structural support = a graph relation from a RESOLVED-entity arm
     // (impact / usage / companion). NOT the concept arm: it matches a node on a
     // single name-stem, so a lone "…Policy" class would falsely support a
@@ -233,7 +285,18 @@ pub fn assess_status(
             AnswerStatus::Unsupported
         };
     }
-    if plan.entities.iter().any(|e| e.resolved.len() > 1) {
+    // Ambiguous means genuinely DIFFERENT symbols: one name resolved under two
+    // node kinds (a table and its .sql file) is one thing, not two branches.
+    if plan.entities.iter().any(|e| {
+        let mut names: Vec<String> = e
+            .resolved
+            .iter()
+            .map(|r| r.canonical.to_lowercase())
+            .collect();
+        names.sort();
+        names.dedup();
+        names.len() > 1
+    }) {
         return AnswerStatus::Ambiguous;
     }
     let has_authority = evidence
