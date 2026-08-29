@@ -8,6 +8,14 @@
 
 use crate::state::AppState;
 
+/// Most recently updated project first — the one the user is working in gets
+/// its runtime and caches before the rest (release 27 live: the first user
+/// call landed while a sequential prime was still on the big project).
+pub fn warm_order(mut recs: Vec<engram_core::ProjectRecord>) -> Vec<engram_core::ProjectRecord> {
+    recs.sort_by(|a, b| b.updated_at_ms.cmp(&a.updated_at_ms));
+    recs
+}
+
 /// Open every registered project's runtime and load its co-change snapshot.
 /// Returns the number of projects whose runtime is now cached. Failures are
 /// logged per project and never abort the others.
@@ -19,6 +27,11 @@ pub async fn warm_all_projects(state: &AppState) -> usize {
             return 0;
         }
     };
+    let recs = warm_order(recs);
+    // The change-set primes run concurrently (bounded) instead of one project
+    // after another; the function still returns only when every prime is done.
+    let prime_limit = std::sync::Arc::new(tokio::sync::Semaphore::new(3));
+    let mut primes = tokio::task::JoinSet::new();
     let mut warmed = 0usize;
     for rec in recs {
         let pid = rec.project_id.clone();
@@ -44,27 +57,38 @@ pub async fn warm_all_projects(state: &AppState) -> usize {
                 // Prime the change-set caches (node snapshot, settings prior, the
                 // co-change partner path) with one background call — release 26
                 // live: the first user call after a restart still took 9.6 s.
-                let t1 = std::time::Instant::now();
-                let req: Result<crate::models::GetChangeSetRequest, _> =
-                    serde_json::from_value(serde_json::json!({
-                        "project_id": pid,
-                        "story": "warm-up: prime the change-set caches",
-                    }));
-                if let Ok(req) = req {
-                    let eng = crate::tools::Engram::new(state.clone());
-                    match eng.handle_get_change_set(req).await {
-                        Ok(_) => tracing::info!(
-                            project_id = %pid,
-                            ms = t1.elapsed().as_millis() as u64,
-                            "warm-up: change-set caches primed"
-                        ),
-                        Err(e) => {
-                            tracing::debug!(project_id = %pid, "warm-up: change-set prime skipped: {e}")
+                let st2 = state.clone();
+                let p2 = pid.clone();
+                let permit = prime_limit.clone();
+                primes.spawn(async move {
+                    let _p = permit.acquire_owned().await;
+                    let t1 = std::time::Instant::now();
+                    let req: Result<crate::models::GetChangeSetRequest, _> =
+                        serde_json::from_value(serde_json::json!({
+                            "project_id": p2,
+                            "story": "warm-up: prime the change-set caches",
+                        }));
+                    if let Ok(req) = req {
+                        let eng = crate::tools::Engram::new(st2);
+                        match eng.handle_get_change_set(req).await {
+                            Ok(_) => tracing::info!(
+                                project_id = %p2,
+                                ms = t1.elapsed().as_millis() as u64,
+                                "warm-up: change-set caches primed"
+                            ),
+                            Err(e) => {
+                                tracing::debug!(project_id = %p2, "warm-up: change-set prime skipped: {e}")
+                            }
                         }
                     }
-                }
+                });
             }
             Err(e) => tracing::warn!(project_id = %pid, "warm-up: runtime load failed: {e}"),
+        }
+    }
+    while let Some(r) = primes.join_next().await {
+        if let Err(e) = r {
+            tracing::debug!("warm-up: a prime task ended abnormally: {e}");
         }
     }
     warmed
