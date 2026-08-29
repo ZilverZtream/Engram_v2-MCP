@@ -420,6 +420,7 @@ async fn gather_runs_arms_for_intents_and_reports_per_provider() {
     resolve_entities(&state.graph, &pid, &mut plan);
 
     let ctx = RetrievalCtx {
+        insights_enabled: true,
         search: ps.search.clone(),
         graph: state.graph.clone(),
         registry: state.registry.clone(),
