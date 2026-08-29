@@ -69,7 +69,7 @@ pub async fn warm_all_projects(state: &AppState) -> usize {
                             "story": "warm-up: prime the change-set caches",
                         }));
                     if let Ok(req) = req {
-                        let eng = crate::tools::Engram::new(st2);
+                        let eng = crate::tools::Engram::new(st2.clone());
                         match eng.handle_get_change_set(req).await {
                             Ok(_) => tracing::info!(
                                 project_id = %p2,
@@ -79,6 +79,26 @@ pub async fn warm_all_projects(state: &AppState) -> usize {
                             Err(e) => {
                                 tracing::debug!(project_id = %p2, "warm-up: change-set prime skipped: {e}")
                             }
+                        }
+                    }
+                    // Row 5: the UI family catalog behind the change-set contract.
+                    let st3 = st2.clone();
+                    let p3 = p2.clone();
+                    match tokio::task::spawn_blocking(move || {
+                        crate::services::ui_catalog::families_cached(&st3, &p3).map(|f| f.len())
+                    })
+                    .await
+                    {
+                        Ok(Ok(n)) => tracing::info!(
+                            project_id = %p2,
+                            families = n,
+                            "warm-up: UI catalog primed"
+                        ),
+                        Ok(Err(e)) => {
+                            tracing::debug!(project_id = %p2, "warm-up: UI catalog skipped: {e}")
+                        }
+                        Err(e) => {
+                            tracing::debug!(project_id = %p2, "warm-up: UI catalog task failed: {e}")
                         }
                     }
                 });

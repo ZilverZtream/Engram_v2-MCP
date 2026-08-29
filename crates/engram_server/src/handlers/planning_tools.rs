@@ -5599,6 +5599,138 @@ pub(crate) struct ChangeSetCoverage {
 /// A full project node scan shared across the sub-calls of one request.
 pub(crate) type NodeSnapshot = std::sync::Arc<Vec<engram_graph::Node>>;
 
+/// External audit 2026-08-29 row 5 (owner: "build the gated, relevance-filtered
+/// section"): the UI contract that rides with a change set. The region-pulled
+/// get_ui_conformance contract lost the n=8 A/B (−4.1 F1: unrelated families,
+/// invented UI files). This section is emitted ONLY when a top-tier candidate
+/// is page markup and lists ONLY the families that markup already belongs to.
+pub const UI_CONTRACT_FRAMING: &str =
+    "advisory — shapes HOW you write markup already in this plan; it never adds or removes files";
+/// Markup counts as "in the plan" through tier 2 (golden evidence, or an
+/// entity match corroborated by a second signal); concept-alone and
+/// associative-only rows (tiers 3–4) do not open the section.
+pub const UI_CONTRACT_MAX_TIER: u8 = 2;
+/// Families shown, largest first (the JSON says how many there were).
+pub const UI_CONTRACT_FAMILY_CAP: usize = 6;
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct UiContract {
+    pub framing: &'static str,
+    /// The top-tier markup candidates the contract is about.
+    pub markup_candidates: Vec<String>,
+    pub families_total: usize,
+    pub families: Vec<crate::services::ui_catalog::UiFamily>,
+    /// The rendered section (the markdown output embeds it verbatim).
+    pub markdown: String,
+}
+
+pub(crate) fn is_markup_path(p: &str) -> bool {
+    let l = p.to_lowercase();
+    l.ends_with(".aspx") || l.ends_with(".ascx") || l.ends_with(".master")
+}
+
+fn ui_norm_path(p: &str) -> String {
+    p.replace('\\', "/").to_lowercase()
+}
+
+/// Same file under either spelling (a candidate may carry or lack a root
+/// prefix the catalog's instance paths have).
+fn ui_same_file(a: &str, b: &str) -> bool {
+    let (a, b) = (ui_norm_path(a), ui_norm_path(b));
+    a == b || a.ends_with(&format!("/{b}")) || b.ends_with(&format!("/{a}"))
+}
+
+/// The contract for a ranked change set: `None` unless a top-tier candidate is
+/// markup AND at least one catalog family has an instance on that markup.
+pub(crate) fn ui_contract_for(
+    rows: &[ChangeSetRow],
+    catalog: &[crate::services::ui_catalog::UiFamily],
+) -> Option<UiContract> {
+    let markup: Vec<String> = rows
+        .iter()
+        .filter(|r| !r.omitted && r.tier <= UI_CONTRACT_MAX_TIER && is_markup_path(&r.path))
+        .map(|r| r.path.clone())
+        .collect();
+    if markup.is_empty() {
+        return None;
+    }
+    let touches = |p: &str| markup.iter().any(|m| ui_same_file(m, p));
+    let mut fams: Vec<crate::services::ui_catalog::UiFamily> = catalog
+        .iter()
+        .filter(|f| f.instance_paths.iter().any(|ip| touches(ip)))
+        .cloned()
+        .map(|mut f| {
+            // The exemplar is the candidate page itself when it carries the
+            // canonical form — the agent copies what is already in the plan.
+            if let Some(c) = f.carriers.iter().find(|c| touches(&c.path)) {
+                f.exemplar = c.clone();
+            }
+            f
+        })
+        .collect();
+    if fams.is_empty() {
+        return None;
+    }
+    fams.sort_by(|a, b| {
+        b.instances
+            .cmp(&a.instances)
+            .then_with(|| a.family_name.cmp(&b.family_name))
+    });
+    let families_total = fams.len();
+    fams.truncate(UI_CONTRACT_FAMILY_CAP);
+    let markdown = render_ui_contract(&markup, &fams, families_total);
+    Some(UiContract {
+        framing: UI_CONTRACT_FRAMING,
+        markup_candidates: markup,
+        families_total,
+        families: fams,
+        markdown,
+    })
+}
+
+fn render_ui_contract(
+    markup: &[String],
+    fams: &[crate::services::ui_catalog::UiFamily],
+    total: usize,
+) -> String {
+    let mut s = format!("\n## UI contract ({UI_CONTRACT_FRAMING})\n");
+    s.push_str(&format!(
+        "Markup already in the candidate list: {}\n",
+        markup
+            .iter()
+            .map(|m| format!("`{m}`"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    ));
+    s.push_str(&format!(
+        "Families that markup belongs to ({} of {} shown) — when you touch these containers, keep the canonical spelling:\n",
+        fams.len(),
+        total
+    ));
+    for f in fams {
+        s.push_str(&format!(
+            "### {} — {} instance(s); exemplar `{}:{}`\n",
+            f.family_name, f.instances, f.exemplar.path, f.exemplar.line
+        ));
+        for a in &f.axes {
+            s.push_str(&format!(
+                "- {}: {:?} — canonical `{}` ({} of {}){}\n",
+                a.axis,
+                a.consistency,
+                a.canonical,
+                a.evidence_count,
+                f.instances,
+                if a.alternatives.is_empty() {
+                    String::new()
+                } else {
+                    format!("; alternatives: {}", a.alternatives.join(", "))
+                }
+            ));
+        }
+    }
+    s
+}
+
 fn render_change_set_coverage(cov: &ChangeSetCoverage, omitted: usize) -> String {
     let mut s = String::from("\n## Coverage\n");
     s.push_str(&format!("- concept: {}\n", cov.concept.line()));
@@ -7011,6 +7143,34 @@ impl Engram {
         );
         cov.stages
             .insert("render".into(), t_all.elapsed().as_millis());
+        // Row 5 (owner 2026-08-29): the UI contract rides with the change set —
+        // gated on markup in the top tier, filtered to the families that markup
+        // already belongs to. The catalog is cached per generation and the gate
+        // is checked first, so a change set without markup pays nothing.
+        let ui_contract: Option<UiContract> = {
+            let (rows_all, _) = change_set_rows(&prov);
+            if rows_all
+                .iter()
+                .any(|r| !r.omitted && r.tier <= UI_CONTRACT_MAX_TIER && is_markup_path(&r.path))
+            {
+                let st = self.state.clone();
+                let pid_u = req.project_id.clone();
+                let fams = tokio::task::spawn_blocking(move || {
+                    crate::services::ui_catalog::families_cached(&st, &pid_u)
+                })
+                .await
+                .ok()
+                .and_then(|r| r.ok());
+                cov.stages
+                    .insert("ui_contract".into(), t_all.elapsed().as_millis());
+                fams.and_then(|f| ui_contract_for(&rows_all, &f))
+            } else {
+                None
+            }
+        };
+        if let Some(c) = &ui_contract {
+            out.push_str(&c.markdown);
+        }
         cov.wall_ms = t_all.elapsed().as_millis();
         out.push_str(&render_change_set_coverage(&cov, omissions.len()));
 
@@ -7122,6 +7282,10 @@ impl Engram {
                 "files": files,
                 "coverage": cov,
                 "omissions": omissions,
+                "ui_contract": ui_contract
+                    .as_ref()
+                    .and_then(|c| serde_json::to_value(c).ok())
+                    .unwrap_or(serde_json::Value::Null),
                 "permission_gates": permission_gates_json,
             });
             return Ok(CallToolResult::success(vec![Content::text(
