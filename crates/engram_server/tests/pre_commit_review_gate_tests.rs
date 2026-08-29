@@ -658,6 +658,9 @@ fn all_gates_returns_expected_roster_in_order() {
         names,
         vec![
             "immune",
+            // external audit 2026-08-29 row 8: enforced repo rules run right after the
+            // immune check, before the advisory gates
+            "repo_rules",
             "blast_radius",
             "style",
             "temporal",
