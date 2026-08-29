@@ -76,6 +76,11 @@ fn dotnet_webforms_cs_exts() -> Vec<&'static str> {
         "cs", "aspx", "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml", "sln",
         "csproj", "sql", "rdlc", "rdl", "asp", "rpt", "md", "json", "js", "ts", "jsx", "tsx",
         "mjs", "cjs", "html", "htm", "css", "scss", "less", "resx",
+        // ORM models (LINQ-to-SQL .dbml, Entity Framework .edmx): they change
+        // with every table change — external audit 2026-08-29 P0-3, the
+        // reference story's `iFalt.dbml` could never render because these were
+        // not indexed at all.
+        "dbml", "edmx",
         // OpenAPI/Swagger specs + CI pipelines: contract documents that ship
         // with endpoint changes (live recall miss: docs/openapi/*.yaml).
         "yaml", "yml",
@@ -87,6 +92,11 @@ fn dotnet_webforms_vb_exts() -> Vec<&'static str> {
         "vb", "aspx", "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml", "sln",
         "vbproj", "sql", "rdlc", "rdl", "asp", "rpt", "md", "json", "js", "ts", "jsx", "tsx",
         "mjs", "cjs", "html", "htm", "css", "scss", "less", "resx",
+        // ORM models (LINQ-to-SQL .dbml, Entity Framework .edmx): they change
+        // with every table change — external audit 2026-08-29 P0-3, the
+        // reference story's `iFalt.dbml` could never render because these were
+        // not indexed at all.
+        "dbml", "edmx",
         // OpenAPI/Swagger specs + CI pipelines: contract documents that ship
         // with endpoint changes (live recall miss: docs/openapi/*.yaml).
         "yaml", "yml",

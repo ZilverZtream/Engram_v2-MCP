@@ -2186,6 +2186,19 @@ mod tests {
     }
 
     #[test]
+    fn change_set_paths_keeps_orm_model_files() {
+        // External audit 2026-08-29 P0-3: the footprint named `iFalt.dbml` and
+        // the candidate parser dropped it — the LINQ-to-SQL / EF model files
+        // must survive the extension alternation like any code file.
+        let v = change_set_paths(
+            "touch Site/App_Code/iFalt.dbml and Models/Ocius.edmx next to Site/x.vb",
+        );
+        assert!(v.contains(&"site/app_code/ifalt.dbml".to_string()), "{v:?}");
+        assert!(v.contains(&"models/ocius.edmx".to_string()), "{v:?}");
+        assert!(v.contains(&"site/x.vb".to_string()), "{v:?}");
+    }
+
+    #[test]
     fn change_set_paths_captures_build_output_dirs() {
         // A build-output directory named `~.js/` itself ends in a code
         // extension. The extractor must greedily capture the FULL file, not
@@ -4502,7 +4515,7 @@ fn change_set_paths(text: &str) -> Vec<String> {
     // The class also admits `~ @ +` (legal in build-output / scoped dirs) so
     // such paths aren't fragmented into slashless pieces the `keep` filter drops.
     let re = regex::Regex::new(
-        r"(?i)[\w./\\~@+-]*\.(?:aspx\.vb|ascx\.vb|asax\.vb|asmx\.vb|ashx\.vb|svc\.vb|master\.vb|aspx\.cs|ascx\.cs|asax\.cs|asmx\.cs|ashx\.cs|svc\.cs|master\.cs|aspx|ascx|asax|ashx|asmx|svc|master|vb|css|cs|ts|tsx|js|jsx|sql|config|vbhtml|cshtml|resx|html|yaml|yml)\b",
+        r"(?i)[\w./\\~@+-]*\.(?:aspx\.vb|ascx\.vb|asax\.vb|asmx\.vb|ashx\.vb|svc\.vb|master\.vb|aspx\.cs|ascx\.cs|asax\.cs|asmx\.cs|ashx\.cs|svc\.cs|master\.cs|aspx|ascx|asax|ashx|asmx|svc|master|vb|css|cs|ts|tsx|js|jsx|sql|config|vbhtml|cshtml|resx|html|yaml|yml|dbml|edmx)\b",
     )
     .expect("change_set_paths regex");
     let mut seen = HashSet::new();
