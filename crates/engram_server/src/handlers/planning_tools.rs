@@ -38,6 +38,44 @@ pub(crate) const ANCHOR_CAP: usize = 50;
 pub(crate) const CONSUMER_CAP_PER_ANCHOR: usize = 200;
 pub(crate) const LEXICAL_PAGE: usize = 2000;
 
+/// Row-4 audit A6/D6: the role a consumer plays towards an anchor table /
+/// state key, derived from the edge kind + the source member name/path
+/// (`src` is a node id `sym:function:<path>:<Class.Member>:<line>`).
+/// Bodies are NOT inspected: LINQ `InsertOnSubmit`/`DeleteOnSubmit` and SQL
+/// verbs inside a neutrally named member stay `read` / `sql?` — the header
+/// states that limit. Order: test path > export > delete > write > kind.
+pub(crate) fn consumer_role(kind: &EdgeKind, src: &str) -> &'static str {
+    let lower = src.to_ascii_lowercase();
+    let segs: Vec<&str> = lower.split(':').collect();
+    let path = segs.get(2).copied().unwrap_or("");
+    let member = segs.get(3).copied().unwrap_or(lower.as_str());
+    if crate::services::pre_commit_review_service::is_test_path(path) {
+        return "test";
+    }
+    if path.ends_with(".rdl")
+        || path.contains("export")
+        || ["export", "excel", "pdf", "download", "report"]
+            .iter()
+            .any(|w| member.contains(w))
+    {
+        return "export";
+    }
+    if member.contains("delete") || member.contains("remove") {
+        return "delete";
+    }
+    if matches!(kind, EdgeKind::WritesState)
+        || ["insert", "update", "save", "create", "write", "upsert"]
+            .iter()
+            .any(|w| member.contains(w))
+    {
+        return "write";
+    }
+    match kind {
+        EdgeKind::SqlCalls => "sql?",
+        _ => "read",
+    }
+}
+
 #[derive(Debug, Clone, Default, serde::Serialize)]
 pub(crate) struct FootprintCoverage {
     pub node_scan: String,
@@ -564,7 +602,7 @@ impl Engram {
                     cov.anchors_matched
                 ));
             }
-            let mut consumers: Vec<(String, String, String)> = Vec::new(); // anchor, kind, src
+            let mut consumers: Vec<(String, String, String)> = Vec::new(); // anchor, role:kind, src
             cov.consumers = "complete".into();
             for (anchor_id, anchor_name) in &anchors {
                 match graph.find_incoming_edges_with_kind(
@@ -590,7 +628,7 @@ impl Engram {
                             ) {
                                 consumers.push((
                                     anchor_name.clone(),
-                                    kind.as_str().to_string(),
+                                    format!("{}:{}", consumer_role(&kind, &src), kind.as_str()),
                                     src,
                                 ));
                             }
@@ -782,9 +820,21 @@ impl Engram {
         }
 
         if !consumers.is_empty() {
+            let role_count = |role: &str| {
+                consumers
+                    .iter()
+                    .filter(|(_, rk, _)| rk.split(':').next() == Some(role))
+                    .count()
+            };
             out.push_str(&format!(
-                "\n## Consumers of core anchors — {} (who reads/writes the tables & state keys)\n",
-                consumers.len()
+                "\n## Consumers of core anchors — {} (write {}, read {}, delete {}, export {}, test {}, sql? {}; role from edge kind + source member name/path — bodies not inspected, so a `read` may still write via LINQ/SQL)\n",
+                consumers.len(),
+                role_count("write"),
+                role_count("read"),
+                role_count("delete"),
+                role_count("export"),
+                role_count("test"),
+                role_count("sql?"),
             ));
             for (anchor, kind, src) in consumers.iter().take(cap * 2) {
                 out.push_str(&format!("- [{kind}] {src} -> {anchor}\n"));
