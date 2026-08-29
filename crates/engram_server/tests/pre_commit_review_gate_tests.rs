@@ -170,6 +170,7 @@ fn as_gate_ctx<'a>(c: &'a Ctx) -> GateContext<'a> {
         }
     });
     GateContext {
+        search_index_note: None,
         state: &c.state,
         graph: c.state.graph.clone(),
         registry: c.state.registry.clone(),
