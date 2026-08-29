@@ -39,8 +39,14 @@ impl Engram {
         let mut plan = planner::plan_query(&req.question);
         let graph = self.state.graph.clone();
         let pid_for_resolve = req.project_id.clone();
+        let question_for_resolve = req.question.clone();
         plan = tokio::task::spawn_blocking(move || {
-            resolver::resolve_entities(&graph, &pid_for_resolve, &mut plan);
+            resolver::resolve_entities_in_context(
+                &graph,
+                &pid_for_resolve,
+                &mut plan,
+                &question_for_resolve,
+            );
             plan
         })
         .await
