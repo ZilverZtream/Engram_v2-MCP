@@ -3809,3 +3809,18 @@ pub struct ListAdvancedToolsRequest {
     #[serde(default)]
     pub filter: Option<String>,
 }
+
+/// External audit 2026-08-29 row 5 (M2): UI conformance pull / check.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GetUiConformanceRequest {
+    pub project_id: String,
+    /// A file, a directory prefix (trailing `/`), or a glob (`Site/**/*.aspx`): the region to learn from / write into.
+    pub region: String,
+    /// Optional candidate class list to CHECK against the region's contract (e.g. "form-group row mt-3").
+    #[serde(default)]
+    pub candidate_classes: Option<String>,
+    /// Minimum instances for a family (default 2).
+    #[serde(default)]
+    pub min_instances: Option<usize>,
+}
