@@ -22,6 +22,7 @@ pub mod ingest_service;
 pub mod instrumentation_service;
 pub mod integrity_service;
 pub mod job_service;
+pub mod lexicon;
 pub mod lifecycle_service;
 pub mod memory_portability;
 pub mod migration_order_service;
