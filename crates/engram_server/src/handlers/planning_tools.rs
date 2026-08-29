@@ -2583,15 +2583,82 @@ fn node_meta_str<'a>(n: &'a engram_graph::Node, key: &str) -> &'a str {
         .unwrap_or("")
 }
 
+/// `object` when the family scopes an entity by its id (`check_pr_id`,
+/// `check_<x>_id`, `CheckAccess…`, `HasAccessTo…`, `CanAccess…`,
+/// `IsOwnerOf…`) — live: the DAL helper `_gd.projekt.GetByID` carries
+/// `check_pr_id`; `role` for the role/permission families.
 fn guard_level_for(checks: &str) -> Option<String> {
     if checks.is_empty() {
-        None
-    } else {
-        // Every family the extractor recognises today (CheckRead/CheckWrite,
-        // IsInRole, check_pr_id, …) is a ROLE-level check; object/tenant
-        // scoping needs the body (A2).
-        Some("role".into())
+        return None;
     }
+    static RE_OBJ_FAMILY: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(r"(?i)^(?:check_\w*id|checkaccess\w*|checkprojectaccess|hasaccessto\w*|isownerof\w*|canaccess\w*)$")
+            .expect("RE_OBJ_FAMILY")
+    });
+    let object = checks
+        .split(';')
+        .map(|c| c.trim())
+        .any(|c| !c.is_empty() && RE_OBJ_FAMILY.is_match(c));
+    Some(if object {
+        "object".into()
+    } else {
+        "role".into()
+    })
+}
+
+/// Helper candidates a function may inherit a guard from, in preference
+/// order: bare in-class calls found in the BODY (the VB extractor emits no
+/// Calls edge for `CanUserBulkUpdate()`), then the graph's Calls targets
+/// (qualified calls such as `_gd.projekt.GetByID`).
+fn helper_candidates(
+    graph: &std::sync::Arc<engram_graph::GraphStore>,
+    pid: &str,
+    n: &engram_graph::Node,
+    body: Option<&str>,
+    file_fns: &HashMap<(String, String), engram_graph::Node>,
+    failures: &mut Vec<String>,
+) -> Vec<engram_graph::Node> {
+    static RE_BARE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(r"(?:^|[^.\w])([A-Za-z_]\w*)\s*\(").expect("RE_BARE")
+    });
+    let mut out: Vec<engram_graph::Node> = Vec::new();
+    let mut seen: HashSet<String> = HashSet::new();
+    let file = n.file_path.as_str().replace('\\', "/");
+    if let Some(b) = body {
+        for line in b.lines() {
+            let code = line.split('\'').next().unwrap_or(line);
+            for cap in RE_BARE.captures_iter(code) {
+                let key = (file.clone(), cap[1].to_ascii_lowercase());
+                if let Some(t) = file_fns.get(&key)
+                    && t.node_id != n.node_id
+                    && seen.insert(t.node_id.clone())
+                {
+                    out.push(t.clone());
+                }
+            }
+        }
+    }
+    match graph.neighbors(pid, EdgeKind::Calls, &n.node_id, GUARD_HELPER_HOP_CAP) {
+        Ok(neigh) => {
+            for (target, _) in neigh {
+                if seen.contains(&target) {
+                    continue;
+                }
+                match graph.get_node(pid, &target) {
+                    Ok(Some(t)) => {
+                        seen.insert(target);
+                        out.push(t);
+                    }
+                    Ok(None) => {}
+                    Err(e) => {
+                        failures.push(format!("{}: helper lookup {target} failed: {e}", n.name))
+                    }
+                }
+            }
+        }
+        Err(e) => failures.push(format!("{}: Calls lookup failed: {e}", n.name)),
+    }
+    out
 }
 
 /// Client-supplied scope keys read in a function body.
@@ -2803,6 +2870,24 @@ pub(crate) fn build_guards_report(
 
     // Verdict per scoped function (A1 + A3), client-input rule (A2).
     let mut file_lines: HashMap<String, Option<Vec<String>>> = HashMap::new();
+    // (file, bare lower-case name) → function node, for bare in-class calls.
+    let file_fns: HashMap<(String, String), engram_graph::Node> = all_nodes
+        .iter()
+        .filter(|n| n.node_type == "function")
+        .map(|n| {
+            (
+                (
+                    n.file_path.as_str().replace('\\', "/"),
+                    n.name
+                        .rsplit('.')
+                        .next()
+                        .unwrap_or(&n.name)
+                        .to_ascii_lowercase(),
+                ),
+                n.clone(),
+            )
+        })
+        .collect();
     for n in &scoped {
         let checks = node_meta_str(n, "permission_checks").to_string();
         let roles = node_meta_str(n, "guard_roles").to_string();
@@ -2847,6 +2932,18 @@ pub(crate) fn build_guards_report(
             role_only: false,
             own_check_conditional: false,
         };
+        let candidates =
+            helper_candidates(graph, pid, n, body.as_deref(), &file_fns, &mut cov.failures);
+        let credit = |v: &mut GuardVerdict, t: &engram_graph::Node, why: &str| {
+            let tc = node_meta_str(t, "permission_checks");
+            let tb = t.name.rsplit('.').next().unwrap_or(&t.name).to_string();
+            v.verdict = "guarded".into();
+            v.family = tc.to_string();
+            v.level = guard_level_for(tc);
+            v.roles = node_meta_str(t, "guard_roles").to_string();
+            v.via = Some(tb.clone());
+            v.reason = format!("{why} {tb} (one call hop)");
+        };
         if !checks.is_empty() {
             v.verdict = "guarded".into();
             v.reason = "permission check in the function body (extractor metadata)".into();
@@ -2856,27 +2953,36 @@ pub(crate) fn build_guards_report(
             {
                 v.own_check_conditional = true;
                 v.reason = "own permission check runs only on a branch".into();
-                // A directly called helper that checks unconditionally is the
-                // real guard (live: CanUserBulkUpdate over a branch-only CheckWrite).
-                if let Ok(neigh) =
-                    graph.neighbors(pid, EdgeKind::Calls, &n.node_id, GUARD_HELPER_HOP_CAP)
+                if let Some(t) = candidates
+                    .iter()
+                    .find(|t| !node_meta_str(t, "permission_checks").is_empty())
                 {
-                    for (target, _) in neigh {
-                        if let Ok(Some(t)) = graph.get_node(pid, &target) {
-                            let tc = node_meta_str(&t, "permission_checks");
-                            if !tc.is_empty() {
-                                let tb = t.name.rsplit('.').next().unwrap_or(&t.name).to_string();
-                                v.family = tc.to_string();
-                                v.level = guard_level_for(tc);
-                                v.roles = node_meta_str(&t, "guard_roles").to_string();
-                                v.via = Some(tb.clone());
-                                v.reason = format!(
-                                    "own check runs only on a branch; guarded by helper {tb} (one Calls hop)"
-                                );
-                                break;
-                            }
-                        }
+                    credit(
+                        &mut v,
+                        t,
+                        "own check runs only on a branch; guarded by helper",
+                    );
+                }
+            }
+            // A role-level own check plus a called helper that scopes the
+            // OBJECT (`check_pr_id` inside the DAL) is object-level via that
+            // helper — live: the bulk endpoints through `_gd.projekt.GetByID`.
+            if v.level.as_deref() != Some("object") && !v.scope_reads.is_empty() {
+                if let Some(t) = candidates.iter().find(|t| {
+                    guard_level_for(node_meta_str(t, "permission_checks")).as_deref()
+                        == Some("object")
+                }) {
+                    let tb = t.name.rsplit('.').next().unwrap_or(&t.name).to_string();
+                    let tc = node_meta_str(t, "permission_checks").to_string();
+                    v.level = Some("object".into());
+                    // `via` names the credited GUARD helper when there is one
+                    // (the conditional own check above); the scoping helper
+                    // is named in the reason and becomes `via` only when no
+                    // guard helper was credited.
+                    if v.via.is_none() {
+                        v.via = Some(tb.clone());
                     }
+                    v.reason = format!("{} — object scoping by helper {tb} ({tc})", v.reason);
                 }
             }
         } else if fallback {
@@ -2885,36 +2991,11 @@ pub(crate) fn build_guards_report(
                 "symbol came from the extraction fallback — its guard metadata cannot be trusted"
                     .into();
         } else {
-            // One hop through Calls: a helper that itself checks.
-            match graph.neighbors(pid, EdgeKind::Calls, &n.node_id, GUARD_HELPER_HOP_CAP) {
-                Ok(neigh) => {
-                    for (target, _) in neigh {
-                        match graph.get_node(pid, &target) {
-                            Ok(Some(t)) => {
-                                let tc = node_meta_str(&t, "permission_checks");
-                                if !tc.is_empty() {
-                                    let tb =
-                                        t.name.rsplit('.').next().unwrap_or(&t.name).to_string();
-                                    v.verdict = "guarded".into();
-                                    v.family = tc.to_string();
-                                    v.level = guard_level_for(tc);
-                                    v.roles = node_meta_str(&t, "guard_roles").to_string();
-                                    v.via = Some(tb.clone());
-                                    v.reason =
-                                        format!("inherited from helper {tb} (one Calls hop)");
-                                    break;
-                                }
-                            }
-                            Ok(None) => {}
-                            Err(e) => cov
-                                .failures
-                                .push(format!("{bare}: helper lookup {target} failed: {e}")),
-                        }
-                    }
-                }
-                Err(e) => cov
-                    .failures
-                    .push(format!("{bare}: Calls lookup failed: {e}")),
+            if let Some(t) = candidates
+                .iter()
+                .find(|t| !node_meta_str(t, "permission_checks").is_empty())
+            {
+                credit(&mut v, t, "inherited from helper");
             }
             if v.verdict.is_empty() {
                 v.verdict = "unguarded".into();
