@@ -989,15 +989,33 @@ impl Engram {
                 ));
 
                 if !nr.incoming.is_empty() {
+                    // Row-4 audit A9: a count without its rule cannot be reconciled
+                    // with the other tools' numbers — name the kind set and print
+                    // the distinct-caller figure the edit tools / blast radius use.
+                    let distinct_callers = {
+                        let mut s: std::collections::HashSet<&str> =
+                            std::collections::HashSet::new();
+                        for (src_id, kind, _) in &nr.incoming {
+                            if matches!(kind, EdgeKind::Calls | EdgeKind::Dependency) {
+                                s.insert(src_id.as_str());
+                            }
+                        }
+                        s.len()
+                    };
                     if nr.incoming_truncated {
                         out.push_str(&format!(
-                            "  Incoming references ({}+, CAPPED at max_incoming — MORE call sites \
+                            "  Incoming references ({}+ edges, all kinds, CAPPED at max_incoming — MORE call sites \
                          exist; raise max_incoming to enumerate them all before concluding a \
-                         sibling list is complete):\n",
-                            nr.incoming.len()
+                         sibling list is complete; {}+ distinct caller(s) via calls+dependency):\n",
+                            nr.incoming.len(),
+                            distinct_callers
                         ));
                     } else {
-                        out.push_str(&format!("  Incoming references ({}):\n", nr.incoming.len()));
+                        out.push_str(&format!(
+                            "  Incoming references ({} edges, all kinds; {} distinct caller(s) via calls+dependency — the number check_edit_safety / blast_radius use):\n",
+                            nr.incoming.len(),
+                            distinct_callers
+                        ));
                     }
                     let mut by_kind: std::collections::HashMap<String, Vec<(&str, u32)>> =
                         std::collections::HashMap::new();
