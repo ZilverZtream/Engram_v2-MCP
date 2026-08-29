@@ -90,6 +90,42 @@ impl Engram {
     }
 
     #[tool(
+        description = "List the ADVANCED tools that are callable but not advertised by default (the tiered surface keeps the core tier small). Optional substring filter on name/description. Call any listed tool by name as usual."
+    )]
+    pub async fn list_advanced_tools(
+        &self,
+        params: Parameters<ListAdvancedToolsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let filter = params.0.filter.unwrap_or_default().to_ascii_lowercase();
+        let mut out = String::new();
+        let mut n = 0usize;
+        for t in crate::tool_surface::advanced(self.tool_router.list_all()) {
+            let desc = t.description.as_deref().unwrap_or("");
+            if !filter.is_empty()
+                && !t.name.to_ascii_lowercase().contains(&filter)
+                && !desc.to_ascii_lowercase().contains(&filter)
+            {
+                continue;
+            }
+            n += 1;
+            let first = desc.split(". ").next().unwrap_or(desc);
+            out.push_str(&format!("- `{}` — {}\n", t.name, first));
+        }
+        let header = format!(
+            "# Advanced tools — {n} callable tool(s) not in the advertised core tier ({} core tools advertised){}\n\n",
+            crate::tool_surface::CORE_TOOLS.len(),
+            if filter.is_empty() {
+                String::new()
+            } else {
+                format!(", filter `{filter}`")
+            }
+        );
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "{header}{out}"
+        ))]))
+    }
+
+    #[tool(
         description = "Index health snapshot: generation, graph node/edge counts, doc/vector counts, and semantic-search tier. Use right after indexing to verify it worked, or when any tool returns surprisingly little."
     )]
     pub async fn project_health(
@@ -1540,8 +1576,13 @@ impl ServerHandler for Engram {
         _request: Option<PaginatedRequestParam>,
         _context: rmcp::service::RequestContext<rmcp::RoleServer>,
     ) -> Result<ListToolsResult, McpError> {
-        let mut items = self.tool_router.list_all();
-        if !self.state.cfg.advertise_all_tools {
+        // External audit 2026-08-29 (auditor P0 #6): tiered surface — the core
+        // tier by default, everything else via `list_advanced_tools`.
+        let mut items = crate::tool_surface::advertised(
+            self.tool_router.list_all(),
+            self.state.cfg.advertise_all_tools,
+        );
+        if self.state.cfg.advertise_all_tools {
             items.retain(|t| !crate::tool_surface::is_curated_out(t.description.as_deref()));
         }
         for t in items.iter_mut() {
