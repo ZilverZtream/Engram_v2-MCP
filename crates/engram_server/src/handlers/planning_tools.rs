@@ -46,6 +46,9 @@ pub(crate) const GATE_DEF_FILE_CAP: usize = 2;
 /// Row-4 audit A6/D6: the role a consumer plays towards an anchor table /
 /// state key, derived from the edge kind + the source member name/path
 /// (`src` is a node id `sym:function:<path>:<Class.Member>:<line>`).
+/// Export means PRODUCING an export (export / excel / pdf / download, or an
+/// .rdl / export path) — "report" is not an export word: live, the DAL reader
+/// `GetCodeWithEstimateAndReportedQty` was mislabelled by it.
 /// Bodies are NOT inspected: LINQ `InsertOnSubmit`/`DeleteOnSubmit` and SQL
 /// verbs inside a neutrally named member stay `read` / `sql?` — the header
 /// states that limit. Order: test path > export > delete > write > kind.
@@ -59,7 +62,7 @@ pub(crate) fn consumer_role(kind: &EdgeKind, src: &str) -> &'static str {
     }
     if path.ends_with(".rdl")
         || path.contains("export")
-        || ["export", "excel", "pdf", "download", "report"]
+        || ["export", "excel", "pdf", "download"]
             .iter()
             .any(|w| member.contains(w))
     {

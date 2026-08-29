@@ -193,6 +193,54 @@ async fn every_consumer_carries_a_role_and_the_header_tallies_the_roles() {
     );
 }
 
+/// Live finding (release 15, `redovisningskategori`): the DAL reader
+/// `GetCodeWithEstimateAndReportedQty` was labelled `export` because its
+/// name contains "report" — the export words must be about producing an
+/// export (export / excel / pdf / download / .rdl), not any "report".
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_reported_quantity_reader_is_a_reader_not_an_export() {
+    let (_tmp, state) = build_state();
+    let t = table("personalliggare");
+    let reader = func(
+        "Site/App_Code/gd/personalliggare.vb",
+        "personalliggare",
+        "GetCodeWithEstimateAndReportedQty",
+    );
+    let rdl = func(
+        "Site/Reports/personalliggare.rdl",
+        "personalliggare",
+        "Dataset1",
+    );
+    state
+        .graph
+        .upsert_nodes(PID, &[t.clone(), reader.clone(), rdl.clone()])
+        .unwrap();
+    state
+        .graph
+        .upsert_edges(
+            PID,
+            &[
+                edge(&reader.node_id, &t.node_id, EdgeKind::QueriesTable),
+                edge(&rdl.node_id, &t.node_id, EdgeKind::QueriesTable),
+            ],
+        )
+        .unwrap();
+    let engram = Engram::new(state.clone());
+
+    let out = footprint(&engram).await;
+
+    let line = consumer_line(&out, "GetCodeWithEstimateAndReportedQty:");
+    assert!(
+        line.starts_with("- [read:"),
+        "a *ReportedQty* reader is a read, not an export:\n{line}"
+    );
+    let line = consumer_line(&out, "personalliggare.rdl:");
+    assert!(
+        line.starts_with("- [export:"),
+        "an .rdl report definition is an export:\n{line}"
+    );
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn an_sql_call_with_an_unknown_verb_is_not_guessed() {
     let (_tmp, state) = build_state();
