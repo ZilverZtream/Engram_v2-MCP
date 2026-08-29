@@ -678,6 +678,12 @@ async fn run_primary_core(
         state.clone(),
         shutdown.clone(),
     ));
+    // External audit 2026-08-29 P0-3: open every project runtime + co-change
+    // snapshot in the background so the first user call is served warm.
+    tokio::spawn(crate::actors::warmup::run_warmup(
+        state.clone(),
+        shutdown.clone(),
+    ));
     tokio::spawn(crate::actors::immune::run_immune_actor(
         state.clone(),
         shutdown.clone(),
