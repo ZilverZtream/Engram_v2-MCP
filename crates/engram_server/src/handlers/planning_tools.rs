@@ -6451,6 +6451,45 @@ impl Engram {
                         }
                     }
                 }
+                // The other direction (external audit 2026-08-29 P0-3): a code-behind or
+                // designer hit — even one only the vector arm found — pulls its page
+                // markup. A WebForms page is one unit; the reference story's page had
+                // rendered only as `.aspx.vb` on every release.
+                for (suffix, cut) in [
+                    (".aspx.designer.vb", 12),
+                    (".aspx.designer.cs", 12),
+                    (".ascx.designer.vb", 12),
+                    (".ascx.designer.cs", 12),
+                    (".master.designer.vb", 12),
+                    (".master.designer.cs", 12),
+                    (".aspx.vb", 3),
+                    (".aspx.cs", 3),
+                    (".ascx.vb", 3),
+                    (".ascx.cs", 3),
+                    (".master.vb", 3),
+                    (".master.cs", 3),
+                ] {
+                    if ps.ends_with(suffix) {
+                        let markup = ps[..ps.len() - cut].to_string();
+                        if index_set.contains(&markup) {
+                            // Reuse the spelling already in the set (a concept hit keeps
+                            // its original case) so the signals MERGE instead of forming
+                            // a case-variant duplicate that dedup drops.
+                            let key = prov
+                                .keys()
+                                .find(|k| strip(k) == markup)
+                                .cloned()
+                                .unwrap_or_else(|| markup.clone());
+                            let mut fs = sigs.clone();
+                            fs.insert("family");
+                            why.entry(key.clone())
+                                .or_default()
+                                .push(format!("page markup of {p}"));
+                            fam.push((key, fs));
+                        }
+                        break;
+                    }
+                }
                 if ps.ends_with(".resx")
                     && let Some(slash) = ps.rfind('/')
                 {
