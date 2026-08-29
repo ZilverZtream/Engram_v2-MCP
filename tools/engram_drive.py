@@ -69,6 +69,14 @@ OCIUSX_DIR = r"C:\Users\Dennis\source\repos\OciusX"
 if phase == "list":
     print(tool("list_projects", {}))
 
+elif phase == "tools":
+    # Advertised tool surface (tiered-surface check): count + sorted names.
+    r = rpc("tools/list", {})
+    names = sorted(t["name"] for t in r.get("result", {}).get("tools", []))
+    print(f"advertised tools: {len(names)}")
+    for n in names:
+        print(n)
+
 elif phase == "reindex":
     old_id = sys.argv[2] if len(sys.argv) > 2 else None
     if old_id:
