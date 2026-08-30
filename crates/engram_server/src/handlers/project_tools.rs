@@ -2311,10 +2311,42 @@ pub(crate) async fn generation_completeness_for(
     })
     .await??;
 
+    // Round-2 audit P0-2 follow-up: paths the indexer skipped BY RULE are
+    // subtracted from the expectation and reported — never tolerated.
+    let reg_l = state.registry.clone();
+    let pid_l = pid.to_string();
+    let ledger: Vec<(String, String)> = tokio::task::spawn_blocking(move || {
+        reg_l
+            .get_meta(
+                &pid_l,
+                crate::services::ingest_service::SKIP_LEDGER_META_KEY,
+            )
+            .ok()
+            .flatten()
+            .and_then(|s| {
+                serde_json::from_str::<crate::services::ingest_service::SkipLedger>(&s).ok()
+            })
+            .map(|l| l.skipped)
+            .unwrap_or_default()
+    })
+    .await?;
+    let skipped: BTreeSet<String> = ledger.iter().map(|(p, _)| completeness_path(p)).collect();
+    let mut skipped_reasons: std::collections::BTreeMap<String, usize> =
+        std::collections::BTreeMap::new();
+    for (p, r) in &ledger {
+        if expected.contains(&completeness_path(p)) {
+            *skipped_reasons.entry(r.clone()).or_default() += 1;
+        }
+    }
+    let skipped_by_rule = expected.iter().filter(|p| skipped.contains(*p)).count();
+
     let vectors_present = vector_rows > 0 || !vectors.is_empty();
     let missing: Vec<String> = expected
         .iter()
-        .filter(|f| !tantivy.contains(*f) || (vectors_present && !vectors.contains(*f)))
+        .filter(|f| {
+            !skipped.contains(*f)
+                && (!tantivy.contains(*f) || (vectors_present && !vectors.contains(*f)))
+        })
         .cloned()
         .collect();
     let extra = tantivy.iter().filter(|f| !expected.contains(*f)).count();
@@ -2323,7 +2355,9 @@ pub(crate) async fn generation_completeness_for(
     } else {
         0
     };
-    let tolerance = std::cmp::max(3, expected.len() / 100);
+    // Round-2 audit P0-2 follow-up: ZERO tolerance — a missing path is never
+    // "complete"; known skips are subtracted above instead.
+    let tolerance = 0usize;
     let complete = missing.len() <= tolerance && cross_store_mismatch == 0;
     Ok(GenerationCompleteness {
         generation,
@@ -2336,6 +2370,8 @@ pub(crate) async fn generation_completeness_for(
         extra,
         cross_store_mismatch,
         tolerance,
+        skipped_by_rule,
+        skipped_reasons: skipped_reasons.into_iter().collect(),
         code_chunks,
         vector_rows,
         complete,
@@ -2348,6 +2384,21 @@ fn completeness_path(p: &str) -> String {
         .trim_start_matches("./")
         .trim_start_matches('/')
         .to_string()
+}
+
+fn skip_reasons(c: &GenerationCompleteness) -> String {
+    if c.skipped_reasons.is_empty() {
+        String::new()
+    } else {
+        format!(
+            " — {}",
+            c.skipped_reasons
+                .iter()
+                .map(|(r, n)| format!("{r} {n}"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    }
 }
 
 /// The one-line completeness report every surface prints.
@@ -2365,9 +2416,17 @@ pub(crate) fn completeness_line(c: &GenerationCompleteness) -> String {
         c.code_chunks,
         c.vector_rows,
         if c.complete {
-            format!("complete (missing ≤ tolerance {})", c.tolerance)
+            format!(
+                "complete (missing 0, mismatch 0; skipped by rule: {}{})",
+                c.skipped_by_rule,
+                skip_reasons(c)
+            )
         } else {
-            format!("INCOMPLETE (tolerance {}, mismatch must be 0)", c.tolerance)
+            format!(
+                "INCOMPLETE (missing must be 0 after known skips, mismatch must be 0; skipped by rule: {}{})",
+                c.skipped_by_rule,
+                skip_reasons(c)
+            )
         }
     );
     if !c.missing_sample.is_empty() {
@@ -2572,13 +2631,13 @@ impl Engram {
         let incomplete = match &completeness {
             Ok(c) => {
                 out.push_str(&format!(
-                    "generation_complete: {} ({} of {} eligible paths present in every store; missing {}, cross-store mismatch {}, tolerance {})\n",
+                    "generation_complete: {} ({} of {} eligible paths present in every store; missing {}, cross-store mismatch {}, skipped by rule {})\n",
                     c.complete,
                     c.expected_paths.saturating_sub(c.missing),
                     c.expected_paths,
                     c.missing,
                     c.cross_store_mismatch,
-                    c.tolerance
+                    c.skipped_by_rule
                 ));
                 !c.complete
             }
@@ -4072,8 +4131,12 @@ pub(crate) struct GenerationCompleteness {
     pub extra: usize,
     /// Paths present in one search store and absent in the other.
     pub cross_store_mismatch: usize,
-    /// `missing <= tolerance` is required for `complete` (max(3, 1 %) of expected).
+    /// Always 0 since the round-2 follow-up: `missing` must be 0 for `complete`.
     pub tolerance: usize,
+    /// Eligible paths the indexer skipped BY RULE (binary, too large,
+    /// unreadable) — subtracted from the expectation, reported with reasons.
+    pub skipped_by_rule: usize,
+    pub skipped_reasons: Vec<(String, usize)>,
     /// Diagnostics only — counts are not completeness.
     pub code_chunks: usize,
     pub vector_rows: usize,
