@@ -699,7 +699,7 @@ pub fn callee_evidence(
         };
         for (src_id, src_name) in &sources {
             for kind in kinds.iter().cloned() {
-                let Ok(nbrs) = graph.neighbors(project_id, kind, src_id, 40) else {
+                let Ok(nbrs) = graph.neighbors(project_id, kind.clone(), src_id, 40) else {
                     continue;
                 };
                 for (target, weight) in nbrs {
@@ -733,6 +733,7 @@ pub fn callee_evidence(
                         content.push('\n');
                         content.push_str(&body);
                     }
+                    let wrapper_name = name.clone();
                     out.push(graph_relation_item(
                         "callee",
                         target.clone(),
@@ -748,6 +749,65 @@ pub fn callee_evidence(
                     ));
                     if out.len() >= max_items {
                         return out;
+                    }
+                    // Item 8 (golden ox_multi_4): a script callee that is
+                    // itself an API WRAPPER — `api.ajax().getImage` holds the
+                    // route edge to `/api.asmx/getimg` — carries the call one
+                    // hop further to the served implementation.
+                    if matches!(kind, EdgeKind::Calls)
+                        && (path_l.ends_with(".ts") || path_l.ends_with(".js"))
+                        && let Ok(wnbrs) =
+                            graph.neighbors(project_id, EdgeKind::ApiCall, &target, 10)
+                    {
+                        for (impl_id, w2) in wnbrs {
+                            if !seen.insert(impl_id.clone()) {
+                                continue;
+                            }
+                            let Ok(Some(w)) = graph.get_node(project_id, &impl_id) else {
+                                continue;
+                            };
+                            if !matches!(w.node_type.as_str(), "function" | "method" | "sub") {
+                                continue;
+                            }
+                            let wpath = w.file_path.as_str().replace('\\', "/").to_lowercase();
+                            if seed_set.contains(&wpath) || !files_cited.insert(wpath.clone()) {
+                                continue;
+                            }
+                            let wsome = Some(w.clone());
+                            let (wp, wl, wname, wgen) = node_fields(&wsome, &impl_id);
+                            let mut wcontent = format!(
+                                "{} calls {} through the {} wrapper — served by {}{}",
+                                src_name,
+                                wname,
+                                wrapper_name,
+                                wp.clone().unwrap_or_default(),
+                                wl.map(|(a, b)| format!(" lines {a}-{b}"))
+                                    .unwrap_or_default()
+                            );
+                            if let (Some(dir), Some(p2), Some((a, b))) =
+                                (project_dir, wp.as_deref(), wl)
+                                && let Some(body) = definition_body(dir, p2, a, b)
+                            {
+                                wcontent.push('\n');
+                                wcontent.push_str(&body);
+                            }
+                            out.push(graph_relation_item(
+                                "callee",
+                                impl_id.clone(),
+                                wp,
+                                wl,
+                                wname,
+                                wcontent,
+                                wgen,
+                                w2.max(8),
+                                if is_named { 0.85 } else { 0.6 },
+                                Authority::CurrentCode,
+                                id,
+                            ));
+                            if out.len() >= max_items {
+                                return out;
+                            }
+                        }
                     }
                 }
             }

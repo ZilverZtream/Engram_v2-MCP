@@ -2806,19 +2806,54 @@ impl GraphStore {
 
         // Tiebreaker: when multiple candidates match, prefer the one
         // in the same file as the source node.
-        let resolve_ambiguous =
-            |candidates: &[String], source_file: Option<&String>| -> Option<String> {
-                if let Some(sf) = source_file {
-                    for cid in candidates {
-                        if let Some(fp) = node_file_paths.get(cid) {
-                            if fp == sf {
-                                return Some(cid.clone());
-                            }
+        let resolve_ambiguous = |candidates: &[String],
+                                 source_file: Option<&String>,
+                                 receiver: Option<&str>|
+         -> Option<String> {
+            if let Some(sf) = source_file {
+                for cid in candidates {
+                    if let Some(fp) = node_file_paths.get(cid) {
+                        if fp == sf {
+                            return Some(cid.clone());
                         }
                     }
                 }
-                None
-            };
+            }
+            // Item 8 (ox_multi_4): `new api.ajax().getImage()` — the
+            // receiver names the wrapper's class or file; exactly one
+            // candidate under it wins ("api.ajax" → class `ajax.…` /
+            // file `ajax.ts`).
+            if let Some(r) = receiver {
+                let key = r.rsplit('.').next().unwrap_or(r).trim().to_lowercase();
+                if !key.is_empty() {
+                    let class_prefix = format!("{key}.");
+                    let same: Vec<&String> = candidates
+                        .iter()
+                        .filter(|cid| {
+                            let by_class = node_names
+                                .get(*cid)
+                                .is_some_and(|n| n.to_lowercase().starts_with(&class_prefix));
+                            let by_file = node_file_paths.get(*cid).is_some_and(|p| {
+                                p.replace('\\', "/")
+                                    .to_lowercase()
+                                    .rsplit('/')
+                                    .next()
+                                    .unwrap_or("")
+                                    .split('.')
+                                    .next()
+                                    .unwrap_or("")
+                                    == key
+                            });
+                            by_class || by_file
+                        })
+                        .collect();
+                    if same.len() == 1 {
+                        return Some(same[0].clone());
+                    }
+                }
+            }
+            None
+        };
 
         let mut updates: Vec<(String, Edge)> = Vec::new();
 
@@ -2829,11 +2864,17 @@ impl GraphStore {
             // strip the parameter list before deriving name/terminal keys.
             let name = name.split('(').next().unwrap_or(name).trim_end();
             let source_file = node_file_paths.get(&entry.edge.source_id);
+            let receiver = entry
+                .edge
+                .metadata
+                .as_ref()
+                .and_then(|m| m.get("receiver"))
+                .and_then(|v| v.as_str());
 
             // Step 1: exact name match
             let resolved = match by_name.get(name) {
                 Some(SymbolMatch::Unique(id)) => Some(id.clone()),
-                Some(SymbolMatch::Ambiguous(ids)) => resolve_ambiguous(ids, source_file),
+                Some(SymbolMatch::Ambiguous(ids)) => resolve_ambiguous(ids, source_file, receiver),
                 None => None,
             };
 
@@ -2869,7 +2910,9 @@ impl GraphStore {
             {
                 let resolved = match by_name.get(edge_fqn) {
                     Some(SymbolMatch::Unique(id)) => Some(id.clone()),
-                    Some(SymbolMatch::Ambiguous(ids)) => resolve_ambiguous(ids, source_file),
+                    Some(SymbolMatch::Ambiguous(ids)) => {
+                        resolve_ambiguous(ids, source_file, receiver)
+                    }
                     None => by_metadata_fqn.get(edge_fqn).cloned(),
                 };
                 if let Some(target_id) = resolved {
@@ -2905,7 +2948,7 @@ impl GraphStore {
                     Some((suffixed[0].clone(), 0.8f32, "post_suffix_qualified"))
                 } else if !suffixed.is_empty() {
                     let owned: Vec<String> = suffixed.iter().map(|s| (*s).clone()).collect();
-                    resolve_ambiguous(&owned, source_file)
+                    resolve_ambiguous(&owned, source_file, receiver)
                         .map(|id| (id, 0.7, "post_suffix_samefile"))
                         .or_else(|| {
                             all_same_name
@@ -2930,7 +2973,7 @@ impl GraphStore {
                     new_e.target_id = candidates[0].clone();
                     Self::stamp_resolution(&mut new_e, "post_terminal_unique", 0.45);
                     updates.push((entry.old_key.clone(), new_e));
-                } else if let Some(id) = resolve_ambiguous(candidates, source_file) {
+                } else if let Some(id) = resolve_ambiguous(candidates, source_file, receiver) {
                     let mut new_e = entry.edge.clone();
                     new_e.target_id = id;
                     Self::stamp_resolution(&mut new_e, "post_terminal_samefile", 0.6);

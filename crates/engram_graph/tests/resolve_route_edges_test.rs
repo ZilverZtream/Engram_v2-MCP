@@ -482,3 +482,67 @@ fn dispatch_targets_are_found_by_api_name() {
             .is_empty()
     );
 }
+
+const PANEL_FN: &str = "sym:function:Site/ts/orders/orderInfoPanel.ts:loadImages:4";
+const WRAPPER_FN: &str = "sym:function:Site/Q/api/ajax.ts:getImage:3";
+const DECOY_FN: &str = "sym:function:Site/ts/misc/thumbs.ts:getImage:1";
+
+#[test]
+fn an_ambiguous_callee_binds_through_the_calls_receiver() {
+    // `new api.ajax().getImage(…)` — two functions are named getImage; the
+    // RECEIVER names the wrapper's class/file, so the call binds to it.
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "route-receiver";
+    graph
+        .upsert_nodes(
+            pid,
+            &[
+                node(
+                    PANEL_FN,
+                    "function",
+                    "loadImages",
+                    "Site/ts/orders/orderInfoPanel.ts",
+                    (4, 8),
+                ),
+                node(
+                    WRAPPER_FN,
+                    "function",
+                    "getImage",
+                    "Site/Q/api/ajax.ts",
+                    (3, 9),
+                ),
+                node(
+                    DECOY_FN,
+                    "function",
+                    "getImage",
+                    "Site/ts/misc/thumbs.ts",
+                    (1, 2),
+                ),
+            ],
+        )
+        .unwrap();
+    graph
+        .upsert_edges(
+            pid,
+            &[edge(
+                EdgeKind::Calls,
+                PANEL_FN,
+                "::getImage",
+                serde_json::json!({ "receiver": "api.ajax", "src_line": "5" }),
+            )],
+        )
+        .unwrap();
+
+    graph.resolve_symbol_edges(pid).unwrap();
+
+    let callees = graph.neighbors(pid, EdgeKind::Calls, PANEL_FN, 10).unwrap();
+    assert!(
+        callees.iter().any(|(t, _)| t == WRAPPER_FN),
+        "the receiver must pick the wrapper; got {callees:?}"
+    );
+    assert!(
+        !callees.iter().any(|(t, _)| t == DECOY_FN),
+        "never the decoy; got {callees:?}"
+    );
+}
