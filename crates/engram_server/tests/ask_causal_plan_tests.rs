@@ -113,3 +113,15 @@ fn a_generic_verb_typed_as_an_endpoint_is_not_a_symbol_mention() {
     );
     assert!(intents(q).contains(&Intent::History), "{:?}", intents(q));
 }
+
+#[test]
+fn a_possessive_apostrophe_is_not_a_quote() {
+    // Live r46: "map's ... marker's" minted the junk quoted mention
+    // "s marker info window fetch a marker".
+    let q = "How does the map's marker info window fetch a marker's images?";
+    assert!(
+        !entity_texts(q).iter().any(|t| t.contains(" fetch ")),
+        "{:?}",
+        entities(q)
+    );
+}

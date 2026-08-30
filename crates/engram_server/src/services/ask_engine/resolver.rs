@@ -218,7 +218,12 @@ pub fn resolve_entities_in_context(
             if m.resolved.len() >= MAX_BRANCHES {
                 break;
             }
-            m.resolved.push(node_to_resolved(n, conf));
+            // A dispatch-derived resolution is the ROUTE the name is served
+            // by, not a competing symbol — kind Route keeps the status
+            // calibration from calling the pair ambiguous (live r46).
+            let mut r = node_to_resolved(n, conf);
+            r.kind = EntityKind::Route;
+            m.resolved.push(r);
         }
     }
     if let Some(m) = compound_file_mention(graph, project_id, question, &plan.entities) {
@@ -280,13 +285,31 @@ fn compound_file_mention(
             if join.len() < 8 {
                 continue;
             }
-            let hits: Vec<&Node> = stems
-                .iter()
-                .filter(|(s, _)| s.contains(&join))
-                .map(|(_, n)| *n)
-                .collect();
-            if hits.len() == 1 && best.is_none_or(|(l, _)| join.len() > l) {
-                best = Some((join.len(), hits[0]));
+            // Uniqueness is by distinct stem — a compiled .js twin shares the
+            // .ts stem (live r46: ioMarkerInfowindow.{ts,js} made the join
+            // "non-unique" and a shorter join hijacked the mention). Among a
+            // stem's files the SOURCE extension wins.
+            let hits: Vec<&(String, &Node)> =
+                stems.iter().filter(|(s, _)| s.contains(&join)).collect();
+            let mut distinct: Vec<&str> = hits.iter().map(|(s, _)| s.as_str()).collect();
+            distinct.sort_unstable();
+            distinct.dedup();
+            if distinct.len() == 1 && best.is_none_or(|(l, _)| join.len() > l) {
+                let rank = |n: &Node| -> u8 {
+                    let p = n.file_path.as_str().to_lowercase();
+                    if p.ends_with(".designer.vb") {
+                        4
+                    } else if p.ends_with(".ts") || p.ends_with(".tsx") || p.ends_with(".vb") {
+                        0
+                    } else if p.ends_with(".js") || p.ends_with(".jsx") {
+                        3
+                    } else {
+                        1
+                    }
+                };
+                if let Some((_, n)) = hits.iter().min_by_key(|(_, n)| rank(n)) {
+                    best = Some((join.len(), *n));
+                }
             }
         }
     }

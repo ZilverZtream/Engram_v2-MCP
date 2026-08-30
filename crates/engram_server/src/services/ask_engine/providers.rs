@@ -661,6 +661,13 @@ pub fn callee_evidence(
         .map(|s| s.replace('\\', "/").to_lowercase())
         .collect();
     let mut files_cited: std::collections::HashSet<String> = std::collections::HashSet::new();
+    // A hop from a file the question NAMES is the answer itself: three direct
+    // route targets must not starve the wrapper continuation (live r46).
+    let cap = if named_files.is_empty() {
+        max_items
+    } else {
+        max_items.max(6)
+    };
     for seed in seed_paths.iter().take(4) {
         let seed_norm = seed.replace('\\', "/");
         // Item 8: a hop from the file the question NAMES ("which server API
@@ -681,7 +688,7 @@ pub fn callee_evidence(
         };
         let mut sources: Vec<(String, String)> = fns
             .iter()
-            .take(60)
+            .take(if is_named { 200 } else { 60 })
             .map(|f| (f.node_id.clone(), f.name.clone()))
             .collect();
         if is_named {
@@ -747,7 +754,7 @@ pub fn callee_evidence(
                         Authority::CurrentCode,
                         id,
                     ));
-                    if out.len() >= max_items {
+                    if out.len() >= cap {
                         return out;
                     }
                     // Item 8 (golden ox_multi_4): a script callee that is
@@ -804,7 +811,7 @@ pub fn callee_evidence(
                                 Authority::CurrentCode,
                                 id,
                             ));
-                            if out.len() >= max_items {
+                            if out.len() >= cap {
                                 return out;
                             }
                         }
