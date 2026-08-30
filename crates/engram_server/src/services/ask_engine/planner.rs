@@ -80,10 +80,33 @@ pub fn plan_query(question: &str) -> QueryPlan {
         "consumed by",
         "read from",
         "written to",
+        // Item 8 (causal golden suite): "what calls X", "uses the X API",
+        // "what depends on X", "which files depend on X" ask for X's
+        // callers/dependents — the symbol-references arm.
+        "what calls",
+        "which calls",
+        "what uses",
+        "which uses",
+        "uses the",
+        "calls to",
+        "callers",
+        "depends on",
+        "depend on",
+        "dependents",
+        "depending on",
+        "consumers of",
+        "clients of",
     ] {
         if lower.contains(kw) {
             add(Intent::Usage, 0.8, &mut intents);
         }
+    }
+    // "Which TypeScript calls X?" / "What code calls X?" — a question word,
+    // then the callers of X. ("does X call?" asks for X's callees instead.)
+    if (lower.starts_with("what ") || lower.starts_with("which ") || lower.starts_with("who "))
+        && lower.contains(" calls ")
+    {
+        add(Intent::Usage, 0.8, &mut intents);
     }
 
     // ── History (WHEN) vs Rationale (WHY) — distinct intents ──
@@ -374,7 +397,7 @@ pub fn extract_entities(q: &str) -> Vec<EntityMention> {
         // CamelCase or snake_case → identifier (table/setting kind left to resolver)
         let has_upper_inner = t.chars().skip(1).any(|c| c.is_ascii_uppercase());
         let has_underscore = t.contains('_');
-        if has_upper_inner || has_underscore {
+        if (has_upper_inner || has_underscore) && !is_tech_noun(&t.to_lowercase()) {
             let snakey = has_underscore
                 && t.chars()
                     .all(|c| c.is_ascii_lowercase() || c == '_' || c.is_ascii_digit());
@@ -393,11 +416,106 @@ pub fn extract_entities(q: &str) -> Vec<EntityMention> {
             && t.chars().all(|c| c.is_ascii_alphanumeric())
             && t.len() >= 3
             && !is_stopword(&t.to_lowercase())
+            && !is_tech_noun(&t.to_lowercase())
         {
             push(t.to_string(), EntityKind::Symbol, &mut out);
         }
     }
+    // 3. Item 8: an all-lowercase identifier is a symbol mention when the
+    // question TYPES it — "the getimg web method", "function getimg",
+    // "the uploadimg endpoint". Bare lowercase words stay prose.
+    const TYPE_WORDS: &[&str] = &[
+        "method",
+        "function",
+        "endpoint",
+        "handler",
+        "procedure",
+        "routine",
+        "sub",
+        "webmethod",
+    ];
+    let toks: Vec<&str> = q
+        .split(|c: char| c.is_whitespace() || matches!(c, ',' | '(' | ')' | '?' | '!' | ';' | ':'))
+        .map(|t| t.trim_matches(|c: char| matches!(c, '"' | '\'' | '`' | '.' | ',')))
+        .filter(|t| !t.is_empty())
+        .collect();
+    for (i, t) in toks.iter().enumerate() {
+        let lower_t = t.to_lowercase();
+        let plain = t.len() >= 4
+            && t.chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+            && !is_stopword(&lower_t)
+            && !is_tech_noun(&lower_t);
+        if !plain {
+            continue;
+        }
+        let next = toks.get(i + 1).map(|s| s.to_lowercase());
+        let next2 = toks.get(i + 2).map(|s| s.to_lowercase());
+        let prev = i
+            .checked_sub(1)
+            .and_then(|j| toks.get(j))
+            .map(|s| s.to_lowercase());
+        let typed_after = next.as_deref().is_some_and(|n| {
+            TYPE_WORDS.contains(&n)
+                || (n == "web"
+                    && next2
+                        .as_deref()
+                        .is_some_and(|m| m == "method" || m == "service"))
+        });
+        let typed_before = prev.as_deref().is_some_and(|p| TYPE_WORDS.contains(&p));
+        if typed_after || typed_before {
+            push((*t).to_string(), EntityKind::Symbol, &mut out);
+        }
+    }
     out
+}
+
+/// Item 8: technology and format nouns that read like identifiers ("API",
+/// "TypeScript", "VB") but are never a code entity on their own — "API"
+/// resolved to `ConfigSettings.Security.API` and its neighbours filled the
+/// evidence cap of "Who uses the athGetByFilter API?".
+fn is_tech_noun(w: &str) -> bool {
+    matches!(
+        w,
+        "api"
+            | "apis"
+            | "typescript"
+            | "javascript"
+            | "vb"
+            | "vbnet"
+            | "sql"
+            | "html"
+            | "css"
+            | "json"
+            | "xml"
+            | "ui"
+            | "ux"
+            | "url"
+            | "http"
+            | "https"
+            | "rest"
+            | "dto"
+            | "crud"
+            | "pr"
+            | "ci"
+            | "asp"
+            | "aspx"
+            | "net"
+            | "gui"
+            | "cli"
+            | "js"
+            | "ts"
+            | "iis"
+            | "db"
+            | "ajax"
+            | "jquery"
+            | "linq"
+            | "orm"
+            | "mvc"
+            | "webforms"
+            | "dotnet"
+            | "csharp"
+    )
 }
 
 /// Common question / grammar words that are never code entities. Deliberately

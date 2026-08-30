@@ -612,6 +612,7 @@ pub fn callee_evidence(
     project_dir: Option<&std::path::Path>,
     project_id: &str,
     seed_paths: &[String],
+    named_files: &[String],
     question: &str,
     max_items: usize,
     id: &mut usize,
@@ -662,14 +663,43 @@ pub fn callee_evidence(
     let mut files_cited: std::collections::HashSet<String> = std::collections::HashSet::new();
     for seed in seed_paths.iter().take(4) {
         let seed_norm = seed.replace('\\', "/");
+        // Item 8: a hop from the file the question NAMES ("which server API
+        // functions does orderPanel.ts call?") is the answer itself — no cue
+        // gate, direct evidence, and the file node's own edges count too.
+        let seed_l = seed_norm.to_lowercase();
+        let is_named = named_files.iter().any(|n| {
+            let n = n.replace('\\', "/").to_lowercase();
+            seed_l.ends_with(&n)
+                || seed_l.rsplit('/').next().is_some_and(|f| {
+                    f == n || f.rsplit_once('.').is_some_and(|(stem, _)| stem == n)
+                })
+        });
         let fns = match graph.query_nodes(project_id, Some("function"), None, Some(&seed_norm), 200)
         {
             Ok(v) => v,
             Err(_) => continue,
         };
-        for f in fns.iter().take(60) {
-            for kind in [EdgeKind::Calls, EdgeKind::ApiCall, EdgeKind::SqlCalls] {
-                let Ok(nbrs) = graph.neighbors(project_id, kind, &f.node_id, 40) else {
+        let mut sources: Vec<(String, String)> = fns
+            .iter()
+            .take(60)
+            .map(|f| (f.node_id.clone(), f.name.clone()))
+            .collect();
+        if is_named {
+            let stem = seed_norm
+                .rsplit('/')
+                .next()
+                .unwrap_or(&seed_norm)
+                .to_string();
+            sources.push((format!("file:{seed_norm}"), stem));
+        }
+        let kinds: [EdgeKind; 3] = if is_named {
+            [EdgeKind::ApiCall, EdgeKind::SqlCalls, EdgeKind::Calls]
+        } else {
+            [EdgeKind::Calls, EdgeKind::ApiCall, EdgeKind::SqlCalls]
+        };
+        for (src_id, src_name) in &sources {
+            for kind in kinds.iter().cloned() {
+                let Ok(nbrs) = graph.neighbors(project_id, kind, src_id, 40) else {
                     continue;
                 };
                 for (target, weight) in nbrs {
@@ -681,7 +711,7 @@ pub fn callee_evidence(
                     };
                     let name_l = n.name.to_lowercase();
                     let path_l = n.file_path.as_str().replace('\\', "/").to_lowercase();
-                    let hit = cues.iter().any(|c| name_l.contains(c.as_str()));
+                    let hit = is_named || cues.iter().any(|c| name_l.contains(c.as_str()));
                     if !hit || seed_set.contains(&path_l) || !files_cited.insert(path_l.clone()) {
                         continue;
                     }
@@ -689,7 +719,7 @@ pub fn callee_evidence(
                     let (path, lines, name, gen_) = node_fields(&some, &target);
                     let mut content = format!(
                         "{} calls {name} ({}) — defined in {}{}",
-                        f.name,
+                        src_name,
                         n.node_type,
                         path.clone().unwrap_or_default(),
                         lines
@@ -712,7 +742,7 @@ pub fn callee_evidence(
                         content,
                         gen_,
                         weight.max(8),
-                        0.6,
+                        if is_named { 0.85 } else { 0.6 },
                         Authority::CurrentCode,
                         id,
                     ));
