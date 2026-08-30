@@ -430,3 +430,55 @@ fn an_unresolved_arm_call_binds_among_functions_of_the_brokers_own_class() {
         "never the helper or the property; got {callees:?}"
     );
 }
+
+#[test]
+fn dispatch_targets_are_found_by_api_name() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "route-dispatch-lookup";
+    graph
+        .upsert_nodes(
+            pid,
+            &[
+                node(
+                    BROKER,
+                    "function",
+                    "api.action",
+                    "Site/App_Code/api-json/api-broker.vb",
+                    (30, 400),
+                ),
+                node(
+                    DELETE_CR,
+                    "function",
+                    "api.DeleteChangeRequest",
+                    "Site/App_Code/ata/api-json/api-atahuvud.vb",
+                    (197, 230),
+                ),
+            ],
+        )
+        .unwrap();
+    graph
+        .upsert_edges(
+            pid,
+            &[edge(
+                EdgeKind::Calls,
+                BROKER,
+                DELETE_CR,
+                serde_json::json!({ "dispatch_key": "athDeleteByID" }),
+            )],
+        )
+        .unwrap();
+
+    let targets = graph.find_dispatch_targets(pid, "athdeletebyid").unwrap();
+    assert_eq!(
+        targets,
+        vec![DELETE_CR.to_string()],
+        "case-insensitive on the API name"
+    );
+    assert!(
+        graph
+            .find_dispatch_targets(pid, "nothingHere")
+            .unwrap()
+            .is_empty()
+    );
+}

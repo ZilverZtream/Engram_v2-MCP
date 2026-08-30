@@ -19,6 +19,8 @@ async fn build() -> (tempfile::TempDir, Engram, String) {
     let root = tmp.path().join("proj");
     for d in [
         "Site/ts/orders",
+        "Site/ts/misc",
+        "Site/Q/api",
         "Site/App_Code/api-json",
         "Site/App_Code/orders/api-json",
         "Site/App_Code/noise",
@@ -38,6 +40,60 @@ async fn build() -> (tempfile::TempDir, Engram, String) {
     std::fs::write(
         root.join("Site/App_Code/orders/api-json/api-orders.vb"),
         "Partial Class api\n    Public Shared Function GetOrderLines(ByVal qry As JSONqry) As JSONreturn\n        Dim lines = orderLines.LoadByOrder(qry.ord_id)\n        Return Nothing\n    End Function\nEnd Class\n",
+    )
+    .unwrap();
+    // The wrapper class: TS reaches /api.asmx/getimg through api.ajax().getImage.
+    std::fs::write(
+        root.join("Site/Q/api/ajax.ts"),
+        "namespace api {
+    export class ajax {
+        public getImage(module: string, id: number, imageName: string): void {
+            let req = new XMLHttpRequest();
+            req.open('POST', '/api.asmx/getimg', true);
+            req.send(JSON.stringify({ module: module, id: id, name: imageName }));
+        }
+    }
+}
+",
+    )
+    .unwrap();
+    // A decoy getImage so only the receiver (`new api.ajax()`) disambiguates.
+    std::fs::write(
+        root.join("Site/ts/misc/thumbs.ts"),
+        "export function getImage(cacheKey: any): void {
+}
+",
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("Site/api.asmx"),
+        "<%@ WebService Language=\"VB\" CodeBehind=\"api.vb\" Class=\"api\" %>
+",
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("Site/App_Code/api-json/api-images.vb"),
+        "Partial Class api
+    Public Function getimg(ByVal o As imgData) As String
+        Return \"\"
+    End Function
+End Class
+",
+    )
+    .unwrap();
+    // The info panel: a COMPOUND name ("order info panel" -> orderInfoPanel.ts)
+    // whose images arrive through the wrapper, two hops from this file.
+    std::fs::write(
+        root.join("Site/ts/orders/orderInfoPanel.ts"),
+        "namespace orders {
+    export class orderInfoPanel {
+        private _id: number;
+        public loadImages(): void {
+            new api.ajax().getImage('orders', this._id, 'Img.1');
+        }
+    }
+}
+",
     )
     .unwrap();
     // Enough chunks about "server api functions" and "order panel" to fill the
@@ -131,5 +187,24 @@ async fn who_calls_the_implementation_lists_the_ts_client() {
     assert!(
         ps.iter().any(|p| p.ends_with("orderpanel.ts")),
         "the TS client reached through the broker arm must be cited; got {ps:?}"
+    );
+}
+
+#[tokio::test]
+async fn an_api_name_literal_binds_to_the_implementation_the_broker_dispatches_it_to() {
+    // Live r44 (ox_causal_1): `athDeleteByID` names no symbol — only the broker's
+    // arm knows it is served by DeleteChangeRequest — so "which VB function
+    // handles it?" never cited the implementation file.
+    let (_tmp, engram, pid) = build().await;
+    let v = ask(
+        &engram,
+        &pid,
+        "Which VB function handles the ordGetLines API?",
+    )
+    .await;
+    let ps = paths(&v);
+    assert!(
+        ps.iter().any(|p| p.ends_with("api-orders.vb")),
+        "the dispatched implementation must be cited; got {ps:?}"
     );
 }

@@ -98,3 +98,18 @@ fn what_a_file_calls_is_not_a_usage_question() {
         intents(q)
     );
 }
+
+#[test]
+fn a_generic_verb_typed_as_an_endpoint_is_not_a_symbol_mention() {
+    // Live r44 (ox_history_2): "update endpoint" made `update` a symbol
+    // mention, so a correct abstention became an answer without PR evidence.
+    let q = "Which merged PR introduced the bulk base-type update endpoint?";
+    assert!(
+        !entity_texts(q)
+            .iter()
+            .any(|t| t.eq_ignore_ascii_case("update")),
+        "{:?}",
+        entities(q)
+    );
+    assert!(intents(q).contains(&Intent::History), "{:?}", intents(q));
+}
