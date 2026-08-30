@@ -1,0 +1,147 @@
+#![allow(clippy::unwrap_used)]
+//! External audit round 2, item 8 (TS→API route resolution): the extractors
+//! must carry BOTH ends of a name-routed API call.
+//!
+//! Client side — a broker-style API takes the server function's name as a
+//! string literal: `new api.ajax('athDeleteByID', …)`, `new api.ajax().call("x", …)`,
+//! `new api.jsonAdapter('x', …)`. Nothing in the URL names the function, so the
+//! literal is the only route evidence; it must become an `api_call` edge whose
+//! target is the function name (kind `api_function`).
+//!
+//! Server side — the broker dispatches with `Select Case`: `Case "athDeleteByID"`
+//! followed by `s = DeleteChangeRequest(qry)`. The Calls edge of that arm must
+//! carry `dispatch_key = "athDeleteByID"` so the resolver can join the two.
+use std::path::Path;
+
+use engram_index::ExtractedEdge;
+use engram_index::js_extractor::extract_js;
+use engram_index::vb_extractor::extract_vb;
+
+fn api_name_edges(edges: &[ExtractedEdge]) -> Vec<&ExtractedEdge> {
+    edges
+        .iter()
+        .filter(|e| e.kind == "api_call" && e.target_kind.as_deref() == Some("api_function"))
+        .collect()
+}
+
+#[test]
+fn api_ajax_name_literal_is_an_api_call_edge_to_the_function_name() {
+    let ts = r#"
+namespace caw {
+    export class manager {
+        private del(id: number) {
+            new api.ajax('athDeleteByID', { ath_id: id }, null, (ret) => {
+                this.reload();
+            });
+        }
+    }
+}
+"#;
+    let (_, edges) = extract_js(Path::new("Site/modules/dashboard/ts/caw/caw/caw.ts"), ts);
+    let api = api_name_edges(&edges);
+    assert_eq!(api.len(), 1, "one name-routed call expected, got {api:?}");
+    let e = api[0];
+    assert_eq!(e.target_name, "athDeleteByID");
+    assert_eq!(e.source_start_line, 5);
+    let meta = e.metadata.as_ref().expect("metadata");
+    assert_eq!(
+        meta.get("ajax_target_method").map(String::as_str),
+        Some("athDeleteByID")
+    );
+    assert_eq!(
+        meta.get("ajax_transport").map(String::as_str),
+        Some("api_name")
+    );
+}
+
+#[test]
+fn call_and_json_adapter_shapes_are_name_routes_too() {
+    let ts = r#"
+new api.ajax().call("iopGetAvailableImages", { io_pr_id: this._id }, null, (ret) => { });
+let adapter = new api.jsonAdapter('fjGet', { fj_id: id }, null, (data) => { });
+let ajax = new api.ajax();
+ajax.call(apiFunctionName, apiParameters, apiData, onSuccess); // variable: no route
+"#;
+    let (_, edges) = extract_js(Path::new("Site/Q/api/jsonAdapter.ts"), ts);
+    let mut names: Vec<&str> = api_name_edges(&edges)
+        .iter()
+        .map(|e| e.target_name.as_str())
+        .collect();
+    names.sort_unstable();
+    assert_eq!(names, vec!["fjGet", "iopGetAvailableImages"]);
+}
+
+#[test]
+fn a_url_route_is_not_reported_as_a_name_route() {
+    let ts = r#"
+let req = new XMLHttpRequest();
+req.open('POST', '/api.asmx/getimg', true);
+"#;
+    let (_, edges) = extract_js(Path::new("Site/Q/api/ajax.ts"), ts);
+    assert!(api_name_edges(&edges).is_empty());
+    let url = edges
+        .iter()
+        .find(|e| e.kind == "api_call" && e.target_name == "api.asmx")
+        .expect("the web-method route keeps its endpoint edge");
+    assert_eq!(
+        url.metadata
+            .as_ref()
+            .and_then(|m| m.get("ajax_target_method"))
+            .map(String::as_str),
+        Some("getimg")
+    );
+}
+
+#[test]
+fn vb_select_case_arm_stamps_its_call_with_the_dispatch_key() {
+    let vb = r#"
+Imports System
+
+Public Class api
+
+    Public Shared Function dispatch(ByVal qry As JSONqry) As JSONreturn
+        Dim s As JSONreturn = Nothing
+        Select Case qry.func
+            ' ÄTA - (Change Request)
+            Case "athDeleteByID"
+                s = DeleteChangeRequest(qry)
+            Case "athGet"
+                s = GetChangeRequest(qry)
+            Case Else
+                s = Nothing
+        End Select
+        LogCall(qry)
+        Return s
+    End Function
+
+End Class
+"#;
+    let (_, edges) = extract_vb(Path::new("Site/App_Code/api-json/api-broker.vb"), vb);
+    let key_of = |callee: &str| -> Option<String> {
+        edges
+            .iter()
+            .find(|e| e.kind == "calls" && e.target_name == callee)
+            .unwrap_or_else(|| panic!("no calls edge to {callee}: {edges:?}"))
+            .metadata
+            .as_ref()
+            .and_then(|m| m.get("dispatch_key"))
+            .cloned()
+    };
+    assert_eq!(
+        key_of("DeleteChangeRequest").as_deref(),
+        Some("athDeleteByID")
+    );
+    assert_eq!(key_of("GetChangeRequest").as_deref(), Some("athGet"));
+    // `LogCall(qry)` sits outside the arms: whatever edge it gets, no key.
+    let keyed_outside = edges.iter().any(|e| {
+        e.kind == "calls"
+            && e.target_name == "LogCall"
+            && e.metadata
+                .as_ref()
+                .is_some_and(|m| m.contains_key("dispatch_key"))
+    });
+    assert!(
+        !keyed_outside,
+        "a call outside the Case arms carries no key"
+    );
+}

@@ -23,6 +23,7 @@ The runner asks ask_codebase for output_format="json" and parses the AskReport
 (status, evidence[].path / .content). It scores; it does not mutate anything.
 """
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -230,6 +231,7 @@ def main() -> int:
     if out_path:
         summary = {
             "corpus": str(corpus_path),
+            "corpus_sha256": hashlib.sha256(corpus_path.read_bytes()).hexdigest(),
             "project_id": project_id,
             "rows": n,
             "status_match": status_matches,

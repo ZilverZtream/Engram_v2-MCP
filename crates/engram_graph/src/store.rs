@@ -2797,7 +2797,8 @@ impl GraphStore {
         );
 
         if unresolved.is_empty() {
-            return Ok(0);
+            // Item 8: the route pass runs even when nothing is left to bind by name.
+            return self.resolve_route_edges(project_id);
         }
 
         // ── Phase 3: Resolve via HashMap lookups ─────────────────────
@@ -3005,7 +3006,257 @@ impl GraphStore {
             phase4_elapsed.as_millis()
         );
 
-        Ok(updates.len())
+        let routed = self.resolve_route_edges(project_id)?;
+        Ok(updates.len() + routed)
+    }
+
+    /// External audit round 2, item 8 — TS→API route resolution, the
+    /// ImpactEngine one-hop slice.
+    ///
+    /// An `ApiCall` edge from a script names its server side only indirectly:
+    /// a web endpoint with the method in metadata (`/api.asmx/getimg` →
+    /// `ajax_target_method = getimg`), or a bare function-name literal that a
+    /// broker dispatches (`api.ajax('athDeleteByID')` → `Case "athDeleteByID"`
+    /// → `s = DeleteChangeRequest(qry)`, whose Calls edge carries
+    /// `dispatch_key`). This pass adds the edge the callee/impact arms need —
+    /// from the ENCLOSING client function (the callee arm walks function
+    /// nodes; the file stays the fallback) to the serving method — stamped
+    /// `route_dispatch` (broker arm), `route_method` (`<class>.<method>` of
+    /// the endpoint's class), `route_unique` (the one method of that name) or
+    /// `route_enclosing` (target already bound; only the source is lifted).
+    /// Ambiguous targets are skipped: a wrong route is worse than none.
+    /// Idempotent — edges are keyed by (kind, source, target).
+    pub fn resolve_route_edges(&self, project_id: &str) -> anyhow::Result<usize> {
+        let prefix = format!("{project_id}\0");
+        let mut node_name: HashMap<String, String> = HashMap::new();
+        let mut node_path: HashMap<String, String> = HashMap::new();
+        let mut fn_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut fns_by_name: HashMap<String, Vec<String>> = HashMap::new();
+        let mut fns_by_terminal: HashMap<String, Vec<String>> = HashMap::new();
+        let mut fns_by_file: HashMap<String, Vec<(u32, u32, String)>> = HashMap::new();
+        let mut dispatch: HashMap<String, Vec<String>> = HashMap::new();
+        let mut exposes: HashMap<String, String> = HashMap::new();
+        let mut api_calls: Vec<Edge> = Vec::new();
+        {
+            let rtx = self.db.begin_read()?;
+            let nt = rtx.open_table(NODES)?;
+            for r in nt.range(prefix.as_str()..)? {
+                let (k, v) = r?;
+                if !k.value().starts_with(&prefix) {
+                    break;
+                }
+                let node: Node = bincode::deserialize(v.value())?;
+                let path = node.file_path.as_str().replace('\\', "/");
+                node_name.insert(node.node_id.clone(), node.name.clone());
+                node_path.insert(node.node_id.clone(), path.clone());
+                if !matches!(
+                    node.node_type.as_str(),
+                    "function" | "method" | "sub" | "procedure"
+                ) {
+                    continue;
+                }
+                fn_ids.insert(node.node_id.clone());
+                let lower = node.name.to_lowercase();
+                if let Some(t) = lower.rsplit('.').next() {
+                    if t != lower {
+                        fns_by_terminal
+                            .entry(t.to_string())
+                            .or_default()
+                            .push(node.node_id.clone());
+                    }
+                }
+                fns_by_name
+                    .entry(lower)
+                    .or_default()
+                    .push(node.node_id.clone());
+                if node.start_line > 0 {
+                    fns_by_file.entry(path).or_default().push((
+                        node.start_line,
+                        node.end_line.max(node.start_line),
+                        node.node_id.clone(),
+                    ));
+                }
+            }
+            let et = rtx.open_table(EDGES)?;
+            for kind in EdgeKind::ALL {
+                let is_exposes = kind.as_str().starts_with("exposes_");
+                if !(is_exposes || matches!(kind, EdgeKind::Calls | EdgeKind::ApiCall)) {
+                    continue;
+                }
+                let kind_prefix = format!("{project_id}\0{}\0", kind.as_str());
+                for r in et.range(kind_prefix.as_str()..)? {
+                    let (k, v) = r?;
+                    if !k.value().starts_with(&kind_prefix) {
+                        break;
+                    }
+                    let e: Edge = bincode::deserialize(v.value())?;
+                    let meta_str = |key: &str| -> Option<String> {
+                        e.metadata
+                            .as_ref()
+                            .and_then(|m| m.get(key))
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| !s.is_empty())
+                    };
+                    if is_exposes {
+                        let class = match e.target_id.strip_prefix("::") {
+                            Some(placeholder) => placeholder.to_string(),
+                            None => node_name.get(&e.target_id).cloned().unwrap_or_default(),
+                        };
+                        let simple = class.rsplit('.').next().unwrap_or("").to_lowercase();
+                        if !simple.is_empty() {
+                            exposes.insert(e.source_id.clone(), simple);
+                        }
+                    } else if matches!(kind, EdgeKind::Calls) {
+                        if let Some(key) = meta_str("dispatch_key") {
+                            if fn_ids.contains(&e.target_id) {
+                                dispatch
+                                    .entry(key.to_lowercase())
+                                    .or_default()
+                                    .push(e.target_id.clone());
+                            }
+                        }
+                    } else if meta_str("ajax_target_method").is_some() {
+                        api_calls.push(e);
+                    }
+                }
+            }
+        }
+
+        let unique = |ids: Option<&Vec<String>>| -> Option<String> {
+            match ids {
+                Some(v) if v.len() == 1 => Some(v[0].clone()),
+                _ => None,
+            }
+        };
+        let now = now_ms();
+        let mut new_edges: Vec<Edge> = Vec::new();
+        let mut seen: std::collections::HashSet<(String, String)> =
+            std::collections::HashSet::new();
+        let (mut ambiguous, mut unbound) = (0usize, 0usize);
+        for e in &api_calls {
+            let meta = |key: &str| -> Option<String> {
+                e.metadata
+                    .as_ref()
+                    .and_then(|m| m.get(key))
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+            };
+            let Some(method) = meta("ajax_target_method") else {
+                continue;
+            };
+            let method_l = method.to_lowercase();
+            let name_route = meta("ajax_transport").as_deref() == Some("api_name");
+            let (target, how, conf) = if fn_ids.contains(&e.target_id) {
+                (e.target_id.clone(), "route_enclosing", 0.9f32)
+            } else if name_route {
+                if let Some(ids) = dispatch.get(&method_l) {
+                    if ids.len() != 1 {
+                        ambiguous += 1;
+                        continue;
+                    }
+                    (ids[0].clone(), "route_dispatch", 0.85)
+                } else if let Some(id) = unique(fns_by_name.get(&method_l))
+                    .or_else(|| unique(fns_by_terminal.get(&method_l)))
+                {
+                    (id, "route_unique", 0.6)
+                } else {
+                    if fns_by_terminal.get(&method_l).is_some_and(|v| v.len() > 1) {
+                        ambiguous += 1;
+                    } else {
+                        unbound += 1;
+                    }
+                    continue;
+                }
+            } else {
+                // web-method route: the endpoint's class, then a unique name
+                let class = exposes.get(&e.target_id).cloned().or_else(|| {
+                    node_name
+                        .get(&e.target_id)
+                        .and_then(|n| n.rsplit('/').next())
+                        .and_then(|n| n.split('.').next())
+                        .map(|s| s.to_lowercase())
+                        .filter(|s| !s.is_empty())
+                });
+                let by_class = class
+                    .as_ref()
+                    .and_then(|c| unique(fns_by_name.get(&format!("{c}.{method_l}"))));
+                if let Some(id) = by_class {
+                    (id, "route_method", 0.8)
+                } else if let Some(id) = unique(fns_by_terminal.get(&method_l)) {
+                    (id, "route_unique", 0.6)
+                } else {
+                    if fns_by_terminal.get(&method_l).is_some_and(|v| v.len() > 1) {
+                        ambiguous += 1;
+                    } else {
+                        unbound += 1;
+                    }
+                    continue;
+                }
+            };
+
+            // lift the source to the enclosing client function when known
+            let src_line: Option<u32> = meta("src_line").and_then(|s| s.parse().ok());
+            let source = if fn_ids.contains(&e.source_id) {
+                e.source_id.clone()
+            } else {
+                let path = node_path.get(&e.source_id).cloned().or_else(|| {
+                    e.source_id
+                        .strip_prefix("file:")
+                        .map(|p| p.replace('\\', "/"))
+                });
+                match (path, src_line) {
+                    (Some(p), Some(line)) => fns_by_file
+                        .get(&p)
+                        .and_then(|fns| {
+                            fns.iter()
+                                .filter(|(s, en, _)| *s <= line && line <= *en)
+                                .min_by_key(|(s, en, _)| en - s)
+                                .map(|(_, _, id)| id.clone())
+                        })
+                        .unwrap_or_else(|| e.source_id.clone()),
+                    _ => e.source_id.clone(),
+                }
+            };
+            if (source == e.source_id && target == e.target_id)
+                || source == target
+                || !seen.insert((source.clone(), target.clone()))
+            {
+                continue;
+            }
+            let mut edge = Edge {
+                source_id: source,
+                target_id: target,
+                namespace: e.namespace.clone(),
+                language: e.language.clone(),
+                edge_kind: EdgeKind::ApiCall,
+                weight: e.weight.max(1),
+                generation: e.generation,
+                metadata: e.metadata.clone(),
+                updated_at_ms: now,
+            };
+            if let Some(serde_json::Value::Object(o)) = edge.metadata.as_mut() {
+                o.insert(
+                    "route_via".into(),
+                    serde_json::Value::String(e.target_id.clone()),
+                );
+            }
+            Self::stamp_resolution(&mut edge, how, conf);
+            new_edges.push(edge);
+        }
+        if !new_edges.is_empty() {
+            self.upsert_edges(project_id, &new_edges)?;
+        }
+        tracing::info!(
+            "resolve_route_edges: project_id={} api_calls={} added={} ambiguous={} unbound={}",
+            project_id,
+            api_calls.len(),
+            new_edges.len(),
+            ambiguous,
+            unbound
+        );
+        Ok(new_edges.len())
     }
 }
 
