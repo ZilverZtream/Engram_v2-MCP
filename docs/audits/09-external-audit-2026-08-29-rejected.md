@@ -101,7 +101,7 @@ update → copy-forward overlaps purge → incomplete generation published".
 | 10 | Change exposure and edit risk | impact_analysis, compute_blast_radius, check_edit_safety | advisory, not an authority | shared ImpactEngine/ChangeSpec; one authority for the count |
 
 
-## Status at a glance (2026-08-30 02:56, releases 19–33 live on OciusX — every P0 and every scorecard row fixed@commit+live; golden 35/35; reference story ≤ 5 s first call; row 5 v3 measured POSITIVE)
+## Status at a glance (2026-08-30 06:23, releases 19–33 live on OciusX — every P0 and every scorecard row fixed@commit+live; re-audit acceptance pass 17/17 green; golden 35/35; reference story ≤ 5 s first call; row 5 v3 measured POSITIVE)
 
 | Item | Disposition | Live evidence (OciusX) |
 |---|---|---|
@@ -124,6 +124,30 @@ update → copy-forward overlaps purge → incomplete generation published".
 | 143-tool surface | **fixed** 4c4e9c9 (r20) | 32 core advertised, 112 via `list_advanced_tools` |
 
 **Nothing open after release 26 (2026-08-29 18:43):** every P0 and every scorecard row is fixed@commit + live on OciusX, or closed by the owner with the measurement stated (Dream). Known limit stated above: the first change-set call after a daemon restart (9.6 s) — the co-change snapshot and the settings prior are mined on first use; later calls are warm.
+
+## Re-audit acceptance pass on release 33 (owner 2026-08-30 02:58; run 06:15–06:23)
+
+Every checklist item re-run against the live OciusX index with fresh evidence (`acceptance_r33.sh`; raw log and table under `docs/audits/evidence/`). The daemon was restarted once (same binary) so P0-3 measures a true first call. **17 of 17 checks green.** Four rows were first reported FAIL by the pass's own text matching and corrected from the raw output (P0-4: the gates live under `gate_status`; integration: the dry reply no longer embeds the rules file, the generated artifacts on disk carry the contract; row 8 and row 10: the grep expected two facts on one line / matched the word `failures` in `failures: none`) — the corrected evidence is quoted in each row.
+
+| Check | Result | Evidence (live, r33) |
+|---|---|---|
+| P0-2 health verdict + completeness | **PASS** | Health OK, complete, gen 835 |
+| P0-2 freshness generation_complete | **PASS** | true |
+| P0-4 gates run, none degraded | **PASS** | 19 gates in gate_status (incl. ui_house_style), 0 degraded/error, findings on 6, verdict yellow (probe re-read the JSON's gate_status key) |
+| Integration produce_claude_md contract | **PASS** | generated artifacts on disk: engram-workflow.md 2x + AGENTS.md 2x say detect_incomplete_changes(edited_files=); no files= anywhere (the dry reply no longer embeds the rules file) |
+| Tool surface: <= 32 core advertised | **PASS** | 32 advertised, advanced list works |
+| P0-3 reference story first call | **PASS** | 4 s wall (4013 ms), 6/6 files, ui_contract=None |
+| Row 1 EN story -> SV concepts | **PASS** | 4 s; concepts: project, manager, reporting, fiberinstallationsplan, mängdredovisning, mangdredovisning, projektansvarig |
+| Row 2 edit-context parity | **PASS** | 20/20 |
+| Row 4 G1 literal completeness | **PASS** | 5 concepts; short=[]; slow=[] |
+| Row 5 S3 ui_house_style gate (live probe) | **PASS** | 1 finding(s) |
+| Row 5 S2 house_style section | **PASS** | 3 siblings, 219 ms |
+| Row 5 M2 get_ui_conformance pull | **PASS** | 7 families |
+| Row 7 trace_data_flow smoke | **PASS** | 115 lines |
+| Row 8 enforced rule -> Critical; clean -> none | **PASS** | probe rule -> 1 Critical finding (line 2), verdict red; clean diff -> 0 repo_rules findings (ROW8 LIVE: PASS; the pass's grep expected the two facts on one line) |
+| Row 9 similar changes + incomplete changes | **PASS** | 159 ms (incl. client spawn) |
+| Row 10 caller parity (no ceiling) | **PASS** | find_symbol_references 76 distinct callers (78 edges) = impact_analysis 76 causal dependents; failures: none (the pass's grep matched the word 'failures' in that line) |
+| Row 6 golden suite | **PASS** | status-match: 35/35 = 100%   (gate >= 80 |
 
 ## Disposition (filled as work lands — every row ends fixed@commit+live, or impossible@evidence)
 
