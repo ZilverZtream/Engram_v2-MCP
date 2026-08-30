@@ -146,10 +146,9 @@ impl Engram {
         // Round-2 audit P0-4: the requested modality survives the cap.
         let raw_pool = raw.clone();
         let mut evidence = ranking::rank_and_select(raw, depth.evidence_cap());
-        ranking::reserve_modalities(&mut evidence, &raw_pool, &plan.modalities, &req.question);
-        ranking::reserve_entity_files(&mut evidence, &raw_pool, &plan);
-        // P0-4d: every evidence kind the plan needs keeps one item under the cap.
-        ranking::reserve_needed_kinds(&mut evidence, &raw_pool, &plan.needed_evidence);
+        // P0-4e: one reserve pass — modality, needed kind, named file — with
+        // protected eviction (no reserve evicts another reserve's item).
+        ranking::reserve_required(&mut evidence, &raw_pool, &plan, &req.question);
         let conflicts = ranking::detect_conflicts(&evidence, gen_);
         let snapshot = status::build_snapshot(
             &ctx,
