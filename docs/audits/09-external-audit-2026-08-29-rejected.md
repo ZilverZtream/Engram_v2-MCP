@@ -103,6 +103,8 @@ update → copy-forward overlaps purge → incomplete generation published".
 
 ## Status at a glance (2026-08-30 06:23, releases 19–33 live on OciusX — every P0 and every scorecard row fixed@commit+live; re-audit acceptance pass 17/17 green; golden 35/35; reference story ≤ 5 s first call; row 5 v3 measured POSITIVE)
 
+> **Re-qualified by the round-2 audit (doc 10, P0-4):** the "golden 35/35" figure here measures ACCEPTED STATUS LABELS (abstain + status-match), not answer correctness. Under the correctness gate (required evidence modality / symbols / no distractors / precision) the same suite scores 27/35 on r33 and 28/35 on r34; the honest number and the fixes are tracked in doc 10.
+
 | Item | Disposition | Live evidence (OciusX) |
 |---|---|---|
 | P0-1 GC/watcher race + corpus | **fixed** 2f6fc31 (r19) | in-place repair → 31,073 chunks; survives watcher updates + hourly GC (gen 832→835, complete) |
