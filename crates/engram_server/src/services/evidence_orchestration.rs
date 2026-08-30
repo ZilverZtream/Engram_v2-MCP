@@ -472,6 +472,7 @@ async fn run_live_retrieval_benchmark(
                         fts_mode: "strict".into(),
                         include_path_prefixes: None,
                         exclude_path_prefixes: None,
+                        include_path_suffixes: None,
                         language_filters: None,
                         author_filter: None,
                         date_after: None,

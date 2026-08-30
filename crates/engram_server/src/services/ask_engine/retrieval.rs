@@ -16,7 +16,7 @@ use engram_index::HybridSearchEngine;
 use tokio_util::sync::CancellationToken;
 
 use super::evidence::{Authority, EvidenceItem, EvidenceKind};
-use super::plan::{Intent, QueryPlan};
+use super::plan::{Intent, Modality, QueryPlan};
 use super::providers;
 use super::status::{ProviderReport, ProviderStatus};
 
@@ -94,6 +94,46 @@ fn search_arm(
         match tokio::time::timeout(deadline, fut).await {
             Ok(o) => o,
             Err(_) => (provider.to_string(), vec![], ProviderStatus::TimedOut, None),
+        }
+    })
+}
+
+/// Round-2 audit P0-4: a code-namespace arm restricted to the paths of the
+/// modality the question asks for (.rdl / .sql / .resx / …).
+fn modality_arm(
+    ctx: &RetrievalCtx,
+    modality: Modality,
+    question: &str,
+    top_k: usize,
+    deadline: Duration,
+    cancel: CancellationToken,
+) -> ArmFuture {
+    let search = ctx.search.clone();
+    let pid = ctx.project_id.clone();
+    let gen_ = ctx.generation;
+    let q = question.to_string();
+    let provider = format!("modality:{}", modality.id());
+    Box::pin(async move {
+        let name = provider.clone();
+        let fut = async {
+            let mut id = 0usize;
+            let (items, out) = providers::modality_evidence(
+                &search,
+                &pid,
+                gen_,
+                modality.suffixes(),
+                &provider,
+                &q,
+                top_k,
+                &cancel,
+                &mut id,
+            )
+            .await;
+            (provider.clone(), items, out.status, out.note)
+        };
+        match tokio::time::timeout(deadline, fut).await {
+            Ok(o) => o,
+            Err(_) => (name, vec![], ProviderStatus::TimedOut, None),
         }
     })
 }
@@ -211,6 +251,17 @@ pub async fn gather_evidence(
         .collect();
 
     let mut arms: Vec<ArmFuture> = Vec::new();
+    // Round-2 audit P0-4: one filtered arm per requested modality.
+    for m in &plan.modalities {
+        arms.push(modality_arm(
+            ctx,
+            *m,
+            question,
+            top_k,
+            deadline,
+            cancel.clone(),
+        ));
+    }
     if want_code {
         arms.push(search_arm(
             ctx,

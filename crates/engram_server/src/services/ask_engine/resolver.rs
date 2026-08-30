@@ -146,7 +146,44 @@ pub fn resolve_entities_in_context(
                         .collect()
                 };
             }
-            Ok(ResolveResult::NotFound) | Err(_) => {}
+            Ok(ResolveResult::NotFound) | Err(_) => {
+                // Round-2 audit P0-4: a mention that IS a file stem
+                // ("api-installationsobjektprojekt") resolves to that file so
+                // the definition arm cites it.
+                let stem = m.text.trim().to_lowercase();
+                if stem.len() >= 6 && !stem.contains(' ') {
+                    let want = stem
+                        .rsplit('/')
+                        .next()
+                        .unwrap_or(&stem)
+                        .split('.')
+                        .next()
+                        .unwrap_or("")
+                        .to_string();
+                    if let Ok(files) =
+                        graph.query_nodes(project_id, Some("file"), None, None, usize::MAX)
+                    {
+                        let hits: Vec<&Node> = files
+                            .iter()
+                            .filter(|n| {
+                                let p = n.file_path.as_str().replace('\\', "/").to_lowercase();
+                                p.rsplit('/')
+                                    .next()
+                                    .unwrap_or("")
+                                    .split('.')
+                                    .next()
+                                    .unwrap_or("")
+                                    == want
+                            })
+                            .collect();
+                        if !hits.is_empty() && hits.len() <= MAX_BRANCHES {
+                            m.guessed_kind = EntityKind::File;
+                            let conf = if hits.len() == 1 { 0.9 } else { 0.5 };
+                            m.resolved = hits.iter().map(|n| node_to_resolved(n, conf)).collect();
+                        }
+                    }
+                }
+            }
         }
     }
 }

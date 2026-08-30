@@ -358,6 +358,15 @@ pub fn assess_status(
     }
     // Answered when the answer type's PRIMARY evidence kind is present; otherwise
     // there is adequate support but the ideal evidence is thin → partial.
+    // Round-2 audit P0-4: evidence that never touches a requested modality
+    // cannot be a full answer ("which reports …" answered from .vb only).
+    if plan.modalities.iter().any(|m| {
+        !evidence
+            .iter()
+            .any(|e| e.path.as_deref().is_some_and(|p| m.matches(p)))
+    }) {
+        return AnswerStatus::Partial;
+    }
     let primary = primary_kind(plan.answer_type);
     if evidence.iter().any(|e| e.kind == primary) {
         AnswerStatus::Answered

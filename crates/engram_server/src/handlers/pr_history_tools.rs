@@ -555,6 +555,7 @@ impl Engram {
             // Only the PR-level docs — not raw commit messages or diffs.
             include_path_prefixes: Some(vec!["pr:".into()]),
             exclude_path_prefixes: None,
+            include_path_suffixes: None,
             language_filters: None,
             author_filter: None,
             date_after: None,

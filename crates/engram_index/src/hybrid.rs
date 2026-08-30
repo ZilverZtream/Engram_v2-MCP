@@ -23,6 +23,9 @@ pub struct HybridQuery {
     pub fts_mode: String, // "strict", "loose", "regex"
     pub include_path_prefixes: Option<Vec<String>>,
     pub exclude_path_prefixes: Option<Vec<String>>,
+    /// Round-2 audit P0-4: keep only paths ending with one of these suffixes
+    /// (".rdl", ".sql", ".resx" …), case-insensitively, on BOTH legs.
+    pub include_path_suffixes: Option<Vec<String>>,
     pub language_filters: Option<Vec<String>>,
     pub author_filter: Option<String>,
     pub date_after: Option<u64>,
@@ -2453,6 +2456,23 @@ impl HybridSearchEngine {
             }
         }
 
+        if let Some(suffixes) = &q.include_path_suffixes {
+            let mut suffix_queries: Vec<(Occur, Box<dyn tantivy::query::Query>)> = Vec::new();
+            for s in suffixes {
+                for variant in [s.to_lowercase(), s.to_uppercase()] {
+                    if let Ok(rq) = tantivy::query::RegexQuery::from_pattern(
+                        &format!(".*{}", regex::escape(&variant)),
+                        self.fields.path,
+                    ) {
+                        suffix_queries.push((Occur::Should, Box::new(rq)));
+                    }
+                }
+            }
+            if !suffix_queries.is_empty() {
+                must_clauses.push((Occur::Must, Box::new(BooleanQuery::new(suffix_queries))));
+            }
+        }
+
         if let Some(langs) = &q.language_filters {
             let mut lang_queries: Vec<(Occur, Box<dyn tantivy::query::Query>)> = Vec::new();
             for l in langs {
@@ -2724,6 +2744,23 @@ impl HybridSearchEngine {
             }
             if !prefix_queries.is_empty() {
                 must.push((Occur::Must, Box::new(BooleanQuery::new(prefix_queries))));
+            }
+        }
+
+        if let Some(suffixes) = &q.include_path_suffixes {
+            let mut suffix_queries: Vec<(Occur, Box<dyn tantivy::query::Query>)> = Vec::new();
+            for s in suffixes {
+                for variant in [s.to_lowercase(), s.to_uppercase()] {
+                    if let Ok(rq) = tantivy::query::RegexQuery::from_pattern(
+                        &format!(".*{}", regex::escape(&variant)),
+                        self.fields.path,
+                    ) {
+                        suffix_queries.push((Occur::Should, Box::new(rq)));
+                    }
+                }
+            }
+            if !suffix_queries.is_empty() {
+                must.push((Occur::Must, Box::new(BooleanQuery::new(suffix_queries))));
             }
         }
 
@@ -3013,6 +3050,24 @@ impl HybridSearchEngine {
                         let safe_p = escape_like(p);
                         let _ = write!(wc, " AND path NOT LIKE '{}%' ESCAPE '\\'", safe_p);
                     }
+                }
+
+                if let Some(suffixes) = &q.include_path_suffixes
+                    && !suffixes.is_empty()
+                {
+                    wc.push_str(" AND (");
+                    for (i, s) in suffixes.iter().enumerate() {
+                        if i > 0 {
+                            wc.push_str(" OR ");
+                        }
+                        let lo = escape_like(&s.to_lowercase());
+                        let up = escape_like(&s.to_uppercase());
+                        let _ = write!(
+                            wc,
+                            "path LIKE '%{lo}' ESCAPE '\\' OR path LIKE '%{up}' ESCAPE '\\'"
+                        );
+                    }
+                    wc.push(')');
                 }
 
                 if let Some(langs) = &q.language_filters

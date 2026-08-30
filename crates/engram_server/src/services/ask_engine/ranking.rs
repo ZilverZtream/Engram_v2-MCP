@@ -7,6 +7,7 @@
 use std::collections::HashMap;
 
 use super::evidence::{Authority, EvidenceItem, EvidenceKind};
+use super::plan::Modality;
 use super::status::Conflict;
 
 const HALFLIFE_MS: f64 = 30.0 * 24.0 * 3600.0 * 1000.0;
@@ -77,6 +78,34 @@ fn dedup(items: Vec<EvidenceItem>) -> Vec<EvidenceItem> {
 
 /// Rank by authority/directness and select a small, source-diverse, high-signal
 /// set (MMR after the authority order). Fills each kept item's score/directness.
+/// Round-2 audit P0-4: the best raw item of each REQUESTED modality survives
+/// the evidence cap (replacing the weakest selected item), so a report /
+/// schema / resource question is answered from that modality whenever the
+/// index has it.
+pub fn reserve_modalities(
+    chosen: &mut Vec<EvidenceItem>,
+    raw: &[EvidenceItem],
+    modalities: &[Modality],
+) {
+    for m in modalities {
+        let of_modality = |e: &EvidenceItem| e.path.as_deref().is_some_and(|p| m.matches(p));
+        if chosen.iter().any(|e| of_modality(e)) {
+            continue;
+        }
+        let Some(best) = raw.iter().filter(|e| of_modality(e)).max_by(|a, b| {
+            a.relevance
+                .partial_cmp(&b.relevance)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        }) else {
+            continue;
+        };
+        if !chosen.is_empty() {
+            chosen.pop();
+        }
+        chosen.push(best.clone());
+    }
+}
+
 pub fn rank_and_select(items: Vec<EvidenceItem>, cap: usize) -> Vec<EvidenceItem> {
     let now_ms = crate::utils::now_ms();
     let mut items = dedup(items);
