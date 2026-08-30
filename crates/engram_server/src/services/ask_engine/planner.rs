@@ -344,7 +344,16 @@ pub fn extract_entities(q: &str) -> Vec<EntityMention> {
     let mut i = 0;
     while i < bytes.len() {
         let c = bytes[i] as char;
-        if c == '"' || c == '\'' || c == '`' {
+        // "map's" / "marker's": an apostrophe INSIDE a word is possession,
+        // not quotation — live r46 minted the junk mention
+        // "s marker info window fetch a marker" from the span between two
+        // possessives.
+        let mid_word = c == '\''
+            && i > 0
+            && (bytes[i - 1] as char).is_ascii_alphanumeric()
+            && i + 1 < bytes.len()
+            && (bytes[i + 1] as char).is_ascii_alphanumeric();
+        if (c == '"' || c == '\'' || c == '`') && !mid_word {
             if let Some(rel) = q[i + 1..].find(c) {
                 let inner = &q[i + 1..i + 1 + rel];
                 if !inner.trim().is_empty() {

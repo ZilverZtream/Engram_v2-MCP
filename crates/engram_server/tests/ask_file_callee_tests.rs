@@ -34,7 +34,13 @@ async fn build() -> (tempfile::TempDir, Engram, String) {
     .unwrap();
     std::fs::write(
         root.join("Site/App_Code/api-json/api-broker.vb"),
-        "Public Class api\n    Public Shared Function action(ByVal qry As JSONqry) As JSONreturn\n        Dim s As JSONreturn = Nothing\n        Select Case qry.func\n            Case \"ordGetLines\"\n                s = GetOrderLines(qry)\n        End Select\n        Return s\n    End Function\nEnd Class\n",
+        "Public Class api\n    Public Shared Function action(ByVal qry As JSONqry) As JSONreturn\n        Dim s As JSONreturn = Nothing\n        Select Case qry.func\n            Case \"ordGetLines\"\n                s = GetOrderLines(qry)\n            Case \"ordGetNoiseA\"
+                s = ordGetNoiseA(qry)
+            Case \"ordGetNoiseB\"
+                s = ordGetNoiseB(qry)
+            Case \"ordGetNoiseC\"
+                s = ordGetNoiseC(qry)
+        End Select\n        Return s\n    End Function\nEnd Class\n",
     )
     .unwrap();
     std::fs::write(
@@ -92,6 +98,43 @@ End Class
 ",
     )
     .unwrap();
+    // The compiled twin: same stem, so distinct-stem uniqueness must still
+    // pick the .ts source (live r46: ioMarkerInfowindow.{ts,js}).
+    std::fs::write(
+        root.join("Site/ts/orders/orderInfoPanel.js"),
+        "var orders;
+(function (orders) {
+    var orderInfoPanel = (function () {
+        function orderInfoPanel() { }
+        orderInfoPanel.prototype.loadImages = function () {
+            new api.ajax().getImage('orders', this._id, 'Img.1');
+        };
+        return orderInfoPanel;
+    })();
+})(orders || (orders = {}));
+",
+    )
+    .unwrap();
+    // Three more name-routed calls whose implementations live in three files:
+    // without the named-seed cap raise they fill the hop before the wrapper.
+    for (name, file) in [
+        ("ordGetNoiseA", "api-noisea.vb"),
+        ("ordGetNoiseB", "api-noiseb.vb"),
+        ("ordGetNoiseC", "api-noisec.vb"),
+    ] {
+        std::fs::write(
+            root.join(format!("Site/App_Code/orders/api-json/{file}")),
+            format!(
+                "Partial Class api
+    Public Shared Function {name}(ByVal qry As JSONqry) As JSONreturn
+        Return Nothing
+    End Function
+End Class
+"
+            ),
+        )
+        .unwrap();
+    }
     // The info panel: a COMPOUND name ("order info panel" -> orderInfoPanel.ts)
     // whose images arrive through the wrapper, two hops from this file.
     std::fs::write(
@@ -100,6 +143,9 @@ End Class
     export class orderInfoPanel {
         private _id: number;
         public loadImages(): void {
+            new api.ajax('ordGetNoiseA', { o: this._id }, null, null);
+            new api.ajax('ordGetNoiseB', { o: this._id }, null, null);
+            new api.ajax('ordGetNoiseC', { o: this._id }, null, null);
             new api.ajax().getImage('orders', this._id, 'Img.1');
         }
     }
@@ -217,6 +263,13 @@ async fn an_api_name_literal_binds_to_the_implementation_the_broker_dispatches_i
     assert!(
         ps.iter().any(|p| p.ends_with("api-orders.vb")),
         "the dispatched implementation must be cited; got {ps:?}"
+    );
+    // Live r46: the legacy twin + the served implementation were called
+    // AMBIGUOUS. They are the two ends of one route, not competing symbols.
+    assert_eq!(
+        v["status"].as_str(),
+        Some("answered"),
+        "a name with a legacy twin and one served implementation is not ambiguous"
     );
 }
 
