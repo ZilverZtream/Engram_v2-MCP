@@ -2079,10 +2079,35 @@ impl Engram {
             .map_err(|e| anyhow::anyhow!("set_meta failed: {e}"))?;
         }
 
-        ps.search
-            .purge_old_generations(project_id, new_gen)
-            .await
-            .ok();
+        // External audit round 2 (docs/audits/10) P0-1: a failed post-publication
+        // purge is a recorded debt the GC settles (`purge_pending`), never a
+        // swallowed error — and the update reports what happened.
+        let purge_note = match ps.search.purge_old_generations(project_id, new_gen).await {
+            Ok(()) => {
+                let reg = self.state.registry.clone();
+                let pid_p = project_id.to_string();
+                let _ =
+                    tokio::task::spawn_blocking(move || reg.set_meta(&pid_p, "purge_pending", ""))
+                        .await;
+                "purge: ok".to_string()
+            }
+            Err(e) => {
+                tracing::warn!(
+                    project_id = project_id,
+                    generation = new_gen,
+                    "post-publication purge failed — recorded as pending for the GC: {e:#}"
+                );
+                let reg = self.state.registry.clone();
+                let pid_p = project_id.to_string();
+                let gen_s = new_gen.to_string();
+                let _ = tokio::task::spawn_blocking(move || {
+                    reg.set_meta(&pid_p, "purge_pending", &gen_s)
+                })
+                .await;
+                self.state.gc_nudge.notify_one();
+                format!("purge: deferred to the GC ({e:#})")
+            }
+        };
         // External audit 2026-08-29 row 9: refresh the co-change snapshot
         // (incremental by walked commit) so the next get_change_set only reads.
         {
@@ -2139,7 +2164,7 @@ impl Engram {
         }
 
         Ok(format!(
-            "✅ Updated project_id: {project_id}\nactive_generation: {new_gen}\nfiles={} chunks={} bytes={}\n{git_summary}\n",
+            "✅ Updated project_id: {project_id}\nactive_generation: {new_gen}\n{purge_note}\nfiles={} chunks={} bytes={}\n{git_summary}\n",
             stats.files, stats.chunks, stats.bytes
         ))
     }
