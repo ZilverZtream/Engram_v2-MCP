@@ -2051,17 +2051,23 @@ impl HybridSearchEngine {
                                 file_hash,
                             });
 
-                        let Ok(text) = String::from_utf8(bytes) else {
-                            // DS1/D5: log unexpected UTF-8 failures (fail-open:
-                            // skip content, keep the fingerprint node).
-                            tracing::warn!(
-                                path = %p.display(),
-                                "DS1/D5: file UTF-8 decode failed during indexing — file skipped (fail-open)"
-                            );
-                            local_stats
-                                .skipped_files
-                                .push(((*arc_rel).clone(), "Invalid UTF-8 encoding".into()));
-                            return (local_stats, local_docs);
+                        // Round-2 audit P0-2 follow-up: a Latin-1 comment must not
+                        // eject a whole source file from the corpus (live: 4 OciusX
+                        // files were fingerprinted — a graph File node — yet absent
+                        // from every search store). Decode lossily and say so.
+                        let text = match String::from_utf8(bytes) {
+                            Ok(t) => t,
+                            Err(e) => {
+                                tracing::warn!(
+                                    path = %p.display(),
+                                    "file is not valid UTF-8 — indexed with lossy decoding"
+                                );
+                                local_stats.warnings.push(format!(
+                                    "{}: not valid UTF-8, indexed lossily",
+                                    arc_rel.as_str()
+                                ));
+                                String::from_utf8_lossy(e.as_bytes()).into_owned()
+                            }
                         };
                         let language = engram_core::guess_language(p);
                         *local_stats

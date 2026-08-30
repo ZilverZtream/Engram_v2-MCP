@@ -33,6 +33,19 @@ fn metadata_to_json(
 
 /// Process ingest stats: create graph nodes and edges from parsed symbols.
 /// This is a large function that builds the graph from the AST extraction results.
+/// Registry meta key of the per-project SKIP LEDGER (round-2 audit P0-2
+/// follow-up): the eligible paths the indexer skipped BY RULE, with reasons.
+pub const SKIP_LEDGER_META_KEY: &str = "skipped_paths_json";
+
+/// Files the indexer skipped by rule (binary, too large, unreadable) as of
+/// `generation`. The completeness check subtracts them from the expectation
+/// instead of hiding real losses behind a tolerance.
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct SkipLedger {
+    pub generation: u64,
+    pub skipped: Vec<(String, String)>,
+}
+
 pub async fn process_ingest_stats(
     state: &AppState,
     project_id: &str,
@@ -1041,6 +1054,50 @@ pub async fn process_ingest_stats(
                 project_id = %project_id,
                 "last_index_completed_ms write task panicked: {e}"
             ),
+        }
+    }
+
+    // Round-2 audit P0-2 follow-up: the SKIP LEDGER. Merge rule: a path indexed
+    // in this run leaves the ledger; a path skipped in this run enters it.
+    {
+        let reg = state.registry.clone();
+        let pid = project_id.to_string();
+        let indexed: std::collections::BTreeSet<String> = stats
+            .all_files
+            .iter()
+            .map(|p| p.as_str().replace('\\', "/"))
+            .collect();
+        let skipped_now: Vec<(String, String)> = stats
+            .skipped_files
+            .iter()
+            .map(|(p, r)| (p.as_str().replace('\\', "/"), r.clone()))
+            .collect();
+        let gen_ = generation;
+        let res = tokio::task::spawn_blocking(move || -> anyhow::Result<usize> {
+            let mut ledger: std::collections::BTreeMap<String, String> = reg
+                .get_meta(&pid, SKIP_LEDGER_META_KEY)?
+                .and_then(|s| serde_json::from_str::<SkipLedger>(&s).ok())
+                .map(|l| l.skipped.into_iter().collect())
+                .unwrap_or_default();
+            ledger.retain(|p, _| !indexed.contains(p));
+            for (p, r) in skipped_now {
+                ledger.insert(p, r);
+            }
+            let n = ledger.len();
+            let out = SkipLedger {
+                generation: gen_,
+                skipped: ledger.into_iter().collect(),
+            };
+            reg.set_meta(&pid, SKIP_LEDGER_META_KEY, &serde_json::to_string(&out)?)?;
+            Ok(n)
+        })
+        .await;
+        match res {
+            Ok(Ok(n)) => {
+                tracing::debug!(project_id = %project_id, skipped = n, "skip ledger written")
+            }
+            Ok(Err(e)) => tracing::warn!(project_id = %project_id, "skip ledger write failed: {e}"),
+            Err(e) => tracing::warn!(project_id = %project_id, "skip ledger task panicked: {e}"),
         }
     }
 

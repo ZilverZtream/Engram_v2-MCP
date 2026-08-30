@@ -58,14 +58,14 @@ async fn test_indexing_report_smoke() {
         "Should contain report header"
     );
     assert!(
-        text.contains("Files indexed: 2"),
-        "Should show 2 files indexed"
+        text.contains("Files indexed: 3"),
+        "Should show 3 files indexed (the non-UTF-8 one lossily — round-2 audit P0-2)"
     );
     assert!(
-        text.contains("Files skipped: 1"),
-        "Should show 1 file skipped"
+        text.contains("Files skipped: 0"),
+        "Should show 0 files skipped (non-UTF-8 is decoded lossily)"
     );
-    assert!(text.contains("python: 2"), "Should show python language");
+    assert!(text.contains("python: 3"), "Should show python language");
 
     let projects = state.registry.list_projects().unwrap();
     let project_id = &projects[0].project_id;
