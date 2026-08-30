@@ -37,6 +37,7 @@ static DOCUMENT_GETELEMENTBYID_RE: OnceLock<Regex> = OnceLock::new();
 // Feature 4: AJAX / WebMethod patterns
 static AJAX_CALL_RE: OnceLock<Regex> = OnceLock::new();
 static AJAX_SHORTHAND_RE: OnceLock<Regex> = OnceLock::new();
+static API_NAME_CALL_RE: OnceLock<Regex> = OnceLock::new();
 static FETCH_CALL_RE: OnceLock<Regex> = OnceLock::new();
 static XHR_OPEN_RE: OnceLock<Regex> = OnceLock::new();
 static PAGE_METHODS_RE: OnceLock<Regex> = OnceLock::new();
@@ -216,6 +217,7 @@ pub fn extract_js(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
     extract_fetch_calls(source, &line_starts, &file_name, &mut edges);
     extract_xhr_calls(source, &line_starts, &file_name, &mut edges);
     extract_page_methods(source, &line_starts, &file_name, &mut edges);
+    extract_api_name_calls(source, &line_starts, &file_name, &mut edges);
 
     // ── Feature 5: GIS / Spatial logic edges ─────────────────────────────
 
@@ -514,6 +516,52 @@ fn extract_xhr_calls(
         let byte_offset = cap.get(0).map(|m| m.start()).unwrap_or(0);
         let line = line_of(line_starts, byte_offset);
         emit_ajax_edge(edges, file_name, line, url, "xhr");
+    }
+}
+
+/// Name-routed API calls (external audit round 2, item 8): a broker-style API
+/// takes the SERVER FUNCTION'S NAME as a string literal — `new api.ajax('athDeleteByID', …)`,
+/// `new api.ajax().call("iopGetAvailableImages", …)`, `new api.jsonAdapter('fjGet', …)`,
+/// `adapter.ajaxLoad('fjGet', …)` — and posts it to one generic endpoint, so the
+/// URL never names the function. The literal is the only route evidence; it
+/// becomes an `api_call` edge whose target is the function name (kind
+/// `api_function`). The post-ingest resolver binds it through the broker's
+/// `Select Case` dispatch (`dispatch_key` on the arm's Calls edge) or, when
+/// the implementation carries the same name, directly.
+fn extract_api_name_calls(
+    source: &str,
+    line_starts: &[usize],
+    _file_name: &str,
+    edges: &mut Vec<ExtractedEdge>,
+) {
+    let re = match get_compiled_regex(
+        &API_NAME_CALL_RE,
+        r#"(?:\bapi\.(?:ajax|jsonAdapter)\(\s*(?:\)\s*\.call\(\s*)?|\.ajaxLoad\(\s*)['"](?P<name>[A-Za-z_][A-Za-z0-9_]*)['"]"#,
+        "API_NAME_CALL",
+    ) {
+        Some(r) => r,
+        None => return,
+    };
+
+    for cap in re.captures_iter(source) {
+        let name = &cap["name"];
+        let byte_offset = cap.get(0).map(|m| m.start()).unwrap_or(0);
+        let line = line_of(line_starts, byte_offset);
+        let mut meta = HashMap::with_capacity(3);
+        meta.insert("ajax_transport".into(), "api_name".into());
+        meta.insert("ajax_target_method".into(), name.to_string());
+        meta.insert("target_type".into(), "api_function".into());
+        edges.push(ExtractedEdge {
+            source_name: "file".to_string(),
+            source_kind: "file".to_string(),
+            source_start_line: line,
+            source_language: "javascript".to_string(),
+            target_name: name.to_string(),
+            target_kind: Some("api_function".to_string()),
+            target_start_line: None,
+            kind: "api_call".to_string(),
+            metadata: Some(meta),
+        });
     }
 }
 

@@ -36,6 +36,44 @@ static RE_VB_QUALIFIED_CALL: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)\b(New\s+)?([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+)\s*\(")
         .expect("valid VB qualified call regex")
 });
+/// External audit round 2, item 8: a broker's `Select Case` arm names the API
+/// function it serves — `Case "athDeleteByID"` — and the arm's call is the
+/// route to the implementation.
+static RE_VB_CASE_LITERAL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)^Case\s+"([A-Za-z_]\w*)"\s*$"#).expect("valid VB Case literal regex")
+});
+/// The arm's call: `s = Impl(qry)`, `Call Impl(qry)`, `Return Impl(qry)`, `Impl(qry)`.
+static RE_VB_ARM_CALL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)^(?:[A-Za-z_][\w.()]*\s*=\s*|Call\s+|Return\s+)?([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*\(")
+        .expect("valid VB arm call regex")
+});
+/// Keywords and conversion functions that look like calls inside an arm.
+const VB_ARM_CALL_STOPWORDS: [&str; 24] = [
+    "if",
+    "iif",
+    "new",
+    "cint",
+    "cstr",
+    "cbool",
+    "cdbl",
+    "clng",
+    "cdate",
+    "cdec",
+    "ctype",
+    "directcast",
+    "trycast",
+    "isnothing",
+    "len",
+    "trim",
+    "ucase",
+    "lcase",
+    "mid",
+    "left",
+    "right",
+    "instr",
+    "format",
+    "gettype",
+];
 /// Heads of qualified names that are framework/state noise, not project calls.
 const VB_CALL_HEAD_STOPWORDS: [&str; 10] = [
     "me", "my", "mybase", "string", "convert", "integer", "double", "math", "response", "request",
@@ -1208,6 +1246,8 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
     // real source symbol (matching the FQN-named node minted below) or fall
     // back to the "file" sentinel.
     let mut current_method: Option<String> = None;
+    // Item 8: the API name of the `Select Case` arm the cursor is in.
+    let mut dispatch_key: Option<String> = None;
     // Guard calls per enclosing method: (guard names, role literals).
     let mut method_guards: HashMap<String, (Vec<String>, Vec<String>)> = HashMap::new();
 
@@ -1226,6 +1266,17 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
         let line_no = idx as u32 + 1;
         let line = raw_line.trim();
         let lower = line.to_ascii_lowercase();
+
+        // Item 8: track the `Select Case` arm — `Case "name"` opens one, any
+        // other `Case` / `End Select` / `Select Case` closes it.
+        if let Some(c) = RE_VB_CASE_LITERAL.captures(line) {
+            dispatch_key = c.get(1).map(|m| m.as_str().to_string());
+        } else if lower.starts_with("case ")
+            || lower.starts_with("end select")
+            || lower.starts_with("select case")
+        {
+            dispatch_key = None;
+        }
 
         // SQL detection runs on every line (independent of the declaration
         // branches below): New SqlCommand("...") and .CommandText = "...".
@@ -1398,6 +1449,36 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
                     kind: "calls".to_string(),
                     metadata: None,
                 });
+            }
+            // Item 8: the arm's call carries the API name it serves, so the
+            // post-ingest resolver can join `api.ajax('name')` to it. Pushed
+            // last so it wins over a plain qualified-call twin of the same line.
+            if let Some(key) = dispatch_key.as_deref() {
+                if let Some(callee) = RE_VB_ARM_CALL
+                    .captures(line)
+                    .and_then(|c| c.get(1))
+                    .map(|m| m.as_str())
+                {
+                    let head = callee.split('.').next().unwrap_or("").to_ascii_lowercase();
+                    if !VB_ARM_CALL_STOPWORDS.contains(&head.as_str())
+                        && !VB_CALL_HEAD_STOPWORDS.contains(&head.as_str())
+                    {
+                        edges.push(ExtractedEdge {
+                            source_name: method_fqn.clone(),
+                            source_kind: "function".to_string(),
+                            source_start_line: line_no,
+                            source_language: "vb".to_string(),
+                            target_name: callee.to_string(),
+                            target_kind: None,
+                            target_start_line: None,
+                            kind: "calls".to_string(),
+                            metadata: Some(HashMap::from([(
+                                "dispatch_key".to_string(),
+                                key.to_string(),
+                            )])),
+                        });
+                    }
+                }
             }
         }
 
