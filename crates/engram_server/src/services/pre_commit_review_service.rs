@@ -2252,11 +2252,8 @@ pub async fn run_pre_commit_review_with(
     .await
     {
         Ok(c) if !c.complete => Some(format!(
-            "search index generation {} is INCOMPLETE ({} code chunks for {} tracked files, {:.1} %) — searched evidence is unreliable; run index_project (full re-index)",
-            c.generation,
-            c.code_chunks,
-            c.files,
-            c.ratio * 100.0
+            "search index generation {} is INCOMPLETE ({} of {} eligible paths missing, cross-store mismatch {}) — searched evidence is unreliable",
+            c.generation, c.missing, c.expected_paths, c.cross_store_mismatch
         )),
         Ok(_) => None,
         Err(e) => Some(format!("search index completeness unknown: {e}")),

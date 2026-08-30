@@ -1616,6 +1616,154 @@ impl HybridSearchEngine {
         Ok(searcher.search(&q, &tantivy::collector::Count)?)
     }
 
+    /// The distinct PATHS one generation holds (all namespaces, or one) —
+    /// external audit round 2 P0-2: completeness is a path-set comparison,
+    /// never a chunk/file ratio.
+    pub fn paths_in_generation(
+        &self,
+        project_id: &str,
+        namespace: Option<&str>,
+        generation: u64,
+    ) -> anyhow::Result<std::collections::BTreeSet<String>> {
+        use tantivy::schema::Value;
+        let reader = self.tantivy_index.reader()?;
+        let searcher = reader.searcher();
+        let mut clauses: Vec<(Occur, Box<dyn tantivy::query::Query>)> = vec![
+            (
+                Occur::Must,
+                Box::new(TermQuery::new(
+                    Term::from_field_text(self.fields.project_id, project_id),
+                    IndexRecordOption::Basic,
+                )),
+            ),
+            (
+                Occur::Must,
+                Box::new(TermQuery::new(
+                    Term::from_field_u64(self.fields.generation, generation),
+                    IndexRecordOption::Basic,
+                )),
+            ),
+        ];
+        if let Some(ns) = namespace {
+            clauses.push((
+                Occur::Must,
+                Box::new(TermQuery::new(
+                    Term::from_field_text(self.fields.namespace, ns),
+                    IndexRecordOption::Basic,
+                )),
+            ));
+        }
+        let q = BooleanQuery::new(clauses);
+        let addrs = searcher.search(&q, &tantivy::collector::DocSetCollector)?;
+        let mut out = std::collections::BTreeSet::new();
+        for addr in addrs {
+            let doc: tantivy::TantivyDocument = searcher.doc(addr)?;
+            if let Some(p) = doc.get_first(self.fields.path).and_then(|v| v.as_str()) {
+                out.insert(p.to_string());
+            }
+        }
+        Ok(out)
+    }
+
+    /// The distinct PATHS one generation holds in the VECTOR store
+    /// (external audit round 2 P0-2 — the vector store was never checked).
+    pub async fn vector_paths_in_generation(
+        &self,
+        project_id: &str,
+        namespace: Option<&str>,
+        generation: u64,
+    ) -> anyhow::Result<std::collections::BTreeSet<String>> {
+        #[cfg(feature = "vector")]
+        {
+            use lancedb::query::Select;
+            let table_name = format!("project_{}", project_id.replace('-', "_"));
+            if !self
+                .lance_conn
+                .table_names()
+                .execute()
+                .await?
+                .contains(&table_name)
+            {
+                return Ok(Default::default());
+            }
+            let table = self.lance_conn.open_table(&table_name).execute().await?;
+            let filter = match namespace {
+                Some(ns) => format!(
+                    "namespace = '{}' AND generation = {generation}",
+                    ns.replace('\'', "''")
+                ),
+                None => format!("generation = {generation}"),
+            };
+            let mut results = table
+                .query()
+                .only_if(filter)
+                .select(Select::Columns(vec!["path".to_string()]))
+                .execute()
+                .await?;
+            let mut out = std::collections::BTreeSet::new();
+            use futures::TryStreamExt;
+            while let Some(batch) = TryStreamExt::try_next(&mut results).await? {
+                let batch: arrow_array::RecordBatch = batch;
+                let path_arr = batch
+                    .column_by_name("path")
+                    .and_then(|c| c.as_any().downcast_ref::<arrow_array::StringArray>())
+                    .ok_or_else(|| anyhow::anyhow!("missing path"))?;
+                for i in 0..batch.num_rows() {
+                    out.insert(path_arr.value(i).to_string());
+                }
+            }
+            Ok(out)
+        }
+        #[cfg(not(feature = "vector"))]
+        {
+            let _ = (project_id, namespace, generation);
+            Ok(Default::default())
+        }
+    }
+
+    /// Delete the vector rows of `paths` and nothing else — the one-sided loss
+    /// the integrity tests inject (Tantivy keeps the paths).
+    pub async fn delete_vector_rows_for_paths(
+        &self,
+        project_id: &str,
+        namespace: &str,
+        paths: &[RelPath],
+    ) -> anyhow::Result<()> {
+        #[cfg(feature = "vector")]
+        {
+            if paths.is_empty() {
+                return Ok(());
+            }
+            let table_name = format!("project_{}", project_id.replace('-', "_"));
+            if !self
+                .lance_conn
+                .table_names()
+                .execute()
+                .await?
+                .contains(&table_name)
+            {
+                return Ok(());
+            }
+            let table = self.lance_conn.open_table(&table_name).execute().await?;
+            let safe_ns = namespace.replace('\'', "''");
+            for chunk in paths.chunks(200) {
+                let list = chunk
+                    .iter()
+                    .map(|p| format!("'{}'", p.as_str().replace('\'', "''")))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let filter = format!("namespace = '{safe_ns}' AND path IN ({list})");
+                table.delete(&filter).await?;
+            }
+            Ok(())
+        }
+        #[cfg(not(feature = "vector"))]
+        {
+            let _ = (project_id, namespace, paths);
+            Ok(())
+        }
+    }
+
     pub fn count_docs_by_namespace(
         &self,
         project_id: &str,
