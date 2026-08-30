@@ -305,9 +305,15 @@ pub async fn gather_evidence(
     {
         let graph = ctx.graph.clone();
         let pid = ctx.project_id.clone();
+        let project_dir = ctx
+            .registry
+            .get_project(&pid)
+            .ok()
+            .flatten()
+            .map(|rec| std::path::PathBuf::from(rec.directory));
         arms.push(graph_arm("definition", deadline, move || {
             let mut id = 0usize;
-            providers::definition_evidence(&graph, &pid, &nid, &mut id)
+            providers::definition_evidence(&graph, project_dir.as_deref(), &pid, &nid, &mut id)
         }));
     }
     if want_symbolrefs {
