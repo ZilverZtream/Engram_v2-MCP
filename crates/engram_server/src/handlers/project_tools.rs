@@ -2242,36 +2242,141 @@ pub(crate) async fn generation_completeness_for(
     pid: &str,
     generation: u64,
 ) -> anyhow::Result<GenerationCompleteness> {
-    {
-        let ps = state
-            .get_project_cached(pid)
-            .ok_or_else(|| anyhow::anyhow!("project runtime for {pid} is not loaded"))?;
-        let code_chunks = ps.search.count_docs_in_generation(
-            pid,
-            engram_core::namespaces::NAMESPACE_MEMORY,
-            generation,
-        )?;
-        let graph = state.graph.clone();
-        let pid_owned = pid.to_string();
-        let files = tokio::task::spawn_blocking(move || {
-            graph
-                .count_nodes_by_type(&pid_owned)
-                .map(|m| m.get("file").copied().unwrap_or(0))
-        })
-        .await??;
-        let ratio = if files == 0 {
-            1.0
+    use std::collections::BTreeSet;
+    // External audit round 2 (docs/audits/10) P0-2: chunks and files are
+    // different units — completeness compares PATH SETS per store against the
+    // eligible repository paths; counts are diagnostics.
+    let ps = state
+        .get_project_cached(pid)
+        .ok_or_else(|| anyhow::anyhow!("project runtime for {pid} is not loaded"))?;
+    let code_chunks = ps.search.count_docs_in_generation(
+        pid,
+        engram_core::namespaces::NAMESPACE_MEMORY,
+        generation,
+    )?;
+    let vector_rows = ps
+        .search
+        .count_vectors_in_generation(pid, generation)
+        .await
+        .unwrap_or(0);
+
+    let reg = state.registry.clone();
+    let pid_r = pid.to_string();
+    let rec = tokio::task::spawn_blocking(move || reg.get_project(&pid_r))
+        .await??
+        .ok_or_else(|| anyhow::anyhow!("project {pid} is not registered"))?;
+    let dir = std::path::PathBuf::from(&rec.directory);
+    let exts = crate::models::ProjectType::from_registry_str(&rec.project_type)
+        .map(crate::utils::files::exts_for_project_type_enum)
+        .unwrap_or_else(|| crate::utils::files::exts_for_project_type(&rec.project_type));
+    let dir2 = dir.clone();
+    let expected: BTreeSet<String> = tokio::task::spawn_blocking(move || {
+        engram_index::ingest::iter_files(&dir2, &exts)
+            .into_iter()
+            .filter(|f| std::fs::metadata(f).map(|m| m.len() > 0).unwrap_or(false))
+            .filter_map(|f| {
+                f.strip_prefix(&dir2)
+                    .ok()
+                    .map(|r| completeness_path(&r.to_string_lossy()))
+            })
+            .collect()
+    })
+    .await?;
+
+    let tantivy: BTreeSet<String> = ps
+        .search
+        .paths_in_generation(pid, None, generation)?
+        .into_iter()
+        .map(|s| completeness_path(&s))
+        .collect();
+    let vectors: BTreeSet<String> = ps
+        .search
+        .vector_paths_in_generation(pid, None, generation)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(|s| completeness_path(&s))
+        .collect();
+    let graph = state.graph.clone();
+    let pid_g = pid.to_string();
+    let graph_paths: BTreeSet<String> = tokio::task::spawn_blocking(move || {
+        graph
+            .query_nodes(&pid_g, Some("file"), None, None, usize::MAX)
+            .map(|nodes| {
+                nodes
+                    .into_iter()
+                    .map(|n| completeness_path(n.file_path.as_str()))
+                    .collect::<BTreeSet<String>>()
+            })
+    })
+    .await??;
+
+    let vectors_present = vector_rows > 0 || !vectors.is_empty();
+    let missing: Vec<String> = expected
+        .iter()
+        .filter(|f| !tantivy.contains(*f) || (vectors_present && !vectors.contains(*f)))
+        .cloned()
+        .collect();
+    let extra = tantivy.iter().filter(|f| !expected.contains(*f)).count();
+    let cross_store_mismatch = if vectors_present {
+        tantivy.symmetric_difference(&vectors).count()
+    } else {
+        0
+    };
+    let tolerance = std::cmp::max(3, expected.len() / 100);
+    let complete = missing.len() <= tolerance && cross_store_mismatch == 0;
+    Ok(GenerationCompleteness {
+        generation,
+        expected_paths: expected.len(),
+        tantivy_paths: tantivy.len(),
+        vector_paths: vectors.len(),
+        graph_paths: graph_paths.len(),
+        missing: missing.len(),
+        missing_sample: missing.iter().take(10).cloned().collect(),
+        extra,
+        cross_store_mismatch,
+        tolerance,
+        code_chunks,
+        vector_rows,
+        complete,
+    })
+}
+
+/// One spelling for every store's paths: forward slashes, no leading `./`.
+fn completeness_path(p: &str) -> String {
+    p.replace('\\', "/")
+        .trim_start_matches("./")
+        .trim_start_matches('/')
+        .to_string()
+}
+
+/// The one-line completeness report every surface prints.
+pub(crate) fn completeness_line(c: &GenerationCompleteness) -> String {
+    let mut s = format!(
+        "generation completeness: generation {} — expected paths: {}; tantivy: {}, vectors: {}, graph: {}; missing: {}, extra: {}, cross-store mismatch: {}; chunks {} / vector rows {} (diagnostic) — {}",
+        c.generation,
+        c.expected_paths,
+        c.tantivy_paths,
+        c.vector_paths,
+        c.graph_paths,
+        c.missing,
+        c.extra,
+        c.cross_store_mismatch,
+        c.code_chunks,
+        c.vector_rows,
+        if c.complete {
+            format!("complete (missing ≤ tolerance {})", c.tolerance)
         } else {
-            code_chunks as f64 / files as f64
-        };
-        Ok(GenerationCompleteness {
-            generation,
-            code_chunks,
-            files,
-            ratio,
-            complete: files == 0 || ratio >= 0.5,
-        })
+            format!("INCOMPLETE (tolerance {}, mismatch must be 0)", c.tolerance)
+        }
+    );
+    if !c.missing_sample.is_empty() {
+        s.push_str(&format!(
+            "\n  missing sample: {}",
+            c.missing_sample.join(", ")
+        ));
     }
+    s
 }
 
 impl Engram {
@@ -2331,11 +2436,8 @@ impl Engram {
         let completeness = self.generation_completeness(&pid, generation).await;
         let verdict = match &completeness {
             Ok(c) if !c.complete => format!(
-                "Health: CORRUPT — active generation {} is INCOMPLETE ({} code chunks for {} tracked files, {:.1} %); searchable evidence is missing — run index_project (full re-index)",
-                c.generation,
-                c.code_chunks,
-                c.files,
-                c.ratio * 100.0
+                "Health: CORRUPT — active generation {} is INCOMPLETE ({} of {} eligible paths missing from the searchable stores, cross-store mismatch {}); searchable evidence is unreliable until index_project (full re-index)",
+                c.generation, c.missing, c.expected_paths, c.cross_store_mismatch
             ),
             Err(e) => {
                 failures.push(format!("generation completeness check failed: {e}"));
@@ -2349,14 +2451,7 @@ impl Engram {
         let mut out = format!("{verdict}\n");
         out.push_str(&format!("active_generation: {generation}\n"));
         if let Ok(c) = &completeness {
-            out.push_str(&format!(
-                "generation completeness: {} code chunks in generation {} for {} tracked files ({:.1} %) — {}\n",
-                c.code_chunks,
-                c.generation,
-                c.files,
-                c.ratio * 100.0,
-                if c.complete { "complete" } else { "INCOMPLETE" }
-            ));
+            out.push_str(&format!("{}\n", completeness_line(c)));
         }
         for f in &failures {
             out.push_str(&format!("failure: {f}\n"));
@@ -2477,12 +2572,13 @@ impl Engram {
         let incomplete = match &completeness {
             Ok(c) => {
                 out.push_str(&format!(
-                    "generation_complete: {} ({} code chunks in generation {} for {} tracked files, {:.1} %)\n",
+                    "generation_complete: {} ({} of {} eligible paths present in every store; missing {}, cross-store mismatch {}, tolerance {})\n",
                     c.complete,
-                    c.code_chunks,
-                    c.generation,
-                    c.files,
-                    c.ratio * 100.0
+                    c.expected_paths.saturating_sub(c.missing),
+                    c.expected_paths,
+                    c.missing,
+                    c.cross_store_mismatch,
+                    c.tolerance
                 ));
                 !c.complete
             }
@@ -3963,8 +4059,23 @@ mod inv_tag_tests {
 #[derive(Debug, Clone, serde::Serialize)]
 pub(crate) struct GenerationCompleteness {
     pub generation: u64,
+    /// Eligible repository paths (the indexer's walker + extension list, non-empty files).
+    pub expected_paths: usize,
+    /// Distinct paths the active generation holds, per store.
+    pub tantivy_paths: usize,
+    pub vector_paths: usize,
+    pub graph_paths: usize,
+    /// Eligible paths absent from Tantivy or (when vectors exist) from LanceDB.
+    pub missing: usize,
+    pub missing_sample: Vec<String>,
+    /// Paths in Tantivy that are no longer eligible (stale).
+    pub extra: usize,
+    /// Paths present in one search store and absent in the other.
+    pub cross_store_mismatch: usize,
+    /// `missing <= tolerance` is required for `complete` (max(3, 1 %) of expected).
+    pub tolerance: usize,
+    /// Diagnostics only — counts are not completeness.
     pub code_chunks: usize,
-    pub files: usize,
-    pub ratio: f64,
+    pub vector_rows: usize,
     pub complete: bool,
 }
