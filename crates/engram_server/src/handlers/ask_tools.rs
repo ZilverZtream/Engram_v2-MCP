@@ -14,6 +14,13 @@ use crate::services::ask_engine::retrieval::{self, RetrievalCtx, parse_depth};
 use crate::services::ask_engine::{planner, ranking, resolver, status};
 use crate::tools::Engram;
 
+/// Round-2 audit P1-4: the dreamer-insight arm is OFF unless the caller asks
+/// for it (`include_insights: true`) — the ablation showed no measurable
+/// effect, so the default must not spend retrieval budget on it.
+pub fn insights_enabled(req: &crate::models::AskCodebaseRequest) -> bool {
+    req.include_insights.unwrap_or(false)
+}
+
 impl Engram {
     pub async fn handle_ask_codebase(
         &self,
@@ -54,7 +61,7 @@ impl Engram {
 
         // Retrieve across the intent-specific arms.
         let ctx = RetrievalCtx {
-            insights_enabled: req.include_insights.unwrap_or(true),
+            insights_enabled: insights_enabled(&req),
             search: ps.search.clone(),
             graph: self.state.graph.clone(),
             registry: self.state.registry.clone(),

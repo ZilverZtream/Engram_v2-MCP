@@ -27,17 +27,19 @@ fn the_switch_removes_the_insight_arm_and_only_that() {
 }
 
 #[test]
-fn the_request_accepts_include_insights_and_defaults_to_on() {
+fn the_request_accepts_include_insights_and_defaults_to_off() {
+    // Round-2 audit P1-4: the Dream arm showed no measurable effect in the
+    // ablation, so it is OFF unless the caller asks for it.
+    use engram_server::handlers::ask_tools::insights_enabled;
     let r: AskCodebaseRequest = serde_json::from_str(
-        r#"{"project_id":"p","question":"how does marker clustering work","include_insights":false}"#,
+        r#"{"project_id":"p","question":"how does marker clustering work","include_insights":true}"#,
     )
     .unwrap();
-    assert_eq!(r.include_insights, Some(false));
+    assert_eq!(r.include_insights, Some(true));
+    assert!(insights_enabled(&r), "an explicit true turns the arm on");
     let d: AskCodebaseRequest =
         serde_json::from_str(r#"{"project_id":"p","question":"how does marker clustering work"}"#)
             .unwrap();
-    assert_eq!(
-        d.include_insights, None,
-        "absent = on (the default behaviour is unchanged)"
-    );
+    assert_eq!(d.include_insights, None);
+    assert!(!insights_enabled(&d), "absent = OFF (round-2 audit P1-4)");
 }

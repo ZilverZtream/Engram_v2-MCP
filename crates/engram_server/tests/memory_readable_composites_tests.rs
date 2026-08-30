@@ -194,6 +194,8 @@ async fn ask_codebase_blends_insights() {
             .ask_codebase(Parameters(engram_server::AskCodebaseRequest {
                 project_id: pid.clone(),
                 question: "frobnicator".into(),
+                // Round-2 audit P1-4: the Dream arm is opt-in now.
+                include_insights: Some(true),
                 ..Default::default()
             }))
             .await

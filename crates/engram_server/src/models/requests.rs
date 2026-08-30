@@ -763,8 +763,9 @@ pub struct AskCodebaseRequest {
     /// Overall retrieval deadline in ms (default 15000, clamped 1000..60000).
     #[serde(default)]
     pub deadline_ms: Option<u64>,
-    /// Dream ablation switch: `false` removes the dreamer-insight retrieval arm
-    /// (the `insights` namespace) and nothing else. Default: on.
+    /// Dream switch: `true` adds the dreamer-insight retrieval arm (the
+    /// `insights` namespace) and nothing else. Default: OFF (round-2 audit
+    /// P1-4 — the arm showed no measurable effect in the ablation).
     #[serde(default)]
     pub include_insights: Option<bool>,
 }
