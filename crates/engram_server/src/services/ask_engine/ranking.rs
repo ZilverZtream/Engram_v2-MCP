@@ -217,6 +217,126 @@ pub fn reserve_entity_files(
     }
 }
 
+/// Round-2 audit P0-4e: ONE reserve pass. Everything the plan requires under
+/// the cap — an item per needed KIND, per requested MODALITY (preferring the
+/// candidate that carries the question's words) and per named FILE — is
+/// collected first; then the weakest UNPROTECTED items make room. Live r40:
+/// the needed-kind reserve evicted the .resx the modality reserve had just
+/// pushed, because each reserve popped the last item blindly.
+pub fn reserve_required(
+    chosen: &mut Vec<EvidenceItem>,
+    raw: &[EvidenceItem],
+    plan: &QueryPlan,
+    question: &str,
+) {
+    let files: Vec<String> = plan
+        .entities
+        .iter()
+        .flat_map(|e| e.resolved.iter())
+        .filter(|r| r.kind == EntityKind::File)
+        .map(|r| r.canonical.replace('\\', "/").to_lowercase())
+        .filter(|p| !p.is_empty())
+        .collect();
+    reserve_required_with(
+        chosen,
+        raw,
+        &plan.needed_evidence,
+        &plan.modalities,
+        &files,
+        question,
+    );
+}
+
+pub fn reserve_required_with(
+    chosen: &mut Vec<EvidenceItem>,
+    raw: &[EvidenceItem],
+    needed: &[EvidenceKind],
+    modalities: &[Modality],
+    entity_files: &[String],
+    question: &str,
+) {
+    let words = question_words(question);
+    let mut wanted: Vec<EvidenceItem> = Vec::new();
+    let has =
+        |set: &[EvidenceItem], pred: &dyn Fn(&EvidenceItem) -> bool| set.iter().any(|e| pred(e));
+    for m in modalities {
+        let of_modality = |e: &EvidenceItem| e.path.as_deref().is_some_and(|p| m.matches(p));
+        let Some(best) = raw
+            .iter()
+            .filter(|e| of_modality(e))
+            .max_by_key(|e| reserve_key(e, &words))
+        else {
+            continue;
+        };
+        let best_hits = reserve_key(best, &words).0;
+        let satisfied = chosen
+            .iter()
+            .chain(wanted.iter())
+            .any(|e| of_modality(e) && reserve_key(e, &words).0 >= best_hits);
+        if !satisfied && !wanted.iter().any(|w| w.evidence_id == best.evidence_id) {
+            wanted.push(best.clone());
+        }
+    }
+    for k in needed {
+        let of_kind = |e: &EvidenceItem| e.kind == *k;
+        if has(chosen, &of_kind) || has(&wanted, &of_kind) {
+            continue;
+        }
+        if let Some(best) = raw.iter().filter(|e| of_kind(e)).max_by(|a, b| {
+            a.relevance
+                .partial_cmp(&b.relevance)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        }) && !wanted.iter().any(|w| w.evidence_id == best.evidence_id)
+        {
+            wanted.push(best.clone());
+        }
+    }
+    for t in entity_files {
+        let t = t.replace('\\', "/").to_lowercase();
+        let of_file = |e: &EvidenceItem| {
+            e.path.as_deref().is_some_and(|p| {
+                let p = p.replace('\\', "/").to_lowercase();
+                p == t || p.ends_with(&format!("/{t}")) || t.ends_with(&format!("/{p}"))
+            })
+        };
+        if has(chosen, &of_file) || has(&wanted, &of_file) {
+            continue;
+        }
+        if let Some(best) = raw
+            .iter()
+            .filter(|e| of_file(e))
+            .max_by_key(|e| reserve_key(e, &words))
+            && !wanted.iter().any(|w| w.evidence_id == best.evidence_id)
+        {
+            wanted.push(best.clone());
+        }
+    }
+    let mut protected: std::collections::HashSet<String> =
+        wanted.iter().map(|w| w.evidence_id.clone()).collect();
+    for w in wanted {
+        if chosen.iter().any(|e| e.evidence_id == w.evidence_id) {
+            continue;
+        }
+        // Evict the weakest item that no reserve protects.
+        let victim = chosen
+            .iter()
+            .enumerate()
+            .filter(|(_, e)| !protected.contains(&e.evidence_id))
+            .min_by(|(_, a), (_, b)| {
+                a.score
+                    .unwrap_or(a.relevance)
+                    .partial_cmp(&b.score.unwrap_or(b.relevance))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .map(|(i, _)| i);
+        if let Some(i) = victim {
+            chosen.remove(i);
+        }
+        protected.insert(w.evidence_id.clone());
+        chosen.push(w);
+    }
+}
+
 pub fn rank_and_select(items: Vec<EvidenceItem>, cap: usize) -> Vec<EvidenceItem> {
     let now_ms = crate::utils::now_ms();
     let mut items = dedup(items);
@@ -260,7 +380,15 @@ pub fn rank_and_select(items: Vec<EvidenceItem>, cap: usize) -> Vec<EvidenceItem
         let dup = chosen
             .iter()
             .any(|c| c.path.is_some() && c.path == it.path && near_lines(c.lines, it.lines));
-        if !dup {
+        // Round-2 audit P0-4e (anti-anchoring): one file may not fill the
+        // evidence set — at most two items per path (live r40: the same .vb
+        // cited five times cost a lookup its precision).
+        let per_file = it
+            .path
+            .as_ref()
+            .map(|p| chosen.iter().filter(|c| c.path.as_ref() == Some(p)).count())
+            .unwrap_or(0);
+        if !dup && per_file < 2 {
             chosen.push(it);
         }
     }

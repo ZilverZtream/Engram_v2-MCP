@@ -337,6 +337,19 @@ pub fn extract_entities(q: &str) -> Vec<EntityMention> {
             continue;
         }
         // dotted path: a.b.c / Resources.text.Key / ImportService.vb
+        // Round-2 audit P0-4e: a lowercase hyphenated token of 8+ chars is a
+        // file mention ("api-installationsobjektprojekt"); the resolver maps
+        // it to the file by stem.
+        if t.len() >= 8
+            && t.contains('-')
+            && !t.starts_with('-')
+            && !t.ends_with('-')
+            && t.chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
+        {
+            push(t.to_string(), EntityKind::File, &mut out);
+            continue;
+        }
         if t.contains('.') && !t.starts_with('.') && !t.ends_with('.') {
             let tl = t.to_lowercase();
             let looks_file = [
