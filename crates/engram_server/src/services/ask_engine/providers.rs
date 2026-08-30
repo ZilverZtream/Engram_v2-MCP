@@ -59,6 +59,7 @@ fn base_query(
         fts_mode: "loose".into(),
         include_path_prefixes: None,
         exclude_path_prefixes: None,
+        include_path_suffixes: None,
         language_filters: None,
         author_filter: None,
         date_after: None,
@@ -115,6 +116,56 @@ async fn search_arm(
     id: &mut usize,
 ) -> (Vec<EvidenceItem>, ProviderOutcome) {
     let q = base_query(project_id, namespace, generation, query, top_k);
+    search_with(search, q, kind, authority, provider, generation, cancel, id).await
+}
+
+/// Round-2 audit P0-4: source evidence restricted to the paths of a requested
+/// modality — the suffix filter is applied INSIDE the index on both legs, so
+/// a report/schema/resource file surfaces even when code chunks dominate.
+#[allow(clippy::too_many_arguments)]
+pub async fn modality_evidence(
+    search: &HybridSearchEngine,
+    project_id: &str,
+    generation: u64,
+    suffixes: &[&str],
+    provider: &str,
+    query: &str,
+    top_k: usize,
+    cancel: &CancellationToken,
+    id: &mut usize,
+) -> (Vec<EvidenceItem>, ProviderOutcome) {
+    let mut q = base_query(
+        project_id,
+        namespaces::NAMESPACE_MEMORY,
+        generation,
+        query,
+        top_k,
+    );
+    q.include_path_suffixes = Some(suffixes.iter().map(|s| s.to_string()).collect());
+    search_with(
+        search,
+        q,
+        EvidenceKind::SourceCode,
+        Authority::CurrentCode,
+        provider,
+        generation,
+        cancel,
+        id,
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn search_with(
+    search: &HybridSearchEngine,
+    q: HybridQuery,
+    kind: EvidenceKind,
+    authority: Authority,
+    provider: &str,
+    generation: u64,
+    cancel: &CancellationToken,
+    id: &mut usize,
+) -> (Vec<EvidenceItem>, ProviderOutcome) {
     match search.search(&q, None, cancel).await {
         Err(e) => (vec![], ProviderOutcome::failed(e.to_string())),
         Ok(hits) if hits.is_empty() => (vec![], ProviderOutcome::empty()),
@@ -564,6 +615,13 @@ pub fn definition_evidence(
     };
     let some = Some(n.clone());
     let (path, lines, name, gen_) = node_fields(&some, node_id);
+    // Round-2 audit P0-4: a FILE entity (a mention that is a file stem) has no
+    // symbol span — cite its head so the file itself is evidence.
+    let lines = if n.node_type == "file" && lines.is_none() {
+        Some((1, 30))
+    } else {
+        lines
+    };
     let content = format!(
         "{name} ({}) is defined in {}{}",
         n.node_type,

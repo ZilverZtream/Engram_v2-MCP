@@ -40,6 +40,19 @@ pub fn coverage_gaps(
             gaps.push(format!("no {} evidence found", kind_label(*k)));
         }
     }
+    // Round-2 audit P0-4: name the requested modality that no evidence covers.
+    for m in &plan.modalities {
+        if !evidence
+            .iter()
+            .any(|e| e.path.as_deref().is_some_and(|p| m.matches(p)))
+        {
+            gaps.push(format!(
+                "no {} evidence although the question asks for it (looked for {})",
+                m.label(),
+                m.suffixes().join(", ")
+            ));
+        }
+    }
     for p in providers {
         match p.status {
             ProviderStatus::Failed => gaps.push(format!(

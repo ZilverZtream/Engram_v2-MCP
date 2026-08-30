@@ -234,6 +234,7 @@ pub fn plan_query(question: &str) -> QueryPlan {
     let qualifiers = extract_qualifiers(q, &lower);
     let answer_type = primary_answer_type(intents.first().map(|(i, _)| *i));
     let needed_evidence = needed_evidence_for(&intents);
+    let modalities = detect_modalities(&lower);
 
     QueryPlan {
         intents,
@@ -241,7 +242,55 @@ pub fn plan_query(question: &str) -> QueryPlan {
         qualifiers,
         needed_evidence,
         answer_type,
+        modalities,
     }
+}
+
+/// Round-2 audit P0-4: the evidence modality the question asks for, from
+/// WHOLE-WORD cues — "reporting" is not a report request, "table" is.
+pub fn detect_modalities(lower: &str) -> Vec<Modality> {
+    let toks: Vec<&str> = lower
+        .split(|c: char| !c.is_alphanumeric() && c != '_')
+        .filter(|t| !t.is_empty())
+        .collect();
+    let has = |words: &[&str]| toks.iter().any(|t| words.contains(t));
+    let mut out = Vec::new();
+    if has(&["report", "reports", "rdl", "rdlc", "ssrs"]) {
+        out.push(Modality::Report);
+    }
+    if has(&[
+        "table",
+        "tables",
+        "schema",
+        "column",
+        "columns",
+        "migration",
+        "migrations",
+        "sql",
+        "dbml",
+        "procedure",
+        "procedures",
+    ]) {
+        out.push(Modality::Sql);
+    }
+    if has(&[
+        "resx",
+        "resource",
+        "resources",
+        "translation",
+        "translations",
+        "localized",
+        "localization",
+    ]) {
+        out.push(Modality::Resource);
+    }
+    if has(&["aspx", "ascx", "markup", "page", "pages"]) {
+        out.push(Modality::Markup);
+    }
+    if has(&["typescript", "javascript", "ts", "js", "tsx"]) {
+        out.push(Modality::Script);
+    }
+    out
 }
 
 /// Extract candidate entity mentions from surface form. Resolution is separate.

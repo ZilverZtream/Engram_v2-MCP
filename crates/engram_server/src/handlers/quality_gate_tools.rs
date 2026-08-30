@@ -251,6 +251,7 @@ impl Engram {
                     fts_mode: "loose".into(),
                     include_path_prefixes: None,
                     exclude_path_prefixes: None,
+                    include_path_suffixes: None,
                     language_filters: None,
                     author_filter: None,
                     date_after: None,

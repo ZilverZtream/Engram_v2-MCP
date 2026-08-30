@@ -83,4 +83,57 @@ pub struct QueryPlan {
     pub qualifiers: Qualifiers,
     pub needed_evidence: Vec<EvidenceKind>,
     pub answer_type: AnswerType,
+    /// Round-2 audit P0-4: the evidence modalities the question asks for.
+    pub modalities: Vec<Modality>,
+}
+
+/// Round-2 audit P0-4: the evidence MODALITY a question names — "which
+/// reports (.rdl) …", "which table …", "which resource keys …". Retrieval
+/// runs a modality-filtered arm for each, the ranker keeps its best item,
+/// and an answer with no evidence of a requested modality is at most Partial.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum Modality {
+    Sql,
+    Report,
+    Resource,
+    Markup,
+    Script,
+}
+
+impl Modality {
+    pub fn suffixes(self) -> &'static [&'static str] {
+        match self {
+            Modality::Sql => &[".sql", ".dbml", ".edmx"],
+            Modality::Report => &[".rdl", ".rdlc"],
+            Modality::Resource => &[".resx"],
+            Modality::Markup => &[".aspx", ".ascx", ".master", ".cshtml", ".vbhtml", ".html"],
+            Modality::Script => &[".ts", ".tsx", ".js", ".jsx"],
+        }
+    }
+
+    /// Stable provider id ("modality:<id>").
+    pub fn id(self) -> &'static str {
+        match self {
+            Modality::Sql => "sql",
+            Modality::Report => "report",
+            Modality::Resource => "resource",
+            Modality::Markup => "markup",
+            Modality::Script => "script",
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Modality::Sql => "SQL schema (.sql/.dbml)",
+            Modality::Report => "report (.rdl)",
+            Modality::Resource => "resource (.resx)",
+            Modality::Markup => "page markup (.aspx/.ascx)",
+            Modality::Script => "script (.ts/.js)",
+        }
+    }
+
+    pub fn matches(self, path: &str) -> bool {
+        let p = path.to_lowercase();
+        self.suffixes().iter().any(|s| p.ends_with(s))
+    }
 }

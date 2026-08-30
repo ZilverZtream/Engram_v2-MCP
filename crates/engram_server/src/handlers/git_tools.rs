@@ -1353,6 +1353,7 @@ impl Engram {
                     fts_mode,
                     include_path_prefixes,
                     exclude_path_prefixes,
+                    include_path_suffixes: None,
                     language_filters: None,
                     author_filter,
                     date_after,
