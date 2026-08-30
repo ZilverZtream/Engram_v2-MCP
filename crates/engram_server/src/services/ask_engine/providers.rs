@@ -515,8 +515,42 @@ pub fn companion_evidence(
 /// exposes ioUpdateBaseTypeInBulk?" resolved the symbol yet no arm returned
 /// where it lives). A definition is evidence for any question that names the
 /// symbol, independent of the usage intent.
+/// Source lines of a definition, bounded (`DEFINITION_BODY_LINES`, 4 KB).
+pub const DEFINITION_BODY_LINES: usize = 60;
+
+fn definition_body(dir: &std::path::Path, rel: &str, a: u32, b: u32) -> Option<String> {
+    let full = engram_core::safe_join(dir, rel).ok()?;
+    if std::fs::metadata(&full).ok()?.len() > 4 * 1024 * 1024 {
+        return None;
+    }
+    let text = std::fs::read_to_string(&full).ok()?;
+    let start = (a.max(1) as usize) - 1;
+    let end = (b as usize)
+        .max(start + 1)
+        .min(start + DEFINITION_BODY_LINES);
+    let body: Vec<&str> = text
+        .lines()
+        .skip(start)
+        .take(end - start)
+        .map(|l| l.trim_end())
+        .collect();
+    if body.is_empty() {
+        return None;
+    }
+    let mut s = body.join("\n");
+    if s.len() > 4000 {
+        let mut cut = 4000;
+        while !s.is_char_boundary(cut) {
+            cut -= 1;
+        }
+        s.truncate(cut);
+    }
+    Some(s)
+}
+
 pub fn definition_evidence(
     graph: &GraphStore,
+    project_dir: Option<&std::path::Path>,
     project_id: &str,
     node_id: &str,
     id: &mut usize,
@@ -538,6 +572,17 @@ pub fn definition_evidence(
             .map(|(a, b)| format!(" lines {a}-{b}"))
             .unwrap_or_default()
     );
+    // Row 6 (release 32 live, golden `ox_impact_4`): the definition's own
+    // source lines ARE the evidence a question about its body needs (the
+    // callee it names, the guard it performs); "is defined in … lines a-b"
+    // alone left every named term uncovered and the answer Unsupported.
+    let content = match (project_dir, path.as_deref(), lines) {
+        (Some(dir), Some(p), Some((a, b))) => match definition_body(dir, p, a, b) {
+            Some(body) => format!("{content}\n{body}"),
+            None => content,
+        },
+        _ => content,
+    };
     let item = graph_relation_item(
         "definition",
         node_id.to_string(),
