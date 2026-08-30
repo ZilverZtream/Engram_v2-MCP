@@ -1,0 +1,160 @@
+# External audit 2026-08-30 — verdict REJECTED (second round) — the remediation checklist
+
+Source: the external auditor's second report, delivered by the product owner on 2026-08-30 after
+release 33 and the close-out report (doc 09). Findings verbatim below; paths as cited (verified
+against the working tree at c76d241 — see "Citation check"). Mandate unchanged: loop until every
+item is gold standard or shown impossible with evidence; every scope decision is the owner's;
+never commit into the OciusX repo.
+
+## Verdict (auditor): REJECT "everything is fixed"
+
+"A substantial amount genuinely is fixed, and the current OciusX index is healthy. But four vital
+brain-quality problems remain: (1) a real generation-GC race can still delete new vector data;
+(2) project health can report 'complete' for a catastrophically incomplete corpus;
+(3) get_change_set finds the required files but buries them in a 200-file dossier;
+(4) the ask_codebase '35/35 golden' gate measures status classification, not answer correctness.
+The deployed binary matches the repository release binary exactly."
+
+## P0-1 — The GC race is only half fixed (PARTIAL)
+
+Tantivy removes only generations older than the published one (good). LanceDB still removes every
+generation `!= active` (`crates/engram_index/src/vector.rs:190`): N published → GC sees no active
+indexing → an update starts N+1 after the check → GC reaches LanceDB → `generation != N` deletes
+the in-flight N+1 vectors. The GC checks an atomic counter but never takes the per-project update
+mutex (`actors/gc.rs:94`): check-then-act. `purge_never_deletes_the_generation_being_built` passes
+because its helper counts Tantivy documents only (`tests/gc_generation_race_tests.rs:100`); it
+would pass while the vector store deletes N+1. After publishing, update swallows purge failures
+(`handlers/project_tools.rs:2071`: `purge_old_generations(...).await.ok()`).
+
+Required: GC and update mutually exclusive on the per-project lock (or a durable set of building
+generations); vector KeepLatestOnly deletes `generation < active`; a LanceDB assertion that both N
+and in-flight N+1 survive purge(N); post-publication purge failures surfaced as degraded state and
+retried, never swallowed.
+
+## P0-2 — "Generation completeness" is not a completeness measurement (WRONG)
+
+Live: generation 836, 31,225 code chunks, 2,277 tracked files, "1,371.3 % — complete".
+`project_tools.rs:2215` divides chunks by graph file nodes (`ratio = code_chunks / files;
+complete = files == 0 || ratio >= 0.5`). Chunks and files are different units (≈13.7 chunks per
+file): the overwhelming majority of files could vanish and it would still report > 50 %. It checks
+Tantivy only, not the active-generation vector paths, never compares against eligible repository
+files, uses graph files as the denominator (graph damage shrinks the expectation), and a few large
+files mask losses. The tests use one small chunk per file and delete 80 %, so they miss the
+masking defect. A percentage above 100 % should itself have failed the invariant review.
+
+Required: compare PATH SETS — eligible repository paths ↔ active-generation Tantivy paths ↔
+active-generation LanceDB paths ↔ graph File nodes; report expected distinct paths, present per
+store, missing and extra, cross-store generation mismatches, sample missing paths; chunk/document
+counts only as diagnostics.
+
+## P0-3 — get_change_set has recall, but not usable precision (PARTIAL)
+
+Reference story live: ≈4–6 s, 200 files returned, 25 omissions, all six expected files present —
+at ranks 14 (api-redovisning.vb), 18 (redovisningskategorier.vb), 121 (the page), 122 (its
+code-behind), 176 (rk_redovisningskategorier.sql), 198 (iFalt.dbml). Raw precision ≈ 3 %.
+Principal cause: a single .resx translation is "golden" (`planning_tools.rs:4887`) and lexicon
+matches are exempt from the weak-tail cap (`:5468`); generic translations (category → kategori,
+reports → rapporter) promote huge parts of OciusX. The committed acceptance checks presence and
+runtime only — not rank, count, precision, token cost or the resulting plan.
+
+Required: a single generic lexicon term is never golden; score translations by rarity/IDF,
+phrase specificity and compound coverage; require lexicon evidence to be corroborated by another
+independent arm; cap broad translation populations; penalise globally common translated terms;
+evaluate must-have RANK. Suggested acceptance: all critical files in the top 20–30; ≤ ~40
+implementation candidates; an explicit "possible companions" set below the primary set;
+plan file-F1 or expert-scored usefulness.
+
+## P0-4 — ask_codebase 35/35 does not mean 35 correct answers (WRONG acceptance claim)
+
+`eval/ask_engine_golden.py:140`: `gate_ok = abstain_rate >= 1.0 and status_rate >= 0.80`.
+Citation coverage (mean 0.87) is printed but not gated; no exact-answer predicate, no required
+evidence modality. Concrete failure: "Which resource keys describe the main code category
+workflow?" → answered with ten evidence items and no .resx evidence (unrelated image API, auth,
+SQL column, logout controller); citation coverage 0.00, gate passed. "35/35" means 35 accepted
+status labels, not 35 correct answers.
+
+Required per golden question, one or more of: required symbols/files/node ids; required evidence
+modality (.resx, SQL schema, call graph); forbidden distractors; exact factual assertions;
+minimum evidence precision; contradiction checks; an expert-labelled acceptable answer set.
+An answered result with zero evidence from the requested modality must fail.
+
+## P1-1 — Pre-commit still has fail-open integrity paths (PARTIAL)
+
+Live review: 19 gates, 24 findings, yellow, 0 degraded, caps reported — genuine. But a search hit
+whose backing document returns Ok(None) is converted to empty content or skipped
+(`gates.rs:1482, :1513, :2881, :3090`); that is an integrity failure, not empty evidence.
+Pre-commit also inherits the invalid chunk/file completeness test.
+
+## P1-2 — Co-change is cached, but "no call-time Git walk" is false (PARTIAL)
+
+≈292 ms live. But the snapshot builder still opens the repository twice, walks commit OIDs on
+every invocation and diffs commits absent from the snapshot (`planning_tools.rs:567`, `:606`);
+index/update warms 500 commits while get_change_set requests 800 (`:6399`), so a later call can
+diff commits 501–800. Duplicate `GitWalker::open_repo` statement (build warning).
+
+## P1-3 — The 17/17 acceptance record is not a clean, reproducible run (REJECT evidence claim)
+
+The raw log ends `PASS: 16 | FAIL: 4` (`docs/audits/evidence/acceptance_r33.log:103`); corrections
+were appended later and the close-out generator uses "last result wins"
+(`make_closeout.py:19`). The script is not self-contained (undefined `$PC_DUMMY`, external
+deploy.ps1 / g1_check.sh / row8_live.py — `acceptance_r33.sh:46`). This does not invalidate the
+verified fixes; it invalidates "one fresh mechanical 17/17 acceptance run".
+
+## P1-4 — Dream remains active without demonstrated value (MEASURED, NOT IMPROVED)
+
+Dream ON: 0 insight evidence in 35 questions; OFF: 0; same 35/35; ON slightly slower. Its write
+path works; no evidence it helps an agent. Default it off until an A/B shows positive answer
+accuracy, planning quality or defect-prevention impact.
+
+## Verified fixes (auditor)
+
+Deployed binary matches the release build; literal redovisningskategori corpus recovery;
+concept-footprint coverage; edit-context parity 20/20; core surface 32 tools; 113 advanced tools
+discoverable; generated Claude workflow contract; caller authority 76 = 76; cross-store integrity
+healthy now (generation 836, Tantivy 172,107 documents, vector rows 172,107, 49,494 nodes,
+1,349,916 edges, no mismatches); first-GC delay; Tantivy newer-generation preservation; pre-commit
+gate-status/cap reporting; UI house-style implementation-time approach previously measured
+positively. Focused suites: 21 binaries, 34 tests, 34 passed.
+
+## Auditor's blocking order
+
+1. Generation atomicity across Tantivy and LanceDB.
+2. Per-store path-set integrity instead of the chunk/file ratio.
+3. get_change_set precision and ranking before more recall.
+4. An answer-correctness golden suite instead of the status tournament.
+5. The remaining pre-commit missing-document paths.
+6. Acceptance rebuilt as one immutable, self-contained run.
+7. Dream opt-in until it demonstrates positive agent outcomes.
+8. The larger ImpactEngine only after the causal golden suite exists.
+
+## Citation check (2026-08-30, working tree c76d241)
+
+| Citation | Read | Verdict |
+|---|---|---|
+| `engram_index/src/vector.rs:190` KeepLatestOnly | `"namespace = '{}' AND generation != {}"` — deletes every generation other than the active one, including an in-flight N+1 | **accurate** |
+| `actors/gc.rs:94` | `purge_project_old_gens` reads `active_indexing_count` then purges; no per-project update mutex is taken | **accurate** (check-then-act) |
+| `handlers/project_tools.rs:2071` | after `set_meta(active_generation)`: `ps.search.purge_old_generations(project_id, new_gen).await.ok()` | **accurate** (swallowed) |
+| `tests/gc_generation_race_tests.rs:100` | helper `code_docs` = `count_docs_by_namespace` (Tantivy) only | **accurate** |
+| `handlers/project_tools.rs:2215` | `ratio = code_chunks / files; complete = files == 0 \|\| ratio >= 0.5`, Tantivy count vs graph File nodes | **accurate** (1,371 % live) |
+| `handlers/planning_tools.rs:4887` | `golden = cochange \|\| history \|\| gloss \|\| lexicon` | **accurate** |
+| `handlers/planning_tools.rs:5468` | tail-cap exemption includes `lexicon` (and vtop/family/gloss) | **accurate** |
+| `handlers/planning_tools.rs:567/606` | `GitWalker::open_repo` twice; `walk_older_commits(max_commits)` every call; diffs commits not in the snapshot | **accurate** |
+| `handlers/planning_tools.rs:6399` vs `project_tools.rs:1670/1689/1712` | get_change_set asks 800 commits; index/update warm 500 | **accurate** |
+| `pre_commit_review_service/gates.rs:1482/1513/2881/3090` | `get_doc_by_pk` `Ok(None) => String::new()` / `.flatten()` / `continue` | **accurate** |
+| `eval/ask_engine_golden.py:140` | `gate_ok = abstain_rate >= 1.0 and status_rate >= 0.80`; citation coverage printed, not gated | **accurate** |
+| `docs/audits/evidence/acceptance_r33.{log,sh}`, `make_closeout.py:19` | raw log `PASS: 16 \| FAIL: 4`; corrected rows appended; last-wins in the generator; `$PC_DUMMY` undefined; external scratch scripts | **accurate** — the 17/17 is a run plus corrections, not one clean run |
+
+Every citation is accurate. Nothing in this table is disputed.
+
+## Disposition (filled as work lands — every row ends fixed@commit+live, or impossible@evidence)
+
+| Item | Disposition | Live evidence (OciusX) |
+|---|---|---|
+| P0-1 GC race (LanceDB `!= active`, no lock, Tantivy-only test, swallowed purge) | open | — |
+| P0-2 completeness = path-set integrity per store | open | — |
+| P0-3 change-set precision/ranking | open | — |
+| P0-4 answer-correctness golden suite | open | — |
+| P1-1 pre-commit Ok(None) integrity paths | open | — |
+| P1-2 co-change call-time git walk (500 vs 800) | open | — |
+| P1-3 immutable, self-contained acceptance run | open | — |
+| P1-4 Dream default | open (owner decision) | — |
