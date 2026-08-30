@@ -2296,6 +2296,54 @@ mod tests {
     }
 
     #[test]
+    fn the_best_row_of_each_layer_leads_the_primary_set() {
+        // Round-2 audit P0-3, live r37: rk_redovisningskategorier.sql — the
+        // only Data-layer critical file — ranked 37 behind forty Server rows
+        // carrying one more signal. A change set spans layers: the best
+        // tier<=1 row of EVERY layer belongs in the head of the primary set.
+        let mut prov: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
+        for i in 0..45 {
+            prov.insert(
+                format!("site/app_code/redovisning/file{i:02}.vb"),
+                ["cochange", "concept", "gloss", "vector"]
+                    .into_iter()
+                    .collect(),
+            );
+        }
+        prov.insert(
+            "db-x.sql/dbo/tables/rk_redovisningskategorier.sql".into(),
+            ["cochange", "concept", "gloss"].into_iter().collect(),
+        );
+        prov.insert(
+            "site/app_globalresources/text.resx".into(),
+            ["cochange", "concept"].into_iter().collect(),
+        );
+        let (rows, _) = change_set_rows(&prov);
+        let sql = rows
+            .iter()
+            .find(|r| r.path.ends_with("rk_redovisningskategorier.sql"))
+            .unwrap();
+        assert_eq!(sql.set, "primary", "{sql:?}");
+        assert!(
+            sql.rank <= 6,
+            "the Data layer's best row leads, got rank {}",
+            sql.rank
+        );
+        let resx = rows.iter().find(|r| r.path.ends_with("text.resx")).unwrap();
+        assert!(
+            resx.rank <= 6,
+            "the Resources layer's best row leads, got rank {}",
+            resx.rank
+        );
+        // The heads keep the layer order and the rest keeps its evidence order.
+        assert!(
+            rows[0].path.ends_with(".vb"),
+            "Server head first: {:?}",
+            rows[0]
+        );
+    }
+
+    #[test]
     fn story_word_name_coverage_leads_its_tier() {
         // Round-2 audit P0-3, live r36: the page pair (name+vector, tier 0)
         // ranked 42/43 behind forty tier-0 rows carrying more signals
@@ -5593,9 +5641,27 @@ pub(crate) fn change_set_rows(
             .then(depth(a.0).cmp(&depth(b.0)))
             .then(a.0.cmp(b.0))
     });
+    // Round-2 audit P0-3 (live r37): a change set spans layers — the best
+    // tier<=1 row of EVERY layer leads the primary set, in layer order, chosen
+    // BEFORE the cap fills (the only Data-layer critical file sat at 37 behind
+    // Server rows with one more signal). The rest keeps its evidence order.
+    let mut heads: Vec<usize> = Vec::new();
+    for li in 0..=CHANGE_SET_LAYERS.len() {
+        if let Some(i) = all.iter().position(|it| it.3 == li && it.2 <= 1)
+            && !heads.contains(&i)
+        {
+            heads.push(i);
+        }
+    }
     let mut primary = Vec::new();
     let mut rest = Vec::new();
-    for it in all {
+    for &i in &heads {
+        primary.push(all[i]);
+    }
+    for (i, it) in all.into_iter().enumerate() {
+        if heads.contains(&i) {
+            continue;
+        }
         if it.2 <= CHANGE_SET_PRIMARY_MAX_TIER && primary.len() < CHANGE_SET_PRIMARY_CAP {
             primary.push(it);
         } else {
