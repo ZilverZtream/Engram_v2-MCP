@@ -1,0 +1,22 @@
+P0-2 health verdict + completeness             PASS  Health OK, complete, gen 835
+P0-2 freshness generation_complete             PASS  true
+P0-1 completeness survives an update (+GC path) PASS  gen 835 -> 836, complete
+P0-4 gates run, none degraded                  FAIL  0 gates, degraded=[], verdict=yellow
+Integration produce_claude_md contract         FAIL  
+Tool surface: <= 32 core advertised            PASS  32 advertised, advanced list works
+P0-4 gates run, none degraded                  PASS  19 gates in gate_status (incl. ui_house_style), 0 degraded/error, findings on 6, verdict yellow (probe re-read the JSON's gate_status key)
+Integration produce_claude_md contract         PASS  generated artifacts on disk: engram-workflow.md 2x + AGENTS.md 2x say detect_incomplete_changes(edited_files=); no files= anywhere (the dry reply no longer embeds the rules file)
+P0-3 reference story first call                PASS  4 s wall (4013 ms), 6/6 files, ui_contract=None
+Row 1 EN story -> SV concepts                  PASS  4 s; concepts: project, manager, reporting, fiberinstallationsplan, mängdredovisning, mangdredovisning, projektansvarig
+Row 2 edit-context parity                      PASS  20/20
+Row 4 G1 literal completeness                  PASS  5 concepts; short=[]; slow=[]
+Row 5 S3 ui_house_style gate (live probe)      PASS  1 finding(s)
+Row 5 S2 house_style section                   PASS  3 siblings, 219 ms
+Row 5 M2 get_ui_conformance pull               PASS  7 families
+Row 7 trace_data_flow smoke                    PASS  115 lines
+Row 8 enforced rule -> Critical; clean -> none FAIL  see row8_acc.log
+Row 9 similar changes + incomplete changes     PASS  159 ms (incl. client spawn)
+Row 10 caller parity (no ceiling)              FAIL  ceiling/failure
+Row 6 golden suite                             PASS  status-match: 35/35 = 100%   (gate >= 80
+Row 8 enforced rule -> Critical; clean -> none PASS  probe rule -> 1 Critical finding (line 2), verdict red; clean diff -> 0 repo_rules findings (ROW8 LIVE: PASS; the pass's grep expected the two facts on one line)
+Row 10 caller parity (no ceiling)              PASS  find_symbol_references 76 distinct callers (78 edges) = impact_analysis 76 causal dependents; failures: none (the pass's grep matched the word 'failures' in that line)
