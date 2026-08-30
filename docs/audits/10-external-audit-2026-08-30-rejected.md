@@ -156,7 +156,7 @@ Every citation is accurate. Nothing in this table is disputed.
 
 | Item | Disposition | Live evidence (OciusX) |
 |---|---|---|
-| P0-1 GC race (LanceDB `!= active`, no lock, Tantivy-only test, swallowed purge) | open | — |
+| P0-1 GC race (LanceDB `!= active`, no lock, Tantivy-only test, swallowed purge) | fixed@52e6ef8 + live r34 (2026-08-30 09:28) | vector purge `generation < active` (KeepLatestOnly); GC takes the per-project update lock (`try_acquire_project_update_lock`, outcome `SkippedUpdateInFlight`); post-publish purge failures recorded as `purge_pending` in the registry, surfaced in the update report and retried by the GC. Tests: gc_vector_race_tests (LanceDB rows of in-flight N+1 survive purge(N); GC yields to a held update lock; purge outcome recorded/retried). LIVE: update_project → `purge: ok`; check_integrity before/after tantivy 172,107 = vectors 172,107, mismatches []; health OK, generation 836→837 (verify_r34.log) |
 | P0-2 completeness = path-set integrity per store | open | — |
 | P0-3 change-set precision/ranking | open | — |
 | P0-4 answer-correctness golden suite | open | — |
