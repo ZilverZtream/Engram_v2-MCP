@@ -154,8 +154,11 @@ NFR=$(echo "$FR" | grep -o "[0-9]* distinct caller" | head -1 | grep -o "^[0-9]*
 ! echo "$FR$IA" | grep -qi "ceiling reached\|failures: [1-9]\|TOOL ERROR" && [ -n "$NFR" ] && [ "$NFR" = "$NIA" ] && verdict "Row 10 caller parity (refs == impact)" PASS "$NFR callers" || verdict "Row 10 caller parity (refs == impact)" FAIL "refs ${NFR:-?} vs impact ${NIA:-?}"
 NT=$(python tools/engram_drive.py tools 2>/dev/null | grep -c "^[a-z_]*$")
 [ "$NT" -le 32 ] && [ "$NT" -ge 20 ] && verdict "Tool surface: <= 32 core advertised" PASS "$NT advertised" || verdict "Tool surface: <= 32 core advertised" FAIL "$NT advertised"
-PC=$(T produce_claude_md "{\"project_id\":\"$P\",\"merge_existing\":false}" 400000)
-echo "$PC" | grep -q "edited_files=" && ! echo "$PC" | grep -q "(files=" && verdict "produce_claude_md contract (edited_files=, dry render)" PASS "$(echo "$PC" | grep -c "edited_files=") mention(s)" || verdict "produce_claude_md contract (edited_files=, dry render)" FAIL "edited_files= $(echo "$PC" | grep -c "edited_files="), (files= $(echo "$PC" | grep -c "(files=")"
+# The dry render must produce a CLAUDE.md without error; the tool-usage examples (`edited_files=` never `(files=`)
+# live in the workflow rules file the tool writes into the customer repo (under .git/info/exclude) — read it READ-ONLY.
+PC=$(T produce_claude_md "{\"project_id\":\"$P\",\"merge_existing\":false}" 400000); WF=$(ls "$OX"/.claude/rules/*engram* 2>/dev/null | head -1)
+EF=$(cat "$WF" 2>/dev/null | grep -c "edited_files="); OF=$(cat "$WF" 2>/dev/null | grep -c "(files=")
+echo "$PC" | grep -q "# CLAUDE.md" && ! echo "$PC" | grep -qi "TOOL ERROR" && [ "${EF:-0}" -ge 1 ] && [ "${OF:-0}" = "0" ] && verdict "produce_claude_md contract (render ok; rules say edited_files=)" PASS "render $(echo "$PC" | wc -c | tr -d ' ') bytes; $(basename "$WF"): edited_files= $EF, (files= $OF" || verdict "produce_claude_md contract (render ok; rules say edited_files=)" FAIL "render has CLAUDE.md: $(echo "$PC" | grep -c '# CLAUDE.md'); rules: edited_files= ${EF:-?}, (files= ${OF:-?}"
 
 echo; echo "=== SUMMARY $(date +%F_%T)"; cat "$R"; NP=$(grep -c ' PASS ' "$R"); NF=$(grep -c ' FAIL ' "$R"); echo "PASS: $NP | FAIL: $NF"
 echo "results sha256: $(sha256sum "$R" | cut -c1-64)"
