@@ -85,6 +85,30 @@ fn guard_names_in(text: &str) -> Vec<String> {
     names
 }
 
+/// Round-2 audit P1-1: the content behind a search hit. A hit whose backing
+/// document is MISSING (`Ok(None)`) is an index-integrity failure — the gate
+/// is degraded with a note naming the hit and the hit is skipped — never
+/// "empty content". An unreadable document degrades the same way.
+pub fn hit_content(
+    ctx: &GateContext<'_>,
+    search: &engram_index::hybrid::HybridSearchEngine,
+    pk: &str,
+) -> Option<String> {
+    match search.get_doc_by_pk(pk) {
+        Ok(Some((_, _, c, _, _))) => Some(c),
+        Ok(None) => {
+            ctx.degrade(format!(
+                "hit {pk} has no backing document in the search index — integrity failure, not empty evidence"
+            ));
+            None
+        }
+        Err(e) => {
+            ctx.degrade(format!("hit {pk} unreadable: {e}"));
+            None
+        }
+    }
+}
+
 pub struct GuardParityGate;
 
 #[async_trait]
@@ -1481,15 +1505,8 @@ impl Gate for AntiPatternGate {
                 if h.path.as_str().to_ascii_lowercase().contains(".min.") {
                     continue;
                 }
-                let content = match ps.search.get_doc_by_pk(&h.pk) {
-                    Ok(Some((_, _, c, _, _))) => c,
-                    Ok(None) => String::new(),
-                    Err(e) => {
-                        // External audit 2026-08-29 P0-4: a hit whose content
-                        // cannot be read is a degraded gate, not a skipped hit.
-                        ctx.degrade(format!("hit {} unreadable: {e}", h.pk));
-                        continue;
-                    }
+                let Some(content) = hit_content(ctx, &ps.search, &h.pk) else {
+                    continue;
                 };
                 if content.is_empty() {
                     continue;
@@ -1510,17 +1527,19 @@ impl Gate for AntiPatternGate {
             // via the wontFix threads — we don't discard the finding,
             // we just downgrade it so it doesn't scream about a
             // pattern someone already looked at and left alone.
-            let strong_supp = supp_hits.iter().take(5).any(|h| {
-                ps.search
-                    .get_doc_by_pk(&h.pk)
-                    .ok()
-                    .flatten()
-                    .map(|(_, _, c, _, _)| {
-                        let (m, t, _) = query_overlap(&c, &query_text);
-                        m >= 4 && (m as f32 / t.max(1) as f32) >= 0.3
-                    })
-                    .unwrap_or(false)
-            });
+            let mut strong_supp = false;
+            for h in supp_hits.iter().take(5) {
+                // Round-2 audit P1-1: a missing/unreadable document degrades
+                // the gate instead of silently counting as "no suppression".
+                let Some(c) = hit_content(ctx, &ps.search, &h.pk) else {
+                    continue;
+                };
+                let (m, t, _) = query_overlap(&c, &query_text);
+                if m >= 4 && (m as f32 / t.max(1) as f32) >= 0.3 {
+                    strong_supp = true;
+                    break;
+                }
+            }
             let mut severity = if relevant.iter().any(|(_, ov)| *ov >= 0.5) {
                 Severity::Warning
             } else {
@@ -2881,14 +2900,8 @@ impl Gate for ProductIntentGate {
             // while a doc_id lookup would rebuild the pk with the
             // CURRENT generation — wrong for docs ingested at an older
             // one.
-            let content = match ps.search.get_doc_by_pk(&h.pk) {
-                Ok(Some((_, _, c, _, _))) => c,
-                Ok(None) => String::new(),
-                Err(e) => {
-                    // External audit 2026-08-29 P0-4: unreadable hit => degraded gate.
-                    ctx.degrade(format!("hit {} unreadable: {e}", h.pk));
-                    continue;
-                }
+            let Some(content) = hit_content(ctx, &ps.search, &h.pk) else {
+                continue;
             };
             let (matched_n, total_n, matched) = query_overlap(&content, &query);
             let overlap = matched_n as f32 / total_n.max(1) as f32;
@@ -3091,14 +3104,8 @@ impl Gate for CoAddedFamilyGate {
                 if !h.path.as_str().starts_with("pr:") {
                     continue;
                 }
-                let content = match ps.search.get_doc_by_pk(&h.pk) {
-                    Ok(Some((_, _, c, _, _))) => c,
-                    Ok(None) => continue,
-                    Err(e) => {
-                        // External audit 2026-08-29 P0-4: unreadable hit => degraded gate.
-                        ctx.degrade(format!("hit {} unreadable: {e}", h.pk));
-                        continue;
-                    }
+                let Some(content) = hit_content(ctx, &ps.search, &h.pk) else {
+                    continue;
                 };
                 let files = parse_pr_doc_files(&content);
                 let in_family = files.iter().any(|f| f.to_lowercase().contains(&family));
