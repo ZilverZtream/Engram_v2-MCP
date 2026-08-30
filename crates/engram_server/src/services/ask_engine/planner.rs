@@ -119,6 +119,12 @@ pub fn plan_query(question: &str) -> QueryPlan {
         "who changed",
         "which commit",
         "which pr",
+        // Item 8 (ox_history_2): "Which merged PR introduced …"
+        "merged pr",
+        "pull request",
+        "introduced",
+        "what commit",
+        "which change",
     ] {
         if lower.contains(kw) {
             add(Intent::History, 0.8, &mut intents);
@@ -445,7 +451,8 @@ pub fn extract_entities(q: &str) -> Vec<EntityMention> {
             && t.chars()
                 .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
             && !is_stopword(&lower_t)
-            && !is_tech_noun(&lower_t);
+            && !is_tech_noun(&lower_t)
+            && !is_generic_word(&lower_t);
         if !plain {
             continue;
         }
@@ -468,6 +475,108 @@ pub fn extract_entities(q: &str) -> Vec<EntityMention> {
         }
     }
     out
+}
+
+/// Item 8 (live r44, ox_history_2): everyday verbs and nouns that a question
+/// types as code ("the update endpoint", "the save method") are prose — a
+/// real identifier is something like `getimg` or `uploadimg`. Without this
+/// gate `update` resolved to two symbols and a correct abstention became an
+/// answer without PR evidence.
+fn is_generic_word(w: &str) -> bool {
+    matches!(
+        w,
+        "update"
+            | "delete"
+            | "insert"
+            | "select"
+            | "save"
+            | "load"
+            | "list"
+            | "search"
+            | "create"
+            | "remove"
+            | "edit"
+            | "check"
+            | "send"
+            | "read"
+            | "write"
+            | "sync"
+            | "import"
+            | "export"
+            | "upload"
+            | "download"
+            | "login"
+            | "logout"
+            | "refresh"
+            | "reset"
+            | "process"
+            | "handle"
+            | "validate"
+            | "render"
+            | "build"
+            | "start"
+            | "stop"
+            | "open"
+            | "close"
+            | "show"
+            | "hide"
+            | "find"
+            | "fetch"
+            | "submit"
+            | "cancel"
+            | "apply"
+            | "print"
+            | "copy"
+            | "move"
+            | "change"
+            | "call"
+            | "calls"
+            | "post"
+            | "bulk"
+            | "base"
+            | "type"
+            | "main"
+            | "item"
+            | "items"
+            | "user"
+            | "users"
+            | "data"
+            | "file"
+            | "files"
+            | "page"
+            | "pages"
+            | "view"
+            | "form"
+            | "table"
+            | "report"
+            | "order"
+            | "status"
+            | "name"
+            | "value"
+            | "text"
+            | "date"
+            | "time"
+            | "count"
+            | "total"
+            | "group"
+            | "project"
+            | "marker"
+            | "image"
+            | "images"
+            | "types"
+            | "server"
+            | "client"
+            | "service"
+            | "helper"
+            | "manager"
+            | "admin"
+            | "public"
+            | "private"
+            | "shared"
+            | "static"
+            | "return"
+            | "async"
+    )
 }
 
 /// Item 8: technology and format nouns that read like identifiers ("API",

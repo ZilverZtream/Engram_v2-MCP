@@ -183,6 +183,27 @@ pub fn resolve_entities_in_context(
                         }
                     }
                 }
+                // Item 8 (live r44, ox_causal_1): an API NAME literal
+                // (`athDeleteByID`) has no symbol of its own — the broker's arm
+                // dispatches it to an implementation (`DeleteChangeRequest`).
+                // Bind the mention to that implementation so the definition and
+                // usage arms cite it ("which VB function handles it?").
+                if m.resolved.is_empty()
+                    && m.guessed_kind == EntityKind::Symbol
+                    && m.text.len() >= 4
+                    && !m.text.contains(' ')
+                {
+                    if let Ok(targets) = graph.find_dispatch_targets(project_id, &m.text) {
+                        let nodes: Vec<Node> = targets
+                            .iter()
+                            .filter_map(|id| graph.get_node(project_id, id).ok().flatten())
+                            .collect();
+                        if !nodes.is_empty() && nodes.len() <= MAX_BRANCHES {
+                            let conf = if nodes.len() == 1 { 0.85 } else { 0.5 };
+                            m.resolved = nodes.iter().map(|n| node_to_resolved(n, conf)).collect();
+                        }
+                    }
+                }
             }
         }
     }

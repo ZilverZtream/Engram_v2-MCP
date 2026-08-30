@@ -3010,6 +3010,62 @@ impl GraphStore {
         Ok(updates.len() + routed)
     }
 
+    /// Item 8: the implementations an API NAME is served by — the broker arm's
+    /// `Case "athDeleteByID"` → `DeleteChangeRequest` (Calls edge carrying
+    /// `dispatch_key`) and the route edges the pass bound for that name
+    /// (`ApiCall` with `ajax_target_method`, resolution `route_*`). The name
+    /// itself has no symbol; this is how "which VB function handles
+    /// athDeleteByID?" reaches api-atahuvud.vb. Case-insensitive; placeholders
+    /// are never returned.
+    pub fn find_dispatch_targets(
+        &self,
+        project_id: &str,
+        api_name: &str,
+    ) -> anyhow::Result<Vec<String>> {
+        let want = api_name.trim().to_lowercase();
+        if want.is_empty() {
+            return Ok(Vec::new());
+        }
+        let rtx = self.db.begin_read()?;
+        let et = rtx.open_table(EDGES)?;
+        let mut out: Vec<String> = Vec::new();
+        for (kind, key) in [
+            (EdgeKind::Calls, "dispatch_key"),
+            (EdgeKind::ApiCall, "ajax_target_method"),
+        ] {
+            let kind_prefix = format!("{project_id}\0{}\0", kind.as_str());
+            for r in et.range(kind_prefix.as_str()..)? {
+                let (k, v) = r?;
+                if !k.value().starts_with(&kind_prefix) {
+                    break;
+                }
+                let e: Edge = bincode::deserialize(v.value())?;
+                let Some(meta) = e.metadata.as_ref() else {
+                    continue;
+                };
+                let named = meta
+                    .get(key)
+                    .and_then(|v| v.as_str())
+                    .is_some_and(|n| n.trim().eq_ignore_ascii_case(&want));
+                if !named || e.target_id.starts_with("::") {
+                    continue;
+                }
+                if matches!(kind, EdgeKind::ApiCall)
+                    && !meta
+                        .get("resolution")
+                        .and_then(|v| v.as_str())
+                        .is_some_and(|r| r.starts_with("route_"))
+                {
+                    continue;
+                }
+                if !out.contains(&e.target_id) {
+                    out.push(e.target_id.clone());
+                }
+            }
+        }
+        Ok(out)
+    }
+
     /// External audit round 2, item 8 — TS→API route resolution, the
     /// ImpactEngine one-hop slice.
     ///
