@@ -146,6 +146,12 @@ positively. Focused suites: 21 binaries, 34 tests, 34 passed.
 
 Every citation is accurate. Nothing in this table is disputed.
 
+## Owner decisions (2026-08-30 ~06:45, AskUserQuestion)
+
+- Order: the auditor's blocking order 1→8 as given.
+- Dream (P1-4): default OFF now (`include_insights` opt-in); an A/B on plan quality decides whether it returns.
+- Loop: the 2-minute loop re-armed with the round-2 mandate; same discipline as round 1.
+
 ## Disposition (filled as work lands — every row ends fixed@commit+live, or impossible@evidence)
 
 | Item | Disposition | Live evidence (OciusX) |
