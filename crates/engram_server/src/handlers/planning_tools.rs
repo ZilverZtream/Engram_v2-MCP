@@ -37,6 +37,10 @@ use std::path::PathBuf;
 /// External audit 2026-08-29 row 1: the resx lexicon contributes at most this many
 /// concept terms (most specific first) — each concept runs a footprint (~1 s live).
 pub const LEXICON_CONCEPT_CAP: usize = 4;
+/// Round-2 audit P1-2: the co-change walk depth. Indexing/update warms the
+/// snapshot to exactly this depth and get_change_set requests exactly this
+/// depth, so a warm snapshot is served without a call-time git walk.
+pub const CO_CHANGE_DEPTH: usize = 800;
 /// Round-2 audit P0-3: the ranked PRIMARY set is capped here; everything
 /// else renders as a layer-grouped companion.
 pub const CHANGE_SET_PRIMARY_CAP: usize = 40;
@@ -574,9 +578,10 @@ pub(crate) fn build_co_change_snapshot(
     usize,
     usize,
     bool,
+    // walked_now: false when the warm snapshot was served without a git walk
+    bool,
 )> {
     let repo = GitWalker::open_repo(repo_dir)?;
-    let repo = GitWalker::open_repo(&repo_dir)?;
     let head = repo
         .head()
         .ok()
@@ -598,6 +603,24 @@ pub(crate) fn build_co_change_snapshot(
             .and_then(|bytes| bincode::deserialize(&bytes).ok())
             .map(std::sync::Arc::new),
     };
+
+    // Round-2 audit P1-2: a snapshot that already covers this HEAD at this
+    // depth is served as-is — no oid walk, no diff at call time.
+    if let Some(prev) = &cached
+        && prev.head == head
+        && prev.walked >= max_commits
+        && !prev.partial
+    {
+        cache.entry(cache_key).or_insert_with(|| prev.clone());
+        return Ok((
+            prev.clone(),
+            prev.commits.clone(),
+            prev.walked_oids.len(),
+            0,
+            false,
+            false,
+        ));
+    }
 
     let mut known: HashMap<String, crate::state::CoChangeCommit> = HashMap::new();
     let mut already_diffed: HashSet<String> = HashSet::new();
@@ -708,7 +731,7 @@ pub(crate) fn build_co_change_snapshot(
         let _ = std::fs::create_dir_all(parent);
         let _ = std::fs::write(&disk_path, bytes);
     }
-    Ok((snap, commits, walked_oids.len(), fresh_diffs, partial))
+    Ok((snap, commits, walked_oids.len(), fresh_diffs, partial, true))
 }
 
 /// Warm the co-change snapshot for a project (index / update completion).
@@ -730,7 +753,7 @@ pub(crate) fn warm_co_change_snapshot_blocking(
         project_id.to_string(),
         &disk_path,
         std::path::Path::new(&rec.directory),
-        500,
+        CO_CHANGE_DEPTH,
         co_change_budget(),
         std::time::Instant::now(),
     )?;
@@ -1140,15 +1163,16 @@ impl Engram {
             .join(format!("{}.bin", req.project_id));
         let budget = co_change_budget();
         let result = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
-            let (_snap, commits, scanned_len, fresh_diffs, partial) = build_co_change_snapshot(
-                &cache,
-                cache_key,
-                &disk_path,
-                &repo_dir,
-                max_commits,
-                budget,
-                started,
-            )?;
+            let (_snap, commits, scanned_len, fresh_diffs, partial, walked_now) =
+                build_co_change_snapshot(
+                    &cache,
+                    cache_key,
+                    &disk_path,
+                    &repo_dir,
+                    max_commits,
+                    budget,
+                    started,
+                )?;
             let walked_oids_len = scanned_len;
             if fresh_diffs > 0 {
                 tracing::debug!(
@@ -1171,7 +1195,7 @@ impl Engram {
             }
             scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
             scored.truncate(top);
-            Ok((scanned, scored, partial))
+            Ok((scanned, scored, partial, walked_now, fresh_diffs))
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
@@ -1185,7 +1209,13 @@ impl Engram {
                 None,
             )
         })?;
-        let (scanned, scored, partial) = result;
+        let (scanned, scored, partial, walked_now, fresh_diffs) = result;
+        // Round-2 audit P1-2: say whether this call walked git at all.
+        let coverage_line = if walked_now {
+            format!("co-change snapshot: extended by a git walk (fresh diffs: {fresh_diffs})\n")
+        } else {
+            "co-change snapshot: warm (served without a git walk)\n".to_string()
+        };
 
         if scored.is_empty() {
             let mut out = format!(
@@ -1201,6 +1231,7 @@ impl Engram {
                      from where it stopped.\n",
                 );
             }
+            out.push_str(&coverage_line);
             out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
             return Ok(CallToolResult::success(vec![Content::text(out)]));
         }
@@ -1291,6 +1322,7 @@ impl Engram {
                  registrations, migrations).\n",
             );
         }
+        out.push_str(&coverage_line);
         out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
@@ -6597,7 +6629,7 @@ impl Engram {
                 .handle_find_similar_changes(crate::models::FindSimilarChangesRequest {
                     project_id: req.project_id.clone(),
                     files: fsc_seed,
-                    max_commits: 800,
+                    max_commits: CO_CHANGE_DEPTH,
                     top: 8,
                 })
                 .await
