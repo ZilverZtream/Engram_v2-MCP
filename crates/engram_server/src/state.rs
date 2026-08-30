@@ -329,6 +329,32 @@ impl AppState {
         lock.lock_owned().await
     }
 
+    /// The GC's view of the same per-project update mutex (external audit
+    /// round 2 P0-1): `None` while an update holds it — the sweep yields,
+    /// it never queues behind an update.
+    pub async fn try_acquire_project_update_lock(
+        &self,
+        project_id: &str,
+    ) -> Option<tokio::sync::OwnedMutexGuard<()>> {
+        let lock = if let Some(lock) = self
+            .project_update_locks
+            .read()
+            .await
+            .get(project_id)
+            .cloned()
+        {
+            lock
+        } else {
+            self.project_update_locks
+                .write()
+                .await
+                .entry(project_id.to_string())
+                .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))
+                .clone()
+        };
+        lock.try_lock_owned().ok()
+    }
+
     pub fn get_project_cached(&self, project_id: &str) -> Option<ProjectState> {
         let cached = self.projects.get(project_id).map(|r| r.value().clone());
         if cached.is_some() {

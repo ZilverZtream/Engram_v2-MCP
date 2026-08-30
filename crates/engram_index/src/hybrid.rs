@@ -1708,6 +1708,37 @@ impl HybridSearchEngine {
         Ok(counts)
     }
 
+    /// Vector rows of ONE generation — external audit round 2 P0-1: the
+    /// generation race is asserted on LanceDB, not only on Tantivy.
+    pub async fn count_vectors_in_generation(
+        &self,
+        project_id: &str,
+        generation: u64,
+    ) -> anyhow::Result<usize> {
+        #[cfg(feature = "vector")]
+        {
+            let table_name = format!("project_{}", project_id.replace('-', "_"));
+            if !self
+                .lance_conn
+                .table_names()
+                .execute()
+                .await?
+                .contains(&table_name)
+            {
+                return Ok(0);
+            }
+            let table = self.lance_conn.open_table(&table_name).execute().await?;
+            Ok(table
+                .count_rows(Some(format!("generation = {generation}")))
+                .await?)
+        }
+        #[cfg(not(feature = "vector"))]
+        {
+            let _ = (project_id, generation);
+            Ok(0)
+        }
+    }
+
     pub async fn count_vectors(&self, project_id: &str) -> anyhow::Result<usize> {
         #[cfg(feature = "vector")]
         {

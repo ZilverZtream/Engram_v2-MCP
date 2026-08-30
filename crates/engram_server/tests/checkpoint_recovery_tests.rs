@@ -629,7 +629,8 @@ async fn corrupt_active_gen_metadata_causes_project_to_be_skipped_not_purged() {
     // Direct call — must return Ok(()) without touching graph or search storage.
     // Before fix: unwrap_or(1) would call purge_old_generations with gen=1.
     // After fix: early-return Ok(()) with tracing::warn.
-    let result: anyhow::Result<()> = purge_project_old_gens(&state, "corrupt-gen-proj").await;
+    let result: anyhow::Result<engram_server::actors::gc::GcOutcome> =
+        purge_project_old_gens(&state, "corrupt-gen-proj").await;
     assert!(
         result.is_ok(),
         "JOB1-m2q7: purge must skip (Ok) when active_generation is corrupt, got: {result:?}"
