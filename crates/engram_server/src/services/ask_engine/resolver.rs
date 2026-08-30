@@ -5,7 +5,7 @@
 
 use engram_graph::{GraphStore, Node, ResolveResult};
 
-use super::plan::{EntityKind, QueryPlan, ResolvedEntity};
+use super::plan::{EntityKind, EntityMention, QueryPlan, ResolvedEntity};
 
 /// Cap on candidate branches kept for an ambiguous mention.
 const MAX_BRANCHES: usize = 4;
@@ -183,28 +183,125 @@ pub fn resolve_entities_in_context(
                         }
                     }
                 }
-                // Item 8 (live r44, ox_causal_1): an API NAME literal
-                // (`athDeleteByID`) has no symbol of its own — the broker's arm
-                // dispatches it to an implementation (`DeleteChangeRequest`).
-                // Bind the mention to that implementation so the definition and
-                // usage arms cite it ("which VB function handles it?").
-                if m.resolved.is_empty()
-                    && m.guessed_kind == EntityKind::Symbol
-                    && m.text.len() >= 4
-                    && !m.text.contains(' ')
-                {
-                    if let Ok(targets) = graph.find_dispatch_targets(project_id, &m.text) {
-                        let nodes: Vec<Node> = targets
-                            .iter()
-                            .filter_map(|id| graph.get_node(project_id, id).ok().flatten())
-                            .collect();
-                        if !nodes.is_empty() && nodes.len() <= MAX_BRANCHES {
-                            let conf = if nodes.len() == 1 { 0.85 } else { 0.5 };
-                            m.resolved = nodes.iter().map(|n| node_to_resolved(n, conf)).collect();
-                        }
-                    }
-                }
             }
         }
     }
+    // Item 8 (live r44/r45, ox_causal_1): an API NAME literal
+    // (`athDeleteByID`) may name a LEGACY client function AND the broker's
+    // arm ("which VB function handles it?"). The dispatched implementation is
+    // a resolution BRANCH — added whether or not the name bound to a symbol.
+    for m in plan.entities.iter_mut() {
+        if m.guessed_kind != EntityKind::Symbol || m.text.len() < 4 || m.text.contains(' ') {
+            continue;
+        }
+        let Ok(targets) = graph.find_dispatch_targets(project_id, &m.text) else {
+            continue;
+        };
+        let fresh: Vec<Node> = targets
+            .iter()
+            .filter(|id| {
+                !m.resolved
+                    .iter()
+                    .any(|r| r.node_id.as_deref() == Some(id.as_str()))
+            })
+            .filter_map(|id| graph.get_node(project_id, id).ok().flatten())
+            .collect();
+        if fresh.is_empty() {
+            continue;
+        }
+        let conf = if m.resolved.is_empty() && fresh.len() == 1 {
+            0.85
+        } else {
+            0.8
+        };
+        for n in &fresh {
+            if m.resolved.len() >= MAX_BRANCHES {
+                break;
+            }
+            m.resolved.push(node_to_resolved(n, conf));
+        }
+    }
+    if let Some(m) = compound_file_mention(graph, project_id, question, &plan.entities) {
+        plan.entities.push(m);
+    }
+}
+
+/// Item 8 (golden ox_multi_4): a UI name spoken as WORDS — "marker info
+/// window" — names no token the entity scan sees, yet JOINED it is a file
+/// stem (`ioMarkerInfowindow.ts`). Take 2–3 word windows of plain lowercase
+/// words and keep the longest join that is a substring of exactly ONE file
+/// stem; that file becomes a resolved File entity (and thereby a named seed
+/// for the callee hop).
+fn compound_file_mention(
+    graph: &GraphStore,
+    project_id: &str,
+    question: &str,
+    entities: &[EntityMention],
+) -> Option<EntityMention> {
+    if entities
+        .iter()
+        .any(|m| m.guessed_kind == EntityKind::File && !m.resolved.is_empty())
+    {
+        return None;
+    }
+    let words: Vec<&str> = question
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|w| w.len() >= 3 && w.chars().all(|c| c.is_ascii_lowercase()))
+        .collect();
+    if words.len() < 2 {
+        return None;
+    }
+    let files = graph
+        .query_nodes(project_id, Some("file"), None, None, usize::MAX)
+        .ok()?;
+    let stems: Vec<(String, &Node)> = files
+        .iter()
+        .map(|n| {
+            let p = n.file_path.as_str().replace('\\', "/").to_lowercase();
+            (
+                p.rsplit('/')
+                    .next()
+                    .unwrap_or("")
+                    .split('.')
+                    .next()
+                    .unwrap_or("")
+                    .to_string(),
+                n,
+            )
+        })
+        .collect();
+    let mut best: Option<(usize, &Node)> = None;
+    for win in [3usize, 2] {
+        if best.is_some() {
+            break;
+        }
+        for chunk in words.windows(win) {
+            let join = chunk.concat();
+            if join.len() < 8 {
+                continue;
+            }
+            let hits: Vec<&Node> = stems
+                .iter()
+                .filter(|(s, _)| s.contains(&join))
+                .map(|(_, n)| *n)
+                .collect();
+            if hits.len() == 1 && best.is_none_or(|(l, _)| join.len() > l) {
+                best = Some((join.len(), hits[0]));
+            }
+        }
+    }
+    let (_, n) = best?;
+    let file_name = n
+        .file_path
+        .as_str()
+        .replace('\\', "/")
+        .rsplit('/')
+        .next()
+        .unwrap_or("")
+        .to_string();
+    Some(EntityMention {
+        text: file_name,
+        guessed_kind: EntityKind::File,
+        resolved: vec![node_to_resolved(n, 0.85)],
+    })
 }

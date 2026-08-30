@@ -194,3 +194,35 @@ End Class
         "the arm's call line, not the function's"
     );
 }
+
+#[test]
+fn a_member_call_carries_its_receiver() {
+    // `new api.ajax().getImage(…)` — the property name alone is ambiguous
+    // across the project; the receiver text lets the resolver bind it.
+    let ts = r#"
+namespace orders {
+    export class orderInfoPanel {
+        public loadImages(): void {
+            new api.ajax().getImage('orders', 1, 'Img.1');
+        }
+    }
+}
+"#;
+    let extractor = engram_index::SymbolExtractor::new();
+    let (_, edges) =
+        extractor.extract(std::path::Path::new("Site/ts/orders/orderInfoPanel.ts"), ts);
+    let call = edges
+        .iter()
+        .find(|e| e.kind == "calls" && e.target_name.contains("getImage"))
+        .unwrap_or_else(|| panic!("no calls edge to getImage: {edges:?}"));
+    let receiver = call
+        .metadata
+        .as_ref()
+        .and_then(|m| m.get("receiver"))
+        .cloned()
+        .unwrap_or_default();
+    assert!(
+        receiver.contains("api.ajax"),
+        "receiver must name the wrapper class; got {receiver:?} in {call:?}"
+    );
+}

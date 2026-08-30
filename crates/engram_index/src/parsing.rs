@@ -789,6 +789,25 @@ impl SymbolExtractor {
                     let callee_short = &content[node.start_byte()..node.end_byte()];
                     // Pass 2: resolve callee to FQN if known.
                     let callee_fqn = fqn_table.get(callee_short).cloned();
+                    // Item 8: `new api.ajax().getImage(…)` — the property name
+                    // alone is ambiguous across a project; keep the RECEIVER
+                    // text so the resolver can bind it to its class/file.
+                    let receiver: Option<String> = node.parent().and_then(|p| {
+                        if p.kind() == "member_expression" {
+                            p.child_by_field_name("object").map(|o| {
+                                let mut t = content[o.start_byte()..o.end_byte()].to_string();
+                                if let Some(rest) = t.strip_prefix("new ") {
+                                    t = rest.to_string();
+                                }
+                                if let Some(i) = t.find('(') {
+                                    t.truncate(i);
+                                }
+                                t.trim().chars().take(80).collect::<String>()
+                            })
+                        } else {
+                            None
+                        }
+                    });
 
                     // Find parent symbol
                     if let Some((_, _, parent_name, parent_kind, parent_line, parent_fqn)) =
@@ -797,6 +816,11 @@ impl SymbolExtractor {
                         })
                     {
                         let mut meta = std::collections::HashMap::new();
+                        if let Some(r) = receiver.as_deref() {
+                            if !r.is_empty() {
+                                meta.insert("receiver".into(), r.to_string());
+                            }
+                        }
                         let (target_name, target_kind): (String, Option<String>) =
                             if let Some(fqn) = callee_fqn {
                                 (fqn, Some("function".to_string()))

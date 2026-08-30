@@ -57,6 +57,17 @@ async fn build() -> (tempfile::TempDir, Engram, String) {
 ",
     )
     .unwrap();
+    // A LEGACY client twin of the API name (live r45: `athDeleteByID` is also
+    // a caw.js function, and the resolver bound the mention to it instead of
+    // the broker's implementation).
+    std::fs::write(
+        root.join("Site/ts/misc/legacy.js"),
+        "function ordGetLines(orderId) {
+    return null;
+}
+",
+    )
+    .unwrap();
     // A decoy getImage so only the receiver (`new api.ajax()`) disambiguates.
     std::fs::write(
         root.join("Site/ts/misc/thumbs.ts"),
@@ -206,5 +217,28 @@ async fn an_api_name_literal_binds_to_the_implementation_the_broker_dispatches_i
     assert!(
         ps.iter().any(|p| p.ends_with("api-orders.vb")),
         "the dispatched implementation must be cited; got {ps:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_compound_name_reaches_the_implementation_through_the_wrapper_route() {
+    // The golden ox_multi_4 shape: "marker info window" names no token the
+    // planner sees, and the image fetch is TWO hops (panel → api.ajax().getImage
+    // → /api.asmx/getimg → api-images.vb).
+    let (_tmp, engram, pid) = build().await;
+    let v = ask(
+        &engram,
+        &pid,
+        "How does the order info panel fetch its images?",
+    )
+    .await;
+    let ps = paths(&v);
+    assert!(
+        ps.iter().any(|p| p.ends_with("orderinfopanel.ts")),
+        "the compound-named file must be cited; got {ps:?}"
+    );
+    assert!(
+        ps.iter().any(|p| p.ends_with("api-images.vb")),
+        "the served implementation two hops away must be cited; got {ps:?}"
     );
 }
