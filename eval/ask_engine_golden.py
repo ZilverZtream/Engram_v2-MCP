@@ -46,12 +46,10 @@ def ask(project_id: str, question: str, include_insights: bool = True) -> tuple[
             # the dreamer-insight retrieval arm and nothing else.
         }
     )
-    if not include_insights:
-        # Only sent when the ablation asks for it: servers before the switch
-        # reject unknown fields, and the default is on anyway.
-        body = json.loads(payload)
-        body["include_insights"] = False
-        payload = json.dumps(body)
+    # Always sent explicitly so the record says which arm set produced it.
+    body = json.loads(payload)
+    body["include_insights"] = bool(include_insights)
+    payload = json.dumps(body)
     t0 = time.time()
     proc = subprocess.run(
         # 4th arg is engram_drive's output char cap; default 8000 would truncate
@@ -135,14 +133,15 @@ def evidence_blob(report: dict) -> str:
 
 def main() -> int:
     if len(sys.argv) < 2:
-        print("usage: python eval/ask_engine_golden.py <project_id> [corpus.jsonl] [--no-insights]")
+        print("usage: python eval/ask_engine_golden.py <project_id> [corpus.jsonl] [--insights] [--out record.json]")
         return 2
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     out_path = None
     if "--out" in sys.argv:
         out_path = sys.argv[sys.argv.index("--out") + 1]
         args = [a for a in args if a != out_path]
-    include_insights = "--no-insights" not in sys.argv
+    # Round-2 audit P1-4: the arm is OFF by default; --insights turns it on.
+    include_insights = "--insights" in sys.argv
     project_id = args[0]
     corpus_path = Path(args[1]) if len(args) > 1 else CORPUS
     rows = [json.loads(ln) for ln in corpus_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
