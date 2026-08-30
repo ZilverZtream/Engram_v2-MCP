@@ -1,0 +1,49 @@
+== start the daemon and let the warm-up run 19:00:33
+- 9f950e07-8d34-42e7-8aca-6c5fadcf837f | AARS | C:\ai-projects\AARS
+== REPAIR (full, same id, wipe+reindex) 19:01:48
+  repair exit 0 after 95 s
+2:active_generation: 841
+3:files=2277 chunks=31263
+4:git history re-walk started (background) — temporal edges restore shortly
+== settle (history/co-change caches rebuild after a wipe) 19:03:23
+== health 19:05:53
+1:Health: OK
+3:generation completeness: generation 841 — expected paths: 2277; tantivy: 2277, vectors: 2277, graph: 2277; missing: 0, extra: 0, cross-store mismatch: 0; chunks 31263 / vector rows 31263 (diagnostic) — complete (mi
+== ROUTE PROBES (incoming ApiCall into the served methods) 19:05:55
+  getimg: incoming=Incoming references (4 edges api_call=1 ts_callers: Q/api/ajax.ts 
+  DeleteChangeRequest: incoming=Incoming references (3 edges api_call=0 ts_callers: 
+  iopGetAvailableImages: incoming=Incoming references (7 edges api_call=2 ts_callers: modules/dashboard/ts/map/vsMap/iomarker/ioMarkerInfowindow.ts 
+  fjGet: incoming=Incoming references (9 edges api_call=4 ts_callers: modules/dashboard/ts/installation/installation/installation.ts ts/fbinstplan/app.ts 
+== CAUSAL golden (20) r43 19:05:56
+causal exit 1
+status-match: 20/20 = 100%   (gate >= 80%)
+abstain:      0/0 = 100%   (gate = 100%)
+correct:      10/20 = 50%   (gate = 100%: status + required modality + required symbols + no forbidden distractor + precision)
+  FAIL ox_causal_1: required symbols/files not cited: ['api-atahuvud']
+  FAIL ox_causal_2: required symbols/files not cited: ['ioMarkerInfowindow']
+  FAIL ox_causal_3: required symbols/files not cited: ['ioMarker.ts']
+  FAIL ox_causal_5: no evidence of the requested modality ['.ts']
+  FAIL ox_causal_6: no evidence of the requested modality ['.ts']
+  FAIL ox_causal_8: required symbols/files not cited: ['ioRoqFilterManager']
+  FAIL ox_causal_10: required symbols/files not cited: ['addressMarkerMoment', 'app.ts']
+  FAIL ox_causal_16: required symbols/files not cited: ['ajax.ts', 'api-images']
+  FAIL ox_causal_19: required symbols/files not cited: ['imgHandler']
+  FAIL ox_causal_20: required symbols/files not cited: ['api-installationsobjektprojekt']
+GATE: FAIL
+== GOLDEN v2 (35) r43 19:06:15
+golden exit 1
+status-match: 35/35 = 100%   (gate >= 80%)
+abstain:      4/4 = 100%   (gate = 100%)
+correct:      34/35 = 97%   (gate = 100%: status + required modality + required symbols + no forbidden distractor + precision)
+  FAIL ox_multi_4: required symbols/files not cited: ['api-images']
+GATE: FAIL
+== reference story RANKS 19:06:46
+  wall secs: 5
+  PASS productioncodelistmaincategory.aspx: pos=13 set=primary tier=0
+  PASS productioncodelistmaincategory.aspx.vb: pos=14 set=primary tier=0
+  PASS rk_redovisningskategorier.sql: pos=3 set=primary tier=0
+  PASS redovisningskategorier.vb: pos=21 set=primary tier=0
+  FAIL api-redovisning.vb: pos=32 set=primary tier=0
+  PASS ifalt.dbml: pos=5 set=primary tier=0
+  candidates 163 | primary 40 | RANK ACCEPTANCE: 5/6 -> FAIL
+== DONE 19:06:51

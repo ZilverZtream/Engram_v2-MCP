@@ -1,0 +1,42 @@
+id                category        status       exp                 cite      ms  verdict
+------------------------------------------------------------------------------------------------
+ox_causal_1       causal          answered     answered/partial    1.00    1678  FAIL: required symbols/files not cited: ['api-atahuvud']
+ox_causal_2       causal          answered     answered/partial    0.50     667  FAIL: required symbols/files not cited: ['ioMarkerInfowindow']
+ox_causal_3       causal          answered     answered/partial    1.00     704  FAIL: required symbols/files not cited: ['ioMarker.ts']
+ox_causal_4       causal          answered     answered/partial    1.00     986  ok
+ox_causal_5       causal          answered     answered/partial    0.50    1014  FAIL: no evidence of the requested modality ['.ts']
+ox_causal_6       causal          answered     answered/partial    0.50     481  FAIL: no evidence of the requested modality ['.ts']
+ox_causal_7       causal          answered     answered/partial    1.00     752  ok
+ox_causal_8       causal          answered     answered/partial    1.00    1566  FAIL: required symbols/files not cited: ['ioRoqFilterManager']
+ox_causal_9       causal          answered     answered/partial    1.00     728  ok
+ox_causal_10      causal          answered     answered/partial    1.00     936  FAIL: required symbols/files not cited: ['addressMarkerMoment', 'app.ts']
+ox_causal_11      causal          answered     answered/partial    1.00     480  ok
+ox_causal_12      causal          answered     answered/partial    1.00     586  ok
+ox_causal_13      causal          answered     answered/partial    1.00    1620  ok
+ox_causal_14      causal          answered     answered/partial    1.00     687  ok
+ox_causal_15      causal          answered     answered/partial    1.00     484  ok
+ox_causal_16      causal          answered     answered/partial    1.00    1458  FAIL: required symbols/files not cited: ['ajax.ts', 'api-images']
+ox_causal_17      causal          answered     answered/partial    1.00     617  ok
+ox_causal_18      causal          answered     answered/partial    1.00     437  ok
+ox_causal_19      causal          answered     answered/partial    1.00     986  FAIL: required symbols/files not cited: ['imgHandler']
+ox_causal_20      causal          answered     answered/partial    1.00    1532  FAIL: required symbols/files not cited: ['api-installationsobjektprojekt']
+--------------------------------------------------------------------------
+status-match: 20/20 = 100%   (gate >= 80%)
+abstain:      0/0 = 100%   (gate = 100%)
+mean citation coverage (answerable rows): 0.93
+mean latency: 920 ms
+dreamer insights: OFF; insight evidence in 0/20 rows (0 items)
+correct:      10/20 = 50%   (gate = 100%: status + required modality + required symbols + no forbidden distractor + precision)
+  FAIL ox_causal_1: required symbols/files not cited: ['api-atahuvud']
+  FAIL ox_causal_2: required symbols/files not cited: ['ioMarkerInfowindow']
+  FAIL ox_causal_3: required symbols/files not cited: ['ioMarker.ts']
+  FAIL ox_causal_5: no evidence of the requested modality ['.ts']
+  FAIL ox_causal_6: no evidence of the requested modality ['.ts']
+  FAIL ox_causal_8: required symbols/files not cited: ['ioRoqFilterManager']
+  FAIL ox_causal_10: required symbols/files not cited: ['addressMarkerMoment', 'app.ts']
+  FAIL ox_causal_16: required symbols/files not cited: ['ajax.ts', 'api-images']
+  FAIL ox_causal_19: required symbols/files not cited: ['imgHandler']
+  FAIL ox_causal_20: required symbols/files not cited: ['api-installationsobjektprojekt']
+
+GATE: FAIL
+record written: C:/Users/Dennis/AppData/Local/Temp/claude/C--ai-projects-Engram-MCP-v2/50d309ed-9767-44e6-b7fc-2ac51dd98fa5/scratchpad/p0/causal_r43.json
