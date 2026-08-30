@@ -7,7 +7,7 @@
 use std::collections::HashMap;
 
 use super::evidence::{Authority, EvidenceItem, EvidenceKind};
-use super::plan::Modality;
+use super::plan::{EntityKind, Modality, QueryPlan};
 use super::status::Conflict;
 
 const HALFLIFE_MS: f64 = 30.0 * 24.0 * 3600.0 * 1000.0;
@@ -93,6 +93,46 @@ pub fn reserve_modalities(
             continue;
         }
         let Some(best) = raw.iter().filter(|e| of_modality(e)).max_by(|a, b| {
+            a.relevance
+                .partial_cmp(&b.relevance)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        }) else {
+            continue;
+        };
+        if !chosen.is_empty() {
+            chosen.pop();
+        }
+        chosen.push(best.clone());
+    }
+}
+
+/// Round-2 audit P0-4b: a FILE the question names (a resolved File entity)
+/// keeps one evidence item under the cap — live, its definition item was cut
+/// by ten look-alike code chunks and the named file went uncited.
+pub fn reserve_entity_files(
+    chosen: &mut Vec<EvidenceItem>,
+    raw: &[EvidenceItem],
+    plan: &QueryPlan,
+) {
+    let targets: Vec<String> = plan
+        .entities
+        .iter()
+        .flat_map(|e| e.resolved.iter())
+        .filter(|r| r.kind == EntityKind::File)
+        .map(|r| r.canonical.replace('\\', "/").to_lowercase())
+        .filter(|p| !p.is_empty())
+        .collect();
+    for t in targets {
+        let of_file = |e: &EvidenceItem| {
+            e.path.as_deref().is_some_and(|p| {
+                let p = p.replace('\\', "/").to_lowercase();
+                p == t || p.ends_with(&format!("/{t}")) || t.ends_with(&format!("/{p}"))
+            })
+        };
+        if chosen.iter().any(|e| of_file(e)) {
+            continue;
+        }
+        let Some(best) = raw.iter().filter(|e| of_file(e)).max_by(|a, b| {
             a.relevance
                 .partial_cmp(&b.relevance)
                 .unwrap_or(std::cmp::Ordering::Equal)

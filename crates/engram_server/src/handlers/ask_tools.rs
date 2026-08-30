@@ -70,12 +70,72 @@ impl Engram {
         };
         let (raw, providers) =
             retrieval::gather_evidence(&ctx, &plan, &req.question, depth, deadline, cancel).await;
+        // Round-2 audit P0-4c (owner 2026-08-30): one bounded call-graph hop
+        // from the files the first pass cited — the answer to "how does X get
+        // authorized" is usually one call away from the entry point.
+        let (raw, providers) = {
+            let mut raw = raw;
+            let mut providers = providers;
+            let mut seeds: Vec<String> = Vec::new();
+            for e in &raw {
+                if let Some(p) = &e.path
+                    && !p.starts_with("pr:")
+                    && !p.starts_with("commit:")
+                    && !seeds.contains(p)
+                {
+                    seeds.push(p.clone());
+                }
+                if seeds.len() >= 4 {
+                    break;
+                }
+            }
+            if !seeds.is_empty() {
+                let graph = self.state.graph.clone();
+                let pid = req.project_id.clone();
+                let question = req.question.clone();
+                let project_dir = self
+                    .state
+                    .registry
+                    .get_project(&pid)
+                    .ok()
+                    .flatten()
+                    .map(|rec| std::path::PathBuf::from(rec.directory));
+                let hop = tokio::task::spawn_blocking(move || {
+                    let mut id = 10_000usize;
+                    crate::services::ask_engine::providers::callee_evidence(
+                        &graph,
+                        project_dir.as_deref(),
+                        &pid,
+                        &seeds,
+                        &question,
+                        6,
+                        &mut id,
+                    )
+                })
+                .await
+                .unwrap_or_default();
+                let status = if hop.is_empty() {
+                    status::ProviderStatus::Empty
+                } else {
+                    status::ProviderStatus::Hit
+                };
+                providers.push(status::ProviderReport {
+                    provider: "callee".into(),
+                    status,
+                    count: hop.len(),
+                    note: None,
+                });
+                raw.extend(hop);
+            }
+            (raw, providers)
+        };
 
         // Rank (anti-anchoring), detect conflicts, snapshot, calibrate status.
         // Round-2 audit P0-4: the requested modality survives the cap.
         let raw_pool = raw.clone();
         let mut evidence = ranking::rank_and_select(raw, depth.evidence_cap());
         ranking::reserve_modalities(&mut evidence, &raw_pool, &plan.modalities);
+        ranking::reserve_entity_files(&mut evidence, &raw_pool, &plan);
         let conflicts = ranking::detect_conflicts(&evidence, gen_);
         let snapshot = status::build_snapshot(
             &ctx,
