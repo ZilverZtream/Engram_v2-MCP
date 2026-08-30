@@ -82,27 +82,98 @@ fn dedup(items: Vec<EvidenceItem>) -> Vec<EvidenceItem> {
 /// the evidence cap (replacing the weakest selected item), so a report /
 /// schema / resource question is answered from that modality whenever the
 /// index has it.
-pub fn reserve_modalities(
+/// The question's own words (>= 5 letters, lowercase): the reserves prefer a
+/// candidate that carries them ("which table stores … redovisningskategorier"
+/// → rk_redovisningskategorier.sql over a higher-relevance stranger).
+fn question_words(question: &str) -> Vec<String> {
+    question
+        .to_lowercase()
+        .split(|c: char| !c.is_alphanumeric() && c != '_')
+        .filter(|t| t.len() >= 5)
+        .map(|t| t.to_string())
+        .collect()
+}
+
+/// Rank a reserve candidate: question-word hits in its path/content first,
+/// then the arm's relevance.
+fn reserve_key(e: &EvidenceItem, words: &[String]) -> (usize, i64) {
+    let hay = format!(
+        "{} {}",
+        e.path.as_deref().unwrap_or("").to_lowercase(),
+        e.content.to_lowercase()
+    );
+    let hits = words.iter().filter(|w| hay.contains(w.as_str())).count();
+    (hits, (e.relevance * 1000.0) as i64)
+}
+
+fn promote(chosen: &mut Vec<EvidenceItem>, best: &EvidenceItem) {
+    if !chosen.is_empty() {
+        chosen.pop();
+    }
+    chosen.push(best.clone());
+}
+
+/// Round-2 audit P0-4d: every evidence KIND the plan needs keeps one item
+/// under the cap when the raw pool has one (live r39: a "when was … last
+/// changed" question lost its commit documents to same-file callee items).
+pub fn reserve_needed_kinds(
     chosen: &mut Vec<EvidenceItem>,
     raw: &[EvidenceItem],
-    modalities: &[Modality],
+    needed: &[EvidenceKind],
 ) {
-    for m in modalities {
-        let of_modality = |e: &EvidenceItem| e.path.as_deref().is_some_and(|p| m.matches(p));
-        if chosen.iter().any(|e| of_modality(e)) {
+    for k in needed {
+        if chosen.iter().any(|e| e.kind == *k) {
             continue;
         }
-        let Some(best) = raw.iter().filter(|e| of_modality(e)).max_by(|a, b| {
+        let Some(best) = raw.iter().filter(|e| e.kind == *k).max_by(|a, b| {
             a.relevance
                 .partial_cmp(&b.relevance)
                 .unwrap_or(std::cmp::Ordering::Equal)
         }) else {
             continue;
         };
-        if !chosen.is_empty() {
-            chosen.pop();
+        promote(chosen, best);
+    }
+}
+
+pub fn reserve_modalities(
+    chosen: &mut Vec<EvidenceItem>,
+    raw: &[EvidenceItem],
+    modalities: &[Modality],
+    question: &str,
+) {
+    let words = question_words(question);
+    for m in modalities {
+        let of_modality = |e: &EvidenceItem| e.path.as_deref().is_some_and(|p| m.matches(p));
+        // A modality item already chosen that carries the question's words is
+        // enough; one that does not is replaced when the pool has a better fit.
+        let have = chosen
+            .iter()
+            .filter(|e| of_modality(e))
+            .map(|e| reserve_key(e, &words))
+            .max();
+        let Some(best) = raw
+            .iter()
+            .filter(|e| of_modality(e))
+            .max_by_key(|e| reserve_key(e, &words))
+        else {
+            continue;
+        };
+        let best_key = reserve_key(best, &words);
+        match have {
+            Some(h) if h.0 >= best_key.0 => continue,
+            Some(_) => {
+                chosen.retain(|e| !(of_modality(e) && reserve_key(e, &words).0 < best_key.0));
+                if chosen
+                    .iter()
+                    .any(|e| of_modality(e) && e.evidence_id == best.evidence_id)
+                {
+                    continue;
+                }
+                chosen.push(best.clone());
+            }
+            None => promote(chosen, best),
         }
-        chosen.push(best.clone());
     }
 }
 

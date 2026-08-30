@@ -651,6 +651,15 @@ pub fn callee_evidence(
     cues.dedup();
     let mut out = Vec::new();
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    // P0-4d precision guard: a callee that lives in a file the first pass
+    // already cited adds nothing but crowding (live r39: seven same-file
+    // callees of one .vb pushed the history and schema evidence out of the
+    // cap); one callee per defining file; the cue must match the NAME.
+    let seed_set: std::collections::HashSet<String> = seed_paths
+        .iter()
+        .map(|s| s.replace('\\', "/").to_lowercase())
+        .collect();
+    let mut files_cited: std::collections::HashSet<String> = std::collections::HashSet::new();
     for seed in seed_paths.iter().take(4) {
         let seed_norm = seed.replace('\\', "/");
         let fns = match graph.query_nodes(project_id, Some("function"), None, Some(&seed_norm), 200)
@@ -672,10 +681,8 @@ pub fn callee_evidence(
                     };
                     let name_l = n.name.to_lowercase();
                     let path_l = n.file_path.as_str().replace('\\', "/").to_lowercase();
-                    let hit = cues
-                        .iter()
-                        .any(|c| name_l.contains(c.as_str()) || path_l.contains(c.as_str()));
-                    if !hit {
+                    let hit = cues.iter().any(|c| name_l.contains(c.as_str()));
+                    if !hit || seed_set.contains(&path_l) || !files_cited.insert(path_l.clone()) {
                         continue;
                     }
                     let some = Some(n.clone());
@@ -705,7 +712,7 @@ pub fn callee_evidence(
                         content,
                         gen_,
                         weight.max(8),
-                        0.85,
+                        0.6,
                         Authority::CurrentCode,
                         id,
                     ));
