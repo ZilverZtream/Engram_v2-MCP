@@ -2262,6 +2262,41 @@ mod tests {
     }
 
     #[test]
+    fn story_word_name_coverage_leads_its_tier() {
+        // Round-2 audit P0-3, live r36: the page pair (name+vector, tier 0)
+        // ranked 42/43 behind forty tier-0 rows carrying more signals
+        // (co-change+concept+gloss) — outside the primary set. The story's own
+        // words composing a file NAME is the most story-specific evidence
+        // there is: it leads its tier.
+        let mut prov: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
+        for i in 0..45 {
+            prov.insert(
+                format!("site/app_code/redovisning/file{i:02}.vb"),
+                ["cochange", "concept", "gloss"].into_iter().collect(),
+            );
+        }
+        for p in [
+            "site/modules/dashboard/pages/admin/production/productioncodelistmaincategory.aspx",
+            "site/modules/dashboard/pages/admin/production/productioncodelistmaincategory.aspx.vb",
+        ] {
+            prov.insert(p.to_string(), ["name", "vector"].into_iter().collect());
+        }
+        let (rows, _) = change_set_rows(&prov);
+        for s in [
+            "productioncodelistmaincategory.aspx",
+            "productioncodelistmaincategory.aspx.vb",
+        ] {
+            let r = rows.iter().find(|r| r.path.ends_with(s)).unwrap();
+            assert_eq!(r.set, "primary", "{s}: {r:?}");
+            assert!(
+                r.rank <= 2,
+                "{s} leads the primary set, got rank {}",
+                r.rank
+            );
+        }
+    }
+
+    #[test]
     fn change_set_paths_keeps_orm_model_files() {
         // External audit 2026-08-29 P0-3: the footprint named `iFalt.dbml` and
         // the candidate parser dropped it — the LINQ-to-SQL / EF model files
@@ -5514,7 +5549,11 @@ pub(crate) fn change_set_rows(
         .map(|(p, s)| (p, s, change_set_tier(s), change_set_layer_index(p)))
         .collect();
     all.sort_by(|a, b| {
+        // Round-2 audit P0-3 (live r36): the story's own words composing a
+        // file NAME is the most story-specific evidence — it leads its tier,
+        // ahead of rows that merely carry more signals.
         a.2.cmp(&b.2)
+            .then(b.1.contains("name").cmp(&a.1.contains("name")))
             .then(change_set_strength(b.1).cmp(&change_set_strength(a.1)))
             .then(a.3.cmp(&b.3))
             .then(depth(a.0).cmp(&depth(b.0)))
