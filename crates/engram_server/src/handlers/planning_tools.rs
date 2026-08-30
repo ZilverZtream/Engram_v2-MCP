@@ -37,6 +37,17 @@ use std::path::PathBuf;
 /// External audit 2026-08-29 row 1: the resx lexicon contributes at most this many
 /// concept terms (most specific first) — each concept runs a footprint (~1 s live).
 pub const LEXICON_CONCEPT_CAP: usize = 4;
+/// Round-2 audit P0-3: the ranked PRIMARY set is capped here; everything
+/// else renders as a layer-grouped companion.
+pub const CHANGE_SET_PRIMARY_CAP: usize = 40;
+/// Rows above this tier are never primary (tier 2 = concept corroborated
+/// by an independent arm).
+pub const CHANGE_SET_PRIMARY_MAX_TIER: u8 = 2;
+/// A concept whose footprint matches this many files is too common to
+/// discriminate (IDF proxy): its hits are `broad`, never evidence.
+pub const BROAD_CONCEPT_MIN_FILES: usize = 40;
+/// Story words that must compose a file NAME for the `name` signal.
+pub const NAME_COVERAGE_MIN: usize = 3;
 pub(crate) const ANCHOR_CAP: usize = 50;
 pub(crate) const CONSUMER_CAP_PER_ANCHOR: usize = 200;
 pub(crate) const LEXICAL_PAGE: usize = 2000;
@@ -4886,6 +4897,41 @@ fn find_analog_cohort(
 
 /// Co-change-first tier for ranking: history/co-change (the most predictive
 /// signal) ranks above multi-arm, above concept-only, above graph-only.
+/// The TRUE number of files a concept footprint matched — the listed paths
+/// plus every "... and N more" the per-group cap hid (round-2 audit P0-3:
+/// the IDF proxy behind the `broad` rule).
+pub(crate) fn footprint_total(text: &str) -> usize {
+    let listed = change_set_paths(text).len();
+    let more: usize = text
+        .lines()
+        .filter_map(|l| {
+            l.trim()
+                .strip_prefix("... and ")?
+                .strip_suffix(" more")?
+                .trim()
+                .parse::<usize>()
+                .ok()
+        })
+        .sum();
+    listed + more
+}
+
+/// A signal from an INDEPENDENT arm: not the concept footprint itself, not a
+/// translation or gloss of it, not an expansion of another row, not a broad
+/// term. Story-word NAME coverage is independent (it never consults the
+/// footprint).
+fn change_set_independent(s: &str) -> bool {
+    !matches!(s, "concept" | "lexicon" | "gloss" | "family" | "broad")
+}
+
+/// How many signals count as EVIDENCE (round-2 audit P0-3): the family
+/// expansion inherits its partner's signals and a broad term is not evidence.
+fn change_set_strength(sigs: &BTreeSet<&'static str>) -> usize {
+    sigs.iter()
+        .filter(|s| !matches!(**s, "family" | "broad"))
+        .count()
+}
+
 fn change_set_tier(sigs: &BTreeSet<&'static str>) -> u8 {
     // Evidence DIRECTNESS, not signal count (row-1 audit A2): golden
     // (co-change/history) first; then an entity match corroborated by an
@@ -4893,16 +4939,24 @@ fn change_set_tier(sigs: &BTreeSet<&'static str>) -> u8 {
     // signals (vector/graph) never outrank a precise concept hit.
     // External audit 2026-08-29 P0-3: a file matching the story's explicit
     // gloss is the entity the author named — as direct as history.
+    // A .resx translation is golden only when an INDEPENDENT arm corroborates
+    // it (co-change, history, vector, kb, name …) — its own footprint hit does
+    // not count: the rejected r33 dossier put 39 files in tier 0 on
+    // `concept+lexicon` alone (round-2 audit P0-3).
+    let corroborated_lexicon =
+        sigs.contains("lexicon") && sigs.iter().any(|s| change_set_independent(s));
     let golden = sigs.contains("cochange")
         || sigs.contains("history")
         || sigs.contains("gloss")
-        || sigs.contains("lexicon");
+        || sigs.contains("name")
+        || corroborated_lexicon;
     let concept = sigs.contains("concept");
-    if golden && sigs.len() >= 2 {
+    let independent = sigs.iter().filter(|s| change_set_independent(s)).count();
+    if golden && change_set_strength(sigs) >= 2 {
         0
     } else if golden {
         1
-    } else if concept && sigs.len() >= 2 {
+    } else if concept && independent >= 1 {
         2
     } else if concept {
         3
@@ -5439,6 +5493,10 @@ pub(crate) struct ChangeSetRow {
     pub tier: u8,
     pub signals: Vec<&'static str>,
     pub omitted: bool,
+    /// `primary` (ranked by evidence across layers, capped) or `companion`.
+    pub set: &'static str,
+    /// 1-based render position over the non-omitted rows (0 when omitted).
+    pub rank: usize,
 }
 
 /// Ranked rows in render order (layer, tier, depth, path) with the tail-cap
@@ -5446,58 +5504,98 @@ pub(crate) struct ChangeSetRow {
 pub(crate) fn change_set_rows(
     prov: &BTreeMap<String, BTreeSet<&'static str>>,
 ) -> (Vec<ChangeSetRow>, Vec<ChangeSetOmission>) {
+    // Round-2 audit P0-3: a PRIMARY set ranked by evidence ACROSS layers
+    // (tier, evidence count, layer, depth, path), capped at
+    // CHANGE_SET_PRIMARY_CAP; everything else is a layer-grouped COMPANION
+    // under the per-layer weak-signal tail cap.
+    let depth = |p: &str| p.matches('/').count();
+    let mut all: Vec<(&String, &BTreeSet<&'static str>, u8, usize)> = prov
+        .iter()
+        .map(|(p, s)| (p, s, change_set_tier(s), change_set_layer_index(p)))
+        .collect();
+    all.sort_by(|a, b| {
+        a.2.cmp(&b.2)
+            .then(change_set_strength(b.1).cmp(&change_set_strength(a.1)))
+            .then(a.3.cmp(&b.3))
+            .then(depth(a.0).cmp(&depth(b.0)))
+            .then(a.0.cmp(b.0))
+    });
+    let mut primary = Vec::new();
+    let mut rest = Vec::new();
+    for it in all {
+        if it.2 <= CHANGE_SET_PRIMARY_MAX_TIER && primary.len() < CHANGE_SET_PRIMARY_CAP {
+            primary.push(it);
+        } else {
+            rest.push(it);
+        }
+    }
+    rest.sort_by(|a, b| {
+        a.3.cmp(&b.3)
+            .then(a.2.cmp(&b.2))
+            .then(depth(a.0).cmp(&depth(b.0)))
+            .then(a.0.cmp(b.0))
+    });
+    let signals = |sigs: &BTreeSet<&'static str>| -> Vec<&'static str> {
+        sigs.iter()
+            .filter(|s| **s != "family")
+            .map(|s| if *s == "vtop" { "vector" } else { *s })
+            .collect()
+    };
     let mut rows = Vec::new();
     let mut omissions = Vec::new();
-    for li in 0..=CHANGE_SET_LAYERS.len() {
-        let mut items: Vec<(&String, &BTreeSet<&'static str>)> = prov
-            .iter()
-            .filter(|(p, _)| change_set_layer_index(p) == li)
-            .collect();
-        if items.is_empty() {
-            continue;
-        }
-        items.sort_by(|a, b| {
-            change_set_tier(a.1)
-                .cmp(&change_set_tier(b.1))
-                .then(a.0.matches('/').count().cmp(&b.0.matches('/').count()))
-                .then(a.0.cmp(b.0))
+    let mut rank = 0usize;
+    for (p, sigs, tier, li) in primary {
+        rank += 1;
+        rows.push(ChangeSetRow {
+            path: p.clone(),
+            layer: change_set_layer_name(li),
+            layer_index: li,
+            tier,
+            signals: signals(sigs),
+            omitted: false,
+            set: "primary",
+            rank,
         });
-        let lname = change_set_layer_name(li);
-        let mut tail = 0usize;
-        for (p, sigs) in items {
-            let tier = change_set_tier(sigs);
-            let exempt = sigs.contains("vtop")
-                || sigs.contains("family")
-                || sigs.contains("gloss")
-                || sigs.contains("lexicon");
-            let mut omitted = false;
-            if tier >= 2 && !exempt {
-                tail += 1;
-                if tail > CHANGE_SET_TAIL_CAP {
-                    omitted = true;
-                    omissions.push(ChangeSetOmission {
-                        path: p.clone(),
-                        layer: lname,
-                        reason: format!(
-                            "weak-signal tail cap ({CHANGE_SET_TAIL_CAP} per layer) in '{lname}'"
-                        ),
-                    });
-                }
-            }
-            let signals: Vec<&'static str> = sigs
-                .iter()
-                .filter(|s| **s != "family")
-                .map(|s| if *s == "vtop" { "vector" } else { *s })
-                .collect();
-            rows.push(ChangeSetRow {
-                path: p.clone(),
-                layer: lname,
-                layer_index: li,
-                tier,
-                signals,
-                omitted,
-            });
+    }
+    let mut tail_layer = usize::MAX;
+    let mut tail = 0usize;
+    for (p, sigs, tier, li) in rest {
+        if li != tail_layer {
+            tail_layer = li;
+            tail = 0;
         }
+        let lname = change_set_layer_name(li);
+        let exempt = sigs.contains("vtop") || sigs.contains("family") || sigs.contains("gloss");
+        let mut omitted = false;
+        if tier >= 2 && !exempt {
+            tail += 1;
+            if tail > CHANGE_SET_TAIL_CAP {
+                omitted = true;
+                omissions.push(ChangeSetOmission {
+                    path: p.clone(),
+                    layer: lname,
+                    reason: format!(
+                        "weak-signal tail cap ({CHANGE_SET_TAIL_CAP} per layer) in '{lname}'"
+                    ),
+                });
+            }
+        }
+        let r = if omitted {
+            0
+        } else {
+            rank += 1;
+            rank
+        };
+        rows.push(ChangeSetRow {
+            path: p.clone(),
+            layer: lname,
+            layer_index: li,
+            tier,
+            signals: signals(sigs),
+            omitted,
+            set: "companion",
+            rank: r,
+        });
     }
     (rows, omissions)
 }
@@ -5828,6 +5926,12 @@ fn render_change_set(
          matches the story's concepts. [semantic]/[graph]: embedding or \
          dependency-graph association (weakest — verify before trusting).\n\n",
     );
+    s.push_str(
+        "[name]: the story's own words compose the file name (compound coverage — \
+         golden). [broad]: matched only a term too common in this index to \
+         discriminate — NOT evidence. A .resx translation ([lexicon]) is golden \
+         only when an independent arm corroborates it.\n\n",
+    );
     // Temporal-analytics section renders BEFORE the checklist so the
     // checklist's "log/history tables above" pointer is literally true.
     if let Some(sec) = temporal_section {
@@ -5931,12 +6035,38 @@ fn render_change_set(
          to the team's dims-immediately client fix). State the feedback timing your \
          fix delivers.\n\n",
     );
-    s.push_str("## Candidate files (grouped by layer — order within a group is NOT priority)\n");
-
     let _ = LAYERS; // layers now come from the shared model (CHANGE_SET_LAYERS)
     let (rows, omissions) = change_set_rows(prov);
+    // Round-2 audit P0-3: a ranked PRIMARY set across layers, then
+    // layer-grouped companions. Critical files must land in the primary set.
+    let n_primary = rows.iter().filter(|r| r.set == "primary").count();
+    s.push_str(&format!(
+        "## Primary candidates — ranked by evidence ({n_primary} of {} candidates; cap \
+         {CHANGE_SET_PRIMARY_CAP})\nCritical files belong HERE. Rank = evidence tier (0 \
+         strongest: a golden signal corroborated by an independent arm), then the number \
+         of independent signals; the layer is shown per row. Work the list top-down.\n",
+        rows.len()
+    ));
+    for r in rows.iter().filter(|r| r.set == "primary") {
+        let hist = if historical.contains(&r.path) {
+            "  (historical path — not in the current index)"
+        } else {
+            ""
+        };
+        s.push_str(&format!(
+            "{}. `{}`  [{}]  — {}{hist}\n",
+            r.rank,
+            r.path,
+            r.signals.join("|"),
+            r.layer
+        ));
+    }
+    s.push_str(
+        "\n## Possible companions (grouped by layer — weak or uncorroborated evidence; \
+         verify against the code before trusting)\n",
+    );
     let mut current_layer: Option<usize> = None;
-    for r in rows.iter().filter(|r| !r.omitted) {
+    for r in rows.iter().filter(|r| !r.omitted && r.set == "companion") {
         if current_layer != Some(r.layer_index) {
             current_layer = Some(r.layer_index);
             s.push_str(&format!("\n**{}:**\n", r.layer));
@@ -6218,18 +6348,37 @@ impl Engram {
             })
         }))
         .await;
+        let mut broad_terms: Vec<String> = Vec::new();
         for (c, res) in concepts.iter().zip(footprints) {
             match res {
                 Ok(r) => {
                     if let Some(t) = r.content.first().and_then(|x| x.as_text()) {
+                        let from_gloss = gloss_concepts.contains(c);
+                        let from_lexicon = lexicon_concepts.contains(c);
+                        // Round-2 audit P0-3 (IDF / specificity): a term that
+                        // matches BROAD_CONCEPT_MIN_FILES+ files cannot
+                        // discriminate — its hits are labelled `broad` and are
+                        // never evidence nor vector seeds. The author's explicit
+                        // gloss is exempt.
+                        let total = footprint_total(&t.text);
+                        let broad = !from_gloss && total >= BROAD_CONCEPT_MIN_FILES;
+                        if broad {
+                            broad_terms.push(format!("'{c}' ({total} files)"));
+                        }
                         for p in change_set_paths(&t.text) {
                             if !engram_core::is_vendor_path(&p) {
+                                concept_hits += 1;
+                                if broad {
+                                    why.entry(p.clone()).or_default().push(format!(
+                                        "matches '{c}' — too common in this index ({total} \
+                                         files) to discriminate; not counted as evidence"
+                                    ));
+                                    prov.entry(p).or_default().insert("broad");
+                                    continue;
+                                }
                                 if !prov.contains_key(&p) {
                                     seed_order.push(p.clone());
                                 }
-                                concept_hits += 1;
-                                let from_gloss = gloss_concepts.contains(c);
-                                let from_lexicon = lexicon_concepts.contains(c);
                                 why.entry(p.clone()).or_default().push(if from_gloss {
                                     format!("matches the story's explicit gloss '{c}'")
                                 } else if from_lexicon {
@@ -6260,6 +6409,12 @@ impl Engram {
                 t_concept.elapsed().as_millis(),
             )
         };
+        if !broad_terms.is_empty() {
+            cov.concept.note = format!(
+                "broad terms not counted as evidence: {}",
+                broad_terms.join(", ")
+            );
+        }
 
         // History arm — commit-message search surfaces the files of past similar
         // changes (the universal co-change signal; carries stories whose real
@@ -6713,6 +6868,57 @@ impl Engram {
             for (k, v) in fam {
                 prov.entry(k).or_default().extend(v);
             }
+            // Round-2 audit P0-3 (compound / name coverage): a file whose NAME
+            // is composed of NAME_COVERAGE_MIN+ of the story's own words is what
+            // a developer opens first (productioncodelistmaincategory.aspx for
+            // "production code list … main … category"); the per-group
+            // footprint cap hid it behind broad terms. Scans the whole file
+            // index — no cap — and never consults the footprint.
+            let story_terms: BTreeSet<String> = req
+                .story
+                .split(|ch: char| !ch.is_alphanumeric())
+                .filter_map(story_token)
+                .collect();
+            if story_terms.len() >= NAME_COVERAGE_MIN {
+                for (rp, _) in meta.iter() {
+                    let full = rp.as_str().replace('\\', "/").to_lowercase();
+                    if engram_core::is_vendor_path(&full) {
+                        continue;
+                    }
+                    let fname = full.rsplit('/').next().unwrap_or(full.as_str());
+                    let stem = fname.split('.').next().unwrap_or("");
+                    if stem.len() < 8 {
+                        continue;
+                    }
+                    let covered: Vec<&str> = story_terms
+                        .iter()
+                        .map(String::as_str)
+                        .filter(|t| {
+                            stem.contains(t)
+                                || (t.len() > 5
+                                    && t.ends_with('s')
+                                    && stem.contains(&t[..t.len() - 1]))
+                        })
+                        .collect();
+                    if covered.len() >= NAME_COVERAGE_MIN && covered.iter().any(|t| t.len() >= 6) {
+                        let stripped = strip(&full);
+                        let key = prov
+                            .keys()
+                            .find(|k| strip(k) == stripped)
+                            .cloned()
+                            .unwrap_or_else(|| full.clone());
+                        why.entry(key.clone()).or_default().push(format!(
+                            "the story's own words compose the file name: {} ({} of {} story terms)",
+                            covered.join(", "),
+                            covered.len(),
+                            story_terms.len()
+                        ));
+                        prov.entry(key).or_default().insert("name");
+                    }
+                }
+            }
+            cov.stages
+                .insert("name_done".into(), t_all.elapsed().as_millis());
         } else {
             cov.family = ArmCoverage::failed("file index unavailable".into(), 0);
         }
@@ -7271,6 +7477,8 @@ impl Engram {
                         "path": r.path,
                         "layer": r.layer,
                         "tier": r.tier,
+                        "set": r.set,
+                        "rank": r.rank,
                         "signals": r.signals,
                         "why": why.get(&r.path).cloned().unwrap_or_default(),
                         "historical": historical.contains(&r.path),
