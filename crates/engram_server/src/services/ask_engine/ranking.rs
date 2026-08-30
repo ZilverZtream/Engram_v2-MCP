@@ -223,6 +223,9 @@ pub fn reserve_entity_files(
 /// collected first; then the weakest UNPROTECTED items make room. Live r40:
 /// the needed-kind reserve evicted the .resx the modality reserve had just
 /// pushed, because each reserve popped the last item blindly.
+/// P0-4f: how many items of a requested modality the reserve keeps.
+pub const MODALITY_SLOTS: usize = 3;
+
 pub fn reserve_required(
     chosen: &mut Vec<EvidenceItem>,
     raw: &[EvidenceItem],
@@ -261,20 +264,19 @@ pub fn reserve_required_with(
         |set: &[EvidenceItem], pred: &dyn Fn(&EvidenceItem) -> bool| set.iter().any(|e| pred(e));
     for m in modalities {
         let of_modality = |e: &EvidenceItem| e.path.as_deref().is_some_and(|p| m.matches(p));
-        let Some(best) = raw
-            .iter()
-            .filter(|e| of_modality(e))
-            .max_by_key(|e| reserve_key(e, &words))
-        else {
-            continue;
-        };
-        let best_hits = reserve_key(best, &words).0;
-        let satisfied = chosen
-            .iter()
-            .chain(wanted.iter())
-            .any(|e| of_modality(e) && reserve_key(e, &words).0 >= best_hits);
-        if !satisfied && !wanted.iter().any(|w| w.evidence_id == best.evidence_id) {
-            wanted.push(best.clone());
+        // P0-4f (live r41: one .sql among ten items = precision 0.40): a
+        // question that names a modality gets up to MODALITY_SLOTS of its
+        // candidates, the ones carrying the question's words first.
+        let mut cands: Vec<&EvidenceItem> = raw.iter().filter(|e| of_modality(e)).collect();
+        cands.sort_by_key(|e| std::cmp::Reverse(reserve_key(e, &words)));
+        for c in cands.into_iter().take(MODALITY_SLOTS) {
+            let present = chosen
+                .iter()
+                .chain(wanted.iter())
+                .any(|e| e.evidence_id == c.evidence_id);
+            if !present {
+                wanted.push(c.clone());
+            }
         }
     }
     for k in needed {
