@@ -8,7 +8,7 @@
 
 use engram_core::namespaces;
 use engram_core::registry::Registry;
-use engram_graph::{GraphStore, Node};
+use engram_graph::{EdgeKind, GraphStore, Node};
 use engram_index::{HybridHit, HybridQuery, HybridSearchEngine};
 use tokio_util::sync::CancellationToken;
 
@@ -597,6 +597,126 @@ fn definition_body(dir: &std::path::Path, rel: &str, a: u32, b: u32) -> Option<S
         s.truncate(cut);
     }
     Some(s)
+}
+
+/// Round-2 audit P0-4c (owner 2026-08-30): ONE bounded call-graph hop from the
+/// files the first pass cited. For every function in a seed file, follow
+/// `Calls` / `ApiCall` / `SqlCalls` edges and keep the callees whose name or
+/// file matches the question's cues (its own words, plus authorization cues
+/// when the question asks how something is authorized). "How does a bulk
+/// update get authorized" is answered by `CanUserBulkUpdate`, one call away
+/// from the API entry point the search arms cite.
+#[allow(clippy::too_many_arguments)]
+pub fn callee_evidence(
+    graph: &GraphStore,
+    project_dir: Option<&std::path::Path>,
+    project_id: &str,
+    seed_paths: &[String],
+    question: &str,
+    max_items: usize,
+    id: &mut usize,
+) -> Vec<EvidenceItem> {
+    const STOP: &[&str] = &[
+        "does", "from", "with", "that", "this", "what", "which", "where", "when", "then", "than",
+        "into", "onto", "about", "would", "could", "should", "there", "their", "they", "have",
+        "been", "being", "were", "will", "your", "through", "point", "entry", "gets", "get",
+    ];
+    let lower = question.to_lowercase();
+    let mut cues: Vec<String> = lower
+        .split(|c: char| !c.is_alphanumeric() && c != '_' && c != '-')
+        .filter(|t| t.len() >= 4 && !STOP.contains(t))
+        .map(|t| t.chars().take(6).collect::<String>())
+        .collect();
+    if [
+        "authori",
+        "permission",
+        "permit",
+        "allowed",
+        "secure",
+        "protect",
+        "role",
+    ]
+    .iter()
+    .any(|c| lower.contains(c))
+    {
+        cues.extend(
+            [
+                "canuser", "check", "permis", "auth", "allow", "role", "access", "guard",
+            ]
+            .iter()
+            .map(|s| s.to_string()),
+        );
+    }
+    cues.sort();
+    cues.dedup();
+    let mut out = Vec::new();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for seed in seed_paths.iter().take(4) {
+        let seed_norm = seed.replace('\\', "/");
+        let fns = match graph.query_nodes(project_id, Some("function"), None, Some(&seed_norm), 200)
+        {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        for f in fns.iter().take(60) {
+            for kind in [EdgeKind::Calls, EdgeKind::ApiCall, EdgeKind::SqlCalls] {
+                let Ok(nbrs) = graph.neighbors(project_id, kind, &f.node_id, 40) else {
+                    continue;
+                };
+                for (target, weight) in nbrs {
+                    if !seen.insert(target.clone()) {
+                        continue;
+                    }
+                    let Ok(Some(n)) = graph.get_node(project_id, &target) else {
+                        continue;
+                    };
+                    let name_l = n.name.to_lowercase();
+                    let path_l = n.file_path.as_str().replace('\\', "/").to_lowercase();
+                    let hit = cues
+                        .iter()
+                        .any(|c| name_l.contains(c.as_str()) || path_l.contains(c.as_str()));
+                    if !hit {
+                        continue;
+                    }
+                    let some = Some(n.clone());
+                    let (path, lines, name, gen_) = node_fields(&some, &target);
+                    let mut content = format!(
+                        "{} calls {name} ({}) — defined in {}{}",
+                        f.name,
+                        n.node_type,
+                        path.clone().unwrap_or_default(),
+                        lines
+                            .map(|(a, b)| format!(" lines {a}-{b}"))
+                            .unwrap_or_default()
+                    );
+                    if let (Some(dir), Some(p), Some((a, b))) =
+                        (project_dir, path.as_deref(), lines)
+                        && let Some(body) = definition_body(dir, p, a, b)
+                    {
+                        content.push('\n');
+                        content.push_str(&body);
+                    }
+                    out.push(graph_relation_item(
+                        "callee",
+                        target.clone(),
+                        path,
+                        lines,
+                        name,
+                        content,
+                        gen_,
+                        weight.max(8),
+                        0.85,
+                        Authority::CurrentCode,
+                        id,
+                    ));
+                    if out.len() >= max_items {
+                        return out;
+                    }
+                }
+            }
+        }
+    }
+    out
 }
 
 pub fn definition_evidence(
