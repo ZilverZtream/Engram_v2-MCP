@@ -89,7 +89,19 @@ impl Engram {
                     break;
                 }
             }
-            if !seeds.is_empty() {
+            // P0-4d: only multi-hop questions (how/why/what breaks) get the hop;
+            // a lookup ("which table", "which resource keys") does not.
+            let wants_hop = plan.intents.iter().any(|(i, _)| {
+                matches!(
+                    i,
+                    crate::services::ask_engine::plan::Intent::Explain
+                        | crate::services::ask_engine::plan::Intent::Impact
+                        | crate::services::ask_engine::plan::Intent::BugDiagnosis
+                        | crate::services::ask_engine::plan::Intent::Rationale
+                        | crate::services::ask_engine::plan::Intent::Compare
+                )
+            });
+            if wants_hop && !seeds.is_empty() {
                 let graph = self.state.graph.clone();
                 let pid = req.project_id.clone();
                 let question = req.question.clone();
@@ -108,7 +120,7 @@ impl Engram {
                         &pid,
                         &seeds,
                         &question,
-                        6,
+                        3,
                         &mut id,
                     )
                 })
@@ -134,8 +146,10 @@ impl Engram {
         // Round-2 audit P0-4: the requested modality survives the cap.
         let raw_pool = raw.clone();
         let mut evidence = ranking::rank_and_select(raw, depth.evidence_cap());
-        ranking::reserve_modalities(&mut evidence, &raw_pool, &plan.modalities);
+        ranking::reserve_modalities(&mut evidence, &raw_pool, &plan.modalities, &req.question);
         ranking::reserve_entity_files(&mut evidence, &raw_pool, &plan);
+        // P0-4d: every evidence kind the plan needs keeps one item under the cap.
+        ranking::reserve_needed_kinds(&mut evidence, &raw_pool, &plan.needed_evidence);
         let conflicts = ranking::detect_conflicts(&evidence, gen_);
         let snapshot = status::build_snapshot(
             &ctx,
