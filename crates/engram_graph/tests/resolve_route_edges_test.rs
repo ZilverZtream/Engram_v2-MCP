@@ -259,3 +259,174 @@ fn name_route_reaches_the_implementation_through_the_broker_dispatch() {
         "who-calls DeleteChangeRequest must list the TS function; got {callers:?}"
     );
 }
+
+const SAME_NAME: &str = "sym:function:Site/App_Code/legacy/api-legacy.vb:api.athDeleteByID:10";
+
+#[test]
+fn the_broker_arm_wins_over_a_symbol_that_merely_shares_the_api_name() {
+    // A legacy function happens to be called `athDeleteByID`; by-name binding
+    // already retargeted the file edge to it. The broker's arm says the API
+    // is served by DeleteChangeRequest — the arm is the authority.
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "route-dispatch-precedence";
+    graph
+        .upsert_nodes(
+            pid,
+            &[
+                node(
+                    CAW_FILE,
+                    "file",
+                    "caw.ts",
+                    "Site/modules/dashboard/ts/caw/caw/caw.ts",
+                    (0, 0),
+                ),
+                node(
+                    ATH_DEL,
+                    "function",
+                    "athDel",
+                    "Site/modules/dashboard/ts/caw/caw/caw.ts",
+                    (50, 70),
+                ),
+                node(
+                    BROKER,
+                    "function",
+                    "api.action",
+                    "Site/App_Code/api-json/api-broker.vb",
+                    (30, 400),
+                ),
+                node(
+                    SAME_NAME,
+                    "function",
+                    "api.athDeleteByID",
+                    "Site/App_Code/legacy/api-legacy.vb",
+                    (10, 20),
+                ),
+                node(
+                    DELETE_CR,
+                    "function",
+                    "api.DeleteChangeRequest",
+                    "Site/App_Code/ata/api-json/api-atahuvud.vb",
+                    (197, 230),
+                ),
+            ],
+        )
+        .unwrap();
+    graph
+        .upsert_edges(
+            pid,
+            &[
+                edge(
+                    EdgeKind::ApiCall,
+                    CAW_FILE,
+                    SAME_NAME,
+                    serde_json::json!({ "ajax_transport": "api_name", "ajax_target_method": "athDeleteByID", "src_line": "58" }),
+                ),
+                edge(EdgeKind::Calls, BROKER, DELETE_CR, serde_json::json!({ "dispatch_key": "athDeleteByID" })),
+            ],
+        )
+        .unwrap();
+
+    graph.resolve_symbol_edges(pid).unwrap();
+
+    let callees = graph
+        .neighbors(pid, EdgeKind::ApiCall, ATH_DEL, 10)
+        .unwrap();
+    assert!(
+        callees.iter().any(|(t, _)| t == DELETE_CR),
+        "the arm's implementation must be reached; got {callees:?}"
+    );
+}
+
+const PROP_TWIN: &str = "sym:property:Site/modules/dashboard/pages/public/caw/caw_edit.aspx.vb:caw_edit.DeleteChangeRequest:40";
+const HELPER_TWIN: &str = "sym:function:Site/App_Code/ata/code/ChangeRequestHelper.vb:ChangeRequestHelper.DeleteChangeRequest:5";
+
+#[test]
+fn an_unresolved_arm_call_binds_among_functions_of_the_brokers_own_class() {
+    // Live r43: `DeleteChangeRequest` names a property on a page AND a helper
+    // function AND the API implementation, so by-name resolution left the
+    // arm's call a placeholder. A VB unqualified call inside `Partial Class
+    // api` resolves to a member of `api` first — properties never take a call.
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "route-dispatch-class";
+    graph
+        .upsert_nodes(
+            pid,
+            &[
+                node(
+                    CAW_FILE,
+                    "file",
+                    "caw.ts",
+                    "Site/modules/dashboard/ts/caw/caw/caw.ts",
+                    (0, 0),
+                ),
+                node(
+                    ATH_DEL,
+                    "function",
+                    "athDel",
+                    "Site/modules/dashboard/ts/caw/caw/caw.ts",
+                    (50, 70),
+                ),
+                node(
+                    BROKER,
+                    "function",
+                    "api.action",
+                    "Site/App_Code/api-json/api-broker.vb",
+                    (30, 400),
+                ),
+                node(
+                    DELETE_CR,
+                    "function",
+                    "api.DeleteChangeRequest",
+                    "Site/App_Code/ata/api-json/api-atahuvud.vb",
+                    (197, 230),
+                ),
+                node(
+                    PROP_TWIN,
+                    "property",
+                    "caw_edit.DeleteChangeRequest",
+                    "Site/modules/dashboard/pages/public/caw/caw_edit.aspx.vb",
+                    (40, 44),
+                ),
+                node(
+                    HELPER_TWIN,
+                    "function",
+                    "ChangeRequestHelper.DeleteChangeRequest",
+                    "Site/App_Code/ata/code/ChangeRequestHelper.vb",
+                    (5, 30),
+                ),
+            ],
+        )
+        .unwrap();
+    graph
+        .upsert_edges(
+            pid,
+            &[
+                edge(
+                    EdgeKind::ApiCall,
+                    CAW_FILE,
+                    "::athDeleteByID",
+                    serde_json::json!({ "ajax_transport": "api_name", "ajax_target_method": "athDeleteByID", "src_line": "58" }),
+                ),
+                edge(EdgeKind::Calls, BROKER, "::DeleteChangeRequest", serde_json::json!({ "dispatch_key": "athDeleteByID" })),
+            ],
+        )
+        .unwrap();
+
+    graph.resolve_symbol_edges(pid).unwrap();
+
+    let callees = graph
+        .neighbors(pid, EdgeKind::ApiCall, ATH_DEL, 10)
+        .unwrap();
+    assert!(
+        callees.iter().any(|(t, _)| t == DELETE_CR),
+        "must bind to api.DeleteChangeRequest; got {callees:?}"
+    );
+    assert!(
+        !callees
+            .iter()
+            .any(|(t, _)| t == HELPER_TWIN || t == PROP_TWIN),
+        "never the helper or the property; got {callees:?}"
+    );
+}

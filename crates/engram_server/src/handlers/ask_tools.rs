@@ -77,6 +77,22 @@ impl Engram {
             let mut raw = raw;
             let mut providers = providers;
             let mut seeds: Vec<String> = Vec::new();
+            // Item 8: the files the question names seed the hop first — raw
+            // evidence order put six lexical hits ahead of the asked file, so
+            // "which server API functions does X.ts call?" never hopped from X.
+            for ent in plan
+                .entities
+                .iter()
+                .filter(|e| e.guessed_kind == crate::services::ask_engine::plan::EntityKind::File)
+            {
+                for r in &ent.resolved {
+                    if let Some(p) = r.node_id.as_deref().and_then(|id| id.strip_prefix("file:")) {
+                        if !seeds.contains(&p.to_string()) {
+                            seeds.push(p.to_string());
+                        }
+                    }
+                }
+            }
             for e in &raw {
                 if let Some(p) = &e.path
                     && !p.starts_with("pr:")
@@ -112,6 +128,16 @@ impl Engram {
                     .ok()
                     .flatten()
                     .map(|rec| std::path::PathBuf::from(rec.directory));
+                // Item 8: the files the question names — a hop from them is
+                // direct evidence (see providers::callee_evidence).
+                let named_files: Vec<String> = plan
+                    .entities
+                    .iter()
+                    .filter(|e| {
+                        e.guessed_kind == crate::services::ask_engine::plan::EntityKind::File
+                    })
+                    .map(|e| e.text.replace('\\', "/"))
+                    .collect();
                 let hop = tokio::task::spawn_blocking(move || {
                     let mut id = 10_000usize;
                     crate::services::ask_engine::providers::callee_evidence(
@@ -119,6 +145,7 @@ impl Engram {
                         project_dir.as_deref(),
                         &pid,
                         &seeds,
+                        &named_files,
                         &question,
                         3,
                         &mut id,

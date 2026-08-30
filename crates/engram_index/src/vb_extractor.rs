@@ -850,6 +850,96 @@ pub fn enrich_vb_source_for_test(
 /// permission-check metadata on the enclosing functions, and class-level
 /// Inherits/Implements hierarchy edges. Sidecar symbols carry REAL line
 /// ranges, so association is range-based (same approach as the C# path).
+/// External audit round 2, item 8 — the broker's `Select Case` arms, shared
+/// by BOTH extraction paths (Roslyn sidecar and regex fallback; live r43 found
+/// the scan on the fallback path only, so production carried no keys).
+/// `Case "athDeleteByID"` followed by `s = DeleteChangeRequest(qry)` yields a
+/// Calls edge from the enclosing function to the callee carrying
+/// `dispatch_key = "athDeleteByID"`; the graph's route pass joins
+/// `api.ajax('athDeleteByID')` to it. `fn_ranges` = (start, end, name) of the
+/// file's functions; the innermost range owns the arm.
+pub fn vb_dispatch_arm_edges(source: &str, fn_ranges: &[(u32, u32, String)]) -> Vec<ExtractedEdge> {
+    let enclosing = |line: u32| -> Option<&str> {
+        fn_ranges
+            .iter()
+            .filter(|(s, e, _)| *s <= line && line <= *e)
+            .min_by_key(|(s, e, _)| e - s)
+            .map(|(_, _, n)| n.as_str())
+    };
+    let mut out = Vec::new();
+    let mut dispatch_key: Option<String> = None;
+    for (idx, raw_line) in source.lines().enumerate() {
+        let line_no = idx as u32 + 1;
+        let line = raw_line.trim();
+        let lower = line.to_ascii_lowercase();
+        if let Some(c) = RE_VB_CASE_LITERAL.captures(line) {
+            dispatch_key = c.get(1).map(|m| m.as_str().to_string());
+            continue;
+        }
+        if lower.starts_with("case ")
+            || lower.starts_with("end select")
+            || lower.starts_with("select case")
+        {
+            dispatch_key = None;
+            continue;
+        }
+        let Some(key) = dispatch_key.as_deref() else {
+            continue;
+        };
+        let Some(callee) = RE_VB_ARM_CALL
+            .captures(line)
+            .and_then(|c| c.get(1))
+            .map(|m| m.as_str())
+        else {
+            continue;
+        };
+        let head = callee.split('.').next().unwrap_or("").to_ascii_lowercase();
+        if VB_ARM_CALL_STOPWORDS.contains(&head.as_str())
+            || VB_CALL_HEAD_STOPWORDS.contains(&head.as_str())
+        {
+            continue;
+        }
+        let Some(method) = enclosing(line_no) else {
+            continue;
+        };
+        out.push(ExtractedEdge {
+            source_name: method.to_string(),
+            source_kind: "function".to_string(),
+            source_start_line: line_no,
+            source_language: "vb".to_string(),
+            target_name: callee.to_string(),
+            target_kind: None,
+            target_start_line: None,
+            kind: "calls".to_string(),
+            metadata: Some(HashMap::from([(
+                "dispatch_key".to_string(),
+                key.to_string(),
+            )])),
+        });
+    }
+    out
+}
+
+/// Function ranges for the regex fallback, whose symbols carry no end line:
+/// each function owns the lines up to the next function's start.
+fn fallback_fn_ranges(symbols: &[ExtractedSymbol]) -> Vec<(u32, u32, String)> {
+    let mut starts: Vec<(u32, String)> = symbols
+        .iter()
+        .filter(|s| s.kind == "function")
+        .map(|s| (s.start_line, s.name.clone()))
+        .collect();
+    starts.sort_by_key(|(l, _)| *l);
+    let mut out = Vec::with_capacity(starts.len());
+    for (i, (start, name)) in starts.iter().enumerate() {
+        let end = starts
+            .get(i + 1)
+            .map(|(next, _)| next.saturating_sub(1))
+            .unwrap_or(u32::MAX);
+        out.push((*start, end.max(*start), name.clone()));
+    }
+    out
+}
+
 fn enrich_vb_source(source: &str, symbols: &mut [ExtractedSymbol], edges: &mut Vec<ExtractedEdge>) {
     // (start, end, name) for functions and classes, for range association.
     let fn_ranges: Vec<(u32, u32, String)> = symbols
@@ -862,6 +952,8 @@ fn enrich_vb_source(source: &str, symbols: &mut [ExtractedSymbol], edges: &mut V
         .filter(|s| s.kind == "class")
         .map(|s| (s.start_line, s.end_line, s.name.clone()))
         .collect();
+    // Item 8: the broker's dispatch arms (sidecar path).
+    edges.extend(vb_dispatch_arm_edges(source, &fn_ranges));
     let enclosing = |ranges: &[(u32, u32, String)], line: u32| -> Option<String> {
         ranges
             .iter()
@@ -1246,8 +1338,6 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
     // real source symbol (matching the FQN-named node minted below) or fall
     // back to the "file" sentinel.
     let mut current_method: Option<String> = None;
-    // Item 8: the API name of the `Select Case` arm the cursor is in.
-    let mut dispatch_key: Option<String> = None;
     // Guard calls per enclosing method: (guard names, role literals).
     let mut method_guards: HashMap<String, (Vec<String>, Vec<String>)> = HashMap::new();
 
@@ -1266,17 +1356,6 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
         let line_no = idx as u32 + 1;
         let line = raw_line.trim();
         let lower = line.to_ascii_lowercase();
-
-        // Item 8: track the `Select Case` arm — `Case "name"` opens one, any
-        // other `Case` / `End Select` / `Select Case` closes it.
-        if let Some(c) = RE_VB_CASE_LITERAL.captures(line) {
-            dispatch_key = c.get(1).map(|m| m.as_str().to_string());
-        } else if lower.starts_with("case ")
-            || lower.starts_with("end select")
-            || lower.starts_with("select case")
-        {
-            dispatch_key = None;
-        }
 
         // SQL detection runs on every line (independent of the declaration
         // branches below): New SqlCommand("...") and .CommandText = "...".
@@ -1449,36 +1528,6 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
                     kind: "calls".to_string(),
                     metadata: None,
                 });
-            }
-            // Item 8: the arm's call carries the API name it serves, so the
-            // post-ingest resolver can join `api.ajax('name')` to it. Pushed
-            // last so it wins over a plain qualified-call twin of the same line.
-            if let Some(key) = dispatch_key.as_deref() {
-                if let Some(callee) = RE_VB_ARM_CALL
-                    .captures(line)
-                    .and_then(|c| c.get(1))
-                    .map(|m| m.as_str())
-                {
-                    let head = callee.split('.').next().unwrap_or("").to_ascii_lowercase();
-                    if !VB_ARM_CALL_STOPWORDS.contains(&head.as_str())
-                        && !VB_CALL_HEAD_STOPWORDS.contains(&head.as_str())
-                    {
-                        edges.push(ExtractedEdge {
-                            source_name: method_fqn.clone(),
-                            source_kind: "function".to_string(),
-                            source_start_line: line_no,
-                            source_language: "vb".to_string(),
-                            target_name: callee.to_string(),
-                            target_kind: None,
-                            target_start_line: None,
-                            kind: "calls".to_string(),
-                            metadata: Some(HashMap::from([(
-                                "dispatch_key".to_string(),
-                                key.to_string(),
-                            )])),
-                        });
-                    }
-                }
             }
         }
 
@@ -1746,6 +1795,9 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
             .get_or_insert_with(Default::default)
             .insert("extraction_fallback".to_string(), "true".to_string());
     }
+    // Item 8: the broker's dispatch arms (fallback path).
+    let ranges = fallback_fn_ranges(&symbols);
+    edges.extend(vb_dispatch_arm_edges(source, &ranges));
 
     (symbols, edges)
 }

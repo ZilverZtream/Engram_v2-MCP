@@ -1,0 +1,135 @@
+#![allow(clippy::unwrap_used)]
+//! External audit round 2, item 8 — end to end: "which server API functions
+//! does <file>.ts call?" must reach the VB implementation through the name
+//! route (`api.ajax('ordGetLines')` → broker `Case "ordGetLines"` →
+//! `GetOrderLines`). Live r43 found the callee hop's two items and then let
+//! concept chunks evict them: a hop from the file the question NAMES is
+//! direct evidence, not a 0.6 guess — and the hop must also read the file
+//! node's own ApiCall edges, since a call outside any function body is still
+//! that file calling the server.
+use engram_core::config::Config;
+use engram_server::models::AskCodebaseRequest;
+use engram_server::state::AppState;
+use engram_server::tools::Engram;
+use rmcp::handler::server::tool::Parameters;
+use serde_json::{Value, json};
+
+async fn build() -> (tempfile::TempDir, Engram, String) {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let root = tmp.path().join("proj");
+    for d in [
+        "Site/ts/orders",
+        "Site/App_Code/api-json",
+        "Site/App_Code/orders/api-json",
+        "Site/App_Code/noise",
+    ] {
+        std::fs::create_dir_all(root.join(d)).unwrap();
+    }
+    std::fs::write(
+        root.join("Site/ts/orders/orderPanel.ts"),
+        "namespace orders {\n    export class orderPanel {\n        private _id: number;\n        public load(): void {\n            new api.ajax('ordGetLines', { ord_id: this._id }, null, (ret) => {\n                this.render(ret);\n            });\n        }\n        private render(ret: any): void {\n        }\n    }\n}\n",
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("Site/App_Code/api-json/api-broker.vb"),
+        "Public Class api\n    Public Shared Function action(ByVal qry As JSONqry) As JSONreturn\n        Dim s As JSONreturn = Nothing\n        Select Case qry.func\n            Case \"ordGetLines\"\n                s = GetOrderLines(qry)\n        End Select\n        Return s\n    End Function\nEnd Class\n",
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("Site/App_Code/orders/api-json/api-orders.vb"),
+        "Partial Class api\n    Public Shared Function GetOrderLines(ByVal qry As JSONqry) As JSONreturn\n        Dim lines = orderLines.LoadByOrder(qry.ord_id)\n        Return Nothing\n    End Function\nEnd Class\n",
+    )
+    .unwrap();
+    // Enough chunks about "server api functions" and "order panel" to fill the
+    // evidence cap on their own.
+    for i in 0..30 {
+        std::fs::write(
+            root.join(format!("Site/App_Code/noise/order_panel_server_api{i:02}.vb")),
+            format!(
+                "Public Class order_panel_server_api{i:02}\n    ' the order panel and the server API functions it depends on\n    Public Function ServerApiFunction{i:02}() As String\n        Return \"order panel server api functions\"\n    End Function\nEnd Class\n"
+            ),
+        )
+        .unwrap();
+    }
+    let cfg = Config {
+        allowed_roots: vec![root.clone()],
+        data_dir: tmp.path().join("data"),
+        max_project_files: Some(200),
+        max_project_bytes: Some(4 * 1024 * 1024),
+        embedding_backend: "fts_only".into(),
+        ..Default::default()
+    };
+    std::fs::create_dir_all(&cfg.data_dir).unwrap();
+    let (state, _rx) = AppState::new(cfg).unwrap();
+    let engram = Engram::new(state.clone());
+    engram
+        .index_project(Parameters(engram_server::IndexProjectRequest {
+            directory: root.to_string_lossy().to_string(),
+            project_name: "FileCallee".into(),
+            project_type: engram_server::models::ProjectType::DotnetWebformsVb,
+            wait: true,
+            dedupe_by_directory: false,
+        }))
+        .await
+        .unwrap();
+    let pid = state.registry.list_projects().unwrap()[0]
+        .project_id
+        .clone();
+    (tmp, engram, pid)
+}
+
+async fn ask(engram: &Engram, pid: &str, question: &str) -> Value {
+    let req: AskCodebaseRequest = serde_json::from_value(json!({
+        "project_id": pid,
+        "question": question,
+        "output_format": "json",
+        "depth": "standard"
+    }))
+    .unwrap();
+    let res = engram.handle_ask_codebase(req).await.unwrap();
+    let t = res.content[0].as_text().unwrap().text.clone();
+    let start = t.find('{').unwrap_or(0);
+    serde_json::from_str(&t[start..]).unwrap_or_else(|e| panic!("not JSON ({e}):\n{t}"))
+}
+
+fn paths(v: &Value) -> Vec<String> {
+    v["evidence"]
+        .as_array()
+        .map(|a| {
+            a.iter()
+                .map(|e| e["path"].as_str().unwrap_or("").to_lowercase())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+#[tokio::test]
+async fn what_a_named_ts_file_calls_reaches_the_vb_implementation_through_the_name_route() {
+    let (_tmp, engram, pid) = build().await;
+    let v = ask(
+        &engram,
+        &pid,
+        "Which server API functions does orderPanel.ts call?",
+    )
+    .await;
+    let ps = paths(&v);
+    assert!(
+        ps.iter().any(|p| p.ends_with("api-orders.vb")),
+        "the served implementation must be cited; got {ps:?}"
+    );
+    assert!(
+        ps.iter().any(|p| p.ends_with("orderpanel.ts")),
+        "the asked file itself must be cited; got {ps:?}"
+    );
+}
+
+#[tokio::test]
+async fn who_calls_the_implementation_lists_the_ts_client() {
+    let (_tmp, engram, pid) = build().await;
+    let v = ask(&engram, &pid, "What calls GetOrderLines?").await;
+    let ps = paths(&v);
+    assert!(
+        ps.iter().any(|p| p.ends_with("orderpanel.ts")),
+        "the TS client reached through the broker arm must be cited; got {ps:?}"
+    );
+}

@@ -145,3 +145,52 @@ End Class
         "a call outside the Case arms carries no key"
     );
 }
+
+#[test]
+fn dispatch_arm_edges_come_from_a_pass_both_extraction_paths_share() {
+    // Live r43: the Roslyn sidecar path never ran the arm scan (it lived in
+    // the regex fallback only), so production carried no dispatch keys.
+    let vb = r#"
+Public Class api
+    Public Shared Function dispatch(ByVal qry As JSONqry) As JSONreturn
+        Dim s As JSONreturn = Nothing
+        Select Case qry.func
+            Case "athDeleteByID"
+                s = DeleteChangeRequest(qry)
+            Case "athGet"
+                s = GetChangeRequest(qry)
+            Case Else
+                s = Nothing
+        End Select
+        LogCall(qry)
+        Return s
+    End Function
+End Class
+"#;
+    let ranges = vec![(3u32, 16u32, "api.dispatch".to_string())];
+    let edges = engram_index::vb_extractor::vb_dispatch_arm_edges(vb, &ranges);
+    let key_of = |callee: &str| -> Option<String> {
+        edges
+            .iter()
+            .find(|e| e.kind == "calls" && e.target_name == callee)
+            .and_then(|e| e.metadata.as_ref())
+            .and_then(|m| m.get("dispatch_key"))
+            .cloned()
+    };
+    assert_eq!(
+        key_of("DeleteChangeRequest").as_deref(),
+        Some("athDeleteByID")
+    );
+    assert_eq!(key_of("GetChangeRequest").as_deref(), Some("athGet"));
+    assert!(key_of("LogCall").is_none(), "{edges:?}");
+    assert!(
+        edges
+            .iter()
+            .all(|e| e.source_name == "api.dispatch" && e.source_kind == "function"),
+        "arm edges hang off the enclosing function: {edges:?}"
+    );
+    assert_eq!(
+        edges[0].source_start_line, 7,
+        "the arm's call line, not the function's"
+    );
+}

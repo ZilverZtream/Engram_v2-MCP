@@ -995,6 +995,45 @@ pub async fn process_ingest_stats(
 
     edges.append(&mut file_contains_edges);
 
+    // Item 8 (live r43): two extractors may describe the SAME edge — the
+    // Roslyn sidecar's `api.action → DeleteChangeRequest` Calls edge and the
+    // dispatch-arm scan's twin carrying `dispatch_key`. They share one graph
+    // key (kind, source, target), so union their metadata: every emitter's
+    // facts survive, the first writer keeps its own values.
+    {
+        let mut merged: Vec<engram_graph::Edge> = Vec::with_capacity(edges.len());
+        let mut at: std::collections::HashMap<(String, String, String), usize> =
+            std::collections::HashMap::new();
+        for e in edges.drain(..) {
+            let key = (
+                e.edge_kind.as_str().to_string(),
+                e.source_id.clone(),
+                e.target_id.clone(),
+            );
+            match at.get(&key) {
+                Some(&i) => {
+                    let kept = &mut merged[i];
+                    if let Some(serde_json::Value::Object(extra)) = e.metadata {
+                        let slot = kept
+                            .metadata
+                            .get_or_insert_with(|| serde_json::Value::Object(Default::default()));
+                        if let serde_json::Value::Object(base) = slot {
+                            for (k, v) in extra {
+                                base.entry(k).or_insert(v);
+                            }
+                        }
+                    }
+                    kept.weight = kept.weight.max(e.weight);
+                }
+                None => {
+                    at.insert(key, merged.len());
+                    merged.push(e);
+                }
+            }
+        }
+        edges = merged;
+    }
+
     if !edges.is_empty() {
         let mut mapped_edge_kind_counts: std::collections::HashMap<String, usize> =
             std::collections::HashMap::new();

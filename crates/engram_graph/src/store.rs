@@ -3109,11 +3109,50 @@ impl GraphStore {
                         }
                     } else if matches!(kind, EdgeKind::Calls) {
                         if let Some(key) = meta_str("dispatch_key") {
-                            if fn_ids.contains(&e.target_id) {
-                                dispatch
-                                    .entry(key.to_lowercase())
-                                    .or_default()
-                                    .push(e.target_id.clone());
+                            // Live r43: `DeleteChangeRequest` names a page
+                            // property, a helper and the implementation, so
+                            // by-name binding left the arm's call a placeholder.
+                            // A VB unqualified call inside `Partial Class api`
+                            // binds to a member of `api` first; properties never
+                            // take a call.
+                            let bound = if fn_ids.contains(&e.target_id) {
+                                Some(e.target_id.clone())
+                            } else {
+                                e.target_id.strip_prefix("::").and_then(|name| {
+                                    let name_l =
+                                        name.rsplit('.').next().unwrap_or(name).to_lowercase();
+                                    let mut cands: Vec<String> =
+                                        fns_by_name.get(&name_l).cloned().unwrap_or_default();
+                                    for id in fns_by_terminal.get(&name_l).into_iter().flatten() {
+                                        if !cands.contains(id) {
+                                            cands.push(id.clone());
+                                        }
+                                    }
+                                    if cands.len() > 1 {
+                                        if let Some(prefix) = node_name
+                                            .get(&e.source_id)
+                                            .and_then(|n| n.rsplit_once('.'))
+                                            .map(|(c, _)| format!("{}.", c.to_lowercase()))
+                                        {
+                                            let same: Vec<String> = cands
+                                                .iter()
+                                                .filter(|id| {
+                                                    node_name.get(*id).is_some_and(|n| {
+                                                        n.to_lowercase().starts_with(&prefix)
+                                                    })
+                                                })
+                                                .cloned()
+                                                .collect();
+                                            if same.len() == 1 {
+                                                cands = same;
+                                            }
+                                        }
+                                    }
+                                    (cands.len() == 1).then(|| cands.remove(0))
+                                })
+                            };
+                            if let Some(id) = bound {
+                                dispatch.entry(key.to_lowercase()).or_default().push(id);
                             }
                         }
                     } else if meta_str("ajax_target_method").is_some() {
@@ -3148,16 +3187,24 @@ impl GraphStore {
             };
             let method_l = method.to_lowercase();
             let name_route = meta("ajax_transport").as_deref() == Some("api_name");
-            let (target, how, conf) = if fn_ids.contains(&e.target_id) {
+            // route_dispatch precedence: for a name route the broker's arm is
+            // the authority — a symbol that merely shares the API name
+            // (bound by name before this pass) does not serve the call.
+            let arm = if name_route {
+                dispatch.get(&method_l)
+            } else {
+                None
+            };
+            let (target, how, conf) = if let Some(ids) = arm {
+                if ids.len() != 1 {
+                    ambiguous += 1;
+                    continue;
+                }
+                (ids[0].clone(), "route_dispatch", 0.85f32)
+            } else if fn_ids.contains(&e.target_id) {
                 (e.target_id.clone(), "route_enclosing", 0.9f32)
             } else if name_route {
-                if let Some(ids) = dispatch.get(&method_l) {
-                    if ids.len() != 1 {
-                        ambiguous += 1;
-                        continue;
-                    }
-                    (ids[0].clone(), "route_dispatch", 0.85)
-                } else if let Some(id) = unique(fns_by_name.get(&method_l))
+                if let Some(id) = unique(fns_by_name.get(&method_l))
                     .or_else(|| unique(fns_by_terminal.get(&method_l)))
                 {
                     (id, "route_unique", 0.6)
