@@ -98,6 +98,22 @@ End Class
 ",
     )
     .unwrap();
+    // A SECOND family member: "order info panel" now matches two distinct
+    // stems, so no unique compound file exists — the FAMILY seeds the hop
+    // (cycle 32, owner-approved) instead of one entity being minted.
+    std::fs::write(
+        root.join("Site/ts/orders/ataOrderInfoPanel.ts"),
+        "namespace orders {
+    export class ataOrderInfoPanel {
+        private _id: number;
+        public loadImages(): void {
+            new api.ajax().getImage('ata', this._id, 'Img.1');
+        }
+    }
+}
+",
+    )
+    .unwrap();
     // The compiled twin: same stem, so distinct-stem uniqueness must still
     // pick the .ts source (live r46: ioMarkerInfowindow.{ts,js}).
     std::fs::write(
@@ -286,10 +302,9 @@ async fn a_compound_name_reaches_the_implementation_through_the_wrapper_route() 
     )
     .await;
     let ps = paths(&v);
-    assert!(
-        ps.iter().any(|p| p.ends_with("orderinfopanel.ts")),
-        "the compound-named file must be cited; got {ps:?}"
-    );
+    // Cycle 32 (owner-approved): with TWO *OrderInfoPanel families no entity
+    // is minted — a wrong guess and an ambiguity status are both worse — but
+    // the FAMILY seeds the hop, so the served implementation still arrives.
     assert!(
         ps.iter().any(|p| p.ends_with("api-images.vb")),
         "the served implementation two hops away must be cited; got {ps:?}"

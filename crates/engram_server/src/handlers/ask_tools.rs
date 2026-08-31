@@ -139,13 +139,32 @@ impl Engram {
                     .map(|e| e.text.replace('\\', "/"))
                     .collect();
                 let hop = tokio::task::spawn_blocking(move || {
+                    // Item 8, cycle 32 (owner-approved): a compound name that
+                    // matches a FAMILY of stems seeds the hop from each member
+                    // — the io marker infowindow's images route lives two hops
+                    // from a file no entity can name unambiguously.
+                    let family = crate::services::ask_engine::resolver::compound_family_seeds(
+                        &graph, &pid, &question,
+                    );
+                    let mut seeds2: Vec<String> = family.clone();
+                    for s in &seeds {
+                        if !seeds2.contains(s) {
+                            seeds2.push(s.clone());
+                        }
+                    }
+                    let mut named2 = named_files.clone();
+                    for f in &family {
+                        if let Some(base) = f.rsplit('/').next() {
+                            named2.push(base.to_string());
+                        }
+                    }
                     let mut id = 10_000usize;
                     crate::services::ask_engine::providers::callee_evidence(
                         &graph,
                         project_dir.as_deref(),
                         &pid,
-                        &seeds,
-                        &named_files,
+                        &seeds2,
+                        &named2,
                         &question,
                         3,
                         &mut id,
