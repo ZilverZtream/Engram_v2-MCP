@@ -222,3 +222,20 @@ separators — recoverable from the text) may help when it resolves uniquely
 but never drives Ambiguous; plus per-file-1 under the lookup cap
 (exact_6 sits at 2/5 with a same-file pair). Evidence: causal_r59.*,
 golden_v3_r59.json, holdout_*_r59.json, verify_r59.log.
+
+**r60 (batch 3: speculative-mention ambiguity veto + lookup per-file-1,
+commit 0f978d0):** FLAT — golden 21/35 PASS (+0/−0 row churn), causal 14/20
+PASS, Health OK, ranks 6/6 ×2 (pool 172/174). Honest diagnosis: the veto
+WORKED as designed — multi_1 moved ambiguous→unsupported and bug_2
+ambiguous→partial; both now fail at their real next layer (retrieval /
+required-cite). But retain_one_per_path CUT exact_6's measured precision
+0.40→0.25: the same-file pair it deduped was the RELEVANT pair — the
+bottleneck is irrelevant slot-fillers, not slot spending. Held-out +1
+(hx_missing_2 cleared; 3/11 + 1/5); the five held-out ambiguous rows are NOT
+speculative-shaped (their mentions carry separators/uppercase) and need a
+live probe before any design. Batch-4 survivor classes: (a) required-cite
+retrieval misses (bug_1/2, usage_2–5, multi_2/3, causal_20), (b) the
+0.30 < 0.34 precision boundary (compound_1, multi_4, rationale_2,
+causal_3/12/17/19), (c) lookup precision bars (exact_3 0.20, exact_6 0.25
+vs 0.5). Evidence: causal_r60.*, golden_v3_r60.json, holdout_*_r60.json,
+verify_r60.log.
