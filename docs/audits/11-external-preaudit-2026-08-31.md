@@ -136,8 +136,17 @@ The program is NOT at 7/8 closed. Remaining:
 | 1 | Path-set health (graph + empty-vector mandatory, errors → DEGRADED) | OPEN |
 | 2 | Item-level evaluator (required_items predicates, precision, recall, held-out) | OPEN |
 | 3 | Held-out causal suite | OPEN |
-| 4 | ox_multi_4 at the final ranking boundary (owner: collect-and-rank, cycle 35) | IN PROGRESS |
-| 5 | Item-8 definition decision (ask enrichment vs shared ImpactEngine) | OWNER DECISION PENDING |
+| 4 | ox_multi_4 at the final ranking boundary (owner: collect-and-rank, cycle 35) | fixed@1f0a2de, live r52: golden 35/35, causal 20/20, ranks 6/6 ×2 (evidence: golden_v2_r52, verify_r52) |
+| 5 | Item-8 definition decision (ask enrichment vs shared ImpactEngine) | DECIDED 2026-08-31 |
+
+Owner decisions (AskUserQuestion, 2026-08-31):
+- **Program order = the auditor's order**: health P0 → evaluator P0 → held-out causal
+  suite → P1 ledger.
+- **Item 8 renamed honestly**: item 8 = *TS/VB route enrichment + ask-bounded causal
+  hop* — closes once ox_multi_4 passes live AND a held-out causal suite exists. The
+  shared ImpactEngine (ChangeSpec, edge-policy matrix, per-hop coverage, SCC handling,
+  shared JSON contract consumed by ask/impact/blast) is its own queued follow-on
+  program, per the blast-radius memory queue.
 | P1a | Post-publish purge debt: registry writes + induced-failure test | OPEN |
 | P1b | Gate runtime-construction fail-open (gates.rs:2832/3050) | OPEN |
 | P1c | Co-change changed-HEAD call-time walk | OPEN |
