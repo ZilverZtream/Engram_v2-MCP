@@ -255,8 +255,21 @@ pub fn memory_evidence(
         .filter(|s| s.len() >= 3)
         .map(|s| s.to_string())
         .collect();
+    // Cycle 36 (doc 11 padding): Engram's own system sections (engram/..., the
+    // index report above all) LIST file paths, so they term-match almost any
+    // code question — they are meta, not project knowledge, and qualify only
+    // when the question is about the index itself.
+    let asks_about_index = terms.iter().any(|t| {
+        matches!(
+            t.as_str(),
+            "index" | "indexing" | "indexed" | "engram" | "generation" | "reindex"
+        )
+    });
     let mut scored: Vec<(usize, &engram_core::registry::MemorySection)> = Vec::new();
     for s in &sections {
+        if s.section_id.starts_with("engram/") && !asks_about_index {
+            continue;
+        }
         let hay = format!("{} {}", s.title, s.content).to_lowercase();
         let hits = terms.iter().filter(|t| hay.contains(t.as_str())).count();
         if hits > 0 {
@@ -725,6 +738,12 @@ pub fn callee_evidence(
                     };
                     let name_l = n.name.to_lowercase();
                     let path_l = n.file_path.as_str().replace('\\', "/").to_lowercase();
+                    // Cycle 36 (doc 11 padding): a call INTO a type
+                    // declaration is not a served implementation — .d.ts and
+                    // typings/ targets never pad the hop.
+                    if path_l.ends_with(".d.ts") || path_l.contains("/typings/") {
+                        continue;
+                    }
                     let basename = path_l.rsplit('/').next().unwrap_or("");
                     let cue_hit = cues
                         .iter()
