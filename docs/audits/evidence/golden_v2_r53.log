@@ -1,0 +1,47 @@
+id                category        status       exp                 cite      ms  verdict
+------------------------------------------------------------------------------------------------
+ox_missing_1      missing_knowledgeunsupported  unsupported         -       1668  ok
+ox_missing_2      missing_knowledgeunsupported  unsupported         -       1702  ok
+ox_missing_3      missing_knowledgeunsupported  unsupported         -       1482  ok
+ox_missing_4      missing_knowledgeunsupported  unsupported         -       1659  ok
+ox_exact_1        exact_fact      answered     answered/partial    1.00     934  ok
+ox_exact_2        exact_fact      answered     answered/partial    1.00    1540  ok
+ox_exact_3        exact_fact      answered     answered/partial    1.00     744  ok
+ox_exact_4        exact_fact      answered     answered/partial    0.67    2924  ok
+ox_exact_5        exact_fact      answered     answered/partial    1.00     831  ok
+ox_exact_6        exact_fact      answered     answered/partial    1.00    1494  ok
+ox_usage_1        usage           answered     answered/partial    1.00    3184  ok
+ox_usage_2        usage           answered     answered/partial    1.00     760  ok
+ox_usage_3        usage           answered     answered/partial    1.00    4624  ok
+ox_usage_4        usage           answered     answered/partial    1.00     889  ok
+ox_usage_5        usage           answered     answered/partial    1.00    3680  ok
+ox_multi_1        multi_hop       answered     answered/partial    1.00    1625  ok
+ox_multi_2        multi_hop       answered     answered/partial    1.00    1574  ok
+ox_multi_3        multi_hop       answered     answered/partial    1.00    2502  ok
+ox_multi_4        multi_hop       answered     answered/partial    0.75    1327  ok
+ox_impact_1       impact          answered     answered/partial    1.00    1206  ok
+ox_impact_2       impact          answered     answered/partial    1.00    2666  ok
+ox_impact_3       impact          answered     answered/partial    1.00    1824  ok
+ox_impact_4       impact          answered     answered/partial    1.00    1599  ok
+ox_rationale_1    rationale       answered     answered/partial    1.00    1550  ok
+ox_rationale_2    rationale       answered     answered/partial/unsupported-       1500  ok
+ox_compound_1     compound        answered     answered/partial    1.00    1546  ok
+ox_compound_2     compound        answered     answered/partial    1.00    3180  ok
+ox_history_1      history         answered     answered/partial/unsupported-        961  ok
+ox_history_2      history         answered     answered/partial/unsupported-       1081  ok
+ox_bug_1          bug             answered     answered/partial    0.75    1328  ok
+ox_bug_2          bug             answered     answered/partial    1.00    1382  ok
+ox_requirements_1 requirements    answered     answered/partial/unsupported-       1237  ok
+ox_requirements_2 requirements    answered     answered/partial    1.00    1807  ok
+ox_ambiguous_1    usage           ambiguous    answered/partial/ambiguous-        706  ok
+ox_ambiguous_2    usage           ambiguous    answered/partial/ambiguous-        723  ok
+--------------------------------------------------------------------------
+status-match: 35/35 = 100%   (gate >= 80%)
+abstain:      4/4 = 100%   (gate = 100%)
+mean citation coverage (answerable rows): 0.97
+mean latency: 1698 ms
+dreamer insights: OFF; insight evidence in 0/35 rows (0 items)
+correct:      35/35 = 100%   (gate = 100%: status + required modality + required symbols + no forbidden distractor + precision)
+
+GATE: PASS
+record written: C:/Users/Dennis/AppData/Local/Temp/claude/C--ai-projects-Engram-MCP-v2/50d309ed-9767-44e6-b7fc-2ac51dd98fa5/scratchpad/p0/golden_v2_r53.json
