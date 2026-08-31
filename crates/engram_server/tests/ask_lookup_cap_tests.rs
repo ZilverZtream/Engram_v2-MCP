@@ -156,6 +156,34 @@ fn anchored_retain_keeps_only_items_that_mention_the_entity() {
 }
 
 #[test]
+fn an_unresolved_junk_mention_does_not_flip_the_cooccurrence_switch() {
+    // Live r61: "data-access" (resolved: []) joined the term list, the >=2
+    // co-occurrence mode engaged, and prose chunks containing the junk word
+    // took the direct-evidence boost — exact_2/exact_5 regressed.
+    let ents = vec![
+        entity("Redovisningskategorier"),
+        EntityMention {
+            text: "data-access".into(),
+            guessed_kind: EntityKind::File,
+            resolved: vec![],
+        },
+    ];
+    let terms = ranking::cooccurrence_terms(&ents);
+    assert_eq!(terms, vec!["redovisningskategorier".to_string()]);
+}
+
+#[test]
+fn two_resolved_mentions_both_reach_the_term_list() {
+    let ents = vec![entity("GetDictionaryIntegerValue"), entity("pr_id")];
+    let terms = ranking::cooccurrence_terms(&ents);
+    assert_eq!(
+        terms.len(),
+        2,
+        "both resolved mentions must survive: {terms:?}"
+    );
+}
+
+#[test]
 fn a_reserve_protected_item_survives_the_trims() {
     // Sweep 71 / chain c43d: whichever order reserve and the trims ran in,
     // one side's guarantee was destroyed. The reserve's protected id-set is
