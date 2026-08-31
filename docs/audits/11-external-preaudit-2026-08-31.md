@@ -257,3 +257,15 @@ killed), guard made per-hunk idempotent with post-fmt strings, relaunch
 dry-run == swept. Batch 5: co-occurrence terms are RESOLVED-only (the
 batch-2 lookup_cap lesson, applied to the ranker's term list). Evidence:
 causal_r61.*, golden_v3_r61.json, holdout_*_r61.json, verify_r61.log.
+
+**r62 (batch 5: resolved-only co-occurrence terms, commit 6a9754d):** golden
+23/35 PASS — the grind's NEW HIGH (+exact_2 reverted as predicted, +multi_4
+cleared as a bonus — its 0.30 boundary broke once junk terms stopped
+stealing the boost; ZERO losses). exact_5 did not revert (0.20, 2/10 — its
+own diagnosis pending). causal 14/20 PASS (identical row set; causal_13 at
+0.33 vs 0.34 — one item), held-out unchanged (3/11 + 1/5), Health OK,
+ranks 6/6 ×2 (pool 172). Survivor classes for batch 6: (a) required-cite
+retrieval misses (bug_1/2, usage_2/3/5, multi_2/3, causal_20), (b) the
+0.30/0.33 precision boundary (compound_1, rationale_2, causal_3/12/17/19,
+causal_13), (c) lookup precision (exact_5 0.20, exact_6 0.25). Evidence:
+causal_r62.*, golden_v3_r62.json, holdout_*_r62.json, verify_r62.log.
