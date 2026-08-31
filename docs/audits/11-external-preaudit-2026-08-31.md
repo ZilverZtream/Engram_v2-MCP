@@ -133,7 +133,7 @@ The program is NOT at 7/8 closed. Remaining:
 
 | # | Item | Status |
 |---|------|--------|
-| 1 | Path-set health (graph + empty-vector mandatory, errors → DEGRADED) | OPEN |
+| 1 | Path-set health (graph + empty-vector mandatory, errors → DEGRADED) | fixed@5b2bfee, live r53: Health OK with graph in the equality (2277/2277/2277/2277, missing 0, extra 0, mismatch 0); RED 3/4 tests failed pre-fix (all-vector-loss, LanceDB-failure via freshness, graph-loss) + fts_only guard; sweep 63 3,774/0/197 (evidence: verify_r53) |
 | 2 | Item-level evaluator (required_items predicates, precision, recall, held-out) | OPEN |
 | 3 | Held-out causal suite | OPEN |
 | 4 | ox_multi_4 at the final ranking boundary (owner: collect-and-rank, cycle 35) | fixed@1f0a2de, live r52: golden 35/35, causal 20/20, ranks 6/6 ×2 (evidence: golden_v2_r52, verify_r52) |
