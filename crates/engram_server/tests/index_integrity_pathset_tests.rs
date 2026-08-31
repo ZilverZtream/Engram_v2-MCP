@@ -167,3 +167,135 @@ async fn a_vector_only_loss_is_a_cross_store_mismatch() {
         "paths present in one store and absent in another are a mismatch:\n{h}"
     );
 }
+
+/// Doc 11 P0-1 (a): the ENTIRE vector store for the generation vanishes —
+/// rows and paths both zero. Row-presence gating (`vectors_present`) read
+/// that as "no vectors configured" and reported healthy; whether embeddings
+/// are expected comes from CONFIGURATION (embedding_backend), and this
+/// project expects them.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn losing_every_vector_row_is_incomplete() {
+    let (_tmp, state, engram, pid, big, small) = build().await;
+    let engine = state.get_project_cached(&pid).unwrap().search;
+    let gone: Vec<RelPath> = big
+        .iter()
+        .chain(small.iter())
+        .map(|p| RelPath::new(p))
+        .collect();
+    engine
+        .delete_vector_rows_for_paths(&pid, CODE_NS, &gone)
+        .await
+        .unwrap();
+
+    let h = health(&engram, &pid).await;
+    assert!(
+        !h.starts_with("Health: OK"),
+        "an empty vector store under embedding_backend=local is a LOSS, not a configuration:\n{h}"
+    );
+    assert!(h.contains("vectors: 0"), "{h}");
+    let f = freshness(&engram, &pid).await;
+    assert!(f.contains("generation_complete: false"), "{f}");
+}
+
+/// Doc 11 P0-1 (b): LanceDB enumeration FAILS (store bytes corrupted after
+/// the cached connection is dropped). unwrap_or()/unwrap_or_default() turned
+/// that into "empty store" — and freshness, which consumes completeness
+/// without project_health's separate count_vectors net, reported
+/// generation_complete: true. A provider error is DEGRADED, never an empty
+/// store.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_lancedb_read_failure_is_degraded_not_complete() {
+    let (_tmp, state, engram, pid, _big, _small) = build().await;
+    let info = state.get_project_cached(&pid).unwrap().info.clone();
+    // Drop the cached runtime so Windows releases the store's file handles.
+    state.projects.remove(&pid);
+    corrupt_tree(&info.lancedb_dir);
+    // Reload the runtime over the corrupted store (health's loader path).
+    let _ = health(&engram, &pid).await;
+    let f = freshness(&engram, &pid).await;
+    assert!(
+        f.contains("generation_complete: false"),
+        "a LanceDB read failure must be DEGRADED — never an empty-but-complete store:\n{f}"
+    );
+}
+
+/// Doc 11 P0-1 (c): the graph store loses every file node while Tantivy and
+/// LanceDB stay complete. graph_paths was collected and PRINTED but ignored
+/// by missing/complete — complete graph loss reported healthy.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn losing_the_graph_store_is_not_healthy() {
+    let (_tmp, state, engram, pid, _big, _small) = build().await;
+    state.graph.delete_project_data(&pid).unwrap();
+
+    let h = health(&engram, &pid).await;
+    assert!(
+        !h.starts_with("Health: OK"),
+        "complete graph loss must not be healthy:\n{h}"
+    );
+    assert!(h.contains("graph: 0"), "{h}");
+    let f = freshness(&engram, &pid).await;
+    assert!(f.contains("generation_complete: false"), "{f}");
+}
+
+/// Doc 11 P0-1 (d) GUARD: a project indexed with embedding_backend=fts_only
+/// legitimately has ZERO vectors — expectation comes from configuration, so
+/// health stays OK and no vector-store demand is invented.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn an_fts_only_project_with_no_vectors_stays_ok() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let root = tmp.path().join("proj");
+    std::fs::create_dir_all(root.join("Site/App_Code")).unwrap();
+    for i in 0..3 {
+        std::fs::write(
+            root.join(format!("Site/App_Code/f{i}.vb")),
+            format!("Public Class f{i}\n    Public Function G{i}() As String\n        Return \"x\"\n    End Function\nEnd Class\n"),
+        )
+        .unwrap();
+    }
+    let cfg = Config {
+        allowed_roots: vec![root.clone()],
+        data_dir: tmp.path().join("data"),
+        max_project_files: Some(50),
+        max_project_bytes: Some(1024 * 1024),
+        embedding_backend: "fts_only".into(),
+        ..Default::default()
+    };
+    std::fs::create_dir_all(&cfg.data_dir).unwrap();
+    let (state, _rx) = AppState::new(cfg).unwrap();
+    let engram = Engram::new(state.clone());
+    engram
+        .index_project(Parameters(engram_server::IndexProjectRequest {
+            directory: root.to_string_lossy().to_string(),
+            project_name: "FtsOnlyFixture".into(),
+            project_type: engram_server::models::ProjectType::DotnetWebformsVb,
+            wait: true,
+            dedupe_by_directory: false,
+        }))
+        .await
+        .unwrap();
+    let pid = state.registry.list_projects().unwrap()[0]
+        .project_id
+        .clone();
+    let h = health(&engram, &pid).await;
+    assert!(
+        h.starts_with("Health: OK"),
+        "fts_only expects no vectors — zero vectors is not a loss:\n{h}"
+    );
+    let f = freshness(&engram, &pid).await;
+    assert!(f.contains("generation_complete: true"), "{f}");
+}
+
+/// Overwrite every file under `dir` with junk bytes, recursively — the
+/// directory layout survives (connect succeeds) but reads fail.
+fn corrupt_tree(dir: &std::path::Path) {
+    if let Ok(rd) = std::fs::read_dir(dir) {
+        for e in rd.flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                corrupt_tree(&p);
+            } else {
+                let _ = std::fs::write(&p, b"corrupt");
+            }
+        }
+    }
+}
