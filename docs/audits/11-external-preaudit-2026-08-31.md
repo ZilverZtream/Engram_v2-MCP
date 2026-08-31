@@ -135,7 +135,7 @@ The program is NOT at 7/8 closed. Remaining:
 |---|------|--------|
 | 1 | Path-set health (graph + empty-vector mandatory, errors → DEGRADED) | fixed@5b2bfee, live r53: Health OK with graph in the equality (2277/2277/2277/2277, missing 0, extra 0, mismatch 0); RED 3/4 tests failed pre-fix (all-vector-loss, LanceDB-failure via freshness, graph-loss) + fts_only guard; sweep 63 3,774/0/197 (evidence: verify_r53) |
 | 2 | Item-level evaluator (required_items predicates, precision, recall, held-out) | judge v3 SHIPPED (eval/ask_engine_golden.py + eval/test_golden_judge.py self-test = the auditor's live false positive, RED on v2/GREEN on v3); corpus upgraded: 21 rows to item-level predicates + 2 allow_abstain (shas in --out records); HONEST BASELINE vs live r53: golden 14/35 (40%), causal 14/20 (70%) — evidence golden_v3_r53_baseline.json / causal_v3_r53_baseline.json; held-out rows still owed (item 3) |
-| 3 | Held-out causal suite | OPEN |
+| 3 | Held-out causal suite | AUTHORED 2026-08-31 (owner: held-out first): eval/data/ask_golden_holdout_ociusx.jsonl (11 rows) + ask_causal_holdout_ociusx.jsonl (5 rows) — fresh subsystems never used in implementation (fortnox sync, fbinstplan/fiber jobs, vehicle vehQuery, prGetSubProjects, permits, RoQ price list) with item-level predicates; git-ignored, sha16 7048b2ee6fc82c16 / 550241a9e2ef7662; FIRST RUN at the next release verify, never tuned against |
 | 4 | ox_multi_4 at the final ranking boundary (owner: collect-and-rank, cycle 35) | fixed@1f0a2de, live r52: golden 35/35, causal 20/20, ranks 6/6 ×2 (evidence: golden_v2_r52, verify_r52) |
 | 5 | Item-8 definition decision (ask enrichment vs shared ImpactEngine) | DECIDED 2026-08-31 |
 
