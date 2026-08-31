@@ -394,7 +394,10 @@ pub fn compound_family_seeds(graph: &GraphStore, project_id: &str, question: &st
             .collect();
         matching.sort_unstable();
         matching.dedup();
-        if (2..=4).contains(&matching.len()) && best.as_ref().is_none_or(|(l, _)| join.len() > *l) {
+        // Live r49: the real family (ata/io/permit/pl/vehicle MarkerInfowindow)
+        // has FIVE members — a family is a family whatever its size; only the
+        // seed list is capped below.
+        if matching.len() >= 2 && best.as_ref().is_none_or(|(l, _)| join.len() > *l) {
             best = Some((join.len(), matching));
         }
     }
@@ -424,5 +427,6 @@ pub fn compound_family_seeds(graph: &GraphStore, project_id: &str, question: &st
             out.push(n.file_path.as_str().replace('\\', "/"));
         }
     }
+    out.truncate(4);
     out
 }

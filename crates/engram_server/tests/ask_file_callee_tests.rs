@@ -114,6 +114,30 @@ End Class
 ",
     )
     .unwrap();
+    // Live r49: the real family has FIVE members (ata/io/permit/pl/vehicle
+    // MarkerInfowindow) and the 2..=4 gate rejected it — a family is a family
+    // whatever its size; the seed list is what gets capped.
+    for extra in [
+        "vehicleOrderInfoPanel",
+        "permitOrderInfoPanel",
+        "plOrderInfoPanel",
+    ] {
+        std::fs::write(
+            root.join(format!("Site/ts/orders/{extra}.ts")),
+            format!(
+                "namespace orders {{
+    export class {extra} {{
+        private _id: number;
+        public loadImages(): void {{
+            new api.ajax().getImage('x', this._id, 'Img.1');
+        }}
+    }}
+}}
+"
+            ),
+        )
+        .unwrap();
+    }
     // The compiled twin: same stem, so distinct-stem uniqueness must still
     // pick the .ts source (live r46: ioMarkerInfowindow.{ts,js}).
     std::fs::write(
