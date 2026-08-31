@@ -1,0 +1,50 @@
+== start the daemon and let the warm-up run 10:13:34
+== REPAIR (full, same id, wipe+reindex) 10:18:42
+  repair exit 0 after 106 s
+2:active_generation: 849
+3:files=2277 chunks=31263
+== settle 10:20:28
+== health 10:22:58
+1:Health: OK
+3:generation completeness: generation 849 — expected paths: 2277; tantivy: 2277, vectors: 2277, graph: 2277; missing: 0, extra: 0, cross-store mismatch: 0; chunks 31263 / vector rows 31263 (diagnostic) — complete (mi
+== route pass log line
+2026-08-31T08:20:27.981442Z  INFO engram_graph::store: resolve_route_edges: project_id=5a35e8e0-d37a-41b3-a250-a26957e7aedb api_calls=432 added=313 ambiguous=1 unbound=1
+== ROUTE PROBES 10:22:59
+  getimg: Incoming references (4 edges | ts sources: Q/api/ajax.ts 
+  DeleteChangeRequest: Incoming references (5 edges | ts sources: modules/dashboard/ts/caw/caw/caw.ts 
+  ioCheckCanUserDeleteOrMoveMarker: Incoming references (5 edges | ts sources: modules/dashboard/ts/map/vsMap/iomarker/ioMarker.ts 
+  iopGetAvailableImages: Incoming references (7 edges | ts sources: modules/dashboard/ts/map/vsMap/iomarker/ioMarkerInfowindow.ts 
+  fjGet: Incoming references (9 edges | ts sources: modules/dashboard/ts/installation/installation/installation.ts ts/fbinstplan/app.ts 
+  prGetSubProjects: Incoming references (6 edges | ts sources: ts/taskManagement/taskManager.ts 
+== CAUSAL golden (20) r51 10:23:01
+causal exit 0
+status-match: 20/20 = 100%   (gate >= 80%)
+abstain:      0/0 = 100%   (gate = 100%)
+correct:      20/20 = 100%   (gate = 100%: status + required modality + required symbols + no forbidden distractor + precision)
+GATE: PASS
+== GOLDEN v2 (35) r51 10:23:29
+golden exit 1
+status-match: 35/35 = 100%   (gate >= 80%)
+abstain:      4/4 = 100%   (gate = 100%)
+correct:      34/35 = 97%   (gate = 100%: status + required modality + required symbols + no forbidden distractor + precision)
+  FAIL ox_multi_4: required symbols/files not cited: ['api-images']
+GATE: FAIL
+== reference story RANKS (1st) 10:24:24
+  PASS productioncodelistmaincategory.aspx: pos=13 signals=['name', 'vector']
+  PASS productioncodelistmaincategory.aspx.vb: pos=14 signals=['name', 'vector']
+  PASS rk_redovisningskategorier.sql: pos=3 signals=['cochange', 'concept', 'gloss']
+  PASS redovisningskategorier.vb: pos=20 signals=['cochange', 'concept', 'gloss', 'vector']
+  PASS api-redovisning.vb: pos=26 signals=['concept', 'gloss', 'vector']
+  PASS ifalt.dbml: pos=5 signals=['concept', 'gloss', 'vector']
+  candidates 159 | RANK ACCEPTANCE: 6/6
+== co-change state
+- co-change: complete (41 hits, 192 ms)
+== reference story RANKS (2nd) 10:24:34
+  PASS productioncodelistmaincategory.aspx: pos=13 signals=['name', 'vector']
+  PASS productioncodelistmaincategory.aspx.vb: pos=14 signals=['name', 'vector']
+  PASS rk_redovisningskategorier.sql: pos=3 signals=['cochange', 'concept', 'gloss']
+  PASS redovisningskategorier.vb: pos=20 signals=['cochange', 'concept', 'gloss', 'vector']
+  PASS api-redovisning.vb: pos=26 signals=['concept', 'gloss', 'vector']
+  PASS ifalt.dbml: pos=5 signals=['concept', 'gloss', 'vector']
+  candidates 159 | RANK ACCEPTANCE: 6/6
+== DONE 10:24:37
