@@ -29,7 +29,7 @@ async fn build() -> (tempfile::TempDir, Engram, String) {
     }
     std::fs::write(
         root.join("Site/ts/orders/orderPanel.ts"),
-        "namespace orders {\n    export class orderPanel {\n        private _id: number;\n        public load(): void {\n            new api.ajax('ordGetLines', { ord_id: this._id }, null, (ret) => {\n                this.render(ret);\n            });\n        }\n        private render(ret: any): void {\n        }\n    }\n}\n",
+        "namespace orders {\n    export class orderPanel {\n        private _id: number;\n        public load(): void {\n            trim(this._id.toString());\n            new api.ajax('ordGetLines', { ord_id: this._id }, null, (ret) => {\n                this.render(ret);\n            });\n        }\n        private render(ret: any): void {\n        }\n    }\n}\n",
     )
     .unwrap();
     std::fs::write(
@@ -231,6 +231,18 @@ End Class
 ",
     )
     .unwrap();
+    // Cycle 36 (doc 11 padding): a type DECLARATION the extractor indexes as a
+    // function — live r53 cited jquery.d.ts's trim as a "callee". A call into
+    // a declaration is not a served implementation.
+    std::fs::create_dir_all(root.join("Site/Q/typings")).unwrap();
+    std::fs::write(
+        root.join("Site/Q/typings/jquery.d.ts"),
+        "interface JQueryStatic {
+    trim(str: string): string;
+}
+",
+    )
+    .unwrap();
     // Enough chunks about "server api functions" and "order panel" to fill the
     // evidence cap on their own.
     for i in 0..30 {
@@ -311,6 +323,17 @@ async fn what_a_named_ts_file_calls_reaches_the_vb_implementation_through_the_na
     assert!(
         ps.iter().any(|p| p.ends_with("orderpanel.ts")),
         "the asked file itself must be cited; got {ps:?}"
+    );
+    // Cycle 36 (doc 11): padding classes never reach the evidence — a .d.ts
+    // declaration is not a callee answer, and Engram's own index report is
+    // meta, not project knowledge.
+    assert!(
+        !ps.iter().any(|p| p.ends_with(".d.ts")),
+        "a type declaration must not be cited as a callee; got {ps:?}"
+    );
+    assert!(
+        !ps.iter().any(|p| p.starts_with("memory_bank:engram/")),
+        "engram's own system sections must not pad a code answer; got {ps:?}"
     );
 }
 
