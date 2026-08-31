@@ -342,3 +342,87 @@ pub fn compound_join_pick(words: &[&str], stems: &[String]) -> Option<usize> {
     let (_, stem) = best?;
     stems.iter().position(|s| *s == stem)
 }
+
+/// Item 8, cycle 32 (owner-approved): "marker info window" is honestly
+/// ambiguous across the five *MarkerInfowindow files — one FAMILY. No entity
+/// is minted (that would be a wrong guess or an ambiguity status), but a hop
+/// from each family member is direct evidence, so the family seeds the
+/// callee hop. Returns project-relative paths, source extensions preferred,
+/// one per stem; empty when a unique compound exists (the entity path) or
+/// when nothing family-shaped matches.
+pub fn compound_family_seeds(graph: &GraphStore, project_id: &str, question: &str) -> Vec<String> {
+    let words: Vec<&str> = question
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|w| w.len() >= 3 && w.chars().all(|c| c.is_ascii_lowercase()))
+        .collect();
+    if words.len() < 3 {
+        return Vec::new();
+    }
+    let Ok(files) = graph.query_nodes(project_id, Some("file"), None, None, usize::MAX) else {
+        return Vec::new();
+    };
+    let stems: Vec<(String, &Node)> = files
+        .iter()
+        .map(|n| {
+            let p = n.file_path.as_str().replace('\\', "/").to_lowercase();
+            (
+                p.rsplit('/')
+                    .next()
+                    .unwrap_or("")
+                    .split('.')
+                    .next()
+                    .unwrap_or("")
+                    .to_string(),
+                n,
+            )
+        })
+        .collect();
+    let stem_names: Vec<String> = stems.iter().map(|(s, _)| s.clone()).collect();
+    if compound_join_pick(&words, &stem_names).is_some() {
+        return Vec::new();
+    }
+    let mut best: Option<(usize, Vec<String>)> = None;
+    for chunk in words.windows(3) {
+        let join = chunk.concat();
+        if join.len() < 8 {
+            continue;
+        }
+        let mut matching: Vec<String> = stem_names
+            .iter()
+            .filter(|s| s.starts_with(&join) || s.ends_with(&join))
+            .cloned()
+            .collect();
+        matching.sort_unstable();
+        matching.dedup();
+        if (2..=4).contains(&matching.len()) && best.as_ref().is_none_or(|(l, _)| join.len() > *l) {
+            best = Some((join.len(), matching));
+        }
+    }
+    let Some((_, family)) = best else {
+        return Vec::new();
+    };
+    let rank = |n: &Node| -> u8 {
+        let p = n.file_path.as_str().to_lowercase();
+        if p.ends_with(".designer.vb") {
+            4
+        } else if p.ends_with(".ts") || p.ends_with(".tsx") || p.ends_with(".vb") {
+            0
+        } else if p.ends_with(".js") || p.ends_with(".jsx") {
+            3
+        } else {
+            1
+        }
+    };
+    let mut out = Vec::new();
+    for stem in &family {
+        if let Some(n) = stems
+            .iter()
+            .filter(|(s, _)| s == stem)
+            .map(|(_, n)| *n)
+            .min_by_key(|n| rank(n))
+        {
+            out.push(n.file_path.as_str().replace('\\', "/"));
+        }
+    }
+    out
+}
