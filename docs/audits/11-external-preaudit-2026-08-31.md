@@ -180,3 +180,12 @@ wrong-file: typings/config among them) — cycle 38's search-arm exclusion is
 the direct lever. OWNER 2026-08-31: floor HELD at 14; r54/r55 stay GATE FAIL
 in this log; r56 lands next. Evidence: causal_r55.*, golden_v3_r55.json,
 holdout_*_r55.json, verify_r55.log.
+
+**r56 (cycle 38 search-arm declaration/config exclusion, commit 013ff11):**
+FLOORS RESTORED — causal 14/20 GATE PASS (the typings removal lifted the flap
+row), golden 15/35 GATE PASS, Health OK, ranks 6/6 ×2. Held-out unchanged
+(3/11, 1/5). P0-3 watch-item CORRECTED: api-redovisning.vb never carried the
+cochange signal — the candidate pool jitters 159–166 per reindex and the file
+oscillates pos 26→31→32→27 around the top-30 line; a borderline-robustness
+item, not a signal regression. Evidence: causal_r56.*, golden_v3_r56.json,
+holdout_*_r56.json, verify_r56.log.
