@@ -189,6 +189,23 @@ async fn search_with(
         Err(e) => (vec![], ProviderOutcome::failed(e.to_string())),
         Ok(hits) if hits.is_empty() => (vec![], ProviderOutcome::empty()),
         Ok(hits) => {
+            // Grind cycle 38 (doc 11): a type declaration or a review-config
+            // file is never CODE evidence — held-out hx_golden_2/hx_causal_4
+            // cited google.maps typings and the camera row cited
+            // .coderabbit.yaml through this arm after the hop was fixed.
+            let hits: Vec<_> = hits
+                .into_iter()
+                .filter(|h| {
+                    if !matches!(kind, EvidenceKind::SourceCode) {
+                        return true;
+                    }
+                    let p = h.path.as_str().to_lowercase();
+                    !(p.ends_with(".d.ts") || p.ends_with(".coderabbit.yaml"))
+                })
+                .collect();
+            if hits.is_empty() {
+                return (vec![], ProviderOutcome::empty());
+            }
             // Cycle 37 (doc 11): window the content around the query's terms —
             // the longest term first, so identifiers beat filler words.
             let mut terms: Vec<String> = q

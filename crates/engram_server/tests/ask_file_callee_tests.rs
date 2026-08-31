@@ -254,6 +254,14 @@ End Class
         ),
     )
     .unwrap();
+    // Cycle 38 (doc 11 padding, search-arm leg): a DECLARATION file whose text
+    // matches the question's words — the search arms cited such chunks live
+    // (held-out hx_golden_2: google.maps typings) after the hop was fixed.
+    std::fs::write(
+        root.join("Site/Q/typings/serverapideclarations.d.ts"),
+        "// declarations for the order panel server api functions surface\ninterface OrderPanelServerApiFunctions {\n    call(name: string): void;\n}\n",
+    )
+    .unwrap();
     // Enough chunks about "server api functions" and "order panel" to fill the
     // evidence cap on their own.
     for i in 0..30 {
