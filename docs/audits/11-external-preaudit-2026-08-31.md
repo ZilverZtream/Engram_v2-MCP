@@ -199,3 +199,14 @@ bug_2 — 1–3 relevant of 10 items) and right-file-wrong-chunk retrieval
 ABSTAINS with its padding gone. NEW OWNER CADENCE from here: batched fixes
 per release; wipe+reindex only for index-affecting changes. Evidence:
 causal_r57.*, golden_v3_r57.json, holdout_*_r57.json, verify_r57.log.
+
+**r58 (batch 1: lookup-cap 2169d4f + corpus token widening; FIRST no-repair
+verify under the new cadence):** FLAT — golden 19/35 PASS (identical row set),
+causal 14/20 PASS, Health OK on the un-wiped index, ranks 6/6 ×2 (pool 174).
+Honest diagnosis: the widened tokens TOOK (multi_4 and rationale_2 moved
+0.10→0.30 — one relevant item short of 0.34), but lookup_cap NEVER ENGAGED
+live — every exact row still carries 10 items, so the real plans are not
+"one clear entity" the way the unit fixture models (multi-word mentions
+resolve ambiguously or mint several mentions). Batch 2 corrects the
+engagement condition from live plan evidence. The no-repair verify cut the
+cycle by ~6 min and lost nothing.
