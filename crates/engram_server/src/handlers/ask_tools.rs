@@ -192,13 +192,15 @@ impl Engram {
         // Round-2 audit P0-4: the requested modality survives the cap.
         let raw_pool = raw.clone();
         // Batch 1 Fix A (doc 11 grind): lookup-shaped questions answer small.
-        let mut evidence = ranking::rank_and_select(
-            raw,
-            ranking::lookup_cap(&plan.entities, &plan.intents, depth),
-        );
+        let lcap = ranking::lookup_cap(&plan.entities, &plan.intents, depth);
+        let mut evidence = ranking::rank_and_select(raw, lcap);
         // P0-4e: one reserve pass — modality, needed kind, named file — with
         // protected eviction (no reserve evicts another reserve's item).
         ranking::reserve_required(&mut evidence, &raw_pool, &plan, &req.question);
+        // Batch 3: under the lookup cap, one item per file.
+        if lcap < depth.evidence_cap() {
+            ranking::retain_one_per_path(&mut evidence);
+        }
         let conflicts = ranking::detect_conflicts(&evidence, gen_);
         let snapshot = status::build_snapshot(
             &ctx,

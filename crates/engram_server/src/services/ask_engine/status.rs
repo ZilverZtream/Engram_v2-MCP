@@ -335,6 +335,16 @@ pub fn assess_status(
     // a session key named after it — golden `ox_exact_5`) is one thing, not
     // two branches.
     if plan.entities.iter().any(|e| {
+        // Batch 3 (doc 11, live r59): a speculative-SHAPED mention — bare
+        // lowercase/digits, no separators ("installation") — is a stem GUESS.
+        // It may help when it resolves uniquely; it never vetoes the answer.
+        if !e.text.is_empty()
+            && e.text
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+        {
+            return false;
+        }
         let mut by_kind: std::collections::BTreeMap<String, std::collections::BTreeSet<String>> =
             std::collections::BTreeMap::new();
         for r in &e.resolved {

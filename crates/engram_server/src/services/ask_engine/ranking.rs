@@ -370,6 +370,16 @@ pub fn lookup_cap(
     }
 }
 
+/// Batch 3 (doc 11, live r59 exact_6): a lookup answer never spends two of
+/// its five slots on the same file — first (highest-ranked) item per path wins.
+pub fn retain_one_per_path(items: &mut Vec<EvidenceItem>) {
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    items.retain(|it| match &it.path {
+        Some(p) => seen.insert(p.to_lowercase()),
+        None => true,
+    });
+}
+
 pub fn rank_and_select(items: Vec<EvidenceItem>, cap: usize) -> Vec<EvidenceItem> {
     let now_ms = crate::utils::now_ms();
     let mut items = dedup(items);

@@ -77,6 +77,41 @@ fn a_long_lowercase_file_stem_word_is_minted_as_a_mention() {
 }
 
 #[test]
+fn one_item_per_path_after_the_lookup_trim() {
+    // Live r59 exact_6: 2/5 relevant with a same-file pair filling two slots.
+    use engram_server::services::ask_engine::evidence as ev;
+    let mk = |id: &str, path: &str| ev::EvidenceItem {
+        evidence_id: id.to_string(),
+        kind: ev::EvidenceKind::SourceCode,
+        authority: ev::Authority::CurrentCode,
+        path: Some(path.to_string()),
+        lines: None,
+        symbol_id: None,
+        title: None,
+        content: String::new(),
+        generation: None,
+        commit: None,
+        timestamp: None,
+        confidence: 0.8,
+        relevance: 0.5,
+        extraction_method: "t".into(),
+        warnings: vec![],
+        provider: "t".into(),
+        score: Some(0.5),
+        directness: Some(0.5),
+    };
+    let mut items = vec![mk("a", "x.vb"), mk("b", "x.vb"), mk("c", "y.vb")];
+    ranking::retain_one_per_path(&mut items);
+    assert_eq!(
+        items
+            .iter()
+            .map(|i| i.evidence_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["a", "c"]
+    );
+}
+
+#[test]
 fn an_unresolved_question_keeps_the_full_cap() {
     let ents = vec![EntityMention {
         text: "mystery".into(),
