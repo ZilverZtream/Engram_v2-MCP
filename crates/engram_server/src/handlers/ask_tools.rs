@@ -194,17 +194,9 @@ impl Engram {
         // Batch 1 Fix A (doc 11 grind): lookup-shaped questions answer small.
         let lcap = ranking::lookup_cap(&plan.entities, &plan.intents, depth);
         // Batch 4: the ranker sees the asked terms — co-occurrence beats swarms.
-        let terms: Vec<String> = {
-            let mut t: Vec<String> = plan
-                .entities
-                .iter()
-                .map(|e| e.text.to_lowercase())
-                .filter(|t| t.len() >= 3)
-                .collect();
-            t.sort();
-            t.dedup();
-            t
-        };
+        // Batch 5: RESOLVED mentions only — a junk mention must not flip the
+        // co-occurrence switch (live r61: "data-access" cost exact_2/exact_5).
+        let terms = ranking::cooccurrence_terms(&plan.entities);
         let mut evidence = ranking::rank_and_select_with_terms(raw, lcap, &terms);
         // P0-4e: one reserve pass — modality, needed kind, named file — with
         // protected eviction (no reserve evicts another reserve's item).

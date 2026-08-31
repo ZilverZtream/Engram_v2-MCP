@@ -433,6 +433,22 @@ pub fn retain_one_per_path(
     });
 }
 
+/// Batch 5 (doc 11, live r61): the co-occurrence term list is built from
+/// RESOLVED mentions only — an unresolved junk mention ("data-access",
+/// resolved to []) must not flip the ranker into co-occurrence mode and
+/// hand the direct-evidence boost to chunks containing the junk word.
+pub fn cooccurrence_terms(entities: &[super::plan::EntityMention]) -> Vec<String> {
+    let mut t: Vec<String> = entities
+        .iter()
+        .filter(|e| !e.resolved.is_empty())
+        .map(|e| e.text.to_lowercase())
+        .filter(|t| t.len() >= 3)
+        .collect();
+    t.sort();
+    t.dedup();
+    t
+}
+
 pub fn rank_and_select(items: Vec<EvidenceItem>, cap: usize) -> Vec<EvidenceItem> {
     rank_and_select_with_terms(items, cap, &[])
 }
