@@ -119,6 +119,8 @@ End Class
             new api.ajax('ordGetNoiseD', { o: this._id }, null, null);
             new api.ajax('ordGetNoiseE', { o: this._id }, null, null);
             new api.ajax('ordGetNoiseF', { o: this._id }, null, null);
+            new api.ajax('ordGetAvailableImages', { o: this._id }, null, null);
+            new api.ajax('ordGetPanelInfo', { o: this._id }, null, null);
             new api.ajax().getImage('ata', this._id, 'Img.1');
         }
     }
@@ -176,6 +178,27 @@ End Class
         ("ordGetNoiseD", "api-noised.vb"),
         ("ordGetNoiseE", "api-noisee.vb"),
         ("ordGetNoiseF", "api-noisef.vb"),
+    ] {
+        std::fs::write(
+            root.join(format!("Site/App_Code/orders/api-json/{file}")),
+            format!(
+                "Partial Class api
+    Public Shared Function {name}(ByVal qry As JSONqry) As JSONreturn
+        Return Nothing
+    End Function
+End Class
+"
+            ),
+        )
+        .unwrap();
+    }
+    // Cycle 35 RED (live r51): CUE-HIT routes met BEFORE the wrapper edge —
+    // their names carry the question's words ("images", "panel", "info") so
+    // they seat the v2 reserved slots and the provider returns at cap without
+    // ever iterating the getImage edge. Ranking, not reservation, must decide.
+    for (name, file) in [
+        ("ordGetAvailableImages", "api-availimages.vb"),
+        ("ordGetPanelInfo", "api-panelinfo.vb"),
     ] {
         std::fs::write(
             root.join(format!("Site/App_Code/orders/api-json/{file}")),

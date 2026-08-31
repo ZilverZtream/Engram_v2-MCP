@@ -668,11 +668,13 @@ pub fn callee_evidence(
     } else {
         max_items.max(6)
     };
-    // Live r50: the family hop's six slots filled with direct route targets
-    // before the wrapper continuation could emit api-images.vb — the question
-    // said "images" and nothing listened. The cap's last two slots belong to
-    // CUE-HIT items (callee name or file BASENAME carrying a question word).
-    let mut non_cue = 0usize;
+    // Cycle 35 (owner: collect-and-rank; pre-audit doc 11 item 4): the walk
+    // COLLECTS candidates and a rank decides what fills the cap — streaming
+    // first-come order starved the wrapper continuation live (r51: Visible's
+    // getImage edge sat beyond slot six while earlier cue hits took the v2
+    // reserved slots). bucket 0 = cue-hit wrapper implementation, 1 = cue
+    // hit, 2 = the rest; stable by discovery within a bucket.
+    let mut cands: Vec<(u8, EvidenceItem, String)> = Vec::new();
     for seed in seed_paths.iter().take(4) {
         let seed_norm = seed.replace('\\', "/");
         // Item 8: a hop from the file the question NAMES ("which server API
@@ -731,13 +733,6 @@ pub fn callee_evidence(
                     if !hit || seed_set.contains(&path_l) {
                         continue;
                     }
-                    // A non-cue direct callee may not take one of the reserved
-                    // slots — but its WRAPPER continuation below still runs
-                    // (that is where the served implementation lives).
-                    let direct_suppressed = !cue_hit && non_cue >= cap.saturating_sub(2);
-                    if !direct_suppressed && !files_cited.insert(path_l.clone()) {
-                        continue;
-                    }
                     let some = Some(n.clone());
                     let (path, lines, name, gen_) = node_fields(&some, &target);
                     let mut content = format!(
@@ -757,11 +752,9 @@ pub fn callee_evidence(
                         content.push_str(&body);
                     }
                     let wrapper_name = name.clone();
-                    if !direct_suppressed {
-                        if !cue_hit {
-                            non_cue += 1;
-                        }
-                        out.push(graph_relation_item(
+                    cands.push((
+                        if cue_hit { 1 } else { 2 },
+                        graph_relation_item(
                             "callee",
                             target.clone(),
                             path,
@@ -773,11 +766,9 @@ pub fn callee_evidence(
                             if is_named { 0.85 } else { 0.6 },
                             Authority::CurrentCode,
                             id,
-                        ));
-                        if out.len() >= cap {
-                            return out;
-                        }
-                    }
+                        ),
+                        path_l.clone(),
+                    ));
                     // Item 8 (golden ox_multi_4): a script callee that is
                     // itself an API WRAPPER — `api.ajax().getImage` holds the
                     // route edge to `/api.asmx/getimg` — carries the call one
@@ -798,7 +789,7 @@ pub fn callee_evidence(
                                 continue;
                             }
                             let wpath = w.file_path.as_str().replace('\\', "/").to_lowercase();
-                            if seed_set.contains(&wpath) || !files_cited.insert(wpath.clone()) {
+                            if seed_set.contains(&wpath) {
                                 continue;
                             }
                             let wsome = Some(w.clone());
@@ -824,33 +815,41 @@ pub fn callee_evidence(
                                 wname.to_lowercase().contains(c.as_str())
                                     || wbase.contains(c.as_str())
                             });
-                            if !wcue {
-                                if non_cue >= cap.saturating_sub(2) {
-                                    continue;
-                                }
-                                non_cue += 1;
-                            }
-                            out.push(graph_relation_item(
-                                "callee",
-                                impl_id.clone(),
-                                wp,
-                                wl,
-                                wname,
-                                wcontent,
-                                wgen,
-                                w2.max(8),
-                                if is_named { 0.85 } else { 0.6 },
-                                Authority::CurrentCode,
-                                id,
+                            cands.push((
+                                if wcue { 0 } else { 2 },
+                                graph_relation_item(
+                                    "callee",
+                                    impl_id.clone(),
+                                    wp,
+                                    wl,
+                                    wname,
+                                    wcontent,
+                                    wgen,
+                                    w2.max(8),
+                                    if is_named { 0.85 } else { 0.6 },
+                                    Authority::CurrentCode,
+                                    id,
+                                ),
+                                wpath.clone(),
                             ));
-                            if out.len() >= cap {
-                                return out;
-                            }
                         }
                     }
                 }
             }
         }
+    }
+    // Rank: cue-hit wrapper implementations, then cue hits, then the rest —
+    // stable by discovery order — one item per defining file, cap slots.
+    let mut order: Vec<usize> = (0..cands.len()).collect();
+    order.sort_by_key(|&i| (cands[i].0, i));
+    for i in order {
+        if out.len() >= cap {
+            break;
+        }
+        if !files_cited.insert(cands[i].2.clone()) {
+            continue;
+        }
+        out.push(cands[i].1.clone());
     }
     out
 }
