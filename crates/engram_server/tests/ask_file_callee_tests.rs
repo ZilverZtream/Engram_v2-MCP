@@ -440,6 +440,29 @@ async fn a_compound_name_reaches_the_implementation_through_the_wrapper_route() 
 }
 
 #[tokio::test]
+async fn a_where_defined_lookup_answers_small_and_anchored() {
+    // Batch 4 wiring guard (live r60 exact_3): "Where is X defined?" engages
+    // the lookup cap (no breadth Usage) and every slot mentions the entity.
+    let (_tmp, engram, pid) = build().await;
+    let v = ask(&engram, &pid, "Where is PaddedSettings defined?").await;
+    let st = v["status"].as_str().unwrap_or("");
+    assert!(
+        st == "answered" || st == "partial",
+        "where-defined on a real file must answer, got {st}: {v}"
+    );
+    let ev = v["evidence"].as_array().cloned().unwrap_or_default();
+    assert!(
+        !ev.is_empty() && ev.len() <= 5,
+        "lookup cap must engage: {} items",
+        ev.len()
+    );
+    for it in &ev {
+        let hay = it.to_string().to_lowercase();
+        assert!(hay.contains("paddedsettings"), "unanchored slot: {it}");
+    }
+}
+
+#[tokio::test]
 async fn a_speculative_word_with_twin_files_is_not_ambiguous() {
     // Live r59: batch 2's long-stem minting minted "installation" (bare
     // lowercase), it resolved to four files, and the answer flipped to
