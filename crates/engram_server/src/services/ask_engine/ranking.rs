@@ -231,7 +231,7 @@ pub fn reserve_required(
     raw: &[EvidenceItem],
     plan: &QueryPlan,
     question: &str,
-) {
+) -> std::collections::HashSet<String> {
     let files: Vec<String> = plan
         .entities
         .iter()
@@ -247,7 +247,7 @@ pub fn reserve_required(
         &plan.modalities,
         &files,
         question,
-    );
+    )
 }
 
 pub fn reserve_required_with(
@@ -257,7 +257,7 @@ pub fn reserve_required_with(
     modalities: &[Modality],
     entity_files: &[String],
     question: &str,
-) {
+) -> std::collections::HashSet<String> {
     let words = question_words(question);
     let mut wanted: Vec<EvidenceItem> = Vec::new();
     let has =
@@ -337,6 +337,7 @@ pub fn reserve_required_with(
         protected.insert(w.evidence_id.clone());
         chosen.push(w);
     }
+    protected
 }
 
 /// Batch 1 Fix A (doc 11 grind): a LOOKUP-shaped question — exactly one
@@ -370,17 +371,82 @@ pub fn lookup_cap(
     }
 }
 
+/// Batch 4 (doc 11, live r60 exact_3): under an ENGAGED lookup cap, a slot
+/// belongs to evidence that actually mentions the asked entity (its text or
+/// a resolved canonical); entity-seeded relation evidence and items the
+/// reserve pass protects are exempt. Fail-safe: never empties the answer.
+pub fn retain_entity_anchored(
+    items: &mut Vec<EvidenceItem>,
+    needles: &[String],
+    protected: &std::collections::HashSet<String>,
+) {
+    if needles.is_empty() || items.is_empty() {
+        return;
+    }
+    let keep: Vec<bool> = items
+        .iter()
+        .map(|it| {
+            let hay = format!(
+                "{} {} {}",
+                it.path.as_deref().unwrap_or(""),
+                it.title.as_deref().unwrap_or(""),
+                it.content
+            )
+            .to_lowercase();
+            // Batch 4c: entity-SEEDED relation evidence (the callee/graph
+            // arms hop from the asked entity) is about the entity by
+            // construction — its text may never repeat the name.
+            protected.contains(&it.evidence_id)
+                || matches!(it.kind, EvidenceKind::GraphRelation)
+                || needles.iter().any(|n| hay.contains(n.as_str()))
+        })
+        .collect();
+    if !keep.iter().any(|k| *k) {
+        return;
+    }
+    let mut i = 0;
+    items.retain(|_| {
+        let k = keep[i];
+        i += 1;
+        k
+    });
+}
+
 /// Batch 3 (doc 11, live r59 exact_6): a lookup answer never spends two of
 /// its five slots on the same file — first (highest-ranked) item per path wins.
-pub fn retain_one_per_path(items: &mut Vec<EvidenceItem>) {
+pub fn retain_one_per_path(
+    items: &mut Vec<EvidenceItem>,
+    protected: &std::collections::HashSet<String>,
+) {
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
-    items.retain(|it| match &it.path {
-        Some(p) => seen.insert(p.to_lowercase()),
-        None => true,
+    items.retain(|it| {
+        if protected.contains(&it.evidence_id) {
+            if let Some(p) = &it.path {
+                seen.insert(p.to_lowercase());
+            }
+            return true;
+        }
+        match &it.path {
+            Some(p) => seen.insert(p.to_lowercase()),
+            None => true,
+        }
     });
 }
 
 pub fn rank_and_select(items: Vec<EvidenceItem>, cap: usize) -> Vec<EvidenceItem> {
+    rank_and_select_with_terms(items, cap, &[])
+}
+
+/// Batch 4 (doc 11, live r60 usage_4): with two or more asked terms,
+/// corroboration rewards TERM CO-OCCURRENCE — an item exhibiting every
+/// asked term is direct evidence for the intersection — never the
+/// same-subject swarm (five foreign-key rows about one column co-boosted
+/// each other while the item containing both terms ranked ninth).
+pub fn rank_and_select_with_terms(
+    items: Vec<EvidenceItem>,
+    cap: usize,
+    terms: &[String],
+) -> Vec<EvidenceItem> {
     let now_ms = crate::utils::now_ms();
     let mut items = dedup(items);
 
@@ -396,9 +462,24 @@ pub fn rank_and_select(items: Vec<EvidenceItem>, cap: usize) -> Vec<EvidenceItem
         // fall back to the kind default when the provider left it unset. Without
         // this, a co-change companion (kind GraphRelation) would be scored as a
         // direct 0.9 relation and outrank real dependency edges.
-        let d = it.directness.unwrap_or_else(|| default_directness(it));
-        let corro = ((counts.get(&subject_key(it)).copied().unwrap_or(1) as f32 - 1.0) / 3.0)
-            .clamp(0.0, 1.0);
+        let mut d = it.directness.unwrap_or_else(|| default_directness(it));
+        let corro = if terms.len() >= 2 {
+            let hay = format!(
+                "{} {} {}",
+                it.path.as_deref().unwrap_or(""),
+                it.title.as_deref().unwrap_or(""),
+                it.content
+            )
+            .to_lowercase();
+            let present = terms.iter().filter(|t| hay.contains(t.as_str())).count();
+            if present == terms.len() {
+                d = d.max(0.9);
+            }
+            (present.saturating_sub(1) as f32 / (terms.len() - 1) as f32).clamp(0.0, 1.0)
+        } else {
+            ((counts.get(&subject_key(it)).copied().unwrap_or(1) as f32 - 1.0) / 3.0)
+                .clamp(0.0, 1.0)
+        };
         it.directness = Some(d);
         it.score = Some(score(it, d, corro, now_ms));
     }

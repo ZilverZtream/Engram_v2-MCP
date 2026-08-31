@@ -193,13 +193,54 @@ impl Engram {
         let raw_pool = raw.clone();
         // Batch 1 Fix A (doc 11 grind): lookup-shaped questions answer small.
         let lcap = ranking::lookup_cap(&plan.entities, &plan.intents, depth);
-        let mut evidence = ranking::rank_and_select(raw, lcap);
+        // Batch 4: the ranker sees the asked terms — co-occurrence beats swarms.
+        let terms: Vec<String> = {
+            let mut t: Vec<String> = plan
+                .entities
+                .iter()
+                .map(|e| e.text.to_lowercase())
+                .filter(|t| t.len() >= 3)
+                .collect();
+            t.sort();
+            t.dedup();
+            t
+        };
+        let mut evidence = ranking::rank_and_select_with_terms(raw, lcap, &terms);
         // P0-4e: one reserve pass — modality, needed kind, named file — with
         // protected eviction (no reserve evicts another reserve's item).
-        ranking::reserve_required(&mut evidence, &raw_pool, &plan, &req.question);
+        // Batch 4e: the reserve's guarantees are VISIBLE to the trims — a
+        // protected item is never anchored-evicted nor per-path-collapsed
+        // (sweep 71: trim-after-reserve evicted the reserved .rdl item;
+        // c43d: reserve-after-trim evicted the trim-approved asked file).
+        let protected = ranking::reserve_required(&mut evidence, &raw_pool, &plan, &req.question);
         // Batch 3: under the lookup cap, one item per file.
+        // Batch 4: and each slot must mention the asked entity (fail-safe).
         if lcap < depth.evidence_cap() {
-            ranking::retain_one_per_path(&mut evidence);
+            let mut needles: Vec<String> = plan
+                .entities
+                .iter()
+                .flat_map(|e| {
+                    e.resolved
+                        .iter()
+                        .map(|r| r.canonical.to_lowercase())
+                        .chain(std::iter::once(e.text.to_lowercase()))
+                })
+                .filter(|s| s.len() >= 3)
+                .collect();
+            // Batch 4b: a filename-like needle also anchors by its STEM —
+            // callee evidence names "orderpanel.fetchOrders", never the
+            // ".ts" form of the asked file.
+            let stems: Vec<String> = needles
+                .iter()
+                .filter_map(|n| {
+                    let base = n.rsplit(['/', '\\']).next().unwrap_or(n);
+                    let stem = base.split('.').next().unwrap_or(base);
+                    (stem.len() >= 3 && stem != base).then(|| stem.to_string())
+                })
+                .collect();
+            needles.extend(stems);
+            ranking::retain_entity_anchored(&mut evidence, &needles, &protected);
+            ranking::retain_one_per_path(&mut evidence, &protected);
         }
         let conflicts = ranking::detect_conflicts(&evidence, gen_);
         let snapshot = status::build_snapshot(

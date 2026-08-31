@@ -23,6 +23,183 @@ fn entity(canonical: &str) -> EntityMention {
 }
 
 #[test]
+fn a_where_defined_question_is_not_a_breadth_usage() {
+    // Live r60 exact_3: "Where is CanUserBulkUpdate defined?" fired
+    // Usage(0.8) from the bare "where is" cue and blocked the lookup cap —
+    // a where-DEFINED question asks for a location, not for callers.
+    let plan = engram_server::services::ask_engine::planner::plan_query(
+        "Where is CanUserBulkUpdate defined?",
+    );
+    assert!(
+        !plan.intents.iter().any(|(i, _)| matches!(i, Intent::Usage)),
+        "where-defined must not classify as breadth Usage: {:?}",
+        plan.intents
+    );
+}
+
+#[test]
+fn the_item_with_every_asked_term_outranks_a_single_term_swarm() {
+    // Live r60 usage_4: five single-term FK rows filled the slots while the
+    // one item exhibiting BOTH asked terms ranked ninth — corroboration
+    // rewarded the swarm, not the intersection.
+    use engram_server::services::ask_engine::evidence as ev;
+    let mk = |id: &str, content: &str, relevance: f32, directness: f32| ev::EvidenceItem {
+        evidence_id: id.to_string(),
+        kind: ev::EvidenceKind::SourceCode,
+        authority: ev::Authority::CurrentCode,
+        path: Some(format!("{id}.vb")),
+        lines: None,
+        symbol_id: None,
+        title: None,
+        content: content.to_string(),
+        generation: None,
+        commit: None,
+        timestamp: None,
+        confidence: 0.8,
+        relevance,
+        extraction_method: "t".into(),
+        warnings: vec![],
+        provider: "t".into(),
+        score: None,
+        directness: Some(directness),
+    };
+    let items = vec![
+        mk("y1", "foreign_key pr_id", 0.65, 0.85),
+        mk("y2", "foreign_key pr_id", 0.65, 0.85),
+        mk("y3", "foreign_key pr_id", 0.65, 0.85),
+        mk(
+            "x",
+            "pr_id = GetDictionaryIntegerValue(qry.params)",
+            0.0,
+            0.7,
+        ),
+    ];
+    let terms = vec!["getdictionaryintegervalue".to_string(), "pr_id".to_string()];
+    let out = ranking::rank_and_select_with_terms(items, 3, &terms);
+    assert_eq!(
+        out[0].evidence_id, "x",
+        "the all-terms item must rank first"
+    );
+}
+
+#[test]
+fn anchored_retain_keeps_only_items_that_mention_the_entity() {
+    // Live r60 exact_3: under an engaged lookup cap, concept fillers that
+    // never mention the asked entity spent three of five slots.
+    use engram_server::services::ask_engine::evidence as ev;
+    let mk = |id: &str, path: &str, content: &str| ev::EvidenceItem {
+        evidence_id: id.to_string(),
+        kind: ev::EvidenceKind::SourceCode,
+        authority: ev::Authority::CurrentCode,
+        path: Some(path.to_string()),
+        lines: None,
+        symbol_id: None,
+        title: None,
+        content: content.to_string(),
+        generation: None,
+        commit: None,
+        timestamp: None,
+        confidence: 0.8,
+        relevance: 0.5,
+        extraction_method: "t".into(),
+        warnings: vec![],
+        provider: "t".into(),
+        score: Some(0.5),
+        directness: Some(0.5),
+    };
+    let mut items = vec![
+        mk(
+            "a",
+            "api-x.vb",
+            "private shared function canuserbulkupdate()",
+        ),
+        mk("b", "junk1.vb", "unrelated concept"),
+        mk("c", "junk2.vb", "another filler"),
+    ];
+    ranking::retain_entity_anchored(
+        &mut items,
+        &["canuserbulkupdate".to_string()],
+        &Default::default(),
+    );
+    assert_eq!(items.len(), 1);
+    assert_eq!(items[0].evidence_id, "a");
+    // Fail-safe: a needle that matches nothing must not empty the answer.
+    let mut all_junk = vec![mk("d", "junk3.vb", "still unrelated")];
+    ranking::retain_entity_anchored(&mut all_junk, &["zzz".to_string()], &Default::default());
+    assert_eq!(all_junk.len(), 1);
+    // Batch 4c: a graph-relation item (entity-seeded hop) survives even
+    // when its text never repeats the entity's name.
+    let mut rel = vec![
+        mk(
+            "a",
+            "api-x.vb",
+            "private shared function canuserbulkupdate()",
+        ),
+        {
+            let mut r = mk("r", "api-orders.vb", "calls GetOrderLines");
+            r.kind = ev::EvidenceKind::GraphRelation;
+            r
+        },
+        mk("e", "junk4.vb", "filler"),
+    ];
+    ranking::retain_entity_anchored(
+        &mut rel,
+        &["canuserbulkupdate".to_string()],
+        &Default::default(),
+    );
+    assert_eq!(
+        rel.iter()
+            .map(|i| i.evidence_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["a", "r"]
+    );
+}
+
+#[test]
+fn a_reserve_protected_item_survives_the_trims() {
+    // Sweep 71 / chain c43d: whichever order reserve and the trims ran in,
+    // one side's guarantee was destroyed. The reserve's protected id-set is
+    // now visible to both trims.
+    use engram_server::services::ask_engine::evidence as ev;
+    let mk = |id: &str, path: &str, content: &str| ev::EvidenceItem {
+        evidence_id: id.to_string(),
+        kind: ev::EvidenceKind::SourceCode,
+        authority: ev::Authority::CurrentCode,
+        path: Some(path.to_string()),
+        lines: None,
+        symbol_id: None,
+        title: None,
+        content: content.to_string(),
+        generation: None,
+        commit: None,
+        timestamp: None,
+        confidence: 0.8,
+        relevance: 0.5,
+        extraction_method: "t".into(),
+        warnings: vec![],
+        provider: "t".into(),
+        score: Some(0.5),
+        directness: Some(0.5),
+    };
+    let mut protected = std::collections::HashSet::new();
+    protected.insert("rdl".to_string());
+    let mut items = vec![
+        mk("a", "api-x.vb", "canuserbulkupdate here"),
+        mk("rdl", "report.rdl", "no needle text at all"),
+    ];
+    ranking::retain_entity_anchored(&mut items, &["canuserbulkupdate".to_string()], &protected);
+    assert_eq!(items.len(), 2, "protected item must survive anchoring");
+    let mut dup = vec![mk("a", "x.vb", "one"), mk("b", "x.vb", "two")];
+    let mut prot2 = std::collections::HashSet::new();
+    prot2.insert("b".to_string());
+    ranking::retain_one_per_path(&mut dup, &prot2);
+    assert!(
+        dup.iter().any(|i| i.evidence_id == "b"),
+        "protected survives the per-path collapse"
+    );
+}
+
+#[test]
 fn a_single_entity_lookup_gets_a_small_cap() {
     let ents = vec![entity("Site/a.vb")];
     let intents = vec![(Intent::Explain, 0.6f32)];
@@ -101,7 +278,7 @@ fn one_item_per_path_after_the_lookup_trim() {
         directness: Some(0.5),
     };
     let mut items = vec![mk("a", "x.vb"), mk("b", "x.vb"), mk("c", "y.vb")];
-    ranking::retain_one_per_path(&mut items);
+    ranking::retain_one_per_path(&mut items, &Default::default());
     assert_eq!(
         items
             .iter()

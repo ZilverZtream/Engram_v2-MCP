@@ -68,6 +68,14 @@ pub fn plan_query(question: &str) -> QueryPlan {
     }
 
     // ── Usage ──
+    // Batch 4 (doc 11, live r60 exact_3): "where is X DEFINED/declared?"
+    // asks for a location, not for callers — the bare "where is" cue must
+    // not classify it as breadth Usage (which blocks the lookup cap).
+    let where_defined =
+        (lower.contains("where is") || lower.contains("where are") || lower.contains("where's"))
+            && (lower.contains("defined")
+                || lower.contains("declared")
+                || lower.contains("definition"));
     for kw in [
         "where is",
         "where are",
@@ -98,6 +106,9 @@ pub fn plan_query(question: &str) -> QueryPlan {
         "clients of",
     ] {
         if lower.contains(kw) {
+            if where_defined && (kw == "where is" || kw == "where are") {
+                continue;
+            }
             add(Intent::Usage, 0.8, &mut intents);
         }
     }
