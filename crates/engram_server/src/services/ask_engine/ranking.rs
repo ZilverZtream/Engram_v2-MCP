@@ -339,6 +339,29 @@ pub fn reserve_required_with(
     }
 }
 
+/// Batch 1 Fix A (doc 11 grind): a LOOKUP-shaped question — exactly one
+/// mention, resolved unambiguously, with no Usage/Impact/History intent —
+/// answers in a handful of items. Live r57: exact-fact rows cited their one
+/// answer inside ten items (seven sibling DALs) and failed the 0.5 precision
+/// gate. Generic: keyed on plan shape, never on project content.
+pub fn lookup_cap(
+    entities: &[crate::services::ask_engine::plan::EntityMention],
+    intents: &[(crate::services::ask_engine::plan::Intent, f32)],
+    depth: crate::services::ask_engine::retrieval::Depth,
+) -> usize {
+    use crate::services::ask_engine::plan::Intent;
+    let full = depth.evidence_cap();
+    let breadth = intents
+        .iter()
+        .any(|(i, _)| matches!(i, Intent::Usage | Intent::Impact | Intent::History));
+    let one_clear = entities.len() == 1 && entities[0].resolved.len() == 1;
+    if one_clear && !breadth {
+        5.min(full)
+    } else {
+        full
+    }
+}
+
 pub fn rank_and_select(items: Vec<EvidenceItem>, cap: usize) -> Vec<EvidenceItem> {
     let now_ms = crate::utils::now_ms();
     let mut items = dedup(items);
