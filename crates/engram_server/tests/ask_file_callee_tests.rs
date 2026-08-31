@@ -243,6 +243,17 @@ End Class
 ",
     )
     .unwrap();
+    // Cycle 37 (doc 11 snippet window): the matched literal sits BEYOND the
+    // 1,200-char snippet head — live r53's ConfigSettings.vb:83 shape.
+    std::fs::create_dir_all(root.join("Site/App_Code/settings")).unwrap();
+    let pad = "the padded settings reader documentation sentence repeats itself here. ".repeat(20);
+    std::fs::write(
+        root.join("Site/App_Code/settings/PaddedSettings.vb"),
+        format!(
+            "Public Class PaddedSettings\n    ''' <summary>{pad}</summary>\n    Public Shared Function ReadTail() As String\n        Return ConfigurationManager.AppSettings.Item(\"fixture_padding_setting_xyz\")\n    End Function\nEnd Class\n"
+        ),
+    )
+    .unwrap();
     // Enough chunks about "server api functions" and "order panel" to fill the
     // evidence cap on their own.
     for i in 0..30 {
@@ -393,5 +404,31 @@ async fn a_compound_name_reaches_the_implementation_through_the_wrapper_route() 
     assert!(
         ps.iter().any(|p| p.ends_with("api-images.vb")),
         "the served implementation two hops away must be cited; got {ps:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_snippet_shows_the_matched_region_not_the_chunk_head() {
+    // Cycle 37 (doc 11): the evidence content must SHOW the region that
+    // matched — a truncated chunk head hides the fact from the judge and the
+    // reader alike (live r53: ConfigSettings.vb lines 71-84, literal on 83,
+    // snippet ended before it).
+    let (_tmp, engram, pid) = build().await;
+    let v = ask(
+        &engram,
+        &pid,
+        "Where is the fixture_padding_setting_xyz setting used?",
+    )
+    .await;
+    let ev = v["evidence"].as_array().cloned().unwrap_or_default();
+    assert!(
+        ev.iter().any(|e| e["content"]
+            .as_str()
+            .unwrap_or("")
+            .contains("fixture_padding_setting_xyz")),
+        "the matched literal must be visible in some item's content; paths: {:?}",
+        ev.iter()
+            .map(|e| e["path"].as_str().unwrap_or(""))
+            .collect::<Vec<_>>()
     );
 }

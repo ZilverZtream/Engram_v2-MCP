@@ -68,6 +68,25 @@ fn base_query(
     }
 }
 
+/// Grind cycle 37 (doc 11): a snippet centered on the first occurrence of the
+/// longest matching query term — live r53 cited ConfigSettings.vb lines 71-84
+/// with the setting on line 83 cut off by the head truncation. The head only
+/// when every hit already fits inside it.
+fn windowed_snippet(full: &str, terms: &[String]) -> String {
+    let lower = full.to_lowercase();
+    let hit = terms.iter().find_map(|t| lower.find(t.as_str()));
+    match hit {
+        Some(pos) if pos + 200 > SNIPPET_CHARS => {
+            let mut start = pos.saturating_sub(SNIPPET_CHARS / 4);
+            while start > 0 && !full.is_char_boundary(start) {
+                start -= 1;
+            }
+            format!("… {}", &full[start..])
+        }
+        _ => full.to_string(),
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn hit_to_evidence(
     h: &HybridHit,
@@ -170,15 +189,27 @@ async fn search_with(
         Err(e) => (vec![], ProviderOutcome::failed(e.to_string())),
         Ok(hits) if hits.is_empty() => (vec![], ProviderOutcome::empty()),
         Ok(hits) => {
+            // Cycle 37 (doc 11): window the content around the query's terms —
+            // the longest term first, so identifiers beat filler words.
+            let mut terms: Vec<String> = q
+                .text
+                .to_lowercase()
+                .split(|c: char| !c.is_ascii_alphanumeric() && c != '_')
+                .filter(|t| t.len() >= 4)
+                .map(|s| s.to_string())
+                .collect();
+            terms.sort_by_key(|t| std::cmp::Reverse(t.len()));
+            terms.dedup();
             let mut items = Vec::with_capacity(hits.len());
             for h in &hits {
-                let content = search
+                let full = search
                     .get_doc_by_pk(&h.pk)
                     .ok()
                     .flatten()
                     .map(|t| t.2)
                     .or_else(|| h.snippet.clone())
                     .unwrap_or_default();
+                let content = windowed_snippet(&full, &terms);
                 items.push(hit_to_evidence(
                     h, kind, authority, provider, generation, content, id,
                 ));
