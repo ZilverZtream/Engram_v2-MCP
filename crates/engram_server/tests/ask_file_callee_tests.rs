@@ -440,6 +440,21 @@ async fn a_compound_name_reaches_the_implementation_through_the_wrapper_route() 
 }
 
 #[tokio::test]
+async fn a_speculative_word_with_twin_files_is_not_ambiguous() {
+    // Live r59: batch 2's long-stem minting minted "installation" (bare
+    // lowercase), it resolved to four files, and the answer flipped to
+    // Ambiguous — a speculative shape may help when unique, never veto.
+    // The fixture's orderInfoPanel.{ts,js} twins reproduce the shape.
+    let (_tmp, engram, pid) = build().await;
+    let v = ask(&engram, &pid, "How does orderinfopanel fetch its images?").await;
+    assert_ne!(
+        v["status"].as_str(),
+        Some("ambiguous"),
+        "a bare-lowercase speculative mention must never drive Ambiguous"
+    );
+}
+
+#[tokio::test]
 async fn a_snippet_shows_the_matched_region_not_the_chunk_head() {
     // Cycle 37 (doc 11): the evidence content must SHOW the region that
     // matched — a truncated chunk head hides the fact from the judge and the
