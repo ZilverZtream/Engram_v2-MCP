@@ -239,3 +239,21 @@ retrieval misses (bug_1/2, usage_2–5, multi_2/3, causal_20), (b) the
 causal_3/12/17/19), (c) lookup precision bars (exact_3 0.20, exact_6 0.25
 vs 0.5). Evidence: causal_r60.*, golden_v3_r60.json, holdout_*_r60.json,
 verify_r60.log.
+
+**r61 (batch 4 a–e: where-defined lookup + term co-occurrence + anchored
+slots + reserve-protection visibility, commit 16afb04):** golden 21/35 PASS
+— flat on totals but the TARGETS LANDED: +exact_3 (the where-defined
+question now engages the lookup cap and anchors its slots) and +usage_4
+(the all-terms item outranks the single-term FK swarm). Two rows paid for
+it: −exact_2 (0.40) and −exact_5 (0.20) — the co-occurrence terms list
+feeds UNRESOLVED junk mentions ("data-access" resolves to []) into the ≥2
+switch, handing the 0.9 directness boost to prose chunks that contain the
+junk word. causal 14/20 PASS (causal_13 crept 0.25→0.33 — one filler
+short of the bar), held-out unchanged (3/11 + 1/5), Health OK, ranks 6/6
+×2 (pool 172). The landing itself surfaced a chain defect: the replay
+guard crashed on fmt-wrapped detection strings AFTER stashing, and the
+landing script kept going — recovered (stash restored, orphan build
+killed), guard made per-hunk idempotent with post-fmt strings, relaunch
+dry-run == swept. Batch 5: co-occurrence terms are RESOLVED-only (the
+batch-2 lookup_cap lesson, applied to the ranker's term list). Evidence:
+causal_r61.*, golden_v3_r61.json, holdout_*_r61.json, verify_r61.log.
