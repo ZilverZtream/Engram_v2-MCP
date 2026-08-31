@@ -388,6 +388,22 @@ pub fn extract_entities(q: &str) -> Vec<EntityMention> {
             push(t.to_string(), EntityKind::File, &mut out);
             continue;
         }
+        // Batch 2 (doc 11 grind, live r58): a long bare lowercase token that
+        // is not prose ("redovisningskategorier") is a file-stem CANDIDATE —
+        // the resolver's stem matching decides, and an unresolved candidate
+        // no longer blocks the lookup cap. >=12 chars keeps ordinary prose
+        // out ("frontend", "functions" — the plan-cleanliness guards): long
+        // single tokens are rarely natural-language words on any project.
+        if t.len() >= 12
+            && t.chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+            && !is_stopword(&t.to_lowercase())
+            && !is_tech_noun(&t.to_lowercase())
+            && !is_generic_word(&t.to_lowercase())
+        {
+            push(t.to_string(), EntityKind::File, &mut out);
+            continue;
+        }
         if t.contains('.') && !t.starts_with('.') && !t.ends_with('.') {
             let tl = t.to_lowercase();
             let looks_file = [

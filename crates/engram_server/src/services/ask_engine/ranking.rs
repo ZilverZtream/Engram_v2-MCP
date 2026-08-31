@@ -354,7 +354,15 @@ pub fn lookup_cap(
     let breadth = intents
         .iter()
         .any(|(i, _)| matches!(i, Intent::Usage | Intent::Impact | Intent::History));
-    let one_clear = entities.len() == 1 && entities[0].resolved.len() == 1;
+    // Batch 2 (live r58): junk mentions resolve to [] — only RESOLVED
+    // mentions count. Exactly one mention carries exactly one resolution,
+    // and no other mention resolved at all.
+    let resolved: Vec<usize> = entities
+        .iter()
+        .map(|e| e.resolved.len())
+        .filter(|n| *n > 0)
+        .collect();
+    let one_clear = resolved.len() == 1 && resolved[0] == 1;
     if one_clear && !breadth {
         5.min(full)
     } else {

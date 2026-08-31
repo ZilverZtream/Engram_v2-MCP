@@ -44,6 +44,39 @@ fn a_multi_entity_question_keeps_the_full_cap() {
 }
 
 #[test]
+fn a_junk_unresolved_mention_does_not_block_the_small_cap() {
+    // Live r58: the planner minted "data-access" (resolved: []) beside the
+    // real entity — the strict entities.len()==1 condition never fired.
+    let ents = vec![
+        entity("Site/a.vb"),
+        EntityMention {
+            text: "data-access".into(),
+            guessed_kind: EntityKind::File,
+            resolved: vec![],
+        },
+    ];
+    let intents = vec![(Intent::Explain, 0.6f32)];
+    assert_eq!(ranking::lookup_cap(&ents, &intents, Depth::Standard), 5);
+}
+
+#[test]
+fn a_long_lowercase_file_stem_word_is_minted_as_a_mention() {
+    // Live r58 (ox_exact_2 shape): "redovisningskategorier" IS a file stem in
+    // the corpus, but only hyphenated lowercase tokens were minted — the
+    // question's one real entity never reached the resolver.
+    let ments = engram_server::services::ask_engine::planner::extract_entities(
+        "Which file defines the redovisningskategorier data-access class?",
+    );
+    assert!(
+        ments
+            .iter()
+            .any(|m| m.text.eq_ignore_ascii_case("redovisningskategorier")),
+        "the long domain word must be minted; got {:?}",
+        ments.iter().map(|m| m.text.as_str()).collect::<Vec<_>>()
+    );
+}
+
+#[test]
 fn an_unresolved_question_keeps_the_full_cap() {
     let ents = vec![EntityMention {
         text: "mystery".into(),
