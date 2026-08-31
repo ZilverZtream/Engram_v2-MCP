@@ -152,3 +152,21 @@ Owner decisions (AskUserQuestion, 2026-08-31):
 | P1c | Co-change changed-HEAD call-time walk | OPEN |
 | P1d | Callee traversal error surfacing + cap reporting | OPEN |
 | P1e | project_health tantivy_docs_total label | OPEN |
+
+
+## Grind log (doc-11 item 2 continuation — honest gates per release)
+
+**r54 (cycle 36 padding suppression, commit 158062a; binary REBUILT on the settled
+toolchain after the 15:28 build linked mid-VS-update and wedged at serve):**
+Health OK (graph in the equality). Causal 13/20 — GATE FAIL vs the ≥14 floor:
+six failures are the 0.10–0.30 item-precision boundary class (ox_causal_3 newly
+flapped at 0.30) and ox_causal_16's imgHandler citation was evidently satisfied
+by index_report padding before cycle 36 removed it (an exposure, not a quality
+regression). Golden 15/35 — PASS (+1 vs the 14 baseline). HELD-OUT first run
+(never tuned): golden 3/11, causal 1/5 — failure classes: typings cited via
+SEARCH arms (the cycle-36 filter covers hop+memory only; cycle-38 candidate),
+over-ambiguity on fresh names, abstention miscalibration (hx_missing_1
+ambiguous instead of unsupported), genuine retrieval misses. Ranks 5/6 ×2:
+api-redovisning.vb pos=31 (one over top-30, cochange signal missing, candidates
+159→163) — boundary jitter on a historically borderline file; P0-3 watch item.
+Evidence: causal_r54.*, golden_v3_r54.json, holdout_*_r54.json, verify_r54.log.

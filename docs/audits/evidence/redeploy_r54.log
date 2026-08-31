@@ -1,0 +1,34 @@
+== clean release artifacts of engram_server (force fresh link) 16:29:32
+== RELEASE REBUILD 16:29:32
+release exit 0
+    Finished `release` profile [optimized] target(s) in 6m 08s
+built: 16:35:40 230435328 bytes
+== KILL the daemon zoo 16:35:41
+== DEPLOY 16:35:44
+source: 2026-08-31 16:35:40 230435328 bytes
+engram_server processes left: 0
+stale locks removed: 27
+deployed: 2026-08-31 16:35:40 230435328 bytes -> C:\Users\Dennis\AppData\Local\engram\bin\engram_server.exe
+hash match: OK
+== LIVE VERIFY r54 (rerun) 16:35:49
+verify exit 0
+correct:      3/11 = 27%   (gate = 100%: status + modality + item-scoped symbols + required_items + file recall + no forbidden + item precision)
+  FAIL hx_golden_2: forbidden evidence class cited: ['Site/Q/typings/google.maps/index.d.ts', 'Site/Q/typings/google.maps/index.d.ts', '.coderabbit.yaml']
+  FAIL hx_golden_4: status ambiguous not in ['answered', 'partial']
+  FAIL hx_golden_5: status ambiguous not in ['answered', 'partial']
+  FAIL hx_golden_6: no evidence of the requested modality ['.ts']
+  FAIL hx_golden_7: forbidden evidence class cited: ['memory_bank:engram/index_report']
+  FAIL hx_golden_8: required symbols/files not cited: ['getbyid']
+  FAIL hx_golden_9: no evidence item satisfies {'path_suffix': 'roqpricelistservice.vb', 'content_all': ['getallby']}
+  FAIL hx_missing_1: status ambiguous not in ['unsupported']
+GATE: FAIL
+correct:      0/5 = 0%   (gate = 100%: status + modality + item-scoped symbols + required_items + file recall + no forbidden + item precision)
+  FAIL hx_causal_1: status ambiguous not in ['answered', 'partial']
+  FAIL hx_causal_2: no evidence item satisfies {'path_suffix': 'app.ts', 'path_any': ['fbinstplan'], 'content_all': ['fjupdate']}
+  FAIL hx_causal_3: required symbols/files not cited: ['fjupdate']
+  FAIL hx_causal_4: forbidden evidence class cited: ['Site/Q/typings/google.maps/index.d.ts', 'Site/Q/typings/google.maps/index.d.ts']
+  FAIL hx_causal_5: status ambiguous not in ['answered', 'partial']
+GATE: FAIL
+  candidates 163 | RANK ACCEPTANCE: 5/6
+  candidates 162 | RANK ACCEPTANCE: 5/6
+== DONE 16:43:14
