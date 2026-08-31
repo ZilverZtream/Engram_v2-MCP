@@ -170,3 +170,13 @@ ambiguous instead of unsupported), genuine retrieval misses. Ranks 5/6 ×2:
 api-redovisning.vb pos=31 (one over top-30, cochange signal missing, candidates
 159→163) — boundary jitter on a historically borderline file; P0-3 watch item.
 Evidence: causal_r54.*, golden_v3_r54.json, holdout_*_r54.json, verify_r54.log.
+
+**r55 (cycle 37 hit-centered snippets, commit3an):** numbers UNCHANGED vs r54 —
+causal 13/20 (GATE FAIL, the same seven rows byte-identical: six precision-
+boundary, one padding-exposure), golden 15/35 PASS, held-out 3/11. The snippet
+window fixed VISIBILITY (the judged content now carries the matched region)
+but the precision failures are evidence COMPOSITION (7 of 10 items are
+wrong-file: typings/config among them) — cycle 38's search-arm exclusion is
+the direct lever. OWNER 2026-08-31: floor HELD at 14; r54/r55 stay GATE FAIL
+in this log; r56 lands next. Evidence: causal_r55.*, golden_v3_r55.json,
+holdout_*_r55.json, verify_r55.log.
