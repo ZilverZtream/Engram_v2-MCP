@@ -189,3 +189,13 @@ cochange signal — the candidate pool jitters 159–166 per reindex and the fil
 oscillates pos 26→31→32→27 around the top-30 line; a borderline-robustness
 item, not a signal regression. Evidence: causal_r56.*, golden_v3_r56.json,
 holdout_*_r56.json, verify_r56.log.
+
+**r57 (cycle 39 system-section second ingress, commit be1d030):** golden
+19/35 PASS (+4), causal 14/20 PASS, Health OK. The index_report leak is gone
+from every arm; four rows cleared outright, the rest fell to their real next
+layer: evidence DILUTION (exact_2/3/4/6, multi_4, rationale_2, compound_1,
+bug_2 — 1–3 relevant of 10 items) and right-file-wrong-chunk retrieval
+(usage_2/3/4/5, multi_1/2/3, bug_1). Held-out: hx_golden_2 now honestly
+ABSTAINS with its padding gone. NEW OWNER CADENCE from here: batched fixes
+per release; wipe+reindex only for index-affecting changes. Evidence:
+causal_r57.*, golden_v3_r57.json, holdout_*_r57.json, verify_r57.log.
