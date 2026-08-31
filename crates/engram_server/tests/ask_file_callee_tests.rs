@@ -297,6 +297,23 @@ End Class
     let pid = state.registry.list_projects().unwrap()[0]
         .project_id
         .clone();
+    // Cycle 39 (doc 11): a SYSTEM section under the reserved engram/ prefix
+    // whose content mirrors the live index report's shape — a path list that
+    // term-matches any code question. Written through the same handler the
+    // auto-writer uses (project_tools index_project tail).
+    engram
+        .handle_update_memory_bank(engram_server::UpdateMemoryBankRequest {
+            project_id: pid.clone(),
+            section_id: Some("engram/fixture_report".into()),
+            section: "Indexing Report".into(),
+            content: "Indexed files: Site/ts/orders/orderInfoPanel.ts \
+Site/ts/orders/ataOrderInfoPanel.ts Site/App_Code/api-json/api-images.vb — \
+the order info panel and its images route were indexed in this generation."
+                .into(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
     (tmp, engram, pid)
 }
 
@@ -412,6 +429,13 @@ async fn a_compound_name_reaches_the_implementation_through_the_wrapper_route() 
     assert!(
         ps.iter().any(|p| p.ends_with("api-images.vb")),
         "the served implementation two hops away must be cited; got {ps:?}"
+    );
+    // Cycle 39 (doc 11): engram's own meta-report (auto-written at index time,
+    // full of file paths that match any code question) is not evidence — live
+    // it rode in as a DocSection on nine open rows and two held-out rows.
+    assert!(
+        !ps.iter().any(|p| p.starts_with("memory_bank:engram/")),
+        "engram's own system sections must never pad a code answer; got {ps:?}"
     );
 }
 

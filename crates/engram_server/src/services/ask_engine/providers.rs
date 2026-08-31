@@ -193,13 +193,26 @@ async fn search_with(
             // file is never CODE evidence — held-out hx_golden_2/hx_causal_4
             // cited google.maps typings and the camera row cited
             // .coderabbit.yaml through this arm after the hop was fixed.
+            // Cycle 39 (doc 11): Engram's own system sections (the reserved
+            // memory_bank:engram/ prefix — the index report above all) are
+            // meta, not project knowledge; they only qualify when the question
+            // is about the index itself. Applies to EVERY arm and kind.
+            let asks_about_index = q.text.to_lowercase().split_whitespace().any(|t| {
+                matches!(
+                    t,
+                    "index" | "indexing" | "indexed" | "engram" | "generation" | "reindex"
+                )
+            });
             let hits: Vec<_> = hits
                 .into_iter()
                 .filter(|h| {
+                    let p = h.path.as_str().to_lowercase();
+                    if p.starts_with("memory_bank:engram/") && !asks_about_index {
+                        return false;
+                    }
                     if !matches!(kind, EvidenceKind::SourceCode) {
                         return true;
                     }
-                    let p = h.path.as_str().to_lowercase();
                     !(p.ends_with(".d.ts") || p.ends_with(".coderabbit.yaml"))
                 })
                 .collect();
