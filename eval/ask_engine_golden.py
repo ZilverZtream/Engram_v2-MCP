@@ -207,6 +207,13 @@ def main() -> int:
         out_path = sys.argv[sys.argv.index("--out") + 1]
         args = [a for a in args if a != out_path]
     include_insights = "--insights" in sys.argv
+    # Owner 2026-08-31 (doc 11): NO-REGRESSION gate while the engine grind runs —
+    # pass --min-correct N to gate on correct >= N instead of 100 %. The hard
+    # 100 % gate returns when the grind reaches it (omit the flag).
+    min_correct = None
+    if "--min-correct" in sys.argv:
+        min_correct = int(sys.argv[sys.argv.index("--min-correct") + 1])
+        args = [a for a in args if a != str(min_correct)]
     project_id = args[0]
     corpus_path = Path(args[1]) if len(args) > 1 else CORPUS
     rows = [
@@ -300,7 +307,10 @@ def main() -> int:
     for fid, reason in failures:
         print(f"  FAIL {fid}: {reason}")
 
-    gate_ok = abstain_rate >= 1.0 and status_rate >= 0.80 and correct == n
+    need = n if min_correct is None else min_correct
+    gate_ok = abstain_rate >= 1.0 and status_rate >= 0.80 and correct >= need
+    if min_correct is not None:
+        print(f"no-regression gate: correct {correct} >= {min_correct} -> {'ok' if correct >= min_correct else 'REGRESSION'}")
     print(f"\nGATE: {'PASS' if gate_ok else 'FAIL'}")
     if out_path:
         summary = {
