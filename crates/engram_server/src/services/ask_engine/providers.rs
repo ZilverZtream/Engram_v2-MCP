@@ -668,6 +668,11 @@ pub fn callee_evidence(
     } else {
         max_items.max(6)
     };
+    // Live r50: the family hop's six slots filled with direct route targets
+    // before the wrapper continuation could emit api-images.vb — the question
+    // said "images" and nothing listened. The cap's last two slots belong to
+    // CUE-HIT items (callee name or file BASENAME carrying a question word).
+    let mut non_cue = 0usize;
     for seed in seed_paths.iter().take(4) {
         let seed_norm = seed.replace('\\', "/");
         // Item 8: a hop from the file the question NAMES ("which server API
@@ -718,8 +723,19 @@ pub fn callee_evidence(
                     };
                     let name_l = n.name.to_lowercase();
                     let path_l = n.file_path.as_str().replace('\\', "/").to_lowercase();
-                    let hit = is_named || cues.iter().any(|c| name_l.contains(c.as_str()));
-                    if !hit || seed_set.contains(&path_l) || !files_cited.insert(path_l.clone()) {
+                    let basename = path_l.rsplit('/').next().unwrap_or("");
+                    let cue_hit = cues
+                        .iter()
+                        .any(|c| name_l.contains(c.as_str()) || basename.contains(c.as_str()));
+                    let hit = is_named || cue_hit;
+                    if !hit || seed_set.contains(&path_l) {
+                        continue;
+                    }
+                    // A non-cue direct callee may not take one of the reserved
+                    // slots — but its WRAPPER continuation below still runs
+                    // (that is where the served implementation lives).
+                    let direct_suppressed = !cue_hit && non_cue >= cap.saturating_sub(2);
+                    if !direct_suppressed && !files_cited.insert(path_l.clone()) {
                         continue;
                     }
                     let some = Some(n.clone());
@@ -741,21 +757,26 @@ pub fn callee_evidence(
                         content.push_str(&body);
                     }
                     let wrapper_name = name.clone();
-                    out.push(graph_relation_item(
-                        "callee",
-                        target.clone(),
-                        path,
-                        lines,
-                        name,
-                        content,
-                        gen_,
-                        weight.max(8),
-                        if is_named { 0.85 } else { 0.6 },
-                        Authority::CurrentCode,
-                        id,
-                    ));
-                    if out.len() >= cap {
-                        return out;
+                    if !direct_suppressed {
+                        if !cue_hit {
+                            non_cue += 1;
+                        }
+                        out.push(graph_relation_item(
+                            "callee",
+                            target.clone(),
+                            path,
+                            lines,
+                            name,
+                            content,
+                            gen_,
+                            weight.max(8),
+                            if is_named { 0.85 } else { 0.6 },
+                            Authority::CurrentCode,
+                            id,
+                        ));
+                        if out.len() >= cap {
+                            return out;
+                        }
                     }
                     // Item 8 (golden ox_multi_4): a script callee that is
                     // itself an API WRAPPER — `api.ajax().getImage` holds the
@@ -797,6 +818,17 @@ pub fn callee_evidence(
                             {
                                 wcontent.push('\n');
                                 wcontent.push_str(&body);
+                            }
+                            let wbase = wpath.rsplit('/').next().unwrap_or("");
+                            let wcue = cues.iter().any(|c| {
+                                wname.to_lowercase().contains(c.as_str())
+                                    || wbase.contains(c.as_str())
+                            });
+                            if !wcue {
+                                if non_cue >= cap.saturating_sub(2) {
+                                    continue;
+                                }
+                                non_cue += 1;
                             }
                             out.push(graph_relation_item(
                                 "callee",

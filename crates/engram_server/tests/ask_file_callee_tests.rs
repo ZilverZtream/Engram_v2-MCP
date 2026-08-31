@@ -40,6 +40,12 @@ async fn build() -> (tempfile::TempDir, Engram, String) {
                 s = ordGetNoiseB(qry)
             Case \"ordGetNoiseC\"
                 s = ordGetNoiseC(qry)
+            Case \"ordGetNoiseD\"
+                s = ordGetNoiseD(qry)
+            Case \"ordGetNoiseE\"
+                s = ordGetNoiseE(qry)
+            Case \"ordGetNoiseF\"
+                s = ordGetNoiseF(qry)
         End Select\n        Return s\n    End Function\nEnd Class\n",
     )
     .unwrap();
@@ -107,6 +113,12 @@ End Class
     export class ataOrderInfoPanel {
         private _id: number;
         public loadImages(): void {
+            new api.ajax('ordGetNoiseA', { o: this._id }, null, null);
+            new api.ajax('ordGetNoiseB', { o: this._id }, null, null);
+            new api.ajax('ordGetNoiseC', { o: this._id }, null, null);
+            new api.ajax('ordGetNoiseD', { o: this._id }, null, null);
+            new api.ajax('ordGetNoiseE', { o: this._id }, null, null);
+            new api.ajax('ordGetNoiseF', { o: this._id }, null, null);
             new api.ajax().getImage('ata', this._id, 'Img.1');
         }
     }
@@ -161,6 +173,9 @@ End Class
         ("ordGetNoiseA", "api-noisea.vb"),
         ("ordGetNoiseB", "api-noiseb.vb"),
         ("ordGetNoiseC", "api-noisec.vb"),
+        ("ordGetNoiseD", "api-noised.vb"),
+        ("ordGetNoiseE", "api-noisee.vb"),
+        ("ordGetNoiseF", "api-noisef.vb"),
     ] {
         std::fs::write(
             root.join(format!("Site/App_Code/orders/api-json/{file}")),
