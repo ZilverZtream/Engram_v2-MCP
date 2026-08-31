@@ -2254,11 +2254,15 @@ pub(crate) async fn generation_completeness_for(
         engram_core::namespaces::NAMESPACE_MEMORY,
         generation,
     )?;
-    let vector_rows = ps
-        .search
-        .count_vectors_in_generation(pid, generation)
-        .await
-        .unwrap_or(0);
+    // Doc 11 P0-1: a provider error is DEGRADED, never an empty store.
+    let mut store_errors: Vec<String> = Vec::new();
+    let vector_rows = match ps.search.count_vectors_in_generation(pid, generation).await {
+        Ok(n) => n,
+        Err(e) => {
+            store_errors.push(format!("lancedb row count failed: {e}"));
+            0
+        }
+    };
 
     let reg = state.registry.clone();
     let pid_r = pid.to_string();
@@ -2289,14 +2293,17 @@ pub(crate) async fn generation_completeness_for(
         .into_iter()
         .map(|s| completeness_path(&s))
         .collect();
-    let vectors: BTreeSet<String> = ps
+    let vectors: BTreeSet<String> = match ps
         .search
         .vector_paths_in_generation(pid, None, generation)
         .await
-        .unwrap_or_default()
-        .into_iter()
-        .map(|s| completeness_path(&s))
-        .collect();
+    {
+        Ok(v) => v.into_iter().map(|s| completeness_path(&s)).collect(),
+        Err(e) => {
+            store_errors.push(format!("lancedb path enumeration failed: {e}"));
+            Default::default()
+        }
+    };
     let graph = state.graph.clone();
     let pid_g = pid.to_string();
     let graph_paths: BTreeSet<String> = tokio::task::spawn_blocking(move || {
@@ -2340,25 +2347,43 @@ pub(crate) async fn generation_completeness_for(
     }
     let skipped_by_rule = expected.iter().filter(|p| skipped.contains(*p)).count();
 
-    let vectors_present = vector_rows > 0 || !vectors.is_empty();
+    // Doc 11 P0-1: whether embeddings are EXPECTED comes from CONFIGURATION
+    // (the integrity service's rule) — an entirely empty vector store under a
+    // vector backend is a LOSS, and a provider error is DEGRADED, never an
+    // empty store. The graph is a store under test: it participates in
+    // missing, extra, and cross-store equality.
+    let vectors_required = !matches!(state.cfg.embedding_backend.as_str(), "fts_only" | "");
+    let degraded = !store_errors.is_empty();
+    let vectors_checked = vectors_required && !degraded;
     let missing: Vec<String> = expected
         .iter()
         .filter(|f| {
             !skipped.contains(*f)
-                && (!tantivy.contains(*f) || (vectors_present && !vectors.contains(*f)))
+                && (!tantivy.contains(*f)
+                    || (vectors_checked && !vectors.contains(*f))
+                    || !graph_paths.contains(*f))
         })
         .cloned()
         .collect();
     let extra = tantivy.iter().filter(|f| !expected.contains(*f)).count();
-    let cross_store_mismatch = if vectors_present {
-        tantivy.symmetric_difference(&vectors).count()
+    let vector_extra = if vectors_checked {
+        vectors.iter().filter(|f| !expected.contains(*f)).count()
     } else {
         0
     };
+    let graph_extra = graph_paths
+        .iter()
+        .filter(|f| !expected.contains(*f))
+        .count();
+    let cross_store_mismatch = (if vectors_checked {
+        tantivy.symmetric_difference(&vectors).count()
+    } else {
+        0
+    }) + tantivy.symmetric_difference(&graph_paths).count();
     // Round-2 audit P0-2 follow-up: ZERO tolerance — a missing path is never
     // "complete"; known skips are subtracted above instead.
     let tolerance = 0usize;
-    let complete = missing.len() <= tolerance && cross_store_mismatch == 0;
+    let complete = missing.len() <= tolerance && cross_store_mismatch == 0 && !degraded;
     Ok(GenerationCompleteness {
         generation,
         expected_paths: expected.len(),
@@ -2374,6 +2399,11 @@ pub(crate) async fn generation_completeness_for(
         skipped_reasons: skipped_reasons.into_iter().collect(),
         code_chunks,
         vector_rows,
+        vector_extra,
+        graph_extra,
+        vectors_expected: vectors_required,
+        store_errors,
+        degraded,
         complete,
     })
 }
@@ -2429,6 +2459,18 @@ pub(crate) fn completeness_line(c: &GenerationCompleteness) -> String {
             )
         }
     );
+    if c.vector_extra > 0 || c.graph_extra > 0 {
+        s.push_str(&format!(
+            " — extra vectors {}, extra graph {}",
+            c.vector_extra, c.graph_extra
+        ));
+    }
+    if c.degraded {
+        s.push_str(&format!(
+            "\n  DEGRADED — store errors: {}",
+            c.store_errors.join("; ")
+        ));
+    }
     if !c.missing_sample.is_empty() {
         s.push_str(&format!(
             "\n  missing sample: {}",
@@ -2494,6 +2536,16 @@ impl Engram {
         // evidence — generation completeness first, provider failures second.
         let completeness = self.generation_completeness(&pid, generation).await;
         let verdict = match &completeness {
+            // Doc 11 P0-1: a store provider error means the vector picture is
+            // UNKNOWN — degraded outranks incomplete (whose missing list would
+            // mislead) and always outranks OK.
+            Ok(c) if c.degraded => {
+                for e in &c.store_errors {
+                    failures.push(e.clone());
+                }
+                "Health: DEGRADED — a store provider failed during the completeness check (see failures)"
+                    .to_string()
+            }
             Ok(c) if !c.complete => format!(
                 "Health: CORRUPT — active generation {} is INCOMPLETE ({} of {} eligible paths missing from the searchable stores, cross-store mismatch {}); searchable evidence is unreliable until index_project (full re-index)",
                 c.generation, c.missing, c.expected_paths, c.cross_store_mismatch
@@ -4140,5 +4192,13 @@ pub(crate) struct GenerationCompleteness {
     /// Diagnostics only — counts are not completeness.
     pub code_chunks: usize,
     pub vector_rows: usize,
+    /// Doc 11 P0-1: per-store extras are part of the verdict.
+    pub vector_extra: usize,
+    pub graph_extra: usize,
+    /// Whether the configuration expects embeddings (embedding_backend).
+    pub vectors_expected: bool,
+    /// Store provider errors — any entry makes the verdict DEGRADED.
+    pub store_errors: Vec<String>,
+    pub degraded: bool,
     pub complete: bool,
 }
