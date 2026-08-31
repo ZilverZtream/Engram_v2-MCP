@@ -275,45 +275,28 @@ fn compound_file_mention(
             )
         })
         .collect();
-    let mut best: Option<(usize, &Node)> = None;
-    for win in [3usize, 2] {
-        if best.is_some() {
-            break;
+    let stem_names: Vec<String> = stems.iter().map(|(s, _)| s.clone()).collect();
+    let picked = compound_join_pick(&words, &stem_names)?;
+    let winning_stem = stem_names[picked].as_str();
+    // Among the winning stem's files the SOURCE extension wins (a compiled
+    // .js twin shares the .ts stem).
+    let rank = |n: &Node| -> u8 {
+        let p = n.file_path.as_str().to_lowercase();
+        if p.ends_with(".designer.vb") {
+            4
+        } else if p.ends_with(".ts") || p.ends_with(".tsx") || p.ends_with(".vb") {
+            0
+        } else if p.ends_with(".js") || p.ends_with(".jsx") {
+            3
+        } else {
+            1
         }
-        for chunk in words.windows(win) {
-            let join = chunk.concat();
-            if join.len() < 8 {
-                continue;
-            }
-            // Uniqueness is by distinct stem — a compiled .js twin shares the
-            // .ts stem (live r46: ioMarkerInfowindow.{ts,js} made the join
-            // "non-unique" and a shorter join hijacked the mention). Among a
-            // stem's files the SOURCE extension wins.
-            let hits: Vec<&(String, &Node)> =
-                stems.iter().filter(|(s, _)| s.contains(&join)).collect();
-            let mut distinct: Vec<&str> = hits.iter().map(|(s, _)| s.as_str()).collect();
-            distinct.sort_unstable();
-            distinct.dedup();
-            if distinct.len() == 1 && best.is_none_or(|(l, _)| join.len() > l) {
-                let rank = |n: &Node| -> u8 {
-                    let p = n.file_path.as_str().to_lowercase();
-                    if p.ends_with(".designer.vb") {
-                        4
-                    } else if p.ends_with(".ts") || p.ends_with(".tsx") || p.ends_with(".vb") {
-                        0
-                    } else if p.ends_with(".js") || p.ends_with(".jsx") {
-                        3
-                    } else {
-                        1
-                    }
-                };
-                if let Some((_, n)) = hits.iter().min_by_key(|(_, n)| rank(n)) {
-                    best = Some((join.len(), *n));
-                }
-            }
-        }
-    }
-    let (_, n) = best?;
+    };
+    let n = stems
+        .iter()
+        .filter(|(s, _)| s == winning_stem)
+        .map(|(_, n)| *n)
+        .min_by_key(|n| rank(n))?;
     let file_name = n
         .file_path
         .as_str()
@@ -327,4 +310,35 @@ fn compound_file_mention(
         guessed_kind: EntityKind::File,
         resolved: vec![node_to_resolved(n, 0.85)],
     })
+}
+
+/// Item 8, cycle 31 (live r47): which file stem does a question's compound
+/// name pick? Three rules, each earned by a live miss:
+/// * THREE words or more — "icon picker" (two incidental words) seized
+///   bootstrap-iconpicker.css and displaced ox_multi_2's real evidence;
+/// * PREFIX/SUFFIX containment — "mapmarker" sat mid-string in
+///   gispdfelementfactoryformapmarkers;
+/// * ONE distinct stem — "markerinfowindow" is honestly ambiguous across the
+///   five *MarkerInfowindow families (a ts/js twin still counts once).
+/// Returns the index of a file with the winning stem.
+pub fn compound_join_pick(words: &[&str], stems: &[String]) -> Option<usize> {
+    let mut best: Option<(usize, String)> = None; // (join length, stem)
+    for chunk in words.windows(3) {
+        let join = chunk.concat();
+        if join.len() < 8 {
+            continue;
+        }
+        let mut matching: Vec<&str> = stems
+            .iter()
+            .filter(|s| s.starts_with(&join) || s.ends_with(&join))
+            .map(|s| s.as_str())
+            .collect();
+        matching.sort_unstable();
+        matching.dedup();
+        if matching.len() == 1 && best.as_ref().is_none_or(|(l, _)| join.len() > *l) {
+            best = Some((join.len(), matching[0].to_string()));
+        }
+    }
+    let (_, stem) = best?;
+    stems.iter().position(|s| *s == stem)
 }
