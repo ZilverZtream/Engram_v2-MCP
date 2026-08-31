@@ -1,0 +1,288 @@
+{
+ "summary": {
+  "judge": "v3-item-level",
+  "corpus": "eval\\data\\ask_golden_holdout_ociusx.jsonl",
+  "corpus_sha256": "7048b2ee6fc82c168f2c38d5abd9975978a5d8d97573fa0eaab9005adbdea858",
+  "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+  "rows": 11,
+  "status_match": 5,
+  "abstain_ok": 0,
+  "abstain_total": 2,
+  "correct": 2,
+  "mean_cite": 0.852,
+  "gate": "FAIL",
+  "insights": false,
+  "finished_utc": "2026-08-31T19:14:54Z"
+ },
+ "rows": [
+  {
+   "id": "hx_golden_1",
+   "category": "exact_fact",
+   "question": "Which VB function serves the prGetSubProjects API and where is it defined?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 706,
+   "evidence_paths": [
+    "Site/App_Code/grunddata/api-json/api-projekt.vb",
+    "Site/App_Code/api-json/api-broker.vb",
+    "Site/App_Code/grunddata/api-json/api-projekt.vb",
+    "Site/ts/taskManagement/taskManager.ts",
+    "Site/ts/taskManagement/taskManager.ts",
+    "Site/~.js/taskManager.js",
+    "Site/App_Code/api-v2/Services/installationplan/InstallationPlanService.vb",
+    "Site/App_Code/api-json/api-broker.vb",
+    "Site/~.js/taskManager.js",
+    "db-ociusx.sql/dbo/Tables/pdmf_preDefinedMapFilter.sql"
+   ]
+  },
+  {
+   "id": "hx_golden_2",
+   "category": "usage",
+   "question": "Which TypeScript file queries vehicles through the vehQuery API?",
+   "status": "unsupported",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "status unsupported not in ['answered', 'partial']",
+   "cite_coverage": "1.00",
+   "ms": 1466,
+   "evidence_paths": [
+    "Site/App_Code/visualisering/api-json/api-visualisering-vehicle.vb",
+    "Site/modules/dashboard/ts/map/vsMap/vehicle/vehicleManager.ts",
+    "Site/modules/dashboard/ts/map/vsMap/vehicle/vehicleMarkerInfowindow.ts",
+    "Site/App_Code/api-v2/Services/reportingOfQuantities/interfaces/IRoqReportItemsService.vb",
+    "Site/modules/dashboard/ts/map/vsMap/vehicle/vehicleMarkerInfowindow.ts"
+   ]
+  },
+  {
+   "id": "hx_golden_3",
+   "category": "exact_fact",
+   "question": "Where is the vehQuery implementation the API broker dispatches to?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 799,
+   "evidence_paths": [
+    "Site/App_Code/visualisering/api-json/api-visualisering-vehicle.vb",
+    "Site/App_Code/api-json/api-broker.vb",
+    "Site/App_Code/visualisering/api-json/api-visualisering-vehicle.vb",
+    "Site/modules/dashboard/ts/map/vsMap/vehicle/vehicleManager.ts",
+    "Site/modules/dashboard/ts/map/vsMap/vehicle/vehicleManager.ts",
+    "Site/modules/dashboard/ts/map/vsMap/vehicle/vehicleMarkerInfowindow.ts",
+    "Site/modules/dashboard/ts/map/vsMap/vehicle/vehicleMarkerInfowindow.ts",
+    "Site/modules/map/~.js/map.js",
+    "Site/modules/map/~.js/map.js",
+    "Site/~.js/menu.js"
+   ]
+  },
+  {
+   "id": "hx_golden_4",
+   "category": "exact_fact",
+   "question": "Which class fetches the customer invoices that have not yet been synced to Fortnox?",
+   "status": "ambiguous",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "status ambiguous not in ['answered', 'partial']",
+   "cite_coverage": "1.00",
+   "ms": 1017,
+   "evidence_paths": [
+    "Site/modules/dashboard/pages/admin/system/integration/fortnox/fortnox.aspx",
+    "Site/modules/dashboard/pages/admin/system/integration/fortnox/fortnox.aspx.vb",
+    "Site/App_Code/financialdata/CustomerInvoiceImporter.vb",
+    "Site/App_Code/financialdata/SupplierInvoiceImporter.vb",
+    "Site/App_Code/integration/code/fortnoxKundfakturor.vb",
+    "Site/App_Code/integration/code/fortnoxKundfakturor.vb",
+    "Site/App_Code/integration/code/fortnoxLeverantorsfakturor.vb",
+    "Site/App_Code/integration/code/fortnoxLeverantorsfakturor.vb",
+    "Site/App_Code/integration/code/integrationsynctask.vb",
+    "Site/App_Code/integration/code/tripletexCustomerInvoices.vb"
+   ]
+  },
+  {
+   "id": "hx_golden_5",
+   "category": "multi_hop",
+   "question": "How does the scheduled financial-system sync reach the Fortnox customer invoice sync?",
+   "status": "ambiguous",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "status ambiguous not in ['answered', 'partial']",
+   "cite_coverage": "0.67",
+   "ms": 1181,
+   "evidence_paths": [
+    "Site/modules/dashboard/pages/admin/system/integration/fortnox/fortnox.aspx",
+    "Site/modules/dashboard/pages/admin/system/integration/fortnox/fortnox.aspx.vb",
+    "Site/App_Code/integration/code/integrationsync.vb",
+    "Site/App_Code/financialdata/CustomerInvoiceImporter.vb",
+    "Site/App_Code/financialdata/SupplierInvoiceImporter.vb",
+    "Site/App_Code/integration/code/fortnoxKundfakturor.vb",
+    "Site/App_Code/integration/code/fortnoxKundfakturor.vb",
+    "Site/App_Code/integration/code/integrationsynctask.vb",
+    "Site/App_Code/integration/code/integrationsynctask.vb",
+    "Site/App_Code/integration/code/fortnoxLeverantorsfakturor.vb"
+   ]
+  },
+  {
+   "id": "hx_golden_6",
+   "category": "usage",
+   "question": "Which API functions does the fiber installation plan app call to update job status?",
+   "status": "ambiguous",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "status ambiguous not in ['answered', 'partial']",
+   "cite_coverage": "0.50",
+   "ms": 1021,
+   "evidence_paths": [
+    "Site/App_Code/shared-code/excelhelper.vb",
+    "Site/App_Code/fbinstplan/code/moment_status.vb",
+    "Site/App_Code/fbinstplan/code/fiberjobb.vb",
+    "Site/App_Code/fbinstplan/api-json/api-fiberjobb.vb",
+    "Site/App_Code/fbinstplan/api-json/api-migrera.vb",
+    "Site/modules/dashboard/ts/installation/installation/bulkMoveInstPlansHandler.ts",
+    "Site/modules/dashboard/pages/public/installation/installation.aspx",
+    "Site/modules/dashboard/pages/public/installation/installation.aspx.vb",
+    "Site/modules/dashboard/pages/public/installation/~.js/installation.js",
+    "Site/modules/dashboard/ts/installation/installation/installation.ts"
+   ]
+  },
+  {
+   "id": "hx_golden_7",
+   "category": "exact_fact",
+   "question": "Which VB file implements the fjGet fiber job API the broker dispatches?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "item precision 0.20 < 0.34 (1/5 relevant)",
+   "cite_coverage": "1.00",
+   "ms": 1044,
+   "evidence_paths": [
+    "Site/App_Code/fbinstplan/api-json/api-fiberjobb.vb",
+    "Site/App_Code/fbinstplan/code/fjar_fiberjobbAcceptanceReports.vb",
+    "Site/App_Code/api-json/api-broker.vb",
+    "Site/App_Code/fbinstplan/code/fiberjobb.vb",
+    "Site/App_Code/grunddata/api-json/api-projekt.vb"
+   ]
+  },
+  {
+   "id": "hx_golden_8",
+   "category": "usage",
+   "question": "How does the permit edit admin page load the permit it is editing?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "required symbols/files not cited: ['getbyid']",
+   "cite_coverage": "0.50",
+   "ms": 1621,
+   "evidence_paths": [
+    "Site/App_Code/permits/code/FileLibrary.vb",
+    "Site/App_Code/users-security/code/aspnetUsers.vb",
+    "Site/App_Code/permits/code/PredefinedAppicationStatus.vb",
+    "Site/modules/dashboard/pages/admin/permits/permit_edit.aspx.vb",
+    "Site/modules/dashboard/pages/admin/permits/permit_edit.aspx.vb",
+    "Site/modules/dashboard/pages/public/map/map.aspx",
+    "Site/modules/dashboard/pages/public/map/map.aspx",
+    "Site/modules/dashboard/pages/admin/permits/permit_edit.aspx",
+    "Site/modules/dashboard/pages/admin/permits/permit_edit.aspx",
+    "Site/modules/dashboard/pages/admin/permits/permit_edit.aspx"
+   ]
+  },
+  {
+   "id": "hx_golden_9",
+   "category": "exact_fact",
+   "question": "Which api-v2 service returns RoQ price lists by query?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "no evidence item satisfies {'path_suffix': 'roqpricelistservice.vb', 'content_all': ['getallby']}",
+   "cite_coverage": "1.00",
+   "ms": 998,
+   "evidence_paths": [
+    "Site/App_Code/shared-code/ConfigSettings.vb",
+    ".github/copilot-instructions.md",
+    ".github/copilot-instructions.md",
+    "Site/modules/dashboard/pages/public/producedq/producedq.aspx.vb",
+    ".github/instructions/roq-price-list.instructions.md"
+   ]
+  },
+  {
+   "id": "hx_missing_1",
+   "category": "missing_knowledge",
+   "question": "Which RabbitMQ queue carries the Fortnox invoice sync events?",
+   "status": "ambiguous",
+   "expect_status": [
+    "unsupported"
+   ],
+   "correct": false,
+   "reason": "status ambiguous not in ['unsupported']",
+   "cite_coverage": "-",
+   "ms": 1231,
+   "evidence_paths": [
+    "Site/modules/dashboard/pages/admin/system/integration/fortnox/fortnox.aspx",
+    "Site/modules/dashboard/pages/admin/system/integration/fortnox/fortnox.aspx.vb",
+    "Site/App_Code/integration/code/integrationsync.vb",
+    "Site/App_Code/financialdata/CustomerInvoiceImporter.vb",
+    "Site/App_Code/financialdata/SupplierInvoiceImporter.vb",
+    "Site/App_Code/integration/code/fortnoxKundfakturor.vb",
+    "Site/App_Code/integration/code/fortnoxKundfakturor.vb",
+    "Site/App_Code/integration/code/integrationsynctask.vb",
+    "Site/App_Code/integration/code/integrationsynctask.vb",
+    "Site/App_Code/integration/code/fortnoxLeverantorsfakturor.vb"
+   ]
+  },
+  {
+   "id": "hx_missing_2",
+   "category": "missing_knowledge",
+   "question": "What is the Terraform module that provisions the fiber installation plan database?",
+   "status": "ambiguous",
+   "expect_status": [
+    "unsupported"
+   ],
+   "correct": false,
+   "reason": "status ambiguous not in ['unsupported']",
+   "cite_coverage": "-",
+   "ms": 1203,
+   "evidence_paths": [
+    "Site/App_Code/shared-code/excelhelper.vb",
+    "Site/App_Code/grunddata/code/migreringsmallar.vb",
+    "Site/App_Code/fbinstplan/code/fiberjobb.vb",
+    "Site/App_Code/fbinstplan/api-json/api-fiberjobb.vb",
+    "Site/App_Code/fbinstplan/api-json/api-migrera.vb",
+    "Site/modules/dashboard/ts/installation/installation/bulkMoveInstPlansHandler.ts",
+    "Site/modules/dashboard/pages/public/installation/installation.aspx",
+    "Site/modules/dashboard/pages/public/installation/installation.aspx.vb",
+    "Site/modules/dashboard/pages/public/installation/~.js/installation.js",
+    "Site/modules/dashboard/ts/installation/installation/installation.ts"
+   ]
+  }
+ ]
+}

@@ -210,3 +210,15 @@ live — every exact row still carries 10 items, so the real plans are not
 resolve ambiguously or mint several mentions). Batch 2 corrects the
 engagement condition from live plan evidence. The no-repair verify cut the
 cycle by ~6 min and lost nothing.
+
+**r59 (batch 2: long-stem minting + resolved-only lookup cap, commit c34d4b2):**
+golden 21/35 PASS (net +2: exact_2/exact_4 cleared outright, cap-5 engaged on
+exact_6/usage_3 — but multi_1 and bug_2 REGRESSED to Ambiguous: the minted
+word "installation" (12 chars, ordinary English, exactly at the threshold)
+resolved to four files and tripped the ambiguity verdict; held-out golden
+dipped 3→2/11 the same way). Causal 14/20 PASS, Health OK, ranks 6/6 ×2
+(pool 172). Batch 3: a speculative-SHAPED mention (bare lowercase, no
+separators — recoverable from the text) may help when it resolves uniquely
+but never drives Ambiguous; plus per-file-1 under the lookup cap
+(exact_6 sits at 2/5 with a same-file pair). Evidence: causal_r59.*,
+golden_v3_r59.json, holdout_*_r59.json, verify_r59.log.
