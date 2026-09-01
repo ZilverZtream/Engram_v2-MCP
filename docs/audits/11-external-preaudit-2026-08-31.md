@@ -147,7 +147,7 @@ Owner decisions (AskUserQuestion, 2026-08-31):
   shared ImpactEngine (ChangeSpec, edge-policy matrix, per-hop coverage, SCC handling,
   shared JSON contract consumed by ask/impact/blast) is its own queued follow-on
   program, per the blast-radius memory queue.
-| P1a | Post-publish purge debt: registry writes + induced-failure test | OPEN |
+| P1a | Post-publish purge debt: registry writes + induced-failure test | fixed@2b6b545 + live r67 (2026-09-01 08:27): settle_purge_outcome seam — the record/clear registry write shapes the note and GC nudge, never `let _`; four induced-failure units (purge_settlement_tests, suite #199); live update_project reports `purge: ok` through the seam; sweep79 3801/0/199 |
 | P1b | Gate runtime-construction fail-open (gates.rs:2832/3050) | OPEN |
 | P1c | Co-change changed-HEAD call-time walk | OPEN |
 | P1d | Callee traversal error surfacing + cap reporting | OPEN |
@@ -325,3 +325,13 @@ on the required canuserbulkupdate cite — retrieval). Health OK, ranks
 remaining golden survivor is now a RETRIEVAL problem (cross-language
 compounds, specific-chunk ranking, .rdl corroboration). Evidence:
 causal_r66.*, golden_v3_r66.json, holdout_*_r66.json, verify_r66.log.
+
+**r67 (P1a purge settlement, commit 2b6b545 — first landing under the doc-13
+program era):** causal 15/20 PASS, golden 23/35 PASS (ox_multi_4 oscillated
+back OUT — the documented 0.30-boundary jitter class; P1a touched no
+ask-engine code), held-out 4/11 + 2/5 unchanged, Health OK, ranks 6/6 ×2
+(pool 174). P1a LIVE EVIDENCE: `purge: ok` rendered through the
+settle_purge_outcome seam in the real update report (verify_r67 08:27:35).
+P1a row CLOSED above. Next: doc-13 Phase A (AnswerContract) — chain c50.
+Evidence: causal_r67.*, golden_v3_r67.json, holdout_*_r67.json,
+verify_r67.log.
