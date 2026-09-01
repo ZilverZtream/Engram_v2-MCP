@@ -352,3 +352,19 @@ the outcome, the fold, the report struct and the JSON) changes no ranking
 and no status — Phase D consumes it. The invisible-caps P1 now has its
 data path. Evidence: causal_r69.*, golden_v3_r69.json, holdout_*_r69.json,
 verify_r69.log.
+
+**r70 (doc-13 Phase C: exhaustive named-file callee set, commit 19379d8):**
+zero row churn (causal 15/20 PASS, golden 23/35 PASS, held-out 4/11 + 2/5,
+ranks 6/6 ×2, pool 172/174, Health OK). The doc-12 P0-2 live probe
+("Which server API functions does ioMarkerInfowindow.ts call?") now runs
+the arm — callee_set(Hit,79), status Answered — but the REPORT cited only
+5/15 routes. Root cause (refs probes + provider counts): the graph has
+every route edge and the arm emitted them all; the ranker's MMR per-path
+anti-anchoring cap (`per_file < 2`, round-2 P0-4e) collapsed the 12 routes
+defined in api-installationsobjektprojekt.vb to exactly 2. Second defect:
+r70's widened cap let 73 items through (concept 77) and cost ox_causal_20
+its item precision (0.10). Fix C2 lands r71: an exempt-provider lane in
+selection (set items are facts, not anchoring bias), a kinds-restricted
+walk ("API" questions walk ApiCall only), and the cap reverts to the plain
+lookup cap. Evidence: probe_r70_p02.txt, refs_*_diag.txt, causal_r70.*,
+golden_v3_r70.json, verify_r70.log.
