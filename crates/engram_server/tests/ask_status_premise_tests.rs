@@ -47,6 +47,9 @@ fn rep(p: &str) -> ProviderReport {
         status: ProviderStatus::Hit,
         count: 1,
         note: None,
+        examined: 0,
+        available: None,
+        truncated: false,
     }
 }
 

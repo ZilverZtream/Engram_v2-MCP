@@ -603,6 +603,9 @@ fn rep(p: &str, s: ProviderStatus) -> ProviderReport {
         status: s,
         count: if s == ProviderStatus::Hit { 1 } else { 0 },
         note: None,
+        examined: 0,
+        available: None,
+        truncated: false,
     }
 }
 fn re(id: &str) -> ResolvedEntity {
