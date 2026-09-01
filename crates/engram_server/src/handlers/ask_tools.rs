@@ -189,6 +189,10 @@ impl Engram {
         };
 
         // Rank (anti-anchoring), detect conflicts, snapshot, calibrate status.
+        // Batch 7: a question-named path scope ("under ts/map") filters the
+        // whole pool before ranking — every arm honors it (fail-safe inside).
+        let mut raw = raw;
+        ranking::retain_path_scoped(&mut raw, &plan.qualifiers.path_prefixes);
         // Round-2 audit P0-4: the requested modality survives the cap.
         let raw_pool = raw.clone();
         // Batch 1 Fix A (doc 11 grind): lookup-shaped questions answer small.

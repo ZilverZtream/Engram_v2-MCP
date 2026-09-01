@@ -267,6 +267,67 @@ fn a_source_symbol_outranks_its_derived_state_twin() {
 }
 
 #[test]
+fn a_directory_scope_becomes_a_path_qualifier() {
+    // Live r63 usage_5: "under ts/map" minted an unresolvable entity while
+    // retrieval wandered — a directory-shaped token after a locative
+    // preposition is a PATH SCOPE.
+    let plan = engram_server::services::ask_engine::planner::plan_query(
+        "Which TypeScript files under ts/map render the camera icon on a marker?",
+    );
+    assert_eq!(
+        plan.qualifiers.path_prefixes,
+        vec!["ts/map".to_string()],
+        "the scope must be extracted: {:?}",
+        plan.qualifiers
+    );
+}
+
+#[test]
+fn path_scoped_retain_keeps_only_the_scope_and_never_empties() {
+    use engram_server::services::ask_engine::evidence as ev;
+    let mk = |id: &str, path: &str| ev::EvidenceItem {
+        evidence_id: id.to_string(),
+        kind: ev::EvidenceKind::SourceCode,
+        authority: ev::Authority::CurrentCode,
+        path: Some(path.to_string()),
+        lines: None,
+        symbol_id: None,
+        title: None,
+        content: String::new(),
+        generation: None,
+        commit: None,
+        timestamp: None,
+        confidence: 0.8,
+        relevance: 0.5,
+        extraction_method: "t".into(),
+        warnings: vec![],
+        provider: "t".into(),
+        score: Some(0.5),
+        directness: Some(0.5),
+    };
+    let scope = vec!["ts/map".to_string()];
+    let mut items = vec![
+        mk("a", "Site/modules/dashboard/ts/map/vsMap/x.ts"),
+        mk("b", "Site/App_Code/users-security/code/aspnetUsers.vb"),
+    ];
+    engram_server::services::ask_engine::ranking::retain_path_scoped(&mut items, &scope);
+    assert_eq!(
+        items
+            .iter()
+            .map(|i| i.evidence_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["a"]
+    );
+    // Fail-safe: a scope nothing matches must not empty the pool.
+    let mut none = vec![mk("c", "Site/App_Code/y.vb")];
+    engram_server::services::ask_engine::ranking::retain_path_scoped(
+        &mut none,
+        &["zz/qq".to_string()],
+    );
+    assert_eq!(none.len(), 1);
+}
+
+#[test]
 fn a_single_entity_lookup_gets_a_small_cap() {
     let ents = vec![entity("Site/a.vb")];
     let intents = vec![(Intent::Explain, 0.6f32)];
