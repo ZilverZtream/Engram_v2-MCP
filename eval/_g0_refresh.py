@@ -55,7 +55,7 @@ def main():
     os.makedirs(MANIFEST_DIR, exist_ok=True)
     imap = json.load(open(IMAP_PATH, encoding="utf-8")) if os.path.exists(IMAP_PATH) else {}
 
-    eng = ec.EngramClient()
+    eng = ec.Engram()
     try:
         for n, pid_key in enumerate(ids, 1):
             rec = corpus[pid_key]
