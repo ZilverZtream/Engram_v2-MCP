@@ -351,6 +351,70 @@ fn an_infix_scope_expands_to_the_real_prefix() {
 }
 
 #[test]
+fn a_language_name_is_covered_by_evidence_in_that_language() {
+    // Live r65 causal_1/usage_5: "TypeScript" was an uncovered named premise
+    // — .ts files ARE TypeScript; the literal word rarely appears in code,
+    // and status oscillated with whether any junk item happened to say it.
+    use engram_server::services::ask_engine::evidence as ev;
+    use engram_server::services::ask_engine::status;
+    let mk = |id: &str, path: &str, content: &str| ev::EvidenceItem {
+        evidence_id: id.to_string(),
+        kind: ev::EvidenceKind::SourceCode,
+        authority: ev::Authority::CurrentCode,
+        path: Some(path.to_string()),
+        lines: None,
+        symbol_id: None,
+        title: None,
+        content: content.to_string(),
+        generation: None,
+        commit: None,
+        timestamp: None,
+        confidence: 0.8,
+        relevance: 0.5,
+        extraction_method: "t".into(),
+        warnings: vec![],
+        provider: "t".into(),
+        score: Some(0.5),
+        directness: Some(0.5),
+    };
+    let items = vec![mk(
+        "a",
+        "Site/ts/caw/caw.ts",
+        "public athDeleteByID(id: number): void",
+    )];
+    let unc = status::uncovered_named_terms_with(
+        "Which TypeScript code calls the athDeleteByID API?",
+        &items,
+        &[],
+    );
+    assert!(
+        !unc.iter().any(|t| t.eq_ignore_ascii_case("typescript")),
+        "a .ts item covers the language name: {unc:?}"
+    );
+    // The fabricated-premise guard stays: "Redis" with no evidence remains
+    // uncovered.
+    let unc2 = status::uncovered_named_terms_with(
+        "Which Redis cluster caches the marker list?",
+        &items,
+        &[],
+    );
+    assert!(
+        unc2.iter().any(|t| t.eq_ignore_ascii_case("redis")),
+        "a real named premise must still require coverage: {unc2:?}"
+    );
+    // Live r65 multi_1: a tech ROLE acronym is vocabulary, not a premise.
+    let unc3 = status::uncovered_named_terms_with(
+        "How does the update flow from the API to the DAL?",
+        &items,
+        &[],
+    );
+    assert!(
+        !unc3.iter().any(|t| t.eq_ignore_ascii_case("dal")),
+        "a tech role word must not veto support: {unc3:?}"
+    );
+}
+
+#[test]
 fn a_single_entity_lookup_gets_a_small_cap() {
     let ents = vec![entity("Site/a.vb")];
     let intents = vec![(Intent::Explain, 0.6f32)];
