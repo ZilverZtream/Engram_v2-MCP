@@ -10,6 +10,14 @@ import os
 import sys
 import time
 
+# Agents call this from a cp1252 console; reports contain '→' and Swedish
+# characters. Never let the OUTPUT encoding kill the answer.
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import engram_client as ec  # noqa: E402
