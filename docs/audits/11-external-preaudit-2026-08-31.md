@@ -163,7 +163,7 @@ six failures are the 0.10–0.30 item-precision boundary class (ox_causal_3 newl
 flapped at 0.30) and ox_causal_16's imgHandler citation was evidently satisfied
 by index_report padding before cycle 36 removed it (an exposure, not a quality
 regression). Golden 15/35 — PASS (+1 vs the 14 baseline). HELD-OUT first run
-(never tuned): golden 3/11, causal 1/5 — failure classes: typings cited via
+(never tuned): golden 3/11, causal 0/5 [CORRECTED 2026-09-01: this line said 1/5; the committed holdout_causal_r54.json says 0/5 — caught by the round-3 audit] — failure classes: typings cited via
 SEARCH arms (the cycle-36 filter covers hop+memory only; cycle-38 candidate),
 over-ambiguity on fresh names, abstention miscalibration (hx_missing_1
 ambiguous instead of unsupported), genuine retrieval misses. Ranks 5/6 ×2:
