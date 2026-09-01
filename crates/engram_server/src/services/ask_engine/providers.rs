@@ -743,6 +743,7 @@ pub fn exhaustive_callee_set(
     project_dir: Option<&std::path::Path>,
     project_id: &str,
     file_path: &str,
+    kinds: &[EdgeKind],
     id: &mut usize,
 ) -> (Vec<EvidenceItem>, ArmCoverage) {
     let norm = file_path.replace('\\', "/");
@@ -756,7 +757,7 @@ pub fn exhaustive_callee_set(
     let stem = norm.rsplit('/').next().unwrap_or(&norm).to_string();
     sources.push((format!("file:{norm}"), stem));
     for (src_id, src_name) in &sources {
-        for kind in [EdgeKind::ApiCall, EdgeKind::SqlCalls, EdgeKind::Calls] {
+        for kind in kinds.iter().cloned() {
             let Ok(nbrs) = graph.neighbors(project_id, kind.clone(), src_id, 500) else {
                 continue;
             };

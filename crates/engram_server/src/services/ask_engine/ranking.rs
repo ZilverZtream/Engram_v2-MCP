@@ -489,6 +489,19 @@ pub fn rank_and_select_with_terms(
     cap: usize,
     terms: &[String],
 ) -> Vec<EvidenceItem> {
+    rank_and_select_with_terms_exempt(items, cap, terms, None)
+}
+
+/// Phase C2 (doc-12 P0-2, r70 live): an exhaustive-set provider's items are
+/// FACTS the question asked to enumerate — the anti-anchoring per-path cap
+/// and the selection cap apply to the supporting-evidence lane only. Exempt
+/// items always survive selection and consume no cap slot.
+pub fn rank_and_select_with_terms_exempt(
+    items: Vec<EvidenceItem>,
+    cap: usize,
+    terms: &[String],
+    exempt_provider: Option<&str>,
+) -> Vec<EvidenceItem> {
     let now_ms = crate::utils::now_ms();
     let mut items = dedup(items);
 
@@ -539,9 +552,14 @@ pub fn rank_and_select_with_terms(
     // share a name (Page_Load, Execute, .ctor) across files, and collapsing on
     // title would silently discard real, direct call-site evidence.
     let mut chosen: Vec<EvidenceItem> = Vec::new();
+    let mut capped = 0usize;
     for it in items {
-        if chosen.len() >= cap {
-            break;
+        if exempt_provider.is_some_and(|p| it.provider == p) {
+            chosen.push(it);
+            continue;
+        }
+        if capped >= cap {
+            continue;
         }
         let dup = chosen
             .iter()
@@ -555,6 +573,7 @@ pub fn rank_and_select_with_terms(
             .map(|p| chosen.iter().filter(|c| c.path.as_ref() == Some(p)).count())
             .unwrap_or(0);
         if !dup && per_file < 2 {
+            capped += 1;
             chosen.push(it);
         }
     }
