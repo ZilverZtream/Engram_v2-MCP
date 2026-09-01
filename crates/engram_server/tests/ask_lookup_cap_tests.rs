@@ -328,6 +328,29 @@ fn path_scoped_retain_keeps_only_the_scope_and_never_empties() {
 }
 
 #[test]
+fn an_infix_scope_expands_to_the_real_prefix() {
+    // Live r64 usage_5: the engine's include_path_prefixes is an ANCHORED
+    // regex — "ts/map" can never match "Site/modules/dashboard/ts/map/…".
+    use engram_server::services::ask_engine::resolver;
+    assert_eq!(
+        resolver::scope_full_prefix("Site/modules/dashboard/ts/map/vsMap/x.ts", "ts/map"),
+        Some("Site/modules/dashboard/ts/map".to_string())
+    );
+    assert_eq!(
+        resolver::scope_full_prefix("ts/map/a.ts", "ts/map"),
+        Some("ts/map".to_string())
+    );
+    assert_eq!(
+        resolver::scope_full_prefix("Site/TS/Map/x.ts", "ts/map"),
+        Some("Site/TS/Map".to_string())
+    );
+    assert_eq!(
+        resolver::scope_full_prefix("Site/other/x.ts", "ts/map"),
+        None
+    );
+}
+
+#[test]
 fn a_single_entity_lookup_gets_a_small_cap() {
     let ents = vec![entity("Site/a.vb")];
     let intents = vec![(Intent::Explain, 0.6f32)];

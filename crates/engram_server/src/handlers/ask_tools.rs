@@ -54,6 +54,9 @@ impl Engram {
                 &mut plan,
                 &question_for_resolve,
             );
+            // Batch 8: infix path scopes expand to real prefixes here — the
+            // graph is already on this blocking thread.
+            resolver::expand_path_scopes(&graph, &pid_for_resolve, &mut plan.qualifiers);
             plan
         })
         .await
