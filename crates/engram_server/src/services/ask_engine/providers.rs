@@ -731,6 +731,103 @@ fn definition_body(dir: &std::path::Path, rel: &str, a: u32, b: u32) -> Option<S
     Some(s)
 }
 
+/// Doc-13 Phase C (round-3 audit P0-2): the EXHAUSTIVE callee set of a named
+/// file — every ApiCall / SqlCalls / Calls edge from the file's functions
+/// and the file node itself. No cue gate, no cap, NO one-per-file dedup:
+/// many API functions live in one implementation file, and the per-file
+/// collapse destroyed exactly the function cardinality the question asks
+/// for. ApiCall targets also resolve their broker dispatch so the served
+/// implementation is cited beside the route. Coverage is exact.
+pub fn exhaustive_callee_set(
+    graph: &GraphStore,
+    project_dir: Option<&std::path::Path>,
+    project_id: &str,
+    file_path: &str,
+    id: &mut usize,
+) -> (Vec<EvidenceItem>, ArmCoverage) {
+    let norm = file_path.replace('\\', "/");
+    let mut items: Vec<EvidenceItem> = Vec::new();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut walked = 0usize;
+    let mut sources: Vec<(String, String)> = Vec::new();
+    if let Ok(fns) = graph.query_nodes(project_id, Some("function"), None, Some(&norm), 500) {
+        sources.extend(fns.iter().map(|f| (f.node_id.clone(), f.name.clone())));
+    }
+    let stem = norm.rsplit('/').next().unwrap_or(&norm).to_string();
+    sources.push((format!("file:{norm}"), stem));
+    for (src_id, src_name) in &sources {
+        for kind in [EdgeKind::ApiCall, EdgeKind::SqlCalls, EdgeKind::Calls] {
+            let Ok(nbrs) = graph.neighbors(project_id, kind.clone(), src_id, 500) else {
+                continue;
+            };
+            for (target, _weight) in nbrs {
+                walked += 1;
+                if !seen.insert(target.clone()) {
+                    continue;
+                }
+                let Ok(Some(n)) = graph.get_node(project_id, &target) else {
+                    continue;
+                };
+                let tpath = n.file_path.as_str().replace('\\', "/");
+                let tl = tpath.to_lowercase();
+                if tl.ends_with(".d.ts") || tl.contains("/typings/") {
+                    continue;
+                }
+                let mut content = format!(
+                    "{src_name} calls {} ({}) — defined in {}",
+                    n.name, n.node_type, tpath
+                );
+                if matches!(kind, EdgeKind::ApiCall) {
+                    if let Ok(impls) = graph.find_dispatch_targets(project_id, &n.name) {
+                        for imp in impls.iter().take(2) {
+                            if let Ok(Some(im)) = graph.get_node(project_id, imp) {
+                                content.push_str(&format!(
+                                    "; served by {} in {}",
+                                    im.name,
+                                    im.file_path.as_str().replace('\\', "/")
+                                ));
+                            }
+                        }
+                    }
+                }
+                if let Some(dir) = project_dir {
+                    if let Some(body) = definition_body(dir, &tpath, n.start_line, n.end_line) {
+                        content.push_str("\n");
+                        content.push_str(&body);
+                    }
+                }
+                *id += 1;
+                items.push(EvidenceItem {
+                    evidence_id: format!("ev_x{id}"),
+                    kind: EvidenceKind::GraphRelation,
+                    authority: Authority::CurrentCode,
+                    path: Some(tpath),
+                    lines: Some((n.start_line, n.end_line)),
+                    symbol_id: Some(n.node_id.clone()),
+                    title: Some(format!("{src_name} → {}", n.name)),
+                    content,
+                    generation: Some(n.generation),
+                    commit: None,
+                    timestamp: None,
+                    confidence: 0.9,
+                    relevance: 0.9,
+                    extraction_method: "exhaustive_callee".into(),
+                    warnings: vec![],
+                    provider: "callee_set".into(),
+                    score: None,
+                    directness: Some(0.9),
+                });
+            }
+        }
+    }
+    let cov = ArmCoverage {
+        examined: walked,
+        available: Some(walked),
+        truncated: false,
+    };
+    (items, cov)
+}
+
 /// Round-2 audit P0-4c (owner 2026-08-30): ONE bounded call-graph hop from the
 /// files the first pass cited. For every function in a seed file, follow
 /// `Calls` / `ApiCall` / `SqlCalls` edges and keep the callees whose name or
