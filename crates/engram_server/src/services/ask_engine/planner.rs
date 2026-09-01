@@ -115,7 +115,9 @@ pub fn plan_query(question: &str) -> QueryPlan {
     // "Which TypeScript calls X?" / "What code calls X?" — a question word,
     // then the callers of X. ("does X call?" asks for X's callees instead.)
     if (lower.starts_with("what ") || lower.starts_with("which ") || lower.starts_with("who "))
-        && lower.contains(" calls ")
+        // Batch 6 (live r62 causal_13): "which FILES call X" — plural
+        // subject, bare "call" — is the same callers question.
+        && (lower.contains(" calls ") || lower.contains(" call "))
     {
         add(Intent::Usage, 0.8, &mut intents);
     }

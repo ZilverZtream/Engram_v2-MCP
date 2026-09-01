@@ -67,6 +67,28 @@ fn qualifier_tokens(question: &str, mention: &str) -> Vec<String> {
 /// Resolve every entity mention against the graph, filling `resolved`; an
 /// AMBIGUOUS name is narrowed by the question's qualifier words when they
 /// occur in a candidate's path or qualified name (golden `ox_impact_4`:
+/// Batch 6 (doc 11, live r62 exact_5): a bare identifier that matches BOTH a
+/// source symbol (`sym:` node) and a derived artifact of it (`state:` — a
+/// session-cached value, a route alias) is not ambiguous — the source
+/// symbols alone survive. Only fires when it actually narrows.
+pub fn collapse_derived_resolutions(resolved: &mut Vec<super::plan::ResolvedEntity>) {
+    let syms = resolved
+        .iter()
+        .filter(|r| {
+            r.node_id
+                .as_deref()
+                .is_some_and(|id| id.starts_with("sym:"))
+        })
+        .count();
+    if syms > 0 && syms < resolved.len() {
+        resolved.retain(|r| {
+            r.node_id
+                .as_deref()
+                .is_some_and(|id| id.starts_with("sym:"))
+        });
+    }
+}
+
 /// "GetByID in the projekt DAL" → the `projekt` candidate only).
 /// `NotFound`/`Err` leaves it empty — a text-search-only entity, never a hard
 /// failure (the provider layer still searches by the raw text).
@@ -185,6 +207,11 @@ pub fn resolve_entities_in_context(
                 }
             }
         }
+    }
+    // Batch 6 (doc 11, live r62 exact_5): source symbols outrank the derived
+    // artifacts they spawn — a bare identifier matching both is not ambiguous.
+    for m in plan.entities.iter_mut() {
+        collapse_derived_resolutions(&mut m.resolved);
     }
     // Item 8 (live r44/r45, ox_causal_1): an API NAME literal
     // (`athDeleteByID`) may name a LEGACY client function AND the broker's
