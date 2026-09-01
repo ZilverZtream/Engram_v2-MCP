@@ -283,3 +283,15 @@ rationale_2, compound_1 — each 3/10, one relevant item short), required-cite
 retrieval (usage_2/3/5, multi_2, bug_1/2), multi_3's cross-language .rdl
 gap, exact_6 (0.25), multi_1 (unsupported). Evidence: causal_r63.*,
 golden_v3_r63.json, holdout_*_r63.json, verify_r63.log.
+
+**r64 (batch 7: question-named path scope, commit 11ce724):** FLAT — zero
+row churn on all four suites (causal 15/20 PASS — the new floor HELD;
+golden 23/35 PASS; held-out 3/11 + 2/5; ranks 6/6 ×2, pool 172). The scope
+filter WORKED where it engaged: usage_5 moved answered-with-junk →
+UNSUPPORTED — the marker_edit callee junk is gone, but the retrieval arms
+never had ts/map files in their top-k, so only weak concept items survived
+the scope and the engine honestly abstained. Filtering is not steering:
+batch 8 threads the scope INTO the search arms (HybridQuery already
+carries include_path_prefixes, unset) so the top-k comes from in-scope
+documents. Evidence: causal_r64.*, golden_v3_r64.json, holdout_*_r64.json,
+verify_r64.log.
