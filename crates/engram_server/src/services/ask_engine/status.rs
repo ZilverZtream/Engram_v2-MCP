@@ -145,6 +145,50 @@ fn evidence_haystack(evidence: &[EvidenceItem], known: &[String]) -> String {
     hay.to_lowercase()
 }
 
+/// Batch 9 (doc 11, live r65 causal_1/usage_5): language names are modality
+/// words — evidence in that language covers them; the literal word rarely
+/// appears inside code, and its absence oscillated status with pool jitter.
+fn language_suffixes(w: &str) -> Option<&'static [&'static str]> {
+    Some(match w {
+        "typescript" => &[".ts", ".tsx"],
+        "javascript" => &[".js", ".jsx"],
+        "vb" | "vbnet" | "vb.net" => &[".vb"],
+        "csharp" => &[".cs"],
+        "python" => &[".py"],
+        "sql" => &[".sql"],
+        "css" => &[".css"],
+        "html" => &[".html", ".aspx", ".ascx"],
+        _ => return None,
+    })
+}
+
+/// Batch 9 (doc 11, live r65 multi_1): common tech ROLE words — a layer, an
+/// interface kind — are vocabulary, not project premises; their absence from
+/// evidence must not veto an otherwise supported answer.
+fn is_tech_role_term(w: &str) -> bool {
+    matches!(
+        w,
+        "api"
+            | "apis"
+            | "dal"
+            | "dao"
+            | "dto"
+            | "orm"
+            | "sdk"
+            | "cli"
+            | "gui"
+            | "url"
+            | "urls"
+            | "http"
+            | "https"
+            | "dom"
+            | "json"
+            | "xml"
+            | "ajax"
+            | "rest"
+    )
+}
+
 /// `uncovered_named_terms` with the planner's resolved terms counted as covered.
 pub fn uncovered_named_terms_with(
     question: &str,
@@ -168,8 +212,19 @@ pub fn uncovered_named_terms_with(
             continue;
         }
         let lower = tok.to_lowercase();
-        if is_filler_term(&lower) || hay.contains(&lower) {
+        if is_filler_term(&lower) || is_tech_role_term(&lower) || hay.contains(&lower) {
             continue;
+        }
+        // Batch 9: a language name is covered by evidence IN that language.
+        if let Some(sufs) = language_suffixes(&lower) {
+            let covered = evidence.iter().any(|e| {
+                e.path
+                    .as_deref()
+                    .is_some_and(|p| sufs.iter().any(|s| p.to_lowercase().ends_with(s)))
+            });
+            if covered {
+                continue;
+            }
         }
         if !out.iter().any(|o| o.eq_ignore_ascii_case(tok)) {
             out.push(tok.to_string());
