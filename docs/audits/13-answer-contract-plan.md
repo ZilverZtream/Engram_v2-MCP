@@ -22,7 +22,7 @@ ExhaustiveSet; "under <dir> … which files" → File set; "where is X
 defined" → One + Definition facet). Unit REDs per shape; the plan
 cleanliness guards keep their exact asserts.
 
-## Phase B — provider coverage metadata (doc 12 item 2; subsumes doc-11 P1d and the invisible-caps P1)
+## Phase B — provider coverage metadata (doc 12 item 2; subsumes doc-11 P1d and the invisible-caps P1) — LANDED @b637565, live r69 (flat by design)
 
 `ProviderOutcome` grows: `examined_count`, `available_count`, `truncated`,
 `missing_or_dangling_count`, `errors`, `policy_used`. Every arm fills them
