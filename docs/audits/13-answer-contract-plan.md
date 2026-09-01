@@ -74,7 +74,7 @@ inspection it retires into the dev/validation pool and a fresh set is
 sealed. The current held-out set is a dev/validation set and is never
 again cited as blind.
 
-## Phase G — agent-level A/Bs (doc 12 item 7)
+## Phase G — agent-level A/Bs (doc 12 item 7) — RUN @wf_dbbb2206-fe2 on the fresh r73 substrate: impl-NEUTRAL (3.0 vs 3.0, 7-6-2, delta 0.00, n=15; first non-net-negative enrichment; 32/42 asks rated useful)
 
 After C–E land: re-run the eval/README dossier A/B recipe with ask_codebase
 in the loop; success metric = implementation-level (wrong files, missed

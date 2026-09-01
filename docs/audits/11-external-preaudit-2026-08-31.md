@@ -422,3 +422,22 @@ pre-check masks the site-level fail-open (RED moved to the gate seam);
 family_keys drops single-segment parents; two reuse-contract tests now
 poll the background refresh. Evidence: verify_r73.log, causal_r73.*,
 golden_v2_r73.log.
+
+**Phase G: the agent-level A/B ran (run wf_dbbb2206-fe2, 45 Sonnet
+agents, 15 canonical PRs, fresh r73 substrate, 0 agent errors):** arm A =
+get_change_set dossier; arm B = dossier + a live ask_codebase loop
+(eval/ask_eval.py against each story's leak-free index; 42 asks made,
+32 rated useful by the asking agents). All 46 frozen agent trees VERIFIED
+read-only with intact mtimes before scoring. RESULT — implementation-
+NEUTRAL at n=15: mean impl 3.0 vs 3.0, ask_delta exactly 0.00, wins
+dossier 7 / ask_loop 6 / tie 2, per-story deltas −2..+2 (one ask-arm 5/5
+merge-equivalent at PR1904; one −2 where the ask arm dropped a permission
+gate the merged PR enforces). The trajectory replayed the historical
+enrichment pattern (+1.0 at n=4 → 0.00 at n=11 → 0.00 final): early
+promise, flat at power. NOTABLE: this is the FIRST enrichment beyond the
+file-list dossier that is NOT net-negative (structural map −0.4,
+change-pattern −0.27) — the honest ask engine confers confirmation value
+(callers/tables/absence checks) without the anchoring cost, but the impl
+ceiling remains agent reasoning, not retrieval. Doc-12 item 7 is
+DISPOSITIONED with this measurement. Evidence:
+eval/data/p2/_phase_g_verdicts.json, workflow journal wf_dbbb2206-fe2.
