@@ -44,10 +44,27 @@ def freeze_snapshot(dest):
     return manifest
 
 
+def force_rmtree(dest):
+    """rmtree that survives read-only files (June survivor trees + frozen
+    snapshots set S_IREAD; plain rmtree fails with Permission denied)."""
+    import shutil
+
+    if not os.path.exists(dest):
+        return
+    for root, _dirs, files in os.walk(dest):
+        for f in files:
+            try:
+                os.chmod(os.path.join(root, f), stat.S_IWRITE | stat.S_IREAD)
+            except OSError:
+                pass
+    shutil.rmtree(dest, ignore_errors=True)
+
+
 def main():
     only = None
     if "--only" in sys.argv:
         only = set(sys.argv[sys.argv.index("--only") + 1].split(","))
+    snap_only = "--snap-only" in sys.argv
     ids = canonical_ids()
     if only:
         ids = [i for i in ids if i in only]
@@ -61,15 +78,19 @@ def main():
             rec = corpus[pid_key]
             t0 = time.time()
             print(f"[{n}/{len(ids)}] PR {pid_key} @ {rec['base_commit'][:8]} …", flush=True)
-            pid, wt, secs, health = rp.setup_index(eng, rec)
-            hline = next(
-                (ln for ln in health.splitlines() if ln.startswith("Health:")), "?"
-            )
-            print(f"  indexed {secs:.0f}s pid={pid} {hline[:90]}", flush=True)
-            imap[pid_key] = pid
-            json.dump(imap, open(IMAP_PATH, "w", encoding="utf-8"), indent=1)
+            if snap_only:
+                print(f"  snap-only: keeping index {imap.get(pid_key)}", flush=True)
+            else:
+                pid, wt, secs, health = rp.setup_index(eng, rec)
+                hline = next(
+                    (ln for ln in health.splitlines() if ln.startswith("Health:")), "?"
+                )
+                print(f"  indexed {secs:.0f}s pid={pid} {hline[:90]}", flush=True)
+                imap[pid_key] = pid
+                json.dump(imap, open(IMAP_PATH, "w", encoding="utf-8"), indent=1)
 
             snap = os.path.join(SNAP_ROOT, f"pr{pid_key}")
+            force_rmtree(snap)
             ec.add_snapshot(rec["base_commit"], snap)
             manifest = freeze_snapshot(snap)
             json.dump(
