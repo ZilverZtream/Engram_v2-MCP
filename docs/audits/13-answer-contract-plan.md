@@ -31,7 +31,7 @@ callee hop: caps hit). `report.rs` renders truncation per provider —
 "showing 7 of ~40 callers (provider cap 25, evidence cap 10)" — instead of
 only failed/empty modalities.
 
-## Phase C — named-file callee traversal (doc 12 item 3; the P0-2 fix)
+## Phase C — named-file callee traversal (doc 12 item 3; the P0-2 fix) — LANDED @19379d8, live r70 (probe 5/15: the ranker's per-path cap ate the set; C2 exemption + kinds walk land r71)
 
 For `direction=Callees, cardinality=ExhaustiveSet` on a named file, bypass
 semantic ranking first: named file → contained functions + file-level
