@@ -490,6 +490,22 @@ fn an_explain_question_keeps_the_default_contract() {
 }
 
 #[test]
+fn arm_coverage_travels_on_the_outcome() {
+    // Doc-12 P1 (invisible caps): every arm reports what it examined, what
+    // was available, and whether it truncated — zeros mean "not measured",
+    // never "complete".
+    use engram_server::services::ask_engine::providers::{ArmCoverage, ProviderOutcome};
+    let o = ProviderOutcome::hit_with_coverage(25, Some(40), true);
+    assert_eq!(o.coverage.examined, 25);
+    assert_eq!(o.coverage.available, Some(40));
+    assert!(o.coverage.truncated);
+    let z = ProviderOutcome::hit();
+    assert_eq!(z.coverage, ArmCoverage::default());
+    let t = ProviderOutcome::timed_out();
+    assert_eq!(t.coverage, ArmCoverage::default());
+}
+
+#[test]
 fn a_single_entity_lookup_gets_a_small_cap() {
     let ents = vec![entity("Site/a.vb")];
     let intents = vec![(Intent::Explain, 0.6f32)];

@@ -39,6 +39,12 @@ pub struct ProviderReport {
     pub count: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
+    /// Doc-13 Phase B: what the arm examined (0 = not measured).
+    pub examined: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub available: Option<usize>,
+    /// True when the arm stopped at a cap — the set may be incomplete.
+    pub truncated: bool,
 }
 
 /// The single evidence snapshot the report is pinned to. Only fields that are

@@ -15,28 +15,63 @@ use tokio_util::sync::CancellationToken;
 use super::evidence::{Authority, EvidenceItem, EvidenceKind};
 use super::status::ProviderStatus;
 
+/// Doc-13 Phase B (round-3 audit item 2): what an arm actually looked at.
+/// Zeros mean NOT MEASURED — never "complete"; `truncated` true means the
+/// arm stopped at a cap and the answer may be missing members.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize)]
+pub struct ArmCoverage {
+    pub examined: usize,
+    pub available: Option<usize>,
+    pub truncated: bool,
+}
+
 /// Lightweight per-arm result the retrieval layer folds into a `ProviderReport`.
 pub struct ProviderOutcome {
     pub status: ProviderStatus,
     pub note: Option<String>,
+    pub coverage: ArmCoverage,
 }
 impl ProviderOutcome {
     pub fn hit() -> Self {
         Self {
             status: ProviderStatus::Hit,
             note: None,
+            coverage: ArmCoverage::default(),
+        }
+    }
+
+    /// Doc-13 Phase B: a hit that KNOWS what it examined.
+    pub fn hit_with_coverage(examined: usize, available: Option<usize>, truncated: bool) -> Self {
+        Self {
+            status: ProviderStatus::Hit,
+            note: None,
+            coverage: ArmCoverage {
+                examined,
+                available,
+                truncated,
+            },
+        }
+    }
+
+    pub fn timed_out() -> Self {
+        Self {
+            status: ProviderStatus::TimedOut,
+            note: None,
+            coverage: ArmCoverage::default(),
         }
     }
     pub fn empty() -> Self {
         Self {
             status: ProviderStatus::Empty,
             note: None,
+            coverage: ArmCoverage::default(),
         }
     }
     pub fn failed(msg: impl Into<String>) -> Self {
         Self {
             status: ProviderStatus::Failed,
             note: Some(msg.into()),
+            coverage: ArmCoverage::default(),
         }
     }
 }
@@ -200,6 +235,9 @@ async fn search_with(
         Err(e) => (vec![], ProviderOutcome::failed(e.to_string())),
         Ok(hits) if hits.is_empty() => (vec![], ProviderOutcome::empty()),
         Ok(hits) => {
+            // Doc-13 Phase B: coverage is measured BEFORE the quality
+            // filters — the question is what the index gave us to examine.
+            let examined_before_filters = hits.len();
             // Grind cycle 38 (doc 11): a type declaration or a review-config
             // file is never CODE evidence — held-out hx_golden_2/hx_causal_4
             // cited google.maps typings and the camera row cited
@@ -255,7 +293,14 @@ async fn search_with(
                     h, kind, authority, provider, generation, content, id,
                 ));
             }
-            (items, ProviderOutcome::hit())
+            (
+                items,
+                ProviderOutcome::hit_with_coverage(
+                    examined_before_filters,
+                    None,
+                    examined_before_filters >= q.top_k,
+                ),
+            )
         }
     }
 }

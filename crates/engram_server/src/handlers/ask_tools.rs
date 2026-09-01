@@ -185,6 +185,11 @@ impl Engram {
                     status,
                     count: hop.len(),
                     note: None,
+                    examined: hop.len(),
+                    available: None,
+                    // Doc-13 Phase B: the hop caps at 3 (6 with named files);
+                    // exact walked/available counts land with Phase C.
+                    truncated: hop.len() >= 3,
                 });
                 raw.extend(hop);
             }

@@ -61,7 +61,7 @@ pub struct RetrievalCtx {
     pub generation: u64,
 }
 
-type ArmOut = (String, Vec<EvidenceItem>, ProviderStatus, Option<String>);
+type ArmOut = (String, Vec<EvidenceItem>, providers::ProviderOutcome);
 type ArmFuture = Pin<Box<dyn Future<Output = ArmOut> + Send>>;
 
 #[allow(clippy::too_many_arguments)]
@@ -90,11 +90,15 @@ fn search_arm(
                 &cancel, &mut id,
             )
             .await;
-            (provider.to_string(), items, out.status, out.note)
+            (provider.to_string(), items, out)
         };
         match tokio::time::timeout(deadline, fut).await {
             Ok(o) => o,
-            Err(_) => (provider.to_string(), vec![], ProviderStatus::TimedOut, None),
+            Err(_) => (
+                provider.to_string(),
+                vec![],
+                providers::ProviderOutcome::timed_out(),
+            ),
         }
     })
 }
@@ -132,11 +136,11 @@ fn modality_arm(
                 &mut id,
             )
             .await;
-            (provider.clone(), items, out.status, out.note)
+            (provider.clone(), items, out)
         };
         match tokio::time::timeout(deadline, fut).await {
             Ok(o) => o,
-            Err(_) => (name, vec![], ProviderStatus::TimedOut, None),
+            Err(_) => (name, vec![], providers::ProviderOutcome::timed_out()),
         }
     })
 }
@@ -153,18 +157,21 @@ fn memory_arm(ctx: &RetrievalCtx, question: &str, top_k: usize, deadline: Durati
             })
             .await
             {
-                Ok((items, out)) => ("memory".to_string(), items, out.status, out.note),
+                Ok((items, out)) => ("memory".to_string(), items, out),
                 Err(e) => (
                     "memory".to_string(),
                     vec![],
-                    ProviderStatus::Failed,
-                    Some(e.to_string()),
+                    providers::ProviderOutcome::failed(e.to_string()),
                 ),
             }
         };
         match tokio::time::timeout(deadline, fut).await {
             Ok(o) => o,
-            Err(_) => ("memory".to_string(), vec![], ProviderStatus::TimedOut, None),
+            Err(_) => (
+                "memory".to_string(),
+                vec![],
+                providers::ProviderOutcome::timed_out(),
+            ),
         }
     })
 }
@@ -176,18 +183,21 @@ where
     Box::pin(async move {
         let fut = async move {
             match tokio::task::spawn_blocking(f).await {
-                Ok((items, out)) => (provider.to_string(), items, out.status, out.note),
+                Ok((items, out)) => (provider.to_string(), items, out),
                 Err(e) => (
                     provider.to_string(),
                     vec![],
-                    ProviderStatus::Failed,
-                    Some(e.to_string()),
+                    providers::ProviderOutcome::failed(e.to_string()),
                 ),
             }
         };
         match tokio::time::timeout(deadline, fut).await {
             Ok(o) => o,
-            Err(_) => (provider.to_string(), vec![], ProviderStatus::TimedOut, None),
+            Err(_) => (
+                provider.to_string(),
+                vec![],
+                providers::ProviderOutcome::timed_out(),
+            ),
         }
     })
 }
@@ -415,12 +425,15 @@ pub async fn gather_evidence(
     let mut reports: Vec<ProviderReport> = Vec::new();
     while let Some(joined) = set.join_next().await {
         match joined {
-            Ok((provider, mut items, status, note)) => {
+            Ok((provider, mut items, out)) => {
                 reports.push(ProviderReport {
                     provider,
-                    status,
+                    status: out.status,
                     count: items.len(),
-                    note,
+                    note: out.note,
+                    examined: out.coverage.examined,
+                    available: out.coverage.available,
+                    truncated: out.coverage.truncated,
                 });
                 evidence.append(&mut items);
             }
@@ -429,6 +442,9 @@ pub async fn gather_evidence(
                 status: ProviderStatus::Failed,
                 count: 0,
                 note: Some(e.to_string()),
+                examined: 0,
+                available: None,
+                truncated: false,
             }),
         }
     }
