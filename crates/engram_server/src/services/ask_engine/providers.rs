@@ -131,10 +131,16 @@ async fn search_arm(
     provider: &str,
     query: &str,
     top_k: usize,
+    scopes: &[String],
     cancel: &CancellationToken,
     id: &mut usize,
 ) -> (Vec<EvidenceItem>, ProviderOutcome) {
-    let q = base_query(project_id, namespace, generation, query, top_k);
+    let mut q = base_query(project_id, namespace, generation, query, top_k);
+    // Batch 8 (live r64 usage_5): a question-named path scope STEERS the
+    // arm — filtering after retrieval cannot recover in-scope top-k.
+    if !scopes.is_empty() {
+        q.include_path_prefixes = Some(scopes.to_vec());
+    }
     search_with(search, q, kind, authority, provider, generation, cancel, id).await
 }
 
@@ -150,6 +156,7 @@ pub async fn modality_evidence(
     provider: &str,
     query: &str,
     top_k: usize,
+    scopes: &[String],
     cancel: &CancellationToken,
     id: &mut usize,
 ) -> (Vec<EvidenceItem>, ProviderOutcome) {
@@ -161,6 +168,10 @@ pub async fn modality_evidence(
         top_k,
     );
     q.include_path_suffixes = Some(suffixes.iter().map(|s| s.to_string()).collect());
+    // Batch 8: the question's path scope steers the modality arm too.
+    if !scopes.is_empty() {
+        q.include_path_prefixes = Some(scopes.to_vec());
+    }
     search_with(
         search,
         q,
@@ -269,6 +280,7 @@ pub async fn code_evidence(
         "code",
         query,
         top_k,
+        &[],
         cancel,
         id,
     )
@@ -288,12 +300,13 @@ pub async fn knowledge_evidence(
     provider: &str,
     query: &str,
     top_k: usize,
+    scopes: &[String],
     cancel: &CancellationToken,
     id: &mut usize,
 ) -> (Vec<EvidenceItem>, ProviderOutcome) {
     search_arm(
-        search, project_id, namespace, generation, kind, authority, provider, query, top_k, cancel,
-        id,
+        search, project_id, namespace, generation, kind, authority, provider, query, top_k, scopes,
+        cancel, id,
     )
     .await
 }

@@ -72,6 +72,7 @@ fn search_arm(
     authority: Authority,
     provider: &'static str,
     question: &str,
+    scopes: Vec<String>,
     top_k: usize,
     generation: u64,
     deadline: Duration,
@@ -85,8 +86,8 @@ fn search_arm(
         let fut = async move {
             let mut id = 0usize;
             let (items, out) = providers::knowledge_evidence(
-                &search, &pid, gen_, namespace, kind, authority, provider, &q, top_k, &cancel,
-                &mut id,
+                &search, &pid, gen_, namespace, kind, authority, provider, &q, top_k, &scopes,
+                &cancel, &mut id,
             )
             .await;
             (provider.to_string(), items, out.status, out.note)
@@ -104,6 +105,7 @@ fn modality_arm(
     ctx: &RetrievalCtx,
     modality: Modality,
     question: &str,
+    scopes: Vec<String>,
     top_k: usize,
     deadline: Duration,
     cancel: CancellationToken,
@@ -125,6 +127,7 @@ fn modality_arm(
                 &provider,
                 &q,
                 top_k,
+                &scopes,
                 &cancel,
                 &mut id,
             )
@@ -257,6 +260,7 @@ pub async fn gather_evidence(
             ctx,
             *m,
             question,
+            plan.qualifiers.path_prefixes.clone(),
             top_k,
             deadline,
             cancel.clone(),
@@ -270,6 +274,7 @@ pub async fn gather_evidence(
             Authority::CurrentCode,
             "code",
             question,
+            plan.qualifiers.path_prefixes.clone(),
             top_k,
             ctx.generation,
             deadline,
@@ -284,6 +289,7 @@ pub async fn gather_evidence(
             Authority::CurrentDocs,
             "doc",
             question,
+            plan.qualifiers.path_prefixes.clone(),
             top_k,
             0,
             deadline,
@@ -298,6 +304,7 @@ pub async fn gather_evidence(
             Authority::DerivedBusinessLogic,
             "business_logic",
             question,
+            plan.qualifiers.path_prefixes.clone(),
             top_k,
             0,
             deadline,
@@ -312,6 +319,7 @@ pub async fn gather_evidence(
             Authority::DreamerInsight,
             "insight",
             question,
+            plan.qualifiers.path_prefixes.clone(),
             top_k,
             0,
             deadline,
@@ -326,6 +334,7 @@ pub async fn gather_evidence(
             Authority::MergedHistory,
             "history",
             question,
+            plan.qualifiers.path_prefixes.clone(),
             top_k,
             0,
             deadline,

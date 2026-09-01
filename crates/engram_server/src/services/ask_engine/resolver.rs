@@ -89,6 +89,58 @@ pub fn collapse_derived_resolutions(resolved: &mut Vec<super::plan::ResolvedEnti
     }
 }
 
+/// Batch 8 (doc 11, live r64 usage_5): the full ORIGINAL-case directory
+/// prefix of `path` up to and including the infix `scope` ("Site/…/ts/map"
+/// for scope "ts/map") — the engine's include_path_prefixes is ANCHORED, so
+/// an infix scope must expand to real prefixes before it can steer.
+pub fn scope_full_prefix(path: &str, scope: &str) -> Option<String> {
+    let norm = path.replace('\\', "/");
+    let low = norm.to_lowercase();
+    let s = scope.to_lowercase();
+    if low == s || low.starts_with(&format!("{s}/")) {
+        return norm.get(..s.len()).map(|p| p.to_string());
+    }
+    let needle = format!("/{s}/");
+    if let Some(i) = low.find(&needle) {
+        return norm.get(..i + 1 + s.len()).map(|p| p.to_string());
+    }
+    if low.ends_with(&format!("/{s}")) {
+        return Some(norm);
+    }
+    None
+}
+
+/// Batch 8: expand each infix scope to the distinct real prefixes present in
+/// the project's file nodes (cap 8) — APPENDED, so the raw scope still
+/// serves the post-retrieval pool filter while the engine gets anchored
+/// prefixes it can actually match.
+pub fn expand_path_scopes(graph: &GraphStore, project_id: &str, ql: &mut super::plan::Qualifiers) {
+    if ql.path_prefixes.is_empty() {
+        return;
+    }
+    let Ok(files) = graph.query_nodes(project_id, Some("file"), None, None, usize::MAX) else {
+        return;
+    };
+    let mut expanded: Vec<String> = Vec::new();
+    for scope in ql.path_prefixes.clone() {
+        for n in &files {
+            if expanded.len() >= 8 {
+                break;
+            }
+            if let Some(p) = scope_full_prefix(n.file_path.as_str(), &scope) {
+                if p.to_lowercase() != scope.to_lowercase() && !expanded.contains(&p) {
+                    expanded.push(p);
+                }
+            }
+        }
+    }
+    for p in expanded {
+        if !ql.path_prefixes.contains(&p) {
+            ql.path_prefixes.push(p);
+        }
+    }
+}
+
 /// "GetByID in the projekt DAL" → the `projekt` candidate only).
 /// `NotFound`/`Err` leaves it empty — a text-search-only entity, never a hard
 /// failure (the provider layer still searches by the raw text).
