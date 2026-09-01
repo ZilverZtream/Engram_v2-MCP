@@ -2829,11 +2829,19 @@ impl Gate for ProductIntentGate {
         }
         // ENSURE the runtime — get_project_cached alone returns None on a
         // fresh daemon and silently no-ops the gate (see AntiPatternGate).
-        let Ok(ps) =
-            crate::services::project_service::ensure_project_runtime(ctx.state, ctx.project_id)
-                .await
-        else {
-            return Ok(Vec::new());
+        let ps = match crate::services::project_service::ensure_project_runtime(
+            ctx.state,
+            ctx.project_id,
+        )
+        .await
+        {
+            Ok(p) => p,
+            Err(e) => {
+                // Doc-11 P1b: a runtime-construction failure is a provider
+                // failure — the gate reports DEGRADED, never silent `passed`.
+                ctx.degrade(format!("project runtime unavailable ({e}) — gate skipped"));
+                return Ok(Vec::new());
+            }
         };
         let query = product_intent_query(ctx.diff_files);
         if query.is_empty() {
@@ -3047,11 +3055,19 @@ impl Gate for CoAddedFamilyGate {
             return Ok(Vec::new());
         }
 
-        let Ok(ps) =
-            crate::services::project_service::ensure_project_runtime(ctx.state, ctx.project_id)
-                .await
-        else {
-            return Ok(Vec::new());
+        let ps = match crate::services::project_service::ensure_project_runtime(
+            ctx.state,
+            ctx.project_id,
+        )
+        .await
+        {
+            Ok(p) => p,
+            Err(e) => {
+                // Doc-11 P1b: a runtime-construction failure is a provider
+                // failure — the gate reports DEGRADED, never silent `passed`.
+                ctx.degrade(format!("project runtime unavailable ({e}) — gate skipped"));
+                return Ok(Vec::new());
+            }
         };
 
         // Shallower families first — they aggregate the cohort history
