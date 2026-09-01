@@ -37,7 +37,7 @@ REPO = Path(__file__).resolve().parents[1]
 DRIVE = REPO / "tools" / "engram_drive.py"
 CORPUS = REPO / "eval" / "ask_engine_golden.jsonl"
 
-JUDGE_VERSION = "v3-item-level"
+JUDGE_VERSION = "v4-exact-set"
 DEFAULT_MIN_PRECISION = 0.34
 
 
@@ -152,6 +152,26 @@ def judge(row: dict, status: str, report: dict) -> tuple[bool, str]:
         if recall < need:
             return False, f"file-set recall {recall:.2f} < {need} ({hit}/{len(answer_files)})"
 
+    # Exact-set identity recall (doc-12 P0-3 / doc-13 Phase E): a set-valued
+    # question is judged on the SET. Each expected identity must be cited
+    # inside some evidence item; recall below the floor fails the row.
+    es = row.get("expected_set")
+    if es:
+        names = es.get("names", [])
+        found = {
+            str(t)
+            for t in names
+            if any(str(t).lower() in item_text(e) for e in ev)
+        }
+        recall = len(found) / len(names) if names else 1.0
+        need_r = float(es.get("min_recall", 1.0))
+        if recall < need_r:
+            missing = [t for t in names if str(t) not in found]
+            return False, (
+                f"set recall {recall:.2f} < {need_r} "
+                f"({len(found)}/{len(names)}; missing {missing[:5]})"
+            )
+
     bad = [p for p in paths if any(path_matches(p, t) for t in row.get("forbidden", []))]
     if bad:
         return False, f"forbidden distractor cited: {bad[:3]}"
@@ -172,6 +192,7 @@ def judge(row: dict, status: str, report: dict) -> tuple[bool, str]:
             | {p.get("path_suffix", "") for p in row.get("required_items", [])}
             | {c for p in row.get("required_items", []) for c in p.get("content_all", [])}
             | set(answer_files)
+            | set((row.get("expected_set") or {}).get("names", []))
         )
         if t and not is_extension_token(str(t))
     ]
@@ -302,7 +323,7 @@ def main() -> int:
         f"dreamer insights: {'ON' if include_insights else 'OFF'}; insight evidence in {insight_rows}/{n} rows ({insight_items} items)"
     )
     print(
-        f"correct:      {correct}/{n} = {correct / n if n else 0:.0%}   (gate = 100%: status + modality + item-scoped symbols + required_items + file recall + no forbidden + item precision)"
+        f"correct:      {correct}/{n} = {correct / n if n else 0:.0%}   (per-row: status + modality + item-scoped symbols + required_items + set recall + file recall + no forbidden + item precision; the RUN gate is the printed floor)"
     )
     for fid, reason in failures:
         print(f"  FAIL {fid}: {reason}")
