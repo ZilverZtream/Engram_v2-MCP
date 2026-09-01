@@ -148,10 +148,10 @@ Owner decisions (AskUserQuestion, 2026-08-31):
   shared JSON contract consumed by ask/impact/blast) is its own queued follow-on
   program, per the blast-radius memory queue.
 | P1a | Post-publish purge debt: registry writes + induced-failure test | fixed@2b6b545 + live r67 (2026-09-01 08:27): settle_purge_outcome seam — the record/clear registry write shapes the note and GC nudge, never `let _`; four induced-failure units (purge_settlement_tests, suite #199); live update_project reports `purge: ok` through the seam; sweep79 3801/0/199 |
-| P1b | Gate runtime-construction fail-open (gates.rs:2832/3050) | OPEN |
-| P1c | Co-change changed-HEAD call-time walk | OPEN |
-| P1d | Callee traversal error surfacing + cap reporting | OPEN |
-| P1e | project_health tantivy_docs_total label | OPEN |
+| P1b | Gate runtime-construction fail-open (gates.rs:2832/3050) | fixed@0551373 + live r73: both sites degrade via ctx.degrade ("project runtime unavailable"); gate-level RED (GateContext direct, note None, runtime unbuildable) observed "degraded notes: []" first |
+| P1c | Co-change changed-HEAD call-time walk | fixed@b0c568c + live r73: a changed HEAD serves the stale snapshot (head_advanced) and the caller starts a detached background refresh; RED observed "extended by a git walk (fresh diffs: 1)"; live co-change complete in 326 ms |
+| P1d | Callee traversal error surfacing + cap reporting | subsumed@Phase B (b637565, live r69): ArmCoverage examined/available/truncated on every arm outcome incl. timed_out/failed; consumed by Phase D status |
+| P1e | project_health tantivy_docs_total label | fixed@ac85a06 + live r73: the label prints count_docs (project-wide) — live tantivy_docs_total 172,145 == lancedb_vectors 172,145 (the 421,293-vs-422,249 subset gap class is dead); RED observed printed 1 vs held 3 |
 
 
 ## Grind log (doc-11 item 2 continuation — honest gates per release)
@@ -409,3 +409,16 @@ dev/validation pool. The old held-out set is dev/validation and is never
 again cited as blind. First blind scoring run (r71 binary, judge v4):
 **6/8 correct** — the aggregate line only; per-row failures were captured
 to disk unread, so the suite REMAINS BLIND.
+
+**r73 (P1 slices, three commits: 0551373 P1b / b0c568c P1c / ac85a06 P1e;
+sweep74 3,817/0/202):** all three landed with observed REDs and live
+acceptance — health totals in exact cross-store equality (172,145 ==
+172,145), co-change served warm in 326 ms, both fail-open gates degrade
+at the seam. Suites flat as designed: causal 16/20 PASS, golden 23/35
+PASS (row-identical), held-out 4/11 + 2/5 report-only, ranks 6/6 ×2
+(174 candidates), r71 probe regression watch held (23 items, 15/15
+routes, Answered). Iterations recorded: the runner's completeness
+pre-check masks the site-level fail-open (RED moved to the gate seam);
+family_keys drops single-segment parents; two reuse-contract tests now
+poll the background refresh. Evidence: verify_r73.log, causal_r73.*,
+golden_v2_r73.log.
