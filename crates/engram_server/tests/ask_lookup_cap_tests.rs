@@ -228,6 +228,45 @@ fn a_reserve_protected_item_survives_the_trims() {
 }
 
 #[test]
+fn a_plural_caller_question_is_a_usage_question() {
+    // Live r62 causal_13: "Which TypeScript files call X?" matched no Usage
+    // cue (the rule wanted " calls ") — the callers arm never ran and two
+    // score-0.00 fillers made 1/3 precision.
+    let plan = engram_server::services::ask_engine::planner::plan_query(
+        "Which TypeScript files call gisGetProjectImportData?",
+    );
+    assert!(
+        plan.intents.iter().any(|(i, _)| matches!(i, Intent::Usage)),
+        "plural-caller shape must classify as Usage: {:?}",
+        plan.intents
+    );
+}
+
+#[test]
+fn a_source_symbol_outranks_its_derived_state_twin() {
+    // Live r62 exact_5: CheckIfAdminOrArbetsledare resolved to the function
+    // AND its session-cached state node — one file, not ambiguous.
+    use engram_server::services::ask_engine::resolver;
+    let mk = |node_id: &str| ResolvedEntity {
+        kind: EntityKind::Symbol,
+        canonical: "x".into(),
+        node_id: Some(node_id.to_string()),
+        confidence: 0.5,
+    };
+    let mut v = vec![
+        mk("state:Session:aspnetUser.X"),
+        mk("sym:function:a.vb:X:566"),
+    ];
+    resolver::collapse_derived_resolutions(&mut v);
+    assert_eq!(v.len(), 1, "the source symbol alone survives");
+    assert!(v[0].node_id.as_deref().unwrap().starts_with("sym:"));
+    // No-op when there is nothing to prefer.
+    let mut all_state = vec![mk("state:A"), mk("state:B")];
+    resolver::collapse_derived_resolutions(&mut all_state);
+    assert_eq!(all_state.len(), 2);
+}
+
+#[test]
 fn a_single_entity_lookup_gets_a_small_cap() {
     let ents = vec![entity("Site/a.vb")];
     let intents = vec![(Intent::Explain, 0.6f32)];
