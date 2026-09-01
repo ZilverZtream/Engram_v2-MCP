@@ -381,3 +381,17 @@ literals (E0308 ×4), Phase-D legacy primary-kind tail (satisfied contract
 now returns Answered), Script-modality test model, and the shared-test-file
 commit partition (landed as ONE commit). Evidence: probe_r71_p02.txt,
 causal_r71.*, golden_v2_r71.log, verify_r71.log.
+
+**r72 (doc-13 Phase E: judge v4 exact-set, commit 86c7cfd, EVAL-ONLY —
+r71's binary):** the doc-12 P0-3 construction is dead — the fabricated
+two-filename report now FAILS with "set recall 0.00 < 1.0" naming the
+missing routes (red_phaseE.py red observed on v3, green gated on v4).
+ox_causal_20 carries the fifteen source-derived route identities
+(min_recall 1.0) and STAYS correct under them; the misleading
+"(gate = 100%)" banner is replaced by the per-row rubric + printed floor
+(the GATE-PASS P1). Under v4: causal 16/20 PASS, golden 23/35 PASS (zero
+rows lost to the tightening), held-out 4/11 + 2/5 report-only. The
+identity-precision half of the doc-13 sketch rides the item-precision
+token join (set names now count); a dedicated per-identity precision
+metric remains open if a later row needs it. Evidence: causal_r72.*,
+golden_v4_r72.json, land_r72.log.

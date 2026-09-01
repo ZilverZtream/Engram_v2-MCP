@@ -56,7 +56,7 @@ The camera-class lie ("Answered" on 1-of-2 files) becomes Partial with the
 uncovered facet named. status.rs:264's resolved-entity-anywhere adequacy
 is subordinated to the contract.
 
-## Phase E — exact-set judges (doc 12 item 5; the P0-3 fix)
+## Phase E — exact-set judges (doc 12 item 5; the P0-3 fix) — LANDED @86c7cfd, live r72 (fabricated report fails on set recall; ox_causal_20 holds under 15 identities; truthful banner)
 
 Judge v4: rows may declare `expected_set` (identities: function names,
 files, routes) with `scoring: {precision, recall}` over IDENTITIES, not
