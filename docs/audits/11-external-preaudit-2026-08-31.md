@@ -335,3 +335,11 @@ settle_purge_outcome seam in the real update report (verify_r67 08:27:35).
 P1a row CLOSED above. Next: doc-13 Phase A (AnswerContract) — chain c50.
 Evidence: causal_r67.*, golden_v3_r67.json, holdout_*_r67.json,
 verify_r67.log.
+
+**r68 (doc-13 Phase A: typed AnswerContract, commit 0e630f1):** PERFECTLY
+FLAT — zero row churn on all four suites (causal 15/20 PASS, golden 23/35
+PASS, held-out 4/11 + 2/5, ranks 6/6 ×2, pool 174, Health OK). Correct by
+design: the contract ships WITHOUT consumers — five shape units assert it
+against the round-3 audit's exact probes; Phases B–D make it load-bearing.
+Evidence: causal_r68.*, golden_v3_r68.json, holdout_*_r68.json,
+verify_r68.log.
