@@ -31,7 +31,7 @@ callee hop: caps hit). `report.rs` renders truncation per provider —
 "showing 7 of ~40 callers (provider cap 25, evidence cap 10)" — instead of
 only failed/empty modalities.
 
-## Phase C — named-file callee traversal (doc 12 item 3; the P0-2 fix) — LANDED @19379d8, live r70 (probe 5/15: the ranker's per-path cap ate the set; C2 exemption + kinds walk land r71)
+## Phase C — named-file callee traversal (doc 12 item 3; the P0-2 fix) — LANDED @19379d8, live r70; C2 (exempt lane + kinds walk) LANDED @3524218, live r71: probe 15/15 Answered
 
 For `direction=Callees, cardinality=ExhaustiveSet` on a named file, bypass
 semantic ranking first: named file → contained functions + file-level
@@ -43,7 +43,7 @@ Live acceptance: the doc-12 probe ("Which server API functions does
 ioMarkerInfowindow.ts call?") returns the full route set (15 + getImage
 wrapper) with per-route implementations.
 
-## Phase D — contract-validated status (doc 12 item 4; the P0-1 fix)
+## Phase D — contract-validated status (doc 12 item 4; the P0-1 fix) — LANDED @3524218, live r71 (probe status Answered via the contract gate; causal 16/20)
 
 `assess_status` takes the contract's validation result:
 

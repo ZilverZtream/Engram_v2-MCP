@@ -368,3 +368,16 @@ selection (set items are facts, not anchoring bias), a kinds-restricted
 walk ("API" questions walk ApiCall only), and the cap reverts to the plain
 lookup cap. Evidence: probe_r70_p02.txt, refs_*_diag.txt, causal_r70.*,
 golden_v3_r70.json, verify_r70.log.
+
+**r71 (doc-13 C2+D: exempt selection lane + contract-validated status,
+commit 3524218):** the doc-12 P0-2 probe now cites the COMPLETE set —
+ROUTE RECALL 15/15 vs the source-derived ground truth (audit: 1/15,
+r70: 5/15) in a 23-item report (r70 flooded 73), status Answered through
+Phase D's contract gate. causal 16/20 (+1: ox_causal_20 correct — the
+ApiCall-only walk and the reverted cap healed its precision, 0.10 → pass);
+golden 23/35 row-identical, held-out 4/11 + 2/5 unchanged, ranks 6/6 ×2,
+pool 172, sweep73 3,813/0/199. Iterations recorded honestly: C2 test
+literals (E0308 ×4), Phase-D legacy primary-kind tail (satisfied contract
+now returns Answered), Script-modality test model, and the shared-test-file
+commit partition (landed as ONE commit). Evidence: probe_r71_p02.txt,
+causal_r71.*, golden_v2_r71.log, verify_r71.log.
