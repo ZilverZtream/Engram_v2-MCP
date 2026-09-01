@@ -269,3 +269,17 @@ retrieval misses (bug_1/2, usage_2/3/5, multi_2/3, causal_20), (b) the
 0.30/0.33 precision boundary (compound_1, rationale_2, causal_3/12/17/19,
 causal_13), (c) lookup precision (exact_5 0.20, exact_6 0.25). Evidence:
 causal_r62.*, golden_v3_r62.json, holdout_*_r62.json, verify_r62.log.
+
+**r63 (batch 6: plural-caller cue + derived-state collapse, commit 6a69744):**
+causal 15/20 PASS — the FIRST causal gain since the floor was set
+(+causal_13: the callers arm now runs on "Which TypeScript files call X?").
+golden 23/35 PASS (+exact_5 — the sym-over-state collapse engaged the
+lookup cap — but multi_4 flip-flopped back to its 0.30 boundary: the
+collapse reshuffled its resolutions and the 10-item breadth returned).
+Held-out causal 2/5 (+hx_causal_2 — a genuine GENERALIZATION win, never
+tuned against); held-out golden 3/11 unchanged. Health OK, ranks 6/6 ×2
+(pool 172). Twelve golden survivors: the 0.30-boundary cluster (multi_4,
+rationale_2, compound_1 — each 3/10, one relevant item short), required-cite
+retrieval (usage_2/3/5, multi_2, bug_1/2), multi_3's cross-language .rdl
+gap, exact_6 (0.25), multi_1 (unsupported). Evidence: causal_r63.*,
+golden_v3_r63.json, holdout_*_r63.json, verify_r63.log.
