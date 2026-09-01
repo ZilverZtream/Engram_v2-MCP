@@ -65,7 +65,7 @@ ground truth (source-verified). The misleading "gate = 100%" banner is
 replaced by the truthful printed gate ("no-regression floor ≥ N" when
 min_correct substitutes) — the auditor's GATE-PASS P1.
 
-## Phase F — sealed blind suite protocol (doc 12 item 6, owner-scoped)
+## Phase F — sealed blind suite protocol (doc 12 item 6, owner-scoped) — protocol @95b69da; suite SEALED @e479112 (8 rows, sha a772866b…, BLIND)
 
 One NEW sealed OciusX blind suite (owner declined extra projects for now):
 authored from source ground truth, sha-committed ENCRYPTED-or-content-only

@@ -395,3 +395,15 @@ identity-precision half of the doc-13 sketch rides the item-precision
 token join (set names now count); a dedicated per-identity precision
 metric remains open if a later row needs it. Evidence: causal_r72.*,
 golden_v4_r72.json, land_r72.log.
+
+**Phase F: suite sealed (commits 95b69da protocol + e479112 suite):**
+ONE new sealed OciusX blind suite — ask_blind2_ociusx.jsonl, 8 rows
+(two exhaustive callee sets: qtyManager.ts 12 routes,
+installation_edit.ts 8; a 5-file callers set; where-defined; a callers
+row; a 4-table query set; a served-by row; a fabricated-premise abstain
+row) — every fact source-derived by grep from the OciusX working tree,
+never run through the engine before sealing. Seal
+sha256=a772866bedb8a014…, state BLIND; scoring goes through
+eval/_seal_suite.py verify; first inspection retires it into the
+dev/validation pool. The old held-out set is dev/validation and is never
+again cited as blind.
