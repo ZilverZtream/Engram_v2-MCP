@@ -6,7 +6,7 @@ grind is STOPPED; the remaining problem is architectural. Discipline per
 slice is unchanged: RED → GREEN → sweep → land → live → disposition →
 memory; chain template v2; batched landings.
 
-## Phase A — the typed AnswerContract (doc 12 item 1)
+## Phase A — the typed AnswerContract (doc 12 item 1) — LANDED @0e630f1, live r68 (flat by design)
 
 `plan.rs` gains `AnswerContract`, derived by the planner beside intents:
 
