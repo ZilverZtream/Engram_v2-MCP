@@ -295,3 +295,19 @@ batch 8 threads the scope INTO the search arms (HybridQuery already
 carries include_path_prefixes, unset) so the top-k comes from in-scope
 documents. Evidence: causal_r64.*, golden_v3_r64.json, holdout_*_r64.json,
 verify_r64.log.
+
+**r65 (batch 8: scope-steered retrieval, commit 506df86):** golden 23/35
+PASS, causal 14/20 PASS — the gate held but ox_causal_1 OSCILLATED out
+(probe: the dispatch pair IS retrieved — athDeleteByID in caw.ts +
+DeleteChangeRequest in api-atahuvud.vb — yet status calibrated Unsupported
+at generation 887; the verify's route probes are byte-identical to r64, so
+the graph is intact and batch 8's code path is inert with empty scopes:
+generation-sensitive status oscillation, the P0-3-adjacent watch class).
+The STEERING itself landed: usage_5's evidence is now ENTIRELY under
+ts/map including the required ioMarkerInfowindow.ts — remaining gaps are
+status calibration (code-only scoped evidence judged inadequate →
+Unsupported) and the specific "camera" chunks not ranking. Held-out
+3/11 + 2/5 unchanged, Health OK, ranks 6/6 ×2 (pool 174). Golden has been
+flat at 23/35 for four releases — the survivors need status-calibration
+or deep-retrieval designs; the priority fork goes to the owner. Evidence:
+causal_r65.*, golden_v3_r65.json, holdout_*_r65.json, verify_r65.log.
