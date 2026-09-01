@@ -278,6 +278,8 @@ pub fn plan_query(question: &str) -> QueryPlan {
     let needed_evidence = needed_evidence_for(&intents);
     let modalities = detect_modalities(&lower);
 
+    let contract = derive_contract(&lower, &entities);
+
     QueryPlan {
         intents,
         entities,
@@ -285,7 +287,62 @@ pub fn plan_query(question: &str) -> QueryPlan {
         needed_evidence,
         answer_type,
         modalities,
+        contract,
     }
+}
+
+/// Doc-13 Phase A: derive the typed answer contract from the question's
+/// SHAPE — generic linguistic forms, never project names.
+pub fn derive_contract(lower: &str, _entities: &[EntityMention]) -> super::plan::AnswerContract {
+    use super::plan::{AnswerContract, Cardinality, ContractDirection, ContractEntityType, Facet};
+    let mut c = AnswerContract::default();
+    let interrogative =
+        lower.starts_with("which ") || lower.starts_with("what ") || lower.starts_with("who ");
+    // "Which/What … does X call?" — the CALLEES of X, as a set.
+    let asks_callees = interrogative
+        && (lower.contains(" does ") || lower.contains(" do "))
+        && (lower.contains(" call?") || lower.contains(" call ") || lower.contains(" calls?"));
+    // "Which/What/Who … call(s) X?" — the CALLERS of X, as a set.
+    let asks_callers =
+        !asks_callees && interrogative && (lower.contains(" calls ") || lower.contains(" call "));
+    if asks_callees {
+        c.direction = ContractDirection::Callees;
+        c.cardinality = Cardinality::ExhaustiveSet;
+        c.completeness_required = true;
+        if lower.contains(" functions ") || lower.contains(" function ") {
+            c.entity_type = ContractEntityType::Function;
+        } else if lower.contains(" files ") {
+            c.entity_type = ContractEntityType::File;
+        } else if lower.contains(" routes ") || lower.contains(" route ") {
+            c.entity_type = ContractEntityType::Route;
+        }
+    } else if asks_callers {
+        c.direction = ContractDirection::Callers;
+        c.cardinality = Cardinality::ExhaustiveSet;
+        c.completeness_required = true;
+        if lower.contains(" files ") {
+            c.entity_type = ContractEntityType::File;
+        } else if lower.contains(" functions ") {
+            c.entity_type = ContractEntityType::Function;
+        }
+        c.required_facets.push(Facet::Caller);
+    } else if (lower.contains("where is")
+        || lower.contains("where are")
+        || lower.contains("where's"))
+        && (lower.contains("defined") || lower.contains("declared") || lower.contains("definition"))
+    {
+        c.cardinality = Cardinality::One;
+        c.required_facets.push(Facet::Definition);
+    } else if interrogative && lower.contains(" files ") {
+        // "Which … files … <verb> …?" — a file SET (the camera shape).
+        c.entity_type = ContractEntityType::File;
+        c.cardinality = Cardinality::ExhaustiveSet;
+        c.completeness_required = true;
+    } else if interrogative && (lower.contains(" table ") || lower.contains(" table?")) {
+        c.entity_type = ContractEntityType::Table;
+        c.cardinality = Cardinality::One;
+    }
+    c
 }
 
 /// Round-2 audit P0-4: the evidence modality the question asks for, from

@@ -51,6 +51,64 @@ pub struct ResolvedEntity {
     pub confidence: f32,
 }
 
+/// Doc-13 Phase A (round-3 audit item 1): the typed ANSWER CONTRACT — what
+/// SHAPE of answer the question demands. Traversal policy (Phase C) and
+/// status validation (Phase D) key off this, never off intent heuristics.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum ContractDirection {
+    None,
+    Callers,
+    Callees,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum ContractEntityType {
+    Any,
+    Function,
+    File,
+    Table,
+    Route,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum Cardinality {
+    One,
+    TopK,
+    ExhaustiveSet,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum Facet {
+    Definition,
+    Caller,
+    Implementation,
+    Rationale,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AnswerContract {
+    pub direction: ContractDirection,
+    pub entity_type: ContractEntityType,
+    pub cardinality: Cardinality,
+    pub required_facets: Vec<Facet>,
+    /// Empty = every evidence class is admissible.
+    pub allowed_evidence: Vec<EvidenceKind>,
+    pub completeness_required: bool,
+}
+
+impl Default for AnswerContract {
+    fn default() -> Self {
+        Self {
+            direction: ContractDirection::None,
+            entity_type: ContractEntityType::Any,
+            cardinality: Cardinality::TopK,
+            required_facets: Vec::new(),
+            allowed_evidence: Vec::new(),
+            completeness_required: false,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct Qualifiers {
     /// Batch 7 (doc 11, live r63 usage_5): "under ts/map" — directory-shaped
@@ -88,6 +146,8 @@ pub struct QueryPlan {
     pub answer_type: AnswerType,
     /// Round-2 audit P0-4: the evidence modalities the question asks for.
     pub modalities: Vec<Modality>,
+    /// Doc-13 Phase A: the typed answer contract derived from the question's shape.
+    pub contract: AnswerContract,
 }
 
 /// Round-2 audit P0-4: the evidence MODALITY a question names — "which
