@@ -415,6 +415,81 @@ fn a_language_name_is_covered_by_evidence_in_that_language() {
 }
 
 #[test]
+fn a_named_file_callee_question_contracts_an_exhaustive_function_set() {
+    // Doc-12 P0-2 probe shape: "Which server API functions does X call?" —
+    // the answer is a SET of functions; caps and one-per-file dedup must
+    // not silently shrink it (Phases B–D key off this contract).
+    use engram_server::services::ask_engine::plan::{
+        Cardinality, ContractDirection, ContractEntityType,
+    };
+    let plan = engram_server::services::ask_engine::planner::plan_query(
+        "Which server API functions does orderPanel.ts call?",
+    );
+    let c = &plan.contract;
+    assert!(matches!(c.direction, ContractDirection::Callees), "{c:?}");
+    assert!(matches!(c.cardinality, Cardinality::ExhaustiveSet), "{c:?}");
+    assert!(
+        matches!(c.entity_type, ContractEntityType::Function),
+        "{c:?}"
+    );
+    assert!(c.completeness_required, "{c:?}");
+}
+
+#[test]
+fn a_plural_files_question_contracts_a_file_set() {
+    // Doc-12 P0-1 probe shape: "Which TypeScript files under ts/map render
+    // the camera icon?" — a file SET with completeness required.
+    use engram_server::services::ask_engine::plan::{Cardinality, ContractEntityType};
+    let plan = engram_server::services::ask_engine::planner::plan_query(
+        "Which TypeScript files under ts/map render the camera icon on a marker?",
+    );
+    let c = &plan.contract;
+    assert!(matches!(c.entity_type, ContractEntityType::File), "{c:?}");
+    assert!(matches!(c.cardinality, Cardinality::ExhaustiveSet), "{c:?}");
+    assert!(c.completeness_required, "{c:?}");
+}
+
+#[test]
+fn a_plural_callers_question_contracts_an_exhaustive_caller_set() {
+    use engram_server::services::ask_engine::plan::{
+        Cardinality, ContractDirection, ContractEntityType,
+    };
+    let plan = engram_server::services::ask_engine::planner::plan_query(
+        "Which TypeScript files call gisGetProjectImportData?",
+    );
+    let c = &plan.contract;
+    assert!(matches!(c.direction, ContractDirection::Callers), "{c:?}");
+    assert!(matches!(c.cardinality, Cardinality::ExhaustiveSet), "{c:?}");
+    assert!(matches!(c.entity_type, ContractEntityType::File), "{c:?}");
+    assert!(c.completeness_required, "{c:?}");
+}
+
+#[test]
+fn a_where_defined_question_contracts_one_definition() {
+    use engram_server::services::ask_engine::plan::{Cardinality, Facet};
+    let plan = engram_server::services::ask_engine::planner::plan_query(
+        "Where is CanUserBulkUpdate defined?",
+    );
+    let c = &plan.contract;
+    assert!(matches!(c.cardinality, Cardinality::One), "{c:?}");
+    assert!(c.required_facets.contains(&Facet::Definition), "{c:?}");
+    assert!(!c.completeness_required, "{c:?}");
+}
+
+#[test]
+fn an_explain_question_keeps_the_default_contract() {
+    // No false exhaustiveness: an open "how does …" question stays TopK.
+    use engram_server::services::ask_engine::plan::{Cardinality, ContractDirection};
+    let plan = engram_server::services::ask_engine::planner::plan_query(
+        "How does the map's marker info window fetch a marker's images?",
+    );
+    let c = &plan.contract;
+    assert!(matches!(c.direction, ContractDirection::None), "{c:?}");
+    assert!(matches!(c.cardinality, Cardinality::TopK), "{c:?}");
+    assert!(!c.completeness_required, "{c:?}");
+}
+
+#[test]
 fn a_single_entity_lookup_gets_a_small_cap() {
     let ents = vec![entity("Site/a.vb")];
     let intents = vec![(Intent::Explain, 0.6f32)];
