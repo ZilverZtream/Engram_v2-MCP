@@ -2079,35 +2079,39 @@ impl Engram {
             .map_err(|e| anyhow::anyhow!("set_meta failed: {e}"))?;
         }
 
-        // External audit round 2 (docs/audits/10) P0-1: a failed post-publication
-        // purge is a recorded debt the GC settles (`purge_pending`), never a
-        // swallowed error — and the update reports what happened.
-        let purge_note = match ps.search.purge_old_generations(project_id, new_gen).await {
-            Ok(()) => {
-                let reg = self.state.registry.clone();
-                let pid_p = project_id.to_string();
-                let _ =
-                    tokio::task::spawn_blocking(move || reg.set_meta(&pid_p, "purge_pending", ""))
-                        .await;
-                "purge: ok".to_string()
-            }
-            Err(e) => {
-                tracing::warn!(
-                    project_id = project_id,
-                    generation = new_gen,
-                    "post-publication purge failed — recorded as pending for the GC: {e:#}"
-                );
-                let reg = self.state.registry.clone();
-                let pid_p = project_id.to_string();
-                let gen_s = new_gen.to_string();
-                let _ = tokio::task::spawn_blocking(move || {
-                    reg.set_meta(&pid_p, "purge_pending", &gen_s)
+        // External audit round 2 (docs/audits/10) P0-1 + doc-11 P1a: a failed
+        // post-publication purge is a recorded debt the GC settles
+        // (`purge_pending`), never a swallowed error — and the REGISTRY WRITE
+        // that records or clears the debt is itself part of the outcome,
+        // never a discarded `let _`.
+        let purge_outcome = ps.search.purge_old_generations(project_id, new_gen).await;
+        if let Err(e) = &purge_outcome {
+            tracing::warn!(
+                project_id = project_id,
+                generation = new_gen,
+                "post-publication purge failed — recording as pending for the GC: {e:#}"
+            );
+        }
+        let (purge_note, gc_nudge) = {
+            let reg = self.state.registry.clone();
+            let pid_p = project_id.to_string();
+            tokio::task::spawn_blocking(move || {
+                settle_purge_outcome(purge_outcome, new_gen, |v| {
+                    reg.set_meta(&pid_p, "purge_pending", v)
+                        .map_err(anyhow::Error::from)
                 })
-                .await;
-                self.state.gc_nudge.notify_one();
-                format!("purge: deferred to the GC ({e:#})")
-            }
+            })
+            .await
+            .unwrap_or_else(|e| {
+                (
+                    format!("purge settlement task panicked — degraded: {e}"),
+                    true,
+                )
+            })
         };
+        if gc_nudge {
+            self.state.gc_nudge.notify_one();
+        }
         // External audit 2026-08-29 row 9: refresh the co-change snapshot
         // (incremental by walked commit) so the next get_change_set only reads.
         {
@@ -4201,4 +4205,35 @@ pub(crate) struct GenerationCompleteness {
     pub store_errors: Vec<String>,
     pub degraded: bool,
     pub complete: bool,
+}
+
+/// Doc-11 P1a (external audit round 2, P0-1 tail): the post-publication
+/// purge settlement — the registry write that records (`gen`) or clears
+/// (`""`) the purge debt is part of the outcome, never discarded. Returns
+/// the report note and whether the GC should be nudged.
+pub fn settle_purge_outcome(
+    outcome: anyhow::Result<()>,
+    new_gen: u64,
+    record: impl FnOnce(&str) -> anyhow::Result<()>,
+) -> (String, bool) {
+    match outcome {
+        Ok(()) => match record("") {
+            Ok(()) => ("purge: ok".to_string(), false),
+            Err(e) => (
+                format!(
+                    "purge: ok — but clearing the pending flag failed (the GC may re-purge needlessly): {e:#}"
+                ),
+                false,
+            ),
+        },
+        Err(e) => match record(&new_gen.to_string()) {
+            Ok(()) => (format!("purge: deferred to the GC ({e:#})"), true),
+            Err(re) => (
+                format!(
+                    "purge FAILED and recording the debt failed — DEGRADED, the GC has no record: purge error {e:#}; registry error {re:#}"
+                ),
+                true,
+            ),
+        },
+    }
 }
