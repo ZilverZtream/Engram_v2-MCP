@@ -53,6 +53,9 @@ pub struct ResolvedEntity {
 
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct Qualifiers {
+    /// Batch 7 (doc 11, live r63 usage_5): "under ts/map" — directory-shaped
+    /// scopes the question names; retrieval honors them pool-wide.
+    pub path_prefixes: Vec<String>,
     pub roles: Vec<String>,               // admin, tenant-admin, user
     pub change: Option<(String, String)>, // (from, to): XML → JSON
     pub scopes: Vec<String>,              // import, export, ...

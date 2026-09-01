@@ -371,6 +371,32 @@ pub fn lookup_cap(
     }
 }
 
+/// Batch 7 (doc 11, live r63 usage_5): a question that names a path scope
+/// ("under ts/map") gets evidence FROM that scope — an item whose path does
+/// not contain the scope as a directory infix is out. Fail-safe: never
+/// empties the pool.
+pub fn retain_path_scoped(items: &mut Vec<EvidenceItem>, prefixes: &[String]) {
+    if prefixes.is_empty() || items.is_empty() {
+        return;
+    }
+    let matches_scope = |path: &str| {
+        let p = path.replace('\\', "/").to_lowercase();
+        prefixes.iter().any(|pre| {
+            p == *pre
+                || p.starts_with(&format!("{pre}/"))
+                || p.contains(&format!("/{pre}/"))
+                || p.ends_with(&format!("/{pre}"))
+        })
+    };
+    if !items
+        .iter()
+        .any(|it| it.path.as_deref().is_some_and(matches_scope))
+    {
+        return;
+    }
+    items.retain(|it| it.path.as_deref().is_some_and(matches_scope));
+}
+
 /// Batch 4 (doc 11, live r60 exact_3): under an ENGAGED lookup cap, a slot
 /// belongs to evidence that actually mentions the asked entity (its text or
 /// a resolved canonical); entity-seeded relation evidence and items the

@@ -724,6 +724,28 @@ fn is_stopword(w: &str) -> bool {
 /// Roles, change verbs, and scope words that qualify the retrieval.
 pub fn extract_qualifiers(q: &str, lower: &str) -> Qualifiers {
     let mut ql = Qualifiers::default();
+    // Batch 7 (doc 11, live r63 usage_5): "under ts/map …" — a
+    // directory-shaped token after a locative preposition is a PATH SCOPE
+    // for retrieval, not an entity to resolve.
+    let toks: Vec<&str> = lower.split_whitespace().collect();
+    for w in toks.windows(2) {
+        if !matches!(w[0], "under" | "in" | "within" | "inside") {
+            continue;
+        }
+        let t = w[1].trim_matches(|c: char| {
+            !(c.is_ascii_alphanumeric() || c == '/' || c == '_' || c == '-' || c == '.')
+        });
+        if t.len() >= 4
+            && t.contains('/')
+            && !t.starts_with('/')
+            && !t.ends_with('/')
+            && !t.contains("//")
+            && t.chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '/' || c == '_' || c == '-' || c == '.')
+        {
+            ql.path_prefixes.push(t.to_string());
+        }
+    }
     for role in [
         "administrator",
         "admin",

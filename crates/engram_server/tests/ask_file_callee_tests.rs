@@ -440,6 +440,28 @@ async fn a_compound_name_reaches_the_implementation_through_the_wrapper_route() 
 }
 
 #[tokio::test]
+async fn a_question_scoped_under_a_directory_cites_only_that_directory() {
+    // Batch 7 wiring guard (live r63 usage_5): "under <dir>" scopes the
+    // WHOLE evidence pool — every arm honors it.
+    let (_tmp, engram, pid) = build().await;
+    let v = ask(
+        &engram,
+        &pid,
+        "Which files under ts/orders fetch order data?",
+    )
+    .await;
+    let ev = v["evidence"].as_array().cloned().unwrap_or_default();
+    assert!(!ev.is_empty(), "scoped question must still answer: {v}");
+    for it in &ev {
+        let p = it["path"].as_str().unwrap_or("").to_lowercase();
+        assert!(
+            p.contains("ts/orders"),
+            "an item outside the asked scope: {p}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn a_where_defined_lookup_answers_small_and_anchored() {
     // Batch 4 wiring guard (live r60 exact_3): "Where is X defined?" engages
     // the lookup cap (no breadth Usage) and every slot mentions the entity.
