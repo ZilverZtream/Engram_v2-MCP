@@ -2527,7 +2527,16 @@ impl Engram {
                 Default::default()
             }
         };
-        let total_docs: usize = ns_counts.values().sum();
+        // Doc-11 P1e: the TOTAL is the project-wide count — the namespace
+        // map enumerates a fixed subset and understated the label (live:
+        // 421,293 printed vs 422,249 held).
+        let total_docs: usize = match ps.search.count_docs(&pid) {
+            Ok(n) => n,
+            Err(e) => {
+                failures.push(format!("search total count failed: {e}"));
+                ns_counts.values().sum()
+            }
+        };
         let lancedb_rows = match ps.search.count_vectors(&pid).await {
             Ok(n) => n,
             Err(e) => {
