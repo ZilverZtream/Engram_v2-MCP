@@ -236,6 +236,18 @@ impl Engram {
                     .ok()
                     .flatten()
                     .map(|rec| std::path::PathBuf::from(rec.directory));
+                // Phase C2: the question's own vocabulary picks the walk —
+                // "API" asks for routes, not every helper the file touches.
+                let kinds: Vec<engram_graph::EdgeKind> =
+                    if req.question.to_lowercase().contains("api") {
+                        vec![engram_graph::EdgeKind::ApiCall]
+                    } else {
+                        vec![
+                            engram_graph::EdgeKind::ApiCall,
+                            engram_graph::EdgeKind::SqlCalls,
+                            engram_graph::EdgeKind::Calls,
+                        ]
+                    };
                 let (set, cov) = tokio::task::spawn_blocking(move || {
                     let mut id = 20_000usize;
                     crate::services::ask_engine::providers::exhaustive_callee_set(
@@ -243,6 +255,7 @@ impl Engram {
                         project_dir.as_deref(),
                         &pid_x,
                         &fp,
+                        &kinds,
                         &mut id,
                     )
                 })
@@ -270,16 +283,20 @@ impl Engram {
             }
         }
         // Batch 1 Fix A (doc 11 grind): lookup-shaped questions answer small.
-        let lcap = if exhaustive_contract {
-            raw.len().max(depth.evidence_cap())
-        } else {
-            ranking::lookup_cap(&plan.entities, &plan.intents, depth)
-        };
+        // Phase C2: the exhaustive set rides the EXEMPT lane below — the cap
+        // governs supporting evidence only, so it stays small (r70's widened
+        // cap flooded 73 items and cost the set question its precision).
+        let lcap = ranking::lookup_cap(&plan.entities, &plan.intents, depth);
         // Batch 4: the ranker sees the asked terms — co-occurrence beats swarms.
         // Batch 5: RESOLVED mentions only — a junk mention must not flip the
         // co-occurrence switch (live r61: "data-access" cost exact_2/exact_5).
         let terms = ranking::cooccurrence_terms(&plan.entities);
-        let mut evidence = ranking::rank_and_select_with_terms(raw, lcap, &terms);
+        let mut evidence = ranking::rank_and_select_with_terms_exempt(
+            raw,
+            lcap,
+            &terms,
+            exhaustive_contract.then_some("callee_set"),
+        );
         // P0-4e: one reserve pass — modality, needed kind, named file — with
         // protected eviction (no reserve evicts another reserve's item).
         // Batch 4e: the reserve's guarantees are VISIBLE to the trims — a

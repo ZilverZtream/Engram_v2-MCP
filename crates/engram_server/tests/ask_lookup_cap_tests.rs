@@ -553,7 +553,12 @@ fn an_exhaustive_callee_set_keeps_every_function_of_a_shared_file() {
     g.upsert_nodes_and_edges("p", &nodes, &edges).unwrap();
     let mut id = 0usize;
     let (items, cov) = engram_server::services::ask_engine::providers::exhaustive_callee_set(
-        &g, None, "p", ts, &mut id,
+        &g,
+        None,
+        "p",
+        ts,
+        &[EdgeKind::ApiCall, EdgeKind::SqlCalls, EdgeKind::Calls],
+        &mut id,
     );
     let names: Vec<&str> = items.iter().filter_map(|i| i.title.as_deref()).collect();
     for want in ["apiGetX", "apiGetY", "apiGetZ"] {
@@ -566,6 +571,274 @@ fn an_exhaustive_callee_set_keeps_every_function_of_a_shared_file() {
     assert!(
         !cov.truncated,
         "an exhaustive walk never truncates: {cov:?}"
+    );
+}
+
+fn c2_item(
+    i: usize,
+    provider: &str,
+    path: &str,
+) -> engram_server::services::ask_engine::evidence::EvidenceItem {
+    use engram_server::services::ask_engine::evidence as ev;
+    ev::EvidenceItem {
+        evidence_id: format!("c2_{provider}_{i}"),
+        kind: if provider == "callee_set" {
+            ev::EvidenceKind::GraphRelation
+        } else {
+            ev::EvidenceKind::SourceCode
+        },
+        authority: ev::Authority::CurrentCode,
+        path: Some(path.to_string()),
+        lines: Some((i as u32 * 100 + 1, i as u32 * 100 + 40)),
+        symbol_id: Some(format!("sym:{provider}:{i}")),
+        title: None,
+        content: format!("caller calls route_{i} — defined in {path}"),
+        generation: None,
+        commit: None,
+        timestamp: None,
+        confidence: 0.9,
+        relevance: 0.9,
+        extraction_method: "exhaustive_callee".into(),
+        warnings: vec![],
+        provider: provider.into(),
+        score: None,
+        directness: Some(0.9),
+    }
+}
+
+#[test]
+fn the_exhaustive_set_survives_the_per_path_cap() {
+    // r70 live (doc-12 P0-2): 12 routes in ONE implementation file were
+    // collapsed to 2 by the ranker's per-path anti-anchoring cap. Exhaustive
+    // set items are facts, not anchoring bias — every one survives selection.
+    use engram_server::services::ask_engine::ranking;
+    let mut items: Vec<_> = (0..12)
+        .map(|i| c2_item(i, "callee_set", "Site/api/api-impl.vb"))
+        .collect();
+    for i in 0..5 {
+        items.push(c2_item(100 + i, "code", "Site/api/api-impl.vb"));
+    }
+    let out = ranking::rank_and_select_with_terms_exempt(items, 4, &[], Some("callee_set"));
+    let set_kept = out.iter().filter(|e| e.provider == "callee_set").count();
+    let code_kept = out.iter().filter(|e| e.provider == "code").count();
+    assert_eq!(set_kept, 12, "every exhaustive-set item survives");
+    assert!(
+        code_kept <= 2,
+        "non-set items still per-path capped, got {code_kept}"
+    );
+    assert!(out.len() <= 12 + 4, "cap applies to the non-exempt lane");
+}
+
+#[test]
+fn an_api_question_walks_only_api_call_edges() {
+    // r70 live: the set flooded every Calls callee (bootstrap callbacks,
+    // jsonFill…) into "Which server API functions…". A kinds-restricted walk
+    // returns the API routes and nothing else.
+    use engram_core::RelPath;
+    use engram_graph::{Edge, EdgeKind, GraphStore, Node};
+    let dir = tempfile::tempdir().unwrap();
+    let store = GraphStore::open(&dir.path().join("g.redb")).unwrap();
+    let pid = "p_c2";
+    let f = |name: &str, path: &str, id: &str| Node {
+        node_id: id.to_string(),
+        node_type: "function".to_string(),
+        name: name.to_string(),
+        namespace: String::new(),
+        language: "typescript".to_string(),
+        file_path: RelPath::new(path),
+        start_line: 1,
+        end_line: 9,
+        generation: 1,
+        metadata: None,
+    };
+    let nodes = vec![
+        f(
+            "panelInit",
+            "ts/panel.ts",
+            "sym:function:ts/panel.ts:panelInit:1",
+        ),
+        f(
+            "api.routeA",
+            "api/impl.vb",
+            "sym:function:api/impl.vb:api.routeA:1",
+        ),
+        f(
+            "helperFn",
+            "ts/util.ts",
+            "sym:function:ts/util.ts:helperFn:1",
+        ),
+    ];
+    let edge = |kind: EdgeKind, target: &str| Edge {
+        source_id: "sym:function:ts/panel.ts:panelInit:1".to_string(),
+        target_id: target.to_string(),
+        namespace: String::new(),
+        language: String::new(),
+        edge_kind: kind,
+        weight: 1,
+        generation: 1,
+        metadata: None,
+        updated_at_ms: 0,
+    };
+    let edges = vec![
+        edge(EdgeKind::ApiCall, "sym:function:api/impl.vb:api.routeA:1"),
+        edge(EdgeKind::Calls, "sym:function:ts/util.ts:helperFn:1"),
+    ];
+    store.upsert_nodes_and_edges(pid, &nodes, &edges).unwrap();
+    let mut id = 0usize;
+    let (items, _cov) = engram_server::services::ask_engine::providers::exhaustive_callee_set(
+        &store,
+        None,
+        pid,
+        "ts/panel.ts",
+        &[EdgeKind::ApiCall],
+        &mut id,
+    );
+    assert_eq!(items.len(), 1, "only the ApiCall edge: {items:?}");
+    assert!(items[0].content.contains("api.routeA"));
+}
+
+fn d_item(kind_def: bool) -> engram_server::services::ask_engine::evidence::EvidenceItem {
+    use engram_server::services::ask_engine::evidence as ev;
+    ev::EvidenceItem {
+        evidence_id: "d1".to_string(),
+        kind: if kind_def {
+            ev::EvidenceKind::SourceCode
+        } else {
+            ev::EvidenceKind::GraphRelation
+        },
+        authority: ev::Authority::CurrentCode,
+        path: Some("site/api/api-shared.vb".to_string()),
+        lines: None,
+        symbol_id: None,
+        title: None,
+        content: "orderPanel calls apiGetX — served by api-shared.vb".to_string(),
+        generation: None,
+        commit: None,
+        timestamp: None,
+        confidence: 0.9,
+        relevance: 0.9,
+        extraction_method: if kind_def {
+            "definition".into()
+        } else {
+            "exhaustive_callee".into()
+        },
+        warnings: vec![],
+        provider: if kind_def {
+            "definition".into()
+        } else {
+            "callee_set".into()
+        },
+        score: Some(0.9),
+        directness: Some(0.9),
+    }
+}
+
+fn d_rep(
+    provider: &str,
+    count: usize,
+    truncated: bool,
+) -> engram_server::services::ask_engine::status::ProviderReport {
+    engram_server::services::ask_engine::status::ProviderReport {
+        provider: provider.to_string(),
+        status: engram_server::services::ask_engine::status::ProviderStatus::Hit,
+        count,
+        note: None,
+        examined: count,
+        available: Some(count),
+        truncated,
+    }
+}
+
+#[test]
+fn an_exhaustive_callee_answer_needs_the_untruncated_set_arm() {
+    // Doc-12 P0-1/P0-2: Answered must mean the traversal ran and completed.
+    use engram_server::services::ask_engine::status::{
+        AnswerStatus, FreshnessSnapshot, assess_status,
+    };
+    let plan = engram_server::services::ask_engine::planner::plan_query(
+        "Which server API functions does orderPanel.ts call?",
+    );
+    // The evidence models the live shape: the definition arm cites the
+    // asked .ts file (the Script modality gate rightly demands it), the
+    // set item carries a route.
+    let mut src = d_item(true);
+    src.path = Some("site/ts/orderPanel.ts".to_string());
+    let ev = vec![d_item(false), src];
+    let snap = FreshnessSnapshot::default();
+    // Without the callee_set arm: Partial, never Answered.
+    let st = assess_status(&plan, &ev, &[d_rep("code", 5, true)], &snap, true);
+    assert_eq!(st, AnswerStatus::Partial, "no traversal arm -> Partial");
+    // With the set arm, untruncated: Answered.
+    let st = assess_status(
+        &plan,
+        &ev,
+        &[d_rep("code", 5, true), d_rep("callee_set", 16, false)],
+        &snap,
+        true,
+    );
+    assert_eq!(st, AnswerStatus::Answered, "complete traversal -> Answered");
+    // A truncated set arm downgrades.
+    let st = assess_status(&plan, &ev, &[d_rep("callee_set", 3, true)], &snap, true);
+    assert_eq!(st, AnswerStatus::Partial, "truncated traversal -> Partial");
+}
+
+#[test]
+fn a_completeness_file_set_without_a_traversal_is_partial() {
+    // The camera lie (doc-12 P0-1): 1 of 2 files, status said Answered.
+    use engram_server::services::ask_engine::status::{
+        AnswerStatus, FreshnessSnapshot, assess_status,
+    };
+    let plan = engram_server::services::ask_engine::planner::plan_query(
+        "Which TypeScript files under ts/map render the camera icon on a marker?",
+    );
+    let ev = vec![d_item(true)];
+    let st = assess_status(
+        &plan,
+        &ev,
+        &[d_rep("code", 5, false)],
+        &FreshnessSnapshot::default(),
+        true,
+    );
+    assert_eq!(
+        st,
+        AnswerStatus::Partial,
+        "a completeness contract with no exhaustive traversal never claims Answered"
+    );
+}
+
+#[test]
+fn a_required_definition_facet_gates_answered() {
+    use engram_server::services::ask_engine::status::{
+        AnswerStatus, FreshnessSnapshot, assess_status,
+    };
+    let plan = engram_server::services::ask_engine::planner::plan_query(
+        "Where is CanUserBulkUpdate defined?",
+    );
+    // Evidence with NO definition-arm item: Partial.
+    let st = assess_status(
+        &plan,
+        &[d_item(false)],
+        &[d_rep("code", 5, false)],
+        &FreshnessSnapshot::default(),
+        true,
+    );
+    assert_eq!(
+        st,
+        AnswerStatus::Partial,
+        "missing Definition facet -> Partial"
+    );
+    // With a definition item: Answered.
+    let st = assess_status(
+        &plan,
+        &[d_item(true)],
+        &[d_rep("code", 5, false)],
+        &FreshnessSnapshot::default(),
+        true,
+    );
+    assert_eq!(
+        st,
+        AnswerStatus::Answered,
+        "Definition facet satisfied -> Answered"
     );
 }
 

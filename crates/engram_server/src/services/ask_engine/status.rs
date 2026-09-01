@@ -438,6 +438,50 @@ pub fn assess_status(
     }) {
         return AnswerStatus::Partial;
     }
+    // Doc-13 Phase D (round-3 audit P0-1): the CONTRACT decides
+    // completeness — "Answered" must mean the question was answered.
+    if plan.contract.completeness_required {
+        if matches!(
+            plan.contract.direction,
+            super::plan::ContractDirection::Callees
+        ) {
+            // The exhaustive traversal arm must have run and completed.
+            let complete = providers
+                .iter()
+                .any(|p| p.provider == "callee_set" && p.count > 0 && !p.truncated);
+            if !complete {
+                return AnswerStatus::Partial;
+            }
+            // A SATISFIED exhaustive contract IS the answer — the legacy
+            // primary-kind tail expects a prose/source primary and would
+            // call a complete relation set Partial.
+            if evidence
+                .iter()
+                .any(|e| e.kind == super::evidence::EvidenceKind::GraphRelation)
+            {
+                return AnswerStatus::Answered;
+            }
+        } else {
+            // No exhaustive traversal exists for this shape yet — an honest
+            // engine never claims a complete set it cannot establish.
+            return AnswerStatus::Partial;
+        }
+    }
+    // Phase D: a required facet with no supporting evidence keeps Partial.
+    for f in &plan.contract.required_facets {
+        let ok = match f {
+            super::plan::Facet::Definition => evidence
+                .iter()
+                .any(|e| e.provider == "definition" || e.extraction_method.contains("definition")),
+            super::plan::Facet::Caller | super::plan::Facet::Implementation => evidence
+                .iter()
+                .any(|e| e.kind == super::evidence::EvidenceKind::GraphRelation),
+            super::plan::Facet::Rationale => true,
+        };
+        if !ok {
+            return AnswerStatus::Partial;
+        }
+    }
     let primary = primary_kind(plan.answer_type);
     if evidence.iter().any(|e| e.kind == primary) {
         AnswerStatus::Answered
