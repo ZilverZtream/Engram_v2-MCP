@@ -406,4 +406,6 @@ never run through the engine before sealing. Seal
 sha256=a772866bedb8a014…, state BLIND; scoring goes through
 eval/_seal_suite.py verify; first inspection retires it into the
 dev/validation pool. The old held-out set is dev/validation and is never
-again cited as blind.
+again cited as blind. First blind scoring run (r71 binary, judge v4):
+**6/8 correct** — the aggregate line only; per-row failures were captured
+to disk unread, so the suite REMAINS BLIND.
