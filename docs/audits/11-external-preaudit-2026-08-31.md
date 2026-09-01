@@ -311,3 +311,17 @@ Unsupported) and the specific "camera" chunks not ranking. Held-out
 flat at 23/35 for four releases — the survivors need status-calibration
 or deep-retrieval designs; the priority fork goes to the owner. Evidence:
 causal_r65.*, golden_v3_r65.json, holdout_*_r65.json, verify_r65.log.
+
+**r66 (batch 9: status calibration — language and role vocabulary, commit
+af39a0c, owner-approved):** the grind's STRONGEST release. golden 24/35
+PASS — NEW HIGH (+multi_4, zero losses); causal 15/20 PASS (+causal_1
+recovered — the "TypeScript"-as-uncovered-premise oscillation class is
+dead); HELD-OUT GOLDEN 4/11 (+hx_golden_2 — a pure generalization win,
+never tuned against). Both remaining batch-9 targets moved exactly as
+designed: usage_5 unsupported→ANSWERED (fails only on the second required
+file's camera chunk — retrieval), multi_1 unsupported→PARTIAL (fails only
+on the required canuserbulkupdate cite — retrieval). Health OK, ranks
+6/6 ×2 (pool 172). The status-calibration class is closed; every
+remaining golden survivor is now a RETRIEVAL problem (cross-language
+compounds, specific-chunk ranking, .rdl corroboration). Evidence:
+causal_r66.*, golden_v3_r66.json, holdout_*_r66.json, verify_r66.log.
