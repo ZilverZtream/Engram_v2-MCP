@@ -343,3 +343,12 @@ design: the contract ships WITHOUT consumers — five shape units assert it
 against the round-3 audit's exact probes; Phases B–D make it load-bearing.
 Evidence: causal_r68.*, golden_v3_r68.json, holdout_*_r68.json,
 verify_r68.log.
+
+**r69 (doc-13 Phase B: arm coverage on every outcome, commit b637565):**
+PERFECTLY FLAT — zero row churn (causal 15/20 PASS, golden 23/35 PASS,
+held-out 4/11 + 2/5, ranks 6/6 ×2, pool 174, Health OK). Correct by
+design: coverage metadata (examined / available / truncated per arm, in
+the outcome, the fold, the report struct and the JSON) changes no ranking
+and no status — Phase D consumes it. The invisible-caps P1 now has its
+data path. Evidence: causal_r69.*, golden_v3_r69.json, holdout_*_r69.json,
+verify_r69.log.
