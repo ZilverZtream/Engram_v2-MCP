@@ -203,8 +203,78 @@ impl Engram {
         ranking::retain_path_scoped(&mut raw, &plan.qualifiers.path_prefixes);
         // Round-2 audit P0-4: the requested modality survives the cap.
         let raw_pool = raw.clone();
+        // Doc-13 Phase C (round-3 audit P0-2): a Callees + ExhaustiveSet
+        // contract on ONE resolved file gets the full graph walk — the set
+        // IS the answer; caps and lookup trims stand down for it.
+        let exhaustive_contract = matches!(
+            plan.contract.direction,
+            crate::services::ask_engine::plan::ContractDirection::Callees
+        ) && matches!(
+            plan.contract.cardinality,
+            crate::services::ask_engine::plan::Cardinality::ExhaustiveSet
+        );
+        let mut raw = raw;
+        // Phase C: the exhaustive arm reports through the shared provider list.
+        let mut providers = providers;
+        if exhaustive_contract {
+            let named: Vec<String> = plan
+                .entities
+                .iter()
+                .filter(|e| e.guessed_kind == crate::services::ask_engine::plan::EntityKind::File)
+                .flat_map(|e| e.resolved.iter())
+                .filter_map(|r| r.node_id.as_deref())
+                .filter_map(|nid| nid.strip_prefix("file:"))
+                .map(|p| p.to_string())
+                .collect();
+            if let Some(fp) = named.first().cloned() {
+                let graph = self.state.graph.clone();
+                let pid_x = req.project_id.clone();
+                let project_dir = self
+                    .state
+                    .registry
+                    .get_project(&pid_x)
+                    .ok()
+                    .flatten()
+                    .map(|rec| std::path::PathBuf::from(rec.directory));
+                let (set, cov) = tokio::task::spawn_blocking(move || {
+                    let mut id = 20_000usize;
+                    crate::services::ask_engine::providers::exhaustive_callee_set(
+                        &graph,
+                        project_dir.as_deref(),
+                        &pid_x,
+                        &fp,
+                        &mut id,
+                    )
+                })
+                .await
+                .unwrap_or_else(|_| {
+                    (
+                        Vec::new(),
+                        crate::services::ask_engine::providers::ArmCoverage::default(),
+                    )
+                });
+                providers.push(status::ProviderReport {
+                    provider: "callee_set".into(),
+                    status: if set.is_empty() {
+                        status::ProviderStatus::Empty
+                    } else {
+                        status::ProviderStatus::Hit
+                    },
+                    count: set.len(),
+                    note: None,
+                    examined: cov.examined,
+                    available: cov.available,
+                    truncated: cov.truncated,
+                });
+                raw.extend(set);
+            }
+        }
         // Batch 1 Fix A (doc 11 grind): lookup-shaped questions answer small.
-        let lcap = ranking::lookup_cap(&plan.entities, &plan.intents, depth);
+        let lcap = if exhaustive_contract {
+            raw.len().max(depth.evidence_cap())
+        } else {
+            ranking::lookup_cap(&plan.entities, &plan.intents, depth)
+        };
         // Batch 4: the ranker sees the asked terms — co-occurrence beats swarms.
         // Batch 5: RESOLVED mentions only — a junk mention must not flip the
         // co-occurrence switch (live r61: "data-access" cost exact_2/exact_5).
@@ -219,7 +289,7 @@ impl Engram {
         let protected = ranking::reserve_required(&mut evidence, &raw_pool, &plan, &req.question);
         // Batch 3: under the lookup cap, one item per file.
         // Batch 4: and each slot must mention the asked entity (fail-safe).
-        if lcap < depth.evidence_cap() {
+        if lcap < depth.evidence_cap() && !exhaustive_contract {
             let mut needles: Vec<String> = plan
                 .entities
                 .iter()

@@ -506,6 +506,70 @@ fn arm_coverage_travels_on_the_outcome() {
 }
 
 #[test]
+fn an_exhaustive_callee_set_keeps_every_function_of_a_shared_file() {
+    // Doc-12 P0-2: many API functions live in ONE implementation file —
+    // "one item per file" destroys the requested function cardinality.
+    use engram_core::RelPath;
+    use engram_graph::{Edge, EdgeKind, GraphStore, Node};
+    let tmp = tempfile::tempdir().unwrap();
+    let g = GraphStore::open(&tmp.path().join("g.redb")).unwrap();
+    let mk_node = |id: &str, ty: &str, name: &str, path: &str| Node {
+        node_id: id.to_string(),
+        node_type: ty.to_string(),
+        name: name.to_string(),
+        namespace: "code".to_string(),
+        language: "ts".to_string(),
+        file_path: RelPath::new(path),
+        start_line: 1,
+        end_line: 5,
+        generation: 1,
+        metadata: None,
+    };
+    let mk_edge = |s: &str, t: &str, k: EdgeKind| Edge {
+        source_id: s.to_string(),
+        target_id: t.to_string(),
+        namespace: "code".to_string(),
+        language: "ts".to_string(),
+        edge_kind: k,
+        weight: 1,
+        generation: 1,
+        metadata: None,
+        updated_at_ms: 1,
+    };
+    let ts = "site/ts/panel.ts";
+    let vb = "site/api/api-shared.vb";
+    let nodes = vec![
+        mk_node("fn:a", "function", "loadA", ts),
+        mk_node("fn:b", "function", "loadB", ts),
+        mk_node("api:x", "function", "apiGetX", vb),
+        mk_node("api:y", "function", "apiGetY", vb),
+        mk_node("api:z", "function", "apiGetZ", vb),
+    ];
+    let edges = vec![
+        mk_edge("fn:a", "api:x", EdgeKind::ApiCall),
+        mk_edge("fn:a", "api:y", EdgeKind::ApiCall),
+        mk_edge("fn:b", "api:z", EdgeKind::ApiCall),
+    ];
+    g.upsert_nodes_and_edges("p", &nodes, &edges).unwrap();
+    let mut id = 0usize;
+    let (items, cov) = engram_server::services::ask_engine::providers::exhaustive_callee_set(
+        &g, None, "p", ts, &mut id,
+    );
+    let names: Vec<&str> = items.iter().filter_map(|i| i.title.as_deref()).collect();
+    for want in ["apiGetX", "apiGetY", "apiGetZ"] {
+        assert!(
+            names.iter().any(|n| n.contains(want)),
+            "the SAME-FILE trio must all survive — missing {want}: {names:?}"
+        );
+    }
+    assert_eq!(cov.examined, 3, "every walked edge is counted: {cov:?}");
+    assert!(
+        !cov.truncated,
+        "an exhaustive walk never truncates: {cov:?}"
+    );
+}
+
+#[test]
 fn a_single_entity_lookup_gets_a_small_cap() {
     let ents = vec![entity("Site/a.vb")];
     let intents = vec![(Intent::Explain, 0.6f32)];
