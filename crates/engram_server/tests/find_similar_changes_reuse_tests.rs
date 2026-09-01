@@ -129,17 +129,32 @@ async fn new_commit_extends_the_walk_instead_of_restarting_it() {
     commit_file(&repo, tmp.path(), "Site/feature9.vb", "' new", "feature 9");
 
     call(&engram, &pid, &["Site/feature3.vb"]).await;
-    let after_second: Vec<String> = state
-        .co_change_cache
-        .get(&pid)
-        .expect("cache must survive the new commit")
-        .walked_oids
-        .clone();
+    // Doc-11 P1c: the request path no longer walks a changed HEAD — the
+    // background refresh extends the snapshot. Poll for it.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    let after_second: Vec<String> = loop {
+        let oids: Vec<String> = state
+            .co_change_cache
+            .get(&pid)
+            .expect("cache must survive the new commit")
+            .walked_oids
+            .clone();
+        if oids.len() >= after_first.len() + 1 {
+            break oids;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "background refresh never extended the walk ({} of {})",
+            oids.len(),
+            after_first.len() + 1
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    };
 
     assert_eq!(
         after_second.len(),
         after_first.len() + 1,
-        "the second walk must add exactly the new commit"
+        "the refresh must add exactly the new commit"
     );
     let unique: std::collections::HashSet<&String> = after_second.iter().collect();
     assert_eq!(
@@ -181,8 +196,21 @@ async fn bulk_commits_are_recorded_so_they_are_not_re_diffed() {
     }
 
     call(&engram, &pid, &["Site/feature3.vb"]).await;
-    let snap = state.co_change_cache.get(&pid).expect("cache");
     let bulk_head = repo.head().unwrap().target().unwrap().to_string();
+    // Doc-11 P1c: the changed HEAD is stale-served; the background refresh
+    // records the bulk commit. Poll for it.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    let snap = loop {
+        let s = state.co_change_cache.get(&pid).expect("cache").clone();
+        if s.walked_oids.contains(&bulk_head) {
+            break s;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "background refresh never recorded the bulk commit"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    };
 
     assert!(
         snap.walked_oids.contains(&bulk_head),

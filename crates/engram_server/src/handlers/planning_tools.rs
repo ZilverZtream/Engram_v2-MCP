@@ -563,7 +563,7 @@ pub(crate) fn dir_ext_shape(path: &str) -> Option<String> {
 /// now built here and warmed at index / update time, so call time only reads.
 /// Returns the snapshot plus this walk's commits, its walked count, the number
 /// of fresh diffs and whether the time budget cut the walk short.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub(crate) fn build_co_change_snapshot(
     cache: &dashmap::DashMap<String, std::sync::Arc<crate::state::CoChangeSnapshot>>,
     cache_key: String,
@@ -572,6 +572,7 @@ pub(crate) fn build_co_change_snapshot(
     max_commits: usize,
     budget: std::time::Duration,
     started: std::time::Instant,
+    serve_stale_on_changed_head: bool,
 ) -> anyhow::Result<(
     std::sync::Arc<crate::state::CoChangeSnapshot>,
     Vec<crate::state::CoChangeCommit>,
@@ -579,6 +580,8 @@ pub(crate) fn build_co_change_snapshot(
     usize,
     bool,
     // walked_now: false when the warm snapshot was served without a git walk
+    bool,
+    // head_advanced: a newer HEAD exists; the returned snapshot is stale
     bool,
 )> {
     let repo = GitWalker::open_repo(repo_dir)?;
@@ -619,6 +622,29 @@ pub(crate) fn build_co_change_snapshot(
             0,
             false,
             false,
+            false,
+        ));
+    }
+
+    // Doc-11 P1c (round-2 item 6): a CHANGED head never walks on the
+    // request path — the stale snapshot answers now and the caller starts
+    // a background refresh.
+    if serve_stale_on_changed_head
+        && let Some(prev) = &cached
+        && prev.walked >= max_commits
+        && !prev.partial
+        && !prev.head.is_empty()
+        && prev.head != head
+    {
+        cache.entry(cache_key).or_insert_with(|| prev.clone());
+        return Ok((
+            prev.clone(),
+            prev.commits.clone(),
+            prev.walked_oids.len(),
+            0,
+            false,
+            false,
+            true,
         ));
     }
 
@@ -731,7 +757,15 @@ pub(crate) fn build_co_change_snapshot(
         let _ = std::fs::create_dir_all(parent);
         let _ = std::fs::write(&disk_path, bytes);
     }
-    Ok((snap, commits, walked_oids.len(), fresh_diffs, partial, true))
+    Ok((
+        snap,
+        commits,
+        walked_oids.len(),
+        fresh_diffs,
+        partial,
+        true,
+        false,
+    ))
 }
 
 /// Warm the co-change snapshot for a project (index / update completion).
@@ -756,6 +790,7 @@ pub(crate) fn warm_co_change_snapshot_blocking(
         CO_CHANGE_DEPTH,
         co_change_budget(),
         std::time::Instant::now(),
+        false,
     )?;
     Ok(())
 }
@@ -1163,7 +1198,7 @@ impl Engram {
             .join(format!("{}.bin", req.project_id));
         let budget = co_change_budget();
         let result = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
-            let (_snap, commits, scanned_len, fresh_diffs, partial, walked_now) =
+            let (_snap, commits, scanned_len, fresh_diffs, partial, walked_now, head_advanced) =
                 build_co_change_snapshot(
                     &cache,
                     cache_key,
@@ -1172,6 +1207,7 @@ impl Engram {
                     max_commits,
                     budget,
                     started,
+                    true,
                 )?;
             let walked_oids_len = scanned_len;
             if fresh_diffs > 0 {
@@ -1195,7 +1231,14 @@ impl Engram {
             }
             scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
             scored.truncate(top);
-            Ok((scanned, scored, partial, walked_now, fresh_diffs))
+            Ok((
+                scanned,
+                scored,
+                partial,
+                walked_now,
+                head_advanced,
+                fresh_diffs,
+            ))
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
@@ -1209,9 +1252,35 @@ impl Engram {
                 None,
             )
         })?;
-        let (scanned, scored, partial, walked_now, fresh_diffs) = result;
+        let (scanned, scored, partial, walked_now, head_advanced, fresh_diffs) = result;
         // Round-2 audit P1-2: say whether this call walked git at all.
-        let coverage_line = if walked_now {
+        let coverage_line = if head_advanced {
+            // Doc-11 P1c: stale-served; refresh the snapshot off the request
+            // path so the NEXT caller sees the new HEAD.
+            let cache_bg = self.state.co_change_cache.clone();
+            let key_bg = req.project_id.clone();
+            let disk_bg = self
+                .state
+                .cfg
+                .data_dir
+                .join("co_change")
+                .join(format!("{}.bin", req.project_id));
+            let repo_bg = std::path::PathBuf::from(rec.directory.clone());
+            tokio::task::spawn_blocking(move || {
+                let _ = build_co_change_snapshot(
+                    &cache_bg,
+                    key_bg,
+                    &disk_bg,
+                    &repo_bg,
+                    max_commits,
+                    co_change_budget(),
+                    std::time::Instant::now(),
+                    false,
+                );
+            });
+            "co-change snapshot: warm (served without a git walk; HEAD advanced — background refresh started)\n"
+                .to_string()
+        } else if walked_now {
             format!("co-change snapshot: extended by a git walk (fresh diffs: {fresh_diffs})\n")
         } else {
             "co-change snapshot: warm (served without a git walk)\n".to_string()
