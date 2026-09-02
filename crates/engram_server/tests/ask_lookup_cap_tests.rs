@@ -552,14 +552,15 @@ fn an_exhaustive_callee_set_keeps_every_function_of_a_shared_file() {
     ];
     g.upsert_nodes_and_edges("p", &nodes, &edges).unwrap();
     let mut id = 0usize;
-    let (items, cov) = engram_server::services::ask_engine::providers::exhaustive_callee_set(
-        &g,
-        None,
-        "p",
-        ts,
-        &[EdgeKind::ApiCall, EdgeKind::SqlCalls, EdgeKind::Calls],
-        &mut id,
-    );
+    let (items, _members, cov, proof) =
+        engram_server::services::ask_engine::providers::exhaustive_callee_set(
+            &g,
+            None,
+            "p",
+            ts,
+            &[EdgeKind::ApiCall, EdgeKind::SqlCalls, EdgeKind::Calls],
+            &mut id,
+        );
     let names: Vec<&str> = items.iter().filter_map(|i| i.title.as_deref()).collect();
     for want in ["apiGetX", "apiGetY", "apiGetZ"] {
         assert!(
@@ -568,10 +569,9 @@ fn an_exhaustive_callee_set_keeps_every_function_of_a_shared_file() {
         );
     }
     assert_eq!(cov.examined, 3, "every walked edge is counted: {cov:?}");
-    assert!(
-        !cov.truncated,
-        "an exhaustive walk never truncates: {cov:?}"
-    );
+    // Round-4 P0-2: completeness is PROVEN, never asserted.
+    assert!(proof.complete(), "a clean walk proves complete: {proof:?}");
+    assert!(!cov.truncated);
 }
 
 fn c2_item(
@@ -685,14 +685,15 @@ fn an_api_question_walks_only_api_call_edges() {
     ];
     store.upsert_nodes_and_edges(pid, &nodes, &edges).unwrap();
     let mut id = 0usize;
-    let (items, _cov) = engram_server::services::ask_engine::providers::exhaustive_callee_set(
-        &store,
-        None,
-        pid,
-        "ts/panel.ts",
-        &[EdgeKind::ApiCall],
-        &mut id,
-    );
+    let (items, _members, _cov, _proof) =
+        engram_server::services::ask_engine::providers::exhaustive_callee_set(
+            &store,
+            None,
+            pid,
+            "ts/panel.ts",
+            &[EdgeKind::ApiCall],
+            &mut id,
+        );
     assert_eq!(items.len(), 1, "only the ApiCall edge: {items:?}");
     assert!(items[0].content.contains("api.routeA"));
 }
@@ -746,6 +747,7 @@ fn d_rep(
         examined: count,
         available: Some(count),
         truncated,
+        proof: None,
     }
 }
 
@@ -840,6 +842,226 @@ fn a_required_definition_facet_gates_answered() {
         AnswerStatus::Answered,
         "Definition facet satisfied -> Answered"
     );
+}
+
+fn s_store() -> (tempfile::TempDir, engram_graph::GraphStore) {
+    let dir = tempfile::tempdir().unwrap();
+    let store = engram_graph::GraphStore::open(&dir.path().join("g.redb")).unwrap();
+    (dir, store)
+}
+
+fn s_fn(name: &str, path: &str) -> engram_graph::Node {
+    engram_graph::Node {
+        node_id: format!("sym:function:{path}:{name}:1"),
+        node_type: "function".to_string(),
+        name: name.to_string(),
+        namespace: String::new(),
+        language: "typescript".to_string(),
+        file_path: engram_core::RelPath::new(path),
+        start_line: 1,
+        end_line: 9,
+        generation: 1,
+        metadata: None,
+    }
+}
+
+fn s_edge(src: &str, dst: &str) -> engram_graph::Edge {
+    engram_graph::Edge {
+        source_id: src.to_string(),
+        target_id: dst.to_string(),
+        namespace: String::new(),
+        language: String::new(),
+        edge_kind: engram_graph::EdgeKind::ApiCall,
+        weight: 1,
+        generation: 1,
+        metadata: None,
+        updated_at_ms: 0,
+    }
+}
+
+#[test]
+fn s1_dangling_target_is_counted_and_breaks_completeness() {
+    // Round-4 P0-2: a dangling endpoint was silently skipped and the walk
+    // still claimed truncated=false. Unknowns forbid completeness.
+    use engram_graph::EdgeKind;
+    let (_d, store) = s_store();
+    let pid = "p_s1";
+    let a = s_fn("panelInit", "ts/panel.ts");
+    let aid = a.node_id.clone();
+    store
+        .upsert_nodes_and_edges(
+            pid,
+            &[a],
+            &[s_edge(&aid, "sym:function:missing.vb:ghost:1")],
+        )
+        .unwrap();
+    let mut id = 0usize;
+    let (items, members, cov, proof) =
+        engram_server::services::ask_engine::providers::exhaustive_callee_set(
+            &store,
+            None,
+            pid,
+            "ts/panel.ts",
+            &[EdgeKind::ApiCall, EdgeKind::SqlCalls, EdgeKind::Calls],
+            &mut id,
+        );
+    assert_eq!(
+        proof.dangling_targets, 1,
+        "the skip must be COUNTED: {proof:?}"
+    );
+    assert!(
+        !proof.complete(),
+        "an unknown endpoint forbids completeness"
+    );
+    assert!(
+        cov.truncated,
+        "ArmCoverage must stop lying about incompleteness"
+    );
+    assert!(items.is_empty() && members.is_empty());
+}
+
+#[test]
+fn s2_a_source_cap_is_detected_with_cap_plus_one() {
+    // Round-4 P0-2: "fetches at most 500 ... returns truncated=false".
+    // cap+1 discovery makes the cap OBSERVABLE.
+    use engram_graph::EdgeKind;
+    let (_d, store) = s_store();
+    let pid = "p_s2";
+    let mut nodes = Vec::new();
+    for i in 0..3 {
+        nodes.push(s_fn(&format!("fn{i}"), "ts/panel.ts"));
+    }
+    store.upsert_nodes_and_edges(pid, &nodes, &[]).unwrap();
+    let mut id = 0usize;
+    let (_items, _members, _cov, proof) =
+        engram_server::services::ask_engine::providers::exhaustive_callee_set_with_caps(
+            &store,
+            None,
+            pid,
+            "ts/panel.ts",
+            &[EdgeKind::ApiCall],
+            2, // source cap
+            500,
+            &mut id,
+        );
+    assert!(
+        proof.sources_discovered >= 3,
+        "cap+1 must SEE past the cap: {proof:?}"
+    );
+    assert_eq!(proof.sources_processed, 2, "{proof:?}");
+    assert!(proof.source_cap_hit, "{proof:?}");
+    assert!(!proof.complete(), "a cap hit forbids completeness");
+}
+
+#[test]
+fn s3_the_members_are_the_answer() {
+    use engram_graph::EdgeKind;
+    let (_d, store) = s_store();
+    let pid = "p_s3";
+    let a = s_fn("panelInit", "ts/panel.ts");
+    let t1 = s_fn("api.routeA", "api/impl.vb");
+    let t2 = s_fn("api.routeB", "api/impl2.vb");
+    let aid = a.node_id.clone();
+    let (i1, i2) = (t1.node_id.clone(), t2.node_id.clone());
+    store
+        .upsert_nodes_and_edges(pid, &[a, t1, t2], &[s_edge(&aid, &i1), s_edge(&aid, &i2)])
+        .unwrap();
+    let mut id = 0usize;
+    let (_items, members, _cov, proof) =
+        engram_server::services::ask_engine::providers::exhaustive_callee_set(
+            &store,
+            None,
+            pid,
+            "ts/panel.ts",
+            &[EdgeKind::ApiCall],
+            &mut id,
+        );
+    assert_eq!(members.len(), 2, "{members:?}");
+    let m = members
+        .iter()
+        .find(|m| m.display_name == "api.routeA")
+        .unwrap();
+    assert_eq!(m.target_node_id, "sym:function:api/impl.vb:api.routeA:1");
+    assert_eq!(m.relation, "api_call");
+    assert_eq!(m.source_node_id.as_deref(), Some(aid.as_str()));
+    assert_eq!(m.path.as_deref(), Some("api/impl.vb"));
+    assert!(proof.complete());
+}
+
+#[test]
+fn s4_the_report_json_carries_members_and_proof() {
+    use engram_server::services::ask_engine::providers::{AnswerMember, CoverageProof};
+    use engram_server::services::ask_engine::report::{AskReport, to_json};
+    use engram_server::services::ask_engine::status::{
+        AnswerStatus, FreshnessSnapshot, ProviderReport, ProviderStatus,
+    };
+    let r = AskReport {
+        question: "q".into(),
+        plan: engram_server::services::ask_engine::planner::plan_query("q"),
+        status: AnswerStatus::Answered,
+        mode: "retrieval_only".into(),
+        evidence: vec![],
+        conflicts: vec![],
+        unknowns: vec![],
+        next_best: vec![],
+        snapshot: FreshnessSnapshot::default(),
+        providers: vec![ProviderReport {
+            provider: "callee_set".into(),
+            status: ProviderStatus::Hit,
+            count: 1,
+            note: None,
+            examined: 1,
+            available: Some(1),
+            truncated: false,
+            proof: Some(CoverageProof::default()),
+        }],
+        answer_members: vec![AnswerMember {
+            target_node_id: "t".into(),
+            display_name: "iopGetProperties".into(),
+            relation: "api_call".into(),
+            source_node_id: None,
+            path: None,
+        }],
+    };
+    let j = serde_json::to_string(&to_json(&r)).unwrap();
+    assert!(j.contains("answer_members"), "{j}");
+    assert!(j.contains("iopGetProperties"), "{j}");
+    assert!(j.contains("sources_discovered"), "{j}");
+    let md = engram_server::services::ask_engine::report::render_markdown(&r);
+    assert!(
+        md.contains("iopGetProperties"),
+        "members must be RENDERED, not JSON-only:
+{md}"
+    );
+}
+
+#[test]
+fn s5_a_clean_small_walk_proves_complete() {
+    // The honest positive that replaces "an exhaustive walk never
+    // truncates": completeness is PROVEN by counters, not asserted.
+    use engram_graph::EdgeKind;
+    let (_d, store) = s_store();
+    let pid = "p_s5";
+    let a = s_fn("panelInit", "ts/panel.ts");
+    let t = s_fn("api.routeA", "api/impl.vb");
+    let (aid, tid) = (a.node_id.clone(), t.node_id.clone());
+    store
+        .upsert_nodes_and_edges(pid, &[a, t], &[s_edge(&aid, &tid)])
+        .unwrap();
+    let mut id = 0usize;
+    let (_items, members, cov, proof) =
+        engram_server::services::ask_engine::providers::exhaustive_callee_set(
+            &store,
+            None,
+            pid,
+            "ts/panel.ts",
+            &[EdgeKind::ApiCall],
+            &mut id,
+        );
+    assert!(proof.complete(), "{proof:?}");
+    assert!(!cov.truncated);
+    assert_eq!(proof.dangling_targets, 0);
+    assert_eq!(members.len(), 1);
 }
 
 #[test]

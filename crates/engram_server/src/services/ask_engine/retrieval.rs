@@ -434,6 +434,7 @@ pub async fn gather_evidence(
                     examined: out.coverage.examined,
                     available: out.coverage.available,
                     truncated: out.coverage.truncated,
+                    proof: None,
                 });
                 evidence.append(&mut items);
             }
@@ -445,6 +446,7 @@ pub async fn gather_evidence(
                 examined: 0,
                 available: None,
                 truncated: false,
+                proof: None,
             }),
         }
     }

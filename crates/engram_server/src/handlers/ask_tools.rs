@@ -190,6 +190,7 @@ impl Engram {
                     // Doc-13 Phase B: the hop caps at 3 (6 with named files);
                     // exact walked/available counts land with Phase C.
                     truncated: hop.len() >= 3,
+                    proof: None,
                 });
                 raw.extend(hop);
             }
@@ -216,6 +217,8 @@ impl Engram {
         let mut raw = raw;
         // Phase C: the exhaustive arm reports through the shared provider list.
         let mut providers = providers;
+        let mut answer_members: Vec<crate::services::ask_engine::providers::AnswerMember> =
+            Vec::new();
         if exhaustive_contract {
             let named: Vec<String> = plan
                 .entities
@@ -248,7 +251,7 @@ impl Engram {
                             engram_graph::EdgeKind::Calls,
                         ]
                     };
-                let (set, cov) = tokio::task::spawn_blocking(move || {
+                let (set, members, cov, proof) = tokio::task::spawn_blocking(move || {
                     let mut id = 20_000usize;
                     crate::services::ask_engine::providers::exhaustive_callee_set(
                         &graph,
@@ -263,7 +266,9 @@ impl Engram {
                 .unwrap_or_else(|_| {
                     (
                         Vec::new(),
+                        Vec::new(),
                         crate::services::ask_engine::providers::ArmCoverage::default(),
+                        crate::services::ask_engine::providers::CoverageProof::default(),
                     )
                 });
                 providers.push(status::ProviderReport {
@@ -278,7 +283,9 @@ impl Engram {
                     examined: cov.examined,
                     available: cov.available,
                     truncated: cov.truncated,
+                    proof: Some(proof),
                 });
+                answer_members = members;
                 raw.extend(set);
             }
         }
@@ -380,6 +387,7 @@ impl Engram {
             next_best,
             snapshot,
             providers,
+            answer_members,
         };
 
         let body = match req.output_format.to_lowercase().as_str() {
