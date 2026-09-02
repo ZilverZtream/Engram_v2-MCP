@@ -50,6 +50,7 @@ fn rep(p: &str) -> ProviderReport {
         examined: 0,
         available: None,
         truncated: false,
+        proof: None,
     }
 }
 

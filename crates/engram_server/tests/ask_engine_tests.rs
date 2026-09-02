@@ -606,6 +606,7 @@ fn rep(p: &str, s: ProviderStatus) -> ProviderReport {
         examined: 0,
         available: None,
         truncated: false,
+        proof: None,
     }
 }
 fn re(id: &str) -> ResolvedEntity {

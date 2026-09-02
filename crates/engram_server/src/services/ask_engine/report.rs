@@ -22,6 +22,9 @@ pub struct AskReport {
     pub next_best: Vec<String>, // suggested follow-up investigations
     pub snapshot: FreshnessSnapshot,
     pub providers: Vec<ProviderReport>,
+    /// Round-4 P0-2: typed identities that ARE the answer for relation
+    /// questions (empty for prose-shaped questions).
+    pub answer_members: Vec<super::providers::AnswerMember>,
 }
 
 pub fn to_json(r: &AskReport) -> serde_json::Value {
@@ -207,6 +210,31 @@ pub fn render_markdown(r: &AskReport) -> String {
     }
     let _ = writeln!(s, "**snapshot:** {snap}");
 
+    if !r.answer_members.is_empty() {
+        let complete = r
+            .providers
+            .iter()
+            .filter_map(|p| p.proof.as_ref())
+            .all(|p| p.complete());
+        let _ = writeln!(
+            s,
+            "\n## Answer members ({}, coverage {})",
+            r.answer_members.len(),
+            if complete { "complete" } else { "INCOMPLETE" }
+        );
+        for m in &r.answer_members {
+            let _ = writeln!(
+                s,
+                "- {} [{}]{}",
+                m.display_name,
+                m.relation,
+                m.path
+                    .as_deref()
+                    .map(|p| format!(" — {p}"))
+                    .unwrap_or_default()
+            );
+        }
+    }
     let _ = writeln!(s, "\n## Key evidence");
     if r.evidence.is_empty() {
         let _ = writeln!(s, "_(none of adequate authority)_");

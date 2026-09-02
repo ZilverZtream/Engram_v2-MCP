@@ -731,6 +731,41 @@ fn definition_body(dir: &std::path::Path, rel: &str, a: u32, b: u32) -> Option<S
     Some(s)
 }
 
+/// Round-4 P0-2: a typed answer member — the ANSWER as identity, not prose.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct AnswerMember {
+    pub target_node_id: String,
+    pub display_name: String,
+    pub relation: String,
+    pub source_node_id: Option<String>,
+    pub path: Option<String>,
+}
+
+/// Round-4 P0-2: an EXACT coverage proof. Completeness is computed from
+/// counters, never asserted. Any unknown forbids `complete()`.
+#[derive(Debug, Clone, Default, serde::Serialize)]
+pub struct CoverageProof {
+    pub sources_discovered: usize,
+    pub sources_processed: usize,
+    pub source_cap_hit: bool,
+    pub edges_emitted: usize,
+    pub neighbor_cap_hits: usize,
+    pub dangling_targets: usize,
+    pub dispatch_truncated: usize,
+    pub graph_errors: usize,
+    pub policy: String,
+}
+
+impl CoverageProof {
+    pub fn complete(&self) -> bool {
+        !self.source_cap_hit
+            && self.neighbor_cap_hits == 0
+            && self.dangling_targets == 0
+            && self.graph_errors == 0
+            && self.sources_processed >= self.sources_discovered
+    }
+}
+
 /// Doc-13 Phase C (round-3 audit P0-2): the EXHAUSTIVE callee set of a named
 /// file — every ApiCall / SqlCalls / Calls edge from the file's functions
 /// and the file node itself. No cue gate, no cap, NO one-per-file dedup:
@@ -745,29 +780,106 @@ pub fn exhaustive_callee_set(
     file_path: &str,
     kinds: &[EdgeKind],
     id: &mut usize,
-) -> (Vec<EvidenceItem>, ArmCoverage) {
+) -> (
+    Vec<EvidenceItem>,
+    Vec<AnswerMember>,
+    ArmCoverage,
+    CoverageProof,
+) {
+    exhaustive_callee_set_with_caps(
+        graph,
+        project_dir,
+        project_id,
+        file_path,
+        kinds,
+        500,
+        500,
+        id,
+    )
+}
+
+/// Round-4 P0-2: every skip is COUNTED — caps via cap+1 discovery, dangling
+/// targets, graph errors, dispatch truncation. The proof decides
+/// completeness; ArmCoverage stops lying.
+#[allow(clippy::too_many_arguments)]
+pub fn exhaustive_callee_set_with_caps(
+    graph: &GraphStore,
+    project_dir: Option<&std::path::Path>,
+    project_id: &str,
+    file_path: &str,
+    kinds: &[EdgeKind],
+    source_cap: usize,
+    neighbor_cap: usize,
+    id: &mut usize,
+) -> (
+    Vec<EvidenceItem>,
+    Vec<AnswerMember>,
+    ArmCoverage,
+    CoverageProof,
+) {
     let norm = file_path.replace('\\', "/");
     let mut items: Vec<EvidenceItem> = Vec::new();
+    let mut members: Vec<AnswerMember> = Vec::new();
+    let mut proof = CoverageProof {
+        policy: format!(
+            "source_cap={source_cap} neighbor_cap={neighbor_cap} kinds={}",
+            kinds.len()
+        ),
+        ..Default::default()
+    };
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut walked = 0usize;
     let mut sources: Vec<(String, String)> = Vec::new();
-    if let Ok(fns) = graph.query_nodes(project_id, Some("function"), None, Some(&norm), 500) {
-        sources.extend(fns.iter().map(|f| (f.node_id.clone(), f.name.clone())));
+    match graph.query_nodes(
+        project_id,
+        Some("function"),
+        None,
+        Some(&norm),
+        source_cap + 1,
+    ) {
+        Ok(fns) => {
+            proof.sources_discovered = fns.len();
+            if fns.len() > source_cap {
+                proof.source_cap_hit = true;
+            }
+            sources.extend(
+                fns.iter()
+                    .take(source_cap)
+                    .map(|f| (f.node_id.clone(), f.name.clone())),
+            );
+        }
+        Err(_) => proof.graph_errors += 1,
     }
     let stem = norm.rsplit('/').next().unwrap_or(&norm).to_string();
     sources.push((format!("file:{norm}"), stem));
+    proof.sources_processed = sources.len().saturating_sub(1);
     for (src_id, src_name) in &sources {
         for kind in kinds.iter().cloned() {
-            let Ok(nbrs) = graph.neighbors(project_id, kind.clone(), src_id, 500) else {
-                continue;
+            let nbrs = match graph.neighbors(project_id, kind.clone(), src_id, neighbor_cap + 1) {
+                Ok(n) => n,
+                Err(_) => {
+                    proof.graph_errors += 1;
+                    continue;
+                }
             };
-            for (target, _weight) in nbrs {
+            if nbrs.len() > neighbor_cap {
+                proof.neighbor_cap_hits += 1;
+            }
+            for (target, _weight) in nbrs.into_iter().take(neighbor_cap) {
                 walked += 1;
                 if !seen.insert(target.clone()) {
                     continue;
                 }
-                let Ok(Some(n)) = graph.get_node(project_id, &target) else {
-                    continue;
+                let n = match graph.get_node(project_id, &target) {
+                    Ok(Some(n)) => n,
+                    Ok(None) => {
+                        proof.dangling_targets += 1;
+                        continue;
+                    }
+                    Err(_) => {
+                        proof.graph_errors += 1;
+                        continue;
+                    }
                 };
                 let tpath = n.file_path.as_str().replace('\\', "/");
                 let tl = tpath.to_lowercase();
@@ -778,8 +890,18 @@ pub fn exhaustive_callee_set(
                     "{src_name} calls {} ({}) — defined in {}",
                     n.name, n.node_type, tpath
                 );
+                members.push(AnswerMember {
+                    target_node_id: n.node_id.clone(),
+                    display_name: n.name.clone(),
+                    relation: kind.as_str().to_string(),
+                    source_node_id: Some(src_id.clone()),
+                    path: Some(tpath.clone()),
+                });
                 if matches!(kind, EdgeKind::ApiCall) {
                     if let Ok(impls) = graph.find_dispatch_targets(project_id, &n.name) {
+                        if impls.len() > 2 {
+                            proof.dispatch_truncated += 1;
+                        }
                         for imp in impls.iter().take(2) {
                             if let Ok(Some(im)) = graph.get_node(project_id, imp) {
                                 content.push_str(&format!(
@@ -821,12 +943,14 @@ pub fn exhaustive_callee_set(
             }
         }
     }
+    proof.edges_emitted = walked;
     let cov = ArmCoverage {
         examined: walked,
         available: Some(walked),
-        truncated: false,
+        // Round-4 P0-2: honesty — incompleteness of ANY kind surfaces.
+        truncated: !proof.complete(),
     };
-    (items, cov)
+    (items, members, cov, proof)
 }
 
 /// Round-2 audit P0-4c (owner 2026-08-30): ONE bounded call-graph hop from the

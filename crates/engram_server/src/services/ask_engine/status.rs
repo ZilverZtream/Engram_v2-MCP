@@ -45,6 +45,9 @@ pub struct ProviderReport {
     pub available: Option<usize>,
     /// True when the arm stopped at a cap — the set may be incomplete.
     pub truncated: bool,
+    /// Round-4 P0-2: the exact coverage proof, when the arm computes one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub proof: Option<super::providers::CoverageProof>,
 }
 
 /// The single evidence snapshot the report is pinned to. Only fields that are
