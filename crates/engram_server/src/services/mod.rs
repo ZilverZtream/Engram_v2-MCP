@@ -30,6 +30,7 @@ pub mod migration_order_service;
 pub mod migration_progress_service;
 pub mod migration_service;
 pub mod pattern_detection_service;
+pub mod plan_verify;
 pub mod pre_commit_review_service;
 pub mod produce_claude_md_service;
 pub mod project_service;
