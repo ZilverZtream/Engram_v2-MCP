@@ -441,3 +441,20 @@ change-pattern −0.27) — the honest ask engine confers confirmation value
 ceiling remains agent reasoning, not retrieval. Doc-12 item 7 is
 DISPOSITIONED with this measurement. Evidence:
 eval/data/p2/_phase_g_verdicts.json, workflow journal wf_dbbb2206-fe2.
+
+**r75 (doc-15 step 1: typed answer members + exact CoverageProof, commit
+78f1b44):** sweep76 3,822/0/202; all floors held live (causal 16/20 PASS,
+golden 23/35 PASS, ranks 6/6 x2 @174 candidates, Health OK with
+tantivy 172,145 == lancedb 172,145, blind suite 6/8). The report now
+renders a typed member list with a completeness verdict.
+
+FIRST FINDING FROM THE HONESTY CHANGE: the flagship question
+("Which server API functions does ioMarkerInfowindow.ts call?") still
+names all 15 routes but now reports **partial / coverage INCOMPLETE** —
+live proof: sources 68/68, edges 30, no caps hit, no graph errors,
+`dangling_targets: 1`. One ApiCall edge points at a node that does not
+exist, so the walk cannot prove exhaustiveness. Under the old code this
+was reported as a complete Answered (`truncated: false` hardcoded) — the
+round-4 P0-2 finding, now visible in production rather than hidden. The
+dangling-node cause (ingestion/canonicalization) is queued, NOT patched
+at the evidence layer.
