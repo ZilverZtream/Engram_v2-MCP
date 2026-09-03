@@ -70,3 +70,12 @@ the teaching-to-the-test pattern this project already rejected.
   wrong-choice. Redefine v0 around *StaleAssumption* (flag a plan claim the
   graph contradicts — "sole caller" that isn't, "unused" that's read) or a
   convention-contract check that catches wrong-family, before any A/B.
+
+## Owner decision (2026-09-03): A — accept the stop
+
+The 2-kind verifier is falsified as a needle-mover and will not be built out.
+`verify_implementation_plan` v0 (plan_verify.rs), its tests, and the Gate-1
+runner are KEPT in-tree as the recorded experiment and its evidence — not
+wired into any tool, not on any request path. Effort redirects to
+get_change_set, the one component with a measured agent-quality lift (+0.80
+impl at n=15). No further ask_codebase or verify hardening.
