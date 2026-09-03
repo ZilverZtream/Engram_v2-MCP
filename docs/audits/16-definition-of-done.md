@@ -50,7 +50,7 @@ harmful.
 
 ## Current status vs the bar (2026-09-02)
 
-D1 in flight (doc-15 step 1, c57). D2 not met (round-4 P0-1) — doc-15 step 3.
+D1 MET for the exhaustive-callee shape (r75 @78f1b44: proof-derived completeness, member list + verdict rendered in markdown, live partial/INCOMPLETE on one dangling edge); other providers still report no proof. D2 not met (round-4 P0-1) — doc-15 step 3.
 D3 met at 16/20, 23/35, 6/6, equality. D4 met at 6/8. D5 not met — doc-15
 step 4. D6 not met (judge v4 gameable) — doc-15 step 5. D7 not met
 (gitignored verdicts, labeled arms) — doc-15 step 5.
