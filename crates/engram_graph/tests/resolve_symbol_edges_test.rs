@@ -57,6 +57,75 @@ fn make_call(source_id: &str, target_id: &str) -> Edge {
     }
 }
 
+fn make_dispatch_call(source_id: &str, target_id: &str, key: &str) -> Edge {
+    let mut m = serde_json::Map::new();
+    m.insert(
+        "dispatch_key".into(),
+        serde_json::Value::String(key.to_string()),
+    );
+    let mut e = make_call(source_id, target_id);
+    e.metadata = Some(serde_json::Value::Object(m));
+    e
+}
+
+#[test]
+fn broker_dispatch_arm_resolves_to_same_layer_handler() {
+    // A broker `Select Case "X": s = X(qry)` arm dispatches to the api-json
+    // handler, not the same-named code implementation. Both definitions are
+    // real, so the name is ambiguous and the generic file/receiver tiebreak
+    // can't choose (the broker is in NEITHER candidate file). The dispatch_key
+    // marks it a broker arm; the correct target sits in the broker's own layer
+    // (parent dir `api-json`), so a dispatch arm prefers the same-layer
+    // candidate instead of leaving a `::` placeholder dangling.
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "test-dispatch-layer";
+
+    let handler = make_node(
+        "sym:function:Site/x/api-json/api-x.vb:iopX:1",
+        "iopX",
+        "Site/x/api-json/api-x.vb",
+    );
+    let impl_node = make_node(
+        "sym:function:Site/x/code/x.vb:iopX:1",
+        "iopX",
+        "Site/x/code/x.vb",
+    );
+    let broker = make_node(
+        "sym:function:Site/api-json/api-broker.vb:dispatch:1",
+        "dispatch",
+        "Site/api-json/api-broker.vb",
+    );
+    graph
+        .upsert_nodes(pid, &[handler.clone(), impl_node.clone(), broker.clone()])
+        .unwrap();
+    graph
+        .upsert_edges(
+            pid,
+            &[make_dispatch_call(&broker.node_id, "::iopX", "iopX")],
+        )
+        .unwrap();
+
+    graph.resolve_symbol_edges(pid).unwrap();
+
+    let out = graph
+        .neighbors(pid, EdgeKind::Calls, &broker.node_id, 10)
+        .unwrap();
+    let targets: Vec<String> = out.into_iter().map(|(t, _)| t).collect();
+    assert!(
+        targets.contains(&handler.node_id),
+        "broker arm must resolve to the same-layer api-json handler; got {targets:?}"
+    );
+    assert!(
+        !targets.iter().any(|t| t.starts_with("::")),
+        "no dangling placeholder must remain; got {targets:?}"
+    );
+    assert!(
+        !targets.contains(&impl_node.node_id),
+        "must not bind to the code-layer impl; got {targets:?}"
+    );
+}
+
 #[test]
 fn resolves_exact_name_match() {
     let tmp = tempfile::TempDir::new().unwrap();
