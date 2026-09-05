@@ -2855,37 +2855,6 @@ impl GraphStore {
             None
         };
 
-        // The parent-directory name of a path — the OciusX "layer" segment
-        // (`Site/x/api-json/api-x.vb` → `api-json`). Used only to route a
-        // broker dispatch arm to the handler in the broker's own layer.
-        let parent_dir = |path: &str| -> Option<String> {
-            let norm = path.replace('\\', "/");
-            let mut segs = norm.rsplit('/');
-            segs.next()?; // filename
-            segs.next().map(|s| s.to_lowercase())
-        };
-        // A broker `Select Case` arm (edge carries `dispatch_key`) dispatches to
-        // the handler in the broker's OWN layer, not a same-named implementation
-        // in a sibling layer. When the generic file/receiver tiebreak can't
-        // choose (the broker is in neither candidate file), prefer the single
-        // candidate whose parent dir matches the broker's — a real structural
-        // signal, not a coin-flip. Returns None unless EXACTLY one matches, so
-        // a genuine ambiguity still degrades to an honest dangling.
-        let prefer_dispatch_layer =
-            |candidates: &[String], source_file: Option<&String>| -> Option<String> {
-                let src_layer = parent_dir(source_file?)?;
-                let matches: Vec<&String> = candidates
-                    .iter()
-                    .filter(|cid| {
-                        node_file_paths
-                            .get(*cid)
-                            .and_then(|p| parent_dir(p))
-                            .is_some_and(|d| d == src_layer)
-                    })
-                    .collect();
-                (matches.len() == 1).then(|| matches[0].clone())
-            };
-
         let mut updates: Vec<(String, Edge)> = Vec::new();
 
         for entry in &unresolved {
@@ -2917,25 +2886,51 @@ impl GraphStore {
                 continue;
             }
 
-            // Step 1b: broker dispatch arm — an ambiguous `dispatch_key` call
-            // binds to the handler in the broker's own layer instead of leaving
-            // a dangling `::` placeholder (round-6: the ox_causal_20 dangling).
-            let is_dispatch = entry
-                .edge
-                .metadata
-                .as_ref()
-                .and_then(|m| m.get("dispatch_key"))
-                .and_then(|v| v.as_str())
-                .is_some_and(|k| !k.trim().is_empty());
-            if is_dispatch
-                && let Some(SymbolMatch::Ambiguous(ids)) = by_name.get(name)
-                && let Some(target_id) = prefer_dispatch_layer(ids, source_file)
-            {
-                let mut new_e = entry.edge.clone();
-                new_e.target_id = target_id;
-                Self::stamp_resolution(&mut new_e, "post_dispatch_layer", 0.6);
-                updates.push((entry.old_key.clone(), new_e));
-                continue;
+            // Step 1b: api dispatch/route arm. An `ajax_target_method` (client
+            // ajax call) or `dispatch_key` (broker Select-Case arm) names a
+            // server function that, when overloaded across layers — an api-json
+            // handler `api.X` beside a code impl `Cls.X` — the generic
+            // file/receiver tiebreak cannot resolve, leaving a dangling `::`
+            // placeholder (round-6: the ox_causal_20 dangling). Api-layer
+            // handlers live in `Partial Class api` (see the dispatch pass at
+            // resolve_route_edges), so an api-routed call binds to the single
+            // `api.`-class candidate. Node names are class-QUALIFIED, so the
+            // candidates come from the TERMINAL index, not the bare-name index.
+            let is_api_routed = entry.edge.metadata.as_ref().is_some_and(|m| {
+                ["ajax_target_method", "dispatch_key"].iter().any(|k| {
+                    m.get(*k)
+                        .and_then(|v| v.as_str())
+                        .is_some_and(|s| !s.trim().is_empty())
+                })
+            });
+            if is_api_routed {
+                let short = name.rsplit('.').next().unwrap_or(name);
+                let mut cands: Vec<String> = Vec::new();
+                if let Some(SymbolMatch::Ambiguous(ids)) = by_name.get(name) {
+                    cands.extend(ids.iter().cloned());
+                }
+                for id in by_terminal.get(short).into_iter().flatten() {
+                    if !cands.contains(id) {
+                        cands.push(id.clone());
+                    }
+                }
+                if cands.len() > 1 {
+                    let api: Vec<&String> = cands
+                        .iter()
+                        .filter(|id| {
+                            node_names
+                                .get(*id)
+                                .is_some_and(|n| n.to_lowercase().starts_with("api."))
+                        })
+                        .collect();
+                    if api.len() == 1 {
+                        let mut new_e = entry.edge.clone();
+                        new_e.target_id = api[0].clone();
+                        Self::stamp_resolution(&mut new_e, "post_api_layer", 0.6);
+                        updates.push((entry.old_key.clone(), new_e));
+                        continue;
+                    }
+                }
             }
 
             // Step 2: metadata.fqn match

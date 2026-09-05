@@ -57,64 +57,71 @@ fn make_call(source_id: &str, target_id: &str) -> Edge {
     }
 }
 
-fn make_dispatch_call(source_id: &str, target_id: &str, key: &str) -> Edge {
+fn make_api_call(source_id: &str, target_id: &str, method: &str) -> Edge {
     let mut m = serde_json::Map::new();
     m.insert(
-        "dispatch_key".into(),
-        serde_json::Value::String(key.to_string()),
+        "ajax_target_method".into(),
+        serde_json::Value::String(method.to_string()),
     );
-    let mut e = make_call(source_id, target_id);
-    e.metadata = Some(serde_json::Value::Object(m));
-    e
+    Edge {
+        source_id: source_id.to_string(),
+        target_id: target_id.to_string(),
+        namespace: "memory".to_string(),
+        language: "javascript".to_string(),
+        edge_kind: EdgeKind::ApiCall,
+        weight: 1,
+        generation: 1,
+        metadata: Some(serde_json::Value::Object(m)),
+        updated_at_ms: 1_000_000,
+    }
 }
 
 #[test]
-fn broker_dispatch_arm_resolves_to_same_layer_handler() {
-    // A broker `Select Case "X": s = X(qry)` arm dispatches to the api-json
-    // handler, not the same-named code implementation. Both definitions are
-    // real, so the name is ambiguous and the generic file/receiver tiebreak
-    // can't choose (the broker is in NEITHER candidate file). The dispatch_key
-    // marks it a broker arm; the correct target sits in the broker's own layer
-    // (parent dir `api-json`), so a dispatch arm prefers the same-layer
-    // candidate instead of leaving a `::` placeholder dangling.
+fn api_routed_call_resolves_to_the_api_layer_handler() {
+    // A client `api.ajax('iopX')` (ApiCall carrying ajax_target_method) names an
+    // overloaded server function: an api-json handler `api.iopX` beside a code
+    // implementation `_io.Foo.iopX`. Both are real, so the bare name is
+    // ambiguous; and because real function nodes are class-QUALIFIED, the
+    // candidates surface through the TERMINAL index (`iopX`), never the
+    // bare-name index. The generic file/receiver tiebreak can't choose (the .ts
+    // source is in neither file), which previously left a dangling `::`
+    // placeholder (the ox_causal_20 finding). Api-routed calls bind to the
+    // `api.`-class handler.
     let tmp = tempfile::TempDir::new().unwrap();
     let graph = open_store(&tmp);
-    let pid = "test-dispatch-layer";
+    let pid = "test-api-layer";
 
     let handler = make_node(
-        "sym:function:Site/x/api-json/api-x.vb:iopX:1",
-        "iopX",
+        "sym:function:Site/x/api-json/api-x.vb:api.iopX:1",
+        "api.iopX",
         "Site/x/api-json/api-x.vb",
     );
     let impl_node = make_node(
-        "sym:function:Site/x/code/x.vb:iopX:1",
-        "iopX",
+        "sym:function:Site/x/code/x.vb:_io.Foo.iopX:1",
+        "_io.Foo.iopX",
         "Site/x/code/x.vb",
     );
-    let broker = make_node(
-        "sym:function:Site/api-json/api-broker.vb:dispatch:1",
-        "dispatch",
-        "Site/api-json/api-broker.vb",
+    let caller = make_node(
+        "file:Site/modules/ts/panel.ts",
+        "panel.ts",
+        "Site/modules/ts/panel.ts",
     );
     graph
-        .upsert_nodes(pid, &[handler.clone(), impl_node.clone(), broker.clone()])
+        .upsert_nodes(pid, &[handler.clone(), impl_node.clone(), caller.clone()])
         .unwrap();
     graph
-        .upsert_edges(
-            pid,
-            &[make_dispatch_call(&broker.node_id, "::iopX", "iopX")],
-        )
+        .upsert_edges(pid, &[make_api_call(&caller.node_id, "::iopX", "iopX")])
         .unwrap();
 
     graph.resolve_symbol_edges(pid).unwrap();
 
     let out = graph
-        .neighbors(pid, EdgeKind::Calls, &broker.node_id, 10)
+        .neighbors(pid, EdgeKind::ApiCall, &caller.node_id, 10)
         .unwrap();
     let targets: Vec<String> = out.into_iter().map(|(t, _)| t).collect();
     assert!(
         targets.contains(&handler.node_id),
-        "broker arm must resolve to the same-layer api-json handler; got {targets:?}"
+        "api-routed call must resolve to the api-layer handler; got {targets:?}"
     );
     assert!(
         !targets.iter().any(|t| t.starts_with("::")),
