@@ -222,6 +222,44 @@ pub fn render_markdown(r: &AskReport) -> String {
             r.answer_members.len(),
             if complete { "complete" } else { "INCOMPLETE" }
         );
+        if !complete {
+            // Name WHY coverage is incomplete — a bare "INCOMPLETE" is the
+            // "coverage invisible" gap. Aggregate the exact counters, and
+            // sample the specific dangling target ids so an ingestion defect
+            // is diagnosable from the report itself.
+            let mut src_cap = false;
+            let mut nbr_cap = 0usize;
+            let mut dangling = 0usize;
+            let mut graph_errors = 0usize;
+            let mut dangling_ids: Vec<&str> = Vec::new();
+            for p in r.providers.iter().filter_map(|p| p.proof.as_ref()) {
+                src_cap |= p.source_cap_hit;
+                nbr_cap += p.neighbor_cap_hits;
+                dangling += p.dangling_targets;
+                graph_errors += p.graph_errors;
+                dangling_ids.extend(p.dangling_target_ids.iter().map(String::as_str));
+            }
+            let mut reasons: Vec<String> = Vec::new();
+            if src_cap {
+                reasons.push("source cap hit".to_string());
+            }
+            if nbr_cap > 0 {
+                reasons.push(format!("{nbr_cap} neighbor-cap hit(s)"));
+            }
+            if dangling > 0 {
+                let sample: Vec<&str> = dangling_ids.iter().take(5).copied().collect();
+                reasons.push(format!(
+                    "{dangling} dangling edge target(s) [{}]",
+                    sample.join(", ")
+                ));
+            }
+            if graph_errors > 0 {
+                reasons.push(format!("{graph_errors} graph error(s)"));
+            }
+            if !reasons.is_empty() {
+                let _ = writeln!(s, "_incomplete because: {}_", reasons.join("; "));
+            }
+        }
         for m in &r.answer_members {
             let _ = writeln!(
                 s,
