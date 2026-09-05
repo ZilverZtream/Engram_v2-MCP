@@ -79,3 +79,35 @@ program has fought:
 All three that change the graph need a re-resolve/repair pass to heal the live
 store. Decision deferred to owner (a genuine correctness-policy fork, not a
 canonicalization bug to silently patch).
+
+## Resolution 2026-09-05 — api-routed dangling FIXED (owner-approved broker-dispatch resolution)
+
+Implemented the owner's pick. The clean disambiguator (call signature) is
+unavailable — the VB extractor leaves return/param types empty (the round-5
+gap, confirmed live: node sig=""). The available signal is the class: an
+offline graph probe showed the two definitions are `api.iopCheckIfRelatedMarkersExists`
+(the api-json handler, `Partial Class api`) and `_io.PropertiesRelationship.iopCheckIfRelatedMarkersExists`
+(the code impl). Api dispatch binds to the `api.`-class handler.
+
+FIRST ATTEMPT WRONG (b7d1fb6, honestly recorded): it matched at the exact-name
+step against a `dispatch_key` only. Real function nodes are class-QUALIFIED, so
+`by_name` never holds the bare call name and the ambiguity surfaces at the
+TERMINAL index; and the walk's dangling is an ApiCall route edge (ajax), not the
+broker Calls arm. The probe proved THREE edges hit `::iopCheckIfRelatedMarkersExists`
+(1 broker Calls + 2 ApiCall). b7d1fb6's test passed only on unrealistic bare
+names.
+
+CORRECTED (e0ed587): at the terminal step, an api-routed edge — carrying
+`ajax_target_method` OR `dispatch_key` — whose bare name is ambiguous binds to
+the single `api.`-class candidate; fires only when exactly one such candidate
+exists, so genuine ambiguity still degrades to an honest dangling (no wrong
+pick). Test `api_routed_call_resolves_to_the_api_layer_handler` uses realistic
+qualified names + an ApiCall edge; engram_graph suite green.
+
+LIVE VERIFIED on OciusX (deploy + update_project heal): `ox_causal_20` flipped
+**Partial / coverage INCOMPLETE → Answered / coverage complete**, 15 correct
+members, no dangling. Health OK (gen 960, 2277 complete). The fix is SCOPED, not
+over-eager: `installation_edit.ts` still shows a *different* honest dangling
+(`::set_path`, not an `api.` handler) — now VISIBLE thanks to the observability
+(commit 1988112), correctly left unresolved. Full eval-suite regression not run
+(scoped, unit-tested change; owner's "don't force costly actions").
