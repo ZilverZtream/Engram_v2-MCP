@@ -2855,6 +2855,37 @@ impl GraphStore {
             None
         };
 
+        // The parent-directory name of a path — the OciusX "layer" segment
+        // (`Site/x/api-json/api-x.vb` → `api-json`). Used only to route a
+        // broker dispatch arm to the handler in the broker's own layer.
+        let parent_dir = |path: &str| -> Option<String> {
+            let norm = path.replace('\\', "/");
+            let mut segs = norm.rsplit('/');
+            segs.next()?; // filename
+            segs.next().map(|s| s.to_lowercase())
+        };
+        // A broker `Select Case` arm (edge carries `dispatch_key`) dispatches to
+        // the handler in the broker's OWN layer, not a same-named implementation
+        // in a sibling layer. When the generic file/receiver tiebreak can't
+        // choose (the broker is in neither candidate file), prefer the single
+        // candidate whose parent dir matches the broker's — a real structural
+        // signal, not a coin-flip. Returns None unless EXACTLY one matches, so
+        // a genuine ambiguity still degrades to an honest dangling.
+        let prefer_dispatch_layer =
+            |candidates: &[String], source_file: Option<&String>| -> Option<String> {
+                let src_layer = parent_dir(source_file?)?;
+                let matches: Vec<&String> = candidates
+                    .iter()
+                    .filter(|cid| {
+                        node_file_paths
+                            .get(*cid)
+                            .and_then(|p| parent_dir(p))
+                            .is_some_and(|d| d == src_layer)
+                    })
+                    .collect();
+                (matches.len() == 1).then(|| matches[0].clone())
+            };
+
         let mut updates: Vec<(String, Edge)> = Vec::new();
 
         for entry in &unresolved {
@@ -2882,6 +2913,27 @@ impl GraphStore {
                 let mut new_e = entry.edge.clone();
                 new_e.target_id = target_id;
                 Self::stamp_resolution(&mut new_e, "post_exact_name", 0.85);
+                updates.push((entry.old_key.clone(), new_e));
+                continue;
+            }
+
+            // Step 1b: broker dispatch arm — an ambiguous `dispatch_key` call
+            // binds to the handler in the broker's own layer instead of leaving
+            // a dangling `::` placeholder (round-6: the ox_causal_20 dangling).
+            let is_dispatch = entry
+                .edge
+                .metadata
+                .as_ref()
+                .and_then(|m| m.get("dispatch_key"))
+                .and_then(|v| v.as_str())
+                .is_some_and(|k| !k.trim().is_empty());
+            if is_dispatch
+                && let Some(SymbolMatch::Ambiguous(ids)) = by_name.get(name)
+                && let Some(target_id) = prefer_dispatch_layer(ids, source_file)
+            {
+                let mut new_e = entry.edge.clone();
+                new_e.target_id = target_id;
+                Self::stamp_resolution(&mut new_e, "post_dispatch_layer", 0.6);
                 updates.push((entry.old_key.clone(), new_e));
                 continue;
             }
