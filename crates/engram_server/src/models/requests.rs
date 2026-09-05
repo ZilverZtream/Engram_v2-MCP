@@ -3070,6 +3070,12 @@ pub struct ValidateGeneratedCodeRequest {
     /// The file path this code is intended for (used for context resolution).
     #[serde(default)]
     pub target_file: Option<String>,
+    /// Round-6: whether the target is being modified or newly created.
+    /// "modify" (default) — the file must already exist in the index;
+    /// "create" — a new file is expected to be absent, so absence is not a
+    /// failure. Any other value is treated as "modify".
+    #[serde(default)]
+    pub change_kind: Option<String>,
     /// The method name being replaced/modified (used for caller compatibility check).
     #[serde(default)]
     pub original_method_name: Option<String>,

@@ -49,32 +49,36 @@ and N=32 is small. This is a probe, not a commitment; the gate decides.
 3. Gate passes → expand to permission family. Gate fails → stop, report,
    and the honesty batch stands as the round-5 deliverable.
 
-## Feasibility check (2026-09-05) — the gate is NOT measurable yet
+## Feasibility check — CORRECTED 2026-09-05 (my round-5 numbers were wrong)
 
-Before building the analyzer, I measured whether the pre-registered gate can
-be scored against real data. It cannot, and that is the honest finding:
+My round-5 feasibility analysis claimed the gate was "not measurable." Re-run
+against the raw data, **both of its load-bearing numbers were wrong**, and the
+error was mine (incomplete queries), not the data's:
 
-- Of 334 CodeRabbit findings, a TIGHT null-safety match yields only **~4**
-  genuine null-safety defects (a loose null/nothing regex over-counts to 30,
-  but those are mostly other families — false-success conditions, reload
-  logic, serialization). The 4 real ones are heterogeneous (canvas-context
-  null check, DBNull handling, a TS `string|null` param type, a map-access
-  guard) and span TypeScript AND VB.
-- Only **6 of 16** implicated PRs have base/merge commits recoverable from
-  the corpus for diff extraction.
+- **Null-safety count.** A tight classifier over `eval/data/qg_coderabbit.json`
+  yields **7** genuine null-safety findings across 5 PRs (canvas-context guard,
+  `Nothing`-body dereference, DBNull handling, instanceof-before-dataset,
+  stale-async-callback guard, feature-gated-object guards) — not the "~4" I
+  reported; a looser classifier reaches the low teens. Still cross-language
+  (TS + VB) and still small, but not as thin as claimed.
+- **Diff recoverability.** I claimed "only 6 of 16 implicated PRs have
+  base/merge commits recoverable." That was FALSE — an artifact of querying the
+  `merged_before` replay worktree instead of origin history. Every implicated
+  PR (1900, 1911, 1930, 1932, 1940) has a `Merged PR N:` merge commit in the
+  OciusX history (`git -C <OciusX> log --all --grep="Merged PR <n>"`), and the
+  full history carries **1651** such commits. Each finding's diff is recoverable
+  via `git diff <merge>^ <merge>`. The auditor was right.
 
-A mechanism-recall gate over N≈4 heterogeneous, cross-language findings cannot
-distinguish signal from luck (≥40% of 4 = flag 2). Building a static analyzer
-and declaring it "passes" on 2–3 cherry-picked cases would be precisely the
-manufacture-a-pass anti-pattern this project has fought across five rounds.
+**Corrected conclusion.** The pre-registered gate IS runnable: the labeled
+findings exist and their diffs are extractable. The honest residual caveat is
+statistical, not data-availability — N≈7–12 cross-language findings makes a
+mechanism-recall threshold noisy (a 40%-of-7 bar is 3 flags), so a pass must be
+read with that N in mind, not as proof of a general capability.
 
-**Decision: do NOT build the null-safety analyzer against a non-measurable
-gate.** The blocker is not the analyzer — it is the absence of a labeled,
-single-family, sufficient-N defect corpus to falsify it against. That is a
-data-curation prerequisite, and it explains why the verify direction has been
-hard to validate: there is no ground-truth mechanism-defect set at usable N.
-
-The round-5 honesty batch (doc 20) stands as the delivered, auditable work.
-ChangeVerifier remains a coherent idea, blocked on measurable ground truth —
-a prerequisite the owner (or the auditor, who has the review corpus) would
-need to supply before an analyzer build can be run with integrity.
+**What does NOT follow:** I am not unilaterally launching the ChangeVerifier
+analyzer build off this correction. Building it is a program-level scope
+decision the owner has explicitly gated (doc 16: findings get triaged, not
+auto-adopted). The correction moves the probe from "blocked on ground truth" to
+"queued and actually runnable," to be run only when the owner greenlights that
+scope — with the small-N caveat stated up front and no fix-and-rerun to
+manufacture a pass.

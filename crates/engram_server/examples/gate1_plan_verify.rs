@@ -65,14 +65,19 @@ fn main() -> anyhow::Result<()> {
             .flat_map(|f| f.expected.iter().cloned())
             .map(|e| e.rsplit('/').next().unwrap_or(&e).to_lowercase())
             .collect();
-        let convention_flagged = findings
-            .iter()
-            .any(|f| matches!(f.kind, engram_server::services::plan_verify::FindingKind::ConventionViolation));
+        let convention_flagged = findings.iter().any(|f| {
+            matches!(
+                f.kind,
+                engram_server::services::plan_verify::FindingKind::ConventionViolation
+            )
+        });
 
         // A hit: the judge note mentions a file the verifier flagged, OR the
         // judge cited a permission/auth defect and the verifier raised a
         // convention violation.
-        let name_hit = flagged.iter().any(|f| f.len() > 4 && note.contains(f.as_str()));
+        let name_hit = flagged
+            .iter()
+            .any(|f| f.len() > 4 && note.contains(f.as_str()));
         let conv_hit = convention_flagged
             && (note.contains("permission")
                 || note.contains("authoriz")
@@ -94,7 +99,11 @@ fn main() -> anyhow::Result<()> {
             if conv_hit { "conv" } else { "" },
             findings
                 .iter()
-                .map(|f| format!("{:?}:{}", f.kind, f.expected.first().cloned().unwrap_or_default()))
+                .map(|f| format!(
+                    "{:?}:{}",
+                    f.kind,
+                    f.expected.first().cloned().unwrap_or_default()
+                ))
                 .collect::<Vec<_>>()
                 .join(" | ")
         );
@@ -106,7 +115,11 @@ fn main() -> anyhow::Result<()> {
         cases.len(),
         over_budget,
         cases.len(),
-        if hits >= 8 && over_budget == 0 { "PASS" } else { "FAIL" }
+        if hits >= 8 && over_budget == 0 {
+            "PASS"
+        } else {
+            "FAIL"
+        }
     );
     Ok(())
 }

@@ -893,11 +893,15 @@ impl Engram {
     }
 
     #[tool(
-        description = "Pre-commit review — runs its full battery of graph-backed gates (immune, blast-radius, \
-                       style, temporal, state, audit, anti-pattern, new-file, test-coverage, \
-                       secret-leakage, guard-parity) over a unified diff and returns \
-                       severity-ranked, evidence-backed findings. Accepts a raw diff, `staged`, \
-                       `unstaged`, `head`, or a `.patch` path. No LLM calls."
+        description = "Pre-commit review — runs Engram's full registered gate set (19 graph-backed \
+                       gates unless you pass `skip_gates`: immune, repo-rule, blast-radius, style, \
+                       temporal, state, audit, anti-pattern, new-file, test-coverage, secret-leakage, \
+                       guard-parity, unwired, product-intent, sync-contract, co-added-family, \
+                       complexity, added-conventions, ui-house-style) over a unified diff and returns \
+                       severity-ranked, evidence-backed findings. The response lists every gate that \
+                       actually ran and its outcome, so you can see exactly what was and was not \
+                       checked. Accepts a raw diff, `staged`, `unstaged`, `head`, or a `.patch` path. \
+                       No LLM calls."
     )]
     pub async fn pre_commit_review(
         &self,
@@ -1487,7 +1491,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "LLM context packer: assembles coding style profile, pattern examples from callers, database schema for referenced tables, SP signatures, session state context, control mappings, VB translation traps, language-family diagnostics (C#/C/C++/Rust), and sync hazards — everything an LLM needs to generate correct code in one call."
+        description = "LLM context packer for editing an EXISTING method: assembles whichever of these it can resolve — coding style profile, caller pattern examples, database schema for referenced tables, SP signatures, session state context, control mappings, VB translation traps, language-family diagnostics (C#/C/C++/Rust), and sync hazards. Each provider is best-effort; anything that fails to resolve is reported in `warnings` rather than omitted silently. It is a starting context, NOT a guarantee of everything needed — verify against the real code before editing. Requires the target method to already exist (it resolves it by exact name, refusing cross-class/overload ambiguity)."
     )]
     pub async fn prepare_implementation_context(
         &self,

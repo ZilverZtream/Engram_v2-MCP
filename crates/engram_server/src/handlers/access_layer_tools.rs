@@ -729,6 +729,15 @@ fn class_of_node(node: &Node) -> String {
     parts.next().unwrap_or("").to_string()
 }
 
+/// The bare method identifier for a node whose `name` may be class-qualified.
+///
+/// The graph stores function names class-qualified (`orders.GetAll`) with a
+/// SEARCH namespace, not the declaring class — so a bare `method_name` must be
+/// compared against this tail, never against `node.name` directly.
+fn bare_method_name(node: &Node) -> &str {
+    node.name.rsplit('.').next().unwrap_or(node.name.as_str())
+}
+
 /// Extract class name from an FQN-like namespace string.
 fn class_from_namespace(namespace: &str) -> String {
     // namespace might be "MyApp.Pages.CheckoutPage" or just "CheckoutPage"
@@ -1142,8 +1151,10 @@ fn select_method_node(
         )
         .map_err(|e| format!("method lookup failed: {e}"))?;
     if let Some(cls) = class_name {
+        // The declaring class lives in the qualified NAME (`orders.GetAll`) or a
+        // real namespace, never in the search namespace — match via class_of_node.
         let cls_lower = cls.to_lowercase();
-        candidates.retain(|n| n.namespace.to_lowercase().contains(&cls_lower));
+        candidates.retain(|n| class_of_node(n).to_lowercase() == cls_lower);
     }
     if candidates.is_empty() {
         return Err(method_not_found_message(
@@ -1153,24 +1164,28 @@ fn select_method_node(
             Some(file_path),
         ));
     }
+    // query_nodes matches by SUBSTRING, so `GetAll` also returns `GetAllHistory`.
+    // Prefer an EXACT match on the bare method identifier (the tail of the
+    // qualified name), so a substring sibling never masquerades as ambiguity.
     let exact: Vec<Node> = candidates
         .iter()
-        .filter(|n| n.name.eq_ignore_ascii_case(method_name))
+        .filter(|n| bare_method_name(n).eq_ignore_ascii_case(method_name))
         .cloned()
         .collect();
     if !exact.is_empty() {
         candidates = exact;
     }
     // Same-name methods in DIFFERENT classes: describing the wrong one
-    // poisons the edit that follows.
-    let mut namespaces: Vec<&str> = candidates.iter().map(|n| n.namespace.as_str()).collect();
-    namespaces.sort_unstable();
-    namespaces.dedup();
-    if namespaces.len() > 1 {
+    // poisons the edit that follows. The class is derived from the node, not
+    // read from the (search-)namespace, which is identical across classes.
+    let mut classes: Vec<String> = candidates.iter().map(class_of_node).collect();
+    classes.sort_unstable();
+    classes.dedup();
+    if classes.len() > 1 {
         let mut msg = format!(
             "AMBIGUOUS: '{}' exists in {} classes in '{}'. Re-call with class_name set:\n",
             method_name,
-            namespaces.len(),
+            classes.len(),
             file_path
         );
         for n in candidates.iter().take(10) {
@@ -2438,25 +2453,64 @@ fn render_implementation_context_markdown(ctx: &ImplementationContext) -> String
     md
 }
 
-/// Round-5 P0 (fail-closed): the overall verdict of a code validation.
+/// Round-6: the resolution of the target file against the index.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TargetStatus {
+    /// No target_file was supplied.
+    Unspecified,
+    /// The exact path is present in the index.
+    Exists,
+    /// change_kind=modify but the exact path is not in the index.
+    NotFound,
+    /// change_kind=create and the path is absent — expected, not a failure.
+    NewTarget,
+    /// The index lookup itself failed — we cannot know.
+    ProviderFailed,
+}
+
+/// Round-6: what the validation actually COVERED, modelled apart from the
+/// individual pass/warn/fail checks. A green generic-lint scan is not
+/// coverage of the project's contract.
+#[derive(Debug, Clone, Copy)]
+pub struct ValidationCoverage {
+    /// Project-CONTRACT checks that actually ran (expected tables/SPs/session
+    /// keys/controls, caller compatibility). Generic lint (sync hazards) does
+    /// NOT count.
+    pub contract_checks_ran: usize,
+    pub target: TargetStatus,
+}
+
+/// Round-6 (fail-closed, re-audited): the overall verdict.
 ///
-/// A "post-generation safety net" that ran ZERO checks has verified nothing —
-/// it must NOT report PASS (the old code did, green-lighting a nonexistent
-/// file). Empty check set => INSUFFICIENT.
-pub fn compute_validation_verdict(checks: &[ValidationCheck]) -> String {
-    if checks.is_empty() {
+/// A "post-generation safety net" only PASSES when it actually verified the
+/// project's contract. Round-5's version was unreachable because the
+/// always-on sync-hazard check meant `checks` was never empty, so hazard-free
+/// `class X {}` still returned PASS. The rule now keys on COVERAGE:
+///
+/// - any failing check           => FAIL
+/// - the target lookup failed     => INSUFFICIENT (we cannot know)
+/// - no contract check ran        => INSUFFICIENT (generic lint is not a pass)
+/// - any warning                  => WARN
+/// - otherwise                    => PASS
+pub fn compute_validation_verdict(
+    checks: &[ValidationCheck],
+    coverage: &ValidationCoverage,
+) -> String {
+    if checks.iter().any(|c| c.status == "fail") {
+        return "FAIL".to_string();
+    }
+    if matches!(coverage.target, TargetStatus::ProviderFailed) {
         return "INSUFFICIENT".to_string();
     }
-    let has_fail = checks.iter().any(|c| c.status == "fail");
-    let has_warn = checks.iter().any(|c| c.status == "warn");
-    if has_fail {
-        "FAIL"
-    } else if has_warn {
-        "WARN"
-    } else {
-        "PASS"
+    if coverage.contract_checks_ran == 0 {
+        // Nothing project-specific was verified — a passing generic lint scan
+        // says nothing about whether this code is correct for THIS project.
+        return "INSUFFICIENT".to_string();
     }
-    .to_string()
+    if checks.iter().any(|c| c.status == "warn") {
+        return "WARN".to_string();
+    }
+    "PASS".to_string()
 }
 
 fn render_validation_report_markdown(report: &ValidationReport) -> String {
@@ -3535,48 +3589,28 @@ impl Engram {
             None
         };
 
-        let result = tokio::task::spawn_blocking(move || {
+        // Alias keeps the closure's return-type annotation short enough to stay
+        // on one line (the annotation is what pins the closure's error type to
+        // String now that resolution propagates via `?` instead of a concrete
+        // `return Err`).
+        type PrepCtxResult = Result<ImplementationContext, String>;
+        let result = tokio::task::spawn_blocking(move || -> PrepCtxResult {
             // 1. Resolve the target method
-            let mut candidates = graph
-                .query_nodes(
-                    &project_id,
-                    Some("function"),
-                    Some(&method_name),
-                    Some(&file_path),
-                    50,
-                )
-                .unwrap_or_default();
-
-            if let Some(ref cls) = class_name {
-                let cls_lower = cls.to_lowercase();
-                candidates.retain(|n| n.namespace.to_lowercase().contains(&cls_lower));
-            }
-
-            if candidates.is_empty() {
-                return Err(method_not_found_message(
-                    &graph,
-                    &project_id,
-                    &method_name,
-                    Some(&file_path),
-                ));
-            }
-
-            // Round-5 P0: do NOT blindly analyze candidates[0]. Multiple
-            // same-name declarations (overloads) mean the context could be
-            // built for the WRONG method. Refuse and list them, matching
-            // get_method_edit_context's contract (which supersedes this tool).
-            if candidates.len() > 1 {
-                let mut listing = format!(
-                    "AMBIGUOUS: `{method_name}` has {} declarations in `{file_path}` — this tool cannot pick one safely. Use get_method_edit_context (line=<start>) instead:\n",
-                    candidates.len()
-                );
-                for c in &candidates {
-                    listing.push_str(&format!("  - line {}\n", c.start_line));
-                }
-                return Err(listing);
-            }
-
-            let node = &candidates[0];
+            // Round-6: reuse the shared resolver instead of a hand-rolled
+            // candidate scan. select_method_node prefers an EXACT name over
+            // query_nodes' substring match (so "orders" does not falsely
+            // collide with "orders_history"), refuses genuine cross-class /
+            // overload ambiguity, and SURFACES a lookup failure instead of
+            // silently returning candidates[0] on an empty/errored result.
+            let resolved_node = select_method_node(
+                &graph,
+                &project_id,
+                &file_path,
+                &method_name,
+                class_name.as_deref(),
+                None,
+            )?;
+            let node = &resolved_node;
             let method_info = build_method_info_from_node(node, &graph, &project_id);
 
             // 2. Read the method body from disk
@@ -4105,6 +4139,7 @@ impl Engram {
         let expected_sps = req.expected_sps.clone();
         let expected_session_keys = req.expected_session_keys.clone();
         let expected_control_ids = req.expected_control_ids.clone();
+        let change_kind = req.change_kind.clone();
         let output_json = req.output_json;
 
         let result = tokio::task::spawn_blocking(move || {
@@ -4112,24 +4147,53 @@ impl Engram {
             let is_vb = language.starts_with("vb");
             let code_lower = code.to_lowercase();
 
-            // Round-5 P0 (Check 0): you cannot validate generated code against a
-            // target that does not exist. A nonexistent target_file is a FAIL,
-            // never a silent PASS.
-            if let Some(tf) = &target_file {
-                let norm = tf.replace('\\', "/");
-                let exists = graph
-                    .query_nodes(&project_id, Some("file"), None, Some(&norm), 1)
-                    .map(|v| !v.is_empty())
-                    .unwrap_or(false);
-                if !exists {
-                    checks.push(ValidationCheck {
-                        category: "target_file".to_string(),
-                        status: "fail".to_string(),
-                        details: vec![format!(
-                            "target file `{tf}` is not in the indexed project — cannot validate generated code against a nonexistent target"
-                        )],
-                    });
+            // Round-6 (Check 0): resolve the target against the index EXACTLY.
+            // query_nodes matches by SUBSTRING, so a fragment must not satisfy
+            // existence; a graph failure must not masquerade as "nonexistent";
+            // and a genuine new-file create must not be auto-failed.
+            let is_create = change_kind
+                .as_deref()
+                .map(|k| k.eq_ignore_ascii_case("create"))
+                .unwrap_or(false);
+            let target_status = match &target_file {
+                None => TargetStatus::Unspecified,
+                Some(tf) => {
+                    let norm = tf.replace('\\', "/");
+                    let want = norm.to_lowercase();
+                    match graph.query_nodes(&project_id, Some("file"), Some(&norm), None, 50) {
+                        Ok(nodes) => {
+                            let exact = nodes.iter().any(|n| {
+                                n.file_path.as_str().replace('\\', "/").to_lowercase() == want
+                            });
+                            if exact {
+                                TargetStatus::Exists
+                            } else if is_create {
+                                TargetStatus::NewTarget
+                            } else {
+                                TargetStatus::NotFound
+                            }
+                        }
+                        Err(_) => TargetStatus::ProviderFailed,
+                    }
                 }
+            };
+            match target_status {
+                TargetStatus::NotFound => checks.push(ValidationCheck {
+                    category: "target_file".to_string(),
+                    status: "fail".to_string(),
+                    details: vec![format!(
+                        "target file `{}` is not in the indexed project (change_kind=modify) — cannot verify a modification against a file that is not there; pass change_kind=create if it is new",
+                        target_file.as_deref().unwrap_or("")
+                    )],
+                }),
+                TargetStatus::ProviderFailed => checks.push(ValidationCheck {
+                    category: "target_file".to_string(),
+                    status: "warn".to_string(),
+                    details: vec![
+                        "the index lookup for the target file FAILED — target existence is UNKNOWN, not verified".to_string(),
+                    ],
+                }),
+                _ => {}
             }
 
             // ── Check 1: SQL Table References ─────────────────────────────
@@ -4466,7 +4530,19 @@ impl Engram {
             }
 
             // ── Compute overall verdict ───────────────────────────────────
-            let overall = compute_validation_verdict(&checks);
+            // Contract coverage = every check that verified something
+            // PROJECT-SPECIFIC. Generic lint (sync_hazards) and the target
+            // existence meta-check do not count — a green lint scan with no
+            // contract verified is INSUFFICIENT, never PASS.
+            let contract_checks_ran = checks
+                .iter()
+                .filter(|c| c.category != "sync_hazards" && c.category != "target_file")
+                .count();
+            let coverage = ValidationCoverage {
+                contract_checks_ran,
+                target: target_status,
+            };
+            let overall = compute_validation_verdict(&checks, &coverage);
 
             Ok(ValidationReport {
                 overall_verdict: overall,

@@ -234,21 +234,22 @@ pub fn verify_plan(
     proof.sources_discovered = plan.files.len();
 
     // The file index: companions can only be named if they EXIST.
-    let index: Vec<String> = match graph.query_nodes(project_id, Some("file"), None, None, FILE_INDEX_CAP + 1) {
-        Ok(v) => {
-            if v.len() > FILE_INDEX_CAP {
-                proof.source_cap_hit = true;
+    let index: Vec<String> =
+        match graph.query_nodes(project_id, Some("file"), None, None, FILE_INDEX_CAP + 1) {
+            Ok(v) => {
+                if v.len() > FILE_INDEX_CAP {
+                    proof.source_cap_hit = true;
+                }
+                v.into_iter()
+                    .take(FILE_INDEX_CAP)
+                    .map(|n| norm(n.file_path.as_str()))
+                    .collect()
             }
-            v.into_iter()
-                .take(FILE_INDEX_CAP)
-                .map(|n| norm(n.file_path.as_str()))
-                .collect()
-        }
-        Err(_) => {
-            proof.graph_errors += 1;
-            Vec::new()
-        }
-    };
+            Err(_) => {
+                proof.graph_errors += 1;
+                Vec::new()
+            }
+        };
     let index_set: HashSet<&String> = index.iter().collect();
     let planned: HashSet<String> = plan.files.iter().map(|f| norm(&f.path)).collect();
 
@@ -293,7 +294,9 @@ pub fn verify_plan(
 
         // ---- ConventionViolation ----------------------------------------
         let (guarded, total) = auth_contract(graph, project_id, &f.path, &mut proof);
-        if total >= 2 && (guarded as f32) / (total as f32) >= CONVENTION_RATIO && !mentions_permission(&f.change)
+        if total >= 2
+            && (guarded as f32) / (total as f32) >= CONVENTION_RATIO
+            && !mentions_permission(&f.change)
         {
             violations.push(PlanFinding {
                 kind: FindingKind::ConventionViolation,

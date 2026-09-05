@@ -4404,11 +4404,12 @@ under a new id: call `list_projects` and use the entry whose directory is
 this file stops lying.
 
 ## For every feature request / user story
-1. `get_change_set(story=<verbatim request>)` — the change-set dossier:
-   every file this change should touch (co-change companions, .NET family,
-   compiled bundles, the completeness checklist). START HERE — this is the
-   one capability with a measured implementation-quality lift, so the file
-   list it gives you is the backbone of the change.
+1. `get_change_set(story=<verbatim request>)` — a RANKED CANDIDATE dossier
+   (co-change companions, .NET family, compiled bundles, a completeness
+   checklist) with a measured implementation-quality lift. START HERE — but
+   it is NOT exhaustive (~73-77% page-family recall on held-out stories):
+   treat it as a strong starting set, and verify/extend it by reading and
+   tracing the actual implementation before you edit.
 2. `get_concept_footprint(concept=...)` for every domain concept you touch —
    change ALL touchpoints or justify each one you skip.
 3. `find_implementation_pattern(pattern_query=...)` — imitate the house
@@ -4432,11 +4433,12 @@ this file stops lying.
   name the files you forgot. Touch them or justify each one.
 - `pre_commit_review(diff="staged")` — fix or explicitly justify every
   finding ({gate_count} gates, including guard_parity).
-- `pre_push_audit(code=<your diff>, file_path=<file>)` — checks the change
-  against the team's accumulated "what to avoid" knowledge (coding rules,
+- `pre_push_audit(code=<your diff>, file_path=<file>)` — RETRIEVES the team's
+  accumulated "what to avoid" knowledge relevant to your change (coding rules,
   copilot-instructions, CodeRabbit/SonarQube history, the recurring-issues
-  board). Fix every rule it surfaces before pushing — these are mistakes the
-  team has already flagged.
+  board). It surfaces candidate rules; it does NOT verify your code against
+  them. Read each one and confirm yourself that your diff complies — these are
+  mistakes the team has already flagged.
 - If results ever look stale: `get_index_freshness`, then `update_project`.
 
 ## One-time project setup (so pre_push_audit has rules to check)
