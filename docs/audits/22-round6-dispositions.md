@@ -38,3 +38,44 @@ the limits that remain.
   previously got a silent (possibly wrong) pick on an ambiguous name now get an
   AMBIGUOUS error asking for `class_name`/`line`. That is the intended
   correctness change, but it IS a behavior change for ambiguous inputs.
+
+## Addendum 2026-09-05 — dangling-target diagnosis (owner-picked follow-up)
+
+Owner picked "fix the dangling-target ingestion bug" (the r75 finding: the
+flagship callee question `ox_causal_20` returns 15 correct members but
+`dangling_targets=1` → PARTIAL). Shipped **dangling-target observability**
+(commit 1988112): CoverageProof records the unresolved target ids and the report
+prints `_incomplete because: N dangling edge target(s) [ids]_` — closing the
+auditor's "coverage invisible" gap AND giving a diagnostic hook.
+
+Live diagnosis with it named the edge: **`::iopCheckIfRelatedMarkersExists`** —
+an unresolved `::name` placeholder `Calls` edge, surfaced when the walk expands
+the api_call's broker dispatch. Root cause (airtight, from source):
+- `api-broker.vb:386` — `Case "iopCheckIfRelatedMarkersExists": s = iopCheckIfRelatedMarkersExists(qry)`.
+- The name has TWO genuine definitions: api-json wrapper `(qry As JSONqry) As JSONreturn`
+  (api-installationsobjektprojekt.vb:1911) and code impl `(io_pr_id As Integer) As Boolean`
+  (io-propertiesrelationship.vb:210).
+- Broker source is in neither file, no receiver → `resolve_ambiguous` returns
+  None → the `::` placeholder is kept → dangling.
+
+**This reframes the "bug": it is NOT the assumed dual-SPELLING canonicalization
+defect.** It is a real dual-DEFINITION (overload) ambiguity in broker dispatch,
+and the current dangling→PARTIAL is HONEST (the walk truthfully cannot uniquely
+resolve which of two same-named functions the broker means without
+argument-type analysis). The right target IS resolvable in principle (the
+api-json wrapper, matching the `qry` argument), but making the resolver pick it
+is a graph-wide resolution-policy change, each option with a tradeoff the
+program has fought:
+1. **Layer-locality tiebreak** (broker in api-json/ → prefer the api-json/
+   candidate): fixes this case, but risks silent wrong-picks elsewhere (the F1
+   anti-pattern the auditor rejected).
+2. **Expand ambiguous placeholder to ALL real definitions**: no wrong-pick, all
+   targets real, kills the dangling — but changes edge cardinality graph-wide
+   (over-connection / precision-loss risk the retrieval program fought).
+3. **Accept the honest dangling** (observability is the deliverable): the walk
+   stays truthful; `dangling_targets=1` is a correct "one edge I can't uniquely
+   resolve", now visible.
+
+All three that change the graph need a re-resolve/repair pass to heal the live
+store. Decision deferred to owner (a genuine correctness-policy fork, not a
+canonicalization bug to silently patch).
