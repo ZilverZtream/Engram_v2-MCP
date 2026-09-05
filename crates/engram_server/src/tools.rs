@@ -893,7 +893,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Pre-commit review — runs eleven graph-backed gates (immune, blast-radius, \
+        description = "Pre-commit review — runs its full battery of graph-backed gates (immune, blast-radius, \
                        style, temporal, state, audit, anti-pattern, new-file, test-coverage, \
                        secret-leakage, guard-parity) over a unified diff and returns \
                        severity-ranked, evidence-backed findings. Accepts a raw diff, `staged`, \

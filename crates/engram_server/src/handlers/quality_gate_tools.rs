@@ -293,7 +293,7 @@ impl Engram {
              violate them before pushing.\n\n",
         );
         out.push_str(&format!(
-            "Checked: {} rule(s) retrieved of {} in the namespace (top_k {}{})\n\n",
+            "Retrieved (NOT verified against your code) — {} candidate rule(s) of {} in the namespace (top_k {}{})\n\n",
             hits.len(),
             rules_total,
             top_k,
