@@ -921,6 +921,40 @@ fn s1_dangling_target_is_counted_and_breaks_completeness() {
 }
 
 #[test]
+fn s1b_dangling_target_id_is_recorded_for_diagnosis() {
+    // Counting a dangling target proves the walk is incomplete, but a caller
+    // (or an operator diagnosing an ingestion defect) needs to know WHICH edge
+    // is unverifiable — the id is recorded, not just tallied.
+    use engram_graph::EdgeKind;
+    let (_d, store) = s_store();
+    let pid = "p_s1b";
+    let a = s_fn("panelInit", "ts/panel.ts");
+    let aid = a.node_id.clone();
+    store
+        .upsert_nodes_and_edges(
+            pid,
+            &[a],
+            &[s_edge(&aid, "sym:function:missing.vb:ghost:1")],
+        )
+        .unwrap();
+    let mut id = 0usize;
+    let (_items, _members, _cov, proof) =
+        engram_server::services::ask_engine::providers::exhaustive_callee_set(
+            &store,
+            None,
+            pid,
+            "ts/panel.ts",
+            &[EdgeKind::ApiCall, EdgeKind::SqlCalls, EdgeKind::Calls],
+            &mut id,
+        );
+    assert_eq!(
+        proof.dangling_target_ids,
+        vec!["sym:function:missing.vb:ghost:1".to_string()],
+        "the specific unresolved target id must be recorded: {proof:?}"
+    );
+}
+
+#[test]
 fn s2_a_source_cap_is_detected_with_cap_plus_one() {
     // Round-4 P0-2: "fetches at most 500 ... returns truncated=false".
     // cap+1 discovery makes the cap OBSERVABLE.

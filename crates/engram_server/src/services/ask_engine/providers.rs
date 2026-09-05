@@ -751,10 +751,19 @@ pub struct CoverageProof {
     pub edges_emitted: usize,
     pub neighbor_cap_hits: usize,
     pub dangling_targets: usize,
+    /// The specific target ids that resolved to no node (capped for size).
+    /// Recorded so an incomplete walk can name the unverifiable edge instead
+    /// of only tallying it — the diagnostic hook for ingestion/canonicalization
+    /// defects.
+    pub dangling_target_ids: Vec<String>,
     pub dispatch_truncated: usize,
     pub graph_errors: usize,
     pub policy: String,
 }
+
+/// Cap on recorded dangling ids — the COUNT (`dangling_targets`) is exact and
+/// unbounded; this list is a bounded diagnostic sample.
+pub const DANGLING_ID_SAMPLE_CAP: usize = 20;
 
 impl CoverageProof {
     pub fn complete(&self) -> bool {
@@ -874,6 +883,9 @@ pub fn exhaustive_callee_set_with_caps(
                     Ok(Some(n)) => n,
                     Ok(None) => {
                         proof.dangling_targets += 1;
+                        if proof.dangling_target_ids.len() < DANGLING_ID_SAMPLE_CAP {
+                            proof.dangling_target_ids.push(target.clone());
+                        }
                         continue;
                     }
                     Err(_) => {
