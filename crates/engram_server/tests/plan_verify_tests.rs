@@ -92,7 +92,11 @@ fn a_plan_touching_only_the_code_behind_is_missing_its_page_family() {
     ];
     s.upsert_nodes_and_edges(pid, &nodes, &[]).unwrap();
 
-    let (findings, proof) = verify_plan(&s, pid, &plan(&[("Site/pages/marker_edit.aspx.vb", "add a button handler")]));
+    let (findings, proof) = verify_plan(
+        &s,
+        pid,
+        &plan(&[("Site/pages/marker_edit.aspx.vb", "add a button handler")]),
+    );
     let missing: Vec<&str> = findings
         .iter()
         .filter(|f| f.kind == FindingKind::MissingCompanion)
@@ -102,7 +106,10 @@ fn a_plan_touching_only_the_code_behind_is_missing_its_page_family() {
         missing.iter().any(|m| m.ends_with("marker_edit.aspx")),
         "the page markup is a companion of its code-behind: {missing:?}"
     );
-    assert!(proof.complete(), "the family enumeration is provable: {proof:?}");
+    assert!(
+        proof.complete(),
+        "the family enumeration is provable: {proof:?}"
+    );
 }
 
 #[test]
@@ -117,7 +124,11 @@ fn a_plan_touching_one_resx_language_is_missing_the_family() {
     ];
     s.upsert_nodes_and_edges(pid, &nodes, &[]).unwrap();
 
-    let (findings, _p) = verify_plan(&s, pid, &plan(&[("Site/App_GlobalResources/text.sv.resx", "add key")]));
+    let (findings, _p) = verify_plan(
+        &s,
+        pid,
+        &plan(&[("Site/App_GlobalResources/text.sv.resx", "add key")]),
+    );
     let expected: Vec<&str> = findings
         .iter()
         .filter(|f| f.kind == FindingKind::MissingCompanion)
@@ -156,7 +167,11 @@ fn a_strongly_coupled_companion_is_flagged_but_a_weak_one_is_not() {
     ];
     s.upsert_nodes_and_edges(pid, &nodes, &edges).unwrap();
 
-    let (findings, _p) = verify_plan(&s, pid, &plan(&[("Site/ts/qty/qtyManager.ts", "edit the manager")]));
+    let (findings, _p) = verify_plan(
+        &s,
+        pid,
+        &plan(&[("Site/ts/qty/qtyManager.ts", "edit the manager")]),
+    );
     let expected: Vec<&str> = findings
         .iter()
         .filter(|f| f.kind == FindingKind::MissingCompanion)
@@ -179,7 +194,10 @@ fn a_handler_that_skips_the_files_own_permission_convention_is_flagged() {
     let (_d, s) = store();
     let pid = "p4";
     let path = "Site/App_Code/io/api-json/api-io.vb";
-    let mut nodes = vec![file_node(path), fn_node("CheckRead", "Site/App_Code/sec/useraccess.vb", 10)];
+    let mut nodes = vec![
+        file_node(path),
+        fn_node("CheckRead", "Site/App_Code/sec/useraccess.vb", 10),
+    ];
     let mut edges = Vec::new();
     for (i, name) in ["ioGetA", "ioGetB", "ioGetC", "ioGetD"].iter().enumerate() {
         let n = fn_node(name, path, (i as u32 + 1) * 100);
@@ -196,13 +214,20 @@ fn a_handler_that_skips_the_files_own_permission_convention_is_flagged() {
     let (findings, _p) = verify_plan(
         &s,
         pid,
-        &plan(&[(path, "Public Function ioGetE(qry) As JSONreturn\n  Return db.Query(...)\nEnd Function")]),
+        &plan(&[(
+            path,
+            "Public Function ioGetE(qry) As JSONreturn\n  Return db.Query(...)\nEnd Function",
+        )]),
     );
     let conv: Vec<&_> = findings
         .iter()
         .filter(|f| f.kind == FindingKind::ConventionViolation)
         .collect();
-    assert_eq!(conv.len(), 1, "one violation for the unguarded handler: {findings:?}");
+    assert_eq!(
+        conv.len(),
+        1,
+        "one violation for the unguarded handler: {findings:?}"
+    );
     assert!(
         conv[0].rationale.contains("4/4") || conv[0].rationale.contains("4 of 4"),
         "the contract states its evidence counts: {}",
@@ -217,7 +242,10 @@ fn a_plan_that_honours_the_convention_and_ships_its_family_is_clean() {
     let (_d, s) = store();
     let pid = "p5";
     let path = "Site/App_Code/io/api-json/api-io.vb";
-    let mut nodes = vec![file_node(path), fn_node("CheckRead", "Site/App_Code/sec/useraccess.vb", 10)];
+    let mut nodes = vec![
+        file_node(path),
+        fn_node("CheckRead", "Site/App_Code/sec/useraccess.vb", 10),
+    ];
     let mut edges = Vec::new();
     for (i, name) in ["ioGetA", "ioGetB"].iter().enumerate() {
         let n = fn_node(name, path, (i as u32 + 1) * 100);
