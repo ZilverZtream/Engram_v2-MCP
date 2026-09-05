@@ -344,6 +344,10 @@ pub struct ImplementationContext {
     pub vb_traps: Vec<VbTrapSummary>,
     pub language_diagnostics: Vec<LanguageDiagnosticSummary>,
     pub sync_hazards: Vec<SyncHazardSummary>,
+    /// Round-5 P0: non-fatal provider failures (e.g. body-read errors) that
+    /// would otherwise be swallowed. Never silently dropped.
+    #[serde(default)]
+    pub warnings: Vec<String>,
 }
 
 /// A caller pattern example showing how existing code interacts with this method.
@@ -2237,6 +2241,14 @@ fn render_implementation_context_markdown(ctx: &ImplementationContext) -> String
         ctx.method_info.fqn
     ));
 
+    if !ctx.warnings.is_empty() {
+        md.push_str("## Warnings (partial evidence)\n\n");
+        for w in &ctx.warnings {
+            md.push_str(&format!("- {w}\n"));
+        }
+        md.push('\n');
+    }
+
     // Method identity (compact)
     md.push_str(&format!(
         "**File**: `{}` | **Class**: `{}` | **Kind**: {} | **Lines**: {}–{}\n\n",
@@ -3549,15 +3561,37 @@ impl Engram {
                 ));
             }
 
+            // Round-5 P0: do NOT blindly analyze candidates[0]. Multiple
+            // same-name declarations (overloads) mean the context could be
+            // built for the WRONG method. Refuse and list them, matching
+            // get_method_edit_context's contract (which supersedes this tool).
+            if candidates.len() > 1 {
+                let mut listing = format!(
+                    "AMBIGUOUS: `{method_name}` has {} declarations in `{file_path}` — this tool cannot pick one safely. Use get_method_edit_context (line=<start>) instead:\n",
+                    candidates.len()
+                );
+                for c in &candidates {
+                    listing.push_str(&format!("  - line {}\n", c.start_line));
+                }
+                return Err(listing);
+            }
+
             let node = &candidates[0];
             let method_info = build_method_info_from_node(node, &graph, &project_id);
 
             // 2. Read the method body from disk
             let full_path = safe_join(Path::new(&project_dir), &file_path)
                 .map_err(|e| format!("Path validation: {e}"))?;
-            let method_body = read_lines_from_file(&full_path, node.start_line, node.end_line, 0)
-                .ok()
-                .map(|(body, _)| body);
+            // Round-5 P0: do NOT swallow a body-read failure with .ok() — a
+            // caller must be able to tell "read failed" from "no body".
+            let (method_body, body_read_error) =
+                match read_lines_from_file(&full_path, node.start_line, node.end_line, 0) {
+                    Ok((body, _)) => (Some(body), None),
+                    Err(e) => (
+                        None,
+                        Some(format!("could not read method body from disk: {e}")),
+                    ),
+                };
 
             // 3. Pattern examples from callers
             let mut pattern_examples: Vec<PatternExample> = Vec::new();
@@ -4014,6 +4048,10 @@ impl Engram {
                 }
             };
 
+            let mut warnings: Vec<String> = Vec::new();
+            if let Some(e) = body_read_error {
+                warnings.push(e);
+            }
             Ok(ImplementationContext {
                 method_info,
                 method_body,
@@ -4026,6 +4064,7 @@ impl Engram {
                 vb_traps,
                 language_diagnostics,
                 sync_hazards,
+                warnings,
             })
         })
         .await
