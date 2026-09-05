@@ -4404,8 +4404,11 @@ under a new id: call `list_projects` and use the entry whose directory is
 this file stops lying.
 
 ## For every feature request / user story
-1. `plan_user_story(story=<verbatim request>)` — concepts, footprints, house
-   patterns, checklist. START HERE, even for "simple" stories.
+1. `get_change_set(story=<verbatim request>)` — the change-set dossier:
+   every file this change should touch (co-change companions, .NET family,
+   compiled bundles, the completeness checklist). START HERE — this is the
+   one capability with a measured implementation-quality lift, so the file
+   list it gives you is the backbone of the change.
 2. `get_concept_footprint(concept=...)` for every domain concept you touch —
    change ALL touchpoints or justify each one you skip.
 3. `find_implementation_pattern(pattern_query=...)` — imitate the house

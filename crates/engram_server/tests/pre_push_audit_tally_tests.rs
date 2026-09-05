@@ -79,7 +79,7 @@ async fn audit(engram: &Engram, pid: &str, code: &str) -> String {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn the_audit_states_how_many_rules_it_checked() {
+async fn the_audit_states_how_many_rules_it_retrieved() {
     let (_tmp, _state, engram, pid) = build(true).await;
     let out = audit(
         &engram,
@@ -88,10 +88,12 @@ async fn the_audit_states_how_many_rules_it_checked() {
     )
     .await;
     assert!(
-        out.contains("rule(s) checked")
-            || out.contains("rules checked")
-            || out.contains("Checked:"),
-        "the tally must be printed:\n{out}"
+        out.contains("candidate rule(s)") || out.contains("Retrieved"),
+        "the tally must be printed as RETRIEVED (not verified):\n{out}"
+    );
+    assert!(
+        !out.contains("Checked:"),
+        "must not claim it 'Checked' — it only retrieves rules:\n{out}"
     );
     assert!(
         out.contains("of 3") || out.contains("3 rule"),

@@ -881,7 +881,10 @@ fn build_method_info_with_coverage(
     let access_level = {
         let al = meta_str(node, "access_level");
         if al.is_empty() {
-            "Private".to_string()
+            // Round-5 P0: do NOT fabricate "Private" — the VB extractor does
+            // not populate access_level, and guessing wrong (Check_pr_id is
+            // Public Shared) causes bad edits. Say what is true: unknown.
+            "unknown".to_string()
         } else {
             al
         }
@@ -996,7 +999,10 @@ fn build_method_info_with_coverage(
             signature
         },
         return_type: if return_type.is_empty() {
-            "Sub".to_string()
+            // Round-5 P0: do NOT fabricate "Sub" — a Function As Boolean shown
+            // as Sub is a lie that causes bad edits. Unknown until the
+            // extractor populates it.
+            "unknown".to_string()
         } else {
             return_type
         },
@@ -2420,6 +2426,27 @@ fn render_implementation_context_markdown(ctx: &ImplementationContext) -> String
     md
 }
 
+/// Round-5 P0 (fail-closed): the overall verdict of a code validation.
+///
+/// A "post-generation safety net" that ran ZERO checks has verified nothing —
+/// it must NOT report PASS (the old code did, green-lighting a nonexistent
+/// file). Empty check set => INSUFFICIENT.
+pub fn compute_validation_verdict(checks: &[ValidationCheck]) -> String {
+    if checks.is_empty() {
+        return "INSUFFICIENT".to_string();
+    }
+    let has_fail = checks.iter().any(|c| c.status == "fail");
+    let has_warn = checks.iter().any(|c| c.status == "warn");
+    if has_fail {
+        "FAIL"
+    } else if has_warn {
+        "WARN"
+    } else {
+        "PASS"
+    }
+    .to_string()
+}
+
 fn render_validation_report_markdown(report: &ValidationReport) -> String {
     let mut md = String::with_capacity(4_000);
 
@@ -2427,6 +2454,7 @@ fn render_validation_report_markdown(report: &ValidationReport) -> String {
         "PASS" => "PASS",
         "WARN" => "WARN",
         "FAIL" => "FAIL",
+        "INSUFFICIENT" => "INSUFFICIENT (nothing was verified)",
         _ => "UNKNOWN",
     };
 
@@ -4045,6 +4073,26 @@ impl Engram {
             let is_vb = language.starts_with("vb");
             let code_lower = code.to_lowercase();
 
+            // Round-5 P0 (Check 0): you cannot validate generated code against a
+            // target that does not exist. A nonexistent target_file is a FAIL,
+            // never a silent PASS.
+            if let Some(tf) = &target_file {
+                let norm = tf.replace('\\', "/");
+                let exists = graph
+                    .query_nodes(&project_id, Some("file"), None, Some(&norm), 1)
+                    .map(|v| !v.is_empty())
+                    .unwrap_or(false);
+                if !exists {
+                    checks.push(ValidationCheck {
+                        category: "target_file".to_string(),
+                        status: "fail".to_string(),
+                        details: vec![format!(
+                            "target file `{tf}` is not in the indexed project — cannot validate generated code against a nonexistent target"
+                        )],
+                    });
+                }
+            }
+
             // ── Check 1: SQL Table References ─────────────────────────────
             if !expected_tables.is_empty() {
                 let mut missing_tables = Vec::new();
@@ -4379,18 +4427,10 @@ impl Engram {
             }
 
             // ── Compute overall verdict ───────────────────────────────────
-            let has_fail = checks.iter().any(|c| c.status == "fail");
-            let has_warn = checks.iter().any(|c| c.status == "warn");
-            let overall = if has_fail {
-                "FAIL"
-            } else if has_warn {
-                "WARN"
-            } else {
-                "PASS"
-            };
+            let overall = compute_validation_verdict(&checks);
 
             Ok(ValidationReport {
-                overall_verdict: overall.to_string(),
+                overall_verdict: overall,
                 checks,
             })
         })
