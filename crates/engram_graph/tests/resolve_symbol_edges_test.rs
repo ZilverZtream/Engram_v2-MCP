@@ -275,6 +275,65 @@ fn api_routed_call_resolves_to_the_api_layer_handler() {
 }
 
 #[test]
+fn ajax_metadata_on_a_calls_edge_is_not_api_routed() {
+    // Round-8 P1-3: the api-layer preference must fire on the RIGHT edge kind —
+    // ajax_target_method on an ApiCall edge, dispatch_key on a Calls edge — not
+    // any edge that merely carries the metadata field. The SAME api_name ajax
+    // metadata on a Calls edge must NOT be routed to the api. handler; it stays
+    // on the generic ladder (here: an unresolved terminal placeholder).
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "test-p1-3";
+    let handler = make_node(
+        "sym:function:Site/api-json/api-x.vb:api.iopX:1",
+        "api.iopX",
+        "Site/api-json/api-x.vb",
+    );
+    let impl_node = make_node(
+        "sym:function:Site/code/x.vb:_io.Foo.iopX:1",
+        "_io.Foo.iopX",
+        "Site/code/x.vb",
+    );
+    let caller = make_node("file:Site/ts/panel.ts", "panel.ts", "Site/ts/panel.ts");
+    graph
+        .upsert_nodes(pid, &[handler.clone(), impl_node.clone(), caller.clone()])
+        .unwrap();
+    // api_name ajax metadata, but on a CALLS edge (wrong kind for an ajax route).
+    let mut m = serde_json::Map::new();
+    m.insert(
+        "ajax_target_method".into(),
+        serde_json::Value::String("iopX".into()),
+    );
+    m.insert(
+        "ajax_transport".into(),
+        serde_json::Value::String("api_name".into()),
+    );
+    let edge = Edge {
+        source_id: caller.node_id.clone(),
+        target_id: "::iopX".to_string(),
+        namespace: "memory".into(),
+        language: "javascript".into(),
+        edge_kind: EdgeKind::Calls,
+        weight: 1,
+        generation: 1,
+        metadata: Some(serde_json::Value::Object(m)),
+        updated_at_ms: 1_000_000,
+    };
+    graph.upsert_edges(pid, &[edge]).unwrap();
+    graph.resolve_symbol_edges(pid).unwrap();
+    let targets: Vec<String> = graph
+        .neighbors(pid, EdgeKind::Calls, &caller.node_id, 10)
+        .unwrap()
+        .into_iter()
+        .map(|(t, _)| t)
+        .collect();
+    assert!(
+        !targets.contains(&handler.node_id),
+        "ajax metadata on a Calls edge must NOT be api-routed to the api. handler; got {targets:?}"
+    );
+}
+
+#[test]
 fn resolves_exact_name_match() {
     let tmp = tempfile::TempDir::new().unwrap();
     let graph = open_store(&tmp);
