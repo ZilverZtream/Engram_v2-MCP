@@ -152,7 +152,9 @@ fn authority_label(a: Authority) -> &'static str {
 
 fn status_reason(r: &AskReport) -> &'static str {
     match r.status {
-        AnswerStatus::Answered => "direct, adequately-authoritative evidence found",
+        // Round-8 P0-3: "adequately authoritative", NOT "direct" — the evidence
+        // may include mediated (wrapper/broker) hops, which the members label.
+        AnswerStatus::Answered => "adequately-authoritative evidence found",
         AnswerStatus::Partial => "some evidence, but coverage gaps remain",
         AnswerStatus::Ambiguous => "an entity resolves to multiple candidates — disambiguate first",
         AnswerStatus::Stale => "evidence is behind the current snapshot",

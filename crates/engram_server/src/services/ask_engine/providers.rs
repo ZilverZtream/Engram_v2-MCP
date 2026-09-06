@@ -739,6 +739,10 @@ pub struct AnswerMember {
     pub relation: String,
     pub source_node_id: Option<String>,
     pub path: Option<String>,
+    /// Round-8 P0-3: route PROVENANCE for a mediated call — `via=getImage_wrapper`
+    /// / `asmx_broker` and the wire endpoint. A wrapper-mediated call is NOT a
+    /// direct call, and the report must not present it as one.
+    pub via: Option<String>,
 }
 
 /// Round-4 P0-2: an EXACT coverage proof. Completeness is computed from
@@ -866,6 +870,27 @@ pub fn exhaustive_callee_set_with_caps(
     sources.push((format!("file:{norm}"), stem));
     proof.sources_processed = sources.len().saturating_sub(1);
     for (src_id, src_name) in &sources {
+        // Round-8 P0-3: route PROVENANCE. The adjacency walk yields only
+        // (target, weight); a mediated api_call (a `getImage` wrapper, the
+        // api.asmx broker) carries a `via`/endpoint in its EDGE metadata that
+        // says it is NOT a direct call. Fetch the source's outgoing api_call
+        // edges once so a mediated hop can be labelled honestly rather than
+        // rendered as "calls X" like a direct call.
+        let via_map: std::collections::HashMap<String, String> = graph
+            .edges_touching(project_id, src_id, neighbor_cap + 1)
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|e| e.source_id == *src_id && e.edge_kind == EdgeKind::ApiCall)
+            .filter_map(|e| {
+                let m = e.metadata.as_ref()?;
+                let via = m.get("via").and_then(|v| v.as_str())?;
+                let label = match m.get("ajax_url").and_then(|v| v.as_str()) {
+                    Some(url) => format!("{via} (→ {url})"),
+                    None => via.to_string(),
+                };
+                Some((e.target_id.clone(), label))
+            })
+            .collect();
         for kind in kinds.iter().cloned() {
             let nbrs = match graph.neighbors(project_id, kind.clone(), src_id, neighbor_cap + 1) {
                 Ok(n) => n,
@@ -901,16 +926,29 @@ pub fn exhaustive_callee_set_with_caps(
                 if tl.ends_with(".d.ts") || tl.contains("/typings/") {
                     continue;
                 }
-                let mut content = format!(
-                    "{src_name} calls {} ({}) — defined in {}",
-                    n.name, n.node_type, tpath
-                );
+                // Round-8 P0-3: name a mediated hop as mediated, not direct.
+                let via = via_map.get(&target).cloned();
+                let mut content = match &via {
+                    Some(v) => format!(
+                        "{src_name} calls {} ({}) VIA {} — NOT a direct call; defined in {}",
+                        n.name, n.node_type, v, tpath
+                    ),
+                    None => format!(
+                        "{src_name} calls {} ({}) — defined in {}",
+                        n.name, n.node_type, tpath
+                    ),
+                };
                 members.push(AnswerMember {
                     target_node_id: n.node_id.clone(),
                     display_name: n.name.clone(),
-                    relation: kind.as_str().to_string(),
+                    relation: if via.is_some() {
+                        format!("{}_via_wrapper", kind.as_str())
+                    } else {
+                        kind.as_str().to_string()
+                    },
                     source_node_id: Some(src_id.clone()),
                     path: Some(tpath.clone()),
+                    via,
                 });
                 if matches!(kind, EdgeKind::ApiCall) {
                     // Round-7 P0-3: every failure mode of dispatch expansion must
