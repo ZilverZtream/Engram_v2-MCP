@@ -417,11 +417,50 @@ pub struct ValidationReport {
     pub checks: Vec<ValidationCheck>,
 }
 
+/// Round-8 P0-1: the EVIDENCE CLASS of a validation check — what KIND of thing
+/// it verified. Only a project-DERIVED `Verified` check can earn a PASS; a
+/// caller-supplied assertion or a project-independent language lint cannot. A
+/// count of "checks that ran" is not coverage of the project's contract.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CoverageClass {
+    /// A PROJECT-DERIVED invariant (from the graph/index — the real schema, the
+    /// resolved target method) was checked against the code. Earns PASS.
+    Verified,
+    /// A CALLER-SUPPLIED expectation was checked for presence. The caller could
+    /// assert anything; we only confirmed the token appears. Never earns PASS.
+    AssertionOnly,
+    /// A language lint independent of THIS project (VB traps, sync hazards).
+    /// Says nothing about project correctness. Never earns PASS.
+    GenericLint,
+    /// A meta note (target-file existence, an unresolved-caller advisory, a
+    /// language/target mismatch). Not contract coverage.
+    Meta,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct ValidationCheck {
     pub category: String,
     pub status: String,
+    /// Round-8 P0-1: the evidence class this check contributes.
+    pub coverage_class: CoverageClass,
     pub details: Vec<String>,
+}
+
+impl ValidationCheck {
+    pub fn new(
+        category: &str,
+        status: &str,
+        coverage_class: CoverageClass,
+        details: Vec<String>,
+    ) -> Self {
+        ValidationCheck {
+            category: category.to_string(),
+            status: status.to_string(),
+            coverage_class,
+            details,
+        }
+    }
 }
 
 // ── Phase 38-7 Output Types ──────────────────────────────────────────────────
@@ -2480,30 +2519,152 @@ pub enum TargetStatus {
     ProviderFailed,
 }
 
-/// Round-6: what the validation actually COVERED, modelled apart from the
-/// individual pass/warn/fail checks. A green generic-lint scan is not
-/// coverage of the project's contract.
+/// Round-6/8: what the validation actually COVERED, modelled apart from the
+/// individual pass/warn/fail checks. A green generic-lint scan or a green
+/// caller-assertion scan is not coverage of the project's contract.
 #[derive(Debug, Clone, Copy, Serialize)]
 pub struct ValidationCoverage {
-    /// Project-CONTRACT checks that actually ran (expected tables/SPs/session
-    /// keys/controls, caller compatibility). Generic lint (sync hazards) does
-    /// NOT count.
-    pub contract_checks_ran: usize,
+    /// PROJECT-DERIVED verifications that completed (a resolved target method, a
+    /// real-schema table-consistency check). ONLY these earn a PASS.
+    pub verified_checks: usize,
+    /// Caller-supplied expectations checked for presence — the caller could
+    /// assert anything, so this is NOT coverage of the project's contract.
+    pub assertion_checks: usize,
+    /// Project-independent language lints run (VB traps, sync hazards).
+    pub generic_lint_checks: usize,
     pub target: TargetStatus,
+    /// The caller declared change_kind=modify — a modification can only be
+    /// verified against an EXACT existing target.
+    pub change_kind_modify: bool,
 }
 
-/// Round-6 (fail-closed, re-audited): the overall verdict.
+/// Round-6/8 (fail-closed, re-audited twice): the overall verdict.
 ///
 /// A "post-generation safety net" only PASSES when it actually verified the
-/// project's contract. Round-5's version was unreachable because the
-/// always-on sync-hazard check meant `checks` was never empty, so hazard-free
-/// `class X {}` still returned PASS. The rule now keys on COVERAGE:
+/// project's contract with a PROJECT-DERIVED check. Round-5 passed on an
+/// always-on lint; round-7 still counted every non-excluded check — so a green
+/// VB-trap lint or a caller's own asserted substring (even inside a comment)
+/// earned PASS (round-8 P0-1, reproduced live). The rule now keys on the
+/// EVIDENCE CLASS of the checks, not their count:
 ///
-/// - any failing check           => FAIL
-/// - the target lookup failed     => INSUFFICIENT (we cannot know)
-/// - no contract check ran        => INSUFFICIENT (generic lint is not a pass)
-/// - any warning                  => WARN
-/// - otherwise                    => PASS
+/// - any failing check                          => FAIL (incl. language/target
+///   mismatch, a modify target NOT in the index, a critical hazard)
+/// - the target lookup itself failed             => INSUFFICIENT (cannot know)
+/// - change_kind=modify without an EXACT target  => INSUFFICIENT (nothing to
+///   verify the modification against)
+/// - no PROJECT-DERIVED verified check ran        => INSUFFICIENT (a caller
+///   assertion or generic lint is not project coverage)
+/// - any warning                                 => WARN
+/// - otherwise                                   => PASS
+/// Round-8 P0-1: the file extensions a language may legitimately target. A
+/// mismatch (C# code for a `.vb` file) makes any content "verification"
+/// meaningless. Returns a human message when the target's extension cannot host
+/// the declared language; `None` when compatible, unknown, or no target given.
+pub fn language_target_mismatch(language: &str, target: Option<&str>) -> Option<String> {
+    let target = target?;
+    let ext = target.rsplit('.').next().map(|e| e.to_lowercase())?;
+    let lang = language.to_lowercase();
+    let ok: &[&str] = if lang.starts_with("vb") {
+        &[
+            "vb", "vbhtml", "aspx", "ascx", "master", "asmx", "ashx", "asax",
+        ]
+    } else if lang.starts_with("cs") || lang == "c#" || lang == "csharp" {
+        &[
+            "cs", "cshtml", "aspx", "ascx", "master", "asmx", "ashx", "asax", "razor",
+        ]
+    } else if lang.starts_with("ts") {
+        &["ts", "tsx", "d.ts"]
+    } else if lang.starts_with("js") || lang.starts_with("javascript") {
+        &["js", "jsx", "mjs", "cjs"]
+    } else if lang.starts_with("sql") {
+        &["sql", "dbml"]
+    } else {
+        // Unknown language — cannot assert a mismatch.
+        return None;
+    };
+    if ok.contains(&ext.as_str()) {
+        None
+    } else {
+        Some(format!(
+            "declared language `{language}` cannot target `{target}` (.{ext}); the generated code is for a different file type — any content check against this target is meaningless"
+        ))
+    }
+}
+
+/// Round-8 P0-1: strip line and block comments so a token that appears ONLY in
+/// a comment (`// audit_probe_key`) does not satisfy a presence check. This is a
+/// lexical strip, not a full parse — it removes `'…` (VB) and `//…`, `/* … */`
+/// (C-family) comments; string literals are intentionally left in place (a
+/// token inside a real string literal is at least present in the emitted code).
+pub fn strip_code_comments(code: &str, is_vb: bool) -> String {
+    let mut out = String::with_capacity(code.len());
+    if is_vb {
+        for line in code.lines() {
+            // A leading-or-inline `'` starts a comment unless inside a string.
+            let mut in_str = false;
+            let mut cut = line.len();
+            for (i, ch) in line.char_indices() {
+                match ch {
+                    '"' => in_str = !in_str,
+                    '\'' if !in_str => {
+                        cut = i;
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+            out.push_str(&line[..cut]);
+            out.push('\n');
+        }
+        return out;
+    }
+    // C-family: // line and /* block */, string-literal aware for " and '.
+    let b = code.as_bytes();
+    let mut i = 0;
+    let mut in_str: Option<u8> = None; // Some(quote) when inside a string
+    while i < b.len() {
+        let c = b[i];
+        if let Some(q) = in_str {
+            out.push(c as char);
+            if c == b'\\' && i + 1 < b.len() {
+                out.push(b[i + 1] as char);
+                i += 2;
+                continue;
+            }
+            if c == q {
+                in_str = None;
+            }
+            i += 1;
+            continue;
+        }
+        match c {
+            b'"' | b'\'' => {
+                in_str = Some(c);
+                out.push(c as char);
+                i += 1;
+            }
+            b'/' if i + 1 < b.len() && b[i + 1] == b'/' => {
+                while i < b.len() && b[i] != b'\n' {
+                    i += 1;
+                }
+            }
+            b'/' if i + 1 < b.len() && b[i + 1] == b'*' => {
+                i += 2;
+                while i + 1 < b.len() && !(b[i] == b'*' && b[i + 1] == b'/') {
+                    i += 1;
+                }
+                i += 2;
+                out.push(' ');
+            }
+            _ => {
+                out.push(c as char);
+                i += 1;
+            }
+        }
+    }
+    out
+}
+
 pub fn compute_validation_verdict(
     checks: &[ValidationCheck],
     coverage: &ValidationCoverage,
@@ -2514,9 +2675,15 @@ pub fn compute_validation_verdict(
     if matches!(coverage.target, TargetStatus::ProviderFailed) {
         return "INSUFFICIENT".to_string();
     }
-    if coverage.contract_checks_ran == 0 {
-        // Nothing project-specific was verified — a passing generic lint scan
-        // says nothing about whether this code is correct for THIS project.
+    if coverage.change_kind_modify && !matches!(coverage.target, TargetStatus::Exists) {
+        // A modification is verified AGAINST the existing file; without it in
+        // the index there is nothing to check the change against.
+        return "INSUFFICIENT".to_string();
+    }
+    if coverage.verified_checks == 0 {
+        // Nothing PROJECT-DERIVED was verified. A passing generic lint, or a
+        // green check of the caller's own asserted strings, says nothing about
+        // whether this code is correct for THIS project.
         return "INSUFFICIENT".to_string();
     }
     if checks.iter().any(|c| c.status == "warn") {
@@ -2549,8 +2716,11 @@ fn render_validation_report_markdown(report: &ValidationReport) -> String {
         TargetStatus::ProviderFailed => "target lookup FAILED (unknown)",
     };
     md.push_str(&format!(
-        "_Coverage: {} project-contract check(s) ran; {}._\n\n",
-        report.coverage.contract_checks_ran, target_label
+        "_Coverage: {} project-derived verified, {} caller-assertion, {} generic-lint check(s); {}._\n\n",
+        report.coverage.verified_checks,
+        report.coverage.assertion_checks,
+        report.coverage.generic_lint_checks,
+        target_label
     ));
 
     if report.checks.is_empty() {
@@ -4172,7 +4342,6 @@ impl Engram {
         let result = tokio::task::spawn_blocking(move || {
             let mut checks: Vec<ValidationCheck> = Vec::new();
             let is_vb = language.starts_with("vb");
-            let code_lower = code.to_lowercase();
 
             // Round-6 (Check 0): resolve the target against the index EXACTLY.
             // query_nodes matches by SUBSTRING, so a fragment must not satisfy
@@ -4225,23 +4394,44 @@ impl Engram {
                 }
             };
             match target_status {
-                TargetStatus::NotFound => checks.push(ValidationCheck {
-                    category: "target_file".to_string(),
-                    status: "fail".to_string(),
-                    details: vec![format!(
+                TargetStatus::NotFound => checks.push(ValidationCheck::new(
+                    "target_file",
+                    "fail",
+                    CoverageClass::Meta,
+                    vec![format!(
                         "target file `{}` is not in the indexed project (change_kind=modify) — cannot verify a modification against a file that is not there; pass change_kind=create if it is new",
                         target_file.as_deref().unwrap_or("")
                     )],
-                }),
-                TargetStatus::ProviderFailed => checks.push(ValidationCheck {
-                    category: "target_file".to_string(),
-                    status: "warn".to_string(),
-                    details: vec![
+                )),
+                TargetStatus::ProviderFailed => checks.push(ValidationCheck::new(
+                    "target_file",
+                    "warn",
+                    CoverageClass::Meta,
+                    vec![
                         "the index lookup for the target file FAILED — target existence is UNKNOWN, not verified".to_string(),
                     ],
-                }),
+                )),
                 _ => {}
             }
+
+            // ── Round-8 P0-1: language / target-extension compatibility ───
+            // C# code aimed at a .vb file (or vice-versa) is never valid for the
+            // target; a substring "verification" of it is meaningless. Fail the
+            // mismatch outright so it can never reach PASS.
+            if let Some(mismatch) = language_target_mismatch(&language, target_file.as_deref()) {
+                checks.push(ValidationCheck::new(
+                    "language_mismatch",
+                    "fail",
+                    CoverageClass::Meta,
+                    vec![mismatch],
+                ));
+            }
+
+            // Round-8 P0-1: comments must not satisfy presence checks (a lone
+            // `// audit_probe_key` earned PASS). Strip comments once, up front,
+            // for every caller-assertion substring test below.
+            let code_nocomments = strip_code_comments(&code, is_vb);
+            let code_nc_lower = code_nocomments.to_lowercase();
 
             // ── Check 1: SQL Table References ─────────────────────────────
             if !expected_tables.is_empty() {
@@ -4250,7 +4440,9 @@ impl Engram {
                 let mut unknown_tables = Vec::new();
 
                 for table in &expected_tables {
-                    if code_lower.contains(&table.to_lowercase()) {
+                    // Round-8 P0-1: comment-stripped, so a table named only in a
+                    // comment is NOT counted as referenced.
+                    if code_nc_lower.contains(&table.to_lowercase()) {
                         found_tables.push(table.clone());
                     } else {
                         missing_tables.push(table.clone());
@@ -4265,16 +4457,23 @@ impl Engram {
                     graph_tables.iter().map(|n| n.name.to_lowercase()).collect()
                 };
 
-                // Table refs (schema-qualifier aware — see
-                // referenced_sql_tables).
-                for tbl_orig in referenced_sql_tables(&code) {
+                // Table refs (schema-qualifier aware — see referenced_sql_tables),
+                // over comment-stripped code so a table named in a comment does
+                // not count as a real reference.
+                let referenced = referenced_sql_tables(&code_nocomments);
+                for tbl_orig in &referenced {
                     let tbl = tbl_orig.to_lowercase();
                     if !known_tables.contains(&tbl)
                         && !expected_tables.iter().any(|t| t.to_lowercase() == tbl)
                     {
-                        unknown_tables.push(tbl_orig);
+                        unknown_tables.push(tbl_orig.clone());
                     }
                 }
+                // Round-8 P0-1: this is a PROJECT-DERIVED verification only when
+                // the code actually referenced real tables that were checked
+                // against the indexed schema. A green result from the caller's
+                // expected_tables substring list alone is a caller ASSERTION.
+                let schema_checked = !referenced.is_empty() && !known_tables.is_empty();
 
                 let status = if !missing_tables.is_empty() || !unknown_tables.is_empty() {
                     "warn"
@@ -4299,11 +4498,16 @@ impl Engram {
                     details.push(format!("All {} expected tables found", found_tables.len()));
                 }
 
-                checks.push(ValidationCheck {
-                    category: "sql_tables".to_string(),
-                    status: status.to_string(),
+                checks.push(ValidationCheck::new(
+                    "sql_tables",
+                    status,
+                    if schema_checked {
+                        CoverageClass::Verified
+                    } else {
+                        CoverageClass::AssertionOnly
+                    },
                     details,
-                });
+                ));
             }
 
             // ── Check 2: VB Translation Trap Avoidance ────────────────────
@@ -4336,11 +4540,12 @@ impl Engram {
                     }
                 }
 
-                checks.push(ValidationCheck {
-                    category: "vb_traps".to_string(),
-                    status: status.to_string(),
+                checks.push(ValidationCheck::new(
+                    "vb_traps",
+                    status,
+                    CoverageClass::GenericLint,
                     details,
-                });
+                ));
             }
 
             // ── Check 3: Session Key Consistency ──────────────────────────
@@ -4349,7 +4554,9 @@ impl Engram {
                 let mut found_keys = Vec::new();
 
                 for key in &expected_session_keys {
-                    if code.contains(key) {
+                    // Round-8 P0-1: comment-stripped — a key named only in a
+                    // comment (`// audit_probe_key`) must not count as handled.
+                    if code_nocomments.contains(key) {
                         found_keys.push(key.clone());
                     } else {
                         missing_keys.push(key.clone());
@@ -4376,11 +4583,12 @@ impl Engram {
                     );
                 }
 
-                checks.push(ValidationCheck {
-                    category: "session_keys".to_string(),
-                    status: status.to_string(),
+                checks.push(ValidationCheck::new(
+                    "session_keys",
+                    status,
+                    CoverageClass::AssertionOnly,
                     details,
-                });
+                ));
             }
 
             // ── Check 4: SP Call Correctness ──────────────────────────────
@@ -4396,7 +4604,7 @@ impl Engram {
                         .trim_start_matches('[')
                         .trim_end_matches(']');
 
-                    if code_lower.contains(&sp_clean.to_lowercase()) {
+                    if code_nc_lower.contains(&sp_clean.to_lowercase()) {
                         found_sps.push(sp.clone());
                     } else {
                         missing_sps.push(sp.clone());
@@ -4419,11 +4627,12 @@ impl Engram {
                     details.push(format!("Missing SP references: {}", missing_sps.join(", ")));
                 }
 
-                checks.push(ValidationCheck {
-                    category: "stored_procs".to_string(),
-                    status: status.to_string(),
+                checks.push(ValidationCheck::new(
+                    "stored_procs",
+                    status,
+                    CoverageClass::AssertionOnly,
                     details,
-                });
+                ));
             }
 
             // ── Check 5: Control ID Validity ──────────────────────────────
@@ -4432,7 +4641,8 @@ impl Engram {
                 let mut found_ids = Vec::new();
 
                 for id in &expected_control_ids {
-                    if code.contains(id) {
+                    // Round-8 P0-1: comment-stripped presence check.
+                    if code_nocomments.contains(id) {
                         found_ids.push(id.clone());
                     } else {
                         missing_ids.push(id.clone());
@@ -4455,11 +4665,12 @@ impl Engram {
                     details.push(format!("Missing control IDs: {}", missing_ids.join(", ")));
                 }
 
-                checks.push(ValidationCheck {
-                    category: "control_ids".to_string(),
-                    status: status.to_string(),
+                checks.push(ValidationCheck::new(
+                    "control_ids",
+                    status,
+                    CoverageClass::AssertionOnly,
                     details,
-                });
+                ));
             }
 
             // ── Check 6: Caller Compatibility ─────────────────────────────
@@ -4484,10 +4695,15 @@ impl Engram {
                             100,
                         )
                         .len();
-                        checks.push(ValidationCheck {
-                            category: "caller_compatibility".to_string(),
-                            status: "warn".to_string(),
-                            details: vec![
+                        checks.push(ValidationCheck::new(
+                            "caller_compatibility",
+                            "warn",
+                            // Round-8 P0-1: this is the one PROJECT-DERIVED
+                            // verification here — the EXACT target method was
+                            // resolved in the graph. It stays WARN (no signature
+                            // parse), but it is real coverage.
+                            CoverageClass::Verified,
+                            vec![
                                 format!(
                                     "Resolved `{}` in `{}`; {} caller(s) depend on it.",
                                     orig_name,
@@ -4496,7 +4712,7 @@ impl Engram {
                                 ),
                                 "This tool does NOT parse or compare signatures — you must verify name, parameters, types/modifiers, return type, accessibility, static/shared, and generic arity are preserved.".to_string(),
                             ],
-                        });
+                        ));
                     }
                     None => {
                         let msg = if has_name {
@@ -4510,11 +4726,12 @@ impl Engram {
                                 orig_name
                             )
                         };
-                        checks.push(ValidationCheck {
-                            category: "advisory".to_string(),
-                            status: "warn".to_string(),
-                            details: vec![msg],
-                        });
+                        checks.push(ValidationCheck::new(
+                            "advisory",
+                            "warn",
+                            CoverageClass::Meta,
+                            vec![msg],
+                        ));
                     }
                 }
             }
@@ -4550,33 +4767,40 @@ impl Engram {
                     }
                 }
 
-                checks.push(ValidationCheck {
-                    category: "sync_hazards".to_string(),
-                    status: status.to_string(),
+                checks.push(ValidationCheck::new(
+                    "sync_hazards",
+                    status,
+                    CoverageClass::GenericLint,
                     details,
-                });
+                ));
             }
 
             // ── Compute overall verdict ───────────────────────────────────
-            // Contract coverage = every check that verified something
-            // PROJECT-SPECIFIC. Generic lint (sync_hazards) and the target
-            // existence meta-check do not count — a green lint scan with no
-            // contract verified is INSUFFICIENT, never PASS.
-            // `advisory` (a non-verifying note, e.g. an unresolved caller-name
-            // hint) and the sync/target meta-checks never count as contract
-            // coverage — a green lint scan with no contract verified is
-            // INSUFFICIENT, never PASS.
-            let contract_checks_ran = checks
+            // Round-8 P0-1: coverage is counted by EVIDENCE CLASS, not by "any
+            // check that ran". Only PROJECT-DERIVED `Verified` checks earn a
+            // PASS; caller assertions and generic lints do not.
+            let verified_checks = checks
                 .iter()
-                .filter(|c| {
-                    c.category != "sync_hazards"
-                        && c.category != "target_file"
-                        && c.category != "advisory"
-                })
+                .filter(|c| c.coverage_class == CoverageClass::Verified)
                 .count();
+            let assertion_checks = checks
+                .iter()
+                .filter(|c| c.coverage_class == CoverageClass::AssertionOnly)
+                .count();
+            let generic_lint_checks = checks
+                .iter()
+                .filter(|c| c.coverage_class == CoverageClass::GenericLint)
+                .count();
+            let change_kind_modify = change_kind
+                .as_deref()
+                .map(|k| k.eq_ignore_ascii_case("modify"))
+                .unwrap_or(false);
             let coverage = ValidationCoverage {
-                contract_checks_ran,
+                verified_checks,
+                assertion_checks,
+                generic_lint_checks,
                 target: target_status,
+                change_kind_modify,
             };
             let overall = compute_validation_verdict(&checks, &coverage);
 

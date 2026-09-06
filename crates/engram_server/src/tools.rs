@@ -1501,7 +1501,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Post-generation safety net: validates generated code against the project's extracted knowledge. Checks SQL table/column references, VB trap avoidance, state key consistency, SP call correctness, control ID validity, caller compatibility, and sync hazard introduction. Returns pass/warn/fail per category."
+        description = "Post-generation SANITY net (NOT a compiler or verifier). It runs a mix of check kinds and reports each with an evidence class: (1) PROJECT-DERIVED verified checks — the code's real SQL table references vs the indexed schema, and resolution of the EXACT original method against the graph (caller impact); (2) CALLER-ASSERTION presence checks — your expected_tables/sps/session_keys/control_ids are substring-matched (comment-stripped) against the code, which only confirms the token appears, not that it is used correctly; (3) GENERIC language LINTS independent of this project — VB translation traps, sync hazards. It does NOT parse syntax or compare signatures. The overall verdict is fail-closed: FAIL on any failing check (including a language/target-extension mismatch, or a change_kind=modify whose target is not in the index); INSUFFICIENT when the target lookup failed, a modify has no exact target, or NO project-derived verified check ran (a green caller-assertion or lint scan is NOT project coverage — it will say INSUFFICIENT, not PASS); WARN on warnings; PASS only when at least one project-derived check verified and nothing warned. `coverage` reports verified/assertion/generic-lint counts and target status so you can see WHY."
     )]
     pub async fn validate_generated_code(
         &self,
