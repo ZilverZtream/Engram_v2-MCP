@@ -225,6 +225,8 @@ pub fn reserve_entity_files(
 /// pushed, because each reserve popped the last item blindly.
 /// P0-4f: how many items of a requested modality the reserve keeps.
 pub const MODALITY_SLOTS: usize = 3;
+/// Distinct caller files reserved for a "who calls X" question (round-7).
+pub const CALLER_FILE_SLOTS: usize = 12;
 
 pub fn reserve_required(
     chosen: &mut Vec<EvidenceItem>,
@@ -244,6 +246,10 @@ pub fn reserve_required(
         .contract
         .required_facets
         .contains(&super::plan::Facet::Definition);
+    let pin_callers = matches!(
+        plan.contract.direction,
+        super::plan::ContractDirection::Callers
+    );
     reserve_required_with(
         chosen,
         raw,
@@ -252,6 +258,7 @@ pub fn reserve_required(
         &files,
         question,
         pin_definition,
+        pin_callers,
     )
 }
 
@@ -263,6 +270,7 @@ pub fn reserve_required_with(
     entity_files: &[String],
     question: &str,
     pin_definition: bool,
+    pin_callers: bool,
 ) -> std::collections::HashSet<String> {
     let words = question_words(question);
     let mut wanted: Vec<EvidenceItem> = Vec::new();
@@ -334,6 +342,33 @@ pub fn reserve_required_with(
                     .unwrap_or(std::cmp::Ordering::Equal)
             }) {
                 wanted.push(best.clone());
+            }
+        }
+    }
+    // Round-7 (ox_causal_16): for a "who/which calls X" question the answer IS
+    // the set of caller files — a symbol with many callers must not drop a
+    // required caller (the ajax.ts getImage wrapper was ranked out). Reserve one
+    // item per DISTINCT caller file (graph-relation evidence), bounded. Scoped
+    // to the callers direction so it never touches impact/precision questions.
+    if pin_callers {
+        let mut seen_files: std::collections::HashSet<String> = chosen
+            .iter()
+            .chain(wanted.iter())
+            .filter_map(|e| e.path.clone())
+            .collect();
+        let mut added = 0usize;
+        for e in raw.iter().filter(|e| {
+            e.kind == EvidenceKind::GraphRelation
+                && (e.provider == "usage" || e.provider == "callee_set")
+        }) {
+            if added >= CALLER_FILE_SLOTS {
+                break;
+            }
+            if let Some(p) = e.path.clone() {
+                if seen_files.insert(p) {
+                    wanted.push(e.clone());
+                    added += 1;
+                }
             }
         }
     }
