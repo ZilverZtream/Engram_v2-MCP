@@ -188,3 +188,52 @@ async fn handler_substring_target_does_not_satisfy_existence() {
         "a path fragment must not satisfy exact existence:\n{out}"
     );
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn handler_bare_name_containment_is_not_caller_compatibility_pass() {
+    // P0-2 (round-7): supplying original_method_name must NOT earn contract
+    // coverage from a mere substring presence. With no target and no resolved
+    // method, `class X {}` + original_method_name "X" previously returned PASS
+    // ("Method name 'X' preserved"). That is unearned success — it must be
+    // INSUFFICIENT, never PASS.
+    let (_t, _s, engram, pid) = fixture().await;
+    let out = validate(
+        &engram,
+        json!({"project_id": pid, "code": "class X {}", "language": "csharp",
+               "original_method_name": "X", "output_json": true}),
+    )
+    .await;
+    assert!(
+        out.contains("INSUFFICIENT"),
+        "substring name-presence with no resolved method must be INSUFFICIENT:\n{out}"
+    );
+    assert!(
+        !out.contains("\"overall_verdict\": \"PASS\""),
+        "must not PASS on lexical name containment:\n{out}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn handler_exact_existing_modify_target_is_not_rejected() {
+    // P0-1 (round-7): a REAL indexed file, given by its exact relative path,
+    // must resolve as existing — never be rejected as "not in the indexed
+    // project". File nodes key on `file:{path}` with Node.name = basename, so a
+    // substring query on the full path can never match; identity must resolve
+    // through the file node id (with a basename+exact-path fallback).
+    let (_t, _s, engram, pid) = fixture().await;
+    let out = validate(
+        &engram,
+        json!({"project_id": pid, "code": "class X {}", "language": "csharp",
+               "target_file": "Site/orders.vb", "change_kind": "modify", "output_json": true}),
+    )
+    .await;
+    assert!(
+        !out.contains("not in the indexed project"),
+        "an exact existing file must NOT be rejected as nonexistent:\n{out}"
+    );
+    assert!(
+        !out.contains("\"category\": \"target_file\"\n      \"status\": \"fail\"")
+            && !out.contains("\"status\": \"fail\""),
+        "no target_file FAIL for a real existing modify target:\n{out}"
+    );
+}

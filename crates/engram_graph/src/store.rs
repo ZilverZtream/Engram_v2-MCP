@@ -2676,6 +2676,10 @@ impl GraphStore {
         let mut node_file_paths: HashMap<String, String> = HashMap::new();
         // node_id → name (for suffix-qualified matching)
         let mut node_names: HashMap<String, String> = HashMap::new();
+        // Callable node ids — the api-layer dispatch preference (round-7 P1-2)
+        // may only bind to a FUNCTION, never a page/class/property of the same
+        // name.
+        let mut fn_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
         // Exact name match
         let mut by_name: HashMap<String, SymbolMatch> = HashMap::new();
         // Terminal segment match (last dot-segment of name)
@@ -2697,6 +2701,12 @@ impl GraphStore {
 
                 node_file_paths.insert(node.node_id.clone(), node.file_path.as_str().to_string());
                 node_names.insert(node.node_id.clone(), node.name.clone());
+                if matches!(
+                    node.node_type.as_str(),
+                    "function" | "method" | "sub" | "procedure"
+                ) {
+                    fn_ids.insert(node.node_id.clone());
+                }
 
                 // by_name: exact Node.name → node_id
                 match by_name.get_mut(&node.name) {
@@ -2896,12 +2906,24 @@ impl GraphStore {
             // resolve_route_edges), so an api-routed call binds to the single
             // `api.`-class candidate. Node names are class-QUALIFIED, so the
             // candidates come from the TERMINAL index, not the bare-name index.
+            // Round-7 P1-2: scope this narrowly. It is a broker API-NAME route
+            // only for (a) a `dispatch_key` Calls arm, or (b) an ajax call whose
+            // transport is EXPLICITLY `api_name` — NOT a WebMethod/PageMethods
+            // route that merely happens to carry `ajax_target_method`. Anything
+            // else keeps the generic ladder.
             let is_api_routed = entry.edge.metadata.as_ref().is_some_and(|m| {
-                ["ajax_target_method", "dispatch_key"].iter().any(|k| {
-                    m.get(*k)
+                let has_dispatch_key = m
+                    .get("dispatch_key")
+                    .and_then(|v| v.as_str())
+                    .is_some_and(|s| !s.trim().is_empty());
+                let is_api_name_ajax = m
+                    .get("ajax_target_method")
+                    .and_then(|v| v.as_str())
+                    .is_some_and(|s| !s.trim().is_empty())
+                    && m.get("ajax_transport")
                         .and_then(|v| v.as_str())
-                        .is_some_and(|s| !s.trim().is_empty())
-                })
+                        .is_some_and(|t| t.eq_ignore_ascii_case("api_name"));
+                has_dispatch_key || is_api_name_ajax
             });
             if is_api_routed {
                 let short = name.rsplit('.').next().unwrap_or(name);
@@ -2915,12 +2937,15 @@ impl GraphStore {
                     }
                 }
                 if cands.len() > 1 {
+                    // The handler must be a FUNCTION in the api layer (name class
+                    // `api.`), never a same-named page/class/property.
                     let api: Vec<&String> = cands
                         .iter()
                         .filter(|id| {
-                            node_names
-                                .get(*id)
-                                .is_some_and(|n| n.to_lowercase().starts_with("api."))
+                            fn_ids.contains(*id)
+                                && node_names
+                                    .get(*id)
+                                    .is_some_and(|n| n.to_lowercase().starts_with("api."))
                         })
                         .collect();
                     if api.len() == 1 {

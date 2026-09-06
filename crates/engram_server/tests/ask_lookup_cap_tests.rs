@@ -921,6 +921,24 @@ fn s1_dangling_target_is_counted_and_breaks_completeness() {
 }
 
 #[test]
+fn dispatch_truncation_forbids_completeness() {
+    // P0-3 (round-7): a truncated dispatch expansion dropped served
+    // implementations, so the walk is NOT exhaustive — complete() must say so.
+    use engram_server::services::ask_engine::providers::CoverageProof;
+    let mut p = CoverageProof {
+        sources_discovered: 1,
+        sources_processed: 1,
+        ..CoverageProof::default()
+    };
+    assert!(p.complete(), "a clean proof is complete");
+    p.dispatch_truncated = 1;
+    assert!(
+        !p.complete(),
+        "dispatch truncation must forbid completeness: {p:?}"
+    );
+}
+
+#[test]
 fn s1b_dangling_target_id_is_recorded_for_diagnosis() {
     // Counting a dangling target proves the walk is incomplete, but a caller
     // (or an operator diagnosing an ingestion defect) needs to know WHICH edge

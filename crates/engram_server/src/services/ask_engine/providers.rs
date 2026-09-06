@@ -771,6 +771,9 @@ impl CoverageProof {
             && self.neighbor_cap_hits == 0
             && self.dangling_targets == 0
             && self.graph_errors == 0
+            // Round-7 P0-3: a truncated dispatch expansion means served
+            // implementations were dropped — the walk is NOT exhaustive.
+            && self.dispatch_truncated == 0
             && self.sources_processed >= self.sources_discovered
     }
 }
@@ -910,19 +913,35 @@ pub fn exhaustive_callee_set_with_caps(
                     path: Some(tpath.clone()),
                 });
                 if matches!(kind, EdgeKind::ApiCall) {
-                    if let Ok(impls) = graph.find_dispatch_targets(project_id, &n.name) {
-                        if impls.len() > 2 {
-                            proof.dispatch_truncated += 1;
-                        }
-                        for imp in impls.iter().take(2) {
-                            if let Ok(Some(im)) = graph.get_node(project_id, imp) {
-                                content.push_str(&format!(
-                                    "; served by {} in {}",
-                                    im.name,
-                                    im.file_path.as_str().replace('\\', "/")
-                                ));
+                    // Round-7 P0-3: every failure mode of dispatch expansion must
+                    // break completeness and be named — a truncated or errored
+                    // dispatch lookup, or a missing/unreadable implementation
+                    // node, cannot be silently swallowed while the walk claims
+                    // "coverage complete".
+                    match graph.find_dispatch_targets(project_id, &n.name) {
+                        Ok(impls) => {
+                            if impls.len() > 2 {
+                                proof.dispatch_truncated += 1;
+                            }
+                            for imp in impls.iter().take(2) {
+                                match graph.get_node(project_id, imp) {
+                                    Ok(Some(im)) => content.push_str(&format!(
+                                        "; served by {} in {}",
+                                        im.name,
+                                        im.file_path.as_str().replace('\\', "/")
+                                    )),
+                                    Ok(None) => {
+                                        proof.dangling_targets += 1;
+                                        if proof.dangling_target_ids.len() < DANGLING_ID_SAMPLE_CAP
+                                        {
+                                            proof.dangling_target_ids.push(imp.clone());
+                                        }
+                                    }
+                                    Err(_) => proof.graph_errors += 1,
+                                }
                             }
                         }
+                        Err(_) => proof.graph_errors += 1,
                     }
                 }
                 if let Some(dir) = project_dir {

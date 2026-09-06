@@ -14,10 +14,20 @@ labeled defects.
 ## Ground truth (measurable — confirmed present)
 
 `eval/data/qg_coderabbit.json`: 334 real CodeRabbit findings with
-`{file, line, message, severity, source_pr}`. **32 are null-safety-class.**
-Time-separated split by `source_pr` (older PRs = calibration, newest ~40% of
-PRs = holdout). The OciusX repo is local, so each PR's changed hunks are
-recoverable by `git diff` for the analyzer input.
+`{file, line, message, severity, source_pr}`. The "32" first written here was a
+LOOSE null/nothing keyword estimate; the TIGHT, reproducible count is **7
+findings across 5 PRs** — see round-7 P1-6 below. Time-separated split by
+`source_pr` (older PRs = calibration, newest ~40% = holdout). The OciusX repo is
+local, so each PR's changed hunks are recoverable by `git diff`.
+
+**Round-7 P1-6 — sealed ground truth.** The tight classifier is committed and
+reproducible: `eval/nullsafety_classifier.py` writes the immutable labelled
+subset `eval/data/nullsafety_subset.json` (7 findings, PRs 1900/1911/1930/1932/
+1940) with a sha256 seal (`60792b87355585a6a8d7272f907eb65cff9bb3ea11836d1b6bef6d851be71db4`).
+Re-running reproduces the same subset/hash for an unchanged corpus. This does
+NOT make the gate large enough — 7 heterogeneous cross-language findings over ~5
+PRs is a small, noisy holdout — so the analyzer stays owner-gated; but the count
+is now independently reproducible, not a bare doc claim.
 
 ## Pre-registered gate (fixed now; not movable)
 

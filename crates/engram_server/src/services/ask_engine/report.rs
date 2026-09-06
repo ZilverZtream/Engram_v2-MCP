@@ -231,12 +231,14 @@ pub fn render_markdown(r: &AskReport) -> String {
             let mut nbr_cap = 0usize;
             let mut dangling = 0usize;
             let mut graph_errors = 0usize;
+            let mut dispatch_trunc = 0usize;
             let mut dangling_ids: Vec<&str> = Vec::new();
             for p in r.providers.iter().filter_map(|p| p.proof.as_ref()) {
                 src_cap |= p.source_cap_hit;
                 nbr_cap += p.neighbor_cap_hits;
                 dangling += p.dangling_targets;
                 graph_errors += p.graph_errors;
+                dispatch_trunc += p.dispatch_truncated;
                 dangling_ids.extend(p.dangling_target_ids.iter().map(String::as_str));
             }
             let mut reasons: Vec<String> = Vec::new();
@@ -251,6 +253,11 @@ pub fn render_markdown(r: &AskReport) -> String {
                 reasons.push(format!(
                     "{dangling} dangling edge target(s) [{}]",
                     sample.join(", ")
+                ));
+            }
+            if dispatch_trunc > 0 {
+                reasons.push(format!(
+                    "{dispatch_trunc} dispatch expansion(s) truncated (served implementations dropped)"
                 ));
             }
             if graph_errors > 0 {

@@ -410,6 +410,10 @@ pub struct ControlMappingSnippet {
 #[derive(Debug, Clone, Serialize)]
 pub struct ValidationReport {
     pub overall_verdict: String,
+    /// Round-7 P1-3: what the verdict is actually based on — target resolution
+    /// status and how many project-CONTRACT checks ran — so a caller can audit
+    /// WHY a result is PASS/WARN/INSUFFICIENT, not just read the verdict.
+    pub coverage: ValidationCoverage,
     pub checks: Vec<ValidationCheck>,
 }
 
@@ -1141,15 +1145,22 @@ fn select_method_node(
     class_name: Option<&str>,
     line: Option<u32>,
 ) -> Result<Node, String> {
-    let mut candidates = graph
-        .query_nodes(
-            project_id,
-            Some("function"),
-            Some(method_name),
-            Some(file_path),
-            50,
-        )
-        .map_err(|e| format!("method lookup failed: {e}"))?;
+    // Round-7 P1-5: query_nodes matches by SUBSTRING and caps BEFORE matching,
+    // so an exact method beyond the first 50 substring neighbours is silently
+    // lost. query_nodes_by_symbol_name applies the exact/suffix match rule
+    // DURING the scan, so the cap bounds MATCHES, not candidates inspected —
+    // the exact declaration is never crowded out.
+    let mut candidates: Vec<Node> = graph
+        .query_nodes_by_symbol_name(project_id, method_name, Some(file_path), 200)
+        .map_err(|e| format!("method lookup failed: {e}"))?
+        .into_iter()
+        .filter(|n| {
+            matches!(
+                n.node_type.as_str(),
+                "function" | "method" | "sub" | "procedure"
+            )
+        })
+        .collect();
     if let Some(cls) = class_name {
         // The declaring class lives in the qualified NAME (`orders.GetAll`) or a
         // real namespace, never in the search namespace — match via class_of_node.
@@ -2454,7 +2465,8 @@ fn render_implementation_context_markdown(ctx: &ImplementationContext) -> String
 }
 
 /// Round-6: the resolution of the target file against the index.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum TargetStatus {
     /// No target_file was supplied.
     Unspecified,
@@ -2471,7 +2483,7 @@ pub enum TargetStatus {
 /// Round-6: what the validation actually COVERED, modelled apart from the
 /// individual pass/warn/fail checks. A green generic-lint scan is not
 /// coverage of the project's contract.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub struct ValidationCoverage {
     /// Project-CONTRACT checks that actually ran (expected tables/SPs/session
     /// keys/controls, caller compatibility). Generic lint (sync hazards) does
@@ -2520,11 +2532,26 @@ fn render_validation_report_markdown(report: &ValidationReport) -> String {
         "PASS" => "PASS",
         "WARN" => "WARN",
         "FAIL" => "FAIL",
-        "INSUFFICIENT" => "INSUFFICIENT (nothing was verified)",
+        // Round-7 P1-3: "INSUFFICIENT" means no PROJECT CONTRACT was verified —
+        // a generic lint scan may still have run. Be precise, not hardcoded.
+        "INSUFFICIENT" => "INSUFFICIENT (no project contract verified)",
         _ => "UNKNOWN",
     };
 
     md.push_str(&format!("# Code Validation Report: {}\n\n", badge));
+
+    // Round-7 P1-3: surface the coverage the verdict rests on.
+    let target_label = match report.coverage.target {
+        TargetStatus::Unspecified => "no target file given",
+        TargetStatus::Exists => "target file exists in index",
+        TargetStatus::NotFound => "target file NOT in index",
+        TargetStatus::NewTarget => "new file (create) — absence expected",
+        TargetStatus::ProviderFailed => "target lookup FAILED (unknown)",
+    };
+    md.push_str(&format!(
+        "_Coverage: {} project-contract check(s) ran; {}._\n\n",
+        report.coverage.contract_checks_ran, target_label
+    ));
 
     if report.checks.is_empty() {
         md.push_str("No validation checks were performed (no expected values provided).\n");
@@ -4160,17 +4187,37 @@ impl Engram {
                 Some(tf) => {
                     let norm = tf.replace('\\', "/");
                     let want = norm.to_lowercase();
-                    match graph.query_nodes(&project_id, Some("file"), Some(&norm), None, 50) {
-                        Ok(nodes) => {
-                            let exact = nodes.iter().any(|n| {
-                                n.file_path.as_str().replace('\\', "/").to_lowercase() == want
-                            });
-                            if exact {
-                                TargetStatus::Exists
-                            } else if is_create {
-                                TargetStatus::NewTarget
-                            } else {
-                                TargetStatus::NotFound
+                    // Identity, not substring: a file node is keyed `file:{rel-path}`
+                    // and its `name` is the BASENAME, so `query_nodes(name=<full
+                    // path>)` can never match a real file (round-7 P0-1). Resolve
+                    // the exact file id first; fall back to a basename query +
+                    // exact case-insensitive path match to tolerate case/spelling
+                    // drift in the caller's path.
+                    match graph.get_node(&project_id, &format!("file:{norm}")) {
+                        Ok(Some(n)) if n.node_type == "file" => TargetStatus::Exists,
+                        Ok(_) => {
+                            let basename = norm.rsplit('/').next().unwrap_or(norm.as_str());
+                            match graph.query_nodes(
+                                &project_id,
+                                Some("file"),
+                                Some(basename),
+                                None,
+                                200,
+                            ) {
+                                Ok(nodes) => {
+                                    let exact = nodes.iter().any(|n| {
+                                        n.file_path.as_str().replace('\\', "/").to_lowercase()
+                                            == want
+                                    });
+                                    if exact {
+                                        TargetStatus::Exists
+                                    } else if is_create {
+                                        TargetStatus::NewTarget
+                                    } else {
+                                        TargetStatus::NotFound
+                                    }
+                                }
+                                Err(_) => TargetStatus::ProviderFailed,
                             }
                         }
                         Err(_) => TargetStatus::ProviderFailed,
@@ -4415,79 +4462,60 @@ impl Engram {
                 });
             }
 
-            // ── Check 6: Caller Compatibility (signature check) ───────────
+            // ── Check 6: Caller Compatibility ─────────────────────────────
+            // Round-7 P0-2: a substring name-presence test is NOT caller
+            // compatibility and must never earn contract coverage. Real
+            // coverage requires resolving the EXACT original method (exact
+            // target file + exact name); even then this tool does not parse or
+            // compare signatures, so it surfaces the caller impact as an
+            // advisory WARN — never a clean PASS. Without a resolved method the
+            // note is a non-coverage `advisory` that cannot earn PASS.
             if let Some(ref orig_name) = original_method {
-                // Verify the generated code preserves the method signature pattern
-                let has_method_def = code.contains(orig_name);
-                let status = if has_method_def { "pass" } else { "warn" };
-
-                let details = if has_method_def {
-                    vec![format!(
-                        "Method name '{}' preserved in generated code",
-                        orig_name
-                    )]
-                } else {
-                    vec![
-                        format!(
-                            "Original method name '{}' not found in generated code",
-                            orig_name
-                        ),
-                        "Callers may break if the method signature changed".to_string(),
-                    ]
-                };
-
-                // Check if the method's callers exist in the graph and the signature is compatible
-                if let Some(ref tfile) = target_file {
-                    let candidates = graph
-                        .query_nodes(
-                            &project_id,
-                            Some("function"),
-                            Some(orig_name),
-                            Some(tfile),
-                            1,
-                        )
-                        .unwrap_or_default();
-
-                    if let Some(orig_node) = candidates.first() {
+                let has_name = code.contains(orig_name);
+                let resolved = target_file.as_ref().and_then(|tfile| {
+                    select_method_node(&graph, &project_id, tfile, orig_name, None, None).ok()
+                });
+                match resolved {
+                    Some(node) => {
                         let caller_count = crate::handlers::incoming_caller_edges(
                             &graph,
                             &project_id,
-                            &orig_node.node_id,
+                            &node.node_id,
                             100,
                         )
                         .len();
-
-                        if caller_count > 0 {
-                            let mut d = details;
-                            d.push(format!(
-                                "{} callers depend on this method — ensure signature is preserved",
-                                caller_count
-                            ));
-                            checks.push(ValidationCheck {
-                                category: "caller_compatibility".to_string(),
-                                status: status.to_string(),
-                                details: d,
-                            });
-                        } else {
-                            checks.push(ValidationCheck {
-                                category: "caller_compatibility".to_string(),
-                                status: status.to_string(),
-                                details,
-                            });
-                        }
-                    } else {
                         checks.push(ValidationCheck {
                             category: "caller_compatibility".to_string(),
-                            status: status.to_string(),
-                            details,
+                            status: "warn".to_string(),
+                            details: vec![
+                                format!(
+                                    "Resolved `{}` in `{}`; {} caller(s) depend on it.",
+                                    orig_name,
+                                    node.file_path.as_str(),
+                                    caller_count
+                                ),
+                                "This tool does NOT parse or compare signatures — you must verify name, parameters, types/modifiers, return type, accessibility, static/shared, and generic arity are preserved.".to_string(),
+                            ],
                         });
                     }
-                } else {
-                    checks.push(ValidationCheck {
-                        category: "caller_compatibility".to_string(),
-                        status: status.to_string(),
-                        details,
-                    });
+                    None => {
+                        let msg = if has_name {
+                            format!(
+                                "`{}` appears in the generated code, but no such method was resolved (no exact target file / method) — caller compatibility is NOT verified.",
+                                orig_name
+                            )
+                        } else {
+                            format!(
+                                "`{}` was not found in the generated code and no method was resolved — caller compatibility is NOT verified.",
+                                orig_name
+                            )
+                        };
+                        checks.push(ValidationCheck {
+                            category: "advisory".to_string(),
+                            status: "warn".to_string(),
+                            details: vec![msg],
+                        });
+                    }
                 }
             }
 
@@ -4534,9 +4562,17 @@ impl Engram {
             // PROJECT-SPECIFIC. Generic lint (sync_hazards) and the target
             // existence meta-check do not count — a green lint scan with no
             // contract verified is INSUFFICIENT, never PASS.
+            // `advisory` (a non-verifying note, e.g. an unresolved caller-name
+            // hint) and the sync/target meta-checks never count as contract
+            // coverage — a green lint scan with no contract verified is
+            // INSUFFICIENT, never PASS.
             let contract_checks_ran = checks
                 .iter()
-                .filter(|c| c.category != "sync_hazards" && c.category != "target_file")
+                .filter(|c| {
+                    c.category != "sync_hazards"
+                        && c.category != "target_file"
+                        && c.category != "advisory"
+                })
                 .count();
             let coverage = ValidationCoverage {
                 contract_checks_ran,
@@ -4546,6 +4582,7 @@ impl Engram {
 
             Ok(ValidationReport {
                 overall_verdict: overall,
+                coverage,
                 checks,
             })
         })
