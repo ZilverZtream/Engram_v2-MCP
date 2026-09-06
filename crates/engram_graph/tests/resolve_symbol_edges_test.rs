@@ -57,12 +57,23 @@ fn make_call(source_id: &str, target_id: &str) -> Edge {
     }
 }
 
-fn make_api_call(source_id: &str, target_id: &str, method: &str) -> Edge {
+fn make_api_call_transport(
+    source_id: &str,
+    target_id: &str,
+    method: &str,
+    transport: Option<&str>,
+) -> Edge {
     let mut m = serde_json::Map::new();
     m.insert(
         "ajax_target_method".into(),
         serde_json::Value::String(method.to_string()),
     );
+    if let Some(t) = transport {
+        m.insert(
+            "ajax_transport".into(),
+            serde_json::Value::String(t.to_string()),
+        );
+    }
     Edge {
         source_id: source_id.to_string(),
         target_id: target_id.to_string(),
@@ -74,6 +85,136 @@ fn make_api_call(source_id: &str, target_id: &str, method: &str) -> Edge {
         metadata: Some(serde_json::Value::Object(m)),
         updated_at_ms: 1_000_000,
     }
+}
+
+/// An api-name broker route (the ONLY ajax shape the api-layer preference fires
+/// on): transport `api_name`.
+fn make_api_call(source_id: &str, target_id: &str, method: &str) -> Edge {
+    make_api_call_transport(source_id, target_id, method, Some("api_name"))
+}
+
+/// Resolved Calls neighbors of a source, as target ids.
+fn calls_targets(graph: &GraphStore, pid: &str, src: &str) -> Vec<String> {
+    graph
+        .neighbors(pid, EdgeKind::ApiCall, src, 10)
+        .unwrap()
+        .into_iter()
+        .map(|(t, _)| t)
+        .collect()
+}
+
+#[test]
+fn webmethod_ajax_is_not_rebound_to_an_api_layer_method() {
+    // P1-2 negative: a WebMethod/PageMethods ajax route (transport != api_name)
+    // with an unrelated same-name api.* candidate must NOT be rebound to the
+    // api-layer method — it stays an honest `::` placeholder.
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "test-webmethod";
+    let api_fn = make_node(
+        "sym:function:Site/x/api-json/api-x.vb:api.doThing:1",
+        "api.doThing",
+        "Site/x/api-json/api-x.vb",
+    );
+    let page_fn = make_node(
+        "sym:function:Site/pages/thing.aspx.vb:Thing.doThing:1",
+        "Thing.doThing",
+        "Site/pages/thing.aspx.vb",
+    );
+    let caller = make_node("file:Site/js/thing.js", "thing.js", "Site/js/thing.js");
+    graph
+        .upsert_nodes(pid, &[api_fn.clone(), page_fn.clone(), caller.clone()])
+        .unwrap();
+    graph
+        .upsert_edges(
+            pid,
+            &[make_api_call_transport(
+                &caller.node_id,
+                "::doThing",
+                "doThing",
+                Some("web_method"),
+            )],
+        )
+        .unwrap();
+    graph.resolve_symbol_edges(pid).unwrap();
+    let targets = calls_targets(&graph, pid, &caller.node_id);
+    assert!(
+        !targets.contains(&api_fn.node_id),
+        "a WebMethod ajax route must not be rebound to an api.* method: {targets:?}"
+    );
+}
+
+#[test]
+fn api_call_without_api_name_transport_is_not_resolved() {
+    // P1-2 negative: ajax_target_method present but NO transport → not an
+    // api-name broker route → stays a placeholder.
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "test-notransport";
+    let api_fn = make_node(
+        "sym:function:Site/x/api-json/api-x.vb:api.foo:1",
+        "api.foo",
+        "Site/x/api-json/api-x.vb",
+    );
+    let impl_fn = make_node(
+        "sym:function:Site/x/code/x.vb:_c.Bar.foo:1",
+        "_c.Bar.foo",
+        "Site/x/code/x.vb",
+    );
+    let caller = make_node("file:Site/js/f.js", "f.js", "Site/js/f.js");
+    graph
+        .upsert_nodes(pid, &[api_fn.clone(), impl_fn.clone(), caller.clone()])
+        .unwrap();
+    graph
+        .upsert_edges(
+            pid,
+            &[make_api_call_transport(
+                &caller.node_id,
+                "::foo",
+                "foo",
+                None,
+            )],
+        )
+        .unwrap();
+    graph.resolve_symbol_edges(pid).unwrap();
+    let targets = calls_targets(&graph, pid, &caller.node_id);
+    assert!(
+        !targets.contains(&api_fn.node_id),
+        "no api_name transport → must not bind to the api.* method: {targets:?}"
+    );
+}
+
+#[test]
+fn non_function_api_candidate_is_not_selected() {
+    // P1-2 negative: the sole api.* candidate is a PAGE, not a function → the
+    // dispatch preference must not bind to it.
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "test-nonfn";
+    let mut api_page = make_node(
+        "page:Site/x/api-json/api.aspx:api.render:1",
+        "api.render",
+        "Site/x/api-json/api.aspx",
+    );
+    api_page.node_type = "page".into();
+    let impl_fn = make_node(
+        "sym:function:Site/x/code/x.vb:_c.Bar.render:1",
+        "_c.Bar.render",
+        "Site/x/code/x.vb",
+    );
+    let caller = make_node("file:Site/js/r.js", "r.js", "Site/js/r.js");
+    graph
+        .upsert_nodes(pid, &[api_page.clone(), impl_fn.clone(), caller.clone()])
+        .unwrap();
+    graph
+        .upsert_edges(pid, &[make_api_call(&caller.node_id, "::render", "render")])
+        .unwrap();
+    graph.resolve_symbol_edges(pid).unwrap();
+    let targets = calls_targets(&graph, pid, &caller.node_id);
+    assert!(
+        !targets.contains(&api_page.node_id),
+        "a non-function api.* candidate must not be selected: {targets:?}"
+    );
 }
 
 #[test]

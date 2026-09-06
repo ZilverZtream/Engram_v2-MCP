@@ -1491,7 +1491,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "LLM context packer for editing an EXISTING method: assembles whichever of these it can resolve — coding style profile, caller pattern examples, database schema for referenced tables, SP signatures, session state context, control mappings, VB translation traps, language-family diagnostics (C#/C/C++/Rust), and sync hazards. Each provider is best-effort; anything that fails to resolve is reported in `warnings` rather than omitted silently. It is a starting context, NOT a guarantee of everything needed — verify against the real code before editing. Requires the target method to already exist (it resolves it by exact name, refusing cross-class/overload ambiguity)."
+        description = "LLM context packer for editing an EXISTING method: assembles whichever of these it can resolve — coding style profile, caller pattern examples, database schema for referenced tables, SP signatures, session state context, control mappings, VB translation traps, language-family diagnostics (C#/C/C++/Rust), and sync hazards. Every optional provider is BEST-EFFORT and may be SILENTLY ABSENT: only a failure to read the target method's own body is reported in `warnings`; a provider that finds nothing, or whose lookup fails, simply yields an empty section with no warning — so an empty section does NOT mean 'nothing there'. It is a starting context, NOT a guarantee of everything needed — verify against the real code before editing. Requires the target method to already exist (it resolves it by exact name, refusing cross-class/overload ambiguity)."
     )]
     pub async fn prepare_implementation_context(
         &self,

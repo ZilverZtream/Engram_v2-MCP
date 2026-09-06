@@ -38,6 +38,7 @@ static DOCUMENT_GETELEMENTBYID_RE: OnceLock<Regex> = OnceLock::new();
 static AJAX_CALL_RE: OnceLock<Regex> = OnceLock::new();
 static AJAX_SHORTHAND_RE: OnceLock<Regex> = OnceLock::new();
 static API_NAME_CALL_RE: OnceLock<Regex> = OnceLock::new();
+static GET_IMAGE_CALL_RE: OnceLock<Regex> = OnceLock::new();
 static FETCH_CALL_RE: OnceLock<Regex> = OnceLock::new();
 static XHR_OPEN_RE: OnceLock<Regex> = OnceLock::new();
 static PAGE_METHODS_RE: OnceLock<Regex> = OnceLock::new();
@@ -557,6 +558,39 @@ fn extract_api_name_calls(
             source_start_line: line,
             source_language: "javascript".to_string(),
             target_name: name.to_string(),
+            target_kind: Some("api_function".to_string()),
+            target_start_line: None,
+            kind: "api_call".to_string(),
+            metadata: Some(meta),
+        });
+    }
+
+    // Round-7 P1-1: the api.ajax() wrapper's `getImage(module, id, …)` method
+    // does not name the server function in an argument — it POSTs to a FIXED
+    // endpoint `/api.asmx/getimg`, served by `api.getimg`. A call is therefore
+    // an api route to the constant method `getimg`, marked wrapper-mediated so
+    // an agent can distinguish it from a direct broker route.
+    let gi = match get_compiled_regex(
+        &GET_IMAGE_CALL_RE,
+        r"\bapi\.ajax\(\s*\)\s*\.\s*getImage\s*\(",
+        "GET_IMAGE_CALL",
+    ) {
+        Some(r) => r,
+        None => return,
+    };
+    for m in gi.find_iter(source) {
+        let line = line_of(line_starts, m.start());
+        let mut meta = HashMap::with_capacity(4);
+        meta.insert("ajax_transport".into(), "api_name".into());
+        meta.insert("ajax_target_method".into(), "getimg".into());
+        meta.insert("target_type".into(), "api_function".into());
+        meta.insert("via".into(), "getImage_wrapper".into());
+        edges.push(ExtractedEdge {
+            source_name: "file".to_string(),
+            source_kind: "file".to_string(),
+            source_start_line: line,
+            source_language: "javascript".to_string(),
+            target_name: "getimg".to_string(),
             target_kind: Some("api_function".to_string()),
             target_start_line: None,
             kind: "api_call".to_string(),
@@ -1882,6 +1916,36 @@ mod tests {
         assert_eq!(
             meta.get("ajax_transport").map(|s| s.as_str()),
             Some("jquery_ajax")
+        );
+    }
+
+    #[test]
+    fn getimage_wrapper_routes_to_getimg() {
+        // P1-1 (round-7): api.ajax().getImage(module, id, …) POSTs to the fixed
+        // /api.asmx/getimg endpoint — a wrapper-mediated api route to `getimg`,
+        // whose method name is NOT in an argument.
+        let js = r#"api.ajax().getImage('visualisering', this._id, 'Bild.1', cb);"#;
+        let (_, edges) = extract_js(&test_path("iomarker.ts"), js);
+        let gi: Vec<_> = edges
+            .iter()
+            .filter(|e| {
+                e.kind == "api_call"
+                    && e.metadata
+                        .as_ref()
+                        .and_then(|m| m.get("ajax_target_method"))
+                        .map(|s| s.as_str())
+                        == Some("getimg")
+            })
+            .collect();
+        assert_eq!(gi.len(), 1, "exactly one getimg api_call: {edges:?}");
+        let meta = gi[0].metadata.as_ref().expect("metadata");
+        assert_eq!(
+            meta.get("via").map(|s| s.as_str()),
+            Some("getImage_wrapper")
+        );
+        assert_eq!(
+            meta.get("ajax_transport").map(|s| s.as_str()),
+            Some("api_name")
         );
     }
 
