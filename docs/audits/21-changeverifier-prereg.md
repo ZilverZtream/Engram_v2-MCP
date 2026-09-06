@@ -20,14 +20,27 @@ findings across 5 PRs** — see round-7 P1-6 below. Time-separated split by
 `source_pr` (older PRs = calibration, newest ~40% = holdout). The OciusX repo is
 local, so each PR's changed hunks are recoverable by `git diff`.
 
-**Round-7 P1-6 — sealed ground truth.** The tight classifier is committed and
-reproducible: `eval/nullsafety_classifier.py` writes the immutable labelled
-subset `eval/data/nullsafety_subset.json` (7 findings, PRs 1900/1911/1930/1932/
-1940) with a sha256 seal (`60792b87355585a6a8d7272f907eb65cff9bb3ea11836d1b6bef6d851be71db4`).
-Re-running reproduces the same subset/hash for an unchanged corpus. This does
-NOT make the gate large enough — 7 heterogeneous cross-language findings over ~5
-PRs is a small, noisy holdout — so the analyzer stays owner-gated; but the count
-is now independently reproducible, not a bare doc claim.
+**Round-7 P1-6 / round-8 P1-5 — sealed ground truth (CORRECTED, honest).** The
+earlier wording here was wrong on two counts the round-8 audit caught:
+
+1. **The DATA is NOT committed** — and cannot be, by policy. Only the CLASSIFIER
+   `eval/nullsafety_classifier.py` is tracked. Both `eval/data/nullsafety_subset.json`
+   (the 7-finding labelled subset) and its source `eval/data/qg_coderabbit.json`
+   are **git-excluded** (`.gitignore`), because they contain real OciusX
+   findings/paths — the [[no-customer-strings-in-source]] mandate. A fresh clone
+   therefore CANNOT reproduce the subset without the local corpus present; the
+   seal is a reproducibility check for whoever HAS the corpus, not a
+   clone-portable artifact. The prior "the subset is committed" claim was false.
+2. **The digest is a CANONICAL-PAYLOAD sha256, not the file's sha256.** The seal
+   `60792b87355585a6a8d7272f907eb65cff9bb3ea11836d1b6bef6d851be71db4` is the
+   classifier's hash of the SERIALIZED findings payload (before the trailing
+   newline); the on-disk file's sha256 differs (e.g. `96B4AE…`). It is named
+   here as a canonical-payload digest so the two are not conflated.
+
+The count is 7 findings across 5 PRs (1900/1911/1930/1932/1940). Re-running the
+classifier over an unchanged local corpus reproduces the same subset + payload
+digest. This does NOT make the gate large enough — 7 heterogeneous cross-language
+findings is a small, noisy holdout — so the analyzer stays owner-gated.
 
 ## Pre-registered gate (fixed now; not movable)
 
@@ -50,7 +63,8 @@ My own prior verify experiment (verify_implementation_plan) failed Gate 1
 checker catches. Null-safety is more local and pattern-detectable than
 wrong-mechanism, so this probe has a better shot — but the base rate of
 auditor-directed programs on this codebase is 0-for-2 on moving the metric,
-and N=32 is small. This is a probe, not a commitment; the gate decides.
+and N=7 (the tight, reproducible count — NOT the loose 32 estimate this doc
+originally carried) is small. This is a probe, not a commitment; the gate decides.
 
 ## Sequence
 
