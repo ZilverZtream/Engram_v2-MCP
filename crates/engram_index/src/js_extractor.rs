@@ -715,6 +715,39 @@ fn emit_ajax_edge(
         kind: "api_call".to_string(),
         metadata: Some(meta),
     });
+
+    // Round-7 P1-1 fix: when a SERVICE method is named, ALSO emit an edge
+    // targeting the served METHOD directly. The web_service edge above is keyed
+    // (source, service) and so COLLIDES for a file that calls several methods on
+    // one service (imgHandler.ts calls both getimg and ConvertHeicToBase64String
+    // on api.asmx — one clobbered the other, losing a real caller). A
+    // method-targeted edge is keyed (source, method) — distinct per method — and
+    // resolves to the served function.
+    if let (Some(method), true) = (
+        &method_part,
+        matches!(
+            target_kind,
+            "web_service" | "wcf_service" | "http_handler" | "page"
+        ),
+    ) {
+        let mut m2 = HashMap::with_capacity(5);
+        m2.insert("ajax_transport".into(), transport.into());
+        m2.insert("ajax_url".into(), raw_url.to_string());
+        m2.insert("ajax_target_method".into(), method.clone());
+        m2.insert("target_type".into(), "api_function".into());
+        m2.insert("endpoint_service".into(), path_lower.clone());
+        edges.push(ExtractedEdge {
+            source_name: "file".to_string(),
+            source_kind: "file".to_string(),
+            source_start_line: line,
+            source_language: "javascript".to_string(),
+            target_name: method.clone(),
+            target_kind: Some("api_function".to_string()),
+            target_start_line: None,
+            kind: "api_call".to_string(),
+            metadata: Some(m2),
+        });
+    }
 }
 
 // ── Feature 5: GIS / Spatial Logic ──────────────────────────────────────────
@@ -1904,18 +1937,48 @@ mod tests {
             });
         "#;
         let (_, edges) = extract_js(&test_path("map_utils.js"), js);
-        assert_eq!(edges.len(), 1);
-        assert_eq!(edges[0].target_name, "Services/MapData.asmx");
-        assert_eq!(edges[0].kind, "api_call");
-        assert_eq!(edges[0].target_kind.as_deref(), Some("web_service"));
-        let meta = edges[0].metadata.as_ref().expect("metadata");
+        // Round-7: a service+method call emits the web_service edge AND a
+        // distinct method-function edge (so multi-method-per-service calls don't
+        // collide).
+        let ws = edges
+            .iter()
+            .find(|e| e.target_kind.as_deref() == Some("web_service"))
+            .expect("web_service edge");
+        assert_eq!(ws.target_name, "Services/MapData.asmx");
+        assert_eq!(ws.kind, "api_call");
         assert_eq!(
-            meta.get("ajax_target_method").map(|s| s.as_str()),
+            ws.metadata
+                .as_ref()
+                .and_then(|m| m.get("ajax_target_method"))
+                .map(|s| s.as_str()),
             Some("GetPolygons")
         );
-        assert_eq!(
-            meta.get("ajax_transport").map(|s| s.as_str()),
-            Some("jquery_ajax")
+        let mf = edges
+            .iter()
+            .find(|e| e.target_name == "GetPolygons")
+            .expect("method-function edge");
+        assert_eq!(mf.target_kind.as_deref(), Some("api_function"));
+        assert_eq!(mf.kind, "api_call");
+    }
+
+    #[test]
+    fn multi_method_on_one_service_does_not_collide() {
+        // Round-7 P1-1 root cause: a file calling two methods on the SAME service
+        // must produce a distinct method edge for EACH — the (source, service)
+        // web_service edges collide, but the method edges do not.
+        let js = r#"
+            fetch("/api.asmx/getimg", { method: 'POST' });
+            fetch("/api.asmx/ConvertHeicToBase64String", { method: 'POST' });
+        "#;
+        let (_, edges) = extract_js(&test_path("imgHandler.ts"), js);
+        let methods: std::collections::HashSet<&str> = edges
+            .iter()
+            .filter(|e| e.target_kind.as_deref() == Some("api_function"))
+            .map(|e| e.target_name.as_str())
+            .collect();
+        assert!(
+            methods.contains("getimg") && methods.contains("ConvertHeicToBase64String"),
+            "both service methods must have distinct method edges: {methods:?}"
         );
     }
 
@@ -1964,14 +2027,20 @@ mod tests {
     fn ajax_shorthand_get() {
         let js = r#"$.get('Services/LookupData.asmx/GetCities', function(data) {});"#;
         let (_, edges) = extract_js(&test_path("lookup.js"), js);
-        assert_eq!(edges.len(), 1);
-        assert_eq!(edges[0].target_name, "Services/LookupData.asmx");
-        assert_eq!(edges[0].kind, "api_call");
-        let meta = edges[0].metadata.as_ref().expect("metadata");
+        let ws = edges
+            .iter()
+            .find(|e| e.target_kind.as_deref() == Some("web_service"))
+            .expect("web_service edge");
+        assert_eq!(ws.target_name, "Services/LookupData.asmx");
+        assert_eq!(ws.kind, "api_call");
         assert_eq!(
-            meta.get("ajax_target_method").map(|s| s.as_str()),
+            ws.metadata
+                .as_ref()
+                .and_then(|m| m.get("ajax_target_method"))
+                .map(|s| s.as_str()),
             Some("GetCities")
         );
+        assert!(edges.iter().any(|e| e.target_name == "GetCities"));
     }
 
     #[test]
@@ -1992,14 +2061,19 @@ mod tests {
     fn ajax_shorthand_getjson() {
         let js = r#"$.getJSON('Services/Config.svc/GetSettings', callback);"#;
         let (_, edges) = extract_js(&test_path("config.js"), js);
-        assert_eq!(edges.len(), 1);
-        assert_eq!(edges[0].target_name, "Services/Config.svc");
-        assert_eq!(edges[0].target_kind.as_deref(), Some("wcf_service"));
-        let meta = edges[0].metadata.as_ref().expect("metadata");
+        let ws = edges
+            .iter()
+            .find(|e| e.target_kind.as_deref() == Some("wcf_service"))
+            .expect("wcf_service edge");
+        assert_eq!(ws.target_name, "Services/Config.svc");
         assert_eq!(
-            meta.get("ajax_target_method").map(|s| s.as_str()),
+            ws.metadata
+                .as_ref()
+                .and_then(|m| m.get("ajax_target_method"))
+                .map(|s| s.as_str()),
             Some("GetSettings")
         );
+        assert!(edges.iter().any(|e| e.target_name == "GetSettings"));
     }
 
     // ── Feature 4: fetch() ──────────────────────────────────────────────
@@ -2008,9 +2082,13 @@ mod tests {
     fn fetch_call_asmx() {
         let js = r#"fetch('Services/UserData.asmx/GetProfile').then(r => r.json());"#;
         let (_, edges) = extract_js(&test_path("profile.js"), js);
-        assert_eq!(edges.len(), 1);
-        assert_eq!(edges[0].target_name, "Services/UserData.asmx");
-        assert_eq!(edges[0].kind, "api_call");
+        let ws = edges
+            .iter()
+            .find(|e| e.target_kind.as_deref() == Some("web_service"))
+            .expect("web_service edge");
+        assert_eq!(ws.target_name, "Services/UserData.asmx");
+        assert_eq!(ws.kind, "api_call");
+        assert!(edges.iter().any(|e| e.target_name == "GetProfile"));
     }
 
     // ── Feature 4: XMLHttpRequest.open ──────────────────────────────────
@@ -2023,14 +2101,20 @@ mod tests {
             xhr.send(data);
         "#;
         let (_, edges) = extract_js(&test_path("report.js"), js);
-        assert_eq!(edges.len(), 1);
-        assert_eq!(edges[0].target_name, "Services/Report.asmx");
-        assert_eq!(edges[0].kind, "api_call");
-        let meta = edges[0].metadata.as_ref().expect("metadata");
+        let ws = edges
+            .iter()
+            .find(|e| e.target_kind.as_deref() == Some("web_service"))
+            .expect("web_service edge");
+        assert_eq!(ws.target_name, "Services/Report.asmx");
+        assert_eq!(ws.kind, "api_call");
         assert_eq!(
-            meta.get("ajax_target_method").map(|s| s.as_str()),
+            ws.metadata
+                .as_ref()
+                .and_then(|m| m.get("ajax_target_method"))
+                .map(|s| s.as_str()),
             Some("Generate")
         );
+        assert!(edges.iter().any(|e| e.target_name == "Generate"));
     }
 
     // ── Feature 4: PageMethods ──────────────────────────────────────────
@@ -2137,9 +2221,10 @@ mod tests {
             });
         "#;
         let (_, edges) = extract_js(&test_path("search_page.js"), js);
-        // Should have: gvResults (manipulates_dom), btnSearch (triggers_postback),
-        // Search.asmx (api_call), FormatResults (api_call)
-        assert_eq!(edges.len(), 4);
+        // gvResults (manipulates_dom), btnSearch (triggers_postback),
+        // Search.asmx web_service + FindRecords method (api_call x2),
+        // FormatResults (api_call) = 5.
+        assert_eq!(edges.len(), 5);
 
         let dom_edges: Vec<_> = edges
             .iter()
@@ -2156,12 +2241,14 @@ mod tests {
         assert_eq!(postback_edges[0].target_name, "btnSearch");
 
         let api_edges: Vec<_> = edges.iter().filter(|e| e.kind == "api_call").collect();
-        assert_eq!(api_edges.len(), 2);
+        // Search.asmx web_service + FindRecords method + FormatResults = 3.
+        assert_eq!(api_edges.len(), 3);
 
         let asmx_edge = api_edges
             .iter()
             .find(|e| e.target_name == "Services/Search.asmx");
         assert!(asmx_edge.is_some());
+        assert!(api_edges.iter().any(|e| e.target_name == "FindRecords"));
 
         let pm_edge = api_edges.iter().find(|e| e.target_name == "FormatResults");
         assert!(pm_edge.is_some());
@@ -2763,10 +2850,12 @@ mod tests {
         "#;
         let (_, edges) = extract_js(&test_path("multi_ajax.js"), js);
         let api: Vec<_> = edges.iter().filter(|e| e.kind == "api_call").collect();
+        // Orders.asmx (svc + GetOrders method) + Products.asmx (svc +
+        // GetProducts method) + Export.ashx (handler, no method) = 5.
         assert_eq!(
             api.len(),
-            3,
-            "three distinct AJAX calls should produce 3 edges"
+            5,
+            "two service+method calls emit method edges too"
         );
     }
 
@@ -3004,11 +3093,12 @@ mod tests {
         "#;
         let (_, edges) = extract_js(&test_path("dup_ajax.js"), js);
         let api: Vec<_> = edges.iter().filter(|e| e.kind == "api_call").collect();
-        // Same (source, target, kind) triple → deduplicated to 1
+        // Same (source, target) dedups: the Data.asmx web_service edge and the
+        // GetRows method edge each collapse to one → 2 distinct api_call edges.
         assert_eq!(
             api.len(),
-            1,
-            "duplicate AJAX calls to same URL should be deduped"
+            2,
+            "web_service + method edges, each deduped across duplicate calls"
         );
     }
 
