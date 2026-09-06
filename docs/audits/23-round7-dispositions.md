@@ -84,3 +84,51 @@ getImage wrapper cited among getimg's callers; it drops from the caller-citation
 cap. Recovering it needs a caller-completeness change that risks the item-
 precision survivors (already at the 0.34 edge), so it is left at the met floor
 rather than risk the floors for one row.
+
+## Addendum 2026-09-06 (evening) — the getimg GRAPH gap fixed; the ranker chase REVERTED
+
+Two shipped wins and one honestly-abandoned experiment.
+
+**SHIPPED — the real defect was in the GRAPH, not the ranker (a2456a8).**
+ajax.ts's getImage wrapper does a RAW XHR `req.open('POST','/api.asmx/getimg')`.
+The extractor recorded that as an api_call to the `api.asmx` WEB_SERVICE node, so
+ajax.ts was never a graph caller of the getimg FUNCTION — no ranker change could
+ever cite it. `/api.asmx` is the broker fronting the VB `api` class, so
+`/api.asmx/<method>` names `api.<method>` directly. emit_ajax_edge now routes the
+api.asmx broker (every transport: xhr/fetch/jQuery) to the method function via the
+proven `api_name` resolver path. Blast radius 42 call-sites / 8 methods, every one
+with a real `api.<method>` function → zero dangling; a retarget, not an added edge.
+Live on OciusX (reindex gen 964): getimg incoming 13→30, **ajax.ts IS now a graph
+caller of getimg** (find_symbol_references + the graph). All three floors held
+(16/23/6). This is the genuine capability win — impact / blast-radius / references
+all benefit — and it is committed.
+
+**SHIPPED — pin_callers flood removed (5f0fcb4).** The round-7 caller-file
+reservation reserved a dozen raw-order callers, displayed them at 0.00, evicted
+the api-images definition, and never included the intended file. Removed; callers
+left to relevance ranking, definition still pinned. Floors held.
+
+**REVERTED — the ox_causal_16 ranker chase (NOT shipped).** To force ajax.ts into
+the ANSWER (not just the graph) I built four query-time changes: a .ts-specific
+`Modality::TypeScript` (recovered the row's status Unsupported→Partial), an
+entity-hit tier in `reserve_key` (entity-referencing items outrank filler-word
+matches), a usage-arm caller-cap raise 25→60 (getimg has 30 callers; the wrapper
+was below the 25 weight cut), and duplicate-caller dedup (a symbol resolved under
+two nodes yielded two items per caller path, wasting modality slots). Each is
+individually principled and unit-tested. Live, they still did NOT cite ajax.ts
+reliably AND they regressed **ox_causal_1** into the precision-survivor group
+(0.30 < 0.34), dropping causal to **15/20 — below floor**. Reverting the cap raise
+alone did not restore 16 (the modality/entity/dedup changes regress ox_causal_1 on
+their own). Conclusion, on the evidence: ox_causal_16's ground truth is a CURATED
+2-of-30-callers set ([ajax.ts, imgHandler] by path canonicity + the impl), and no
+principled ranking signal isolates exactly those two from thirty equally-valid
+callers without destabilising other rows. Tuning the ranker toward one curated row
+IS a form of eval-gaming (overfitting), which the owner's "BEST for Engram, not the
+easy way out" forbids. So the whole chase was reverted to the committed base.
+
+**Final shippable state:** committed base = asmx graph fix + pin_callers removal,
+floors **16/23/6**, no regression. ox_causal_16 stands as an HONEST limit: the
+graph is correct (ajax.ts is a real getimg caller, retrievable), but the ask
+engine will not overfit its ranking to a curated caller pick. The four reverted
+mechanisms are documented here so the next author knows they were tried and why
+they were dropped, not lost knowledge.
