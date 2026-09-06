@@ -240,6 +240,10 @@ pub fn reserve_required(
         .map(|r| r.canonical.replace('\\', "/").to_lowercase())
         .filter(|p| !p.is_empty())
         .collect();
+    let pin_definition = plan
+        .contract
+        .required_facets
+        .contains(&super::plan::Facet::Definition);
     reserve_required_with(
         chosen,
         raw,
@@ -247,6 +251,7 @@ pub fn reserve_required(
         &plan.modalities,
         &files,
         question,
+        pin_definition,
     )
 }
 
@@ -257,6 +262,7 @@ pub fn reserve_required_with(
     modalities: &[Modality],
     entity_files: &[String],
     question: &str,
+    pin_definition: bool,
 ) -> std::collections::HashSet<String> {
     let words = question_words(question);
     let mut wanted: Vec<EvidenceItem> = Vec::new();
@@ -311,6 +317,24 @@ pub fn reserve_required_with(
             && !wanted.iter().any(|w| w.evidence_id == best.evidence_id)
         {
             wanted.push(best.clone());
+        }
+    }
+    // Round-7 (ox_causal_18): a required Definition facet — the queried symbol's
+    // own location — must survive the cap. A symbol with many callers/usages was
+    // crowding its own definition out of the answer (DeleteImage's callers
+    // cited, its api-images definition dropped despite being retrieved).
+    if pin_definition {
+        let is_def = |e: &EvidenceItem| {
+            e.provider == "definition" || e.extraction_method.contains("definition")
+        };
+        if !has(chosen, &is_def) && !has(&wanted, &is_def) {
+            if let Some(best) = raw.iter().filter(|e| is_def(e)).max_by(|a, b| {
+                a.relevance
+                    .partial_cmp(&b.relevance)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            }) {
+                wanted.push(best.clone());
+            }
         }
     }
     let mut protected: std::collections::HashSet<String> =
