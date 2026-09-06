@@ -326,6 +326,12 @@ pub fn derive_contract(lower: &str, _entities: &[EntityMention]) -> super::plan:
             c.entity_type = ContractEntityType::Function;
         }
         c.required_facets.push(Facet::Caller);
+        // Round-7: "who calls X" must also anchor WHAT X is — cite X's own
+        // definition, not only its callers. Otherwise, once a symbol gains many
+        // callers, the caller citations crowd the definition out of the answer
+        // (ox_causal_18: DeleteImage's callers cited, its api-images definition
+        // dropped).
+        c.required_facets.push(Facet::Definition);
     } else if (lower.contains("where is")
         || lower.contains("where are")
         || lower.contains("where's"))
