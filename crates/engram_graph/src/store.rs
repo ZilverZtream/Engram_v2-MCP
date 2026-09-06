@@ -1577,9 +1577,19 @@ impl GraphStore {
             }
 
             if let Some(scope) = file_scope_prefix {
-                let fp = n.file_path.as_str();
-                if !fp.is_empty() && !fp.starts_with(scope) {
-                    continue;
+                // Round-8 P1-4: a BOUNDARY-aware, case-insensitive scope. A loose
+                // `starts_with` let scope `Site/orders.vb` also admit
+                // `Site/orders.vb.generated.cs`, and it was case-sensitive despite
+                // Windows paths. The scope now matches an EXACT file or a
+                // directory prefix (`.../scope/...`) — never a longer sibling.
+                let scope_l = scope.replace('\\', "/").to_lowercase();
+                if !scope_l.is_empty() {
+                    let fp = n.file_path.as_str().replace('\\', "/").to_lowercase();
+                    let ok =
+                        fp.is_empty() || fp == scope_l || fp.starts_with(&format!("{scope_l}/"));
+                    if !ok {
+                        continue;
+                    }
                 }
             }
 
@@ -2911,15 +2921,21 @@ impl GraphStore {
             // transport is EXPLICITLY `api_name` — NOT a WebMethod/PageMethods
             // route that merely happens to carry `ajax_target_method`. Anything
             // else keeps the generic ladder.
+            // Round-8 P1-3: the metadata must sit on the RIGHT edge kind, not any
+            // edge that happens to carry those keys. A `dispatch_key` is a broker
+            // Select-Case arm — a `Calls` edge; an `ajax_target_method` is a
+            // client ajax route — an `ApiCall` edge. Anything else keeps the
+            // generic ladder even if it carries the same metadata field.
+            let ek = &entry.edge.edge_kind;
             let is_api_routed = entry.edge.metadata.as_ref().is_some_and(|m| {
-                let has_dispatch_key = m
-                    .get("dispatch_key")
-                    .and_then(|v| v.as_str())
-                    .is_some_and(|s| !s.trim().is_empty());
-                let is_api_name_ajax = m
-                    .get("ajax_target_method")
-                    .and_then(|v| v.as_str())
-                    .is_some_and(|s| !s.trim().is_empty())
+                let has_dispatch_key = *ek == EdgeKind::Calls
+                    && m.get("dispatch_key")
+                        .and_then(|v| v.as_str())
+                        .is_some_and(|s| !s.trim().is_empty());
+                let is_api_name_ajax = *ek == EdgeKind::ApiCall
+                    && m.get("ajax_target_method")
+                        .and_then(|v| v.as_str())
+                        .is_some_and(|s| !s.trim().is_empty())
                     && m.get("ajax_transport")
                         .and_then(|v| v.as_str())
                         .is_some_and(|t| t.eq_ignore_ascii_case("api_name"));
@@ -3743,6 +3759,62 @@ mod tests {
         assert!(
             !names.contains(&"Unrelated"),
             "must not over-match: {names:?}"
+        );
+    }
+
+    /// Round-8 P1-4: a FILE scope is boundary-aware and case-insensitive. Scope
+    /// `Site/orders.vb` must match that exact file, NOT the longer sibling
+    /// `Site/orders.vb.generated.cs`; and it must match regardless of case.
+    #[test]
+    fn file_scope_is_exact_boundary_not_loose_prefix() {
+        let store = test_store();
+        let pid = "p1";
+        store
+            .upsert_nodes(
+                pid,
+                &[
+                    test_node(
+                        "sym:function:Site/orders.vb:orders.GetAll:1",
+                        "function",
+                        "orders.GetAll",
+                        "Site/orders.vb",
+                    ),
+                    test_node(
+                        "sym:function:Site/orders.vb.generated.cs:orders.GetAll:2",
+                        "function",
+                        "orders.GetAll",
+                        "Site/orders.vb.generated.cs",
+                    ),
+                ],
+            )
+            .expect("seed");
+        let paths = |scope: &str| -> Vec<String> {
+            store
+                .query_nodes_by_symbol_name(pid, "GetAll", Some(scope), 50)
+                .expect("query")
+                .into_iter()
+                .map(|n| n.file_path.as_str().to_string())
+                .collect()
+        };
+        let exact = paths("Site/orders.vb");
+        assert_eq!(
+            exact,
+            vec!["Site/orders.vb".to_string()],
+            "scope orders.vb must NOT admit orders.vb.generated.cs: {exact:?}"
+        );
+        // Case-insensitive (Windows paths).
+        let ci = paths("site/ORDERS.vb");
+        assert_eq!(
+            ci,
+            vec!["Site/orders.vb".to_string()],
+            "case-insensitive: {ci:?}"
+        );
+        // A directory scope still matches files beneath it.
+        let dir = paths("Site");
+        assert_eq!(
+            dir.len(),
+            2,
+            "a directory scope matches both files: {dir:?}"
         );
     }
 
