@@ -141,6 +141,66 @@ pub fn expand_path_scopes(graph: &GraphStore, project_id: &str, ql: &mut super::
     }
 }
 
+/// Round-8 P0-2: narrow same-terminal-name candidates by the question's
+/// qualifier tokens. A token that names a candidate's class segment or file
+/// stem EXACTLY (strength 2) outranks one that merely occurs inside a longer
+/// name (strength 1); only the strongest tier survives. When NO qualifier
+/// matches any candidate (best == 0) the input is returned UNCHANGED — the set
+/// stays ambiguous rather than collapsing to an arbitrary first element. This
+/// is the single narrowing used by BOTH the ambiguous branch and the server-cue
+/// promotion, so neither can silently pick the first of several implementations.
+pub fn narrow_by_qualifiers(cands: Vec<Node>, question: &str, text: &str) -> Vec<Node> {
+    let toks = qualifier_tokens(question, text);
+    if toks.is_empty() || cands.len() <= 1 {
+        return cands;
+    }
+    let scored: Vec<(u8, Node)> = cands
+        .into_iter()
+        .map(|n| {
+            let path = n.file_path.as_str().replace('\\', "/").to_lowercase();
+            let stem = path
+                .rsplit('/')
+                .next()
+                .unwrap_or("")
+                .split('.')
+                .next()
+                .unwrap_or("")
+                .to_string();
+            let segments: Vec<String> = n
+                .name
+                .to_lowercase()
+                .split(|c: char| c == '.' || c == ':')
+                .map(|s| s.to_string())
+                .collect();
+            let hay = format!("{path} {} {}", n.node_id, n.name).to_lowercase();
+            let strength = toks
+                .iter()
+                .map(|t| {
+                    if stem == *t || segments.iter().any(|s| s == t) {
+                        2
+                    } else if hay.contains(t.as_str()) {
+                        1
+                    } else {
+                        0
+                    }
+                })
+                .max()
+                .unwrap_or(0);
+            (strength, n)
+        })
+        .collect();
+    let best = scored.iter().map(|(s, _)| *s).max().unwrap_or(0);
+    if best == 0 {
+        // No qualifier distinguishes any candidate — preserve the whole set.
+        return scored.into_iter().map(|(_, n)| n).collect();
+    }
+    scored
+        .into_iter()
+        .filter(|(s, _)| *s == best)
+        .map(|(_, n)| n)
+        .collect()
+}
+
 /// "GetByID in the projekt DAL" → the `projekt` candidate only).
 /// `NotFound`/`Err` leaves it empty — a text-search-only entity, never a hard
 /// failure (the provider layer still searches by the raw text).
@@ -169,21 +229,43 @@ pub fn resolve_entities_in_context(
                 // deleteImage — should reach the server definition. Look up a
                 // same-terminal server (.vb/.cs/.asmx) function and prefer it.
                 if server_cue && !is_server_path(&n) {
-                    let srv: Option<Node> = graph
+                    // Round-8 P0-2: collect ALL backend implementations of this
+                    // name, not the first. If two classes share the terminal
+                    // name, `.find()` used to pick whichever the scan returned
+                    // first — a silent wrong answer. Select only when qualifiers
+                    // leave exactly one; otherwise PRESERVE the ambiguity as
+                    // branches so the caller sees more than one candidate.
+                    let backend: Vec<Node> = graph
                         .query_nodes_by_symbol_name(project_id, &m.text, None, 50)
                         .ok()
-                        .and_then(|nodes| {
-                            nodes.into_iter().find(|c| {
-                                is_server_path(c)
-                                    && matches!(
-                                        c.node_type.as_str(),
-                                        "function" | "method" | "sub" | "procedure"
-                                    )
-                            })
-                        });
-                    match srv {
-                        Some(s) => m.resolved = vec![node_to_resolved(&s, 0.8)],
-                        None => m.resolved = vec![node_to_resolved(&n, 0.9)],
+                        .map(|nodes| {
+                            nodes
+                                .into_iter()
+                                .filter(|c| {
+                                    is_server_path(c)
+                                        && matches!(
+                                            c.node_type.as_str(),
+                                            "function" | "method" | "sub" | "procedure"
+                                        )
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    if backend.is_empty() {
+                        m.resolved = vec![node_to_resolved(&n, 0.9)];
+                    } else {
+                        let narrowed = narrow_by_qualifiers(backend, question, &m.text);
+                        m.resolved = if narrowed.len() == 1 {
+                            vec![node_to_resolved(&narrowed[0], 0.8)]
+                        } else {
+                            // Ambiguous server implementations — surface them all
+                            // (bounded) at low confidence rather than guessing.
+                            narrowed
+                                .iter()
+                                .take(MAX_BRANCHES)
+                                .map(|nn| node_to_resolved(nn, 0.5))
+                                .collect()
+                        };
                     }
                 } else {
                     m.resolved = vec![node_to_resolved(&n, 0.9)];
@@ -203,57 +285,14 @@ pub fn resolve_entities_in_context(
                 } else {
                     v
                 };
-                let toks = qualifier_tokens(question, &m.text);
                 // Match STRENGTH (release 30 live, golden `ox_impact_4`): a qualifier
                 // that names a candidate's class or file stem EXACTLY outranks one
                 // that merely occurs inside a longer name — `projekt` is the class
                 // of `_gd.projekt.GetByID` / `projekt.vb` and only a substring of
-                // `installationsobjektprojekt`. The strongest tier alone survives.
-                let scored: Vec<(u8, &Node)> = if toks.is_empty() {
-                    Vec::new()
-                } else {
-                    v.iter()
-                        .filter_map(|n| {
-                            let path = n.file_path.as_str().replace('\\', "/").to_lowercase();
-                            let stem = path
-                                .rsplit('/')
-                                .next()
-                                .unwrap_or("")
-                                .split('.')
-                                .next()
-                                .unwrap_or("")
-                                .to_string();
-                            let segments: Vec<String> = n
-                                .name
-                                .to_lowercase()
-                                .split(|c: char| c == '.' || c == ':')
-                                .map(|s| s.to_string())
-                                .collect();
-                            let hay = format!("{path} {} {}", n.node_id, n.name).to_lowercase();
-                            let strength = toks
-                                .iter()
-                                .map(|t| {
-                                    if stem == *t || segments.iter().any(|s| s == t) {
-                                        2
-                                    } else if hay.contains(t.as_str()) {
-                                        1
-                                    } else {
-                                        0
-                                    }
-                                })
-                                .max()
-                                .unwrap_or(0);
-                            (strength > 0).then_some((strength, n))
-                        })
-                        .collect()
-                };
-                let best = scored.iter().map(|(s, _)| *s).max().unwrap_or(0);
-                let narrowed: Vec<&Node> = scored
-                    .iter()
-                    .filter(|(s, _)| *s == best)
-                    .map(|(_, n)| *n)
-                    .collect();
-                m.resolved = if !narrowed.is_empty() && narrowed.len() < v.len() {
+                // `installationsobjektprojekt`. Round-8 P0-2: this is now the
+                // shared narrow_by_qualifiers, identical to the server-cue path.
+                let narrowed = narrow_by_qualifiers(v.clone(), question, &m.text);
+                m.resolved = if narrowed.len() < v.len() && !narrowed.is_empty() {
                     let conf = if narrowed.len() == 1 { 0.8 } else { 0.5 };
                     narrowed
                         .iter()

@@ -147,3 +147,49 @@ fn substring_only_matches_still_narrow_when_nothing_matches_exactly() {
             .contains("installationsobjektprojekt")
     );
 }
+
+// ── Round-8 P0-2: narrow_by_qualifiers preserves ambiguity ────────────────
+
+#[test]
+fn no_qualifier_preserves_ambiguous_backends_not_first() {
+    use engram_server::services::ask_engine::resolver::narrow_by_qualifiers;
+    // Two backend implementations share the terminal name; the question names
+    // NO class/file qualifier — BOTH must survive. The server-cue path used to
+    // `.find()` the first, a silent wrong answer.
+    let cands = vec![
+        func("Site/App_Code/api-json/api-images.vb", "api.DeleteImage"),
+        func(
+            "Site/App_Code/handlers/imgHandler.vb",
+            "imgHandler.DeleteImage",
+        ),
+    ];
+    let out = narrow_by_qualifiers(cands, "who calls DeleteImage on the server", "DeleteImage");
+    assert_eq!(
+        out.len(),
+        2,
+        "no qualifier ⇒ ambiguity preserved: {:?}",
+        out.iter().map(|n| n.name.clone()).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn a_class_qualifier_selects_one_backend() {
+    use engram_server::services::ask_engine::resolver::narrow_by_qualifiers;
+    let cands = vec![
+        func("Site/App_Code/images/images.vb", "images.DeleteImage"),
+        func("Site/App_Code/handlers/handler.vb", "handler.DeleteImage"),
+    ];
+    // "images" (>=4 alphabetic) names the class segment of images.DeleteImage.
+    let out = narrow_by_qualifiers(
+        cands,
+        "the DeleteImage web method in the images class",
+        "DeleteImage",
+    );
+    assert_eq!(
+        out.len(),
+        1,
+        "{:?}",
+        out.iter().map(|n| n.name.clone()).collect::<Vec<_>>()
+    );
+    assert!(out[0].name.to_lowercase().starts_with("images."));
+}
