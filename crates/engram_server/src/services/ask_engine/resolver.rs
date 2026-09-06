@@ -150,31 +150,51 @@ pub fn resolve_entities_in_context(
     plan: &mut QueryPlan,
     question: &str,
 ) {
+    let ql = question.to_lowercase();
+    let server_cue = ql.contains("server")
+        || ql.contains("web method")
+        || ql.contains("webmethod")
+        || ql.contains("backend")
+        || ql.contains("implements")
+        || ql.contains(" vb ");
+    let is_server_path = |n: &Node| {
+        let p = n.file_path.as_str().to_lowercase();
+        p.ends_with(".vb") || p.ends_with(".cs") || p.ends_with(".asmx")
+    };
     for m in plan.entities.iter_mut() {
         match graph.resolve_symbol(project_id, &m.text, None, None) {
             Ok(ResolveResult::Unique(n)) => {
-                m.resolved = vec![node_to_resolved(&n, 0.9)];
+                // Round-7: a server cue on a CLIENT-only unique resolution —
+                // "who calls DeleteImage on the server" resolving to a TS
+                // deleteImage — should reach the server definition. Look up a
+                // same-terminal server (.vb/.cs/.asmx) function and prefer it.
+                if server_cue && !is_server_path(&n) {
+                    let srv: Option<Node> = graph
+                        .query_nodes_by_symbol_name(project_id, &m.text, None, 50)
+                        .ok()
+                        .and_then(|nodes| {
+                            nodes.into_iter().find(|c| {
+                                is_server_path(c)
+                                    && matches!(
+                                        c.node_type.as_str(),
+                                        "function" | "method" | "sub" | "procedure"
+                                    )
+                            })
+                        });
+                    match srv {
+                        Some(s) => m.resolved = vec![node_to_resolved(&s, 0.8)],
+                        None => m.resolved = vec![node_to_resolved(&n, 0.9)],
+                    }
+                } else {
+                    m.resolved = vec![node_to_resolved(&n, 0.9)];
+                }
             }
             Ok(ResolveResult::Ambiguous(v)) => {
-                // Round-7: a SERVER cue ("on the server", "web method",
-                // "implements") disambiguates a client/server name clash toward
-                // the server definition — DeleteImage resolves to the VB
-                // api.DeleteImage, not a same-named TS method. Only narrows when
-                // it strictly reduces the set (server candidates exist AND some
-                // candidate is client-side).
-                let ql = question.to_lowercase();
-                let server_cue = ql.contains("server")
-                    || ql.contains("web method")
-                    || ql.contains("webmethod")
-                    || ql.contains("backend")
-                    || ql.contains("implements")
-                    || ql.contains(" vb ");
-                let is_server = |n: &Node| {
-                    let p = n.file_path.as_str().to_lowercase();
-                    p.ends_with(".vb") || p.ends_with(".cs") || p.ends_with(".asmx")
-                };
+                // Round-7: a SERVER cue disambiguates a client/server name clash
+                // toward the server definition (DeleteImage → the VB
+                // api.DeleteImage). Only narrows when it strictly reduces the set.
                 let v: Vec<Node> = if server_cue {
-                    let srv: Vec<Node> = v.iter().filter(|n| is_server(n)).cloned().collect();
+                    let srv: Vec<Node> = v.iter().filter(|n| is_server_path(n)).cloned().collect();
                     if !srv.is_empty() && srv.len() < v.len() {
                         srv
                     } else {
