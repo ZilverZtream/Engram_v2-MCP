@@ -78,7 +78,16 @@ let req = new XMLHttpRequest();
 req.open('POST', '/api.asmx/getimg', true);
 "#;
     let (_, edges) = extract_js(Path::new("Site/Q/api/ajax.ts"), ts);
-    assert!(api_name_edges(&edges).is_empty());
+    // A URL route is NOT an api.ajax('name') NAME route: nothing carries the
+    // `api_name` transport (that is the distinction this test guards).
+    assert!(!edges.iter().any(|e| {
+        e.metadata
+            .as_ref()
+            .and_then(|m| m.get("ajax_transport"))
+            .map(String::as_str)
+            == Some("api_name")
+    }));
+    // It keeps its web_service endpoint edge (migration + endpoint-class use)...
     let url = edges
         .iter()
         .find(|e| e.kind == "api_call" && e.target_name == "api.asmx")
@@ -89,6 +98,14 @@ req.open('POST', '/api.asmx/getimg', true);
             .and_then(|m| m.get("ajax_target_method"))
             .map(String::as_str),
         Some("getimg")
+    );
+    // ...and (round-7 WebMethod-fetch fix) ALSO a distinct method-function edge
+    // so the served method resolves and multi-method-per-service calls don't
+    // collide — but via the ORIGINAL transport, not `api_name`.
+    assert!(
+        edges
+            .iter()
+            .any(|e| e.target_name == "getimg" && e.target_kind.as_deref() == Some("api_function"))
     );
 }
 
