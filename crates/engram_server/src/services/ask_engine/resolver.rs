@@ -156,6 +156,33 @@ pub fn resolve_entities_in_context(
                 m.resolved = vec![node_to_resolved(&n, 0.9)];
             }
             Ok(ResolveResult::Ambiguous(v)) => {
+                // Round-7: a SERVER cue ("on the server", "web method",
+                // "implements") disambiguates a client/server name clash toward
+                // the server definition — DeleteImage resolves to the VB
+                // api.DeleteImage, not a same-named TS method. Only narrows when
+                // it strictly reduces the set (server candidates exist AND some
+                // candidate is client-side).
+                let ql = question.to_lowercase();
+                let server_cue = ql.contains("server")
+                    || ql.contains("web method")
+                    || ql.contains("webmethod")
+                    || ql.contains("backend")
+                    || ql.contains("implements")
+                    || ql.contains(" vb ");
+                let is_server = |n: &Node| {
+                    let p = n.file_path.as_str().to_lowercase();
+                    p.ends_with(".vb") || p.ends_with(".cs") || p.ends_with(".asmx")
+                };
+                let v: Vec<Node> = if server_cue {
+                    let srv: Vec<Node> = v.iter().filter(|n| is_server(n)).cloned().collect();
+                    if !srv.is_empty() && srv.len() < v.len() {
+                        srv
+                    } else {
+                        v
+                    }
+                } else {
+                    v
+                };
                 let toks = qualifier_tokens(question, &m.text);
                 // Match STRENGTH (release 30 live, golden `ox_impact_4`): a qualifier
                 // that names a candidate's class or file stem EXACTLY outranks one
