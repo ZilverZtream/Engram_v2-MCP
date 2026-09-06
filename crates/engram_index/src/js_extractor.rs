@@ -184,6 +184,17 @@ fn split_service_url(raw_url: &str) -> (String, Option<String>) {
 /// functions). Matched case-insensitively by basename so `api.asmx`,
 /// `/api.asmx`, and a dir-prefixed `Q/api/api.asmx` all count. A distinct
 /// service such as `Services/MapData.asmx` is NOT the broker.
+///
+/// Round-8 P1-2 (known limit): this recognizes the broker by its FILENAME, not
+/// by resolving the ASMX's actual `Class=`/`CodeBehind=` exposure (a basename is
+/// not architecture evidence — the JS extractor has no cross-file view of the
+/// .asmx directive at extract time). The over-recognition is BOUNDED downstream:
+/// the post-ingest resolver only binds an api.asmx route to a function whose name
+/// starts with `api.` (see store.rs `is_api_routed`), so a project whose
+/// `api.asmx` does NOT front an `api` class produces an UNBOUND route that
+/// dangles visibly in the coverage proof rather than a silent false binding.
+/// Verifying the class exposure before routing is an architectural item scoped
+/// for a later round (doc 24).
 fn path_lower_eq_api_broker(path_part: &str) -> bool {
     let p = path_part.trim_start_matches('/').to_lowercase();
     p == "api.asmx" || p.ends_with("/api.asmx")
@@ -291,12 +302,20 @@ fn split_colliding_service_methods(edges: &mut [ExtractedEdge]) {
         if e.kind == "api_call" && is_service(e.target_kind.as_deref()) {
             if let Some(m) = method_of(e) {
                 if per_service.get(&e.target_name).is_some_and(|s| s.len() > 1) {
+                    // Round-8 P1-1: preserve SERVICE IDENTITY. Retargeting to the
+                    // bare method (`GetPolygons`) threw the service away, so two
+                    // services with a same-named method collided and generic
+                    // resolution could bind the wrong one. Use a service-route
+                    // identity `<service>/<method>` (kind `service_method`) so the
+                    // edges stay DISTINCT for dedup AND carry which service they
+                    // hit; the service and method also stay in metadata.
                     let service = e.target_name.clone();
                     if let Some(md) = e.metadata.as_mut() {
-                        md.insert("endpoint_service".into(), service);
+                        md.insert("endpoint_service".into(), service.clone());
+                        md.insert("target_type".into(), "service_method".into());
                     }
-                    e.target_name = m;
-                    e.target_kind = Some("api_function".to_string());
+                    e.target_name = format!("{service}/{m}");
+                    e.target_kind = Some("service_method".to_string());
                 }
             }
         }
@@ -2053,32 +2072,66 @@ mod tests {
 
     #[test]
     fn multi_method_on_one_service_gets_distinct_method_edges() {
-        // ox_causal_16 root cause: a file calling two methods on one service must
-        // keep BOTH — retargeted to their methods so dedup doesn't drop one.
+        // Round-8 P1-1: this must exercise split_colliding_service_methods, which
+        // fires ONLY on a NON-broker service (the api.asmx broker is routed to
+        // api_function BEFORE the split runs, so a /api.asmx test proved nothing).
+        // Two methods on Services/MapData.asmx must survive as DISTINCT edges,
+        // each a service-route identity that PRESERVES the service.
         let js = r#"
-            fetch("/api.asmx/getimg", { method: 'POST' });
-            fetch("/api.asmx/ConvertHeicToBase64String", { method: 'POST' });
+            $.ajax({ url: 'Services/MapData.asmx/GetPolygons', type: 'POST' });
+            $.ajax({ url: 'Services/MapData.asmx/GetRegions', type: 'POST' });
         "#;
-        let (_, edges) = extract_js(&test_path("imgHandler.ts"), js);
-        let methods: std::collections::HashSet<&str> = edges
+        let (_, edges) = extract_js(&test_path("map.js"), js);
+        let routes: std::collections::HashSet<&str> = edges
             .iter()
-            .filter(|e| e.kind == "api_call" && e.target_kind.as_deref() == Some("api_function"))
+            .filter(|e| e.kind == "api_call" && e.target_kind.as_deref() == Some("service_method"))
             .map(|e| e.target_name.as_str())
             .collect();
         assert!(
-            methods.contains("getimg") && methods.contains("ConvertHeicToBase64String"),
-            "both service methods survive as distinct method edges: {methods:?}"
+            routes.contains("Services/MapData.asmx/GetPolygons")
+                && routes.contains("Services/MapData.asmx/GetRegions"),
+            "both methods survive as distinct SERVICE-QUALIFIED routes: {routes:?}"
         );
-        // A SINGLE-method call to a DISTINCT service (not the api.asmx broker)
-        // is unchanged — it keeps its web_service target so endpoint-class
-        // disambiguation and the migration analyzer are untouched.
-        let single = r#"$.ajax({ url: 'Services/MapData.asmx/GetPolygons', type: 'POST' });"#;
+        // The service is preserved in metadata, not thrown away.
+        assert!(
+            edges.iter().any(
+                |e| e.metadata.as_ref().and_then(|m| m.get("endpoint_service"))
+                    == Some(&"Services/MapData.asmx".to_string())
+            ),
+            "endpoint_service metadata preserved: {edges:?}"
+        );
+        // A SINGLE-method call to a distinct service is unchanged — web_service.
+        let single = r#"$.ajax({ url: 'Services/LookupData.asmx/GetCities', type: 'POST' });"#;
         let (_, e2) = extract_js(&test_path("single.ts"), single);
         assert!(
             e2.iter()
                 .any(|e| e.target_kind.as_deref() == Some("web_service")
-                    && e.target_name == "Services/MapData.asmx"),
+                    && e.target_name == "Services/LookupData.asmx"),
             "single-method non-broker service keeps web_service target: {e2:?}"
+        );
+    }
+
+    #[test]
+    fn same_method_name_on_two_services_does_not_collide() {
+        // Round-8 P1-1: the bare-method retarget used to flatten `GetById` on two
+        // different services to the SAME target, so cross-service disambiguation
+        // was lost. Service-qualified routes keep them distinct.
+        let js = r#"
+            $.ajax({ url: 'Services/Orders.asmx/GetById', type: 'POST' });
+            $.ajax({ url: 'Services/Orders.asmx/GetAll', type: 'POST' });
+            $.ajax({ url: 'Services/Customers.asmx/GetById', type: 'POST' });
+            $.ajax({ url: 'Services/Customers.asmx/GetAll', type: 'POST' });
+        "#;
+        let (_, edges) = extract_js(&test_path("mixed.js"), js);
+        let routes: std::collections::HashSet<&str> = edges
+            .iter()
+            .filter(|e| e.target_kind.as_deref() == Some("service_method"))
+            .map(|e| e.target_name.as_str())
+            .collect();
+        assert!(
+            routes.contains("Services/Orders.asmx/GetById")
+                && routes.contains("Services/Customers.asmx/GetById"),
+            "same method name on two services stays DISTINCT (no cross-service collapse): {routes:?}"
         );
     }
 
@@ -2128,10 +2181,13 @@ mod tests {
         let fetch_js = r#"fetch('/api.asmx/DeleteImage', { method: 'POST' });"#;
         let (_, fe) = extract_js(&test_path("x.ts"), fetch_js);
         assert!(
-            fe.iter().any(|e| e.target_kind.as_deref() == Some("api_function")
-                && e.target_name == "DeleteImage"
-                && e.metadata.as_ref().and_then(|m| m.get("ajax_transport").map(|s| s.as_str()))
-                    == Some("api_name")),
+            fe.iter()
+                .any(|e| e.target_kind.as_deref() == Some("api_function")
+                    && e.target_name == "DeleteImage"
+                    && e.metadata
+                        .as_ref()
+                        .and_then(|m| m.get("ajax_transport").map(|s| s.as_str()))
+                        == Some("api_name")),
             "fetch to /api.asmx/DeleteImage routes to the DeleteImage function: {fe:?}"
         );
     }
