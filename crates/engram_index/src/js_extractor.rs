@@ -179,6 +179,16 @@ fn split_service_url(raw_url: &str) -> (String, Option<String>) {
     (url.to_string(), None)
 }
 
+/// True when a split service path is the `api.asmx` broker endpoint — the single
+/// ASMX that fronts the VB `api` class (its methods ARE `api.<method>`
+/// functions). Matched case-insensitively by basename so `api.asmx`,
+/// `/api.asmx`, and a dir-prefixed `Q/api/api.asmx` all count. A distinct
+/// service such as `Services/MapData.asmx` is NOT the broker.
+fn path_lower_eq_api_broker(path_part: &str) -> bool {
+    let p = path_part.trim_start_matches('/').to_lowercase();
+    p == "api.asmx" || p.ends_with("/api.asmx")
+}
+
 // ── Core extraction ─────────────────────────────────────────────────────────
 
 /// Extract ASP.NET-related edges from a JavaScript source file.
@@ -722,6 +732,43 @@ fn emit_ajax_edge(
     }
 
     let (path_part, method_part) = split_service_url(raw_url);
+
+    // Round-7 (ox_causal_16): the `api.asmx` broker is not a distinct service
+    // file — it is the single ASMX endpoint that fronts the VB `api` class, so
+    // `/api.asmx/<method>` names the `api.<method>` FUNCTION directly (getimg,
+    // DeleteImage, …). A raw XHR/fetch/jQuery call to it (e.g. ajax.ts's
+    // getImage wrapper: `req.open('POST','/api.asmx/getimg')`) must route to the
+    // method function, NOT the service node, so the caller is a graph caller of
+    // that function. Emit it as a broker api-name route (kind `api_function`,
+    // transport `api_name`) — the same shape the api.ajax('name') broker and the
+    // getImage-wrapper rule use, which the post-ingest resolver binds to the one
+    // `api.`-class candidate. The real wire transport is kept for provenance.
+    // Scoped to `api.asmx` alone: other .asmx services keep their web_service
+    // target (their methods are not `api.`-class functions, so the resolver's
+    // `starts_with("api.")` gate would not bind them anyway).
+    if path_lower_eq_api_broker(&path_part) {
+        if let Some(method) = method_part.as_ref() {
+            let mut meta = HashMap::with_capacity(6);
+            meta.insert("ajax_transport".into(), "api_name".into());
+            meta.insert("ajax_wire_transport".into(), transport.into());
+            meta.insert("ajax_url".into(), raw_url.to_string());
+            meta.insert("ajax_target_method".into(), method.clone());
+            meta.insert("target_type".into(), "api_function".into());
+            meta.insert("via".into(), "asmx_broker".into());
+            edges.push(ExtractedEdge {
+                source_name: "file".to_string(),
+                source_kind: "file".to_string(),
+                source_start_line: line,
+                source_language: "javascript".to_string(),
+                target_name: method.clone(),
+                target_kind: Some("api_function".to_string()),
+                target_start_line: None,
+                kind: "api_call".to_string(),
+                metadata: Some(meta),
+            });
+            return;
+        }
+    }
 
     // Determine target_kind from path extension
     let path_lower = path_part.to_lowercase();
@@ -2022,14 +2069,70 @@ mod tests {
             methods.contains("getimg") && methods.contains("ConvertHeicToBase64String"),
             "both service methods survive as distinct method edges: {methods:?}"
         );
-        // A SINGLE-method service is unchanged — keeps its web_service target.
-        let single = r#"fetch("/api.asmx/getimg", { method: 'POST' });"#;
+        // A SINGLE-method call to a DISTINCT service (not the api.asmx broker)
+        // is unchanged — it keeps its web_service target so endpoint-class
+        // disambiguation and the migration analyzer are untouched.
+        let single = r#"$.ajax({ url: 'Services/MapData.asmx/GetPolygons', type: 'POST' });"#;
         let (_, e2) = extract_js(&test_path("single.ts"), single);
         assert!(
             e2.iter()
                 .any(|e| e.target_kind.as_deref() == Some("web_service")
-                    && e.target_name == "api.asmx"),
-            "single-method service keeps web_service target: {e2:?}"
+                    && e.target_name == "Services/MapData.asmx"),
+            "single-method non-broker service keeps web_service target: {e2:?}"
+        );
+    }
+
+    #[test]
+    fn api_asmx_broker_call_routes_to_method_function() {
+        // ox_causal_16: ajax.ts's getImage wrapper does a RAW XHR POST to
+        // `/api.asmx/getimg`. `/api.asmx` is the BROKER for the VB `api` class —
+        // every <WebMethod> is served at `/api.asmx/<method>` and the method
+        // segment directly names the `api.<method>` FUNCTION, not a distinct
+        // service file. A broker call must therefore route to the method
+        // function (kind api_function, transport `api_name` so the post-ingest
+        // resolver binds it to the single `api.`-class candidate) — for EVERY
+        // wire transport, so ajax.ts itself is a graph caller of getimg. This
+        // generalizes the getImage-wrapper special case to raw XHR/fetch/jQuery.
+        let xhr = r#"
+            let req = new XMLHttpRequest();
+            req.open('POST', '/api.asmx/getimg', true);
+            req.send(body);
+        "#;
+        let (_, edges) = extract_js(&test_path("Site/Q/api/ajax.ts"), xhr);
+        let hit = edges.iter().find(|e| {
+            e.kind == "api_call"
+                && e.target_kind.as_deref() == Some("api_function")
+                && e.target_name == "getimg"
+        });
+        assert!(
+            hit.is_some(),
+            "raw XHR to /api.asmx/getimg routes to the getimg function: {edges:?}"
+        );
+        let meta = hit.unwrap().metadata.as_ref().unwrap();
+        assert_eq!(
+            meta.get("ajax_transport").map(|s| s.as_str()),
+            Some("api_name"),
+            "broker route uses api_name transport so the resolver binds api.getimg"
+        );
+        assert_eq!(
+            meta.get("ajax_wire_transport").map(|s| s.as_str()),
+            Some("xhr"),
+            "the real wire transport is preserved for provenance"
+        );
+        assert_eq!(
+            meta.get("ajax_target_method").map(|s| s.as_str()),
+            Some("getimg")
+        );
+
+        // Same routing for fetch and jQuery to the api.asmx broker.
+        let fetch_js = r#"fetch('/api.asmx/DeleteImage', { method: 'POST' });"#;
+        let (_, fe) = extract_js(&test_path("x.ts"), fetch_js);
+        assert!(
+            fe.iter().any(|e| e.target_kind.as_deref() == Some("api_function")
+                && e.target_name == "DeleteImage"
+                && e.metadata.as_ref().and_then(|m| m.get("ajax_transport").map(|s| s.as_str()))
+                    == Some("api_name")),
+            "fetch to /api.asmx/DeleteImage routes to the DeleteImage function: {fe:?}"
         );
     }
 
