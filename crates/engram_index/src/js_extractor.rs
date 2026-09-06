@@ -232,10 +232,65 @@ pub fn extract_js(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
     extract_gis_layer_inventory(source, &line_starts, &file_name, &mut edges, &mut syms);
     extract_esri_arcgis(source, &line_starts, &file_name, &mut edges, &mut syms);
 
+    // Round-7 (ox_causal_16): split a service target that this file calls with
+    // MORE THAN ONE method, so dedup below does not collapse them and lose all
+    // but one method.
+    split_colliding_service_methods(&mut edges);
+
     // Deduplicate: same (source, target, kind) triple should only appear once.
     dedup_edges(&mut edges);
 
     (syms, edges)
+}
+
+/// A file that calls SEVERAL methods on ONE service produces api_call edges all
+/// keyed (source, service) — `dedup_edges` would collapse them to one, losing
+/// every method but one (imgHandler.ts's `getimg` call was clobbered by
+/// `ConvertHeicToBase64String`, so imgHandler stopped being a caller of getimg).
+///
+/// When a service target carries 2+ DISTINCT methods for this file, retarget
+/// each of that service's edges to its served method (kind `api_function`), so
+/// they survive as distinct edges and resolve to the served functions. A
+/// single-method service keeps its web_service target — class disambiguation
+/// and the migration analyzer are untouched for the common case.
+fn split_colliding_service_methods(edges: &mut [ExtractedEdge]) {
+    let is_service = |k: Option<&str>| {
+        matches!(
+            k,
+            Some("web_service" | "wcf_service" | "http_handler" | "page")
+        )
+    };
+    let method_of = |e: &ExtractedEdge| -> Option<String> {
+        e.metadata
+            .as_ref()
+            .and_then(|m| m.get("ajax_target_method"))
+            .cloned()
+    };
+    let mut per_service: HashMap<String, std::collections::HashSet<String>> = HashMap::new();
+    for e in edges.iter() {
+        if e.kind == "api_call" && is_service(e.target_kind.as_deref()) {
+            if let Some(m) = method_of(e) {
+                per_service
+                    .entry(e.target_name.clone())
+                    .or_default()
+                    .insert(m);
+            }
+        }
+    }
+    for e in edges.iter_mut() {
+        if e.kind == "api_call" && is_service(e.target_kind.as_deref()) {
+            if let Some(m) = method_of(e) {
+                if per_service.get(&e.target_name).is_some_and(|s| s.len() > 1) {
+                    let service = e.target_name.clone();
+                    if let Some(md) = e.metadata.as_mut() {
+                        md.insert("endpoint_service".into(), service);
+                    }
+                    e.target_name = m;
+                    e.target_kind = Some("api_function".to_string());
+                }
+            }
+        }
+    }
 }
 
 /// Check if a file extension should have the JS bridge extractor run on it.
@@ -1946,6 +2001,35 @@ mod tests {
         assert_eq!(
             meta.get("ajax_transport").map(|s| s.as_str()),
             Some("api_name")
+        );
+    }
+
+    #[test]
+    fn multi_method_on_one_service_gets_distinct_method_edges() {
+        // ox_causal_16 root cause: a file calling two methods on one service must
+        // keep BOTH — retargeted to their methods so dedup doesn't drop one.
+        let js = r#"
+            fetch("/api.asmx/getimg", { method: 'POST' });
+            fetch("/api.asmx/ConvertHeicToBase64String", { method: 'POST' });
+        "#;
+        let (_, edges) = extract_js(&test_path("imgHandler.ts"), js);
+        let methods: std::collections::HashSet<&str> = edges
+            .iter()
+            .filter(|e| e.kind == "api_call" && e.target_kind.as_deref() == Some("api_function"))
+            .map(|e| e.target_name.as_str())
+            .collect();
+        assert!(
+            methods.contains("getimg") && methods.contains("ConvertHeicToBase64String"),
+            "both service methods survive as distinct method edges: {methods:?}"
+        );
+        // A SINGLE-method service is unchanged — keeps its web_service target.
+        let single = r#"fetch("/api.asmx/getimg", { method: 'POST' });"#;
+        let (_, e2) = extract_js(&test_path("single.ts"), single);
+        assert!(
+            e2.iter()
+                .any(|e| e.target_kind.as_deref() == Some("web_service")
+                    && e.target_name == "api.asmx"),
+            "single-method service keeps web_service target: {e2:?}"
         );
     }
 
