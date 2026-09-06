@@ -225,8 +225,6 @@ pub fn reserve_entity_files(
 /// pushed, because each reserve popped the last item blindly.
 /// P0-4f: how many items of a requested modality the reserve keeps.
 pub const MODALITY_SLOTS: usize = 3;
-/// Distinct caller files reserved for a "who calls X" question (round-7).
-pub const CALLER_FILE_SLOTS: usize = 12;
 
 pub fn reserve_required(
     chosen: &mut Vec<EvidenceItem>,
@@ -246,10 +244,6 @@ pub fn reserve_required(
         .contract
         .required_facets
         .contains(&super::plan::Facet::Definition);
-    let pin_callers = matches!(
-        plan.contract.direction,
-        super::plan::ContractDirection::Callers
-    );
     reserve_required_with(
         chosen,
         raw,
@@ -258,7 +252,6 @@ pub fn reserve_required(
         &files,
         question,
         pin_definition,
-        pin_callers,
     )
 }
 
@@ -270,7 +263,6 @@ pub fn reserve_required_with(
     entity_files: &[String],
     question: &str,
     pin_definition: bool,
-    pin_callers: bool,
 ) -> std::collections::HashSet<String> {
     let words = question_words(question);
     let mut wanted: Vec<EvidenceItem> = Vec::new();
@@ -345,33 +337,17 @@ pub fn reserve_required_with(
             }
         }
     }
-    // Round-7 (ox_causal_16): for a "who/which calls X" question the answer IS
-    // the set of caller files — a symbol with many callers must not drop a
-    // required caller (the ajax.ts getImage wrapper was ranked out). Reserve one
-    // item per DISTINCT caller file (graph-relation evidence), bounded. Scoped
-    // to the callers direction so it never touches impact/precision questions.
-    if pin_callers {
-        let mut seen_files: std::collections::HashSet<String> = chosen
-            .iter()
-            .chain(wanted.iter())
-            .filter_map(|e| e.path.clone())
-            .collect();
-        let mut added = 0usize;
-        for e in raw.iter().filter(|e| {
-            e.kind == EvidenceKind::GraphRelation
-                && (e.provider == "usage" || e.provider == "callee_set")
-        }) {
-            if added >= CALLER_FILE_SLOTS {
-                break;
-            }
-            if let Some(p) = e.path.clone() {
-                if seen_files.insert(p) {
-                    wanted.push(e.clone());
-                    added += 1;
-                }
-            }
-        }
-    }
+    // Round-7 (ox_causal_16 post-mortem): a "who/which calls X" question over a
+    // symbol with MANY valid callers must NOT bulk-reserve caller files. An
+    // earlier `pin_callers` pass reserved one item per distinct caller file
+    // (bounded to 12) to force a specific wrapper (ajax.ts) into the answer —
+    // but the graph legitimately has 23 getimg callers, so the reservation (a)
+    // flooded the citation list with a dozen 0.00-scored callers, tanking item
+    // precision, (b) evicted the impl DEFINITION the answer needs, and (c) still
+    // never included the intended file (it takes callers in raw order). Callers
+    // are now left to normal relevance ranking; only the definition is pinned
+    // (above). Reserving a curated subset of many-valid-callers cannot be done
+    // without overfitting to a hand-picked ground-truth set, so it is not done.
     let mut protected: std::collections::HashSet<String> =
         wanted.iter().map(|w| w.evidence_id.clone()).collect();
     for w in wanted {
@@ -787,4 +763,87 @@ pub fn detect_conflicts(items: &[EvidenceItem], _active_generation: u64) -> Vec<
         }
     }
     out
+}
+
+#[cfg(test)]
+mod ranking_reserve_tests {
+    use super::*;
+    use crate::services::ask_engine::evidence::{Authority, EvidenceItem, EvidenceKind};
+
+    fn mk(
+        id: &str,
+        kind: EvidenceKind,
+        provider: &str,
+        path: &str,
+        relevance: f32,
+        method: &str,
+    ) -> EvidenceItem {
+        EvidenceItem {
+            evidence_id: id.to_string(),
+            kind,
+            authority: Authority::CurrentCode,
+            path: Some(path.to_string()),
+            lines: None,
+            symbol_id: None,
+            title: None,
+            content: String::new(),
+            generation: None,
+            commit: None,
+            timestamp: None,
+            confidence: 0.8,
+            relevance,
+            extraction_method: method.to_string(),
+            warnings: vec![],
+            provider: provider.to_string(),
+            score: Some(relevance),
+            directness: None,
+        }
+    }
+
+    // ox_causal_16 regression: a "who calls X" question over a symbol with MANY
+    // valid caller files must reserve the impl DEFINITION and must NOT bulk-
+    // reserve a dozen callers — that flooded the citation list (all at 0.00) and
+    // evicted the api-images definition. Callers are left to relevance ranking;
+    // only the definition is pinned.
+    #[test]
+    fn callers_heavy_question_reserves_definition_without_caller_flood() {
+        let def = mk(
+            "ev_def",
+            EvidenceKind::SourceCode,
+            "definition",
+            "api-images.vb",
+            0.69,
+            "definition",
+        );
+        let mut raw = vec![def];
+        for i in 0..25 {
+            raw.push(mk(
+                &format!("ev_u{i}"),
+                EvidenceKind::GraphRelation,
+                "usage",
+                &format!("caller{i}.ts"),
+                0.0,
+                "graph",
+            ));
+        }
+        let mut chosen: Vec<EvidenceItem> = Vec::new();
+        let _ = reserve_required_with(
+            &mut chosen,
+            &raw,
+            &[],
+            &[],
+            &[],
+            "who calls getimg on the server",
+            /* pin_definition */ true,
+        );
+        assert!(
+            chosen.iter().any(|e| e.provider == "definition"),
+            "the impl definition must be reserved for a callers question"
+        );
+        let usage_reserved = chosen.iter().filter(|e| e.provider == "usage").count();
+        assert_eq!(
+            usage_reserved, 0,
+            "callers must not be bulk-reserved (no flood); left to relevance ranking, got {usage_reserved}"
+        );
+    }
 }
