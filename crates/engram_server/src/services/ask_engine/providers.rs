@@ -870,39 +870,30 @@ pub fn exhaustive_callee_set_with_caps(
     sources.push((format!("file:{norm}"), stem));
     proof.sources_processed = sources.len().saturating_sub(1);
     for (src_id, src_name) in &sources {
-        // Round-8 P0-3: route PROVENANCE. The adjacency walk yields only
-        // (target, weight); a mediated api_call (a `getImage` wrapper, the
-        // api.asmx broker) carries a `via`/endpoint in its EDGE metadata that
-        // says it is NOT a direct call. Fetch the source's outgoing api_call
-        // edges once so a mediated hop can be labelled honestly rather than
-        // rendered as "calls X" like a direct call.
-        let via_map: std::collections::HashMap<String, String> = graph
-            .edges_touching(project_id, src_id, neighbor_cap + 1)
-            .unwrap_or_default()
-            .into_iter()
-            .filter(|e| e.source_id == *src_id && e.edge_kind == EdgeKind::ApiCall)
-            .filter_map(|e| {
-                let m = e.metadata.as_ref()?;
-                let via = m.get("via").and_then(|v| v.as_str())?;
-                let label = match m.get("ajax_url").and_then(|v| v.as_str()) {
-                    Some(url) => format!("{via} (→ {url})"),
-                    None => via.to_string(),
-                };
-                Some((e.target_id.clone(), label))
-            })
-            .collect();
         for kind in kinds.iter().cloned() {
-            let nbrs = match graph.neighbors(project_id, kind.clone(), src_id, neighbor_cap + 1) {
-                Ok(n) => n,
+            // Round-8 re-audit P0-3: EDGE-FIRST. Take the source's full outgoing
+            // edges of THIS kind — route `via` provenance travels on the same
+            // edge object, so it can never be lost by a separate lossy metadata
+            // join (which silently dropped provenance on a graph error or a
+            // shared-across-kinds cap). A graph error is COUNTED, not swallowed;
+            // truncation is recorded — the coverage proof stays honest.
+            let (edges, truncated) = match graph.outgoing_edges_of_kind(
+                project_id,
+                kind.clone(),
+                src_id,
+                neighbor_cap,
+            ) {
+                Ok(v) => v,
                 Err(_) => {
                     proof.graph_errors += 1;
                     continue;
                 }
             };
-            if nbrs.len() > neighbor_cap {
+            if truncated {
                 proof.neighbor_cap_hits += 1;
             }
-            for (target, _weight) in nbrs.into_iter().take(neighbor_cap) {
+            for edge in edges {
+                let target = edge.target_id.clone();
                 walked += 1;
                 if !seen.insert(target.clone()) {
                     continue;
@@ -926,8 +917,14 @@ pub fn exhaustive_callee_set_with_caps(
                 if tl.ends_with(".d.ts") || tl.contains("/typings/") {
                     continue;
                 }
-                // Round-8 P0-3: name a mediated hop as mediated, not direct.
-                let via = via_map.get(&target).cloned();
+                // Round-8 P0-3: provenance from the SAME edge — never a lossy join.
+                let via = edge.metadata.as_ref().and_then(|m| {
+                    let v = m.get("via").and_then(|x| x.as_str())?;
+                    Some(match m.get("ajax_url").and_then(|x| x.as_str()) {
+                        Some(url) => format!("{v} (→ {url})"),
+                        None => v.to_string(),
+                    })
+                });
                 let mut content = match &via {
                     Some(v) => format!(
                         "{src_name} calls {} ({}) VIA {} — NOT a direct call; defined in {}",
