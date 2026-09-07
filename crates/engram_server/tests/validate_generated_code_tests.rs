@@ -285,7 +285,9 @@ fn change_kind_typo_is_rejected_not_coerced_to_modify() {
     );
     // missing change_kind is fine — it defaults to modify.
     let v2 = json!({"project_id": "p", "code": "x", "language": "vb"});
-    assert!(serde_json::from_value::<engram_server::models::ValidateGeneratedCodeRequest>(v2).is_ok());
+    assert!(
+        serde_json::from_value::<engram_server::models::ValidateGeneratedCodeRequest>(v2).is_ok()
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -351,7 +353,8 @@ async fn handler_fake_table_in_expected_does_not_earn_verified_pass() {
         "a fake table listed in expected_tables must NOT earn PASS:\n{out}"
     );
     assert!(
-        out.contains("zz_auditor_table_that_does_not_exist") && out.contains("NOT in the project schema"),
+        out.contains("zz_auditor_table_that_does_not_exist")
+            && out.contains("NOT in the project schema"),
         "the fake table must be flagged as NOT in the schema, not laundered into Verified:\n{out}"
     );
 }
