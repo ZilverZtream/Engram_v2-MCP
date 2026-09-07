@@ -7,7 +7,9 @@
 use engram_core::RelPath;
 use engram_core::config::Config;
 use engram_graph::{Edge, EdgeKind, Node};
-use engram_server::services::ask_engine::providers::exhaustive_callee_set;
+use engram_server::services::ask_engine::providers::{
+    exhaustive_callee_set, exhaustive_callee_set_with_caps,
+};
 use engram_server::state::AppState;
 use serde_json::json;
 
@@ -169,4 +171,68 @@ fn a_direct_api_call_has_no_via_and_reads_plainly() {
         "a direct call must carry no via provenance"
     );
     assert_eq!(m.relation, "api_call");
+}
+
+#[test]
+fn provenance_survives_and_truncation_is_recorded_under_a_small_cap() {
+    // Round-8 re-audit P0-3: edge-first means the `via` provenance rides on the
+    // same edge (never lost to a separate join), AND a cap that drops edges is
+    // RECORDED in the coverage proof — coverage can never claim "complete" while
+    // silently dropping a mediated hop.
+    let (_tmp, state) = state();
+    let g = &state.graph;
+    let caller = node("file:Site/ts/many.ts", "file", "many.ts", "Site/ts/many.ts");
+    let mut nodes = vec![caller];
+    let mut edges = Vec::new();
+    for i in 0..3 {
+        let tid = format!("sym:function:api-{i}.vb:api.m{i}:1");
+        nodes.push(node(
+            &tid,
+            "function",
+            &format!("api.m{i}"),
+            &format!("Site/api-{i}.vb"),
+        ));
+        edges.push(Edge {
+            source_id: "file:Site/ts/many.ts".into(),
+            target_id: tid,
+            namespace: "memory".into(),
+            language: "javascript".into(),
+            edge_kind: EdgeKind::ApiCall,
+            weight: (10 - i) as u32,
+            generation: 1,
+            metadata: Some(json!({"via": "getImage_wrapper", "ajax_url": "/api.asmx/getimg"})),
+            updated_at_ms: 0,
+        });
+    }
+    g.upsert_nodes(PID, &nodes).unwrap();
+    g.upsert_edges(PID, &edges).unwrap();
+    let mut id = 0usize;
+    // neighbor_cap = 1: two of the three api_call edges are dropped.
+    let (items, members, _cov, proof) = exhaustive_callee_set_with_caps(
+        g,
+        None,
+        PID,
+        "Site/ts/many.ts",
+        &[EdgeKind::ApiCall],
+        500,
+        1,
+        &mut id,
+    );
+    assert!(
+        proof.neighbor_cap_hits > 0,
+        "the cap that dropped edges must be recorded: {proof:?}"
+    );
+    assert!(
+        members.iter().any(|m| m.via.is_some()),
+        "returned mediated hops keep their via provenance"
+    );
+    let text = items
+        .iter()
+        .map(|i| i.content.clone())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        text.contains("VIA getImage_wrapper"),
+        "provenance rendered:\n{text}"
+    );
 }

@@ -45,10 +45,42 @@ pub fn resolve_entities(graph: &GraphStore, project_id: &str, plan: &mut QueryPl
     resolve_entities_in_context(graph, project_id, plan, "");
 }
 
-const QUALIFIER_STOPWORDS: [&str; 24] = [
-    "what", "would", "break", "where", "which", "when", "does", "stopped", "calling", "defined",
-    "used", "from", "with", "that", "this", "into", "file", "files", "code", "still", "change",
-    "changed", "happens", "should",
+const QUALIFIER_STOPWORDS: [&str; 33] = [
+    "what",
+    "would",
+    "break",
+    "where",
+    "which",
+    "when",
+    "does",
+    "stopped",
+    "calling",
+    "defined",
+    "used",
+    "from",
+    "with",
+    "that",
+    "this",
+    "into",
+    "file",
+    "files",
+    "code",
+    "still",
+    "change",
+    "changed",
+    "happens",
+    "should",
+    // Round-8 P1-2: server-cue and generic call words are NOT disambiguators —
+    // they must not be matched as qualifiers against incidental directory names.
+    "server",
+    "backend",
+    "calls",
+    "call",
+    "method",
+    "methods",
+    "implements",
+    "webmethod",
+    "function",
 ];
 
 /// The question's qualifier words: alphabetic tokens (≥ 4 letters) that are
@@ -235,37 +267,60 @@ pub fn resolve_entities_in_context(
                     // first — a silent wrong answer. Select only when qualifiers
                     // leave exactly one; otherwise PRESERVE the ambiguity as
                     // branches so the caller sees more than one candidate.
-                    let backend: Vec<Node> = graph
-                        .query_nodes_by_symbol_name(project_id, &m.text, None, 50)
-                        .ok()
-                        .map(|nodes| {
-                            nodes
+                    // Round-8 re-audit P1-2: discovery must be HONEST about its
+                    // limits. Query cap+1 so truncation is detectable, and treat
+                    // a lookup ERROR as "unknown" — a unique server pick is only
+                    // asserted when discovery SUCCEEDED and was NOT truncated.
+                    const BACKEND_CAP: usize = 50;
+                    let is_server_fn = |c: &Node| {
+                        is_server_path(c)
+                            && matches!(
+                                c.node_type.as_str(),
+                                "function" | "method" | "sub" | "procedure"
+                            )
+                    };
+                    match graph.query_nodes_by_symbol_name(
+                        project_id,
+                        &m.text,
+                        None,
+                        BACKEND_CAP + 1,
+                    ) {
+                        Err(_) => {
+                            // Discovery FAILED — we cannot know whether a server
+                            // implementation exists. Do NOT assert the client
+                            // symbol as a unique answer; keep it at LOW confidence.
+                            m.resolved = vec![node_to_resolved(&n, 0.4)];
+                        }
+                        Ok(all) => {
+                            let truncated = all.len() > BACKEND_CAP;
+                            let backend: Vec<Node> = all
                                 .into_iter()
-                                .filter(|c| {
-                                    is_server_path(c)
-                                        && matches!(
-                                            c.node_type.as_str(),
-                                            "function" | "method" | "sub" | "procedure"
-                                        )
-                                })
-                                .collect()
-                        })
-                        .unwrap_or_default();
-                    if backend.is_empty() {
-                        m.resolved = vec![node_to_resolved(&n, 0.9)];
-                    } else {
-                        let narrowed = narrow_by_qualifiers(backend, question, &m.text);
-                        m.resolved = if narrowed.len() == 1 {
-                            vec![node_to_resolved(&narrowed[0], 0.8)]
-                        } else {
-                            // Ambiguous server implementations — surface them all
-                            // (bounded) at low confidence rather than guessing.
-                            narrowed
-                                .iter()
-                                .take(MAX_BRANCHES)
-                                .map(|nn| node_to_resolved(nn, 0.5))
-                                .collect()
-                        };
+                                .take(BACKEND_CAP)
+                                .filter(is_server_fn)
+                                .collect();
+                            if backend.is_empty() {
+                                // No server candidate. If discovery was complete the
+                                // client resolution stands; if truncated we can't be
+                                // sure, so lower the confidence.
+                                let conf = if truncated { 0.5 } else { 0.9 };
+                                m.resolved = vec![node_to_resolved(&n, conf)];
+                            } else {
+                                let narrowed = narrow_by_qualifiers(backend, question, &m.text);
+                                m.resolved = if narrowed.len() == 1 && !truncated {
+                                    // A confident UNIQUE server pick ONLY when
+                                    // discovery was complete AND qualifiers left one.
+                                    vec![node_to_resolved(&narrowed[0], 0.8)]
+                                } else {
+                                    // Multiple candidates OR an incomplete scan —
+                                    // preserve ambiguity, never assert unique.
+                                    narrowed
+                                        .iter()
+                                        .take(MAX_BRANCHES)
+                                        .map(|nn| node_to_resolved(nn, 0.5))
+                                        .collect()
+                                };
+                            }
+                        }
                     }
                 } else {
                     m.resolved = vec![node_to_resolved(&n, 0.9)];
