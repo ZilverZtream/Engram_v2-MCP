@@ -29,21 +29,40 @@ preserved" is true at the extractor and in the graph's distinctness, but NOT
 end-to-end to an implementation. That connection is part of the unified route
 model below, not claimed as done.
 
-## The unified route/endpoint model — scoped, not deferred-with-a-false-excuse
+## The unified route/endpoint model — BUILT + SHIPPED (ruling item 2)
 
-The auditor's ruling item 2 asks for ONE route/endpoint model covering ASMX,
-service methods, wrappers, and implementation exposure — resolving
-`Class=`/`CodeBehind=` first rather than special-casing filenames. This round
-closed the SAFETY and HONESTY holes at each layer (no silent mis-bind; provenance
-that cannot silently vanish; discovery that will not assert unique on an
-incomplete/failed scan; a fabricated PASS that can no longer be earned). The
-single typed `client-call → route → exposed-class → implementation` model — with
-`Class=` resolution replacing the api.asmx filename special-case (P0-2 root) and
-the hardcoded getImage rule (P0-3(b) root), and connecting `service_method`
-routes to their impls (P1-1) — is a genuine cross-crate feature. It is named here
-as the next build, with the prior false "bounded" rationale now actually made
-true, so it is a real design choice for the owner — not a hole hidden behind a
-wrong claim.
+The auditor's ruling item 2 asked for ONE route/endpoint model resolving the
+.asmx's `Class=`/`CodeBehind=` rather than special-casing filenames. BUILT
+(feat commit + live-verified, gen 984; see 25-unified-model-evidence):
+
+- The api.asmx **filename special-case is REMOVED** (`path_lower_eq_api_broker`
+  deleted). Every `<service>.asmx/<method>` call — api.asmx included — emits a
+  normal web_service route; the resolver binds it to the served function of the
+  class the .asmx DECLARES, via `exposes` keyed by service NAME (so a client
+  route target that is a different node than the .asmx markup node still binds by
+  the declared class). Test `asmx_route_binds_via_declared_class_not_filename`
+  proves the DECLARED class wins over the filename, with a decoy so only that
+  path can resolve it.
+- The getImage wrapper now emits the SAME `service_method` route shape and
+  resolves through the declared class too (no hardcoded api_function target). The
+  getimg CONSTANT is still hardcoded in that one rule — deriving it from the
+  wrapper body is the residual P0-3(b), now the ONLY route-model item left.
+- `service_method` routes (P1-1) resolve to the impl through the declared class.
+
+Live canary PASSES: getimg resolves via the declared Class= path (10 caller
+edges, ajax.ts among them); ox_causal_20 returns all 16 API functions with a
+VIA-labelled mediated hop. Golden 23/35 and blind 6/8 held.
+
+**Causal 16→15 (owner-ratified ship).** One borderline row, ox_causal_19
+("which frontend code depends on ConvertHeicToBase64String?"), dipped to item
+precision 0.30. It is NOT a model defect: the model cites all THREE real frontend
+callers (fbinstplan.js, imgHandler.ts, imgManager.js — verified in source) plus
+the impl, but the row's `required_all` lists only two of them, so the EXTRA
+CORRECT citations count against precision, and the semantic code arm adds
+wrong-modality `.vb` backend files to a `.ts`-frontend question. The answer is
+MORE correct, not less. Per the re-audit's own "fix invariants, stop chasing eval
+rows," the owner ratified shipping the correct model at causal 15 rather than
+hiding real callers to hold a narrow curated row.
 
 ## Verification obligation
 
