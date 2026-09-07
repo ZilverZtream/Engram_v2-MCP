@@ -3055,6 +3055,22 @@ pub struct PrepareImplementationContextRequest {
 
 // ── Phase 38-6: validate_generated_code ───────────────────────────────────────
 
+/// Round-8 P1-3: a STRICT change kind. Missing ⇒ `modify` (the safe default: a
+/// modification must be verified against an existing file). Any OTHER value —
+/// including a typo like `modfiy` — is REJECTED at deserialization, never
+/// silently coerced to modify (which used to bypass the modify-needs-a-target
+/// gate and grant PASS).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, JsonSchema, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum ChangeKind {
+    /// The file must already exist in the index.
+    #[default]
+    Modify,
+    /// A new file — absence from the index is expected, and a target that
+    /// ALREADY exists is an error.
+    Create,
+}
+
 /// Validate generated/modified code against the project's extracted knowledge:
 /// SQL validity, VB trap avoidance, state key consistency, SP call correctness,
 /// control ID validity, caller compatibility, and sync hazard introduction.
@@ -3070,12 +3086,11 @@ pub struct ValidateGeneratedCodeRequest {
     /// The file path this code is intended for (used for context resolution).
     #[serde(default)]
     pub target_file: Option<String>,
-    /// Round-6: whether the target is being modified or newly created.
-    /// "modify" (default) — the file must already exist in the index;
-    /// "create" — a new file is expected to be absent, so absence is not a
-    /// failure. Any other value is treated as "modify".
+    /// Round-6/8: whether the target is being modified or newly created.
+    /// `modify` (default) — the file must already exist in the index; `create` —
+    /// a new file, absent from the index. A typo/unknown value is REJECTED.
     #[serde(default)]
-    pub change_kind: Option<String>,
+    pub change_kind: ChangeKind,
     /// The method name being replaced/modified (used for caller compatibility check).
     #[serde(default)]
     pub original_method_name: Option<String>,

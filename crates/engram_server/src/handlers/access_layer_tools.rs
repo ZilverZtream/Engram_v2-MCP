@@ -4336,21 +4336,18 @@ impl Engram {
         let expected_sps = req.expected_sps.clone();
         let expected_session_keys = req.expected_session_keys.clone();
         let expected_control_ids = req.expected_control_ids.clone();
-        let change_kind = req.change_kind.clone();
+        let change_kind = req.change_kind;
         let output_json = req.output_json;
 
         let result = tokio::task::spawn_blocking(move || {
             let mut checks: Vec<ValidationCheck> = Vec::new();
             let is_vb = language.starts_with("vb");
 
-            // Round-6 (Check 0): resolve the target against the index EXACTLY.
-            // query_nodes matches by SUBSTRING, so a fragment must not satisfy
-            // existence; a graph failure must not masquerade as "nonexistent";
-            // and a genuine new-file create must not be auto-failed.
-            let is_create = change_kind
-                .as_deref()
-                .map(|k| k.eq_ignore_ascii_case("create"))
-                .unwrap_or(false);
+            // Round-6/8: resolve the target against the index EXACTLY. Change kind
+            // is now a typed enum (a typo is rejected at deserialization), so the
+            // modify/create semantics can no longer be bypassed by an unknown
+            // value.
+            let is_create = change_kind == crate::models::ChangeKind::Create;
             let target_status = match &target_file {
                 None => TargetStatus::Unspecified,
                 Some(tf) => {
@@ -4411,6 +4408,17 @@ impl Engram {
                         "the index lookup for the target file FAILED — target existence is UNKNOWN, not verified".to_string(),
                     ],
                 )),
+                // Round-8 P1-3: `create` targeting a file that ALREADY exists is
+                // an error — you cannot create what is already there.
+                TargetStatus::Exists if is_create => checks.push(ValidationCheck::new(
+                    "target_file",
+                    "fail",
+                    CoverageClass::Meta,
+                    vec![format!(
+                        "change_kind=create but target file `{}` ALREADY exists in the index — a create must not overwrite an existing file; use change_kind=modify",
+                        target_file.as_deref().unwrap_or("")
+                    )],
+                )),
                 _ => {}
             }
 
@@ -4433,81 +4441,104 @@ impl Engram {
             let code_nocomments = strip_code_comments(&code, is_vb);
             let code_nc_lower = code_nocomments.to_lowercase();
 
-            // ── Check 1: SQL Table References ─────────────────────────────
+            // ── Check 1: SQL tables. Round-8 P0-1 (re-audited): the caller's
+            // expected_tables is a CALLER ASSERTION and must NEVER whitelist
+            // schema existence. It is split into two independent checks:
+            //   (1) expected_tables  — AssertionOnly: the caller's tokens appear.
+            //   (2) schema_consistency — Verified: EVERY parsed table reference in
+            //       the code resolves to an INDEXED table. A referenced table that
+            //       is not in the schema is UNKNOWN regardless of what the caller
+            //       "expected" (the fake-table false-PASS). Verified is earned only
+            //       when the schema was available AND every reference resolved.
+            let known_tables: HashSet<String> = {
+                let graph_tables = graph
+                    .query_nodes(&project_id, Some("db_table"), None, None, 5000)
+                    .unwrap_or_default();
+                graph_tables.iter().map(|n| n.name.to_lowercase()).collect()
+            };
+            // Comment-stripped so a table named only in a comment is not a ref.
+            let referenced = referenced_sql_tables(&code_nocomments);
+
+            // (1) caller-assertion presence check.
             if !expected_tables.is_empty() {
                 let mut missing_tables = Vec::new();
                 let mut found_tables = Vec::new();
-                let mut unknown_tables = Vec::new();
-
                 for table in &expected_tables {
-                    // Round-8 P0-1: comment-stripped, so a table named only in a
-                    // comment is NOT counted as referenced.
                     if code_nc_lower.contains(&table.to_lowercase()) {
                         found_tables.push(table.clone());
                     } else {
                         missing_tables.push(table.clone());
                     }
                 }
-
-                // Detect new table references in the code not in the expected list
-                let known_tables: HashSet<String> = {
-                    let graph_tables = graph
-                        .query_nodes(&project_id, Some("db_table"), None, None, 5000)
-                        .unwrap_or_default();
-                    graph_tables.iter().map(|n| n.name.to_lowercase()).collect()
+                let (status, detail) = if missing_tables.is_empty() {
+                    (
+                        "pass",
+                        format!(
+                            "All {} caller-expected table token(s) appear in the code (ASSERTION only — presence, not correctness)",
+                            found_tables.len()
+                        ),
+                    )
+                } else {
+                    (
+                        "warn",
+                        format!("Expected tables not referenced: {}", missing_tables.join(", ")),
+                    )
                 };
+                checks.push(ValidationCheck::new(
+                    "expected_tables",
+                    status,
+                    CoverageClass::AssertionOnly,
+                    vec![detail],
+                ));
+            }
 
-                // Table refs (schema-qualifier aware — see referenced_sql_tables),
-                // over comment-stripped code so a table named in a comment does
-                // not count as a real reference.
-                let referenced = referenced_sql_tables(&code_nocomments);
-                for tbl_orig in &referenced {
-                    let tbl = tbl_orig.to_lowercase();
-                    if !known_tables.contains(&tbl)
-                        && !expected_tables.iter().any(|t| t.to_lowercase() == tbl)
-                    {
-                        unknown_tables.push(tbl_orig.clone());
+            // (2) project verification: every referenced table resolves to schema.
+            if !referenced.is_empty() {
+                if known_tables.is_empty() {
+                    // Schema unavailable/unindexed — we CANNOT verify. Explicit,
+                    // and NOT counted as a project-derived verification.
+                    checks.push(ValidationCheck::new(
+                        "schema_consistency",
+                        "warn",
+                        CoverageClass::Meta,
+                        vec![format!(
+                            "{} table reference(s) found but the project schema is unavailable — cannot verify: {}",
+                            referenced.len(),
+                            referenced.join(", ")
+                        )],
+                    ));
+                } else {
+                    let unknown: Vec<String> = referenced
+                        .iter()
+                        .filter(|t| !known_tables.contains(&t.to_lowercase()))
+                        .cloned()
+                        .collect();
+                    if unknown.is_empty() {
+                        checks.push(ValidationCheck::new(
+                            "schema_consistency",
+                            "pass",
+                            CoverageClass::Verified,
+                            vec![format!(
+                                "All {} referenced table(s) resolve to the indexed schema",
+                                referenced.len()
+                            )],
+                        ));
+                    } else {
+                        // A referenced table NOT in the schema — never a clean pass,
+                        // even if the caller "expected" it. WARN (could be a temp
+                        // table/CTE), and NOT a successful verification, so it does
+                        // not count toward the PASS-earning Verified checks.
+                        checks.push(ValidationCheck::new(
+                            "schema_consistency",
+                            "warn",
+                            CoverageClass::Meta,
+                            vec![format!(
+                                "Referenced table(s) NOT in the project schema (unknown — verify they are real, not just caller-expected): {}",
+                                unknown.join(", ")
+                            )],
+                        ));
                     }
                 }
-                // Round-8 P0-1: this is a PROJECT-DERIVED verification only when
-                // the code actually referenced real tables that were checked
-                // against the indexed schema. A green result from the caller's
-                // expected_tables substring list alone is a caller ASSERTION.
-                let schema_checked = !referenced.is_empty() && !known_tables.is_empty();
-
-                let status = if !missing_tables.is_empty() || !unknown_tables.is_empty() {
-                    "warn"
-                } else {
-                    "pass"
-                };
-
-                let mut details = Vec::new();
-                if !missing_tables.is_empty() {
-                    details.push(format!(
-                        "Expected tables not referenced: {}",
-                        missing_tables.join(", ")
-                    ));
-                }
-                if !unknown_tables.is_empty() {
-                    details.push(format!(
-                        "Unknown tables referenced: {}",
-                        unknown_tables.join(", ")
-                    ));
-                }
-                if details.is_empty() {
-                    details.push(format!("All {} expected tables found", found_tables.len()));
-                }
-
-                checks.push(ValidationCheck::new(
-                    "sql_tables",
-                    status,
-                    if schema_checked {
-                        CoverageClass::Verified
-                    } else {
-                        CoverageClass::AssertionOnly
-                    },
-                    details,
-                ));
             }
 
             // ── Check 2: VB Translation Trap Avoidance ────────────────────
@@ -4791,10 +4822,7 @@ impl Engram {
                 .iter()
                 .filter(|c| c.coverage_class == CoverageClass::GenericLint)
                 .count();
-            let change_kind_modify = change_kind
-                .as_deref()
-                .map(|k| k.eq_ignore_ascii_case("modify"))
-                .unwrap_or(false);
+            let change_kind_modify = change_kind == crate::models::ChangeKind::Modify;
             let coverage = ValidationCoverage {
                 verified_checks,
                 assertion_checks,
