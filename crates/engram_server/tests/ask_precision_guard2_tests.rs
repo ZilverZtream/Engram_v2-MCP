@@ -85,6 +85,7 @@ fn one_reserve_pass_never_evicts_what_another_reserve_just_kept() {
         &[Modality::Resource],
         &[],
         question,
+        /* pin_definition */ false,
     );
     let paths: Vec<String> = chosen.iter().filter_map(|e| e.path.clone()).collect();
     assert!(

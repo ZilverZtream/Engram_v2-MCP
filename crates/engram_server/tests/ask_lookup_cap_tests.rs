@@ -1073,6 +1073,7 @@ fn s4_the_report_json_carries_members_and_proof() {
             relation: "api_call".into(),
             source_node_id: None,
             path: None,
+            via: None,
         }],
     };
     let j = serde_json::to_string(&to_json(&r)).unwrap();

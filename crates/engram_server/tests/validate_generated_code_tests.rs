@@ -271,6 +271,91 @@ async fn handler_bare_name_containment_is_not_caller_compatibility_pass() {
     );
 }
 
+#[test]
+fn change_kind_typo_is_rejected_not_coerced_to_modify() {
+    // Round-8 P1-3 (confirmed live: "modfiy" earned PASS): an unknown change_kind
+    // must be REJECTED at deserialization, never silently coerced to modify
+    // (which used to bypass the modify-needs-a-target gate).
+    let v = json!({"project_id": "p", "code": "x", "language": "vb", "change_kind": "modfiy"});
+    let r: Result<engram_server::models::ValidateGeneratedCodeRequest, _> =
+        serde_json::from_value(v);
+    assert!(
+        r.is_err(),
+        "an unknown change_kind must be rejected, not coerced to modify"
+    );
+    // missing change_kind is fine — it defaults to modify.
+    let v2 = json!({"project_id": "p", "code": "x", "language": "vb"});
+    assert!(serde_json::from_value::<engram_server::models::ValidateGeneratedCodeRequest>(v2).is_ok());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn create_targeting_an_existing_file_fails() {
+    // Round-8 P1-3 (confirmed live: create + existing file earned PASS): a create
+    // whose target already exists is an error, not a pass.
+    let (_t, _s, engram, pid) = fixture().await;
+    let out = validate(
+        &engram,
+        json!({"project_id": pid, "code": "Public Class orders\nEnd Class",
+               "language": "vb", "target_file": "Site/orders.vb",
+               "change_kind": "create", "output_json": true}),
+    )
+    .await;
+    assert!(
+        out.contains("FAIL") && out.contains("ALREADY exists"),
+        "create targeting an existing indexed file must FAIL:\n{out}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn handler_fake_table_in_expected_does_not_earn_verified_pass() {
+    // Round-8 re-audit P0-1 (confirmed live): a table the caller lists in
+    // expected_tables AND references in the code must NOT be whitelisted into
+    // schema existence. A referenced table that is not in the indexed schema is
+    // UNKNOWN regardless of what the caller "expected" — never a Verified PASS.
+    let (_t, state, engram, pid) = fixture().await;
+    // Give the project a real indexed table so the schema is non-empty (else the
+    // test would trivially pass via the "schema unavailable" branch).
+    state
+        .graph
+        .upsert_nodes(
+            &pid,
+            &[engram_graph::Node {
+                node_id: "db_table:orders_real".into(),
+                node_type: "db_table".into(),
+                name: "orders_real".into(),
+                namespace: "memory".into(),
+                language: "sql".into(),
+                file_path: engram_core::RelPath::new("db/orders_real.sql"),
+                start_line: 1,
+                end_line: 1,
+                generation: 1,
+                metadata: None,
+            }],
+        )
+        .unwrap();
+    let out = validate(
+        &engram,
+        json!({
+            "project_id": pid,
+            "code": "Dim sql = \"SELECT * FROM zz_auditor_table_that_does_not_exist_691e096\"",
+            "language": "vb",
+            "target_file": "Site/orders.vb",
+            "change_kind": "modify",
+            "expected_tables": ["zz_auditor_table_that_does_not_exist_691e096"],
+            "output_json": true
+        }),
+    )
+    .await;
+    assert!(
+        !out.contains("\"overall_verdict\": \"PASS\""),
+        "a fake table listed in expected_tables must NOT earn PASS:\n{out}"
+    );
+    assert!(
+        out.contains("zz_auditor_table_that_does_not_exist") && out.contains("NOT in the project schema"),
+        "the fake table must be flagged as NOT in the schema, not laundered into Verified:\n{out}"
+    );
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn handler_exact_existing_modify_target_is_not_rejected() {
     // P0-1 (round-7): a REAL indexed file, given by its exact relative path,
