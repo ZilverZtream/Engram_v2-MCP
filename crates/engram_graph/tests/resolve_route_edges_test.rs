@@ -169,6 +169,86 @@ fn web_method_route_is_idempotent_across_resolver_runs() {
     );
 }
 
+#[test]
+fn asmx_route_binds_via_declared_class_not_filename() {
+    // Round-9 UNIFIED ROUTE MODEL: a .asmx whose DECLARED Class differs from its
+    // filename must route to the DECLARED class's method — no filename special-
+    // case. MapData.asmx exposes class `MapImpl`. A decoy `Other.GetPolygons`
+    // makes the terminal-name fallback ambiguous, so ONLY the declared-class
+    // (exposes / Class=) path can resolve the call.
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "route-declared-class";
+    let asmx = "sym:web_service:Site/Services/MapData.asmx:MapData.asmx:1";
+    let impl_fn = "sym:function:Site/App_Code/MapImpl.vb:MapImpl.GetPolygons:10";
+    let decoy = "sym:function:Site/App_Code/Other.vb:Other.GetPolygons:10";
+    let caller = "sym:function:Site/ts/map.ts:load:5";
+    graph
+        .upsert_nodes(
+            pid,
+            &[
+                node(
+                    asmx,
+                    "web_service",
+                    "Services/MapData.asmx",
+                    "Site/Services/MapData.asmx",
+                    (1, 1),
+                ),
+                node(
+                    impl_fn,
+                    "function",
+                    "MapImpl.GetPolygons",
+                    "Site/App_Code/MapImpl.vb",
+                    (10, 30),
+                ),
+                node(
+                    decoy,
+                    "function",
+                    "Other.GetPolygons",
+                    "Site/App_Code/Other.vb",
+                    (10, 30),
+                ),
+                node(caller, "function", "load", "Site/ts/map.ts", (5, 20)),
+            ],
+        )
+        .unwrap();
+    graph
+        .upsert_edges(
+            pid,
+            &[
+                edge(
+                    EdgeKind::ExposesWebService,
+                    asmx,
+                    "::MapImpl",
+                    serde_json::json!({}),
+                ),
+                // a service_method route carrying its service + method
+                edge(
+                    EdgeKind::ApiCall,
+                    caller,
+                    "::Services/MapData.asmx/GetPolygons",
+                    serde_json::json!({
+                        "ajax_transport": "jquery",
+                        "ajax_target_method": "GetPolygons",
+                        "endpoint_service": "Services/MapData.asmx",
+                        "target_type": "service_method"
+                    }),
+                ),
+            ],
+        )
+        .unwrap();
+    graph.resolve_symbol_edges(pid).unwrap();
+    let callees = graph.neighbors(pid, EdgeKind::ApiCall, caller, 10).unwrap();
+    assert!(
+        callees.iter().any(|(t, _)| t == impl_fn),
+        "must bind to the DECLARED class MapImpl.GetPolygons via Class=, not a filename guess or the ambiguous terminal; got {callees:?}"
+    );
+    assert!(
+        !callees.iter().any(|(t, _)| t == decoy),
+        "must not bind the decoy Other.GetPolygons; got {callees:?}"
+    );
+}
+
 const CAW_FILE: &str = "file:Site/modules/dashboard/ts/caw/caw/caw.ts";
 const ATH_DEL: &str = "sym:function:Site/modules/dashboard/ts/caw/caw/caw.ts:athDel:50";
 const BROKER: &str = "sym:function:Site/App_Code/api-json/api-broker.vb:api.dispatch:30";

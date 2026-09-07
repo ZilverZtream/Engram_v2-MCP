@@ -3255,6 +3255,13 @@ impl GraphStore {
         let mut fns_by_file: HashMap<String, Vec<(u32, u32, String)>> = HashMap::new();
         let mut dispatch: HashMap<String, Vec<String>> = HashMap::new();
         let mut exposes: HashMap<String, String> = HashMap::new();
+        // Round-9 UNIFIED ROUTE MODEL: exposes keyed by the SERVICE NAME (the
+        // .asmx basename), not only the markup node id. A client's route/endpoint
+        // target can be a DIFFERENT node than the .asmx markup node the exposes
+        // edge sources from, so a node-id lookup alone misses; the name key binds
+        // any `<service>.asmx` call to the class the .asmx actually declares —
+        // no filename special-case, the declared `Class=` is authoritative.
+        let mut exposes_by_name: HashMap<String, String> = HashMap::new();
         let mut api_calls: Vec<Edge> = Vec::new();
         {
             let rtx = self.db.begin_read()?;
@@ -3324,7 +3331,19 @@ impl GraphStore {
                         };
                         let simple = class.rsplit('.').next().unwrap_or("").to_lowercase();
                         if !simple.is_empty() {
-                            exposes.insert(e.source_id.clone(), simple);
+                            exposes.insert(e.source_id.clone(), simple.clone());
+                            // Also key by the .asmx SERVICE NAME (basename).
+                            if let Some(svc) = node_name.get(&e.source_id) {
+                                let base = svc
+                                    .replace('\\', "/")
+                                    .rsplit('/')
+                                    .next()
+                                    .unwrap_or(svc)
+                                    .to_lowercase();
+                                if !base.is_empty() {
+                                    exposes_by_name.insert(base, simple);
+                                }
+                            }
                         }
                     } else if matches!(kind, EdgeKind::Calls) {
                         if let Some(key) = meta_str("dispatch_key") {
@@ -3440,8 +3459,8 @@ impl GraphStore {
                         .collect();
                     (apis.len() == 1).then(|| apis[0].clone())
                 };
-                if let Some(id) =
-                    api_of(fns_by_name.get(&method_l)).or_else(|| api_of(fns_by_terminal.get(&method_l)))
+                if let Some(id) = api_of(fns_by_name.get(&method_l))
+                    .or_else(|| api_of(fns_by_terminal.get(&method_l)))
                 {
                     (id, "route_unique", 0.6)
                 } else {
@@ -3453,15 +3472,36 @@ impl GraphStore {
                     continue;
                 }
             } else {
-                // web-method route: the endpoint's class, then a unique name
-                let class = exposes.get(&e.target_id).cloned().or_else(|| {
-                    node_name
-                        .get(&e.target_id)
-                        .and_then(|n| n.rsplit('/').next())
-                        .and_then(|n| n.split('.').next())
-                        .map(|s| s.to_lowercase())
-                        .filter(|s| !s.is_empty())
-                });
+                // Round-9 UNIFIED ROUTE MODEL: a web-method / service-method route
+                // resolves to the served function of the .asmx's DECLARED class.
+                // Precedence: the route's own service (`endpoint_service`, carried
+                // by a service_method route) resolved through the .asmx's Class=;
+                // then the endpoint node's Class= (by id, then by service name);
+                // then the filename basename as a LAST resort. No api.asmx
+                // filename special-case — every .asmx binds via its declared class.
+                let svc_base = |s: &str| {
+                    s.replace('\\', "/")
+                        .rsplit('/')
+                        .next()
+                        .unwrap_or(s)
+                        .to_lowercase()
+                };
+                let class = meta("endpoint_service")
+                    .and_then(|svc| exposes_by_name.get(&svc_base(&svc)).cloned())
+                    .or_else(|| exposes.get(&e.target_id).cloned())
+                    .or_else(|| {
+                        node_name
+                            .get(&e.target_id)
+                            .and_then(|n| exposes_by_name.get(&svc_base(n)).cloned())
+                    })
+                    .or_else(|| {
+                        node_name
+                            .get(&e.target_id)
+                            .and_then(|n| n.rsplit('/').next())
+                            .and_then(|n| n.split('.').next())
+                            .map(|s| s.to_lowercase())
+                            .filter(|s| !s.is_empty())
+                    });
                 let by_class = class
                     .as_ref()
                     .and_then(|c| unique(fns_by_name.get(&format!("{c}.{method_l}"))));
