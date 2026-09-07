@@ -834,6 +834,40 @@ impl GraphStore {
         Ok(out)
     }
 
+    /// Round-8 P0-3: the OUTGOING edges of a single source, of ONE kind, as FULL
+    /// typed Edge objects (metadata included), highest-weight first, with a
+    /// TRUNCATION flag. This is the edge-first substrate the callee walk needs:
+    /// consuming the edge directly keeps `target`, `weight`, and route `via`
+    /// PROVENANCE on the same object — instead of joining a lossy separate
+    /// metadata lookup that silently drops provenance on a graph error or a
+    /// shared-across-kinds cap. Key layout is `project\0kind\0source\0target`, so
+    /// this is one prefix seek. Returns `(edges, truncated)`.
+    pub fn outgoing_edges_of_kind(
+        &self,
+        project_id: &str,
+        kind: EdgeKind,
+        source_id: &str,
+        limit: usize,
+    ) -> anyhow::Result<(Vec<Edge>, bool)> {
+        let prefix = format!("{project_id}\0{}\0{}\0", kind.as_str(), source_id);
+        let rtx = self.db.begin_read()?;
+        let et = rtx.open_table(EDGES)?;
+        let mut out = Vec::new();
+        for r in et.range(prefix.as_str()..)? {
+            let (k, v) = r?;
+            if !k.value().starts_with(&prefix) {
+                break;
+            }
+            out.push(bincode::deserialize::<Edge>(v.value())?);
+        }
+        out.sort_by(|a, b| b.weight.cmp(&a.weight));
+        let truncated = out.len() > limit;
+        if truncated {
+            out.truncate(limit);
+        }
+        Ok((out, truncated))
+    }
+
     /// All STRUCTURAL edges touching `node_id` (either direction), with full
     /// metadata, in O(degree) instead of O(all edges).
     ///
@@ -1585,8 +1619,10 @@ impl GraphStore {
                 let scope_l = scope.replace('\\', "/").to_lowercase();
                 if !scope_l.is_empty() {
                     let fp = n.file_path.as_str().replace('\\', "/").to_lowercase();
-                    let ok =
-                        fp.is_empty() || fp == scope_l || fp.starts_with(&format!("{scope_l}/"));
+                    // Round-8 re-audit P1-4: an EMPTY-path node has no file — it is
+                    // not "in" any scope and must be excluded when a scope is given
+                    // (it used to be admitted into every scope).
+                    let ok = fp == scope_l || fp.starts_with(&format!("{scope_l}/"));
                     if !ok {
                         continue;
                     }
@@ -2891,41 +2927,19 @@ impl GraphStore {
                 .and_then(|m| m.get("receiver"))
                 .and_then(|v| v.as_str());
 
-            // Step 1: exact name match
-            let resolved = match by_name.get(name) {
-                Some(SymbolMatch::Unique(id)) => Some(id.clone()),
-                Some(SymbolMatch::Ambiguous(ids)) => resolve_ambiguous(ids, source_file, receiver),
-                None => None,
-            };
-
-            if let Some(target_id) = resolved {
-                let mut new_e = entry.edge.clone();
-                new_e.target_id = target_id;
-                Self::stamp_resolution(&mut new_e, "post_exact_name", 0.85);
-                updates.push((entry.old_key.clone(), new_e));
-                continue;
-            }
-
-            // Step 1b: api dispatch/route arm. An `ajax_target_method` (client
-            // ajax call) or `dispatch_key` (broker Select-Case arm) names a
-            // server function that, when overloaded across layers — an api-json
-            // handler `api.X` beside a code impl `Cls.X` — the generic
-            // file/receiver tiebreak cannot resolve, leaving a dangling `::`
-            // placeholder (round-6: the ox_causal_20 dangling). Api-layer
-            // handlers live in `Partial Class api` (see the dispatch pass at
-            // resolve_route_edges), so an api-routed call binds to the single
-            // `api.`-class candidate. Node names are class-QUALIFIED, so the
-            // candidates come from the TERMINAL index, not the bare-name index.
-            // Round-7 P1-2: scope this narrowly. It is a broker API-NAME route
-            // only for (a) a `dispatch_key` Calls arm, or (b) an ajax call whose
-            // transport is EXPLICITLY `api_name` — NOT a WebMethod/PageMethods
-            // route that merely happens to carry `ajax_target_method`. Anything
-            // else keeps the generic ladder.
-            // Round-8 P1-3: the metadata must sit on the RIGHT edge kind, not any
-            // edge that happens to carry those keys. A `dispatch_key` is a broker
-            // Select-Case arm — a `Calls` edge; an `ajax_target_method` is a
-            // client ajax route — an `ApiCall` edge. Anything else keeps the
-            // generic ladder even if it carries the same metadata field.
+            // Step 0 (round-8 re-audit P0-2): an API-ROUTED edge is resolved
+            // EXCLUSIVELY through the guarded api-layer rule, BEFORE the generic
+            // exact-name ladder — and it does NOT fall through. A broker
+            // Select-Case arm (`dispatch_key` on a Calls edge) or an api_name
+            // ajax route (`ajax_target_method` on an ApiCall edge) names a
+            // function in the `api.` class. Running it through the generic
+            // exact-name match first let a non-broker `api.asmx/Foo` route bind
+            // to ANY unique `Foo` symbol of any kind — a silent wrong answer.
+            // Now: bind ONLY to the single `api.`-class function candidate;
+            // otherwise leave the `::` placeholder as a VISIBLE unbound route
+            // (never a generic bind). This is what makes the "bounded by the
+            // resolver" claim actually true. Round-7 P1-2 scoped WHICH edges
+            // qualify; round-8 P1-3 requires the metadata on the right edge kind.
             let ek = &entry.edge.edge_kind;
             let is_api_routed = entry.edge.metadata.as_ref().is_some_and(|m| {
                 let has_dispatch_key = *ek == EdgeKind::Calls
@@ -2944,34 +2958,52 @@ impl GraphStore {
             if is_api_routed {
                 let short = name.rsplit('.').next().unwrap_or(name);
                 let mut cands: Vec<String> = Vec::new();
-                if let Some(SymbolMatch::Ambiguous(ids)) = by_name.get(name) {
-                    cands.extend(ids.iter().cloned());
+                match by_name.get(name) {
+                    Some(SymbolMatch::Unique(id)) => cands.push(id.clone()),
+                    Some(SymbolMatch::Ambiguous(ids)) => cands.extend(ids.iter().cloned()),
+                    None => {}
                 }
                 for id in by_terminal.get(short).into_iter().flatten() {
                     if !cands.contains(id) {
                         cands.push(id.clone());
                     }
                 }
-                if cands.len() > 1 {
-                    // The handler must be a FUNCTION in the api layer (name class
-                    // `api.`), never a same-named page/class/property.
-                    let api: Vec<&String> = cands
-                        .iter()
-                        .filter(|id| {
-                            fn_ids.contains(*id)
-                                && node_names
-                                    .get(*id)
-                                    .is_some_and(|n| n.to_lowercase().starts_with("api."))
-                        })
-                        .collect();
-                    if api.len() == 1 {
-                        let mut new_e = entry.edge.clone();
-                        new_e.target_id = api[0].clone();
-                        Self::stamp_resolution(&mut new_e, "post_api_layer", 0.6);
-                        updates.push((entry.old_key.clone(), new_e));
-                        continue;
-                    }
+                // The handler must be a FUNCTION in the api layer (name class
+                // `api.`), never a same-named page/class/property/impl.
+                let api: Vec<&String> = cands
+                    .iter()
+                    .filter(|id| {
+                        fn_ids.contains(*id)
+                            && node_names
+                                .get(*id)
+                                .is_some_and(|n| n.to_lowercase().starts_with("api."))
+                    })
+                    .collect();
+                if api.len() == 1 {
+                    let mut new_e = entry.edge.clone();
+                    new_e.target_id = api[0].clone();
+                    Self::stamp_resolution(&mut new_e, "post_api_layer", 0.6);
+                    updates.push((entry.old_key.clone(), new_e));
                 }
+                // Bound or not, an api-routed edge NEVER falls through to the
+                // generic ladder — no api handler ⇒ a visible unbound route.
+                continue;
+            }
+
+            // Step 1: exact name match (generic edges only — api-routed edges
+            // were handled and consumed above).
+            let resolved = match by_name.get(name) {
+                Some(SymbolMatch::Unique(id)) => Some(id.clone()),
+                Some(SymbolMatch::Ambiguous(ids)) => resolve_ambiguous(ids, source_file, receiver),
+                None => None,
+            };
+
+            if let Some(target_id) = resolved {
+                let mut new_e = entry.edge.clone();
+                new_e.target_id = target_id;
+                Self::stamp_resolution(&mut new_e, "post_exact_name", 0.85);
+                updates.push((entry.old_key.clone(), new_e));
+                continue;
             }
 
             // Step 2: metadata.fqn match
@@ -3391,8 +3423,25 @@ impl GraphStore {
             } else if fn_ids.contains(&e.target_id) {
                 (e.target_id.clone(), "route_enclosing", 0.9f32)
             } else if name_route {
-                if let Some(id) = unique(fns_by_name.get(&method_l))
-                    .or_else(|| unique(fns_by_terminal.get(&method_l)))
+                // Round-8 re-audit P0-2: an api_name route (broker/getImage/asmx
+                // wrapper) serves a function in the `api.` class. A unique
+                // same-named symbol in ANOTHER class is NOT the handler — binding
+                // it was the silent mis-bind. Bind only to the unique `api.`-class
+                // function; otherwise dangle (never a generic same-name symbol).
+                let api_of = |ids: Option<&Vec<String>>| -> Option<String> {
+                    let ids = ids?;
+                    let apis: Vec<&String> = ids
+                        .iter()
+                        .filter(|id| {
+                            node_name
+                                .get(*id)
+                                .is_some_and(|n| n.to_lowercase().starts_with("api."))
+                        })
+                        .collect();
+                    (apis.len() == 1).then(|| apis[0].clone())
+                };
+                if let Some(id) =
+                    api_of(fns_by_name.get(&method_l)).or_else(|| api_of(fns_by_terminal.get(&method_l)))
                 {
                     (id, "route_unique", 0.6)
                 } else {

@@ -275,6 +275,36 @@ fn api_routed_call_resolves_to_the_api_layer_handler() {
 }
 
 #[test]
+fn api_route_does_not_bind_to_a_unique_non_api_symbol() {
+    // Round-8 re-audit P0-2: an api_name route whose method name matches a
+    // UNIQUE unrelated symbol (NOT an `api.`-class function) must NOT silently
+    // bind to it — the api-layer rule runs BEFORE the generic exact-name match
+    // and does not fall through, so the route stays a VISIBLE unbound placeholder.
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "test-p0-2";
+    // A unique symbol named exactly "Foo" that is NOT in the api class.
+    let unrelated = make_node("sym:function:Site/other.vb:Foo:1", "Foo", "Site/other.vb");
+    let caller = make_node("file:Site/ts/x.ts", "x.ts", "Site/ts/x.ts");
+    graph
+        .upsert_nodes(pid, &[unrelated.clone(), caller.clone()])
+        .unwrap();
+    graph
+        .upsert_edges(pid, &[make_api_call(&caller.node_id, "::Foo", "Foo")])
+        .unwrap();
+    graph.resolve_symbol_edges(pid).unwrap();
+    let targets = calls_targets(&graph, pid, &caller.node_id);
+    assert!(
+        !targets.contains(&unrelated.node_id),
+        "an api route must NOT bind to a non-api unique symbol; got {targets:?}"
+    );
+    assert!(
+        targets.iter().any(|t| t.starts_with("::")),
+        "the unresolved api route stays a visible `::` placeholder; got {targets:?}"
+    );
+}
+
+#[test]
 fn ajax_metadata_on_a_calls_edge_is_not_api_routed() {
     // Round-8 P1-3: the api-layer preference must fire on the RIGHT edge kind —
     // ajax_target_method on an ApiCall edge, dispatch_key on a Calls edge — not
