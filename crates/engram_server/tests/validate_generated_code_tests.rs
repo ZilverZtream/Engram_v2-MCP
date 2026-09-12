@@ -182,6 +182,50 @@ async fn validate(engram: &Engram, v: serde_json::Value) -> String {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn native_vb_does_not_fail_for_translation_advice_or_linq_aliases() {
+    let (_t, _s, engram, pid) = fixture().await;
+    let code = "Public Function Load() As String\nDim q = From ath In records Join pr In projects On ath.Id Equals pr.Id Select ath\nDim ctx = HttpContext.Current\nDim config = ConfigurationManager.AppSettings(\"feature\")\nDim s As String = Nothing\nReturn Mid(s, 1, 5)\nEnd Function";
+    let args = json!({"project_id": pid, "code": code, "language": "vb",
+        "target_file": "Site/orders.vb", "output_json": true});
+    let native: serde_json::Value =
+        serde_json::from_str(&validate(&engram, args.clone()).await).unwrap();
+    assert_eq!(native["overall_verdict"], "INSUFFICIENT", "{native}");
+    let text = native.to_string();
+    assert!(
+        !text.contains("schema_consistency"),
+        "LINQ range variables are not SQL tables: {text}"
+    );
+    assert!(
+        !text.contains("vb_traps"),
+        "native edits do not translate VB: {text}"
+    );
+    assert!(
+        !text.contains("IHttpContextAccessor"),
+        "WebForms is a valid target: {text}"
+    );
+    let mut migration = args;
+    migration["include_migration_advice"] = json!(true);
+    let migration = validate(&engram, migration).await;
+    assert!(migration.contains("vb_traps"), "{migration}");
+    assert!(migration.contains("IHttpContextAccessor"), "{migration}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn native_mode_still_detects_blocking_task_hazards() {
+    let (_t, _s, engram, pid) = fixture().await;
+    let result = validate(
+        &engram,
+        json!({"project_id": pid,
+        "code": "Public Sub Run()\n task.Wait()\nEnd Sub", "language": "vb",
+        "target_file": "Site/orders.vb", "output_json": true}),
+    )
+    .await;
+    let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(parsed["overall_verdict"], "FAIL", "{result}");
+    assert!(result.contains("task_wait"), "{result}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn handler_bare_code_with_no_contract_is_insufficient_not_pass() {
     // The exact auditor scenario: class X {} with nothing else.
     let (_t, _s, engram, pid) = fixture().await;
@@ -443,4 +487,34 @@ async fn handler_language_target_extension_mismatch_fails() {
         "language/target mismatch must FAIL:\n{out}"
     );
     assert!(!out.contains("\"overall_verdict\": \"PASS\""), "{out}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn expected_table_literals_do_not_guess_orm_or_match_longer_identifiers() {
+    let (_t, _state, engram, pid) = fixture().await;
+    for code in [
+        "Dim rows = ctx.orders_archive",
+        "Dim rows = ctx.preorders",
+        "Dim rows = ctx.orders2",
+        "Dim rows = ctx.orders_",
+        "Dim rows = From row In ctx.ArchiveEntries Select row",
+    ] {
+        let out = validate(&engram, json!({
+            "project_id": pid, "language": "vb", "code": code,
+            "expected_tables": ["orders"], "output_json": true
+        })).await;
+        assert!(out.contains("Expected table literal(s) not found: orders"), "{out}");
+        assert!(out.contains("ORM references/mappings are unverified"), "{out}");
+        assert!(out.contains("INSUFFICIENT"), "{out}");
+        assert!(!out.contains("Expected tables not referenced"), "{out}");
+    }
+    for code in ["Dim rows = ctx.orders", "Dim rows = ctx.[ORDERS]"] {
+        let out = validate(&engram, json!({
+            "project_id": pid, "language": "vb", "code": code,
+            "expected_tables": ["orders"], "output_json": true
+        })).await;
+        assert!(out.contains("All 1 caller-expected table token(s) appear"), "{out}");
+        assert!(out.contains("ASSERTION only"), "{out}");
+        assert!(out.contains("INSUFFICIENT"), "{out}");
+    }
 }

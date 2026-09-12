@@ -1,6 +1,5 @@
 use crate::utils::now_ms;
 use crate::utils::text::contains_word;
-use engram_graph::store::ResolveResult;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 /// Post-ingest: link SQL nodes (stored_proc, inline_sql) to db_table nodes via QueriesTable edges.
@@ -84,424 +83,324 @@ pub fn link_sql_to_schema(
     Ok(count)
 }
 
-/// Post-ingest: resolve App_Code global FQN references for legacy WebForms projects.
+/// Resolve unresolved global references to App_Code declarations conservatively.
 ///
-/// In ASP.NET WebForms, any class placed in the `App_Code/` folder is globally available
-/// without explicit `Imports` or `using` statements. This function:
-///
-/// 1. Collects all symbol nodes (class, function) whose file_path is under `App_Code/`.
-/// 2. Builds a lookup table: `short_name` → `node_id` (case-insensitive for VB support).
-/// 3. Finds all unresolved edges (target_id starts with `::`) in the graph.
-/// 4. For each unresolved target, checks if it matches an App_Code symbol.
-/// 5. Creates a resolved Dependency edge from the source to the App_Code symbol.
-///
-/// Returns the number of newly resolved edges.
+/// A project snapshot retains every declaration (including overloads). Qualified
+/// references never fall back to their terminal, and only unique candidates add
+/// dependency/call edges. Returns the number of newly added dependencies.
 pub fn resolve_app_code_globals(
     graph: &engram_graph::GraphStore,
     project_id: &str,
     generation: u64,
 ) -> anyhow::Result<usize> {
-    let app_code_function_kinds = ["function", "method", "sub", "procedure"];
-    fn strip_line_suffix(s: &str) -> &str {
-        // If the string ends in ":<digits>", trim it.
-        if let Some((head, tail)) = s.rsplit_once(':')
-            && !tail.is_empty()
-            && tail.bytes().all(|b| b.is_ascii_digit())
+    use engram_graph::EdgeKind;
+
+    fn symbol_name(id: &str) -> Option<&str> {
+        let rest = id.strip_prefix("sym:")?.split_once(':')?.1;
+        if let Some((head, line)) = rest.rsplit_once(':')
+            && line.parse::<u32>().is_ok()
         {
-            return head;
+            return Some(head.rsplit(':').next().unwrap_or(head));
         }
-        s
+        (!rest.contains('/') && !rest.contains('\\')).then_some(rest)
     }
-    fn extract_terminal_name(target_id: &str) -> Option<&str> {
-        // Strip the "sym:<kind>:" prefix when present.
-        let rest = target_id
-            .strip_prefix("sym:function:")
-            .or_else(|| target_id.strip_prefix("sym:class:"))
-            .unwrap_or(target_id);
-
-        // Case A: path-shaped composite "<path>:<name>:<line>".
-        let segs: Vec<&str> = rest.split(':').collect();
-        if segs.len() >= 3
-            && segs.last().is_some_and(|seg| seg.parse::<u64>().is_ok())
-            && let Some(name) = segs.get(segs.len() - 2).copied()
-            && !name.is_empty()
-        {
-            return Some(name);
-        }
-
-        // Case B: dotted FQN "Namespace.Type.Method".
-        if let Some(last) = rest.rsplit('.').next()
-            && !last.is_empty()
-        {
-            return Some(last);
-        }
-
-        // Case C: plain bare name.
-        (!rest.is_empty()).then_some(rest)
-    }
-    let unresolved_target_name = |target_id: &str| -> Option<String> {
-        if target_id.starts_with("::") {
-            return Some(target_id.trim_start_matches(':').to_string());
-        }
-        if let Some(stripped) = target_id.strip_prefix("sym:function:") {
-            let mut parts = stripped.rsplitn(2, ':');
-            let line = parts.next().unwrap_or_default();
-            let name = parts.next().unwrap_or_default();
-            if line == "0" && !name.is_empty() {
-                return Some(name.to_string());
-            }
-        }
-        None
-    };
-
-    // Step 1: Collect all nodes under App_Code/
-    // We check for both "App_Code/" and "app_code/" since path casing varies.
-    let all_classes = graph.query_nodes(project_id, Some("class"), None, None, 10_000)?;
-    let all_functions = graph.query_nodes(project_id, Some("function"), None, None, 50_000)?;
-
-    let mut app_code_by_name_ci: HashMap<String, String> = HashMap::new();
-    let mut app_code_by_name: HashMap<String, String> = HashMap::new();
-    let mut terminal_to_fqn: HashMap<String, Vec<String>> = HashMap::new();
-
-    let is_app_code_path = |path: &str| -> bool {
-        let lower = path.to_lowercase().replace('\\', "/");
-        lower.starts_with("app_code/") || lower.contains("/app_code/")
-    };
-
-    for node in all_classes.iter().chain(all_functions.iter()) {
-        if !is_app_code_path(node.file_path.as_str()) {
-            continue;
-        }
-        // Use the node's name (short name) as the lookup key
-        app_code_by_name_ci.insert(node.name.to_lowercase(), node.node_id.clone());
-        app_code_by_name.insert(node.name.clone(), node.node_id.clone());
-
-        // Also expose FQN components: if node_id is "sym:class:Namespace.ClassName",
-        // register both "ClassName" and the full FQN.
-        let inferred_fqn = node
-            .metadata
+    fn fqn(node: &engram_graph::Node) -> &str {
+        node.metadata
             .as_ref()
             .and_then(|m| m.get("fqn"))
             .and_then(|v| v.as_str())
-            .map(|f| f.to_string())
-            .or_else(|| {
-                // Fallback: extract FQN from node_id. Only valid when the
-                // node_id is FQN-shaped (e.g., "sym:class:Namespace.ClassName").
-                // New canonical node_ids contain path separators
-                // ("sym:function:Site/App_Code/foo.vb:Name:42") — those are NOT
-                // FQNs and must be rejected. A real FQN never contains / or \.
-                node.node_id
-                    .strip_prefix("sym:")
-                    .and_then(|rest| rest.split_once(':'))
-                    .and_then(|(_, maybe_fqn)| {
-                        if maybe_fqn.contains('/') || maybe_fqn.contains('\\') {
-                            return None;
-                        }
-                        maybe_fqn.contains('.').then(|| maybe_fqn.to_string())
-                    })
-            })
-            .or_else(|| node.name.contains('.').then(|| node.name.clone()));
-
-        if let Some(ref fqn) = inferred_fqn {
-            if let Some(short_raw) = fqn.split('.').next_back() {
-                let short = strip_line_suffix(short_raw);
-                if !short.is_empty() {
-                    app_code_by_name_ci.insert(short.to_lowercase(), node.node_id.clone());
-                    app_code_by_name.insert(short.to_string(), node.node_id.clone());
-                }
-            }
-            // Also register the full FQN for direct lookups
-            let normalized_fqn = strip_line_suffix(fqn);
-            app_code_by_name_ci.insert(normalized_fqn.to_lowercase(), node.node_id.clone());
-            app_code_by_name.insert(normalized_fqn.to_string(), node.node_id.clone());
-        }
-
-        // Register in terminal_to_fqn for Step 3 unqualified call rewriting.
-        // Use inferred FQN when available, fall back to node.name (so bare
-        // names like "SafeRedirect" still get registered — resolve_symbol
-        // can find them via Step 2 exact name match + prefer_file_path).
-        let lowered_node_type = node.node_type.to_ascii_lowercase();
-        if app_code_function_kinds.contains(&lowered_node_type.as_str()) {
-            let resolve_key = inferred_fqn.as_deref().unwrap_or(&node.name);
-            let terminal = resolve_key.split('.').next_back().unwrap_or(resolve_key);
-            let terminal = strip_line_suffix(terminal);
-            if !terminal.is_empty() {
-                terminal_to_fqn
-                    .entry(terminal.to_string())
-                    .or_default()
-                    .push(resolve_key.to_string());
-            }
+            .or_else(|| symbol_name(&node.node_id))
+            .unwrap_or(&node.name)
+    }
+    fn number(meta: Option<&serde_json::Value>, key: &str) -> Option<u64> {
+        let value = meta?.get(key)?;
+        value.as_u64().or_else(|| value.as_str()?.parse().ok())
+    }
+    fn is_function(node: &engram_graph::Node) -> bool {
+        matches!(
+            node.node_type.as_str(),
+            "function" | "method" | "sub" | "procedure"
+        )
+    }
+    fn key(name: &str, vb: bool) -> String {
+        if vb {
+            name.to_lowercase()
+        } else {
+            name.to_string()
         }
     }
-
-    if app_code_by_name.is_empty() {
-        return Ok(0);
+    fn owned(edge: &engram_graph::Edge) -> bool {
+        let Some(meta) = edge.metadata.as_ref() else {
+            return false;
+        };
+        // Other resolver/compiler provenance wins even if old hints remain.
+        if meta
+            .get("resolution")
+            .and_then(|v| v.as_str())
+            .is_some_and(|method| method != "app_code_unique")
+        {
+            return false;
+        }
+        meta.get("resolved_from").and_then(|v| v.as_str()) == Some("app_code")
+            // Legacy Step3 emitted only these two hints, not original_target.
+            || (meta.get("original_target_name").and_then(|v| v.as_str()).is_some()
+                && meta.get("resolved_target_fqn").and_then(|v| v.as_str()).is_some())
     }
 
-    tracing::info!(
-        "resolve_app_code_globals: found {} App_Code symbols for {}",
-        app_code_by_name.len(),
-        project_id
-    );
-
-    // Step 2: Find all unresolved edges (target_id starts with "::")
-    // These are edges where the call resolver couldn't find a target.
-    let all_dep_edges = graph.list_edges(project_id, Some(engram_graph::EdgeKind::Dependency))?;
-    let all_call_edges = graph.list_edges(project_id, Some(engram_graph::EdgeKind::Calls))?;
-
-    let mut new_edges: Vec<engram_graph::Edge> = Vec::new();
-    let mut resolved_set: HashSet<(String, String)> = HashSet::new();
-
-    for edge in all_dep_edges.iter().chain(all_call_edges.iter()) {
-        let Some(unresolved_name) = unresolved_target_name(&edge.target_id) else {
+    // No display cap: a truncated candidate set can falsely appear unique.
+    // One scan per invocation also avoids per-edge resolve_symbol full scans.
+    let nodes = graph.query_nodes(project_id, None, None, None, usize::MAX)?;
+    let by_id: HashMap<_, _> = nodes.iter().map(|n| (n.node_id.as_str(), n)).collect();
+    let mut exact: HashMap<String, Vec<usize>> = HashMap::new();
+    let mut folded: HashMap<String, Vec<usize>> = HashMap::new();
+    for (index, node) in nodes.iter().enumerate() {
+        let path = node
+            .file_path
+            .as_str()
+            .replace('\\', "/")
+            .to_ascii_lowercase();
+        if !(path.starts_with("app_code/") || path.contains("/app_code/"))
+            || !(is_function(node) || node.node_type == "class")
+        {
+            continue;
+        }
+        // Keep every qualified suffix: Type.Method may match Ns.Type.Method,
+        // but Unknown.Method must never match an unrelated Type.Method.
+        let mut aliases = HashSet::from([node.name.as_str()]);
+        let mut name = fqn(node);
+        loop {
+            aliases.insert(name);
+            let Some((_, suffix)) = name.split_once('.') else {
+                break;
+            };
+            name = suffix;
+        }
+        let mut ci_aliases = HashSet::new();
+        for alias in aliases {
+            exact.entry(alias.to_string()).or_default().push(index);
+            ci_aliases.insert(alias.to_lowercase());
+        }
+        for alias in ci_aliases {
+            folded.entry(alias).or_default().push(index);
+        }
+    }
+    let deps = graph.list_edges(project_id, Some(EdgeKind::Dependency))?;
+    let calls = graph.list_edges(project_id, Some(EdgeKind::Calls))?;
+    let previous_owned: Vec<_> = deps
+        .iter()
+        .chain(&calls)
+        .filter(|e| owned(e))
+        .cloned()
+        .collect();
+    let owned_by_identity: HashMap<_, _> = previous_owned
+        .iter()
+        .map(|e| {
+            (
+                (
+                    e.source_id.as_str(),
+                    e.target_id.as_str(),
+                    e.edge_kind.as_str(),
+                ),
+                e,
+            )
+        })
+        .collect();
+    let mut present: HashMap<_, _> = deps
+        .iter()
+        .chain(&calls)
+        .map(|e| {
+            (
+                (
+                    e.source_id.clone(),
+                    e.target_id.clone(),
+                    e.edge_kind.as_str(),
+                ),
+                (e.generation, owned(e)),
+            )
+        })
+        .collect();
+    let mut updates = Vec::new();
+    let mut substrate_updates = Vec::new();
+    let mut substrate_expected = Vec::new();
+    let mut desired = HashSet::new();
+    let mut added_dependencies = 0;
+    for edge in deps.iter().chain(&calls) {
+        // Recompute exclusively from retained substrate references. A legacy
+        // terminal hint cannot recover a lost qualified target safely.
+        if owned(edge)
+            || by_id
+                .get(edge.source_id.as_str())
+                .is_some_and(|source| source.generation > edge.generation)
+        {
+            continue;
+        }
+        if by_id.contains_key(edge.target_id.as_str()) {
+            continue;
+        }
+        let raw = if let Some(name) = edge.target_id.strip_prefix("::") {
+            name
+        } else if edge.target_id.starts_with("sym:function:") && edge.target_id.ends_with(":0") {
+            let Some(name) = symbol_name(&edge.target_id) else {
+                continue;
+            };
+            name
+        } else {
             continue;
         };
-
-        // Try exact match first, then case-insensitive
-        let resolved_target = app_code_by_name
-            .get(unresolved_name.as_str())
-            .or_else(|| app_code_by_name_ci.get(&unresolved_name.to_lowercase()));
-
-        if let Some(target_id) = resolved_target {
-            let pair = (edge.source_id.clone(), target_id.clone());
-            if !resolved_set.insert(pair) {
+        let meta = edge.metadata.as_ref();
+        // Semantic failures and routed dispatch are owned by their resolvers.
+        if meta.is_some_and(|m| {
+            m.get("unresolved")
+                .is_some_and(|v| v.as_bool() == Some(true) || v.as_str() == Some("true"))
+                || m.get("dispatch_key").is_some()
+                || m.get("ajax_target_method").is_some()
+                || m.get("resolution").is_some()
+        }) {
+            continue;
+        }
+        let vb = matches!(
+            edge.language.to_ascii_lowercase().as_str(),
+            "vb" | "vbnet" | "visualbasic" | "visual_basic"
+        );
+        let explicit_fqn = meta.and_then(|m| m.get("fqn")).and_then(|v| v.as_str());
+        let mut requested = explicit_fqn
+            .filter(|name| name.contains('.') || !raw.contains('.'))
+            .unwrap_or(raw)
+            .trim()
+            .to_string();
+        // Signature text cannot safely be reduced to a name without type binding.
+        if requested.contains('(') {
+            continue;
+        }
+        if !requested.contains('.')
+            && let Some(receiver) = meta
+                .and_then(|m| m.get("receiver"))
+                .and_then(|v| v.as_str())
+            && !receiver.is_empty()
+        {
+            requested = format!("{receiver}.{requested}");
+        }
+        let lookup = if vb { &folded } else { &exact };
+        let Some(indices) = lookup.get(&key(&requested, vb)) else {
+            continue;
+        };
+        let args = number(meta, "args");
+        let mut candidates: Vec<_> = indices
+            .iter()
+            .map(|&i| &nodes[i])
+            .filter(|n| edge.edge_kind != EdgeKind::Calls || is_function(n))
+            .collect();
+        // A shared file does not establish scope. An unqualified call can use
+        // its known lexical owner, but same-owner overloads remain ambiguous.
+        if !requested.contains('.')
+            && let Some(source) = by_id.get(edge.source_id.as_str())
+            && let Some((owner, _)) = fqn(source).rsplit_once('.')
+        {
+            let local: Vec<_> = candidates
+                .iter()
+                .copied()
+                .filter(|n| {
+                    fqn(n).rsplit_once('.').is_some_and(|(candidate_owner, _)| {
+                        key(candidate_owner, vb) == key(owner, vb)
+                    })
+                })
+                .collect();
+            if !local.is_empty() {
+                candidates = local;
+            }
+        }
+        // Check arity after lexical scope: an incompatible local overload
+        // must not cause fallback to an unrelated owner's method.
+        candidates.retain(|n| {
+            // Unknown arity remains a candidate instead of creating false uniqueness.
+            args.zip(number(n.metadata.as_ref(), "arity"))
+                .is_none_or(|(a, b)| a == b)
+        });
+        let [target] = candidates.as_slice() else {
+            continue;
+        };
+        // Keep the extracted reference available for later rebinding. The
+        // general symbol resolver otherwise consumes its placeholder and can
+        // overwrite our resolved call, leaving no substrate on the next refresh.
+        // Keep the extraction generation: it is needed to reject stale calls
+        // after their source is re-extracted.
+        if meta.and_then(|m| m.get("resolution_owner")).and_then(|v| v.as_str())
+            != Some("app_code")
+        {
+            let mut retained = edge.clone();
+            let mut metadata = retained.metadata.take()
+                .and_then(|m| m.as_object().cloned()).unwrap_or_default();
+            metadata.insert("resolution_owner".into(), "app_code".into());
+            retained.metadata = Some(serde_json::Value::Object(metadata));
+            substrate_expected.push(edge.clone());
+            substrate_updates.push(retained);
+        }
+        for kind in [EdgeKind::Dependency, EdgeKind::Calls] {
+            if kind == EdgeKind::Calls && edge.edge_kind != EdgeKind::Calls {
                 continue;
             }
-
-            let mut meta = serde_json::Map::new();
-            meta.insert(
-                "resolved_from".into(),
-                serde_json::Value::String("app_code".into()),
+            let identity = (
+                edge.source_id.clone(),
+                target.node_id.clone(),
+                kind.as_str(),
             );
-            meta.insert(
-                "original_target".into(),
-                serde_json::Value::String(edge.target_id.clone()),
-            );
-
-            new_edges.push(engram_graph::Edge {
-                source_id: edge.source_id.clone(),
-                target_id: target_id.clone(),
-                namespace: engram_core::namespaces::NAMESPACE_MEMORY.into(),
-                language: edge.language.clone(),
-                edge_kind: engram_graph::EdgeKind::Dependency,
-                weight: 1,
-                generation,
-                metadata: Some(serde_json::Value::Object(meta)),
-                updated_at_ms: now_ms(),
-            });
-        }
-    }
-
-    let count = new_edges.len();
-    if !new_edges.is_empty() {
-        graph.upsert_edges(project_id, &new_edges)?;
-        tracing::info!(
-            "resolve_app_code_globals: resolved {} edges to App_Code symbols for {}",
-            count,
-            project_id
-        );
-    }
-
-    // Step 3: Rewrite unqualified call edges (`::Foo`) to qualified App_Code FQNs
-    // when there is exactly one matching App_Code function terminal.
-    tracing::info!(
-        project_id = %project_id,
-        terminal_to_fqn_len = terminal_to_fqn.len(),
-        app_code_symbol_count = app_code_by_name.len(),
-        "resolve_app_code_globals: step3_lookup_sizes"
-    );
-    if terminal_to_fqn.is_empty() {
-        return Ok(count);
-    }
-
-    for fqns in terminal_to_fqn.values_mut() {
-        fqns.sort();
-        fqns.dedup();
-    }
-
-    let call_edges = graph.list_edges(project_id, Some(engram_graph::EdgeKind::Calls))?;
-    let mut rewritten_edges: Vec<engram_graph::Edge> = Vec::new();
-    let mut rewritten = 0usize;
-    let mut ambiguous = 0usize;
-    let mut unmatched = 0usize;
-    let mut skipped_empty = 0usize;
-    let mut skipped_already_app_code = 0usize;
-    let mut no_terminal_match = 0usize;
-    let mut fqn_not_in_node_map = 0usize;
-    let sample_target_ids: Vec<String> = call_edges
-        .iter()
-        .take(3)
-        .map(|edge| edge.target_id.clone())
-        .collect();
-    let sample_terminals: Vec<String> = terminal_to_fqn.keys().take(3).cloned().collect();
-    tracing::info!(
-        project_id = %project_id,
-        sample_target_ids = ?sample_target_ids,
-        sample_terminals = ?sample_terminals,
-        "resolve_app_code_globals: step3_samples"
-    );
-
-    // Cache source node file_paths to avoid repeated lookups.
-    let mut source_file_cache: HashMap<String, Option<String>> = HashMap::new();
-    let mut ambiguous_fqn_counts: HashMap<String, usize> = HashMap::new();
-
-    for edge in &call_edges {
-        let Some(bare_name) = extract_terminal_name(&edge.target_id) else {
-            no_terminal_match += 1;
-            unmatched += 1;
-            continue;
-        };
-        if bare_name.is_empty() {
-            skipped_empty += 1;
-            continue;
-        }
-        // Skip edges whose target already resolves to App_Code paths.
-        let target_lower = edge.target_id.to_lowercase();
-        if edge.target_id.starts_with("sym:function:Site/App_Code/")
-            || edge.target_id.starts_with("sym:function:Site\\App_Code\\")
-            || target_lower.contains("/app_code/")
-            || target_lower.contains("\\app_code\\")
-        {
-            skipped_already_app_code += 1;
-            continue;
-        }
-
-        // Look up the source node's file_path for the prefer_file_path hint.
-        let source_file_path = source_file_cache
-            .entry(edge.source_id.clone())
-            .or_insert_with(|| {
-                graph
-                    .get_node(project_id, &edge.source_id)
-                    .ok()
-                    .flatten()
-                    .map(|n| n.file_path.as_str().to_string())
-            })
-            .as_deref();
-
-        let bare_name = strip_line_suffix(bare_name);
-        match terminal_to_fqn.get(bare_name) {
-            Some(matches) if matches.len() == 1 => {
-                let matched_fqn = &matches[0];
-                let new_target_id =
-                    match graph.resolve_symbol(project_id, matched_fqn, None, source_file_path)? {
-                        ResolveResult::Unique(node) => node.node_id,
-                        _ => {
-                            unmatched += 1;
-                            fqn_not_in_node_map += 1;
-                            *ambiguous_fqn_counts.entry(matched_fqn.clone()).or_default() += 1;
-                            continue;
-                        }
-                    };
-
-                if edge.target_id == new_target_id {
-                    continue;
-                }
-
-                let mut metadata_obj = edge
-                    .metadata
-                    .clone()
-                    .and_then(|m| m.as_object().cloned())
-                    .unwrap_or_default();
-                metadata_obj.insert(
-                    "original_target_name".into(),
-                    serde_json::Value::String(bare_name.to_string()),
-                );
-                metadata_obj.insert(
-                    "resolved_target_fqn".into(),
-                    serde_json::Value::String(matched_fqn.to_string()),
-                );
-
-                let mut rewritten_edge = edge.clone();
-                rewritten_edge.target_id = new_target_id;
-                rewritten_edge.metadata = Some(serde_json::Value::Object(metadata_obj));
-                rewritten_edge.generation = generation;
-                rewritten_edge.updated_at_ms = now_ms();
-                rewritten_edges.push(rewritten_edge);
-                rewritten += 1;
+            let previous = present.get(&identity).copied();
+            // All owned edges are replaced, including same-generation repairs.
+            // Never overwrite another producer's evidence at this endpoint.
+            if previous.is_some_and(|(_, app_code)| !app_code) || !desired.insert(identity.clone())
+            {
+                continue;
             }
-            Some(matches) if matches.len() > 1 => {
-                // Multiple FQN candidates — try resolving each with prefer_file_path.
-                let mut resolved_any = None;
-                let mut resolved_fqn = None;
-                for matched_fqn in matches {
-                    if let ResolveResult::Unique(node) =
-                        graph.resolve_symbol(project_id, matched_fqn, None, source_file_path)?
-                    {
-                        resolved_any = Some(node);
-                        resolved_fqn = Some(matched_fqn.clone());
-                        break;
-                    }
-                }
-                match resolved_any {
-                    Some(node) => {
-                        let new_target_id = node.node_id;
-                        if edge.target_id == new_target_id {
-                            continue;
-                        }
-
-                        let mut metadata_obj = edge
-                            .metadata
-                            .clone()
-                            .and_then(|m| m.as_object().cloned())
-                            .unwrap_or_default();
-                        metadata_obj.insert(
-                            "original_target_name".into(),
-                            serde_json::Value::String(bare_name.to_string()),
-                        );
-                        metadata_obj.insert(
-                            "resolved_target_fqn".into(),
-                            serde_json::Value::String(resolved_fqn.unwrap_or_default()),
-                        );
-
-                        let mut rewritten_edge = edge.clone();
-                        rewritten_edge.target_id = new_target_id;
-                        rewritten_edge.metadata = Some(serde_json::Value::Object(metadata_obj));
-                        rewritten_edge.generation = generation;
-                        rewritten_edge.updated_at_ms = now_ms();
-                        rewritten_edges.push(rewritten_edge);
-                        rewritten += 1;
-                    }
-                    None => {
-                        ambiguous += 1;
-                        tracing::debug!(
-                            target_name = bare_name,
-                            matching_fqns = ?matches,
-                            count = matches.len(),
-                            "resolve_app_code_globals: ambiguous_bare_call"
-                        );
-                    }
-                }
+            if kind == EdgeKind::Dependency && previous.is_none() {
+                added_dependencies += 1;
             }
-            _ => {
-                unmatched += 1;
-                no_terminal_match += 1;
+            present.insert(identity, (generation, true));
+            let mut metadata = edge
+                .metadata
+                .clone()
+                .and_then(|m| m.as_object().cloned())
+                .unwrap_or_default();
+            metadata.insert("resolved_from".into(), "app_code".into());
+            metadata.insert("resolution_owner".into(), "app_code".into());
+            metadata.insert("original_target".into(), edge.target_id.clone().into());
+            metadata.insert("original_target_name".into(), requested.clone().into());
+            metadata.insert("resolved_target_fqn".into(), fqn(target).into());
+            metadata.insert("resolution".into(), "app_code_unique".into());
+            let mut resolved = edge.clone();
+            resolved.target_id = target.node_id.clone();
+            resolved.edge_kind = kind;
+            resolved.generation = generation;
+            resolved.metadata = Some(serde_json::Value::Object(metadata));
+            resolved.updated_at_ms = now_ms();
+            if let Some(old) = owned_by_identity.get(&(
+                resolved.source_id.as_str(),
+                resolved.target_id.as_str(),
+                resolved.edge_kind.as_str(),
+            )) && old.generation == resolved.generation
+                && old.metadata == resolved.metadata
+                && old.weight == resolved.weight
+                && old.namespace == resolved.namespace
+                && old.language == resolved.language
+            {
+                resolved.updated_at_ms = old.updated_at_ms;
             }
+            updates.push(resolved);
         }
     }
-
-    // Diagnostic: top 10 FQNs that couldn't resolve (aids future regression diagnosis).
-    if !ambiguous_fqn_counts.is_empty() {
-        let mut top: Vec<_> = ambiguous_fqn_counts.into_iter().collect();
-        top.sort_by(|a, b| b.1.cmp(&a.1));
-        top.truncate(10);
-        tracing::debug!("resolve_app_code_globals: top unresolved FQNs = {:?}", top);
+    let resolved_edges = updates.len();
+    if !updates.is_empty() || !previous_owned.is_empty() || !substrate_updates.is_empty() {
+        let mut expected = previous_owned;
+        expected.extend(substrate_expected);
+        updates.extend(substrate_updates);
+        graph.replace_edge_snapshot(project_id, &expected, &updates)?;
     }
-
-    if !rewritten_edges.is_empty() {
-        graph.upsert_edges(project_id, &rewritten_edges)?;
-    }
-
     tracing::info!(
-        "resolve_app_code_globals: rewrote {} unqualified call edges to qualified FQNs, {} ambiguous unchanged, {} unmatched, skipped_empty={}, skipped_already_app_code={}, no_terminal_match={}, fqn_not_in_node_map={}",
-        rewritten,
-        ambiguous,
-        unmatched,
-        skipped_empty,
-        skipped_already_app_code,
-        no_terminal_match,
-        fqn_not_in_node_map
+        project_id,
+        added_dependencies,
+        resolved_edges,
+        "resolved unique App_Code global references"
     );
-    Ok(count)
+    Ok(added_dependencies)
 }
 
 /// Post-ingest: link data-binding field nodes to database column nodes.

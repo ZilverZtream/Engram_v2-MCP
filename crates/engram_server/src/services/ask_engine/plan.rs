@@ -85,6 +85,33 @@ pub enum Facet {
     Rationale,
 }
 
+/// Requested behavior, not a claim that matching words prove its implementation.
+/// A future evidence verifier can discharge these obligations per operation and
+/// requested scope; ordinary retrieval currently provides no such proof.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BehaviorOperation {
+    Create,
+    Rename,
+    Update,
+    Remove,
+    Read,
+    Validate,
+}
+
+impl BehaviorOperation {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Create => "create",
+            Self::Rename => "rename",
+            Self::Update => "update",
+            Self::Remove => "remove",
+            Self::Read => "read",
+            Self::Validate => "validate/enforce constraints",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct AnswerContract {
     pub direction: ContractDirection,
@@ -94,6 +121,12 @@ pub struct AnswerContract {
     /// Empty = every evidence class is admissible.
     pub allowed_evidence: Vec<EvidenceKind>,
     pub completeness_required: bool,
+    /// Coordinated behavioral obligations, separate from exhaustive graph sets.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub behavior_requirements: Vec<BehaviorOperation>,
+    /// Original scope wording is a hint for verification, not resolved scopes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub behavior_scope_context: Option<String>,
 }
 
 impl Default for AnswerContract {
@@ -105,6 +138,8 @@ impl Default for AnswerContract {
             required_facets: Vec::new(),
             allowed_evidence: Vec::new(),
             completeness_required: false,
+            behavior_requirements: Vec::new(),
+            behavior_scope_context: None,
         }
     }
 }

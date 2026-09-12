@@ -13,30 +13,96 @@
 
 use engram_ml::{Embedder, Embedding};
 use redb::{Database, TableDefinition};
-use std::path::Path;
-use std::sync::{Arc, OnceLock};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, OnceLock, Weak};
 
 const EMBED_CACHE: TableDefinition<&str, &[u8]> = TableDefinition::new("embed_cache_v1");
 
 /// One database handle per process: redb allows a single writer per file,
 /// and every project's engine shares the same cache.
-static CACHE_DB: OnceLock<anyhow::Result<Arc<Database>>> = OnceLock::new();
+static CACHE_DBS: OnceLock<Mutex<HashMap<PathBuf, Weak<Database>>>> = OnceLock::new();
 
 fn open_cache_db(path: &Path) -> anyhow::Result<Arc<Database>> {
-    match CACHE_DB.get_or_init(|| {
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    std::fs::create_dir_all(parent)?;
+    let key = std::fs::canonicalize(parent)?.join(
+        path.file_name()
+            .ok_or_else(|| anyhow::anyhow!("cache path needs a filename"))?,
+    );
+    let mut databases = CACHE_DBS
+        .get_or_init(Default::default)
+        .lock()
+        .map_err(|_| anyhow::anyhow!("embedding cache registry poisoned"))?;
+    if let Some(db) = databases.get(&key).and_then(Weak::upgrade) {
+        return Ok(db);
+    }
+    databases.retain(|_, db| db.strong_count() > 0);
+    let db = Arc::new(Database::create(&key)?);
+    databases.insert(key, Arc::downgrade(&db));
+    Ok(db)
+}
+
+/// Small process-local query cache. Interactive requests must not wait for
+/// recovery/opening of the bulk indexing database. Keys retain only text hashes.
+pub struct QueryEmbedder {
+    inner: Arc<dyn Embedder>,
+    entries: Mutex<std::collections::VecDeque<(blake3::Hash, Embedding)>>,
+}
+
+impl QueryEmbedder {
+    pub fn new(inner: Arc<dyn Embedder>) -> Self {
+        Self {
+            inner,
+            entries: Mutex::new(Default::default()),
         }
-        Ok(Arc::new(Database::create(path)?))
-    }) {
-        Ok(db) => Ok(db.clone()),
-        Err(e) => anyhow::bail!("embed cache open failed: {e:#}"),
+    }
+}
+
+#[async_trait::async_trait]
+impl Embedder for QueryEmbedder {
+    async fn embed(&self, text: &str) -> anyhow::Result<Embedding> {
+        let key = blake3::hash(text.as_bytes());
+        {
+            let mut entries = self.entries.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some(pos) = entries.iter().position(|(k, _)| *k == key) {
+                let entry = entries.remove(pos).expect("position exists");
+                let result = entry.1.clone();
+                entries.push_back(entry);
+                return Ok(result);
+            }
+        }
+        // Never hold the cache lock across provider I/O. Concurrent misses may
+        // duplicate provider work, but unrelated queries remain independent.
+        let result = self.inner.embed(text).await?;
+        anyhow::ensure!(
+            result.len() == self.dimension() && result.iter().all(|v| v.is_finite()),
+            "query embedder returned an invalid vector"
+        );
+        let mut entries = self.entries.lock().unwrap_or_else(|e| e.into_inner());
+        entries.retain(|(k, _)| *k != key);
+        if entries.len() >= 128 {
+            entries.pop_front();
+        }
+        entries.push_back((key, result.clone()));
+        Ok(result)
+    }
+
+    fn dimension(&self) -> usize {
+        self.inner.dimension()
+    }
+    fn model_tag(&self) -> String {
+        self.inner.model_tag()
     }
 }
 
 pub struct CachedEmbedder {
     inner: Arc<dyn Embedder>,
-    db: Arc<Database>,
+    db: tokio::sync::OnceCell<Option<Arc<Database>>>,
+    cache_path: PathBuf,
     tag: String,
 }
 
@@ -47,7 +113,39 @@ impl CachedEmbedder {
     pub fn new(inner: Arc<dyn Embedder>, cache_path: &Path) -> anyhow::Result<Self> {
         let db = open_cache_db(cache_path)?;
         let tag = inner.model_tag();
-        Ok(Self { inner, db, tag })
+        Ok(Self {
+            inner,
+            db: tokio::sync::OnceCell::new_with(Some(Some(db))),
+            cache_path: cache_path.to_path_buf(),
+            tag,
+        })
+    }
+
+    /// Exact/FTS lookups never need embeddings or the potentially large cache.
+    /// Open it only for the first embedding request, off the async executor.
+    pub fn new_lazy(inner: Arc<dyn Embedder>, cache_path: &Path) -> Self {
+        let tag = inner.model_tag();
+        Self {
+            inner,
+            db: tokio::sync::OnceCell::new(),
+            cache_path: cache_path.to_path_buf(),
+            tag,
+        }
+    }
+
+    async fn initialize(&self) {
+        self.db
+            .get_or_init(|| async {
+                let path = self.cache_path.clone();
+                match tokio::task::spawn_blocking(move || open_cache_db(&path)).await {
+                    Ok(Ok(db)) => Some(db),
+                    error => {
+                        tracing::warn!(?error, "embedding cache unavailable; continuing uncached");
+                        None
+                    }
+                }
+            })
+            .await;
     }
 
     fn key(&self, text: &str) -> String {
@@ -55,7 +153,10 @@ impl CachedEmbedder {
     }
 
     fn get_many(&self, keys: &[String]) -> Vec<Option<Embedding>> {
-        let Ok(rtx) = self.db.begin_read() else {
+        let Some(Some(db)) = self.db.get() else {
+            return vec![None; keys.len()];
+        };
+        let Ok(rtx) = db.begin_read() else {
             return vec![None; keys.len()];
         };
         let Ok(table) = rtx.open_table(EMBED_CACHE) else {
@@ -84,9 +185,12 @@ impl CachedEmbedder {
         if entries.is_empty() {
             return;
         }
+        let Some(Some(db)) = self.db.get() else {
+            return;
+        };
         // Best-effort: a failed cache write must never fail the embed call.
         let write = || -> anyhow::Result<()> {
-            let wtx = self.db.begin_write()?;
+            let wtx = db.begin_write()?;
             {
                 let mut table = wtx.open_table(EMBED_CACHE)?;
                 for (k, v) in entries {
@@ -106,6 +210,7 @@ impl CachedEmbedder {
 #[async_trait::async_trait]
 impl Embedder for CachedEmbedder {
     async fn embed(&self, text: &str) -> anyhow::Result<Embedding> {
+        self.initialize().await;
         let key = self.key(text);
         if let Some(hit) = self.get_many(std::slice::from_ref(&key)).pop().flatten() {
             return Ok(hit);
@@ -133,6 +238,7 @@ impl Embedder for CachedEmbedder {
         texts: &[&str],
         cancel: &tokio_util::sync::CancellationToken,
     ) -> anyhow::Result<Vec<Embedding>> {
+        self.initialize().await;
         let keys: Vec<String> = texts.iter().map(|t| self.key(t)).collect();
         let cached = self.get_many(&keys);
 
@@ -203,9 +309,86 @@ mod tests {
         }
     }
 
-    fn cache_path() -> std::path::PathBuf {
-        // OnceLock holds one DB per process: all tests share one file.
-        std::env::temp_dir().join("engram_embed_cache_test.redb")
+    #[tokio::test]
+    async fn query_cache_is_bounded_reuses_hits_and_isolated_from_disk_cache() {
+        let inner = Arc::new(CountingEmbedder {
+            calls: AtomicUsize::new(0),
+            dim: 8,
+        });
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("bulk.redb");
+        let bulk = CachedEmbedder::new_lazy(inner.clone(), &path);
+        let queries = QueryEmbedder::new(inner.clone());
+        assert_eq!(
+            queries.embed("hello").await.unwrap(),
+            queries.embed("hello").await.unwrap()
+        );
+        assert_eq!(inner.calls.load(Ordering::SeqCst), 1);
+        assert!(!path.exists());
+        assert!(bulk.db.get().is_none());
+        for i in 0..129 {
+            queries.embed(&i.to_string()).await.unwrap();
+        }
+        assert_eq!(queries.entries.lock().unwrap().len(), 128);
+        let before = inner.calls.load(Ordering::SeqCst);
+        queries.embed("hello").await.unwrap();
+        assert_eq!(inner.calls.load(Ordering::SeqCst), before + 1);
+    }
+
+    #[tokio::test]
+    async fn lazy_cache_is_deferred_shared_by_path_and_isolated_between_roots() {
+        let first_root = tempfile::tempdir().unwrap();
+        let second_root = tempfile::tempdir().unwrap();
+        let first_path = first_root.path().join("cache.redb");
+        let second_path = second_root.path().join("cache.redb");
+        let a = Arc::new(CountingEmbedder {
+            calls: AtomicUsize::new(0),
+            dim: 8,
+        });
+        let b = Arc::new(CountingEmbedder {
+            calls: AtomicUsize::new(0),
+            dim: 8,
+        });
+        let first = CachedEmbedder::new_lazy(a.clone(), &first_path);
+        let shared = CachedEmbedder::new_lazy(a.clone(), &first_path);
+        let second = CachedEmbedder::new_lazy(b.clone(), &second_path);
+        assert!(!first_path.exists());
+        assert_eq!(first.dimension(), 8);
+        assert!(
+            !first_path.exists(),
+            "metadata must not initialize the embedding database"
+        );
+        tokio::join!(first.initialize(), shared.initialize(), second.initialize());
+        assert!(Arc::ptr_eq(
+            first.db.get().unwrap().as_ref().unwrap(),
+            shared.db.get().unwrap().as_ref().unwrap()
+        ));
+        first.embed("same-input").await.unwrap();
+        shared.embed("same-input").await.unwrap();
+        second.embed("same-input").await.unwrap();
+        assert_eq!(a.calls.load(Ordering::SeqCst), 1);
+        assert_eq!(
+            b.calls.load(Ordering::SeqCst),
+            1,
+            "a different cache root must not reuse the first root's data"
+        );
+    }
+
+    #[tokio::test]
+    async fn lazy_cache_open_failure_does_not_disable_embedding_or_poison_other_roots() {
+        let root = tempfile::tempdir().unwrap();
+        let obstruction = root.path().join("file");
+        std::fs::write(&obstruction, b"not a directory").unwrap();
+        let inner = Arc::new(CountingEmbedder {
+            calls: AtomicUsize::new(0),
+            dim: 8,
+        });
+        let broken = CachedEmbedder::new_lazy(inner.clone(), &obstruction.join("cache.redb"));
+        assert_eq!(broken.embed("hello").await.unwrap().len(), 8);
+        let good = CachedEmbedder::new_lazy(inner.clone(), &root.path().join("valid.redb"));
+        good.embed("hello").await.unwrap();
+        good.embed("hello").await.unwrap();
+        assert_eq!(inner.calls.load(Ordering::SeqCst), 2);
     }
 
     #[tokio::test]
@@ -214,7 +397,8 @@ mod tests {
             calls: AtomicUsize::new(0),
             dim: 8,
         });
-        let cached = CachedEmbedder::new(inner.clone(), &cache_path()).unwrap();
+        let root = tempfile::tempdir().unwrap();
+        let cached = CachedEmbedder::new(inner.clone(), &root.path().join("cache.redb")).unwrap();
 
         let salt = std::process::id();
         let a = format!("alpha-cache-test-{salt}");
@@ -240,7 +424,8 @@ mod tests {
             calls: AtomicUsize::new(0),
             dim: 8,
         });
-        let cached = CachedEmbedder::new(inner.clone(), &cache_path()).unwrap();
+        let root = tempfile::tempdir().unwrap();
+        let cached = CachedEmbedder::new(inner.clone(), &root.path().join("cache.redb")).unwrap();
 
         let salt = std::process::id();
         let gamma = format!("gamma-partial-{salt}");

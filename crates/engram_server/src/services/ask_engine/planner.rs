@@ -348,7 +348,87 @@ pub fn derive_contract(lower: &str, _entities: &[EntityMention]) -> super::plan:
         c.entity_type = ContractEntityType::Table;
         c.cardinality = Cardinality::One;
     }
+    // Direct lookup/set contracts retain their established semantics. Only
+    // coordinated natural-language behavior requests add these obligations.
+    if c.direction == ContractDirection::None && c.required_facets.is_empty() {
+        c.behavior_requirements = coordinated_behavior_operations(lower);
+        if !c.behavior_requirements.is_empty() {
+            let first_sentence = lower.split(['?', '.', '!']).next().unwrap_or(lower);
+            c.behavior_scope_context = [
+                " across ",
+                " within ",
+                " between ",
+                " in ",
+                " per ",
+                " for each ",
+            ]
+            .iter()
+            .filter_map(|cue| first_sentence.find(cue))
+            .min()
+            .map(|at| first_sentence[at..].trim().chars().take(240).collect());
+        }
+    }
     c
+}
+
+/// Deliberately bounded recall: explicit where/how questions coordinating two
+/// different operation families. Whole prose tokens avoid interpreting a
+/// compound identifier as multiple operations. Quoted identifiers are omitted.
+fn coordinated_behavior_operations(lower: &str) -> Vec<BehaviorOperation> {
+    use BehaviorOperation as Op;
+    if !(lower.starts_with("where ") || lower.starts_with("how ")) {
+        return Vec::new();
+    }
+    let mut quote = None;
+    let prose: String = lower
+        .chars()
+        .map(|ch| {
+            if matches!(ch, '`' | '"') {
+                if quote == Some(ch) {
+                    quote = None;
+                } else if quote.is_none() {
+                    quote = Some(ch);
+                }
+                ' '
+            } else if quote.is_some() {
+                ' '
+            } else {
+                ch
+            }
+        })
+        .collect();
+    let tokens: Vec<&str> = prose
+        .split(|ch: char| !ch.is_alphanumeric() && ch != '_')
+        .collect();
+    if !tokens.iter().any(|t| matches!(*t, "and" | "or")) {
+        return Vec::new();
+    }
+    let mut operations = Vec::new();
+    for token in tokens {
+        let operation = match token {
+            "create" | "creates" | "created" | "creating" | "creation" | "add" | "adds"
+            | "added" | "adding" | "insert" | "inserted" => Op::Create,
+            "rename" | "renames" | "renamed" | "renaming" | "retitle" | "retitled"
+            | "retitling" => Op::Rename,
+            "update" | "updates" | "updated" | "updating" | "modify" | "modified" | "edit"
+            | "edited" | "write" | "written" => Op::Update,
+            "remove" | "removes" | "removed" | "removing" | "delete" | "deleted" | "deleting" => {
+                Op::Remove
+            }
+            "read" | "reads" | "reading" | "retrieve" | "retrieved" | "fetch" | "fetched"
+            | "load" | "loaded" => Op::Read,
+            "validate" | "validated" | "validation" | "enforce" | "enforced" | "enforcement"
+            | "prevent" | "prevents" => Op::Validate,
+            _ => continue,
+        };
+        if !operations.contains(&operation) {
+            operations.push(operation);
+        }
+    }
+    if operations.len() < 2 {
+        operations.clear();
+    }
+    operations
 }
 
 /// Round-2 audit P0-4: the evidence modality the question asks for, from

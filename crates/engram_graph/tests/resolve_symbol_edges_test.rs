@@ -11,6 +11,117 @@ fn open_store(tmp: &tempfile::TempDir) -> GraphStore {
     GraphStore::open(&tmp.path().join("graph.redb")).expect("GraphStore::open")
 }
 
+#[test]
+fn refreshed_stable_source_retires_only_superseded_extracted_edges() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "source-edge-lifetimes";
+    let mut caller = make_node("caller", "Caller.Run", "caller.vb");
+    caller.generation = 2; // Stable ID was overwritten by the new extraction.
+    graph
+        .upsert_nodes(
+            pid,
+            &[caller, make_node("target", "Target.Run", "target.vb")],
+        )
+        .unwrap();
+    let old = make_call("caller", "target");
+    let mut current = make_call("caller", "::External.Run");
+    current.generation = 2;
+    let mut temporal = old.clone();
+    temporal.edge_kind = EdgeKind::TemporalCoupling;
+    let mut knowledge = old.clone();
+    knowledge.edge_kind = EdgeKind::QueriesTable;
+    knowledge.namespace = "business_logic".into();
+    let inbound = make_call("target", "caller");
+    graph
+        .upsert_edges(pid, &[old, current, temporal, knowledge, inbound])
+        .unwrap();
+    let (_, removed) = graph
+        .purge_stale_nodes_for_paths(pid, &["caller.vb".to_string()].into_iter().collect(), 2)
+        .unwrap();
+    assert_eq!(removed, 1);
+    let calls = graph.list_edges(pid, Some(EdgeKind::Calls)).unwrap();
+    assert_eq!(calls.len(), 2);
+    assert!(calls.iter().any(|e| e.target_id == "::External.Run"));
+    assert!(
+        calls
+            .iter()
+            .any(|e| e.source_id == "target" && e.target_id == "caller")
+    );
+    assert_eq!(
+        graph
+            .list_edges(pid, Some(EdgeKind::TemporalCoupling))
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        graph
+            .list_edges(pid, Some(EdgeKind::QueriesTable))
+            .unwrap()
+            .len(),
+        1
+    );
+}
+
+#[test]
+fn qualified_receiver_is_preserved_in_call_resolution() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "qualified-receivers";
+    let caller = make_node("caller", "Example.Caller.Copy", "sample.vb");
+    let exists = make_node("exists", "Example.Marker.Exists", "sample.vb");
+    let load = make_node("load", "Example.Factory.Load", "sample.vb");
+    graph
+        .upsert_nodes(pid, &[caller.clone(), exists.clone(), load.clone()])
+        .unwrap();
+    graph
+        .upsert_edges(
+            pid,
+            &[
+                make_call("caller", "::IO.Directory.Exists"),
+                make_call("caller", "::System.Reflection.Assembly.Load"),
+                make_call("caller", "::Marker.Exists"),
+                make_call("caller", "::Example.Factory.Load"),
+            ],
+        )
+        .unwrap();
+    graph.resolve_symbol_edges(pid).unwrap();
+    let targets: Vec<_> = graph
+        .neighbors(pid, EdgeKind::Calls, "caller", 10)
+        .unwrap()
+        .into_iter()
+        .map(|(id, _)| id)
+        .collect();
+    assert!(targets.contains(&"::IO.Directory.Exists".to_string()));
+    assert!(targets.contains(&"::System.Reflection.Assembly.Load".to_string()));
+    assert!(targets.contains(&exists.node_id));
+    assert!(targets.contains(&load.node_id));
+}
+
+#[test]
+fn traversal_does_not_rebind_unknown_qualified_receiver() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "qualified-traversal";
+    graph
+        .upsert_nodes(
+            pid,
+            &[
+                make_node("caller", "Caller.Run", "sample.vb"),
+                make_node("wrong", "Local.Exists", "sample.vb"),
+            ],
+        )
+        .unwrap();
+    graph
+        .upsert_edges(pid, &[make_call("caller", "::IO.Directory.Exists")])
+        .unwrap();
+    let found = graph
+        .traverse(pid, "caller", 2, Some(vec![EdgeKind::Calls]), "out")
+        .unwrap();
+    assert!(!found.iter().any(|(n, _)| n.node_id == "wrong"));
+}
+
 fn make_node(node_id: &str, name: &str, file_path: &str) -> Node {
     Node {
         node_id: node_id.to_string(),
@@ -726,7 +837,7 @@ fn signature_shaped_target_resolves_via_suffix_step() {
 }
 
 #[test]
-fn edge_metadata_fqn_misses_fall_through_to_terminal_segment() {
+fn missing_explicit_fqn_does_not_bind_to_an_unrelated_terminal_name() {
     let tmp = tempfile::TempDir::new().unwrap();
     let graph = open_store(&tmp);
     let pid = "test-edge-fqn-miss";
@@ -755,8 +866,8 @@ fn edge_metadata_fqn_misses_fall_through_to_terminal_segment() {
 
     let resolved = graph.resolve_symbol_edges(pid).unwrap();
     assert_eq!(
-        resolved, 1,
-        "terminal fallback still applies after fqn miss"
+        resolved, 0,
+        "missing explicit identity must remain unresolved"
     );
 
     let calls = graph.list_edges(pid, Some(EdgeKind::Calls)).unwrap();
@@ -764,5 +875,61 @@ fn edge_metadata_fqn_misses_fall_through_to_terminal_segment() {
         .iter()
         .filter(|e| e.source_id == source.node_id)
         .collect();
-    assert_eq!(rewritten[0].target_id, t.node_id);
+    assert_eq!(rewritten[0].target_id, "::DoWork");
+}
+
+#[test]
+fn duplicate_metadata_fqn_does_not_select_first_overload() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "ambiguous-qualified-overload";
+    let source = make_node("caller", "Caller", "caller.vb");
+    let first = make_node_with_fqn("first", "SaveOne", "service.vb", "Ns.Service.Save");
+    let second = make_node_with_fqn("second", "SaveTwo", "service.vb", "Ns.Service.Save");
+    graph.upsert_nodes(pid, &[source, first, second]).unwrap();
+    graph
+        .upsert_edges(pid, &[make_call("caller", "::Ns.Service.Save")])
+        .unwrap();
+    assert_eq!(graph.resolve_symbol_edges(pid).unwrap(), 0);
+    let edges = graph.list_edges(pid, Some(EdgeKind::Calls)).unwrap();
+    assert_eq!(edges[0].target_id, "::Ns.Service.Save");
+}
+
+#[test]
+fn event_qualified_identity_wins_over_unique_bare_name() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "event-qualified-identity";
+    let source = make_node("control", "SaveButton", "edit.aspx");
+    let decoy = make_node("decoy", "OnSave", "other.vb");
+    let target = make_node("handler", "Editor.OnSave", "edit.aspx.vb");
+    graph.upsert_nodes(pid, &[source, decoy, target]).unwrap();
+    let mut edge = make_call("control", "::OnSave");
+    edge.metadata = Some(serde_json::json!({"fqn":"Editor.OnSave", "via":"event_wiring"}));
+    graph.upsert_edges(pid, &[edge]).unwrap();
+    assert_eq!(graph.resolve_symbol_edges(pid).unwrap(), 1);
+    let edges = graph.list_edges(pid, Some(EdgeKind::Calls)).unwrap();
+    assert_eq!(edges[0].target_id, "handler");
+    assert_eq!(
+        edges[0].metadata.as_ref().unwrap()["resolution"],
+        "post_edge_fqn"
+    );
+}
+
+#[test]
+fn equal_suffix_names_are_not_proof_of_duplicate_identity() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "ambiguous-suffix-overload";
+    let source = make_node("caller", "Caller", "caller.vb");
+    let first = make_node("first", "Ns.Service.Save", "service.vb");
+    let mut second = make_node("second", "Ns.Service.Save", "service.vb");
+    second.start_line = 20;
+    graph.upsert_nodes(pid, &[source, first, second]).unwrap();
+    graph
+        .upsert_edges(pid, &[make_call("caller", "::Service.Save")])
+        .unwrap();
+    assert_eq!(graph.resolve_symbol_edges(pid).unwrap(), 0);
+    let edges = graph.list_edges(pid, Some(EdgeKind::Calls)).unwrap();
+    assert_eq!(edges[0].target_id, "::Service.Save");
 }

@@ -238,6 +238,8 @@ pub struct LlmResponse {
 #[async_trait]
 pub trait LlmProvider: Send + Sync {
     fn name(&self) -> &'static str;
+    /// Model identifier submitted to the provider, not a remotely resolved model.
+    fn requested_model(&self) -> Option<&str> { None }
 
     async fn generate(
         &self,
@@ -265,6 +267,7 @@ impl OllamaProvider {
 
 #[async_trait]
 impl LlmProvider for OllamaProvider {
+    fn requested_model(&self) -> Option<&str> { Some(&self.model) }
     fn name(&self) -> &'static str {
         "ollama"
     }
@@ -460,6 +463,7 @@ fn select_retry_delay(
 
 #[async_trait]
 impl LlmProvider for OpenAiCompatibleProvider {
+    fn requested_model(&self) -> Option<&str> { Some(&self.model) }
     fn name(&self) -> &'static str {
         "openai"
     }
@@ -682,6 +686,7 @@ impl OpenRouterProvider {
 
 #[async_trait]
 impl LlmProvider for OpenRouterProvider {
+    fn requested_model(&self) -> Option<&str> { self.inner.requested_model() }
     fn name(&self) -> &'static str {
         "openrouter"
     }

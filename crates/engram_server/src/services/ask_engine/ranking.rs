@@ -4,7 +4,7 @@
 //! Never let many weak semantic hits outvote one direct source-line relation.
 //! Conflicts are DETECTED and surfaced, never used to drop evidence.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use super::evidence::{Authority, EvidenceItem, EvidenceKind};
 use super::plan::{EntityKind, Modality, QueryPlan};
@@ -266,6 +266,9 @@ pub fn reserve_required_with(
 ) -> std::collections::HashSet<String> {
     let words = question_words(question);
     let mut wanted: Vec<EvidenceItem> = Vec::new();
+    // A requirement already satisfied by selection needs protection too. The
+    // returned set also guards the later entity/per-path trims, not just eviction.
+    let mut protected = std::collections::HashSet::new();
     let has =
         |set: &[EvidenceItem], pred: &dyn Fn(&EvidenceItem) -> bool| set.iter().any(|e| pred(e));
     for m in modalities {
@@ -276,6 +279,9 @@ pub fn reserve_required_with(
         let mut cands: Vec<&EvidenceItem> = raw.iter().filter(|e| of_modality(e)).collect();
         cands.sort_by_key(|e| std::cmp::Reverse(reserve_key(e, &words)));
         for c in cands.into_iter().take(MODALITY_SLOTS) {
+            if chosen.iter().any(|e| e.evidence_id == c.evidence_id) {
+                protected.insert(c.evidence_id.clone());
+            }
             let present = chosen
                 .iter()
                 .chain(wanted.iter())
@@ -287,7 +293,15 @@ pub fn reserve_required_with(
     }
     for k in needed {
         let of_kind = |e: &EvidenceItem| e.kind == *k;
-        if has(chosen, &of_kind) || has(&wanted, &of_kind) {
+        if has(&wanted, &of_kind) {
+            continue;
+        }
+        if let Some(existing) = chosen
+            .iter()
+            .filter(|e| of_kind(e))
+            .max_by_key(|e| reserve_key(e, &words))
+        {
+            protected.insert(existing.evidence_id.clone());
             continue;
         }
         if let Some(best) = raw.iter().filter(|e| of_kind(e)).max_by(|a, b| {
@@ -307,7 +321,15 @@ pub fn reserve_required_with(
                 p == t || p.ends_with(&format!("/{t}")) || t.ends_with(&format!("/{p}"))
             })
         };
-        if has(chosen, &of_file) || has(&wanted, &of_file) {
+        if has(&wanted, &of_file) {
+            continue;
+        }
+        if let Some(existing) = chosen
+            .iter()
+            .filter(|e| of_file(e))
+            .max_by_key(|e| reserve_key(e, &words))
+        {
+            protected.insert(existing.evidence_id.clone());
             continue;
         }
         if let Some(best) = raw
@@ -327,8 +349,14 @@ pub fn reserve_required_with(
         let is_def = |e: &EvidenceItem| {
             e.provider == "definition" || e.extraction_method.contains("definition")
         };
-        if !has(chosen, &is_def) && !has(&wanted, &is_def) {
-            if let Some(best) = raw.iter().filter(|e| is_def(e)).max_by(|a, b| {
+        if !has(&wanted, &is_def) {
+            if let Some(existing) = chosen
+                .iter()
+                .filter(|e| is_def(e))
+                .max_by_key(|e| reserve_key(e, &words))
+            {
+                protected.insert(existing.evidence_id.clone());
+            } else if let Some(best) = raw.iter().filter(|e| is_def(e)).max_by(|a, b| {
                 a.relevance
                     .partial_cmp(&b.relevance)
                     .unwrap_or(std::cmp::Ordering::Equal)
@@ -348,8 +376,7 @@ pub fn reserve_required_with(
     // are now left to normal relevance ranking; only the definition is pinned
     // (above). Reserving a curated subset of many-valid-callers cannot be done
     // without overfitting to a hand-picked ground-truth set, so it is not done.
-    let mut protected: std::collections::HashSet<String> =
-        wanted.iter().map(|w| w.evidence_id.clone()).collect();
+    protected.extend(wanted.iter().map(|w| w.evidence_id.clone()));
     for w in wanted {
         if chosen.iter().any(|e| e.evidence_id == w.evidence_id) {
             continue;
@@ -369,6 +396,8 @@ pub fn reserve_required_with(
         if let Some(i) = victim {
             chosen.remove(i);
         }
+        // Preserve existing reservation semantics: if all slots are required,
+        // append the missing representative rather than evict another obligation.
         protected.insert(w.evidence_id.clone());
         chosen.push(w);
     }
@@ -540,10 +569,16 @@ pub fn rank_and_select_with_terms_exempt(
     let now_ms = crate::utils::now_ms();
     let mut items = dedup(items);
 
-    // Corroboration: how many items share a subject.
-    let mut counts: HashMap<String, usize> = HashMap::new();
+    // Repeated snippets from one retrieval arm are not corroboration. Count
+    // distinct providers for each subject so a long file cannot boost itself
+    // merely by yielding more chunks. This is retrieval corroboration, not a
+    // claim that the underlying sources are independent.
+    let mut providers_by_subject: HashMap<String, HashSet<String>> = HashMap::new();
     for it in &items {
-        *counts.entry(subject_key(it)).or_insert(0) += 1;
+        providers_by_subject
+            .entry(subject_key(it))
+            .or_default()
+            .insert(it.provider.clone());
     }
 
     // Score.
@@ -567,7 +602,11 @@ pub fn rank_and_select_with_terms_exempt(
             }
             (present.saturating_sub(1) as f32 / (terms.len() - 1) as f32).clamp(0.0, 1.0)
         } else {
-            ((counts.get(&subject_key(it)).copied().unwrap_or(1) as f32 - 1.0) / 3.0)
+            ((providers_by_subject
+                .get(&subject_key(it))
+                .map_or(1, HashSet::len) as f32
+                - 1.0)
+                / 3.0)
                 .clamp(0.0, 1.0)
         };
         it.directness = Some(d);
@@ -596,9 +635,20 @@ pub fn rank_and_select_with_terms_exempt(
         if capped >= cap {
             continue;
         }
-        let dup = chosen
-            .iter()
-            .any(|c| c.path.is_some() && c.path == it.path && near_lines(c.lines, it.lines));
+        let dup = chosen.iter().any(|c| {
+            // Adjacent methods are distinct facts when the index identifies
+            // both symbols. Proximity alone must not erase a short caller
+            // next to its callee's definition. Unidentified lexical chunks
+            // still use the proximity heuristic.
+            let distinct_symbols = matches!(
+                (&c.symbol_id, &it.symbol_id),
+                (Some(a), Some(b)) if !a.is_empty() && !b.is_empty() && a != b
+            );
+            !distinct_symbols
+                && c.path.is_some()
+                && c.path == it.path
+                && near_lines(c.lines, it.lines)
+        });
         // Round-2 audit P0-4e (anti-anchoring): one file may not fill the
         // evidence set — at most two items per path (live r40: the same .vb
         // cited five times cost a lookup its precision).
@@ -780,6 +830,9 @@ mod ranking_reserve_tests {
     ) -> EvidenceItem {
         EvidenceItem {
             evidence_id: id.to_string(),
+            document_id: None,
+            document_namespace: None,
+            source_verification: None,
             kind,
             authority: Authority::CurrentCode,
             path: Some(path.to_string()),

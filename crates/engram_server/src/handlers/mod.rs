@@ -1,20 +1,29 @@
 pub mod access_layer_tools;
 pub mod ask_tools;
+mod business_source;
+mod caller_excerpts;
+mod unresolved_callers;
 pub mod code_review_tools;
 pub mod cognitive_tools;
 pub mod explain_change_tools;
 pub mod git_tools;
+mod history_refresh;
 pub mod graph_tools;
 pub mod grep_tools;
 pub mod migration_tools;
+pub mod page_composition;
 pub mod planning_tools;
 pub mod pr_history_tools;
 pub mod project_tools;
 pub mod quality_gate_tools;
 pub mod review_tools;
+pub mod review_decisions;
 pub mod search_tools;
 pub mod settings_tools;
+mod sql_binding;
+mod sql_scopes;
 pub mod support_kb_tools;
+mod test_derivation;
 
 pub mod runtime_observation_tools;
 

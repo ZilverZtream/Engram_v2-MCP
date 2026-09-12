@@ -102,7 +102,7 @@ async fn a_collapsed_generation_is_never_reported_ok() {
         "80 % of the code chunks are gone — health must not open with OK:\n{h}"
     );
     assert!(
-        h.contains("INCOMPLETE") && h.contains("index_project"),
+        h.contains("INCOMPLETE") && h.contains("repair_project"),
         "health names the collapse and the repair:\n{h}"
     );
 
@@ -113,7 +113,7 @@ async fn a_collapsed_generation_is_never_reported_ok() {
         "freshness must not call a collapsed generation current:\n{f}"
     );
     assert!(
-        f.contains("index_project"),
+        f.contains("repair_project"),
         "freshness names the repair:\n{f}"
     );
 }

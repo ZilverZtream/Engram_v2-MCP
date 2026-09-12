@@ -1,6 +1,10 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 
+// The Rust JSONL transport writes UTF-8 bytes regardless of the Windows console code page.
+Console.InputEncoding = new System.Text.UTF8Encoding(false, true);
+Console.OutputEncoding = new System.Text.UTF8Encoding(false, true);
+
 var emitter = new AstEmitter();
 while (Console.In.ReadLine() is { } line)
 {
@@ -67,6 +71,25 @@ while (Console.In.ReadLine() is { } line)
         continue;
     }
 
+    if (request.Cmd == "return_paths")
+    {
+        try
+        {
+            Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse
+            {
+                Path = request.Path,
+                ReturnPaths = ReturnPathAnalyzer.Analyze(request.Source ?? string.Empty,
+                    request.MethodStartLine ?? 0, request.MethodEndLine ?? 0, request.RequestId)
+            }, AppJsonContext.Default.SidecarResponse));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse { Path = request.Path, Error = ex.Message }, AppJsonContext.Default.SidecarResponse));
+        }
+        Console.Out.Flush();
+        continue;
+    }
+
     if (request.Cmd != "parse")
     {
         Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse { Path = request.Path, Error = $"unknown command {request.Cmd}" }, AppJsonContext.Default.SidecarResponse));
@@ -103,6 +126,15 @@ internal sealed class SidecarRequest
     [JsonPropertyName("source")]
     public string? Source { get; set; }
 
+    [JsonPropertyName("request_id")]
+    public string? RequestId { get; set; }
+
+    [JsonPropertyName("method_start_line")]
+    public int? MethodStartLine { get; set; }
+
+    [JsonPropertyName("method_end_line")]
+    public int? MethodEndLine { get; set; }
+
     [JsonPropertyName("project_root")]
     public string? ProjectRoot { get; set; }
 
@@ -133,6 +165,9 @@ internal sealed class SidecarResponse
     public string? Error { get; set; }
 
     /// <summary>How many cached trees the `invalidate` command dropped.</summary>
+    [JsonPropertyName("return_paths")]
+    public ReturnPathReport? ReturnPaths { get; set; }
+
     [JsonPropertyName("invalidated")]
     public int? Invalidated { get; set; }
 }

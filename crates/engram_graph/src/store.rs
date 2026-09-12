@@ -362,6 +362,13 @@ pub enum ResolveResult {
     NotFound,
 }
 
+#[derive(Clone, Copy)]
+enum NodePathMatch {
+    Substring,
+    ExactFile,
+    FileOrDirectory,
+}
+
 impl GraphStore {
     pub fn open(db_path: &Path) -> anyhow::Result<Self> {
         if let Some(parent) = db_path.parent() {
@@ -407,6 +414,88 @@ impl GraphStore {
     }
 
     // ── Upsert ───────────────────────────────────────────────────────────────
+
+    /// Reclassify ONLY explicitly reviewed legacy search-learning anchors.
+    ///
+    /// This is not a classifier or automatic migration. The caller must bind the
+    /// supplied snapshots to independent search-hit and source-ownership evidence.
+    /// A missing fingerprint alone never proves that a file is a learning anchor.
+    /// The review receipt digest is attribution, not cryptographic approval.
+    /// Node identities, generations and all edges remain unchanged. Unselected
+    /// legacy files remain source-inventory candidates and retain their warnings.
+    pub fn reclassify_reviewed_learning_files(
+        &self,
+        project_id: &str,
+        expected: &[Node],
+        review_receipt_sha256: &str,
+    ) -> anyhow::Result<usize> {
+        validate_key_component("project_id", project_id)?;
+        anyhow::ensure!(
+            expected.len() <= 128,
+            "reviewed repair is limited to 128 explicit nodes"
+        );
+        anyhow::ensure!(
+            review_receipt_sha256.len() == 64
+                && review_receipt_sha256.bytes().all(|b| b.is_ascii_hexdigit()),
+            "a SHA256 review receipt digest is required"
+        );
+        let mut ids = std::collections::HashSet::new();
+        for node in expected {
+            validate_key_component("node_id", &node.node_id)?;
+            anyhow::ensure!(ids.insert(&node.node_id), "duplicate reviewed node");
+            anyhow::ensure!(
+                node.node_type == "file"
+                    && node.node_id == format!("file:{}", node.file_path)
+                    && node.namespace == engram_core::namespaces::NAMESPACE_MEMORY
+                    && node.start_line == 0
+                    && node.end_line == 0
+                    && node.metadata.is_none()
+                    && node.name
+                        == node
+                            .file_path
+                            .file_name()
+                            .unwrap_or_else(|| node.file_path.as_str())
+                    && node.language
+                        == engram_core::guess_language(std::path::Path::new(
+                            node.file_path.as_str()
+                        )),
+                "reviewed node does not match the legacy recorder shape"
+            );
+        }
+        if expected.is_empty() {
+            return Ok(0);
+        }
+        let tx = self.db.begin_write()?;
+        {
+            let mut nodes = tx.open_table(NODES)?;
+            // Validate the entire snapshot before making any replacement.
+            for node in expected {
+                let key = format!("{project_id}\0{}", node.node_id);
+                let bytes = bincode::serialize(node)?;
+                anyhow::ensure!(
+                    nodes
+                        .get(key.as_str())?
+                        .is_some_and(|current| current.value() == bytes.as_slice()),
+                    "reviewed node snapshot changed; no repair applied"
+                );
+            }
+            for node in expected {
+                let mut replacement = node.clone();
+                replacement.node_type = "search_document".into();
+                replacement.metadata = Some(serde_json::json!({
+                    "writer": "reviewed_legacy_search_anchor_reclassification_v1",
+                    "review_receipt_sha256": review_receipt_sha256,
+                    "original_node_type": "file",
+                    "scope": "externally reviewed learning anchor; not source verification"
+                }));
+                let key = format!("{project_id}\0{}", node.node_id);
+                let bytes = bincode::serialize(&replacement)?;
+                nodes.insert(key.as_str(), bytes.as_slice())?;
+            }
+        }
+        tx.commit()?;
+        Ok(expected.len())
+    }
 
     pub fn upsert_nodes(&self, project_id: &str, nodes: &[Node]) -> anyhow::Result<()> {
         if nodes.is_empty() {
@@ -561,6 +650,79 @@ impl GraphStore {
     }
 
     // ── Meta ─────────────────────────────────────────────────────────────────
+
+    /// Atomically replace a caller-owned edge snapshot and both adjacency
+    /// mirrors. Abort on concurrent changes; preserve endpoints not in the snapshot.
+    pub fn replace_edge_snapshot(
+        &self,
+        project_id: &str,
+        expected: &[Edge],
+        replacements: &[Edge],
+    ) -> anyhow::Result<()> {
+        validate_key_component("project_id", project_id)?;
+        for edge in expected.iter().chain(replacements) {
+            validate_key_component("source_id", &edge.source_id)?;
+            validate_key_component("target_id", &edge.target_id)?;
+        }
+        let wtx = self.db.begin_write()?;
+        {
+            let mut edges = wtx.open_table(EDGES)?;
+            let mut outgoing = wtx.open_table(ADJ_OUT)?;
+            let mut incoming = wtx.open_table(ADJ_IN)?;
+            for edge in expected {
+                let key = edge_key(
+                    project_id,
+                    &edge.edge_kind,
+                    &edge.source_id,
+                    &edge.target_id,
+                );
+                let bytes = bincode::serialize(edge)?;
+                anyhow::ensure!(
+                    edges
+                        .get(key.as_str())?
+                        .is_some_and(|v| v.value() == bytes.as_slice()),
+                    "edge snapshot changed during resolver refresh; retry"
+                );
+            }
+            for edge in expected {
+                let key = edge_key(
+                    project_id,
+                    &edge.edge_kind,
+                    &edge.source_id,
+                    &edge.target_id,
+                );
+                edges.remove(key.as_str())?;
+                let out_key = adj_key(project_id, &edge.edge_kind, &edge.source_id);
+                outgoing.remove((out_key.as_str(), edge.target_id.as_str()))?;
+                let in_key = adj_key(project_id, &edge.edge_kind, &edge.target_id);
+                incoming.remove((in_key.as_str(), edge.source_id.as_str()))?;
+            }
+            for edge in replacements {
+                let key = edge_key(
+                    project_id,
+                    &edge.edge_kind,
+                    &edge.source_id,
+                    &edge.target_id,
+                );
+                // A producer outside the snapshot owns any remaining endpoint.
+                if edges.get(key.as_str())?.is_some() {
+                    continue;
+                }
+                let bytes = bincode::serialize(edge)?;
+                edges.insert(key.as_str(), bytes.as_slice())?;
+                let value = encode_adj_value(edge.weight, edge.updated_at_ms);
+                let out_key = adj_key(project_id, &edge.edge_kind, &edge.source_id);
+                outgoing.insert(
+                    (out_key.as_str(), edge.target_id.as_str()),
+                    value.as_slice(),
+                )?;
+                let in_key = adj_key(project_id, &edge.edge_kind, &edge.target_id);
+                incoming.insert((in_key.as_str(), edge.source_id.as_str()), value.as_slice())?;
+            }
+        }
+        wtx.commit()?;
+        Ok(())
+    }
 
     pub fn set_meta(&self, project_id: &str, key: &str, value: &str) -> anyhow::Result<()> {
         validate_key_component("project_id", project_id)?;
@@ -981,16 +1143,25 @@ impl GraphStore {
         target_id: &str,
         limit: usize,
     ) -> anyhow::Result<Vec<(String, EdgeKind, u32)>> {
+        let kinds = kind
+            .as_ref()
+            .map(std::slice::from_ref)
+            .unwrap_or(EdgeKind::ALL);
+        self.find_incoming_edges_with_kinds(project_id, kinds, target_id, limit)
+    }
+
+    /// Apply the accepted edge-kind policy before ranking and limiting neighbors.
+    /// Structural or historical edges must not consume a caller's usage budget.
+    pub fn find_incoming_edges_with_kinds(
+        &self,
+        project_id: &str,
+        kinds: &[EdgeKind],
+        target_id: &str,
+        limit: usize,
+    ) -> anyhow::Result<Vec<(String, EdgeKind, u32)>> {
         let rtx = self.db.begin_read()?;
         let adj = rtx.open_table(ADJ_IN)?;
-
         let mut out: Vec<(String, EdgeKind, u32)> = Vec::new();
-
-        let kinds: &[EdgeKind] = if let Some(ref k) = kind {
-            std::slice::from_ref(k)
-        } else {
-            EdgeKind::ALL
-        };
 
         for ek in kinds {
             let prefix = adj_key(project_id, ek, target_id);
@@ -1013,6 +1184,35 @@ impl GraphStore {
     }
 
     // ── Node / Edge reads ────────────────────────────────────────────────────
+
+    /// Read at most `limit` incoming neighbors in source-id order, plus one
+    /// lookahead to establish truncation. Unlike the weighted ranking API,
+    /// this bounds adjacency traversal and allocation for inspection leads.
+    pub fn incoming_edge_prefix(
+        &self,
+        project_id: &str,
+        kind: EdgeKind,
+        target_id: &str,
+        limit: usize,
+    ) -> anyhow::Result<(Vec<(String, EdgeKind, u32)>, bool)> {
+        let rtx = self.db.begin_read()?;
+        let adj = rtx.open_table(ADJ_IN)?;
+        let prefix = adj_key(project_id, &kind, target_id);
+        let mut out = Vec::new();
+        for entry in adj.range((prefix.as_str(), "")..)? {
+            let (key, value) = entry?;
+            let (pfx, source) = key.value();
+            if pfx != prefix.as_str() {
+                break;
+            }
+            if out.len() == limit {
+                return Ok((out, true));
+            }
+            let (weight, _) = decode_adj_value(value.value())?;
+            out.push((source.to_string(), kind.clone(), weight));
+        }
+        Ok((out, false))
+    }
 
     pub fn get_node(&self, project_id: &str, node_id: &str) -> anyhow::Result<Option<Node>> {
         let rtx = self.db.begin_read()?;
@@ -1236,6 +1436,25 @@ impl GraphStore {
     /// running map.
     /// Point lookup of one edge's resolution confidence (TODO-12).
     /// Returns None when the edge is missing or carries no confidence.
+    /// Fetch metadata for the exact displayed endpoints, without an unrelated
+    /// all-kind adjacency cap hiding call sites behind high-degree edges.
+    pub fn get_edges_by_endpoints(
+        &self,
+        project_id: &str,
+        endpoints: &[(String, EdgeKind, String)],
+    ) -> anyhow::Result<Vec<Edge>> {
+        let rtx = self.db.begin_read()?;
+        let table = rtx.open_table(EDGES)?;
+        let mut result = Vec::with_capacity(endpoints.len());
+        for (source, kind, target) in endpoints {
+            let key = edge_key(project_id, kind, source, target);
+            if let Some(value) = table.get(key.as_str())? {
+                result.push(bincode::deserialize(value.value())?);
+            }
+        }
+        Ok(result)
+    }
+
     pub fn get_edge_confidence(
         &self,
         project_id: &str,
@@ -1450,6 +1669,30 @@ impl GraphStore {
         Ok(out)
     }
 
+    /// File fingerprints with their graph generation, read in one transaction.
+    /// Consumers must not use a newer graph fingerprint to verify an older
+    /// active search snapshot while an update is still being published.
+    pub fn list_file_node_metadata_with_generation(
+        &self,
+        project_id: &str,
+    ) -> anyhow::Result<Vec<(RelPath, Option<serde_json::Value>, u64)>> {
+        let prefix = format!("{project_id}\0");
+        let rtx = self.db.begin_read()?;
+        let nt = rtx.open_table(NODES)?;
+        let mut out = Vec::new();
+        for row in nt.range(prefix.as_str()..)? {
+            let (key, value) = row?;
+            if !key.value().starts_with(&prefix) {
+                break;
+            }
+            let node: Node = bincode::deserialize(value.value())?;
+            if node.node_type == "file" {
+                out.push((node.file_path, node.metadata, node.generation));
+            }
+        }
+        Ok(out)
+    }
+
     pub fn count_nodes(&self, project_id: &str) -> anyhow::Result<usize> {
         let prefix = format!("{project_id}\0");
         let rtx = self.db.begin_read()?;
@@ -1513,6 +1756,62 @@ impl GraphStore {
         file_path: Option<&str>,
         limit: usize,
     ) -> anyhow::Result<Vec<Node>> {
+        self.query_nodes_with_path_match(
+            project_id,
+            node_type,
+            name_pattern,
+            file_path,
+            limit,
+            NodePathMatch::Substring,
+        )
+    }
+
+    /// Exact file identity, applied before the cap so sibling paths cannot
+    /// crowd out the requested file's nodes.
+    pub fn query_nodes_in_file(
+        &self,
+        project_id: &str,
+        node_type: Option<&str>,
+        file_path: &str,
+        limit: usize,
+    ) -> anyhow::Result<Vec<Node>> {
+        self.query_nodes_with_path_match(
+            project_id,
+            node_type,
+            None,
+            Some(file_path),
+            limit,
+            NodePathMatch::ExactFile,
+        )
+    }
+
+    /// File-or-directory scope with a path boundary, applied before the cap.
+    pub fn query_nodes_in_scope(
+        &self,
+        project_id: &str,
+        node_type: Option<&str>,
+        scope: &str,
+        limit: usize,
+    ) -> anyhow::Result<Vec<Node>> {
+        self.query_nodes_with_path_match(
+            project_id,
+            node_type,
+            None,
+            Some(scope),
+            limit,
+            NodePathMatch::FileOrDirectory,
+        )
+    }
+
+    fn query_nodes_with_path_match(
+        &self,
+        project_id: &str,
+        node_type: Option<&str>,
+        name_pattern: Option<&str>,
+        file_path: Option<&str>,
+        limit: usize,
+        path_match: NodePathMatch,
+    ) -> anyhow::Result<Vec<Node>> {
         let prefix = format!("{project_id}\0");
         let rtx = self.db.begin_read()?;
         let nt = rtx.open_table(NODES)?;
@@ -1541,8 +1840,18 @@ impl GraphStore {
                 continue;
             }
 
-            if path_q.as_ref().is_some_and(|q| {
-                !q.is_empty() && !contains_case_insensitive_path(n.file_path.as_str(), q)
+            if path_q.as_ref().is_some_and(|q| match path_match {
+                NodePathMatch::ExactFile => {
+                    n.file_path.as_str().replace('\\', "/").to_lowercase() != *q
+                }
+                NodePathMatch::FileOrDirectory => {
+                    let path = n.file_path.as_str().replace('\\', "/").to_lowercase();
+                    let scope = q.trim_end_matches('/');
+                    path != scope && !path.starts_with(&format!("{scope}/"))
+                }
+                NodePathMatch::Substring => {
+                    !q.is_empty() && !contains_case_insensitive_path(n.file_path.as_str(), q)
+                }
             }) {
                 continue;
             }
@@ -1778,8 +2087,24 @@ impl GraphStore {
             return None;
         }
         let name = &target_id[2..];
+        let name = name.split('(').next().unwrap_or(name).trim_end();
         match self.resolve_symbol(project_id, name, None, None).ok()? {
-            ResolveResult::Unique(node) => Some(node.node_id),
+            ResolveResult::Unique(node) => {
+                let suffix = format!(".{name}");
+                let matches = |candidate: &str| candidate == name || candidate.ends_with(&suffix);
+                if name.contains('.')
+                    && !matches(&node.name)
+                    && !node
+                        .metadata
+                        .as_ref()
+                        .and_then(|m| m.get("fqn"))
+                        .and_then(|v| v.as_str())
+                        .is_some_and(matches)
+                {
+                    return None;
+                }
+                Some(node.node_id)
+            }
             ResolveResult::Ambiguous(_) | ResolveResult::NotFound => None,
         }
     }
@@ -2240,7 +2565,7 @@ impl GraphStore {
         Ok((node_keys_to_remove.len(), edge_keys_to_remove.len()))
     }
 
-    /// Remove stale-generation nodes (and edges touching them) for the given
+    /// Remove stale-generation nodes and superseded source edges for the given
     /// file paths ONLY. Safe after an INCREMENTAL update: only files that
     /// were re-extracted this generation are eligible, so unchanged files —
     /// whose nodes legitimately keep older generations until a full reindex —
@@ -2265,6 +2590,11 @@ impl GraphStore {
         // would otherwise dangle when a callee's declaration line shifts).
         let mut removed_node_ids: std::collections::HashSet<String> =
             std::collections::HashSet::new();
+        // Upserting a stable symbol ID overwrites its node generation, but its
+        // old outgoing edges still carry their own generation. Track ALL nodes
+        // in refreshed files, not just nodes whose IDs disappeared.
+        let mut refreshed_source_ids: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
         let mut removed_identity: std::collections::HashMap<String, (String, String, String)> =
             std::collections::HashMap::new();
         let mut successors: std::collections::HashMap<(String, String, String), String> =
@@ -2282,6 +2612,7 @@ impl GraphStore {
                 if !paths.contains(n.file_path.as_str()) {
                     continue;
                 }
+                refreshed_source_ids.insert(n.node_id.clone());
                 let identity = (
                     n.file_path.as_str().to_string(),
                     n.name.clone(),
@@ -2318,8 +2649,9 @@ impl GraphStore {
             wtx.commit()?;
         }
 
-        // Phase 2: stale-generation edges touching a removed node. Each is
-        // either REMAPPED (every removed endpoint has a same-identity
+        // Phase 2: retire superseded source edges even when both endpoint IDs
+        // survived. Other edges touching removed nodes are REMAPPED (every
+        // removed endpoint has a same-identity
         // successor in the new generation — typical for cross-file edges
         // into a symbol whose line shifted) or dropped (the symbol is gone).
         // Current-generation edges always reference current-generation node
@@ -2335,9 +2667,61 @@ impl GraphStore {
                     break;
                 }
                 let e: Edge = bincode::deserialize(v.value())?;
-                if e.generation == active_generation
-                    || (!removed_node_ids.contains(&e.source_id)
-                        && !removed_node_ids.contains(&e.target_id))
+                if e.generation >= active_generation {
+                    continue;
+                }
+                // Only source-derived snapshot relationships belong to this
+                // refresh. Statistical, runtime-observed and durable knowledge
+                // edges have independent producers/lifetimes even when they
+                // refer to these same source nodes.
+                let source_derived = e.namespace == engram_core::namespaces::NAMESPACE_MEMORY
+                    && matches!(
+                        e.edge_kind,
+                        EdgeKind::Calls
+                            | EdgeKind::Dependency
+                            | EdgeKind::Contains
+                            | EdgeKind::Imports
+                            | EdgeKind::SqlCalls
+                            | EdgeKind::HasColumn
+                            | EdgeKind::ForeignKey
+                            | EdgeKind::QueriesTable
+                            | EdgeKind::ReadsState
+                            | EdgeKind::WritesState
+                            | EdgeKind::DataBinding
+                            | EdgeKind::RegistersControl
+                            | EdgeKind::IncludesFile
+                            | EdgeKind::UnresolvedStateRead
+                            | EdgeKind::UnresolvedStateWrite
+                            | EdgeKind::ExposesWebService
+                            | EdgeKind::ExposesHttpHandler
+                            | EdgeKind::ExposesWcfService
+                            | EdgeKind::ContainsUi
+                            | EdgeKind::UiLayoutNeighbor
+                            | EdgeKind::ReadsColumn
+                            | EdgeKind::RegistersModule
+                            | EdgeKind::RegistersHandler
+                            | EdgeKind::ManipulatesDom
+                            | EdgeKind::TriggersPostback
+                            | EdgeKind::ApiCall
+                            | EdgeKind::ParameterBinding
+                            | EdgeKind::InjectsScript
+                            | EdgeKind::CallsStoredProcedure
+                            | EdgeKind::StoredProcReadsTable
+                            | EdgeKind::StoredProcWritesTable
+                            | EdgeKind::FillsRegion
+                            | EdgeKind::ReadsSetting
+                            | EdgeKind::InheritsFrom
+                            | EdgeKind::Implements
+                            | EdgeKind::TestOracle
+                    );
+                if source_derived && refreshed_source_ids.contains(&e.source_id) {
+                    keys.push(k.value().to_string());
+                    // The new extraction is authoritative for outgoing calls;
+                    // remapping an old source would resurrect deleted evidence.
+                    continue;
+                }
+                if !removed_node_ids.contains(&e.source_id)
+                    && !removed_node_ids.contains(&e.target_id)
                 {
                     continue;
                 }
@@ -2731,7 +3115,7 @@ impl GraphStore {
         // Terminal segment match (last dot-segment of name)
         let mut by_terminal: HashMap<String, Vec<String>> = HashMap::new();
         // Legacy metadata.fqn match
-        let mut by_metadata_fqn: HashMap<String, String> = HashMap::new();
+        let mut by_metadata_fqn: HashMap<String, Vec<String>> = HashMap::new();
 
         let mut node_count = 0usize;
         {
@@ -2782,7 +3166,7 @@ impl GraphStore {
                     }
                 }
 
-                // by_metadata_fqn: metadata.fqn → node_id (first wins)
+                // Qualified metadata retains all overload candidates.
                 if let Some(fqn) = node
                     .metadata
                     .as_ref()
@@ -2791,7 +3175,8 @@ impl GraphStore {
                 {
                     by_metadata_fqn
                         .entry(fqn.to_string())
-                        .or_insert_with(|| node.node_id.clone());
+                        .or_default()
+                        .push(node.node_id.clone());
                 }
             }
         }
@@ -2834,7 +3219,16 @@ impl GraphStore {
                         break;
                     }
                     let e: Edge = bincode::deserialize(v.value())?;
-                    if e.target_id.starts_with("::") {
+                    // App_Code owns these retained extraction references. It
+                    // needs them to rebind or retract derivations on refresh;
+                    // consuming them here silently loses dependencies later.
+                    let retained_substrate = e
+                        .metadata
+                        .as_ref()
+                        .and_then(|m| m.get("resolution_owner"))
+                        .and_then(|v| v.as_str())
+                        == Some("app_code");
+                    if e.target_id.starts_with("::") && !retained_substrate {
                         unresolved.push(UnresolvedEdge {
                             old_key: k.value().to_string(),
                             edge: e,
@@ -2867,12 +3261,15 @@ impl GraphStore {
                                  receiver: Option<&str>|
          -> Option<String> {
             if let Some(sf) = source_file {
-                for cid in candidates {
-                    if let Some(fp) = node_file_paths.get(cid) {
-                        if fp == sf {
-                            return Some(cid.clone());
-                        }
-                    }
+                let local: Vec<_> = candidates
+                    .iter()
+                    .filter(|cid| node_file_paths.get(*cid) == Some(sf))
+                    .collect();
+                if local.len() == 1 {
+                    return Some(local[0].clone());
+                }
+                if local.len() > 1 {
+                    return None;
                 }
             }
             // Item 8 (ox_multi_4): `new api.ajax().getImage()` — the
@@ -2990,31 +3387,6 @@ impl GraphStore {
                 continue;
             }
 
-            // Step 1: exact name match (generic edges only — api-routed edges
-            // were handled and consumed above).
-            let resolved = match by_name.get(name) {
-                Some(SymbolMatch::Unique(id)) => Some(id.clone()),
-                Some(SymbolMatch::Ambiguous(ids)) => resolve_ambiguous(ids, source_file, receiver),
-                None => None,
-            };
-
-            if let Some(target_id) = resolved {
-                let mut new_e = entry.edge.clone();
-                new_e.target_id = target_id;
-                Self::stamp_resolution(&mut new_e, "post_exact_name", 0.85);
-                updates.push((entry.old_key.clone(), new_e));
-                continue;
-            }
-
-            // Step 2: metadata.fqn match
-            if let Some(id) = by_metadata_fqn.get(name) {
-                let mut new_e = entry.edge.clone();
-                new_e.target_id = id.clone();
-                Self::stamp_resolution(&mut new_e, "post_node_fqn", 0.9);
-                updates.push((entry.old_key.clone(), new_e));
-                continue;
-            }
-
             // Step 2b: the EDGE's own metadata.fqn. WebForms event_wiring
             // edges carry the handler's full FQN there while the placeholder
             // holds only the short method name — and the same-file tiebreak
@@ -3033,15 +3405,57 @@ impl GraphStore {
                     Some(SymbolMatch::Ambiguous(ids)) => {
                         resolve_ambiguous(ids, source_file, receiver)
                     }
-                    None => by_metadata_fqn.get(edge_fqn).cloned(),
+                    None => by_metadata_fqn.get(edge_fqn).and_then(|ids| {
+                        if ids.len() == 1 {
+                            Some(ids[0].clone())
+                        } else {
+                            resolve_ambiguous(ids, source_file, receiver)
+                        }
+                    }),
                 };
                 if let Some(target_id) = resolved {
                     let mut new_e = entry.edge.clone();
                     new_e.target_id = target_id;
                     Self::stamp_resolution(&mut new_e, "post_edge_fqn", 0.9);
                     updates.push((entry.old_key.clone(), new_e));
-                    continue;
                 }
+                // An explicit qualified target is authoritative, including
+                // when absent or ambiguous in this index.
+                continue;
+            }
+
+            // Step 1: exact name match (generic edges only — api-routed edges
+            // were handled and consumed above).
+            let resolved = match by_name.get(name) {
+                Some(SymbolMatch::Unique(id)) => Some(id.clone()),
+                Some(SymbolMatch::Ambiguous(ids)) => resolve_ambiguous(ids, source_file, receiver),
+                None => None,
+            };
+
+            if let Some(target_id) = resolved {
+                let mut new_e = entry.edge.clone();
+                new_e.target_id = target_id;
+                Self::stamp_resolution(&mut new_e, "post_exact_name", 0.85);
+                updates.push((entry.old_key.clone(), new_e));
+                continue;
+            }
+
+            // Step 2: metadata.fqn match
+            if let Some(ids) = by_metadata_fqn.get(name) {
+                let selected = if ids.len() == 1 {
+                    Some(ids[0].clone())
+                } else {
+                    resolve_ambiguous(ids, source_file, receiver)
+                };
+                if let Some(id) = selected {
+                    let mut new_e = entry.edge.clone();
+                    new_e.target_id = id;
+                    Self::stamp_resolution(&mut new_e, "post_node_fqn", 0.9);
+                    updates.push((entry.old_key.clone(), new_e));
+                }
+                // An ambiguous qualified identity must not fall back to a
+                // less specific spelling and acquire an arbitrary target.
+                continue;
             }
 
             // Step 2c: suffix-qualified match — the extracted name lacks a
@@ -3049,8 +3463,8 @@ impl GraphStore {
             // (_us.UserAccessObject.x vs UserAccessObject.x). Matching the
             // FULL dotted name as a .-anchored suffix keeps every qualified
             // segment and is far more trustworthy than the bare terminal
-            // fallback below. Dual-spelling duplicates (same node NAME under
-            // two file-path spellings) count as one symbol.
+            // fallback below. Equal names alone do not prove duplicate
+            // identities: they can also represent distinct overloads.
             let short = name.rsplit('.').next().unwrap_or(name);
             if name.contains('.')
                 && let Some(candidates) = by_terminal.get(short)
@@ -3060,20 +3474,12 @@ impl GraphStore {
                     .iter()
                     .filter(|cid| node_names.get(*cid).is_some_and(|n| n.ends_with(&dot_name)))
                     .collect();
-                let all_same_name = suffixed.len() > 1
-                    && suffixed
-                        .windows(2)
-                        .all(|w| node_names.get(w[0]) == node_names.get(w[1]));
                 let picked = if suffixed.len() == 1 {
                     Some((suffixed[0].clone(), 0.8f32, "post_suffix_qualified"))
                 } else if !suffixed.is_empty() {
                     let owned: Vec<String> = suffixed.iter().map(|s| (*s).clone()).collect();
                     resolve_ambiguous(&owned, source_file, receiver)
                         .map(|id| (id, 0.7, "post_suffix_samefile"))
-                        .or_else(|| {
-                            all_same_name
-                                .then(|| (owned[0].clone(), 0.7, "post_suffix_dupspelling"))
-                        })
                 } else {
                     None
                 };
@@ -3086,6 +3492,11 @@ impl GraphStore {
                 }
             }
 
+            // The receiver is part of every qualified call's identity. Missing
+            // or ambiguous receivers must not bind to unrelated local methods.
+            if name.contains('.') {
+                continue;
+            }
             // Step 3: terminal segment fallback
             if let Some(candidates) = by_terminal.get(short) {
                 if candidates.len() == 1 {

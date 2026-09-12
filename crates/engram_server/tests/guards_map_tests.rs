@@ -17,6 +17,47 @@ const PID: &str = "guards-test";
 const FILE: &str = "Site/App_Code/api/api-guards.vb";
 const OTHER: &str = "Site/App_Code/other/other.vb";
 
+#[tokio::test]
+async fn root_directory_scope_preserves_boundaries_and_exact_symbol_fallback() {
+    let (_tmp, state, _dir) = build_state();
+    state.graph.upsert_nodes(PID, &[
+        func("services/worker.vb", "Inside", 1, None),
+        func("services-old/worker.vb", "Outside", 1, None),
+        func("nested/services/worker.vb", "NestedWorker", 1, None),
+    ]).unwrap();
+    let engram = Engram::new(state);
+    for scope in ["services", "services/", "services\\worker.vb"] {
+        let js = run(&engram, json!({"project_id": PID, "scope": scope, "output_json": true})).await;
+        let v: Value = serde_json::from_str(&js).unwrap();
+        assert_eq!(v["coverage"]["scope_query"], "store", "{js}");
+        assert_eq!(v["coverage"]["in_scope_functions"], 1, "{js}");
+        assert_eq!(v["functions"][0]["name"], "Inside", "{js}");
+    }
+    let js = run(&engram, json!({"project_id": PID, "scope": "NestedWorker", "output_json": true})).await;
+    let v: Value = serde_json::from_str(&js).unwrap();
+    assert_eq!(v["coverage"]["scope_query"], "symbol", "{js}");
+    assert_eq!(v["functions"][0]["name"], "NestedWorker", "{js}");
+    let js = run(&engram, json!({"project_id": PID, "scope": "MissingClass", "output_json": true})).await;
+    let v: Value = serde_json::from_str(&js).unwrap();
+    assert_eq!(v["coverage"]["in_scope_functions"], 0, "{js}");
+    assert!(v["coverage"]["failures"].to_string().contains("guard coverage is unknown"), "{js}");
+}
+
+#[tokio::test]
+async fn indexed_directory_without_functions_never_falls_back_to_other_file_symbol() {
+    let (_tmp, state, _dir) = build_state();
+    let mut class = func("services/model.vb", "Model", 1, None);
+    class.node_type = "class".into();
+    state.graph.upsert_nodes(PID, &[class, func("other.vb", "services", 1, None)]).unwrap();
+    let engram = Engram::new(state);
+    let js = run(&engram, json!({"project_id": PID, "scope": "services", "output_json": true})).await;
+    let v: Value = serde_json::from_str(&js).unwrap();
+    assert_eq!(v["coverage"]["scope_query"], "store", "{js}");
+    assert_eq!(v["coverage"]["in_scope_functions"], 0, "{js}");
+    assert!(v["coverage"]["failures"].to_string().contains("guard coverage is unknown"), "{js}");
+    assert!(v["functions"].as_array().unwrap().is_empty(), "{js}");
+}
+
 fn build_state() -> (tempfile::TempDir, AppState, std::path::PathBuf) {
     let tmp = tempfile::TempDir::new().unwrap();
     let data_dir = tmp.path().join("data");
@@ -117,6 +158,40 @@ fn seed(state: &AppState) {
         nodes.push(func(FILE, &format!("Unguarded{i:02}"), 100 + i * 10, None));
     }
     nodes.push(func(OTHER, "OtherBare", 5, None));
+    // Positive guard fixtures include real source, not metadata-only claims.
+    let root =
+        std::path::PathBuf::from(state.registry.get_project(PID).unwrap().unwrap().directory);
+    for file in [FILE, OTHER] {
+        let mut lines = vec![String::new(); 230];
+        for node in nodes.iter().filter(|node| node.file_path.as_str() == file) {
+            let start = node.start_line as usize - 1;
+            lines[start] = format!("Sub {}()", node.name);
+            let check = node
+                .metadata
+                .as_ref()
+                .and_then(|meta| meta.get("permission_checks"))
+                .and_then(|value| value.as_str())
+                .unwrap_or("");
+            let statements: Vec<String> = if node.name == "Wrapped" {
+                vec!["    CanUserBulkUpdate()".into()]
+            } else if !check.is_empty() {
+                check
+                    .split(';')
+                    .map(|name| format!("    {name}()"))
+                    .collect()
+            } else {
+                vec!["    Return".into()]
+            };
+            let count = statements.len();
+            for (offset, statement) in statements.into_iter().enumerate() {
+                lines[start + 1 + offset] = statement;
+            }
+            lines[start + 1 + count] = "End Sub".into();
+        }
+        let full = root.join(file);
+        std::fs::create_dir_all(full.parent().unwrap()).unwrap();
+        std::fs::write(full, lines.join("\n")).unwrap();
+    }
     state.graph.upsert_nodes(PID, &nodes).unwrap();
     state
         .graph
@@ -243,4 +318,100 @@ async fn the_scan_is_bounded_at_the_store_and_its_coverage_reported() {
     assert!(cov["failures"].as_array().is_some(), "{cov}");
     let md = run(&engram, json!({"project_id": PID, "scope": FILE})).await;
     assert!(md.contains("## Coverage"), "{md}");
+}
+
+#[tokio::test]
+async fn unresolved_helpers_and_fallback_checks_are_unknown() {
+    let (_tmp, state, _dir) = build_state();
+    let caller = func(FILE, "Caller", 1, None);
+    let fallback = func(
+        FILE,
+        "FallbackChecked",
+        10,
+        Some(json!({"permission_checks":"CheckRead", "extraction_fallback":"true"})),
+    );
+    state
+        .graph
+        .upsert_nodes(PID, &[caller.clone(), fallback])
+        .unwrap();
+    state
+        .graph
+        .upsert_edges(PID, &[calls(&caller.node_id, "::MissingGuard")])
+        .unwrap();
+    let text = run(
+        &Engram::new(state),
+        json!({"project_id":PID,"scope":FILE,"output_json":true}),
+    )
+    .await;
+    let report: Value = serde_json::from_str(&text).unwrap();
+    assert!(
+        report["functions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|f| f["verdict"] == "unknown"),
+        "{text}"
+    );
+    assert!(text.contains("unresolved helper"), "{text}");
+    assert!(text.contains("runtime enforcement"), "{text}");
+}
+
+#[tokio::test]
+async fn changed_source_cannot_receive_a_guarded_verdict_from_old_spans() {
+    let (_tmp, state, dir) = build_state();
+    let source = dir.join(FILE);
+    std::fs::create_dir_all(source.parent().unwrap()).unwrap();
+    let original = "Sub Run()\n CheckRead()\nEnd Sub\n";
+    std::fs::write(&source, original).unwrap();
+    let method = func(
+        FILE,
+        "Run",
+        1,
+        Some(json!({"permission_checks":"CheckRead"})),
+    );
+    let mut file_node = method.clone();
+    file_node.node_id = format!("file:{FILE}");
+    file_node.node_type = "file".into();
+    file_node.metadata =
+        Some(json!({"file_hash":blake3::hash(original.as_bytes()).to_hex().to_string()}));
+    state.graph.upsert_nodes(PID, &[method, file_node]).unwrap();
+    std::fs::write(&source, "Sub Run()\n Return\nEnd Sub\n").unwrap();
+    let text = run(
+        &Engram::new(state),
+        json!({"project_id":PID,"scope":FILE,"output_json":true}),
+    )
+    .await;
+    let report: Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(report["functions"][0]["verdict"], "unknown", "{text}");
+    assert!(text.contains("changed since indexing"), "{text}");
+}
+
+#[tokio::test]
+async fn helper_and_setting_caps_report_actual_incomplete_coverage() {
+    let (_tmp, state, _dir) = build_state();
+    let caller = func(FILE, "Fanout", 1, None);
+    let mut nodes = vec![caller.clone()];
+    let mut edges = Vec::new();
+    for i in 0..51 {
+        let target = func(OTHER, &format!("Helper{i}"), 10 + i, None);
+        edges.push(calls(&caller.node_id, &target.node_id));
+        nodes.push(target);
+    }
+    for i in 0..21 {
+        let mut edge = calls(&caller.node_id, &format!("::Setting{i}"));
+        edge.edge_kind = EdgeKind::ReadsSetting;
+        edges.push(edge);
+    }
+    state.graph.upsert_nodes(PID, &nodes).unwrap();
+    state.graph.upsert_edges(PID, &edges).unwrap();
+    let text = run(
+        &Engram::new(state),
+        json!({"project_id":PID,"scope":FILE,"output_json":true}),
+    )
+    .await;
+    let report: Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(report["functions"][0]["verdict"], "unknown", "{text}");
+    assert!(text.contains("helper traversal truncated at 50"), "{text}");
+    assert!(text.contains("settings edges truncated at 20"), "{text}");
+    assert_eq!(report["settings_read"].as_array().unwrap().len(), 20);
 }

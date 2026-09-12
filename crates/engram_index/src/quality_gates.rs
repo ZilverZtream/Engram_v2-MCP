@@ -111,65 +111,96 @@ pub fn parse_quality_source(
     }
 }
 
-/// Markdown rules: each bullet/numbered item is a rule; a directive sentence
-/// (must/avoid/don't/always/never/should/prefer/ensure) under a heading also
-/// counts. The nearest preceding heading scopes the rule's text for context.
+/// Internal presentation marker: contextual candidates are not standalone repo mandates.
+pub const MARKDOWN_CONTEXT_PREFIX: &str = "Candidate for applicability review (not a universal mandate):\n";
+
+/// Checked Markdown ingestion: complete context is required, never silently clipped.
+pub fn parse_quality_source_checked(content: &str, source: QualitySource, origin: &str) -> Result<Vec<QualityRule>, String> {
+    if matches!(source, QualitySource::CopilotInstructions | QualitySource::CodingRulesMd) {
+        let head = content.trim_start();
+        if (head.starts_with('[') || head.starts_with('{')) && !parse_distilled_rules(content, origin).is_empty() {
+            return Ok(parse_quality_source(content, source, origin));
+        }
+        return parse_markdown_rules_checked(content, source.category(), origin);
+    }
+    Ok(parse_quality_source(content, source, origin))
+}
+
 fn parse_markdown_rules(content: &str, category: &str, origin: &str) -> Vec<QualityRule> {
-    let mut out = Vec::new();
+    // Legacy pure-parser callers cannot return diagnostics. Ingestion uses the
+    // checked entry point and surfaces this failure before clearing any corpus.
+    parse_markdown_rules_checked(content, category, origin).unwrap_or_default()
+}
+
+fn parse_markdown_rules_checked(content: &str, category: &str, origin: &str) -> Result<Vec<QualityRule>, String> {
+    const LIMIT: usize = 16 * 1024;
+    if content.len() > LIMIT {
+        return Err("Markdown source exceeds 16 KiB complete UTF-8 context budget; split into self-contained documents preserving exceptions. No rules imported.".into());
+    }
+    fn marker(line: &str) -> Option<(char, usize)> {
+        let first = line.chars().next()?;
+        if first != '`' && first != '~' { return None; }
+        let count = line.chars().take_while(|c| *c == first).count();
+        (count >= 3).then_some((first, count))
+    }
+    fn list_indent(raw: &str) -> Option<usize> {
+        let line = raw.trim_start();
+        let bullet = line.starts_with("- ") || line.starts_with("* ") || line.starts_with("+ ");
+        let numbered = line.find(['.', ')']).is_some_and(|p| p > 0 && line[..p].bytes().all(|b| b.is_ascii_digit()) && line[p+1..].starts_with(char::is_whitespace));
+        (bullet || numbered).then_some(raw.len() - line.len())
+    }
+    fn emit(block: &mut Vec<&str>, listed: &mut Option<usize>, heading: &str, candidates: &mut Vec<String>) {
+        if block.is_empty() { *listed = None; return; }
+        let text = block.join("\n");
+        let lower = text.to_ascii_lowercase();
+        let directive = ["must ", "must not", "avoid", "don't", "do not", "always ", "never ", "should ", "prefer ", "ensure ", "require", "no "].iter().any(|k| lower.contains(k));
+        if listed.is_some() || directive {
+            candidates.push(if heading.is_empty() { text } else { format!("[{heading}] {text}") });
+        }
+        block.clear(); *listed = None;
+    }
+    let mut candidates = Vec::new();
+    let mut block = Vec::new();
+    let mut listed = None;
     let mut heading = String::new();
-    let mut idx = 0usize;
+    let mut fence: Option<(char, usize)> = None;
     for raw in content.lines() {
         let line = raw.trim();
-        if line.is_empty() {
+        if let Some((ch, count)) = fence {
+            if listed.is_some() { block.push(raw); }
+            if marker(line).is_some_and(|(c,n)| c == ch && n >= count && line[n..].trim().is_empty()) { fence = None; }
             continue;
+        }
+        if let Some(mark) = marker(line) {
+            if listed.is_some() { block.push(raw); } else { emit(&mut block, &mut listed, &heading, &mut candidates); }
+            fence = Some(mark); continue;
         }
         if let Some(h) = line.strip_prefix('#') {
-            heading = h.trim_start_matches('#').trim().to_string();
-            continue;
+            emit(&mut block, &mut listed, &heading, &mut candidates);
+            heading = h.trim_start_matches('#').trim().to_string(); continue;
         }
-        let bullet = line
-            .strip_prefix("- ")
-            .or_else(|| line.strip_prefix("* "))
-            .or_else(|| line.strip_prefix("+ "))
-            .or_else(|| {
-                // numbered "1. " / "2) "
-                line.find(['.', ')']).and_then(|p| {
-                    if line[..p].chars().all(|c| c.is_ascii_digit()) && p > 0 {
-                        Some(line[p + 1..].trim())
-                    } else {
-                        None
-                    }
-                })
-            });
-        let directive = {
-            let lo = line.to_ascii_lowercase();
-            const KW: &[&str] = &[
-                "must ", "must not", "avoid", "don't", "do not", "always ", "never ", "should ",
-                "prefer ", "ensure ", "require", "no ",
-            ];
-            KW.iter().any(|k| lo.contains(k))
-        };
-        let text = match bullet {
-            Some(b) if !b.trim().is_empty() => b.trim().to_string(),
-            _ if directive => line.to_string(),
-            _ => continue,
-        };
-        let full = if heading.is_empty() {
-            text
-        } else {
-            format!("[{heading}] {text}")
-        };
-        out.push(QualityRule {
-            id: format!("{category}:{origin}:{idx}"),
-            text: full,
-            category: category.to_string(),
-            severity: "medium".to_string(),
-            path_scope: None,
-            source: origin.to_string(),
-        });
-        idx += 1;
+        if line.len() >= 3 && (line.bytes().all(|b| b == b'=') || line.bytes().all(|b| b == b'-')) && listed.is_none() && !block.is_empty() {
+            heading = block.join("\n"); block.clear(); continue;
+        }
+        if let Some(indent) = list_indent(raw) {
+            if listed.is_none_or(|parent| indent <= parent) {
+                emit(&mut block, &mut listed, &heading, &mut candidates); listed = Some(indent);
+            }
+            block.push(raw); continue;
+        }
+        if line.is_empty() {
+            if listed.is_some() { block.push(raw); } else { emit(&mut block, &mut listed, &heading, &mut candidates); }
+        } else { block.push(raw); }
     }
-    out
+    emit(&mut block, &mut listed, &heading, &mut candidates);
+    if candidates.len() > 128 {
+        return Err("Markdown source exceeds 128 candidate rules; split into self-contained documents preserving exceptions. No rules imported.".into());
+    }
+    candidates.into_iter().enumerate().map(|(idx, candidate)| {
+        let text = format!("{MARKDOWN_CONTEXT_PREFIX}{candidate}\n\nComplete source context (read exceptions and examples before applying):\n{content}");
+        if text.len() > 39000 { return Err("Rendered Markdown rule exceeds 39000 UTF-8 bytes; split the source without dropping qualifications. No rules imported.".into()); }
+        Ok(QualityRule { id: format!("{category}:{origin}:{idx}"), text, category: category.into(), severity: "medium".into(), path_scope: None, source: origin.into() })
+    }).collect()
 }
 
 /// Generic JSON findings parser for CodeRabbit / SonarQube / board exports.
@@ -591,5 +622,44 @@ mod tests {
             Some(QualitySource::DevOpsBoard)
         );
         assert_eq!(QualitySource::from_str("nope"), None);
+    }
+}
+
+#[cfg(test)]
+mod markdown_context_tests {
+    use super::*;
+    #[test]
+    fn cross_heading_exception_and_fenced_examples_preserve_context() {
+        let source = "# Gateway\nAll writes must use a gateway.\n\n## Exceptions\nA one-off read-only report can query directly.\n\n```vb\n' Always bypass the gateway.\n```\n";
+        let rules = parse_quality_source_checked(source, QualitySource::CodingRulesMd, "generic.md").unwrap();
+        assert_eq!(rules.len(), 1);
+        assert!(rules[0].text.ends_with(source));
+        assert!(rules[0].text.contains("one-off read-only report"));
+        assert!(!rules[0].text.split("Complete source context").next().unwrap().contains("bypass"));
+    }
+    #[test]
+    fn whole_numbered_and_nested_items_keep_continuations() {
+        let source = "# Checks\n1. Ensure related records remain consistent\n   when deleting a parent.\n   Exceptions include:\n   - Read-only diagnostics.\n2. Preserve tenant isolation.\n";
+        let rules = parse_quality_source_checked(source, QualitySource::CodingRulesMd, "generic.md").unwrap();
+        assert_eq!(rules.len(), 2);
+        let first = rules[0].text.split("Complete source context").next().unwrap();
+        assert!(first.contains("when deleting a parent") && first.contains("Exceptions include") && first.contains("Read-only diagnostics"));
+        assert!(!first.contains("Preserve tenant"));
+    }
+    #[test]
+    fn fence_lengths_and_unclosed_fences_never_start_rules() {
+        for source in ["~~~~text\n- Always sample\n~~~\n- Never sample\n~~~~\n", "```\n# Fake\n- Always sample\n", "````\n```\n- Always sample\n````\n"] {
+            assert!(parse_quality_source_checked(source, QualitySource::CodingRulesMd, "generic.md").unwrap().is_empty());
+        }
+    }
+    #[test]
+    fn budgets_reject_entire_source_and_other_sources_stay_unchanged() {
+        for source in ["x".repeat(16385), "- Always inspect.\n".repeat(129)] {
+            assert!(parse_quality_source_checked(&source, QualitySource::CodingRulesMd, "generic.md").is_err());
+        }
+        let source = "[ {\"rule\":\"Always inspect\",\"severity\":\"high\"} ]";
+        assert_eq!(parse_quality_source_checked(source, QualitySource::CodingRulesMd, "generic.json").unwrap(), parse_quality_source(source, QualitySource::CodingRulesMd, "generic.json"));
+        let plain = "Always inspect\n";
+        assert_eq!(parse_quality_source_checked(plain, QualitySource::Text, "plain.txt").unwrap(), parse_quality_source(plain, QualitySource::Text, "plain.txt"));
     }
 }

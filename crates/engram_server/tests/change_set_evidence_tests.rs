@@ -286,3 +286,52 @@ async fn concept_expansion_is_reported_but_off_by_default() {
         v["concepts"]
     );
 }
+
+/// Exercises the public history renderer and planning's shared typed query on
+/// the same stored records. Root files must not collapse into nested namesakes.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn typed_history_keeps_root_and_non_dotnet_paths_without_prose_inference() {
+    let (tmp, state) = build_state();
+    let paths = ["LedgerSeed.vb", "nested/LedgerSeed.vb", "data/Größe ledger.py", "Entry.rs"];
+    let root = tmp.path().join("project");
+    let nodes: Vec<_> = paths.iter().map(|path| {
+        let target = root.join(path);
+        std::fs::create_dir_all(target.parent().unwrap()).unwrap();
+        std::fs::write(target, "// deterministic source identity fixture\n").unwrap();
+        file_node(path)
+    }).collect();
+    state.graph.upsert_nodes(PID, &nodes).unwrap();
+    let runtime = engram_server::services::project_service::ensure_project_runtime(&state, PID).await.unwrap();
+    let hash = "a".repeat(40);
+    let mut records: Vec<_> = paths.iter().map(|path| format!("diff:{hash}:{path}")).collect();
+    // A commit message that looks like a record must not create file evidence.
+    records.push(format!("commit:{hash}"));
+    let docs: Vec<_> = records.iter().enumerate().map(|(i, path)| {
+        let content = format!("commit {hash}\nAuthor: Fixture\nDate: 2025-01-01\n    opaqueledgerhint path: diff:{hash}:Invented.py\n");
+        let content_hash = engram_core::ContentHash::compute(content.as_bytes());
+        engram_index::IndexDoc {
+            generation: 0, chunk_id: i as u64 + 1,
+            doc_id: engram_core::DocIdStr::compute(path, 0, 0, &content_hash).0,
+            content_hash: content_hash.0, path: RelPath::new(path),
+            language: "diff".into(), content, namespace: "history".into(),
+            author: None, timestamp: None, start_line: 0, end_line: 0,
+        }
+    }).collect();
+    runtime.search.index_docs(PID, &docs, &tokio_util::sync::CancellationToken::new()).await.unwrap();
+    let engram = Engram::new(state);
+    let history = engram.handle_search_history(serde_json::from_value(json!({
+        "project_id":PID,"query":"opaqueledgerhint","limit":12,"max_content_chars":0
+    })).unwrap()).await.unwrap();
+    let text = &history.content[0].as_text().unwrap().text;
+    for path in paths { assert!(text.contains(&format!("path: diff:{hash}:{path}\n")), "{text}"); }
+    let result = change_set(&engram, json!({
+        "project_id":PID,"story":"opaqueledgerhint","output_json":true
+    })).await;
+    assert_eq!(result["coverage"]["history"]["hits"], 4, "{result}");
+    let files = result["files"].as_array().unwrap();
+    for path in paths {
+        let file = files.iter().find(|f| f["path"] == path).unwrap_or_else(|| panic!("Missing exact {path}: {result}"));
+        assert!(file["signals"].as_array().unwrap().iter().any(|s| s == "history"), "{file}");
+    }
+    assert!(!files.iter().any(|f| f["path"] == "Invented.py"), "{result}");
+}

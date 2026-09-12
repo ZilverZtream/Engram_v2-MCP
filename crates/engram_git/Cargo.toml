@@ -13,3 +13,6 @@ tokio-util = { version = "0.7", features = ["rt"] }
 
 git2.workspace = true
 
+
+[dev-dependencies]
+tempfile = "3"

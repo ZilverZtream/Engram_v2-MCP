@@ -3,22 +3,27 @@
 //! Release 23 live: the FIRST `get_change_set` after a daemon restart took
 //! 38 s — 24 s opening the project runtime (tantivy + LanceDB) and 5 s loading
 //! the co-change snapshot. That is the daemon's work, not the first user's:
-//! every registered project is opened and its snapshot loaded in the
-//! background right after the actors start, so the first call is warm.
+//! a bounded set of recently updated projects is opened in the background.
+//! Warming the entire registry would evict earlier runtimes and retain derived
+//! caches for projects the user may never request. Other projects load on demand.
 
-use crate::state::AppState;
+use crate::state::{AppState, MAX_CACHED_PROJECTS};
 
-/// Most recently updated project first — the one the user is working in gets
-/// its runtime and caches before the rest (release 27 live: the first user
-/// call landed while a sequential prime was still on the big project).
+/// Most recently updated project first. Update time is a startup ordering proxy,
+/// not proof of current client activity. Equal timestamps have a stable ID order.
 pub fn warm_order(mut recs: Vec<engram_core::ProjectRecord>) -> Vec<engram_core::ProjectRecord> {
-    recs.sort_by(|a, b| b.updated_at_ms.cmp(&a.updated_at_ms));
+    recs.sort_by(|a, b| {
+        b.updated_at_ms
+            .cmp(&a.updated_at_ms)
+            .then_with(|| a.project_id.cmp(&b.project_id))
+    });
     recs
 }
 
-/// Open every registered project's runtime and load its co-change snapshot.
-/// Returns the number of projects whose runtime is now cached. Failures are
-/// logged per project and never abort the others.
+/// Prime at most the runtime cache's capacity, selected before any runtime opens
+/// or derived-cache tasks are spawned. Other registered projects remain available
+/// through normal demand loading. Returns successful runtime opens, not a promise
+/// that concurrent client activity has left every selected runtime cached.
 pub async fn warm_all_projects(state: &AppState) -> usize {
     let recs = match state.registry.list_projects() {
         Ok(r) => r,
@@ -27,7 +32,15 @@ pub async fn warm_all_projects(state: &AppState) -> usize {
             return 0;
         }
     };
-    let recs = warm_order(recs);
+    let registered = recs.len();
+    let mut recs = warm_order(recs);
+    recs.truncate(MAX_CACHED_PROJECTS);
+    tracing::info!(
+        registered,
+        selected = recs.len(),
+        runtime_capacity = MAX_CACHED_PROJECTS,
+        "warm-up: bounded startup selection"
+    );
     // The change-set primes run concurrently (bounded) instead of one project
     // after another; the function still returns only when every prime is done.
     let prime_limit = std::sync::Arc::new(tokio::sync::Semaphore::new(3));

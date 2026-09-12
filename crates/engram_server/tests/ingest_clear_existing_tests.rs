@@ -120,3 +120,52 @@ async fn without_clear_existing_ingest_still_accumulates() {
     ingest(&engram, &pid, "rules_v2.txt", false).await;
     assert_eq!(qg_count(&state, &pid), 3);
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn checked_markdown_rejection_never_clears_existing_rules() {
+    let (tmp, state, engram, pid) = build().await;
+    ingest(&engram, &pid, "rules_v1.txt", false).await;
+    assert_eq!(qg_count(&state, &pid), 2);
+    for rejected in ["x".repeat(16385), "- Always inspect.\n".repeat(129)] {
+        std::fs::write(tmp.path().join("proj/rejected.md"), rejected).unwrap();
+        let req = serde_json::from_value(json!({
+            "project_id": pid, "source_path": "rejected.md", "source_type": "rules", "clear_existing": true
+        })).unwrap();
+        let error = engram.handle_ingest_quality_gates(req).await.unwrap_err();
+        assert!(error.message.contains("No rules imported"), "{error:?}");
+        assert_eq!(qg_count(&state, &pid), 2);
+        let distill = serde_json::from_value(json!({
+            "project_id": pid, "source_path": "rejected.md", "source_type": "rules"
+        })).unwrap();
+        let error = engram.handle_distill_quality_gates(distill).await.unwrap_err();
+        assert!(error.message.contains("No rules imported"), "{error:?}");
+        assert_eq!(qg_count(&state, &pid), 2);
+        let req = serde_json::from_value(json!({
+            "project_id": pid, "code": "Never build SQL by string concatenation", "file_path": "Site/a.vb", "top_k": 10
+        })).unwrap();
+        let audit = engram.handle_pre_push_audit(req).await.unwrap();
+        let text = &audit.content[0].as_text().unwrap().text;
+        assert!(text.contains("string concatenation") && text.contains("of 2 in the namespace"), "{text}");
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn contextual_markdown_remains_retrievable_without_automatic_enforcement() {
+    let (tmp, state, engram, pid) = build().await;
+    let policy = "Always document gateway APIs.\n\nException: internal prototypes can omit documentation.\n";
+    std::fs::write(tmp.path().join("proj/context.md"), policy).unwrap();
+    let req = serde_json::from_value(json!({
+        "project_id": pid, "source_path": "context.md", "source_type": "rules"
+    })).unwrap();
+    let result = engram.handle_ingest_quality_gates(req).await.unwrap();
+    let text = &result.content[0].as_text().unwrap().text;
+    assert!(text.contains("1 context-required Markdown candidate") && text.contains("not auto-promoted"), "{text}");
+    assert_eq!(qg_count(&state, &pid), 1);
+    assert!(state.registry.list_repo_rules(&pid).unwrap().is_empty());
+    let req = serde_json::from_value(json!({
+        "project_id": pid, "code": "Gateway APIs", "top_k": 10
+    })).unwrap();
+    let result = engram.handle_pre_push_audit(req).await.unwrap();
+    let text = &result.content[0].as_text().unwrap().text;
+    assert!(text.contains("full_rule: get_chunk") && text.contains("of 1 in the namespace"), "{text}");
+}

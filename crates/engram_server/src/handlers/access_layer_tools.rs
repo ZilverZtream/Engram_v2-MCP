@@ -21,6 +21,51 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
 
+/// Resolve application-relative directives from hosting evidence, never a
+/// repository-specific folder name. Nested web.config files can configure a
+/// subdirectory, so prefer an explicit application marker or the outermost
+/// configuration within the registered project.
+pub(crate) fn discover_web_application_root(project: &Path, page: &Path) -> std::path::PathBuf {
+    let mut configured = None;
+    for dir in page.parent().into_iter().flat_map(Path::ancestors) {
+        if !dir.starts_with(project) {
+            break;
+        }
+        let mut app_marker = false;
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                if !entry.file_type().is_ok_and(|kind| kind.is_file()) {
+                    continue;
+                }
+                let name = entry.file_name().to_string_lossy().to_ascii_lowercase();
+                if name == "global.asax" || name.ends_with(".vbproj") || name.ends_with(".csproj") {
+                    app_marker = true;
+                }
+                if name == "web.config" {
+                    configured = Some(dir.to_path_buf());
+                }
+            }
+        }
+        if app_marker {
+            return dir.to_path_buf();
+        }
+    }
+    configured.unwrap_or_else(|| project.to_path_buf())
+}
+
+#[derive(Serialize)]
+struct FreshAccessResponse<'a, T: Serialize> {
+    #[serde(flatten)]
+    result: &'a T,
+    freshness: AccessFreshness,
+}
+
+#[derive(Serialize)]
+struct AccessFreshness {
+    warning: Option<String>,
+    details: String,
+}
+
 // ── Shared Output Types ──────────────────────────────────────────────────────
 
 /// Comprehensive method metadata assembled from graph + disk.
@@ -56,6 +101,8 @@ pub struct CallerLocation {
     pub fqn: String,
     pub file_path: String,
     pub line: u32,
+    /// `line` is the caller declaration start, not a verified invocation site.
+    pub line_kind: &'static str,
     pub line_end: u32,
     /// Edge kind that made this a caller (`calls`, `dependency`, …).
     pub edge_kind: String,
@@ -64,6 +111,13 @@ pub struct CallerLocation {
 /// Result of get_full_method_body.
 #[derive(Debug, Clone, Serialize)]
 pub struct MethodBodyResult {
+    /// Explicit ranges do not establish method boundaries, even if they happen to match.
+    pub retrieval_scope: &'static str,
+    pub boundary_guidance: &'static str,
+    /// Verification of the exact complete-file bytes used for the returned lines.
+    pub source_verification: &'static str,
+    /// BLAKE3 hex digest of those complete-file bytes, before line normalization.
+    pub source_file_hash: String,
     pub fqn: String,
     pub file_path: String,
     pub line_start: u32,
@@ -72,6 +126,22 @@ pub struct MethodBodyResult {
     pub surrounding_context: String,
     pub language: String,
     pub caller_bodies: Vec<CallerBody>,
+    pub caller_expansion: CallerExpansion,
+}
+
+/// Execution of optional caller-body expansion, not a claim of consumer coverage.
+#[derive(Debug, Clone, Serialize)]
+pub struct CallerExpansion {
+    pub requested: bool,
+    pub attempted: bool,
+    pub status: String,
+    pub returned: usize,
+    pub cap: usize,
+    pub truncated: bool,
+    pub omission_reason: Option<String>,
+    pub next_action: Option<String>,
+    pub omissions: Vec<String>,
+    pub coverage_interpretation: String,
 }
 
 /// A caller's full body for pattern understanding.
@@ -79,6 +149,7 @@ pub struct MethodBodyResult {
 pub struct CallerBody {
     pub fqn: String,
     pub file_path: String,
+    /// Start of the caller declaration/body, not the invocation location.
     pub line_start: u32,
     pub line_end: u32,
     pub source_code: String,
@@ -93,6 +164,10 @@ pub struct MethodEditContextResult {
     pub method_info: MethodInfoResult,
     pub full_source: Option<String>,
     pub caller_bodies: Vec<CallerBody>,
+    pub caller_excerpts: Vec<super::caller_excerpts::CallerExcerpt>,
+    pub unresolved_caller_leads: super::unresolved_callers::UnresolvedCallerLeads,
+    /// Bounded shipped-file history leads, including explicit lookup failures.
+    pub historical_changes: Option<String>,
     pub vb_traps: Vec<VbTrapSummary>,
     pub sync_hazards: Vec<SyncHazardSummary>,
     /// `None` when the blast provider failed — never a fake 0.0.
@@ -182,8 +257,10 @@ impl ProviderStatus {
 /// Per-provider completeness for the pre-edit oracle. Shared by
 /// `get_method_edit_context` and `check_edit_safety` so both tools report
 /// (and floor on) the same facts.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EditContextCompleteness {
+    #[serde(default = "coverage_interpretation")]
+    pub coverage_interpretation: String,
     pub blast: ProviderStatus,
     pub callers: ProviderStatus,
     /// Incoming caller edges whose source node does not exist (dangling).
@@ -200,9 +277,33 @@ pub struct EditContextCompleteness {
     pub sync_hazards: ProviderStatus,
 }
 
+fn coverage_interpretation() -> String {
+    "Provider statuses describe query execution and available indexed evidence, not exhaustive extraction, correct binding of every call, or runtime coverage. Complete caller/blast queries and zero indexed callers do not establish absence of consumers or side effects.".into()
+}
+
+impl Default for EditContextCompleteness {
+    fn default() -> Self {
+        Self {
+            coverage_interpretation: coverage_interpretation(),
+            blast: Default::default(),
+            callers: Default::default(),
+            callers_dangling: 0,
+            body: Default::default(),
+            complexity: Default::default(),
+            db_tables: Default::default(),
+            stored_procs: Default::default(),
+            session_reads: Default::default(),
+            session_writes: Default::default(),
+            vb_traps: Default::default(),
+            sync_hazards: Default::default(),
+        }
+    }
+}
+
 impl EditContextCompleteness {
     pub fn all_complete() -> Self {
         Self {
+            coverage_interpretation: coverage_interpretation(),
             blast: ProviderStatus::Complete,
             callers: ProviderStatus::Complete,
             callers_dangling: 0,
@@ -239,6 +340,7 @@ pub struct BusinessLogicHit {
 /// Full page context for a WebForms page.
 #[derive(Debug, Clone, Serialize)]
 pub struct PageContextResult {
+    pub composition: super::page_composition::Composition,
     pub aspx_file: String,
     pub codebehind_file: String,
     pub class_name: String,
@@ -334,8 +436,11 @@ pub struct UpdatePanelSummary {
 #[derive(Debug, Clone, Serialize)]
 pub struct ImplementationContext {
     pub method_info: MethodInfoResult,
+    pub method_coverage: MethodInfoCoverage,
+    pub coverage_interpretation: String,
     pub method_body: Option<String>,
     pub style_profile: Option<String>,
+    pub style_basis: Option<crate::services::cognitive_service::StyleBasis>,
     pub pattern_examples: Vec<PatternExample>,
     pub schema_snippets: Vec<TableSchemaSnippet>,
     pub sp_signatures: Vec<SpSignatureSnippet>,
@@ -372,13 +477,14 @@ pub struct TableSchemaSnippet {
 pub struct ColumnSnippet {
     pub name: String,
     pub data_type: String,
-    pub nullable: bool,
+    pub nullable: Option<bool>,
 }
 
 /// Stored procedure signature snippet.
 #[derive(Debug, Clone, Serialize)]
 pub struct SpSignatureSnippet {
     pub sp_name: String,
+    pub coverage: String,
     pub parameters: Vec<String>,
     pub tables_read: Vec<String>,
     pub tables_written: Vec<String>,
@@ -469,6 +575,7 @@ impl ValidationCheck {
 #[derive(Debug, Clone, Serialize)]
 pub struct SqlValidationReport {
     pub verdict: String,
+    pub coverage: String,
     pub tables_referenced: Vec<String>,
     pub issues: Vec<SqlValidationIssue>,
 }
@@ -485,7 +592,11 @@ pub struct SqlValidationIssue {
 /// Test search result for a method.
 #[derive(Debug, Clone, Serialize)]
 pub struct TestSearchResult {
+    pub warnings: Vec<String>,
     pub method_name: String,
+    pub target_node_id: String,
+    pub target_file: String,
+    pub target_start_line: u32,
     pub test_hits: Vec<TestHit>,
     pub test_files_searched: usize,
 }
@@ -747,7 +858,19 @@ fn is_search_namespace(ns: &str) -> bool {
     engram_core::namespaces::KNOWN_NAMESPACES.contains(&ns)
 }
 
-fn fqn_from_node(node: &Node) -> String {
+pub(super) fn fqn_from_node(node: &Node) -> String {
+    // Tree-sitter nodes retain a bare name and a search namespace. Their
+    // declaration identity is carried separately by the parser.
+    if let Some(fqn) = node
+        .metadata
+        .as_ref()
+        .and_then(|m| m.get("fqn"))
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|fqn| !fqn.is_empty())
+    {
+        return fqn.to_string();
+    }
     // The node's namespace often holds the class name, and name holds the method.
     // Build: namespace.name (skip namespace if it's "default", empty, or a
     // search-namespace constant — the name is already qualified then).
@@ -759,15 +882,11 @@ fn fqn_from_node(node: &Node) -> String {
     }
 }
 
-/// Extract the declaring class for a node: from the namespace when it
-/// carries a type, else from the qualified NAME's second-to-last dot
-/// segment (`_ata.huvud.CreateFromMarkers` → `huvud`).
+/// Extract the declaring class from the canonical declaration identity,
+/// including parser metadata and legacy namespace/name representations.
 fn class_of_node(node: &Node) -> String {
-    let ns = node.namespace.trim();
-    if !ns.is_empty() && ns != "default" && !is_search_namespace(ns) {
-        return class_from_namespace(ns);
-    }
-    let mut parts = node.name.rsplit('.');
+    let fqn = fqn_from_node(node);
+    let mut parts = fqn.rsplit('.');
     parts.next(); // method segment
     parts.next().unwrap_or("").to_string()
 }
@@ -779,16 +898,6 @@ fn class_of_node(node: &Node) -> String {
 /// compared against this tail, never against `node.name` directly.
 fn bare_method_name(node: &Node) -> &str {
     node.name.rsplit('.').next().unwrap_or(node.name.as_str())
-}
-
-/// Extract class name from an FQN-like namespace string.
-fn class_from_namespace(namespace: &str) -> String {
-    // namespace might be "MyApp.Pages.CheckoutPage" or just "CheckoutPage"
-    namespace
-        .rsplit('.')
-        .next()
-        .unwrap_or(namespace)
-        .to_string()
 }
 
 /// Extract string metadata field from Node.
@@ -862,8 +971,8 @@ const CALLER_COUNT_CEILING: usize = 5_000;
 const DATA_EDGE_CAP: usize = 200;
 
 /// What the per-node edge lookups behind a `MethodInfoResult` delivered.
-#[derive(Debug, Clone, Default)]
-pub(crate) struct MethodInfoCoverage {
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct MethodInfoCoverage {
     pub callers: ProviderStatus,
     pub callers_dangling: usize,
     pub db_tables: ProviderStatus,
@@ -977,6 +1086,7 @@ fn build_method_info_with_coverage(
                                 fqn: fqn_from_node(&src),
                                 file_path: src.file_path.as_str().to_string(),
                                 line: src.start_line,
+                                line_kind: "declaration",
                                 line_end: src.end_line,
                                 edge_kind: kind.as_str().to_string(),
                             });
@@ -1108,6 +1218,18 @@ pub(crate) fn referenced_sql_tables(sql: &str) -> Vec<String> {
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut out = Vec::new();
     for cap in RE.captures_iter(sql) {
+        // VB and C# LINQ: `From item In collection` / `join item in ...`.
+        // The range variable is not a SQL table. This helper is also used
+        // on generated source, where treating it as one causes false schema
+        // failures (and can falsely verify a coincidentally named table).
+        let matched = cap.get(0).expect("whole table-ref match");
+        if sql[matched.end()..]
+            .split_whitespace()
+            .next()
+            .is_some_and(|word| word.eq_ignore_ascii_case("in"))
+        {
+            continue;
+        }
         let t = cap[1].to_string();
         if seen.insert(t.to_lowercase()) {
             out.push(t);
@@ -1148,7 +1270,45 @@ pub(crate) fn estimate_complexity(body: &str) -> u32 {
     score
 }
 
-/// Read lines from a file (1-based inclusive range), with optional context.
+/// Reject known source-fingerprint mismatches before using indexed spans.
+pub(crate) fn verify_indexed_source_span(
+    graph: &engram_graph::GraphStore,
+    project_id: &str,
+    root: &str,
+    file: &str,
+) -> Result<(), String> {
+    let path = safe_join(Path::new(root), file).map_err(|e| e.to_string())?;
+    let content = std::fs::read(path).map_err(|e| format!("Cannot verify {file}: {e}"))?;
+    verify_indexed_source_bytes(graph, project_id, file, &content).map(|_| ())
+}
+
+fn verify_indexed_source_bytes(
+    graph: &engram_graph::GraphStore,
+    project_id: &str,
+    file: &str,
+    content: &[u8],
+) -> Result<&'static str, String> {
+    let node = graph
+        .get_node(project_id, &format!("file:{}", file.replace('\\', "/")))
+        .map_err(|e| format!("Cannot verify source fingerprint: {e}"))?;
+    let hash = node
+        .as_ref()
+        .and_then(|n| n.metadata.as_ref())
+        .and_then(|m| m.get("file_hash"))
+        .and_then(|h| h.as_str());
+    // Legacy graphs may lack fingerprints. Report that explicitly to callers
+    // that expose verification, without manufacturing a successful comparison.
+    if let Some(hash) = hash {
+        if blake3::hash(content).to_hex().as_str() != hash {
+            return Err(format!(
+                "Stale method spans withheld: {file} changed since indexing. Refresh the index before resolving method/caller line ranges, or read the current file directly."
+            ));
+        }
+        return Ok("matched_indexed_fingerprint");
+    }
+    Ok("unverified_missing_indexed_fingerprint")
+}
+
 fn read_lines_from_file(
     file_path: &Path,
     line_start: u32,
@@ -1156,8 +1316,24 @@ fn read_lines_from_file(
     context_lines: u32,
 ) -> std::io::Result<(String, String)> {
     let content = std::fs::read_to_string(file_path)?;
+    source_lines(&content, line_start, line_end, context_lines)
+}
+
+fn source_lines(
+    content: &str,
+    line_start: u32,
+    line_end: u32,
+    context_lines: u32,
+) -> std::io::Result<(String, String)> {
     let lines: Vec<&str> = content.lines().collect();
     let total = lines.len() as u32;
+
+    if line_start == 0 || line_end < line_start || line_end > total {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("Invalid source range {line_start}..{line_end}; file has {total} lines. Use 1-based bounds within the file."),
+        ));
+    }
 
     // Method body (1-based to 0-based)
     let start_idx = (line_start.saturating_sub(1)) as usize;
@@ -1323,6 +1499,7 @@ fn assemble_edit_evidence(
         .map_err(|e| format!("Path validation: {e}"))?;
 
     // Body — always read: complexity and the hazard scans depend on it.
+    verify_indexed_source_span(graph, project_id, project_dir, &file_path)?;
     let full_body = match read_lines_from_file(&full_path, node.start_line, node.end_line, 0) {
         Ok((body, _)) => {
             completeness.body = ProviderStatus::Complete;
@@ -1472,7 +1649,7 @@ fn provider_text(p: &ProviderStatus) -> String {
 
 /// Markdown block listing what every provider delivered.
 fn render_coverage_block(c: &EditContextCompleteness) -> String {
-    let mut md = String::from("## Coverage\n\n");
+    let mut md = format!("## Coverage\n\n{}\n\n", c.coverage_interpretation);
     for (name, st) in [
         ("blast radius", &c.blast),
         ("callers", &c.callers),
@@ -1485,7 +1662,15 @@ fn render_coverage_block(c: &EditContextCompleteness) -> String {
         ("vb traps", &c.vb_traps),
         ("sync hazards", &c.sync_hazards),
     ] {
-        md.push_str(&format!("- {name}: {}\n", provider_text(st)));
+        if name == "callers" && c.callers_dangling > 0 {
+            md.push_str(&format!(
+                "- callers: partial evidence — {} dangling caller edge(s); provider scan: {}; returned callers are a lower bound\n",
+                c.callers_dangling,
+                provider_text(st),
+            ));
+        } else {
+            md.push_str(&format!("- {name}: {}\n", provider_text(st)));
+        }
     }
     if c.callers_dangling > 0 {
         md.push_str(&format!(
@@ -1595,7 +1780,7 @@ fn compute_edit_safety(
         }
         if is_orphan {
             reasons.push(
-                "No callers found — may be invoked via reflection or dynamic dispatch".to_string(),
+                "No bound callers found in the index — unresolved overloads, extraction gaps, reflection or dynamic dispatch may hide consumers".to_string(),
             );
         }
         if has_triggers {
@@ -1824,6 +2009,125 @@ fn render_method_info_markdown(info: &MethodInfoResult) -> String {
     md
 }
 
+fn expand_caller_bodies(
+    graph: &GraphStore,
+    project: &str,
+    root: &str,
+    target: Option<&Node>,
+    requested: bool,
+    limit: usize,
+) -> (Vec<CallerBody>, CallerExpansion) {
+    // The checked lookup needs one lookahead; avoid overflow for usize::MAX.
+    let cap = limit.min(usize::MAX - 1);
+    let mut expansion = CallerExpansion {
+        requested,
+        attempted: false,
+        status: "not_requested".into(),
+        returned: 0,
+        cap,
+        truncated: false,
+        omission_reason: None,
+        next_action: None,
+        omissions: Vec::new(),
+        coverage_interpretation: coverage_interpretation(),
+    };
+    let mut bodies = Vec::new();
+    if !requested {
+        return (bodies, expansion);
+    }
+    let Some(target) = target else {
+        expansion.status = "unsupported_direct_range".into();
+        expansion.omission_reason = Some(
+            "Direct file/line ranges do not identify a unique indexed method for caller expansion."
+                .into(),
+        );
+        expansion.next_action = Some("Resolve a unique indexed method with get_method_info, then call get_full_method_body with its fqn and include_caller_bodies=true. For ambiguous overloads, use get_method_edit_context with file_path, method_name and line.".into());
+        return (bodies, expansion);
+    };
+    if cap == 0 {
+        expansion.status = "omitted".into();
+        expansion.omission_reason = Some("max_callers=0 disables caller expansion.".into());
+        expansion.next_action =
+            Some("Set max_callers above zero to request indexed caller bodies.".into());
+        return (bodies, expansion);
+    }
+    expansion.attempted = true;
+    let (callers, truncated) = match crate::handlers::incoming_caller_edges_checked(
+        graph,
+        project,
+        &target.node_id,
+        cap,
+    ) {
+        Ok(value) => value,
+        Err(error) => {
+            expansion.status = "failed".into();
+            expansion.omission_reason = Some(format!("Indexed caller query failed: {error}"));
+            expansion.next_action = Some("Retry the caller query after restoring graph access; inspect source references for consumers.".into());
+            return (bodies, expansion);
+        }
+    };
+    expansion.truncated = truncated;
+    for (source_id, kind, _) in callers {
+        let read = || -> Result<CallerBody, String> {
+            let source = graph
+                .get_node(project, &source_id)
+                .map_err(|e| e.to_string())?
+                .ok_or_else(|| "Caller source node is missing from the index".to_string())?;
+            verify_indexed_source_span(graph, project, root, source.file_path.as_str())?;
+            let path =
+                safe_join(Path::new(root), source.file_path.as_str()).map_err(|e| e.to_string())?;
+            let text = std::fs::read_to_string(path)
+                .map_err(|e| format!("Cannot read {}: {e}", source.file_path))?;
+            let lines: Vec<_> = text.lines().collect();
+            if source.start_line == 0 || source.end_line < source.start_line {
+                return Err("Indexed caller line span is invalid; refresh the index".into());
+            }
+            let span = lines
+                .get(source.start_line as usize - 1..source.end_line as usize)
+                .ok_or_else(|| {
+                    "Indexed caller line span exceeds available source; refresh the index"
+                        .to_string()
+                })?;
+            Ok(CallerBody {
+                fqn: fqn_from_node(&source),
+                file_path: source.file_path.to_string(),
+                line_start: source.start_line,
+                line_end: source.end_line,
+                source_code: span.join("\n"),
+                how_it_calls: format!(
+                    "indexed {} edge to {}",
+                    kind.as_str(),
+                    fqn_from_node(target)
+                ),
+            })
+        };
+        match read() {
+            Ok(body) => bodies.push(body),
+            Err(error) => expansion.omissions.push(format!("{source_id}: {error}")),
+        }
+    }
+    expansion.returned = bodies.len();
+    expansion.status = if !expansion.omissions.is_empty() {
+        "partial"
+    } else if truncated {
+        "truncated"
+    } else {
+        "complete"
+    }
+    .into();
+    if !expansion.omissions.is_empty() {
+        expansion.omission_reason =
+            Some("Some indexed caller bodies were withheld or unavailable; see omissions.".into());
+        expansion.next_action = Some("Restore missing source or refresh stale index entries, then retry. If truncated is true, increase max_callers as well. Inspect source references for additional consumers.".into());
+    } else if truncated {
+        expansion.omission_reason = Some("Additional indexed callers exceed max_callers.".into());
+        expansion.next_action = Some("Increase max_callers for more indexed caller bodies; inspect source references for additional consumers.".into());
+    } else if bodies.is_empty() {
+        expansion.next_action = Some("No indexed callers were returned. Search source references and inspect binding before concluding there are no consumers.".into());
+    }
+    (bodies, expansion)
+}
+
 fn render_method_body_markdown(result: &MethodBodyResult) -> String {
     let mut md = String::with_capacity(4_000);
 
@@ -1833,31 +2137,61 @@ fn render_method_body_markdown(result: &MethodBodyResult) -> String {
         "csharp"
     };
 
-    md.push_str(&format!("# Method Body: `{}`\n\n", result.fqn));
+    let direct_range = result.retrieval_scope == "explicit_source_range";
+    if direct_range {
+        md.push_str("# Requested Source Range\n\n");
+    } else {
+        md.push_str(&format!("# Method Body: `{}`\n\n", result.fqn));
+    }
+    md.push_str(result.boundary_guidance);
+    md.push_str("\n\n");
+    md.push_str(&format!("**Source verification**: `{}`\n\n**Source file BLAKE3**: `{}`\n\n", result.source_verification, result.source_file_hash));
     md.push_str(&format!(
         "**File**: `{}` (lines {}–{})\n\n",
         result.file_path, result.line_start, result.line_end
     ));
 
     if !result.surrounding_context.is_empty() {
-        md.push_str("## Context (above method)\n\n```");
+        md.push_str("## Context (above returned source)\n\n```");
         md.push_str(lang_tag);
         md.push('\n');
         md.push_str(&result.surrounding_context);
         md.push_str("\n```\n\n");
     }
 
-    md.push_str("## Full Method Body\n\n```");
+    md.push_str(if direct_range {
+        "## Requested Source Lines\n\n```"
+    } else if result.source_verification != "matched_indexed_fingerprint" {
+        "## Indexed Method Span (source fingerprint unverified)\n\n```"
+    } else {
+        "## Full Method Body\n\n```"
+    });
     md.push_str(lang_tag);
     md.push('\n');
     md.push_str(&result.source_code);
     md.push_str("\n```\n\n");
 
+    let expansion = &result.caller_expansion;
+    md.push_str(&format!(
+        "## Caller Expansion\n\nRequested: {}; attempted: {}; status: {}; returned: {}; cap: {}; truncated: {}.\n\n{}\n\n",
+        expansion.requested, expansion.attempted, expansion.status, expansion.returned,
+        expansion.cap, expansion.truncated, expansion.coverage_interpretation,
+    ));
+    if let Some(reason) = &expansion.omission_reason {
+        md.push_str(&format!("Omission reason: {reason}\n\n"));
+    }
+    for omission in &expansion.omissions {
+        md.push_str(&format!("- {omission}\n"));
+    }
+    if let Some(action) = &expansion.next_action {
+        md.push_str(&format!("\nNext action: {action}\n\n"));
+    }
+
     if !result.caller_bodies.is_empty() {
         md.push_str("## Caller Bodies\n\n");
         for cb in &result.caller_bodies {
             md.push_str(&format!(
-                "### `{}` (`{}` lines {}–{}) — {}\n\n```{}\n{}\n```\n\n",
+                "### `{}` (`{}` declaration/body lines {}–{}) — {}\n\n```{}\n{}\n```\n\n",
                 cb.fqn,
                 cb.file_path,
                 cb.line_start,
@@ -1988,7 +2322,7 @@ fn render_method_edit_context_markdown(ctx: &MethodEditContextResult) -> String 
         for cb in &ctx.caller_bodies {
             if cb.source_code.is_empty() {
                 md.push_str(&format!(
-                    "- `{}` — {}:{} — {}\n",
+                    "- `{}` — declaration: {}:{} — {}\n",
                     cb.fqn, cb.file_path, cb.line_start, cb.how_it_calls,
                 ));
                 continue;
@@ -1999,7 +2333,7 @@ fn render_method_edit_context_markdown(ctx: &MethodEditContextResult) -> String 
                 "csharp"
             };
             md.push_str(&format!(
-                "### `{}` (`{}` lines {}–{}) — {}\n\n```{}\n{}\n```\n\n",
+                "### `{}` (`{}` declaration/body lines {}–{}) — {}\n\n```{}\n{}\n```\n\n",
                 cb.fqn,
                 cb.file_path,
                 cb.line_start,
@@ -2017,6 +2351,43 @@ fn render_method_edit_context_markdown(ctx: &MethodEditContextResult) -> String 
             md.push_str(
                 "\n(caller bodies omitted — re-call with include_caller_bodies=true to read them)\n",
             );
+        }
+        md.push('\n');
+    }
+
+    if let Some(history) = &ctx.historical_changes {
+        md.push_str("## Historical changes to inspect\n\n");
+        md.push_str(history);
+        md.push_str("\n\n");
+    }
+    if !ctx.caller_excerpts.is_empty() {
+        md.push_str("## Caller source excerpts\n\n");
+        for excerpt in &ctx.caller_excerpts {
+            md.push_str(&format!(
+                "### {} ({}) — {}\n\n{}\n\n",
+                excerpt.caller, excerpt.file_path, excerpt.status, excerpt.detail
+            ));
+            for line in excerpt.numbered_source.lines() {
+                md.push_str(&format!("    {line}\n"));
+            }
+            md.push('\n');
+        }
+    }
+
+    md.push_str("## Unresolved caller inspection leads\n\n");
+    md.push_str(&format!(
+        "{} (status: {}; truncated: {})\n\n",
+        ctx.unresolved_caller_leads.detail,
+        ctx.unresolved_caller_leads.status,
+        ctx.unresolved_caller_leads.truncated
+    ));
+    for excerpt in &ctx.unresolved_caller_leads.excerpts {
+        md.push_str(&format!(
+            "### {} ({}) — {}\n\n{}\n\n",
+            excerpt.caller, excerpt.file_path, excerpt.status, excerpt.detail
+        ));
+        for line in excerpt.numbered_source.lines() {
+            md.push_str(&format!("    {line}\n"));
         }
         md.push('\n');
     }
@@ -2058,7 +2429,7 @@ fn render_method_edit_context_markdown(ctx: &MethodEditContextResult) -> String 
     ));
     match ctx.blast_radius_score {
         Some(score) => md.push_str(&format!(
-            "- **Blast radius**: {:.0} ({})\n",
+            "- **Blast radius**: {:.0} ({}) — estimate from indexed evidence; incomplete extraction or binding can omit consumers and side effects.\n",
             score, ctx.risk_band
         )),
         None => md.push_str(&format!(
@@ -2127,6 +2498,27 @@ fn render_page_context_markdown(ctx: &PageContextResult) -> String {
     }
     if let Some(ref mp) = ctx.master_page {
         md.push_str(&format!("- **Master page**: `{}`\n", mp));
+    }
+    md.push_str("\n## Source composition\nStatic declarations; runtime verification not run.\n");
+    for component in &ctx.composition.files {
+        let parent = if component.declared_by.is_empty() {
+            "entry page"
+        } else {
+            &component.declared_by
+        };
+        md.push_str(&format!(
+            "- {}: `{}` (declared by `{parent}`)\n",
+            component.kind, component.path
+        ));
+    }
+    for binding in &ctx.composition.bindings {
+        md.push_str(&format!(
+            "- `{}` -> `{}` placeholder `{}`: {}\n",
+            binding.child, binding.master, binding.placeholder, binding.status
+        ));
+    }
+    for warning in &ctx.composition.warnings {
+        md.push_str(&format!("- INCOMPLETE: {warning}\n"));
     }
     if !ctx.content_placeholders.is_empty() {
         md.push_str(&format!(
@@ -2305,6 +2697,7 @@ fn render_implementation_context_markdown(ctx: &ImplementationContext) -> String
         "# Implementation Context: `{}`\n\n",
         ctx.method_info.fqn
     ));
+    md.push_str(&format!("{}\n\n", ctx.coverage_interpretation));
 
     if !ctx.warnings.is_empty() {
         md.push_str("## Warnings (partial evidence)\n\n");
@@ -2379,7 +2772,11 @@ fn render_implementation_context_markdown(ctx: &ImplementationContext) -> String
                         } else {
                             &col.data_type
                         },
-                        if col.nullable { "Yes" } else { "No" },
+                        match col.nullable {
+                            Some(true) => "Yes",
+                            Some(false) => "No",
+                            None => "Unknown",
+                        },
                     ));
                 }
                 md.push('\n');
@@ -2392,6 +2789,7 @@ fn render_implementation_context_markdown(ctx: &ImplementationContext) -> String
         md.push_str("## Stored Procedure Signatures\n\n");
         for sp in &ctx.sp_signatures {
             md.push_str(&format!("### `{}`\n\n", sp.sp_name));
+            md.push_str(&format!("Coverage: {}\n", sp.coverage));
             if !sp.parameters.is_empty() {
                 md.push_str(&format!("Parameters: {}\n", sp.parameters.join(", ")));
             }
@@ -2762,7 +3160,10 @@ fn render_validation_report_markdown(report: &ValidationReport) -> String {
 fn render_sql_validation_markdown(report: &SqlValidationReport) -> String {
     let mut md = String::with_capacity(2_000);
 
-    md.push_str(&format!("# SQL Validation: {}\n\n", report.verdict));
+    md.push_str(&format!(
+        "# SQL Validation: {}\n\n{}\n\n",
+        report.verdict, report.coverage
+    ));
 
     if !report.tables_referenced.is_empty() {
         md.push_str(&format!(
@@ -2940,6 +3341,14 @@ impl Engram {
         &self,
         req: GetFullMethodBodyRequest,
     ) -> Result<CallToolResult, McpError> {
+        if req.fqn.is_some()
+            && (req.file_path.is_some() || req.line_start.is_some() || req.line_end.is_some())
+        {
+            return Err(McpError::invalid_params(
+                "fqn and explicit file/line targets are mutually exclusive. Use get_method_edit_context with file_path, method_name and line to disambiguate overloads.",
+                None,
+            ));
+        }
         let rec = self.ensure_project_record(&req.project_id).await?;
         let project_dir = rec.directory.clone();
         let graph = self.state.graph.clone();
@@ -2957,13 +3366,13 @@ impl Engram {
 
         let result = tokio::task::spawn_blocking(move || {
             // Determine file_path, line_start, line_end
+            let target_node = fqn.as_deref()
+                .map(|query| resolve_unique_function(&graph, &project_id, query))
+                .transpose()?;
             let (resolved_fqn, resolved_file, resolved_start, resolved_end, language) =
-                if let Some(ref fqn_query) = fqn {
-                    // Resolve via graph node lookup
-                    let node = resolve_unique_function(&graph, &project_id, fqn_query)?;
-
+                if let Some(ref node) = target_node {
                     (
-                        fqn_from_node(&node),
+                        fqn_from_node(node),
                         node.file_path.as_str().to_string(),
                         node.start_line,
                         node.end_line,
@@ -2985,55 +3394,36 @@ impl Engram {
                     );
                 };
 
-            // Read the method body from disk
+            // Verify and slice one byte snapshot: a second read could observe
+            // an intervening edit after the fingerprint check succeeded.
             let full_path = safe_join(Path::new(&project_dir), &resolved_file)
                 .map_err(|e| format!("Path validation failed for '{}': {e}", resolved_file))?;
+            let source = std::fs::read_to_string(&full_path)
+                .map_err(|e| format!("Cannot read '{}': {e}", resolved_file))?;
+            let source_file_hash = blake3::hash(source.as_bytes()).to_hex().to_string();
+            let source_verification = if target_node.is_some() {
+                verify_indexed_source_bytes(&graph, &project_id, &resolved_file, source.as_bytes())?
+            } else {
+                "explicit_range_current_file_snapshot"
+            };
             let (body, context) =
-                read_lines_from_file(&full_path, resolved_start, resolved_end, context_lines)
+                source_lines(&source, resolved_start, resolved_end, context_lines)
                     .map_err(|e| format!("Cannot read '{}': {}", resolved_file, e))?;
 
-            // Optionally get caller bodies
-            let mut caller_bodies = Vec::new();
-            if include_callers
-                && let Some(ref fqn_query) = fqn {
-                    if let Ok(target_node) = resolve_unique_function(&graph, &project_id, fqn_query)
-                        .as_ref()
-                    {
-                        let callers = crate::handlers::incoming_caller_edges(
-                            &graph,
-                            &project_id,
-                            &target_node.node_id,
-                            max_callers,
-                        );
-
-                        for (source_id, kind, _weight) in callers.iter().take(max_callers) {
-                            if let Ok(Some(src_node)) = graph.get_node(&project_id, source_id) {
-                                let Ok(src_full) = safe_join(Path::new(&project_dir), src_node.file_path.as_str()) else { continue };
-                                if let Ok((src_body, _)) = read_lines_from_file(
-                                    &src_full,
-                                    src_node.start_line,
-                                    src_node.end_line,
-                                    0,
-                                ) {
-                                    caller_bodies.push(CallerBody {
-                                        fqn: fqn_from_node(&src_node),
-                                        file_path: src_node.file_path.as_str().to_string(),
-                                        line_start: src_node.start_line,
-                                        line_end: src_node.end_line,
-                                        source_code: src_body,
-                                        how_it_calls: format!(
-                                            "direct call ({} edge to {})",
-                                            kind.as_str(),
-                                            resolved_fqn
-                                        ),
-                                    });
-                                }
-                            }
-                        }
-                    }
-                }
+            let (caller_bodies, caller_expansion) = expand_caller_bodies(
+                &graph, &project_id, &project_dir, target_node.as_ref(),
+                include_callers, max_callers,
+            );
 
             Ok(MethodBodyResult {
+                retrieval_scope: if target_node.is_some() { "indexed_method" } else { "explicit_source_range" },
+                boundary_guidance: if target_node.is_some() {
+                    "Returned the indexed method span. Consult source_verification: legacy entries without an indexed fingerprint have unverified boundaries. The file hash binds the returned lines to the loaded snapshot; later edits are not covered."
+                } else {
+                    "These are the requested source lines; method boundaries have not been resolved. A search chunk can end mid-method. Use a unique fqn, or get_method_edit_context with file_path, method_name and line, to resolve the method body."
+                },
+                source_verification,
+                source_file_hash,
                 fqn: resolved_fqn,
                 file_path: resolved_file,
                 line_start: resolved_start,
@@ -3042,18 +3432,13 @@ impl Engram {
                 surrounding_context: context,
                 language,
                 caller_bodies,
+                caller_expansion,
             })
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         let body_result = result.map_err(|e| McpError::invalid_params(e, None))?;
-
-        if output_json {
-            let json = serde_json::to_string_pretty(&body_result)
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            return Ok(CallToolResult::success(vec![Content::text(json)]));
-        }
 
         let (banner, footer) = self
             .access_freshness(
@@ -3062,6 +3447,18 @@ impl Engram {
                 Some(body_result.file_path.as_str()),
             )
             .await;
+        if output_json {
+            let json = serde_json::to_string_pretty(&FreshAccessResponse {
+                result: &body_result,
+                freshness: AccessFreshness {
+                    warning: banner,
+                    details: footer,
+                },
+            })
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
         let mut out = banner.unwrap_or_default();
         out.push_str(&render_method_body_markdown(&body_result));
         out.push_str(&footer);
@@ -3102,8 +3499,19 @@ impl Engram {
             // verdict used); full SOURCE only on request — a well-connected
             // method returned tens of thousands of tokens from this section.
             let mut caller_bodies: Vec<CallerBody> = Vec::new();
+            let mut caller_excerpts = Vec::new();
+            let mut excerpt_budget = 64 * 1024 * 1024;
             for c in ev.method_info.called_by.iter().take(max_callers) {
+                caller_excerpts.push(super::caller_excerpts::collect(
+                    &graph,
+                    &project_id,
+                    &project_dir,
+                    c,
+                    &ev.node.name,
+                    &mut excerpt_budget,
+                ));
                 let source_code = if include_caller_bodies {
+                    verify_indexed_source_span(&graph, &project_id, &project_dir, &c.file_path)?;
                     match safe_join(Path::new(&project_dir), &c.file_path)
                         .ok()
                         .and_then(|p| read_lines_from_file(&p, c.line, c.line_end, 0).ok())
@@ -3124,6 +3532,15 @@ impl Engram {
                 });
             }
 
+            let unresolved_caller_leads = super::unresolved_callers::lookup(
+                &graph,
+                &project_id,
+                &project_dir,
+                &ev.node,
+                &ev.method_info.called_by,
+                max_callers,
+                &mut excerpt_budget,
+            );
             Ok::<MethodEditContextResult, String>(MethodEditContextResult {
                 blast_radius_score: ev.blast.as_ref().map(|b| b.migration_risk as f32 * 10.0),
                 risk_band: ev
@@ -3138,6 +3555,9 @@ impl Engram {
                     None
                 },
                 caller_bodies,
+                caller_excerpts,
+                unresolved_caller_leads,
+                historical_changes: None,
                 vb_traps: ev.vb_traps,
                 sync_hazards: ev.sync_hazards,
                 edit_safety: ev.edit_safety,
@@ -3149,6 +3569,54 @@ impl Engram {
 
         let mut ctx = result.map_err(|e| McpError::invalid_params(e, None))?;
 
+        if req.include_history {
+            let query = req
+                .history_query
+                .as_deref()
+                .map(str::trim)
+                .filter(|q| !q.is_empty())
+                .map(str::to_string)
+                .unwrap_or_else(|| {
+                    req.file_path
+                        .replace('\\', "/")
+                        .rsplit('/')
+                        .next()
+                        .unwrap_or(&req.file_path)
+                        .to_string()
+                });
+            ctx.historical_changes = Some(
+                match self
+                    .handle_find_merged_work(crate::models::FindMergedWorkRequest {
+                        project_id: req.project_id.clone(),
+                        story: query,
+                        file_paths: vec![req.file_path.clone()],
+                        kind: None,
+                        top: 2,
+                        merged_before: req.merged_before.clone(),
+                    })
+                    .await
+                {
+                    Ok(response) => response
+                        .content
+                        .iter()
+                        .filter_map(|c| c.as_text())
+                        .map(|c| c.text.as_str())
+                        .collect::<Vec<_>>()
+                        .join("\n"),
+                    Err(error) => format!(
+                        "History lookup failed: {error}. No historical applicability or coverage claim is available."
+                    ),
+                },
+            );
+            if let Some(history) = &mut ctx.historical_changes {
+                const HISTORY_BYTES: usize = 24_000;
+                if history.len() > HISTORY_BYTES {
+                    history.truncate(history.floor_char_boundary(HISTORY_BYTES));
+                    history.push_str("\n[History section truncated at 24000 bytes. Call find_merged_work with the same file_paths, story and merged_before for the complete response.]\n");
+                }
+            }
+        }
+
         if req.include_business_logic {
             ctx.business_logic = Some(
                 self.business_logic_for_method(&req.project_id, &ctx.method_info)
@@ -3156,15 +3624,21 @@ impl Engram {
             );
         }
 
-        if output_json {
-            let json = serde_json::to_string_pretty(&ctx)
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            return Ok(CallToolResult::success(vec![Content::text(json)]));
-        }
-
         let (banner, footer) = self
             .access_freshness(&req.project_id, &rec.directory, Some(&req.file_path))
             .await;
+        if output_json {
+            let json = serde_json::to_string_pretty(&FreshAccessResponse {
+                result: &ctx,
+                freshness: AccessFreshness {
+                    warning: banner,
+                    details: footer,
+                },
+            })
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
         let mut out = banner.unwrap_or_default();
         out.push_str(&render_method_edit_context_markdown(&ctx));
         out.push_str(&footer);
@@ -3188,52 +3662,63 @@ impl Engram {
                 };
             }
         };
-        let gen_ = self.get_active_generation(project_id).await.unwrap_or(1);
-        let query = engram_index::HybridQuery {
-            text: format!("{} {}", info.class_name, info.method_name),
-            project_id: project_id.to_string(),
-            namespace: "business_logic".to_string(),
-            generation: gen_,
-            top_k: 5,
-            fts_mode: "loose".to_string(),
-            include_path_prefixes: None,
-            exclude_path_prefixes: None,
-            include_path_suffixes: None,
-            language_filters: None,
-            author_filter: None,
-            date_after: None,
-            date_before: None,
-            use_mmr: false,
-        };
-        match ps
-            .search
-            .search(&query, None, &tokio_util::sync::CancellationToken::new())
-            .await
-        {
-            Ok(hits) if hits.is_empty() => BusinessLogicSection {
-                hits: Vec::new(),
-                note: "no business-logic analysis stored for this method — run \
-                       analyze_business_logic (file mode) to populate the business_logic namespace"
-                    .into(),
-            },
-            Ok(hits) => {
-                let n = hits.len();
-                BusinessLogicSection {
-                    hits: hits
-                        .into_iter()
-                        .map(|h| BusinessLogicHit {
-                            path: h.path.as_str().to_string(),
-                            score: h.score as f32,
-                            content: h.snippet.unwrap_or_default(),
-                        })
-                        .collect(),
-                    note: format!("{n} stored business-logic document(s) matched (top 5)"),
+        // Match persistence's path-stable identity, never a relevance-ranked
+        // sibling method or constructor. Return the entire stored analysis.
+        let base = format!(
+            "__business_logic/{}/{}",
+            info.file_path.replace('\\', "/"),
+            info.method_name
+                .rsplit(['.', ':'])
+                .next()
+                .unwrap_or(&info.method_name)
+        );
+        for path in [
+            format!("{base}__L{}.md", info.line_start),
+            format!("{base}.md"),
+        ] {
+            let hash = engram_core::ContentHash::compute(path.as_bytes());
+            let id = engram_core::DocIdStr::compute(&path, 0, 0, &hash);
+            match ps
+                .search
+                .get_doc_by_doc_id(project_id, "business_logic", 0, &id.0)
+            {
+                Ok(Some((_, _, content, _, _))) => {
+                    let stored = content
+                        .lines()
+                        .find_map(|line| line.strip_prefix("# "))
+                        .unwrap_or("")
+                        .trim();
+                    let matches_owner = stored == info.fqn
+                        || (!stored.is_empty() && info.fqn.ends_with(&format!(".{stored}")));
+                    let note = if matches_owner {
+                        "Exact stored method identity; full analysis (inferred rules, verify against source).".to_string()
+                    } else {
+                        format!(
+                            "STALE ANALYSIS OWNERSHIP: stored '{stored}', current '{}'. Evidence was generated with a different declaring owner; refresh analyze_business_logic for this method before relying on it. The stored text is preserved for inspection.",
+                            info.fqn
+                        )
+                    };
+                    return BusinessLogicSection {
+                        hits: vec![BusinessLogicHit {
+                            path,
+                            score: 1.0,
+                            content,
+                        }],
+                        note,
+                    };
+                }
+                Ok(None) => {}
+                Err(e) => {
+                    return BusinessLogicSection {
+                        hits: Vec::new(),
+                        note: format!("business-logic document lookup FAILED: {e}"),
+                    };
                 }
             }
-            Err(e) => BusinessLogicSection {
-                hits: Vec::new(),
-                note: format!("business-logic search FAILED: {e}"),
-            },
+        }
+        BusinessLogicSection {
+            hits: Vec::new(),
+            note: "no business-logic analysis stored for this exact method; run analyze_business_logic (file mode) to populate or refresh it".into(),
         }
     }
 
@@ -3264,7 +3749,33 @@ impl Engram {
             // 2. Find code-behind
             let cb_path_vb = format!("{}.vb", aspx_file);
             let cb_path_cs = format!("{}.cs", aspx_file);
-            let (cb_path, cb_content, language) = {
+            let declared_cb = regex::Regex::new(r#"(?is)<%@\s*(?:Page|Control|Master)\b[^%]*?\bCode(?:File|Behind)\s*=\s*(?:"([^"]+)"|'([^']+)')"#)
+                .expect("valid directive regex")
+                .captures(&aspx_content)
+                .and_then(|cap| cap.get(1).or_else(|| cap.get(2)))
+                .map(|m| m.as_str().replace('\\', "/"));
+            let (cb_path, cb_content, language) = if let Some(raw) = declared_cb {
+                // Resolve relative to the markup, then validate the canonical
+                // file under the project root (including parent-relative paths).
+                let candidate = if let Some(app_relative) = raw.strip_prefix("~/") {
+                    discover_web_application_root(Path::new(&project_dir), &aspx_full)
+                        .join(app_relative)
+                } else {
+                    aspx_full.parent().unwrap_or(Path::new(&project_dir)).join(&raw)
+                };
+                let root = std::fs::canonicalize(&project_dir).map_err(|e| e.to_string())?;
+                match std::fs::canonicalize(&candidate) {
+                    Ok(full) => {
+                        let rel = full.strip_prefix(&root).map_err(|_| "code-behind escapes project root")?
+                            .to_string_lossy().replace('\\', "/");
+                        let language = if rel.to_lowercase().ends_with(".vb") { "vbnet" } else { "csharp" };
+                        let content = std::fs::read_to_string(full).map_err(|e| format!("Cannot read declared code-behind: {e}"))?;
+                        (rel, Some(content), language.to_string())
+                    }
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => (String::new(), None, "unknown".into()),
+                    Err(e) => return Err(format!("Cannot resolve declared code-behind: {e}")),
+                }
+            } else {
                 let vb_full = safe_join(Path::new(&project_dir), &cb_path_vb)
                     .map_err(|e| format!("Path validation: {e}"))?;
                 let cs_full = safe_join(Path::new(&project_dir), &cb_path_cs)
@@ -3297,8 +3808,10 @@ impl Engram {
             // 4. Extract master page from @Page directive (opt-out honoured)
             let master_page = if include_master {
                 page_cov.master_page = ProviderStatus::Complete;
-                let re = regex::Regex::new(r#"(?i)MasterPageFile\s*=\s*"([^"]+)""#).ok();
-                re.and_then(|r| r.captures(&aspx_content).map(|cap| cap[1].to_string()))
+                let re = regex::Regex::new(r#"(?is)<%@\s*Page\b[^%]*?\bMasterPageFile\s*=\s*(?:"([^"]+)"|'([^']+)')"#).ok();
+                re.and_then(|r| r.captures(&aspx_content).and_then(|cap| {
+                    cap.get(1).or_else(|| cap.get(2)).map(|value| value.as_str().to_string())
+                }))
             } else {
                 page_cov.master_page = ProviderStatus::NotRun {
                     reason: "include_master_page=false".into(),
@@ -3323,12 +3836,15 @@ impl Engram {
             // 7. Methods from the code-behind via graph (opt-out honoured;
             //    cap+1 fetch so truncation is a fact, not a guess).
             const METHOD_CAP: usize = 500;
-            let method_nodes: Vec<Node> = if include_cb {
-                match graph.query_nodes(
+            let method_nodes: Vec<Node> = if include_cb && cb_content.is_none() {
+                page_cov.codebehind = ProviderStatus::NotRun { reason: "code-behind source not found".into() };
+                page_cov.methods = ProviderStatus::NotRun { reason: "no code-behind file to scope method lookup".into() };
+                Vec::new()
+            } else if include_cb {
+                match graph.query_nodes_in_file(
                     &project_id,
                     Some("function"),
-                    None,
-                    Some(&cb_path),
+                    &cb_path,
                     METHOD_CAP + 1,
                 ) {
                     Ok(mut v) => {
@@ -3669,7 +4185,10 @@ impl Engram {
             } else {
                 None
             };
+            let app_root = discover_web_application_root(Path::new(&project_dir), &aspx_full);
+            let composition = super::page_composition::collect(Path::new(&project_dir), &app_root, &aspx_full, include_master, include_cb);
             Ok(PageContextResult {
+                composition,
                 aspx_file: aspx_file.clone(),
                 house_style,
                 codebehind_file: cb_path,
@@ -3721,9 +4240,18 @@ impl Engram {
 
         let ctx = result.map_err(|e: String| McpError::invalid_params(e, None))?;
 
+        let (banner, footer) = self
+            .access_freshness(&req.project_id, &rec.directory, Some(&req.aspx_file))
+            .await;
         if output_json {
-            let json = serde_json::to_string_pretty(&ctx)
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            let json = serde_json::to_string_pretty(&FreshAccessResponse {
+                result: &ctx,
+                freshness: AccessFreshness {
+                    warning: banner,
+                    details: footer,
+                },
+            })
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
             return Ok(CallToolResult::success(vec![Content::text(json)]));
         }
 
@@ -3734,7 +4262,7 @@ impl Engram {
         const MAX_PAGE_CONTEXT_BYTES: usize = 2_000_000; // 2 MB soft cap
         let mut md = render_page_context_markdown(&ctx);
         if md.len() > MAX_PAGE_CONTEXT_BYTES {
-            md.truncate(MAX_PAGE_CONTEXT_BYTES);
+            md.truncate(md.floor_char_boundary(MAX_PAGE_CONTEXT_BYTES));
             // Snap back to the last newline so we don't cut mid-table-row.
             if let Some(nl) = md.rfind('\n') {
                 md.truncate(nl + 1);
@@ -3745,9 +4273,6 @@ impl Engram {
             );
         }
 
-        let (banner, footer) = self
-            .access_freshness(&req.project_id, &rec.directory, Some(&req.aspx_file))
-            .await;
         let mut out = banner.unwrap_or_default();
         out.push_str(&md);
         out.push_str(&footer);
@@ -3767,24 +4292,16 @@ impl Engram {
         let file_path = req.file_path.clone();
         let method_name = req.method_name.clone();
         let class_name = req.class_name.clone();
+        let line = req.line;
         let target_stack = req.target_stack.clone();
         let include_pattern_examples = req.include_pattern_examples;
-        let max_pattern_examples = req.max_pattern_examples;
+        let requested_pattern_examples = req.max_pattern_examples;
+        let max_pattern_examples = req.max_pattern_examples.min(20);
         let include_db_schema = req.include_db_schema;
         let include_sp_signatures = req.include_sp_signatures;
         let include_state_context = req.include_state_context;
         let include_control_mappings = req.include_control_mappings;
         let output_json = req.output_json;
-
-        // Style profile must run async (it may touch git), so do it outside spawn_blocking
-        let style_profile = if req.include_style_profile {
-            let result = self
-                .cognitive_analyze_file_style(&req.project_id, &req.file_path, 50)
-                .await;
-            result.style_guide
-        } else {
-            None
-        };
 
         // Alias keeps the closure's return-type annotation short enough to stay
         // on one line (the annotation is what pins the closure's error type to
@@ -3792,6 +4309,9 @@ impl Engram {
         // `return Err`).
         type PrepCtxResult = Result<ImplementationContext, String>;
         let result = tokio::task::spawn_blocking(move || -> PrepCtxResult {
+            let mut warnings = Vec::new();
+            if requested_pattern_examples > 20 { warnings.push("Caller pattern limit capped at 20".into()); }
+            verify_indexed_source_span(&graph, &project_id, &project_dir, &file_path)?;
             // 1. Resolve the target method
             // Round-6: reuse the shared resolver instead of a hand-rolled
             // candidate scan. select_method_node prefers an EXACT name over
@@ -3805,10 +4325,24 @@ impl Engram {
                 &file_path,
                 &method_name,
                 class_name.as_deref(),
-                None,
+                line,
             )?;
             let node = &resolved_node;
-            let method_info = build_method_info_from_node(node, &graph, &project_id);
+            let (method_info, method_coverage) = build_method_info_with_coverage(node, &graph, &project_id);
+            for (name, status) in [
+                ("callers", &method_coverage.callers),
+                ("db_tables", &method_coverage.db_tables),
+                ("stored_procs", &method_coverage.stored_procs),
+                ("session_reads", &method_coverage.session_reads),
+                ("session_writes", &method_coverage.session_writes),
+            ] {
+                if !matches!(status, ProviderStatus::Complete) {
+                    warnings.push(format!("Method {name} evidence: {}; expanded context may omit dependencies", provider_text(status)));
+                }
+            }
+            if method_coverage.callers_dangling > 0 {
+                warnings.push(format!("{} indexed caller source nodes are unavailable", method_coverage.callers_dangling));
+            }
 
             // 2. Read the method body from disk
             let full_path = safe_join(Path::new(&project_dir), &file_path)
@@ -3826,27 +4360,47 @@ impl Engram {
 
             // 3. Pattern examples from callers
             let mut pattern_examples: Vec<PatternExample> = Vec::new();
-            if include_pattern_examples {
-                let callers = crate::handlers::incoming_caller_edges(
+            if include_pattern_examples && max_pattern_examples > 0 {
+                let callers = match crate::handlers::incoming_caller_edges_checked(
                     &graph,
                     &project_id,
                     &node.node_id,
-                    max_pattern_examples * 2,
-                );
-
+                    max_pattern_examples,
+                ) {
+                    Ok((callers, truncated)) => {
+                        if truncated { warnings.push(format!("Caller patterns truncated at {max_pattern_examples}; use find_symbol_references for the wider set")); }
+                        callers
+                    }
+                    Err(error) => {
+                        warnings.push(format!("Caller pattern query failed: {error}"));
+                        Vec::new()
+                    }
+                };
                 for (source_id, kind, _weight) in callers.iter().take(max_pattern_examples) {
-                    if let Ok(Some(src_node)) = graph.get_node(&project_id, source_id) {
+                    match graph.get_node(&project_id, source_id) {
+                    Ok(Some(src_node)) => {
                         let Ok(src_full) =
                             safe_join(Path::new(&project_dir), src_node.file_path.as_str())
                         else {
+                            warnings.push(format!("Caller pattern {source_id} withheld: invalid source path"));
                             continue;
                         };
-                        if let Ok((src_body, _)) = read_lines_from_file(
+                        if let Err(error) = verify_indexed_source_span(
+                            &graph,
+                            &project_id,
+                            &project_dir,
+                            src_node.file_path.as_str(),
+                        ) {
+                            warnings.push(format!("Caller pattern withheld: {error}"));
+                            continue;
+                        }
+                        match read_lines_from_file(
                             &src_full,
                             src_node.start_line,
                             src_node.end_line,
                             0,
                         ) {
+                          Ok((src_body, _)) => {
                             pattern_examples.push(PatternExample {
                                 caller_fqn: fqn_from_node(&src_node),
                                 caller_file: src_node.file_path.as_str().to_string(),
@@ -3859,75 +4413,47 @@ impl Engram {
                                     kind.as_str()
                                 ),
                             });
+                          }
+                          Err(error) => warnings.push(format!("Caller pattern {source_id} source unavailable: {error}")),
                         }
+                    },
+                    Ok(None) => warnings.push(format!("Caller pattern {source_id}: indexed source node unavailable")),
+                    Err(error) => warnings.push(format!("Caller pattern {source_id}: source lookup failed: {error}")),
                     }
                 }
             }
 
-            // 4. Database schema for referenced tables
-            let mut schema_snippets: Vec<TableSchemaSnippet> = Vec::new();
-            if include_db_schema && !method_info.db_tables_accessed.is_empty() {
-                // Look up db_table nodes in the graph for column information
+            // 4. Resolve exact table identities and only their own columns.
+            let mut schema_snippets = Vec::new();
+            if include_db_schema {
                 for table_name in &method_info.db_tables_accessed {
-                    let table_nodes = graph
-                        .query_nodes(&project_id, Some("db_table"), Some(table_name), None, 1)
-                        .unwrap_or_default();
-
+                    let table_id = if table_name.starts_with("table:") { table_name.clone() } else { engram_core::ids::NodeId::table(table_name).0 };
                     let mut columns = Vec::new();
-                    if let Some(tn) = table_nodes.first() {
-                        // Find HasColumn edges from this table
-                        if let Ok(edges) =
-                            graph.list_edges_by_kind(&project_id, EdgeKind::HasColumn, 5000)
-                        {
-                            for e in &edges {
-                                if e.source_id == tn.node_id {
-                                    // Single get_node call for both data_type and nullable
-                                    let col_node =
-                                        graph.get_node(&project_id, &e.target_id).ok().flatten();
-
-                                    let col_type = col_node
-                                        .as_ref()
-                                        .and_then(|cn| {
-                                            cn.metadata
-                                                .as_ref()
-                                                .and_then(|m| m.get("data_type"))
-                                                .and_then(|v| v.as_str())
-                                                .map(|s| s.to_string())
-                                        })
-                                        .unwrap_or_default();
-
-                                    let nullable = col_node
-                                        .as_ref()
-                                        .and_then(|cn| {
-                                            cn.metadata
-                                                .as_ref()
-                                                .and_then(|m| m.get("nullable"))
-                                                .and_then(|v| v.as_bool())
-                                        })
-                                        .unwrap_or(true);
-
-                                    // Extract column name from target_id
-                                    let col_name = e
-                                        .target_id
-                                        .rsplit('.')
-                                        .next()
-                                        .unwrap_or(&e.target_id)
-                                        .to_string();
-
-                                    columns.push(ColumnSnippet {
-                                        name: col_name,
-                                        data_type: col_type,
-                                        nullable,
-                                    });
-                                }
+                    match graph.get_node(&project_id, &table_id) {
+                        Ok(Some(table)) if table.node_type == "db_table" => {
+                            match graph.neighbors(&project_id, EdgeKind::HasColumn, &table_id, 201) {
+                                Ok(edges) => {
+                                    if edges.len() > 200 { warnings.push(format!("Schema {table_name}: columns truncated at 200")); }
+                                    for (column_id, _) in edges.into_iter().take(200) {
+                                        match graph.get_node(&project_id, &column_id) {
+                                            Ok(Some(column)) => {
+                                                let nullable = column.metadata.as_ref().and_then(|meta| meta.get("nullable")).and_then(|value| value.as_bool().or_else(|| value.as_str().and_then(|text| text.parse::<bool>().ok())));
+                                                let data_type = meta_str(&column, "data_type");
+                                                if nullable.is_none() || data_type.is_empty() { warnings.push(format!("Schema {table_name}.{}: incomplete column contract", column.name)); }
+                                                columns.push(ColumnSnippet { name: column.name, data_type, nullable });
+                                            },
+                                            Ok(None) => warnings.push(format!("Schema {table_name}: column node {column_id} unavailable")),
+                                            Err(error) => warnings.push(format!("Schema {table_name}: column lookup failed: {error}")),
+                                        }
+                                    }
+                                },
+                                Err(error) => warnings.push(format!("Schema {table_name}: column edge lookup failed: {error}")),
                             }
-                        }
+                        },
+                        Ok(_) => warnings.push(format!("Schema {table_name}: exact table identity unavailable; no similarly named table substituted")),
+                        Err(error) => warnings.push(format!("Schema {table_name}: table lookup failed: {error}")),
                     }
-
-                    schema_snippets.push(TableSchemaSnippet {
-                        table_name: table_name.clone(),
-                        columns,
-                    });
+                    schema_snippets.push(TableSchemaSnippet { table_name: table_name.clone(), columns });
                 }
             }
 
@@ -3937,18 +4463,17 @@ impl Engram {
                 // Look up graph nodes for SP metadata. The full_project_migration_service
                 // stores SP info as graph metadata during indexing.
                 for sp_name in &method_info.stored_procs_called {
-                    // Check for SQL files containing this SP definition
-                    let sp_clean = sp_name
-                        .rsplit('.')
-                        .next()
-                        .unwrap_or(sp_name)
-                        .trim_start_matches('[')
-                        .trim_end_matches(']');
-
-                    // Try to find the SP in indexed SQL files via graph
-                    let sp_nodes = graph
-                        .query_nodes(&project_id, Some("function"), Some(sp_clean), None, 5)
-                        .unwrap_or_default();
+                    // A SQL call/reference is not a procedure declaration. Only
+                    // exact indexed SQL function identities may supply metadata.
+                    let sp_nodes = match graph.get_node(&project_id, sp_name) {
+                        Ok(Some(node)) if node.node_type == "function" && node.language.eq_ignore_ascii_case("sql") => vec![node],
+                        Ok(_) => Vec::new(),
+                        Err(error) => { warnings.push(format!("Procedure {sp_name}: identity lookup failed: {error}")); Vec::new() },
+                    };
+                    let coverage = if sp_nodes.is_empty() {
+                        warnings.push(format!("Procedure {sp_name}: exact declaration/signature unavailable; inspect get_sp_details before generating a call"));
+                        "unavailable; reference is not a verified procedure signature"
+                    } else { "indexed metadata only; parameter contracts not compiled" };
 
                     let mut params = Vec::new();
                     let mut tables_read = Vec::new();
@@ -3979,6 +4504,7 @@ impl Engram {
 
                     sp_signatures.push(SpSignatureSnippet {
                         sp_name: sp_name.clone(),
+                        coverage: coverage.into(),
                         parameters: params,
                         tables_read,
                         tables_written,
@@ -4007,35 +4533,13 @@ impl Engram {
                     let mut other_readers = Vec::new();
                     let mut other_writers = Vec::new();
 
-                    if let Ok(edges) =
-                        graph.list_edges_by_kind(&project_id, EdgeKind::ReadsState, 5000)
-                    {
-                        for e in &edges {
-                            if e.target_id == key && e.source_id != node.node_id {
-                                other_readers.push(
-                                    e.source_id
-                                        .rsplit('\0')
-                                        .next()
-                                        .unwrap_or(&e.source_id)
-                                        .to_string(),
-                                );
-                            }
-                        }
-                    }
-
-                    if let Ok(edges) =
-                        graph.list_edges_by_kind(&project_id, EdgeKind::WritesState, 5000)
-                    {
-                        for e in &edges {
-                            if e.target_id == key && e.source_id != node.node_id {
-                                other_writers.push(
-                                    e.source_id
-                                        .rsplit('\0')
-                                        .next()
-                                        .unwrap_or(&e.source_id)
-                                        .to_string(),
-                                );
-                            }
+                    for (kind, output) in [(EdgeKind::ReadsState, &mut other_readers), (EdgeKind::WritesState, &mut other_writers)] {
+                        match graph.find_incoming_edges(&project_id, Some(kind.clone()), key, 201) {
+                            Ok(edges) => {
+                                if edges.len() > 200 { warnings.push(format!("State {key}: {} sites truncated at 200", kind.as_str())); }
+                                output.extend(edges.into_iter().take(200).filter(|(source, _)| source != &node.node_id).map(|(source, _)| source));
+                            },
+                            Err(error) => warnings.push(format!("State {key}: {} lookup failed: {error}", kind.as_str())),
                         }
                     }
 
@@ -4279,14 +4783,16 @@ impl Engram {
                 }
             };
 
-            let mut warnings: Vec<String> = Vec::new();
             if let Some(e) = body_read_error {
                 warnings.push(e);
             }
             Ok(ImplementationContext {
                 method_info,
+                method_coverage,
+                coverage_interpretation: coverage_interpretation(),
                 method_body,
                 style_profile: None, // filled in later from async result
+                style_basis: None,
                 pattern_examples,
                 schema_snippets,
                 sp_signatures,
@@ -4302,7 +4808,28 @@ impl Engram {
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         let mut ctx = result.map_err(|e| McpError::invalid_params(e, None))?;
-        ctx.style_profile = style_profile;
+        if req.include_style_profile {
+            let style = crate::services::cognitive_service::analyze_file_style_deterministic(
+                &self.state,
+                &req.project_id,
+                &req.file_path,
+                50,
+            )
+            .await;
+            ctx.warnings.extend(
+                style
+                    .basis
+                    .failures
+                    .iter()
+                    .map(|failure| format!("Style provider: {failure}")),
+            );
+            if let Some(error) = style.error {
+                ctx.warnings
+                    .push(format!("Style profile unavailable: {error}"));
+            }
+            ctx.style_profile = style.style_guide;
+            ctx.style_basis = Some(style.basis);
+        }
 
         if output_json {
             let json = serde_json::to_string_pretty(&ctx)
@@ -4323,12 +4850,24 @@ impl Engram {
 
     pub async fn handle_validate_generated_code(
         &self,
+        mut req: ValidateGeneratedCodeRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let input = crate::utils::candidate_code_input::resolve(self, &req.project_id,
+            req.code.as_deref(), req.code_file.as_deref(), req.code_file_blake3.as_deref(), req.target_file.as_deref()).await?;
+        let output_json = req.output_json;
+        if input.evidence.is_some() { req.target_file = input.context.clone(); }
+        let result = self.handle_validate_generated_code_resolved(req, input.code).await;
+        crate::utils::candidate_code_input::attach(result, input.evidence, output_json)
+    }
+
+    async fn handle_validate_generated_code_resolved(
+        &self,
         req: ValidateGeneratedCodeRequest,
+        code: String,
     ) -> Result<CallToolResult, McpError> {
         let _rec = self.ensure_project_record(&req.project_id).await?;
         let graph = self.state.graph.clone();
         let project_id = req.project_id.clone();
-        let code = req.code.clone();
         let language = req.language.clone();
         let target_file = req.target_file.clone();
         let original_method = req.original_method_name.clone();
@@ -4338,6 +4877,7 @@ impl Engram {
         let expected_control_ids = req.expected_control_ids.clone();
         let change_kind = req.change_kind;
         let output_json = req.output_json;
+        let include_migration_advice = req.include_migration_advice;
 
         let result = tokio::task::spawn_blocking(move || {
             let mut checks: Vec<ValidationCheck> = Vec::new();
@@ -4464,7 +5004,7 @@ impl Engram {
                 let mut missing_tables = Vec::new();
                 let mut found_tables = Vec::new();
                 for table in &expected_tables {
-                    if code_nc_lower.contains(&table.to_lowercase()) {
+                    if contains_identifier_literal(&code_nc_lower, &table.to_lowercase()) {
                         found_tables.push(table.clone());
                     } else {
                         missing_tables.push(table.clone());
@@ -4481,7 +5021,7 @@ impl Engram {
                 } else {
                     (
                         "warn",
-                        format!("Expected tables not referenced: {}", missing_tables.join(", ")),
+                        format!("Expected table literal(s) not found: {}. ORM references/mappings are unverified; missing literals do not establish missing table access", missing_tables.join(", ")),
                     )
                 };
                 checks.push(ValidationCheck::new(
@@ -4542,7 +5082,7 @@ impl Engram {
             }
 
             // ── Check 2: VB Translation Trap Avoidance ────────────────────
-            if is_vb {
+            if is_vb && include_migration_advice {
                 let files = vec![("generated_code.vb", code.as_str())];
                 let report =
                     engram_index::vb_translation_traps::detect_vb_translation_traps(&files);
@@ -4557,10 +5097,10 @@ impl Engram {
 
                 let mut details = Vec::new();
                 if report.total_traps == 0 {
-                    details.push("No VB translation traps detected".to_string());
+                    details.push("No VB-to-C# translation traps detected (migration advice requested)".to_string());
                 } else {
                     details.push(format!(
-                        "{} traps detected ({} silent bugs, {} compile errors)",
+                        "{} VB-to-C# migration traps ({} potential silent translation bugs, {} translation compile errors)",
                         report.total_traps, report.silent_bug_count, report.compile_error_count
                     ));
                     for trap in report.traps.iter().take(5) {
@@ -4769,7 +5309,18 @@ impl Engram {
 
             // ── Check 7: Sync Hazard Introduction ─────────────────────────
             {
-                let report = engram_index::sync_hazard_detector::detect_sync_hazards(&code, is_vb);
+                use engram_index::sync_hazard_detector::HazardSeverity;
+                let mut report = engram_index::sync_hazard_detector::detect_sync_hazards(&code, is_vb);
+                if !include_migration_advice {
+                    // These APIs are valid in WebForms. Their replacements
+                    // are relevant to an ASP.NET Core migration, not native
+                    // code correctness. Keep real blocking/locking hazards.
+                    report.hazards.retain(|h| !matches!(h.pattern_type.as_str(),
+                        "http_context_current" | "configuration_manager" | "web_configuration_manager"));
+                    report.critical_count = report.hazards.iter().filter(|h| h.severity == HazardSeverity::Critical).count();
+                    report.high_count = report.hazards.iter().filter(|h| h.severity == HazardSeverity::High).count();
+                    report.medium_count = report.hazards.iter().filter(|h| h.severity == HazardSeverity::Medium).count();
+                }
 
                 let status = if report.critical_count > 0 {
                     "fail"
@@ -4860,6 +5411,9 @@ impl Engram {
         &self,
         req: ValidateSqlFragmentRequest,
     ) -> Result<CallToolResult, McpError> {
+        if req.sql.trim().is_empty() {
+            return Err(McpError::invalid_params("sql must not be blank", None));
+        }
         if req.sql.len() > MAX_SQL_LENGTH {
             return Err(McpError::invalid_params(
                 format!(
@@ -4879,156 +5433,31 @@ impl Engram {
 
         let result = tokio::task::spawn_blocking(move || {
             let mut issues: Vec<SqlValidationIssue> = Vec::new();
-            let sql_lower = sql.to_lowercase();
 
-            // 1. Extract table names referenced in SQL (schema-qualifier
-            // aware — see referenced_sql_tables).
-            let referenced_tables: Vec<String> = referenced_sql_tables(&sql);
-
-            // 2. Check table existence in the graph
-            let known_tables: HashSet<String> = graph
-                .query_nodes(&project_id, Some("db_table"), None, None, 5000)
-                .unwrap_or_default()
-                .iter()
-                .map(|n| n.name.to_lowercase())
-                .collect();
-
-            for tbl in &referenced_tables {
-                if !known_tables.contains(&tbl.to_lowercase()) {
-                    issues.push(SqlValidationIssue {
-                        severity: "warn".to_string(),
-                        category: "unknown_table".to_string(),
-                        message: format!(
-                            "Table '{}' not found in project schema. It may be a temp table, CTE, or not yet indexed.",
-                            tbl
-                        ),
-                    });
-                }
-            }
-
-            // 3. Check column references — scoped to tables referenced in this SQL only.
-            //    The pattern `table.column` is only checked when the left side matches
-            //    a table that appears in FROM/JOIN/etc of this query, not all known tables.
-            //    This prevents false positives from C# identifiers like `HttpContext.Request`.
-            let referenced_tables_lower: HashSet<String> = referenced_tables
-                .iter()
-                .map(|t| t.to_lowercase())
-                .collect();
-
-            let col_ref_re = regex::Regex::new(r"(?i)\b(\w+)\.(\w+)\b").ok();
-            if let Some(re) = col_ref_re {
-                // Skip common SQL schema prefixes and aggregate keywords
-                let skip_prefixes: HashSet<&str> = [
-                    "sys", "dbo", "count", "max", "min", "sum", "avg", "top",
-                    "cast", "convert", "isnull", "coalesce", "case", "information_schema",
-                ]
-                .into_iter()
-                .collect();
-
-                for cap in re.captures_iter(&sql) {
-                    let tbl_alias = &cap[1];
-                    let col_name = &cap[2];
-                    let tbl_lower = tbl_alias.to_lowercase();
-
-                    // Only validate if the left side matches a table actually referenced
-                    // in this SQL fragment AND it's a known table in the schema
-                    if !skip_prefixes.contains(tbl_lower.as_str())
-                        && referenced_tables_lower.contains(&tbl_lower)
-                        && known_tables.contains(&tbl_lower)
-                    {
-                        let col_exists = graph
-                            .query_nodes(
-                                &project_id,
-                                Some("db_column"),
-                                Some(col_name),
-                                None,
-                                1,
-                            )
-                            .unwrap_or_default()
-                            .iter()
-                            .any(|n| {
-                                n.namespace.to_lowercase() == tbl_lower
-                                    || n.file_path
-                                        .as_str()
-                                        .to_lowercase()
-                                        .contains(&tbl_lower)
-                            });
-
-                        if !col_exists {
-                            issues.push(SqlValidationIssue {
-                                severity: "info".to_string(),
-                                category: "unknown_column".to_string(),
-                                message: format!(
-                                    "Column '{}.{}' not confirmed in schema (may be alias or not indexed)",
-                                    tbl_alias, col_name
-                                ),
-                            });
-                        }
-                    }
-                }
-            }
-
-            // 4. Common SQL anti-patterns
-            if sql_lower.contains("select *") {
+            let binding = super::sql_binding::bind(&sql, &graph, &project_id)?;
+            let referenced_tables = binding.tables;
+            let schema_covered = binding.complete;
+            issues.extend(binding.issues);
+            let coverage = if schema_covered {
+                "Supported T-SQL statement identifiers checked against indexed schema, including aliases, joins, supported nested scopes and ORDER BY. Types, function contracts, aggregate legality, nullability/default contracts, application-side injection risk, permissions and execution were not checked."
+            } else {
                 issues.push(SqlValidationIssue {
-                    severity: "warn".to_string(),
-                    category: "anti_pattern".to_string(),
-                    message: "SELECT * detected — prefer explicit column lists for maintainability and performance".to_string(),
+                    severity: "info".into(), category: "incomplete_validation".into(),
+                    message: "Statement binding incomplete. See binding issues for unsupported clauses or missing declaration evidence. Wildcard expansion and non-SELECT contracts may require additional validation; use database compilation/execution checks.".into(),
                 });
-            }
-            if sql_lower.contains("nolock") {
-                issues.push(SqlValidationIssue {
-                    severity: "info".to_string(),
-                    category: "anti_pattern".to_string(),
-                    message: "NOLOCK hint detected — may cause dirty reads. Consider READ COMMITTED SNAPSHOT.".to_string(),
-                });
-            }
-            if regex::Regex::new(r"(?i)\bLIKE\s+'%")
-                .ok()
-                .map(|re| re.is_match(&sql))
-                .unwrap_or(false)
-            {
-                issues.push(SqlValidationIssue {
-                    severity: "info".to_string(),
-                    category: "anti_pattern".to_string(),
-                    message: "Leading wildcard LIKE '%...' detected — cannot use indexes, consider full-text search".to_string(),
-                });
-            }
+                "PARTIAL: T-SQL parsing and available identifier evidence; statement binding incomplete."
+            };
 
-            // 5. String concatenation SQL injection risk
-            // L-1 fix: broadened patterns to catch single-quoted strings,
-            // leading/trailing concat (not just "lit" + var + "lit"), VB-style
-            // & operator, C# string interpolation, and String.Format().
-            // Previous patterns only matched the symmetric "lit"+var+"lit"
-            // form and missed the much more common trailing/leading variants.
-            let concat_patterns = [
-                // String literal immediately followed by + or & (leading concat)
-                r#"["']\s*[\+&]\s*\w"#,
-                // + or & immediately followed by a string literal (trailing concat)
-                r#"\w\s*[\+&]\s*["']"#,
-                // C# string interpolation: $"...{var}..." or $'...{var}...'
-                r#"\$\s*["'][^"']*\{[^}]+\}"#,
-                // String.Format / string.Format (C#/VB)
-                r#"(?i)string\s*\.\s*Format\s*\("#,
-            ];
-            for pat in &concat_patterns {
-                if let Ok(re) = regex::Regex::new(pat)
-                    && re.is_match(&sql) {
-                        issues.push(SqlValidationIssue {
-                            severity: "fail".to_string(),
-                            category: "sql_injection".to_string(),
-                            message: "Potential SQL injection: string concatenation detected in SQL. Use parameterized queries.".to_string(),
-                        });
-                        break;
-                    }
-            }
-
+            // SQL text does not establish how an application constructed it.
+            // In particular, legal SQL concatenation is not injection evidence.
             let has_fail = issues.iter().any(|i| i.severity == "fail");
             let has_warn = issues.iter().any(|i| i.severity == "warn");
             let verdict = if has_fail {
                 "FAIL"
             } else if has_warn {
                 "WARN"
+            } else if !schema_covered {
+                "INSUFFICIENT"
             } else if issues.is_empty() {
                 "PASS"
             } else {
@@ -5037,6 +5466,7 @@ impl Engram {
 
             Ok(SqlValidationReport {
                 verdict: verdict.to_string(),
+                coverage: coverage.into(),
                 tables_referenced: referenced_tables,
                 issues,
             })
@@ -5044,7 +5474,7 @@ impl Engram {
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        let report = result.map_err(|e: String| McpError::invalid_params(e, None))?;
+        let report = result.map_err(|e: String| McpError::internal_error(e, None))?;
 
         if output_json {
             let json = serde_json::to_string_pretty(&report)
@@ -5071,91 +5501,59 @@ impl Engram {
         let output_json = req.output_json;
 
         let result = tokio::task::spawn_blocking(move || {
-            // Strategy: query all function nodes matching the name, then check if
-            // they're in test files. Also look for test files that reference the method.
-
-            // 1. Find the target method node
-            let target_candidates = graph
-                .query_nodes(
-                    &project_id,
-                    Some("function"),
-                    Some(&method_name),
-                    file_filter.as_deref(),
-                    10,
-                )
-                .unwrap_or_default();
-
-            // 2. Find test files: look for file nodes whose path contains test patterns
-            let all_files = graph
-                .query_nodes(&project_id, Some("file"), None, None, 10000)
-                .unwrap_or_default();
-
-            let test_files: Vec<&Node> = all_files
-                .iter()
-                .filter(|n| {
-                    let fp = n.file_path.as_str().to_lowercase();
-                    fp.contains("test") || fp.contains("spec") || fp.contains("_test")
-                })
+            if method_name.trim().is_empty() { return Err("method_name must not be blank".to_string()); }
+            if req.start_line.is_some() && (req.start_line == Some(0) || file_filter.as_deref().is_none_or(|p| p.trim().is_empty())) {
+                return Err("start_line must be positive and requires file_path".to_string());
+            }
+            let candidates = graph.query_nodes_by_symbol_name(&project_id, &method_name, file_filter.as_deref(), 201)
+                .map_err(|e| format!("method lookup failed: {e}"))?;
+            if candidates.len() >= 201 { return Err("INCOMPLETE: declaration lookup reached its cap; narrow method_name and file_path".to_string()); }
+            let candidates: Vec<_> = candidates.into_iter()
+                .filter(|n| matches!(n.node_type.as_str(), "function" | "method" | "sub" | "procedure"))
+                .filter(|n| file_filter.as_deref().is_none_or(|p| n.file_path.as_str().eq_ignore_ascii_case(p)))
+                .filter(|n| req.start_line.is_none_or(|line| n.start_line == line))
                 .collect();
-
-            // 3. For each test file, find function nodes that reference our method
-            let mut test_hits: Vec<TestHit> = Vec::new();
-
-            for test_file in &test_files {
-                let test_methods = graph
-                    .query_nodes(
-                        &project_id,
-                        Some("function"),
-                        None,
-                        Some(test_file.file_path.as_str()),
-                        500,
-                    )
-                    .unwrap_or_default();
-
-                for tm in &test_methods {
-                    // Check if this test method has a caller edge (Calls or
-                    // Dependency) to our target
-                    let mut references_target = false;
-
-                    for tc in &target_candidates {
-                        let incoming = crate::handlers::incoming_caller_edges(
-                            &graph,
-                            &project_id,
-                            &tc.node_id,
-                            500,
-                        );
-                        if incoming.iter().any(|(src, _, _)| src == &tm.node_id) {
-                            references_target = true;
-                            break;
-                        }
-                    }
-
-                    // Also check by name containment in the test method name
-                    if !references_target && tm.name.contains(&method_name) {
-                        references_target = true;
-                    }
-
-                    if references_target {
-                        test_hits.push(TestHit {
-                            test_name: tm.name.clone(),
-                            test_file: tm.file_path.as_str().to_string(),
-                            line_start: tm.start_line,
-                            line_end: tm.end_line,
-                            match_type: if tm.name.contains(&method_name) {
-                                "name_match".to_string()
-                            } else {
-                                "dependency_edge".to_string()
-                            },
-                        });
+            if candidates.len() != 1 {
+                return Err(format!("{}: {} declarations match '{}'. Supply an exact qualified method name, file_path and, for overloads, start_line. Candidates: {}",
+                    if candidates.is_empty() { "NOT_FOUND" } else { "AMBIGUOUS" }, candidates.len(), method_name,
+                    candidates.iter().take(10).map(|n| format!("{} at {}:{}", fqn_from_node(n), n.file_path, n.start_line)).collect::<Vec<_>>().join("; ")));
+            }
+            let target = &candidates[0];
+            let mut warnings = vec!["Static indexed test candidates only; source positions and test execution are unverified. Name matches are heuristic, not proof of coverage.".to_string()];
+            let (incoming, capped) = crate::handlers::incoming_caller_edges_checked(&graph, &project_id, &target.node_id, 2000)
+                .map_err(|e| format!("caller lookup failed: {e}"))?;
+            if capped { warnings.push("Caller candidates truncated at 2000.".into()); }
+            let caller_ids: std::collections::HashSet<_> = incoming.into_iter().map(|(id, _, _)| id).collect();
+            let mut methods = graph.query_nodes(&project_id, Some("function"), None, None, 20001)
+                .map_err(|e| format!("test-name lookup failed: {e}"))?;
+            if methods.len() > 20000 { warnings.push("Name-based candidate scan truncated at 20000 indexed functions; direct callers are looked up separately.".into()); methods.truncate(20000); }
+            let mut seen: std::collections::HashSet<_> = methods.iter().map(|n| n.node_id.clone()).collect();
+            for id in &caller_ids {
+                if seen.insert(id.clone()) {
+                    match graph.get_node(&project_id, id).map_err(|e| format!("caller node lookup failed: {e}"))? {
+                        Some(node) => methods.push(node),
+                        None => warnings.push(format!("Caller node unavailable: {id}")),
                     }
                 }
             }
-
-            Ok(TestSearchResult {
-                method_name: method_name.clone(),
-                test_hits,
-                test_files_searched: test_files.len(),
-            })
+            let mut test_files = std::collections::HashSet::new();
+            let mut test_hits = Vec::new();
+            let terminal = bare_method_name(target).to_lowercase();
+            for tm in methods {
+                if !crate::services::pre_commit_review_service::is_test_path(&format!("/{}", tm.file_path.as_str())) { continue; }
+                test_files.insert(tm.file_path.as_str().to_string());
+                let direct = caller_ids.contains(&tm.node_id);
+                if direct || tm.name.to_lowercase().contains(&terminal) {
+                    test_hits.push(TestHit {
+                        test_name: tm.name, test_file: tm.file_path.as_str().to_string(),
+                        line_start: tm.start_line, line_end: tm.end_line,
+                        match_type: if direct { "dependency_edge" } else { "name_match_heuristic" }.into(),
+                    });
+                }
+            }
+            test_hits.sort_by(|a, b| a.match_type.cmp(&b.match_type).then(a.test_file.cmp(&b.test_file)).then(a.line_start.cmp(&b.line_start)));
+            if test_hits.len() > 200 { warnings.push("Test candidates truncated at 200 (direct edges first).".into()); test_hits.truncate(200); }
+            Ok(TestSearchResult { method_name: fqn_from_node(target), target_node_id: target.node_id.clone(), target_file: target.file_path.to_string(), target_start_line: target.start_line, test_hits, test_files_searched: test_files.len(), warnings })
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -5170,12 +5568,19 @@ impl Engram {
 
         let mut md = format!("# Tests for `{}`\n\n", report.method_name);
         md.push_str(&format!(
+            "Indexed declaration: {}:{} (`{}`)\n\n",
+            report.target_file, report.target_start_line, report.target_node_id
+        ));
+        md.push_str(&format!(
             "Searched {} test files.\n\n",
             report.test_files_searched
         ));
 
+        for warning in &report.warnings {
+            md.push_str(&format!("Coverage: {warning}\n\n"));
+        }
         if report.test_hits.is_empty() {
-            md.push_str("**No tests found.** Consider writing characterization tests before modifying this method.\n");
+            md.push_str("**No test candidates found within indexed coverage.** Consider writing characterization tests before modifying this method.\n");
         } else {
             md.push_str(&format!("## {} Tests Found\n\n", report.test_hits.len()));
             md.push_str("| Test Name | File | Lines | Match Type |\n");
@@ -5450,6 +5855,27 @@ mod referenced_sql_tables_tests {
     use super::referenced_sql_tables;
 
     #[test]
+    fn linq_aliases_do_not_become_sql_tables() {
+        assert!(
+            referenced_sql_tables("From ath In records Join pr In projects Select ath").is_empty()
+        );
+        assert!(
+            referenced_sql_tables(
+                "from item in records join other in values on item.Id equals other.Id select item"
+            )
+            .is_empty()
+        );
+        assert_eq!(
+            referenced_sql_tables("SELECT * FROM inventory WHERE id IN (1, 2)"),
+            vec!["inventory"]
+        );
+        assert_eq!(
+            referenced_sql_tables("From item In rows\nDim sql = \"SELECT * FROM [dbo].[orders]\""),
+            vec!["orders"]
+        );
+    }
+
+    #[test]
     fn schema_qualified_names_yield_the_table_not_the_schema() {
         assert_eq!(
             referenced_sql_tables("SELECT * FROM [dbo].[io_pr_iom]"),
@@ -5655,6 +6081,7 @@ mod edit_safety_tests {
                     fqn: format!("ns.c{i}.F"),
                     file_path: format!("Site/App_Code/c{i}.vb"),
                     line: 1,
+                    line_kind: "declaration",
                     line_end: 3,
                     edge_kind: "calls".into(),
                 })
@@ -5809,4 +6236,17 @@ mod edit_safety_tests {
         assert_eq!(v["completeness"]["session_writes"]["cap"], 200);
         assert_eq!(v["completeness"]["callers"]["status"], "complete");
     }
+}
+
+/// Literal presence only: reject prefixes/suffixes inside longer identifiers.
+/// This intentionally does not infer SQL or ORM reference semantics.
+fn contains_identifier_literal(source: &str, literal: &str) -> bool {
+    if literal.is_empty() {
+        return false;
+    }
+    let identifier_char = |ch: char| ch.is_alphanumeric() || ch == '_' || ch == '$';
+    source.match_indices(literal).any(|(start, matched)| {
+        !source[..start].chars().next_back().is_some_and(identifier_char)
+            && !source[start + matched.len()..].chars().next().is_some_and(identifier_char)
+    })
 }

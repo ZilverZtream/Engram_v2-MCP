@@ -367,6 +367,48 @@ pub fn extract_state_accesses(
     (symbols, edges)
 }
 
+/// Bind state accesses to parsed member ranges in the production index. A
+/// declaration-name scan cannot distinguish a property following a method from
+/// that method's body. Keep unknown or ambiguous owners at file scope instead
+/// of manufacturing a dependency on the preceding method.
+pub fn extract_state_accesses_with_members(
+    rel_path: &RelPath,
+    source: &str,
+    language: &'static str,
+    members: &[ExtractedSymbol],
+) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
+    let (symbols, mut edges) = extract_state_accesses(rel_path, source, language);
+    for edge in &mut edges {
+        let line = edge.source_start_line;
+        let mut candidates: Vec<_> = members.iter().filter(|member| {
+            matches!(member.kind.as_str(), "function" | "property" | "field")
+                && member.start_line > 0
+                && member.start_line <= line && line <= member.end_line
+        }).collect();
+        candidates.sort_by_key(|member| member.end_line - member.start_line);
+        let owner = candidates.first().copied().filter(|first| {
+            !candidates.iter().skip(1).any(|other| {
+                other.end_line - other.start_line == first.end_line - first.start_line
+                    && (other.name != first.name || other.kind != first.kind)
+            })
+        });
+        if let Some(owner) = owner {
+            edge.source_name = owner.metadata.as_ref()
+                .and_then(|metadata| metadata.get("fqn"))
+                .unwrap_or(&owner.name).clone();
+            edge.source_kind.clone_from(&owner.kind);
+            edge.metadata.get_or_insert_with(HashMap::new)
+                .insert("source_declaration_line".into(), owner.start_line.to_string());
+        } else {
+            edge.source_name = rel_path.as_str().to_string();
+            edge.source_kind = "file".into();
+            edge.metadata.get_or_insert_with(HashMap::new)
+                .insert("owner_resolution".into(), "unresolved_member".into());
+        }
+    }
+    (symbols, edges)
+}
+
 fn cs_state_regex() -> Option<&'static Regex> {
     // Group 1: state store name
     // Group 2: string literal key (if quoted)
@@ -547,6 +589,10 @@ pub fn analyze_state_affinity(
     let mut key_access_patterns: HashMap<String, HashSet<&str>> = HashMap::new();
 
     for edge in edges {
+        // File-level observations do not establish co-access inside one member.
+        if edge.source_kind == "file" {
+            continue;
+        }
         // Only consider resolved state edges (reads_state / writes_state)
         if edge.kind != "reads_state" && edge.kind != "writes_state" {
             continue;

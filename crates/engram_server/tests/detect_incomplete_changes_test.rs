@@ -259,6 +259,7 @@ async fn session_bookends_track_scope_drift() {
     let open = engram
         .begin_edit_session(Parameters(engram_server::models::BeginEditSessionRequest {
             project_id: pid.clone(),
+            session_id: None,
             planned_files: vec!["a.aspx".into(), "a.aspx.vb".into()],
             story: Some("test change".into()),
         }))
@@ -277,6 +278,8 @@ async fn session_bookends_track_scope_drift() {
         .complete_edit_session(Parameters(
             engram_server::models::CompleteEditSessionRequest {
                 project_id: pid.clone(),
+                session_id: None,
+                session_revision: None,
                 edited_files: vec!["a.aspx".into()],
                 dossier: None,
             },
@@ -300,6 +303,8 @@ async fn session_bookends_track_scope_drift() {
         .complete_edit_session(Parameters(
             engram_server::models::CompleteEditSessionRequest {
                 project_id: pid.clone(),
+                session_id: None,
+                session_revision: None,
                 edited_files: vec!["a.aspx".into()],
                 dossier: None,
             },

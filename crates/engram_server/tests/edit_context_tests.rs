@@ -526,3 +526,206 @@ async fn business_logic_flag_is_honoured() {
         "flag=false still produced a section: {without}"
     );
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn page_without_codebehind_never_collects_unrelated_project_methods() {
+    let (tmp, state) = build_state();
+    let dir = register_project(&state, &tmp);
+    seed_method(&state, &dir, 1, 0);
+    write_file(
+        &dir,
+        "Site/inline.aspx",
+        "<%@ Page Language='VB' %><h1>Inline page</h1>",
+    );
+    let engram = Engram::new(state);
+    let result = page_context(
+        &engram,
+        json!({"project_id": PID, "aspx_file": "Site/inline.aspx", "output_json": true}),
+    )
+    .await
+    .unwrap();
+    let body = text(&result);
+    assert!(!body.contains("Svc.M"), "{body}");
+    assert!(body.contains("code-behind source not found"), "{body}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn page_directive_selects_nonconventional_codebehind_and_exact_file() {
+    let (tmp, state) = build_state();
+    let dir = register_project(&state, &tmp);
+    write_file(
+        &dir,
+        "Site/page.aspx",
+        "<%@ Page Language='VB' CodeFile='actual.vb' %>",
+    );
+    write_file(
+        &dir,
+        "Site/actual.vb",
+        "Public Class Actual\n Public Sub RightMethod()\n End Sub\nEnd Class\n",
+    );
+    write_file(&dir, "Site/page.aspx.vb", "Public Class Wrong\nEnd Class\n");
+    state
+        .graph
+        .upsert_nodes(
+            PID,
+            &[
+                func_node("Site/actual.vb", "Actual", "RightMethod", 2, 3),
+                func_node("Site/actual.vb.old", "Wrong", "WrongSibling", 2, 3),
+            ],
+        )
+        .unwrap();
+    let engram = Engram::new(state);
+    let result = page_context(
+        &engram,
+        json!({"project_id": PID, "aspx_file": "Site/page.aspx", "output_json": true}),
+    )
+    .await
+    .unwrap();
+    let body = text(&result);
+    assert!(body.contains("RightMethod"), "{body}");
+    assert!(!body.contains("WrongSibling"), "{body}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn json_method_context_preserves_freshness_evidence() {
+    let (tmp, state) = build_state();
+    let dir = register_project(&state, &tmp);
+    seed_method(&state, &dir, 1, 0);
+    let engram = Engram::new(state);
+    let result = edit_context(&engram, json!({"project_id": PID, "file_path": "Site/App_Code/svc.vb", "method_name": "M", "output_json": true, "include_business_logic": false})).await.unwrap();
+    let body = json_of(&result);
+    assert!(body.get("freshness").is_some(), "{body}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn caller_excerpts_require_current_fingerprint_and_preserve_arguments() {
+    let (tmp, state) = build_state();
+    let dir = register_project(&state, &tmp);
+    let target = seed_method(&state, &dir, 1, 0);
+    let path = "consumers.vb";
+    let source = "Sub Export()\n Svc.M(images)\n Svc.M(images, renderHtml := True)\nEnd Sub\n";
+    write_file(&dir, path, source);
+    let caller = func_node(path, "Consumers", "Export", 1, 4);
+    state.graph.upsert_nodes(PID, &[caller.clone()]).unwrap();
+    state
+        .graph
+        .upsert_edges(PID, &[edge(&caller.node_id, &target, EdgeKind::Calls)])
+        .unwrap();
+    let engram = Engram::new(state);
+    let request = json!({"project_id": PID, "file_path": "Site/App_Code/svc.vb", "method_name": "M", "output_json": true, "include_business_logic": false});
+    let unverified = json_of(&edit_context(&engram, request.clone()).await.unwrap());
+    assert_eq!(unverified["caller_excerpts"][0]["status"], "withheld");
+    assert_eq!(
+        unverified["method_info"]["called_by"][0]["line_kind"],
+        "declaration"
+    );
+    assert_eq!(unverified["method_info"]["called_by"][0]["line"], 1);
+    let mut file = caller;
+    file.node_id = format!("file:{path}");
+    file.node_type = "file".into();
+    file.metadata =
+        Some(json!({"file_hash": blake3::hash(source.as_bytes()).to_hex().to_string()}));
+    engram.state.graph.upsert_nodes(PID, &[file]).unwrap();
+    let current = json_of(&edit_context(&engram, request.clone()).await.unwrap());
+    assert_eq!(current["caller_excerpts"][0]["status"], "verified_source");
+    let excerpt = current["caller_excerpts"][0]["numbered_source"]
+        .as_str()
+        .unwrap();
+    assert!(excerpt.contains("2:  Svc.M(images)"));
+    assert!(excerpt.contains("renderHtml := True"));
+    assert_eq!(current["caller_bodies"][0]["source_code"], "");
+    assert_eq!(current["caller_bodies"][0]["line_start"], 1);
+    let location = &current["method_info"]["called_by"][0];
+    assert_eq!(
+        location["line"], 1,
+        "declaration stays distinct from calls at 2 and 3"
+    );
+    assert_eq!(location["line_end"], 4);
+    assert_eq!(location["line_kind"], "declaration");
+    assert_eq!(location["file_path"], "consumers.vb");
+    assert_eq!(location["edge_kind"], "calls");
+    let mut markdown_request = request.clone();
+    markdown_request["output_json"] = json!(false);
+    let rendered = edit_context(&engram, markdown_request.clone())
+        .await
+        .unwrap();
+    let markdown = rendered.content[0].as_text().unwrap().text.as_str();
+    assert!(
+        markdown.contains("declaration: consumers.vb:1"),
+        "{markdown}"
+    );
+    assert!(markdown.contains("2:  Svc.M(images)"), "{markdown}");
+    assert!(
+        markdown.contains("3:  Svc.M(images, renderHtml := True)"),
+        "{markdown}"
+    );
+    markdown_request["include_caller_bodies"] = json!(true);
+    let full = edit_context(&engram, markdown_request).await.unwrap();
+    let full = full.content[0].as_text().unwrap().text.as_str();
+    assert!(full.contains("declaration/body lines 1–4"), "{full}");
+    write_file(&dir, path, &format!("' line moved\n{source}"));
+    let stale = json_of(&edit_context(&engram, request).await.unwrap());
+    assert_eq!(stale["caller_excerpts"][0]["status"], "withheld");
+    assert_eq!(stale["caller_excerpts"][0]["numbered_source"], "");
+    assert!(
+        stale["caller_excerpts"][0]["detail"]
+            .as_str()
+            .unwrap()
+            .contains("changed since indexing")
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn method_context_surfaces_older_file_regression_with_cutoff_and_opt_out() {
+    let (tmp, state) = build_state();
+    let dir = register_project(&state, &tmp);
+    seed_method(&state, &dir, 1, 0);
+    engram_server::services::project_service::ensure_project_runtime(&state, PID)
+        .await
+        .unwrap();
+    let mut docs = Vec::new();
+    for (id, date, timestamp) in [(1, "2025-01-01", 1735689600), (2, "2026-08-01", 1785542400)] {
+        let path = format!("pr:PR-{id}");
+        let content = format!(
+            "# PR-{id}: Fix duplicate report images\nmerged: {date} | author: fixture | kinds: backend\n\n## Files shipped together in this change\n- App_Code/svc.vb\n- reports/pdf.vb\n"
+        );
+        let hash = engram_core::ContentHash::compute(content.as_bytes());
+        docs.push(engram_index::IndexDoc {
+            generation: 0,
+            chunk_id: engram_index::chunk_id_from_content_hash(&hash),
+            doc_id: engram_core::DocIdStr::compute(&path, 0, 0, &hash).0,
+            content_hash: hash.0,
+            path: path.into(),
+            language: "markdown".into(),
+            content,
+            namespace: "history".into(),
+            author: None,
+            timestamp: Some(timestamp),
+            start_line: 0,
+            end_line: 0,
+        });
+    }
+    state
+        .get_project_cached(PID)
+        .unwrap()
+        .search
+        .index_docs(PID, &docs, &tokio_util::sync::CancellationToken::new())
+        .await
+        .unwrap();
+    let engram = Engram::new(state);
+    // New task vocabulary is absent from the old title. File retrieval must
+    // still surface the older regression, while withholding future work.
+    let mut request = json!({"project_id":PID,"file_path":"Site/App_Code/svc.vb","method_name":"M","include_business_logic":false,"output_json":true,"history_query":"add signature capture","merged_before":"2026-03-01"});
+    let result = json_of(&edit_context(&engram, request.clone()).await.unwrap());
+    let history = result["historical_changes"].as_str().unwrap();
+    assert!(history.contains("# PR-1:"), "{history}");
+    assert!(history.contains("reports/pdf.vb"), "{history}");
+    assert!(!history.contains("# PR-2:"), "{history}");
+    assert!(
+        history.contains("review approvals were not fetched"),
+        "{history}"
+    );
+    request["include_history"] = json!(false);
+    let result = json_of(&edit_context(&engram, request).await.unwrap());
+    assert!(result["historical_changes"].is_null());
+}

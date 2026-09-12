@@ -214,9 +214,11 @@ async fn a_lancedb_read_failure_is_degraded_not_complete() {
     let _ = health(&engram, &pid).await;
     let f = freshness(&engram, &pid).await;
     assert!(
-        f.contains("generation_complete: false"),
+        f.contains("generation_complete: unknown") && f.contains("DEGRADED"),
         "a LanceDB read failure must be DEGRADED — never an empty-but-complete store:\n{f}"
     );
+    assert!(f.contains("restore index access"), "{f}");
+    assert!(!f.contains("the searchable corpus is missing"), "{f}");
 }
 
 /// Doc 11 P0-1 (c): the graph store loses every file node while Tantivy and

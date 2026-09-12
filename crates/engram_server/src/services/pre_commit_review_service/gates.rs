@@ -17,12 +17,19 @@ use engram_core::registry::RepoRule;
 
 use super::{
     ChangeType, ConventionCategory, DetectedConvention, DiffFile, Gate, GateContext, ReviewFinding,
-    Severity, file_node_id, is_test_path, path_suffix_match, read_file_content,
-    resolve_partner_to_current,
+    Severity, file_node_id, is_test_path, current_path_eq, read_file_content,
+    resolve_partner_to_current_checked,
 };
 
 use crate::services::blast_radius_service::compute_blast_radius;
 use engram_index::hybrid::HybridQuery;
+
+fn resolve_gate_partner(ctx: &GateContext<'_>, path: &str, current_files: &[String]) -> Option<String> {
+    match resolve_partner_to_current_checked(path, current_files, ctx.project_dir) {
+        Ok(path) => path,
+        Err(reason) => { ctx.degrade(reason); None },
+    }
+}
 
 /// Build the ordered list of gates. Order only matters for telemetry
 /// (gates-run count); findings are sorted by severity at the end.
@@ -274,6 +281,11 @@ impl Gate for ImmuneGate {
             .filter(|r| r.rule_id.starts_with("immune_"))
             .collect();
         if immune_rules.is_empty() {
+            ctx.degrade(
+                "No immune_ repo rules are loaded for this project; revert-based immune coverage \
+                 is unavailable. Populate reviewed immune rules from relevant revert history; \
+                 absence of rules is not a clean immune review.",
+            );
             return Ok(Vec::new());
         }
 
@@ -592,11 +604,16 @@ impl Gate for StyleGate {
             let Some(full) = read_file_content(ctx.project_dir, &df.path) else {
                 continue;
             };
-            let conventions = super::extract_conventions(&full, &df.path);
+            let strings = engram_index::parsing::js_quoted_strings(std::path::Path::new(&df.path), &full);
+            if strings.is_none() && std::path::Path::new(&df.path).extension().and_then(|x| x.to_str())
+                .is_some_and(|ext| matches!(ext.to_ascii_lowercase().as_str(), "ts" | "tsx" | "js" | "jsx" | "mjs")) {
+                ctx.degrade(format!("{}: a complete bounded JS/TS string inventory is unavailable; quote-style check not run. Inspect syntax or source-size limits before relying on quote coverage.", df.path));
+            }
+            let conventions = super::extract_conventions_with_strings(&full, &df.path, strings.as_deref());
             if conventions.is_empty() {
                 continue;
             }
-            let checked = check_style_compliance(df, &conventions);
+            let checked = check_style_compliance(df, &conventions, strings.as_deref(), Some(&full));
             // Generated files (designer/partial-class output, or anything
             // carrying a generated-code header) get their Style-class
             // findings collapsed to a single skip notice — indentation and
@@ -624,7 +641,12 @@ impl Gate for StyleGate {
 
 /// Line-level style checks that fire when added code breaks a convention
 /// detected on the full file.
-fn check_style_compliance(df: &DiffFile, conventions: &[DetectedConvention]) -> Vec<ReviewFinding> {
+fn check_style_compliance(
+    df: &DiffFile,
+    conventions: &[DetectedConvention],
+    strings: Option<&[engram_index::parsing::JsQuotedString]>,
+    full: Option<&str>,
+) -> Vec<ReviewFinding> {
     let mut out = Vec::new();
     let file_path = &df.path;
     let is_vb = file_path.to_ascii_lowercase().ends_with(".vb");
@@ -632,7 +654,8 @@ fn check_style_compliance(df: &DiffFile, conventions: &[DetectedConvention]) -> 
     let is_ts_js = file_path.to_ascii_lowercase().ends_with(".ts")
         || file_path.to_ascii_lowercase().ends_with(".tsx")
         || file_path.to_ascii_lowercase().ends_with(".js")
-        || file_path.to_ascii_lowercase().ends_with(".jsx");
+        || file_path.to_ascii_lowercase().ends_with(".jsx")
+        || file_path.to_ascii_lowercase().ends_with(".mjs");
     let is_minilang = {
         let l = file_path.to_ascii_lowercase();
         l.ends_with(".ml") || l.ends_with(".mlinc")
@@ -861,41 +884,29 @@ fn check_style_compliance(df: &DiffFile, conventions: &[DetectedConvention]) -> 
                 }
             }
             ConventionCategory::StringQuotes if is_ts_js => {
-                let expected = conv.value.clone();
-                for (ln, line) in &df.added_lines {
-                    let has_dbl = line.contains('"');
-                    let has_sng = line.contains('\'');
-                    if expected == "double" && has_sng && !has_dbl {
-                        out.push(
-                            ReviewFinding::new(
-                                Severity::Style,
-                                "style",
-                                file_path.clone(),
-                                "String quote style mismatch",
-                                format!(
-                                    "File uses double quotes ({}/{}). Added line uses single.",
-                                    conv.sample_count, conv.total_count
-                                ),
-                                "Switch single-quoted string to double-quoted.".to_string(),
-                            )
-                            .with_lines(vec![*ln]),
-                        );
-                    } else if expected == "single" && has_dbl && !has_sng {
-                        out.push(
-                            ReviewFinding::new(
-                                Severity::Style,
-                                "style",
-                                file_path.clone(),
-                                "String quote style mismatch",
-                                format!(
-                                    "File uses single quotes ({}/{}). Added line uses double.",
-                                    conv.sample_count, conv.total_count
-                                ),
-                                "Switch double-quoted string to single-quoted.".to_string(),
-                            )
-                            .with_lines(vec![*ln]),
-                        );
-                    }
+                let (Some(strings), Some(full)) = (strings, full) else { continue; };
+                let expected = match conv.value.as_str() {
+                    "double" => '"', "single" => '\'', _ => continue,
+                };
+                let lines: Vec<_> = full.lines().collect();
+                let added: std::collections::BTreeMap<_, _> = df.added_lines.iter()
+                    .map(|(line, text)| (*line, text.as_str())).collect();
+                let mut reported = std::collections::BTreeSet::new();
+                for token in strings {
+                    let line = token.start_line as usize;
+                    if token.quote == expected || reported.contains(&line) { continue; }
+                    let Some(added_line) = added.get(&line) else { continue; };
+                    let Some(index) = line.checked_sub(1) else { continue; };
+                    // A diff may describe another source snapshot. Never borrow a
+                    // current string token's line number for different added text.
+                    if lines.get(index as usize).copied() != Some(*added_line) { continue; }
+                    reported.insert(line);
+                    let actual = if token.quote == '"' { "double" } else { "single" };
+                    out.push(ReviewFinding::new(
+                        Severity::Style, "style", file_path.clone(), "String quote style mismatch",
+                        format!("File uses {} quotes ({}/{} parsed string literals). Added line contains a {actual}-quoted string.", conv.value, conv.sample_count, conv.total_count),
+                        format!("Consider {} quotes for this string, preserving its value and required escapes.", conv.value),
+                    ).with_lines(vec![line]));
                 }
             }
             ConventionCategory::Indentation => {
@@ -1023,6 +1034,17 @@ impl Gate for TemporalGate {
     }
 
     fn run(&self, ctx: &GateContext<'_>) -> anyhow::Result<Vec<ReviewFinding>> {
+        match ctx.registry.get_meta(ctx.project_id, "last_git_oid") {
+            Ok(Some(oid)) if !oid.trim().is_empty() => {
+                match ctx.registry.get_meta(ctx.project_id, "git_backfill_complete") {
+                    Ok(Some(flag)) if flag == "1" => {},
+                    Ok(_) => ctx.degrade("Git history backfill completeness is unverified; run index_git_history before treating absent co-change findings as evidence"),
+                    Err(error) => ctx.degrade(format!("Git history completeness lookup failed: {error}")),
+                }
+            },
+            Ok(_) => ctx.degrade("Git history watermark is absent; run index_git_history to establish temporal coverage"),
+            Err(error) => ctx.degrade(format!("Git history watermark lookup failed: {error}")),
+        }
         // Auto-tuned threshold: on small repos, weight=50 is too strict
         // (a 100-commit repo never reaches it). Scale the cutoff to the
         // project's commit volume — floor 5, ceiling 50, expected
@@ -1032,7 +1054,6 @@ impl Gate for TemporalGate {
         } else {
             ((ctx.total_commits as f32 * 0.01) as u32).clamp(5, 50)
         };
-        let strong_threshold = base_threshold * 4;
 
         let mut findings = Vec::new();
         // Current-tree file paths (already loaded once per review, see
@@ -1068,14 +1089,12 @@ impl Gate for TemporalGate {
                     continue;
                 }
                 let raw_neighbor = neighbor_id.strip_prefix("file:").unwrap_or(&neighbor_id);
-                // Suffix-aware membership: a historical spelling counts as
-                // "in the diff" when it component-suffix-matches any
-                // changed path — this is what fixes the false "not in
-                // diff" positives on restructured repos.
+                // Current diff membership is exact. Historical spellings
+                // are resolved separately before the second membership test.
                 if ctx
                     .changed_paths
                     .iter()
-                    .any(|p| path_suffix_match(p, raw_neighbor))
+                    .any(|p| current_path_eq(p, raw_neighbor))
                 {
                     continue;
                 }
@@ -1083,55 +1102,57 @@ impl Gate for TemporalGate {
                 // current tree; when the historical spelling resolves to
                 // an existing file, emit the CURRENT spelling instead.
                 let Some(neighbor_path) =
-                    resolve_partner_to_current(raw_neighbor, &current_files, ctx.project_dir)
+                    resolve_gate_partner(ctx, raw_neighbor, &current_files)
                 else {
                     continue;
                 };
                 if ctx
                     .changed_paths
                     .iter()
-                    .any(|p| path_suffix_match(p, &neighbor_path))
+                    .any(|p| current_path_eq(p, &neighbor_path))
                 {
                     continue;
                 }
                 if !emitted.insert(neighbor_path.clone()) {
                     continue;
                 }
-                let pct = if ctx.total_commits > 0 {
-                    let p = (weight as f32 / ctx.total_commits as f32 * 100.0).min(100.0);
-                    format!("{p:.1}%")
+                // Stored weights are ranked historical leads, not conditional
+                // frequencies or proof that this edit requires a partner change.
+                let total = if ctx.total_commits == 0 {
+                    "unknown".to_string()
                 } else {
-                    format!("{weight} co-changes")
-                };
-                let severity = if weight >= strong_threshold {
-                    Severity::Warning
-                } else {
-                    Severity::Info
+                    ctx.total_commits.to_string()
                 };
                 let f = ReviewFinding::new(
-                    severity,
+                    Severity::Info,
                     "temporal",
                     df.path.clone(),
-                    format!("Coupled file `{neighbor_path}` not in diff"),
+                    format!("Historical co-change lead: `{neighbor_path}` is outside this diff"),
                     format!(
-                        "Git history shows `{}` and `{neighbor_path}` change together in {pct} \
-                         of commits (weight {weight}). Your diff changes the first but not the \
-                         second.",
+                        "Stored co-change weight for `{}` and `{neighbor_path}`: {weight}. \
+                         Project commit metadata: {total}. Anchor-file commit count is unavailable; \
+                         conditional co-change frequency and relevance to this edit are unverified. \
+                         History pairing is capped and rename weights may be carried forward.",
                         df.path
                     ),
                     format!(
-                        "Either stage `{neighbor_path}` alongside `{}`, or add a commit \
-                         message note explaining why the usual co-change is skipped.",
-                        df.path
+                        "Inspect `{neighbor_path}` and relevant shared commits for a requirement \
+                         or dependency affected by this change. Modify it only if that inspection \
+                         finds a necessary change; historical co-change alone does not require \
+                         staging the partner or a justification note."
                     ),
                 )
                 .with_evidence(vec![
                     format!("coupling_weight = {weight}"),
-                    format!("co_change_pct = {pct}"),
                     format!("total_commits = {}", ctx.total_commits),
+                    format!("project_commit_metadata = {total}"),
+                    "anchor_commit_count = unknown".to_string(),
+                    "conditional_frequency = unknown".to_string(),
+                    format!("current_partner_path = {neighbor_path}"),
+                    "history_limits = capped commit pairing; rename weights may be carried forward".to_string(),
                 ])
                 .with_next_tool(format!(
-                    "list_temporal_couplings(project_id=\"{}\", file_path=\"{}\")",
+                    "analyze_temporal_couplings(project_id=\"{}\", file_path=\"{}\")",
                     ctx.project_id, df.path
                 ));
                 findings.push(f);
@@ -1301,30 +1322,19 @@ impl Gate for AuditGate {
             .unwrap_or(&audit_name)
             .to_string();
 
-        static MUTATION_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
-            Regex::new(r"(?i)\.SubmitChanges\s*\(|\.SaveChanges(Async)?\s*\(|\bINSERT\s+INTO\b|\bUPDATE\s+\w|\bDELETE\s+FROM\b|\.ExecuteNonQuery\s*\(").ok()
-        });
-
         let mut findings = Vec::new();
         for df in ctx.diff_files {
             if df.is_binary || matches!(df.change_type, ChangeType::Deleted) {
                 continue;
             }
-            let Some(re) = MUTATION_RE.as_ref() else {
-                continue;
-            };
-            let mut mutation_lines: Vec<usize> = Vec::new();
-            let mut mutation_names: Vec<String> = Vec::new();
-            for (ln, line) in &df.added_lines {
-                if let Some(m) = re.find(line) {
-                    mutation_lines.push(*ln);
-                    mutation_names.push(m.as_str().trim().to_string());
-                }
-            }
+            let mutations = audit_mutations(df);
+            let mutation_lines: Vec<usize> = mutations.iter().map(|(line, _)| *line).collect();
+            let mutation_names: Vec<String> = mutations.into_iter().map(|(_, text)| text).collect();
             if mutation_lines.is_empty() {
                 continue;
             }
-            let has_audit = df.added_content.contains(&audit_short);
+            let audit_call = Regex::new(&format!(r"(?i)\b{}\s*\(", regex::escape(&audit_short))).expect("escaped audit name");
+            let has_audit = audit_call.is_match(&review_executable_text(&df.added_content, is_vb_path(&df.path), true));
             if has_audit {
                 continue;
             }
@@ -1333,7 +1343,7 @@ impl Gate for AuditGate {
             // elsewhere — elevates severity (the author knows the
             // convention and is now skipping it).
             let file_calls_audit = read_file_content(ctx.project_dir, &df.path)
-                .map(|c| c.contains(&audit_short))
+                .map(|c| audit_call.is_match(&review_executable_text(&c, is_vb_path(&df.path), true)))
                 .unwrap_or(false);
             let severity = if file_calls_audit {
                 Severity::Warning
@@ -1344,15 +1354,15 @@ impl Gate for AuditGate {
                 severity,
                 "audit",
                 df.path.clone(),
-                "Database mutation without audit-log call",
+                "Possible database mutation without an observed audit call",
                 format!(
-                    "Added code contains data mutation(s) ({}) but no call to `{audit_short}`, \
-                     which is this project's established audit convention.",
+                    "Added code contains possible mutation evidence ({}) but no observed call to `{audit_short}`. \
+                     SQL literals do not prove execution; the name-selected audit candidate is not a verified convention.",
                     mutation_names.join(", ")
                 ),
                 format!(
-                    "Add a `{audit_name}(...)` call immediately after the mutation, recording \
-                     the caller / entity / operation as the rest of the project does."
+                    "Verify whether this operation mutates data and whether `{audit_name}` is the applicable audit API. \
+                     If audit logging is required and missing, follow the verified project convention."
                 ),
             )
             .with_lines(mutation_lines)
@@ -1404,6 +1414,24 @@ impl Gate for AntiPatternGate {
         };
 
         let mut findings = self.destructive_only(ctx);
+        match ps.search.count_docs_by_namespace(ctx.project_id) {
+            Ok(counts) if counts.get("antipattern").copied().unwrap_or(0) == 0 => {
+                ctx.degrade(
+                    "No antipattern documents are indexed for this project; historical pattern \
+                     matching is unavailable. Index reviewed anti-pattern examples before relying \
+                     on corpus coverage; regex-only destructive-pattern fallback remains active.",
+                );
+                return Ok(findings);
+            }
+            Err(e) => {
+                ctx.degrade(format!(
+                    "antipattern corpus count unavailable ({e}); verify the index before relying \
+                     on corpus coverage; regex-only destructive-pattern fallback remains active"
+                ));
+                return Ok(findings);
+            }
+            Ok(_) => {}
+        }
 
         for df in ctx.diff_files {
             if df.is_binary
@@ -1923,24 +1951,19 @@ impl Gate for TestCoverageGate {
                 .map(|(id, w)| (id.strip_prefix("file:").unwrap_or(&id).to_string(), w))
                 .collect();
 
-            // Suffix-aware membership — history may carry a pre-restructure
-            // spelling of a test file that IS in the diff.
-            let has_coupled_test_in_diff = coupled_tests_raw
-                .iter()
-                .any(|(p, _)| ctx.changed_paths.iter().any(|c| path_suffix_match(c, p)));
-            if has_coupled_test_in_diff {
-                continue;
-            }
-
             // Only ever suggest test files that exist in the current tree,
-            // under their current spelling — never a stale one.
+            // under their unambiguous current spelling, then test membership.
             let coupled_tests: Vec<(String, u32)> = coupled_tests_raw
                 .iter()
                 .filter_map(|(p, w)| {
-                    resolve_partner_to_current(p, &current_files, ctx.project_dir)
+                    resolve_gate_partner(ctx, p, &current_files)
                         .map(|cp| (cp, *w))
                 })
                 .collect();
+
+            if coupled_tests.iter().any(|(path, _)| ctx.changed_paths.iter().any(|changed| current_path_eq(changed, path))) {
+                continue;
+            }
 
             if !coupled_tests.is_empty() {
                 let (best_path, best_weight) = coupled_tests
@@ -2264,10 +2287,6 @@ fn def_is_externally_invoked(
         LazyLock::new(|| Regex::new(r"(?i)\bHandles\s").expect("valid regex"));
     static RE_DISPATCHED: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r"(?i)\b(Overrides|Implements)\b").expect("valid regex"));
-    static RE_ROUTED_ATTR: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"(?i)(<\s*WebMethod|\[\s*WebMethod|\[\s*Http(Get|Post|Put|Delete|Patch)|\[\s*Route|<\s*ScriptMethod)")
-            .expect("valid regex")
-    });
     if RE_FRAMEWORK_INVOKED_NAME.is_match(name) {
         return true;
     }
@@ -2280,7 +2299,7 @@ fn def_is_externally_invoked(
     {
         return true;
     }
-    prev_lines.iter().any(|l| RE_ROUTED_ATTR.is_match(l))
+    has_routed_attribute(prev_lines)
 }
 
 /// Extract added-function candidates that nothing in the diff references:
@@ -2339,8 +2358,8 @@ pub(crate) fn unwired_candidates(diff_files: &[DiffFile]) -> Vec<AddedFunction> 
                 continue;
             }
             let next = by_line.get(&(n + 1)).copied();
-            let prev: Vec<&str> = (1..=2)
-                .filter_map(|d| n.checked_sub(d).and_then(|m| by_line.get(&m).copied()))
+            let prev: Vec<&str> = (1..=16)
+                .map_while(|d| n.checked_sub(d).and_then(|m| by_line.get(&m).copied()))
                 .collect();
             if def_is_externally_invoked(&name, line, next, &prev) {
                 continue;
@@ -2446,13 +2465,11 @@ impl Gate for UnwiredGate {
             ));
         }
         for cand in unwired_all.into_iter().take(25) {
-            // Graph backstop: a same-named function already known to the
-            // graph with at least one caller (pre-existing overload,
-            // partial-class twin, or a markup-wired handler the indexer
-            // recovered) is not unwired.
+            // Scope before the provider cap, then bind the declaration below.
+            // Other files cannot crowd out or supply this member's evidence.
             let lookup =
                 ctx.graph
-                    .query_nodes(ctx.project_id, Some("function"), Some(&cand.name), None, 10);
+                    .query_nodes_in_file(ctx.project_id, Some("function"), &cand.file, 501);
             if let Err(e) = &lookup {
                 ctx.degrade(format!(
                     "graph lookup of {} failed — candidate skipped: {e}",
@@ -2461,28 +2478,32 @@ impl Gate for UnwiredGate {
                 continue;
             }
             let nodes = lookup.as_ref().map(|n| n.clone()).unwrap_or_default();
-            // VB/C# member nodes carry QUALIFIED names ("api.StartTransaction")
-            // while the diff regex captures the bare member name — match on
-            // the last dot-segment or the whole name, else a wired function
-            // gets a false "never referenced" (live FP: StartTransaction had
-            // 5 Calls edges and was still flagged). When the candidate's
-            // enclosing CLASS is known, only same-class (or same-file) nodes
-            // may suppress — a common name like `Create` must not be
-            // suppressed by some other class's `Create` that has callers.
+            if nodes.len() > 500 {
+                ctx.degrade(format!("function identity lookup in {} exceeded 500 nodes; caller evidence incomplete", cand.file));
+                continue;
+            }
+            // Bind the diff declaration to one exact-file indexed span. A
+            // caller of another overload, partial member or class is not a
+            // caller of this declaration. Missing/stale spans are unknown.
+            let matches: Vec<_> = nodes.iter().filter(|n| {
+                bare_name_matches(&n.name, &cand.name)
+                    && current_path_eq(n.file_path.as_str(), &cand.file)
+                    && n.start_line as usize <= cand.line
+                    && n.end_line as usize >= cand.line
+                    && cand.class_name.as_ref().is_none_or(|class| {
+                        !n.name.contains('.') || n.name.rsplit_once('.').is_some_and(|(owner, _)| {
+                            owner.eq_ignore_ascii_case(class)
+                                || owner.to_lowercase().ends_with(&format!(".{}", class.to_lowercase()))
+                        })
+                    })
+            }).collect();
+            if matches.len() != 1 {
+                ctx.degrade(format!("cannot uniquely bind added {} in {}:{} to an indexed declaration; caller identity unknown", cand.name, cand.file, cand.line));
+                continue;
+            }
             let mut callers: Vec<(String, usize)> = Vec::new();
             let mut caller_lookup_failed = false;
-            for n in nodes
-                .iter()
-                .filter(|n| bare_name_matches(&n.name, &cand.name))
-                .filter(|n| match &cand.class_name {
-                    Some(cls) => {
-                        let qualified = format!("{}.", cls.to_lowercase());
-                        n.name.to_lowercase().contains(&qualified)
-                            || path_suffix_match(n.file_path.as_str(), &cand.file)
-                    }
-                    None => true,
-                })
-            {
+            for n in matches {
                 match crate::handlers::incoming_caller_edges_checked(
                     &ctx.graph,
                     ctx.project_id,
@@ -2513,21 +2534,19 @@ impl Gate for UnwiredGate {
                     "unwired",
                     cand.file.clone(),
                     format!(
-                        "Added function `{}` is never referenced in this diff",
+                        "Added function `{}` has zero indexed callers (review candidate)",
                         cand.name
                     ),
                     format!(
-                        "`{}` is defined in `{}` but no added line in this diff calls, \
-                         binds, or registers it, and the code graph knows no caller. \
-                         Implemented-but-never-wired is the classic mid-feature gap — \
-                         a mandated check or handler that exists as code but never runs. \
-                         If it's a deliberate API for a follow-up change, say so in the \
-                         commit message.",
+                        "`{}` is defined in `{}` with no reference in added diff lines \
+                         and no indexed caller for the matched declaration. This does \
+                         not establish that it is dead or unwired at runtime. Verify \
+                         source callers, framework/dynamic entry points and index freshness.",
                         cand.name, cand.file
                     ),
                     format!(
-                        "Wire `{}` to its caller (event registration, route, call site) \
-                         or defer the definition to the change that uses it.",
+                        "Inspect the intended caller of `{}` (event registration, route, call site). \
+                         If wiring is missing, add it; otherwise record the entry-point evidence.",
                         cand.name
                     ),
                 )
@@ -2614,8 +2633,10 @@ impl Gate for SyncContractGate {
             let mut touched: Vec<String> = Vec::new();
             let mut untouched: Vec<String> = Vec::new();
             for site in &sites {
-                let is_touched = if site.contains('/') || site.contains('\\') {
-                    ctx.changed_paths.iter().any(|p| path_suffix_match(p, site))
+                let current_file_site = ctx.files_by_parent.values().flatten().any(|path| current_path_eq(path, site))
+                    || ctx.changed_paths.iter().any(|path| current_path_eq(path, site));
+                let is_touched = if site.contains('/') || site.contains('\\') || current_file_site {
+                    ctx.changed_paths.iter().any(|p| current_path_eq(p, site))
                 } else if let Some(tail) = site_tail_identifier(site) {
                     let nodes = ctx
                         .graph
@@ -2630,7 +2651,7 @@ impl Gate for SyncContractGate {
                         .any(|n| {
                             ctx.changed_paths
                                 .iter()
-                                .any(|p| path_suffix_match(p, n.file_path.as_str()))
+                                .any(|p| current_path_eq(p, n.file_path.as_str()))
                         });
                     let tail_lower = tail.to_lowercase();
                     via_graph
@@ -3042,6 +3063,7 @@ impl Gate for CoAddedFamilyGate {
             ctx.degrade(note.clone());
         }
         use std::collections::{BTreeMap, BTreeSet};
+        let current_files: Vec<String> = ctx.files_by_parent.values().flatten().cloned().collect();
 
         // Only fires when the diff ADDS files — the companion contract
         // is about introducing new cohort members, not editing old ones.
@@ -3152,7 +3174,8 @@ impl Gate for CoAddedFamilyGate {
             let mut missing: Vec<(String, usize)> = companion_counts
                 .into_iter()
                 .filter(|(_, n)| *n * 10 >= exemplar_count * 4)
-                .filter(|(p, _)| !ctx.changed_paths.iter().any(|c| path_suffix_match(c, p)))
+                .filter_map(|(path, count)| resolve_gate_partner(ctx, &path, &current_files).map(|path| (path, count)))
+                .filter(|(p, _)| !ctx.changed_paths.iter().any(|c| current_path_eq(c, p)))
                 .collect();
             if missing.is_empty() {
                 continue;
@@ -3489,28 +3512,30 @@ impl Gate for ComplexityGate {
                     (
                         Severity::Warning,
                         format!(
-                            "New function `{name}` has estimated complexity {cx} (max {SQ_COMPLEXITY_MAX})"
+                            "New function `{name}` has estimated complexity {cx} (review threshold {SQ_COMPLEXITY_MAX})"
                         ),
                         format!(
-                            "SonarQube will reject this on the next scan — new code over \
-                             complexity {SQ_COMPLEXITY_MAX} is a standing quality-gate failure \
-                             (estimated {cx} decision points)."
+                            "Engram's local estimate ({cx} decision points) exceeds its \
+                             review threshold of {SQ_COMPLEXITY_MAX}. This is a heuristic, not \
+                             a SonarQube result; scanner language support and the project's \
+                             configured quality gate have not been verified."
                         ),
-                        "Extract the branch clusters into named helpers now, before push — \
-                         guard clauses for the early exits, a helper per decision cluster."
+                        "Consider named helpers or guard clauses after checking the \
+                         relevant policy and behavior. Record why the function is retained \
+                         or refactored; the estimate alone does not require extra edits."
                             .to_string(),
                     )
                 } else {
                     (
                         Severity::Info,
                         format!(
-                            "Touched function `{name}` is already at complexity {cx} (max {SQ_COMPLEXITY_MAX})"
+                            "Touched function `{name}` has estimated complexity {cx} (review threshold {SQ_COMPLEXITY_MAX})"
                         ),
                         format!(
-                            "This diff modifies a function that already exceeds the complexity \
-                             budget (estimated {cx}). House rule: when you touch an \
-                             over-budget function, take it down to ~13–14 in the same change \
-                             if reasonably safe — otherwise every future touch pays this tax."
+                            "The post-change function exceeds Engram's local review threshold \
+                             (estimated {cx}). Its pre-change complexity and project-specific \
+                             quality policy have not been verified. Consider a scoped refactor \
+                             when it is safe; this estimate alone does not require extra edits."
                         ),
                         "If the change is low-risk, extract the densest branch cluster into a \
                          helper while you are here; if it is too risky, note that explicitly \
@@ -3567,13 +3592,14 @@ static RE_AC_LOG_CALL: LazyLock<Regex> =
 
 /// Fraction of public decls in `content` that carry a doc comment on the
 /// line above, together with the total count — the house-style evidence.
-pub(crate) fn doc_coverage(content: &str) -> (usize, usize) {
+pub(crate) fn doc_coverage(content: &str, path: &str) -> (usize, usize) {
+    let is_vb = path.to_ascii_lowercase().ends_with(".vb");
     let lines: Vec<&str> = content.lines().collect();
     let (mut documented, mut total) = (0usize, 0usize);
     for (i, line) in lines.iter().enumerate() {
         if RE_AC_PUBLIC_DECL.is_match(line) {
             total += 1;
-            if i > 0 && RE_AC_DOC_LINE.is_match(lines[i - 1]) {
+            if documentation_above(&lines, i, is_vb) {
                 documented += 1;
             }
         }
@@ -3728,9 +3754,12 @@ impl Gate for AddedConventionsGate {
             //     often skip them — reviewers enforce the RULE, so
             //     file-local style alone missed exactly the findings this
             //     gate was built from).
-            let (documented, total) = doc_coverage(&disk);
+            let (documented, total) = doc_coverage(&disk, &df.path);
             let file_documents = total >= 3 && documented * 10 >= total * 4;
             let rule_demands_docs = ctx.repo_rules.iter().any(|r| {
+                if !path_pattern_matches(&r.file_pattern, &df.path) {
+                    return false;
+                }
                 let t = r.rule_text.to_lowercase();
                 (t.contains("xml doc")
                     || t.contains("xml-doc")
@@ -3740,26 +3769,17 @@ impl Gate for AddedConventionsGate {
                     && (t.contains("public") || t.contains("member") || t.contains("summary"))
             });
             if file_documents || rule_demands_docs {
-                let added: Vec<&(usize, String)> = df.added_lines.iter().collect();
+                let candidate_lines = documentation_context(df);
+                let disk_lines: Vec<_> = disk.lines().collect();
+                let disk_matches = documentation_disk_matches(&candidate_lines, &disk_lines);
                 let mut undocumented: Vec<(usize, String)> = Vec::new();
-                for (idx, (line_no, text)) in added.iter().enumerate() {
+                for (line_no, text) in &df.added_lines {
                     let Some(cap) = RE_AC_PUBLIC_DECL.captures(text) else {
                         continue;
                     };
-                    // Doc line directly above — in the added block or on disk.
-                    let prev_added = idx
-                        .checked_sub(1)
-                        .and_then(|i| added.get(i))
-                        .filter(|(n, _)| n + 1 == *line_no)
-                        .map(|(_, t)| RE_AC_DOC_LINE.is_match(t));
-                    let documented_above = match prev_added {
-                        Some(v) => v,
-                        None => line_no
-                            .checked_sub(2)
-                            .and_then(|i| disk.lines().nth(i))
-                            .map(|l| RE_AC_DOC_LINE.is_match(l))
-                            .unwrap_or(false),
-                    };
+                    let documented_above = added_declaration_documented(
+                        &candidate_lines, &disk_lines, disk_matches, *line_no, df.path.to_ascii_lowercase().ends_with(".vb"),
+                    );
                     if !documented_above {
                         undocumented.push((*line_no, cap[1].to_string()));
                     }
@@ -3858,6 +3878,9 @@ impl Gate for AddedConventionsGate {
             // CONTRACT), immediately followed within the added block by
             // `x.<member>` with no intervening null check.
             let rule_demands_null_guard = ctx.repo_rules.iter().any(|r| {
+                if !path_pattern_matches(&r.file_pattern, &df.path) {
+                    return false;
+                }
                 let t = r.rule_text.to_lowercase();
                 (t.contains("null") || t.contains("nothing"))
                     && (t.contains("guard")
@@ -4022,7 +4045,7 @@ mod tests {
                    End Sub\n\
                    ''' <summary>Gets.</summary>\n\
                    Public Property Name As String\n";
-        let (documented, total) = doc_coverage(src);
+        let (documented, total) = doc_coverage(src, "Input.vb");
         assert_eq!((documented, total), (2, 3));
     }
 
@@ -4554,7 +4577,7 @@ diff --git a/foo.vb b/foo.vb
             sample_count: 20,
             total_count: 20,
         }];
-        let findings = check_style_compliance(&diff_files[0], &conventions);
+        let findings = check_style_compliance(&diff_files[0], &conventions, None, None);
         assert!(
             findings.iter().any(|f| f.title.contains("badCaseMethod")),
             "expected casing finding, got {findings:#?}"
@@ -4586,7 +4609,7 @@ diff --git a/foo.ml b/foo.ml
             sample_count: 20,
             total_count: 20,
         }];
-        let findings = check_style_compliance(&diff_files[0], &conventions);
+        let findings = check_style_compliance(&diff_files[0], &conventions, None, None);
         assert!(
             findings.iter().any(|f| f.title.contains("badCaseGeneric")),
             "expected casing finding for the generic method, got {findings:#?}"
@@ -4618,7 +4641,7 @@ diff --git a/foo.ml b/foo.ml
             sample_count: 20,
             total_count: 20,
         }];
-        let findings = check_style_compliance(&diff_files[0], &conventions);
+        let findings = check_style_compliance(&diff_files[0], &conventions, None, None);
         assert!(
             findings.iter().any(|f| f.title.contains("badCaseFunc")),
             "expected casing finding for the Func-declared method, got {findings:#?}"
@@ -4858,7 +4881,9 @@ impl Gate for UiHouseStyleGate {
     }
 
     fn run(&self, ctx: &GateContext<'_>) -> anyhow::Result<Vec<ReviewFinding>> {
-        use crate::services::house_style::{markup_idioms, scan_siblings};
+        use crate::services::house_style::{
+            SIBLING_SCAN, markup_idioms, scan_siblings, source_bound_classes,
+        };
         let mut findings = Vec::new();
         for df in ctx.diff_files {
             if df.is_binary
@@ -4883,10 +4908,21 @@ impl Gate for UiHouseStyleGate {
                 sib_ucs.extend(m.user_controls.iter().cloned());
                 sib_panels.extend(m.message_panels.iter().map(|p| p.to_lowercase()));
             }
-            let new_classes: Vec<&String> = added
-                .classes
+            let raw = ctx.read_project_file(&df.path);
+            let sibling_classes_known = siblings.iter().all(|(_, m)| m.class_inventory_known);
+            let class_inventory = std::str::from_utf8(&raw)
+                .map_err(|_| "current markup is not UTF-8")
+                .and_then(|source| if sibling_classes_known { source_bound_classes(source, df) } else { Err("sampled sibling class inventory unavailable; absence cannot be established") });
+            let (added_classes, own_classes) = match class_inventory {
+                Ok(classes) => classes,
+                Err(reason) => {
+                    ctx.degrade(format!("{}: class novelty check not run: {reason}; use current source and a matching full diff. Resource/user-control advice remains separately sampled.", df.path));
+                    Default::default()
+                }
+            };
+            let new_classes: Vec<&String> = added_classes
                 .iter()
-                .filter(|c| !sib_classes.contains(*c))
+                .filter(|c| !sib_classes.contains(*c) && !own_classes.contains(*c))
                 .collect();
             let new_families: Vec<&String> = added
                 .resource_families
@@ -4908,7 +4944,7 @@ impl Gate for UiHouseStyleGate {
                     "ui_house_style",
                     df.path.clone(),
                     format!(
-                        "Added markup uses class(es) no sibling page in `{territory}` uses: {}",
+                        "Added markup uses class(es) absent from {n} sampled sibling(s) in `{territory}` and unchanged same-file static attributes: {}",
                         new_classes
                             .iter()
                             .map(|c| format!("`{c}`"))
@@ -4916,7 +4952,7 @@ impl Gate for UiHouseStyleGate {
                             .join(", ")
                     ),
                     format!(
-                        "The {n} sibling page(s) next door use: {}{}",
+                        "The {n} sampled sibling(s) (scan cap {SIBLING_SCAN}) supply these static classes: {}{}. Dynamic/entity-dependent attributes and raw text are excluded; this is sampled advice, not universal absence.",
                         sib_list(&sib_classes),
                         if sib_panels.is_empty() {
                             String::new()
@@ -4977,5 +5013,415 @@ impl Gate for UiHouseStyleGate {
             }
         }
         Ok(findings)
+    }
+}
+
+/// Mask non-code bytes while retaining exact line and byte offsets.
+/// SQL-looking literals alone do not prove execution; callers can retain
+/// them as possible-mutation evidence separately from executable writer calls. This is a bounded lexical scan, not mutation data-flow proof.
+fn review_executable_text(source: &str, is_vb: bool, mask_strings: bool) -> String {
+    review_lexical_text(source, is_vb, mask_strings, false)
+}
+
+fn review_lexical_text(source: &str, is_vb: bool, mask_strings: bool, is_sql: bool) -> String {
+    let bytes = source.as_bytes();
+    let mut out = bytes.to_vec();
+    let mut i = 0;
+    let mut block = false;
+    let mut quote: Option<u8> = None;
+    let mut verbatim = false;
+    let mut line_start = 0;
+    while i < bytes.len() {
+        let c = bytes[i];
+        if c == b'\n' { line_start = i + 1; }
+        if block {
+            if c == b'*' && bytes.get(i + 1) == Some(&b'/') {
+                out[i] = b' '; out[i + 1] = b' '; i += 2; block = false; continue;
+            }
+            if c != b'\n' && c != b'\r' { out[i] = b' '; }
+            i += 1; continue;
+        }
+        if let Some(q) = quote {
+            if mask_strings && c != b'\n' && c != b'\r' { out[i] = b' '; }
+            if c == q {
+                if (is_vb || verbatim) && bytes.get(i + 1) == Some(&q) {
+                    if mask_strings { out[i + 1] = b' '; } i += 2; continue;
+                }
+                quote = None;
+            } else if !is_vb && !verbatim && c == b'\\' && i + 1 < bytes.len() {
+                if mask_strings && bytes[i + 1] != b'\n' && bytes[i + 1] != b'\r' { out[i + 1] = b' '; }
+                if bytes[i + 1] == b'\n' { line_start = i + 2; }
+                i += 2; continue;
+            }
+            i += 1; continue;
+        }
+        let vb_rem = is_vb && matches!(c, b'r' | b'R') && source[line_start..i].trim().is_empty()
+            && bytes.get(i..i + 3).is_some_and(|s| s.eq_ignore_ascii_case(b"rem"))
+            && bytes.get(i + 3).is_none_or(|c| c.is_ascii_whitespace());
+        if (is_vb && c == b'\'') || vb_rem
+            || (is_sql && c == b'-' && bytes.get(i + 1) == Some(&b'-'))
+            || (!is_vb && c == b'/' && bytes.get(i + 1) == Some(&b'/')) {
+            while i < bytes.len() && bytes[i] != b'\n' {
+                if bytes[i] != b'\r' { out[i] = b' '; } i += 1;
+            }
+            continue;
+        }
+        if !is_vb && c == b'/' && bytes.get(i + 1) == Some(&b'*') {
+            out[i] = b' '; out[i + 1] = b' '; i += 2; block = true; continue;
+        }
+        if c == b'"' || (!is_vb && c == b'\'') {
+            quote = Some(c); verbatim = !is_vb && i > 0 && bytes[i - 1] == b'@'; if mask_strings { out[i] = b' '; }
+        }
+        // Advance by a complete UTF-8 codepoint in unmasked source.
+        i += source[i..].chars().next().map_or(1, char::len_utf8);
+    }
+    String::from_utf8(out).expect("masking preserves UTF-8")
+}
+
+fn audit_mutations(df: &DiffFile) -> Vec<(usize, String)> {
+    static WRITER: LazyLock<Regex> = LazyLock::new(|| Regex::new(
+        r"(?i)\.(?:InsertOnSubmit|DeleteOnSubmit|SubmitChanges|SaveChanges(?:Async)?|ExecuteNonQuery(?:Async)?)\s*\("
+    ).expect("writer calls"));
+    static DML: LazyLock<Regex> = LazyLock::new(|| Regex::new(
+        r"(?i)\b(?:INSERT\s+INTO|DELETE\s+FROM)\s+[\w\[\].]+|\bUPDATE\s+[\w\[\].]+\s+SET\b"
+    ).expect("SQL statement"));
+    // Use hunk context so block comments opened before an added line remain
+    // comments. Never join disjoint hunks into a fictitious lexical context.
+    let mut groups: Vec<Vec<(usize, bool, String)>> = Vec::new();
+    for hunk in &df.hunks {
+        let mut line = hunk.new_start;
+        let mut group = Vec::new();
+        for raw in &hunk.body {
+            if raw.starts_with('+') || raw.starts_with(' ') {
+                group.push((line, raw.starts_with('+'), raw[1..].to_string())); line += 1;
+            }
+        }
+        groups.push(group);
+    }
+    if groups.is_empty() {
+        for (line, text) in &df.added_lines {
+            if groups.last().and_then(|g| g.last()).is_none_or(|(n, _, _)| n + 1 != *line) {
+                groups.push(Vec::new());
+            }
+            groups.last_mut().expect("group exists").push((*line, true, text.clone()));
+        }
+    }
+    let mut found = Vec::new();
+    for group in groups {
+        let source = group.iter().map(|(_, _, s)| s.as_str()).collect::<Vec<_>>().join("\n");
+        let code = review_lexical_text(&source, is_vb_path(&df.path), true, df.path.to_ascii_lowercase().ends_with(".sql"));
+        let literals = review_lexical_text(&source, is_vb_path(&df.path), false, df.path.to_ascii_lowercase().ends_with(".sql"));
+        for (((line, added, _), code_line), literal_line) in group.iter().zip(code.lines()).zip(literals.lines()) {
+            if !added { continue; }
+            let hit = if df.path.to_ascii_lowercase().ends_with(".sql") {
+                DML.find(code_line)
+            } else { WRITER.find(code_line).or_else(|| DML.find(literal_line)) };
+            if let Some(hit) = hit { found.push((*line, hit.as_str().to_string())); }
+        }
+    }
+    found
+}
+
+/// Recognize only an adjacent bounded attribute block, never preceding code.
+fn has_routed_attribute(prev_lines: &[&str]) -> bool {
+    (1..=prev_lines.len()).any(|count| routed_attribute_block(&prev_lines[..count]))
+}
+
+fn routed_attribute_block(prev_lines: &[&str]) -> bool {
+    let text = prev_lines.iter().rev().copied().collect::<Vec<_>>().join("\n");
+    let text = review_executable_text(&text, prev_lines.iter().any(|s| s.trim_start().starts_with('<')), true);
+    let text = text.trim();
+    let Some(open) = text.chars().next() else { return false; };
+    let close = match open { '<' => '>', '[' => ']', _ => return false };
+    static ROUTE: LazyLock<Regex> = LazyLock::new(|| Regex::new(
+        r"(?i)(?:^|,)\s*(?:[A-Za-z_]\w*\.)*(?:WebMethod|ScriptMethod|HttpGet|HttpPost|HttpPut|HttpDelete|HttpPatch|HttpHead|HttpOptions|Route)(?:Attribute)?\b"
+    ).expect("route attribute"));
+    let mut rest = text;
+    let mut routed = false;
+    while !rest.trim_matches(|c: char| c.is_whitespace() || c == '_').is_empty() {
+        rest = rest.trim_matches(|c: char| c.is_whitespace() || c == '_');
+        if !rest.starts_with(open) { return false; }
+        let Some(end) = rest.find(close) else { return false; };
+        routed |= ROUTE.is_match(&rest[1..end]);
+        rest = &rest[end + 1..];
+    }
+    routed
+}
+
+#[cfg(test)]
+mod review_evidence_tests {
+    use super::*;
+    use crate::services::pre_commit_review_service::parse_unified_diff;
+    fn diff(path: &str, text: &str) -> DiffFile {
+        DiffFile {
+            path: path.into(), change_type: ChangeType::Added,
+            added_lines: text.lines().enumerate().map(|(i, s)| (i + 1, s.into())).collect(),
+            removed_lines: Vec::new(), added_content: text.into(), removed_content: String::new(),
+            hunks: Vec::new(), is_binary: false,
+        }
+    }
+    #[test]
+    fn audit_comments_and_prose_are_not_mutations() {
+        for (path, source) in [
+            ("C.vb", "''' No update or delete is exposed.\n' db.SubmitChanges()\nREM UPDATE products SET active=0"),
+            ("C.vb", "Dim text = \"update or delete\" ' db.SaveChanges()"),
+            ("C.cs", "// UPDATE products SET active=0\n/* db.SaveChanges();\n db.ExecuteNonQuery(); */"),
+            ("C.cs", "var text = \"call .SubmitChanges() later\";"),
+        ] { assert!(audit_mutations(&diff(path, source)).is_empty(), "{source}"); }
+    }
+    #[test]
+    fn audit_retains_writer_calls_and_possible_sql_literals() {
+        for (path, source) in [
+            ("C.vb", "db.SubmitChanges()"),
+            ("C.vb", "db.Items.InsertOnSubmit(item)"),
+            ("C.cs", "db.Items.DeleteOnSubmit(item);"),
+            ("C.cs", "await db.SaveChangesAsync();"),
+            ("C.vb", "db.ExecuteQuery(\"UPDATE products SET active=0\")"),
+            ("C.vb", "ExecuteDataTable(\"DELETE FROM products\")"),
+            ("C.sql", "UPDATE products SET active=0;"),
+        ] { assert_eq!(audit_mutations(&diff(path, source)).len(), 1, "{source}"); }
+    }
+    #[test]
+    fn audit_block_context_preserves_added_line_identity() {
+        let files = parse_unified_diff("diff --git a/C.cs b/C.cs\n--- a/C.cs\n+++ b/C.cs\n@@ -1,3 +1,4 @@\n /*\n+ UPDATE products SET active=0\n  */\n db.SaveChanges();\n");
+        assert!(audit_mutations(&files[0]).is_empty());
+        let findings = audit_mutations(&diff("C.vb", "' UPDATE products SET active=0\ndb.SubmitChanges()"));
+        assert_eq!(findings[0].0, 2);
+    }
+    #[test]
+    fn vb_route_attributes_exclude_the_controller_action_only() {
+        let source = "Public Class Controller\n<HttpGet>\n<Route(\n    \"api/items\")>\n<Authorize>\nPublic Function Fetch() As Object\nEnd Function\nPublic Function Helper() As Object\nEnd Function\nEnd Class";
+        let candidates = unwired_candidates(&[diff("Controller.vb", source)]);
+        assert_eq!(candidates.iter().map(|c| c.name.as_str()).collect::<Vec<_>>(), vec!["Helper"]);
+    }
+    #[test]
+    fn attribute_forms_and_boundaries_are_respected() {
+        for previous in [
+            vec!["[Route(\"api/items\")]", "[HttpGet]"],
+            vec!["<Route(\"api/items\")>", "<HttpGet>"],
+            vec!["<System.Web.Services.WebMethod()> _"],
+            vec!["[System.Web.Http.HttpGetAttribute]"],
+        ] { assert!(has_routed_attribute(&previous)); }
+        for previous in [
+            vec!["' <HttpGet>"], vec!["// [HttpGet]"],
+            vec!["End Function", "<HttpGet>"],
+            vec!["var text = \"[Route]\";"],
+        ] { assert!(!has_routed_attribute(&previous)); }
+    }
+}
+
+/// Bounded syntax recognition, not an attribute binding or compiler check.
+/// Supports common attribute groups and language-specific documentation trivia.
+/// Unsupported syntax remains unrecognized; this does not establish compiler binding.
+fn documentation_attributes_only(source: &str, is_vb: bool) -> bool {
+    // VB comments break XML-doc attachment; unlike C#, they are not transparent.
+    if is_vb && review_executable_text(source, true, false) != source { return false; }
+    let masked = review_executable_text(source, is_vb, true);
+    let bytes = masked.as_bytes();
+    let (open, close) = if is_vb { (b'<', b'>') } else { (b'[', b']') };
+    let mut i = 0;
+    let mut groups = 0;
+    while i < bytes.len() {
+        let trivia_start = i;
+        while i < bytes.len() && (bytes[i].is_ascii_whitespace() || (is_vb && bytes[i] == b'_')) { i += 1; }
+        if is_vb && groups > 0 {
+            let newlines = bytes[trivia_start..i].iter().filter(|b| **b == b'\n').count();
+            if newlines > 1 || (i == bytes.len() && newlines > 0) { return false; }
+        }
+        if i == bytes.len() { break; }
+        if bytes[i] != open { return false; }
+        i += 1;
+        while i < bytes.len() && bytes[i].is_ascii_whitespace() { i += 1; }
+        if !bytes.get(i).is_some_and(|b| b.is_ascii_alphabetic() || *b == b'_') { return false; }
+        let mut stack = Vec::new();
+        let mut closed = false;
+        while i < bytes.len() {
+            let c = bytes[i];
+            if stack.is_empty() && c == close { i += 1; closed = true; break; }
+            match c {
+                b'(' => stack.push(b')'),
+                b'[' => stack.push(b']'),
+                b'{' => stack.push(b'}'),
+                b')' | b']' | b'}' => if stack.pop() != Some(c) { return false; },
+                // Outside arguments, permit qualified names, attribute targets
+                // and comma-separated names, but never statements or operators.
+                _ if stack.is_empty() && !(c.is_ascii_alphanumeric() || c.is_ascii_whitespace() || matches!(c, b'_' | b'.' | b':' | b',')) => return false,
+                _ => {}
+            }
+            i += 1;
+        }
+        if !closed || !stack.is_empty() { return false; }
+        groups += 1;
+    }
+    true
+}
+
+fn documentation_above(lines: &[&str], declaration: usize, is_vb: bool) -> bool {
+    let mut bytes = 0usize;
+    for start in (declaration.saturating_sub(64)..declaration).rev() {
+        let line = lines[start];
+        bytes = bytes.saturating_add(line.len() + 1);
+        if bytes > 32 * 1024 { return false; }
+        if RE_AC_DOC_LINE.is_match(line) {
+            if line.trim_start().starts_with("'''") != is_vb { return false; }
+            return start + 1 == declaration
+                || documentation_attributes_only(&lines[start + 1..declaration].join("\n"), is_vb);
+        }
+    }
+    false
+}
+
+/// Use contiguous new-side hunk context, including unchanged attributes/docs.
+/// Disk context is usable only when every supplied new-side line agrees with it.
+fn documentation_context<'a>(df: &'a DiffFile) -> std::collections::BTreeMap<usize, &'a str> {
+    let mut candidate = std::collections::BTreeMap::<usize, &str>::new();
+    for hunk in &df.hunks {
+        let mut n = hunk.new_start;
+        for raw in &hunk.body {
+            if raw.starts_with('+') || raw.starts_with(' ') {
+                candidate.insert(n, &raw[1..]);
+                n += 1;
+            }
+        }
+    }
+    for (n, text) in &df.added_lines { candidate.insert(*n, text); }
+    candidate
+}
+
+fn documentation_disk_matches(candidate: &std::collections::BTreeMap<usize, &str>, disk: &[&str]) -> bool {
+    !candidate.is_empty() && candidate.iter().all(|(n, text)| {
+        n.checked_sub(1).and_then(|i| disk.get(i)).is_some_and(|line| line == text)
+    })
+}
+
+fn added_declaration_documented(candidate: &std::collections::BTreeMap<usize, &str>, disk: &[&str], disk_matches: bool, line_no: usize, is_vb: bool) -> bool {
+    let mut previous = Vec::new();
+    for n in (line_no.saturating_sub(64).max(1)..line_no).rev() {
+        let line = candidate.get(&n).copied().or_else(|| {
+            disk_matches.then(|| disk.get(n - 1).copied()).flatten()
+        });
+        let Some(line) = line else { break; };
+        previous.push(line);
+    }
+    previous.reverse();
+    documentation_above(&previous, previous.len(), is_vb)
+}
+
+#[cfg(test)]
+mod documentation_attribute_tests {
+    use super::*;
+    use crate::services::pre_commit_review_service::parse_unified_diff;
+
+    #[test]
+    fn documented_attributes_do_not_hide_vb_or_csharp_comments() {
+        for source in [
+            "''' <summary>Input.</summary>\n<Validator(GetType(InputValidator))>\nPublic Class Input",
+            "''' <summary>Input.</summary>\n<Validator(\n GetType(InputValidator))> _\n<Serializable>\nPublic Class Input",
+            "/// <summary>Input.</summary>\n[Validator(typeof(InputValidator))]\npublic class Input",
+            "/// <summary>Input.</summary>\n[Description(\"brackets ] > (\")]\n[Serializable]\npublic class Input",
+            "/// <summary>Input.</summary>\n[Validator(typeof(Dictionary<string, int>))]\npublic class Input",
+        ] {
+            assert_eq!(doc_coverage(source, if source.starts_with("'''") { "Input.vb" } else { "Input.cs" }), (1, 1), "{source}");
+        }
+    }
+
+    #[test]
+    fn documentation_cannot_cross_code_gaps_or_invalid_attribute_groups() {
+        for between in [
+            "End Function", "var x = 1;", "<Validator", "<>",
+            "[Validator] public void Previous() {}", "<Validator>\nEnd Class",
+            "[Validator(foo)]\n// unrelated comment", "<Validator>\nDim x = 1",
+        ] {
+            let source = format!("''' <summary>Other.</summary>\n{between}\nPublic Class Input");
+            let lines: Vec<_> = source.lines().collect();
+            assert!(!documentation_above(&lines, lines.len() - 1, true), "{source}");
+        }
+        assert!(!documentation_attributes_only("[Validator(call(])", false));
+        assert!(!documentation_attributes_only("<Validator> : Execute()", true));
+    }
+
+    #[test]
+    fn new_side_context_is_used_and_removed_docs_cannot_be_borrowed_from_disk() {
+        let diff = "diff --git a/Input.vb b/Input.vb\n--- a/Input.vb\n+++ b/Input.vb\n@@ -1,3 +1,3 @@\n ''' <summary>Input.</summary>\n <Validator(GetType(InputValidator))>\n-Friend Class Input\n+Public Class Input\n";
+        let parsed = parse_unified_diff(diff);
+        assert!(added_declaration_documented(&documentation_context(&parsed[0]), &[], false, 3, true));
+        let removed = "diff --git a/Input.vb b/Input.vb\n--- a/Input.vb\n+++ b/Input.vb\n@@ -1,3 +1,2 @@\n-''' <summary>Old.</summary>\n <Validator(GetType(InputValidator))>\n-Friend Class Input\n+Public Class Input\n";
+        let parsed = parse_unified_diff(removed);
+        let old = ["''' <summary>Old.</summary>", "<Validator(GetType(InputValidator))>", "Friend Class Input"];
+        assert!(!added_declaration_documented(&documentation_context(&parsed[0]), &old, documentation_disk_matches(&documentation_context(&parsed[0]), &old), 2, true));
+    }
+
+    #[test]
+    fn lookback_is_bounded_and_unattributed_docs_still_count() {
+        let too_many = format!("''' <summary>Input.</summary>\n{}Public Class Input", "<Serializable>\n".repeat(65));
+        assert_eq!(doc_coverage(&too_many, "Input.vb"), (0, 1));
+        assert_eq!(doc_coverage("''' <summary>Input.</summary>\nPublic Class Input", "Input.vb"), (1, 1));
+        assert_eq!(doc_coverage("<Serializable>\nPublic Class Input", "Input.vb"), (0, 1));
+    }
+
+    #[test]
+    fn compiler_observed_documentation_trivia_controls() {
+        { let source = "''' <summary>OWNER_SENTINEL</summary>\n<System.Serializable>\nPublic Class Sample\nEnd Class\n"; let lines: Vec<_> = source.lines().collect();
+          let declaration = lines.iter().rposition(|l| l.contains("class Sample") || l.contains("Class Sample")).unwrap();
+          assert_eq!(documentation_above(&lines, declaration, true), true, "vb attribute"); }
+        { let source = "''' <summary>OWNER_SENTINEL</summary>\n\n<System.Serializable>\nPublic Class Sample\nEnd Class\n"; let lines: Vec<_> = source.lines().collect();
+          let declaration = lines.iter().rposition(|l| l.contains("class Sample") || l.contains("Class Sample")).unwrap();
+          assert_eq!(documentation_above(&lines, declaration, true), true, "vb blank_before"); }
+        { let source = "''' <summary>OWNER_SENTINEL</summary>\n<System.Serializable>\n\nPublic Class Sample\nEnd Class\n"; let lines: Vec<_> = source.lines().collect();
+          let declaration = lines.iter().rposition(|l| l.contains("class Sample") || l.contains("Class Sample")).unwrap();
+          assert_eq!(documentation_above(&lines, declaration, true), false, "vb blank_after"); }
+        { let source = "''' <summary>OWNER_SENTINEL</summary>\n' ordinary trivia\n<System.Serializable>\nPublic Class Sample\nEnd Class\n"; let lines: Vec<_> = source.lines().collect();
+          let declaration = lines.iter().rposition(|l| l.contains("class Sample") || l.contains("Class Sample")).unwrap();
+          assert_eq!(documentation_above(&lines, declaration, true), false, "vb comment_before"); }
+        { let source = "''' <summary>OWNER_SENTINEL</summary>\n<System.Serializable>\n' ordinary trivia\nPublic Class Sample\nEnd Class\n"; let lines: Vec<_> = source.lines().collect();
+          let declaration = lines.iter().rposition(|l| l.contains("class Sample") || l.contains("Class Sample")).unwrap();
+          assert_eq!(documentation_above(&lines, declaration, true), false, "vb comment_after"); }
+        { let source = "''' <summary>OWNER_SENTINEL</summary>\n' ordinary trivia\nPublic Class Sample\nEnd Class\n"; let lines: Vec<_> = source.lines().collect();
+          let declaration = lines.iter().rposition(|l| l.contains("class Sample") || l.contains("Class Sample")).unwrap();
+          assert_eq!(documentation_above(&lines, declaration, true), false, "vb plain_comment"); }
+        { let source = "''' <summary>OWNER_SENTINEL</summary>\n\nPublic Class Sample\nEnd Class\n"; let lines: Vec<_> = source.lines().collect();
+          let declaration = lines.iter().rposition(|l| l.contains("class Sample") || l.contains("Class Sample")).unwrap();
+          assert_eq!(documentation_above(&lines, declaration, true), true, "vb plain_blank"); }
+        { let source = "''' <summary>OWNER_SENTINEL</summary>\nPublic Class Previous\nEnd Class\n<System.Serializable>\nPublic Class Sample\nEnd Class\n"; let lines: Vec<_> = source.lines().collect();
+          let declaration = lines.iter().rposition(|l| l.contains("class Sample") || l.contains("Class Sample")).unwrap();
+          assert_eq!(documentation_above(&lines, declaration, true), false, "vb intervening_declaration"); }
+        { let source = "/// <summary>OWNER_SENTINEL</summary>\n[System.Serializable]\npublic class Sample\n{}\n"; let lines: Vec<_> = source.lines().collect();
+          let declaration = lines.iter().rposition(|l| l.contains("class Sample") || l.contains("Class Sample")).unwrap();
+          assert_eq!(documentation_above(&lines, declaration, false), true, "cs attribute"); }
+        { let source = "/// <summary>OWNER_SENTINEL</summary>\n\n[System.Serializable]\npublic class Sample\n{}\n"; let lines: Vec<_> = source.lines().collect();
+          let declaration = lines.iter().rposition(|l| l.contains("class Sample") || l.contains("Class Sample")).unwrap();
+          assert_eq!(documentation_above(&lines, declaration, false), true, "cs blank_before"); }
+        { let source = "/// <summary>OWNER_SENTINEL</summary>\n[System.Serializable]\n\npublic class Sample\n{}\n"; let lines: Vec<_> = source.lines().collect();
+          let declaration = lines.iter().rposition(|l| l.contains("class Sample") || l.contains("Class Sample")).unwrap();
+          assert_eq!(documentation_above(&lines, declaration, false), true, "cs blank_after"); }
+        { let source = "/// <summary>OWNER_SENTINEL</summary>\n// ordinary trivia\n[System.Serializable]\npublic class Sample\n{}\n"; let lines: Vec<_> = source.lines().collect();
+          let declaration = lines.iter().rposition(|l| l.contains("class Sample") || l.contains("Class Sample")).unwrap();
+          assert_eq!(documentation_above(&lines, declaration, false), true, "cs comment_before"); }
+        { let source = "/// <summary>OWNER_SENTINEL</summary>\n[System.Serializable]\n// ordinary trivia\npublic class Sample\n{}\n"; let lines: Vec<_> = source.lines().collect();
+          let declaration = lines.iter().rposition(|l| l.contains("class Sample") || l.contains("Class Sample")).unwrap();
+          assert_eq!(documentation_above(&lines, declaration, false), true, "cs comment_after"); }
+        { let source = "/// <summary>OWNER_SENTINEL</summary>\n// ordinary trivia\npublic class Sample\n{}\n"; let lines: Vec<_> = source.lines().collect();
+          let declaration = lines.iter().rposition(|l| l.contains("class Sample") || l.contains("Class Sample")).unwrap();
+          assert_eq!(documentation_above(&lines, declaration, false), true, "cs plain_comment"); }
+        { let source = "/// <summary>OWNER_SENTINEL</summary>\n\npublic class Sample\n{}\n"; let lines: Vec<_> = source.lines().collect();
+          let declaration = lines.iter().rposition(|l| l.contains("class Sample") || l.contains("Class Sample")).unwrap();
+          assert_eq!(documentation_above(&lines, declaration, false), true, "cs plain_blank"); }
+        { let source = "/// <summary>OWNER_SENTINEL</summary>\npublic class Previous {}\n[System.Serializable]\npublic class Sample\n{}\n"; let lines: Vec<_> = source.lines().collect();
+          let declaration = lines.iter().rposition(|l| l.contains("class Sample") || l.contains("Class Sample")).unwrap();
+          assert_eq!(documentation_above(&lines, declaration, false), false, "cs intervening_declaration"); }
+        { let source = "''' <summary>OWNER_SENTINEL</summary>\n<System.Serializable> _\n\nPublic Class Sample\nEnd Class\n"; let lines: Vec<_> = source.lines().collect();
+          let declaration = lines.iter().rposition(|l| l.contains("class Sample") || l.contains("Class Sample")).unwrap();
+          assert_eq!(documentation_above(&lines, declaration, true), false, "vb continued_blank"); }
+        { let source = "''' <summary>OWNER_SENTINEL</summary>\n<System.Serializable> _\n' ordinary trivia\nPublic Class Sample\nEnd Class\n"; let lines: Vec<_> = source.lines().collect();
+          let declaration = lines.iter().rposition(|l| l.contains("class Sample") || l.contains("Class Sample")).unwrap();
+          assert_eq!(documentation_above(&lines, declaration, true), false, "vb continued_comment"); }
+        { let source = "''' <summary>OWNER_SENTINEL</summary>\n<System.Serializable> ' ordinary trivia\nPublic Class Sample\nEnd Class\n"; let lines: Vec<_> = source.lines().collect();
+          let declaration = lines.iter().rposition(|l| l.contains("class Sample") || l.contains("Class Sample")).unwrap();
+          assert_eq!(documentation_above(&lines, declaration, true), false, "vb attribute_inline_comment"); }
+        { let source = "''' <summary>OWNER_SENTINEL</summary>\nRem ordinary trivia\nPublic Class Sample\nEnd Class\n"; let lines: Vec<_> = source.lines().collect();
+          let declaration = lines.iter().rposition(|l| l.contains("class Sample") || l.contains("Class Sample")).unwrap();
+          assert_eq!(documentation_above(&lines, declaration, true), false, "vb plain_rem"); }
+        assert_eq!(doc_coverage("/// <summary>Wrong language.</summary>\nPublic Class Input", "Input.vb"), (0, 1));
+        assert_eq!(doc_coverage("''' <summary>Wrong language.</summary>\npublic class Input", "Input.cs"), (0, 1));
     }
 }

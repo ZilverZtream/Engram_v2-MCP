@@ -525,6 +525,7 @@ pub async fn enhance_report_with_llm(
                         file_path,
                         class_name: String::new(),
                         file_purpose: String::new(),
+                        file_purpose_evidence: None,
                         methods: Vec::new(),
                         analyzed_at: String::new(),
                     },
@@ -569,9 +570,9 @@ pub async fn enhance_report_with_llm(
     for file_summary in &mut report.business_logic.file_summaries {
         if let Some(llm_file) = llm_results.get(&file_summary.file_path) {
             // Update file-level purpose
-            if !llm_file.file_purpose.is_empty() {
-                file_summary.file_purpose = llm_file.file_purpose.clone();
-            }
+            // Keep text and status/provenance together, including failed attempts.
+            file_summary.file_purpose = llm_file.file_purpose.clone();
+            file_summary.file_purpose_evidence = llm_file.file_purpose_evidence.clone();
 
             // For each method, try to find the LLM version and validate
             for det_method in &mut file_summary.methods {
@@ -580,7 +581,7 @@ pub async fn enhance_report_with_llm(
                     .iter()
                     .find(|m| m.method_name == det_method.method_name)
                 {
-                    if llm_method.purpose.is_empty() {
+                    if llm_method.purpose.is_empty() || !llm_method.parse_diagnostic.is_empty() {
                         // LLM failed for this method, keep deterministic
                         continue;
                     }

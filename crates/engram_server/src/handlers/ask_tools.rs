@@ -21,6 +21,47 @@ pub fn insights_enabled(req: &crate::models::AskCodebaseRequest) -> bool {
     req.include_insights.unwrap_or(false)
 }
 
+/// Apply the same persisted-rule/source-version check as query_business_logic.
+pub(crate) fn verify_business_sources(
+    search: &engram_index::HybridSearchEngine,
+    root: &std::path::Path,
+    project_id: &str,
+    items: &mut [crate::services::ask_engine::evidence::EvidenceItem],
+) -> Result<usize, String> {
+    use crate::services::ask_engine::evidence::Authority;
+    let mut audit = super::business_source::SourceAudit::default();
+    let mut unverified = 0;
+    for item in items {
+        let status = match item.document_id.as_deref() {
+            Some(id) => match search
+                .get_doc_by_doc_id(project_id, "business_logic", 0, id)
+                .map_err(|error| error.to_string())?
+            {
+                Some((_, _, document, _, _)) => {
+                    item.warnings.extend(audit.qualifications(&document, root));
+                    item.warnings.push(format!("full_document: get_chunk({})", serde_json::json!({"project_id":project_id,"namespace":"business_logic","doc_id":id})));
+                    item.warnings.extend(super::business_source::claim_review_guidance(project_id, id, &document));
+                    item.content = super::business_source::substantive_excerpt(&document);
+                    audit.describe(&document, root)
+                }
+                None => "UNVERIFIED: full business-rule document unavailable".into(),
+            },
+            None => "UNVERIFIED: business-rule document identity unavailable".into(),
+        };
+        if !status.starts_with("VERIFIED_METHOD_HASH:") {
+            unverified += 1;
+            item.confidence = item.confidence.min(0.35);
+            item.warnings.push(status.clone());
+            if status.starts_with("STALE:") {
+                item.confidence = item.confidence.min(0.15);
+                item.authority = Authority::SemanticSimilarity;
+            }
+        }
+        item.source_verification = Some(status);
+    }
+    Ok(unverified)
+}
+
 impl Engram {
     pub async fn handle_ask_codebase(
         &self,

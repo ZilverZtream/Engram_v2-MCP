@@ -38,6 +38,24 @@ pub fn coverage_gaps(
     providers: &[ProviderReport],
 ) -> Vec<String> {
     let mut gaps = Vec::new();
+    if !plan.contract.behavior_requirements.is_empty() {
+        let operations = plan
+            .contract
+            .behavior_requirements
+            .iter()
+            .map(|op| op.label())
+            .collect::<Vec<_>>()
+            .join(", ");
+        let scope = plan
+            .contract
+            .behavior_scope_context
+            .as_deref()
+            .map(|context| format!(" ({context})"))
+            .unwrap_or_default();
+        gaps.push(format!(
+            "unverified behavior coverage: {operations}{scope}; retrieved evidence has not been verified for each requested operation and scope"
+        ));
+    }
     for k in &plan.needed_evidence {
         if !evidence.iter().any(|e| e.kind == *k) {
             gaps.push(format!("no {} evidence found", kind_label(*k)));
@@ -111,7 +129,9 @@ pub fn next_best(plan: &QueryPlan, evidence: &[EvidenceItem], status: AnswerStat
         ),
         _ => {}
     }
-    if let Some(top) = evidence.first() {
+    if !plan.contract.behavior_requirements.is_empty() {
+        out.push("For each requested operation and scope, use grep_project or search_memory to locate implementation symbols, then get_full_method_body to inspect their behavior and validation paths; names and keyword matches do not verify coverage.".into());
+    } else if let Some(top) = evidence.first() {
         if let Some(p) = &top.path {
             out.push(format!(
                 "get_chunk / get_full_method_body on {p} for the full text"
@@ -300,10 +320,31 @@ pub fn render_markdown(r: &AskReport) -> String {
             e.provider,
             e.score.unwrap_or(0.0)
         );
-        let snippet: String = e.content.chars().take(200).collect();
+        // Business excerpts already carry a bounded claim/qualification view.
+        // A second 200-character crop can show only its disclaimer and hide
+        // every retrieved rule. Retain that view, including its recovery marker.
+        let snippet_limit = if e.document_namespace.as_deref() == Some("business_logic") { 1400 } else { 200 };
+        let mut snippet: String = e.content.chars().take(snippet_limit).collect();
+        if e.content.chars().count() > snippet_limit {
+            snippet.push_str(" [excerpt shortened]");
+        }
         let snippet = snippet.replace('\n', " ");
         if !snippet.trim().is_empty() {
             let _ = writeln!(s, "  {}", snippet.trim());
+        }
+        if let Some(status) = &e.source_verification {
+            let _ = writeln!(s, "  Source: {status}");
+        }
+        for warning in &e.warnings {
+            if e.source_verification.as_ref() != Some(warning) {
+                let _ = writeln!(s, "  Warning: {warning}");
+            }
+        }
+        if let (Some(id), Some(namespace)) = (&e.document_id, &e.document_namespace) {
+            let _ = writeln!(
+                s,
+                "  Full evidence: get_chunk(doc_id=\"{id}\", namespace=\"{namespace}\")"
+            );
         }
     }
 

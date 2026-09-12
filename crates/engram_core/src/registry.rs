@@ -573,6 +573,22 @@ impl Registry {
         Ok(())
     }
 
+    /// Atomically replace metadata only if its current value matches the snapshot.
+    pub fn compare_exchange_meta(&self, project_id: &str, key: &str, expected: Option<&str>, value: &str) -> anyhow::Result<bool> {
+        vk("project_id", project_id)?;
+        vk("key", key)?;
+        let k = format!("{project_id}\0{key}");
+        let wtx = self.db.begin_write()?;
+        {
+            let mut table = wtx.open_table(META)?;
+            let matches = table.get(k.as_str())?.as_ref().map(|v| v.value()) == expected.map(str::as_bytes);
+            if !matches { return Ok(false); }
+            table.insert(k.as_str(), value.as_bytes())?;
+        }
+        wtx.commit()?;
+        Ok(true)
+    }
+
     pub fn get_meta(&self, project_id: &str, key: &str) -> anyhow::Result<Option<String>> {
         vk("project_id", project_id)?;
         vk("key", key)?;
@@ -591,6 +607,26 @@ impl Registry {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn metadata_compare_exchange_has_one_concurrent_winner() {
+        let tmp = tempdir().unwrap();
+        let registry = Registry::open(&tmp.path().join("registry.redb")).unwrap();
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+        let handles: Vec<_> = ["worker-a", "worker-b"].into_iter().map(|value| {
+            let registry = registry.clone();
+            let barrier = barrier.clone();
+            std::thread::spawn(move || {
+                barrier.wait();
+                registry.compare_exchange_meta("project", "session", None, value).unwrap()
+            })
+        }).collect();
+        assert_eq!(handles.into_iter().map(|h| usize::from(h.join().unwrap())).sum::<usize>(), 1);
+        let current = registry.get_meta("project", "session").unwrap().unwrap();
+        assert!(!registry.compare_exchange_meta("project", "session", Some("stale"), "lost").unwrap());
+        assert!(registry.compare_exchange_meta("project", "session", Some(&current), "consumed").unwrap());
+        assert_eq!(registry.get_meta("project", "session").unwrap().as_deref(), Some("consumed"));
+    }
 
     #[test]
     fn test_cleanup_orphaned_jobs() {

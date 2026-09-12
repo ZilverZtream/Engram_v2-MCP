@@ -3,6 +3,81 @@ use std::sync::LazyLock;
 use streaming_iterator::StreamingIterator;
 use tree_sitter::{Parser, Query, QueryCursor};
 
+/// Ordinary JS/TS quoted strings only. None means unsupported, malformed or
+/// over budget; callers must not fall back to counting punctuation as strings.
+/// This source-only inventory is independent of indexed symbols or ingestion.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct JsQuotedString {
+    pub quote: char,
+    pub start_byte: usize,
+    pub end_byte: usize,
+    pub start_line: u32,
+    pub end_line: u32,
+}
+
+pub fn js_quoted_strings(path: &Path, content: &str) -> Option<Vec<JsQuotedString>> {
+    if content.len() > 8 * 1024 * 1024 {
+        return None;
+    }
+    let ext = path.extension()?.to_str()?.to_ascii_lowercase();
+    let language = match ext.as_str() {
+        "ts" => tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
+        "tsx" => tree_sitter_typescript::LANGUAGE_TSX.into(),
+        "js" | "jsx" | "mjs" => tree_sitter_javascript::LANGUAGE.into(),
+        _ => return None,
+    };
+    let mut parser = Parser::new();
+    parser.set_language(&language).ok()?;
+    let tree = parser.parse(content, None)?;
+    // A recovered parse can misinterpret a quote/comment boundary. Conservatively
+    // decline this quote-only check for the whole malformed file, not other gates.
+    if tree.root_node().has_error() {
+        return None;
+    }
+    let mut stack = vec![tree.root_node()];
+    let mut visited = 0;
+    let mut strings = Vec::new();
+    while let Some(node) = stack.pop() {
+        visited += 1;
+        if visited > 200_000 {
+            return None;
+        }
+        if node.is_error() || node.is_missing() {
+            return None;
+        }
+        if node.kind() == "string" {
+            // JSX attribute delimiters are markup, unlike a real JS string
+            // nested inside an attribute's {expression}.
+            if node.parent().is_some_and(|p| p.kind() == "jsx_attribute") {
+                continue;
+            }
+            let raw = content.as_bytes().get(node.start_byte()..node.end_byte())?;
+            let quote = *raw.first()?;
+            if matches!(quote, b'\'' | b'"') && raw.last() == Some(&quote) {
+                strings.push(JsQuotedString {
+                    quote: quote as char,
+                    start_byte: node.start_byte(),
+                    end_byte: node.end_byte(),
+                    start_line: (node.start_position().row + 1) as u32,
+                    end_line: (node.end_position().row + 1) as u32,
+                });
+                if strings.len() > 50_000 {
+                    return None;
+                }
+            }
+            continue;
+        }
+        // Comments, regex and template text are never ordinary string nodes;
+        // walking template substitutions still includes their actual strings.
+        for index in (0..node.child_count()).rev() {
+            if let Some(child) = node.child(index) {
+                stack.push(child);
+            }
+        }
+    }
+    Some(strings)
+}
+
 #[derive(Debug, Clone)]
 pub struct ExtractedSymbol {
     pub name: String,
@@ -25,9 +100,43 @@ pub struct ExtractedEdge {
     pub metadata: Option<std::collections::HashMap<String, String>>,
 }
 
-/// Fully-qualified name table: maps `short_name` → `fqn`.
-/// Built during Pass 1 of two-pass call graph extraction.
-type FqnTable = std::collections::HashMap<String, String>;
+/// Declaration identities are keyed by the identifier's source position.
+/// Short-name call lookup is available only when all declarations agree.
+#[derive(Default)]
+struct FqnTable {
+    declarations: std::collections::HashMap<usize, String>,
+    names: std::collections::HashMap<String, Option<String>>,
+}
+
+impl FqnTable {
+    fn new() -> Self {
+        Self::default()
+    }
+
+    fn insert(&mut self, name: String, fqn: String, position: usize) {
+        self.declarations.insert(position, fqn.clone());
+        self.names
+            .entry(name)
+            .and_modify(|existing| {
+                if existing.as_ref() != Some(&fqn) {
+                    *existing = None;
+                }
+            })
+            .or_insert(Some(fqn));
+    }
+
+    fn get(&self, name: &str) -> Option<&String> {
+        self.names.get(name).and_then(Option::as_ref)
+    }
+
+    fn declaration(&self, position: usize) -> Option<&String> {
+        self.declarations.get(&position)
+    }
+
+    fn len(&self) -> usize {
+        self.declarations.len()
+    }
+}
 
 /// True when a trimmed line starts with a comment marker in any of the
 /// languages this indexer handles (VB `'`, C-family `//`/`/*`/`*`,
@@ -321,6 +430,7 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
         &cs_lang,
         r#"
         (method_declaration name: (identifier) @name) @func
+        (property_declaration name: (identifier) @name) @property
         (class_declaration name: (identifier) @name) @class
         (interface_declaration name: (identifier) @name) @class
         (struct_declaration name: (identifier) @name) @class
@@ -370,6 +480,7 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
         (class_declaration name: (identifier) @class)
         (interface_declaration name: (identifier) @class)
         (method_declaration name: (identifier) @method)
+        (property_declaration name: (identifier) @method)
         "#,
     )
     .ok();
@@ -635,7 +746,7 @@ impl SymbolExtractor {
                         } else {
                             format!("{}.{}", namespace, current_class)
                         };
-                        table.insert(current_class.clone(), fqn);
+                        table.insert(current_class.clone(), fqn, node_start);
                         let end_byte = cap
                             .node
                             .parent()
@@ -663,7 +774,7 @@ impl SymbolExtractor {
                         } else {
                             format!("{}.{}.{}", namespace, current_class, short)
                         };
-                        table.insert(short, fqn);
+                        table.insert(short, fqn, node_start);
                     }
                     _ => {}
                 }
@@ -913,6 +1024,7 @@ impl SymbolExtractor {
 
                 let kind: &'static str = match tag {
                     "func" => "function",
+                    "property" => "property",
                     "class" => "class",
                     "struct" => "class",
                     "impl" => "impl",
@@ -928,8 +1040,10 @@ impl SymbolExtractor {
 
                 // Find the name sibling/child in THIS match
                 let mut name = "anonymous".to_string();
+                let mut name_position = None;
                 for sibling_capture in match_.captures {
                     if query.capture_names()[sibling_capture.index as usize] == "name" {
+                        name_position = Some(sibling_capture.node.start_byte());
                         name = content
                             [sibling_capture.node.start_byte()..sibling_capture.node.end_byte()]
                             .to_string();
@@ -940,7 +1054,8 @@ impl SymbolExtractor {
                 let start_line = (node.start_position().row + 1) as u32;
 
                 let mut meta = std::collections::HashMap::new();
-                if let Some(fqn) = fqn_table.get(&name) {
+                let declaration_fqn = name_position.and_then(|pos| fqn_table.declaration(pos));
+                if let Some(fqn) = declaration_fqn {
                     meta.insert("fqn".into(), fqn.clone());
                 }
                 if is_designer && kind == "control_ref" {
@@ -987,7 +1102,7 @@ impl SymbolExtractor {
                         .rev()
                         .find(|(s, e, _, _, _, _)| *s <= node.start_byte() && *e >= node.end_byte())
                 {
-                    let target_fqn = fqn_table.get(&name).cloned();
+                    let target_fqn = declaration_fqn.cloned();
                     edges.push(ExtractedEdge {
                         source_name: parent_fqn.as_ref().unwrap_or(parent_name).clone(),
                         source_kind: parent_kind.to_string(),
@@ -1001,14 +1116,14 @@ impl SymbolExtractor {
                     });
                 }
 
-                if matches!(tag, "func" | "class" | "struct" | "impl") {
+                if matches!(tag, "func" | "property" | "class" | "struct" | "impl") {
                     symbol_ranges.push((
                         node.start_byte(),
                         node.end_byte(),
                         name.clone(),
                         kind,
                         start_line,
-                        fqn_table.get(&name).cloned(),
+                        declaration_fqn.cloned(),
                     ));
                 }
             }
@@ -1466,4 +1581,98 @@ mod query_compile_tests {
         assert!(q.ts_ns.is_some(), "typescript ns query failed to compile");
         assert!(q.js_ns.is_some(), "javascript ns query failed to compile");
     }
+}
+
+/// Resolve the C# declaring type by syntax ancestry, not a short-name table
+/// (which can collide across namespaces and overloads).
+pub fn csharp_declaring_owner(content: &str, line: u32) -> Option<String> {
+    let mut parser = Parser::new();
+    parser
+        .set_language(&tree_sitter_c_sharp::LANGUAGE.into())
+        .ok()?;
+    let tree = parser.parse(content, None)?;
+    let offset = content
+        .split_inclusive('\n')
+        .take(line.saturating_sub(1) as usize)
+        .map(str::len)
+        .sum::<usize>();
+    let end = content[offset.min(content.len())..]
+        .find('\n')
+        .map_or(content.len(), |n| offset + n);
+    // Use the first non-whitespace byte, inside the declaration itself.
+    let offset =
+        offset + content.get(offset..end)?.len() - content.get(offset..end)?.trim_start().len();
+    let node = tree.root_node().descendant_for_byte_range(offset, offset)?;
+    csharp_syntax_owner(content, tree.root_node(), node)
+}
+
+fn csharp_syntax_owner(content: &str, root: tree_sitter::Node<'_>, mut node: tree_sitter::Node<'_>) -> Option<String> {
+    let mut parts = Vec::new();
+    loop {
+        if matches!(
+            node.kind(),
+            "class_declaration"
+                | "struct_declaration"
+                | "interface_declaration"
+                | "record_declaration"
+                | "namespace_declaration"
+        ) {
+            if let Some(name) = node.child_by_field_name("name") {
+                parts.push(content[name.byte_range()].to_string());
+            }
+        }
+        let Some(parent) = node.parent() else {
+            break;
+        };
+        node = parent;
+    }
+    parts.reverse();
+    let mut cursor = root.walk();
+    if let Some(ns) = root
+        .named_children(&mut cursor)
+        .find(|n| n.kind() == "file_scoped_namespace_declaration")
+    {
+        if let Some(name) = ns.child_by_field_name("name") {
+            parts.insert(0, content[name.byte_range()].to_string());
+        }
+    }
+    (!parts.is_empty()).then(|| parts.join("."))
+}
+
+/// Complete method declarations with executable bodies. Syntax ranges preserve
+/// compact declarations, generic return types and braces inside literals.
+pub struct CsharpMethodDeclaration {
+    pub name: String,
+    pub owner: String,
+    pub body: String,
+    pub start_line: u32,
+}
+
+pub fn csharp_method_declarations(content: &str) -> Vec<CsharpMethodDeclaration> {
+    let mut parser = Parser::new();
+    if parser.set_language(&tree_sitter_c_sharp::LANGUAGE.into()).is_err() {
+        return Vec::new();
+    }
+    let Some(tree) = parser.parse(content, None) else { return Vec::new(); };
+    let mut pending = vec![tree.root_node()];
+    let mut result = Vec::new();
+    while let Some(node) = pending.pop() {
+        if node.kind() == "method_declaration" && !node.has_error()
+            && node.child_by_field_name("body").is_some()
+        {
+            if let Some(name) = node.child_by_field_name("name") {
+                result.push(CsharpMethodDeclaration {
+                    name: content[name.byte_range()].to_string(),
+                    owner: csharp_syntax_owner(content, tree.root_node(), node)
+                        .unwrap_or_else(|| "UnknownClass".into()),
+                    body: content[node.byte_range()].to_string(),
+                    start_line: node.start_position().row as u32 + 1,
+                });
+            }
+        }
+        let mut cursor = node.walk();
+        let children: Vec<_> = node.named_children(&mut cursor).collect();
+        pending.extend(children.into_iter().rev());
+    }
+    result
 }

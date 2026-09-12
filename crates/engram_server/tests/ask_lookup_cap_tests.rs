@@ -45,6 +45,9 @@ fn the_item_with_every_asked_term_outranks_a_single_term_swarm() {
     use engram_server::services::ask_engine::evidence as ev;
     let mk = |id: &str, content: &str, relevance: f32, directness: f32| ev::EvidenceItem {
         evidence_id: id.to_string(),
+        document_id: None,
+        document_namespace: None,
+        source_verification: None,
         kind: ev::EvidenceKind::SourceCode,
         authority: ev::Authority::CurrentCode,
         path: Some(format!("{id}.vb")),
@@ -89,6 +92,9 @@ fn anchored_retain_keeps_only_items_that_mention_the_entity() {
     use engram_server::services::ask_engine::evidence as ev;
     let mk = |id: &str, path: &str, content: &str| ev::EvidenceItem {
         evidence_id: id.to_string(),
+        document_id: None,
+        document_namespace: None,
+        source_verification: None,
         kind: ev::EvidenceKind::SourceCode,
         authority: ev::Authority::CurrentCode,
         path: Some(path.to_string()),
@@ -191,6 +197,9 @@ fn a_reserve_protected_item_survives_the_trims() {
     use engram_server::services::ask_engine::evidence as ev;
     let mk = |id: &str, path: &str, content: &str| ev::EvidenceItem {
         evidence_id: id.to_string(),
+        document_id: None,
+        document_namespace: None,
+        source_verification: None,
         kind: ev::EvidenceKind::SourceCode,
         authority: ev::Authority::CurrentCode,
         path: Some(path.to_string()),
@@ -287,6 +296,9 @@ fn path_scoped_retain_keeps_only_the_scope_and_never_empties() {
     use engram_server::services::ask_engine::evidence as ev;
     let mk = |id: &str, path: &str| ev::EvidenceItem {
         evidence_id: id.to_string(),
+        document_id: None,
+        document_namespace: None,
+        source_verification: None,
         kind: ev::EvidenceKind::SourceCode,
         authority: ev::Authority::CurrentCode,
         path: Some(path.to_string()),
@@ -359,6 +371,9 @@ fn a_language_name_is_covered_by_evidence_in_that_language() {
     use engram_server::services::ask_engine::status;
     let mk = |id: &str, path: &str, content: &str| ev::EvidenceItem {
         evidence_id: id.to_string(),
+        document_id: None,
+        document_namespace: None,
+        source_verification: None,
         kind: ev::EvidenceKind::SourceCode,
         authority: ev::Authority::CurrentCode,
         path: Some(path.to_string()),
@@ -582,6 +597,9 @@ fn c2_item(
     use engram_server::services::ask_engine::evidence as ev;
     ev::EvidenceItem {
         evidence_id: format!("c2_{provider}_{i}"),
+        document_id: None,
+        document_namespace: None,
+        source_verification: None,
         kind: if provider == "callee_set" {
             ev::EvidenceKind::GraphRelation
         } else {
@@ -702,6 +720,9 @@ fn d_item(kind_def: bool) -> engram_server::services::ask_engine::evidence::Evid
     use engram_server::services::ask_engine::evidence as ev;
     ev::EvidenceItem {
         evidence_id: "d1".to_string(),
+        document_id: None,
+        document_namespace: None,
+        source_verification: None,
         kind: if kind_def {
             ev::EvidenceKind::SourceCode
         } else {
@@ -1177,6 +1198,9 @@ fn one_item_per_path_after_the_lookup_trim() {
     use engram_server::services::ask_engine::evidence as ev;
     let mk = |id: &str, path: &str| ev::EvidenceItem {
         evidence_id: id.to_string(),
+        document_id: None,
+        document_namespace: None,
+        source_verification: None,
         kind: ev::EvidenceKind::SourceCode,
         authority: ev::Authority::CurrentCode,
         path: Some(path.to_string()),

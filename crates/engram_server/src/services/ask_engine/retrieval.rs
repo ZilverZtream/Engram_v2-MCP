@@ -79,17 +79,62 @@ fn search_arm(
     cancel: CancellationToken,
 ) -> ArmFuture {
     let search = ctx.search.clone();
+    let registry = ctx.registry.clone();
     let pid = ctx.project_id.clone();
     let gen_ = generation;
     let q = question.to_string();
     Box::pin(async move {
         let fut = async move {
             let mut id = 0usize;
-            let (items, out) = providers::knowledge_evidence(
+            let (mut items, mut out) = providers::knowledge_evidence(
                 &search, &pid, gen_, namespace, kind, authority, provider, &q, top_k, &scopes,
                 &cancel, &mut id,
             )
             .await;
+            if kind == EvidenceKind::BusinessRule && !items.is_empty() {
+                let checked = tokio::task::spawn_blocking(move || -> Result<_, String> {
+                    let project = registry
+                        .get_project(&pid)
+                        .map_err(|error| error.to_string())?
+                        .ok_or_else(|| {
+                            "project unavailable for rule source verification".to_string()
+                        })?;
+                    let unverified = crate::handlers::ask_tools::verify_business_sources(
+                        &search,
+                        std::path::Path::new(&project.directory),
+                        &pid,
+                        &mut items,
+                    )?;
+                    Ok((items, unverified))
+                })
+                .await;
+                match checked {
+                    Ok(Ok((checked, unverified))) => {
+                        items = checked;
+                        if unverified > 0 {
+                            out.note = Some(format!(
+                                "{unverified} business-rule packs have stale or unverified source versions; inspect evidence warnings"
+                            ));
+                        }
+                    }
+                    Ok(Err(error)) => {
+                        return (
+                            provider.to_string(),
+                            vec![],
+                            providers::ProviderOutcome::failed(error),
+                        );
+                    }
+                    Err(error) => {
+                        return (
+                            provider.to_string(),
+                            vec![],
+                            providers::ProviderOutcome::failed(format!(
+                                "rule source verification task failed: {error}"
+                            )),
+                        );
+                    }
+                }
+            }
             (provider.to_string(), items, out)
         };
         match tokio::time::timeout(deadline, fut).await {

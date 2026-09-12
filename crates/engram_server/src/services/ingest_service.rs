@@ -2,6 +2,60 @@ use crate::state::AppState;
 use crate::utils::now_ms;
 use engram_core::memory::{AllocationGuard, Subsystem};
 
+/// Restore canonical DDL links on indexes built before database endpoints
+/// used the same identities as database nodes. Does not rebuild code or
+/// advance index freshness; all evidence comes from already stored DDL.
+pub fn repair_schema_links(
+    graph: &engram_graph::GraphStore,
+    project_id: &str,
+) -> anyhow::Result<usize> {
+    let tables = graph.query_nodes(project_id, Some("db_table"), None, None, 20_001)?;
+    anyhow::ensure!(
+        tables.len() <= 20_000,
+        "schema repair exceeded 20000 table cap; no links repaired"
+    );
+    let mut edges = Vec::new();
+    for table in tables {
+        let Some(ddl) = table
+            .metadata
+            .as_ref()
+            .and_then(|m| m.get("ddl"))
+            .and_then(|v| v.as_str())
+        else {
+            continue;
+        };
+        let (_, extracted) = engram_index::ddl_extractor::extract_ddl(&table.file_path, ddl);
+        for edge in extracted {
+            let (source_id, target_id, edge_kind) = match edge.kind.as_str() {
+                "has_column" => (
+                    engram_core::ids::NodeId::table(&edge.source_name).0,
+                    engram_core::ids::NodeId::column(&edge.source_name, &edge.target_name).0,
+                    engram_graph::EdgeKind::HasColumn,
+                ),
+                "foreign_key" => (
+                    edge.source_name,
+                    edge.target_name,
+                    engram_graph::EdgeKind::ForeignKey,
+                ),
+                _ => continue,
+            };
+            edges.push(engram_graph::Edge {
+                source_id,
+                target_id,
+                edge_kind,
+                namespace: "sql".into(),
+                language: "sql".into(),
+                weight: 1,
+                generation: table.generation,
+                updated_at_ms: now_ms(),
+                metadata: edge.metadata.map(serde_json::to_value).transpose()?,
+            });
+        }
+    }
+    graph.upsert_edges(project_id, &edges)?;
+    Ok(edges.len())
+}
+
 fn is_safe_project_relative_path(path: &str) -> bool {
     let p = std::path::Path::new(path);
     if path.is_empty() || p.is_absolute() || path.contains('\0') {
@@ -107,6 +161,7 @@ pub async fn process_ingest_stats(
                 "mtime": fp.mtime_ms / 1000,
                 "size": fp.size,
                 "file_hash": fp.file_hash,
+                "source_index_version": engram_index::SOURCE_INDEX_VERSION,
             }));
         }
 
@@ -339,7 +394,9 @@ pub async fn process_ingest_stats(
         "control_layout",
     ];
     // (path, kind, name, line, arity, language of the declaring file)
-    type SymEntry<'a> = (&'a str, &'a str, &'a str, u32, Option<u32>, &'static str);
+    // Declared, minimum required, and variadic parameter counts.
+    type Arity = (u32, u32, bool);
+    type SymEntry<'a> = (&'a str, &'a str, &'a str, u32, Option<Arity>, &'static str, Option<&'a str>);
     let mut symbols_by_name: std::collections::HashMap<&str, Vec<SymEntry>> =
         std::collections::HashMap::new();
     for (sym_path, sym) in &stats.symbols {
@@ -350,7 +407,22 @@ pub async fn process_ingest_stats(
             .metadata
             .as_ref()
             .and_then(|m| m.get("arity"))
-            .and_then(|s| s.parse::<u32>().ok());
+            .and_then(|s| s.parse::<u32>().ok())
+            .map(|declared| {
+                let minimum = sym
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.get("arity_min"))
+                    .and_then(|s| s.parse::<u32>().ok())
+                    .unwrap_or(declared)
+                    .min(declared);
+                let variadic = sym
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.get("arity_variadic"))
+                    .is_some_and(|s| s == "true");
+                (declared, minimum, variadic)
+            });
         let sym_lang = engram_core::guess_language(std::path::Path::new(sym_path.as_str()));
         let entry: SymEntry = (
             sym_path.as_str(),
@@ -359,11 +431,19 @@ pub async fn process_ingest_stats(
             sym.start_line,
             arity,
             sym_lang,
+            sym.metadata.as_ref().and_then(|metadata| metadata.get("fqn")).map(String::as_str),
         );
         symbols_by_name
             .entry(sym.name.as_str())
             .or_default()
             .push(entry);
+        // C#/tree-sitter nodes keep a bare name while their extractor edges
+        // carry the declaring FQN. Preserve that corroborated identity; a
+        // qualified source/target must not become an orphan just because the
+        // symbol's display name is unqualified.
+        if let Some(fqn) = entry.6.filter(|fqn| *fqn != sym.name.as_str()) {
+            symbols_by_name.entry(fqn).or_default().push(entry);
+        }
         // FQN-named symbols are also reachable via their terminal segment.
         if let Some(term) = sym.name.rsplit('.').next()
             && term != sym.name
@@ -404,28 +484,64 @@ pub async fn process_ingest_stats(
         let raw = raw.split('(').next().unwrap_or(raw).trim_end();
         let terminal = raw.rsplit('.').next().unwrap_or(raw);
         for key in [raw, terminal] {
+            // Constructors must retain their declaring type. A terminal `New`
+            // match could bind an external allocation to an unrelated local type.
+            if terminal.eq_ignore_ascii_case("new") && key != raw {
+                continue;
+            }
             let via_terminal = !std::ptr::eq(key, raw) && key != raw;
             let Some(cands) = symbols_by_name.get(key) else {
                 continue;
             };
+            // A qualified call retains its receiver. Terminal lookup may find
+            // namespace-prefixed definitions, but cannot substitute another type.
+            let suffix = format!(".{raw}");
+            let cands: Vec<SymEntry> = cands
+                .iter()
+                .copied()
+                .filter(|c| !raw.contains('.') || c.2 == raw || c.2.ends_with(&suffix)
+                    || c.6.is_some_and(|fqn| fqn == raw || fqn.ends_with(&suffix)))
+                .collect();
             let kind_ok = |c: &SymEntry| prefer_kind.is_none_or(|k| c.1.eq_ignore_ascii_case(k));
             // TODO-13: a candidate matches arity when both sides know it.
             let arity_ok = |c: &SymEntry| match (prefer_arity, c.4) {
-                (Some(want), Some(have)) => want == have,
+                (Some(want), Some((declared, minimum, variadic))) => {
+                    want >= minimum && (variadic || want <= declared)
+                }
                 _ => false,
             };
             let same_file: Vec<&SymEntry> = cands.iter().filter(|c| c.0 == prefer_path).collect();
             // Same-file overloads: an arity match beats the first name hit.
             let crosses = |c: &SymEntry| -> bool { c.5 != caller_lang };
-            if same_file.len() > 1
-                && let Some(c) = same_file.iter().find(|c| kind_ok(c) && arity_ok(c))
-            {
-                return Some((
-                    rebuild_symbol_id(**c),
-                    0.92,
-                    "batch_same_file_arity",
-                    crosses(c),
-                ));
+            if same_file.len() > 1 {
+                let mut matching: Vec<_> = same_file
+                    .iter()
+                    .filter(|c| kind_ok(c) && arity_ok(c))
+                    .collect();
+                let exact: Vec<_> = matching
+                    .iter()
+                    .copied()
+                    .filter(|c| {
+                        c.4.is_some_and(|(count, _, variadic)| {
+                            !variadic && Some(count) == prefer_arity
+                        })
+                    })
+                    .collect();
+                if !exact.is_empty() {
+                    matching = exact;
+                }
+                if matching.len() == 1 {
+                    let c = matching[0];
+                    return Some((
+                        rebuild_symbol_id(**c),
+                        0.92,
+                        "batch_same_file_arity",
+                        crosses(c),
+                    ));
+                }
+                // A filename is not enough to select among overloads. Preserve
+                // the unresolved target instead of crediting an arbitrary one.
+                return None;
             }
             if let Some(c) = same_file
                 .iter()
@@ -443,8 +559,20 @@ pub async fn process_ingest_stats(
             // Cross-file: exactly one arity-matching candidate wins over an
             // otherwise-ambiguous set.
             if kind_matches.len() > 1 {
-                let arity_matches: Vec<&&SymEntry> =
+                let mut arity_matches: Vec<&&SymEntry> =
                     kind_matches.iter().filter(|c| arity_ok(c)).collect();
+                let exact: Vec<_> = arity_matches
+                    .iter()
+                    .copied()
+                    .filter(|c| {
+                        c.4.is_some_and(|(count, _, variadic)| {
+                            !variadic && Some(count) == prefer_arity
+                        })
+                    })
+                    .collect();
+                if !exact.is_empty() {
+                    arity_matches = exact;
+                }
                 if arity_matches.len() == 1 {
                     return Some((
                         rebuild_symbol_id(**arity_matches[0]),
@@ -534,6 +662,11 @@ pub async fn process_ingest_stats(
             } else {
                 engram_core::ids::NodeId::file(path).0
             }
+        } else if edge.source_kind == "db_table" {
+            engram_core::ids::NodeId::table(&edge.source_name).0
+        } else if edge.source_kind == "db_column" && edge.source_name.starts_with("column:") {
+            // DDL foreign-key edges already carry a canonical column id.
+            edge.source_name.clone()
         } else if edge.source_kind == "page" {
             engram_core::ids::NodeId::page(rel_path.as_str()).0
         } else if edge.source_kind == "ui_container" {
@@ -571,14 +704,28 @@ pub async fn process_ingest_stats(
             // extractors put FQNs (e.g. "MyApp.Data.LoadData") and call-site
             // lines here, which otherwise rebuild into phantom endpoints that
             // match no node minted in the symbol loop.
-            resolve_batch_symbol(
+            let declared_source = edge.metadata.as_ref()
+                .and_then(|metadata| metadata.get("source_declaration_line"))
+                .and_then(|line| line.parse::<u32>().ok())
+                .and_then(|line| {
+                    let candidates = symbols_by_name.get(edge.source_name.as_str())?;
+                    let mut matches = candidates.iter().filter(|candidate| {
+                        candidate.0 == rel_path.as_str()
+                            && candidate.1 == edge.source_kind
+                            && candidate.3 == line
+                    });
+                    let first = matches.next()?;
+                    if matches.next().is_some() { return None; }
+                    Some(rebuild_symbol_id(*first))
+                });
+            declared_source.or_else(|| resolve_batch_symbol(
                 &edge.source_name,
                 rel_path.as_str(),
                 Some(edge.source_kind.as_str()),
                 None,
                 language,
             )
-            .map(|(id, _, _, _)| id)
+            .map(|(id, _, _, _)| id))
             .unwrap_or_else(|| {
                 let fqn = if edge.source_name.contains('.') {
                     Some(edge.source_name.as_str())
@@ -693,12 +840,15 @@ pub async fn process_ingest_stats(
         } else if edge.target_kind.as_deref() == Some("db_table") {
             engram_core::ids::NodeId::table(&edge.target_name).0
         } else if edge.target_kind.as_deref() == Some("db_column") {
-            let table = edge
-                .metadata
-                .as_ref()
-                .and_then(|m| m.get("local_table").or_else(|| m.get("table")))
-                .map(|s| s.as_str())
-                .unwrap_or("unknown");
+            let table = if edge.kind == "has_column" && edge.source_kind == "db_table" {
+                edge.source_name.as_str()
+            } else {
+                edge.metadata
+                    .as_ref()
+                    .and_then(|m| m.get("local_table").or_else(|| m.get("table")))
+                    .map(|s| s.as_str())
+                    .unwrap_or("unknown")
+            };
             engram_core::ids::NodeId::column(table, &edge.target_name).0
         } else if let Some(kind) = &edge.target_kind {
             // GRAPH-WIRE: precedence for symbol targets —
@@ -1004,7 +1154,10 @@ pub async fn process_ingest_stats(
         let mut merged: Vec<engram_graph::Edge> = Vec::with_capacity(edges.len());
         let mut at: std::collections::HashMap<(String, String, String), usize> =
             std::collections::HashMap::new();
-        for e in edges.drain(..) {
+        for mut e in edges.drain(..) {
+            if let Some(serde_json::Value::Object(meta)) = e.metadata.as_mut() {
+                merge_call_site_metadata(meta, &serde_json::Map::new());
+            }
             let key = (
                 e.edge_kind.as_str().to_string(),
                 e.source_id.clone(),
@@ -1018,6 +1171,7 @@ pub async fn process_ingest_stats(
                             .metadata
                             .get_or_insert_with(|| serde_json::Value::Object(Default::default()));
                         if let serde_json::Value::Object(base) = slot {
+                            merge_call_site_metadata(base, &extra);
                             for (k, v) in extra {
                                 base.entry(k).or_insert(v);
                             }
@@ -1141,4 +1295,63 @@ pub async fn process_ingest_stats(
     }
 
     Ok(())
+}
+
+/// Preserve the locations of repeated calls when collapsing to one adjacency
+/// edge. Keep an explicit coverage flag when a pathological method exceeds cap.
+fn merge_call_site_metadata(
+    base: &mut serde_json::Map<String, serde_json::Value>,
+    extra: &serde_json::Map<String, serde_json::Value>,
+) {
+    let mut lines = std::collections::BTreeSet::new();
+    for meta in [&*base, extra] {
+        let values = meta.get("call_site_line").into_iter().chain(
+            meta.get("call_site_lines")
+                .and_then(|v| v.as_array())
+                .into_iter()
+                .flatten(),
+        );
+        for value in values {
+            if let Some(line) = value
+                .as_u64()
+                .or_else(|| value.as_str().and_then(|s| s.parse().ok()))
+                && line > 0
+                && line <= u32::MAX as u64
+            {
+                lines.insert(line);
+            }
+        }
+    }
+    if lines.len() > 128
+        || extra
+            .get("call_site_lines_truncated")
+            .is_some_and(|v| v == true)
+    {
+        base.insert("call_site_lines_truncated".into(), true.into());
+    }
+    if !lines.is_empty() {
+        base.insert(
+            "call_site_lines".into(),
+            serde_json::json!(lines.into_iter().take(128).collect::<Vec<_>>()),
+        );
+    }
+}
+
+#[cfg(test)]
+mod call_site_tests {
+    use super::*;
+    #[test]
+    fn repeated_call_locations_are_merged_sorted_deduplicated_and_bounded() {
+        let mut first = serde_json::json!({"call_site_line":"7"})
+            .as_object()
+            .unwrap()
+            .clone();
+        let next = serde_json::json!({"call_site_line":4,"call_site_lines":[4,7,0,"invalid"]});
+        merge_call_site_metadata(&mut first, next.as_object().unwrap());
+        assert_eq!(first["call_site_lines"], serde_json::json!([4, 7]));
+        let many = serde_json::json!({"call_site_lines":(1..=150).collect::<Vec<_>>()});
+        merge_call_site_metadata(&mut first, many.as_object().unwrap());
+        assert_eq!(first["call_site_lines"].as_array().unwrap().len(), 128);
+        assert_eq!(first["call_site_lines_truncated"], true);
+    }
 }

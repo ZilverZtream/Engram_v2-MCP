@@ -13,6 +13,9 @@ use engram_server::services::ask_engine::ranking;
 fn item(id: &str, path: &str, content: &str, relevance: f32) -> EvidenceItem {
     EvidenceItem {
         evidence_id: id.into(),
+        document_id: None,
+        document_namespace: None,
+        source_verification: None,
         kind: EvidenceKind::SourceCode,
         authority: Authority::CurrentCode,
         path: Some(path.into()),
@@ -74,7 +77,15 @@ fn a_requested_modality_gets_up_to_three_slots() {
         ));
         r
     };
-    ranking::reserve_required_with(&mut chosen, &raw, &[], &[Modality::Sql], &[], question);
+    ranking::reserve_required_with(
+        &mut chosen,
+        &raw,
+        &[],
+        &[Modality::Sql],
+        &[],
+        question,
+        false,
+    );
     let sql: Vec<String> = chosen
         .iter()
         .filter_map(|e| e.path.clone())
