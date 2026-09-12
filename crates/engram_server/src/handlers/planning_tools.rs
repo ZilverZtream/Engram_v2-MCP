@@ -47,6 +47,11 @@ pub const CHANGE_SET_PRIMARY_CAP: usize = 40;
 /// Rows above this tier are never primary (tier 2 = concept corroborated
 /// by an independent arm).
 pub const CHANGE_SET_PRIMARY_MAX_TIER: u8 = 2;
+/// Default structured view: enough to include the complete primary set plus
+/// the strongest companion leads without flooding an agent's context.
+pub const CHANGE_SET_COMPACT_FILE_CAP: usize = 60;
+pub const CHANGE_SET_COMPACT_OMISSION_CAP: usize = 20;
+pub const CHANGE_SET_COMPACT_DIAGNOSTIC_CAP: usize = 5;
 /// A concept whose footprint matches this many files is too common to
 /// discriminate (IDF proxy): its hits are `broad`, never evidence.
 pub const BROAD_CONCEPT_MIN_FILES: usize = 40;
@@ -2809,6 +2814,43 @@ mod tests {
         // non-TS/JS paths yield nothing (no false pairing for .json/.css/.vb).
         assert!(transpile_pair_candidates("a/b/config.json").is_empty());
         assert!(transpile_pair_candidates("a/b/page.aspx.vb").is_empty());
+    }
+
+    #[test]
+    fn semantic_script_family_recovers_page_codebehind_and_bundle() {
+        let index = [
+            "modules/dashboard/ts/dashboard.master/dashboard.master.ts",
+            "modules/dashboard/dashboard.master",
+            "modules/dashboard/dashboard.master.vb",
+            "modules/dashboard/~.js/dashboard.master.js",
+            "modules/dashboard/other/dashboard.master.css",
+            "modules/another/dashboard.master",
+        ]
+        .into_iter()
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+        let family = semantic_presentation_family_candidates(
+            "modules/dashboard/ts/dashboard.master/dashboard.master.ts",
+            &index,
+        );
+        assert!(
+            family.contains(&"modules/dashboard/dashboard.master".to_string()),
+            "{family:?}"
+        );
+        assert!(
+            family.contains(&"modules/dashboard/dashboard.master.vb".to_string()),
+            "{family:?}"
+        );
+        assert!(
+            family.contains(&"modules/dashboard/~.js/dashboard.master.js".to_string()),
+            "{family:?}"
+        );
+        assert!(
+            !family.contains(&"modules/another/dashboard.master".to_string()),
+            "must stay inside the feature area: {family:?}"
+        );
+        assert!(semantic_presentation_family_candidates("src/index.ts", &index).is_empty());
+        assert!(semantic_presentation_family_candidates("types/google.d.ts", &index).is_empty());
     }
 
     #[test]
@@ -5844,6 +5886,79 @@ fn canonicalize_change_set_evidence(
     }
 }
 
+/// Existing presentation files that form one deployable unit with a strong
+/// semantic script hit. This covers source layouts where TypeScript lives in
+/// a nested `ts/` directory while the page, code-behind and committed bundle
+/// live elsewhere in the same feature area. The match is deliberately exact
+/// on the script stem and bounded; generic names cannot pull a broad subtree.
+pub(crate) fn semantic_presentation_family_candidates(
+    ps: &str,
+    indexed_paths: &[String],
+) -> Vec<String> {
+    let normalized = ps.replace('\\', "/").to_lowercase();
+    let Some(file) = normalized.rsplit('/').next() else {
+        return Vec::new();
+    };
+    let stem = [".tsx", ".jsx", ".ts", ".js"]
+        .iter()
+        .find_map(|ext| file.strip_suffix(ext));
+    let Some(stem) = stem else {
+        return Vec::new();
+    };
+    if stem.ends_with(".d")
+        || stem.len() < 5
+        || matches!(stem, "index" | "main" | "app" | "default" | "common")
+    {
+        return Vec::new();
+    }
+
+    let area_end = ["/ts/", "/~.js/", "/js/", "/scripts/"]
+        .iter()
+        .filter_map(|marker| normalized.find(marker))
+        .min()
+        .unwrap_or_else(|| normalized.rfind('/').unwrap_or(0));
+    let area = &normalized[..area_end];
+    let family_names: HashSet<String> = [
+        stem.to_string(),
+        format!("{stem}.vb"),
+        format!("{stem}.cs"),
+        format!("{stem}.designer.vb"),
+        format!("{stem}.designer.cs"),
+        format!("{stem}.ts"),
+        format!("{stem}.tsx"),
+        format!("{stem}.js"),
+        format!("{stem}.jsx"),
+        format!("{stem}.css"),
+    ]
+    .into_iter()
+    .collect();
+
+    let mut matches: Vec<String> = indexed_paths
+        .iter()
+        .map(|p| p.replace('\\', "/").to_lowercase())
+        .filter(|candidate| candidate != &normalized)
+        .filter(|candidate| {
+            area.is_empty()
+                || candidate
+                    .strip_prefix(area)
+                    .is_some_and(|remainder| remainder.starts_with('/'))
+        })
+        .filter(|candidate| {
+            candidate
+                .rsplit('/')
+                .next()
+                .is_some_and(|name| family_names.contains(name))
+        })
+        .collect();
+    matches.sort();
+    matches.dedup();
+    if matches.len() <= 12 {
+        matches
+    } else {
+        Vec::new()
+    }
+}
+
 fn change_set_tier(sigs: &BTreeSet<&'static str>) -> u8 {
     // Evidence DIRECTNESS, not signal count (row-1 audit A2): golden
     // (co-change/history) first; then an entity match corroborated by an
@@ -7109,6 +7224,16 @@ impl Engram {
             }
         }
         req.story = story_with_work_item_text(&req.story, req.work_item_text.take())?;
+        let full_detail = match req.detail.as_deref().unwrap_or("compact") {
+            "compact" => false,
+            "full" => true,
+            _ => {
+                return Err(McpError::invalid_params(
+                    "detail must be 'compact' or 'full'",
+                    None,
+                ));
+            }
+        };
         // One presentation-free view for every retrieval arm. Keep req.story as
         // original evidence for the dossier; metadata URLs are not task intent.
         let retrieval_story = story_for_concepts(&req.story);
@@ -7627,6 +7752,7 @@ impl Engram {
             // render tail cap (bounded → never floods). Ranks 13+ stay plain
             // "vector" (normal tail behaviour, so no regression where the layer
             // had room for them).
+            let mut semantic_leads = 0usize;
             for (i, p) in change_set_paths(&t.text)
                 .into_iter()
                 .filter(|p| !engram_core::is_vendor_path(p))
@@ -7636,7 +7762,12 @@ impl Engram {
                 why.entry(p.clone())
                     .or_default()
                     .push(format!("semantic match to the story (rank {})", i + 1));
-                prov.entry(p).or_default().insert(if i < 3 {
+                let declaration_file = p.to_lowercase().ends_with(".d.ts");
+                let is_lead = !declaration_file && semantic_leads < 3;
+                if is_lead {
+                    semantic_leads += 1;
+                }
+                prov.entry(p).or_default().insert(if is_lead {
                     // The three strongest semantic matches may lead their
                     // layer when lexical/history evidence is sparse. They
                     // remain below corroborated tier-0 evidence.
@@ -7841,6 +7972,20 @@ impl Engram {
                             .or_default()
                             .push(format!("compiled bundle / source pair of {p}"));
                         fam.push((c, sigs.clone()));
+                    }
+                }
+                // A high-confidence semantic script hit can be the only clue
+                // for a sparse story. Keep its exact page/bundle stem family
+                // together even when those files live outside the source
+                // directory and have no usable co-change edge.
+                if sigs.contains("vtop3") {
+                    for c in semantic_presentation_family_candidates(&ps, &index) {
+                        let mut fs = sigs.clone();
+                        fs.insert("family");
+                        why.entry(c.clone())
+                            .or_default()
+                            .push(format!("presentation stem-family companion of {p}"));
+                        fam.push((c, fs));
                     }
                 }
                 // Interface <-> implementation (.NET IService convention).
@@ -8502,10 +8647,21 @@ impl Engram {
 
         if req.output_json {
             let (rows, omissions) = change_set_rows(&prov);
-            let files: Vec<serde_json::Value> = rows
+            let visible_rows: Vec<&ChangeSetRow> = rows.iter().filter(|r| !r.omitted).collect();
+            let files_total = visible_rows.len();
+            let file_cap = if full_detail {
+                usize::MAX
+            } else {
+                CHANGE_SET_COMPACT_FILE_CAP
+            };
+            let files: Vec<serde_json::Value> = visible_rows
                 .iter()
-                .filter(|r| !r.omitted)
+                .take(file_cap)
                 .map(|r| {
+                    let mut reasons = why.get(&r.path).cloned().unwrap_or_default();
+                    if !full_detail {
+                        reasons.truncate(4);
+                    }
                     serde_json::json!({
                         "path": r.path,
                         "layer": r.layer,
@@ -8513,17 +8669,44 @@ impl Engram {
                         "set": r.set,
                         "rank": r.rank,
                         "signals": r.signals,
-                        "why": why.get(&r.path).cloned().unwrap_or_default(),
+                        "why": reasons,
                         "historical": historical.contains(&r.path),
                     })
                 })
                 .collect();
+            let (output_coverage, diagnostic_omissions) = if full_detail {
+                (cov.clone(), BTreeMap::new())
+            } else {
+                compact_change_set_coverage(&cov)
+            };
+            let omissions_total = omissions.len();
+            let output_omissions: Vec<&ChangeSetOmission> = omissions
+                .iter()
+                .take(if full_detail {
+                    usize::MAX
+                } else {
+                    CHANGE_SET_COMPACT_OMISSION_CAP
+                })
+                .collect();
+            let files_shown = files.len();
+            let omissions_shown = output_omissions.len();
             let payload = serde_json::json!({
                 "story": req.story.trim(),
                 "concepts": concepts,
                 "files": files,
-                "coverage": cov,
-                "omissions": omissions,
+                "coverage": output_coverage,
+                "omissions": output_omissions,
+                "view": {
+                    "detail": if full_detail { "full" } else { "compact" },
+                    "files_total": files_total,
+                    "files_shown": files_shown,
+                    "files_omitted_from_view": files_total.saturating_sub(files_shown),
+                    "omissions_total": omissions_total,
+                    "omissions_shown": omissions_shown,
+                    "omissions_omitted_from_view": omissions_total.saturating_sub(omissions_shown),
+                    "diagnostic_entries_omitted_from_view": diagnostic_omissions,
+                    "full_detail_request": { "detail": "full" }
+                },
                 "ui_contract": ui_contract
                     .as_ref()
                     .and_then(|c| serde_json::to_value(c).ok())
@@ -9970,6 +10153,35 @@ fn retrieval_code_ranges(story: &str) -> Vec<std::ops::Range<usize>> {
     }
     if let Some((start, _, _)) = opener { ranges.push(start..bytes.len()); }
     ranges
+}
+
+fn compact_change_set_coverage(
+    coverage: &ChangeSetCoverage,
+) -> (ChangeSetCoverage, BTreeMap<String, usize>) {
+    let mut compact = coverage.clone();
+    let mut omitted = BTreeMap::new();
+    let mut trim = |name: &str, arm: &mut ArmCoverage| {
+        let total = arm.diagnostics.entries.len();
+        if total > CHANGE_SET_COMPACT_DIAGNOSTIC_CAP {
+            let cut = total - CHANGE_SET_COMPACT_DIAGNOSTIC_CAP;
+            arm.diagnostics
+                .entries
+                .truncate(CHANGE_SET_COMPACT_DIAGNOSTIC_CAP);
+            arm.diagnostics.details_complete = false;
+            arm.note = format!(
+                "{total} diagnostic message occurrences; {} shown and {cut} omitted from the compact response. Use detail=\"full\" for every retained message; upstream omission markers remain a separate coverage limit.",
+                CHANGE_SET_COMPACT_DIAGNOSTIC_CAP
+            );
+            omitted.insert(name.to_string(), cut);
+        }
+    };
+    trim("concept", &mut compact.concept);
+    trim("history", &mut compact.history);
+    trim("cochange", &mut compact.cochange);
+    trim("vector", &mut compact.vector);
+    trim("kb_bridge", &mut compact.kb_bridge);
+    trim("family", &mut compact.family);
+    (compact, omitted)
 }
 
 /// Strip recognized capture framing, not ordinary uses of words such as "work"

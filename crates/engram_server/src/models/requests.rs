@@ -633,10 +633,17 @@ pub struct GetChangeSetRequest {
     #[serde(default)]
     pub pat_token: Option<String>,
     /// Return the structured JSON payload (concepts, per-file evidence with
-    /// rationale, per-arm coverage, omissions) instead of markdown.
+    /// rationale, per-arm coverage, omissions) instead of markdown. The
+    /// default compact detail keeps the highest-ranked candidates and reports
+    /// every cut; set `detail` to `full` for forensic output.
     /// Default false.
     #[serde(default)]
     pub output_json: bool,
+    /// Structured response detail: `compact` (default) or `full`. Compact is
+    /// designed for an agent's planning context; it caps displayed candidates,
+    /// omissions and diagnostic messages while retaining their exact totals.
+    #[serde(default)]
+    pub detail: Option<String>,
     /// Also retrieve on the story's index-corroborated entity names
     /// (parenthesized glosses, noun phrases, compound splits) on top of the
     /// three document-order concepts. Off by default: on the 5-PR gate the
