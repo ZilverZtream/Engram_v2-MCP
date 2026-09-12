@@ -19,6 +19,9 @@ fn authority_orders_strongest_first_and_weight_is_monotonic() {
 fn evidence_item_serializes_with_snake_case_kind() {
     let ev = EvidenceItem {
         evidence_id: "ev_1".into(),
+        document_id: None,
+        document_namespace: None,
+        source_verification: None,
         kind: EvidenceKind::SourceCode,
         authority: Authority::CurrentCode,
         path: Some("a.vb".into()),
@@ -291,6 +294,133 @@ async fn code_evidence_empty_is_not_failed() {
     assert_eq!(outcome.status, ProviderStatus::Empty); // NOT Failed
 }
 
+#[tokio::test]
+async fn business_evidence_verifies_current_stale_and_legacy_sources_and_keeps_document_identity() {
+    use engram_core::{ContentHash, RelPath};
+    use engram_index::IndexDoc;
+    let source = "Class Rules\nPublic Function Save(value As Integer) As String\nIf value < 0 Then Return \"invalid\"\nReturn \"ok\"\nEnd Function\nEnd Class\n";
+    let (tmp, state, pid) = index_fixture(&[("Rules.vb", source)]).await;
+    let ps = ensure_project_runtime(&state, &pid).await.unwrap();
+    let body = source
+        .lines()
+        .skip(1)
+        .take(4)
+        .collect::<Vec<_>>()
+        .join("\n");
+    let hash = ContentHash::compute(body.as_bytes()).0;
+    let current = format!(
+        "# Rules.Save\n**Analysis method hash**: `{hash}`\n## Business Rules\n- Negative quantities return a validation error.\n_Source: Rules.vb_\n"
+    );
+    let legacy = "# Legacy\nNegative quantities return a validation error.\n".to_string();
+    let docs: Vec<_> = [current, legacy]
+        .into_iter()
+        .enumerate()
+        .map(|(i, content)| IndexDoc {
+            generation: 0,
+            chunk_id: i as u64,
+            path: RelPath::new(&format!("__business_logic/Rules.vb/Save{i}.md")),
+            language: "markdown".into(),
+            content_hash: ContentHash::compute(content.as_bytes()).0,
+            content,
+            namespace: "business_logic".into(),
+            author: None,
+            timestamp: None,
+            start_line: 0,
+            end_line: 0,
+            doc_id: format!("rule{i}"),
+        })
+        .collect();
+    ps.search
+        .index_docs(&pid, &docs, &tokio_util::sync::CancellationToken::new())
+        .await
+        .unwrap();
+    let ctx = RetrievalCtx {
+        insights_enabled: false,
+        search: ps.search.clone(),
+        graph: state.graph.clone(),
+        registry: state.registry.clone(),
+        project_id: pid.clone(),
+        generation: get_active_generation(&state, &pid).await.unwrap(),
+    };
+    let question = "How do negative quantities return a validation error?";
+    let plan = plan_query(question);
+    for changed in [false, true] {
+        if changed {
+            std::fs::write(
+                tmp.path().join("project/Rules.vb"),
+                source.replace("value < 0", "value > 0"),
+            )
+            .unwrap();
+        }
+        let (items, reports) = gather_evidence(
+            &ctx,
+            &plan,
+            question,
+            Depth::Standard,
+            Duration::from_secs(10),
+            tokio_util::sync::CancellationToken::new(),
+        )
+        .await;
+        let rule = items
+            .iter()
+            .find(|e| e.document_id.as_deref() == Some("rule0"))
+            .expect("current rule retrieved");
+        let old = items
+            .iter()
+            .find(|e| e.document_id.as_deref() == Some("rule1"))
+            .expect("legacy rule retrieved");
+        assert_eq!(rule.document_namespace.as_deref(), Some("business_logic"));
+        assert_eq!(
+            ps.search
+                .get_doc_by_doc_id(
+                    &pid,
+                    "business_logic",
+                    0,
+                    rule.document_id.as_ref().unwrap()
+                )
+                .unwrap()
+                .unwrap()
+                .2,
+            docs[0].content
+        );
+        assert!(
+            rule.source_verification
+                .as_ref()
+                .unwrap()
+                .starts_with(if changed {
+                    "STALE:"
+                } else {
+                    "VERIFIED_METHOD_HASH:"
+                })
+        );
+        assert!(
+            old.source_verification
+                .as_ref()
+                .unwrap()
+                .starts_with("UNVERIFIED:")
+        );
+        assert!(old.confidence <= 0.35);
+        if changed {
+            assert!(rule.confidence <= 0.15);
+            assert_eq!(rule.authority, Authority::SemanticSimilarity);
+        }
+        assert!(
+            reports
+                .iter()
+                .find(|r| r.provider == "business_logic")
+                .unwrap()
+                .note
+                .as_ref()
+                .unwrap()
+                .contains("unverified source versions")
+        );
+        assert_ne!(
+            assess_status(&plan, &items, &reports, &FreshnessSnapshot::default(), true),
+            AnswerStatus::Answered
+        );
+    }
+}
+
 // ─── Task 5: graph-backed evidence providers ─────────────────────────────────
 use engram_graph::{Edge, EdgeKind};
 
@@ -476,6 +606,9 @@ fn mk_ev(
 ) -> EvidenceItem {
     EvidenceItem {
         evidence_id: id.into(),
+        document_id: None,
+        document_namespace: None,
+        source_verification: None,
         kind,
         authority,
         path: path.map(|s| s.into()),
@@ -603,6 +736,10 @@ fn rep(p: &str, s: ProviderStatus) -> ProviderReport {
         status: s,
         count: if s == ProviderStatus::Hit { 1 } else { 0 },
         note: None,
+        examined: 0,
+        available: None,
+        truncated: false,
+        proof: None,
     }
 }
 fn re(id: &str) -> ResolvedEntity {
@@ -1014,4 +1151,46 @@ fn unsupported_and_stale_guidance_recommends_grep_fallback() {
         stale.iter().any(|s| s.contains("grep_project")),
         "{stale:?}"
     );
+}
+
+#[test]
+fn symbol_ref_evidence_does_not_turn_a_declaration_into_a_usage() {
+    let (_tmp, state, pid) = seed_project_with_edges(
+        &[
+            ("sym:Widget@w.vb", "function", "Widget", "w.vb"),
+            ("file:w.vb", "file", "w.vb", "w.vb"),
+        ],
+        &[("file:w.vb", "sym:Widget@w.vb", EdgeKind::Contains, 100)],
+    );
+    let (items, outcome) =
+        providers::symbol_ref_evidence(&state.graph, &pid, "Widget", None, 1, &mut 0);
+    assert!(items.is_empty(), "A declaration is not a usage: {items:?}");
+    assert_eq!(outcome.status, ProviderStatus::Empty);
+}
+
+#[test]
+fn symbol_ref_evidence_filters_context_edges_before_its_cap() {
+    let (_tmp, state, pid) = seed_project_with_edges(
+        &[
+            ("sym:Widget@w.vb", "function", "Widget", "w.vb"),
+            ("file:w.vb", "file", "w.vb", "w.vb"),
+            ("sym:Context@c.vb", "function", "Context", "c.vb"),
+            ("sym:Uses@u.vb", "function", "Uses", "u.vb"),
+        ],
+        &[
+            ("file:w.vb", "sym:Widget@w.vb", EdgeKind::Contains, 100),
+            (
+                "sym:Context@c.vb",
+                "sym:Widget@w.vb",
+                EdgeKind::TemporalCoupling,
+                90,
+            ),
+            ("sym:Uses@u.vb", "sym:Widget@w.vb", EdgeKind::Calls, 1),
+        ],
+    );
+    let (items, outcome) =
+        providers::symbol_ref_evidence(&state.graph, &pid, "Widget", None, 1, &mut 0);
+    assert_eq!(outcome.status, ProviderStatus::Hit);
+    assert_eq!(items.len(), 1);
+    assert_eq!(items[0].symbol_id.as_deref(), Some("sym:Uses@u.vb"));
 }

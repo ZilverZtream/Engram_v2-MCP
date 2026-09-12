@@ -12,10 +12,6 @@ static RE_CTOR: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^\s*(?:public|private|protected|internal)\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(")
         .expect("valid ctor regex")
 });
-static RE_PROP: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^\s*(?:public|private|protected|internal)\s+[A-Za-z_][A-Za-z0-9_<>,\.\?\[\]\s]*\s+([A-Za-z_][A-Za-z0-9_]*)\s*\{[^}]*\b(?:get|set|init)\b")
-        .expect("valid prop regex")
-});
 static RE_EVENT: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^\s*(?:public|private|protected|internal)\s+event\s+[A-Za-z_][A-Za-z0-9_<>,\.\?\[\]]*\s+([A-Za-z_][A-Za-z0-9_]*)")
         .expect("valid event regex")
@@ -164,17 +160,6 @@ pub fn extract_cs(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
             }
         }
 
-        if let Some(c) = RE_PROP.captures(line) {
-            if let Some(name) = c.get(1) {
-                symbols.push(ExtractedSymbol {
-                    name: name.as_str().to_string(),
-                    kind: "property".to_string(),
-                    start_line: line_no,
-                    end_line: line_no,
-                    metadata: None,
-                });
-            }
-        }
 
         if let Some(c) = RE_EVENT.captures(line) {
             if let Some(name) = c.get(1) {

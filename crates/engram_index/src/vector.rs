@@ -79,6 +79,14 @@ fn stored_vector_dim(tschema: &arrow_schema::Schema) -> Option<usize> {
     }
 }
 
+/// Create an empty table exclusively; never open or replace an existing table.
+pub(crate) async fn create_new_table(conn: &Connection, name: &str, dim: usize) -> anyhow::Result<Table> {
+    let schema = vector_schema(dim);
+    let batch = RecordBatch::new_empty(schema.clone());
+    let reader = RecordBatchIterator::new(vec![Ok(batch)], schema);
+    Ok(conn.create_table(name, reader).execute().await?)
+}
+
 /// Open or create a LanceDB table with the given vector `dim`.
 ///
 /// If the existing table has a different vector dimension (e.g. an old 384-dim table
@@ -193,8 +201,12 @@ pub async fn purge_old_generations(table: &Table, active_generation: u64) -> any
             let safe_ns = ns.replace('\'', "''");
             match policy.retention {
                 engram_core::NamespaceRetention::KeepLatestOnly => {
+                    // External audit round 2 (docs/audits/10) P0-1: "latest only" means
+                    // OLDER than the published generation. A generation an update is
+                    // still building (N+1) belongs to that update and stays — the
+                    // Tantivy purge already kept it; the vector purge deleted it.
                     let filter = format!(
-                        "namespace = '{}' AND generation != {}",
+                        "namespace = '{}' AND generation < {}",
                         safe_ns, active_generation
                     );
                     table.delete(&filter).await?;

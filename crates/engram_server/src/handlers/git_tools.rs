@@ -284,6 +284,10 @@ impl Engram {
         mut progress_cb: Box<dyn FnMut(usize, usize) + Send>,
         force_flag: bool,
     ) -> Result<String, McpError> {
+        if mode == GitHistoryMode::Refresh {
+            return self.refresh_history_documents(project_id, directory, generation,
+                max_commits, force_flag, cancel, progress_cb).await;
+        }
         let project_root = PathBuf::from(directory);
         let pid = project_id.to_string();
 
@@ -886,6 +890,7 @@ impl Engram {
                     "history fully indexed; the walk previously reached the root commit and there is nothing older to backfill. Use force=true to re-walk from scratch."
                 } else {
                     match mode {
+                        GitHistoryMode::Refresh => unreachable!("handled before graph mutation"),
                         GitHistoryMode::Forward => {
                             "No new commits at HEAD past last_oid. To backfill older history, set mode='backfill' or mode='both'."
                         }
@@ -1063,14 +1068,15 @@ impl Engram {
                 }
 
                 let engram = Engram::new(state.clone());
+                let _update_guard = state.acquire_project_update_lock(&project_id_for_job).await;
                 let active_gen = engram
                     .get_active_generation(&project_id_for_job)
                     .await
-                    .unwrap_or(1);
+                    .map_err(|e| anyhow::anyhow!(e.message.to_string()))?;
 
                 let reg_for_git = state.registry.clone();
                 let jid_for_git = job_id_for_job.clone();
-                let _ = engram
+                let summary = engram
                     .git_update_stream(
                         &project_id_for_job,
                         &rec.directory,
@@ -1094,7 +1100,9 @@ impl Engram {
                         }),
                         force_for_job,
                     )
-                    .await;
+                    .await
+                    .map_err(|e| anyhow::anyhow!(e.message.to_string()))?;
+                msg = summary;
 
                 Ok::<(), anyhow::Error>(())
             }
@@ -1317,14 +1325,14 @@ impl Engram {
         ))]))
     }
 
-    pub async fn handle_search_history(
+    /// Typed history results shared with planning; never recover identities from rendered prose.
+    pub(crate) async fn search_history_hits(
         &self,
         req: SearchHistoryRequest,
-    ) -> Result<CallToolResult, McpError> {
+    ) -> Result<(crate::state::ProjectState, u64, Vec<engram_index::HybridHit>), McpError> {
         validate_project_id(&req.project_id)?;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
-        let content_limit = req.max_content_chars;
         let limit = req.sanitized_limit();
 
         // fts_mode is now a validated enum — invalid values are rejected by serde
@@ -1353,6 +1361,7 @@ impl Engram {
                     fts_mode,
                     include_path_prefixes,
                     exclude_path_prefixes,
+                    include_path_suffixes: None,
                     language_filters: None,
                     author_filter,
                     date_after,
@@ -1364,6 +1373,17 @@ impl Engram {
             )
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        Ok((ps, gen_, hits))
+    }
+
+    pub async fn handle_search_history(
+        &self,
+        req: SearchHistoryRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let content_limit = req.max_content_chars;
+        let project_id = req.project_id.clone();
+        let (ps, gen_, hits) = self.search_history_hits(req).await?;
 
         if hits.is_empty() {
             return Ok(CallToolResult::success(vec![Content::text(
@@ -1456,7 +1476,10 @@ impl Engram {
         req: AnalyzeTemporalCouplingsRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
-        let couplings = if let Some(ref file_path) = req.file_path {
+        self.ensure_project_record(&req.project_id).await?;
+        let limit = req.sanitized_limit();
+        let minimum = req.sanitized_min_frequency() as u32;
+        let mut couplings = if let Some(ref file_path) = req.file_path {
             // Focused search
             let node_id = if file_path.starts_with("file:") {
                 file_path.clone()
@@ -1467,25 +1490,34 @@ impl Engram {
                 &self.state.graph,
                 &req.project_id,
                 &node_id,
-                req.sanitized_min_frequency() as u32,
-                req.sanitized_limit(),
+                minimum,
+                limit + 1,
             )
         } else {
             // Global search
             engram_graph::algorithms::coupling::top_project_couplings(
                 &self.state.graph,
                 &req.project_id,
-                req.sanitized_limit(),
+                limit + 1,
             )
         }
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        if couplings.is_empty() {
-            return Ok(CallToolResult::success(vec![Content::text(
-                "No temporal neighbors found for the given criteria.",
-            )]));
-        }
-
+        // Both algorithms rank by descending weight before limiting, so this
+        // global filter cannot hide a stronger qualifying edge below the cap.
+        couplings.retain(|c| c.weight >= minimum);
+        let truncated = couplings.len() > limit;
+        couplings.truncate(limit);
+        let watermark = self
+            .state
+            .registry
+            .get_meta(&req.project_id, "last_git_oid")
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let complete = self
+            .state
+            .registry
+            .get_meta(&req.project_id, "git_backfill_complete")
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         let mut out = String::new();
         if let Some(ref fp) = req.file_path {
             out.push_str(&format!("Temporal couplings for {fp}:\n"));
@@ -1493,6 +1525,14 @@ impl Engram {
             out.push_str("Top temporal couplings:\n");
         }
 
+        out.push_str(&format!("Coverage: indexed co-change evidence; not a causal dependency. History watermark: {}; backfill complete: {}; minimum frequency: {minimum}.\n",
+            watermark.as_deref().unwrap_or("unavailable"), complete.as_deref() == Some("1")));
+        if truncated {
+            out.push_str(&format!("Results truncated at {limit}.\n"));
+        }
+        if couplings.is_empty() {
+            out.push_str("No temporal neighbors matched within indexed history; this does not establish independence.\n");
+        }
         for c in couplings {
             out.push_str(&format!(
                 "- {} <-> {} (weight={})\n",

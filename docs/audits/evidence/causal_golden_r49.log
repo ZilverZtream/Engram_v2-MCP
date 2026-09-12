@@ -1,0 +1,32 @@
+id                category        status       exp                 cite      ms  verdict
+------------------------------------------------------------------------------------------------
+ox_causal_1       causal          answered     answered/partial    1.00    2595  ok
+ox_causal_2       causal          answered     answered/partial    1.00     827  ok
+ox_causal_3       causal          answered     answered/partial    1.00    1213  ok
+ox_causal_4       causal          answered     answered/partial    1.00     936  ok
+ox_causal_5       causal          answered     answered/partial    1.00     683  ok
+ox_causal_6       causal          answered     answered/partial    1.00     760  ok
+ox_causal_7       causal          answered     answered/partial    1.00    1080  ok
+ox_causal_8       causal          answered     answered/partial    1.00    2155  ok
+ox_causal_9       causal          answered     answered/partial    1.00    1059  ok
+ox_causal_10      causal          answered     answered/partial    1.00     690  ok
+ox_causal_11      causal          answered     answered/partial    1.00     697  ok
+ox_causal_12      causal          answered     answered/partial    1.00     919  ok
+ox_causal_13      causal          answered     answered/partial    1.00    2893  ok
+ox_causal_14      causal          answered     answered/partial    1.00    1275  ok
+ox_causal_15      causal          answered     answered/partial    1.00     798  ok
+ox_causal_16      causal          answered     answered/partial    1.00    2282  ok
+ox_causal_17      causal          answered     answered/partial    1.00     888  ok
+ox_causal_18      causal          answered     answered/partial    1.00     725  ok
+ox_causal_19      causal          answered     answered/partial    1.00     876  ok
+ox_causal_20      causal          partial      answered/partial    1.00    2519  ok
+--------------------------------------------------------------------------
+status-match: 20/20 = 100%   (gate >= 80%)
+abstain:      0/0 = 100%   (gate = 100%)
+mean citation coverage (answerable rows): 1.00
+mean latency: 1293 ms
+dreamer insights: OFF; insight evidence in 0/20 rows (0 items)
+correct:      20/20 = 100%   (gate = 100%: status + required modality + required symbols + no forbidden distractor + precision)
+
+GATE: PASS
+record written: C:/Users/Dennis/AppData/Local/Temp/claude/C--ai-projects-Engram-MCP-v2/50d309ed-9767-44e6-b7fc-2ac51dd98fa5/scratchpad/p0/causal_r49.json

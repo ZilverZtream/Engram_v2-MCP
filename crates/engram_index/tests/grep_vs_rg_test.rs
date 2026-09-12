@@ -148,25 +148,25 @@ async fn index_fixture(
     stats
 }
 
-fn run_rg(root: &Path, pattern: &str) -> (usize, u128) {
+fn run_rg(root: &Path, pattern: &str, regex_mode: bool) -> (usize, u128) {
     let start = Instant::now();
-    let out = Command::new("rg")
-        .args(["-n", "--no-heading", pattern])
+    let mut command = Command::new("rg");
+    if !regex_mode { command.arg("--fixed-strings"); }
+    let out = command
+        .args(["-n", "--no-heading", "--case-sensitive", "--", pattern])
         .arg(root)
         .output()
         .expect("rg invocation failed");
     let elapsed = start.elapsed().as_micros();
+    assert!(matches!(out.status.code(), Some(0 | 1)), "rg failed: {:?}", out.status);
     let matches = std::str::from_utf8(&out.stdout).unwrap().lines().count();
     (matches, elapsed)
 }
 
 #[tokio::test]
 async fn grep_term_index_beats_rg_on_ascii_identifier() {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let tmp = std::env::temp_dir().join(format!("engram_grep_bench_{now}"));
+    let fixture = tempfile::TempDir::new().unwrap();
+    let tmp = fixture.path();
     let root = tmp.join("project");
     let tantivy_dir = tmp.join("tantivy");
     let lancedb_dir = tmp.join("lancedb");
@@ -222,7 +222,7 @@ async fn grep_term_index_beats_rg_on_ascii_identifier() {
     }
 
     // Warm rg (first run primes the OS page cache).
-    let _ = run_rg(&root, "SubmitChanges");
+    let _ = run_rg(&root, "SubmitChanges", false);
 
     let engram_timings: Vec<u128> = (0..WARM_ITERATIONS)
         .map(|_| {
@@ -233,7 +233,7 @@ async fn grep_term_index_beats_rg_on_ascii_identifier() {
         })
         .collect();
     let rg_timings: Vec<u128> = (0..WARM_ITERATIONS)
-        .map(|_| run_rg(&root, "SubmitChanges").1)
+        .map(|_| run_rg(&root, "SubmitChanges", false).1)
         .collect();
 
     let engram_p50 = p50(engram_timings.clone());
@@ -268,11 +268,8 @@ async fn grep_full_scan_still_returns_correct_matches() {
     // This test verifies correctness of the fallback path — we don't
     // claim to beat rg here (rg is optimised for linear scan and we
     // haven't paralleled Tier 2 yet).
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let tmp = std::env::temp_dir().join(format!("engram_grep_full_{now}"));
+    let fixture = tempfile::TempDir::new().unwrap();
+    let tmp = fixture.path();
     let root = tmp.join("project");
     let tantivy_dir = tmp.join("tantivy");
     let lancedb_dir = tmp.join("lancedb");
@@ -317,11 +314,8 @@ async fn grep_full_scan_still_returns_correct_matches() {
 /// caught instead of silently papered over.
 #[tokio::test]
 async fn grep_full_benchmark_matrix_beats_rg() {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let tmp = std::env::temp_dir().join(format!("engram_grep_matrix_{now}"));
+    let fixture = tempfile::TempDir::new().unwrap();
+    let tmp = fixture.path();
     let root = tmp.join("project");
     let tantivy_dir = tmp.join("tantivy");
     let lancedb_dir = tmp.join("lancedb");
@@ -410,7 +404,8 @@ async fn grep_full_benchmark_matrix_beats_rg() {
                 ));
             }
         }
-        let _ = run_rg(&root, pattern);
+        let (reference_count, _) = run_rg(&root, pattern, *regex_mode);
+        assert_eq!(warm.matches.len(), reference_count, "{label}: result count differs from rg");
 
         let engram_ts: Vec<u128> = (0..WARM_ITERATIONS)
             .map(|_| {
@@ -420,7 +415,7 @@ async fn grep_full_benchmark_matrix_beats_rg() {
             })
             .collect();
         let rg_ts: Vec<u128> = (0..WARM_ITERATIONS)
-            .map(|_| run_rg(&root, pattern).1)
+            .map(|_| run_rg(&root, pattern, *regex_mode).1)
             .collect();
         let e50 = p50(engram_ts);
         let r50 = p50(rg_ts);
@@ -464,11 +459,8 @@ async fn grep_full_benchmark_matrix_beats_rg() {
 
 #[tokio::test]
 async fn grep_reports_stale_paths_when_files_change_after_index() {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let tmp = std::env::temp_dir().join(format!("engram_grep_stale_{now}"));
+    let fixture = tempfile::TempDir::new().unwrap();
+    let tmp = fixture.path();
     let root = tmp.join("project");
     let tantivy_dir = tmp.join("tantivy");
     let lancedb_dir = tmp.join("lancedb");

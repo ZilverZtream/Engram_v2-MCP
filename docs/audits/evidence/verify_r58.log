@@ -1,0 +1,85 @@
+== start the daemon and let the warm-up run 20:06:14
+- 9f950e07-8d34-42e7-8aca-6c5fadcf837f | AARS | C:\ai-projects\AARS
+== NO-REPAIR verify (ask-engine-only batch; owner cadence 2026-08-31)
+== health 20:07:29
+1:Health: OK
+3:generation completeness: generation 876 — expected paths: 2277; tantivy: 2277, vectors: 2277, graph: 2277; missing: 0, extra: 0, cross-store mismatch: 0; chunks 31263 / vector rows 31263 (diagnostic) — complete (mi
+== route pass log line
+2026-08-31T17:03:36.272670Z  INFO engram_graph::store: resolve_route_edges: project_id=5a35e8e0-d37a-41b3-a250-a26957e7aedb api_calls=745 added=313 ambiguous=1 unbound=1
+== ROUTE PROBES 20:07:55
+  getimg: Incoming references (4 edges | ts sources: Q/api/ajax.ts 
+  DeleteChangeRequest: Incoming references (5 edges | ts sources: modules/dashboard/ts/caw/caw/caw.ts 
+  ioCheckCanUserDeleteOrMoveMarker: Incoming references (5 edges | ts sources: modules/dashboard/ts/map/vsMap/iomarker/ioMarker.ts 
+  iopGetAvailableImages: Incoming references (7 edges | ts sources: modules/dashboard/ts/map/vsMap/iomarker/ioMarkerInfowindow.ts 
+  fjGet: Incoming references (9 edges | ts sources: modules/dashboard/ts/installation/installation/installation.ts ts/fbinstplan/app.ts 
+  prGetSubProjects: Incoming references (6 edges | ts sources: ts/taskManagement/taskManager.ts 
+== CAUSAL golden (20) r57 20:07:57
+causal exit 0
+status-match: 20/20 = 100%   (gate >= 80%)
+abstain:      0/0 = 100%   (gate = 100%)
+correct:      14/20 = 70%   (gate = 100%: status + modality + item-scoped symbols + required_items + file recall + no forbidden + item precision)
+  FAIL ox_causal_3: item precision 0.30 < 0.34 (3/10 relevant)
+  FAIL ox_causal_12: item precision 0.30 < 0.34 (3/10 relevant)
+  FAIL ox_causal_13: item precision 0.20 < 0.34 (1/5 relevant)
+  FAIL ox_causal_17: item precision 0.10 < 0.34 (1/10 relevant)
+  FAIL ox_causal_19: item precision 0.30 < 0.34 (3/10 relevant)
+  FAIL ox_causal_20: required symbols/files not cited: ['api-installationsobjektprojekt']
+GATE: PASS
+== GOLDEN v2 (35) r57 20:08:16
+golden exit 0
+status-match: 35/35 = 100%   (gate >= 80%)
+abstain:      4/4 = 100%   (gate = 100%)
+correct:      19/35 = 54%   (gate = 100%: status + modality + item-scoped symbols + required_items + file recall + no forbidden + item precision)
+  FAIL ox_exact_2: item precision 0.30 < 0.5 (3/10 relevant)
+  FAIL ox_exact_3: item precision 0.20 < 0.5 (2/10 relevant)
+  FAIL ox_exact_4: item precision 0.10 < 0.5 (1/10 relevant)
+  FAIL ox_exact_6: item precision 0.40 < 0.5 (2/5 relevant)
+  FAIL ox_usage_2: no evidence item satisfies {'path_suffix': 'aspnetusers.vb', 'content_all': ['isadminroleuploadofmarkericonsenabled']}
+  FAIL ox_usage_3: no evidence item satisfies {'path_any': ['permit_edit', 'manage_custom_icons', 'fortnoxinvoicepreview'], 'content_all': []}
+  FAIL ox_usage_4: no evidence item satisfies {'path_suffix': 'api-atahuvud.vb', 'content_all': ['getdictionaryintegervalue', 'pr_id']}
+  FAIL ox_usage_5: required symbols/files not cited: ['iomarker']
+  FAIL ox_multi_1: no evidence item satisfies {'path_suffix': 'iomarkerbulkstatusupdate.ts', 'content_all': []}
+  FAIL ox_multi_2: no evidence item satisfies {'path_suffix': 'manage_custom_icons.aspx.vb', 'content_all': ['mapmarkercustomicons']}
+  FAIL ox_multi_3: no evidence item satisfies {'path_suffix': '.rdl', 'path_any': ['redovisning'], 'content_all': []}
+  FAIL ox_multi_4: item precision 0.30 < 0.34 (3/10 relevant)
+  FAIL ox_rationale_2: item precision 0.30 < 0.34 (3/10 relevant)
+  FAIL ox_compound_1: item precision 0.30 < 0.34 (3/10 relevant)
+  FAIL ox_bug_1: required symbols/files not cited: ['highlightcamerabutton']
+  FAIL ox_bug_2: item precision 0.10 < 0.34 (1/10 relevant)
+GATE: PASS
+== HELD-OUT first run (never tuned against) 20:08:52
+correct:      3/11 = 27%   (gate = 100%: status + modality + item-scoped symbols + required_items + file recall + no forbidden + item precision)
+  FAIL hx_golden_2: status unsupported not in ['answered', 'partial']
+  FAIL hx_golden_4: status ambiguous not in ['answered', 'partial']
+  FAIL hx_golden_5: status ambiguous not in ['answered', 'partial']
+  FAIL hx_golden_6: no evidence of the requested modality ['.ts']
+  FAIL hx_golden_7: item precision 0.20 < 0.34 (1/5 relevant)
+  FAIL hx_golden_8: required symbols/files not cited: ['getbyid']
+  FAIL hx_golden_9: no evidence item satisfies {'path_suffix': 'roqpricelistservice.vb', 'content_all': ['getallby']}
+  FAIL hx_missing_1: status ambiguous not in ['unsupported']
+GATE: FAIL
+correct:      1/5 = 20%   (gate = 100%: status + modality + item-scoped symbols + required_items + file recall + no forbidden + item precision)
+  FAIL hx_causal_1: status ambiguous not in ['answered', 'partial']
+  FAIL hx_causal_2: no evidence item satisfies {'path_suffix': 'app.ts', 'path_any': ['fbinstplan'], 'content_all': ['fjupdate']}
+  FAIL hx_causal_3: required symbols/files not cited: ['fmupdatestatus', 'fjupdate']
+  FAIL hx_causal_5: status ambiguous not in ['answered', 'partial']
+GATE: FAIL
+== reference story RANKS (1st) 20:09:11
+  PASS productioncodelistmaincategory.aspx: pos=13 signals=['name', 'vector']
+  PASS productioncodelistmaincategory.aspx.vb: pos=14 signals=['name', 'vector']
+  PASS rk_redovisningskategorier.sql: pos=3 signals=['cochange', 'concept', 'gloss']
+  PASS redovisningskategorier.vb: pos=22 signals=['cochange', 'concept', 'gloss', 'vector']
+  PASS api-redovisning.vb: pos=20 signals=['cochange', 'concept', 'gloss', 'vector']
+  PASS ifalt.dbml: pos=5 signals=['cochange', 'concept', 'gloss', 'vector']
+  candidates 174 | RANK ACCEPTANCE: 6/6
+== co-change state
+- co-change: complete (40 hits, 273 ms)
+== reference story RANKS (2nd) 20:09:20
+  PASS productioncodelistmaincategory.aspx: pos=13 signals=['name', 'vector']
+  PASS productioncodelistmaincategory.aspx.vb: pos=14 signals=['name', 'vector']
+  PASS rk_redovisningskategorier.sql: pos=3 signals=['cochange', 'concept', 'gloss']
+  PASS redovisningskategorier.vb: pos=22 signals=['cochange', 'concept', 'gloss', 'vector']
+  PASS api-redovisning.vb: pos=20 signals=['cochange', 'concept', 'gloss', 'vector']
+  PASS ifalt.dbml: pos=5 signals=['cochange', 'concept', 'gloss', 'vector']
+  candidates 174 | RANK ACCEPTANCE: 6/6
+== DONE 20:09:25

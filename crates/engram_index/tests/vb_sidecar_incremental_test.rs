@@ -96,6 +96,48 @@ impl Drop for Harness {
 const SOURCE_V1: &str = "Class Widget\n  Public Sub Alpha()\n  End Sub\nEnd Class\n";
 const SOURCE_V2: &str = "Class Widget\n  Public Sub Beta()\n  End Sub\nEnd Class\n";
 
+#[test]
+fn statically_typed_receiver_retains_its_verified_declaring_type() {
+    let Some(bin) = sidecar_path() else { return; };
+    let mut harness = Harness::start(&bin);
+    let response = harness.send(serde_json::json!({"cmd":"parse", "path":"receiver.vb",
+        "source":"Namespace Example\nPublic Class Store\n Public Function Exists() As Boolean\n Return True\n End Function\nEnd Class\nPublic Class Caller\n Public Sub Check(store As Store)\n If store.Exists() Then Return\n End Sub\nEnd Class\nEnd Namespace"}));
+    let calls: Vec<_> = response["edges"].as_array().unwrap().iter().filter(|e| e["kind"] == "calls").collect();
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0]["target_name"], "Example.Store.Exists");
+    assert!(calls[0]["metadata"].get("unresolved").is_none());
+}
+
+#[test]
+fn method_metadata_includes_signature_access_and_return_type() {
+    let Some(bin) = sidecar_path() else {
+        return;
+    };
+    let mut harness = Harness::start(&bin);
+    let response = harness.send(serde_json::json!({"cmd":"parse", "path":"batch.vb",
+        "source":"Public Class Batch\n Public Shared Function CreateMany(id As Integer) As Boolean\n Return True\n End Function\nEnd Class"}));
+    let method = response["symbols"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| {
+            s["name"]
+                .as_str()
+                .unwrap_or_default()
+                .ends_with("CreateMany")
+        })
+        .unwrap();
+    let meta = &method["metadata"];
+    assert_eq!(meta["access_level"], "Public");
+    assert_eq!(meta["return_type"], "Boolean");
+    assert!(
+        meta["signature"]
+            .as_str()
+            .unwrap()
+            .contains("Public Shared Function CreateMany(id As Integer) As Boolean")
+    );
+}
+
 /// After `begin_project`, a cached tree WINS over the source the caller
 /// sends. That is the whole reason the old code had to re-scan the project
 /// on every update — and the reason `invalidate` is needed rather than just
@@ -356,4 +398,95 @@ fn begin_project_without_a_list_still_walks_and_skips_scratch_trees() {
         Some(0),
         ".tmp is a scratch tree — the walk must skip it"
     );
+}
+
+#[test]
+fn constructors_have_distinct_spans_owners_arity_and_body_calls() {
+    let bin = sidecar_path().expect("publish the VB sidecar before this regression test");
+    let mut h = Harness::start(&bin);
+    let source = "Namespace N\nClass Rights\nPublic Sub New()\nEnd Sub\nPublic Sub New(value As Integer)\nValidate(value)\nEnd Sub\nPrivate Sub Validate(value As Integer)\nEnd Sub\nClass Nested\nShared Sub New()\nEnd Sub\nEnd Class\nEnd Class\nEnd Namespace\n";
+    let result = h.send(serde_json::json!({"cmd":"parse", "path":"rights.vb", "source":source}));
+    let symbols = result["symbols"].as_array().unwrap();
+    let ctors: Vec<_> = symbols
+        .iter()
+        .filter(|s| s["metadata"]["constructor"] == "true")
+        .collect();
+    assert_eq!(ctors.len(), 3, "{result}");
+    assert_eq!(ctors[0]["name"], "N.Rights.New");
+    assert_eq!(ctors[0]["start_line"], 3);
+    assert_eq!(ctors[0]["end_line"], 4);
+    assert_eq!(ctors[0]["metadata"]["arity"], "0");
+    assert_eq!(ctors[1]["start_line"], 5);
+    assert_eq!(ctors[1]["end_line"], 7);
+    assert_eq!(ctors[1]["metadata"]["arity"], "1");
+    assert_eq!(ctors[2]["name"], "N.Rights.Nested.New");
+    let edges = result["edges"].as_array().unwrap();
+    assert!(
+        edges.iter().any(|e| e["kind"] == "calls"
+            && e["source_name"] == "N.Rights.New"
+            && e["source_start_line"] == 5
+            && e["metadata"]["call_site_line"] == "6"),
+        "{result}"
+    );
+    assert_eq!(
+        edges
+            .iter()
+            .filter(|e| e["kind"] == "contains" && e["target_name"] == "N.Rights.New")
+            .count(),
+        2
+    );
+}
+
+#[test]
+fn object_creation_and_delegate_references_record_syntax_locations() {
+    let bin = sidecar_path().expect("publish the VB sidecar before this regression test");
+    let mut h = Harness::start(&bin);
+    let source = "Namespace Example\nClass Widget\nPublic Sub New()\nEnd Sub\nPublic Sub New(value As Integer)\nEnd Sub\nPublic Shared Sub Factory()\nDim a = New Widget()\nDim b = New Widget(1)\nDim callback = AddressOf Factory\nEnd Sub\nEnd Class\nEnd Namespace\n";
+    let result = h.send(serde_json::json!({"cmd":"parse", "path":"widget.vb", "source":source}));
+    let edges = result["edges"].as_array().unwrap();
+    let creations: Vec<_> = edges
+        .iter()
+        .filter(|e| e["metadata"]["via"] == "object_creation")
+        .collect();
+    assert_eq!(creations.len(), 2, "{result}");
+    for (i, edge) in creations.iter().enumerate() {
+        assert_eq!(edge["source_name"], "Example.Widget.Factory");
+        assert_eq!(edge["target_name"], "Example.Widget.New");
+        assert_eq!(edge["metadata"]["args"], i.to_string());
+        assert_eq!(edge["metadata"]["call_site_line"], (8 + i).to_string());
+    }
+    assert!(edges.iter().any(|e| e["metadata"]["via"] == "addressof" && e["metadata"]["call_site_line"] == "10"), "{result}");
+}
+
+#[test]
+fn optional_and_paramarray_parameters_record_supported_argument_bounds() {
+    let bin = sidecar_path().expect("publish the VB sidecar before this regression test");
+    let mut h = Harness::start(&bin);
+    let source = "Class Sample\nPublic Sub New(required As Integer, Optional label As String = \"\")\nEnd Sub\nPublic Sub Collect(prefix As String, ParamArray values() As Integer)\nEnd Sub\nEnd Class\n";
+    let result = h.send(serde_json::json!({"cmd":"parse", "path":"sample.vb", "source":source}));
+    let symbols = result["symbols"].as_array().unwrap();
+    let ctor = symbols.iter().find(|s| s["name"] == "Sample.New").unwrap();
+    assert_eq!(ctor["metadata"]["arity"], "2");
+    assert_eq!(ctor["metadata"]["arity_min"], "1");
+    assert_eq!(ctor["metadata"]["arity_variadic"], "false");
+    let variadic = symbols
+        .iter()
+        .find(|s| s["name"] == "Sample.Collect")
+        .unwrap();
+    assert_eq!(variadic["metadata"]["arity_min"], "1");
+    assert_eq!(variadic["metadata"]["arity_variadic"], "true");
+}
+
+#[test]
+fn unknown_generic_constructor_keeps_type_identity_without_parameter_syntax() {
+    let bin = sidecar_path().expect("publish the VB sidecar before this regression test");
+    let mut h = Harness::start(&bin);
+    let source = "Class Factory\nSub Create()\nDim item = New External.Box(Of Integer)()\nEnd Sub\nEnd Class\n";
+    let result = h.send(serde_json::json!({"cmd":"parse", "path":"factory.vb", "source":source}));
+    let edges = result["edges"].as_array().unwrap();
+    let edge = edges
+        .iter()
+        .find(|e| e["metadata"]["via"] == "object_creation")
+        .unwrap();
+    assert_eq!(edge["target_name"], "External.Box.New", "{result}");
 }

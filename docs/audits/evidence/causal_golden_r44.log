@@ -1,0 +1,33 @@
+id                category        status       exp                 cite      ms  verdict
+------------------------------------------------------------------------------------------------
+ox_causal_1       causal          answered     answered/partial    0.50    1941  FAIL: required symbols/files not cited: ['api-atahuvud']
+ox_causal_2       causal          answered     answered/partial    1.00     565  ok
+ox_causal_3       causal          answered     answered/partial    1.00     710  ok
+ox_causal_4       causal          answered     answered/partial    1.00     536  ok
+ox_causal_5       causal          answered     answered/partial    1.00     541  ok
+ox_causal_6       causal          answered     answered/partial    1.00     524  ok
+ox_causal_7       causal          answered     answered/partial    1.00    1060  ok
+ox_causal_8       causal          answered     answered/partial    1.00    1565  ok
+ox_causal_9       causal          answered     answered/partial    1.00     717  ok
+ox_causal_10      causal          answered     answered/partial    1.00     510  ok
+ox_causal_11      causal          answered     answered/partial    1.00     565  ok
+ox_causal_12      causal          answered     answered/partial    1.00     747  ok
+ox_causal_13      causal          answered     answered/partial    1.00    1907  ok
+ox_causal_14      causal          answered     answered/partial    1.00     732  ok
+ox_causal_15      causal          answered     answered/partial    1.00     525  ok
+ox_causal_16      causal          answered     answered/partial    1.00    1618  ok
+ox_causal_17      causal          answered     answered/partial    1.00     588  ok
+ox_causal_18      causal          answered     answered/partial    1.00     498  ok
+ox_causal_19      causal          answered     answered/partial    1.00     525  ok
+ox_causal_20      causal          answered     answered/partial    1.00    1744  ok
+--------------------------------------------------------------------------
+status-match: 20/20 = 100%   (gate >= 80%)
+abstain:      0/0 = 100%   (gate = 100%)
+mean citation coverage (answerable rows): 0.97
+mean latency: 906 ms
+dreamer insights: OFF; insight evidence in 0/20 rows (0 items)
+correct:      19/20 = 95%   (gate = 100%: status + required modality + required symbols + no forbidden distractor + precision)
+  FAIL ox_causal_1: required symbols/files not cited: ['api-atahuvud']
+
+GATE: FAIL
+record written: C:/Users/Dennis/AppData/Local/Temp/claude/C--ai-projects-Engram-MCP-v2/50d309ed-9767-44e6-b7fc-2ac51dd98fa5/scratchpad/p0/causal_r44.json

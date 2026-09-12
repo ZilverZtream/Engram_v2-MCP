@@ -237,3 +237,64 @@ async fn an_old_format_cache_entry_is_never_served_by_a_new_format() {
     );
     assert!(out.contains("Basis:"), "{out}");
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn deterministic_style_handles_multibyte_diff_truncation() {
+    let (_tmp, state, _engram, pid) = build_with_history().await;
+    let root =
+        std::path::PathBuf::from(state.registry.get_project(&pid).unwrap().unwrap().directory);
+    let repo = git2::Repository::open(&root).unwrap();
+    for padding in 0..3 {
+        let body = format!(
+            "'{}{}\n{}",
+            "x".repeat(padding),
+            "漢".repeat(1000),
+            vb_body(2)
+        );
+        commit_file(&repo, &root, FILE, &body, "Unicode fixture");
+    }
+    let result = engram_server::services::cognitive_service::analyze_file_style_deterministic(
+        &state, &pid, FILE, 3,
+    )
+    .await;
+    assert!(result.basis.file_read);
+    assert!(!result.basis.llm_used);
+    assert_eq!(result.basis.commits, 3);
+    assert!(result.style_guide.is_some());
+}
+
+#[tokio::test]
+async fn targeted_history_ignores_sibling_files_and_resolves_nested_project_roots() {
+    let (_tmp, state, _engram, pid) = build_with_history().await;
+    let mut project = state.registry.get_project(&pid).unwrap().unwrap();
+    let root = std::path::PathBuf::from(&project.directory);
+    let repo = git2::Repository::open(&root).unwrap();
+    std::fs::create_dir_all(root.join("Package")).unwrap();
+    std::fs::create_dir_all(root.join("Package-extra")).unwrap();
+    commit_file(
+        &repo,
+        &root,
+        "Package/Rules.vb",
+        &vb_body(2),
+        "target change",
+    );
+    for i in 0..5 {
+        commit_file(
+            &repo,
+            &root,
+            "Package-extra/Rules.vb",
+            &vb_body(i + 3),
+            "sibling change",
+        );
+    }
+    project.directory = root.join("Package").to_string_lossy().into_owned();
+    state.registry.put_project(&project).unwrap();
+    let result = engram_server::services::cognitive_service::analyze_file_style_deterministic(
+        &state, &pid, "Rules.vb", 10,
+    )
+    .await;
+    assert_eq!(result.basis.commits, 1, "{:?}", result.basis);
+    assert!(result.basis.failures.is_empty(), "{:?}", result.basis);
+    assert!(result.basis.file_read);
+    assert!(!result.basis.llm_used);
+}

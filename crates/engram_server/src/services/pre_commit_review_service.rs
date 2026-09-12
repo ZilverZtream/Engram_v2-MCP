@@ -59,11 +59,10 @@ pub enum Severity {
     /// Production-incident-level: immune violations paired with destructive
     /// code, or hardcoded credentials. Never a false positive.
     Critical,
-    /// Should fix before merging: missing audit log, strong temporal
-    /// coupling partner not in the diff, missing-test-file gap.
+    /// Should fix before merging: missing audit log or missing-test-file gap.
     Warning,
     /// Good to know but not blocking: blast-radius context, state-key
-    /// readers/writers touched, moderate coupling.
+    /// readers/writers touched, historical co-change investigation leads.
     Info,
     /// Convention / naming / formatting nits.
     Style,
@@ -272,12 +271,16 @@ impl Verdict {
     /// not deliver cannot make the diff green (row-3 audit A2).
     pub fn with_outcomes(findings: &[ReviewFinding], outcomes: &[GateOutcome]) -> Self {
         let base = Self::from_findings(findings);
-        let missing = outcomes.iter().any(|o| {
-            matches!(
-                o.status,
-                GateStatus::Failed(_) | GateStatus::Panicked(_) | GateStatus::Degraded { .. }
-            )
-        });
+        let missing = outcomes.is_empty()
+            || outcomes.iter().any(|o| {
+                matches!(
+                    o.status,
+                    GateStatus::Failed(_)
+                        | GateStatus::Panicked(_)
+                        | GateStatus::Skipped(_)
+                        | GateStatus::Degraded { .. }
+                ) || !o.caps.is_empty()
+            });
         if base == Self::Green && missing {
             Self::Yellow
         } else {
@@ -538,6 +541,71 @@ pub trait Gate: Send + Sync {
 /// pre-sized from the total diff length so large inputs don't incur
 /// `String::reserve` growth costs mid-parse. Files / hunks vectors are
 /// pre-sized from `diff --git` header density.
+fn decode_git_patch_path(value: &str) -> String {
+    let value = value.trim_end_matches('\r');
+    if !value.starts_with('"') {
+        return value.split('\t').next().unwrap_or(value).to_string();
+    }
+    let mut bytes = Vec::new();
+    let mut input = value.as_bytes()[1..].iter().copied().peekable();
+    while let Some(byte) = input.next() {
+        match byte {
+            b'"' => break,
+            b'\\' => match input.next() {
+                Some(first @ b'0'..=b'7') => {
+                    let mut octal = (first - b'0') as u16;
+                    for _ in 0..2 {
+                        if let Some(next @ b'0'..=b'7') = input.peek().copied() {
+                            input.next();
+                            octal = octal * 8 + (next - b'0') as u16;
+                        } else {
+                            break;
+                        }
+                    }
+                    bytes.push(octal as u8);
+                }
+                Some(escaped) => bytes.push(match escaped {
+                    b'a' => 7, b'b' => 8, b't' => b'\t', b'n' => b'\n',
+                    b'v' => 11, b'f' => 12, b'r' => b'\r', other => other,
+                }),
+                None => break,
+            },
+            other => bytes.push(other),
+        }
+    }
+    String::from_utf8_lossy(&bytes).into_owned()
+}
+
+fn git_patch_header_path(header: &str) -> String {
+    // Git leaves spaces unquoted. Prefer equal old/new paths before using a
+    // delimiter fallback (a filename may itself contain " b/"). Renames are
+    // subsequently resolved by their unambiguous `rename to` header.
+    if let Some(old) = header.strip_prefix("a/") {
+        for (index, _) in old.match_indices(" b/") {
+            if old[..index] == old[index + 3..] {
+                return old[..index].to_string();
+            }
+        }
+    }
+    let target = if header.starts_with('"') {
+        let mut escaped = false;
+        let end = header.bytes().enumerate().skip(1).find_map(|(index, byte)| {
+            if escaped { escaped = false; return None; }
+            if byte == b'\\' { escaped = true; return None; }
+            (byte == b'"').then_some(index + 1)
+        });
+        end.map(|end| header[end..].trim_start()).unwrap_or(header)
+    } else if let Some((_, target)) = header.rsplit_once(" b/") {
+        return target.to_string();
+    } else if let Some((_, target)) = header.rsplit_once(" \"b/") {
+        return decode_git_patch_path(&format!("\"b/{target}"))[2..].to_string();
+    } else {
+        header
+    };
+    let decoded = decode_git_patch_path(target);
+    decoded.strip_prefix("b/").or_else(|| decoded.strip_prefix("a/")).unwrap_or(&decoded).to_string()
+}
+
 pub fn parse_unified_diff(diff_text: &str) -> Vec<DiffFile> {
     // Heuristic pre-sizing: average 40 bytes per line in unified diffs,
     // and one `diff --git` header per ~30 lines on typical repos. The
@@ -563,12 +631,7 @@ pub fn parse_unified_diff(diff_text: &str) -> Vec<DiffFile> {
                 files.push(f);
             }
             // `a/foo b/foo` → path
-            let path = rest
-                .split_whitespace()
-                .last()
-                .and_then(|s| s.strip_prefix("b/").or_else(|| s.strip_prefix("a/")))
-                .unwrap_or(rest)
-                .to_string();
+            let path = git_patch_header_path(rest);
             current = Some(DiffFile {
                 path,
                 change_type: ChangeType::Modified,
@@ -598,24 +661,30 @@ pub fn parse_unified_diff(diff_text: &str) -> Vec<DiffFile> {
 
         // Rename markers.
         if let Some(rest) = raw_line.strip_prefix("rename from ") {
-            f.change_type = ChangeType::Renamed(rest.to_string());
+            f.change_type = ChangeType::Renamed(decode_git_patch_path(rest));
             continue;
         }
-        if let Some(_rest) = raw_line.strip_prefix("rename to ") {
-            // Path was already captured from `diff --git b/…`.
+        if let Some(rest) = raw_line.strip_prefix("rename to ") {
+            f.path = decode_git_patch_path(rest);
             continue;
         }
 
         // `--- /dev/null` → Added. `+++ /dev/null` → Deleted.
-        if let Some(rest) = raw_line.strip_prefix("--- ") {
+        if current_hunk.is_none() && let Some(rest) = raw_line.strip_prefix("--- ") {
             if rest.trim() == "/dev/null" {
                 f.change_type = ChangeType::Added;
+            } else {
+                let path = decode_git_patch_path(rest);
+                f.path = path.strip_prefix("a/").unwrap_or(&path).to_string();
             }
             continue;
         }
-        if let Some(rest) = raw_line.strip_prefix("+++ ") {
+        if current_hunk.is_none() && let Some(rest) = raw_line.strip_prefix("+++ ") {
             if rest.trim() == "/dev/null" {
                 f.change_type = ChangeType::Deleted;
+            } else {
+                let path = decode_git_patch_path(rest);
+                f.path = path.strip_prefix("b/").unwrap_or(&path).to_string();
             }
             continue;
         }
@@ -638,27 +707,22 @@ pub fn parse_unified_diff(diff_text: &str) -> Vec<DiffFile> {
         hunk.body.push(raw_line.to_string());
 
         if let Some(rest) = raw_line.strip_prefix('+') {
-            // A leading `+++` header would have been caught above; only
-            // content `+` prefixes reach here.
-            if !rest.starts_with('+') {
-                f.added_lines.push((new_line, rest.to_string()));
-                if !f.added_content.is_empty() {
-                    f.added_content.push('\n');
-                }
-                f.added_content.push_str(rest);
-                new_line += 1;
+            // Inside a hunk, even `+++` is source text, not a file header.
+            f.added_lines.push((new_line, rest.to_string()));
+            if !f.added_content.is_empty() {
+                f.added_content.push('\n');
             }
+            f.added_content.push_str(rest);
+            new_line += 1;
             continue;
         }
         if let Some(rest) = raw_line.strip_prefix('-') {
-            if !rest.starts_with('-') {
-                f.removed_lines.push((old_line, rest.to_string()));
-                if !f.removed_content.is_empty() {
-                    f.removed_content.push('\n');
-                }
-                f.removed_content.push_str(rest);
-                old_line += 1;
+            f.removed_lines.push((old_line, rest.to_string()));
+            if !f.removed_content.is_empty() {
+                f.removed_content.push('\n');
             }
+            f.removed_content.push_str(rest);
+            old_line += 1;
             continue;
         }
         if raw_line.starts_with(' ') || raw_line.is_empty() {
@@ -714,7 +778,7 @@ fn parse_hunk_header(line: &str) -> Option<DiffHunk> {
 /// - `"staged"` — `git diff --staged` equivalent (HEAD tree vs. index)
 /// - `"unstaged"` — `git diff` equivalent (index vs. working tree)
 /// - `"head"` — `git diff HEAD~1` equivalent (last commit)
-/// - a path ending in `.patch` or `.diff` — read from disk
+/// - a project-relative path ending in `.patch` or `.diff` — read from disk
 /// - anything else — treated as raw unified-diff text
 ///
 /// Uses `git2` (already a dep via `engram_git`) — no shell calls.
@@ -723,8 +787,13 @@ pub fn resolve_diff_source(project_dir: &Path, diff_input: &str) -> anyhow::Resu
         "staged" => git_diff_staged(project_dir),
         "unstaged" => git_diff_unstaged(project_dir),
         "head" => git_diff_head(project_dir),
-        path if path.ends_with(".patch") || path.ends_with(".diff") => {
-            let p = project_dir.join(path);
+        path if !path.contains(['\r', '\n'])
+            && (path.ends_with(".patch") || path.ends_with(".diff")) => {
+            use std::io::Read as _;
+            // Multiline unified diffs may themselves end in a patch filename.
+            // Only a single-line path uses file input, scoped to this project.
+            anyhow::ensure!(!path.contains('\0'), "diff patch path contains a NUL byte");
+            let mut file = engram_core::safe_open_read(project_dir, path)?;
             // Legacy codebases routinely contain non-UTF-8 bytes (a single
             // cp1252/latin-1 curly-quote byte in a vendored JS bundle is
             // enough). `read_to_string` hard-fails on the FIRST such byte
@@ -732,8 +801,9 @@ pub fn resolve_diff_source(project_dir: &Path, diff_input: &str) -> anyhow::Resu
             // review — read raw bytes and decode lossily (U+FFFD
             // replacement) instead. A mangled character in one hunk beats
             // no review at all.
-            let bytes = std::fs::read(&p)
-                .map_err(|e| anyhow::anyhow!("failed to read diff file {}: {e}", p.display()))?;
+            let mut bytes = Vec::new();
+            file.read_to_end(&mut bytes)
+                .map_err(|e| anyhow::anyhow!("failed to read diff file {path:?}: {e}"))?;
             Ok(String::from_utf8_lossy(&bytes).into_owned())
         }
         other => Ok(other.to_string()),
@@ -774,7 +844,9 @@ fn git_diff_staged(project_dir: &Path) -> anyhow::Result<String> {
 fn git_diff_unstaged(project_dir: &Path) -> anyhow::Result<String> {
     let repo = git2::Repository::discover(project_dir)?;
     let mut opts = git2::DiffOptions::new();
-    opts.include_untracked(true).recurse_untracked_dirs(true);
+    opts.include_untracked(true)
+        .recurse_untracked_dirs(true)
+        .show_untracked_content(true);
     let diff = repo.diff_index_to_workdir(None, Some(&mut opts))?;
     diff_to_patch_text(&diff)
 }
@@ -851,6 +923,15 @@ pub enum ConventionCategory {
 /// makes it available to future gates — don't put it in here unless a
 /// gate actually checks it.
 pub fn extract_conventions(content: &str, file_path: &str) -> Vec<DetectedConvention> {
+    let strings = engram_index::parsing::js_quoted_strings(std::path::Path::new(file_path), content);
+    extract_conventions_with_strings(content, file_path, strings.as_deref())
+}
+
+fn extract_conventions_with_strings(
+    content: &str,
+    file_path: &str,
+    strings: Option<&[engram_index::parsing::JsQuotedString]>,
+) -> Vec<DetectedConvention> {
     let lower = file_path.to_ascii_lowercase();
     let mut out: Vec<DetectedConvention> = Vec::new();
 
@@ -868,6 +949,35 @@ pub fn extract_conventions(content: &str, file_path: &str) -> Vec<DetectedConven
         extract_py_conventions(content, &mut out);
     } else if lower.ends_with(".rs") {
         extract_rust_conventions(content, &mut out);
+    }
+
+    if let Some(strings) = strings {
+        // String quotes
+        let dbl = strings
+            .iter()
+            .filter(|literal| literal.quote == '"')
+            .count();
+        let sng = strings
+            .iter()
+            .filter(|literal| literal.quote == '\'')
+            .count();
+        let tot = dbl + sng;
+        if tot >= 10 {
+            let (winner, count) = if dbl > sng {
+                ("double", dbl)
+            } else {
+                ("single", sng)
+            };
+            let frac = count as f32 / tot as f32;
+            if frac >= 0.7 {
+                out.push(DetectedConvention {
+                    category: ConventionCategory::StringQuotes,
+                    value: winner.into(),
+                    sample_count: count,
+                    total_count: tot,
+                });
+            }
+        }
     }
 
     // Universal: indentation style applies to any text file.
@@ -1128,27 +1238,6 @@ fn extract_js_conventions(content: &str, out: &mut Vec<DetectedConvention>) {
         }
     }
     publish_casing(out, ConventionCategory::MethodNaming, buckets);
-
-    // String quotes
-    let dbl = content.matches('"').count() / 2;
-    let sng = content.matches('\'').count() / 2;
-    let tot = dbl + sng;
-    if tot >= 10 {
-        let (winner, count) = if dbl > sng {
-            ("double", dbl)
-        } else {
-            ("single", sng)
-        };
-        let frac = count as f32 / tot as f32;
-        if frac >= 0.7 {
-            out.push(DetectedConvention {
-                category: ConventionCategory::StringQuotes,
-                value: winner.into(),
-                sample_count: count,
-                total_count: tot,
-            });
-        }
-    }
 
     // Semicolons
     let code_lines = content
@@ -1458,33 +1547,22 @@ pub fn aggregate_findings(
                     .collect::<Vec<_>>()
                     .join(", ")
             };
-            // Take the highest severity already reported on this file and
-            // escalate one step (Style → Info, Info → Warning, Warning →
-            // Warning). Critical stays Critical.
-            let existing = findings
-                .iter()
-                .filter(|f| &f.file_path == file)
-                .map(|f| f.severity)
-                .min()
-                .unwrap_or(Severity::Info);
-            let escalated = match existing {
-                Severity::Critical => Severity::Critical,
-                Severity::Warning => Severity::Warning,
-                Severity::Info => Severity::Warning,
-                Severity::Style => Severity::Info,
-            };
+            // A shared file and distinct gate labels do not establish
+            // independent evidence or agreement about the same risk.
+            let existing = findings.iter().filter(|f| &f.file_path == file)
+                .map(|f| f.severity).min().unwrap_or(Severity::Info);
             meta.push(
                 ReviewFinding::new(
-                    escalated,
+                    existing,
                     "corroboration",
                     file.clone(),
                     format!("{} gates flagged this file", gates.len()),
                     format!(
-                        "Multiple independent gates raised findings on `{file}`: {gate_list}. \
-                         Treat this file as the primary review focus for this commit."
+                        "Distinct checks raised findings on `{file}`: {gate_list}. \
+                         This groups review locations; it does not establish independent evidence or increase severity."
                     ),
-                    "Investigate findings on this file first — agreement across gates \
-                     is a strong signal the change deserves extra scrutiny."
+                    "Review each underlying finding and its evidence limitations; shared file location \
+                     alone does not corroborate a defect."
                         .to_string(),
                 )
                 .with_evidence(vec![format!("gates = {}", gate_list.replace('`', ""))]),
@@ -1623,6 +1701,19 @@ fn collapse_resx_family_findings(findings: Vec<ReviewFinding>) -> Vec<ReviewFind
         .collect();
     let to_collapse: HashSet<usize> = idx_to_key.keys().copied().collect();
 
+    // Grouping is presentation only. Preserve each member's full evidence,
+    // limits and suggested action rather than infer one family-wide obligation.
+    let member_records: HashMap<GroupKey, Vec<String>> = groups.iter().map(|(key, indices)| {
+        (key.clone(), indices.iter().map(|&index|
+            serde_json::to_string(&findings[index]).expect("finding is serializable")
+        ).collect())
+    }).collect();
+    let member_details: HashMap<GroupKey, String> = groups.iter().map(|(key, indices)| {
+        (key.clone(), indices.iter().map(|&index| {
+            let member = &findings[index];
+            format!("{}: {}\nSuggested action: {}", member.title, member.detail, member.suggestion)
+        }).collect::<Vec<_>>().join("\n\n"))
+    }).collect();
     let mut out = Vec::with_capacity(findings.len());
     let mut emitted: HashSet<GroupKey> = HashSet::new();
     for (i, f) in findings.into_iter().enumerate() {
@@ -1653,11 +1744,13 @@ fn collapse_resx_family_findings(findings: Vec<ReviewFinding>) -> Vec<ReviewFind
             key.host.clone()
         };
         let detail = format!(
-            "{count} findings differed only by localized `.resx` language variant of \
-             `{family_display}` and were collapsed into this one. Treat the family as \
-             atomic — the language variants all need the same decision."
+            "{count} findings reference localized variants of `{family_display}` and are \
+             grouped for presentation. Each member retains its own facts and limitations; \
+             membership in a resource family does not establish a shared required change.\n\n{}",
+            member_details[key]
         );
-        let suggestion = f.suggestion.clone();
+        let suggestion = "Review each member's evidence and suggested action independently. \
+            Grouping does not require editing every language variant.";
         let next_tool = f.next_tool.clone();
         let mut collapsed =
             ReviewFinding::new(f.severity, f.gate, file_path, title, detail, suggestion);
@@ -1665,6 +1758,7 @@ fn collapse_resx_family_findings(findings: Vec<ReviewFinding>) -> Vec<ReviewFind
             format!("resx_family = {family_display}"),
             format!("collapsed_count = {count}"),
         ];
+        collapsed.evidence.extend(member_records[key].iter().map(|record| format!("member = {record}")));
         if let Some(t) = next_tool {
             collapsed = collapsed.with_next_tool(t);
         }
@@ -1921,7 +2015,7 @@ pub fn render_markdown(
         "# Pre-Commit Review — {emoji} **{verdict}**\n\n",
         emoji = verdict.emoji(),
         verdict = match verdict {
-            Verdict::Green => "GREEN — safe to commit",
+            Verdict::Green => "GREEN — no concerns within reported static gate coverage",
             Verdict::Yellow => "YELLOW — review recommended",
             Verdict::Red => "RED — do not merge as-is",
         },
@@ -1947,6 +2041,7 @@ pub fn render_markdown(
         style = counts.get(&Severity::Style).copied().unwrap_or(0),
     ));
 
+    out.push_str("Scope: static review gates. Compilation: not_run. Test execution: not_run. Green applies only to the reported gate coverage.\n\n");
     if !not_run.is_empty() {
         out.push_str("## ⚠ Gates that did not run — evidence is INCOMPLETE\n\n");
         for o in &not_run {
@@ -2071,6 +2166,9 @@ pub fn render_markdown(
 #[derive(Debug, Serialize)]
 pub struct ReviewJson {
     pub verdict: Verdict,
+    pub validation_scope: &'static str,
+    pub compilation: &'static str,
+    pub test_execution: &'static str,
     pub summary: ReviewSummary,
     pub findings: Vec<ReviewFinding>,
     /// Per-gate outcome (row-3 audit A1): passed / findings / failed /
@@ -2136,6 +2234,9 @@ pub fn render_json(
     }
     ReviewJson {
         verdict,
+        validation_scope: "Static review gates; green is limited to the reported gate coverage",
+        compilation: "not_run",
+        test_execution: "not_run",
         summary: s,
         findings,
         gate_status: outcomes.to_vec(),
@@ -2226,9 +2327,16 @@ pub async fn run_pre_commit_review_with(
         }
         Arc::new(s)
     };
+    let mut provider_notes = Vec::new();
     let total_commits = state
         .registry
         .get_meta(project_id, "total_commits")
+        .map_err(|error| {
+            provider_notes.push(ProviderNote::new(
+                ProviderScope::HistoryStats,
+                format!("history metadata unavailable: {error}"),
+            ))
+        })
         .ok()
         .flatten()
         .and_then(|s| s.parse::<u32>().ok())
@@ -2237,26 +2345,39 @@ pub async fn run_pre_commit_review_with(
         state
             .registry
             .list_repo_rules(project_id)
-            .unwrap_or_default(),
+            .unwrap_or_else(|error| {
+                provider_notes.push(ProviderNote::new(
+                    ProviderScope::RepositoryRules,
+                    format!("repository rules unavailable: {error}"),
+                ));
+                Vec::new()
+            }),
     );
-    let files_by_parent: Arc<HashMap<String, Vec<String>>> =
-        Arc::new(build_files_by_parent(&state.graph, project_id));
-    let audit_function = detect_audit_function(&state.graph, project_id);
+    let files_by_parent: Arc<HashMap<String, Vec<String>>> = Arc::new(build_files_by_parent(
+        &state.graph,
+        project_id,
+        &mut provider_notes,
+    ));
+    let audit_function = detect_audit_function(&state.graph, project_id, &mut provider_notes);
 
     // External audit 2026-08-29 P0-4: a structurally incomplete index returns
     // no error, so the review checks generation completeness ONCE and every
     // search-backed gate degrades itself on the verdict.
-    let search_index_note = match crate::handlers::project_tools::generation_completeness_for(
-        state, project_id, generation,
-    )
-    .await
-    {
+    // A direct review can be the first call after startup or cache eviction.
+    // Open its runtime before checking completeness; no prior search is required.
+    // Loading errors remain unknown evidence, never a passing empty index.
+    let completeness = match crate::services::project_service::ensure_project_runtime(
+        state, project_id,
+    ).await {
+        Ok(_) => crate::handlers::project_tools::generation_completeness_for(
+            state, project_id, generation,
+        ).await,
+        Err(error) => Err(error.into()),
+    };
+    let search_index_note = match completeness {
         Ok(c) if !c.complete => Some(format!(
-            "search index generation {} is INCOMPLETE ({} code chunks for {} tracked files, {:.1} %) — searched evidence is unreliable; run index_project (full re-index)",
-            c.generation,
-            c.code_chunks,
-            c.files,
-            c.ratio * 100.0
+            "search index generation {} is INCOMPLETE ({} of {} eligible paths missing, cross-store mismatch {}) — searched evidence is unreliable",
+            c.generation, c.missing, c.expected_paths, c.cross_store_mismatch
         )),
         Ok(_) => None,
         Err(e) => Some(format!("search index completeness unknown: {e}")),
@@ -2277,6 +2398,7 @@ pub async fn run_pre_commit_review_with(
         files_by_parent: files_by_parent.clone(),
         audit_function: audit_function.clone(),
         search_index_note,
+        provider_notes,
     });
 
     // ── Gate dispatch ─────────────────────────────────────────────────
@@ -2325,7 +2447,7 @@ pub async fn run_pre_commit_review_with(
         let state_clone = state.clone(); // AppState is Clone (all Arc fields)
         let handle = tokio::task::spawn_blocking(move || {
             let started = std::time::Instant::now();
-            let ctx = shared.as_borrowed(&state_clone);
+            let ctx = shared.as_borrowed(&state_clone, name);
             let r = gate.run(&ctx);
             (
                 r,
@@ -2381,7 +2503,7 @@ pub async fn run_pre_commit_review_with(
         for gate in async_gates {
             let name = gate.name();
             let started = std::time::Instant::now();
-            let ctx = shared.as_borrowed(state);
+            let ctx = shared.as_borrowed(state, name);
             let result = std::panic::AssertUnwindSafe(gate.run_async(&ctx))
                 .catch_unwind()
                 .await;
@@ -2433,6 +2555,22 @@ pub async fn run_pre_commit_review_with(
     outcomes.extend(sync_outcomes);
     outcomes.extend(async_outcomes);
 
+    // A display filter must not turn known risk findings into a clean review.
+    for outcome in &mut outcomes {
+        let hidden = findings
+            .iter()
+            .filter(|finding| {
+                finding.gate == outcome.name
+                    && finding.severity != Severity::Style
+                    && finding.severity > config.min_severity
+            })
+            .count();
+        if hidden > 0 {
+            outcome.caps.push(format!(
+                "{hidden} risk finding(s) hidden by min_severity; lower the filter to inspect them"
+            ));
+        }
+    }
     let finalised = aggregate_findings(
         findings,
         &diff_files,
@@ -2449,6 +2587,34 @@ pub async fn run_pre_commit_review_with(
 /// The separate `as_borrowed(state)` step builds a `GateContext<'_>`
 /// that the gate actually consumes; we keep the borrowed-context shape
 /// from the original API so gate implementations stay unchanged.
+#[derive(Clone, Copy)]
+enum ProviderScope {
+    RepositoryRules,
+    FileConventions,
+    AuditConvention,
+    HistoryStats,
+}
+impl ProviderScope {
+    fn applies_to(self, gate: &str) -> bool {
+        match self {
+            Self::RepositoryRules => matches!(gate, "immune" | "repo_rules" | "added_conventions"),
+            Self::FileConventions => matches!(gate, "new_file" | "temporal" | "test_coverage"),
+            Self::AuditConvention => gate == "audit",
+            Self::HistoryStats => gate == "temporal",
+        }
+    }
+}
+#[derive(Clone)]
+struct ProviderNote {
+    scope: ProviderScope,
+    message: String,
+}
+impl ProviderNote {
+    fn new(scope: ProviderScope, message: String) -> Self {
+        Self { scope, message }
+    }
+}
+
 #[derive(Clone)]
 struct SharedGateData {
     graph: Arc<GraphStore>,
@@ -2463,10 +2629,11 @@ struct SharedGateData {
     files_by_parent: Arc<HashMap<String, Vec<String>>>,
     audit_function: Option<String>,
     search_index_note: Option<String>,
+    provider_notes: Vec<ProviderNote>,
 }
 
 impl SharedGateData {
-    fn as_borrowed<'a>(&'a self, state: &'a AppState) -> GateContext<'a> {
+    fn as_borrowed<'a>(&'a self, state: &'a AppState, gate: &str) -> GateContext<'a> {
         GateContext {
             state,
             graph: self.graph.clone(),
@@ -2481,7 +2648,13 @@ impl SharedGateData {
             files_by_parent: self.files_by_parent.clone(),
             audit_function: self.audit_function.clone(),
             search_index_note: self.search_index_note.clone(),
-            degraded: std::sync::Mutex::new(Vec::new()),
+            degraded: std::sync::Mutex::new(
+                self.provider_notes
+                    .iter()
+                    .filter(|note| note.scope.applies_to(gate))
+                    .map(|note| note.message.clone())
+                    .collect(),
+            ),
             caps: std::sync::Mutex::new(Vec::new()),
         }
     }
@@ -2492,12 +2665,28 @@ impl SharedGateData {
 /// Build a `parent_dir → [file_path]` index for every file node in the
 /// project. Called once per review so Gate 8 (new-file convention)
 /// doesn't hit the graph on every added file.
-fn build_files_by_parent(graph: &GraphStore, project_id: &str) -> HashMap<String, Vec<String>> {
+fn build_files_by_parent(
+    graph: &GraphStore,
+    project_id: &str,
+    notes: &mut Vec<ProviderNote>,
+) -> HashMap<String, Vec<String>> {
     let nodes = graph
-        .query_nodes(project_id, Some("file"), None, None, 50_000)
-        .unwrap_or_default();
+        .query_nodes(project_id, Some("file"), None, None, 50_001)
+        .unwrap_or_else(|error| {
+            notes.push(ProviderNote::new(
+                ProviderScope::FileConventions,
+                format!("file convention index unavailable: {error}"),
+            ));
+            Vec::new()
+        });
+    if nodes.len() > 50_000 {
+        notes.push(ProviderNote::new(
+            ProviderScope::FileConventions,
+            "file convention index truncated at 50000 nodes".into(),
+        ));
+    }
     let mut by_parent: HashMap<String, Vec<String>> = HashMap::new();
-    for n in nodes {
+    for n in nodes.into_iter().take(50_000) {
         let p = n.file_path.as_str().to_string();
         let parent = match p.rfind('/') {
             Some(i) => p[..i].to_string(),
@@ -2512,7 +2701,11 @@ fn build_files_by_parent(graph: &GraphStore, project_id: &str) -> HashMap<String
 /// function nodes whose names contain common audit identifiers.
 /// Returns the most-specific name (longest match) or `None` when no
 /// convention exists.
-fn detect_audit_function(graph: &GraphStore, project_id: &str) -> Option<String> {
+fn detect_audit_function(
+    graph: &GraphStore,
+    project_id: &str,
+    notes: &mut Vec<ProviderNote>,
+) -> Option<String> {
     const AUDIT_PATTERNS: &[&str] = &[
         "handelselogg",
         "AuditLog",
@@ -2522,11 +2715,24 @@ fn detect_audit_function(graph: &GraphStore, project_id: &str) -> Option<String>
     ];
     for pat in AUDIT_PATTERNS {
         let matches = graph
-            .query_nodes(project_id, Some("function"), Some(pat), None, 10)
-            .unwrap_or_default();
+            .query_nodes(project_id, Some("function"), Some(pat), None, 11)
+            .unwrap_or_else(|error| {
+                notes.push(ProviderNote::new(
+                    ProviderScope::AuditConvention,
+                    format!("audit convention lookup unavailable: {error}"),
+                ));
+                Vec::new()
+            });
+        if matches.len() > 10 {
+            notes.push(ProviderNote::new(
+                ProviderScope::AuditConvention,
+                format!("audit convention candidate search for {pat} truncated at 10"),
+            ));
+        }
         if !matches.is_empty() {
             return matches
                 .iter()
+                .take(10)
                 .max_by_key(|n| n.name.len())
                 .map(|n| n.name.clone());
         }
@@ -2619,10 +2825,8 @@ pub fn path_suffix_match(a: &str, b: &str) -> bool {
 /// Resolve a (possibly historical) co-change partner path to its
 /// current-tree spelling, or `None` when the file no longer exists.
 ///
-/// - a current-tree file that suffix-matches the historical spelling
-///   wins, and the CURRENT spelling is returned — never the stale one.
-///   Ties break to the shortest match, then lexicographically smallest,
-///   so resolution is deterministic.
+/// Exact current identity wins. A historical suffix is used only when it
+/// identifies one current file; ambiguity is never resolved by shortest path.
 /// - when the index has no match, a direct disk probe keeps a genuinely
 ///   existing partner alive even against a stale/partial graph.
 /// - otherwise the partner is gone from the tree entirely — callers
@@ -2632,28 +2836,36 @@ pub fn resolve_partner_to_current(
     current_files: &[String],
     project_dir: &Path,
 ) -> Option<String> {
-    let mut best: Option<&str> = None;
-    for cf in current_files {
-        if !path_suffix_match(partner, cf) {
-            continue;
-        }
-        let better = match best {
-            None => true,
-            Some(b) => cf.len() < b.len() || (cf.len() == b.len() && cf.as_str() < b),
-        };
-        if better {
-            best = Some(cf.as_str());
-        }
+    resolve_partner_to_current_checked(partner, current_files, project_dir).ok().flatten()
+}
+
+/// Current file identity must not use historical suffix equivalence.
+pub fn current_path_eq(a: &str, b: &str) -> bool {
+    fn normalize(path: &str) -> String {
+        path.trim().replace('\\', "/").split('/').filter(|part| !part.is_empty() && *part != ".")
+            .collect::<Vec<_>>().join("/")
     }
-    if let Some(b) = best {
-        return Some(b.replace('\\', "/"));
+    normalize(a).eq_ignore_ascii_case(&normalize(b))
+}
+
+pub fn resolve_partner_to_current_checked(
+    partner: &str, current_files: &[String], project_dir: &Path,
+) -> Result<Option<String>, String> {
+    if let Some(exact) = current_files.iter().find(|file| current_path_eq(partner, file)) {
+        return Ok(Some(exact.replace('\\', "/")));
     }
-    let cleaned = partner.replace('\\', "/");
-    let cleaned = cleaned.trim_start_matches('/').to_string();
-    if project_dir.join(&cleaned).is_file() {
-        return Some(cleaned);
+    let cleaned = partner.replace('\\', "/").trim_start_matches('/').to_string();
+    if engram_core::safe_join(project_dir, &cleaned).ok().is_some_and(|path| path.is_file()) {
+        return Ok(Some(cleaned));
     }
-    None
+    let mut matches: Vec<_> = current_files.iter().filter(|file| path_suffix_match(partner, file)).cloned().collect();
+    matches.sort();
+    matches.dedup_by(|a, b| current_path_eq(a, b));
+    match matches.len() {
+        0 => Ok(None),
+        1 => Ok(matches.pop().map(|path| path.replace('\\', "/"))),
+        count => Err(format!("ambiguous historical path {partner}: {count} current candidates ({}); exact file identity is required", matches.iter().take(5).cloned().collect::<Vec<_>>().join(", "))),
+    }
 }
 
 // Re-export commonly-used items for the gates module.
@@ -2667,6 +2879,40 @@ mod tests {
     fn verdict_green_when_only_style() {
         let f = ReviewFinding::new(Severity::Style, "g", "a", "t", "d", "s");
         assert_eq!(Verdict::from_findings(&[f]), Verdict::Green);
+    }
+
+    #[test]
+    fn absent_skipped_or_capped_review_evidence_cannot_be_green() {
+        assert_eq!(Verdict::with_outcomes(&[], &[]), Verdict::Yellow);
+        let mut outcome = GateOutcome {
+            name: "test",
+            status: GateStatus::Passed,
+            elapsed_ms: 0,
+            caps: vec![],
+        };
+        assert_eq!(
+            Verdict::with_outcomes(&[], &[outcome.clone()]),
+            Verdict::Green
+        );
+        outcome.caps.push("only first file inspected".into());
+        assert_eq!(
+            Verdict::with_outcomes(&[], &[outcome.clone()]),
+            Verdict::Yellow
+        );
+        outcome.caps.clear();
+        outcome.status = GateStatus::Skipped("skip_gates".into());
+        assert_eq!(
+            Verdict::with_outcomes(&[], &[outcome.clone()]),
+            Verdict::Yellow
+        );
+        let critical = ReviewFinding::new(Severity::Critical, "g", "a", "t", "d", "s");
+        assert_eq!(
+            Verdict::with_outcomes(&[critical], &[outcome]),
+            Verdict::Red
+        );
+        let report = render_json(vec![], 1, 0, 0, &[]);
+        assert_eq!(report.compilation, "not_run");
+        assert_eq!(report.test_execution, "not_run");
     }
 
     #[test]
@@ -3160,6 +3406,30 @@ interface IProduct { id: number; }
     }
 
     #[test]
+    fn resx_grouping_retains_distinct_partner_facts_without_family_obligation() {
+        let findings: Vec<_> = [("label.en.resx", 328, "partial history"), ("label.de.resx", 110, "unknown anchor count")]
+            .into_iter().map(|(path, weight, limit)| {
+                ReviewFinding::new(Severity::Info, "temporal", "Page.aspx",
+                    format!("Historical co-change lead: `Resources/{path}` is outside this diff"),
+                    format!("Stored weight {weight}; {limit}"),
+                    format!("Inspect {path}; modify only if necessary"))
+                .with_evidence(vec![format!("coupling_weight = {weight}"), limit.to_string()])
+                .with_next_tool(format!("inspect {path}"))
+            }).collect();
+        let originals: Vec<_> = findings.iter().map(|f| serde_json::to_value(f).unwrap()).collect();
+        let out = collapse_resx_family_findings(findings);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].severity, Severity::Info);
+        assert!(out[0].detail.contains("328") && out[0].detail.contains("110"));
+        assert!(out[0].detail.contains("partial history") && out[0].detail.contains("unknown anchor count"));
+        assert!(!out[0].detail.contains("atomic") && !out[0].detail.contains("same decision"));
+        let retained: Vec<serde_json::Value> = out[0].evidence.iter()
+            .filter_map(|e| e.strip_prefix("member = "))
+            .map(|s| serde_json::from_str(s).unwrap()).collect();
+        assert_eq!(retained, originals, "Every member fact/action survives presentation grouping");
+    }
+
+    #[test]
     fn collapse_resx_family_findings_leaves_single_variant_untouched() {
         let findings = vec![ReviewFinding::new(
             Severity::Style,
@@ -3372,5 +3642,22 @@ mod header_gate_total_tests {
             header.contains(&format!("**Gates run**: {}/{n}", n - 2)),
             "got: {header}"
         );
+    }
+}
+
+#[cfg(test)]
+mod corroboration_evidence_tests {
+    use super::*;
+    #[test]
+    fn three_advisories_do_not_become_a_warning() {
+        let make = || ["audit", "test_coverage", "unwired"].into_iter()
+            .map(|gate| ReviewFinding::new(Severity::Info, gate, "Controller.vb", "advisory", "limited evidence", "inspect"))
+            .collect();
+        let all = aggregate_findings(make(), &[], Severity::Style, 100);
+        assert_eq!(all.iter().filter(|f| f.gate != "corroboration").count(), 3);
+        assert!(all.iter().all(|f| f.severity == Severity::Info));
+        let summary = all.iter().find(|f| f.gate == "corroboration").unwrap();
+        assert!(summary.detail.contains("does not establish independent evidence"));
+        assert!(aggregate_findings(make(), &[], Severity::Warning, 100).is_empty());
     }
 }

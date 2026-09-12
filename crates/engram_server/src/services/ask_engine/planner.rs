@@ -68,6 +68,14 @@ pub fn plan_query(question: &str) -> QueryPlan {
     }
 
     // ── Usage ──
+    // Batch 4 (doc 11, live r60 exact_3): "where is X DEFINED/declared?"
+    // asks for a location, not for callers — the bare "where is" cue must
+    // not classify it as breadth Usage (which blocks the lookup cap).
+    let where_defined =
+        (lower.contains("where is") || lower.contains("where are") || lower.contains("where's"))
+            && (lower.contains("defined")
+                || lower.contains("declared")
+                || lower.contains("definition"));
     for kw in [
         "where is",
         "where are",
@@ -80,10 +88,38 @@ pub fn plan_query(question: &str) -> QueryPlan {
         "consumed by",
         "read from",
         "written to",
+        // Item 8 (causal golden suite): "what calls X", "uses the X API",
+        // "what depends on X", "which files depend on X" ask for X's
+        // callers/dependents — the symbol-references arm.
+        "what calls",
+        "which calls",
+        "what uses",
+        "which uses",
+        "uses the",
+        "calls to",
+        "callers",
+        "depends on",
+        "depend on",
+        "dependents",
+        "depending on",
+        "consumers of",
+        "clients of",
     ] {
         if lower.contains(kw) {
+            if where_defined && (kw == "where is" || kw == "where are") {
+                continue;
+            }
             add(Intent::Usage, 0.8, &mut intents);
         }
+    }
+    // "Which TypeScript calls X?" / "What code calls X?" — a question word,
+    // then the callers of X. ("does X call?" asks for X's callees instead.)
+    if (lower.starts_with("what ") || lower.starts_with("which ") || lower.starts_with("who "))
+        // Batch 6 (live r62 causal_13): "which FILES call X" — plural
+        // subject, bare "call" — is the same callers question.
+        && (lower.contains(" calls ") || lower.contains(" call "))
+    {
+        add(Intent::Usage, 0.8, &mut intents);
     }
 
     // ── History (WHEN) vs Rationale (WHY) — distinct intents ──
@@ -96,6 +132,12 @@ pub fn plan_query(question: &str) -> QueryPlan {
         "who changed",
         "which commit",
         "which pr",
+        // Item 8 (ox_history_2): "Which merged PR introduced …"
+        "merged pr",
+        "pull request",
+        "introduced",
+        "what commit",
+        "which change",
     ] {
         if lower.contains(kw) {
             add(Intent::History, 0.8, &mut intents);
@@ -234,6 +276,9 @@ pub fn plan_query(question: &str) -> QueryPlan {
     let qualifiers = extract_qualifiers(q, &lower);
     let answer_type = primary_answer_type(intents.first().map(|(i, _)| *i));
     let needed_evidence = needed_evidence_for(&intents);
+    let modalities = detect_modalities(&lower);
+
+    let contract = derive_contract(&lower, &entities);
 
     QueryPlan {
         intents,
@@ -241,7 +286,196 @@ pub fn plan_query(question: &str) -> QueryPlan {
         qualifiers,
         needed_evidence,
         answer_type,
+        modalities,
+        contract,
     }
+}
+
+/// Doc-13 Phase A: derive the typed answer contract from the question's
+/// SHAPE — generic linguistic forms, never project names.
+pub fn derive_contract(lower: &str, _entities: &[EntityMention]) -> super::plan::AnswerContract {
+    use super::plan::{AnswerContract, Cardinality, ContractDirection, ContractEntityType, Facet};
+    let mut c = AnswerContract::default();
+    let interrogative =
+        lower.starts_with("which ") || lower.starts_with("what ") || lower.starts_with("who ");
+    // "Which/What … does X call?" — the CALLEES of X, as a set.
+    let asks_callees = interrogative
+        && (lower.contains(" does ") || lower.contains(" do "))
+        && (lower.contains(" call?") || lower.contains(" call ") || lower.contains(" calls?"));
+    // "Which/What/Who … call(s) X?" — the CALLERS of X, as a set.
+    let asks_callers =
+        !asks_callees && interrogative && (lower.contains(" calls ") || lower.contains(" call "));
+    if asks_callees {
+        c.direction = ContractDirection::Callees;
+        c.cardinality = Cardinality::ExhaustiveSet;
+        c.completeness_required = true;
+        if lower.contains(" functions ") || lower.contains(" function ") {
+            c.entity_type = ContractEntityType::Function;
+        } else if lower.contains(" files ") {
+            c.entity_type = ContractEntityType::File;
+        } else if lower.contains(" routes ") || lower.contains(" route ") {
+            c.entity_type = ContractEntityType::Route;
+        }
+    } else if asks_callers {
+        c.direction = ContractDirection::Callers;
+        c.cardinality = Cardinality::ExhaustiveSet;
+        c.completeness_required = true;
+        if lower.contains(" files ") {
+            c.entity_type = ContractEntityType::File;
+        } else if lower.contains(" functions ") {
+            c.entity_type = ContractEntityType::Function;
+        }
+        c.required_facets.push(Facet::Caller);
+        // Round-7: "who calls X" must also anchor WHAT X is — cite X's own
+        // definition, not only its callers. Otherwise, once a symbol gains many
+        // callers, the caller citations crowd the definition out of the answer
+        // (ox_causal_18: DeleteImage's callers cited, its api-images definition
+        // dropped).
+        c.required_facets.push(Facet::Definition);
+    } else if (lower.contains("where is")
+        || lower.contains("where are")
+        || lower.contains("where's"))
+        && (lower.contains("defined") || lower.contains("declared") || lower.contains("definition"))
+    {
+        c.cardinality = Cardinality::One;
+        c.required_facets.push(Facet::Definition);
+    } else if interrogative && lower.contains(" files ") {
+        // "Which … files … <verb> …?" — a file SET (the camera shape).
+        c.entity_type = ContractEntityType::File;
+        c.cardinality = Cardinality::ExhaustiveSet;
+        c.completeness_required = true;
+    } else if interrogative && (lower.contains(" table ") || lower.contains(" table?")) {
+        c.entity_type = ContractEntityType::Table;
+        c.cardinality = Cardinality::One;
+    }
+    // Direct lookup/set contracts retain their established semantics. Only
+    // coordinated natural-language behavior requests add these obligations.
+    if c.direction == ContractDirection::None && c.required_facets.is_empty() {
+        c.behavior_requirements = coordinated_behavior_operations(lower);
+        if !c.behavior_requirements.is_empty() {
+            let first_sentence = lower.split(['?', '.', '!']).next().unwrap_or(lower);
+            c.behavior_scope_context = [
+                " across ",
+                " within ",
+                " between ",
+                " in ",
+                " per ",
+                " for each ",
+            ]
+            .iter()
+            .filter_map(|cue| first_sentence.find(cue))
+            .min()
+            .map(|at| first_sentence[at..].trim().chars().take(240).collect());
+        }
+    }
+    c
+}
+
+/// Deliberately bounded recall: explicit where/how questions coordinating two
+/// different operation families. Whole prose tokens avoid interpreting a
+/// compound identifier as multiple operations. Quoted identifiers are omitted.
+fn coordinated_behavior_operations(lower: &str) -> Vec<BehaviorOperation> {
+    use BehaviorOperation as Op;
+    if !(lower.starts_with("where ") || lower.starts_with("how ")) {
+        return Vec::new();
+    }
+    let mut quote = None;
+    let prose: String = lower
+        .chars()
+        .map(|ch| {
+            if matches!(ch, '`' | '"') {
+                if quote == Some(ch) {
+                    quote = None;
+                } else if quote.is_none() {
+                    quote = Some(ch);
+                }
+                ' '
+            } else if quote.is_some() {
+                ' '
+            } else {
+                ch
+            }
+        })
+        .collect();
+    let tokens: Vec<&str> = prose
+        .split(|ch: char| !ch.is_alphanumeric() && ch != '_')
+        .collect();
+    if !tokens.iter().any(|t| matches!(*t, "and" | "or")) {
+        return Vec::new();
+    }
+    let mut operations = Vec::new();
+    for token in tokens {
+        let operation = match token {
+            "create" | "creates" | "created" | "creating" | "creation" | "add" | "adds"
+            | "added" | "adding" | "insert" | "inserted" => Op::Create,
+            "rename" | "renames" | "renamed" | "renaming" | "retitle" | "retitled"
+            | "retitling" => Op::Rename,
+            "update" | "updates" | "updated" | "updating" | "modify" | "modified" | "edit"
+            | "edited" | "write" | "written" => Op::Update,
+            "remove" | "removes" | "removed" | "removing" | "delete" | "deleted" | "deleting" => {
+                Op::Remove
+            }
+            "read" | "reads" | "reading" | "retrieve" | "retrieved" | "fetch" | "fetched"
+            | "load" | "loaded" => Op::Read,
+            "validate" | "validated" | "validation" | "enforce" | "enforced" | "enforcement"
+            | "prevent" | "prevents" => Op::Validate,
+            _ => continue,
+        };
+        if !operations.contains(&operation) {
+            operations.push(operation);
+        }
+    }
+    if operations.len() < 2 {
+        operations.clear();
+    }
+    operations
+}
+
+/// Round-2 audit P0-4: the evidence modality the question asks for, from
+/// WHOLE-WORD cues — "reporting" is not a report request, "table" is.
+pub fn detect_modalities(lower: &str) -> Vec<Modality> {
+    let toks: Vec<&str> = lower
+        .split(|c: char| !c.is_alphanumeric() && c != '_')
+        .filter(|t| !t.is_empty())
+        .collect();
+    let has = |words: &[&str]| toks.iter().any(|t| words.contains(t));
+    let mut out = Vec::new();
+    if has(&["report", "reports", "rdl", "rdlc", "ssrs"]) {
+        out.push(Modality::Report);
+    }
+    if has(&[
+        "table",
+        "tables",
+        "schema",
+        "column",
+        "columns",
+        "migration",
+        "migrations",
+        "sql",
+        "dbml",
+        "procedure",
+        "procedures",
+    ]) {
+        out.push(Modality::Sql);
+    }
+    if has(&[
+        "resx",
+        "resource",
+        "resources",
+        "translation",
+        "translations",
+        "localized",
+        "localization",
+    ]) {
+        out.push(Modality::Resource);
+    }
+    if has(&["aspx", "ascx", "markup", "page", "pages"]) {
+        out.push(Modality::Markup);
+    }
+    if has(&["typescript", "javascript", "ts", "js", "tsx"]) {
+        out.push(Modality::Script);
+    }
+    out
 }
 
 /// Extract candidate entity mentions from surface form. Resolution is separate.
@@ -266,7 +500,16 @@ pub fn extract_entities(q: &str) -> Vec<EntityMention> {
     let mut i = 0;
     while i < bytes.len() {
         let c = bytes[i] as char;
-        if c == '"' || c == '\'' || c == '`' {
+        // "map's" / "marker's": an apostrophe INSIDE a word is possession,
+        // not quotation — live r46 minted the junk mention
+        // "s marker info window fetch a marker" from the span between two
+        // possessives.
+        let mid_word = c == '\''
+            && i > 0
+            && (bytes[i - 1] as char).is_ascii_alphanumeric()
+            && i + 1 < bytes.len()
+            && (bytes[i + 1] as char).is_ascii_alphanumeric();
+        if (c == '"' || c == '\'' || c == '`') && !mid_word {
             if let Some(rel) = q[i + 1..].find(c) {
                 let inner = &q[i + 1..i + 1 + rel];
                 if !inner.trim().is_empty() {
@@ -288,6 +531,35 @@ pub fn extract_entities(q: &str) -> Vec<EntityMention> {
             continue;
         }
         // dotted path: a.b.c / Resources.text.Key / ImportService.vb
+        // Round-2 audit P0-4e: a lowercase hyphenated token of 8+ chars is a
+        // file mention ("api-installationsobjektprojekt"); the resolver maps
+        // it to the file by stem.
+        if t.len() >= 8
+            && t.contains('-')
+            && !t.starts_with('-')
+            && !t.ends_with('-')
+            && t.chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
+        {
+            push(t.to_string(), EntityKind::File, &mut out);
+            continue;
+        }
+        // Batch 2 (doc 11 grind, live r58): a long bare lowercase token that
+        // is not prose ("redovisningskategorier") is a file-stem CANDIDATE —
+        // the resolver's stem matching decides, and an unresolved candidate
+        // no longer blocks the lookup cap. >=12 chars keeps ordinary prose
+        // out ("frontend", "functions" — the plan-cleanliness guards): long
+        // single tokens are rarely natural-language words on any project.
+        if t.len() >= 12
+            && t.chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+            && !is_stopword(&t.to_lowercase())
+            && !is_tech_noun(&t.to_lowercase())
+            && !is_generic_word(&t.to_lowercase())
+        {
+            push(t.to_string(), EntityKind::File, &mut out);
+            continue;
+        }
         if t.contains('.') && !t.starts_with('.') && !t.ends_with('.') {
             let tl = t.to_lowercase();
             let looks_file = [
@@ -312,7 +584,7 @@ pub fn extract_entities(q: &str) -> Vec<EntityMention> {
         // CamelCase or snake_case → identifier (table/setting kind left to resolver)
         let has_upper_inner = t.chars().skip(1).any(|c| c.is_ascii_uppercase());
         let has_underscore = t.contains('_');
-        if has_upper_inner || has_underscore {
+        if (has_upper_inner || has_underscore) && !is_tech_noun(&t.to_lowercase()) {
             let snakey = has_underscore
                 && t.chars()
                     .all(|c| c.is_ascii_lowercase() || c == '_' || c.is_ascii_digit());
@@ -331,11 +603,209 @@ pub fn extract_entities(q: &str) -> Vec<EntityMention> {
             && t.chars().all(|c| c.is_ascii_alphanumeric())
             && t.len() >= 3
             && !is_stopword(&t.to_lowercase())
+            && !is_tech_noun(&t.to_lowercase())
         {
             push(t.to_string(), EntityKind::Symbol, &mut out);
         }
     }
+    // 3. Item 8: an all-lowercase identifier is a symbol mention when the
+    // question TYPES it — "the getimg web method", "function getimg",
+    // "the uploadimg endpoint". Bare lowercase words stay prose.
+    const TYPE_WORDS: &[&str] = &[
+        "method",
+        "function",
+        "endpoint",
+        "handler",
+        "procedure",
+        "routine",
+        "sub",
+        "webmethod",
+    ];
+    let toks: Vec<&str> = q
+        .split(|c: char| c.is_whitespace() || matches!(c, ',' | '(' | ')' | '?' | '!' | ';' | ':'))
+        .map(|t| t.trim_matches(|c: char| matches!(c, '"' | '\'' | '`' | '.' | ',')))
+        .filter(|t| !t.is_empty())
+        .collect();
+    for (i, t) in toks.iter().enumerate() {
+        let lower_t = t.to_lowercase();
+        let plain = t.len() >= 4
+            && t.chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+            && !is_stopword(&lower_t)
+            && !is_tech_noun(&lower_t)
+            && !is_generic_word(&lower_t);
+        if !plain {
+            continue;
+        }
+        let next = toks.get(i + 1).map(|s| s.to_lowercase());
+        let next2 = toks.get(i + 2).map(|s| s.to_lowercase());
+        let prev = i
+            .checked_sub(1)
+            .and_then(|j| toks.get(j))
+            .map(|s| s.to_lowercase());
+        let typed_after = next.as_deref().is_some_and(|n| {
+            TYPE_WORDS.contains(&n)
+                || (n == "web"
+                    && next2
+                        .as_deref()
+                        .is_some_and(|m| m == "method" || m == "service"))
+        });
+        let typed_before = prev.as_deref().is_some_and(|p| TYPE_WORDS.contains(&p));
+        if typed_after || typed_before {
+            push((*t).to_string(), EntityKind::Symbol, &mut out);
+        }
+    }
     out
+}
+
+/// Item 8 (live r44, ox_history_2): everyday verbs and nouns that a question
+/// types as code ("the update endpoint", "the save method") are prose — a
+/// real identifier is something like `getimg` or `uploadimg`. Without this
+/// gate `update` resolved to two symbols and a correct abstention became an
+/// answer without PR evidence.
+fn is_generic_word(w: &str) -> bool {
+    matches!(
+        w,
+        "update"
+            | "delete"
+            | "insert"
+            | "select"
+            | "save"
+            | "load"
+            | "list"
+            | "search"
+            | "create"
+            | "remove"
+            | "edit"
+            | "check"
+            | "send"
+            | "read"
+            | "write"
+            | "sync"
+            | "import"
+            | "export"
+            | "upload"
+            | "download"
+            | "login"
+            | "logout"
+            | "refresh"
+            | "reset"
+            | "process"
+            | "handle"
+            | "validate"
+            | "render"
+            | "build"
+            | "start"
+            | "stop"
+            | "open"
+            | "close"
+            | "show"
+            | "hide"
+            | "find"
+            | "fetch"
+            | "submit"
+            | "cancel"
+            | "apply"
+            | "print"
+            | "copy"
+            | "move"
+            | "change"
+            | "call"
+            | "calls"
+            | "post"
+            | "bulk"
+            | "base"
+            | "type"
+            | "main"
+            | "item"
+            | "items"
+            | "user"
+            | "users"
+            | "data"
+            | "file"
+            | "files"
+            | "page"
+            | "pages"
+            | "view"
+            | "form"
+            | "table"
+            | "report"
+            | "order"
+            | "status"
+            | "name"
+            | "value"
+            | "text"
+            | "date"
+            | "time"
+            | "count"
+            | "total"
+            | "group"
+            | "project"
+            | "marker"
+            | "image"
+            | "images"
+            | "types"
+            | "server"
+            | "client"
+            | "service"
+            | "helper"
+            | "manager"
+            | "admin"
+            | "public"
+            | "private"
+            | "shared"
+            | "static"
+            | "return"
+            | "async"
+    )
+}
+
+/// Item 8: technology and format nouns that read like identifiers ("API",
+/// "TypeScript", "VB") but are never a code entity on their own — "API"
+/// resolved to `ConfigSettings.Security.API` and its neighbours filled the
+/// evidence cap of "Who uses the athGetByFilter API?".
+fn is_tech_noun(w: &str) -> bool {
+    matches!(
+        w,
+        "api"
+            | "apis"
+            | "typescript"
+            | "javascript"
+            | "vb"
+            | "vbnet"
+            | "sql"
+            | "html"
+            | "css"
+            | "json"
+            | "xml"
+            | "ui"
+            | "ux"
+            | "url"
+            | "http"
+            | "https"
+            | "rest"
+            | "dto"
+            | "crud"
+            | "pr"
+            | "ci"
+            | "asp"
+            | "aspx"
+            | "net"
+            | "gui"
+            | "cli"
+            | "js"
+            | "ts"
+            | "iis"
+            | "db"
+            | "ajax"
+            | "jquery"
+            | "linq"
+            | "orm"
+            | "mvc"
+            | "webforms"
+            | "dotnet"
+            | "csharp"
+    )
 }
 
 /// Common question / grammar words that are never code entities. Deliberately
@@ -397,6 +867,28 @@ fn is_stopword(w: &str) -> bool {
 /// Roles, change verbs, and scope words that qualify the retrieval.
 pub fn extract_qualifiers(q: &str, lower: &str) -> Qualifiers {
     let mut ql = Qualifiers::default();
+    // Batch 7 (doc 11, live r63 usage_5): "under ts/map …" — a
+    // directory-shaped token after a locative preposition is a PATH SCOPE
+    // for retrieval, not an entity to resolve.
+    let toks: Vec<&str> = lower.split_whitespace().collect();
+    for w in toks.windows(2) {
+        if !matches!(w[0], "under" | "in" | "within" | "inside") {
+            continue;
+        }
+        let t = w[1].trim_matches(|c: char| {
+            !(c.is_ascii_alphanumeric() || c == '/' || c == '_' || c == '-' || c == '.')
+        });
+        if t.len() >= 4
+            && t.contains('/')
+            && !t.starts_with('/')
+            && !t.ends_with('/')
+            && !t.contains("//")
+            && t.chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '/' || c == '_' || c == '-' || c == '.')
+        {
+            ql.path_prefixes.push(t.to_string());
+        }
+    }
     for role in [
         "administrator",
         "admin",

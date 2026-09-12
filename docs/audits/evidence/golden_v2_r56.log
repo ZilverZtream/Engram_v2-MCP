@@ -1,0 +1,69 @@
+id                category        status       exp                 cite      ms  verdict
+------------------------------------------------------------------------------------------------
+ox_missing_1      missing_knowledgeunsupported  unsupported         -       1818  ok
+ox_missing_2      missing_knowledgeunsupported  unsupported         -       1397  ok
+ox_missing_3      missing_knowledgeunsupported  unsupported         -       1302  ok
+ox_missing_4      missing_knowledgeunsupported  unsupported         -       1156  ok
+ox_exact_1        exact_fact      answered     answered/partial    1.00     694  ok
+ox_exact_2        exact_fact      answered     answered/partial    1.00    1202  FAIL: forbidden evidence class cited: ['memory_bank:engram/index_report']
+ox_exact_3        exact_fact      answered     answered/partial    1.00     720  FAIL: item precision 0.20 < 0.5 (2/10 relevant)
+ox_exact_4        exact_fact      answered     answered/partial    0.67    1785  FAIL: forbidden evidence class cited: ['memory_bank:engram/index_report']
+ox_exact_5        exact_fact      answered     answered/partial    1.00     727  ok
+ox_exact_6        exact_fact      answered     answered/partial    1.00    1115  FAIL: forbidden evidence class cited: ['memory_bank:engram/index_report']
+ox_usage_1        usage           answered     answered/partial    1.00    1846  FAIL: forbidden evidence class cited: ['memory_bank:engram/index_report']
+ox_usage_2        usage           answered     answered/partial    1.00     601  FAIL: no evidence item satisfies {'path_suffix': 'aspnetusers.vb', 'content_all': ['isadminroleuploadofmarkericonsenabled']}
+ox_usage_3        usage           answered     answered/partial    1.00    2349  FAIL: no evidence item satisfies {'path_any': ['permit_edit', 'manage_custom_icons', 'fortnoxinvoicepreview'], 'content_all': []}
+ox_usage_4        usage           answered     answered/partial    1.00     678  FAIL: no evidence item satisfies {'path_suffix': 'api-atahuvud.vb', 'content_all': ['getdictionaryintegervalue', 'pr_id']}
+ox_usage_5        usage           answered     answered/partial    0.50    1896  FAIL: required symbols/files not cited: ['iomarker']
+ox_multi_1        multi_hop       answered     answered/partial    1.00    1399  FAIL: no evidence item satisfies {'path_suffix': 'iomarkerbulkstatusupdate.ts', 'content_all': []}
+ox_multi_2        multi_hop       answered     answered/partial    1.00    1014  FAIL: no evidence item satisfies {'path_suffix': 'manage_custom_icons.aspx.vb', 'content_all': ['mapmarkercustomicons']}
+ox_multi_3        multi_hop       answered     answered/partial    1.00    1421  FAIL: no evidence item satisfies {'path_suffix': '.rdl', 'path_any': ['redovisning'], 'content_all': []}
+ox_multi_4        multi_hop       answered     answered/partial    0.75     964  FAIL: forbidden evidence class cited: ['memory_bank:engram/index_report']
+ox_impact_1       impact          answered     answered/partial    1.00    1103  ok
+ox_impact_2       impact          answered     answered/partial    1.00    1607  ok
+ox_impact_3       impact          answered     answered/partial    1.00    1229  ok
+ox_impact_4       impact          answered     answered/partial    1.00    1288  FAIL: forbidden evidence class cited: ['memory_bank:engram/index_report']
+ox_rationale_1    rationale       answered     answered/partial    1.00    1222  ok
+ox_rationale_2    rationale       answered     answered/partial/unsupported-       1175  FAIL: item precision 0.30 < 0.34 (3/10 relevant)
+ox_compound_1     compound        answered     answered/partial    1.00    1187  FAIL: item precision 0.10 < 0.34 (1/10 relevant)
+ox_compound_2     compound        answered     answered/partial    1.00    1573  ok
+ox_history_1      history         answered     answered/partial/unsupported-        600  ok
+ox_history_2      history         answered     answered/partial/unsupported-        792  ok
+ox_bug_1          bug             answered     answered/partial    0.75    1009  FAIL: required symbols/files not cited: ['highlightcamerabutton']
+ox_bug_2          bug             answered     answered/partial    1.00    1135  FAIL: item precision 0.10 < 0.34 (1/10 relevant)
+ox_requirements_1 requirements    answered     answered/partial/unsupported-        928  FAIL: forbidden evidence class cited: ['memory_bank:engram/index_report']
+ox_requirements_2 requirements    answered     answered/partial    1.00    1289  FAIL: forbidden evidence class cited: ['memory_bank:engram/index_report']
+ox_ambiguous_1    usage           ambiguous    answered/partial/ambiguous-        592  ok
+ox_ambiguous_2    usage           ambiguous    answered/partial/ambiguous-        574  ok
+--------------------------------------------------------------------------
+judge:        v3-item-level
+status-match: 35/35 = 100%   (gate >= 80%)
+abstain:      4/4 = 100%   (gate = 100%)
+mean citation coverage (answerable rows): 0.95
+mean latency: 1182 ms
+dreamer insights: OFF; insight evidence in 0/35 rows (0 items)
+correct:      15/35 = 43%   (gate = 100%: status + modality + item-scoped symbols + required_items + file recall + no forbidden + item precision)
+  FAIL ox_exact_2: forbidden evidence class cited: ['memory_bank:engram/index_report']
+  FAIL ox_exact_3: item precision 0.20 < 0.5 (2/10 relevant)
+  FAIL ox_exact_4: forbidden evidence class cited: ['memory_bank:engram/index_report']
+  FAIL ox_exact_6: forbidden evidence class cited: ['memory_bank:engram/index_report']
+  FAIL ox_usage_1: forbidden evidence class cited: ['memory_bank:engram/index_report']
+  FAIL ox_usage_2: no evidence item satisfies {'path_suffix': 'aspnetusers.vb', 'content_all': ['isadminroleuploadofmarkericonsenabled']}
+  FAIL ox_usage_3: no evidence item satisfies {'path_any': ['permit_edit', 'manage_custom_icons', 'fortnoxinvoicepreview'], 'content_all': []}
+  FAIL ox_usage_4: no evidence item satisfies {'path_suffix': 'api-atahuvud.vb', 'content_all': ['getdictionaryintegervalue', 'pr_id']}
+  FAIL ox_usage_5: required symbols/files not cited: ['iomarker']
+  FAIL ox_multi_1: no evidence item satisfies {'path_suffix': 'iomarkerbulkstatusupdate.ts', 'content_all': []}
+  FAIL ox_multi_2: no evidence item satisfies {'path_suffix': 'manage_custom_icons.aspx.vb', 'content_all': ['mapmarkercustomicons']}
+  FAIL ox_multi_3: no evidence item satisfies {'path_suffix': '.rdl', 'path_any': ['redovisning'], 'content_all': []}
+  FAIL ox_multi_4: forbidden evidence class cited: ['memory_bank:engram/index_report']
+  FAIL ox_impact_4: forbidden evidence class cited: ['memory_bank:engram/index_report']
+  FAIL ox_rationale_2: item precision 0.30 < 0.34 (3/10 relevant)
+  FAIL ox_compound_1: item precision 0.10 < 0.34 (1/10 relevant)
+  FAIL ox_bug_1: required symbols/files not cited: ['highlightcamerabutton']
+  FAIL ox_bug_2: item precision 0.10 < 0.34 (1/10 relevant)
+  FAIL ox_requirements_1: forbidden evidence class cited: ['memory_bank:engram/index_report']
+  FAIL ox_requirements_2: forbidden evidence class cited: ['memory_bank:engram/index_report']
+no-regression gate: correct 15 >= 14 -> ok
+
+GATE: PASS
+record written: C:/Users/Dennis/AppData/Local/Temp/claude/C--ai-projects-Engram-MCP-v2/50d309ed-9767-44e6-b7fc-2ac51dd98fa5/scratchpad/p0/golden_v3_r56.json

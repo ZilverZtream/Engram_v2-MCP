@@ -261,7 +261,8 @@ impl Drop for JobCleanupGuard {
 ///    the code the note describes has moved on.
 ///
 /// `file_mtimes_secs` maps project-relative path → indexed mtime in SECONDS
-/// (the granularity ingest records). Returns `None` when the note is current.
+/// (the granularity ingest records). `None` means no stale signal was found,
+/// not that the current working-tree content has been verified.
 pub(crate) fn memory_stale_reason(
     sec: &engram_core::MemorySection,
     now_ms: u64,
@@ -274,7 +275,7 @@ pub(crate) fn memory_stale_reason(
     }
     let updated_secs = sec.updated_at_ms / 1000;
     for f in &sec.related_files {
-        if let Some(&mtime) = file_mtimes_secs.get(f)
+        if let Ok(Some(mtime)) = memory_file_timestamp(file_mtimes_secs, f)
             && mtime > updated_secs
         {
             return Some(format!("referenced file {f} changed since written"));
@@ -290,6 +291,36 @@ pub(crate) fn indexed_file_mtimes_secs(
     graph: &engram_graph::GraphStore,
     project_id: &str,
 ) -> std::collections::HashMap<String, u64> {
+    indexed_file_mtimes_secs_checked(graph, project_id).unwrap_or_default()
+}
+
+fn memory_file_key(path: &str) -> String {
+    path.trim().replace('\\', "/").split('/')
+        .filter(|part| !part.is_empty() && *part != ".")
+        .collect::<Vec<_>>().join("/")
+}
+
+/// Keep case-distinct current files separate. A case-insensitive historical or
+/// caller spelling is usable only when it identifies exactly one current file.
+fn memory_file_timestamp(
+    mtimes: &std::collections::HashMap<String, u64>, path: &str,
+) -> Result<Option<u64>, ()> {
+    let key = memory_file_key(path);
+    let exact: Vec<_> = mtimes.iter().filter(|(candidate, _)| memory_file_key(candidate) == key).collect();
+    let matches = if exact.is_empty() {
+        mtimes.iter().filter(|(candidate, _)| memory_file_key(candidate).eq_ignore_ascii_case(&key)).collect::<Vec<_>>()
+    } else { exact };
+    match matches.as_slice() {
+        [] => Ok(None),
+        [(_, mtime)] => Ok(Some(**mtime)),
+        _ => Err(()),
+    }
+}
+
+fn indexed_file_mtimes_secs_checked(
+    graph: &engram_graph::GraphStore,
+    project_id: &str,
+) -> anyhow::Result<std::collections::HashMap<String, u64>> {
     graph
         .list_file_node_metadata(project_id)
         .map(|rows| {
@@ -299,11 +330,35 @@ pub(crate) fn indexed_file_mtimes_secs(
                         .as_ref()
                         .and_then(|m| m.get("mtime"))
                         .and_then(|v| v.as_u64())?;
+                    // Preserve raw keys for existing callers; resolve aliases
+                    // at lookup time without collapsing distinct source paths.
                     Some((rel.as_str().to_string(), mtime))
                 })
                 .collect()
         })
-        .unwrap_or_default()
+}
+
+fn memory_freshness_evidence(
+    sec: &engram_core::MemorySection,
+    mtimes: &Result<std::collections::HashMap<String, u64>, String>,
+) -> String {
+    if sec.related_files.is_empty() {
+        return "subject freshness: UNKNOWN (no related files recorded)".into();
+    }
+    match mtimes {
+        Err(error) => format!("subject freshness: UNKNOWN (indexed-file lookup failed: {error})"),
+        Ok(mtimes) => {
+            let missing = sec.related_files.iter().filter(|path| matches!(memory_file_timestamp(mtimes, path), Ok(None))).count();
+            let ambiguous = sec.related_files.iter().filter(|path| memory_file_timestamp(mtimes, path).is_err()).count();
+            if ambiguous > 0 {
+                format!("subject freshness: UNKNOWN ({ambiguous}/{} related file identities are ambiguous; {missing} lack indexed timestamps); use exact indexed paths", sec.related_files.len())
+            } else if missing > 0 {
+                format!("subject freshness: UNKNOWN ({missing}/{} related files lack indexed timestamps); check get_index_freshness and source", sec.related_files.len())
+            } else {
+                "subject freshness: indexed timestamps examined; working-tree content not verified".into()
+            }
+        }
+    }
 }
 
 /// Jaccard similarity of the whitespace token sets of two strings. Used to
@@ -639,9 +694,16 @@ impl Engram {
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         if let Some(p) = existing_opt {
+            let format = project_service::source_index_format_coverage(&self.state, &p.project_id).await;
+            let advice = match format {
+                Ok((0, _)) => "Source index status unknown: no file metadata. Run update_project to build or recover this registered project.",
+                Ok((_, paths)) if !paths.is_empty() => "Source index migration or interrupted update requires update_project before trusting cached source evidence.",
+                Ok(_) => "Existing registration retained. Check get_index_freshness before trusting cached source evidence.",
+                Err(_) => "Source index status unavailable. Check get_index_freshness and restore store access before relying on this registration.",
+            };
             return Ok(CallToolResult::success(vec![Content::text(format!(
-                "✅ Already indexed.\nproject_id: {}\nproject_name: {}\ndirectory: {}",
-                p.project_id, p.project_name, p.directory
+                "Existing project registration.\nproject_id: {}\nproject_name: {}\ndirectory: {}\n{}",
+                p.project_id, p.project_name, p.directory, advice
             ))]));
         }
         let project_root = self.state.cfg.data_dir.join("projects").join(&project_id);
@@ -1328,6 +1390,7 @@ impl Engram {
         new_gen: u64,
         max_commits: usize,
         index_antipatterns: bool,
+        reindex_paths: Vec<String>,
     ) -> Result<String, McpError> {
         let job_id = Uuid::new_v4().to_string();
         let now = now_ms();
@@ -1407,8 +1470,12 @@ impl Engram {
                 std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
             let enrich_warn_inner = enrichment_warnings.clone();
 
+            let mut new_gen = new_gen;
             let res = async {
                 let engram = Engram::new(state.clone());
+                let old_gen = engram.get_active_generation(&project_id_for_job).await
+                    .map_err(|error| anyhow::anyhow!(error.message))?;
+                new_gen = old_gen.checked_add(1).ok_or_else(|| anyhow::anyhow!("source generation exhausted"))?;
                 let ps = engram
                     .ensure_project_runtime(&project_id_for_job)
                     .await
@@ -1419,9 +1486,14 @@ impl Engram {
                     .map(exts_for_project_type_enum)
                     .unwrap_or_else(|| exts_for_project_type(&ps.info.project_type));
 
-                let (changed, deleted) = engram
+                let (mut changed, deleted) = engram
                     .get_incremental_changes(&project_id_for_job, &dir, &exts)
                     .await?;
+                project_service::include_reindex_paths(&dir, &exts, &reindex_paths, &mut changed)?;
+                let graph_refresh_paths: std::collections::HashSet<String> = changed.iter()
+                    .filter_map(|p| engram_core::RelPath::from_relative(&dir, p))
+                    .map(|p| p.as_str().to_string())
+                    .chain(deleted.iter().map(|p| p.as_str().to_string())).collect();
 
                 // Fix 10: Enforce byte budget for background updates — identical
                 // to the guarantee provided by the synchronous update_project_impl.
@@ -1454,6 +1526,20 @@ impl Engram {
                         .delete_files(&project_id_for_job, "memory", &deleted)
                         .await?;
                 }
+
+                // Snapshot updates must carry unchanged files into the newly
+                // selected generation too. The generation was read under the
+                // project lock, so a queued job cannot copy an obsolete one.
+                let scan_root = dir.clone();
+                let scan_exts: Vec<String> = exts.iter().map(|extension| extension.to_string()).collect();
+                let all_files = tokio::task::spawn_blocking(move || {
+                    let refs: Vec<&str> = scan_exts.iter().map(String::as_str).collect();
+                    engram_index::ingest::iter_files(&scan_root, &refs)
+                }).await?;
+                let changed_set: std::collections::HashSet<_> = changed.iter().collect();
+                let unchanged: Vec<_> = all_files.iter().filter(|path| !changed_set.contains(path))
+                    .filter_map(|path| engram_core::RelPath::from_relative(&dir, path)).collect();
+                ps.search.copy_generation_for_paths(&project_id_for_job, "memory", old_gen, new_gen, &unchanged, &token).await?;
 
                 // Fix 12: Real progress callback — updates the job record in
                 // Redb every 5 percentage-point increment.
@@ -1506,6 +1592,16 @@ impl Engram {
                 engram
                     .process_ingest_stats(&project_id_for_job, new_gen, &stats)
                     .await?;
+                engram.state.graph.purge_stale_nodes_for_paths(
+                    &project_id_for_job, &graph_refresh_paths, new_gen,
+                )?;
+                if let Err(e) = graph_service::resolve_app_code_globals(
+                    &engram.state.graph, &project_id_for_job, new_gen,
+                ) {
+                    let msg = format!("App_Code derived-edge refresh failed (enrichment degraded): {e:#}");
+                    tracing::warn!(project_id = %project_id_for_job, "{msg}");
+                    if let Ok(mut w) = enrich_warn_inner.lock() { w.push(msg); }
+                }
                 if let Err(e) = graph_service::link_sql_to_schema(
                     &engram.state.graph,
                     &project_id_for_job,
@@ -1551,6 +1647,11 @@ impl Engram {
                     }
                 }
 
+                anyhow::ensure!(!token.is_cancelled(), "update cancelled before source generation publication");
+                let reg = state.registry.clone();
+                let pid2 = project_id_for_job.clone();
+                let gen_str = new_gen.to_string();
+                tokio::task::spawn_blocking(move || reg.set_meta(&pid2, "active_generation", &gen_str)).await??;
                 Ok::<(), anyhow::Error>(())
             }
             .await;
@@ -1597,16 +1698,6 @@ impl Engram {
                         None,
                     )
                     .await;
-            }
-
-            if final_status == "done" || final_status == "degraded" {
-                let reg = state.registry.clone();
-                let pid2 = project_id_for_job.clone();
-                let gen_str = new_gen.to_string();
-                let _ = tokio::task::spawn_blocking(move || {
-                    reg.set_meta(&pid2, "active_generation", &gen_str)
-                })
-                .await;
             }
 
             // Fix 4: Disarm guard before explicit teardown to avoid double-cleanup.
@@ -1665,6 +1756,7 @@ impl Engram {
         // Stage 1: file index (changed/added/removed source files).
         match self
             .handle_update_project(crate::models::UpdateProjectRequest {
+                reindex_paths: Vec::new(),
                 project_id: req.project_id.clone(),
                 wait: true,
                 max_commits: 500,
@@ -1818,11 +1910,12 @@ impl Engram {
         if req.wait {
             let cancel = tokio_util::sync::CancellationToken::new();
             let summary = self
-                .update_project_impl(
+                .update_project_with_paths(
                     &req.project_id,
                     new_gen,
                     req.sanitized_max_commits(),
                     req.index_antipatterns,
+                    &req.reindex_paths,
                     &cancel,
                 )
                 .await
@@ -1837,6 +1930,7 @@ impl Engram {
                 new_gen,
                 req.sanitized_max_commits(),
                 req.index_antipatterns,
+                req.reindex_paths.clone(),
             )
             .await?;
         Ok(CallToolResult::success(vec![Content::text(format!(
@@ -1850,6 +1944,26 @@ impl Engram {
         new_gen: u64,
         max_commits: usize,
         index_antipatterns: bool,
+        cancel: &tokio_util::sync::CancellationToken,
+    ) -> anyhow::Result<String> {
+        self.update_project_with_paths(
+            project_id,
+            new_gen,
+            max_commits,
+            index_antipatterns,
+            &[],
+            cancel,
+        )
+        .await
+    }
+
+    async fn update_project_with_paths(
+        &self,
+        project_id: &str,
+        _requested_generation: u64,
+        max_commits: usize,
+        index_antipatterns: bool,
+        reindex_paths: &[String],
         cancel: &tokio_util::sync::CancellationToken,
     ) -> anyhow::Result<String> {
         let _update_guard = self.state.acquire_project_update_lock(project_id).await;
@@ -1867,17 +1981,26 @@ impl Engram {
             .unwrap_or_else(|| exts_for_project_type(&ps.info.project_type));
         let pid = project_id.to_string();
         let dir = PathBuf::from(&ps.info.directory);
-        let old_gen = new_gen.saturating_sub(1);
+        // Callers can queue while another update holds the lock. Never use
+        // their pre-lock generation to copy old snapshots over a newer one.
+        let old_gen = self.get_active_generation(project_id).await
+            .map_err(|error| anyhow::anyhow!(error.message))?;
+        let new_gen = old_gen.checked_add(1).ok_or_else(|| anyhow::anyhow!("source generation exhausted"))?;
 
         let (changed, deleted) = self
             .get_incremental_changes(project_id, &dir, &exts)
             .await
             .map_err(|e| anyhow::anyhow!(e))?;
 
+        let mut changed = changed;
+        project_service::include_reindex_paths(&dir, &exts, reindex_paths, &mut changed)?;
+
         // Resume from a previously interrupted job: narrow the pending-file list
         // so only files not yet processed are re-indexed.
         let mut resumed_from_checkpoint = false;
-        let changed = if let Some((_cp, rs)) = self.resumable_checkpoint(project_id, new_gen).await
+        let source_migration_required = !project_service::outdated_source_index_paths(&self.state, project_id).await?.is_empty();
+        let changed = if !source_migration_required && reindex_paths.is_empty()
+            && let Some((_cp, rs)) = self.resumable_checkpoint(project_id, new_gen).await
         {
             if !rs.pending_files.is_empty() {
                 engram_core::metrics().checkpoints_resumed.inc();
@@ -2040,15 +2163,7 @@ impl Engram {
             .await;
         }
 
-        {
-            let graph = self.state.graph.clone();
-            let pid2 = pid.clone();
-            let _ = tokio::task::spawn_blocking(move || graph.resolve_symbol_edges(&pid2))
-                .await
-                .ok();
-        }
-
-        let git_summary = self
+        let git_result = self
             .git_update_stream(
                 project_id,
                 &ps.info.directory,
@@ -2065,8 +2180,25 @@ impl Engram {
                 Box::new(|_, _| {}),
                 false,
             )
-            .await
-            .map_err(|e| anyhow::anyhow!(e.message))?;
+            .await;
+        // Match the background update path: history is enrichment, so its
+        // failure must not strand a successfully indexed source generation.
+        // Keep the degradation explicit rather than reporting clean success.
+        let (update_status, git_summary) = match git_result {
+            Ok(summary) => ("done", summary),
+            Err(error) => {
+                let warning = format!(
+                    "git_update_stream failed (enrichment degraded): {}",
+                    error.message
+                );
+                tracing::warn!(project_id = %pid, "{warning}");
+                ("degraded", warning)
+            }
+        };
+        anyhow::ensure!(
+            !cancel.is_cancelled(),
+            "update cancelled before source generation publication"
+        );
 
         {
             let reg = self.state.registry.clone();
@@ -2079,10 +2211,39 @@ impl Engram {
             .map_err(|e| anyhow::anyhow!("set_meta failed: {e}"))?;
         }
 
-        ps.search
-            .purge_old_generations(project_id, new_gen)
+        // External audit round 2 (docs/audits/10) P0-1 + doc-11 P1a: a failed
+        // post-publication purge is a recorded debt the GC settles
+        // (`purge_pending`), never a swallowed error — and the REGISTRY WRITE
+        // that records or clears the debt is itself part of the outcome,
+        // never a discarded `let _`.
+        let purge_outcome = ps.search.purge_old_generations(project_id, new_gen).await;
+        if let Err(e) = &purge_outcome {
+            tracing::warn!(
+                project_id = project_id,
+                generation = new_gen,
+                "post-publication purge failed — recording as pending for the GC: {e:#}"
+            );
+        }
+        let (purge_note, gc_nudge) = {
+            let reg = self.state.registry.clone();
+            let pid_p = project_id.to_string();
+            tokio::task::spawn_blocking(move || {
+                settle_purge_outcome(purge_outcome, new_gen, |v| {
+                    reg.set_meta(&pid_p, "purge_pending", v)
+                        .map_err(anyhow::Error::from)
+                })
+            })
             .await
-            .ok();
+            .unwrap_or_else(|e| {
+                (
+                    format!("purge settlement task panicked — degraded: {e}"),
+                    true,
+                )
+            })
+        };
+        if gc_nudge {
+            self.state.gc_nudge.notify_one();
+        }
         // External audit 2026-08-29 row 9: refresh the co-change snapshot
         // (incremental by walked commit) so the next get_change_set only reads.
         {
@@ -2121,15 +2282,28 @@ impl Engram {
                     "purged stale graph generations for re-indexed files"
                 ),
                 Ok(Ok(_)) => {}
-                Ok(Err(e)) => tracing::warn!(
-                    project_id = %pid,
-                    "scoped graph purge after update failed (GC will retry): {e}"
-                ),
-                Err(e) => tracing::warn!(
-                    project_id = %pid,
-                    "scoped graph purge task panicked: {e}"
-                ),
+                Ok(Err(e)) => {
+                    return Err(e.context("scoped graph purge failed; resolver refresh not run"));
+                }
+                Err(e) => {
+                    return Err(anyhow::anyhow!(
+                        "scoped graph purge task failed; resolver refresh not run: {e}"
+                    ));
+                }
             }
+        }
+
+        // Refresh only resolver-owned derivations after stale declarations have
+        // been purged. Existing project ids need this when resolver policy changes.
+        {
+            let graph = self.state.graph.clone();
+            let pid2 = pid.clone();
+            tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
+                graph_service::resolve_app_code_globals(&graph, &pid2, new_gen)?;
+                graph.resolve_symbol_edges(&pid2)?;
+                Ok(())
+            })
+            .await??;
         }
 
         // TODO-40: a resumed (crash-recovered) run leaves stale generations
@@ -2139,7 +2313,7 @@ impl Engram {
         }
 
         Ok(format!(
-            "✅ Updated project_id: {project_id}\nactive_generation: {new_gen}\nfiles={} chunks={} bytes={}\n{git_summary}\n",
+            "✅ Updated project_id: {project_id}\nstatus: {update_status}\nactive_generation: {new_gen}\n{purge_note}\nfiles={} chunks={} bytes={}\n{git_summary}\n",
             stats.files, stats.chunks, stats.bytes
         ))
     }
@@ -2217,35 +2391,261 @@ pub(crate) async fn generation_completeness_for(
     pid: &str,
     generation: u64,
 ) -> anyhow::Result<GenerationCompleteness> {
+    use std::collections::BTreeSet;
+    // External audit round 2 (docs/audits/10) P0-2: chunks and files are
+    // different units — completeness compares PATH SETS per store against the
+    // eligible repository paths; counts are diagnostics.
+    let ps = state
+        .get_project_cached(pid)
+        .ok_or_else(|| anyhow::anyhow!("project runtime for {pid} is not loaded"))?;
+    let code_chunks = ps.search.count_docs_in_generation(
+        pid,
+        engram_core::namespaces::NAMESPACE_MEMORY,
+        generation,
+    )?;
+    // Doc 11 P0-1: a provider error is DEGRADED, never an empty store.
+    let mut store_errors: Vec<String> = Vec::new();
+    let vector_rows = match ps.search.count_vectors_in_generation(pid, generation).await {
+        Ok(n) => n,
+        Err(e) => {
+            store_errors.push(format!("lancedb row count failed: {e}"));
+            0
+        }
+    };
+
+    let reg = state.registry.clone();
+    let pid_r = pid.to_string();
+    let rec = tokio::task::spawn_blocking(move || reg.get_project(&pid_r))
+        .await??
+        .ok_or_else(|| anyhow::anyhow!("project {pid} is not registered"))?;
+    let dir = std::path::PathBuf::from(&rec.directory);
+    let exts = crate::models::ProjectType::from_registry_str(&rec.project_type)
+        .map(crate::utils::files::exts_for_project_type_enum)
+        .unwrap_or_else(|| crate::utils::files::exts_for_project_type(&rec.project_type));
+    let dir2 = dir.clone();
+    let expected: BTreeSet<String> = tokio::task::spawn_blocking(move || {
+        engram_index::ingest::iter_files(&dir2, &exts)
+            .into_iter()
+            .filter(|f| std::fs::metadata(f).map(|m| m.len() > 0).unwrap_or(false))
+            .filter_map(|f| {
+                f.strip_prefix(&dir2)
+                    .ok()
+                    .map(|r| completeness_path(&r.to_string_lossy()))
+            })
+            .collect()
+    })
+    .await?;
+
+    let tantivy: BTreeSet<String> = ps
+        .search
+        .paths_in_generation(pid, None, generation)?
+        .into_iter()
+        .map(|s| completeness_path(&s))
+        .collect();
+    let vectors: BTreeSet<String> = match ps
+        .search
+        .vector_paths_in_generation(pid, None, generation)
+        .await
     {
-        let ps = state
-            .get_project_cached(pid)
-            .ok_or_else(|| anyhow::anyhow!("project runtime for {pid} is not loaded"))?;
-        let code_chunks = ps.search.count_docs_in_generation(
-            pid,
-            engram_core::namespaces::NAMESPACE_MEMORY,
-            generation,
-        )?;
-        let graph = state.graph.clone();
-        let pid_owned = pid.to_string();
-        let files = tokio::task::spawn_blocking(move || {
-            graph
-                .count_nodes_by_type(&pid_owned)
-                .map(|m| m.get("file").copied().unwrap_or(0))
+        Ok(v) => v.into_iter().map(|s| completeness_path(&s)).collect(),
+        Err(e) => {
+            store_errors.push(format!("lancedb path enumeration failed: {e}"));
+            Default::default()
+        }
+    };
+    let graph = state.graph.clone();
+    let pid_g = pid.to_string();
+    let graph_paths: BTreeSet<String> = tokio::task::spawn_blocking(move || {
+        graph
+            .query_nodes(&pid_g, Some("file"), None, None, usize::MAX)
+            .map(|nodes| {
+                nodes
+                    .into_iter()
+                    .map(|n| completeness_path(n.file_path.as_str()))
+                    .collect::<BTreeSet<String>>()
+            })
+    })
+    .await??;
+
+    // Round-2 audit P0-2 follow-up: paths the indexer skipped BY RULE are
+    // subtracted from the expectation and reported — never tolerated.
+    let reg_l = state.registry.clone();
+    let pid_l = pid.to_string();
+    let ledger: Vec<(String, String)> = tokio::task::spawn_blocking(move || {
+        reg_l
+            .get_meta(
+                &pid_l,
+                crate::services::ingest_service::SKIP_LEDGER_META_KEY,
+            )
+            .ok()
+            .flatten()
+            .and_then(|s| {
+                serde_json::from_str::<crate::services::ingest_service::SkipLedger>(&s).ok()
+            })
+            .map(|l| l.skipped)
+            .unwrap_or_default()
+    })
+    .await?;
+    let skipped: BTreeSet<String> = ledger.iter().map(|(p, _)| completeness_path(p)).collect();
+    let mut skipped_reasons: std::collections::BTreeMap<String, usize> =
+        std::collections::BTreeMap::new();
+    for (p, r) in &ledger {
+        if expected.contains(&completeness_path(p)) {
+            *skipped_reasons.entry(r.clone()).or_default() += 1;
+        }
+    }
+    let skipped_by_rule = expected.iter().filter(|p| skipped.contains(*p)).count();
+
+    // Doc 11 P0-1: whether embeddings are EXPECTED comes from CONFIGURATION
+    // (the integrity service's rule) — an entirely empty vector store under a
+    // vector backend is a LOSS, and a provider error is DEGRADED, never an
+    // empty store. The graph is a store under test: it participates in
+    // missing, extra, and cross-store equality.
+    let vectors_required = !matches!(state.cfg.embedding_backend.as_str(), "fts_only" | "");
+    let degraded = !store_errors.is_empty();
+    let vectors_checked = vectors_required && !degraded;
+    let missing: Vec<String> = expected
+        .iter()
+        .filter(|f| {
+            !skipped.contains(*f)
+                && (!tantivy.contains(*f)
+                    || (vectors_checked && !vectors.contains(*f))
+                    || !graph_paths.contains(*f))
         })
-        .await??;
-        let ratio = if files == 0 {
-            1.0
+        .cloned()
+        .collect();
+    let extra = tantivy.iter().filter(|f| !expected.contains(*f)).count();
+    let vector_extra = if vectors_checked {
+        vectors.iter().filter(|f| !expected.contains(*f)).count()
+    } else {
+        0
+    };
+    let graph_extra = graph_paths
+        .iter()
+        .filter(|f| !expected.contains(*f))
+        .count();
+    let cross_store_mismatch = (if vectors_checked {
+        tantivy.symmetric_difference(&vectors).count()
+    } else {
+        0
+    }) + tantivy.symmetric_difference(&graph_paths).count();
+    // Round-2 audit P0-2 follow-up: ZERO tolerance — a missing path is never
+    // "complete"; known skips are subtracted above instead.
+    let tolerance = 0usize;
+    let complete = missing.len() <= tolerance && cross_store_mismatch == 0 && !degraded;
+    Ok(GenerationCompleteness {
+        generation,
+        expected_paths: expected.len(),
+        tantivy_paths: tantivy.len(),
+        vector_paths: vectors.len(),
+        graph_paths: graph_paths.len(),
+        missing: missing.len(),
+        missing_sample: missing.iter().take(10).cloned().collect(),
+        extra,
+        cross_store_mismatch,
+        tolerance,
+        skipped_by_rule,
+        skipped_reasons: skipped_reasons.into_iter().collect(),
+        code_chunks,
+        vector_rows,
+        vector_extra,
+        graph_extra,
+        vectors_expected: vectors_required,
+        store_errors,
+        degraded,
+        complete,
+    })
+}
+
+/// One spelling for every store's paths: forward slashes, no leading `./`.
+fn completeness_path(p: &str) -> String {
+    p.replace('\\', "/")
+        .trim_start_matches("./")
+        .trim_start_matches('/')
+        .to_string()
+}
+
+fn skip_reasons(c: &GenerationCompleteness) -> String {
+    if c.skipped_reasons.is_empty() {
+        String::new()
+    } else {
+        format!(
+            " — {}",
+            c.skipped_reasons
+                .iter()
+                .map(|(r, n)| format!("{r} {n}"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    }
+}
+
+/// The one-line completeness report every surface prints.
+pub(crate) fn completeness_line(c: &GenerationCompleteness) -> String {
+    let mut s = format!(
+        "generation completeness: generation {} — expected paths: {}; tantivy: {}, vectors: {}, graph: {}; missing: {}, extra: {}, cross-store mismatch: {}; chunks {} / vector rows {} (diagnostic) — {}",
+        c.generation,
+        c.expected_paths,
+        c.tantivy_paths,
+        c.vector_paths,
+        c.graph_paths,
+        c.missing,
+        c.extra,
+        c.cross_store_mismatch,
+        c.code_chunks,
+        c.vector_rows,
+        if c.complete {
+            format!(
+                "complete (missing 0, mismatch 0; skipped by rule: {}{})",
+                c.skipped_by_rule,
+                skip_reasons(c)
+            )
         } else {
-            code_chunks as f64 / files as f64
-        };
-        Ok(GenerationCompleteness {
-            generation,
-            code_chunks,
-            files,
-            ratio,
-            complete: files == 0 || ratio >= 0.5,
-        })
+            format!(
+                "INCOMPLETE (missing must be 0 after known skips, mismatch must be 0; skipped by rule: {}{})",
+                c.skipped_by_rule,
+                skip_reasons(c)
+            )
+        }
+    );
+    if c.vector_extra > 0 || c.graph_extra > 0 {
+        s.push_str(&format!(
+            " — extra vectors {}, extra graph {}",
+            c.vector_extra, c.graph_extra
+        ));
+    }
+    if c.degraded {
+        s.push_str(&format!(
+            "\n  DEGRADED — store errors: {}",
+            c.store_errors.join("; ")
+        ));
+    }
+    if !c.missing_sample.is_empty() {
+        s.push_str(&format!(
+            "\n  missing sample: {}",
+            c.missing_sample.join(", ")
+        ));
+    }
+    s
+}
+
+/// Storage integrity and optional audit knowledge are independent. Counts
+/// describe records, not parsed, approved or applicable quality rules.
+fn quality_gate_availability(count: Option<usize>) -> String {
+    match count {
+        Some(0) => "quality_gate_records: 0\npre_push_audit_knowledge: INACTIVE_EMPTY (no quality_gate records; storage health does not establish audit coverage)\nquality_gate_setup: reviewed project policy sources can be supplied through ingest_quality_gates; no ingestion is performed by this health check.\n".into(),
+        Some(n) => format!("quality_gate_records: {n}\npre_push_audit_knowledge: RECORDS_PRESENT_NOT_VALIDATED (stored records only; parsing, relevance, approval and audit execution are not established by this count)\n"),
+        None => "quality_gate_records: UNKNOWN\npre_push_audit_knowledge: UNKNOWN (namespace count failed; unavailable evidence is not an empty corpus or a readiness pass; see failure diagnostics)\n".into(),
+    }
+}
+
+/// An intact source index does not supply the historical pattern corpus used
+/// by immune_check/anti_pattern_guard. Presence is not pattern validity.
+fn anti_pattern_availability(count: Option<usize>) -> String {
+    match count {
+        Some(0) => "antipattern_records: 0\nanti_pattern_knowledge: INACTIVE_EMPTY (immune_check and anti_pattern_guard lack historical pattern evidence; zero matches cannot pass those checks)\nanti_pattern_setup: analyze_reverts can derive candidate patterns from the project's reviewed historical scope; no analysis or ingestion is performed by this check.\n".into(),
+        Some(n) => format!("antipattern_records: {n}\nanti_pattern_knowledge: RECORDS_PRESENT_NOT_VALIDATED (stored records only; pattern validity, relevance, historical scope and check execution are not established by this count)\n"),
+        None => "antipattern_records: UNKNOWN\nanti_pattern_knowledge: UNKNOWN (namespace count unavailable; this is neither an empty corpus nor a readiness pass)\n".into(),
     }
 }
 
@@ -2285,14 +2685,23 @@ impl Engram {
             }
         };
 
-        let ns_counts = match ps.search.count_docs_by_namespace(&pid) {
-            Ok(m) => m,
+        let (ns_counts, namespace_counts_available) = match ps.search.count_docs_by_namespace(&pid) {
+            Ok(m) => (m, true),
             Err(e) => {
                 failures.push(format!("search doc counts failed: {e}"));
-                Default::default()
+                (Default::default(), false)
             }
         };
-        let total_docs: usize = ns_counts.values().sum();
+        // Doc-11 P1e: the TOTAL is the project-wide count — the namespace
+        // map enumerates a fixed subset and understated the label (live:
+        // 421,293 printed vs 422,249 held).
+        let total_docs: usize = match ps.search.count_docs(&pid) {
+            Ok(n) => n,
+            Err(e) => {
+                failures.push(format!("search total count failed: {e}"));
+                ns_counts.values().sum()
+            }
+        };
         let lancedb_rows = match ps.search.count_vectors(&pid).await {
             Ok(n) => n,
             Err(e) => {
@@ -2305,12 +2714,19 @@ impl Engram {
         // evidence — generation completeness first, provider failures second.
         let completeness = self.generation_completeness(&pid, generation).await;
         let verdict = match &completeness {
+            // Doc 11 P0-1: a store provider error means the vector picture is
+            // UNKNOWN — degraded outranks incomplete (whose missing list would
+            // mislead) and always outranks OK.
+            Ok(c) if c.degraded => {
+                for e in &c.store_errors {
+                    failures.push(e.clone());
+                }
+                "Health: DEGRADED — a store provider failed during the completeness check (see failures)"
+                    .to_string()
+            }
             Ok(c) if !c.complete => format!(
-                "Health: CORRUPT — active generation {} is INCOMPLETE ({} code chunks for {} tracked files, {:.1} %); searchable evidence is missing — run index_project (full re-index)",
-                c.generation,
-                c.code_chunks,
-                c.files,
-                c.ratio * 100.0
+                "Health: CORRUPT — active generation {} is INCOMPLETE ({} of {} eligible paths missing from the searchable stores, cross-store mismatch {}); searchable evidence is unreliable until repair_project(scope=\"full\", wipe_and_reindex=false) rebuilds this project ID",
+                c.generation, c.missing, c.expected_paths, c.cross_store_mismatch
             ),
             Err(e) => {
                 failures.push(format!("generation completeness check failed: {e}"));
@@ -2322,16 +2738,12 @@ impl Engram {
             Ok(_) => "Health: OK".to_string(),
         };
         let mut out = format!("{verdict}\n");
+        out.push_str("health_scope: checked source-index stores and generation completeness; OK does not imply optional knowledge availability or audit coverage.\n");
+        out.push_str(&quality_gate_availability(namespace_counts_available.then(|| ns_counts.get("quality_gate").copied().unwrap_or(0))));
+        out.push_str(&anti_pattern_availability(namespace_counts_available.then(|| ns_counts.get("antipattern").copied().unwrap_or(0))));
         out.push_str(&format!("active_generation: {generation}\n"));
         if let Ok(c) = &completeness {
-            out.push_str(&format!(
-                "generation completeness: {} code chunks in generation {} for {} tracked files ({:.1} %) — {}\n",
-                c.code_chunks,
-                c.generation,
-                c.files,
-                c.ratio * 100.0,
-                if c.complete { "complete" } else { "INCOMPLETE" }
-            ));
+            out.push_str(&format!("{}\n", completeness_line(c)));
         }
         for f in &failures {
             out.push_str(&format!("failure: {f}\n"));
@@ -2363,7 +2775,7 @@ impl Engram {
         validate_project_id(&req.project_id)?;
         let pid = req.project_id.clone();
         let rec = self.ensure_project_record(&pid).await?;
-        let generation = self.get_active_generation(&pid).await.unwrap_or(1);
+        let generation = self.get_active_generation(&pid).await?;
 
         // Registry reads (blocking Redb) in one spawn_blocking hop.
         let reg = self.state.registry.clone();
@@ -2391,6 +2803,7 @@ impl Engram {
 
         let mut out = String::with_capacity(512);
         out.push_str(&format!("project_id: {pid}\n"));
+        out.push_str(&format!("directory: {}\n", rec.directory));
         out.push_str(&format!("active_generation: {generation}\n"));
         match last_index_ms {
             Some(ms) => {
@@ -2407,57 +2820,74 @@ impl Engram {
             out.push_str(&format!("last_index_files: {files}\n"));
         }
         out.push_str(&format!("watcher_enabled: {watch_enabled}\n"));
+        let source_format = project_service::source_index_format_coverage_for_generation(&self.state, &pid, generation).await;
+        match &source_format {
+            Ok((0, _)) => out.push_str("source_index_format: unknown (no indexed file metadata); absence of metadata cannot verify cached source ranges\n"),
+            Ok((_, paths)) if paths.is_empty() => out.push_str(&format!("source_index_format: current (version {})\n", engram_index::SOURCE_INDEX_VERSION)),
+            Ok((_, paths)) => out.push_str(&format!("source_index_format: reindex_required ({} file paths require version {} or active-generation publication); cached source ranges and call bindings are not trustworthy until update_project completes\n", paths.len(), engram_index::SOURCE_INDEX_VERSION)),
+            Err(error) => out.push_str(&format!("source_index_format: unknown ({error})\n")),
+        }
         if let Some(since) = rec.reindex_required_since_ms {
             out.push_str(&format!(
                 "WARNING: full reindex required since epoch_ms={since} (vector table was recreated) — run update_project.\n"
             ));
         }
 
-        // Optional disk drift check: count tracked files modified after the
-        // last completed index.
-        let mut dirty_files: Option<usize> = None;
-        if req.check_disk
-            && let Some(last_ms) = last_index_ms
-        {
+        // Compare with each indexed file, not the wall-clock end of a job.
+        // Restored files can have older timestamps, and deletions have no mtime.
+        // This is the incremental indexer's change detector, not proof that all
+        // content bytes match (unchanged stat tuples may avoid hashing).
+        let mut disk_changes: Option<(usize, usize)> = None;
+        if req.check_disk {
             let exts = ProjectType::from_registry_str(&rec.project_type)
                 .map(exts_for_project_type_enum)
                 .unwrap_or_else(|| exts_for_project_type(&rec.project_type));
-            let exts_owned: Vec<String> = exts.iter().map(|s| s.to_string()).collect();
             let dir = PathBuf::from(&rec.directory);
-            let count = tokio::task::spawn_blocking(move || {
-                let refs: Vec<&str> = exts_owned.iter().map(|s| s.as_str()).collect();
-                engram_index::ingest::iter_files(&dir, &refs)
-                    .into_iter()
-                    .filter(|p| {
-                        std::fs::metadata(p)
-                            .and_then(|m| m.modified())
-                            .ok()
-                            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                            .map(|d| d.as_millis() as u64 > last_ms)
-                            .unwrap_or(false)
-                    })
-                    .count()
-            })
-            .await
-            .unwrap_or(0);
-            dirty_files = Some(count);
-            out.push_str(&format!("files_modified_since_index: {count}\n"));
+            if !dir.is_dir() {
+                out.push_str("disk_check: unavailable (project directory is missing or inaccessible)\n");
+            } else {
+                match self.get_incremental_changes(&pid, &dir, &exts).await {
+                    Ok((changed, deleted)) => {
+                        disk_changes = Some((changed.len(), deleted.len()));
+                        out.push_str(&format!(
+                            "disk_check: {}\nfiles_changed_or_added_since_index: {}\nfiles_deleted_since_index: {}\n",
+                            if changed.is_empty() && deleted.is_empty() { "no_changes_detected" } else { "stale" },
+                            changed.len(), deleted.len()
+                        ));
+                    }
+                    Err(e) => out.push_str(&format!("disk_check: unavailable ({e})\n")),
+                }
+            }
+            out.push_str("disk_check_basis: indexed file metadata with conditional hashing; refresh counts include source-index format migrations; unchanged metadata does not prove identical content\n");
+        } else {
+            out.push_str("disk_check: not_run (check_disk=false)\n");
         }
 
         // External audit 2026-08-29 P0-2: timestamps and modified files say
         // nothing about whether the published generation still HOLDS the
         // corpus. Completeness is checked here and outranks every other advice.
-        let generation = self.get_active_generation(&pid).await.unwrap_or(1);
         let completeness = self.generation_completeness(&pid, generation).await;
+        let completeness_unknown = match &completeness {
+            Ok(c) => c.degraded,
+            Err(_) => true,
+        };
         let incomplete = match &completeness {
+            Ok(c) if c.degraded => {
+                out.push_str("generation_complete: unknown (DEGRADED — store provider failure)\n");
+                for error in &c.store_errors {
+                    out.push_str(&format!("failure: {error}\n"));
+                }
+                false
+            }
             Ok(c) => {
                 out.push_str(&format!(
-                    "generation_complete: {} ({} code chunks in generation {} for {} tracked files, {:.1} %)\n",
+                    "generation_complete: {} ({} of {} eligible paths present in every store; missing {}, cross-store mismatch {}, skipped by rule {})\n",
                     c.complete,
-                    c.code_chunks,
-                    c.generation,
-                    c.files,
-                    c.ratio * 100.0
+                    c.expected_paths.saturating_sub(c.missing),
+                    c.expected_paths,
+                    c.missing,
+                    c.cross_store_mismatch,
+                    c.skipped_by_rule
                 ));
                 !c.complete
             }
@@ -2466,20 +2896,47 @@ impl Engram {
                 false
             }
         };
-        let advice = if incomplete {
-            "active generation is INCOMPLETE — the searchable corpus is missing; run index_project (full re-index). update_project cannot repair it"
+        let advice = if source_format.is_err() || source_format.as_ref().is_ok_and(|(count, _)| *count == 0) {
+            "freshness unknown — source-index format could not be verified; restore index access and retry"
+        } else if source_format.as_ref().is_ok_and(|(_, paths)| !paths.is_empty()) {
+            "run update_project — source-index migration automatically re-extracts old files while retaining this project ID and knowledge corpora"
+        } else if completeness_unknown {
+            "freshness unknown — generation completeness could not be verified; restore index access and retry"
+        } else if incomplete {
+            "active generation is INCOMPLETE — the searchable corpus is missing; run repair_project(scope=\"full\", wipe_and_reindex=false) to rebuild this project ID and preserve knowledge"
         } else if rec.reindex_required_since_ms.is_some() {
             "run update_project now — vector data was lost and must be rebuilt"
-        } else if matches!(dirty_files, Some(n) if n > 0) {
+        } else if matches!(disk_changes, Some((changed, deleted)) if changed > 0 || deleted > 0) {
             "index is stale — run update_project (or enable watch_project for auto-updates)"
+        } else if disk_changes.is_none() {
+            "freshness unknown — disk comparison was not completed; run get_index_freshness with check_disk=true and restore source/index access if unavailable"
         } else if last_index_ms.is_none() {
             "freshness unknown — run update_project once to start tracking"
         } else if !watch_enabled {
-            "index is current; enable watch_project to keep it that way automatically"
+            "no indexed metadata changes detected; enable watch_project for automatic updates; verify relevant source before relying on indexed evidence"
         } else {
-            "index is current and the watcher is active"
+            "no indexed metadata changes detected and the watcher is active; verify relevant source before relying on indexed evidence"
         };
         out.push_str(&format!("advice: {advice}\n"));
+        // Agent intake already requests freshness. Surface missing audit
+        // prerequisites here without changing the source-freshness verdict or
+        // silently populating knowledge during an implementation session.
+        out.push_str("audit_knowledge_scope: optional stored evidence, independent of source freshness; counts do not certify checks or readiness\n");
+        let audit_counts = match self.ensure_project_runtime(&pid).await {
+            Ok(ps) => ps.search.count_docs_by_namespace(&pid).map_err(|error| error.to_string()),
+            Err(error) => Err(error.to_string()),
+        };
+        match audit_counts {
+            Ok(counts) => {
+                out.push_str(&quality_gate_availability(Some(counts.get("quality_gate").copied().unwrap_or(0))));
+                out.push_str(&anti_pattern_availability(Some(counts.get("antipattern").copied().unwrap_or(0))));
+            }
+            Err(error) => {
+                out.push_str(&quality_gate_availability(None));
+                out.push_str(&anti_pattern_availability(None));
+                out.push_str(&format!("audit_knowledge_failure: {error}\n"));
+            }
+        }
 
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
@@ -2493,11 +2950,22 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         crate::handlers::validate_project_id(&req.project_id)?;
         let _ = self.ensure_project_record(&req.project_id).await?;
+        let _update_guard = self
+            .state
+            .acquire_project_update_lock(&req.project_id)
+            .await;
+        let generation = self.get_active_generation(&req.project_id).await?;
         let graph = self.state.graph.clone();
         let pid = req.project_id.clone();
-        let resolved = tokio::time::timeout(
+        let (resolved, schema_links, app_code) = tokio::time::timeout(
             std::time::Duration::from_secs(600),
-            tokio::task::spawn_blocking(move || graph.resolve_symbol_edges(&pid)),
+            tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
+                let app_code = graph_service::resolve_app_code_globals(&graph, &pid, generation)?;
+                let resolved = graph.resolve_symbol_edges(&pid)?;
+                let schema_links =
+                    crate::services::ingest_service::repair_schema_links(&graph, &pid)?;
+                Ok((resolved, schema_links, app_code))
+            }),
         )
         .await
         .map_err(|_| McpError::internal_error("resolve_symbol_edges timed out after 600s", None))?
@@ -2506,6 +2974,8 @@ impl Engram {
 
         Ok(CallToolResult::success(vec![Content::text(format!(
             "resolve_graph_edges: {resolved} placeholder edge(s) resolved to concrete nodes.
+             App_Code derived edges refreshed; {app_code} new dependency edge(s).
+             Canonical schema links restored from indexed DDL: {schema_links}.
              Edges still starting with '::' had no matching symbol (external or dynamic targets).
              next: find_symbol_references / trace_ui_event now see the resolved targets."
         ))]))
@@ -2538,7 +3008,10 @@ impl Engram {
             "full" => false,
             // Cheap and non-destructive: drop index entries left behind by
             // superseded generations. No reindex, no generation bump.
-            scope @ ("tantivy_only" | "vector_only") => {
+            scope @ ("tantivy_only" | "vector_only" | "initialize_vectors") => {
+                if scope == "initialize_vectors" && req.wipe_and_reindex {
+                    return Err(McpError::invalid_params("initialize_vectors cannot be combined with wipe_and_reindex", None));
+                }
                 let msg = crate::services::project_service::repair_project_scoped(
                     &self.state,
                     &pid,
@@ -2559,7 +3032,7 @@ impl Engram {
             other => {
                 return Err(McpError::invalid_params(
                     format!(
-                        "repair_project: invalid scope '{other}'. Expected one of:                          full, graph_only, tantivy_only, vector_only"
+                        "repair_project: invalid scope '{other}'. Expected one of: full, graph_only, tantivy_only, vector_only, initialize_vectors"
                     ),
                     None,
                 ));
@@ -2655,7 +3128,10 @@ impl Engram {
             let pid_r = pid.clone();
             match tokio::time::timeout(
                 std::time::Duration::from_secs(600),
-                tokio::task::spawn_blocking(move || graph.resolve_symbol_edges(&pid_r)),
+                tokio::task::spawn_blocking(move || {
+                    graph_service::resolve_app_code_globals(&graph, &pid_r, new_gen)?;
+                    graph.resolve_symbol_edges(&pid_r)
+                }),
             )
             .await
             {
@@ -3444,10 +3920,22 @@ impl Engram {
         Ok(CallToolResult::success(vec![Content::text(msg)]))
     }
 
+    async fn validate_memory_read_project(&self, project_id: &str) -> Result<(), McpError> {
+        validate_project_id(project_id)?;
+        if project_id != engram_core::namespaces::USER_PROJECT_ID
+            && self.state.registry.get_project(project_id)
+                .map_err(|error| McpError::internal_error(error.to_string(), None))?.is_none()
+        {
+            return Err(McpError::invalid_params(format!("project not found: {project_id}; use list_projects to select the intended memory bank"), None));
+        }
+        Ok(())
+    }
+
     pub async fn handle_list_memory_bank(
         &self,
         req: ProjectIdRequest,
     ) -> Result<CallToolResult, McpError> {
+        self.validate_memory_read_project(&req.project_id).await?;
         let mut secs = self
             .state
             .registry
@@ -3461,9 +3949,10 @@ impl Engram {
         let file_mtimes = {
             let graph = self.state.graph.clone();
             let pid = req.project_id.clone();
-            tokio::task::spawn_blocking(move || indexed_file_mtimes_secs(&graph, &pid))
+            tokio::task::spawn_blocking(move || indexed_file_mtimes_secs_checked(&graph, &pid))
                 .await
-                .unwrap_or_default()
+                .map_err(|error| error.to_string())
+                .and_then(|result| result.map_err(|error| error.to_string()))
         };
         let mut out = String::new();
         if secs.is_empty() {
@@ -3478,17 +3967,18 @@ impl Engram {
                 .as_deref()
                 .map(|k| format!(" | {k}"))
                 .unwrap_or_default();
-            let stale = memory_stale_reason(&s, now, &file_mtimes)
+            let stale = memory_stale_reason(&s, now, file_mtimes.as_ref().unwrap_or(&std::collections::HashMap::new()))
                 .map(|r| format!(" | STALE: {r}"))
                 .unwrap_or_default();
             out.push_str(&format!(
-                "- {} | {} | {}B | {}{}{}\n",
+                "- {} | {} | {}B | {}{}{} | {}\n",
                 s.section_id,
                 s.title,
                 s.content.len(),
                 crate::utils::humanize_age_ms(s.updated_at_ms, now),
                 kind,
                 stale,
+                memory_freshness_evidence(&s, &file_mtimes),
             ));
         }
         Ok(CallToolResult::success(vec![Content::text(out)]))
@@ -3496,14 +3986,21 @@ impl Engram {
 
     pub async fn handle_read_memory_bank(
         &self,
-        req: MemorySectionRequest,
+        req: crate::models::ReadMemoryBankRequest,
     ) -> Result<CallToolResult, McpError> {
+        self.validate_memory_read_project(&req.project_id).await?;
         let sec = self
             .state
             .registry
             .get_memory_section(&req.project_id, &req.section)
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         let Some(s) = sec else {
+            if req.citation.is_some() {
+                return Err(McpError::invalid_params(
+                    "citation_document_not_found: memory section does not exist",
+                    None,
+                ));
+            }
             return Ok(CallToolResult::success(vec![Content::text("Not found.")]));
         };
         // Prepend a compact provenance header so an agent sees the record's
@@ -3547,12 +4044,31 @@ impl Engram {
             let graph = self.state.graph.clone();
             let pid = req.project_id.clone();
             let mtimes =
-                tokio::task::spawn_blocking(move || indexed_file_mtimes_secs(&graph, &pid))
+                tokio::task::spawn_blocking(move || indexed_file_mtimes_secs_checked(&graph, &pid))
                     .await
-                    .unwrap_or_default();
-            if let Some(reason) = memory_stale_reason(&s, now, &mtimes) {
+                    .map_err(|error| error.to_string())
+                    .and_then(|result| result.map_err(|error| error.to_string()));
+            if let Some(reason) = memory_stale_reason(
+                &s,
+                now,
+                mtimes.as_ref().unwrap_or(&std::collections::HashMap::new()),
+            ) {
                 header.push_str(&format!("stale: {reason}\n"));
             }
+            header.push_str(&format!("{}\n", memory_freshness_evidence(&s, &mtimes)));
+        } else {
+            header.push_str("subject freshness: UNKNOWN (no related files recorded)\n");
+        }
+        if let Some(citation) = &req.citation {
+            let page = crate::services::stored_citation::render(
+                &s.content,
+                citation,
+                serde_json::json!({"project_id":req.project_id,"section":s.section_id}),
+                serde_json::json!({"title":s.title,"updated_at_ms":s.updated_at_ms,"created_at_ms":s.created_at_ms,"kind":s.kind,"author":s.author,"tags":s.tags,"related_files":s.related_files,"provenance_and_freshness":header}),
+            )?;
+            return Ok(CallToolResult::success(vec![Content::text(
+                page.to_string(),
+            )]));
         }
         header.push_str("---\n");
         header.push_str(&s.content);
@@ -3733,6 +4249,27 @@ impl Engram {
 #[cfg(test)]
 mod inv_tag_tests {
     use super::{determine_job_message, determine_job_status};
+
+    #[test]
+    fn failed_quality_gate_count_is_unknown_not_empty_or_ready() {
+        let unknown = super::quality_gate_availability(None);
+        assert!(unknown.contains("quality_gate_records: UNKNOWN"));
+        assert!(unknown.contains("pre_push_audit_knowledge: UNKNOWN"));
+        assert!(!unknown.contains("quality_gate_records: 0"));
+        assert!(!unknown.contains("INACTIVE_EMPTY"));
+        assert!(!unknown.contains("RECORDS_PRESENT_NOT_VALIDATED"));
+    }
+
+    #[test]
+    fn failed_anti_pattern_count_is_not_empty_or_ready() {
+        let unknown = super::anti_pattern_availability(None);
+        assert!(unknown.contains("antipattern_records: UNKNOWN"));
+        assert!(unknown.contains("anti_pattern_knowledge: UNKNOWN"));
+        assert!(!unknown.contains("antipattern_records: 0"));
+        assert!(!unknown.contains("INACTIVE_EMPTY"));
+        assert!(!unknown.contains("RECORDS_PRESENT_NOT_VALIDATED"));
+    }
+
 
     /// AUD-2026-INV-0002 Gate 2.5 Test 14: set_meta failure must produce non-success status.
     /// Behavioral: exercises the pure determine_job_status/message logic directly.
@@ -3938,8 +4475,66 @@ mod inv_tag_tests {
 #[derive(Debug, Clone, serde::Serialize)]
 pub(crate) struct GenerationCompleteness {
     pub generation: u64,
+    /// Eligible repository paths (the indexer's walker + extension list, non-empty files).
+    pub expected_paths: usize,
+    /// Distinct paths the active generation holds, per store.
+    pub tantivy_paths: usize,
+    pub vector_paths: usize,
+    pub graph_paths: usize,
+    /// Eligible paths absent from Tantivy or (when vectors exist) from LanceDB.
+    pub missing: usize,
+    pub missing_sample: Vec<String>,
+    /// Paths in Tantivy that are no longer eligible (stale).
+    pub extra: usize,
+    /// Paths present in one search store and absent in the other.
+    pub cross_store_mismatch: usize,
+    /// Always 0 since the round-2 follow-up: `missing` must be 0 for `complete`.
+    pub tolerance: usize,
+    /// Eligible paths the indexer skipped BY RULE (binary, too large,
+    /// unreadable) — subtracted from the expectation, reported with reasons.
+    pub skipped_by_rule: usize,
+    pub skipped_reasons: Vec<(String, usize)>,
+    /// Diagnostics only — counts are not completeness.
     pub code_chunks: usize,
-    pub files: usize,
-    pub ratio: f64,
+    pub vector_rows: usize,
+    /// Doc 11 P0-1: per-store extras are part of the verdict.
+    pub vector_extra: usize,
+    pub graph_extra: usize,
+    /// Whether the configuration expects embeddings (embedding_backend).
+    pub vectors_expected: bool,
+    /// Store provider errors — any entry makes the verdict DEGRADED.
+    pub store_errors: Vec<String>,
+    pub degraded: bool,
     pub complete: bool,
+}
+
+/// Doc-11 P1a (external audit round 2, P0-1 tail): the post-publication
+/// purge settlement — the registry write that records (`gen`) or clears
+/// (`""`) the purge debt is part of the outcome, never discarded. Returns
+/// the report note and whether the GC should be nudged.
+pub fn settle_purge_outcome(
+    outcome: anyhow::Result<()>,
+    new_gen: u64,
+    record: impl FnOnce(&str) -> anyhow::Result<()>,
+) -> (String, bool) {
+    match outcome {
+        Ok(()) => match record("") {
+            Ok(()) => ("purge: ok".to_string(), false),
+            Err(e) => (
+                format!(
+                    "purge: ok — but clearing the pending flag failed (the GC may re-purge needlessly): {e:#}"
+                ),
+                false,
+            ),
+        },
+        Err(e) => match record(&new_gen.to_string()) {
+            Ok(()) => (format!("purge: deferred to the GC ({e:#})"), true),
+            Err(re) => (
+                format!(
+                    "purge FAILED and recording the debt failed — DEGRADED, the GC has no record: purge error {e:#}; registry error {re:#}"
+                ),
+                true,
+            ),
+        },
+    }
 }

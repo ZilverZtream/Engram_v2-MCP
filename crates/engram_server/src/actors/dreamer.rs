@@ -234,12 +234,29 @@ pub async fn record_cooccurrence(
     let mut h = hits.to_vec();
     h.truncate(12);
 
-    // Ensure chunk + file nodes exist.
+    // Learning endpoints are not source inventory. A hit cannot create or rewrite
+    // a canonical file fingerprint, namespace, range, or publication generation.
     let mut nodes: Vec<Node> = Vec::new();
     let mut dep_pairs: Vec<(EdgeKind, String, String, u32)> = Vec::new();
     for item in &h {
         let language = engram_core::guess_language(std::path::Path::new(item.path.as_str()));
         let chunk_node_id = format!("pk:{}", item.pk);
+        let origin = item
+            .source_project_id
+            .as_deref()
+            .zip(item.namespace.as_deref())
+            .filter(|(pid, ns)| {
+                !pid.is_empty() && !ns.is_empty() && item.pk.starts_with(&format!("{pid}:{ns}:"))
+            });
+        let provenance = serde_json::json!({
+            "writer": "search_cooccurrence_v2",
+            "source_project_id": origin.map(|(pid, _)| pid),
+            "source_namespace": origin.map(|(_, ns)| ns),
+            "source_pk": item.pk,
+            "source_doc_id": item.doc_id,
+            "provenance_status": if origin.is_some() { "supplied_search_identity" } else { "unknown" },
+            "scope": "search learning; not indexed source fingerprint evidence"
+        });
         nodes.push(Node {
             node_id: chunk_node_id.clone(),
             node_type: "chunk".into(),
@@ -250,29 +267,52 @@ pub async fn record_cooccurrence(
             start_line: 0,
             end_line: 0,
             generation: active_gen,
-            metadata: None,
+            metadata: Some(provenance.clone()),
         });
 
-        nodes.push(Node {
-            node_id: format!("file:{}", item.path),
-            node_type: "file".into(),
-            name: item
-                .path
-                .file_name()
-                .unwrap_or_else(|| item.path.as_str())
-                .to_string(),
-            namespace: engram_core::namespaces::NAMESPACE_MEMORY.into(),
-            language: language.into(),
-            file_path: item.path.clone(),
-            start_line: 0,
-            end_line: 0,
-            generation: active_gen,
-            metadata: None,
-        });
-
-        let file_node_id = format!("file:{}", item.path);
-        // Link file <-> chunk (static edge, so weight doesn't matter much).
-        dep_pairs.push((EdgeKind::Dependency, file_node_id, chunk_node_id, 1));
+        let canonical_id = format!("file:{}", item.path);
+        let canonical = if let Some((pid, namespace)) = origin {
+            if pid == project_id {
+                state
+                    .graph
+                    .get_node(project_id, &canonical_id)?
+                    .filter(|node| {
+                        node.node_type == "file"
+                            && node.file_path == item.path
+                            && node.namespace == namespace
+                            && node.metadata.as_ref().is_some_and(|meta| {
+                                meta.get("file_hash").and_then(|v| v.as_str()).is_some()
+                                    && meta
+                                        .get("source_index_version")
+                                        .and_then(|v| v.as_u64())
+                                        .is_some()
+                            })
+                    })
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        let anchor_id = if canonical.is_some() {
+            canonical_id
+        } else {
+            let id = format!("search-document:{}", item.pk);
+            nodes.push(Node {
+                node_id: id.clone(),
+                node_type: "search_document".into(),
+                name: format!("{}#{}", item.path, item.doc_id),
+                namespace: engram_core::namespaces::NAMESPACE_MEMORY.into(),
+                language: language.into(),
+                file_path: item.path.clone(),
+                start_line: 0,
+                end_line: 0,
+                generation: active_gen,
+                metadata: Some(provenance),
+            });
+            id
+        };
+        dep_pairs.push((EdgeKind::Dependency, anchor_id, chunk_node_id, 1));
     }
     state.graph.upsert_nodes(project_id, &nodes)?;
     if !dep_pairs.is_empty() {
@@ -388,6 +428,7 @@ pub async fn dream_once(
                         fts_mode: "strict".into(),
                         include_path_prefixes: None,
                         exclude_path_prefixes: None,
+                        include_path_suffixes: None,
                         language_filters: None,
                         author_filter: None,
                         date_after: None,

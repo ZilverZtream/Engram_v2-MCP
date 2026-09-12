@@ -39,6 +39,15 @@ pub struct ProviderReport {
     pub count: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
+    /// Doc-13 Phase B: what the arm examined (0 = not measured).
+    pub examined: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub available: Option<usize>,
+    /// True when the arm stopped at a cap — the set may be incomplete.
+    pub truncated: bool,
+    /// Round-4 P0-2: the exact coverage proof, when the arm computes one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub proof: Option<super::providers::CoverageProof>,
 }
 
 /// The single evidence snapshot the report is pinned to. Only fields that are
@@ -145,6 +154,50 @@ fn evidence_haystack(evidence: &[EvidenceItem], known: &[String]) -> String {
     hay.to_lowercase()
 }
 
+/// Batch 9 (doc 11, live r65 causal_1/usage_5): language names are modality
+/// words — evidence in that language covers them; the literal word rarely
+/// appears inside code, and its absence oscillated status with pool jitter.
+fn language_suffixes(w: &str) -> Option<&'static [&'static str]> {
+    Some(match w {
+        "typescript" => &[".ts", ".tsx"],
+        "javascript" => &[".js", ".jsx"],
+        "vb" | "vbnet" | "vb.net" => &[".vb"],
+        "csharp" => &[".cs"],
+        "python" => &[".py"],
+        "sql" => &[".sql"],
+        "css" => &[".css"],
+        "html" => &[".html", ".aspx", ".ascx"],
+        _ => return None,
+    })
+}
+
+/// Batch 9 (doc 11, live r65 multi_1): common tech ROLE words — a layer, an
+/// interface kind — are vocabulary, not project premises; their absence from
+/// evidence must not veto an otherwise supported answer.
+fn is_tech_role_term(w: &str) -> bool {
+    matches!(
+        w,
+        "api"
+            | "apis"
+            | "dal"
+            | "dao"
+            | "dto"
+            | "orm"
+            | "sdk"
+            | "cli"
+            | "gui"
+            | "url"
+            | "urls"
+            | "http"
+            | "https"
+            | "dom"
+            | "json"
+            | "xml"
+            | "ajax"
+            | "rest"
+    )
+}
+
 /// `uncovered_named_terms` with the planner's resolved terms counted as covered.
 pub fn uncovered_named_terms_with(
     question: &str,
@@ -153,7 +206,13 @@ pub fn uncovered_named_terms_with(
 ) -> Vec<String> {
     let hay = evidence_haystack(evidence, known);
     let mut out: Vec<String> = Vec::new();
+    let mut sentence_start = true;
     for (i, raw) in question.split_whitespace().enumerate() {
+        let starts_sentence = sentence_start;
+        sentence_start = raw
+            .trim_end_matches(['"', '\'', '`', ')', ']'])
+            .ends_with(['.', '?', '!']);
+        let explicit_code_name = raw.starts_with('`');
         let tok = raw
             .trim_matches(|c: char| !c.is_ascii_alphanumeric() && c != '_' && c != '.')
             .trim_matches('.');
@@ -163,13 +222,63 @@ pub fn uncovered_named_terms_with(
         let upper_start = tok.chars().next().is_some_and(|c| c.is_ascii_uppercase());
         let inner_upper = tok.chars().skip(1).any(|c| c.is_ascii_uppercase());
         let identifier = tok.contains('_') || tok.contains('.');
-        let named = identifier || inner_upper || (upper_start && i > 0);
+        let named = explicit_code_name || identifier || inner_upper || (upper_start && i > 0);
         if !named {
             continue;
         }
         let lower = tok.to_lowercase();
-        if is_filler_term(&lower) || hay.contains(&lower) {
+        // A sentence-leading instruction is not an asserted project symbol.
+        // Keep ordinary proper nouns, explicit code names and names used in
+        // the middle of a sentence subject to the missing-premise guard.
+        if starts_sentence
+            && !explicit_code_name
+            && !identifier
+            && !inner_upper
+            && matches!(
+                lower.as_str(),
+                "include"
+                    | "identify"
+                    | "describe"
+                    | "explain"
+                    | "list"
+                    | "show"
+                    | "find"
+                    | "check"
+                    | "cover"
+                    | "consider"
+                    | "compare"
+                    | "summarize"
+                    | "trace"
+                    | "locate"
+                    | "report"
+                    | "give"
+                    | "provide"
+                    | "outline"
+                    | "verify"
+                    | "analyze"
+                    | "analyse"
+                    | "inspect"
+                    | "review"
+                    | "highlight"
+                    | "evaluate"
+                    | "determine"
+            )
+        {
             continue;
+        }
+        if is_filler_term(&lower) || is_tech_role_term(&lower) || hay.contains(&lower) {
+            continue;
+        }
+        // Batch 9: a language name is covered by evidence IN that language.
+        if let Some(sufs) = language_suffixes(&lower) {
+            let covered = evidence.iter().any(|e| {
+                e.path
+                    .as_deref()
+                    .is_some_and(|p| sufs.iter().any(|s| p.to_lowercase().ends_with(s)))
+            });
+            if covered {
+                continue;
+            }
         }
         if !out.iter().any(|o| o.eq_ignore_ascii_case(tok)) {
             out.push(tok.to_string());
@@ -335,6 +444,16 @@ pub fn assess_status(
     // a session key named after it — golden `ox_exact_5`) is one thing, not
     // two branches.
     if plan.entities.iter().any(|e| {
+        // Batch 3 (doc 11, live r59): a speculative-SHAPED mention — bare
+        // lowercase/digits, no separators ("installation") — is a stem GUESS.
+        // It may help when it resolves uniquely; it never vetoes the answer.
+        if !e.text.is_empty()
+            && e.text
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+        {
+            return false;
+        }
         let mut by_kind: std::collections::BTreeMap<String, std::collections::BTreeSet<String>> =
             std::collections::BTreeMap::new();
         for r in &e.resolved {
@@ -358,7 +477,85 @@ pub fn assess_status(
     }
     // Answered when the answer type's PRIMARY evidence kind is present; otherwise
     // there is adequate support but the ideal evidence is thin → partial.
+    // Round-2 audit P0-4: evidence that never touches a requested modality
+    // cannot be a full answer ("which reports …" answered from .vb only).
+    if plan.modalities.iter().any(|m| {
+        !evidence
+            .iter()
+            .any(|e| e.path.as_deref().is_some_and(|p| m.matches(p)))
+    }) {
+        return AnswerStatus::Partial;
+    }
+    // Doc-13 Phase D (round-3 audit P0-1): the CONTRACT decides
+    // completeness — "Answered" must mean the question was answered.
+    if plan.contract.completeness_required {
+        if matches!(
+            plan.contract.direction,
+            super::plan::ContractDirection::Callees
+        ) {
+            // The exhaustive traversal arm must have run and completed.
+            let complete = providers
+                .iter()
+                .any(|p| p.provider == "callee_set" && p.count > 0 && !p.truncated);
+            if !complete {
+                return AnswerStatus::Partial;
+            }
+            // A SATISFIED exhaustive contract IS the answer — the legacy
+            // primary-kind tail expects a prose/source primary and would
+            // call a complete relation set Partial.
+            if evidence
+                .iter()
+                .any(|e| e.kind == super::evidence::EvidenceKind::GraphRelation)
+            {
+                return AnswerStatus::Answered;
+            }
+        } else {
+            // No exhaustive traversal exists for this shape yet — an honest
+            // engine never claims a complete set it cannot establish.
+            return AnswerStatus::Partial;
+        }
+    }
+    // Phase D: a required facet with no supporting evidence keeps Partial.
+    for f in &plan.contract.required_facets {
+        let ok = match f {
+            super::plan::Facet::Definition => evidence
+                .iter()
+                .any(|e| e.provider == "definition" || e.extraction_method.contains("definition")),
+            super::plan::Facet::Caller | super::plan::Facet::Implementation => evidence
+                .iter()
+                .any(|e| e.kind == super::evidence::EvidenceKind::GraphRelation),
+            super::plan::Facet::Rationale => true,
+        };
+        if !ok {
+            return AnswerStatus::Partial;
+        }
+    }
     let primary = primary_kind(plan.answer_type);
+    // Retained stale or unverified rule evidence is a material coverage gap.
+    // Current-code hits must not silently certify an outdated inferred rule.
+    if evidence.iter().any(|e| {
+        e.source_verification
+            .as_deref()
+            .is_some_and(|s| !s.starts_with("VERIFIED_METHOD_HASH:"))
+    }) {
+        return if evidence.iter().all(|e| {
+            e.source_verification
+                .as_deref()
+                .is_some_and(|s| s.starts_with("STALE:"))
+        }) {
+            AnswerStatus::Stale
+        } else {
+            AnswerStatus::Partial
+        };
+    }
+    // A coordinated behavior contract requires per-operation/per-scope
+    // verification. Current providers return snippets and relation identities,
+    // not verified behavior claims. Even keyword-rich source cannot discharge
+    // these obligations merely by being present. Keep useful evidence Partial
+    // until a typed verifier can link each obligation to supporting evidence.
+    if !plan.contract.behavior_requirements.is_empty() {
+        return AnswerStatus::Partial;
+    }
     if evidence.iter().any(|e| e.kind == primary) {
         AnswerStatus::Answered
     } else {

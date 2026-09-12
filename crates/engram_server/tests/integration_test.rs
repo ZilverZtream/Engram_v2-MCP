@@ -545,6 +545,7 @@ async fn test_memory_bank_persistence() {
     // 3. Update Project (Generation 2)
     engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
+            reindex_paths: Vec::new(),
             project_id: project_id.to_string(),
             wait: true,
             max_commits: 10,
@@ -790,6 +791,7 @@ async fn test_gc_preserves_global_namespaces() {
     // 3. Update Project (Gen 2)
     engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
+            reindex_paths: Vec::new(),
             project_id: project_id.to_string(),
             wait: true,
             max_commits: 10,
@@ -806,6 +808,7 @@ async fn test_gc_preserves_global_namespaces() {
         let engram_tmp = Engram::new(state.clone());
         let _ps = engram_tmp
             .update_project(Parameters(engram_server::UpdateProjectRequest {
+                reindex_paths: Vec::new(),
                 project_id: project_id.to_string(),
                 wait: true,
                 max_commits: 0,
@@ -1611,6 +1614,7 @@ async fn test_get_chunk_hardening() {
     // 3. Get Chunk without rules
     let get_res = engram
         .get_chunk(Parameters(engram_server::GetChunkRequest {
+                citation: None,
             project_id: project_id.to_string(),
             doc_id: doc_id.clone(),
             namespace: "memory".into(),
@@ -1643,6 +1647,7 @@ async fn test_get_chunk_hardening() {
 
     let get_res = engram
         .get_chunk(Parameters(engram_server::GetChunkRequest {
+                citation: None,
             project_id: project_id.to_string(),
             doc_id,
             namespace: "memory".into(),
@@ -2214,6 +2219,16 @@ async fn test_analyze_temporal_couplings() {
     let engram = Engram::new(state.clone());
 
     let project_id = "test_couplings";
+    // Graph evidence belongs to a registered project; no complete Git history is asserted.
+    state.registry.put_project(&engram_core::ProjectRecord {
+        project_id: project_id.into(),
+        project_name: "Temporal coupling fixture".into(),
+        project_type: "general".into(),
+        directory: data_dir.to_string_lossy().into_owned(),
+        created_at_ms: 0,
+        updated_at_ms: 0,
+        reindex_required_since_ms: None,
+    }).unwrap();
 
     // Insert nodes
     let nodes = vec![
@@ -2301,6 +2316,8 @@ async fn test_analyze_temporal_couplings() {
         _ => panic!("Expected text"),
     };
     assert!(text.contains("file:A.rs <-> file:B.rs (weight=5)"));
+    assert!(text.contains("watermark: unavailable; backfill complete: false"));
+    assert!(text.contains("not a causal dependency"));
     assert!(text.contains("file:A.rs <-> file:C.rs (weight=2)"));
 
     // 2. Focused coupling for A.rs
@@ -2841,6 +2858,7 @@ async fn test_immune_system_end_to_end() {
     // 3. Update project to index history and anti-patterns
     engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
+            reindex_paths: Vec::new(),
             project_id: project_id.to_string(),
             max_commits: 100,
             index_antipatterns: true,
@@ -2866,7 +2884,7 @@ async fn test_immune_system_end_to_end() {
     let immune_res = engram
         .immune_check(Parameters(engram_server::ImmuneCheckRequest {
             project_id: project_id.to_string(),
-            code: draft_code.into(),
+            code: Some(draft_code.into()), code_file: None, code_file_blake3: None,
             file_path: None,
             top_k: 1,
             use_vector: false,
@@ -3008,6 +3026,7 @@ async fn test_dream_immune_integration() {
 
     engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
+            reindex_paths: Vec::new(),
             project_id: project_id.to_string(),
             max_commits: 100,
             index_antipatterns: true,
@@ -3538,6 +3557,7 @@ async fn test_gc_policy_preservation() {
     .unwrap();
     engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
+            reindex_paths: Vec::new(),
             project_id: project_id.to_string(),
             wait: true,
             max_commits: 10,
@@ -3555,6 +3575,7 @@ async fn test_gc_policy_preservation() {
     .unwrap();
     engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
+            reindex_paths: Vec::new(),
             project_id: project_id.to_string(),
             wait: true,
             max_commits: 10,
@@ -4866,7 +4887,7 @@ async fn test_analyze_directory_coding_style() {
 
     let repo = git2::Repository::init(&project_dir).unwrap();
     let mut index = repo.index().unwrap();
-    let sig = repo.signature().unwrap();
+    let sig = git2::Signature::now("Fixture", "fixture@example.invalid").unwrap();
 
     // Commit two files in src with consistent style
     std::fs::write(project_dir.join("src/a.rs"), "fn a() {\n  let x = 1;\n}").unwrap();
@@ -4891,6 +4912,7 @@ async fn test_analyze_directory_coding_style() {
         max_project_files: None,
         max_project_bytes: None,
         embedding_backend: "fts_only".into(),
+        llm_backend: "none".into(),
         embedding_model: None,
         ollama_url: None,
         openai_api_key: None,
@@ -4915,6 +4937,28 @@ async fn test_analyze_directory_coding_style() {
         .project_id
         .clone();
 
+    // Tiny history is real but below the deterministic detector's evidence threshold.
+    let insufficient = engram
+        .analyze_file_coding_style(Parameters(engram_server::AnalyzeFileCodingStyleRequest {
+            project_id: project_id.clone(),
+            file_path: "src".into(),
+            diff_limit: 10,
+        }))
+        .await
+        .unwrap_err();
+    assert!(insufficient.message.contains("Insufficient data to determine style patterns"));
+
+    // Supply a representative first-file sample; directory history samples one path per commit.
+    let body = (0..12)
+        .map(|i| format!("fn sample_{i}() {{\n  let value_{i} = {i};\n}}\n"))
+        .collect::<String>();
+    std::fs::write(project_dir.join("src/a.rs"), &body).unwrap();
+    index.add_path(std::path::Path::new("src/a.rs")).unwrap();
+    index.write().unwrap();
+    let tree = repo.find_tree(index.write_tree().unwrap()).unwrap();
+    let parent = repo.head().unwrap().peel_to_commit().unwrap();
+    repo.commit(Some("HEAD"), &sig, &sig, "Add representative two-space sample", &tree, &[&parent]).unwrap();
+
     // Analyze coding style for directory "src"
     let src_rel = engram_core::RelPath::new("src");
     let res = engram
@@ -4931,6 +4975,8 @@ async fn test_analyze_directory_coding_style() {
         _ => panic!("Expected text"),
     };
 
+    assert!(text.contains("Basis: 2 commit(s)"), "{text}");
+    assert!(text.contains("file read: NO"), "{text}");
     assert!(
         text.contains("Style Guide for src"),
         "Output should mention directory. Output: {}",

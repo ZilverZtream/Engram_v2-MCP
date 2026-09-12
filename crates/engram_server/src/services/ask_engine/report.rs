@@ -22,6 +22,9 @@ pub struct AskReport {
     pub next_best: Vec<String>, // suggested follow-up investigations
     pub snapshot: FreshnessSnapshot,
     pub providers: Vec<ProviderReport>,
+    /// Round-4 P0-2: typed identities that ARE the answer for relation
+    /// questions (empty for prose-shaped questions).
+    pub answer_members: Vec<super::providers::AnswerMember>,
 }
 
 pub fn to_json(r: &AskReport) -> serde_json::Value {
@@ -35,9 +38,40 @@ pub fn coverage_gaps(
     providers: &[ProviderReport],
 ) -> Vec<String> {
     let mut gaps = Vec::new();
+    if !plan.contract.behavior_requirements.is_empty() {
+        let operations = plan
+            .contract
+            .behavior_requirements
+            .iter()
+            .map(|op| op.label())
+            .collect::<Vec<_>>()
+            .join(", ");
+        let scope = plan
+            .contract
+            .behavior_scope_context
+            .as_deref()
+            .map(|context| format!(" ({context})"))
+            .unwrap_or_default();
+        gaps.push(format!(
+            "unverified behavior coverage: {operations}{scope}; retrieved evidence has not been verified for each requested operation and scope"
+        ));
+    }
     for k in &plan.needed_evidence {
         if !evidence.iter().any(|e| e.kind == *k) {
             gaps.push(format!("no {} evidence found", kind_label(*k)));
+        }
+    }
+    // Round-2 audit P0-4: name the requested modality that no evidence covers.
+    for m in &plan.modalities {
+        if !evidence
+            .iter()
+            .any(|e| e.path.as_deref().is_some_and(|p| m.matches(p)))
+        {
+            gaps.push(format!(
+                "no {} evidence although the question asks for it (looked for {})",
+                m.label(),
+                m.suffixes().join(", ")
+            ));
         }
     }
     for p in providers {
@@ -95,7 +129,9 @@ pub fn next_best(plan: &QueryPlan, evidence: &[EvidenceItem], status: AnswerStat
         ),
         _ => {}
     }
-    if let Some(top) = evidence.first() {
+    if !plan.contract.behavior_requirements.is_empty() {
+        out.push("For each requested operation and scope, use grep_project or search_memory to locate implementation symbols, then get_full_method_body to inspect their behavior and validation paths; names and keyword matches do not verify coverage.".into());
+    } else if let Some(top) = evidence.first() {
         if let Some(p) = &top.path {
             out.push(format!(
                 "get_chunk / get_full_method_body on {p} for the full text"
@@ -136,7 +172,9 @@ fn authority_label(a: Authority) -> &'static str {
 
 fn status_reason(r: &AskReport) -> &'static str {
     match r.status {
-        AnswerStatus::Answered => "direct, adequately-authoritative evidence found",
+        // Round-8 P0-3: "adequately authoritative", NOT "direct" — the evidence
+        // may include mediated (wrapper/broker) hops, which the members label.
+        AnswerStatus::Answered => "adequately-authoritative evidence found",
         AnswerStatus::Partial => "some evidence, but coverage gaps remain",
         AnswerStatus::Ambiguous => "an entity resolves to multiple candidates — disambiguate first",
         AnswerStatus::Stale => "evidence is behind the current snapshot",
@@ -194,6 +232,76 @@ pub fn render_markdown(r: &AskReport) -> String {
     }
     let _ = writeln!(s, "**snapshot:** {snap}");
 
+    if !r.answer_members.is_empty() {
+        let complete = r
+            .providers
+            .iter()
+            .filter_map(|p| p.proof.as_ref())
+            .all(|p| p.complete());
+        let _ = writeln!(
+            s,
+            "\n## Answer members ({}, coverage {})",
+            r.answer_members.len(),
+            if complete { "complete" } else { "INCOMPLETE" }
+        );
+        if !complete {
+            // Name WHY coverage is incomplete — a bare "INCOMPLETE" is the
+            // "coverage invisible" gap. Aggregate the exact counters, and
+            // sample the specific dangling target ids so an ingestion defect
+            // is diagnosable from the report itself.
+            let mut src_cap = false;
+            let mut nbr_cap = 0usize;
+            let mut dangling = 0usize;
+            let mut graph_errors = 0usize;
+            let mut dispatch_trunc = 0usize;
+            let mut dangling_ids: Vec<&str> = Vec::new();
+            for p in r.providers.iter().filter_map(|p| p.proof.as_ref()) {
+                src_cap |= p.source_cap_hit;
+                nbr_cap += p.neighbor_cap_hits;
+                dangling += p.dangling_targets;
+                graph_errors += p.graph_errors;
+                dispatch_trunc += p.dispatch_truncated;
+                dangling_ids.extend(p.dangling_target_ids.iter().map(String::as_str));
+            }
+            let mut reasons: Vec<String> = Vec::new();
+            if src_cap {
+                reasons.push("source cap hit".to_string());
+            }
+            if nbr_cap > 0 {
+                reasons.push(format!("{nbr_cap} neighbor-cap hit(s)"));
+            }
+            if dangling > 0 {
+                let sample: Vec<&str> = dangling_ids.iter().take(5).copied().collect();
+                reasons.push(format!(
+                    "{dangling} dangling edge target(s) [{}]",
+                    sample.join(", ")
+                ));
+            }
+            if dispatch_trunc > 0 {
+                reasons.push(format!(
+                    "{dispatch_trunc} dispatch expansion(s) truncated (served implementations dropped)"
+                ));
+            }
+            if graph_errors > 0 {
+                reasons.push(format!("{graph_errors} graph error(s)"));
+            }
+            if !reasons.is_empty() {
+                let _ = writeln!(s, "_incomplete because: {}_", reasons.join("; "));
+            }
+        }
+        for m in &r.answer_members {
+            let _ = writeln!(
+                s,
+                "- {} [{}]{}",
+                m.display_name,
+                m.relation,
+                m.path
+                    .as_deref()
+                    .map(|p| format!(" — {p}"))
+                    .unwrap_or_default()
+            );
+        }
+    }
     let _ = writeln!(s, "\n## Key evidence");
     if r.evidence.is_empty() {
         let _ = writeln!(s, "_(none of adequate authority)_");
@@ -212,10 +320,31 @@ pub fn render_markdown(r: &AskReport) -> String {
             e.provider,
             e.score.unwrap_or(0.0)
         );
-        let snippet: String = e.content.chars().take(200).collect();
+        // Business excerpts already carry a bounded claim/qualification view.
+        // A second 200-character crop can show only its disclaimer and hide
+        // every retrieved rule. Retain that view, including its recovery marker.
+        let snippet_limit = if e.document_namespace.as_deref() == Some("business_logic") { 1400 } else { 200 };
+        let mut snippet: String = e.content.chars().take(snippet_limit).collect();
+        if e.content.chars().count() > snippet_limit {
+            snippet.push_str(" [excerpt shortened]");
+        }
         let snippet = snippet.replace('\n', " ");
         if !snippet.trim().is_empty() {
             let _ = writeln!(s, "  {}", snippet.trim());
+        }
+        if let Some(status) = &e.source_verification {
+            let _ = writeln!(s, "  Source: {status}");
+        }
+        for warning in &e.warnings {
+            if e.source_verification.as_ref() != Some(warning) {
+                let _ = writeln!(s, "  Warning: {warning}");
+            }
+        }
+        if let (Some(id), Some(namespace)) = (&e.document_id, &e.document_namespace) {
+            let _ = writeln!(
+                s,
+                "  Full evidence: get_chunk(doc_id=\"{id}\", namespace=\"{namespace}\")"
+            );
         }
     }
 

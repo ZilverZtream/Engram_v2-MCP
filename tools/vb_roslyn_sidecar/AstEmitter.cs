@@ -91,6 +91,11 @@ internal sealed class AstEmitter
         }
     }
 
+    // Only the decoded leading BOM is an encoding marker. Keep its character
+    // position for syntax spans; embedded U+FEFF remains subject to parse errors.
+    private static string SourceForParsing(string source) =>
+        source.StartsWith("\uFEFF", StringComparison.Ordinal) ? " " + source.Substring(1) : source;
+
     /// <summary>
     /// Parse every .vb file under <paramref name="projectRoot"/> into one
     /// shared compilation. O(project) — call it when the project changes,
@@ -128,7 +133,7 @@ internal sealed class AstEmitter
             {
                 var fileSource = File.ReadAllText(vbPath);
                 var tree = VisualBasicSyntaxTree.ParseText(
-                    SourceText.From(fileSource),
+                    SourceText.From(SourceForParsing(fileSource)),
                     path: vbPath
                 );
                 trees.Add(tree);
@@ -207,12 +212,12 @@ internal sealed class AstEmitter
                 // File wasn't in the initial project scan (new file, or path
                 // mismatch). Parse it and add to the compilation for this call,
                 // but don't mutate _projectCompilation — avoids O(N²) rebuilds.
-                tree = VisualBasicSyntaxTree.ParseText(SourceText.From(source), path: path);
+                tree = VisualBasicSyntaxTree.ParseText(SourceText.From(SourceForParsing(source)), path: path);
                 compilation = _projectCompilation.AddSyntaxTrees(tree);
             }
             else
             {
-                tree = VisualBasicSyntaxTree.ParseText(SourceText.From(source), path: path);
+                tree = VisualBasicSyntaxTree.ParseText(SourceText.From(SourceForParsing(source)), path: path);
                 compilation = VisualBasicCompilation.Create("sidecar_single").AddSyntaxTrees(tree);
             }
 
@@ -308,7 +313,10 @@ internal sealed class AstEmitter
                     EmitType(en.EnumStatement.Identifier.ToString(), "enum", en);
                     return;
                 case MethodBlockSyntax m:
-                    EmitMethod(m);
+                    EmitMethod(m, m.SubOrFunctionStatement, m.SubOrFunctionStatement.Identifier.Text, m.SubOrFunctionStatement.HandlesClause);
+                    return;
+                case ConstructorBlockSyntax ctor:
+                    EmitMethod(ctor, ctor.SubNewStatement, "New", null);
                     return;
                 case PropertyBlockSyntax p:
                     EmitProperty(p);
@@ -344,15 +352,33 @@ internal sealed class AstEmitter
             typeStartLines.Pop();
         }
 
-        void EmitMethod(MethodBlockSyntax node)
+        void EmitMethod(SyntaxNode node, MethodBaseSyntax stmt, string name, HandlesClauseSyntax? handles)
         {
-            var stmt = node.SubOrFunctionStatement;
-            var name = stmt.Identifier.Text;
             var fqn = ComposeName(name);
             var methodStartLine = Line(tree, node);
             var metadata = new Dictionary<string, string>();
+            metadata["signature"] = stmt.WithoutTrivia().NormalizeWhitespace().ToFullString();
+            if (model.GetDeclaredSymbol(stmt) is IMethodSymbol declaredMethod)
+            {
+                metadata["access_level"] = declaredMethod.DeclaredAccessibility switch
+                {
+                    Accessibility.Public => "Public",
+                    Accessibility.Private => "Private",
+                    Accessibility.Protected => "Protected",
+                    Accessibility.Internal => "Friend",
+                    Accessibility.ProtectedOrInternal => "Protected Friend",
+                    Accessibility.ProtectedAndInternal => "Private Protected",
+                    _ => "unknown"
+                };
+                metadata["return_type"] = declaredMethod.ReturnsVoid ? "Void" : declaredMethod.ReturnType.ToDisplayString();
+            }
             // TODO-13: parameter count enables arity-aware call resolution.
             metadata["arity"] = (stmt.ParameterList?.Parameters.Count ?? 0).ToString();
+            var parameters = stmt.ParameterList?.Parameters ?? default;
+            metadata["arity_min"] = parameters.Count(p => !p.Modifiers.Any(m => m.IsKind(SyntaxKind.OptionalKeyword) || m.IsKind(SyntaxKind.ParamArrayKeyword))).ToString();
+            metadata["arity_variadic"] = parameters.Any(p => p.Modifiers.Any(m => m.IsKind(SyntaxKind.ParamArrayKeyword))).ToString().ToLowerInvariant();
+            if (node is ConstructorBlockSyntax)
+                metadata["constructor"] = "true";
             if (stmt.Modifiers.Any(m => m.Kind() == SyntaxKind.AsyncKeyword))
                 metadata["async"] = "true";
             if (Lifecycle(name) is { } life)
@@ -376,7 +402,7 @@ internal sealed class AstEmitter
             var methodSymbol = symbols[^1];
             if (types.Count > 0) edges.Add(Contains(types.Peek(), fqn, typeStartLines.Peek(), methodStartLine, "function"));
 
-            foreach (var hc in stmt.HandlesClause?.Events ?? new SeparatedSyntaxList<HandlesClauseItemSyntax>())
+            foreach (var hc in handles?.Events ?? new SeparatedSyntaxList<HandlesClauseItemSyntax>())
             {
                 var txt = hc.ToString();
                 var parts = txt.Split('.', 2);
@@ -626,6 +652,25 @@ internal sealed class AstEmitter
 
             foreach (var create in collector.ObjectCreations)
             {
+                var constructor = model.GetSymbolInfo(create).Symbol as IMethodSymbol;
+                var createdType = constructor?.ContainingType ?? model.GetTypeInfo(create).Type;
+                var constructorOwner = createdType is not null && createdType.TypeKind != TypeKind.Error
+                    ? createdType.ToDisplayString(BareQualifiedNameFormat)
+                    : SanitizeName(create.Type.ReplaceNodes(
+                        create.Type.DescendantNodesAndSelf().OfType<GenericNameSyntax>(),
+                        (original, _) => SyntaxFactory.IdentifierName(original.Identifier)).ToString());
+                edges.Add(new EdgeDto
+                {
+                    SourceName = fqn, SourceKind = "function",
+                    SourceStartLine = methodStartLine, SourceLanguage = "vb",
+                    TargetName = constructorOwner + ".New", TargetKind = "function",
+                    Kind = "calls", Metadata = new()
+                    {
+                        ["call_site_line"] = Line(tree, create).ToString(),
+                        ["args"] = (create.ArgumentList?.Arguments.Count ?? 0).ToString(),
+                        ["via"] = "object_creation"
+                    }
+                });
                 var typeText = create.Type.ToString();
                 if (!typeText.Contains("Command", StringComparison.OrdinalIgnoreCase)) continue;
                 var sqlArg = create.ArgumentList?.Arguments

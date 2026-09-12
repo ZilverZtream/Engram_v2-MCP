@@ -344,7 +344,8 @@ pub fn build_integrity_mismatches(
                 description: format!(
                     "Vector store has only {vector_count} entries for {tantivy_count} Tantivy docs \
                      ({shortfall} missing embeddings) — hybrid search recall is degraded; \
-                     re-embed with repair_project(scope=vector_only)"
+                     an absent vector table can be populated with repair_project(scope=initialize_vectors); \
+                     an existing incomplete table requires a rebuild. vector_only only purges old generations"
                 ),
                 expected: tantivy_count,
                 actual: vector_count,

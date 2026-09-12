@@ -41,11 +41,14 @@ async-trait.workspace = true
 fs2.workspace = true
 # Unified-diff of two ADO blob versions for review fix-exemplar mining.
 similar = "2"
+sqlparser = { version = "0.59", features = ["visitor"] }
 
 [build-dependencies]
 blake3 = "1"
 
 [dev-dependencies]
+rmcp = { workspace = true, features = ["client"] }
+serde_yaml.workspace = true
 tempfile = "3"
 tokio = { workspace = true, features = ["test-util"] }
 

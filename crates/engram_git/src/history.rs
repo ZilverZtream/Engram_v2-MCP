@@ -330,50 +330,67 @@ impl GitWalker {
         };
         let diff = repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), None)?;
 
+        fn append_bounded(buf: &mut String, text: &str, max: usize, truncated: &mut bool) {
+            if *truncated {
+                return;
+            }
+            let mut end = text.len().min(max.saturating_sub(buf.len()));
+            while !text.is_char_boundary(end) {
+                end -= 1;
+            }
+            buf.push_str(&text[..end]);
+            *truncated |= end < text.len();
+        }
+
+        fn finish(mut buf: String, max: usize, truncated: bool) -> String {
+            if truncated {
+                // Keep the disclosure inside the same per-file byte budget.
+                let marker = "\n[diff truncated]\n";
+                let marker = &marker[..marker.len().min(max)];
+                let mut end = buf.len().min(max.saturating_sub(marker.len()));
+                while !buf.is_char_boundary(end) {
+                    end -= 1;
+                }
+                buf.truncate(end);
+                buf.push_str(marker);
+            }
+            buf
+        }
+
         let mut current_path: Option<RelPath> = None;
-        // Pre-allocate buffer to avoid repeated reallocations as diff lines
-        // are appended. Cap at 256 KiB to avoid over-reserving for huge limits.
         let mut buf = String::with_capacity(max_bytes.min(256 * 1024));
+        let mut truncated = false;
         let mut out: Vec<(RelPath, String)> = Vec::new();
 
-        diff.print(DiffFormat::Patch, |delta, hunk, line| {
+        diff.print(DiffFormat::Patch, |delta, _hunk, line| {
             let p = delta.new_file().path().or_else(|| delta.old_file().path());
             let p = p.map(|x| RelPath::new(&x.to_string_lossy()));
             if p != current_path {
                 if let Some(cp) = current_path.take() {
-                    let done = std::mem::take(&mut buf);
-                    out.push((cp, done));
-                    // Reserve for the next file's diff output.
+                    out.push((cp, finish(std::mem::take(&mut buf), max_bytes, truncated)));
                     buf.reserve(max_bytes.min(256 * 1024));
                 }
                 current_path = p;
+                truncated = false;
             }
 
-            if let Some(h) = hunk {
-                // Write hunk header directly into buf (avoids intermediate
-                // String allocation from format!()).
-                use std::fmt::Write;
-                let _ = writeln!(
-                    buf,
-                    "@@ -{},{} +{},{} @@",
-                    h.old_start(),
-                    h.old_lines(),
-                    h.new_start(),
-                    h.new_lines()
-                );
+            // Patch printing already emits file and hunk headers as dedicated
+            // lines. Content lines carry their +/-/space origin separately.
+            // Reconstruct that prefix, without repeating the hunk for each line.
+            if let Ok(text) = std::str::from_utf8(line.content()) {
+                match line.origin() {
+                    '+' => append_bounded(&mut buf, "+", max_bytes, &mut truncated),
+                    '-' => append_bounded(&mut buf, "-", max_bytes, &mut truncated),
+                    ' ' => append_bounded(&mut buf, " ", max_bytes, &mut truncated),
+                    _ => {}
+                }
+                append_bounded(&mut buf, text, max_bytes, &mut truncated);
             }
-
-            if buf.len() < max_bytes
-                && let Ok(s) = std::str::from_utf8(line.content())
-            {
-                buf.push_str(s);
-            }
-
             true
         })?;
 
         if let Some(cp) = current_path.take() {
-            out.push((cp, buf));
+            out.push((cp, finish(buf, max_bytes, truncated)));
         }
         Ok(out)
     }

@@ -4,9 +4,10 @@
 //! Never let many weak semantic hits outvote one direct source-line relation.
 //! Conflicts are DETECTED and surfaced, never used to drop evidence.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use super::evidence::{Authority, EvidenceItem, EvidenceKind};
+use super::plan::{EntityKind, Modality, QueryPlan};
 use super::status::Conflict;
 
 const HALFLIFE_MS: f64 = 30.0 * 24.0 * 3600.0 * 1000.0;
@@ -77,14 +78,507 @@ fn dedup(items: Vec<EvidenceItem>) -> Vec<EvidenceItem> {
 
 /// Rank by authority/directness and select a small, source-diverse, high-signal
 /// set (MMR after the authority order). Fills each kept item's score/directness.
+/// Round-2 audit P0-4: the best raw item of each REQUESTED modality survives
+/// the evidence cap (replacing the weakest selected item), so a report /
+/// schema / resource question is answered from that modality whenever the
+/// index has it.
+/// The question's own words (>= 5 letters, lowercase): the reserves prefer a
+/// candidate that carries them ("which table stores … redovisningskategorier"
+/// → rk_redovisningskategorier.sql over a higher-relevance stranger).
+fn question_words(question: &str) -> Vec<String> {
+    question
+        .to_lowercase()
+        .split(|c: char| !c.is_alphanumeric() && c != '_')
+        .filter(|t| t.len() >= 5)
+        .map(|t| t.to_string())
+        .collect()
+}
+
+/// Rank a reserve candidate: question-word hits in its path/content first,
+/// then the arm's relevance.
+fn reserve_key(e: &EvidenceItem, words: &[String]) -> (usize, i64) {
+    let hay = format!(
+        "{} {}",
+        e.path.as_deref().unwrap_or("").to_lowercase(),
+        e.content.to_lowercase()
+    );
+    let hits = words.iter().filter(|w| hay.contains(w.as_str())).count();
+    (hits, (e.relevance * 1000.0) as i64)
+}
+
+fn promote(chosen: &mut Vec<EvidenceItem>, best: &EvidenceItem) {
+    if !chosen.is_empty() {
+        chosen.pop();
+    }
+    chosen.push(best.clone());
+}
+
+/// Round-2 audit P0-4d: every evidence KIND the plan needs keeps one item
+/// under the cap when the raw pool has one (live r39: a "when was … last
+/// changed" question lost its commit documents to same-file callee items).
+pub fn reserve_needed_kinds(
+    chosen: &mut Vec<EvidenceItem>,
+    raw: &[EvidenceItem],
+    needed: &[EvidenceKind],
+) {
+    for k in needed {
+        if chosen.iter().any(|e| e.kind == *k) {
+            continue;
+        }
+        let Some(best) = raw.iter().filter(|e| e.kind == *k).max_by(|a, b| {
+            a.relevance
+                .partial_cmp(&b.relevance)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        }) else {
+            continue;
+        };
+        promote(chosen, best);
+    }
+}
+
+pub fn reserve_modalities(
+    chosen: &mut Vec<EvidenceItem>,
+    raw: &[EvidenceItem],
+    modalities: &[Modality],
+    question: &str,
+) {
+    let words = question_words(question);
+    for m in modalities {
+        let of_modality = |e: &EvidenceItem| e.path.as_deref().is_some_and(|p| m.matches(p));
+        // A modality item already chosen that carries the question's words is
+        // enough; one that does not is replaced when the pool has a better fit.
+        let have = chosen
+            .iter()
+            .filter(|e| of_modality(e))
+            .map(|e| reserve_key(e, &words))
+            .max();
+        let Some(best) = raw
+            .iter()
+            .filter(|e| of_modality(e))
+            .max_by_key(|e| reserve_key(e, &words))
+        else {
+            continue;
+        };
+        let best_key = reserve_key(best, &words);
+        match have {
+            Some(h) if h.0 >= best_key.0 => continue,
+            Some(_) => {
+                chosen.retain(|e| !(of_modality(e) && reserve_key(e, &words).0 < best_key.0));
+                if chosen
+                    .iter()
+                    .any(|e| of_modality(e) && e.evidence_id == best.evidence_id)
+                {
+                    continue;
+                }
+                chosen.push(best.clone());
+            }
+            None => promote(chosen, best),
+        }
+    }
+}
+
+/// Round-2 audit P0-4b: a FILE the question names (a resolved File entity)
+/// keeps one evidence item under the cap — live, its definition item was cut
+/// by ten look-alike code chunks and the named file went uncited.
+pub fn reserve_entity_files(
+    chosen: &mut Vec<EvidenceItem>,
+    raw: &[EvidenceItem],
+    plan: &QueryPlan,
+) {
+    let targets: Vec<String> = plan
+        .entities
+        .iter()
+        .flat_map(|e| e.resolved.iter())
+        .filter(|r| r.kind == EntityKind::File)
+        .map(|r| r.canonical.replace('\\', "/").to_lowercase())
+        .filter(|p| !p.is_empty())
+        .collect();
+    for t in targets {
+        let of_file = |e: &EvidenceItem| {
+            e.path.as_deref().is_some_and(|p| {
+                let p = p.replace('\\', "/").to_lowercase();
+                p == t || p.ends_with(&format!("/{t}")) || t.ends_with(&format!("/{p}"))
+            })
+        };
+        if chosen.iter().any(|e| of_file(e)) {
+            continue;
+        }
+        let Some(best) = raw.iter().filter(|e| of_file(e)).max_by(|a, b| {
+            a.relevance
+                .partial_cmp(&b.relevance)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        }) else {
+            continue;
+        };
+        if !chosen.is_empty() {
+            chosen.pop();
+        }
+        chosen.push(best.clone());
+    }
+}
+
+/// Round-2 audit P0-4e: ONE reserve pass. Everything the plan requires under
+/// the cap — an item per needed KIND, per requested MODALITY (preferring the
+/// candidate that carries the question's words) and per named FILE — is
+/// collected first; then the weakest UNPROTECTED items make room. Live r40:
+/// the needed-kind reserve evicted the .resx the modality reserve had just
+/// pushed, because each reserve popped the last item blindly.
+/// P0-4f: how many items of a requested modality the reserve keeps.
+pub const MODALITY_SLOTS: usize = 3;
+
+pub fn reserve_required(
+    chosen: &mut Vec<EvidenceItem>,
+    raw: &[EvidenceItem],
+    plan: &QueryPlan,
+    question: &str,
+) -> std::collections::HashSet<String> {
+    let files: Vec<String> = plan
+        .entities
+        .iter()
+        .flat_map(|e| e.resolved.iter())
+        .filter(|r| r.kind == EntityKind::File)
+        .map(|r| r.canonical.replace('\\', "/").to_lowercase())
+        .filter(|p| !p.is_empty())
+        .collect();
+    let pin_definition = plan
+        .contract
+        .required_facets
+        .contains(&super::plan::Facet::Definition);
+    reserve_required_with(
+        chosen,
+        raw,
+        &plan.needed_evidence,
+        &plan.modalities,
+        &files,
+        question,
+        pin_definition,
+    )
+}
+
+pub fn reserve_required_with(
+    chosen: &mut Vec<EvidenceItem>,
+    raw: &[EvidenceItem],
+    needed: &[EvidenceKind],
+    modalities: &[Modality],
+    entity_files: &[String],
+    question: &str,
+    pin_definition: bool,
+) -> std::collections::HashSet<String> {
+    let words = question_words(question);
+    let mut wanted: Vec<EvidenceItem> = Vec::new();
+    // A requirement already satisfied by selection needs protection too. The
+    // returned set also guards the later entity/per-path trims, not just eviction.
+    let mut protected = std::collections::HashSet::new();
+    let has =
+        |set: &[EvidenceItem], pred: &dyn Fn(&EvidenceItem) -> bool| set.iter().any(|e| pred(e));
+    for m in modalities {
+        let of_modality = |e: &EvidenceItem| e.path.as_deref().is_some_and(|p| m.matches(p));
+        // P0-4f (live r41: one .sql among ten items = precision 0.40): a
+        // question that names a modality gets up to MODALITY_SLOTS of its
+        // candidates, the ones carrying the question's words first.
+        let mut cands: Vec<&EvidenceItem> = raw.iter().filter(|e| of_modality(e)).collect();
+        cands.sort_by_key(|e| std::cmp::Reverse(reserve_key(e, &words)));
+        for c in cands.into_iter().take(MODALITY_SLOTS) {
+            if chosen.iter().any(|e| e.evidence_id == c.evidence_id) {
+                protected.insert(c.evidence_id.clone());
+            }
+            let present = chosen
+                .iter()
+                .chain(wanted.iter())
+                .any(|e| e.evidence_id == c.evidence_id);
+            if !present {
+                wanted.push(c.clone());
+            }
+        }
+    }
+    for k in needed {
+        let of_kind = |e: &EvidenceItem| e.kind == *k;
+        if has(&wanted, &of_kind) {
+            continue;
+        }
+        if let Some(existing) = chosen
+            .iter()
+            .filter(|e| of_kind(e))
+            .max_by_key(|e| reserve_key(e, &words))
+        {
+            protected.insert(existing.evidence_id.clone());
+            continue;
+        }
+        if let Some(best) = raw.iter().filter(|e| of_kind(e)).max_by(|a, b| {
+            a.relevance
+                .partial_cmp(&b.relevance)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        }) && !wanted.iter().any(|w| w.evidence_id == best.evidence_id)
+        {
+            wanted.push(best.clone());
+        }
+    }
+    for t in entity_files {
+        let t = t.replace('\\', "/").to_lowercase();
+        let of_file = |e: &EvidenceItem| {
+            e.path.as_deref().is_some_and(|p| {
+                let p = p.replace('\\', "/").to_lowercase();
+                p == t || p.ends_with(&format!("/{t}")) || t.ends_with(&format!("/{p}"))
+            })
+        };
+        if has(&wanted, &of_file) {
+            continue;
+        }
+        if let Some(existing) = chosen
+            .iter()
+            .filter(|e| of_file(e))
+            .max_by_key(|e| reserve_key(e, &words))
+        {
+            protected.insert(existing.evidence_id.clone());
+            continue;
+        }
+        if let Some(best) = raw
+            .iter()
+            .filter(|e| of_file(e))
+            .max_by_key(|e| reserve_key(e, &words))
+            && !wanted.iter().any(|w| w.evidence_id == best.evidence_id)
+        {
+            wanted.push(best.clone());
+        }
+    }
+    // Round-7 (ox_causal_18): a required Definition facet — the queried symbol's
+    // own location — must survive the cap. A symbol with many callers/usages was
+    // crowding its own definition out of the answer (DeleteImage's callers
+    // cited, its api-images definition dropped despite being retrieved).
+    if pin_definition {
+        let is_def = |e: &EvidenceItem| {
+            e.provider == "definition" || e.extraction_method.contains("definition")
+        };
+        if !has(&wanted, &is_def) {
+            if let Some(existing) = chosen
+                .iter()
+                .filter(|e| is_def(e))
+                .max_by_key(|e| reserve_key(e, &words))
+            {
+                protected.insert(existing.evidence_id.clone());
+            } else if let Some(best) = raw.iter().filter(|e| is_def(e)).max_by(|a, b| {
+                a.relevance
+                    .partial_cmp(&b.relevance)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            }) {
+                wanted.push(best.clone());
+            }
+        }
+    }
+    // Round-7 (ox_causal_16 post-mortem): a "who/which calls X" question over a
+    // symbol with MANY valid callers must NOT bulk-reserve caller files. An
+    // earlier `pin_callers` pass reserved one item per distinct caller file
+    // (bounded to 12) to force a specific wrapper (ajax.ts) into the answer —
+    // but the graph legitimately has 23 getimg callers, so the reservation (a)
+    // flooded the citation list with a dozen 0.00-scored callers, tanking item
+    // precision, (b) evicted the impl DEFINITION the answer needs, and (c) still
+    // never included the intended file (it takes callers in raw order). Callers
+    // are now left to normal relevance ranking; only the definition is pinned
+    // (above). Reserving a curated subset of many-valid-callers cannot be done
+    // without overfitting to a hand-picked ground-truth set, so it is not done.
+    protected.extend(wanted.iter().map(|w| w.evidence_id.clone()));
+    for w in wanted {
+        if chosen.iter().any(|e| e.evidence_id == w.evidence_id) {
+            continue;
+        }
+        // Evict the weakest item that no reserve protects.
+        let victim = chosen
+            .iter()
+            .enumerate()
+            .filter(|(_, e)| !protected.contains(&e.evidence_id))
+            .min_by(|(_, a), (_, b)| {
+                a.score
+                    .unwrap_or(a.relevance)
+                    .partial_cmp(&b.score.unwrap_or(b.relevance))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .map(|(i, _)| i);
+        if let Some(i) = victim {
+            chosen.remove(i);
+        }
+        // Preserve existing reservation semantics: if all slots are required,
+        // append the missing representative rather than evict another obligation.
+        protected.insert(w.evidence_id.clone());
+        chosen.push(w);
+    }
+    protected
+}
+
+/// Batch 1 Fix A (doc 11 grind): a LOOKUP-shaped question — exactly one
+/// mention, resolved unambiguously, with no Usage/Impact/History intent —
+/// answers in a handful of items. Live r57: exact-fact rows cited their one
+/// answer inside ten items (seven sibling DALs) and failed the 0.5 precision
+/// gate. Generic: keyed on plan shape, never on project content.
+pub fn lookup_cap(
+    entities: &[crate::services::ask_engine::plan::EntityMention],
+    intents: &[(crate::services::ask_engine::plan::Intent, f32)],
+    depth: crate::services::ask_engine::retrieval::Depth,
+) -> usize {
+    use crate::services::ask_engine::plan::Intent;
+    let full = depth.evidence_cap();
+    let breadth = intents
+        .iter()
+        .any(|(i, _)| matches!(i, Intent::Usage | Intent::Impact | Intent::History));
+    // Batch 2 (live r58): junk mentions resolve to [] — only RESOLVED
+    // mentions count. Exactly one mention carries exactly one resolution,
+    // and no other mention resolved at all.
+    let resolved: Vec<usize> = entities
+        .iter()
+        .map(|e| e.resolved.len())
+        .filter(|n| *n > 0)
+        .collect();
+    let one_clear = resolved.len() == 1 && resolved[0] == 1;
+    if one_clear && !breadth {
+        5.min(full)
+    } else {
+        full
+    }
+}
+
+/// Batch 7 (doc 11, live r63 usage_5): a question that names a path scope
+/// ("under ts/map") gets evidence FROM that scope — an item whose path does
+/// not contain the scope as a directory infix is out. Fail-safe: never
+/// empties the pool.
+pub fn retain_path_scoped(items: &mut Vec<EvidenceItem>, prefixes: &[String]) {
+    if prefixes.is_empty() || items.is_empty() {
+        return;
+    }
+    let matches_scope = |path: &str| {
+        let p = path.replace('\\', "/").to_lowercase();
+        prefixes.iter().any(|pre| {
+            p == *pre
+                || p.starts_with(&format!("{pre}/"))
+                || p.contains(&format!("/{pre}/"))
+                || p.ends_with(&format!("/{pre}"))
+        })
+    };
+    if !items
+        .iter()
+        .any(|it| it.path.as_deref().is_some_and(matches_scope))
+    {
+        return;
+    }
+    items.retain(|it| it.path.as_deref().is_some_and(matches_scope));
+}
+
+/// Batch 4 (doc 11, live r60 exact_3): under an ENGAGED lookup cap, a slot
+/// belongs to evidence that actually mentions the asked entity (its text or
+/// a resolved canonical); entity-seeded relation evidence and items the
+/// reserve pass protects are exempt. Fail-safe: never empties the answer.
+pub fn retain_entity_anchored(
+    items: &mut Vec<EvidenceItem>,
+    needles: &[String],
+    protected: &std::collections::HashSet<String>,
+) {
+    if needles.is_empty() || items.is_empty() {
+        return;
+    }
+    let keep: Vec<bool> = items
+        .iter()
+        .map(|it| {
+            let hay = format!(
+                "{} {} {}",
+                it.path.as_deref().unwrap_or(""),
+                it.title.as_deref().unwrap_or(""),
+                it.content
+            )
+            .to_lowercase();
+            // Batch 4c: entity-SEEDED relation evidence (the callee/graph
+            // arms hop from the asked entity) is about the entity by
+            // construction — its text may never repeat the name.
+            protected.contains(&it.evidence_id)
+                || matches!(it.kind, EvidenceKind::GraphRelation)
+                || needles.iter().any(|n| hay.contains(n.as_str()))
+        })
+        .collect();
+    if !keep.iter().any(|k| *k) {
+        return;
+    }
+    let mut i = 0;
+    items.retain(|_| {
+        let k = keep[i];
+        i += 1;
+        k
+    });
+}
+
+/// Batch 3 (doc 11, live r59 exact_6): a lookup answer never spends two of
+/// its five slots on the same file — first (highest-ranked) item per path wins.
+pub fn retain_one_per_path(
+    items: &mut Vec<EvidenceItem>,
+    protected: &std::collections::HashSet<String>,
+) {
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    items.retain(|it| {
+        if protected.contains(&it.evidence_id) {
+            if let Some(p) = &it.path {
+                seen.insert(p.to_lowercase());
+            }
+            return true;
+        }
+        match &it.path {
+            Some(p) => seen.insert(p.to_lowercase()),
+            None => true,
+        }
+    });
+}
+
+/// Batch 5 (doc 11, live r61): the co-occurrence term list is built from
+/// RESOLVED mentions only — an unresolved junk mention ("data-access",
+/// resolved to []) must not flip the ranker into co-occurrence mode and
+/// hand the direct-evidence boost to chunks containing the junk word.
+pub fn cooccurrence_terms(entities: &[super::plan::EntityMention]) -> Vec<String> {
+    let mut t: Vec<String> = entities
+        .iter()
+        .filter(|e| !e.resolved.is_empty())
+        .map(|e| e.text.to_lowercase())
+        .filter(|t| t.len() >= 3)
+        .collect();
+    t.sort();
+    t.dedup();
+    t
+}
+
 pub fn rank_and_select(items: Vec<EvidenceItem>, cap: usize) -> Vec<EvidenceItem> {
+    rank_and_select_with_terms(items, cap, &[])
+}
+
+/// Batch 4 (doc 11, live r60 usage_4): with two or more asked terms,
+/// corroboration rewards TERM CO-OCCURRENCE — an item exhibiting every
+/// asked term is direct evidence for the intersection — never the
+/// same-subject swarm (five foreign-key rows about one column co-boosted
+/// each other while the item containing both terms ranked ninth).
+pub fn rank_and_select_with_terms(
+    items: Vec<EvidenceItem>,
+    cap: usize,
+    terms: &[String],
+) -> Vec<EvidenceItem> {
+    rank_and_select_with_terms_exempt(items, cap, terms, None)
+}
+
+/// Phase C2 (doc-12 P0-2, r70 live): an exhaustive-set provider's items are
+/// FACTS the question asked to enumerate — the anti-anchoring per-path cap
+/// and the selection cap apply to the supporting-evidence lane only. Exempt
+/// items always survive selection and consume no cap slot.
+pub fn rank_and_select_with_terms_exempt(
+    items: Vec<EvidenceItem>,
+    cap: usize,
+    terms: &[String],
+    exempt_provider: Option<&str>,
+) -> Vec<EvidenceItem> {
     let now_ms = crate::utils::now_ms();
     let mut items = dedup(items);
 
-    // Corroboration: how many items share a subject.
-    let mut counts: HashMap<String, usize> = HashMap::new();
+    // Repeated snippets from one retrieval arm are not corroboration. Count
+    // distinct providers for each subject so a long file cannot boost itself
+    // merely by yielding more chunks. This is retrieval corroboration, not a
+    // claim that the underlying sources are independent.
+    let mut providers_by_subject: HashMap<String, HashSet<String>> = HashMap::new();
     for it in &items {
-        *counts.entry(subject_key(it)).or_insert(0) += 1;
+        providers_by_subject
+            .entry(subject_key(it))
+            .or_default()
+            .insert(it.provider.clone());
     }
 
     // Score.
@@ -93,9 +587,28 @@ pub fn rank_and_select(items: Vec<EvidenceItem>, cap: usize) -> Vec<EvidenceItem
         // fall back to the kind default when the provider left it unset. Without
         // this, a co-change companion (kind GraphRelation) would be scored as a
         // direct 0.9 relation and outrank real dependency edges.
-        let d = it.directness.unwrap_or_else(|| default_directness(it));
-        let corro = ((counts.get(&subject_key(it)).copied().unwrap_or(1) as f32 - 1.0) / 3.0)
-            .clamp(0.0, 1.0);
+        let mut d = it.directness.unwrap_or_else(|| default_directness(it));
+        let corro = if terms.len() >= 2 {
+            let hay = format!(
+                "{} {} {}",
+                it.path.as_deref().unwrap_or(""),
+                it.title.as_deref().unwrap_or(""),
+                it.content
+            )
+            .to_lowercase();
+            let present = terms.iter().filter(|t| hay.contains(t.as_str())).count();
+            if present == terms.len() {
+                d = d.max(0.9);
+            }
+            (present.saturating_sub(1) as f32 / (terms.len() - 1) as f32).clamp(0.0, 1.0)
+        } else {
+            ((providers_by_subject
+                .get(&subject_key(it))
+                .map_or(1, HashSet::len) as f32
+                - 1.0)
+                / 3.0)
+                .clamp(0.0, 1.0)
+        };
         it.directness = Some(d);
         it.score = Some(score(it, d, corro, now_ms));
     }
@@ -113,14 +626,39 @@ pub fn rank_and_select(items: Vec<EvidenceItem>, cap: usize) -> Vec<EvidenceItem
     // share a name (Page_Load, Execute, .ctor) across files, and collapsing on
     // title would silently discard real, direct call-site evidence.
     let mut chosen: Vec<EvidenceItem> = Vec::new();
+    let mut capped = 0usize;
     for it in items {
-        if chosen.len() >= cap {
-            break;
+        if exempt_provider.is_some_and(|p| it.provider == p) {
+            chosen.push(it);
+            continue;
         }
-        let dup = chosen
-            .iter()
-            .any(|c| c.path.is_some() && c.path == it.path && near_lines(c.lines, it.lines));
-        if !dup {
+        if capped >= cap {
+            continue;
+        }
+        let dup = chosen.iter().any(|c| {
+            // Adjacent methods are distinct facts when the index identifies
+            // both symbols. Proximity alone must not erase a short caller
+            // next to its callee's definition. Unidentified lexical chunks
+            // still use the proximity heuristic.
+            let distinct_symbols = matches!(
+                (&c.symbol_id, &it.symbol_id),
+                (Some(a), Some(b)) if !a.is_empty() && !b.is_empty() && a != b
+            );
+            !distinct_symbols
+                && c.path.is_some()
+                && c.path == it.path
+                && near_lines(c.lines, it.lines)
+        });
+        // Round-2 audit P0-4e (anti-anchoring): one file may not fill the
+        // evidence set — at most two items per path (live r40: the same .vb
+        // cited five times cost a lookup its precision).
+        let per_file = it
+            .path
+            .as_ref()
+            .map(|p| chosen.iter().filter(|c| c.path.as_ref() == Some(p)).count())
+            .unwrap_or(0);
+        if !dup && per_file < 2 {
+            capped += 1;
             chosen.push(it);
         }
     }
@@ -275,4 +813,90 @@ pub fn detect_conflicts(items: &[EvidenceItem], _active_generation: u64) -> Vec<
         }
     }
     out
+}
+
+#[cfg(test)]
+mod ranking_reserve_tests {
+    use super::*;
+    use crate::services::ask_engine::evidence::{Authority, EvidenceItem, EvidenceKind};
+
+    fn mk(
+        id: &str,
+        kind: EvidenceKind,
+        provider: &str,
+        path: &str,
+        relevance: f32,
+        method: &str,
+    ) -> EvidenceItem {
+        EvidenceItem {
+            evidence_id: id.to_string(),
+            document_id: None,
+            document_namespace: None,
+            source_verification: None,
+            kind,
+            authority: Authority::CurrentCode,
+            path: Some(path.to_string()),
+            lines: None,
+            symbol_id: None,
+            title: None,
+            content: String::new(),
+            generation: None,
+            commit: None,
+            timestamp: None,
+            confidence: 0.8,
+            relevance,
+            extraction_method: method.to_string(),
+            warnings: vec![],
+            provider: provider.to_string(),
+            score: Some(relevance),
+            directness: None,
+        }
+    }
+
+    // ox_causal_16 regression: a "who calls X" question over a symbol with MANY
+    // valid caller files must reserve the impl DEFINITION and must NOT bulk-
+    // reserve a dozen callers — that flooded the citation list (all at 0.00) and
+    // evicted the api-images definition. Callers are left to relevance ranking;
+    // only the definition is pinned.
+    #[test]
+    fn callers_heavy_question_reserves_definition_without_caller_flood() {
+        let def = mk(
+            "ev_def",
+            EvidenceKind::SourceCode,
+            "definition",
+            "api-images.vb",
+            0.69,
+            "definition",
+        );
+        let mut raw = vec![def];
+        for i in 0..25 {
+            raw.push(mk(
+                &format!("ev_u{i}"),
+                EvidenceKind::GraphRelation,
+                "usage",
+                &format!("caller{i}.ts"),
+                0.0,
+                "graph",
+            ));
+        }
+        let mut chosen: Vec<EvidenceItem> = Vec::new();
+        let _ = reserve_required_with(
+            &mut chosen,
+            &raw,
+            &[],
+            &[],
+            &[],
+            "who calls getimg on the server",
+            /* pin_definition */ true,
+        );
+        assert!(
+            chosen.iter().any(|e| e.provider == "definition"),
+            "the impl definition must be reserved for a callers question"
+        );
+        let usage_reserved = chosen.iter().filter(|e| e.provider == "usage").count();
+        assert_eq!(
+            usage_reserved, 0,
+            "callers must not be bulk-reserved (no flood); left to relevance ranking, got {usage_reserved}"
+        );
+    }
 }

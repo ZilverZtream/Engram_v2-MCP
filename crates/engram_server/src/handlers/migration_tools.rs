@@ -1722,31 +1722,44 @@ impl Engram {
         let pid = req.project_id.clone();
         let file_path = req.file_path.clone();
 
-        let aspx_full = safe_join(Path::new(&rec.directory), &file_path)
-            .map_err(|e| McpError::internal_error(format!("Path validation: {e}"), None))?;
-        let aspx_content = tokio::fs::read_to_string(&aspx_full).await.map_err(|e| {
-            McpError::internal_error(format!("Failed to read {aspx_full:?}: {e}"), None)
-        })?;
-
-        let cb_path = find_codebehind_path(&aspx_full);
-        let cb_content = if let Some(ref p) = cb_path {
-            tokio::fs::read_to_string(p).await.ok()
-        } else {
-            None
-        };
-
-        let result = tokio::task::spawn_blocking(move || {
-            crate::services::validation_mapping_service::analyze_validation_controls(
-                &graph,
-                &pid,
-                &file_path,
-                &aspx_content,
-                cb_content.as_deref(),
-            )
-        })
-        .await
-        .map_err(|e| McpError::internal_error(e.to_string(), None))?
-        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let root = std::path::PathBuf::from(&rec.directory);
+        let result = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
+            use std::io::Read;
+            let root = root.canonicalize()?;
+            let read = |path: &Path| -> anyhow::Result<String> {
+                let path = path.canonicalize()?;
+                anyhow::ensure!(path.starts_with(&root), "Source escapes registered project");
+                let mut content = String::new();
+                std::fs::File::open(path)?.take(2 * 1024 * 1024 + 1).read_to_string(&mut content)?;
+                anyhow::ensure!(content.len() <= 2 * 1024 * 1024, "Source exceeds 2 MiB mapping budget");
+                Ok(content)
+            };
+            let aspx_full = safe_join(&root, &file_path)?;
+            let aspx_content = read(&aspx_full)?;
+            let declared = crate::services::validation_mapping_service::declared_codebehind(&aspx_content);
+            let cb_path = if let Some(value) = declared {
+                let value = value.replace('\\', "/");
+                if let Some(relative) = value.strip_prefix("~/") {
+                    let app = crate::handlers::access_layer_tools::discover_web_application_root(&root, &aspx_full);
+                    Some(safe_join(&app, relative)?)
+                } else { {
+                        anyhow::ensure!(!Path::new(&value).is_absolute() && !value.contains(':'), "Code-behind must be project-relative");
+                        Some(aspx_full.parent().unwrap_or(&root).join(&value))
+                    } }
+            } else { find_codebehind_path(&aspx_full) };
+            let mut notes = vec![format!("Markup source hash: {}", engram_core::ContentHash::compute(aspx_content.as_bytes()).0)];
+            let cb_content = match cb_path {
+                Some(path) => match read(&path) {
+                    Ok(content) => { notes.push(format!("Code-behind source hash: {}", engram_core::ContentHash::compute(content.as_bytes()).0)); Some(content) },
+                    Err(error) => { notes.push(format!("Code-behind unavailable: {error}")); None },
+                },
+                None => { notes.push("No declared or conventional code-behind found; server handlers are unverified.".into()); None },
+            };
+            let mut result = crate::services::validation_mapping_service::analyze_validation_controls(&graph, &pid, &file_path, &aspx_content, cb_content.as_deref())?;
+            result.coverage.extend(notes);
+            Ok(result)
+        }).await.map_err(|e| McpError::internal_error(e.to_string(), None))?
+          .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         if req.output_json {
             let json = serde_json::to_string_pretty(&result)
@@ -1760,6 +1773,9 @@ impl Engram {
             result.file_path, result.total_validators, result.migration_complexity
         );
 
+        for note in &result.coverage {
+            out.push_str(&format!("Coverage: {note}\n\n"));
+        }
         if !result.validators.is_empty() {
             out.push_str("## Validators\n");
             for v in &result.validators {

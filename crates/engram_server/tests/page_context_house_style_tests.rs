@@ -229,3 +229,33 @@ async fn a_page_alone_in_its_territory_reports_no_siblings_honestly() {
         "the empty case says so: {hs}"
     );
 }
+
+#[tokio::test]
+async fn application_relative_codefile_uses_hosting_root_and_single_quoted_master() {
+    let (tmp, state) = build_state();
+    let dir = register_project(&state, &tmp);
+    write(&dir, "Portal/Web.config", "<configuration />");
+    write(&dir, "Portal/Pages/Web.config", "<configuration />");
+    write(
+        &dir,
+        "Portal/Code/Editor.vb",
+        "Partial Class Editor\nEnd Class\n",
+    );
+    write(
+        &dir,
+        "Portal/Pages/edit.aspx",
+        "<%@ Page CodeFile='~/Code/Editor.vb' MasterPageFile='~/Layout/Main.master' Inherits='Editor' %>",
+    );
+    let report = page_context(
+        &Engram::new(state),
+        json!({
+            "project_id":PID, "aspx_file":"Portal/Pages/edit.aspx", "output_json":true
+        }),
+    )
+    .await;
+    assert_eq!(
+        report["codebehind_file"], "Portal/Code/Editor.vb",
+        "{report}"
+    );
+    assert_eq!(report["master_page"], "~/Layout/Main.master", "{report}");
+}

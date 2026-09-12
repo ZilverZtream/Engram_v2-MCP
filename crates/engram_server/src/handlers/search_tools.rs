@@ -57,20 +57,15 @@ fn rrf_fuse_namespaces(
 ) -> Vec<(String, engram_index::HybridHit)> {
     const K: f32 = 60.0;
     let now = crate::utils::now_ms();
-    // Per-source cap: a namespace contributes at most this many hits to the
-    // fusion, so a huge corpus (quality_gate ~1.5k rules) cannot crowd out a
-    // small curated one (a gotcha note in memory_bank). RRF's rank scoring is
-    // already volume-robust, but without a cap the big corpus still fills the
-    // limited slots; sharing the budget keeps every source represented.
-    let non_empty = lists.iter().filter(|(_, h)| !h.is_empty()).count().max(1);
-    let per_source_cap = (limit / non_empty).max(2);
+    // Rank fusion preserves small-source visibility without discarding eligible
+    // hits from larger sources. The caller supplies a fixed bounded window.
     let mut scored: Vec<(f32, String, engram_index::HybridHit)> = Vec::new();
     for (ns, hits) in lists {
         // `user:memory_bank` etc. are user-level knowledge — strip the tag
         // so the recency prior applies to them too.
         let ns_key = ns.strip_prefix("user:").unwrap_or(ns.as_str());
         let is_knowledge = engram_core::namespaces::KNOWLEDGE_NAMESPACES.contains(&ns_key);
-        for (rank, h) in hits.into_iter().take(per_source_cap).enumerate() {
+        for (rank, h) in hits.into_iter().enumerate() {
             let mut s = 1.0 / (K + rank as f32);
             // Recency prior for knowledge namespaces only: a fresher note is a
             // better recall than a stale one of equal textual relevance. The
@@ -114,11 +109,14 @@ impl Engram {
             let mut map: std::collections::HashMap<String, Vec<SymbolSpan>> = Default::default();
             for path in paths {
                 let nodes = graph
-                    .query_nodes(&pid, None, None, Some(&path), 200)
+                    .query_nodes_in_file(&pid, None, &path, 200)
                     .unwrap_or_default();
                 let syms: Vec<SymbolSpan> = nodes
                     .into_iter()
-                    .filter(|n| n.node_type != "file")
+                    .filter(|n| {
+                        !matches!(n.node_type.as_str(), "file" | "search_document" | "chunk")
+                            && n.file_path.as_str() == path
+                    })
                     .map(|n| (n.name, n.node_type, n.node_id, n.start_line, n.end_line))
                     .collect();
                 if !syms.is_empty() {
@@ -179,6 +177,13 @@ impl Engram {
                 ));
             }
         };
+        let offset = req.sanitized_offset();
+        if offset >= crate::models::requests::MAX_SEARCH_RESULTS {
+            return Ok(CallToolResult::success(vec![Content::text(format!(
+                "result: no_hits\nresult_cap_reached: {}\nrequested_offset: {}\nSearch is bounded; narrow the query or scope and restart at offset=0. No search was run.",
+                crate::models::requests::MAX_SEARCH_RESULTS, req.offset
+            ))]));
+        }
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
 
@@ -257,10 +262,10 @@ impl Engram {
         //    you just need to know where it lives — the semantic
         //    pipeline's vector embedding + fusion is pure overhead
         //    for that case.
-        // Pagination: rank offset+max_results and slice the page out below.
-        // Ranking is deterministic per generation, so pages don't overlap.
-        let offset = req.sanitized_offset();
-        let per_ns_top_k = req.sanitized_max_results() + offset;
+        // Every page ranks the same bounded candidate window. A page-size-dependent
+        // window can change prefixes when namespace recency/reranking is applied.
+        // Mutable knowledge, centrality and time still do not form a snapshot.
+        let per_ns_top_k = crate::models::requests::MAX_SEARCH_RESULTS;
         // `centrality` is `Option<Arc<CentralityMetrics>>`; deref through the
         // Arc to `Option<&PageRankMap>`. Borrowed across the loop's awaits —
         // `centrality` is owned here and outlives them.
@@ -282,6 +287,7 @@ impl Engram {
                 fts_mode: req.fts_mode.as_str().to_owned(),
                 include_path_prefixes: req.include_path_prefixes.clone(),
                 exclude_path_prefixes: req.exclude_path_prefixes.clone(),
+                include_path_suffixes: None,
                 language_filters: req.language_filters.clone(),
                 author_filter: req.author_filter.clone(),
                 date_after: req.date_after,
@@ -340,6 +346,7 @@ impl Engram {
                         fts_mode: req.fts_mode.as_str().to_owned(),
                         include_path_prefixes: req.include_path_prefixes.clone(),
                         exclude_path_prefixes: req.exclude_path_prefixes.clone(),
+                        include_path_suffixes: None,
                         language_filters: req.language_filters.clone(),
                         author_filter: req.author_filter.clone(),
                         date_after: req.date_after,
@@ -372,12 +379,19 @@ impl Engram {
         let hits: Vec<(String, engram_index::HybridHit)> = rrf_fuse_namespaces(lists, per_ns_top_k)
             .into_iter()
             .skip(offset)
+            .take(req.sanitized_max_results())
             .collect();
 
         // Feed the dreamer co-occurrence graph (non-blocking).
         let lite: Vec<SearchHitLite> = hits
             .iter()
-            .map(|(_, h)| SearchHitLite {
+            .map(|(label, h)| SearchHitLite {
+                source_project_id: Some(if label.starts_with("user:") {
+                    "__user__".to_string()
+                } else {
+                    req.project_id.clone()
+                }),
+                namespace: Some(label.strip_prefix("user:").unwrap_or(label).to_string()),
                 pk: h.pk.clone(),
                 doc_id: h.doc_id.clone(),
                 path: h.path.clone(),
@@ -430,9 +444,19 @@ impl Engram {
             }
         }
         out.push_str(&format!("active_generation: {gen_}\n"));
-        let hit_refs: Vec<engram_index::HybridHit> = hits.iter().map(|(_, h)| h.clone()).collect();
+        let hit_refs: Vec<engram_index::HybridHit> = hits
+            .iter()
+            .filter(|(ns, _)| ns == "memory")
+            .map(|(_, h)| h.clone())
+            .collect();
         let symbols_by_path = self.symbols_for_hits(&req.project_id, &hit_refs).await;
         for (i, (ns, h)) in hits.iter().enumerate() {
+            let (hit_project, hit_namespace) = ns
+                .strip_prefix("user:")
+                .map_or((req.project_id.as_str(), ns.as_str()), |namespace| {
+                    (user_pid, namespace)
+                });
+            let recovery = serde_json::json!({"project_id":hit_project,"namespace":hit_namespace,"doc_id":h.doc_id});
             out.push_str(&format!(
                 "\n#{}\ndoc_id: {}\nchunk_id: {}\npath: {}\nlines: {}-{}\nscore: {:.3}\n",
                 offset + i + 1,
@@ -451,7 +475,15 @@ impl Engram {
 
             // P0-8: name the symbols this chunk covers, with node_ids usable
             // in find_symbol_references / compute_blast_radius / resolve_id.
-            if let Some(syms) = symbols_by_path.get(h.path.as_str()) {
+            out.push_str(&format!("full_chunk: get_chunk({recovery})\n"));
+            let mut citation_recovery = recovery.clone();
+            citation_recovery["citation"] = serde_json::json!({});
+            out.push_str(&format!(
+                "citation_chunk: get_chunk({citation_recovery})\n"
+            ));
+            if ns == "memory"
+                && let Some(syms) = symbols_by_path.get(h.path.as_str())
+            {
                 let overlapping: Vec<String> = syms
                     .iter()
                     .filter(|(_, _, _, s, e)| line_ranges_overlap(h.start_line, h.end_line, *s, *e))
@@ -463,45 +495,64 @@ impl Engram {
                 }
             }
 
-            // User-level hits live in the __user__ project's engine, not `ps`,
-            // and their `ns` is the `user:`-tagged label — so get_doc_by_doc_id
-            // on this project would not find them. Their snippet is already on
-            // the hit; fall through to it.
-            if req.include_content && !ns.starts_with("user:") {
-                if let Ok(Some((_, _, content, _, _))) =
-                    ps.search
-                        .get_doc_by_doc_id(&req.project_id, ns, gen_, &h.doc_id)
-                {
-                    out.push_str("content:\n");
-                    let limit = req.sanitized_max_content_chars_per_result();
-                    if content.chars().count() > limit {
-                        out.push_str(&content.chars().take(limit).collect::<String>());
-                        out.push_str(&format!(
-                            "... [truncated at {limit} chars — call get_chunk(doc_id) for the full chunk]"
-                        ));
-                    } else {
-                        out.push_str(&content);
+            let full_content = if req.include_content {
+                let engine = if hit_project == req.project_id {
+                    Some(ps.search.clone())
+                } else {
+                    self.state
+                        .get_project_cached(hit_project)
+                        .map(|project| project.search)
+                };
+                engine.and_then(|engine| {
+                    engine
+                        .get_doc_by_doc_id(
+                            hit_project,
+                            hit_namespace,
+                            if hit_project == req.project_id {
+                                gen_
+                            } else {
+                                0
+                            },
+                            &h.doc_id,
+                        )
+                        .ok()
+                        .flatten()
+                })
+            } else {
+                None
+            };
+            if let Some((_, _, content, _, _)) = full_content {
+                out.push_str("content:\n");
+                let limit = req.sanitized_max_content_chars_per_result();
+                out.push_str(&content.chars().take(limit).collect::<String>());
+                if content.chars().count() > limit {
+                    out.push_str(&format!(
+                        "... [truncated at {limit} chars; use full_chunk above]"
+                    ));
+                }
+                out.push('\n');
+            } else {
+                if req.include_content {
+                    out.push_str("content_status: unavailable; snippet fallback is not full content; use full_chunk above\n");
+                }
+                if let Some(sn) = &h.snippet {
+                    out.push_str("snippet:\n");
+                    out.push_str(sn);
+                    if h.snippet_truncated {
+                        out.push_str(" ... [snippet truncated; use full_chunk above]");
                     }
                     out.push('\n');
                 }
-            } else if let Some(sn) = &h.snippet {
-                out.push_str("snippet:\n");
-                out.push_str(sn);
-                if h.snippet_truncated {
-                    out.push_str(
-                        " ... [snippet truncated — call get_chunk(doc_id) for the full chunk]",
-                    );
-                }
-                out.push('\n');
             }
         }
 
-        out.push_str(&format!(
-            "next: get_chunk(doc_id) for full source; resolve_id(<symbol>) to enter \
-             the graph; get_concept_footprint(<domain term>) for ALL touchpoints; \
-             offset={} for the next page.\n",
-            offset + hits.len()
-        ));
+        out.push_str("next: use each hit's citation_chunk arguments for exact stored-content identity, raw hash and bounded citation pages; pass each returned continuation as citation with the same project_id/namespace/doc_id until absent. full_chunk remains available for legacy content rendering; resolve_id(<symbol>) to enter the graph; get_concept_footprint(<domain term>) for indexed touchpoints.\n");
+        let next_offset = offset + hits.len();
+        if next_offset >= crate::models::requests::MAX_SEARCH_RESULTS {
+            out.push_str("result_cap_reached: 200; further matches may exist. Narrow the query or scope and restart at offset=0.\n");
+        } else {
+            out.push_str(&format!("next_page: offset={next_offset}; results are bounded to 200 and are not a snapshot of mutable ranking inputs.\n"));
+        }
         out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
@@ -526,6 +577,7 @@ impl Engram {
             fts_mode: String::new(), // unused by vector path
             include_path_prefixes: req.include_path_prefixes.clone(),
             exclude_path_prefixes: req.exclude_path_prefixes.clone(),
+            include_path_suffixes: None,
             language_filters: req.language_filters.clone(),
             author_filter: None,
             date_after: None,
@@ -616,6 +668,73 @@ impl Engram {
             ));
         };
 
+        let source_status = if req.namespace == "memory" {
+            let rec = crate::services::project_service::ensure_project_record(
+                &self.state,
+                &req.project_id,
+            )
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            let graph = self.state.graph.clone();
+            let pid = req.project_id.clone();
+            let source_path = path.as_str().to_string();
+            let stored_content = content.clone();
+            tokio::task::spawn_blocking(move || -> anyhow::Result<&'static str> {
+                let node = graph.get_node(&pid, &format!("file:{}", source_path.replace('\\', "/")))?;
+                anyhow::ensure!(node.as_ref().is_none_or(|n| n.generation <= gen_),
+                    "Source index update is in progress for {source_path}; file metadata is newer than the active search generation. Retry after update_project completes.");
+                let hash = node.as_ref().and_then(|n| n.metadata.as_ref())
+                    .and_then(|m| m.get("file_hash")).and_then(|h| h.as_str());
+                let Some(hash) = hash else { return Ok("unverified: no source fingerprint; source-index format and cached line ranges are unknown — update_project or read source directly"); };
+                anyhow::ensure!(node.as_ref().and_then(|n| n.metadata.as_ref())
+                    .and_then(|m| m.get("source_index_version")).and_then(|v| v.as_u64())
+                    == Some(engram_index::SOURCE_INDEX_VERSION),
+                    "Legacy source chunk withheld: {source_path} requires source-index migration. Run update_project for this project and repeat search, or read the source file directly; cached line ranges are not trustworthy.");
+                let root = std::fs::canonicalize(&rec.directory)?;
+                let full = std::fs::canonicalize(root.join(&source_path))
+                    .map_err(|e| anyhow::anyhow!("Source unavailable for {source_path}: {e}. Cached chunk withheld; refresh the index."))?;
+                anyhow::ensure!(full.starts_with(&root), "Source path escapes project root");
+                if std::fs::metadata(&full)?.len() > 8_000_000 {
+                    return Ok("unverified: source exceeds 8 MB verification limit");
+                }
+                let bytes = std::fs::read(full)?;
+                anyhow::ensure!(blake3::hash(&bytes).to_hex().as_str() == hash,
+                    "Stale source chunk withheld: {source_path} changed since indexing. Read file_path directly or refresh the index and repeat grep_project/search_memory; old line spans and doc_id must not guide edits.");
+                let source = String::from_utf8_lossy(&bytes);
+                anyhow::ensure!(start_line > 0 && end_line >= start_line
+                    && stored_content.lines().count() == (end_line - start_line + 1) as usize
+                    && stored_content.lines().eq(source.lines().skip(start_line.saturating_sub(1) as usize).take((end_line - start_line + 1) as usize)),
+                    "Source chunk range mismatch for {source_path}; cached content does not match its declared source lines. Run update_project with reindex_paths for this file and repeat search; cached line ranges are not trustworthy.");
+                Ok("verified: source content matches indexed fingerprint at read time")
+            }).await.map_err(|e| McpError::internal_error(e.to_string(), None))?
+                .map_err(|e| McpError::invalid_params(e.to_string(), None))?
+        } else {
+            "not applicable: knowledge namespace"
+        };
+
+        if let Some(citation) = &req.citation {
+            if req.inject_rules
+                || req
+                    .logical_slice
+                    .as_deref()
+                    .is_some_and(|s| !s.is_empty() && s != "all")
+            {
+                return Err(McpError::invalid_params(
+                    "citation cannot be combined with inject_rules or logical_slice transformations",
+                    None,
+                ));
+            }
+            let page = crate::services::stored_citation::render(
+                &content,
+                citation,
+                serde_json::json!({"project_id":req.project_id,"namespace":req.namespace,"doc_id":req.doc_id}),
+                serde_json::json!({"path":path.as_str(),"language":lang,"active_generation":gen_,"indexed_range":{"start":start_line,"end":end_line},"indexed_range_scope":"index_metadata_not_citation_coordinates_or_source_proof","source_freshness":source_status}),
+            )?;
+            return Ok(CallToolResult::success(vec![Content::text(
+                page.to_string(),
+            )]));
+        }
+
         // Fix 7: Apply the logical slice FIRST on the syntactically valid source
         // before any rule injection. Rule injection prepends `[Repo Constraint]:
         // …` lines that are not valid syntax in Rust, JS, Python, etc. Passing
@@ -651,8 +770,9 @@ impl Engram {
             display_content.truncate(end);
             display_content.push_str(&format!(
                 "\n… [chunk truncated: {end} of {full_len} bytes shown — pass a `logical_slice` \
-                 (event_handlers/ui_methods/data_methods/sql_queries/state_access) to narrow, or \
-                 open the file directly]"
+                 (event_handlers/ui_methods/data_methods/sql_queries/state_access) to narrow. For exact stored content, \
+                 repeat get_chunk with citation: {{}} and no transformations, then pass each continuation as citation \
+                 with the same project_id/namespace/doc_id. A long line can be recovered with citation unit utf8_bytes.]"
             ));
         }
 
@@ -663,6 +783,7 @@ impl Engram {
             "path: {}\ndoc_id: {}\nnamespace: {}\nlanguage: {}\nlines: {}-{}\nactive_generation: {}\n\n{}",
             path, req.doc_id, req.namespace, lang, start_line, end_line, gen_, display_content
         );
+        output.push_str(&format!("\nsource_freshness: {source_status}\n"));
         output.push_str(&confidence_footer);
         output.push_str(&self.freshness_footer(&req.project_id, gen_).await);
 
@@ -680,39 +801,28 @@ impl Engram {
         let gen_ = self.get_active_generation(&req.project_id).await?;
         let needle = &req.symbol_name;
 
-        // Parse edge kind filter (pure computation, no I/O).
         let edge_kind_filter: Option<Vec<EdgeKind>> = req
             .edge_kind_filter
             .as_ref()
-            .map(|f| f.iter().filter_map(|s| EdgeKind::parse(s)).collect());
-
-        // Fix 6: All GraphStore operations are synchronous Redb reads that block
-        // the calling OS thread.  Move every graph query for this symbol into a
-        // single `spawn_blocking` so Tokio's async executor is never stalled.
-        //
-        // Fix 8: The previous code had
-        //   `let incoming_kind_filter = edge_kind_filter.as_ref().map(|_| ()).and(None);`
-        // which *always* evaluates to `None` regardless of the filter value, so
-        // `find_incoming_edges_with_kind` always returned all-kind edges.  The
-        // post-query `.retain` then yielded 0 results if the fetched edges didn't
-        // happen to include the requested kinds within the limit window.
-        //
-        // The correct approach: always fetch with `kind = None` (all kinds) but
-        // over-fetch proportionally to the number of requested kinds so the
-        // post-query retain has enough candidates.  Then truncate to `max_incoming`.
-
-        // Determine the incoming over-fetch limit.
-        // Over-fetch by +1 past max_incoming so we can DETECT (and honestly
-        // report) that a symbol has more call sites than we return — otherwise
-        // the truncation is silent and H1's sibling enumeration looks complete
-        // when it isn't.
-        let incoming_fetch_limit = match &edge_kind_filter {
-            Some(f) if !f.is_empty() => max_incoming
-                .saturating_mul(f.len())
-                .min(max_incoming.saturating_mul(EdgeKind::ALL.len()))
-                .saturating_add(1),
-            _ => max_incoming.saturating_add(1),
-        };
+            .map(|filters| {
+                filters
+                    .iter()
+                    .map(|name| {
+                        EdgeKind::parse(name).ok_or_else(|| {
+                            McpError::invalid_params(format!("unknown edge kind: {name}"), None)
+                        })
+                    })
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()?;
+        if edge_kind_filter.as_ref().is_some_and(Vec::is_empty) {
+            return Err(McpError::invalid_params(
+                "edge_kind_filter must not be empty",
+                None,
+            ));
+        }
+        // Filter in each adjacency lookup BEFORE applying the result cap.
+        let incoming_fetch_limit = max_incoming.saturating_add(1);
 
         // Build the outgoing kind list as an owned Vec so it can cross the
         // spawn_blocking boundary (EdgeKind::ALL is &'static but a filter Vec<_>
@@ -733,7 +843,7 @@ impl Engram {
             incoming_truncated: bool,
             outgoing: Vec<(String, EdgeKind, u32)>,
             /// (source_id \0 kind) → call-site line, from edge metadata.
-            call_lines: std::collections::HashMap<String, u32>,
+            call_lines: std::collections::HashMap<String, String>,
         }
 
         let graph_b = self.state.graph.clone();
@@ -793,88 +903,144 @@ impl Engram {
             let mut results: Vec<NodeGraphResult> = Vec::new();
 
             for node in nodes {
-                // File scope filter on the node itself.
+                // Definition scope was applied by the store. References may
+                // live outside it; hiding those defeats change-impact analysis.
                 let fp_str = node.file_path.as_str().to_string();
-                if let Some(ref scope) = file_scope_b
-                    && !fp_str.is_empty()
-                    && !fp_str.starts_with(scope.as_str())
-                {
-                    continue;
-                }
 
-                // Fix 8: Fetch all incoming kinds unconditionally; the
-                // post-query retain handles kind-level filtering.  Over-fetch
-                // to ensure enough candidates survive the retain step.
-                let mut incoming = match graph_b.find_incoming_edges_with_kind(
-                    &project_id_b,
-                    None, // always fetch all kinds
-                    &node.node_id,
-                    incoming_fetch_limit,
-                ) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        graph_failures
-                            .push(format!("incoming edges of {} failed: {e}", node.node_id));
-                        Vec::new()
+                let requested_kinds: Vec<Option<EdgeKind>> = ekf_b
+                    .as_ref()
+                    .map(|kinds| kinds.iter().cloned().map(Some).collect())
+                    .unwrap_or_else(|| vec![None]);
+                let mut incoming = Vec::new();
+                for kind in requested_kinds {
+                    match graph_b.find_incoming_edges_with_kind(
+                        &project_id_b,
+                        kind,
+                        &node.node_id,
+                        incoming_fetch_limit,
+                    ) {
+                        Ok(v) => incoming.extend(v),
+                        Err(e) => graph_failures
+                            .push(format!("incoming edges of {} failed: {e}", node.node_id)),
                     }
-                };
-
-                if let Some(ref filter) = ekf_b {
-                    incoming.retain(|(_, kind, _)| filter.contains(kind));
                 }
+                incoming.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.as_str().cmp(b.1.as_str())));
+                incoming.dedup_by(|a, b| a.0 == b.0 && a.1 == b.1);
                 let incoming_truncated = incoming.len() > max_incoming;
                 incoming.truncate(max_incoming);
 
-                if let Some(ref scope) = file_scope_b {
-                    incoming.retain(|(src_id, _, _)| src_id.contains(scope.as_str()));
-                }
-
-                // Outgoing edges for each requested kind.
+                // Cap+1 and explicit failures: an incomplete outgoing list
+                // must not masquerade as proof that no dependency exists.
                 let mut outgoing: Vec<(String, EdgeKind, u32)> = Vec::new();
                 for kind in &outgoing_kinds_owned {
-                    if let Ok(neighbors) = graph_b.neighbors(
+                    match graph_b.neighbors(
                         &project_id_b,
                         kind.clone(),
                         &node.node_id,
-                        max_outgoing_per_kind,
+                        max_outgoing_per_kind + 1,
                     ) {
-                        for (target_id, weight) in neighbors {
-                            if let Some(ref scope) = file_scope_b
-                                && !target_id.contains(scope.as_str())
-                            {
-                                continue;
+                        Ok(mut neighbors) => {
+                            if neighbors.len() > max_outgoing_per_kind {
+                                graph_failures.push(format!(
+                                    "outgoing {} references of {} truncated at {}",
+                                    kind.as_str(),
+                                    node.node_id,
+                                    max_outgoing_per_kind
+                                ));
+                                neighbors.truncate(max_outgoing_per_kind);
                             }
-                            outgoing.push((target_id, kind.clone(), weight));
+                            for (target_id, weight) in neighbors {
+                                outgoing.push((target_id, kind.clone(), weight));
+                            }
                         }
+                        Err(e) => graph_failures.push(format!(
+                            "outgoing {} references of {} failed: {e}",
+                            kind.as_str(),
+                            node.node_id
+                        )),
                     }
                 }
 
-                if !incoming.is_empty() || !outgoing.is_empty() {
-                    // Call-site anchors: the adjacency tables carry no
-                    // metadata, so fetch the full edges once (O(degree))
-                    // and lift each edge's `src_line` for rendering.
-                    let mut call_lines: std::collections::HashMap<String, u32> =
-                        std::collections::HashMap::new();
-                    if let Ok(full_edges) =
-                        graph_b.edges_touching(&project_id_b, &node.node_id, 1000)
-                    {
-                        for e in full_edges {
-                            if e.target_id != node.node_id {
-                                continue;
-                            }
-                            if let Some(line) = e
-                                .metadata
-                                .as_ref()
-                                .and_then(|m| m.get("src_line"))
-                                .and_then(|v| v.as_str())
-                                .and_then(|s| s.parse::<u32>().ok())
-                            {
-                                call_lines.insert(
-                                    format!("{}\0{}", e.source_id, e.edge_kind.as_str()),
-                                    line,
-                                );
+                {
+                    let endpoints: Vec<_> = incoming
+                        .iter()
+                        .map(|(source, kind, _)| {
+                            (source.clone(), kind.clone(), node.node_id.clone())
+                        })
+                        .collect();
+                    let mut call_lines = std::collections::HashMap::new();
+                    match graph_b.get_edges_by_endpoints(&project_id_b, &endpoints) {
+                        Ok(edges) => {
+                            for edge in edges {
+                                if let Some(meta) = edge.metadata.as_ref() {
+                                    let mut lines = std::collections::BTreeSet::new();
+                                    for value in meta.get("call_site_line").into_iter().chain(
+                                        meta.get("call_site_lines")
+                                            .and_then(|v| v.as_array())
+                                            .into_iter()
+                                            .flatten(),
+                                    ) {
+                                        if let Some(line) = value
+                                            .as_u64()
+                                            .or_else(|| value.as_str().and_then(|s| s.parse().ok()))
+                                            && line > 0
+                                            && line <= u32::MAX as u64
+                                        {
+                                            lines.insert(line);
+                                        }
+                                    }
+                                    let location = if !lines.is_empty() {
+                                        let capped = lines.len() > 20
+                                            || meta
+                                                .get("call_site_lines_truncated")
+                                                .is_some_and(|v| v == true);
+                                        format!(
+                                            " [indexed call sites {}; {}]",
+                                            lines
+                                                .iter()
+                                                .take(20)
+                                                .map(|l| format!("L{l}"))
+                                                .collect::<Vec<_>>()
+                                                .join(", "),
+                                            if capped {
+                                                "locations truncated; inspect source"
+                                            } else {
+                                                "verify source freshness"
+                                            }
+                                        )
+                                    } else if let Some(line) = meta
+                                        .get("src_line")
+                                        .and_then(|v| {
+                                            v.as_u64()
+                                                .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+                                        })
+                                        .filter(|l| *l > 0)
+                                    {
+                                        format!(" [extractor anchor L{line}; call site unverified]")
+                                    } else {
+                                        String::new()
+                                    };
+                                    let mut evidence = location;
+                                    if let Some(via) = meta.get("via").and_then(|v| v.as_str()) {
+                                        evidence.push_str(&format!(" [via {via}]"));
+                                    }
+                                    if let Some(binding) =
+                                        meta.get("resolution").and_then(|v| v.as_str())
+                                    {
+                                        evidence
+                                            .push_str(&format!(" [binding: {binding}; inferred]"));
+                                    }
+                                    call_lines.insert(
+                                        format!("{}\0{}", edge.source_id, edge.edge_kind.as_str()),
+                                        evidence,
+                                    );
+                                }
                             }
                         }
+                        Err(e) => graph_failures.push(format!(
+                            "reference location lookup failed for {}: {e}",
+                            node.node_id
+                        )),
                     }
                     results.push(NodeGraphResult {
                         name: node.name,
@@ -1052,7 +1218,7 @@ impl Engram {
                             } else {
                                 nr.call_lines
                                     .get(&format!("{src}\0{kind}"))
-                                    .map(|l| format!(" @L{l}"))
+                                    .cloned()
                                     .unwrap_or_default()
                             };
                             match endpoint_labels.get(*src) {
@@ -1105,6 +1271,7 @@ impl Engram {
         if found_in_graph {
             // Row-4 audit A8: every cap is a fact in the output.
             out.push_str("\n## Coverage\n");
+            out.push_str("- Static indexed references; binding labels describe inference, not compiler verification. Reflection, runtime dispatch and unindexed routes may be absent. A zero count is not proof of no callers.\n");
             out.push_str(&format!(
                 "- symbols: {}{} (fetch cap {SYMBOL_FETCH_CAP})\n",
                 graph_results.len(),
@@ -1144,6 +1311,9 @@ impl Engram {
         }
 
         // 2. Fallback: Lexical search (deduplicated — only runs if graph found nothing)
+        if !graph_failures.is_empty() {
+            return Err(McpError::internal_error(graph_failures.join("; "), None));
+        }
         let lexical_path_filter = req.file_scope.map(|s| vec![s]);
         let hits = ps
             .search
@@ -1157,6 +1327,7 @@ impl Engram {
                     fts_mode: "strict".into(),
                     include_path_prefixes: lexical_path_filter,
                     exclude_path_prefixes: None,
+                    include_path_suffixes: None,
                     language_filters: None,
                     author_filter: None,
                     date_after: None,
@@ -1220,6 +1391,7 @@ impl Engram {
                     fts_mode: "loose".into(),
                     include_path_prefixes: None,
                     exclude_path_prefixes: None,
+                    include_path_suffixes: None,
                     language_filters: None,
                     author_filter: None,
                     date_after: None,
@@ -1436,10 +1608,34 @@ mod rrf_tests {
     }
 
     #[test]
-    fn per_source_cap_prevents_a_big_corpus_from_flooding() {
-        // quality_gate (~1.5k rules in prod) must not crowd out memory_bank's
-        // curated notes. per_source_cap = (8/2).max(2) = 4 → quality_gate
-        // contributes at most 4; both memory_bank notes survive.
+    fn recency_fusion_keeps_the_same_prefix_across_limits() {
+        let now = crate::utils::now_ms();
+        let lists = || {
+            let big = (0..20)
+                .map(|i| {
+                    let mut h = hit(&format!("qg{i:02}"));
+                    h.timestamp = Some(if i >= 4 { now - 1_000 } else { 1 });
+                    h
+                })
+                .collect();
+            vec![
+                ("quality_gate".into(), big),
+                ("memory_bank".into(), vec![hit("mb1"), hit("mb2")]),
+            ]
+        };
+        let full = rrf_fuse_namespaces(lists(), 22);
+        let small = rrf_fuse_namespaces(lists(), 8);
+        let ids = |v: &[(String, engram_index::HybridHit)]| {
+            v.iter()
+                .map(|(ns, h)| (ns.clone(), h.doc_id.clone()))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(full.len(), 22);
+        assert_eq!(ids(&small), ids(&full[..8]));
+    }
+
+    #[test]
+    fn rank_fusion_fills_imbalanced_corpora_without_hiding_small_sources() {
         let big: Vec<_> = (0..20).map(|i| hit(&format!("qg{i}"))).collect();
         let small = vec![hit("mb1"), hit("mb2")];
         let fused = rrf_fuse_namespaces(
@@ -1448,7 +1644,12 @@ mod rrf_tests {
         );
         let qg = fused.iter().filter(|(ns, _)| ns == "quality_gate").count();
         let mb = fused.iter().filter(|(ns, _)| ns == "memory_bank").count();
-        assert!(qg <= 4, "quality_gate capped at 4, got {qg}");
+        assert_eq!(
+            fused.len(),
+            8,
+            "eligible results must fill the requested window"
+        );
+        assert_eq!(qg, 6);
         assert_eq!(mb, 2, "both memory_bank notes survive, got {mb}");
     }
 }
