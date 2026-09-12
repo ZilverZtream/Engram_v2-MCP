@@ -344,6 +344,7 @@ mod claim_field_guidance_tests {
 }
 
 /// Bounded excerpts retain source status and a retrievable document identity.
+#[cfg(test)]
 pub(super) fn render_matches(
     project_id: &str,
     question: &str,
@@ -351,8 +352,20 @@ pub(super) fn render_matches(
     analyses: Vec<(String, String, f32, String)>,
     budget: usize,
 ) -> String {
+    let result_limit = analyses.len();
+    render_matches_with_limit(project_id, question, root, analyses, budget, result_limit)
+}
+
+pub(super) fn render_matches_with_limit(
+    project_id: &str,
+    question: &str,
+    root: &Path,
+    analyses: Vec<(String, String, f32, String)>,
+    budget: usize,
+    result_limit: usize,
+) -> String {
     let mut audit = SourceAudit::default();
-    let matched = analyses.len();
+    let candidates = analyses.len();
     // Search relevance alone must not put stale or identity-free documents
     // ahead of evidence that still matches the current source. Preserve the
     // search engine's order within each evidence class.
@@ -371,13 +384,15 @@ pub(super) fn render_matches(
         })
         .collect::<Vec<_>>();
     analyses.sort_by_key(|entry| entry.0);
+    analyses.truncate(result_limit.max(1));
+    let matched = analyses.len();
     let source_current = analyses.iter().filter(|entry| entry.0 == 0).count();
     let stale = analyses.iter().filter(|entry| entry.0 == 1).count();
     let unverified = matched.saturating_sub(source_current + stale);
     let mut displayed = 0;
     let mut truncated = 0;
     let mut out = format!(
-        "# Business-logic matches for '{}'\nEvidence readiness: source_current={source_current}, stale={stale}, unverified={unverified}, matched={matched}. A matching method hash establishes source currency only; rules remain inferred until domain/test validation.\nEvidence excerpts, not complete rule inventories. Limits: 8 KiB content per document, 48 KiB total response.\n",
+        "# Business-logic matches for '{}'\nEvidence readiness: source_current={source_current}, stale={stale}, unverified={unverified}, matched={matched}, candidates_checked={candidates}. A matching method hash establishes source currency only; rules remain inferred until domain/test validation.\nEvidence excerpts, not complete rule inventories. Limits: 8 KiB content per document, 48 KiB total response.\n",
         utf8_prefix(question, 1024),
     );
     if source_current == 0 {
@@ -941,6 +956,23 @@ mod tests {
         );
         assert!(legacy_only.contains("USABLE CURRENT-SOURCE EVIDENCE: 0"));
         assert!(legacy_only.contains("Run analyze_business_logic"));
+
+        let selected = render_matches_with_limit(
+            "project",
+            "ReadValue",
+            tmp.path(),
+            vec![
+                ("legacy".into(), "legacy.md".into(), 1.0, "legacy summary".into()),
+                ("current".into(), "current.md".into(), 0.5, document(source)),
+            ],
+            48 * 1024,
+            1,
+        );
+        assert!(selected.contains(
+            "Evidence readiness: source_current=1, stale=0, unverified=0, matched=1, candidates_checked=2"
+        ));
+        assert!(selected.contains("## #1 current.md"));
+        assert!(!selected.contains("## #2 legacy.md"));
     }
 
     #[test]

@@ -2669,12 +2669,19 @@ impl Engram {
         let ps = self.ensure_project_runtime(&p.project_id).await?;
         let gen_ = self.get_active_generation(&p.project_id).await?;
 
+        let requested_top_k = p.sanitized_top_k();
+        // Freshness is a post-retrieval source check. Oversample semantic
+        // candidates so legacy documents cannot occupy every requested slot
+        // before current-source evidence has a chance to rank.
+        let candidate_top_k = requested_top_k
+            .saturating_mul(10)
+            .min(crate::models::requests::MAX_SEARCH_RESULTS);
         let query = HybridQuery {
             text: p.query.clone(),
             project_id: p.project_id.clone(),
             namespace: "business_logic".to_string(),
             generation: gen_,
-            top_k: p.sanitized_top_k(), // MCP1: clamp to MAX_SEARCH_RESULTS
+            top_k: candidate_top_k,
             fts_mode: "loose".to_string(),
             include_path_prefixes: None,
             exclude_path_prefixes: None,
@@ -2735,7 +2742,14 @@ impl Engram {
         } else { footer };
         let budget = 48 * 1024 - footer.len();
         let mut out = tokio::task::spawn_blocking(move || {
-            super::business_source::render_matches(&project_id, &question, std::path::Path::new(&root), analyses, budget)
+            super::business_source::render_matches_with_limit(
+                &project_id,
+                &question,
+                std::path::Path::new(&root),
+                analyses,
+                budget,
+                requested_top_k,
+            )
         })
         .await
         .map_err(|error| {
