@@ -5776,6 +5776,74 @@ fn change_set_strength(sigs: &BTreeSet<&'static str>) -> usize {
         .count()
 }
 
+/// Identity used only to merge evidence for the same current source file.
+/// Historical corpora can contain lower-cased and web-root-prefixed spellings
+/// while the active graph carries the repository's real casing.
+fn change_set_path_key(path: &str) -> String {
+    let normalized = path.replace('\\', "/");
+    let normalized = normalized.trim_start_matches('/');
+    normalized
+        .strip_prefix("Site/")
+        .or_else(|| normalized.strip_prefix("site/"))
+        .unwrap_or(normalized)
+        .to_lowercase()
+}
+
+fn path_spelling_quality(path: &str) -> (usize, usize) {
+    (
+        path.chars().filter(|c| c.is_ascii_uppercase()).count(),
+        usize::MAX - path.len(),
+    )
+}
+
+/// Collapse case/prefix aliases onto the active graph's best spelling before
+/// ranking. Otherwise one physical file can consume multiple candidate slots
+/// and split its independent evidence across aliases.
+fn canonicalize_change_set_evidence(
+    prov: &mut BTreeMap<String, BTreeSet<&'static str>>,
+    why: &mut BTreeMap<String, Vec<String>>,
+    historical: &mut BTreeSet<String>,
+    indexed_paths: impl IntoIterator<Item = String>,
+) {
+    let mut canonical: HashMap<String, String> = HashMap::new();
+    for path in indexed_paths {
+        let key = change_set_path_key(&path);
+        canonical
+            .entry(key)
+            .and_modify(|current| {
+                if path_spelling_quality(&path) > path_spelling_quality(current) {
+                    *current = path.clone();
+                }
+            })
+            .or_insert(path);
+    }
+
+    let old_prov = std::mem::take(prov);
+    for (path, signals) in old_prov {
+        let key = change_set_path_key(&path);
+        let target = canonical.get(&key).cloned().unwrap_or(path);
+        prov.entry(target).or_default().extend(signals);
+    }
+
+    let old_why = std::mem::take(why);
+    for (path, reasons) in old_why {
+        let key = change_set_path_key(&path);
+        let target = canonical.get(&key).cloned().unwrap_or(path);
+        let target_reasons = why.entry(target).or_default();
+        for reason in reasons {
+            if !target_reasons.contains(&reason) {
+                target_reasons.push(reason);
+            }
+        }
+    }
+
+    let old_historical = std::mem::take(historical);
+    for path in old_historical {
+        let key = change_set_path_key(&path);
+        historical.insert(canonical.get(&key).cloned().unwrap_or(path));
+    }
+}
+
 fn change_set_tier(sigs: &BTreeSet<&'static str>) -> u8 {
     // Evidence DIRECTNESS, not signal count (row-1 audit A2): golden
     // (co-change/history) first; then an entity match corroborated by an
@@ -5793,10 +5861,13 @@ fn change_set_tier(sigs: &BTreeSet<&'static str>) -> u8 {
         || sigs.contains("history")
         || sigs.contains("gloss")
         || sigs.contains("name")
+        || sigs.contains("vtop3")
         || corroborated_lexicon;
     let concept = sigs.contains("concept");
     let independent = sigs.iter().filter(|s| change_set_independent(s)).count();
-    if golden && change_set_strength(sigs) >= 2 {
+    if sigs.contains("vtop3") {
+        0
+    } else if golden && change_set_strength(sigs) >= 2 {
         0
     } else if golden {
         1
@@ -6363,6 +6434,7 @@ pub(crate) fn change_set_rows(
         // ahead of rows that merely carry more signals.
         a.2.cmp(&b.2)
             .then(b.1.contains("name").cmp(&a.1.contains("name")))
+            .then(b.1.contains("vtop3").cmp(&a.1.contains("vtop3")))
             .then(change_set_strength(b.1).cmp(&change_set_strength(a.1)))
             .then(a.3.cmp(&b.3))
             .then(depth(a.0).cmp(&depth(b.0)))
@@ -6404,7 +6476,15 @@ pub(crate) fn change_set_rows(
     let signals = |sigs: &BTreeSet<&'static str>| -> Vec<&'static str> {
         sigs.iter()
             .filter(|s| **s != "family")
-            .map(|s| if *s == "vtop" { "vector" } else { *s })
+            .map(|s| {
+                if matches!(*s, "vtop" | "vtop3") {
+                    "vector"
+                } else {
+                    *s
+                }
+            })
+            .collect::<BTreeSet<_>>()
+            .into_iter()
             .collect()
     };
     let mut rows = Vec::new();
@@ -6431,7 +6511,10 @@ pub(crate) fn change_set_rows(
             tail = 0;
         }
         let lname = change_set_layer_name(li);
-        let exempt = sigs.contains("vtop") || sigs.contains("family") || sigs.contains("gloss");
+        let exempt = sigs.contains("vtop")
+            || sigs.contains("vtop3")
+            || sigs.contains("family")
+            || sigs.contains("gloss");
         let mut omitted = false;
         if tier >= 2 && !exempt {
             tail += 1;
@@ -7553,9 +7636,16 @@ impl Engram {
                 why.entry(p.clone())
                     .or_default()
                     .push(format!("semantic match to the story (rank {})", i + 1));
-                prov.entry(p)
-                    .or_default()
-                    .insert(if i < 12 { "vtop" } else { "vector" });
+                prov.entry(p).or_default().insert(if i < 3 {
+                    // The three strongest semantic matches may lead their
+                    // layer when lexical/history evidence is sparse. They
+                    // remain below corroborated tier-0 evidence.
+                    "vtop3"
+                } else if i < 12 {
+                    "vtop"
+                } else {
+                    "vector"
+                });
             }
             cov.vector = ArmCoverage::complete(n, t_vec.elapsed().as_millis());
         }
@@ -7585,19 +7675,31 @@ impl Engram {
         // External audit 2026-08-29 P0-3 (≤ 5 s): the pass costs per anchor (live
         // 1.9 s unbounded) — seed it with the strongest presentation anchors only.
         const PRESENTATION_ANCHOR_CAP: usize = 20;
-        let mut pres_ranked: Vec<(usize, String)> = prov
+        let mut pres_ranked: Vec<(bool, u8, usize, String)> = prov
             .iter()
             .filter(|(p, _)| {
                 let pl = p.to_lowercase();
                 PRESENTATION.iter().any(|e| pl.ends_with(e))
             })
-            .map(|(p, sigs)| (sigs.len(), p.clone()))
+            .map(|(p, sigs)| {
+                (
+                    sigs.contains("vtop3"),
+                    change_set_tier(sigs),
+                    change_set_strength(sigs),
+                    p.clone(),
+                )
+            })
             .collect();
-        pres_ranked.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+        pres_ranked.sort_by(|a, b| {
+            b.0.cmp(&a.0)
+                .then(a.1.cmp(&b.1))
+                .then(b.2.cmp(&a.2))
+                .then_with(|| a.3.cmp(&b.3))
+        });
         let pres_anchors: Vec<String> = pres_ranked
             .into_iter()
             .take(PRESENTATION_ANCHOR_CAP)
-            .map(|(_, p)| p)
+            .map(|(_, _, _, p)| p)
             .collect();
         cov.presentation_anchors = pres_anchors.len();
         if !pres_anchors.is_empty() {
@@ -8247,6 +8349,25 @@ impl Engram {
                 }
             }
         };
+
+        // Imported history can spell the same path differently from the
+        // active graph. Merge those aliases before they compete for ranks.
+        let indexed_paths = self
+            .state
+            .graph
+            .list_file_node_metadata(&req.project_id)
+            .map(|rows| {
+                rows.into_iter()
+                    .map(|(path, _)| path.as_str().replace('\\', "/"))
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        canonicalize_change_set_evidence(
+            &mut prov,
+            &mut why,
+            &mut historical,
+            indexed_paths,
+        );
 
         cov.stages
             .insert("before_render".into(), t_all.elapsed().as_millis());
@@ -11227,6 +11348,60 @@ mod agent_integration_tests {
 #[cfg(test)]
 mod change_set_rows_tests {
     use super::*;
+
+    #[test]
+    fn strongest_semantic_matches_can_lead_a_sparse_story_layer() {
+        let prov = BTreeMap::from([
+            (
+                "modules/dashboard/target.ts".to_string(),
+                BTreeSet::from(["vtop3"]),
+            ),
+            (
+                "modules/unrelated/history.vb".to_string(),
+                BTreeSet::from(["cochange"]),
+            ),
+        ]);
+        let (rows, _) = change_set_rows(&prov);
+        let target = rows
+            .iter()
+            .find(|row| row.path.ends_with("target.ts"))
+            .unwrap();
+        assert_eq!(target.tier, 0);
+        assert_eq!(target.set, "primary");
+        assert_eq!(target.signals, vec!["vector"]);
+    }
+
+    #[test]
+    fn corpus_path_aliases_merge_onto_current_repository_identity() {
+        let current = "Site/App_GlobalResources/Text.en.resx";
+        let mut prov = BTreeMap::from([
+            (
+                "app_globalresources/text.en.resx".to_string(),
+                BTreeSet::from(["history"]),
+            ),
+            (current.to_string(), BTreeSet::from(["concept"])),
+        ]);
+        let mut why = BTreeMap::from([
+            (
+                "app_globalresources/text.en.resx".to_string(),
+                vec!["history evidence".to_string()],
+            ),
+            (current.to_string(), vec!["concept evidence".to_string()]),
+        ]);
+        let mut historical = BTreeSet::from(["app_globalresources/text.en.resx".to_string()]);
+
+        canonicalize_change_set_evidence(
+            &mut prov,
+            &mut why,
+            &mut historical,
+            [current.to_string()],
+        );
+
+        assert_eq!(prov.len(), 1);
+        assert_eq!(prov[current], BTreeSet::from(["concept", "history"]));
+        assert_eq!(why[current].len(), 2);
+        assert_eq!(historical, BTreeSet::from([current.to_string()]));
+    }
 
     #[test]
     fn tail_cap_cuts_are_reported_as_omissions_not_dropped() {
