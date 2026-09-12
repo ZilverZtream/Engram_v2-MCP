@@ -901,7 +901,9 @@ impl Engram {
                        severity-ranked, evidence-backed findings. The response lists every gate that \
                        actually ran and its outcome, so you can see exactly what was and was not \
                        checked. Accepts a raw diff, `staged`, `unstaged`, `head`, or a `.patch` path. \
-                       No LLM calls."
+                       When the agent edits a linked worktree instead of the indexed checkout, pass \
+                       `working_directory`; Engram verifies repository identity and binds both the diff \
+                       and current-file snapshots to that worktree. No LLM calls."
     )]
     pub async fn pre_commit_review(
         &self,

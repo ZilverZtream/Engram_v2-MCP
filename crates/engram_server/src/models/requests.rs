@@ -3623,6 +3623,11 @@ fn default_min_severity() -> String {
 #[serde(deny_unknown_fields)]
 pub struct PreCommitReviewRequest {
     pub project_id: String,
+    /// Optional Git worktree whose staged/unstaged/HEAD diff and current file
+    /// bytes should be reviewed. The directory must belong to the same Git
+    /// repository as the indexed project.
+    #[serde(default)]
+    pub working_directory: Option<String>,
     /// The diff to review. Accepts:
     /// - A raw unified-diff string (`git diff` output)
     /// - `"staged"` â€” runs the `git diff --staged` equivalent via git2
