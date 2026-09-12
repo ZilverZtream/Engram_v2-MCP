@@ -165,3 +165,146 @@ async fn all_gates_passing_without_findings_is_still_green_and_clean() {
     assert!(md.contains("passed all gates cleanly"), "{md}");
     assert!(!md.contains("did not run"), "{md}");
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn shared_provider_caps_degrade_the_real_runner() {
+    let (_tmp, state, dir) = build_state();
+    let nodes: Vec<_> = (0..11)
+        .map(|i| engram_graph::Node {
+            node_id: format!("function:audit{i}"),
+            name: format!("AuditLog{i}"),
+            node_type: "function".into(),
+            namespace: "test".into(),
+            language: "csharp".into(),
+            file_path: engram_core::RelPath::new("Audit.cs"),
+            start_line: 1,
+            end_line: 2,
+            generation: 1,
+            metadata: None,
+        })
+        .collect();
+    state.graph.upsert_nodes(PID, &nodes).unwrap();
+    let (findings, _, _, outcomes) = run_pre_commit_review_with(
+        &state,
+        PID,
+        &dir,
+        1,
+        DIFF,
+        &ReviewConfig::default(),
+        vec![
+            Box::new(QuietGate),
+            Box::new(engram_server::services::pre_commit_review_service::gates::AuditGate),
+        ],
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        outcomes
+            .iter()
+            .find(|outcome| outcome.name == "quiet")
+            .unwrap()
+            .status,
+        GateStatus::Passed
+    );
+    let audit = outcomes
+        .iter()
+        .find(|outcome| outcome.name == "audit")
+        .unwrap();
+    assert!(
+        matches!(&audit.status, GateStatus::Degraded { notes, .. } if notes.iter().any(|note| note.contains("audit convention candidate") && note.contains("truncated")))
+    );
+    assert_eq!(
+        Verdict::with_outcomes(&findings, &outcomes),
+        Verdict::Yellow
+    );
+}
+
+struct WarningGate;
+impl Gate for WarningGate {
+    fn name(&self) -> &'static str {
+        "warning_fixture"
+    }
+    fn run(&self, _: &GateContext<'_>) -> anyhow::Result<Vec<ReviewFinding>> {
+        Ok(vec![ReviewFinding::new(
+            engram_server::services::pre_commit_review_service::Severity::Warning,
+            self.name(),
+            "App.cs",
+            "Missing validation",
+            "Known fixture defect",
+            "Add validation",
+        )])
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn filtering_a_known_warning_cannot_make_the_review_green() {
+    let (_tmp, state, dir) = build_state();
+    let mut config = ReviewConfig::default();
+    config.min_severity = engram_server::services::pre_commit_review_service::Severity::Critical;
+    let (findings, count, files, outcomes) = run_pre_commit_review_with(
+        &state,
+        PID,
+        &dir,
+        1,
+        DIFF,
+        &config,
+        vec![Box::new(WarningGate)],
+    )
+    .await
+    .unwrap();
+    assert!(findings.is_empty());
+    assert_eq!(
+        Verdict::with_outcomes(&findings, &outcomes),
+        Verdict::Yellow
+    );
+    assert!(
+        outcomes[0]
+            .caps
+            .iter()
+            .any(|note| note.contains("hidden by min_severity"))
+    );
+    let value = serde_json::to_value(render_json(findings, files, count, 1, &outcomes)).unwrap();
+    assert_ne!(value["verdict"], "green");
+    assert_eq!(value["compilation"], "not_run");
+    assert_eq!(value["test_execution"], "not_run");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn temporal_gate_distinguishes_absent_partial_and_complete_history() {
+    use engram_server::services::pre_commit_review_service::gates::TemporalGate;
+    let (_tmp, state, dir) = build_state();
+    for phase in 0..3 {
+        if phase == 1 {
+            state
+                .registry
+                .set_meta(PID, "last_git_oid", "recorded-tip")
+                .unwrap();
+        }
+        if phase == 2 {
+            state
+                .registry
+                .set_meta(PID, "git_backfill_complete", "1")
+                .unwrap();
+        }
+        let (findings, _, _, outcomes) = run_pre_commit_review_with(
+            &state,
+            PID,
+            &dir,
+            1,
+            DIFF,
+            &ReviewConfig::default(),
+            vec![Box::new(TemporalGate)],
+        )
+        .await
+        .unwrap();
+        if phase < 2 {
+            assert!(
+                matches!(&outcomes[0].status, GateStatus::Degraded { notes, .. } if notes.iter().any(|note| note.contains("Git history")))
+            );
+            assert_ne!(Verdict::with_outcomes(&findings, &outcomes), Verdict::Green);
+        } else {
+            assert_eq!(outcomes[0].status, GateStatus::Passed);
+            assert_eq!(Verdict::with_outcomes(&findings, &outcomes), Verdict::Green);
+        }
+    }
+}

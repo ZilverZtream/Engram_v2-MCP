@@ -62,6 +62,7 @@ fn fts_query(project_id: &str, namespace: &str, text: &str) -> HybridQuery {
         fts_mode: "loose".into(),
         include_path_prefixes: None,
         exclude_path_prefixes: None,
+        include_path_suffixes: None,
         language_filters: None,
         author_filter: None,
         date_after: None,
@@ -1082,7 +1083,7 @@ async fn open_engine_fts_only(tmp: &tempfile::TempDir) -> HybridSearchEngine {
 ///   2. Include the unreadable file in stats.skipped_files
 ///   3. Successfully index sibling valid files in the same batch
 #[tokio::test]
-async fn non_utf8_file_read_failure_is_skipped_not_fatal() {
+async fn non_utf8_file_is_indexed_lossily_not_skipped() {
     use std::io::Write;
     let tmp = tempfile::TempDir::new().unwrap();
     let engine = open_engine_fts_only(&tmp).await;
@@ -1130,16 +1131,29 @@ async fn non_utf8_file_read_failure_is_skipped_not_fatal() {
     let stats = result.unwrap();
 
     // The corrupt file must appear in skipped_files (no silent data loss).
+    // Round-2 audit P0-2 follow-up: a file that is not valid UTF-8 is NOT
+    // ejected from the corpus any more — it is decoded lossily and indexed,
+    // and the stats say so (live: four Latin-1 OciusX files were silently
+    // missing from every search store).
     let skipped_paths: Vec<&str> = stats
         .skipped_files
         .iter()
         .map(|(p, _)| p.as_str())
         .collect();
     assert!(
-        skipped_paths.iter().any(|p| p.contains("corrupt")),
-        "D5/DS1: corrupt.md must appear in skipped_files; got: {:?}",
+        !skipped_paths.iter().any(|p| p.contains("corrupt")),
+        "corrupt.md must be indexed lossily, not skipped; skipped: {:?}",
         skipped_paths
     );
+    assert!(
+        stats
+            .warnings
+            .iter()
+            .any(|w| w.contains("corrupt") && w.contains("lossily")),
+        "the stats name the lossily decoded file: {:?}",
+        stats.warnings
+    );
+    assert_eq!(stats.files, 2, "both files are indexed: {stats:?}");
 
     // The valid file must have been indexed (appears as a doc in the engine).
     let count = engine.count_docs("ds1-proj").unwrap();
@@ -1355,6 +1369,7 @@ async fn global_mutable_concurrent_writes_last_write_wins() {
                 fts_mode: "strict".to_string(),
                 include_path_prefixes: None,
                 exclude_path_prefixes: None,
+                include_path_suffixes: None,
                 language_filters: None,
                 author_filter: None,
                 date_after: None,
@@ -1435,6 +1450,7 @@ async fn global_mutable_concurrent_distinct_writes_all_survive() {
                 fts_mode: "loose".to_string(),
                 include_path_prefixes: None,
                 exclude_path_prefixes: None,
+                include_path_suffixes: None,
                 language_filters: None,
                 author_filter: None,
                 date_after: None,

@@ -1,0 +1,40 @@
+id                category        status       exp                 cite      ms  verdict
+------------------------------------------------------------------------------------------------
+ox_causal_1       causal          answered     answered/partial    1.00    1540  ok
+ox_causal_2       causal          answered     answered/partial    1.00     632  ok
+ox_causal_3       causal          answered     answered/partial    1.00     999  FAIL: item precision 0.30 < 0.34 (3/10 relevant)
+ox_causal_4       causal          answered     answered/partial    1.00     688  ok
+ox_causal_5       causal          answered     answered/partial    1.00     637  ok
+ox_causal_6       causal          answered     answered/partial    1.00     619  ok
+ox_causal_7       causal          answered     answered/partial    1.00     837  ok
+ox_causal_8       causal          answered     answered/partial    1.00    1319  ok
+ox_causal_9       causal          answered     answered/partial    1.00     949  ok
+ox_causal_10      causal          answered     answered/partial    1.00     676  ok
+ox_causal_11      causal          answered     answered/partial    1.00     594  ok
+ox_causal_12      causal          answered     answered/partial    1.00     821  FAIL: item precision 0.30 < 0.34 (3/10 relevant)
+ox_causal_13      causal          answered     answered/partial    1.00    1754  FAIL: item precision 0.20 < 0.34 (2/10 relevant)
+ox_causal_14      causal          answered     answered/partial    1.00     832  ok
+ox_causal_15      causal          answered     answered/partial    1.00     586  ok
+ox_causal_16      causal          answered     answered/partial    1.00    1471  ok
+ox_causal_17      causal          answered     answered/partial    1.00     703  FAIL: item precision 0.20 < 0.34 (2/10 relevant)
+ox_causal_18      causal          answered     answered/partial    1.00     716  ok
+ox_causal_19      causal          answered     answered/partial    1.00     579  FAIL: item precision 0.30 < 0.34 (3/10 relevant)
+ox_causal_20      causal          partial      answered/partial    1.00    1731  FAIL: item precision 0.30 < 0.34 (3/10 relevant)
+--------------------------------------------------------------------------
+judge:        v3-item-level
+status-match: 20/20 = 100%   (gate >= 80%)
+abstain:      0/0 = 100%   (gate = 100%)
+mean citation coverage (answerable rows): 1.00
+mean latency: 934 ms
+dreamer insights: OFF; insight evidence in 0/20 rows (0 items)
+correct:      14/20 = 70%   (gate = 100%: status + modality + item-scoped symbols + required_items + file recall + no forbidden + item precision)
+  FAIL ox_causal_3: item precision 0.30 < 0.34 (3/10 relevant)
+  FAIL ox_causal_12: item precision 0.30 < 0.34 (3/10 relevant)
+  FAIL ox_causal_13: item precision 0.20 < 0.34 (2/10 relevant)
+  FAIL ox_causal_17: item precision 0.20 < 0.34 (2/10 relevant)
+  FAIL ox_causal_19: item precision 0.30 < 0.34 (3/10 relevant)
+  FAIL ox_causal_20: item precision 0.30 < 0.34 (3/10 relevant)
+no-regression gate: correct 14 >= 14 -> ok
+
+GATE: PASS
+record written: C:/Users/Dennis/AppData/Local/Temp/claude/C--ai-projects-Engram-MCP-v2/50d309ed-9767-44e6-b7fc-2ac51dd98fa5/scratchpad/p0/causal_r57.json

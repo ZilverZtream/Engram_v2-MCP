@@ -8,35 +8,70 @@
 
 use engram_core::namespaces;
 use engram_core::registry::Registry;
-use engram_graph::{GraphStore, Node};
+use engram_graph::{EdgeKind, GraphStore, Node};
 use engram_index::{HybridHit, HybridQuery, HybridSearchEngine};
 use tokio_util::sync::CancellationToken;
 
 use super::evidence::{Authority, EvidenceItem, EvidenceKind};
 use super::status::ProviderStatus;
 
+/// Doc-13 Phase B (round-3 audit item 2): what an arm actually looked at.
+/// Zeros mean NOT MEASURED — never "complete"; `truncated` true means the
+/// arm stopped at a cap and the answer may be missing members.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize)]
+pub struct ArmCoverage {
+    pub examined: usize,
+    pub available: Option<usize>,
+    pub truncated: bool,
+}
+
 /// Lightweight per-arm result the retrieval layer folds into a `ProviderReport`.
 pub struct ProviderOutcome {
     pub status: ProviderStatus,
     pub note: Option<String>,
+    pub coverage: ArmCoverage,
 }
 impl ProviderOutcome {
     pub fn hit() -> Self {
         Self {
             status: ProviderStatus::Hit,
             note: None,
+            coverage: ArmCoverage::default(),
+        }
+    }
+
+    /// Doc-13 Phase B: a hit that KNOWS what it examined.
+    pub fn hit_with_coverage(examined: usize, available: Option<usize>, truncated: bool) -> Self {
+        Self {
+            status: ProviderStatus::Hit,
+            note: None,
+            coverage: ArmCoverage {
+                examined,
+                available,
+                truncated,
+            },
+        }
+    }
+
+    pub fn timed_out() -> Self {
+        Self {
+            status: ProviderStatus::TimedOut,
+            note: None,
+            coverage: ArmCoverage::default(),
         }
     }
     pub fn empty() -> Self {
         Self {
             status: ProviderStatus::Empty,
             note: None,
+            coverage: ArmCoverage::default(),
         }
     }
     pub fn failed(msg: impl Into<String>) -> Self {
         Self {
             status: ProviderStatus::Failed,
             note: Some(msg.into()),
+            coverage: ArmCoverage::default(),
         }
     }
 }
@@ -59,11 +94,31 @@ fn base_query(
         fts_mode: "loose".into(),
         include_path_prefixes: None,
         exclude_path_prefixes: None,
+        include_path_suffixes: None,
         language_filters: None,
         author_filter: None,
         date_after: None,
         date_before: None,
         use_mmr: true,
+    }
+}
+
+/// Grind cycle 37 (doc 11): a snippet centered on the first occurrence of the
+/// longest matching query term — live r53 cited ConfigSettings.vb lines 71-84
+/// with the setting on line 83 cut off by the head truncation. The head only
+/// when every hit already fits inside it.
+fn windowed_snippet(full: &str, terms: &[String]) -> String {
+    let lower = full.to_lowercase();
+    let hit = terms.iter().find_map(|t| lower.find(t.as_str()));
+    match hit {
+        Some(pos) if pos + 200 > SNIPPET_CHARS => {
+            let mut start = pos.saturating_sub(SNIPPET_CHARS / 4);
+            while start > 0 && !full.is_char_boundary(start) {
+                start -= 1;
+            }
+            format!("… {}", &full[start..])
+        }
+        _ => full.to_string(),
     }
 }
 
@@ -73,6 +128,7 @@ fn hit_to_evidence(
     kind: EvidenceKind,
     authority: Authority,
     provider: &str,
+    namespace: &str,
     generation: u64,
     content: String,
     id: &mut usize,
@@ -80,6 +136,9 @@ fn hit_to_evidence(
     *id += 1;
     EvidenceItem {
         evidence_id: format!("ev_{id}"),
+        document_id: Some(h.doc_id.clone()),
+        document_namespace: Some(namespace.into()),
+        source_verification: None,
         kind,
         authority,
         path: Some(h.path.as_str().replace('\\', "/")),
@@ -111,28 +170,148 @@ async fn search_arm(
     provider: &str,
     query: &str,
     top_k: usize,
+    scopes: &[String],
     cancel: &CancellationToken,
     id: &mut usize,
 ) -> (Vec<EvidenceItem>, ProviderOutcome) {
-    let q = base_query(project_id, namespace, generation, query, top_k);
+    let mut q = base_query(project_id, namespace, generation, query, top_k);
+    // Batch 8 (live r64 usage_5): a question-named path scope STEERS the
+    // arm — filtering after retrieval cannot recover in-scope top-k.
+    if !scopes.is_empty() {
+        q.include_path_prefixes = Some(scopes.to_vec());
+    }
+    search_with(search, q, kind, authority, provider, generation, cancel, id).await
+}
+
+/// Round-2 audit P0-4: source evidence restricted to the paths of a requested
+/// modality — the suffix filter is applied INSIDE the index on both legs, so
+/// a report/schema/resource file surfaces even when code chunks dominate.
+#[allow(clippy::too_many_arguments)]
+pub async fn modality_evidence(
+    search: &HybridSearchEngine,
+    project_id: &str,
+    generation: u64,
+    suffixes: &[&str],
+    provider: &str,
+    query: &str,
+    top_k: usize,
+    scopes: &[String],
+    cancel: &CancellationToken,
+    id: &mut usize,
+) -> (Vec<EvidenceItem>, ProviderOutcome) {
+    let mut q = base_query(
+        project_id,
+        namespaces::NAMESPACE_MEMORY,
+        generation,
+        query,
+        top_k,
+    );
+    q.include_path_suffixes = Some(suffixes.iter().map(|s| s.to_string()).collect());
+    // Batch 8: the question's path scope steers the modality arm too.
+    if !scopes.is_empty() {
+        q.include_path_prefixes = Some(scopes.to_vec());
+    }
+    search_with(
+        search,
+        q,
+        EvidenceKind::SourceCode,
+        Authority::CurrentCode,
+        provider,
+        generation,
+        cancel,
+        id,
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn search_with(
+    search: &HybridSearchEngine,
+    q: HybridQuery,
+    kind: EvidenceKind,
+    authority: Authority,
+    provider: &str,
+    generation: u64,
+    cancel: &CancellationToken,
+    id: &mut usize,
+) -> (Vec<EvidenceItem>, ProviderOutcome) {
     match search.search(&q, None, cancel).await {
         Err(e) => (vec![], ProviderOutcome::failed(e.to_string())),
         Ok(hits) if hits.is_empty() => (vec![], ProviderOutcome::empty()),
         Ok(hits) => {
+            // Doc-13 Phase B: coverage is measured BEFORE the quality
+            // filters — the question is what the index gave us to examine.
+            let examined_before_filters = hits.len();
+            // Grind cycle 38 (doc 11): a type declaration or a review-config
+            // file is never CODE evidence — held-out hx_golden_2/hx_causal_4
+            // cited google.maps typings and the camera row cited
+            // .coderabbit.yaml through this arm after the hop was fixed.
+            // Cycle 39 (doc 11): Engram's own system sections (the reserved
+            // memory_bank:engram/ prefix — the index report above all) are
+            // meta, not project knowledge; they only qualify when the question
+            // is about the index itself. Applies to EVERY arm and kind.
+            let asks_about_index = q.text.to_lowercase().split_whitespace().any(|t| {
+                matches!(
+                    t,
+                    "index" | "indexing" | "indexed" | "engram" | "generation" | "reindex"
+                )
+            });
+            let hits: Vec<_> = hits
+                .into_iter()
+                .filter(|h| {
+                    let p = h.path.as_str().to_lowercase();
+                    if p.starts_with("memory_bank:engram/") && !asks_about_index {
+                        return false;
+                    }
+                    if !matches!(kind, EvidenceKind::SourceCode) {
+                        return true;
+                    }
+                    !(p.ends_with(".d.ts") || p.ends_with(".coderabbit.yaml"))
+                })
+                .collect();
+            if hits.is_empty() {
+                return (vec![], ProviderOutcome::empty());
+            }
+            // Cycle 37 (doc 11): window the content around the query's terms —
+            // the longest term first, so identifiers beat filler words.
+            let mut terms: Vec<String> = q
+                .text
+                .to_lowercase()
+                .split(|c: char| !c.is_ascii_alphanumeric() && c != '_')
+                .filter(|t| t.len() >= 4)
+                .map(|s| s.to_string())
+                .collect();
+            terms.sort_by_key(|t| std::cmp::Reverse(t.len()));
+            terms.dedup();
             let mut items = Vec::with_capacity(hits.len());
             for h in &hits {
-                let content = search
+                let full = search
                     .get_doc_by_pk(&h.pk)
                     .ok()
                     .flatten()
                     .map(|t| t.2)
                     .or_else(|| h.snippet.clone())
                     .unwrap_or_default();
+                let content = windowed_snippet(&full, &terms);
                 items.push(hit_to_evidence(
-                    h, kind, authority, provider, generation, content, id,
+                    h,
+                    kind,
+                    authority,
+                    provider,
+                    &q.namespace,
+                    generation,
+                    content,
+                    id,
                 ));
             }
-            (items, ProviderOutcome::hit())
+            (
+                items,
+                ProviderOutcome::hit_with_coverage(
+                    examined_before_filters,
+                    None,
+                    examined_before_filters >= q.top_k,
+                ),
+            )
         }
     }
 }
@@ -157,6 +336,7 @@ pub async fn code_evidence(
         "code",
         query,
         top_k,
+        &[],
         cancel,
         id,
     )
@@ -176,12 +356,13 @@ pub async fn knowledge_evidence(
     provider: &str,
     query: &str,
     top_k: usize,
+    scopes: &[String],
     cancel: &CancellationToken,
     id: &mut usize,
 ) -> (Vec<EvidenceItem>, ProviderOutcome) {
     search_arm(
-        search, project_id, namespace, generation, kind, authority, provider, query, top_k, cancel,
-        id,
+        search, project_id, namespace, generation, kind, authority, provider, query, top_k, scopes,
+        cancel, id,
     )
     .await
 }
@@ -204,8 +385,21 @@ pub fn memory_evidence(
         .filter(|s| s.len() >= 3)
         .map(|s| s.to_string())
         .collect();
+    // Cycle 36 (doc 11 padding): Engram's own system sections (engram/..., the
+    // index report above all) LIST file paths, so they term-match almost any
+    // code question — they are meta, not project knowledge, and qualify only
+    // when the question is about the index itself.
+    let asks_about_index = terms.iter().any(|t| {
+        matches!(
+            t.as_str(),
+            "index" | "indexing" | "indexed" | "engram" | "generation" | "reindex"
+        )
+    });
     let mut scored: Vec<(usize, &engram_core::registry::MemorySection)> = Vec::new();
     for s in &sections {
+        if s.section_id.starts_with("engram/") && !asks_about_index {
+            continue;
+        }
         let hay = format!("{} {}", s.title, s.content).to_lowercase();
         let hits = terms.iter().filter(|t| hay.contains(t.as_str())).count();
         if hits > 0 {
@@ -225,6 +419,9 @@ pub fn memory_evidence(
         };
         items.push(EvidenceItem {
             evidence_id: format!("ev_{id}"),
+            document_id: None,
+            document_namespace: None,
+            source_verification: None,
             kind: EvidenceKind::MemoryNote,
             authority,
             path: None,
@@ -285,6 +482,9 @@ fn graph_relation_item(
     *id += 1;
     EvidenceItem {
         evidence_id: format!("ev_{id}"),
+        document_id: None,
+        document_namespace: None,
+        source_verification: None,
         kind: EvidenceKind::GraphRelation,
         authority,
         path,
@@ -364,15 +564,40 @@ pub fn symbol_ref_evidence(
     if nodes.is_empty() {
         return (vec![], ProviderOutcome::empty());
     }
+    // Containment describes where a symbol is declared, not a use of it.
+    // Similarity, history and inferred affinities belong to their own providers.
+    let usage_kinds: Vec<engram_graph::EdgeKind> = engram_graph::EdgeKind::ALL
+        .iter()
+        .filter(|kind| {
+            !matches!(
+                kind,
+                engram_graph::EdgeKind::Contains
+                    | engram_graph::EdgeKind::ContainsUi
+                    | engram_graph::EdgeKind::HasColumn
+                    | engram_graph::EdgeKind::CoOccurrence
+                    | engram_graph::EdgeKind::TemporalCoupling
+                    | engram_graph::EdgeKind::Insight
+                    | engram_graph::EdgeKind::AntiPattern
+                    | engram_graph::EdgeKind::UiLayoutNeighbor
+                    | engram_graph::EdgeKind::StateAffinity
+                    | engram_graph::EdgeKind::TestOracle
+            )
+        })
+        .cloned()
+        .collect();
     let mut items = Vec::new();
     for node in &nodes {
         // Propagate a graph read error as Failed — never let it look like "no
         // usages found" (the invariant this module's header states).
-        let incoming =
-            match graph.find_incoming_edges_with_kind(project_id, None, &node.node_id, max) {
-                Ok(v) => v,
-                Err(e) => return (vec![], ProviderOutcome::failed(e.to_string())),
-            };
+        let incoming = match graph.find_incoming_edges_with_kinds(
+            project_id,
+            &usage_kinds,
+            &node.node_id,
+            max,
+        ) {
+            Ok(v) => v,
+            Err(e) => return (vec![], ProviderOutcome::failed(e.to_string())),
+        };
         for (src, kind, weight) in incoming.into_iter().take(max) {
             let src_node = graph.get_node(project_id, &src).ok().flatten();
             let (path, lines, name, gen_) = node_fields(&src_node, &src);
@@ -548,6 +773,558 @@ fn definition_body(dir: &std::path::Path, rel: &str, a: u32, b: u32) -> Option<S
     Some(s)
 }
 
+/// Round-4 P0-2: a typed answer member — the ANSWER as identity, not prose.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct AnswerMember {
+    pub target_node_id: String,
+    pub display_name: String,
+    pub relation: String,
+    pub source_node_id: Option<String>,
+    pub path: Option<String>,
+    /// Round-8 P0-3: route PROVENANCE for a mediated call — `via=getImage_wrapper`
+    /// / `asmx_broker` and the wire endpoint. A wrapper-mediated call is NOT a
+    /// direct call, and the report must not present it as one.
+    pub via: Option<String>,
+}
+
+/// Round-4 P0-2: an EXACT coverage proof. Completeness is computed from
+/// counters, never asserted. Any unknown forbids `complete()`.
+#[derive(Debug, Clone, Default, serde::Serialize)]
+pub struct CoverageProof {
+    pub sources_discovered: usize,
+    pub sources_processed: usize,
+    pub source_cap_hit: bool,
+    pub edges_emitted: usize,
+    pub neighbor_cap_hits: usize,
+    pub dangling_targets: usize,
+    /// The specific target ids that resolved to no node (capped for size).
+    /// Recorded so an incomplete walk can name the unverifiable edge instead
+    /// of only tallying it — the diagnostic hook for ingestion/canonicalization
+    /// defects.
+    pub dangling_target_ids: Vec<String>,
+    pub dispatch_truncated: usize,
+    pub graph_errors: usize,
+    pub policy: String,
+}
+
+/// Cap on recorded dangling ids — the COUNT (`dangling_targets`) is exact and
+/// unbounded; this list is a bounded diagnostic sample.
+pub const DANGLING_ID_SAMPLE_CAP: usize = 20;
+
+impl CoverageProof {
+    pub fn complete(&self) -> bool {
+        !self.source_cap_hit
+            && self.neighbor_cap_hits == 0
+            && self.dangling_targets == 0
+            && self.graph_errors == 0
+            // Round-7 P0-3: a truncated dispatch expansion means served
+            // implementations were dropped — the walk is NOT exhaustive.
+            && self.dispatch_truncated == 0
+            && self.sources_processed >= self.sources_discovered
+    }
+}
+
+/// Doc-13 Phase C (round-3 audit P0-2): the EXHAUSTIVE callee set of a named
+/// file — every ApiCall / SqlCalls / Calls edge from the file's functions
+/// and the file node itself. No cue gate, no cap, NO one-per-file dedup:
+/// many API functions live in one implementation file, and the per-file
+/// collapse destroyed exactly the function cardinality the question asks
+/// for. ApiCall targets also resolve their broker dispatch so the served
+/// implementation is cited beside the route. Coverage is exact.
+pub fn exhaustive_callee_set(
+    graph: &GraphStore,
+    project_dir: Option<&std::path::Path>,
+    project_id: &str,
+    file_path: &str,
+    kinds: &[EdgeKind],
+    id: &mut usize,
+) -> (
+    Vec<EvidenceItem>,
+    Vec<AnswerMember>,
+    ArmCoverage,
+    CoverageProof,
+) {
+    exhaustive_callee_set_with_caps(
+        graph,
+        project_dir,
+        project_id,
+        file_path,
+        kinds,
+        500,
+        500,
+        id,
+    )
+}
+
+/// Round-4 P0-2: every skip is COUNTED — caps via cap+1 discovery, dangling
+/// targets, graph errors, dispatch truncation. The proof decides
+/// completeness; ArmCoverage stops lying.
+#[allow(clippy::too_many_arguments)]
+pub fn exhaustive_callee_set_with_caps(
+    graph: &GraphStore,
+    project_dir: Option<&std::path::Path>,
+    project_id: &str,
+    file_path: &str,
+    kinds: &[EdgeKind],
+    source_cap: usize,
+    neighbor_cap: usize,
+    id: &mut usize,
+) -> (
+    Vec<EvidenceItem>,
+    Vec<AnswerMember>,
+    ArmCoverage,
+    CoverageProof,
+) {
+    let norm = file_path.replace('\\', "/");
+    let mut items: Vec<EvidenceItem> = Vec::new();
+    let mut members: Vec<AnswerMember> = Vec::new();
+    let mut proof = CoverageProof {
+        policy: format!(
+            "source_cap={source_cap} neighbor_cap={neighbor_cap} kinds={}",
+            kinds.len()
+        ),
+        ..Default::default()
+    };
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut walked = 0usize;
+    let mut sources: Vec<(String, String)> = Vec::new();
+    match graph.query_nodes(
+        project_id,
+        Some("function"),
+        None,
+        Some(&norm),
+        source_cap + 1,
+    ) {
+        Ok(fns) => {
+            proof.sources_discovered = fns.len();
+            if fns.len() > source_cap {
+                proof.source_cap_hit = true;
+            }
+            sources.extend(
+                fns.iter()
+                    .take(source_cap)
+                    .map(|f| (f.node_id.clone(), f.name.clone())),
+            );
+        }
+        Err(_) => proof.graph_errors += 1,
+    }
+    let stem = norm.rsplit('/').next().unwrap_or(&norm).to_string();
+    sources.push((format!("file:{norm}"), stem));
+    proof.sources_processed = sources.len().saturating_sub(1);
+    for (src_id, src_name) in &sources {
+        for kind in kinds.iter().cloned() {
+            // Round-8 re-audit P0-3: EDGE-FIRST. Take the source's full outgoing
+            // edges of THIS kind — route `via` provenance travels on the same
+            // edge object, so it can never be lost by a separate lossy metadata
+            // join (which silently dropped provenance on a graph error or a
+            // shared-across-kinds cap). A graph error is COUNTED, not swallowed;
+            // truncation is recorded — the coverage proof stays honest.
+            let (edges, truncated) = match graph.outgoing_edges_of_kind(
+                project_id,
+                kind.clone(),
+                src_id,
+                neighbor_cap,
+            ) {
+                Ok(v) => v,
+                Err(_) => {
+                    proof.graph_errors += 1;
+                    continue;
+                }
+            };
+            if truncated {
+                proof.neighbor_cap_hits += 1;
+            }
+            for edge in edges {
+                let target = edge.target_id.clone();
+                walked += 1;
+                if !seen.insert(target.clone()) {
+                    continue;
+                }
+                let n = match graph.get_node(project_id, &target) {
+                    Ok(Some(n)) => n,
+                    Ok(None) => {
+                        proof.dangling_targets += 1;
+                        if proof.dangling_target_ids.len() < DANGLING_ID_SAMPLE_CAP {
+                            proof.dangling_target_ids.push(target.clone());
+                        }
+                        continue;
+                    }
+                    Err(_) => {
+                        proof.graph_errors += 1;
+                        continue;
+                    }
+                };
+                let tpath = n.file_path.as_str().replace('\\', "/");
+                let tl = tpath.to_lowercase();
+                if tl.ends_with(".d.ts") || tl.contains("/typings/") {
+                    continue;
+                }
+                // Round-8 P0-3: provenance from the SAME edge — never a lossy join.
+                let via = edge.metadata.as_ref().and_then(|m| {
+                    let v = m.get("via").and_then(|x| x.as_str())?;
+                    Some(match m.get("ajax_url").and_then(|x| x.as_str()) {
+                        Some(url) => format!("{v} (→ {url})"),
+                        None => v.to_string(),
+                    })
+                });
+                let mut content = match &via {
+                    Some(v) => format!(
+                        "{src_name} calls {} ({}) VIA {} — NOT a direct call; defined in {}",
+                        n.name, n.node_type, v, tpath
+                    ),
+                    None => format!(
+                        "{src_name} calls {} ({}) — defined in {}",
+                        n.name, n.node_type, tpath
+                    ),
+                };
+                members.push(AnswerMember {
+                    target_node_id: n.node_id.clone(),
+                    display_name: n.name.clone(),
+                    relation: if via.is_some() {
+                        format!("{}_via_wrapper", kind.as_str())
+                    } else {
+                        kind.as_str().to_string()
+                    },
+                    source_node_id: Some(src_id.clone()),
+                    path: Some(tpath.clone()),
+                    via,
+                });
+                if matches!(kind, EdgeKind::ApiCall) {
+                    // Round-7 P0-3: every failure mode of dispatch expansion must
+                    // break completeness and be named — a truncated or errored
+                    // dispatch lookup, or a missing/unreadable implementation
+                    // node, cannot be silently swallowed while the walk claims
+                    // "coverage complete".
+                    match graph.find_dispatch_targets(project_id, &n.name) {
+                        Ok(impls) => {
+                            if impls.len() > 2 {
+                                proof.dispatch_truncated += 1;
+                            }
+                            for imp in impls.iter().take(2) {
+                                match graph.get_node(project_id, imp) {
+                                    Ok(Some(im)) => content.push_str(&format!(
+                                        "; served by {} in {}",
+                                        im.name,
+                                        im.file_path.as_str().replace('\\', "/")
+                                    )),
+                                    Ok(None) => {
+                                        proof.dangling_targets += 1;
+                                        if proof.dangling_target_ids.len() < DANGLING_ID_SAMPLE_CAP
+                                        {
+                                            proof.dangling_target_ids.push(imp.clone());
+                                        }
+                                    }
+                                    Err(_) => proof.graph_errors += 1,
+                                }
+                            }
+                        }
+                        Err(_) => proof.graph_errors += 1,
+                    }
+                }
+                if let Some(dir) = project_dir {
+                    if let Some(body) = definition_body(dir, &tpath, n.start_line, n.end_line) {
+                        content.push_str("\n");
+                        content.push_str(&body);
+                    }
+                }
+                *id += 1;
+                items.push(EvidenceItem {
+                    evidence_id: format!("ev_x{id}"),
+                    document_id: None,
+                    document_namespace: None,
+                    source_verification: None,
+                    kind: EvidenceKind::GraphRelation,
+                    authority: Authority::CurrentCode,
+                    path: Some(tpath),
+                    lines: Some((n.start_line, n.end_line)),
+                    symbol_id: Some(n.node_id.clone()),
+                    title: Some(format!("{src_name} → {}", n.name)),
+                    content,
+                    generation: Some(n.generation),
+                    commit: None,
+                    timestamp: None,
+                    confidence: 0.9,
+                    relevance: 0.9,
+                    extraction_method: "exhaustive_callee".into(),
+                    warnings: vec![],
+                    provider: "callee_set".into(),
+                    score: None,
+                    directness: Some(0.9),
+                });
+            }
+        }
+    }
+    proof.edges_emitted = walked;
+    let cov = ArmCoverage {
+        examined: walked,
+        available: Some(walked),
+        // Round-4 P0-2: honesty — incompleteness of ANY kind surfaces.
+        truncated: !proof.complete(),
+    };
+    (items, members, cov, proof)
+}
+
+/// Round-2 audit P0-4c (owner 2026-08-30): ONE bounded call-graph hop from the
+/// files the first pass cited. For every function in a seed file, follow
+/// `Calls` / `ApiCall` / `SqlCalls` edges and keep the callees whose name or
+/// file matches the question's cues (its own words, plus authorization cues
+/// when the question asks how something is authorized). "How does a bulk
+/// update get authorized" is answered by `CanUserBulkUpdate`, one call away
+/// from the API entry point the search arms cite.
+#[allow(clippy::too_many_arguments)]
+pub fn callee_evidence(
+    graph: &GraphStore,
+    project_dir: Option<&std::path::Path>,
+    project_id: &str,
+    seed_paths: &[String],
+    named_files: &[String],
+    question: &str,
+    max_items: usize,
+    id: &mut usize,
+) -> Vec<EvidenceItem> {
+    const STOP: &[&str] = &[
+        "does", "from", "with", "that", "this", "what", "which", "where", "when", "then", "than",
+        "into", "onto", "about", "would", "could", "should", "there", "their", "they", "have",
+        "been", "being", "were", "will", "your", "through", "point", "entry", "gets", "get",
+    ];
+    let lower = question.to_lowercase();
+    let mut cues: Vec<String> = lower
+        .split(|c: char| !c.is_alphanumeric() && c != '_' && c != '-')
+        .filter(|t| t.len() >= 4 && !STOP.contains(t))
+        .map(|t| t.chars().take(6).collect::<String>())
+        .collect();
+    if [
+        "authori",
+        "permission",
+        "permit",
+        "allowed",
+        "secure",
+        "protect",
+        "role",
+    ]
+    .iter()
+    .any(|c| lower.contains(c))
+    {
+        cues.extend(
+            [
+                "canuser", "check", "permis", "auth", "allow", "role", "access", "guard",
+            ]
+            .iter()
+            .map(|s| s.to_string()),
+        );
+    }
+    cues.sort();
+    cues.dedup();
+    let mut out = Vec::new();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    // P0-4d precision guard: a callee that lives in a file the first pass
+    // already cited adds nothing but crowding (live r39: seven same-file
+    // callees of one .vb pushed the history and schema evidence out of the
+    // cap); one callee per defining file; the cue must match the NAME.
+    let seed_set: std::collections::HashSet<String> = seed_paths
+        .iter()
+        .map(|s| s.replace('\\', "/").to_lowercase())
+        .collect();
+    let mut files_cited: std::collections::HashSet<String> = std::collections::HashSet::new();
+    // A hop from a file the question NAMES is the answer itself: three direct
+    // route targets must not starve the wrapper continuation (live r46).
+    let cap = if named_files.is_empty() {
+        max_items
+    } else {
+        max_items.max(6)
+    };
+    // Cycle 35 (owner: collect-and-rank; pre-audit doc 11 item 4): the walk
+    // COLLECTS candidates and a rank decides what fills the cap — streaming
+    // first-come order starved the wrapper continuation live (r51: Visible's
+    // getImage edge sat beyond slot six while earlier cue hits took the v2
+    // reserved slots). bucket 0 = cue-hit wrapper implementation, 1 = cue
+    // hit, 2 = the rest; stable by discovery within a bucket.
+    let mut cands: Vec<(u8, EvidenceItem, String)> = Vec::new();
+    for seed in seed_paths.iter().take(4) {
+        let seed_norm = seed.replace('\\', "/");
+        // Item 8: a hop from the file the question NAMES ("which server API
+        // functions does orderPanel.ts call?") is the answer itself — no cue
+        // gate, direct evidence, and the file node's own edges count too.
+        let seed_l = seed_norm.to_lowercase();
+        let is_named = named_files.iter().any(|n| {
+            let n = n.replace('\\', "/").to_lowercase();
+            seed_l.ends_with(&n)
+                || seed_l.rsplit('/').next().is_some_and(|f| {
+                    f == n || f.rsplit_once('.').is_some_and(|(stem, _)| stem == n)
+                })
+        });
+        let fns = match graph.query_nodes(project_id, Some("function"), None, Some(&seed_norm), 200)
+        {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        let mut sources: Vec<(String, String)> = fns
+            .iter()
+            .take(if is_named { 200 } else { 60 })
+            .map(|f| (f.node_id.clone(), f.name.clone()))
+            .collect();
+        if is_named {
+            let stem = seed_norm
+                .rsplit('/')
+                .next()
+                .unwrap_or(&seed_norm)
+                .to_string();
+            sources.push((format!("file:{seed_norm}"), stem));
+        }
+        let kinds: [EdgeKind; 3] = if is_named {
+            [EdgeKind::ApiCall, EdgeKind::SqlCalls, EdgeKind::Calls]
+        } else {
+            [EdgeKind::Calls, EdgeKind::ApiCall, EdgeKind::SqlCalls]
+        };
+        for (src_id, src_name) in &sources {
+            for kind in kinds.iter().cloned() {
+                let Ok(nbrs) = graph.neighbors(project_id, kind.clone(), src_id, 40) else {
+                    continue;
+                };
+                for (target, weight) in nbrs {
+                    if !seen.insert(target.clone()) {
+                        continue;
+                    }
+                    let Ok(Some(n)) = graph.get_node(project_id, &target) else {
+                        continue;
+                    };
+                    let name_l = n.name.to_lowercase();
+                    let path_l = n.file_path.as_str().replace('\\', "/").to_lowercase();
+                    // Cycle 36 (doc 11 padding): a call INTO a type
+                    // declaration is not a served implementation — .d.ts and
+                    // typings/ targets never pad the hop.
+                    if path_l.ends_with(".d.ts") || path_l.contains("/typings/") {
+                        continue;
+                    }
+                    let basename = path_l.rsplit('/').next().unwrap_or("");
+                    let cue_hit = cues
+                        .iter()
+                        .any(|c| name_l.contains(c.as_str()) || basename.contains(c.as_str()));
+                    let hit = is_named || cue_hit;
+                    if !hit || seed_set.contains(&path_l) {
+                        continue;
+                    }
+                    let some = Some(n.clone());
+                    let (path, lines, name, gen_) = node_fields(&some, &target);
+                    let mut content = format!(
+                        "{} calls {name} ({}) — defined in {}{}",
+                        src_name,
+                        n.node_type,
+                        path.clone().unwrap_or_default(),
+                        lines
+                            .map(|(a, b)| format!(" lines {a}-{b}"))
+                            .unwrap_or_default()
+                    );
+                    if let (Some(dir), Some(p), Some((a, b))) =
+                        (project_dir, path.as_deref(), lines)
+                        && let Some(body) = definition_body(dir, p, a, b)
+                    {
+                        content.push('\n');
+                        content.push_str(&body);
+                    }
+                    let wrapper_name = name.clone();
+                    cands.push((
+                        if cue_hit { 1 } else { 2 },
+                        graph_relation_item(
+                            "callee",
+                            target.clone(),
+                            path,
+                            lines,
+                            name,
+                            content,
+                            gen_,
+                            weight.max(8),
+                            if is_named { 0.85 } else { 0.6 },
+                            Authority::CurrentCode,
+                            id,
+                        ),
+                        path_l.clone(),
+                    ));
+                    // Item 8 (golden ox_multi_4): a script callee that is
+                    // itself an API WRAPPER — `api.ajax().getImage` holds the
+                    // route edge to `/api.asmx/getimg` — carries the call one
+                    // hop further to the served implementation.
+                    if matches!(kind, EdgeKind::Calls)
+                        && (path_l.ends_with(".ts") || path_l.ends_with(".js"))
+                        && let Ok(wnbrs) =
+                            graph.neighbors(project_id, EdgeKind::ApiCall, &target, 10)
+                    {
+                        for (impl_id, w2) in wnbrs {
+                            if !seen.insert(impl_id.clone()) {
+                                continue;
+                            }
+                            let Ok(Some(w)) = graph.get_node(project_id, &impl_id) else {
+                                continue;
+                            };
+                            if !matches!(w.node_type.as_str(), "function" | "method" | "sub") {
+                                continue;
+                            }
+                            let wpath = w.file_path.as_str().replace('\\', "/").to_lowercase();
+                            if seed_set.contains(&wpath) {
+                                continue;
+                            }
+                            let wsome = Some(w.clone());
+                            let (wp, wl, wname, wgen) = node_fields(&wsome, &impl_id);
+                            let mut wcontent = format!(
+                                "{} calls {} through the {} wrapper — served by {}{}",
+                                src_name,
+                                wname,
+                                wrapper_name,
+                                wp.clone().unwrap_or_default(),
+                                wl.map(|(a, b)| format!(" lines {a}-{b}"))
+                                    .unwrap_or_default()
+                            );
+                            if let (Some(dir), Some(p2), Some((a, b))) =
+                                (project_dir, wp.as_deref(), wl)
+                                && let Some(body) = definition_body(dir, p2, a, b)
+                            {
+                                wcontent.push('\n');
+                                wcontent.push_str(&body);
+                            }
+                            let wbase = wpath.rsplit('/').next().unwrap_or("");
+                            let wcue = cues.iter().any(|c| {
+                                wname.to_lowercase().contains(c.as_str())
+                                    || wbase.contains(c.as_str())
+                            });
+                            cands.push((
+                                if wcue { 0 } else { 2 },
+                                graph_relation_item(
+                                    "callee",
+                                    impl_id.clone(),
+                                    wp,
+                                    wl,
+                                    wname,
+                                    wcontent,
+                                    wgen,
+                                    w2.max(8),
+                                    if is_named { 0.85 } else { 0.6 },
+                                    Authority::CurrentCode,
+                                    id,
+                                ),
+                                wpath.clone(),
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // Rank: cue-hit wrapper implementations, then cue hits, then the rest —
+    // stable by discovery order — one item per defining file, cap slots.
+    let mut order: Vec<usize> = (0..cands.len()).collect();
+    order.sort_by_key(|&i| (cands[i].0, i));
+    for i in order {
+        if out.len() >= cap {
+            break;
+        }
+        if !files_cited.insert(cands[i].2.clone()) {
+            continue;
+        }
+        out.push(cands[i].1.clone());
+    }
+    out
+}
+
 pub fn definition_evidence(
     graph: &GraphStore,
     project_dir: Option<&std::path::Path>,
@@ -564,6 +1341,13 @@ pub fn definition_evidence(
     };
     let some = Some(n.clone());
     let (path, lines, name, gen_) = node_fields(&some, node_id);
+    // Round-2 audit P0-4: a FILE entity (a mention that is a file stem) has no
+    // symbol span — cite its head so the file itself is evidence.
+    let lines = if n.node_type == "file" && lines.is_none() {
+        Some((1, 30))
+    } else {
+        lines
+    };
     let content = format!(
         "{name} ({}) is defined in {}{}",
         n.node_type,

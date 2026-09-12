@@ -108,6 +108,14 @@ async fn test_anti_pattern_guard_smoke() {
     let projects = state.registry.list_projects().unwrap();
     let project_id = &projects[0].project_id;
 
+    let empty = engram.anti_pattern_guard(Parameters(engram_server::AntiPatternGuardRequest {
+        project_id: project_id.clone(), code: Some("critical_bug = 1/0".into()), code_file: None, code_file_blake3: None, limit: 5,
+        use_vector: false, include_content: true,
+    })).await.unwrap();
+    let empty_text = &empty.content[0].as_text().unwrap().text;
+    assert!(empty_text.starts_with("verdict: INSUFFICIENT\n"), "{empty_text}");
+    assert!(empty_text.contains("comparison: not_run"), "{empty_text}");
+
     // Analyze reverts to populate antipattern namespace
     engram
         .analyze_reverts(Parameters(engram_server::AnalyzeRevertsRequest {
@@ -121,7 +129,7 @@ async fn test_anti_pattern_guard_smoke() {
     let res = engram
         .anti_pattern_guard(Parameters(engram_server::AntiPatternGuardRequest {
             project_id: project_id.clone(),
-            code: "critical_bug = 1/0".to_string(),
+            code: Some("critical_bug = 1/0".to_string()), code_file: None, code_file_blake3: None,
             limit: 5,
             use_vector: false,
             include_content: true,
@@ -142,4 +150,15 @@ async fn test_anti_pattern_guard_smoke() {
     );
     assert!(text.contains("risky"), "Should explain why it's risky");
     assert!(text.contains("alternative"), "Should suggest alternative");
+    let clean = engram.anti_pattern_guard(Parameters(engram_server::AntiPatternGuardRequest {
+        project_id: project_id.clone(), code: Some("unique_unrelated_identifier_923715".into()), code_file: None, code_file_blake3: None,
+        limit: 5, use_vector: false, include_content: true,
+    })).await.unwrap();
+    let clean_text = &clean.content[0].as_text().unwrap().text;
+    assert!(clean_text.starts_with("verdict: PASS\n"), "{clean_text}");
+    assert!(clean_text.contains("comparison: completed"), "{clean_text}");
+    assert!(clean_text.contains("does not certify code safety"), "{clean_text}");
+
 }
+
+// The populated fixture above must also distinguish a completed clean search.

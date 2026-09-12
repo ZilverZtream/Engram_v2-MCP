@@ -30,10 +30,18 @@ pub(crate) fn indexed_file_stats(
     graph: &engram_graph::GraphStore,
     project_id: &str,
 ) -> anyhow::Result<Vec<engram_index::grep::IndexedFileStat>> {
+    indexed_file_stats_for_generation(graph, project_id, u64::MAX)
+}
+
+fn indexed_file_stats_for_generation(
+    graph: &engram_graph::GraphStore,
+    project_id: &str,
+    active_generation: u64,
+) -> anyhow::Result<Vec<engram_index::grep::IndexedFileStat>> {
     Ok(graph
-        .list_file_node_metadata(project_id)?
+        .list_file_node_metadata_with_generation(project_id)?
         .into_iter()
-        .map(|(rel_path, meta)| {
+        .map(|(rel_path, meta, generation)| {
             let get = |key: &str| {
                 meta.as_ref()
                     .and_then(|m| m.get(key))
@@ -42,6 +50,11 @@ pub(crate) fn indexed_file_stats(
             };
             let file_hash = meta
                 .as_ref()
+                .filter(|m| {
+                    generation <= active_generation
+                        && m.get("source_index_version").and_then(|v| v.as_u64())
+                            == Some(engram_index::SOURCE_INDEX_VERSION)
+                })
                 .and_then(|m| m.get("file_hash"))
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
@@ -55,95 +68,126 @@ pub(crate) fn indexed_file_stats(
         .collect())
 }
 
-/// Scan the WORKING TREE for literal matches the INDEX cannot see: files added
-/// since the last index (no indexed fingerprint), or edited since (on-disk mtime
-/// newer than the indexed one). This is the real fix for "a stale index is worse
-/// than no index" — grep_project now actually searches the tree the way the
-/// agent expects, instead of only telling it to. Literal + line-based only
-/// (regex/multiline still fall back to the agent). Bounded: on a fresh index
-/// only the handful of changed files are read; unchanged and oversized files are
-/// skipped.
-fn disk_fallback_matches(
-    project_dir: &std::path::Path,
+/// Overlay current source files, suppressing obsolete indexed matches even when
+/// a changed file no longer matches. Strict mode verifies hashes, including
+/// edits preserving size and timestamp. All omitted coverage is reported.
+fn overlay_working_tree(
+    root: &std::path::Path,
     exts: &[&str],
-    indexed_mtimes: &std::collections::HashMap<String, u64>,
-    pattern: &str,
-    case_sensitive: Option<bool>,
-    path_prefix: Option<&str>,
-    cap: usize,
-) -> (Vec<engram_index::grep::GrepMatch>, usize) {
-    const MAX_FILE_BYTES: u64 = 2_000_000; // don't read a 26k-line designer file
-    const MAX_CANDIDATE_FILES: usize = 800; // bound the work on a very stale index
-    // Smart case, matching the engine: honor an explicit flag; otherwise a
-    // pattern with any uppercase is case-sensitive, all-lowercase is insensitive.
-    let cs = case_sensitive.unwrap_or_else(|| pattern.chars().any(|c| c.is_uppercase()));
-    let ci = !cs;
-    let needle = if ci {
-        pattern.to_lowercase()
-    } else {
-        pattern.to_string()
+    stats: &[engram_index::grep::IndexedFileStat],
+    q: &engram_index::grep::GrepQuery,
+    result: &mut engram_index::grep::GrepResult,
+) -> anyhow::Result<()> {
+    use engram_index::grep::FreshnessMode;
+    use std::collections::{HashMap, HashSet};
+    const MAX_FILE_BYTES: u64 = 8_000_000;
+    const MAX_TOTAL_BYTES: u64 = 128_000_000;
+    let indexed: HashMap<_, _> = stats
+        .iter()
+        .map(|s| (s.rel_path.replace('\\', "/"), s))
+        .collect();
+    let eligible = |rel: &str| {
+        q.path_prefix.as_ref().is_none_or(|p| {
+            rel.to_ascii_lowercase()
+                .starts_with(&p.replace('\\', "/").to_ascii_lowercase())
+        }) && q.language.as_ref().is_none_or(|l| {
+            engram_core::types::guess_language(std::path::Path::new(rel)).eq_ignore_ascii_case(l)
+        })
     };
-    let mut out: Vec<engram_index::grep::GrepMatch> = Vec::new();
-    let mut files_scanned = 0usize;
-    for path in engram_index::ingest::iter_files(project_dir, exts) {
-        if out.len() >= cap || files_scanned >= MAX_CANDIDATE_FILES {
-            break;
-        }
-        let Ok(rel_os) = path.strip_prefix(project_dir) else {
-            continue;
-        };
-        let rel = rel_os.to_string_lossy().replace('\\', "/");
-        if let Some(pfx) = path_prefix {
-            if !rel.starts_with(pfx) {
-                continue;
-            }
-        }
-        let meta = match std::fs::metadata(&path) {
-            Ok(m) => m,
-            Err(_) => continue,
-        };
-        if meta.len() > MAX_FILE_BYTES {
+    let mut paths: Vec<_> = engram_index::ingest::iter_files(root, exts);
+    paths.sort();
+    let mut replaced = HashSet::new();
+    let mut current = Vec::new();
+    let mut disk_query = q.clone();
+    disk_query.max_results = q.max_results.saturating_add(1);
+    let mut bytes = 0u64;
+    let mut scanned = 0usize;
+    let mut skipped = 0usize;
+    for path in paths {
+        let rel = path
+            .strip_prefix(root)?
+            .to_string_lossy()
+            .replace('\\', "/");
+        if !eligible(&rel) {
             continue;
         }
-        let disk_mtime = meta
-            .modified()
-            .ok()
-            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
-        // Candidate iff new (not indexed) or edited since indexed.
-        match indexed_mtimes.get(&rel) {
-            None => {}                         // new file
-            Some(&im) if disk_mtime > im => {} // edited since indexed
-            Some(_) => continue,               // indexed + unchanged
-        }
-        let Ok(buf) = std::fs::read_to_string(&path) else {
-            continue; // binary / non-utf8
+        let old = indexed.get(&rel);
+        let metadata = std::fs::metadata(&path);
+        let must_read = match (&metadata, old) {
+            (Ok(meta), Some(old)) if !matches!(q.freshness, FreshnessMode::Strict) => {
+                let mtime = meta
+                    .modified()
+                    .ok()
+                    .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                    .map(|t| t.as_secs());
+                old.file_hash.is_none() || meta.len() != old.size || mtime != Some(old.mtime_secs)
+            }
+            _ => true,
         };
-        files_scanned += 1;
-        for (i, line) in buf.lines().enumerate() {
-            if out.len() >= cap {
-                break;
+        if !must_read {
+            continue;
+        }
+        let content = match metadata {
+            Ok(meta)
+                if meta.len() <= MAX_FILE_BYTES
+                    && bytes.saturating_add(meta.len()) <= MAX_TOTAL_BYTES =>
+            {
+                bytes += meta.len();
+                std::fs::read(&path).ok()
             }
-            let hay = if ci {
-                line.to_lowercase()
-            } else {
-                line.to_string()
-            };
-            if let Some(col) = hay.find(&needle) {
-                out.push(engram_index::grep::GrepMatch {
-                    file_path: rel.clone(),
-                    line: (i as u32) + 1,
-                    column: (col as u32) + 1,
-                    line_text: line.chars().take(300).collect(),
-                    context_before: vec![],
-                    context_after: vec![],
-                    chunk_id: 0,
-                });
-            }
+            _ => None,
+        };
+        let Some(content) = content else {
+            replaced.insert(rel);
+            skipped += 1;
+            continue;
+        };
+        if old.is_some_and(|old| {
+            old.file_hash.as_deref() == Some(blake3::hash(&content).to_hex().as_str())
+        }) {
+            continue;
+        }
+        let Ok(content) = String::from_utf8(content) else {
+            replaced.insert(rel);
+            skipped += 1;
+            continue;
+        };
+        replaced.insert(rel.clone());
+        scanned += 1;
+        if current.len() <= q.max_results {
+            current.extend(engram_index::grep::scan_working_tree_content(
+                &content,
+                &rel,
+                &disk_query,
+            )?);
         }
     }
-    (out, files_scanned)
+    for rel in indexed.keys().filter(|rel| eligible(rel)) {
+        if !root.join(rel).is_file() {
+            replaced.insert(rel.clone());
+        }
+    }
+    result
+        .matches
+        .retain(|m| !replaced.contains(&m.file_path.replace('\\', "/")));
+    current.append(&mut result.matches);
+    let capped = current.len() > q.max_results;
+    current.truncate(q.max_results);
+    result.matches = current;
+    result.files_scanned += scanned;
+    result.stale_paths.extend(replaced);
+    result.stale_paths.sort();
+    result.stale_paths.dedup();
+    if scanned > 0 || skipped > 0 || capped {
+        let note = format!(
+            "Working-tree overlay: {scanned} changed/new file(s) scanned; current contents NOT in the index replace cached hits. {skipped} file(s) could not be verified (read/size/budget limits); cached hits suppressed. Results capped: {capped}. Disk hits have no doc_id; read their file_path directly."
+        );
+        result.index_stale_warning = Some(match result.index_stale_warning.take() {
+            Some(existing) => format!("{existing} | {note}"),
+            None => note,
+        });
+    }
+    Ok(())
 }
 
 impl Engram {
@@ -219,13 +263,14 @@ impl Engram {
         let regex = req.regex;
         let case_sensitive = req.case_sensitive;
         let multiline = req.multiline;
-        let context_before = req.context_before;
-        let context_after = req.context_after;
-        let max_results = req.max_results;
+        let context_before = req.context_before.min(100);
+        let context_after = req.context_after.min(100);
+        let max_results = req.max_results.clamp(1, 1000);
+        let exts = crate::utils::files::exts_for_project_type(&rec.project_type);
         let engine = ps.search.clone();
 
         let fingerprint_pid = project_id.clone();
-        let mut result = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
+        let result = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
             let gq = engram_index::grep::GrepQuery {
                 project_id,
                 namespace,
@@ -241,81 +286,73 @@ impl Engram {
                 max_results,
                 freshness,
             };
-            engram_index::grep::grep(&engine, &project_dir, &gq, || {
-                indexed_file_stats(&graph, &fingerprint_pid)
-            })
+            let started = std::time::Instant::now();
+            let stats = indexed_file_stats_for_generation(&graph, &fingerprint_pid, generation)?;
+            let mut result =
+                engram_index::grep::grep(&engine, &project_dir, &gq, || Ok(stats.clone()))?;
+            if gq.namespace == "memory"
+                && (!matches!(gq.freshness, engram_index::grep::FreshnessMode::Off)
+                    || stats.iter().any(|stat| stat.file_hash.is_none()))
+            {
+                overlay_working_tree(&project_dir, &exts, &stats, &gq, &mut result)?;
+            }
+            result.elapsed_ms = started.elapsed().as_millis() as u64;
+            Ok(result)
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        // Working-tree fallback — a TRUE fallback, only when the index found
-        // NOTHING. The engine searches only the index, so a string in a file
-        // added since the last index is invisible (the J5 failure). We scan the
-        // tree only on an index miss: augmenting non-empty results would bloat
-        // every grep (index + disk) and, across a review's dozens of calls, blow
-        // the caller's context budget. Regex/multiline keep the "grep the tree"
-        // hint instead.
-        if !req.regex && !req.multiline && result.matches.is_empty() {
-            let graph2 = self.state.graph.clone();
-            let pid2 = req.project_id.clone();
-            let project_dir2 = PathBuf::from(rec.directory.clone());
-            let pattern2 = req.pattern.clone();
-            let case_sensitive2 = req.case_sensitive;
-            let path_prefix2 = req.path_prefix.clone();
-            let ptype = rec.project_type.clone();
-            let (disk_matches, disk_files) = tokio::task::spawn_blocking(move || {
-                let indexed: std::collections::HashMap<String, u64> = graph2
-                    .list_file_node_metadata(&pid2)
-                    .map(|rows| {
-                        rows.into_iter()
-                            .map(|(rp, meta)| {
-                                let m = meta
-                                    .as_ref()
-                                    .and_then(|m| m.get("mtime"))
-                                    .and_then(|v| v.as_u64())
-                                    .unwrap_or(0);
-                                (rp.as_str().replace('\\', "/"), m)
-                            })
-                            .collect()
-                    })
-                    .unwrap_or_default();
-                let exts = crate::utils::files::exts_for_project_type(&ptype);
-                // Small cap: this is an index-miss fallback, so the agent just
-                // needs to know the string exists and roughly where in the
-                // new/changed files — not a full dump (context-budget safe).
-                disk_fallback_matches(
-                    &project_dir2,
-                    &exts,
-                    &indexed,
-                    &pattern2,
-                    case_sensitive2,
-                    path_prefix2.as_deref(),
-                    15,
-                )
-            })
-            .await
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            if !disk_matches.is_empty() {
-                let n = disk_matches.len();
-                result.matches.extend(disk_matches);
-                result.files_scanned += disk_files;
-                let disk_note = format!(
-                    "{n} additional match(es) from {disk_files} file(s) NOT in the index \
-                     (added or edited since the last index) — found by scanning the working \
-                     tree directly. These are current; any same-file index matches may be stale."
-                );
-                result.index_stale_warning = Some(match result.index_stale_warning.take() {
-                    Some(existing) => format!("{existing} | {disk_note}"),
-                    None => disk_note,
-                });
-            }
-        }
-
         let mut body = if req.output_json {
-            serde_json::to_string_pretty(&result).unwrap_or_else(|_| "{}".into())
+            let mut value = serde_json::to_value(&result)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            value["project_id"] = serde_json::json!(req.project_id);
+            value["directory"] = serde_json::json!(rec.directory);
+            value["active_generation"] = serde_json::json!(generation);
+            value["result_limit"] = serde_json::json!(max_results);
+            value["result_limit_reached"] = serde_json::json!(result.matches.len() >= max_results);
+            value["coverage"] = serde_json::json!(
+                "bounded_search_not_exhaustive; candidate scans, result limits and verification warnings apply; a result below the limit does not prove complete corpus coverage"
+            );
+            if let Some(matches) = value["matches"].as_array_mut() {
+                for hit in matches {
+                    if let Some(doc_id) = hit
+                        .get("doc_id")
+                        .and_then(|v| v.as_str())
+                        .map(str::to_owned)
+                    {
+                        hit["source"] = serde_json::json!("index");
+                        hit["citation_recovery"] = serde_json::json!({
+                            "tool": "get_chunk",
+                            "arguments": {"project_id": req.project_id, "namespace": req.namespace, "doc_id": doc_id, "citation": {}}
+                        });
+                        hit["recovery"] = serde_json::json!({
+                            "tool": "get_chunk",
+                            "arguments": {"project_id": req.project_id, "namespace": req.namespace, "doc_id": doc_id}
+                        });
+                    } else {
+                        hit["source"] = serde_json::json!("working_tree");
+                        hit["recovery"] = serde_json::json!({
+                            "action": "read_file",
+                            "directory": rec.directory,
+                            "file_path": hit["file_path"],
+                            "line": hit["line"],
+                            "note": "No indexed document exists for this hit. Read this file at the returned line; do not substitute a different search result or pass the legacy chunk_id sentinel to get_chunk."
+                        });
+                    }
+                }
+            }
+            serde_json::to_string_pretty(&value)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?
         } else {
-            render_markdown(&result, &req.pattern, req.regex)
+            render_markdown(
+                &result,
+                &req.pattern,
+                req.regex,
+                &req.project_id,
+                &req.namespace,
+                max_results,
+            )
         };
         if !req.output_json {
             body.push_str(&self.freshness_footer(&req.project_id, generation).await);
@@ -327,7 +364,14 @@ impl Engram {
 /// Default Markdown rendering. We keep it dense — each match is one
 /// line with file:line:col plus the line content; context lines are
 /// indented so a scanning reader can still pick out the match.
-fn render_markdown(r: &engram_index::grep::GrepResult, pattern: &str, regex: bool) -> String {
+fn render_markdown(
+    r: &engram_index::grep::GrepResult,
+    pattern: &str,
+    regex: bool,
+    project_id: &str,
+    namespace: &str,
+    result_limit: usize,
+) -> String {
     use std::fmt::Write as _;
     let mut out = String::with_capacity(1024 + r.matches.len() * 128);
     let tier_label = match r.tier_used {
@@ -348,6 +392,13 @@ fn render_markdown(r: &engram_index::grep::GrepResult, pattern: &str, regex: boo
         r.files_scanned,
         r.elapsed_ms,
     );
+    let _ = writeln!(
+        out,
+        "Result limit: {result_limit}. Coverage: bounded search; candidate scans and verification warnings apply. Fewer results do not prove exhaustive corpus coverage.\n"
+    );
+    if r.matches.len() >= result_limit {
+        out.push_str("> Result limit reached; additional matches may exist. Narrow the query or path scope. Raising max_results (maximum 1000) may recover more matches but does not remove scan or verification limits.\n\n");
+    }
     if let Some(ref w) = r.index_stale_warning {
         let _ = writeln!(out, "> ⚠️ {w}");
         // Name the drifted files. A count alone is not actionable — the
@@ -365,10 +416,9 @@ fn render_markdown(r: &engram_index::grep::GrepResult, pattern: &str, regex: boo
     }
     if r.matches.is_empty() {
         out.push_str(
-            "_No matches in the index._ grep_project searches Engram's index, not the disk — a \
-             file added or edited since the last index is invisible here. The files are on disk \
-             and a working-tree grep always works: grep the working tree before concluding this \
-             string is absent. Reserve \"cannot determine\" for questions the source can't settle.\n",
+            "_No matches in the searched scope._ Source searches with freshness strict/warn also \
+             inspect eligible working-tree files; freshness off and knowledge namespaces use the index. \
+             Check the scope, exclusions and coverage warnings before concluding the string is absent.\n",
         );
         return out;
     }
@@ -408,6 +458,24 @@ fn render_markdown(r: &engram_index::grep::GrepResult, pattern: &str, regex: boo
             m.column,
             clip(&m.line_text)
         );
+        if let Some(doc_id) = &m.doc_id {
+            let _ = writeln!(out, "doc_id: `{doc_id}` (get_chunk)");
+            let _ = writeln!(
+                out,
+                "get_chunk arguments: `{}`",
+                serde_json::json!({"project_id": project_id, "namespace": namespace, "doc_id": doc_id})
+            );
+            let _ = writeln!(
+                out,
+                "citation get_chunk arguments: `{}`",
+                serde_json::json!({"project_id": project_id, "namespace": namespace, "doc_id": doc_id, "citation": {}})
+            );
+        } else {
+            let _ = writeln!(
+                out,
+                "_Working-tree match: open the file directly; no indexed doc_id._"
+            );
+        }
         for (i, after) in m.context_after.iter().enumerate() {
             let ln = m.line as usize + i + 1;
             let _ = writeln!(out, "    {}:{}: {}", m.file_path, ln, clip(after));
@@ -418,8 +486,11 @@ fn render_markdown(r: &engram_index::grep::GrepResult, pattern: &str, regex: boo
     if shown < r.matches.len() {
         let _ = writeln!(
             out,
-            "\n_… {} more match(es) not shown (output budget reached). Narrow the pattern, pass \
-             `path_prefix`, or raise `max_results` for an exhaustive list._",
+            "\n_… {} more match(es) from this result not shown (Markdown output budget reached). \
+             Repeat the same request with `output_json: true` to recover these matches and their \
+             retrieval arguments. Search/result caps and coverage warnings still apply; JSON does \
+             not establish exhaustive corpus coverage. Narrow the pattern or pass `path_prefix` \
+             when the search itself is capped._",
             r.matches.len() - shown
         );
     }

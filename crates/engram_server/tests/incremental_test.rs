@@ -83,6 +83,7 @@ async fn test_incremental_indexing() {
     // 4. Update Project (Incremental)
     let update_res = engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
+            reindex_paths: Vec::new(),
             project_id: project_id.to_string(),
             wait: true,
             max_commits: 0,

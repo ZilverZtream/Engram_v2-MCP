@@ -260,7 +260,8 @@ async fn related_files_and_read_header() {
     engram.update_memory_bank(Parameters(r)).await.unwrap();
 
     let res = engram
-        .read_memory_bank(Parameters(engram_server::MemorySectionRequest {
+        .read_memory_bank(Parameters(engram_server::ReadMemoryBankRequest {
+            citation: None,
             project_id: pid.clone(),
             section: "wiring".into(),
         }))

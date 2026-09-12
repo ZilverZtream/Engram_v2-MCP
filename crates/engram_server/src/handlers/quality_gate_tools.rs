@@ -12,7 +12,7 @@ use engram_core::safe_join;
 use engram_index::HybridQuery;
 use engram_index::quality_gates::{
     QualityRule, QualitySource, batch_findings, distill_prompt, parse_distilled_rules,
-    parse_quality_source,
+    parse_quality_source_checked, MARKDOWN_CONTEXT_PREFIX,
 };
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, Content};
@@ -20,6 +20,34 @@ use std::sync::Arc;
 use std::time::Duration;
 
 const QG_NAMESPACE: &str = "quality_gate";
+
+/// Resolve one input before quality-rule count/search. File identity uses existing BLAKE3 dependency.
+fn resolve_audit_input(req: &crate::models::PrePushAuditRequest, root: &std::path::Path) -> Result<String, McpError> {
+    use std::io::Read;
+    match (&req.diff_file, &req.diff_file_blake3) {
+        (None,None) if !req.code.trim().is_empty() => Ok(req.code.clone()),
+        (Some(path),Some(expected)) if req.code.is_empty() => {
+            if expected.len()!=64 || !expected.bytes().all(|b|b.is_ascii_hexdigit()) {
+                return Err(McpError::invalid_params("diff_file_blake3 must be64 hex characters",None));
+            }
+            let path=safe_join(root,path).map_err(|e|McpError::invalid_params(e.to_string(),None))?;
+            let file=std::fs::File::open(&path).map_err(|e|McpError::invalid_params(format!("cannot read diff_file: {e}"),None))?;
+            if !file.metadata().map_err(|e|McpError::invalid_params(e.to_string(),None))?.is_file() {
+                return Err(McpError::invalid_params("diff_file must be a regular file",None));
+            }
+            const LIMIT:u64=4*1024*1024;
+            let mut bytes=Vec::new();file.take(LIMIT+1).read_to_end(&mut bytes).map_err(|e|McpError::invalid_params(e.to_string(),None))?;
+            if bytes.len() as u64>LIMIT { return Err(McpError::invalid_params("diff_file exceeds4MiB",None)); }
+            if !blake3::hash(&bytes).to_hex().as_str().eq_ignore_ascii_case(expected) {
+                return Err(McpError::invalid_params("diff_file BLAKE3 mismatch",None));
+            }
+            let code=String::from_utf8(bytes).map_err(|_|McpError::invalid_params("diff_file must be UTF-8; no lossy identity conversion",None))?;
+            if code.trim().is_empty() { return Err(McpError::invalid_params("diff_file must not be empty",None)); }
+            Ok(code)
+        },
+        _ => Err(McpError::invalid_params("Provide nonblank code OR diff_file+diff_file_blake3; inputs must not be mixed or incomplete",None)),
+    }
+}
 
 impl Engram {
     /// Ingest a quality-gate source file into the `quality_gate` namespace.
@@ -52,7 +80,8 @@ impl Engram {
             .unwrap_or(&req.source_path)
             .to_string();
 
-        let rules = parse_quality_source(&content, source, &origin);
+        let rules = parse_quality_source_checked(&content, source, &origin)
+            .map_err(|error| McpError::invalid_params(error, None))?;
         if rules.is_empty() {
             return Ok(CallToolResult::success(vec![Content::text(format!(
                 "No quality-gate rules parsed from {origin} (source_type={}).",
@@ -123,6 +152,9 @@ impl Engram {
         // docs check needed a manual add_repo_rule). Promotion is bounded
         // and shape-gated: high-severity rules whose text reads as a
         // mandate, deduped against existing rules by prefix.
+        // Markdown candidates retain examples and exceptions. Their keyword matches
+        // are retrieval leads, not independently scoped enforceable constraints.
+        let contextual = rules.iter().filter(|r| r.text.starts_with(MARKDOWN_CONTEXT_PREFIX)).count();
         let mut promoted = 0usize;
         {
             let existing: Vec<String> = self
@@ -153,7 +185,8 @@ impl Engram {
                     | QualitySource::DevOpsBoard
             );
             for r in rules.iter().filter(|r| {
-                (guideline_source || r.severity.eq_ignore_ascii_case("high"))
+                !r.text.starts_with(MARKDOWN_CONTEXT_PREFIX)
+                    && (guideline_source || r.severity.eq_ignore_ascii_case("high"))
                     && is_mandate(&r.text)
                     && r.text.len() >= 30
                     && r.text.len() <= 400
@@ -202,7 +235,7 @@ impl Engram {
             "{purge_line}Ingested {} quality-gate rules from {origin} (source_type={}, category={}) into the \
              `{QG_NAMESPACE}` namespace [{sev}]. {promoted} high-severity mandate(s) auto-promoted \
              to repo rules (gates + rule injection read those). Use pre_push_audit to check a \
-             change against them.",
+             change against them. {contextual} context-required Markdown candidate(s) retained for full-source applicability review; these were not auto-promoted to enforceable repo rules.",
             rules.len(),
             req.source_type,
             rules[0].category,
@@ -216,10 +249,9 @@ impl Engram {
         req: crate::models::PrePushAuditRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
-        if req.code.trim().is_empty() {
-            return Err(McpError::invalid_params("code must not be empty", None));
-        }
         let ps = self.ensure_project_runtime(&req.project_id).await?;
+        let code = resolve_audit_input(&req, std::path::Path::new(&ps.info.directory))?;
+        let input_binding = format!("Input: {} bytes, BLAKE3 {} ({}).\n",code.len(),blake3::hash(code.as_bytes()).to_hex(),if req.diff_file.is_some(){"project-relative file"}else{"inline"});
         let gen_ = self.get_active_generation(&req.project_id).await?;
         let top_k = req.top_k.clamp(1, 50);
         // Row-3 audit A6: the mandated pre-push step must say what it
@@ -230,14 +262,20 @@ impl Engram {
                 Err(e) => (0, Some(format!("quality-gate rule count failed: {e}"))),
             };
         if rules_total == 0 && count_failure.is_none() {
-            return Ok(CallToolResult::success(vec![Content::text(
-                "Pre-push audit: INACTIVE — 0 quality-gate rules are ingested for this project, so \
-                 NOTHING was checked. Run ingest_quality_gates (DevOps rules / copilot-instructions / \
-                 CodeRabbit history) and re-run; until then this step is not evidence."
-                    .to_string(),
-            )]));
+            return Ok(CallToolResult::success(vec![Content::text(format!(
+                "{input_binding}Retrieval sampling: NOT RUN (empty corpus).\nPre-push audit: INACTIVE - 0 quality-gate rules are ingested; NOTHING was checked. Configure reviewed sources with ingest_quality_gates and re-run; until then this provider supplies no rule evidence."
+            ))]));
         }
-        let query = crate::utils::text::code_to_query(&req.code);
+        let sampled = crate::utils::text::audit_code_query(&code);
+        let sampling = input_binding + &sampled.coverage();
+        if sampled.query.is_empty() {
+            let count = match &count_failure {
+                Some(failure) => format!("Rule count unavailable. FAILURE: {failure}"),
+                None => format!("Known quality-gate rule count: {rules_total}."),
+            };
+            return Ok(CallToolResult::success(vec![Content::text(format!("{sampling}Retrieval NOT RUN: no usable identifier terms in bounded sample; no search run, no rules checked. {count}"))]));
+        }
+        let query = sampled.query;
         let cancel = tokio_util::sync::CancellationToken::new();
         let hits = ps
             .search
@@ -251,6 +289,7 @@ impl Engram {
                     fts_mode: "loose".into(),
                     include_path_prefixes: None,
                     exclude_path_prefixes: None,
+                    include_path_suffixes: None,
                     language_filters: None,
                     author_filter: None,
                     date_after: None,
@@ -265,7 +304,7 @@ impl Engram {
 
         if hits.is_empty() {
             let mut msg = format!(
-                "Pre-push audit: no quality-gate rules matched this change — {rules_total} rule(s) \
+                "{sampling}Pre-push audit: no quality-gate rules matched this change — {rules_total} rule(s) \
                  exist in the `{QG_NAMESPACE}` namespace and were searched (top_k {top_k}); 0 checked \
                  against this code."
             );
@@ -286,13 +325,14 @@ impl Engram {
         let mut out = String::from(
             "# Pre-push audit — verify the change against these known quality-gate rules\n\n",
         );
+        out.push_str(&sampling);
         out.push_str(
             "Each is a rule/finding the team has flagged before (coding rules, copilot-instructions, \
              CodeRabbit/SonarQube history, the recurring-issues board). Confirm your change does NOT \
              violate them before pushing.\n\n",
         );
         out.push_str(&format!(
-            "Checked: {} rule(s) retrieved of {} in the namespace (top_k {}{})\n\n",
+            "Applicability: read each full_rule before treating it as a mandate; complete source context may contain exceptions and examples.\n\nRetrieved (NOT verified against your code) — {} candidate rule(s) of {} in the namespace (top_k {}{})\n\n",
             hits.len(),
             rules_total,
             top_k,
@@ -310,9 +350,10 @@ impl Engram {
         for h in &hits {
             let p = h.path.as_str().to_ascii_lowercase();
             let line = format!(
-                "- [{}] {}",
+                "- [{}] Search excerpt (not the full rule): {}\n  full_rule: get_chunk({})",
                 h.path.as_str(),
-                h.snippet.as_deref().unwrap_or("").trim()
+                h.snippet.as_deref().unwrap_or("").trim(),
+                serde_json::json!({"project_id":req.project_id,"doc_id":h.doc_id,"namespace":QG_NAMESPACE})
             );
             if scope.as_ref().is_some_and(|s| p.contains(s.as_str())) {
                 scoped.push(line);
@@ -370,7 +411,8 @@ impl Engram {
             .unwrap_or(&req.source_path)
             .to_string();
 
-        let findings = parse_quality_source(&content, source, &origin);
+        let findings = parse_quality_source_checked(&content, source, &origin)
+            .map_err(|error| McpError::invalid_params(error, None))?;
         if findings.is_empty() {
             return Ok(CallToolResult::success(vec![Content::text(format!(
                 "No findings parsed from {origin} (source_type={}).",
@@ -493,5 +535,38 @@ impl Engram {
              pre_push_audit and the planners can now retrieve them.",
             rules.len(),
         ))]))
+    }
+}
+
+
+#[cfg(test)]
+mod audit_input_tests {
+    use super::*;
+    fn req(value:serde_json::Value)->crate::models::PrePushAuditRequest { serde_json::from_value(value).unwrap() }
+    #[test]
+    fn inline_compatibility_and_unambiguous_file_contract() {
+        let root=tempfile::tempdir().unwrap();
+        let inline=req(serde_json::json!({"project_id":"p","code":"ProposedCode"}));
+        assert_eq!(resolve_audit_input(&inline,root.path()).unwrap(),"ProposedCode");
+        for value in [serde_json::json!({"code":"", "diff_file":"a.patch"}),serde_json::json!({"code":"inline","diff_file":"a.patch","diff_file_blake3":"0".repeat(64)}),serde_json::json!({"diff_file_blake3":"0".repeat(64)})] {
+            let mut value=value;value["project_id"]=serde_json::json!("p");
+            assert!(resolve_audit_input(&req(value),root.path()).is_err());
+        }
+    }
+    #[test]
+    fn file_hash_path_and_encoding_verified_before_retrieval() {
+        let root=tempfile::tempdir().unwrap();let data=b"diff --git a/a b/a\n@@ -1 +1 @@\n+TenantCheck\n";
+        std::fs::write(root.path().join("a.patch"),data).unwrap();
+        let hash=blake3::hash(data).to_hex().to_string();
+        let request=|path:&str,hash:&str|req(serde_json::json!({"project_id":"p","diff_file":path,"diff_file_blake3":hash}));
+        assert_eq!(resolve_audit_input(&request("a.patch",&hash),root.path()).unwrap().as_bytes(),data);
+        for path in ["../a.patch","/a.patch","C:\\a.patch","C:a.patch","\\\\server\\share\\a.patch"] {
+            assert!(resolve_audit_input(&request(path,&hash),root.path()).is_err());
+        }
+        assert!(resolve_audit_input(&request("a.patch",&"0".repeat(64)),root.path()).is_err());
+        std::fs::write(root.path().join("bad.patch"),[255u8]).unwrap();
+        assert!(resolve_audit_input(&request("bad.patch",&blake3::hash(&[255]).to_hex().to_string()),root.path()).is_err());
+        std::fs::write(root.path().join("big.patch"),vec![b'x';4*1024*1024+1]).unwrap();
+        assert!(resolve_audit_input(&request("big.patch",&hash),root.path()).is_err());
     }
 }

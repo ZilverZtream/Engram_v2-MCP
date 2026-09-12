@@ -37,6 +37,21 @@ use std::path::PathBuf;
 /// External audit 2026-08-29 row 1: the resx lexicon contributes at most this many
 /// concept terms (most specific first) — each concept runs a footprint (~1 s live).
 pub const LEXICON_CONCEPT_CAP: usize = 4;
+/// Round-2 audit P1-2: the co-change walk depth. Indexing/update warms the
+/// snapshot to exactly this depth and get_change_set requests exactly this
+/// depth, so a warm snapshot is served without a call-time git walk.
+pub const CO_CHANGE_DEPTH: usize = 800;
+/// Round-2 audit P0-3: the ranked PRIMARY set is capped here; everything
+/// else renders as a layer-grouped companion.
+pub const CHANGE_SET_PRIMARY_CAP: usize = 40;
+/// Rows above this tier are never primary (tier 2 = concept corroborated
+/// by an independent arm).
+pub const CHANGE_SET_PRIMARY_MAX_TIER: u8 = 2;
+/// A concept whose footprint matches this many files is too common to
+/// discriminate (IDF proxy): its hits are `broad`, never evidence.
+pub const BROAD_CONCEPT_MIN_FILES: usize = 40;
+/// Story words that must compose a file NAME for the `name` signal.
+pub const NAME_COVERAGE_MIN: usize = 3;
 pub(crate) const ANCHOR_CAP: usize = 50;
 pub(crate) const CONSUMER_CAP_PER_ANCHOR: usize = 200;
 pub(crate) const LEXICAL_PAGE: usize = 2000;
@@ -548,7 +563,7 @@ pub(crate) fn dir_ext_shape(path: &str) -> Option<String> {
 /// now built here and warmed at index / update time, so call time only reads.
 /// Returns the snapshot plus this walk's commits, its walked count, the number
 /// of fresh diffs and whether the time budget cut the walk short.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub(crate) fn build_co_change_snapshot(
     cache: &dashmap::DashMap<String, std::sync::Arc<crate::state::CoChangeSnapshot>>,
     cache_key: String,
@@ -557,15 +572,19 @@ pub(crate) fn build_co_change_snapshot(
     max_commits: usize,
     budget: std::time::Duration,
     started: std::time::Instant,
+    serve_stale_on_changed_head: bool,
 ) -> anyhow::Result<(
     std::sync::Arc<crate::state::CoChangeSnapshot>,
     Vec<crate::state::CoChangeCommit>,
     usize,
     usize,
     bool,
+    // walked_now: false when the warm snapshot was served without a git walk
+    bool,
+    // head_advanced: a newer HEAD exists; the returned snapshot is stale
+    bool,
 )> {
     let repo = GitWalker::open_repo(repo_dir)?;
-    let repo = GitWalker::open_repo(&repo_dir)?;
     let head = repo
         .head()
         .ok()
@@ -587,6 +606,47 @@ pub(crate) fn build_co_change_snapshot(
             .and_then(|bytes| bincode::deserialize(&bytes).ok())
             .map(std::sync::Arc::new),
     };
+
+    // Round-2 audit P1-2: a snapshot that already covers this HEAD at this
+    // depth is served as-is — no oid walk, no diff at call time.
+    if let Some(prev) = &cached
+        && prev.head == head
+        && prev.walked >= max_commits
+        && !prev.partial
+    {
+        cache.entry(cache_key).or_insert_with(|| prev.clone());
+        return Ok((
+            prev.clone(),
+            prev.commits.clone(),
+            prev.walked_oids.len(),
+            0,
+            false,
+            false,
+            false,
+        ));
+    }
+
+    // Doc-11 P1c (round-2 item 6): a CHANGED head never walks on the
+    // request path — the stale snapshot answers now and the caller starts
+    // a background refresh.
+    if serve_stale_on_changed_head
+        && let Some(prev) = &cached
+        && prev.walked >= max_commits
+        && !prev.partial
+        && !prev.head.is_empty()
+        && prev.head != head
+    {
+        cache.entry(cache_key).or_insert_with(|| prev.clone());
+        return Ok((
+            prev.clone(),
+            prev.commits.clone(),
+            prev.walked_oids.len(),
+            0,
+            false,
+            false,
+            true,
+        ));
+    }
 
     let mut known: HashMap<String, crate::state::CoChangeCommit> = HashMap::new();
     let mut already_diffed: HashSet<String> = HashSet::new();
@@ -697,7 +757,15 @@ pub(crate) fn build_co_change_snapshot(
         let _ = std::fs::create_dir_all(parent);
         let _ = std::fs::write(&disk_path, bytes);
     }
-    Ok((snap, commits, walked_oids.len(), fresh_diffs, partial))
+    Ok((
+        snap,
+        commits,
+        walked_oids.len(),
+        fresh_diffs,
+        partial,
+        true,
+        false,
+    ))
 }
 
 /// Warm the co-change snapshot for a project (index / update completion).
@@ -719,9 +787,10 @@ pub(crate) fn warm_co_change_snapshot_blocking(
         project_id.to_string(),
         &disk_path,
         std::path::Path::new(&rec.directory),
-        500,
+        CO_CHANGE_DEPTH,
         co_change_budget(),
         std::time::Instant::now(),
+        false,
     )?;
     Ok(())
 }
@@ -882,6 +951,7 @@ impl Engram {
             fts_mode: "loose".into(),
             include_path_prefixes: None,
             exclude_path_prefixes: None,
+            include_path_suffixes: None,
             language_filters: None,
             author_filter: None,
             date_after: None,
@@ -1128,15 +1198,17 @@ impl Engram {
             .join(format!("{}.bin", req.project_id));
         let budget = co_change_budget();
         let result = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
-            let (_snap, commits, scanned_len, fresh_diffs, partial) = build_co_change_snapshot(
-                &cache,
-                cache_key,
-                &disk_path,
-                &repo_dir,
-                max_commits,
-                budget,
-                started,
-            )?;
+            let (_snap, commits, scanned_len, fresh_diffs, partial, walked_now, head_advanced) =
+                build_co_change_snapshot(
+                    &cache,
+                    cache_key,
+                    &disk_path,
+                    &repo_dir,
+                    max_commits,
+                    budget,
+                    started,
+                    true,
+                )?;
             let walked_oids_len = scanned_len;
             if fresh_diffs > 0 {
                 tracing::debug!(
@@ -1159,7 +1231,14 @@ impl Engram {
             }
             scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
             scored.truncate(top);
-            Ok((scanned, scored, partial))
+            Ok((
+                scanned,
+                scored,
+                partial,
+                walked_now,
+                head_advanced,
+                fresh_diffs,
+            ))
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
@@ -1173,7 +1252,39 @@ impl Engram {
                 None,
             )
         })?;
-        let (scanned, scored, partial) = result;
+        let (scanned, scored, partial, walked_now, head_advanced, fresh_diffs) = result;
+        // Round-2 audit P1-2: say whether this call walked git at all.
+        let coverage_line = if head_advanced {
+            // Doc-11 P1c: stale-served; refresh the snapshot off the request
+            // path so the NEXT caller sees the new HEAD.
+            let cache_bg = self.state.co_change_cache.clone();
+            let key_bg = req.project_id.clone();
+            let disk_bg = self
+                .state
+                .cfg
+                .data_dir
+                .join("co_change")
+                .join(format!("{}.bin", req.project_id));
+            let repo_bg = std::path::PathBuf::from(rec.directory.clone());
+            tokio::task::spawn_blocking(move || {
+                let _ = build_co_change_snapshot(
+                    &cache_bg,
+                    key_bg,
+                    &disk_bg,
+                    &repo_bg,
+                    max_commits,
+                    co_change_budget(),
+                    std::time::Instant::now(),
+                    false,
+                );
+            });
+            "co-change snapshot: warm (served without a git walk; HEAD advanced — background refresh started)\n"
+                .to_string()
+        } else if walked_now {
+            format!("co-change snapshot: extended by a git walk (fresh diffs: {fresh_diffs})\n")
+        } else {
+            "co-change snapshot: warm (served without a git walk)\n".to_string()
+        };
 
         if scored.is_empty() {
             let mut out = format!(
@@ -1189,6 +1300,7 @@ impl Engram {
                      from where it stopped.\n",
                 );
             }
+            out.push_str(&coverage_line);
             out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
             return Ok(CallToolResult::success(vec![Content::text(out)]));
         }
@@ -1279,6 +1391,7 @@ impl Engram {
                  registrations, migrations).\n",
             );
         }
+        out.push_str(&coverage_line);
         out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
@@ -1329,6 +1442,7 @@ impl Engram {
             fts_mode: "loose".into(),
             include_path_prefixes: None,
             exclude_path_prefixes: None,
+            include_path_suffixes: None,
             language_filters: None,
             author_filter: None,
             date_after: None,
@@ -1394,14 +1508,9 @@ impl Engram {
                 coverage.kind_filter_applied = true;
             }
         }
-        // Lexical pre-rank so the structural pass looks at the strongest N.
-        candidates.sort_by(|a, b| {
-            b.1.0.cmp(&a.1.0).then(
-                b.1.1
-                    .partial_cmp(&a.1.1)
-                    .unwrap_or(std::cmp::Ordering::Equal),
-            )
-        });
+        // Keep the strongest query match before the bounded structural pass.
+        // Repeated chunks from a large file are not stronger query relevance.
+        candidates.sort_by(compare_pattern_candidates);
         candidates.truncate(PATTERN_CANDIDATES);
         coverage.candidates_considered = candidates.len();
 
@@ -1452,18 +1561,8 @@ impl Engram {
                 line,
             });
         }
-        // A2: structural fit first, then lexical evidence.
-        ranked.sort_by(|a, b| {
-            b.kind_match
-                .cmp(&a.kind_match)
-                .then(b.structural.cmp(&a.structural))
-                .then(b.hits.cmp(&a.hits))
-                .then(
-                    b.score
-                        .partial_cmp(&a.score)
-                        .unwrap_or(std::cmp::Ordering::Equal),
-                )
-        });
+        // Structure describes an exemplar; density is not query-specific fit.
+        ranked.sort_by(compare_pattern_exemplars);
         let mut exemplars: Vec<PatternExemplar> = Vec::new();
         let mut seen_dirs: HashSet<String> = HashSet::new();
         let total = ranked.len();
@@ -1530,6 +1629,29 @@ impl Engram {
 }
 
 // ── find_implementation_pattern: kinds, shapes, coverage (row-5 audit) ────
+
+// lexical_search forwards Tantivy TopDocs scores: larger is more relevant.
+// Treat any unexpected nonfinite score as unavailable rather than a top match.
+fn pattern_relevance(score: f32) -> f32 {
+    if score.is_finite() { score } else { f32::NEG_INFINITY }
+}
+
+fn compare_pattern_candidates(
+    a: &(String, (usize, f32, String, u32)),
+    b: &(String, (usize, f32, String, u32)),
+) -> std::cmp::Ordering {
+    pattern_relevance(b.1.1).total_cmp(&pattern_relevance(a.1.1))
+        .then_with(|| b.1.0.cmp(&a.1.0))
+        .then_with(|| a.0.cmp(&b.0))
+}
+
+fn compare_pattern_exemplars(a: &PatternExemplar, b: &PatternExemplar) -> std::cmp::Ordering {
+    b.kind_match.cmp(&a.kind_match)
+        .then_with(|| pattern_relevance(b.score).total_cmp(&pattern_relevance(a.score)))
+        .then_with(|| b.structural.cmp(&a.structural))
+        .then_with(|| b.hits.cmp(&a.hits))
+        .then_with(|| a.path.cmp(&b.path))
+}
 
 /// Lexical candidates fetched (cap+1 for an honest status).
 pub(crate) const PATTERN_LEXICAL_CAP: usize = 200;
@@ -2031,6 +2153,7 @@ pub(crate) fn render_pattern_markdown(r: &PatternJson) -> String {
             String::new()
         }
     ));
+    out.push_str("ranking: file kind, then best lexical relevance; structural density is descriptive and breaks relevance ties, not proof of matching behavior. Repeated chunk hits do not outrank a stronger lexical match.\n");
     for ex in &r.exemplars {
         out.push_str(&format!(
             "\n## Exemplar #{}: {} ({} match(es), score {:.2}, structural {})\n",
@@ -2133,6 +2256,49 @@ mod implementation_pattern_unit_tests {
     use super::*;
 
     #[test]
+    fn strongest_pattern_match_survives_more_than_fifteen_chunk_rich_files() {
+        let mut candidates = (0..16).map(|i| (
+            format!("src/General{i:02}.vb"), (8, 4.0, "general vocabulary".into(), 1),
+        )).collect::<Vec<_>>();
+        candidates.push(("src/Exact.vb".into(), (1, 40.0, "precise identifiers".into(), 7)));
+        candidates.sort_by(compare_pattern_candidates);
+        candidates.truncate(PATTERN_CANDIDATES);
+        assert_eq!(candidates.len(), 15);
+        assert_eq!(candidates[0].0, "src/Exact.vb");
+        assert_eq!(candidates[1].0, "src/General00.vb");
+    }
+
+    fn ranked_example(path: &str, score: f32, structural: usize) -> PatternExemplar {
+        PatternExemplar { path: path.into(), rank: 0, kind_match: true, hits: 1,
+            score, structural, shape: ExemplarShape::default(), coupled: vec![],
+            snippet: String::new(), line: 1 }
+    }
+
+    #[test]
+    fn lexical_match_beats_unrelated_density_for_classes_and_pages() {
+        for suffix in [".vb", ".aspx.vb", ".ts"] {
+            let exact = format!("src/Exact{suffix}");
+            let mut examples = vec![ranked_example(&format!("src/Dense{suffix}"), 4.0, 100),
+                ranked_example(&exact, 40.0, 0)];
+            examples[0].hits = 20;
+            examples.sort_by(compare_pattern_exemplars);
+            assert_eq!(examples[0].path, exact);
+        }
+    }
+
+    #[test]
+    fn pattern_relevance_ties_use_density_then_stable_path_and_preserve_kind() {
+        let mut examples = vec![ranked_example("z.vb", 10.0, 3),
+            ranked_example("b.vb", 10.0, 6), ranked_example("a.vb", 10.0, 6),
+            ranked_example("wrong.ts", 100.0, 100), ranked_example("nan.vb", f32::NAN, 100)];
+        examples[3].kind_match = false;
+        examples.sort_by(compare_pattern_exemplars);
+        assert_eq!(examples.iter().map(|e| e.path.as_str()).collect::<Vec<_>>(),
+            ["a.vb", "b.vb", "z.vb", "nan.vb", "wrong.ts"]);
+    }
+
+
+    #[test]
     fn kind_inference_prefers_page_words() {
         assert_eq!(
             infer_pattern_kind("admin page with a GridView and a save button"),
@@ -2197,6 +2363,150 @@ mod tests {
     use super::*;
 
     #[test]
+    fn coverage_details_keep_forty_identity_warnings_and_short_summary() {
+        let notes: Vec<String> = (0..40).map(|i| format!("historical partner src/File{i}.vb resolved only by a disk probe; current index identity is unverified")).collect();
+        let mut c = ArmCoverage::complete(70, 1);
+        apply_detect_cochange_coverage(&mut c, notes.clone());
+        assert_eq!(c.diagnostics.entries, notes);
+        assert_eq!(c.status, "incomplete");
+        assert_eq!(c.hits, 70);
+        assert!(c.note.len() < 400);
+        assert!(!c.diagnostics.details_complete);
+    }
+    #[test]
+    fn coverage_details_preserve_duplicate_occurrences_across_passes() {
+        let mut c = ArmCoverage::complete(0, 0);
+        for _ in 0..2 { apply_detect_cochange_coverage(&mut c, vec!["same warning".into()]); }
+        assert_eq!(c.diagnostics.entries, vec!["same warning", "same warning"]);
+        assert!(c.note.starts_with("2 retained diagnostic message occurrences"));
+    }
+    #[test]
+    fn coverage_details_do_not_invent_distinct_omission_counts() {
+        let mut producer = EditCompletenessCoverage::default();
+        for i in 0..40 { producer.note(format!("warning {i}")); }
+        producer.note("omitted repeated".into()); producer.note("omitted repeated".into());
+        assert_eq!(producer.omitted, 2);
+        let marker = format!("{} additional coverage notes omitted (display cap 40)", producer.omitted);
+        producer.notes.push(marker.clone());
+        let mut c = ArmCoverage::complete(0, 0);
+        apply_detect_cochange_coverage(&mut c, producer.notes);
+        assert_eq!(c.diagnostics.entries.last(), Some(&marker));
+        assert_eq!(c.diagnostics.omitted_occurrences, None);
+        assert!(!c.diagnostics.details_complete);
+    }
+    #[test]
+    fn coverage_details_roundtrip_semicolons_unicode_and_newlines() {
+        let message = "path;a\u{00e9}.vb; missing identity\r\nsecond line".to_string();
+        let mut c = ArmCoverage::complete(0, 0);
+        apply_detect_cochange_coverage(&mut c, vec![message.clone()]);
+        let value = serde_json::to_value(&c).unwrap();
+        assert_eq!(value["diagnostics"]["entries"][0].as_str(), Some(message.as_str()));
+        assert!(c.line().contains(&message));
+    }
+    #[test]
+    fn coverage_details_preserve_status_precedence_and_prior_reason() {
+        let mut c = ArmCoverage::truncated(3, 4, "prior; exact reason".into());
+        apply_detect_cochange_coverage(&mut c, vec!["identity unresolved".into()]);
+        assert_eq!(c.status, "truncated");
+        apply_detect_cochange_coverage(&mut c, vec!["lookup failed: unavailable".into()]);
+        apply_detect_cochange_coverage(&mut c, vec!["caller checks truncated at 1".into()]);
+        assert_eq!(c.status, "failed");
+        assert_eq!(c.diagnostics.entries[0], "prior; exact reason");
+    }
+    #[test]
+    fn coverage_constructor_reasons_remain_exact_and_actionable() {
+        for c in [ArmCoverage::failed("provider failed; retry".into(), 1), ArmCoverage::not_run("enable provider"), ArmCoverage::truncated(1, 1, "cap; inspect remainder".into())] {
+            assert_eq!(c.diagnostics.entries.len(), 1);
+            assert!(c.line().contains(&c.diagnostics.entries[0]));
+            assert!(!c.diagnostics.details_complete);
+        }
+    }
+    #[test]
+    fn coverage_json_and_markdown_do_not_concatenate_detail_messages() {
+        let mut c = ArmCoverage::complete(0, 0);
+        let notes = vec!["first warning".into(), "4 additional coverage notes omitted (display cap 40)".into()];
+        apply_detect_cochange_coverage(&mut c, notes.clone());
+        let json = serde_json::to_string_pretty(&c).unwrap();
+        assert!(json.lines().all(|line| line.len() < 400));
+        for note in notes { assert!(json.contains(&note)); assert!(c.line().contains(&format!("\n  - {note}"))); }
+    }
+    #[test]
+    fn coverage_short_constructor_reasons_stay_directly_actionable() {
+        for reason in ["provider disabled; enable local index", "file index unavailable", "no concept/history seeds to anchor on"] {
+            let c = ArmCoverage::not_run(reason);
+            assert_eq!(c.note, reason);
+            assert_eq!(c.diagnostics.entries, vec![reason]);
+        }
+        let boundary = "\u{00e9}".repeat(400);
+        assert_eq!(ArmCoverage::failed(boundary.clone(), 0).note, boundary);
+    }
+    #[test]
+    fn coverage_long_or_multiline_constructor_reason_has_bounded_note_and_exact_details() {
+        for reason in ["\u{00e9}".repeat(401), "provider failed\nsecond line".into(), "provider failed\rsecond line".into()] {
+            let c = ArmCoverage::failed(reason.clone(), 0);
+            assert!(c.note.chars().count() <= 400);
+            assert!(!c.note.contains(['\r', '\n']));
+            assert_eq!(c.diagnostics.entries, vec![reason]);
+            assert_eq!(c.status, "failed");
+        }
+    }
+
+    #[test]
+    fn coverage_empty_append_does_not_change_existing_state() {
+        let mut c = ArmCoverage::complete(2, 3);
+        let before = serde_json::to_value(&c).unwrap();
+        apply_detect_cochange_coverage(&mut c, Vec::new());
+        assert_eq!(serde_json::to_value(c).unwrap(), before);
+    }
+
+
+    #[test]
+    fn detect_cochange_evidence_keeps_only_explicit_partners_and_propagates_partial_coverage() {
+        let report = "# Edit completeness check\n\
+            ## Co-change partners you did NOT touch\n\
+            History supplies review candidates\n\
+            - `nested/Rules.vb` (25 co-changes with `src/Seed.vb`)\n\
+            - `Rules.vb` (15 co-changes with `src/OtherSeed.vb`)\n\
+            ## Shared state with untouched files\n\
+            - state key `Session:Tenant` is also read/written in: unrelated/Reader.vb\n\
+            ## Methods with zero indexed callers (review candidates)\n\
+            - `Unused` (unrelated/Unused.vb:9)\n\
+            ## House conventions for these files\n\
+            - inspect rules/Example.vb\n\
+            ## INCOMPLETE coverage\n\
+            - state edges for sym:function:diagnostics/Skipped.vb:Read:1 truncated at 20\n\
+            - historical partner old/Ambiguous.js has ambiguous current-file matches\n\
+            - `diagnostics/NotAPartner.vb` (40 co-changes with `diagnostics/NotASeed.vb`)\n\
+            next: pre_commit_review\n";
+        let (paths, notes) = detect_cochange_evidence(report);
+        assert_eq!(paths, vec!["nested/rules.vb", "rules.vb"]);
+        assert!(notes.iter().any(|note| note.contains("diagnostics/Skipped.vb")));
+        let mut coverage = ArmCoverage::complete(paths.len(), 7);
+        apply_detect_cochange_coverage(&mut coverage, notes);
+        assert_eq!(coverage.status, "truncated");
+        assert_eq!(coverage.hits, 2);
+        assert!(coverage.diagnostics.entries.iter().any(|entry| entry.contains("INCOMPLETE coverage")));
+        assert!(coverage.diagnostics.entries.iter().any(|entry| entry.contains("old/Ambiguous.js")));
+    }
+
+    #[test]
+    fn detect_cochange_unknown_and_failed_coverage_do_not_become_complete() {
+        let report = "# Edit completeness check\n\
+            1 of your edited files were NOT found in the index (src/Missing.vb).\n\
+            ## INCOMPLETE coverage\n\
+            - Shared node snapshot supplied; completeness unknown\n";
+        let (paths, notes) = detect_cochange_evidence(report);
+        assert!(paths.is_empty());
+        let mut coverage = ArmCoverage::complete(1, 2);
+        apply_detect_cochange_coverage(&mut coverage, notes);
+        assert_eq!(coverage.status, "incomplete");
+        apply_detect_cochange_coverage(&mut coverage, vec!["presentation detect_incomplete_changes failed: provider unavailable".into()]);
+        assert_eq!(coverage.status, "failed");
+        assert_eq!(coverage.hits, 1, "known candidates survive missing provider evidence");
+        assert!(coverage.diagnostics.entries.iter().any(|entry| entry.contains("src/Missing.vb")));
+    }
+
+    #[test]
     fn concept_stems_cover_plural_and_compound() {
         let stems = concept_stems("Code Categories");
         assert!(stems.contains(&"code categories".to_string()));
@@ -2248,6 +2558,89 @@ mod tests {
         );
         assert_eq!(dir_ext_shape("menu.xml").as_deref(), Some("*.xml"));
         assert_eq!(dir_ext_shape("Makefile"), None);
+    }
+
+    #[test]
+    fn the_best_row_of_each_layer_leads_the_primary_set() {
+        // Round-2 audit P0-3, live r37: rk_redovisningskategorier.sql — the
+        // only Data-layer critical file — ranked 37 behind forty Server rows
+        // carrying one more signal. A change set spans layers: the best
+        // tier<=1 row of EVERY layer belongs in the head of the primary set.
+        let mut prov: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
+        for i in 0..45 {
+            prov.insert(
+                format!("site/app_code/redovisning/file{i:02}.vb"),
+                ["cochange", "concept", "gloss", "vector"]
+                    .into_iter()
+                    .collect(),
+            );
+        }
+        prov.insert(
+            "db-x.sql/dbo/tables/rk_redovisningskategorier.sql".into(),
+            ["cochange", "concept", "gloss"].into_iter().collect(),
+        );
+        prov.insert(
+            "site/app_globalresources/text.resx".into(),
+            ["cochange", "concept"].into_iter().collect(),
+        );
+        let (rows, _) = change_set_rows(&prov);
+        let sql = rows
+            .iter()
+            .find(|r| r.path.ends_with("rk_redovisningskategorier.sql"))
+            .unwrap();
+        assert_eq!(sql.set, "primary", "{sql:?}");
+        assert!(
+            sql.rank <= 6,
+            "the Data layer's best row leads, got rank {}",
+            sql.rank
+        );
+        let resx = rows.iter().find(|r| r.path.ends_with("text.resx")).unwrap();
+        assert!(
+            resx.rank <= 6,
+            "the Resources layer's best row leads, got rank {}",
+            resx.rank
+        );
+        // The heads keep the layer order and the rest keeps its evidence order.
+        assert!(
+            rows[0].path.ends_with(".vb"),
+            "Server head first: {:?}",
+            rows[0]
+        );
+    }
+
+    #[test]
+    fn story_word_name_coverage_leads_its_tier() {
+        // Round-2 audit P0-3, live r36: the page pair (name+vector, tier 0)
+        // ranked 42/43 behind forty tier-0 rows carrying more signals
+        // (co-change+concept+gloss) — outside the primary set. The story's own
+        // words composing a file NAME is the most story-specific evidence
+        // there is: it leads its tier.
+        let mut prov: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
+        for i in 0..45 {
+            prov.insert(
+                format!("site/app_code/redovisning/file{i:02}.vb"),
+                ["cochange", "concept", "gloss"].into_iter().collect(),
+            );
+        }
+        for p in [
+            "site/modules/dashboard/pages/admin/production/productioncodelistmaincategory.aspx",
+            "site/modules/dashboard/pages/admin/production/productioncodelistmaincategory.aspx.vb",
+        ] {
+            prov.insert(p.to_string(), ["name", "vector"].into_iter().collect());
+        }
+        let (rows, _) = change_set_rows(&prov);
+        for s in [
+            "productioncodelistmaincategory.aspx",
+            "productioncodelistmaincategory.aspx.vb",
+        ] {
+            let r = rows.iter().find(|r| r.path.ends_with(s)).unwrap();
+            assert_eq!(r.set, "primary", "{s}: {r:?}");
+            assert!(
+                r.rank <= 2,
+                "{s} leads the primary set, got rank {}",
+                r.rank
+            );
+        }
     }
 
     #[test]
@@ -2723,6 +3116,7 @@ pub(crate) struct GuardsCoverage {
 
 #[derive(Debug, Clone, Default, serde::Serialize)]
 pub(crate) struct GuardsReport {
+    pub analysis_scope: String,
     pub scope: Option<String>,
     pub functions: Vec<GuardVerdict>,
     pub guarded: Vec<String>,
@@ -2779,7 +3173,7 @@ fn helper_candidates(
     pid: &str,
     n: &engram_graph::Node,
     body: Option<&str>,
-    file_fns: &HashMap<(String, String), engram_graph::Node>,
+    file_fns: &HashMap<(String, String), Vec<engram_graph::Node>>,
     failures: &mut Vec<String>,
 ) -> Vec<engram_graph::Node> {
     static RE_BARE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
@@ -2789,21 +3183,42 @@ fn helper_candidates(
     let mut seen: HashSet<String> = HashSet::new();
     let file = n.file_path.as_str().replace('\\', "/");
     if let Some(b) = body {
-        for line in b.lines() {
-            let code = line.split('\'').next().unwrap_or(line);
+        // Ignore comments and string literals before considering lexical
+        // fallback calls. A quoted example is not a helper invocation.
+        static NONCODE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+            regex::Regex::new(r#"(?s)/\*.*?\*/|"(?:""|\\.|[^"\\])*"|'[^\r\n]*|//[^\r\n]*"#)
+                .expect("guard noncode")
+        });
+        let code_only = NONCODE.replace_all(b, " ");
+        for line in code_only.lines() {
+            let code = line;
             for cap in RE_BARE.captures_iter(code) {
                 let key = (file.clone(), cap[1].to_ascii_lowercase());
-                if let Some(t) = file_fns.get(&key)
-                    && t.node_id != n.node_id
-                    && seen.insert(t.node_id.clone())
-                {
-                    out.push(t.clone());
+                if let Some(matches) = file_fns.get(&key) {
+                    if matches.len() != 1 {
+                        failures.push(format!(
+                            "{}: lexical helper {} is ambiguous; require a resolved graph edge",
+                            n.name, &cap[1]
+                        ));
+                        continue;
+                    }
+                    let t = &matches[0];
+                    if t.node_id != n.node_id && seen.insert(t.node_id.clone()) {
+                        out.push(t.clone());
+                    }
                 }
             }
         }
     }
-    match graph.neighbors(pid, EdgeKind::Calls, &n.node_id, GUARD_HELPER_HOP_CAP) {
-        Ok(neigh) => {
+    match graph.neighbors(pid, EdgeKind::Calls, &n.node_id, GUARD_HELPER_HOP_CAP + 1) {
+        Ok(mut neigh) => {
+            if neigh.len() > GUARD_HELPER_HOP_CAP {
+                failures.push(format!(
+                    "{}: helper traversal truncated at {GUARD_HELPER_HOP_CAP}",
+                    n.name
+                ));
+                neigh.truncate(GUARD_HELPER_HOP_CAP);
+            }
             for (target, _) in neigh {
                 if seen.contains(&target) {
                     continue;
@@ -2813,7 +3228,10 @@ fn helper_candidates(
                         seen.insert(target);
                         out.push(t);
                     }
-                    Ok(None) => {}
+                    Ok(None) => failures.push(format!(
+                        "{}: unresolved helper {target}; guard coverage unknown",
+                        n.name
+                    )),
                     Err(e) => {
                         failures.push(format!("{}: helper lookup {target} failed: {e}", n.name))
                     }
@@ -2852,11 +3270,9 @@ pub(crate) fn client_scope_reads(body: &str) -> Vec<String> {
     found.into_iter().map(|(_, k)| k).collect()
 }
 
-/// True when every line of `body` that mentions one of `checks` (the
-/// extractor's `permission_checks`, `;`-separated, lower-case) is indented
-/// deeper than the function's top-level statements — i.e. the check runs
-/// only on some branch. False when at least one check is a top-level guard
-/// clause, or when no check line is found at all.
+/// True when an unconditional source invocation has not been corroborated.
+/// Excludes non-code text, conditional branches and checks after returns.
+/// This is bounded static evidence, not proof of runtime authorization.
 pub(crate) fn own_checks_all_conditional(body: &str, checks: &str) -> bool {
     let names: Vec<String> = checks
         .split(';')
@@ -2866,7 +3282,80 @@ pub(crate) fn own_checks_all_conditional(body: &str, checks: &str) -> bool {
     if names.is_empty() {
         return false;
     }
-    let lines: Vec<&str> = body.lines().collect();
+    // Preserve line boundaries while removing non-code text. Metadata alone
+    // cannot corroborate a call that occurs only in a comment or example.
+    static NONCODE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(r#"(?s)/\*.*?\*/|"(?:""|\\.|[^"\\])*"|'[^\r\n]*|//[^\r\n]*"#)
+            .expect("guard evidence noncode")
+    });
+    let code = NONCODE.replace_all(body, |caps: &regex::Captures<'_>| {
+        caps[0]
+            .chars()
+            .map(|c| if c == '\n' { '\n' } else { ' ' })
+            .collect::<String>()
+    });
+    let calls: Vec<regex::Regex> = names
+        .iter()
+        .map(|name| {
+            regex::Regex::new(&format!(r"(?i)\b{}\s*\(", regex::escape(name)))
+                .expect("escaped guard call")
+        })
+        .collect();
+    let lines: Vec<&str> = code.lines().collect();
+    let braced = lines.first().is_some_and(|line| line.contains('{'))
+        || lines.iter().skip(1).take(2).any(|line| line.trim() == "{");
+    if braced {
+        static CONTROL: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+            regex::Regex::new(r"^(?:else\s+)?(?:if|for|foreach|while|switch|catch)\s*\(")
+                .expect("brace control header")
+        });
+        let depth_after = |depth: usize, text: &str| {
+            depth
+                .saturating_add(text.matches('{').count())
+                .saturating_sub(text.matches('}').count())
+        };
+        let mut depth = lines.first().map_or(0, |line| depth_after(0, line));
+        let mut pending_statement = false;
+        for line in lines.iter().skip(1) {
+            let lower = line.to_ascii_lowercase();
+            let statement = lower.trim();
+            let control = CONTROL.is_match(statement);
+            for call in &calls {
+                if let Some(found) = call.find(&lower) {
+                    let prefix = &lower[..found.start()];
+                    let conditional = pending_statement
+                        || depth_after(depth, prefix) != 1
+                        || prefix.contains("&&")
+                        || prefix.contains("||")
+                        || prefix.contains('?')
+                        || (control && prefix.contains(')'))
+                        || prefix.trim_start().starts_with("else");
+                    if !conditional {
+                        return false;
+                    }
+                }
+            }
+            if depth == 1
+                && !pending_statement
+                && (statement == "return;"
+                    || statement.starts_with("return ")
+                    || statement == "throw;"
+                    || statement.starts_with("throw "))
+            {
+                break;
+            }
+            depth = depth_after(depth, &lower);
+            if statement.contains(';') || statement.contains('{') {
+                pending_statement = false;
+            }
+            if (control && statement.ends_with(')') && !statement.contains('{'))
+                || statement == "else"
+            {
+                pending_statement = true;
+            }
+        }
+        return true;
+    }
     // Top-level statement indent: the smallest indent of a non-blank line
     // after the declaration line, excluding `End …` lines.
     let top = lines
@@ -2879,19 +3368,62 @@ pub(crate) fn own_checks_all_conditional(body: &str, checks: &str) -> bool {
         .map(|l| l.len() - l.trim_start().len())
         .min()
         .unwrap_or(0);
-    let mut seen = false;
+    let mut branch_depth = 0usize;
     for l in lines.iter().skip(1) {
         let lower = l.to_ascii_lowercase();
-        if !names.iter().any(|n| lower.contains(n)) {
-            continue;
+        let statement = lower.trim();
+        if statement.starts_with("end if")
+            || statement.starts_with("end select")
+            || statement.starts_with("end while")
+            || statement.starts_with("end try")
+            || statement == "next"
+            || statement.starts_with("next ")
+            || statement == "loop"
+            || statement.starts_with("loop ")
+        {
+            branch_depth = branch_depth.saturating_sub(1);
         }
-        seen = true;
         let indent = l.len() - l.trim_start().len();
-        if indent <= top {
-            return false; // a top-level guard clause
+        if branch_depth == 0 && indent <= top {
+            for call in &calls {
+                if let Some(found) = call.find(&lower) {
+                    let prefix = &lower[..found.start()];
+                    if prefix.contains(" then ")
+                        || prefix.contains("andalso")
+                        || prefix.contains("orelse")
+                        || prefix.contains("&&")
+                        || prefix.contains("||")
+                    {
+                        continue;
+                    }
+                    return false;
+                }
+            }
+            if statement == "return"
+                || statement.starts_with("return ")
+                || statement == "throw"
+                || statement.starts_with("throw ")
+                || statement.starts_with("exit sub")
+                || statement.starts_with("exit function")
+            {
+                break;
+            }
+        }
+        if (statement.starts_with("if ") && statement.ends_with(" then"))
+            || statement.starts_with("select case ")
+            || statement.starts_with("while ")
+            || statement.starts_with("for ")
+            || statement == "do"
+            || statement.starts_with("do while ")
+            || statement.starts_with("do until ")
+            || statement == "try"
+        {
+            branch_depth += 1;
         }
     }
-    seen
+    // No unconditional invocation corroborated, including stale metadata
+    // mentioning a check that does not occur in this body.
+    true
 }
 
 /// An OBJECT-level guard in the body: the check takes the scope value
@@ -2903,7 +3435,18 @@ pub(crate) fn has_object_level_guard(body: &str) -> bool {
         )
         .expect("RE_OBJ")
     });
-    RE_OBJ.is_match(body)
+    let fragment;
+    let verification_body = if body.contains('\n') {
+        body
+    } else {
+        fragment = format!("Sub Evidence()\n{body}\nEnd Sub\n");
+        &fragment
+    };
+    let mut seen = HashSet::new();
+    RE_OBJ.find_iter(body).any(|matched| {
+        let name = matched.as_str().trim_end_matches('(').trim();
+        seen.insert(name) && !own_checks_all_conditional(verification_body, name)
+    })
 }
 
 pub(crate) fn build_guards_report(
@@ -2930,7 +3473,6 @@ pub(crate) fn build_guards_report(
         ],
         ..Default::default()
     };
-    let scope_lc = scope.map(|s| s.to_lowercase());
 
     // Project-wide scan (house patterns, settings tables, app settings).
     let all_nodes = match graph.query_nodes(pid, None, None, None, crate::handlers::NODE_SCAN_LIMIT)
@@ -2947,46 +3489,56 @@ pub(crate) fn build_guards_report(
         cov.node_scan = "truncated".into();
     }
 
-    // Scoped function set: a path-like scope is a STORE query.
-    let mut scoped: Vec<engram_graph::Node> = Vec::new();
-    if let Some(sc) = scope {
-        let path_like = sc.contains('/') || sc.contains('.');
-        if path_like {
-            match graph.query_nodes(
-                pid,
-                Some("function"),
-                None,
-                Some(sc),
-                crate::handlers::NODE_SCAN_LIMIT,
-            ) {
-                Ok(n) if !n.is_empty() => {
-                    cov.scope_query = "store".into();
-                    scoped = n;
+    // Match scope inside the store before capping. A request for `ata`
+    // must not include `ata-old` or a similarly named suffix elsewhere.
+    let mut scoped: Vec<engram_graph::Node> = if let Some(sc) = scope {
+        let path_like = sc.contains('/')
+            || sc.contains('\\')
+            || sc.to_lowercase().ends_with(".vb")
+            || sc.to_lowercase().ends_with(".cs");
+        // A root directory such as `services` has no slash or extension.
+        // Resolve exact file/directory boundaries first; only a non-path
+        // scope with no directory matches falls back to an exact symbol.
+        cov.scope_query = "store".into();
+        let result = match graph.query_nodes_in_scope(
+            pid, Some("function"), sc, crate::handlers::NODE_SCAN_LIMIT + 1,
+        ) {
+            Ok(n) if n.is_empty() && !path_like => {
+                // A directory may exist without extracted functions. Do not
+                // replace that empty evidence with a same-named method elsewhere.
+                match graph.query_nodes_in_scope(pid, None, sc, 1) {
+                    Ok(existing) if existing.is_empty() => {
+                        cov.scope_query = "symbol".into();
+                        graph.query_nodes_by_symbol_name(pid, sc, None, crate::handlers::NODE_SCAN_LIMIT + 1)
+                    }
+                    Ok(_) => Ok(n),
+                    Err(error) => Err(error),
                 }
-                Ok(_) => {}
-                Err(e) => cov.failures.push(format!("scoped store query failed: {e}")),
+            }
+            result => result,
+        };
+        match result {
+            Ok(mut n) => {
+                n.retain(|n| n.node_type == "function");
+                if n.len() > crate::handlers::NODE_SCAN_LIMIT {
+                    cov.failures
+                        .push("scoped function lookup truncated at NODE_SCAN_LIMIT".into());
+                    n.truncate(crate::handlers::NODE_SCAN_LIMIT);
+                }
+                n
+            }
+            Err(e) => {
+                cov.failures.push(format!("scoped store query failed: {e}"));
+                Vec::new()
             }
         }
-        if scoped.is_empty() {
-            cov.scope_query = "filter".into();
-            let s = scope_lc.clone().unwrap_or_default();
-            scoped = all_nodes
-                .iter()
-                .filter(|n| n.node_type == "function")
-                .filter(|n| {
-                    let fp = n.file_path.as_str().replace('\\', "/").to_lowercase();
-                    fp.contains(&s) || n.name.to_lowercase() == s
-                })
-                .cloned()
-                .collect();
-        }
     } else {
-        scoped = all_nodes
+        all_nodes
             .iter()
             .filter(|n| n.node_type == "function")
             .cloned()
-            .collect();
-    }
+            .collect()
+    };
     scoped.sort_by(|a, b| {
         a.file_path
             .as_str()
@@ -2994,8 +3546,12 @@ pub(crate) fn build_guards_report(
             .then(a.start_line.cmp(&b.start_line))
     });
     cov.in_scope_functions = scoped.len();
+    if scope.is_some() && scoped.is_empty() {
+        cov.failures.push("No indexed functions resolved in the requested scope; guard coverage is unknown. Use a project-relative file/directory or exact function name.".into());
+    }
 
     let mut report = GuardsReport {
+        analysis_scope: "Static guard evidence and one-hop helpers; does not verify control flow, tenant isolation, or runtime enforcement".into(),
         scope: scope.map(|s| s.to_string()),
         app_settings_defined: 0,
         ..Default::default()
@@ -3034,31 +3590,40 @@ pub(crate) fn build_guards_report(
 
     // Verdict per scoped function (A1 + A3), client-input rule (A2).
     let mut file_lines: HashMap<String, Option<Vec<String>>> = HashMap::new();
+    let mut source_checks: HashMap<String, Result<(), String>> = HashMap::new();
     // (file, bare lower-case name) → function node, for bare in-class calls.
-    let file_fns: HashMap<(String, String), engram_graph::Node> = all_nodes
-        .iter()
-        .filter(|n| n.node_type == "function")
-        .map(|n| {
-            (
-                (
-                    n.file_path.as_str().replace('\\', "/"),
-                    n.name
-                        .rsplit('.')
-                        .next()
-                        .unwrap_or(&n.name)
-                        .to_ascii_lowercase(),
-                ),
-                n.clone(),
-            )
-        })
-        .collect();
+    let mut file_fns: HashMap<(String, String), Vec<engram_graph::Node>> = HashMap::new();
+    for node in all_nodes.iter().filter(|n| n.node_type == "function") {
+        let key = (
+            node.file_path.as_str().replace('\\', "/"),
+            node.name
+                .rsplit('.')
+                .next()
+                .unwrap_or(&node.name)
+                .to_ascii_lowercase(),
+        );
+        file_fns.entry(key).or_default().push(node.clone());
+    }
     for n in &scoped {
         let checks = node_meta_str(n, "permission_checks").to_string();
         let roles = node_meta_str(n, "guard_roles").to_string();
         let fallback = node_meta_str(n, "extraction_fallback") == "true";
         let bare = n.name.rsplit('.').next().unwrap_or(&n.name).to_string();
         let file = n.file_path.as_str().replace('\\', "/");
-        let body: Option<String> = {
+        let source_check = source_checks
+            .entry(file.clone())
+            .or_insert_with(|| {
+                super::access_layer_tools::verify_indexed_source_span(
+                    graph,
+                    pid,
+                    &root.to_string_lossy(),
+                    &file,
+                )
+            })
+            .clone();
+        let body: Option<String> = if source_check.is_err() {
+            None
+        } else {
             let lines = file_lines.entry(file.clone()).or_insert_with(|| {
                 match std::fs::read_to_string(root.join(&file)) {
                     Ok(t) => Some(t.lines().map(|l| l.to_string()).collect::<Vec<_>>()),
@@ -3096,8 +3661,62 @@ pub(crate) fn build_guards_report(
             role_only: false,
             own_check_conditional: false,
         };
-        let candidates =
+        let failures_before = cov.failures.len();
+        let mut candidates =
             helper_candidates(graph, pid, n, body.as_deref(), &file_fns, &mut cov.failures);
+        candidates.retain(|helper| {
+            if node_meta_str(helper, "extraction_fallback") == "true" {
+                cov.failures.push(format!(
+                    "{}: helper {} has fallback extraction",
+                    n.name, helper.name
+                ));
+                return false;
+            }
+            let helper_file = helper.file_path.as_str().replace('\\', "/");
+            let check = source_checks.entry(helper_file.clone()).or_insert_with(|| {
+                super::access_layer_tools::verify_indexed_source_span(
+                    graph,
+                    pid,
+                    &root.to_string_lossy(),
+                    &helper_file,
+                )
+            });
+            if let Err(error) = check {
+                cov.failures
+                    .push(format!("{}: helper {}: {error}", n.name, helper.name));
+                return false;
+            }
+            let helper_name = helper.name.rsplit('.').next().unwrap_or(&helper.name);
+            let helper_lines = file_lines.entry(helper_file.clone()).or_insert_with(|| {
+                std::fs::read_to_string(root.join(&helper_file))
+                    .ok()
+                    .map(|s| s.lines().map(str::to_string).collect())
+            });
+            let helper_body = helper_lines
+                .as_ref()
+                .and_then(|lines| {
+                    lines.get(
+                        helper.start_line.saturating_sub(1) as usize
+                            ..(helper.end_line as usize).min(lines.len()),
+                    )
+                })
+                .map(|lines| lines.join("\n"));
+            if body
+                .as_deref()
+                .is_none_or(|b| own_checks_all_conditional(b, helper_name))
+                || helper_body.as_deref().is_none_or(|b| {
+                    own_checks_all_conditional(b, node_meta_str(helper, "permission_checks"))
+                })
+            {
+                cov.failures.push(format!(
+                    "{}: helper {} is conditional; all-path coverage unknown",
+                    n.name, helper.name
+                ));
+                return false;
+            }
+            true
+        });
+        let incomplete_helpers = cov.failures.len() > failures_before;
         let credit = |v: &mut GuardVerdict, t: &engram_graph::Node, why: &str| {
             let tc = node_meta_str(t, "permission_checks");
             let tb = t.name.rsplit('.').next().unwrap_or(&t.name).to_string();
@@ -3116,7 +3735,8 @@ pub(crate) fn build_guards_report(
                 .is_some_and(|b| own_checks_all_conditional(b, &checks))
             {
                 v.own_check_conditional = true;
-                v.reason = "own permission check runs only on a branch".into();
+                v.reason =
+                    "own permission check is conditional or not corroborated in source".into();
                 if let Some(t) = candidates
                     .iter()
                     .find(|t| !node_meta_str(t, "permission_checks").is_empty())
@@ -3167,6 +3787,26 @@ pub(crate) fn build_guards_report(
                     "no permission check in the body and none in any directly called helper".into();
             }
         }
+        if let Err(error) = source_check {
+            v.verdict = "unknown".into();
+            v.reason = error.clone();
+            cov.failures.push(error);
+        } else if body.is_none() {
+            v.verdict = "unknown".into();
+            v.via = None;
+            v.reason =
+                "source body unavailable; metadata alone cannot establish guard coverage".into();
+        } else if fallback {
+            v.verdict = "unknown".into();
+            v.reason = "fallback extraction cannot establish guard coverage".into();
+        } else if v.own_check_conditional && v.via.is_none() {
+            v.verdict = "unknown".into();
+            v.reason =
+                "permission checks are conditional or uncorroborated; all-path coverage is not established".into();
+        } else if v.verdict == "unguarded" && incomplete_helpers {
+            v.verdict = "unknown".into();
+            v.reason = "helper evidence is incomplete; cannot conclude that no guard exists".into();
+        }
         if v.verdict == "guarded"
             && !v.scope_reads.is_empty()
             && v.level.as_deref() != Some("object")
@@ -3194,9 +3834,16 @@ pub(crate) fn build_guards_report(
             pid,
             EdgeKind::ReadsSetting,
             &n.node_id,
-            GUARD_SETTINGS_EDGE_CAP,
+            GUARD_SETTINGS_EDGE_CAP + 1,
         ) {
-            Ok(neigh) => {
+            Ok(mut neigh) => {
+                if neigh.len() > GUARD_SETTINGS_EDGE_CAP {
+                    cov.failures.push(format!(
+                        "{}: settings edges truncated at {GUARD_SETTINGS_EDGE_CAP}",
+                        n.name
+                    ));
+                    neigh.truncate(GUARD_SETTINGS_EDGE_CAP);
+                }
                 for (target, _) in neigh {
                     let key = if let Some(rest) = target.strip_prefix("::") {
                         format!("{rest} (not in web.config — DB/env setting?)")
@@ -3298,15 +3945,19 @@ pub(crate) fn render_guards_markdown(r: &GuardsReport) -> String {
         total
     ));
     out.push_str(&format!(
-        "Level: {} object-level, {} ROLE-ONLY (a role check that does not cover the client scope key the \
+        "Guarded evidence: {} object-level, {} ROLE-ONLY (a role check that does not cover the client scope key the \
          function reads), {} role-level without client scope reads.\n",
-        r.functions.iter().filter(|f| f.level.as_deref() == Some("object")).count(),
+        r.functions
+            .iter()
+            .filter(|f| f.verdict == "guarded" && f.level.as_deref() == Some("object"))
+            .count(),
         r.role_only.len(),
         r.functions
             .iter()
             .filter(|f| f.verdict == "guarded" && !f.role_only && f.level.as_deref() != Some("object"))
             .count()
     ));
+    out.push_str(&format!("\nAnalysis scope: {}\n", r.analysis_scope));
     if !r.role_only.is_empty() {
         out.push_str("\n## ROLE-ONLY — client scope keys read without an object-level guard\n");
         let items: Vec<String> = r
@@ -3438,8 +4089,15 @@ pub(crate) fn render_guards_markdown(r: &GuardsReport) -> String {
     if c.failures.is_empty() {
         out.push_str("- failures: none\n");
     } else {
-        for f in &c.failures {
-            out.push_str(&format!("- FAILURE: {f}\n"));
+        out.push_str(&format!("- failures: {} diagnostic(s)\n", c.failures.len()));
+        push_list(&mut out, &c.failures, |f| format!("- FAILURE: {f}\n"));
+        if c.failures.len() > GUARD_LIST_CAP {
+            out.push_str(
+                "- INCOMPLETE DISPLAY: additional diagnostics are omitted, not resolved. \
+                 Call map_guards_and_settings with a narrower file/function scope to inspect them, \
+                 or output_json=true for the full report. Counts and verdicts above cover the \
+                 analyzed scope; this display limit does not make UNKNOWN functions guarded.\n",
+            );
         }
     }
     out.push_str(&format!(
@@ -3454,6 +4112,64 @@ pub(crate) fn render_guards_markdown(r: &GuardsReport) -> String {
 #[cfg(test)]
 mod guards_unit_tests {
     use super::*;
+
+    #[test]
+    fn unknown_object_checks_do_not_inflate_guarded_level_summary() {
+        let verdict = |name: &str, status: &str| GuardVerdict {
+            name: name.into(),
+            file: "Handlers.cs".into(),
+            line: 1,
+            verdict: status.into(),
+            family: "CheckAccess".into(),
+            level: Some("object".into()),
+            roles: String::new(),
+            via: None,
+            reason: "Inspect conditional paths".into(),
+            scope_reads: Vec::new(),
+            role_only: false,
+            own_check_conditional: status == "unknown",
+        };
+        let report = GuardsReport {
+            functions: vec![
+                verdict("Protected", "guarded"),
+                verdict("Conditional", "unknown"),
+            ],
+            guarded: vec!["Protected".into()],
+            unknown: vec!["Conditional".into()],
+            ..Default::default()
+        };
+        let markdown = render_guards_markdown(&report);
+        assert!(markdown.contains("Guarded evidence: 1 object-level"));
+        assert!(markdown.contains("1 UNKNOWN of 2 function(s)"));
+        assert!(markdown.contains("Conditional"));
+    }
+
+    #[test]
+    fn large_failure_reports_remain_readable_without_claiming_complete_evidence() {
+        let report = GuardsReport {
+            coverage: GuardsCoverage {
+                failures: (0..200)
+                    .map(|i| format!("Function{i}: unresolved helper External.Operation{i}"))
+                    .collect(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let markdown = render_guards_markdown(&report);
+        assert_eq!(markdown.matches("- FAILURE:").count(), GUARD_LIST_CAP);
+        assert!(markdown.contains("failures: 200 diagnostic(s)"));
+        assert!(markdown.contains("175 more"));
+        assert!(markdown.contains("INCOMPLETE DISPLAY"));
+        assert!(markdown.contains("output_json=true"));
+        assert!(markdown.contains("narrower file/function scope"));
+        assert!(!markdown.contains("Function199:"));
+        let json = serde_json::to_value(&report).unwrap();
+        assert_eq!(json["coverage"]["failures"].as_array().unwrap().len(), 200);
+        assert!(json["coverage"]["failures"][199]
+            .as_str()
+            .unwrap()
+            .contains("Function199:"));
+    }
 
     #[test]
     fn markdown_lists_are_cut_with_a_stated_remainder() {
@@ -3472,6 +4188,45 @@ mod guards_unit_tests {
         let guard = "Public Function F() As String\n    If Not _us.UserAccess.CheckWrite(x) Then Return s\n    Return \"ok\"\nEnd Function\n";
         assert!(!own_checks_all_conditional(guard, "checkwrite"));
         assert!(!own_checks_all_conditional(cond, ""));
+    }
+
+    #[test]
+    fn guard_credit_requires_an_unconditional_code_invocation() {
+        for statement in [
+            "' CheckWrite()",
+            "Dim sample = \"CheckWrite()\"",
+            "CheckWriteExample()",
+            "If enabled Then CheckWrite()",
+            "If enabled AndAlso CheckWrite() Then Return",
+            "If enabled OrElse CheckWrite() Then Return",
+            "Return",
+        ] {
+            let body = format!("Sub Entry()\n    {statement}\nEnd Sub\n");
+            assert!(own_checks_all_conditional(&body, "CheckWrite"), "{body}");
+        }
+        assert!(!own_checks_all_conditional(
+            "Sub Entry()\n    CheckWrite()\nEnd Sub\n",
+            "CheckWrite"
+        ));
+    }
+
+    #[test]
+    fn brace_based_guard_evidence_is_independent_of_indentation() {
+        for body in [
+            "void Entry() {\nif (enabled) {\nCheckWrite();\n}\nSave();\n}",
+            "void Entry() {\nif (enabled) CheckWrite();\nSave();\n}",
+            "void Entry() {\nif (enabled)\nCheckWrite();\nSave();\n}",
+            "void Entry() {\nreturn;\nCheckWrite();\n}",
+            "void Entry() {\nvar allowed = enabled && CheckWrite();\n}",
+        ] {
+            assert!(own_checks_all_conditional(body, "CheckWrite"), "{body}");
+        }
+        for body in [
+            "void Entry() {\nCheckWrite();\nSave();\n}",
+            "void Entry()\n{\n    if (!CheckWrite()) return;\n    Save();\n}",
+        ] {
+            assert!(!own_checks_all_conditional(body, "CheckWrite"), "{body}");
+        }
     }
 
     #[test]
@@ -3503,6 +4258,18 @@ mod guards_unit_tests {
     fn role_level_only_when_a_check_exists() {
         assert_eq!(guard_level_for(""), None);
         assert_eq!(guard_level_for("CheckRead").as_deref(), Some("role"));
+    }
+
+    #[test]
+    fn object_guard_examples_and_conditional_calls_do_not_establish_scope() {
+        for body in [
+            "Sub Entry()\nDim example = \"CheckAccessToProject(id)\"\nCheckRead()\nEnd Sub",
+            "Sub Entry()\n' CheckAccessToProject(id)\nCheckRead()\nEnd Sub",
+            "Sub Entry()\nIf enabled Then\nCheckAccessToProject(id)\nEnd If\nEnd Sub",
+            "void Entry() {\nif (enabled) CheckAccessToProject(id);\n}",
+        ] {
+            assert!(!has_object_level_guard(body), "{body}");
+        }
     }
 }
 
@@ -3915,14 +4682,7 @@ impl Engram {
         let graph = self.state.graph.clone();
         let pid = req.project_id.clone();
         let scope_b = scope_raw.clone();
-        let project_dir = self
-            .state
-            .registry
-            .get_project(&req.project_id)
-            .ok()
-            .flatten()
-            .map(|r| r.directory)
-            .unwrap_or_default();
+        let project_dir = self.ensure_project_record(&req.project_id).await?.directory;
         let report = tokio::task::spawn_blocking(move || {
             let root = std::path::PathBuf::from(project_dir);
             build_guards_report(&graph, &pid, scope_b.as_deref(), &root)
@@ -3950,7 +4710,7 @@ impl Engram {
         }
         let concepts: Vec<String> = match &req.concepts {
             Some(c) if !c.is_empty() => c.iter().take(3).cloned().collect(),
-            _ => extract_story_concepts(&req.story),
+            _ => extract_story_concepts(&story_for_concepts(&req.story)),
         };
 
         let mut out = format!("# Implementation brief\n\nstory: {}\n", req.story.trim());
@@ -3969,13 +4729,7 @@ impl Engram {
             match sub {
                 Ok(sub) => {
                     if let Some(text) = sub.content.first().and_then(|c| c.as_text()) {
-                        let trimmed: String = text
-                            .text
-                            .lines()
-                            .take_while(|l| !l.starts_with("next:") && !l.starts_with("---"))
-                            .take(30)
-                            .collect::<Vec<_>>()
-                            .join("\n");
+                        let trimmed = bounded_planning_excerpt(&text.text, 30, "get_concept_footprint");
                         out.push_str(&format!("\n{trimmed}\n"));
                     }
                 }
@@ -3998,13 +4752,7 @@ impl Engram {
             })
             .await?;
         if let Some(text) = sub.content.first().and_then(|c| c.as_text()) {
-            let trimmed: String = text
-                .text
-                .lines()
-                .take_while(|l| !l.starts_with("next:") && !l.starts_with("---"))
-                .take(35)
-                .collect::<Vec<_>>()
-                .join("\n");
+            let trimmed = bounded_planning_excerpt(&text.text, 35, "find_implementation_pattern");
             out.push_str(&format!("\n{trimmed}\n"));
         }
 
@@ -4038,6 +4786,7 @@ impl Engram {
             if !lines.is_empty() {
                 out.push_str(&format!("\n{}\n", lines.join("\n")));
             }
+            out.push_str("\nINCOMPLETE: guard/settings overview is a selected excerpt; call map_guards_and_settings for all sections, coverage caveats and source provenance.\n");
         }
 
         out.push_str(STORY_CHECKLIST);
@@ -4139,20 +4888,28 @@ pub(crate) const NEXT_STEPS_CONCEPT_FOOTPRINT: &str = "\nnext: trace_state_usage
 
 /// Closing checklist of `plan_user_story` (agent-facing; schema-bound by
 /// `agent_integration_tests`).
-pub(crate) const STORY_CHECKLIST: &str = "\n## Checklist (work through ALL of it — partial implementations are how \
-     features ship without their admin page)\n\
-     - [ ] Storage: does the new value/entity follow the house pattern above \
-     (web.config key vs settings-table row)? Mirror the exemplar.\n\
-     - [ ] Admin/config UI: where do users SET this? Find the page that manages \
-     the sibling setting and extend it (or clone its pattern).\n\
-     - [ ] Enforcement: apply the new rule at EVERY touchpoint listed in the \
-     concept footprint above — uploads, edits, imports, APIs.\n\
-     - [ ] Guards: match the house auth patterns — call map_guards_and_settings \
-     with scope=<your service/page> and fix any UNGUARDED finding.\n\
-     - [ ] Messages/UX: error/validation text wherever the rule can reject input.\n\
-     - [ ] Then run: detect_incomplete_changes(edited_files=<your planned file list>) \
-     (fast, precomputed co-change) and close every 'MISSING from your set' item.\n\
-     - [ ] Per touched method: check_edit_safety. Before commit: pre_commit_review.\n";
+pub(crate) const STORY_CHECKLIST: &str = r"
+## Scope and evidence checklist
+- [ ] Separate requested behavior, conditional requirements, source-backed existing behavior,
+  and proposed assumptions. Missing acceptance criteria do not establish approval of an assumption.
+- [ ] Compare extending an existing entry point/service and shared helper with adding a new
+  feature. Use get_full_method_body, find_merged_work and current source to explain the chosen
+  boundary; list cross-domain seams and tradeoffs before fixing the file set. An exemplar is
+  precedent, not a requirement to copy its full scope or historical defects.
+- [ ] Storage/admin UI: inspect these only when the requested behavior needs new persisted
+  data or configuration. A read-only feature does not automatically require either.
+- [ ] Enforcement: identify the touchpoints that must implement the chosen behavior. Verify
+  applicability before extending an upload, edit, import or API path from a concept footprint.
+- [ ] Guards: use map_guards_and_settings with scope=<your service/page>, then verify the
+  effective caller/helper chain. UNGUARDED is a static lead, not proof of a missing runtime
+  guard. Check relevant authentication/tenant modes; record untested modes explicitly.
+- [ ] Messages/UX: define failure and empty-result behavior for the selected contract.
+- [ ] Run detect_incomplete_changes(edited_files=<your planned file list>) and triage each
+  candidate against current source and scope. Record include/exclude/unknown with a reason;
+  co-change frequency alone does not make a file mandatory. Keep missing evidence visible.
+- [ ] Per touched method: check_edit_safety. Before commit: pre_commit_review. Retrieved
+  rules and derived test cases remain hypotheses until source and applicable checks support them.
+";
 
 /// `AGENTS.md` for agents that do not read `.claude/` (Codex, Copilot
 /// agent mode, generic MCP clients): where Engram is, how to reach it, and
@@ -4207,8 +4964,12 @@ under a new id: call `list_projects` and use the entry whose directory is
 this file stops lying.
 
 ## For every feature request / user story
-1. `plan_user_story(story=<verbatim request>)` — concepts, footprints, house
-   patterns, checklist. START HERE, even for "simple" stories.
+1. `get_change_set(story=<verbatim request>)` — a RANKED CANDIDATE dossier
+   (co-change companions, .NET family, compiled bundles, a completeness
+   checklist) with a measured implementation-quality lift. START HERE — but
+   it is NOT exhaustive (~73-77% page-family recall on held-out stories):
+   treat it as a strong starting set, and verify/extend it by reading and
+   tracing the actual implementation before you edit.
 2. `get_concept_footprint(concept=...)` for every domain concept you touch —
    change ALL touchpoints or justify each one you skip.
 3. `find_implementation_pattern(pattern_query=...)` — imitate the house
@@ -4223,20 +4984,22 @@ this file stops lying.
 - `complete_edit_session(edited_files=[...])` when done — scope drift +
   completeness in one call.
 - After choosing your file set: `detect_incomplete_changes(edited_files=[...])` (fast,
-  precomputed co-change) and close every item under "MISSING from your set".
+  precomputed co-change) and triage each suggested partner against current source and scope.
+  Record include/exclude/unknown with a reason; co-change is not a requirement to edit.
   (`find_similar_changes` answers the same question but re-walks git history at
   call time — up to ~20s — so use it only as an optional deeper pass.)
 
 ## Before every commit
 - `detect_incomplete_changes(edited_files=[...])` — history and state wiring
-  name the files you forgot. Touch them or justify each one.
+  suggest potentially missing partners. Verify applicability; retain unresolved evidence gaps.
 - `pre_commit_review(diff="staged")` — fix or explicitly justify every
   finding ({gate_count} gates, including guard_parity).
-- `pre_push_audit(code=<your diff>, file_path=<file>)` — checks the change
-  against the team's accumulated "what to avoid" knowledge (coding rules,
+- `pre_push_audit(code=<your diff>, file_path=<file>)` — RETRIEVES the team's
+  accumulated "what to avoid" knowledge relevant to your change (coding rules,
   copilot-instructions, CodeRabbit/SonarQube history, the recurring-issues
-  board). Fix every rule it surfaces before pushing — these are mistakes the
-  team has already flagged.
+  board). It surfaces candidate rules; it does NOT verify your code against
+  them. Read each one and confirm yourself that your diff complies — these are
+  mistakes the team has already flagged.
 - If results ever look stale: `get_index_freshness`, then `update_project`.
 
 ## One-time project setup (so pre_push_audit has rules to check)
@@ -4606,6 +5369,98 @@ fn change_set_paths(text: &str) -> Vec<String> {
     out
 }
 
+/// A history hit path is an index identity, not arbitrary message/content text.
+/// Retain exact Git path bytes (including root files, spaces, Unicode and any extension).
+/// Current-file existence is classified separately; a valid old path may be historical.
+fn change_set_history_path(record: &str) -> Option<String> {
+    let (commit, path) = record.strip_prefix("diff:")?.split_once(':')?;
+    if commit.len() != 40 || !commit.bytes().all(|b| b.is_ascii_hexdigit())
+        || path.is_empty() || path.len() > 4096 || path.starts_with('/')
+        || path.contains('\\') || path.contains(':') || path.chars().any(char::is_control)
+        || path.split('/').any(|part| part.is_empty() || part == "." || part == "..")
+    {
+        return None;
+    }
+    Some(path.to_owned())
+}
+
+#[cfg(test)]
+mod history_path_identity_tests {
+    use super::*;
+    #[test]
+    fn typed_diff_paths_preserve_root_spaces_unicode_and_language() {
+        for path in ["LedgerSeed.vb", "entry.py", "lib/Größe ledger.rs", "Main.kt", "schema.graphql"] {
+            assert_eq!(change_set_history_path(&format!("diff:{}:{path}", "a".repeat(40))).as_deref(), Some(path));
+        }
+        assert!(change_set_paths("map.js").is_empty());
+    }
+    #[test]
+    fn prose_bad_identity_and_unsafe_paths_are_not_history_records() {
+        for value in ["map.js", "path: diff:abcd:entry.py", "commit:abcd", "diff:nope:entry.py"] {
+            assert!(change_set_history_path(value).is_none(), "{value}");
+        }
+        for path in ["", "/root.py", "../root.py", "a/./b.py", "a//b.py", "C:/root.py", "a\\b.py", "x.py\npath: other.py"] {
+            assert!(change_set_history_path(&format!("diff:{}:{path}", "a".repeat(40))).is_none());
+        }
+        assert!(change_set_history_path(&format!("diff:{}:{}", "a".repeat(40), "x".repeat(4097))).is_none());
+    }
+}
+
+/// Consume only explicit temporal partner records from the completeness report.
+/// State readers, wiring candidates, seeds and diagnostic paths are not history evidence.
+fn detect_cochange_evidence(text: &str) -> (Vec<String>, Vec<String>) {
+    let mut in_partners = false;
+    let mut in_coverage = false;
+    let mut paths = Vec::new();
+    let mut notes = Vec::new();
+    let mut seen = HashSet::new();
+    for line in text.lines() {
+        if line.starts_with("## ") {
+            in_partners = line == "## Co-change partners you did NOT touch";
+            in_coverage = line == "## INCOMPLETE coverage";
+            if in_coverage { notes.push("INCOMPLETE coverage reported by detect_incomplete_changes".into()); }
+            continue;
+        }
+        if line.starts_with("---") || line.starts_with("next:") {
+            in_partners = false;
+            in_coverage = false;
+        }
+        if line.contains("NOT found in the index") || line.contains("completeness is not established") {
+            notes.push(line.trim().to_string());
+        }
+        if in_coverage && line.starts_with("- ") { notes.push(line.trim_start_matches("- ").to_string()); }
+        if !in_partners { continue; }
+        let Some(record) = line.strip_prefix("- `") else { continue; };
+        let Some((path, tail)) = record.split_once('`') else { continue; };
+        let weight = tail.strip_prefix(" (").and_then(|tail| tail.split_once(" co-changes with `")).and_then(|(weight, _)| weight.parse::<u32>().ok());
+        if weight.is_none() { notes.push("Malformed temporal partner record; not used as co-change evidence".into()); continue; }
+        match normalize_edit_files(&[path.to_string()]) {
+            Ok(normalized) => {
+                let path = normalized[0].to_lowercase();
+                if seen.insert(path.clone()) { paths.push(path); }
+            },
+            Err(_) => notes.push("Invalid temporal partner path; not used as co-change evidence".into()),
+        }
+    }
+    (paths, notes)
+}
+
+fn apply_detect_cochange_coverage(coverage: &mut ArmCoverage, notes: Vec<String>) {
+    if notes.is_empty() { return; }
+    coverage.status = if coverage.status == "failed" || notes.iter().any(|note| note.contains(" failed:")) {
+        "failed"
+    } else if coverage.status == "truncated" || notes.iter().any(|note| note.contains("truncated at ")) {
+        "truncated"
+    } else {
+        "incomplete"
+    }.into();
+    coverage.diagnostics.entries.extend(notes);
+    // The producer may already have omitted messages. Keep its marker verbatim;
+    // do not infer a distinct count or parse a previously joined note.
+    coverage.diagnostics.details_complete = false;
+    coverage.refresh_note();
+}
+
 /// Architectural role suffix tokens shared across enterprise codebases. Used to
 /// reduce a filename to its ENTITY stem so sibling files of one feature group
 /// together (RoqEntriesController, RoqEntryService, IRoqEntryService, RoqEntry-In
@@ -4886,6 +5741,41 @@ fn find_analog_cohort(
 
 /// Co-change-first tier for ranking: history/co-change (the most predictive
 /// signal) ranks above multi-arm, above concept-only, above graph-only.
+/// The TRUE number of files a concept footprint matched — the listed paths
+/// plus every "... and N more" the per-group cap hid (round-2 audit P0-3:
+/// the IDF proxy behind the `broad` rule).
+pub(crate) fn footprint_total(text: &str) -> usize {
+    let listed = change_set_paths(text).len();
+    let more: usize = text
+        .lines()
+        .filter_map(|l| {
+            l.trim()
+                .strip_prefix("... and ")?
+                .strip_suffix(" more")?
+                .trim()
+                .parse::<usize>()
+                .ok()
+        })
+        .sum();
+    listed + more
+}
+
+/// A signal from an INDEPENDENT arm: not the concept footprint itself, not a
+/// translation or gloss of it, not an expansion of another row, not a broad
+/// term. Story-word NAME coverage is independent (it never consults the
+/// footprint).
+fn change_set_independent(s: &str) -> bool {
+    !matches!(s, "concept" | "lexicon" | "gloss" | "family" | "broad")
+}
+
+/// How many signals count as EVIDENCE (round-2 audit P0-3): the family
+/// expansion inherits its partner's signals and a broad term is not evidence.
+fn change_set_strength(sigs: &BTreeSet<&'static str>) -> usize {
+    sigs.iter()
+        .filter(|s| !matches!(**s, "family" | "broad"))
+        .count()
+}
+
 fn change_set_tier(sigs: &BTreeSet<&'static str>) -> u8 {
     // Evidence DIRECTNESS, not signal count (row-1 audit A2): golden
     // (co-change/history) first; then an entity match corroborated by an
@@ -4893,16 +5783,24 @@ fn change_set_tier(sigs: &BTreeSet<&'static str>) -> u8 {
     // signals (vector/graph) never outrank a precise concept hit.
     // External audit 2026-08-29 P0-3: a file matching the story's explicit
     // gloss is the entity the author named — as direct as history.
+    // A .resx translation is golden only when an INDEPENDENT arm corroborates
+    // it (co-change, history, vector, kb, name …) — its own footprint hit does
+    // not count: the rejected r33 dossier put 39 files in tier 0 on
+    // `concept+lexicon` alone (round-2 audit P0-3).
+    let corroborated_lexicon =
+        sigs.contains("lexicon") && sigs.iter().any(|s| change_set_independent(s));
     let golden = sigs.contains("cochange")
         || sigs.contains("history")
         || sigs.contains("gloss")
-        || sigs.contains("lexicon");
+        || sigs.contains("name")
+        || corroborated_lexicon;
     let concept = sigs.contains("concept");
-    if golden && sigs.len() >= 2 {
+    let independent = sigs.iter().filter(|s| change_set_independent(s)).count();
+    if golden && change_set_strength(sigs) >= 2 {
         0
     } else if golden {
         1
-    } else if concept && sigs.len() >= 2 {
+    } else if concept && independent >= 1 {
         2
     } else if concept {
         3
@@ -5439,6 +6337,10 @@ pub(crate) struct ChangeSetRow {
     pub tier: u8,
     pub signals: Vec<&'static str>,
     pub omitted: bool,
+    /// `primary` (ranked by evidence across layers, capped) or `companion`.
+    pub set: &'static str,
+    /// 1-based render position over the non-omitted rows (0 when omitted).
+    pub rank: usize,
 }
 
 /// Ranked rows in render order (layer, tier, depth, path) with the tail-cap
@@ -5446,110 +6348,187 @@ pub(crate) struct ChangeSetRow {
 pub(crate) fn change_set_rows(
     prov: &BTreeMap<String, BTreeSet<&'static str>>,
 ) -> (Vec<ChangeSetRow>, Vec<ChangeSetOmission>) {
-    let mut rows = Vec::new();
-    let mut omissions = Vec::new();
+    // Round-2 audit P0-3: a PRIMARY set ranked by evidence ACROSS layers
+    // (tier, evidence count, layer, depth, path), capped at
+    // CHANGE_SET_PRIMARY_CAP; everything else is a layer-grouped COMPANION
+    // under the per-layer weak-signal tail cap.
+    let depth = |p: &str| p.matches('/').count();
+    let mut all: Vec<(&String, &BTreeSet<&'static str>, u8, usize)> = prov
+        .iter()
+        .map(|(p, s)| (p, s, change_set_tier(s), change_set_layer_index(p)))
+        .collect();
+    all.sort_by(|a, b| {
+        // Round-2 audit P0-3 (live r36): the story's own words composing a
+        // file NAME is the most story-specific evidence — it leads its tier,
+        // ahead of rows that merely carry more signals.
+        a.2.cmp(&b.2)
+            .then(b.1.contains("name").cmp(&a.1.contains("name")))
+            .then(change_set_strength(b.1).cmp(&change_set_strength(a.1)))
+            .then(a.3.cmp(&b.3))
+            .then(depth(a.0).cmp(&depth(b.0)))
+            .then(a.0.cmp(b.0))
+    });
+    // Round-2 audit P0-3 (live r37): a change set spans layers — the best
+    // tier<=1 row of EVERY layer leads the primary set, in layer order, chosen
+    // BEFORE the cap fills (the only Data-layer critical file sat at 37 behind
+    // Server rows with one more signal). The rest keeps its evidence order.
+    let mut heads: Vec<usize> = Vec::new();
     for li in 0..=CHANGE_SET_LAYERS.len() {
-        let mut items: Vec<(&String, &BTreeSet<&'static str>)> = prov
-            .iter()
-            .filter(|(p, _)| change_set_layer_index(p) == li)
-            .collect();
-        if items.is_empty() {
-            continue;
-        }
-        items.sort_by(|a, b| {
-            change_set_tier(a.1)
-                .cmp(&change_set_tier(b.1))
-                .then(a.0.matches('/').count().cmp(&b.0.matches('/').count()))
-                .then(a.0.cmp(b.0))
-        });
-        let lname = change_set_layer_name(li);
-        let mut tail = 0usize;
-        for (p, sigs) in items {
-            let tier = change_set_tier(sigs);
-            let exempt = sigs.contains("vtop")
-                || sigs.contains("family")
-                || sigs.contains("gloss")
-                || sigs.contains("lexicon");
-            let mut omitted = false;
-            if tier >= 2 && !exempt {
-                tail += 1;
-                if tail > CHANGE_SET_TAIL_CAP {
-                    omitted = true;
-                    omissions.push(ChangeSetOmission {
-                        path: p.clone(),
-                        layer: lname,
-                        reason: format!(
-                            "weak-signal tail cap ({CHANGE_SET_TAIL_CAP} per layer) in '{lname}'"
-                        ),
-                    });
-                }
-            }
-            let signals: Vec<&'static str> = sigs
-                .iter()
-                .filter(|s| **s != "family")
-                .map(|s| if *s == "vtop" { "vector" } else { *s })
-                .collect();
-            rows.push(ChangeSetRow {
-                path: p.clone(),
-                layer: lname,
-                layer_index: li,
-                tier,
-                signals,
-                omitted,
-            });
+        if let Some(i) = all.iter().position(|it| it.3 == li && it.2 <= 1)
+            && !heads.contains(&i)
+        {
+            heads.push(i);
         }
     }
+    let mut primary = Vec::new();
+    let mut rest = Vec::new();
+    for &i in &heads {
+        primary.push(all[i]);
+    }
+    for (i, it) in all.into_iter().enumerate() {
+        if heads.contains(&i) {
+            continue;
+        }
+        if it.2 <= CHANGE_SET_PRIMARY_MAX_TIER && primary.len() < CHANGE_SET_PRIMARY_CAP {
+            primary.push(it);
+        } else {
+            rest.push(it);
+        }
+    }
+    rest.sort_by(|a, b| {
+        a.3.cmp(&b.3)
+            .then(a.2.cmp(&b.2))
+            .then(depth(a.0).cmp(&depth(b.0)))
+            .then(a.0.cmp(b.0))
+    });
+    let signals = |sigs: &BTreeSet<&'static str>| -> Vec<&'static str> {
+        sigs.iter()
+            .filter(|s| **s != "family")
+            .map(|s| if *s == "vtop" { "vector" } else { *s })
+            .collect()
+    };
+    let mut rows = Vec::new();
+    let mut omissions = Vec::new();
+    let mut rank = 0usize;
+    for (p, sigs, tier, li) in primary {
+        rank += 1;
+        rows.push(ChangeSetRow {
+            path: p.clone(),
+            layer: change_set_layer_name(li),
+            layer_index: li,
+            tier,
+            signals: signals(sigs),
+            omitted: false,
+            set: "primary",
+            rank,
+        });
+    }
+    let mut tail_layer = usize::MAX;
+    let mut tail = 0usize;
+    for (p, sigs, tier, li) in rest {
+        if li != tail_layer {
+            tail_layer = li;
+            tail = 0;
+        }
+        let lname = change_set_layer_name(li);
+        let exempt = sigs.contains("vtop") || sigs.contains("family") || sigs.contains("gloss");
+        let mut omitted = false;
+        if tier >= 2 && !exempt {
+            tail += 1;
+            if tail > CHANGE_SET_TAIL_CAP {
+                omitted = true;
+                omissions.push(ChangeSetOmission {
+                    path: p.clone(),
+                    layer: lname,
+                    reason: format!(
+                        "weak-signal tail cap ({CHANGE_SET_TAIL_CAP} per layer) in '{lname}'"
+                    ),
+                });
+            }
+        }
+        let r = if omitted {
+            0
+        } else {
+            rank += 1;
+            rank
+        };
+        rows.push(ChangeSetRow {
+            path: p.clone(),
+            layer: lname,
+            layer_index: li,
+            tier,
+            signals: signals(sigs),
+            omitted,
+            set: "companion",
+            rank: r,
+        });
+    }
     (rows, omissions)
+}
+
+/// Retained diagnostic message occurrences, not unique files or provider events.
+/// The upstream Markdown producer can omit occurrences before this boundary;
+/// its exact marker remains an entry. None means the numeric count is unknown.
+#[derive(Debug, Clone, Default, serde::Serialize)]
+pub(crate) struct ArmDiagnostics {
+    pub entries: Vec<String>,
+    pub omitted_occurrences: Option<usize>,
+    /// Retention completeness only, never semantic/source coverage.
+    pub details_complete: bool,
 }
 
 /// What one retrieval arm of get_change_set delivered.
 #[derive(Debug, Clone, Default, serde::Serialize)]
 pub(crate) struct ArmCoverage {
-    /// `complete` | `truncated` | `failed` | `not_run`
+    /// `complete` | `incomplete` | `truncated` | `failed` | `not_run`
     pub status: String,
     pub hits: usize,
     pub ms: u128,
     pub note: String,
+    pub diagnostics: ArmDiagnostics,
 }
 
 impl ArmCoverage {
     fn complete(hits: usize, ms: u128) -> Self {
-        Self {
-            status: "complete".into(),
-            hits,
-            ms,
-            note: String::new(),
+        Self { status: "complete".into(), hits, ms, note: String::new(),
+            diagnostics: ArmDiagnostics { entries: Vec::new(), omitted_occurrences: Some(0), details_complete: true } }
+    }
+    fn with_reason(status: &str, hits: usize, ms: u128, reason: String) -> Self {
+        let mut result = Self { status: status.into(), hits, ms, note: String::new(),
+            diagnostics: ArmDiagnostics { entries: vec![reason], omitted_occurrences: None, details_complete: false } };
+        // Keep short actionable constructor text compatible. Long or multiline
+        // reasons remain exact in entries, with a bounded summary in note.
+        let reason = &result.diagnostics.entries[0];
+        if reason.chars().count() <= 400 && !reason.contains(['\r', '\n']) {
+            result.note = reason.clone();
+        } else {
+            result.refresh_note();
         }
+        result
     }
     fn truncated(hits: usize, ms: u128, note: String) -> Self {
-        Self {
-            status: "truncated".into(),
-            hits,
-            ms,
-            note,
-        }
+        Self::with_reason("truncated", hits, ms, note)
     }
     fn failed(note: String, ms: u128) -> Self {
-        Self {
-            status: "failed".into(),
-            hits: 0,
-            ms,
-            note,
-        }
+        Self::with_reason("failed", 0, ms, note)
     }
     fn not_run(note: &str) -> Self {
-        Self {
-            status: "not_run".into(),
-            hits: 0,
-            ms: 0,
-            note: note.into(),
-        }
+        Self::with_reason("not_run", 0, 0, note.into())
+    }
+    fn refresh_note(&mut self) {
+        self.diagnostics.omitted_occurrences = None;
+        self.note = format!("{} retained diagnostic message occurrences; inspect diagnostics.entries for identity, cap and provider limitations. Upstream omitted occurrences are unknown; any original omission marker is retained. No completeness verdict is established by these details.", self.diagnostics.entries.len());
     }
     fn line(&self) -> String {
         let mut l = format!("{} ({} hits, {} ms)", self.status, self.hits, self.ms);
         if !self.note.is_empty() {
             l.push_str(" — ");
             l.push_str(&self.note);
+        }
+        for entry in &self.diagnostics.entries {
+            // Preserve embedded newlines/message bytes; no lossy clipping.
+            l.push_str("\n  - ");
+            l.push_str(entry);
         }
         l
     }
@@ -5828,6 +6807,12 @@ fn render_change_set(
          matches the story's concepts. [semantic]/[graph]: embedding or \
          dependency-graph association (weakest — verify before trusting).\n\n",
     );
+    s.push_str(
+        "[name]: the story's own words compose the file name (compound coverage — \
+         golden). [broad]: matched only a term too common in this index to \
+         discriminate — NOT evidence. A .resx translation ([lexicon]) is golden \
+         only when an independent arm corroborates it.\n\n",
+    );
     // Temporal-analytics section renders BEFORE the checklist so the
     // checklist's "log/history tables above" pointer is literally true.
     if let Some(sec) = temporal_section {
@@ -5931,12 +6916,38 @@ fn render_change_set(
          to the team's dims-immediately client fix). State the feedback timing your \
          fix delivers.\n\n",
     );
-    s.push_str("## Candidate files (grouped by layer — order within a group is NOT priority)\n");
-
     let _ = LAYERS; // layers now come from the shared model (CHANGE_SET_LAYERS)
     let (rows, omissions) = change_set_rows(prov);
+    // Round-2 audit P0-3: a ranked PRIMARY set across layers, then
+    // layer-grouped companions. Critical files must land in the primary set.
+    let n_primary = rows.iter().filter(|r| r.set == "primary").count();
+    s.push_str(&format!(
+        "## Primary candidates — ranked by evidence ({n_primary} of {} candidates; cap \
+         {CHANGE_SET_PRIMARY_CAP})\nCritical files belong HERE. Rank = evidence tier (0 \
+         strongest: a golden signal corroborated by an independent arm), then the number \
+         of independent signals; the layer is shown per row. Work the list top-down.\n",
+        rows.len()
+    ));
+    for r in rows.iter().filter(|r| r.set == "primary") {
+        let hist = if historical.contains(&r.path) {
+            "  (historical path — not in the current index)"
+        } else {
+            ""
+        };
+        s.push_str(&format!(
+            "{}. `{}`  [{}]  — {}{hist}\n",
+            r.rank,
+            r.path,
+            r.signals.join("|"),
+            r.layer
+        ));
+    }
+    s.push_str(
+        "\n## Possible companions (grouped by layer — weak or uncorroborated evidence; \
+         verify against the code before trusting)\n",
+    );
     let mut current_layer: Option<usize> = None;
-    for r in rows.iter().filter(|r| !r.omitted) {
+    for r in rows.iter().filter(|r| !r.omitted && r.set == "companion") {
         if current_layer != Some(r.layer_index) {
             current_layer = Some(r.layer_index);
             s.push_str(&format!("\n**{}:**\n", r.layer));
@@ -5986,8 +6997,8 @@ impl Engram {
         // Auto-fetch: story references a work-item id, a PAT is available
         // (per-call, or the server's own ADO_PAT env — a live agent never
         // holds credentials, the server host does), and refresh_corpora
-        // saved the org/project coordinates. Silent degrade on any
-        // failure — the dossier still builds from the story alone.
+        // saved the org/project coordinates. An ID-targeted request must
+        // have work-item text before retrieval; failure blocks intake below.
         if req.work_item_text.is_none()
             && let Some(wi_id) = extract_work_item_id(&req.story)
             && let Some(pat) = resolve_ado_pat(req.pat_token.take())
@@ -6014,12 +7025,10 @@ impl Engram {
                 req.work_item_text = fetch_ado_work_item(&org, &project, wi_id, &pat).await;
             }
         }
-        if let Some(wi) = req.work_item_text.take() {
-            let wi = wi.trim();
-            if !wi.is_empty() {
-                req.story = format!("{}\n\n## Work item (full text)\n{}", req.story.trim(), wi);
-            }
-        }
+        req.story = story_with_work_item_text(&req.story, req.work_item_text.take())?;
+        // One presentation-free view for every retrieval arm. Keep req.story as
+        // original evidence for the dossier; metadata URLs are not task intent.
+        let retrieval_story = story_for_concepts(&req.story);
         // Indexed file paths, loaded ONCE for this call: concept resolution
         // here; canonical paths and family expansion further down.
         let index_paths: Vec<String> = self
@@ -6035,11 +7044,11 @@ impl Engram {
         // Entity candidates are always RESOLVED and REPORTED; they only
         // drive retrieval when the caller opts in (see the request doc).
         let concept_candidates: Vec<String> = {
-            let cands = extract_story_concept_candidates(&story_for_concepts(&req.story));
+            let cands = extract_story_concept_candidates(&retrieval_story);
             resolve_story_concepts(&cands, &index_paths, 6)
         };
         // External audit 2026-08-29 P0-3: an explicit gloss retrieves by DEFAULT.
-        let gloss_terms = extract_story_gloss_concepts(&story_for_concepts(&req.story));
+        let gloss_terms = extract_story_gloss_concepts(&retrieval_story);
         let gloss_concepts: Vec<String> = gloss_derived(&gloss_terms, &concept_candidates)
             .into_iter()
             .cloned()
@@ -6059,7 +7068,7 @@ impl Engram {
                     &self.state,
                     &req.project_id,
                     &d,
-                    &story_for_concepts(&req.story),
+                    &retrieval_story,
                 ),
                 None => (Vec::new(), Vec::new()),
             }
@@ -6068,7 +7077,7 @@ impl Engram {
             Some(c) if !c.is_empty() => c.iter().take(3).cloned().collect(),
             _ if req.expand_concepts => concept_candidates.clone(),
             _ => {
-                let mut base = extract_story_concepts(&story_for_concepts(&req.story));
+                let mut base = extract_story_concepts(&retrieval_story);
                 for g in gloss_concepts
                     .iter()
                     .chain(lexicon_concepts.iter().take(LEXICON_CONCEPT_CAP))
@@ -6113,11 +7122,12 @@ impl Engram {
                 project_id: req.project_id.clone(),
                 namespace: engram_core::namespaces::NAMESPACE_MEMORY_BANK.into(),
                 generation: 0,
-                text: story_for_concepts(&req.story),
+                text: retrieval_story.clone(),
                 top_k: 3,
                 fts_mode: "loose".into(),
                 include_path_prefixes: None,
                 exclude_path_prefixes: None,
+                include_path_suffixes: None,
                 language_filters: None,
                 author_filter: None,
                 date_after: None,
@@ -6218,18 +7228,37 @@ impl Engram {
             })
         }))
         .await;
+        let mut broad_terms: Vec<String> = Vec::new();
         for (c, res) in concepts.iter().zip(footprints) {
             match res {
                 Ok(r) => {
                     if let Some(t) = r.content.first().and_then(|x| x.as_text()) {
+                        let from_gloss = gloss_concepts.contains(c);
+                        let from_lexicon = lexicon_concepts.contains(c);
+                        // Round-2 audit P0-3 (IDF / specificity): a term that
+                        // matches BROAD_CONCEPT_MIN_FILES+ files cannot
+                        // discriminate — its hits are labelled `broad` and are
+                        // never evidence nor vector seeds. The author's explicit
+                        // gloss is exempt.
+                        let total = footprint_total(&t.text);
+                        let broad = !from_gloss && total >= BROAD_CONCEPT_MIN_FILES;
+                        if broad {
+                            broad_terms.push(format!("'{c}' ({total} files)"));
+                        }
                         for p in change_set_paths(&t.text) {
                             if !engram_core::is_vendor_path(&p) {
+                                concept_hits += 1;
+                                if broad {
+                                    why.entry(p.clone()).or_default().push(format!(
+                                        "matches '{c}' — too common in this index ({total} \
+                                         files) to discriminate; not counted as evidence"
+                                    ));
+                                    prov.entry(p).or_default().insert("broad");
+                                    continue;
+                                }
                                 if !prov.contains_key(&p) {
                                     seed_order.push(p.clone());
                                 }
-                                concept_hits += 1;
-                                let from_gloss = gloss_concepts.contains(c);
-                                let from_lexicon = lexicon_concepts.contains(c);
                                 why.entry(p.clone()).or_default().push(if from_gloss {
                                     format!("matches the story's explicit gloss '{c}'")
                                 } else if from_lexicon {
@@ -6260,15 +7289,21 @@ impl Engram {
                 t_concept.elapsed().as_millis(),
             )
         };
+        if !broad_terms.is_empty() {
+            cov.concept.note = format!(
+                "broad terms not counted as evidence: {}",
+                broad_terms.join(", ")
+            );
+        }
 
         // History arm — commit-message search surfaces the files of past similar
         // changes (the universal co-change signal; carries stories whose real
         // files share no concept keyword). Golden tier.
         let t_hist = std::time::Instant::now();
         match self
-            .handle_search_history(crate::models::SearchHistoryRequest {
+            .search_history_hits(crate::models::SearchHistoryRequest {
                 project_id: req.project_id.clone(),
-                query: req.story.clone(),
+                query: retrieval_story.clone(),
                 file_filter: None,
                 exclude_paths: None,
                 author_filter: None,
@@ -6281,24 +7316,28 @@ impl Engram {
             })
             .await
         {
-            Ok(r) => {
+            Ok((_, _, hits)) => {
+                let mut seen = HashSet::new();
                 let mut n = 0usize;
-                if let Some(t) = r.content.first().and_then(|x| x.as_text()) {
-                    for p in change_set_paths(&t.text) {
-                        if !engram_core::is_vendor_path(&p) {
-                            if !prov.contains_key(&p) {
-                                seed_order.push(p.clone());
-                            }
-                            n += 1;
-                            why.entry(p.clone()).or_default().push(
-                                "past commits matching the story touched it (history search)"
-                                    .into(),
-                            );
-                            prov.entry(p).or_default().insert("history");
-                        }
+                let mut ignored = 0usize;
+                for hit in &hits {
+                    let Some(p) = change_set_history_path(hit.path.as_str()) else {
+                        ignored += 1;
+                        continue;
+                    };
+                    if !engram_core::is_vendor_path(&p) && seen.insert(p.clone()) {
+                        if !prov.contains_key(&p) { seed_order.push(p.clone()); }
+                        n += 1;
+                        why.entry(p.clone()).or_default().push(
+                            "past commits matching the story touched it (history search)".into(),
+                        );
+                        prov.entry(p).or_default().insert("history");
                     }
                 }
                 cov.history = ArmCoverage::complete(n, t_hist.elapsed().as_millis());
+                if ignored > 0 {
+                    cov.history.note = format!("{ignored} of {} retrieved history records were not bounded diff-file identities; commit prose is not file evidence", hits.len());
+                }
             }
             Err(e) => {
                 cov.history = ArmCoverage::failed(
@@ -6394,13 +7433,15 @@ impl Engram {
             let dic_seed: Vec<String> = ranked.iter().filter(anchor).take(40).cloned().collect();
             let t_cc = std::time::Instant::now();
             let mut texts: Vec<String> = Vec::new();
+            let mut detected_paths = Vec::new();
+            let mut detect_notes = Vec::new();
             let mut cc_notes: Vec<String> = Vec::new();
             let mut cc_partial = false;
             match self
                 .handle_find_similar_changes(crate::models::FindSimilarChangesRequest {
                     project_id: req.project_id.clone(),
                     files: fsc_seed,
-                    max_commits: 800,
+                    max_commits: CO_CHANGE_DEPTH,
                     top: 8,
                 })
                 .await
@@ -6431,21 +7472,24 @@ impl Engram {
             {
                 Ok(r) => {
                     if let Some(t) = r.content.first().and_then(|x| x.as_text()) {
-                        texts.push(t.text.clone());
+                        let (paths, notes) = detect_cochange_evidence(&t.text);
+                        detected_paths.extend(paths);
+                        detect_notes.extend(notes);
+                    } else {
+                        detect_notes.push("detect_incomplete_changes returned no text result".into());
                     }
                 }
-                Err(e) => cc_notes.push(format!("detect_incomplete_changes failed: {e}")),
+                Err(e) => detect_notes.push(format!("detect_incomplete_changes failed: {e}")),
             }
             let mut n = 0usize;
-            for text in texts {
-                for p in change_set_paths(&text) {
-                    if !engram_core::is_vendor_path(&p) {
-                        n += 1;
-                        why.entry(p.clone())
-                            .or_default()
-                            .push("co-changed with the seed files in merged history".into());
-                        prov.entry(p).or_default().insert("cochange");
-                    }
+            for text in texts { detected_paths.extend(change_set_paths(&text)); }
+            for p in detected_paths {
+                if !engram_core::is_vendor_path(&p) {
+                    n += 1;
+                    why.entry(p.clone())
+                        .or_default()
+                        .push("co-changed with the seed files in indexed history".into());
+                    prov.entry(p).or_default().insert("cochange");
                 }
             }
             let ms = t_cc.elapsed().as_millis();
@@ -6456,6 +7500,7 @@ impl Engram {
             } else {
                 ArmCoverage::complete(n, ms)
             };
+            apply_detect_cochange_coverage(&mut cov.cochange, detect_notes);
         }
 
         cov.stages
@@ -6471,7 +7516,7 @@ impl Engram {
         let vector_result = self
             .handle_vector_search(crate::models::VectorSearchRequest {
                 project_id: req.project_id.clone(),
-                query: req.story.clone(),
+                query: retrieval_story.clone(),
                 namespace: "memory".to_string(),
                 top_k: 40,
                 use_mmr: true,
@@ -6555,8 +7600,9 @@ impl Engram {
             .map(|(_, p)| p)
             .collect();
         cov.presentation_anchors = pres_anchors.len();
-        if !pres_anchors.is_empty()
-            && let Ok(r) = self
+        if !pres_anchors.is_empty() {
+            let presentation_started = std::time::Instant::now();
+            match self
                 .detect_incomplete_changes_with(
                     crate::models::DetectIncompleteChangesRequest {
                         project_id: req.project_id.clone(),
@@ -6569,10 +7615,11 @@ impl Engram {
                     },
                     Some(snapshot.clone()),
                 )
-                .await
-            && let Some(t) = r.content.first().and_then(|x| x.as_text())
-        {
-            for p in change_set_paths(&t.text) {
+                .await {
+              Ok(r) => if let Some(t) = r.content.first().and_then(|x| x.as_text()) {
+                let (paths, notes) = detect_cochange_evidence(&t.text);
+                apply_detect_cochange_coverage(&mut cov.cochange, notes);
+                for p in paths {
                 let pl = p.to_lowercase();
                 if PRESENTATION.iter().any(|e| pl.ends_with(e)) && !engram_core::is_vendor_path(&p)
                 {
@@ -6581,8 +7628,15 @@ impl Engram {
                             .into(),
                     );
                     prov.entry(p).or_default().insert("cochange");
+                    cov.cochange.hits += 1;
                 }
+                }
+              } else {
+                apply_detect_cochange_coverage(&mut cov.cochange, vec!["presentation detect_incomplete_changes returned no text result".into()]);
+              },
+              Err(error) => apply_detect_cochange_coverage(&mut cov.cochange, vec![format!("presentation detect_incomplete_changes failed: {error}")]),
             }
+            cov.cochange.ms += presentation_started.elapsed().as_millis();
         }
 
         cov.stages
@@ -6713,6 +7767,57 @@ impl Engram {
             for (k, v) in fam {
                 prov.entry(k).or_default().extend(v);
             }
+            // Round-2 audit P0-3 (compound / name coverage): a file whose NAME
+            // is composed of NAME_COVERAGE_MIN+ of the story's own words is what
+            // a developer opens first (productioncodelistmaincategory.aspx for
+            // "production code list … main … category"); the per-group
+            // footprint cap hid it behind broad terms. Scans the whole file
+            // index — no cap — and never consults the footprint.
+            let story_terms: BTreeSet<String> = req
+                .story
+                .split(|ch: char| !ch.is_alphanumeric())
+                .filter_map(story_token)
+                .collect();
+            if story_terms.len() >= NAME_COVERAGE_MIN {
+                for (rp, _) in meta.iter() {
+                    let full = rp.as_str().replace('\\', "/").to_lowercase();
+                    if engram_core::is_vendor_path(&full) {
+                        continue;
+                    }
+                    let fname = full.rsplit('/').next().unwrap_or(full.as_str());
+                    let stem = fname.split('.').next().unwrap_or("");
+                    if stem.len() < 8 {
+                        continue;
+                    }
+                    let covered: Vec<&str> = story_terms
+                        .iter()
+                        .map(String::as_str)
+                        .filter(|t| {
+                            stem.contains(t)
+                                || (t.len() > 5
+                                    && t.ends_with('s')
+                                    && stem.contains(&t[..t.len() - 1]))
+                        })
+                        .collect();
+                    if covered.len() >= NAME_COVERAGE_MIN && covered.iter().any(|t| t.len() >= 6) {
+                        let stripped = strip(&full);
+                        let key = prov
+                            .keys()
+                            .find(|k| strip(k) == stripped)
+                            .cloned()
+                            .unwrap_or_else(|| full.clone());
+                        why.entry(key.clone()).or_default().push(format!(
+                            "the story's own words compose the file name: {} ({} of {} story terms)",
+                            covered.join(", "),
+                            covered.len(),
+                            story_terms.len()
+                        ));
+                        prov.entry(key).or_default().insert("name");
+                    }
+                }
+            }
+            cov.stages
+                .insert("name_done".into(), t_all.elapsed().as_millis());
         } else {
             cov.family = ArmCoverage::failed("file index unavailable".into(), 0);
         }
@@ -6735,6 +7840,10 @@ impl Engram {
             let mut kept: Vec<String> = Vec::new();
             let mut remap: HashMap<String, String> = HashMap::new();
             for k in keys {
+                if prov.get(&k).is_some_and(|signals| signals.contains("history")) {
+                    kept.push(k);
+                    continue;
+                }
                 let k_segs = k.matches('/').count();
                 if let Some(longer) = kept
                     .iter()
@@ -6776,7 +7885,16 @@ impl Engram {
             let mut canon: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
             let mut canon_why: BTreeMap<String, Vec<String>> = BTreeMap::new();
             for (p, sigs) in std::mem::take(&mut prov) {
-                let key = match index_map.get(&norm(&p)) {
+                // History paths already have exact repository identity. Never alias a
+                // removed/root/case-distinct historical file to a different current file.
+                let exact_history = sigs.contains("history");
+                let indexed = if exact_history {
+                    meta.iter().find(|(rp, _)| rp.as_str().replace('\\', "/") == p)
+                        .map(|(rp, _)| rp.as_str().replace('\\', "/"))
+                } else {
+                    index_map.get(&norm(&p)).cloned()
+                };
+                let key = match indexed.as_ref() {
                     Some(c) => c.clone(),
                     None => {
                         historical.insert(p.clone());
@@ -6800,7 +7918,7 @@ impl Engram {
         // approved PR queried for exactly this ask). Surface the graph's
         // log/history/audit tables plus their accessor functions so the plan
         // decides explicitly. Generic: name-shape scan, no per-repo names.
-        let temporal_section: Option<String> = if story_asks_analytics_over_time(&req.story) {
+        let temporal_section: Option<String> = if story_asks_analytics_over_time(&retrieval_story) {
             let graph = self.state.graph.clone();
             let pid_t = req.project_id.clone();
             let cand_files: Vec<String> = prov.keys().cloned().collect();
@@ -7271,6 +8389,8 @@ impl Engram {
                         "path": r.path,
                         "layer": r.layer,
                         "tier": r.tier,
+                        "set": r.set,
+                        "rank": r.rank,
                         "signals": r.signals,
                         "why": why.get(&r.path).cloned().unwrap_or_default(),
                         "historical": historical.contains(&r.path),
@@ -7301,7 +8421,7 @@ impl Engram {
         // instead of an ad-hoc subset. Generic — learns the cohort from the index,
         // no hardcoded layout.
         {
-            let sl = req.story.to_lowercase();
+            let sl = retrieval_story.to_lowercase();
             let creation = [
                 "add",
                 "new ",
@@ -7384,8 +8504,8 @@ impl Engram {
                     // word win (live: "personalinformation" via the word
                     // "information" from an unrelated customer quote).
                     let ranked_paths: Vec<String> = prov.keys().cloned().collect();
-                    let entity_pascal: String = derive_scaffold_entity(&req.story, &ranked_paths)
-                        .or_else(|| derive_scaffold_entity(&req.story, &index))
+                    let entity_pascal: String = derive_scaffold_entity(&retrieval_story, &ranked_paths)
+                        .or_else(|| derive_scaffold_entity(&retrieval_story, &index))
                         .or_else(|| {
                             concepts
                                 .iter()
@@ -7461,11 +8581,12 @@ impl Engram {
                 project_id: req.project_id.clone(),
                 namespace: engram_core::namespaces::NAMESPACE_HISTORY.into(),
                 generation: 0,
-                text: story_for_concepts(&req.story),
+                text: retrieval_story.clone(),
                 top_k: fetch_k,
                 fts_mode: "loose".into(),
                 include_path_prefixes: Some(vec!["pr:".into()]),
                 exclude_path_prefixes: None,
+                include_path_suffixes: None,
                 language_filters: None,
                 author_filter: None,
                 date_after: None,
@@ -7536,7 +8657,7 @@ impl Engram {
             let mut shown = 0usize;
             for (_, _, content) in docs.iter().take(2) {
                 if shown == 0 {
-                    out.push_str("\n## Approved exemplars — how similar merged work was shaped\n");
+                    out.push_str("\n## Indexed merged-work exemplars — how similar merged work was shaped\n");
                 }
                 shown += 1;
                 // Structure-aware cut: a char-head ends before the file
@@ -7549,7 +8670,7 @@ impl Engram {
             }
             if shown > 0 {
                 out.push_str(
-                    "next: find_merged_work(story=...) for the complete approved file cohorts.\n",
+                    "next: find_merged_work(story=...) for the complete indexed file cohorts. Review approvals were not fetched.\n",
                 );
             }
             // House factoring prior: across ALL fetched similar merged PRs
@@ -7904,11 +9025,12 @@ impl Engram {
                 project_id: req.project_id.clone(),
                 namespace: engram_core::namespaces::NAMESPACE_ANTIPATTERN.into(),
                 generation: 0,
-                text: story_for_concepts(&req.story),
+                text: retrieval_story.clone(),
                 top_k: 12,
                 fts_mode: "loose".into(),
                 include_path_prefixes: None,
                 exclude_path_prefixes: None,
+                include_path_suffixes: None,
                 language_filters: None,
                 author_filter: None,
                 date_after: None,
@@ -7948,11 +9070,12 @@ impl Engram {
                         project_id: req.project_id.clone(),
                         namespace: engram_core::namespaces::NAMESPACE_ANTIPATTERN.into(),
                         generation: 0,
-                        text: story_for_concepts(&req.story),
+                        text: retrieval_story.clone(),
                         top_k: 12,
                         fts_mode: "loose".into(),
                         include_path_prefixes: Some(fam_prefixes),
                         exclude_path_prefixes: None,
+                        include_path_suffixes: None,
                         language_filters: None,
                         author_filter: None,
                         date_after: None,
@@ -8102,352 +9225,211 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
         if req.edited_files.is_empty() {
-            return Err(McpError::invalid_params(
-                "edited_files must not be empty".to_string(),
-                None,
-            ));
+            return Err(McpError::invalid_params("edited_files must not be empty", None));
         }
         let _ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
-
         let rec = self.ensure_project_record(&req.project_id).await?;
         let project_dir = PathBuf::from(&rec.directory);
         let graph = self.state.graph.clone();
         let pid = req.project_id.clone();
-        let edited: Vec<String> = req
-            .edited_files
-            .iter()
-            // Normalise to forward slashes AND strip any leading "/" — callers
-            // (and PR ground-truth) often pass "/Site/...", but file node ids
-            // are "Site/..."; an unstripped leading slash silently resolves to
-            // nothing and the audit returns a false "all clear".
-            .map(|f| f.replace('\\', "/").trim_start_matches('/').to_string())
-            .collect();
+        // Preserve the established leading-slash project-relative convention,
+        // then use a single normalized spelling for evidence and membership.
+        let edited = normalize_edit_files(&req.edited_files.iter().map(|file|
+            file.trim().replace('\\', "/").trim_start_matches('/').to_string()
+        ).collect::<Vec<_>>())?;
+        let rule_files = edited.clone();
         let max_partners = req.max_partners.clamp(1, 20);
 
-        let (partner_findings, state_findings, unwired_findings, unresolved_inputs) =
-            tokio::task::spawn_blocking(move || {
-                let edited_set: HashSet<String> = edited.iter().map(|f| f.to_lowercase()).collect();
-                // TemporalCoupling nodes are keyed by REAL git case, but callers
-                // (e.g. get_change_set's path extractor) may pass lowercased paths.
-                // An exact-match neighbour lookup then silently misses every
-                // PascalCase file — i.e. most .NET class files (SystemSettingStore.vb
-                // etc.), the very hub files whose co-change family the caller needs.
-                // Resolve each edited path to its real-case node id once. Generic:
-                // any case-insensitive caller against a case-sensitive graph.
-                let real_case: HashMap<String, String> = graph
-                    .list_file_node_metadata(&pid)
-                    .map(|m| {
-                        m.into_iter()
-                            .map(|(rp, _)| {
-                                let r = rp.as_str().replace('\\', "/");
-                                (r.to_lowercase(), r)
-                            })
-                            .collect()
-                    })
-                    .unwrap_or_default();
-                // A path counts as "covered" if any edited path suffix-matches
-                // it, component-aligned (handles Site/-prefix spelling
-                // variants from pre-restructure history). Shared logic with
-                // pre_commit_review's temporal gate — see
-                // `pre_commit_review_service::path_suffix_match`.
-                let covered =
-                    |path: &str| -> bool { edited_set.iter().any(|e| path_suffix_match(e, path)) };
-                // Current-tree spellings — co-change partners from history
-                // may predate a repo restructure and must be re-anchored to
-                // the file that exists today (or dropped entirely).
-                let current_files: Vec<String> = real_case.values().cloned().collect();
-
-                // ── Co-change partners not in the edit set ──────────────────
-                // Collect raw candidates (edited_file, current-tree partner,
-                // weight, raw graph spelling); weak couplings are noise, so
-                // demand real history.
-                let mut raw: Vec<(String, String, u32, String)> = Vec::new();
-                let mut unresolved_inputs: Vec<String> = Vec::new();
-                for f in &edited {
-                    let resolved = match real_case.get(&f.to_lowercase()) {
-                        Some(r) => r.as_str(),
-                        None => {
-                            // A completeness tool that silently skips an input
-                            // file can print "looks complete" while having seen
-                            // NOTHING — flag it instead.
-                            unresolved_inputs.push(f.clone());
-                            f.as_str()
+        let (partners, states, unwired, unresolved, mut coverage) = tokio::task::spawn_blocking(move || {
+            let mut coverage = EditCompletenessCoverage::default();
+            let edited_set: HashSet<String> = edited.iter().map(|file| edit_path_key(file)).collect();
+            let covered = |file: &str| edited_set.contains(&file.replace('\\', "/").trim_start_matches('/').to_lowercase());
+            let real_case: HashMap<String, String> = match graph.list_file_node_metadata(&pid) {
+                Ok(files) => files.into_iter().map(|(file, _)| {
+                    let path = file.as_str().replace('\\', "/");
+                    (path.to_lowercase(), path)
+                }).collect(),
+                Err(error) => { coverage.note(format!("file inventory lookup failed: {error}")); HashMap::new() },
+            };
+            let current_files: Vec<String> = real_case.values().cloned().collect();
+            let mut unresolved = Vec::new();
+            let mut raw = Vec::new();
+            for file in &edited {
+                let resolved = real_case.get(&file.to_lowercase()).map(String::as_str).unwrap_or_else(|| {
+                    unresolved.push(file.clone());
+                    file.as_str()
+                });
+                let mut neighbors = match graph.neighbors(&pid, EdgeKind::TemporalCoupling, &format!("file:{resolved}"), 501) {
+                    Ok(neighbors) => neighbors,
+                    Err(error) => { coverage.note(format!("temporal neighbors for {file} failed: {error}")); continue; },
+                };
+                coverage.cap(&mut neighbors, 500, &format!("temporal neighbors for {file}"));
+                for (node_id, weight) in neighbors {
+                    let Some(partner) = node_id.strip_prefix("file:") else { continue; };
+                    if weight < 5 { continue; }
+                    // Exact current identities win. Suffix matching is only a
+                    // historical relocation lead, never current-file membership.
+                    let partner_key = partner.replace('\\', "/").trim_start_matches('/').to_lowercase();
+                    let current = if let Some(exact) = real_case.get(&partner_key) {
+                        exact.clone()
+                    } else {
+                        let matches: Vec<_> = current_files.iter().filter(|file| path_suffix_match(partner, file)).take(2).collect();
+                        match matches.as_slice() {
+                            [only] => (*only).clone(),
+                            [] => match resolve_partner_to_current(partner, &[], &project_dir) {
+                                Some(file) => { coverage.note(format!("historical partner {partner} resolved only by a disk probe; current index identity is unverified")); file },
+                                None => continue,
+                            },
+                            _ => { coverage.note(format!("historical partner {partner} has ambiguous current-file matches; no arbitrary file was selected")); continue; },
                         }
                     };
-                    let fid = format!("file:{resolved}");
-                    let Ok(neigh) = graph.neighbors(&pid, EdgeKind::TemporalCoupling, &fid, 500)
-                    else {
-                        continue;
-                    };
-                    for (nid, weight) in neigh {
-                        let Some(partner) = nid.strip_prefix("file:") else {
-                            continue;
-                        };
-                        if weight < 5 || covered(partner) {
-                            continue;
-                        }
-                        // Never emit a historical spelling: re-anchor the
-                        // partner to its current-tree file, or drop it when
-                        // the file no longer exists under any spelling. This
-                        // is also what surfaces genuine gaps that a raw
-                        // string comparison used to suppress (the partner
-                        // wasn't textually equal to anything covered, but
-                        // wasn't textually equal to anything real either).
-                        let Some(current) =
-                            resolve_partner_to_current(partner, &current_files, &project_dir)
-                        else {
-                            continue;
-                        };
-                        if covered(&current) {
-                            continue;
-                        }
-                        raw.push((f.clone(), current, weight, partner.to_string()));
-                    }
+                    if !covered(&current) { raw.push((file.clone(), current, weight, partner.to_string())); }
                 }
-                // Keep the single strongest coupling per (current-tree)
-                // partner — multiple historical spellings collapse here.
-                raw.sort_by(|a, b| b.2.cmp(&a.2));
-                let mut best_per_partner: Vec<(String, String, u32, String)> = Vec::new();
-                {
-                    let mut seen: HashSet<String> = HashSet::new();
-                    for r in raw {
-                        if seen.insert(r.1.to_lowercase()) {
-                            best_per_partner.push(r);
-                        }
-                    }
-                }
-                // Hub down-weighting: a partner that co-changes with a HUGE number of
-                // DISTINCT files (a global resx bundle, a shared script bundle) is
-                // touched by almost every change, so it carries no specific "you
-                // missed this companion" signal — surfacing it only adds noise and
-                // steers the agent toward the wrong family (e.g. label.resx when the
-                // change actually needs text.resx). Drop partners whose co-change
-                // DEGREE marks them ubiquitous. Generic — degree-based, the same IDF
-                // insight as the cross-section map; no per-repo names. The default
-                // is a high floor so it NO-OPS on sparse/young repos (no file reaches
-                // it) and only trims genuinely ubiquitous hubs on dense histories
-                // like this one (label.resx ~1063, text.resx ~900 get dropped;
-                // moderately-specific companions ~300-700 survive). Env-overridable.
-                let hub_degree: usize = std::env::var("ENGRAM_HUB_DEGREE")
-                    .ok()
-                    .and_then(|v| v.parse().ok())
-                    .unwrap_or(800);
-                // Co-change degree per candidate partner (distinct
-                // neighbours). Must use the RAW graph spelling — the
-                // TemporalCoupling adjacency is keyed by whatever spelling
-                // existed at commit time, not the re-anchored current path.
-                let degree_of = |raw_partner: &str| -> usize {
-                    let pfid = format!("file:{raw_partner}");
-                    graph
-                        .neighbors(&pid, EdgeKind::TemporalCoupling, &pfid, 2000)
-                        .map(|v| v.len())
-                        .unwrap_or(0)
+            }
+            raw.sort_by(|a, b| b.2.cmp(&a.2).then(a.1.cmp(&b.1)));
+            let hub_degree = std::env::var("ENGRAM_HUB_DEGREE").ok().and_then(|v| v.parse::<usize>().ok()).unwrap_or(800);
+            let mut seen_partners = HashSet::new();
+            let mut partners = Vec::new();
+            for (edited, partner, weight, historical) in raw {
+                if !seen_partners.insert(partner.to_lowercase()) { continue; }
+                let degree = match graph.neighbors(&pid, EdgeKind::TemporalCoupling, &format!("file:{historical}"), 2001) {
+                    Ok(mut neighbors) => {
+                        coverage.cap(&mut neighbors, 2000, &format!("hub-degree lookup for {historical}"));
+                        Some(neighbors.len())
+                    },
+                    Err(error) => { coverage.note(format!("hub-degree lookup for {historical} failed: {error}; candidate retained")); None },
                 };
-                let mut partner_findings: Vec<(String, String, u32, usize)> = best_per_partner
-                    .into_iter()
-                    .map(|(e, current, w, raw_partner)| {
-                        let d = degree_of(&raw_partner);
-                        (e, current, w, d)
-                    })
-                    .filter(|(_, _, _, d)| *d < hub_degree)
-                    .collect();
-                partner_findings.truncate(max_partners);
+                if degree.is_none_or(|degree| degree < hub_degree) { partners.push((edited, partner, weight)); }
+            }
+            coverage.cap(&mut partners, max_partners, "co-change candidate display");
 
-                // ── State keys shared with untouched files ──────────────────
-                // Symbols in edited files -> state targets -> other touchers.
-                let mut state_findings: Vec<(String, String)> = Vec::new();
-                let mut seen_keys: HashSet<String> = HashSet::new();
-                let nodes: NodeSnapshot = match snapshot {
-                    Some(shared) => shared,
-                    None => std::sync::Arc::new(
-                        graph
-                            .query_nodes(&pid, None, None, None, crate::handlers::NODE_SCAN_LIMIT)
-                            .unwrap_or_default(),
-                    ),
-                };
-                let edited_symbol_ids: Vec<String> = nodes
-                    .iter()
-                    .filter(|n| covered(n.file_path.as_str()))
-                    .map(|n| n.node_id.clone())
-                    .collect();
-                let node_file: std::collections::HashMap<&str, &str> = nodes
-                    .iter()
-                    .map(|n| (n.node_id.as_str(), n.file_path.as_str()))
-                    .collect();
-                for sid in edited_symbol_ids.iter().take(500) {
-                    for kind in [EdgeKind::ReadsState, EdgeKind::WritesState] {
-                        let Ok(neigh) = graph.neighbors(&pid, kind, sid, 20) else {
-                            continue;
+            let nodes: NodeSnapshot = match snapshot {
+                Some(shared) if shared.len() < crate::handlers::NODE_SCAN_LIMIT => {
+                    coverage.note("Shared node snapshot supplied; this call cannot independently establish its provider completeness.".into());
+                    shared
+                },
+                _ => {
+                    let mut nodes = match graph.query_nodes(&pid, None, None, None, crate::handlers::NODE_SCAN_LIMIT + 1) {
+                        Ok(nodes) => nodes,
+                        Err(error) => { coverage.note(format!("project node lookup failed: {error}")); Vec::new() },
+                    };
+                    coverage.cap(&mut nodes, crate::handlers::NODE_SCAN_LIMIT, "project node lookup");
+                    std::sync::Arc::new(nodes)
+                },
+            };
+            let node_files: HashMap<&str, &str> = nodes.iter().map(|node| (node.node_id.as_str(), node.file_path.as_str())).collect();
+            let mut symbols: Vec<_> = nodes.iter().filter(|node| covered(node.file_path.as_str())).take(501).collect();
+            coverage.cap(&mut symbols, 500, "edited-symbol state traversal");
+            let mut seen_keys = HashSet::new();
+            let mut states = Vec::new();
+            for symbol in symbols {
+                for kind in [EdgeKind::ReadsState, EdgeKind::WritesState] {
+                    let mut neighbors = match graph.neighbors(&pid, kind.clone(), &symbol.node_id, 21) {
+                        Ok(neighbors) => neighbors,
+                        Err(error) => { coverage.note(format!("state edges for {} ({kind:?}) failed: {error}", symbol.node_id)); continue; },
+                    };
+                    coverage.cap(&mut neighbors, 20, &format!("state edges for {} ({kind:?})", symbol.node_id));
+                    for (state_id, _) in neighbors {
+                        if !state_id.starts_with("state:") || !seen_keys.insert(state_id.clone()) { continue; }
+                        let mut touchers = match graph.find_incoming_edges_with_kind(&pid, None, &state_id, 101) {
+                            Ok(touchers) => touchers,
+                            Err(error) => { coverage.note(format!("state touchers for {state_id} failed: {error}")); continue; },
                         };
-                        for (state_id, _) in neigh {
-                            if !state_id.starts_with("state:")
-                                || !seen_keys.insert(state_id.clone())
-                            {
-                                continue;
-                            }
-                            // Other touchers of this key outside the edit set.
-                            let Ok(touchers) =
-                                graph.find_incoming_edges_with_kind(&pid, None, &state_id, 100)
-                            else {
-                                continue;
+                        coverage.cap(&mut touchers, 100, &format!("state touchers for {state_id}"));
+                        let mut outside = std::collections::BTreeSet::new();
+                        for (source, _, _) in touchers {
+                            let path = if let Some(path) = node_files.get(source.as_str()) {
+                                Some((*path).to_string())
+                            } else {
+                                match graph.get_node(&pid, &source) {
+                                    Ok(Some(node)) => Some(node.file_path.as_str().to_string()),
+                                    Ok(None) => { coverage.note(format!("state {state_id} has dangling toucher {source}; external usage is unresolved")); None },
+                                    Err(error) => { coverage.note(format!("state toucher {source} lookup failed: {error}")); None },
+                                }
                             };
-                            let outside: Vec<&str> = touchers
-                                .iter()
-                                .filter_map(|(src, _, _)| node_file.get(src.as_str()).copied())
-                                .filter(|f| !covered(f))
-                                .take(3)
-                                .collect();
-                            if !outside.is_empty() {
-                                state_findings.push((
-                                    state_id
-                                        .strip_prefix("state:")
-                                        .unwrap_or(&state_id)
-                                        .to_string(),
-                                    outside.join(", "),
-                                ));
+                            if let Some(path) = path {
+                                if path.is_empty() { coverage.note(format!("state toucher {source} has no file identity")); }
+                                else if !covered(&path) { outside.insert(path); }
                             }
                         }
-                    }
-                }
-                state_findings.truncate(10);
-
-                // ── Implemented but never wired (0 callers) ──────────────────
-                // Real failure class: a branch adds public methods whose doc
-                // comments CLAIM callers ("Used by the X gate"), but the graph
-                // shows ZERO incoming call edges — the ruled behavior was never
-                // wired up. Generic signal: a new/changed method nobody calls
-                // is dead scaffolding or unfinished wiring; either way a
-                // reviewer must see it. Reuses find_dead_methods' exclusions —
-                // framework-invoked kinds (Lifecycle/ControlEvent/WebMethod)
-                // and Handles-clause methods never have static callers, so
-                // flagging them would be pure noise.
-                let mut unwired_findings: Vec<(String, String, u32)> = Vec::new();
-                let changed_fns = nodes
-                    .iter()
-                    .filter(|n| n.node_type == "function" && covered(n.file_path.as_str()));
-                for node in changed_fns.take(500) {
-                    let effects = node_meta_csv(node, "effects");
-                    let kind =
-                        full_mig::classify_method_kind_pub(&node.name, &effects, &node.metadata)
-                            .to_string();
-                    let has_handles = !node_meta_csv(node, "handles_clause").is_empty();
-                    let caller_count =
-                        crate::handlers::incoming_caller_edges(&graph, &pid, &node.node_id, 1)
-                            .len();
-                    if unwired_should_flag(&kind, has_handles, caller_count) {
-                        unwired_findings.push((
-                            node_display_name(node),
-                            node.file_path.as_str().replace('\\', "/"),
-                            node.start_line,
-                        ));
-                        if unwired_findings.len() >= 10 {
-                            break;
+                        let mut outside: Vec<_> = outside.into_iter().collect();
+                        coverage.cap(&mut outside, 3, &format!("external-file display for {state_id}"));
+                        if !outside.is_empty() {
+                            states.push((state_id.strip_prefix("state:").unwrap_or(&state_id).to_string(), outside.join(", ")));
                         }
                     }
                 }
+            }
+            coverage.cap(&mut states, 10, "shared-state finding display");
 
-                (
-                    partner_findings,
-                    state_findings,
-                    unwired_findings,
-                    unresolved_inputs,
-                )
-            })
-            .await
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            let mut functions: Vec<_> = nodes.iter().filter(|node| node.node_type == "function" && covered(node.file_path.as_str())).take(501).collect();
+            coverage.cap(&mut functions, 500, "edited-function caller checks");
+            let mut unwired = Vec::new();
+            for node in functions {
+                let kind = full_mig::classify_method_kind_pub(&node.name, &node_meta_csv(node, "effects"), &node.metadata).to_string();
+                let has_handles = !node_meta_csv(node, "handles_clause").is_empty();
+                // Only zero vs nonzero is needed: extra callers cannot change
+                // that predicate. Provider errors cannot establish zero callers.
+                let caller_count = match crate::handlers::incoming_caller_edges_checked(&graph, &pid, &node.node_id, 1) {
+                    Ok((callers, _more)) => callers.len(),
+                    Err(error) => { coverage.note(format!("caller lookup for {} failed: {error}; zero callers not established", node.node_id)); continue; },
+                };
+                if unwired_should_flag(&kind, has_handles, caller_count) {
+                    unwired.push((node_display_name(node), node.file_path.as_str().replace('\\', "/"), node.start_line));
+                }
+            }
+            coverage.cap(&mut unwired, 10, "zero-indexed-caller display");
+            (partners, states, unwired, unresolved, coverage)
+        }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?;
 
         let mut out = String::from("# Edit completeness check\n");
-        if !unresolved_inputs.is_empty() {
-            out.push_str(&format!(
-                "\n⚠ {} of your edited files were NOT found in the index ({}) — typo, \
-                 moved, or not yet indexed. Findings below may be incomplete; run \
-                 update_project if the files are new.\n",
-                unresolved_inputs.len(),
-                unresolved_inputs
-                    .iter()
-                    .take(5)
-                    .cloned()
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            ));
+        if !unresolved.is_empty() {
+            out.push_str(&format!("\n{} of your edited files were NOT found in the index ({}). Findings may be incomplete; check spelling and update_project for new files.\n", unresolved.len(), unresolved.iter().take(5).cloned().collect::<Vec<_>>().join(", ")));
         }
-        if partner_findings.is_empty() && state_findings.is_empty() && unwired_findings.is_empty() {
-            out.push_str(
-                "\nNo strong co-change or shared-state links point outside your edit set. \
-                 NOTE: co-change needs ingested git history (index_git_history) — if it was \
-                 never ingested this means 'no data to check', not 'confirmed complete'. \
-                 Confirm sibling-completeness (H-class rules: other call sites, both master \
-                 pages) with grep_project / a working-tree grep as well.\n",
-            );
-        } else {
-            if !partner_findings.is_empty() {
-                out.push_str("\n## Co-change partners you did NOT touch\n");
-                out.push_str(
-                    "History says these files change together with yours — verify each:\n",
-                );
-                for (edited, partner, weight, _degree) in &partner_findings {
-                    out.push_str(&format!(
-                        "- `{partner}` ({weight} co-changes with `{edited}`)\n"
-                    ));
-                }
-            }
-            if !state_findings.is_empty() {
-                out.push_str("\n## Shared state with untouched files\n");
-                for (key, files) in &state_findings {
-                    out.push_str(&format!(
-                        "- state key `{key}` is also read/written in: {files}\n"
-                    ));
-                }
-            }
-            if !unwired_findings.is_empty() {
-                out.push_str("\n## Implemented but never wired (0 callers)\n");
-                out.push_str(
-                    "New/changed methods nobody calls are dead scaffolding or unfinished \
-                     wiring — verify the call sites this method was built for actually exist:\n",
-                );
-                for (name, file, line) in &unwired_findings {
-                    out.push_str(&format!("- `{name}` ({file}:{line})\n"));
-                }
+        if partners.is_empty() && states.is_empty() && unwired.is_empty() {
+            if coverage.notes.is_empty() && unresolved.is_empty() {
+                out.push_str("\nNo strong co-change or shared-state links point outside your edit set within the examined indexed evidence. Co-change needs ingested git history (index_git_history); absent history is no data to check, not confirmed complete. Confirm sibling completeness with grep_project or working-tree grep.\n");
+            } else {
+                out.push_str("\nNo findings returned within partial indexed coverage; completeness is not established.\n");
             }
         }
-        // Deliberately does NOT chain to find_similar_changes: this tool has
-        // already answered the companion-artifact question from precomputed
-        // temporal-coupling edges, while find_similar_changes re-walks git
-        // history. Agents followed the hint straight into that walk.
-        // House conventions: surface the CodeRabbit-derived repo rules whose
-        // pattern matches any edited file, ONCE for the whole changeset. These
-        // are the team's tacit conventions (promoted by ingest_code_review_
-        // history) that a new dev does not know yet — the class this tool exists
-        // to shift left. This is the only place the review flow sees them.
-        {
-            use crate::utils::files::pattern_match;
-            let reg = self.state.registry.clone();
-            let pid = req.project_id.clone();
-            let rules = tokio::task::spawn_blocking(move || reg.list_repo_rules(&pid))
-                .await
-                .ok()
-                .and_then(|r| r.ok())
-                .unwrap_or_default();
-            let mut applicable: Vec<String> = Vec::new();
-            let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
-            for f in &req.edited_files {
-                for r in &rules {
-                    if pattern_match(f, &r.file_pattern) && seen.insert(r.rule_id.clone()) {
-                        applicable.push(r.rule_text.clone());
-                    }
-                }
+        if !partners.is_empty() {
+            out.push_str("\n## Co-change partners you did NOT touch\nHistory supplies review candidates, not mandatory edits; assess applicability:\n");
+            for (edited, partner, weight) in &partners { out.push_str(&format!("- `{partner}` ({weight} co-changes with `{edited}`)\n")); }
+        }
+        if !states.is_empty() {
+            out.push_str("\n## Shared state with untouched files\n");
+            for (key, files) in &states { out.push_str(&format!("- state key `{key}` is also read/written in: {files}\n")); }
+        }
+        if !unwired.is_empty() {
+            out.push_str("\n## Methods with zero indexed callers (review candidates)\nThese indexed methods occur in edited files. Zero indexed callers does not establish that a method is new, dead, or unwired at runtime. Check source callers, dynamic/framework entry points and index freshness before deciding to edit:\n");
+            for (name, file, line) in &unwired { out.push_str(&format!("- `{name}` ({file}:{line})\n")); }
+        }
+        let reg = self.state.registry.clone();
+        let pid = req.project_id.clone();
+        let rules = match tokio::task::spawn_blocking(move || reg.list_repo_rules(&pid)).await {
+            Ok(Ok(rules)) => rules,
+            Ok(Err(error)) => { coverage.note(format!("repository rule lookup failed: {error}")); Vec::new() },
+            Err(error) => { coverage.note(format!("repository rule task failed: {error}")); Vec::new() },
+        };
+        let mut applicable = Vec::new();
+        let mut seen = HashSet::new();
+        for file in &rule_files {
+            for rule in &rules {
+                if crate::utils::files::pattern_match(file, &rule.file_pattern) && seen.insert(rule.rule_id.clone()) { applicable.push(rule.rule_text.clone()); }
             }
-            if !applicable.is_empty() {
-                out.push_str(&format!(
-                    "\n## House conventions for these files ({})\nLearned from this repo's \
-                     CodeRabbit history — check each change against them:\n",
-                    applicable.len()
-                ));
-                for t in applicable.iter().take(40) {
-                    out.push_str(&format!("- {t}\n"));
-                }
-            }
+        }
+        if !applicable.is_empty() {
+            let total = applicable.len();
+            coverage.cap(&mut applicable, 40, "house-rule display");
+            out.push_str(&format!("\n## House conventions for these files ({total})\nLearned from this repo's CodeRabbit history — check each change against them:\n"));
+            for rule in &applicable { out.push_str(&format!("- {rule}\n")); }
+        }
+        if !coverage.notes.is_empty() {
+            out.push_str("\n## INCOMPLETE coverage\nThese caps, missing identities or provider limitations prevent a completeness verdict:\n");
+            for note in &coverage.notes { out.push_str(&format!("- {note}\n")); }
+            if coverage.omitted > 0 { out.push_str(&format!("- {} additional coverage notes omitted (display cap 40)\n", coverage.omitted)); }
         }
         out.push_str("\nnext: pre_commit_review before committing.\n");
         out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
@@ -8455,6 +9437,26 @@ impl Engram {
     }
 }
 
+#[derive(Default)]
+struct EditCompletenessCoverage {
+    notes: Vec<String>,
+    omitted: usize,
+}
+
+impl EditCompletenessCoverage {
+    fn note(&mut self, note: String) {
+        if self.notes.contains(&note) { return; }
+        if self.notes.len() < 40 { self.notes.push(note); }
+        else { self.omitted += 1; }
+    }
+
+    fn cap<T>(&mut self, values: &mut Vec<T>, limit: usize, label: &str) {
+        if values.len() > limit {
+            self.note(format!("{label} truncated at {limit}; at least {} items were available", values.len()));
+            values.truncate(limit);
+        }
+    }
+}
 /// Decide whether a changed function node should be flagged as "implemented
 /// but never wired". Mirrors the find_dead_methods exclusion classes:
 /// framework-invoked kinds (Lifecycle, ControlEvent, WebMethod) and methods
@@ -8502,6 +9504,76 @@ fn node_display_name(node: &engram_graph::Node) -> String {
 
 const EDIT_SESSION_META_KEY: &str = "edit_session_v1";
 
+type EditSessions = std::collections::BTreeMap<String, serde_json::Value>;
+
+fn edit_path_key(path: &str) -> String {
+    path.to_lowercase()
+}
+
+fn normalize_edit_files(files: &[String]) -> Result<Vec<String>, McpError> {
+    if files.is_empty() {
+        return Err(McpError::invalid_params("file list must not be empty", None));
+    }
+    let mut normalized = Vec::new();
+    let mut seen = HashSet::new();
+    for file in files {
+        let path = file.trim().replace('\\', "/");
+        // Validate independently of the host OS: a Windows drive or UNC path
+        // must not become a second ownership identity on a Unix server either.
+        if path.starts_with('/') || path.contains(':') || path.contains('\0')
+            || path.split('/').any(|component| component == "..")
+        {
+            return Err(McpError::invalid_params("files must be project-relative paths; absolute, drive, UNC and parent-traversal paths are not accepted", None));
+        }
+        let path = path.split('/').filter(|part| !part.is_empty() && *part != ".").collect::<Vec<_>>().join("/");
+        if path.is_empty() {
+            return Err(McpError::invalid_params("files must contain nonblank project-relative paths", None));
+        }
+        if seen.insert(edit_path_key(&path)) {
+            normalized.push(path);
+        }
+    }
+    Ok(normalized)
+}
+
+fn read_edit_sessions(raw: Option<&str>) -> Result<EditSessions, McpError> {
+    let Some(raw) = raw.filter(|s| !s.trim().is_empty()) else { return Ok(EditSessions::new()); };
+    let value: serde_json::Value = serde_json::from_str(raw).map_err(|e| McpError::internal_error(e.to_string(), None))?;
+    let mut sessions: EditSessions = if value.get("sessions").is_some() {
+        serde_json::from_value(value["sessions"].clone()).map_err(|e| McpError::internal_error(e.to_string(), None))?
+    } else if value["planned_files"].is_array() {
+        // Existing installations can finish their original single open session.
+        std::collections::BTreeMap::from([("legacy".into(), value)])
+    } else {
+        return Err(McpError::internal_error("invalid stored edit sessions", None));
+    };
+    // Normalize legacy and current payloads at the read boundary, including
+    // strict element validation: malformed entries must not vanish from scope.
+    for (id, session) in &mut sessions {
+        let planned: Vec<String> = serde_json::from_value(session["planned_files"].clone())
+            .map_err(|e| McpError::internal_error(format!("invalid planned_files in stored session {id}: {e}"), None))?;
+        session["planned_files"] = serde_json::json!(normalize_edit_files(&planned)?);
+    }
+    Ok(sessions)
+}
+
+fn update_edit_sessions(
+    registry: &engram_core::registry::Registry,
+    project_id: &str,
+    change: impl Fn(&mut EditSessions) -> Result<(), McpError>,
+) -> Result<(), McpError> {
+    for _ in 0..16 {
+        let raw = registry.get_meta(project_id, EDIT_SESSION_META_KEY).map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let mut sessions = read_edit_sessions(raw.as_deref())?;
+        change(&mut sessions)?;
+        let next = serde_json::json!({"version": 2, "sessions": sessions}).to_string();
+        if registry.compare_exchange_meta(project_id, EDIT_SESSION_META_KEY, raw.as_deref(), &next).map_err(|e| McpError::internal_error(e.to_string(), None))? {
+            return Ok(());
+        }
+    }
+    Err(McpError::invalid_params("edit session contention; retry with the same session_id", None))
+}
+
 impl Engram {
     /// TODO-29: open the edit-session bookend. Persists intent and returns
     /// the expectation brief (partners + state couplings of the planned
@@ -8512,31 +9584,29 @@ impl Engram {
         req: crate::models::BeginEditSessionRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
-        if req.planned_files.is_empty() {
-            return Err(McpError::invalid_params(
-                "planned_files must not be empty".to_string(),
-                None,
-            ));
+        let planned_files = normalize_edit_files(&req.planned_files)?;
+        let session_id = req.session_id.clone().unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+        if session_id.trim().is_empty() || session_id.len() > 128 {
+            return Err(McpError::invalid_params("session_id must contain 1 to 128 bytes", None));
         }
+        let record = self.ensure_project_record(&req.project_id).await?;
+        let generation = self.get_active_generation(&req.project_id).await?;
+        let head = git2::Repository::discover(&record.directory).ok().and_then(|r| r.head().ok().and_then(|h| h.target())).map(|id| id.to_string());
+        let revision = uuid::Uuid::new_v4().to_string();
         let session = serde_json::json!({
-            "planned_files": req.planned_files,
-            "story": req.story,
+            "session_id": session_id, "revision": revision,
+            "requires_revision": req.session_id.is_some(),
+            "planned_files": planned_files, "story": req.story,
             "started_ms": crate::utils::now_ms(),
+            "snapshot": {"directory":record.directory,"head":head,"index_generation":generation},
         });
-        let reg = self.state.registry.clone();
-        let pid = req.project_id.clone();
-        let payload = session.to_string();
-        tokio::task::spawn_blocking(move || reg.set_meta(&pid, EDIT_SESSION_META_KEY, &payload))
-            .await
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         // The expectation brief is the same engine, run on the PLANNED set:
         // anything it reports now is coupling the agent should plan for.
         let brief = self
             .handle_detect_incomplete_changes(crate::models::DetectIncompleteChangesRequest {
                 project_id: req.project_id.clone(),
-                edited_files: req.planned_files.clone(),
+                edited_files: planned_files.clone(),
                 max_partners: 5,
             })
             .await?;
@@ -8547,11 +9617,30 @@ impl Engram {
             .collect::<Vec<_>>()
             .join("\n");
 
+        let reg = self.state.registry.clone();
+        let pid = req.project_id.clone();
+        let claim_id = session_id.clone();
+        let claim = session.clone();
+        tokio::task::spawn_blocking(move || update_edit_sessions(&reg, &pid, |sessions| {
+            if sessions.contains_key(&claim_id) {
+                return Err(McpError::invalid_params("session_id already open; complete it before reuse", None));
+            }
+            let planned: HashSet<String> = claim["planned_files"].as_array().into_iter().flatten().filter_map(|f| f.as_str()).map(edit_path_key).collect();
+            for (id, other) in sessions.iter() {
+                if other["planned_files"].as_array().into_iter().flatten().filter_map(|f| f.as_str()).any(|f| planned.contains(&edit_path_key(f))) {
+                    return Err(McpError::invalid_params(format!("planned files overlap open session {id}; finish that session first"), None));
+                }
+            }
+            sessions.insert(claim_id.clone(), claim.clone());
+            Ok(())
+        })).await.map_err(|e| McpError::internal_error(e.to_string(), None))??;
+
         Ok(CallToolResult::success(vec![Content::text(format!(
-            "# Edit session OPEN\nplanned files: {}\n\n## Expectation brief \
+            "# Edit session OPEN\nsession_id: {session_id}\nsession_revision: {revision}\nsnapshot: {}\nSnapshot metadata records context only; it is not approval or source certification.\nplanned files: {}\n\n## Expectation brief \
              (couplings of your planned set — plan for these now)\n{}\n\
-             next: edit; then complete_edit_session(edited_files=[...]) before committing.\n",
-            req.planned_files.join(", "),
+             next: edit; then complete_edit_session(session_id=\"{session_id}\", session_revision=\"{revision}\", edited_files=[...]) before committing.\n",
+            session["snapshot"],
+            planned_files.join(", "),
             brief_text
         ))]))
     }
@@ -8569,16 +9658,27 @@ impl Engram {
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        let Some(stored) = stored.filter(|s| !s.trim().is_empty()) else {
+        let sessions = read_edit_sessions(stored.as_deref())?;
+        if sessions.is_empty() {
             return Err(McpError::invalid_params(
                 "no open edit session — call begin_edit_session first (or use \
                  detect_incomplete_changes directly for a stateless check)"
                     .to_string(),
                 None,
             ));
+        }
+        let session_id = match req.session_id.as_ref() {
+            Some(id) => id.clone(),
+            None if sessions.len() == 1 => sessions.keys().next().unwrap().clone(),
+            None => return Err(McpError::invalid_params("multiple edit sessions are open; supply session_id", None)),
         };
-        let session: serde_json::Value = serde_json::from_str(&stored)
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let session = sessions.get(&session_id).cloned().ok_or_else(|| McpError::invalid_params("session_id is not open", None))?;
+        let expected_revision = session["revision"].as_str();
+        if req.session_revision.as_deref().is_some_and(|revision| Some(revision) != expected_revision)
+            || (req.session_id.is_some() && session["requires_revision"].as_bool() == Some(true) && req.session_revision.is_none())
+        {
+            return Err(McpError::invalid_params("session_revision must match the token returned by begin_edit_session for this lifecycle", None));
+        }
         let planned: Vec<String> = session["planned_files"]
             .as_array()
             .map(|a| {
@@ -8587,19 +9687,20 @@ impl Engram {
                     .collect()
             })
             .unwrap_or_default();
+        let planned = normalize_edit_files(&planned)?;
 
         let edited = if req.edited_files.is_empty() {
             planned.clone()
         } else {
-            req.edited_files.clone()
+            normalize_edit_files(&req.edited_files)?
         };
 
         // Plan drift: planned-but-not-edited is the silent scope shrink that
         // reviews catch late.
-        let edited_lower: HashSet<String> = edited.iter().map(|f| f.to_lowercase()).collect();
+        let edited_lower: HashSet<String> = edited.iter().map(|f| edit_path_key(f)).collect();
         let unedited_plan: Vec<&String> = planned
             .iter()
-            .filter(|f| !edited_lower.contains(&f.to_lowercase()))
+            .filter(|f| !edited_lower.contains(&edit_path_key(f)))
             .collect();
 
         let check = self
@@ -8616,25 +9717,31 @@ impl Engram {
             .collect::<Vec<_>>()
             .join("\n");
 
-        // Session consumed either way — completing twice is a usage error.
+        // Consume only the exact session checked. Concurrent workers retain
+        // their sessions, and any failure above leaves this one retryable.
         let reg2 = self.state.registry.clone();
         let pid2 = req.project_id.clone();
-        tokio::task::spawn_blocking(move || reg2.set_meta(&pid2, EDIT_SESSION_META_KEY, ""))
-            .await
-            .ok();
+        let consume_id = session_id.clone();
+        let expected = session.clone();
+        let legacy_selection = req.session_id.is_none();
+        tokio::task::spawn_blocking(move || update_edit_sessions(&reg2, &pid2, |sessions| {
+            if (legacy_selection && sessions.len() != 1) || sessions.get(&consume_id) != Some(&expected) {
+                return Err(McpError::invalid_params("session changed, completed, or became ambiguous during validation; retry using session_id", None));
+            }
+            sessions.remove(&consume_id);
+            Ok(())
+        })).await.map_err(|e| McpError::internal_error(e.to_string(), None))??;
 
-        let mut out = String::from("# Edit session COMPLETE\n");
+        let mut out = format!("# Edit session COMPLETE\nsession_id: {session_id}\nsession_revision: {}\nstarted snapshot: {}\nAdvisory completeness check; not approval or certification of the current diff.\n", session["revision"], session["snapshot"]);
         if !unedited_plan.is_empty() {
             out.push_str("\n## Planned but NOT edited (scope drift — confirm intentional)\n");
             for f in unedited_plan {
                 out.push_str(&format!("- {f}\n"));
             }
         }
-        // Dossier-obligation reconciliation: the dossier the agent
-        // implemented from IS the contract — every file it referenced in
-        // its structured sections is an obligation. Naming the unmet ones
-        // here closes the loop that one-shot implementations were missing
-        // (agents silently skipped dossier items and nothing ever checked).
+        // Dossier references are review candidates, not mandatory edits.
+        // Surface untouched references so the agent records applicability
+        // and a disposition against the actual approved change scope.
         if let Some(ref dossier) = req.dossier {
             let obligations = extract_dossier_obligations(dossier);
             if !obligations.is_empty() {
@@ -8676,19 +9783,98 @@ impl Engram {
     }
 }
 
-/// Work-item id from a story: "#847", "Bug 847", "US 1234", "AB#847".
-/// Requires an id-ish keyword or # so bare numbers in prose don't match.
+/// Work-item id from a story: "#847", "Bug 847", "US 1234", "AB#847", "DMO-847".
+/// Only leading work-item markers or a standalone hash ID identify intake.
+/// Incidental issue references, CSS colors and numbered headings are prose.
 pub(crate) fn extract_work_item_id(story: &str) -> Option<u64> {
     use std::sync::LazyLock;
     static RE: LazyLock<regex::Regex> = LazyLock::new(|| {
         regex::Regex::new(
-            r"(?i)(?:\b(?:bug|us|user story|story|item|task|ab)\s*#?\s*|#)(\d{2,7})\b",
+            r"(?i)^\s*(?:(?:(?:fix|resolve|resolves)\s+)?(?:bug|us|user story|story|item|task|ab)\s*#?\s*|dmo-)(\d{1,10})\b",
         )
         .expect("valid regex")
     });
-    RE.captures(story)
+    static HASH_ID: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(r"^\s*#(\d{1,10})\s*$").expect("valid regex")
+    });
+    RE.captures(story).or_else(|| HASH_ID.captures(story))
         .and_then(|c| c.get(1))
         .and_then(|m| m.as_str().parse().ok())
+}
+
+/// Bound a composed brief without hiding the fact that source evidence was
+/// omitted. Keep separators and provider caveats in the excerpt itself.
+fn bounded_planning_excerpt(text: &str, limit: usize, tool: &str) -> String {
+    let mut lines = text.lines();
+    let mut excerpt = lines.by_ref().take(limit).collect::<Vec<_>>().join("\n");
+    if lines.next().is_some() {
+        excerpt.push_str(&format!("\nINCOMPLETE: {tool} output truncated at {limit} lines; call {tool} directly for omitted evidence, coverage caveats and source provenance."));
+    }
+    excerpt
+}
+
+/// Keep free-text/offline planning available, but never turn a failed
+/// ID-targeted intake into an apparently complete title-only dossier.
+fn story_with_work_item_text(story: &str, text: Option<String>) -> Result<String, McpError> {
+    if let Some(text) = text.as_deref().map(str::trim).filter(|text| !text.is_empty()) {
+        return Ok(format!("{}\n\n## Work item (full text)\n{text}", story.trim()));
+    }
+    if let Some(id) = extract_work_item_id(story) {
+        return Err(McpError::invalid_params(
+            format!("INCOMPLETE_INTAKE: work item #{id} text is unavailable. Supply nonblank work_item_text containing the description/reproduction steps and acceptance criteria, or check the server ADO_PAT/per-call pat_token, Azure DevOps coordinates and work-item access. No change-set dossier was generated."),
+            None,
+        ));
+    }
+    Ok(story.to_string())
+}
+
+fn retrieval_code_ranges(story: &str) -> Vec<std::ops::Range<usize>> {
+    let bytes = story.as_bytes();
+    let mut ranges = Vec::new();
+    let mut opener: Option<(usize, u8, usize)> = None;
+    let mut pos = 0;
+    while pos < bytes.len() {
+        if bytes[pos] != b'`' && bytes[pos] != b'~' { pos += 1; continue; }
+        let marker = bytes[pos];
+        let count = bytes[pos..].iter().take_while(|&&b| b == marker).count();
+        if let Some((start, open_marker, open_count)) = opener {
+            if marker == open_marker && count == open_count {
+                ranges.push(start..pos + count);
+                opener = None;
+            }
+        } else if marker == b'`' || count >= 3 {
+            opener = Some((pos, marker, count));
+        }
+        pos += count;
+    }
+    if let Some((start, _, _)) = opener { ranges.push(start..bytes.len()); }
+    ranges
+}
+
+/// Strip recognized capture framing, not ordinary uses of words such as "work"
+/// or "description". Field values and the rendered source evidence stay intact.
+fn retrieval_without_capture_labels(story: &str) -> String {
+    use std::sync::LazyLock;
+    static LABELS: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(concat!(
+            r"(?im)^[ \t]*(?:#{1,6}[ \t]+)?(?:",
+            r"(?:work[ \t]+item|issue|ticket)[ \t]+#?\d+(?:[ \t]*,[ \t]*(?:original[ \t]+)?revision[ \t]+\d+)?[ \t]*\r?$|",
+            r"(?:original[ \t]+)?referenced[ \t]+image:[ \t]*\S+\.(?:png|jpe?g|gif|webp|svg)[ \t]*\r?$|",
+            r"(?:title|description|repro(?:duction)?[ \t]+steps|acceptance[ \t]+criteria)",
+            r"(?:[ \t]+\((?:(?:complete|full|original|raw|html|text)[ \t]*)+\))?[ \t]*:[ \t]*",
+            r"(?:\[(?:empty|not[ \t]+provided|not[ \t]+specified)(?:[ \t]+in[ \t]+original[ \t]+revision)?\][ \t]*\r?$)?",
+            r")"
+        )).expect("valid capture-label regex")
+    });
+    let code = retrieval_code_ranges(story);
+    LABELS.replace_all(story, |caps: &regex::Captures<'_>| {
+        let matched = caps.get(0).expect("complete capture label");
+        if code.iter().any(|r| r.start < matched.end() && matched.start() < r.end) {
+            matched.as_str().to_string()
+        } else {
+            String::new()
+        }
+    }).into_owned()
 }
 
 /// Concept extraction must not see the scaffolding labels this handler
@@ -8697,9 +9883,38 @@ pub(crate) fn extract_work_item_id(story: &str) -> Option<u64> {
 /// story's actual domain concepts. The rendered brief keeps the labels;
 /// extraction gets this stripped view.
 pub(crate) fn story_for_concepts(story: &str) -> String {
-    let s = story
-        .replace("## Work item (full text)", "")
-        .replace("Acceptance criteria:", "");
+    // Callers can supply rich-text work-item fields directly. Only remove
+    // recognized presentation tags in this retrieval view: a blanket <...>
+    // regex would also erase comparisons and generic type names in code.
+    // The original story remains unchanged for evidence and dossier rendering.
+    use std::sync::LazyLock;
+    static PRESENTATION_TAG: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(r#"(?is)</?(?:div|span|p|br|hr|img|ul|ol|li|table|thead|tbody|tfoot|tr|td|th|h[1-6]|a|b|strong|i|em|u|s|strike|blockquote|pre|code)(?:\s+(?:[^<>\"']|\"[^\"]*\"|'[^']*')*)?\s*/?>"#)
+            .expect("valid presentation-tag regex")
+    });
+    // Preserve Markdown code spans/fences, including unmatched openers (a
+    // conservative retrieval view is preferable to erasing an incomplete
+    // code example). Delimiter runs close only on the matching marker/length.
+    let code_ranges = retrieval_code_ranges(story);
+    let mut code_index = 0;
+    let without_tags = PRESENTATION_TAG.replace_all(story, |caps: &regex::Captures<'_>| {
+        let tag = caps.get(0).expect("complete tag");
+        while code_index < code_ranges.len() && code_ranges[code_index].end <= tag.start() { code_index += 1; }
+        let in_code = code_ranges.get(code_index).is_some_and(|r| r.start < tag.end());
+        let generic_adjacent = !tag.as_str().starts_with("</")
+            && tag.as_str()[1..tag.as_str().len() - 1].trim_end().chars().all(|c| c.is_ascii_alphanumeric())
+            && story[..tag.start()].chars().next_back().is_some_and(|c| c.is_alphanumeric() || c == '_');
+        if in_code || generic_adjacent { tag.as_str().to_string() } else { " ".into() }
+    });
+    let s = retrieval_without_capture_labels(&without_tags)
+        .replace("&nbsp;", " ")
+        .replace("&#160;", " ")
+        .replace("&#xA0;", " ")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&amp;", "&")
+        .replace("## Work item (full text)", "");
     // URLs are not domain concepts: a pasted support-ticket link made its
     // hostname/path tokens 2 of the 5 extracted
     // concepts on a live fetch. Drop whole URL tokens.
@@ -8809,13 +10024,11 @@ fn pick_pat(per_call: Option<String>, env_fallback: Option<String>) -> Option<St
 }
 
 /// Fetch an ADO work item's full text (title + description/repro +
-/// acceptance criteria, HTML stripped). None on ANY failure — callers
-/// degrade to the story alone.
+/// acceptance criteria, HTML stripped). None on failure — the caller
+/// blocks ID-targeted intake rather than planning from the title alone.
 async fn fetch_ado_work_item(org: &str, project: &str, id: u64, pat: &str) -> Option<String> {
-    // $expand=relations: real defects come as LINKED CLUSTERS — the eval's
-    // four-arm study measured a single missing sibling bug at -45.7 F1
-    // (PR1937: two linked bugs, one symptom each). Input parity means the
-    // whole cluster, exactly what the dev sees on the item.
+    // Related items can add requirements. Fetch a bounded sample and make
+    // every omitted or unavailable part explicit in the returned evidence.
     let url = format!(
         "https://dev.azure.com/{org}/{project}/_apis/wit/workitems/{id}?api-version=7.0&$expand=relations"
     );
@@ -8839,43 +10052,16 @@ async fn fetch_ado_work_item(org: &str, project: &str, id: u64, pat: &str) -> Op
     let get = |k: &str| f.get(k).and_then(|x| x.as_str()).unwrap_or("");
     let title = get("System.Title");
     let wtype = get("System.WorkItemType");
-    let desc = {
-        let d = get("System.Description");
-        if d.is_empty() {
-            get("Microsoft.VSTS.TCM.ReproSteps")
-        } else {
-            d
-        }
-    };
     let accept = get("Microsoft.VSTS.Common.AcceptanceCriteria");
-    let mut out = format!("[{wtype} #{id}] {title}\n\n{}", strip_html(desc));
+    let mut out = format!("[{wtype} #{id}] {title}\n\n{}", work_item_description(f));
     if !accept.is_empty() {
-        // AC provenance (fail-soft): one-liner stories sometimes get
-        // acceptance criteria back-filled by the implementer (often
-        // AI-assisted) after the team wrote the story. Those are hints
-        // to verify, not team-committed spec — and an agent that treats
-        // them as spec faithfully implements criteria the team never
-        // agreed to. Label who wrote the AC and flag back-fills.
-        let label = match fetch_ac_provenance(&client, org, project, id, &auth).await {
-            Some((ac_author, ac_date, creator)) => {
-                if !creator.is_empty() && ac_author != creator {
-                    format!(
-                        "Acceptance criteria (written by {ac_author} on {ac_date}; \
-                         the story was created by {creator} — these criteria were \
-                         back-filled later; verify them against the description and \
-                         existing merged work rather than treating them as \
-                         team-committed spec)"
-                    )
-                } else {
-                    format!("Acceptance criteria (written by {ac_author} on {ac_date})")
-                }
-            }
-            None => "Acceptance criteria".to_string(),
-        };
+        let provenance = fetch_ac_provenance(&client, org, project, id, &auth).await;
+        let label = ac_provenance_label(provenance.as_ref());
         out.push_str(&format!("\n\n{label}:\n{}", strip_html(accept)));
     }
-    // Linked work items (bounded, fail-soft): titles + trimmed descriptions.
-    for lid in extract_relation_ids(&v, id).into_iter().take(3) {
+    let linked_ids = extract_relation_ids(&v, id);
+    out.push_str(&linked_item_coverage(linked_ids.len()));
+    for lid in linked_ids.into_iter().take(3) {
         let lurl = format!(
             "https://dev.azure.com/{org}/{project}/_apis/wit/workitems/{lid}?api-version=7.0"
         );
@@ -8885,42 +10071,84 @@ async fn fetch_ado_work_item(org: &str, project: &str, id: u64, pat: &str) -> Op
             .send()
             .await
         else {
+            out.push_str(&linked_item_excerpt(lid, Err("request failed or timed out")));
             continue;
         };
         if !lresp.status().is_success() {
+            out.push_str(&linked_item_excerpt(lid, Err("server returned an unsuccessful HTTP status")));
             continue;
         }
         let Ok(lv) = lresp.json::<serde_json::Value>().await else {
+            out.push_str(&linked_item_excerpt(lid, Err("response was not valid JSON")));
             continue;
         };
-        let Some(lf) = lv.get("fields") else { continue };
-        let lget = |k: &str| lf.get(k).and_then(|x| x.as_str()).unwrap_or("");
-        let ltitle = lget("System.Title");
-        if ltitle.is_empty() {
-            continue;
-        }
-        let ldesc = {
-            let d = lget("System.Description");
-            if d.is_empty() {
-                lget("Microsoft.VSTS.TCM.ReproSteps")
-            } else {
-                d
-            }
-        };
-        let ltype = lget("System.WorkItemType");
-        let body: String = strip_html(ldesc).chars().take(1200).collect();
-        out.push_str(&format!("\n\n[linked {ltype} #{lid}] {ltitle}\n{body}"));
+        out.push_str(&linked_item_excerpt(lid, Ok(&lv)));
     }
     Some(out)
 }
 
-/// Who first wrote the acceptance criteria, and who created the item.
+fn linked_item_coverage(count: usize) -> String {
+    if count == 0 { return String::new(); }
+    let mut text = format!("\n\nLinked-item evidence: {count} direct work-item links discovered; fetching at most 3 bounded summaries. Links from those items are not traversed.\n");
+    if count > 3 {
+        text.push_str(&format!("INCOMPLETE: {} linked items omitted by the 3-item cap; fetch the remaining linked items before treating intake as complete.\n", count - 3));
+    }
+    text
+}
+
+fn linked_item_excerpt(id: u64, result: Result<&serde_json::Value, &str>) -> String {
+    let document = match result {
+        Ok(value) => value,
+        Err(reason) => return format!("\nINCOMPLETE: linked work item #{id} unavailable ({reason}); fetch it before treating intake as complete.\n"),
+    };
+    let Some(fields) = document.get("fields") else {
+        return linked_item_excerpt(id, Err("fields missing"));
+    };
+    let get = |key: &str| fields.get(key).and_then(|value| value.as_str()).unwrap_or("");
+    let title = get("System.Title");
+    if title.trim().is_empty() { return linked_item_excerpt(id, Err("title missing")); }
+    let kind = get("System.WorkItemType");
+    let mut content = work_item_description(fields);
+    let criteria = get("Microsoft.VSTS.Common.AcceptanceCriteria");
+    if !criteria.trim().is_empty() {
+        content.push_str(&format!("\n\nAcceptance criteria (revision provenance not fetched):\n{}", strip_html(criteria)));
+    }
+    let mut body: String = content.chars().take(1200).collect();
+    if content.chars().count() > 1200 {
+        body.push_str(&format!("\nINCOMPLETE: linked work item #{id} evidence truncated at 1200 characters; fetch this item for full evidence."));
+    }
+    format!("\n\n[linked {kind} #{id}] {title}\n{body}")
+}
+
+/// Both fields can be populated on a bug; neither supersedes the other.
+fn work_item_description(fields: &serde_json::Value) -> String {
+    [("Description", "System.Description"), ("Reproduction steps", "Microsoft.VSTS.TCM.ReproSteps")]
+        .into_iter()
+        .filter_map(|(label, key)| {
+            fields.get(key).and_then(|value| value.as_str())
+                .filter(|value| !value.trim().is_empty())
+                .map(|value| format!("{label}:\n{}", strip_html(value)))
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n")
+}
+
+fn ac_provenance_label(provenance: Option<&(String, String, String)>) -> String {
+    match provenance {
+        Some((author, date, creator)) => format!(
+            "Acceptance criteria (earliest field-population event found in returned history: {author} on {date}; item creator: {}; history query limited to 200 updates; current-text authorship and approval are not established by this event)",
+            if creator.is_empty() { "unknown" } else { creator.as_str() }
+        ),
+        None => "Acceptance criteria (revision provenance unavailable; approval not established by this lookup)".into(),
+    }
+}
+
+/// Earliest AC field-population event in the returned history, and item creator.
 ///
 /// Reads the work-item revision history (`/updates`) and returns
 /// `(ac_author, ac_date_yyyy_mm_dd, item_creator)` for the first
-/// revision that populated AcceptanceCriteria. None on any failure or
-/// if the field never appears in history — callers fall back to an
-/// unannotated label.
+/// returned revision that populated AcceptanceCriteria. This is not proof
+/// of current-text authorship or approval. None on failure or absent evidence.
 async fn fetch_ac_provenance(
     client: &reqwest::Client,
     org: &str,
@@ -8941,7 +10169,12 @@ async fn fetch_ac_provenance(
         return None;
     }
     let v: serde_json::Value = resp.json().await.ok()?;
-    let updates = v.get("value")?.as_array()?;
+    ac_provenance_from_updates(&v)
+}
+
+fn ac_provenance_from_updates(v: &serde_json::Value) -> Option<(String, String, String)> {
+    let mut updates: Vec<_> = v.get("value")?.as_array()?.iter().collect();
+    updates.sort_by_key(|update| update.get("rev").and_then(|value| value.as_u64()).unwrap_or(u64::MAX));
     let mut creator = String::new();
     for u in updates {
         let who = u
@@ -8962,7 +10195,7 @@ async fn fetch_ac_provenance(
         let new_val = ac.get("newValue").and_then(|x| x.as_str()).unwrap_or("");
         let old_val = ac.get("oldValue").and_then(|x| x.as_str()).unwrap_or("");
         if new_val.trim().is_empty() || !old_val.trim().is_empty() {
-            continue; // want the revision that FIRST populated the field
+            continue; // Earliest population event in this returned page only.
         }
         // Prefer the field-level ChangedDate; revisedDate is 9999-01-01
         // on some in-flight revisions.
@@ -9092,8 +10325,58 @@ pub(crate) fn extract_dossier_obligations(dossier: &str) -> Vec<(String, String)
 mod work_item_tests {
     use super::{
         ado_coords_from_remote_url, base64_encode, extract_work_item_id, parse_origin_url,
-        pick_pat, story_for_concepts, strip_html,
+        pick_pat, story_for_concepts, story_with_work_item_text, strip_html,
+        ac_provenance_from_updates, ac_provenance_label, bounded_planning_excerpt,
+        work_item_description,
+        linked_item_coverage, linked_item_excerpt,
     };
+
+    #[test]
+    fn bug_description_preserves_independent_reproduction_steps() {
+        let fields = serde_json::json!({
+            "System.Description": "<p>Cannot assign the selected resource</p>",
+            "Microsoft.VSTS.TCM.ReproSteps": "<p>Open a second tenant and press Save</p>"
+        });
+        let text = work_item_description(&fields);
+        assert!(text.contains("Description:\nCannot assign"));
+        assert!(text.contains("Reproduction steps:\nOpen a second tenant"));
+        let repro_only = work_item_description(&serde_json::json!({
+            "Microsoft.VSTS.TCM.ReproSteps": "Click Save"
+        }));
+        assert_eq!(repro_only, "Reproduction steps:\nClick Save");
+    }
+
+    #[test]
+    fn ac_revision_facts_do_not_imply_current_authorship_or_approval() {
+        let updates = serde_json::json!({"value": [
+            {"rev":3,"revisedBy":{"displayName":"Carol"},"fields":{
+                "Microsoft.VSTS.Common.AcceptanceCriteria":{"oldValue":"Original criteria","newValue":"Revised criteria"}}},
+            {"rev":2,"revisedBy":{"displayName":"Bob"},"fields":{
+                "System.ChangedDate":{"newValue":"2026-09-09T10:00:00Z"},
+                "Microsoft.VSTS.Common.AcceptanceCriteria":{"newValue":"Original criteria"}}},
+            {"rev":1,"revisedBy":{"displayName":"Alice"},"fields":{}}
+        ]});
+        let provenance = ac_provenance_from_updates(&updates).unwrap();
+        assert_eq!(provenance, ("Bob".into(), "2026-09-09".into(), "Alice".into()));
+        let label = ac_provenance_label(Some(&provenance));
+        assert!(label.contains("earliest field-population event"));
+        assert!(label.contains("Bob on 2026-09-09"));
+        assert!(label.contains("current-text authorship and approval are not established"));
+        assert!(!label.contains("back-filled"));
+        assert!(!label.contains("team-committed"));
+        assert!(ac_provenance_label(None).contains("provenance unavailable"));
+    }
+
+    #[test]
+    fn composed_brief_never_silently_hides_tail_caveats() {
+        let input = "Evidence\n---\nINCOMPLETE: provider capped\nSource: generation 12";
+        let complete = bounded_planning_excerpt(input, 4, "get_concept_footprint");
+        assert_eq!(complete, input, "a separator must not discard caveats");
+        let shortened = bounded_planning_excerpt(input, 2, "get_concept_footprint");
+        assert!(shortened.contains("INCOMPLETE:"));
+        assert!(shortened.contains("truncated at 2 lines"));
+        assert!(shortened.contains("source provenance"));
+    }
 
     #[test]
     fn concept_extraction_view_drops_injected_labels() {
@@ -9106,6 +10389,77 @@ mod work_item_tests {
         // …while the actual story/work-item content survives verbatim.
         assert!(cleaned.contains("Can't assign resources to tasks in multitenant mode"));
         assert!(cleaned.contains("Bug #847"));
+    }
+
+    #[test]
+    fn full_capture_framing_does_not_consume_domain_concept_slots() {
+        let plain = "Search orders in sidebar\nFilter the order list by name.";
+        let captured = "Work item 847, original revision 6\nTitle: Search orders in sidebar\n\nDescription (complete original HTML):\n<p>Filter the order list by name.</p>\n\nAcceptance Criteria: [empty in original revision]\nOriginal referenced image: original.png";
+        for source in [captured.to_string(), captured.replace('\n', "\r\n")] {
+            let composed = story_with_work_item_text("AB#847", Some(source.clone())).unwrap();
+            let cleaned = story_for_concepts(&composed);
+            assert_eq!(super::extract_story_concepts(&cleaned), super::extract_story_concepts(plain));
+            for metadata in ["Work item", "original revision", "Title:", "Description", "complete original HTML", "referenced image", "original.png"] {
+                assert!(!cleaned.contains(metadata), "{metadata} leaked into {cleaned}");
+            }
+            assert!(cleaned.contains("Filter the order list by name."));
+            assert!(composed.contains(&source), "Original capture must remain in rendered evidence");
+        }
+    }
+
+    #[test]
+    fn capture_label_cleanup_preserves_business_prose_and_literal_code() {
+        let prose = "Original work item descriptions are searchable.\nThe title: Order status must remain visible.\nAcceptance criteria: preserve descriptions for archived orders.";
+        let cleaned = story_for_concepts(prose);
+        assert!(cleaned.contains("Original work item descriptions are searchable."));
+        assert!(cleaned.contains("The title: Order status must remain visible."));
+        assert!(cleaned.contains("preserve descriptions for archived orders."));
+        let fenced = "```yaml\nTitle: Orders\nDescription: Archived records\nAcceptance criteria: retain literal keys\n```\nTitle: Search shipments";
+        let cleaned = story_for_concepts(fenced);
+        assert!(cleaned.contains("Title: Orders Description: Archived records"));
+        assert!(cleaned.contains("Acceptance criteria: retain literal keys"));
+        assert!(cleaned.ends_with("Search shipments"));
+        assert_eq!(story_for_concepts("Work item 847 must retain descriptions."), "Work item 847 must retain descriptions.");
+    }
+
+    #[test]
+    fn concept_view_removes_richtext_attributes_without_losing_visible_requirements() {
+        let story = r#"<div><span style="display:inline !important;" title="x > y">Create orders</span><br>PATCH /orders/{id}<ul><li>Point &amp; polygon</li></ul></div>"#;
+        let cleaned = story_for_concepts(story);
+        assert_eq!(cleaned, "Create orders PATCH /orders/{id} Point & polygon");
+        assert!(story.contains("style="), "the original evidence is not rewritten");
+        let plain = "Create orders PATCH /orders/{id} Point & polygon";
+        assert_eq!(super::extract_story_concepts(&cleaned), super::extract_story_concepts(plain));
+    }
+
+    #[test]
+    fn concept_view_ignores_image_metadata_but_preserves_visible_attachment_requirements() {
+        let plain = "Search projects in the navigation and support attachments";
+        let rich = r#"<div>Search projects in the navigation and support attachments<img src="https://example.test/attachments/opaque-id" width="920" style="display:block"></div>"#;
+        assert_eq!(story_for_concepts(rich), plain);
+        assert_eq!(super::extract_story_concepts(&story_for_concepts(rich)), super::extract_story_concepts(plain));
+        assert!(rich.contains("/attachments/opaque-id"));
+        let code = r#"Keep `<img src="asset.png">` literally"#;
+        assert_eq!(story_for_concepts(code), code);
+        let fenced = "~~~html\n<img src=\"asset.png\">\n~~~";
+        assert_eq!(story_for_concepts(fenced), "~~~html <img src=\"asset.png\"> ~~~");
+    }
+
+    #[test]
+    fn concept_view_preserves_code_comparisons_generics_and_encoded_literals() {
+        let plain = "Reject amount < 0 or quantity > 100; use List<Order> and <custom-token>";
+        assert_eq!(story_for_concepts(plain), plain);
+        let html = "<p>Keep List&lt;Order&gt; and &lt;span&gt; as literal code; x &lt; y.</p>";
+        assert_eq!(story_for_concepts(html), "Keep List<Order> and <span> as literal code; x < y.");
+        assert_eq!(story_for_concepts("<p>order</p><p>shipment</p>"), "order shipment");
+        let collisions = "Use List<A>, List<B>, List<S> and List<Order>.";
+        assert_eq!(story_for_concepts(collisions), collisions);
+        assert_eq!(story_for_concepts("Use List<A > and List<B\n>"), "Use List<A > and List<B >");
+        let code = "Keep `<span>` and ``<p title=\"x\">`` literally. <div>Visible requirement</div>";
+        assert_eq!(story_for_concepts(code), "Keep `<span>` and ``<p title=\"x\">`` literally. Visible requirement");
+        let fenced = "~~~html\n<span>literal markup</span>\n~~~\n<div>Outside requirement</div>";
+        assert_eq!(story_for_concepts(fenced), "~~~html <span>literal markup</span> ~~~ Outside requirement");
+        assert_eq!(story_for_concepts("Keep `<span> incomplete"), "Keep `<span> incomplete");
     }
 
     #[test]
@@ -9203,7 +10557,7 @@ mod work_item_tests {
             pick_pat(None, Some(" env-pat \n".into())),
             Some("env-pat".to_string())
         );
-        // Neither source → auto-fetch silently degrades.
+        // Neither source → the caller must block ID-targeted intake.
         assert_eq!(pick_pat(None, None), None);
         assert_eq!(pick_pat(Some(String::new()), Some("".into())), None);
     }
@@ -9217,9 +10571,73 @@ mod work_item_tests {
         );
         assert_eq!(extract_work_item_id("US 1234 as a user I want"), Some(1234));
         assert_eq!(extract_work_item_id("AB#847 regression"), Some(847));
-        assert_eq!(extract_work_item_id("resolves #55"), Some(55));
+        assert_eq!(extract_work_item_id("#55"), Some(55));
+        assert_eq!(extract_work_item_id("DMO-847 Fix assignment"), Some(847));
+        assert_eq!(extract_work_item_id("dmo-7 Fix assignment"), Some(7));
+        assert_eq!(extract_work_item_id("DMO-12345678 Fix assignment"), Some(12345678));
+        assert_eq!(extract_work_item_id("prefixDMO-847"), None);
         assert_eq!(extract_work_item_id("supports 7 languages"), None);
         assert_eq!(extract_work_item_id("no ids here"), None);
+    }
+
+    #[test]
+    fn incidental_hashes_and_numbered_headings_do_not_trigger_item_fetch() {
+        for story in [
+            "Change the background to #123", "Use color #123456 in the footer",
+            "Update the heading #2", "#2 Heading text", "## 2 Heading text",
+            "Fix the issue mentioned in #847", "resolves #55",
+            "Implement a control\nBug #847 is a historical example",
+        ] {
+            assert_eq!(extract_work_item_id(story), None, "{story}");
+            assert_eq!(story_with_work_item_text(story, None).unwrap(), story);
+        }
+        assert_eq!(extract_work_item_id("  Bug #2: repair heading"), Some(2));
+        assert_eq!(extract_work_item_id("User story 123: change color to #456"), Some(123));
+        assert_eq!(extract_work_item_id(" #847 \n"), Some(847));
+    }
+
+    #[test]
+    fn linked_intake_reports_caps_failures_and_available_requirements() {
+        assert!(!linked_item_coverage(3).contains("omitted"));
+        assert!(linked_item_coverage(5).contains("2 linked items omitted"));
+        assert!(linked_item_coverage(1).contains("not traversed"));
+        let missing_fields = serde_json::json!({});
+        for result in [Err("request failed or timed out"), Ok(&missing_fields)] {
+            let text = linked_item_excerpt(42, result);
+            assert!(text.contains("INCOMPLETE: linked work item #42 unavailable"));
+        }
+        let item = serde_json::json!({"fields": {
+            "System.Title":"Repair upload", "System.WorkItemType":"Bug",
+            "System.Description":"Upload fails", "Microsoft.VSTS.TCM.ReproSteps":"Select two photos",
+            "Microsoft.VSTS.Common.AcceptanceCriteria":"Both photos persist"
+        }});
+        let text = linked_item_excerpt(42, Ok(&item));
+        assert!(text.contains("Upload fails") && text.contains("Select two photos"));
+        assert!(text.contains("Both photos persist"));
+        let mut large = item;
+        large["fields"]["System.Description"] = serde_json::json!("x".repeat(1300));
+        assert!(linked_item_excerpt(42, Ok(&large)).contains("#42 evidence truncated at 1200"));
+    }
+
+    #[test]
+    fn id_targeted_intake_blocks_missing_or_blank_evidence() {
+        for story in ["DMO-847 Fix assignment", "Bug #847", "AB#847"] {
+            for text in [None, Some(String::new()), Some(" \n ".into())] {
+                let error = story_with_work_item_text(story, text).unwrap_err();
+                assert!(error.message.contains("INCOMPLETE_INTAKE"));
+                assert!(error.message.contains("#847"));
+            }
+        }
+    }
+
+    #[test]
+    fn explicit_offline_item_text_and_free_text_planning_remain_available() {
+        let evidence = "Description: cannot assign\nReproduction: select another tenant\nAcceptance criteria: deny access";
+        let merged = story_with_work_item_text("DMO-847", Some(evidence.into())).unwrap();
+        assert!(merged.contains(evidence));
+        assert!(merged.starts_with("DMO-847\n"));
+        let story = "Allow a user to configure the minimum photo count";
+        assert_eq!(story_with_work_item_text(story, None).unwrap(), story);
     }
 
     #[test]

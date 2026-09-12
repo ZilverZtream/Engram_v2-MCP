@@ -1,0 +1,103 @@
+=== ROUND-2 ACCEPTANCE 2026-08-30_17:39:04
+repo commit: 16deb67 (2026-08-30 17:38:54) | branch ask-codebase-brain | dirty files: 3
+binary: 2026-08-30_17:34:40 230682624 bytes | sha256 \bec69fbb31324e7…
+corpus: eval/data/ask_golden_ociusx.jsonl (35 rows, sha256 3ec8522f6d68b2ec…)
+
+== restart the daemon ONCE (same binary) so the first change-set call is a true first call
+0
+- 9f950e07-8d34-42e7-8aca-6c5fadcf837f | AARS | C:\ai-projects\AARS
+
+== P0-3 reference story: FIRST call after restart — critical files PRIMARY within top 30, primary <= 40, <= 5 s
+   [('productioncodelistmaincategory.aspx', 13, 'primary', 0), ('productioncodelistmaincategory.aspx.vb', 14, 'primary', 0), ('rk_redovisningskategorier.sql', 3, 'primary', 0), ('redovisningskategorier.vb', 22, 'primary', 0), ('api-redovisning.vb', 20, 'primary', 0), ('ifalt.dbml', 5, 'primary', 0)]
+   candidates 174 | primary 40 | secs 3
+P0-3 critical files PRIMARY within top 30            PASS  positions [13, 14, 3, 22, 20, 5]
+P0-3 primary set <= 40 candidates                    PASS  primary 40 of 174
+P0-3 first call after restart <= 5 s                 PASS  3 s
+
+== P0-2 health / freshness: path-set completeness per store, no percentage
+1:Health: OK
+2:active_generation: 838
+3:generation completeness: generation 838 — expected paths: 2277; tantivy: 2277, vectors: 2277, graph: 2287; missing: 0, extra: 0, cross-store mismatch: 0; chunks 31263 / vector rows 31263 (diagnost
+P0-2 health: path sets per store, complete, no %     PASS  expected paths: 2277; tantivy: 2277, vectors: 2277, graph: 2287
+6:generation_complete: true (2277 of 2277 eligible paths present in every store; missing 0, cross-store mismatch 0, skipped by rule 0)
+P0-2 freshness generation_complete (path sets)       PASS  generation_complete: true (2277 of 2277 eligible paths present in every store; missing 0, cross-stor
+
+== P0-1 update_project (wait): purge reported, completeness survives, stores agree
+  update secs: 58
+2:active_generation: 839
+3:purge: ok
+P0-1 update reports the post-publish purge           PASS  purge: ok
+P0-1 completeness survives an update                 PASS  active_generation: 839
+P0-1 Tantivy == LanceDB after update + GC            PASS  tantivy 172145 = vectors 172145, healthy
+
+== P0-4 golden suite with the CORRECTNESS gate (required modality / symbols / distractors / precision)
+status-match: 35/35 = 100%   (gate >= 80%)
+abstain:      4/4 = 100%   (gate = 100%)
+correct:      34/35 = 97%   (gate = 100%: status + required modality + required symbols + no forbidden distractor + precision)
+  FAIL ox_multi_4: required symbols/files not cited: ['api-images']
+GATE: FAIL
+P0-4 golden: every row CORRECT (not just status)     FAIL  correct:      34/35 = 97%   (g; 1 rows
+
+== P1-1 pre_commit_review (diff=head): gates run; a missing backing document would DEGRADE with an integrity note
+  P1-1 pre-commit gates run, integrity-aware           PASS  19 gates, degraded=[], integrity notes=0, verdict=yellow
+
+== P1-2 co-change: served from the warm snapshot, no git walk at call time
+  call 1: 143 ms | co-change snapshot: warm (served without a git walk)
+  call 2: 135 ms | co-change snapshot: warm (served without a git walk)
+P1-2 warm snapshot, no call-time git walk            PASS  135 ms; co-change snapshot: warm (served without a git walk)
+
+== P1-4 Dream default OFF (opt-in with include_insights: true)
+  insight providers: default=0 opt-in=1
+P1-4 Dream arm off by default, on when asked         PASS  default 0, opt-in 1
+
+== Round-1 rows the auditor re-verified
+Row 1 EN story -> SV concepts (<= 8 s)               PASS  6 s; concepts: project, manager, reporting, fiberinstallationsplan, mängdredovisning, mangdredovisning, projektansvarig
+
+resolved 20/20 · parity 20/20 · complexity measured 20/20 · callers exact-or-labelled 20/20 · max wall 0.14 s
+Row 2 edit-context parity                            PASS  20/20
+  Row 4 G1 literal completeness (graph+text >= git grep, <= 2 s each):
+    redovisningskategori   graph   48 text   33 gitgrep   32  0s
+    installationsobjekt    graph  420 text  139 gitgrep  165  1s
+    arbetslag              graph   21 text   56 gitgrep   53  0s
+    personalliggare        graph   88 text   39 gitgrep   45  0s
+    tidrapport             graph    0 text    5 gitgrep    1  0s
+Row 4 G1 literal completeness (5 concepts)           PASS  none short, none slow
+Row 5 house_style section (siblings, <= 3 s)         PASS  3 siblings, 223 ms
+  gate findings naming alert-primary: 1
+Row 5 get_ui_conformance (region pull)               PASS  7 families
+Row 7 trace_data_flow smoke                          PASS  # Data flow: `btnSave_Click` (Button click (postback))
+  row 8: PASS ['critical'] 0
+Row 9 similar + incomplete changes (<= 3 s)          PASS  303 ms
+Row 10 caller parity (refs == impact)                PASS  76 callers
+Tool surface: <= 32 core advertised                  PASS  32 advertised
+produce_claude_md contract (edited_files=, dry render) FAIL  edited_files= 0, (files= 0
+
+=== SUMMARY 2026-08-30_17:45:49
+P0-3 critical files PRIMARY within top 30            PASS  positions [13, 14, 3, 22, 20, 5]
+P0-3 primary set <= 40 candidates                    PASS  primary 40 of 174
+P0-3 first call after restart <= 5 s                 PASS  3 s
+P0-2 health: path sets per store, complete, no %     PASS  expected paths: 2277; tantivy: 2277, vectors: 2277, graph: 2287
+P0-2 freshness generation_complete (path sets)       PASS  generation_complete: true (2277 of 2277 eligible paths present in every store; missing 0, cross-stor
+P0-1 update reports the post-publish purge           PASS  purge: ok
+P0-1 completeness survives an update                 PASS  active_generation: 839
+P0-1 Tantivy == LanceDB after update + GC            PASS  tantivy 172145 = vectors 172145, healthy
+P0-4 golden: every row CORRECT (not just status)     FAIL  correct:      34/35 = 97%   (g; 1 rows
+P1-1 pre-commit gates run, integrity-aware           PASS  19 gates, degraded=[], integrity notes=0, verdict=yellow
+P1-2 warm snapshot, no call-time git walk            PASS  135 ms; co-change snapshot: warm (served without a git walk)
+P1-4 Dream arm off by default, on when asked         PASS  default 0, opt-in 1
+Row 1 EN story -> SV concepts (<= 8 s)               PASS  6 s; concepts: project, manager, reporting, fiberinstallationsplan, mängdredovisning, mangdredovisning, projektansvarig
+Row 2 edit-context parity                            PASS  20/20
+Row 4 G1 literal completeness (5 concepts)           PASS  none short, none slow
+Row 5 house_style section (siblings, <= 3 s)         PASS  3 siblings, 223 ms
+Row 5 ui_house_style gate (live probe)               PASS  1 finding(s) naming alert-primary
+Row 5 get_ui_conformance (region pull)               PASS  7 families
+Row 7 trace_data_flow smoke                          PASS  # Data flow: `btnSave_Click` (Button click (postback))
+Row 8 enforced rule -> Critical; clean -> none       PASS  violating ['critical'], clean 0
+Row 9 similar + incomplete changes (<= 3 s)          PASS  303 ms
+Row 10 caller parity (refs == impact)                PASS  76 callers
+Tool surface: <= 32 core advertised                  PASS  32 advertised
+produce_claude_md contract (edited_files=, dry render) FAIL  edited_files= 0, (files= 0
+PASS: 22 | FAIL: 2
+results sha256: b2bab0a8f37726c428e9c3777b5ce256791f157582347fcd5a6468345ebf99ed
+immutable: C:/ai-projects/Engram-MCP_v2/docs/audits/evidence/acceptance_round2_20260830_173903.results.txt
+log: C:/ai-projects/Engram-MCP_v2/docs/audits/evidence/acceptance_round2_20260830_173903.log (made read-only after this line)

@@ -221,3 +221,150 @@ async fn a_conditional_own_check_yields_to_the_helper_that_guards_unconditionall
         "the client pr_id IS object-checked (by the helper): {scoped}"
     );
 }
+
+#[tokio::test]
+async fn conditional_only_checks_do_not_establish_all_path_guard_coverage() {
+    let (_tmp, state, dir) = build_state();
+    let source =
+        "Sub Entry()\n    If enabled Then\n        CheckWrite()\n    End If\n    Return\nEnd Sub\n";
+    std::fs::create_dir_all(dir.join(FILE).parent().unwrap()).unwrap();
+    std::fs::write(dir.join(FILE), source).unwrap();
+    state
+        .graph
+        .upsert_nodes(PID, &[func("Entry", 1, 6, "CheckWrite")])
+        .unwrap();
+    let out = Engram::new(state)
+        .handle_map_guards_and_settings(
+            serde_json::from_value(json!({
+                "project_id":PID,"scope":FILE,"output_json":true
+            }))
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    let text = &out.content[0].as_text().unwrap().text;
+    let report: Value = serde_json::from_str(text).unwrap();
+    assert_eq!(report["functions"][0]["verdict"], "unknown", "{text}");
+    assert_eq!(
+        report["functions"][0]["own_check_conditional"], true,
+        "{text}"
+    );
+}
+
+#[tokio::test]
+async fn quoted_helpers_and_ambiguous_overloads_do_not_receive_guard_credit() {
+    let (_tmp, state, dir) = build_state();
+    let source = "Sub Quoted()\n    Dim sample = \"Authorize()\"\nEnd Sub\nSub Ambiguous()\n    Authorize(1)\nEnd Sub\nSub Authorize(value As Integer)\n    CheckRead()\nEnd Sub\nSub Authorize(value As String)\n    CheckRead()\nEnd Sub\n";
+    std::fs::create_dir_all(dir.join(FILE).parent().unwrap()).unwrap();
+    std::fs::write(dir.join(FILE), source).unwrap();
+    state
+        .graph
+        .upsert_nodes(
+            PID,
+            &[
+                func("Quoted", 1, 3, ""),
+                func("Ambiguous", 4, 6, ""),
+                func("Authorize", 7, 9, "CheckRead"),
+                func("Authorize", 10, 12, "CheckRead"),
+            ],
+        )
+        .unwrap();
+    let out = Engram::new(state)
+        .handle_map_guards_and_settings(
+            serde_json::from_value(json!({
+                "project_id":PID,"scope":FILE,"output_json":true
+            }))
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    let text = &out.content[0].as_text().unwrap().text;
+    let report: Value = serde_json::from_str(text).unwrap();
+    let functions = report["functions"].as_array().unwrap();
+    let quoted = functions.iter().find(|f| f["name"] == "Quoted").unwrap();
+    assert_eq!(quoted["verdict"], "unguarded", "{text}");
+    assert!(quoted["via"].is_null());
+    let ambiguous = functions.iter().find(|f| f["name"] == "Ambiguous").unwrap();
+    assert_eq!(ambiguous["verdict"], "unknown", "{text}");
+    assert!(ambiguous["via"].is_null());
+}
+
+#[tokio::test]
+async fn mismatched_guard_metadata_does_not_establish_coverage() {
+    let (_tmp, state, dir) = build_state();
+    std::fs::create_dir_all(dir.join(FILE).parent().unwrap()).unwrap();
+    std::fs::write(dir.join(FILE), "Sub Entry()\n    CheckWrite()\nEnd Sub\n").unwrap();
+    state
+        .graph
+        .upsert_nodes(PID, &[func("Entry", 1, 3, "CheckRead")])
+        .unwrap();
+    let out = Engram::new(state)
+        .handle_map_guards_and_settings(
+            serde_json::from_value(json!({"project_id":PID,"scope":FILE,"output_json":true}))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let text = &out.content[0].as_text().unwrap().text;
+    let report: Value = serde_json::from_str(text).unwrap();
+    assert_eq!(report["functions"][0]["verdict"], "unknown", "{text}");
+    assert!(
+        report["functions"][0]["reason"]
+            .as_str()
+            .unwrap()
+            .contains("uncorroborated")
+    );
+}
+
+#[tokio::test]
+async fn unindented_branches_and_unreachable_checks_do_not_establish_coverage() {
+    for source in [
+        "Sub Entry()\nIf enabled Then\nCheckWrite()\nEnd If\nReturn\nEnd Sub\n",
+        "Sub Entry()\nReturn\nCheckWrite()\nEnd Sub\n",
+    ] {
+        let (_tmp, state, dir) = build_state();
+        std::fs::create_dir_all(dir.join(FILE).parent().unwrap()).unwrap();
+        std::fs::write(dir.join(FILE), source).unwrap();
+        state
+            .graph
+            .upsert_nodes(
+                PID,
+                &[func(
+                    "Entry",
+                    1,
+                    source.lines().count() as u32,
+                    "CheckWrite",
+                )],
+            )
+            .unwrap();
+        let out = Engram::new(state)
+            .handle_map_guards_and_settings(
+                serde_json::from_value(json!({"project_id":PID,"scope":FILE,"output_json":true}))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let text = &out.content[0].as_text().unwrap().text;
+        let report: Value = serde_json::from_str(text).unwrap();
+        assert_eq!(report["functions"][0]["verdict"], "unknown", "{text}");
+    }
+}
+
+#[tokio::test]
+async fn source_missing_cannot_be_certified_from_guard_metadata() {
+    let (_tmp, state, _dir) = build_state();
+    state
+        .graph
+        .upsert_nodes(PID, &[func("Entry", 1, 3, "CheckWrite")])
+        .unwrap();
+    let out = Engram::new(state)
+        .handle_map_guards_and_settings(
+            serde_json::from_value(json!({"project_id":PID,"scope":FILE,"output_json":true}))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let text = &out.content[0].as_text().unwrap().text;
+    let report: Value = serde_json::from_str(text).unwrap();
+    assert_eq!(report["functions"][0]["verdict"], "unknown", "{text}");
+}

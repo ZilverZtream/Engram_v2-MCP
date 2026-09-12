@@ -2,7 +2,7 @@
 //! External audit 2026-08-29 P0-3: the first get_change_set after a daemon
 //! restart took 38 s on OciusX — the project runtime opened on the first
 //! user's call. A fresh AppState over an existing data dir has no runtime
-//! cached; the warm-up opens every registered project so the first call is
+//! cached; the warm-up opens selected registered projects so the first call is
 //! served from a warm daemon.
 
 use engram_core::config::Config;
@@ -12,7 +12,7 @@ use engram_server::tools::Engram;
 use rmcp::handler::server::tool::Parameters;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn a_fresh_daemon_warms_every_registered_project_runtime() {
+async fn a_fresh_daemon_warms_a_registered_project_runtime() {
     let tmp = tempfile::TempDir::new().unwrap();
     let root = tmp.path().join("proj");
     std::fs::create_dir_all(root.join("Site/App_Code")).unwrap();

@@ -1,0 +1,2939 @@
+{
+  "concepts": [
+    "main",
+    "reporting",
+    "category",
+    "redovisningskategori",
+    "kodlista",
+    "kategori",
+    "rapporter"
+  ],
+  "coverage": {
+    "cochange": {
+      "hits": 66,
+      "ms": 340,
+      "note": "",
+      "status": "complete"
+    },
+    "concept": {
+      "hits": 140,
+      "ms": 570,
+      "note": "broad terms not counted as evidence: 'main' (784 files), 'reporting' (358 files), 'category' (277 files), 'kategori' (117 files)",
+      "status": "complete"
+    },
+    "concept_candidates": [
+      "main",
+      "reporting",
+      "category",
+      "redovisningskategori",
+      "production code list",
+      "code list category"
+    ],
+    "family": {
+      "hits": 100,
+      "ms": 0,
+      "note": "",
+      "status": "complete"
+    },
+    "gloss_concepts": [
+      "redovisningskategori"
+    ],
+    "history": {
+      "hits": 6,
+      "ms": 433,
+      "note": "",
+      "status": "complete"
+    },
+    "house_prior_cached": true,
+    "kb_bridge": {
+      "hits": 0,
+      "ms": 19,
+      "note": "",
+      "status": "complete"
+    },
+    "lexicon_concepts": [
+      "category → Kategori",
+      "code list → Kodlista",
+      "reports → Rapporter"
+    ],
+    "node_scans": 0,
+    "presentation_anchors": 20,
+    "stages": {
+      "arms_done": 2480,
+      "before_render": 2499,
+      "cochange_done": 1363,
+      "family_done": 2442,
+      "name_done": 2441,
+      "node_scan": 1023,
+      "presentation_done": 2402,
+      "render": 2500,
+      "symmetry_done": 2499,
+      "vector_done": 1961
+    },
+    "vector": {
+      "hits": 28,
+      "ms": 597,
+      "note": "",
+      "status": "complete"
+    },
+    "wall_ms": 2500
+  },
+  "files": [
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/production/productioncodelistcategory.aspx",
+      "rank": 1,
+      "set": "primary",
+      "signals": [
+        "broad",
+        "cochange",
+        "history",
+        "name",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "past commits matching the story touched it (history search)",
+        "co-changed with the seed files in merged history",
+        "co-changed with the seed files in merged history",
+        "presentation-layer co-change partner (bundle / markup / stylesheet)",
+        "page markup of modules/dashboard/pages/admin/production/productioncodelistcategory.aspx.vb",
+        "page markup of site/modules/dashboard/pages/admin/production/productioncodelistcategory.aspx.vb",
+        "the story's own words compose the file name: category, code, list, production (4 of 11 story terms)",
+        "matches 'main' — too common in this index (784 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Client (TypeScript / JavaScript)",
+      "path": "Site/modules/redovisning/~.js/index.js",
+      "rank": 2,
+      "set": "primary",
+      "signals": [
+        "cochange",
+        "concept",
+        "lexicon"
+      ],
+      "tier": 0,
+      "why": [
+        "matches 'kodlista' — the project's .resx translation of the story's English term",
+        "presentation-layer co-change partner (bundle / markup / stylesheet)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Resources (.resx — translate EVERY language)",
+      "path": "Site/App_GlobalResources/label.de.resx",
+      "rank": 3,
+      "set": "primary",
+      "signals": [
+        "concept",
+        "lexicon",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "localized .resx sibling of site/app_globalresources/label.resx (atomic set)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Data (SQL)",
+      "path": "db-ociusx.sql/dbo/Tables/rk_redovisningskategorier.sql",
+      "rank": 4,
+      "set": "primary",
+      "signals": [
+        "cochange",
+        "concept",
+        "gloss"
+      ],
+      "tier": 0,
+      "why": [
+        "matches the story's explicit gloss 'redovisningskategori'",
+        "co-changed with the seed files in merged history"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Markup / styles / config",
+      "path": "Site/modules/dashboard/pages/public/timeReporting/~.css/timeReporting.css",
+      "rank": 5,
+      "set": "primary",
+      "signals": [
+        "broad",
+        "name"
+      ],
+      "tier": 1,
+      "why": [
+        "matches 'reporting' — too common in this index (358 files) to discriminate; not counted as evidence",
+        "the story's own words compose the file name: reporting, reports, time (3 of 11 story terms)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Other",
+      "path": "Site/App_Code/iFalt.dbml",
+      "rank": 6,
+      "set": "primary",
+      "signals": [
+        "cochange",
+        "concept",
+        "gloss",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "co-changed with the seed files in merged history",
+        "matches the story's explicit gloss 'redovisningskategori'",
+        "co-changed with the seed files in merged history",
+        "semantic match to the story (rank 25)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/production/productioncodelistcategory.aspx.vb",
+      "rank": 7,
+      "set": "primary",
+      "signals": [
+        "broad",
+        "cochange",
+        "history",
+        "name",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "past commits matching the story touched it (history search)",
+        "co-changed with the seed files in merged history",
+        "co-changed with the seed files in merged history",
+        "code-behind/designer companion of modules/dashboard/pages/admin/production/productioncodelistcategory.aspx",
+        "code-behind/designer companion of site/modules/dashboard/pages/admin/production/productioncodelistcategory.aspx",
+        "the story's own words compose the file name: category, code, list, production (4 of 11 story terms)",
+        "co-changed with the seed files in merged history",
+        "semantic match to the story (rank 6)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/production/productionprojectcodelist_edit.aspx",
+      "rank": 8,
+      "set": "primary",
+      "signals": [
+        "broad",
+        "cochange",
+        "history",
+        "name",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "matches 'main' — too common in this index (784 files) to discriminate; not counted as evidence",
+        "matches 'category' — too common in this index (277 files) to discriminate; not counted as evidence",
+        "co-changed with the seed files in merged history",
+        "page markup of modules/dashboard/pages/admin/production/productionprojectcodelist_edit.aspx.vb",
+        "page markup of site/modules/dashboard/pages/admin/production/productionprojectcodelist_edit.aspx.vb",
+        "the story's own words compose the file name: code, list, production (3 of 11 story terms)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/production/productionprojectcodelist_edit.aspx.vb",
+      "rank": 9,
+      "set": "primary",
+      "signals": [
+        "broad",
+        "cochange",
+        "history",
+        "name",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "co-changed with the seed files in merged history",
+        "code-behind/designer companion of site/modules/dashboard/pages/admin/production/productionprojectcodelist_edit.aspx",
+        "the story's own words compose the file name: code, list, production (3 of 11 story terms)",
+        "past commits matching the story touched it (history search)",
+        "co-changed with the seed files in merged history",
+        "co-changed with the seed files in merged history",
+        "semantic match to the story (rank 1)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/production/copycodelistcategory.aspx",
+      "rank": 10,
+      "set": "primary",
+      "signals": [
+        "broad",
+        "name",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "matches 'category' — too common in this index (277 files) to discriminate; not counted as evidence",
+        "page markup of site/modules/dashboard/pages/admin/production/copycodelistcategory.aspx.vb",
+        "the story's own words compose the file name: category, code, list (3 of 11 story terms)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/production/copycodelistcategory.aspx.vb",
+      "rank": 11,
+      "set": "primary",
+      "signals": [
+        "broad",
+        "name",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "code-behind/designer companion of site/modules/dashboard/pages/admin/production/copycodelistcategory.aspx",
+        "the story's own words compose the file name: category, code, list (3 of 11 story terms)",
+        "semantic match to the story (rank 14)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/production/productioncodelist.aspx",
+      "rank": 12,
+      "set": "primary",
+      "signals": [
+        "broad",
+        "cochange",
+        "name"
+      ],
+      "tier": 0,
+      "why": [
+        "co-changed with the seed files in merged history",
+        "presentation-layer co-change partner (bundle / markup / stylesheet)",
+        "page markup of modules/dashboard/pages/admin/production/productioncodelist.aspx.vb",
+        "page markup of site/modules/dashboard/pages/admin/production/productioncodelist.aspx.vb",
+        "the story's own words compose the file name: code, list, production (3 of 11 story terms)",
+        "matches 'main' — too common in this index (784 files) to discriminate; not counted as evidence",
+        "matches 'category' — too common in this index (277 files) to discriminate; not counted as evidence",
+        "co-changed with the seed files in merged history"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/production/productioncodelist.aspx.vb",
+      "rank": 13,
+      "set": "primary",
+      "signals": [
+        "broad",
+        "cochange",
+        "name"
+      ],
+      "tier": 0,
+      "why": [
+        "co-changed with the seed files in merged history",
+        "code-behind/designer companion of modules/dashboard/pages/admin/production/productioncodelist.aspx",
+        "code-behind/designer companion of site/modules/dashboard/pages/admin/production/productioncodelist.aspx",
+        "the story's own words compose the file name: code, list, production (3 of 11 story terms)",
+        "co-changed with the seed files in merged history"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/production/productioncodelistmaincategory.aspx",
+      "rank": 14,
+      "set": "primary",
+      "signals": [
+        "name",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "page markup of site/modules/dashboard/pages/admin/production/productioncodelistmaincategory.aspx.vb",
+        "the story's own words compose the file name: category, code, list, main, production (5 of 11 story terms)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/production/productioncodelistmaincategory.aspx.vb",
+      "rank": 15,
+      "set": "primary",
+      "signals": [
+        "name",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "semantic match to the story (rank 8)",
+        "the story's own words compose the file name: category, code, list, main, production (5 of 11 story terms)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/production/productionprojectcodelist.aspx",
+      "rank": 16,
+      "set": "primary",
+      "signals": [
+        "cochange",
+        "name"
+      ],
+      "tier": 0,
+      "why": [
+        "co-changed with the seed files in merged history",
+        "the story's own words compose the file name: code, list, production (3 of 11 story terms)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/production/productionprojectcodelist.aspx.vb",
+      "rank": 17,
+      "set": "primary",
+      "signals": [
+        "cochange",
+        "name"
+      ],
+      "tier": 0,
+      "why": [
+        "code-behind/designer companion of site/modules/dashboard/pages/admin/production/productionprojectcodelist.aspx",
+        "the story's own words compose the file name: code, list, production (3 of 11 story terms)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/timereporting/timecodecategory.aspx",
+      "rank": 18,
+      "set": "primary",
+      "signals": [
+        "name",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "page markup of site/modules/dashboard/pages/admin/system/timereporting/timecodecategory.aspx.vb",
+        "the story's own words compose the file name: category, code, time (3 of 11 story terms)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/timereporting/timecodecategory.aspx.vb",
+      "rank": 19,
+      "set": "primary",
+      "signals": [
+        "name",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "semantic match to the story (rank 18)",
+        "the story's own words compose the file name: category, code, time (3 of 11 story terms)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/iFalt.designer.vb",
+      "rank": 20,
+      "set": "primary",
+      "signals": [
+        "broad",
+        "cochange",
+        "concept",
+        "gloss",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "co-changed with the seed files in merged history",
+        "matches 'main' — too common in this index (784 files) to discriminate; not counted as evidence",
+        "matches the story's explicit gloss 'redovisningskategori'",
+        "matches 'kategori' — too common in this index (117 files) to discriminate; not counted as evidence",
+        "semantic match to the story (rank 13)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/redovisning/code/redovisningshuvudkategori.vb",
+      "rank": 21,
+      "set": "primary",
+      "signals": [
+        "cochange",
+        "concept",
+        "gloss",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "matches the story's explicit gloss 'redovisningskategori'",
+        "co-changed with the seed files in merged history",
+        "semantic match to the story (rank 2)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/redovisning/code/redovisningskategorier.vb",
+      "rank": 22,
+      "set": "primary",
+      "signals": [
+        "cochange",
+        "concept",
+        "gloss",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "co-changed with the seed files in merged history",
+        "matches the story's explicit gloss 'redovisningskategori'",
+        "co-changed with the seed files in merged history",
+        "co-changed with the seed files in merged history",
+        "semantic match to the story (rank 10)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/redovisning/code/redovisningslistaredovisningsartiklar.vb",
+      "rank": 23,
+      "set": "primary",
+      "signals": [
+        "cochange",
+        "concept",
+        "gloss",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "co-changed with the seed files in merged history",
+        "matches the story's explicit gloss 'redovisningskategori'",
+        "semantic match to the story (rank 22)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/shared-code/ifreports.vb",
+      "rank": 24,
+      "set": "primary",
+      "signals": [
+        "cochange",
+        "concept",
+        "lexicon"
+      ],
+      "tier": 0,
+      "why": [
+        "matches 'rapporter' — the project's .resx translation of the story's English term",
+        "co-changed with the seed files in merged history"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/ata/code/atalista.vb",
+      "rank": 25,
+      "set": "primary",
+      "signals": [
+        "broad",
+        "cochange",
+        "concept",
+        "gloss"
+      ],
+      "tier": 0,
+      "why": [
+        "matches the story's explicit gloss 'redovisningskategori'",
+        "matches 'kategori' — too common in this index (117 files) to discriminate; not counted as evidence",
+        "co-changed with the seed files in merged history",
+        "co-changed with the seed files in merged history"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/grunddata/code/arbetslag.vb",
+      "rank": 26,
+      "set": "primary",
+      "signals": [
+        "cochange",
+        "concept",
+        "gloss"
+      ],
+      "tier": 0,
+      "why": [
+        "matches the story's explicit gloss 'redovisningskategori'",
+        "co-changed with the seed files in merged history"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/grunddata/code/projekt.vb",
+      "rank": 27,
+      "set": "primary",
+      "signals": [
+        "broad",
+        "cochange",
+        "concept",
+        "gloss"
+      ],
+      "tier": 0,
+      "why": [
+        "co-changed with the seed files in merged history",
+        "matches 'reporting' — too common in this index (358 files) to discriminate; not counted as evidence",
+        "matches the story's explicit gloss 'redovisningskategori'"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/redovisning/api-json/api-redovisning.vb",
+      "rank": 28,
+      "set": "primary",
+      "signals": [
+        "concept",
+        "gloss",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "matches the story's explicit gloss 'redovisningskategori'",
+        "semantic match to the story (rank 15)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/redovisning/code/redovisningsartiklar.vb",
+      "rank": 29,
+      "set": "primary",
+      "signals": [
+        "cochange",
+        "concept",
+        "gloss"
+      ],
+      "tier": 0,
+      "why": [
+        "co-changed with the seed files in merged history",
+        "matches the story's explicit gloss 'redovisningskategori'",
+        "co-changed with the seed files in merged history",
+        "co-changed with the seed files in merged history"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/tid/reports/invoice.vb",
+      "rank": 30,
+      "set": "primary",
+      "signals": [
+        "concept",
+        "lexicon",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "matches 'rapporter' — the project's .resx translation of the story's English term",
+        "semantic match to the story (rank 5)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/DataTransferObjects/timeReporting/TimeReportDay-Out.vb",
+      "rank": 31,
+      "set": "primary",
+      "signals": [
+        "cochange",
+        "concept",
+        "lexicon"
+      ],
+      "tier": 0,
+      "why": [
+        "matches 'rapporter' — the project's .resx translation of the story's English term",
+        "co-changed with the seed files in merged history"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/timereporting/timecodes.aspx",
+      "rank": 32,
+      "set": "primary",
+      "signals": [
+        "broad",
+        "cochange",
+        "history",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "page markup of modules/dashboard/pages/admin/system/timereporting/timecodes.aspx.vb",
+        "page markup of site/modules/dashboard/pages/admin/system/timereporting/timecodes.aspx.vb"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/timereporting/timecodes.aspx.vb",
+      "rank": 33,
+      "set": "primary",
+      "signals": [
+        "broad",
+        "cochange",
+        "history",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "past commits matching the story touched it (history search)",
+        "co-changed with the seed files in merged history",
+        "co-changed with the seed files in merged history",
+        "matches 'category' — too common in this index (277 files) to discriminate; not counted as evidence",
+        "semantic match to the story (rank 19)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Resources (.resx — translate EVERY language)",
+      "path": "Site/App_GlobalResources/label.en.resx",
+      "rank": 34,
+      "set": "primary",
+      "signals": [
+        "concept",
+        "lexicon",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "localized .resx sibling of site/app_globalresources/label.resx (atomic set)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Resources (.resx — translate EVERY language)",
+      "path": "Site/App_GlobalResources/label.es.resx",
+      "rank": 35,
+      "set": "primary",
+      "signals": [
+        "concept",
+        "lexicon",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "localized .resx sibling of site/app_globalresources/label.resx (atomic set)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Resources (.resx — translate EVERY language)",
+      "path": "Site/App_GlobalResources/label.no.resx",
+      "rank": 36,
+      "set": "primary",
+      "signals": [
+        "concept",
+        "lexicon",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "localized .resx sibling of site/app_globalresources/label.resx (atomic set)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Resources (.resx — translate EVERY language)",
+      "path": "Site/App_GlobalResources/label.pt.resx",
+      "rank": 37,
+      "set": "primary",
+      "signals": [
+        "concept",
+        "lexicon",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "localized .resx sibling of site/app_globalresources/label.resx (atomic set)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Resources (.resx — translate EVERY language)",
+      "path": "Site/App_GlobalResources/label.resx",
+      "rank": 38,
+      "set": "primary",
+      "signals": [
+        "concept",
+        "lexicon",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "localized .resx sibling of site/app_globalresources/label.resx (atomic set)",
+        "matches 'kodlista' — the project's .resx translation of the story's English term",
+        "semantic match to the story (rank 26)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Resources (.resx — translate EVERY language)",
+      "path": "Site/App_GlobalResources/label.sl.resx",
+      "rank": 39,
+      "set": "primary",
+      "signals": [
+        "concept",
+        "lexicon",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "localized .resx sibling of site/app_globalresources/label.resx (atomic set)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/RouteConfig.vb",
+      "rank": 40,
+      "set": "primary",
+      "signals": [
+        "broad",
+        "cochange",
+        "history"
+      ],
+      "tier": 0,
+      "why": [
+        "past commits matching the story touched it (history search)",
+        "co-changed with the seed files in merged history",
+        "co-changed with the seed files in merged history",
+        "matches 'reporting' — too common in this index (358 files) to discriminate; not counted as evidence",
+        "matches 'category' — too common in this index (277 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/redovisning/code/estimatedVsReported.vb",
+      "rank": 41,
+      "set": "companion",
+      "signals": [
+        "concept",
+        "gloss"
+      ],
+      "tier": 0,
+      "why": [
+        "matches the story's explicit gloss 'redovisningskategori'"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/DataTransferObjects/reportingOfQuantities/RoqPriceListItemCategory-Out.vb",
+      "rank": 42,
+      "set": "companion",
+      "signals": [
+        "broad",
+        "concept",
+        "gloss"
+      ],
+      "tier": 0,
+      "why": [
+        "matches 'main' — too common in this index (784 files) to discriminate; not counted as evidence",
+        "matches 'category' — too common in this index (277 files) to discriminate; not counted as evidence",
+        "matches the story's explicit gloss 'redovisningskategori'",
+        "matches 'kategori' — too common in this index (117 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Services/reportingOfQuantities/RoqPriceListService.vb",
+      "rank": 43,
+      "set": "companion",
+      "signals": [
+        "broad",
+        "concept",
+        "gloss"
+      ],
+      "tier": 0,
+      "why": [
+        "matches 'category' — too common in this index (277 files) to discriminate; not counted as evidence",
+        "matches the story's explicit gloss 'redovisningskategori'",
+        "matches 'kategori' — too common in this index (117 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Services/reportingOfQuantities/interfaces/IRoqPriceListService.vb",
+      "rank": 44,
+      "set": "companion",
+      "signals": [
+        "broad",
+        "concept",
+        "gloss"
+      ],
+      "tier": 0,
+      "why": [
+        "interface/implementation pair of site/app_code/api-v2/services/reportingofquantities/roqpricelistservice.vb"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/production/import.aspx",
+      "rank": 45,
+      "set": "companion",
+      "signals": [
+        "cochange",
+        "history"
+      ],
+      "tier": 0,
+      "why": [
+        "co-changed with the seed files in merged history",
+        "page markup of modules/dashboard/pages/admin/production/import.aspx.vb"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/production/import.aspx.vb",
+      "rank": 46,
+      "set": "companion",
+      "signals": [
+        "cochange",
+        "history"
+      ],
+      "tier": 0,
+      "why": [
+        "past commits matching the story touched it (history search)",
+        "co-changed with the seed files in merged history",
+        "co-changed with the seed files in merged history",
+        "code-behind/designer companion of site/modules/dashboard/pages/admin/production/import.aspx"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/production/import_price_list.aspx",
+      "rank": 47,
+      "set": "companion",
+      "signals": [
+        "broad",
+        "cochange",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "matches 'main' — too common in this index (784 files) to discriminate; not counted as evidence",
+        "matches 'category' — too common in this index (277 files) to discriminate; not counted as evidence",
+        "co-changed with the seed files in merged history",
+        "page markup of modules/dashboard/pages/admin/production/import_price_list.aspx.vb",
+        "page markup of site/modules/dashboard/pages/admin/production/import_price_list.aspx.vb"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/production/import_price_list.aspx.vb",
+      "rank": 48,
+      "set": "companion",
+      "signals": [
+        "broad",
+        "cochange",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "co-changed with the seed files in merged history",
+        "code-behind/designer companion of site/modules/dashboard/pages/admin/production/import_price_list.aspx",
+        "co-changed with the seed files in merged history",
+        "semantic match to the story (rank 21)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/public/projectplanner/admin/linkcodeandforecastqty.aspx",
+      "rank": 49,
+      "set": "companion",
+      "signals": [
+        "broad",
+        "cochange",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "matches 'main' — too common in this index (784 files) to discriminate; not counted as evidence",
+        "co-changed with the seed files in merged history",
+        "page markup of site/modules/dashboard/pages/public/projectplanner/admin/linkcodeandforecastqty.aspx.vb"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/public/projectplanner/admin/linkcodeandforecastqty.aspx.vb",
+      "rank": 50,
+      "set": "companion",
+      "signals": [
+        "broad",
+        "cochange",
+        "vector"
+      ],
+      "tier": 0,
+      "why": [
+        "code-behind/designer companion of site/modules/dashboard/pages/public/projectplanner/admin/linkcodeandforecastqty.aspx",
+        "semantic match to the story (rank 20)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/shared-code/SharedListClasses.vb",
+      "rank": 51,
+      "set": "companion",
+      "signals": [
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "co-changed with the seed files in merged history"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/Default.aspx",
+      "rank": 52,
+      "set": "companion",
+      "signals": [
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "co-changed with the seed files in merged history",
+        "presentation-layer co-change partner (bundle / markup / stylesheet)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/Default.aspx.vb",
+      "rank": 53,
+      "set": "companion",
+      "signals": [
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "code-behind/designer companion of modules/dashboard/default.aspx"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/ata/code/atalistaatakostnader.vb",
+      "rank": 54,
+      "set": "companion",
+      "signals": [
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "co-changed with the seed files in merged history"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/grunddata/code/projekt_kontrollpanel.vb",
+      "rank": 55,
+      "set": "companion",
+      "signals": [
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "co-changed with the seed files in merged history"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/installationsobjekt/code/io-installationsobjekt.vb",
+      "rank": 56,
+      "set": "companion",
+      "signals": [
+        "broad",
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "co-changed with the seed files in merged history",
+        "matches 'kategori' — too common in this index (117 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/redovisning/code/redovisninglista.vb",
+      "rank": 57,
+      "set": "companion",
+      "signals": [
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "co-changed with the seed files in merged history"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Controllers/timeReporting/TimeReportDaysController.vb",
+      "rank": 58,
+      "set": "companion",
+      "signals": [
+        "name"
+      ],
+      "tier": 1,
+      "why": [
+        "the story's own words compose the file name: reports, roll, time (3 of 11 story terms)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Controllers/timeReporting/TimeReportEntriesController.vb",
+      "rank": 59,
+      "set": "companion",
+      "signals": [
+        "name"
+      ],
+      "tier": 1,
+      "why": [
+        "the story's own words compose the file name: reports, roll, time (3 of 11 story terms)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Controllers/timeReporting/TimeReportPayPeriodsController.vb",
+      "rank": 60,
+      "set": "companion",
+      "signals": [
+        "name"
+      ],
+      "tier": 1,
+      "why": [
+        "the story's own words compose the file name: reports, roll, time (3 of 11 story terms)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/DataTransferObjects/timeReporting/TimeCodeCategory-Out.vb",
+      "rank": 61,
+      "set": "companion",
+      "signals": [
+        "broad",
+        "name"
+      ],
+      "tier": 1,
+      "why": [
+        "matches 'category' — too common in this index (277 files) to discriminate; not counted as evidence",
+        "the story's own words compose the file name: category, code, time (3 of 11 story terms)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/QueryParams/timeReporting/TimeCodeCategoryQuery.vb",
+      "rank": 62,
+      "set": "companion",
+      "signals": [
+        "broad",
+        "name"
+      ],
+      "tier": 1,
+      "why": [
+        "matches 'category' — too common in this index (277 files) to discriminate; not counted as evidence",
+        "the story's own words compose the file name: category, code, time (3 of 11 story terms)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Services/timeReporting/TimeCodeCategoryService.vb",
+      "rank": 63,
+      "set": "companion",
+      "signals": [
+        "broad",
+        "name"
+      ],
+      "tier": 1,
+      "why": [
+        "interface/implementation pair of site/app_code/api-v2/services/timereporting/interfaces/itimecodecategoryservice.vb",
+        "the story's own words compose the file name: category, code, time (3 of 11 story terms)",
+        "matches 'category' — too common in this index (277 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Services/timeReporting/interfaces/ITimeCodeCategoryService.vb",
+      "rank": 64,
+      "set": "companion",
+      "signals": [
+        "broad",
+        "name"
+      ],
+      "tier": 1,
+      "why": [
+        "interface/implementation pair of site/app_code/api-v2/services/timereporting/timecodecategoryservice.vb",
+        "the story's own words compose the file name: category, code, time (3 of 11 story terms)",
+        "matches 'category' — too common in this index (277 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/production/productioncodelisttype.aspx",
+      "rank": 65,
+      "set": "companion",
+      "signals": [
+        "name"
+      ],
+      "tier": 1,
+      "why": [
+        "the story's own words compose the file name: code, list, production (3 of 11 story terms)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/production/productioncodelisttype.aspx.vb",
+      "rank": 66,
+      "set": "companion",
+      "signals": [
+        "name"
+      ],
+      "tier": 1,
+      "why": [
+        "the story's own words compose the file name: code, list, production (3 of 11 story terms)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/user/user_project.aspx",
+      "rank": 67,
+      "set": "companion",
+      "signals": [
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "co-changed with the seed files in merged history",
+        "page markup of modules/dashboard/pages/admin/user/user_project.aspx.vb"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/user/user_project.aspx.vb",
+      "rank": 68,
+      "set": "companion",
+      "signals": [
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "co-changed with the seed files in merged history",
+        "code-behind/designer companion of modules/dashboard/pages/admin/user/user_project.aspx"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/public/timeReporting/timeReporting.aspx",
+      "rank": 69,
+      "set": "companion",
+      "signals": [
+        "broad",
+        "name"
+      ],
+      "tier": 1,
+      "why": [
+        "matches 'reporting' — too common in this index (358 files) to discriminate; not counted as evidence",
+        "page markup of site/modules/dashboard/pages/public/timereporting/timereporting.aspx.vb",
+        "the story's own words compose the file name: reporting, reports, time (3 of 11 story terms)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/public/timeReporting/timeReporting.aspx.vb",
+      "rank": 70,
+      "set": "companion",
+      "signals": [
+        "broad",
+        "name"
+      ],
+      "tier": 1,
+      "why": [
+        "code-behind/designer companion of site/modules/dashboard/pages/public/timereporting/timereporting.aspx",
+        "the story's own words compose the file name: reporting, reports, time (3 of 11 story terms)",
+        "matches 'reporting' — too common in this index (358 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/caw/cawcodelistcategory.aspx",
+      "rank": 71,
+      "set": "companion",
+      "signals": [
+        "name"
+      ],
+      "tier": 1,
+      "why": [
+        "the story's own words compose the file name: category, code, list (3 of 11 story terms)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/caw/cawcodelistcategory.aspx.vb",
+      "rank": 72,
+      "set": "companion",
+      "signals": [
+        "name"
+      ],
+      "tier": 1,
+      "why": [
+        "the story's own words compose the file name: category, code, list (3 of 11 story terms)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/caw/cawprojectcodelist_edit.aspx",
+      "rank": 73,
+      "set": "companion",
+      "signals": [
+        "broad",
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "matches 'category' — too common in this index (277 files) to discriminate; not counted as evidence",
+        "page markup of modules/dashboard/pages/admin/system/caw/cawprojectcodelist_edit.aspx.vb"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/caw/cawprojectcodelist_edit.aspx.vb",
+      "rank": 74,
+      "set": "companion",
+      "signals": [
+        "broad",
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "co-changed with the seed files in merged history",
+        "code-behind/designer companion of site/modules/dashboard/pages/admin/system/caw/cawprojectcodelist_edit.aspx"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/import/import_networkdesign_from_vetro.aspx",
+      "rank": 75,
+      "set": "companion",
+      "signals": [
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "co-changed with the seed files in merged history",
+        "page markup of site/modules/dashboard/pages/admin/system/import/import_networkdesign_from_vetro.aspx.vb"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/import/import_networkdesign_from_vetro.aspx.vb",
+      "rank": 76,
+      "set": "companion",
+      "signals": [
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "code-behind/designer companion of site/modules/dashboard/pages/admin/system/import/import_networkdesign_from_vetro.aspx",
+        "co-changed with the seed files in merged history"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/markers/marker_edit.aspx",
+      "rank": 77,
+      "set": "companion",
+      "signals": [
+        "broad",
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "co-changed with the seed files in merged history",
+        "presentation-layer co-change partner (bundle / markup / stylesheet)",
+        "page markup of modules/dashboard/pages/admin/system/markers/marker_edit.aspx.vb",
+        "page markup of site/modules/dashboard/pages/admin/system/markers/marker_edit.aspx.vb",
+        "matches 'kategori' — too common in this index (117 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/markers/marker_edit.aspx.vb",
+      "rank": 78,
+      "set": "companion",
+      "signals": [
+        "broad",
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "co-changed with the seed files in merged history",
+        "code-behind/designer companion of modules/dashboard/pages/admin/system/markers/marker_edit.aspx",
+        "code-behind/designer companion of site/modules/dashboard/pages/admin/system/markers/marker_edit.aspx",
+        "matches 'kategori' — too common in this index (117 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/permits/permittype.aspx",
+      "rank": 79,
+      "set": "companion",
+      "signals": [
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "co-changed with the seed files in merged history",
+        "presentation-layer co-change partner (bundle / markup / stylesheet)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/permits/permittype.aspx.vb",
+      "rank": 80,
+      "set": "companion",
+      "signals": [
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "code-behind/designer companion of site/modules/dashboard/pages/admin/system/permits/permittype.aspx"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/project/project_edit.aspx",
+      "rank": 81,
+      "set": "companion",
+      "signals": [
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "co-changed with the seed files in merged history",
+        "presentation-layer co-change partner (bundle / markup / stylesheet)",
+        "page markup of modules/dashboard/pages/admin/system/project/project_edit.aspx.vb"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/project/project_edit.aspx.vb",
+      "rank": 82,
+      "set": "companion",
+      "signals": [
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "co-changed with the seed files in merged history",
+        "code-behind/designer companion of modules/dashboard/pages/admin/system/project/project_edit.aspx"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/grunddata/code/ScheduledTasks.vb",
+      "rank": 83,
+      "set": "companion",
+      "signals": [
+        "concept",
+        "lexicon"
+      ],
+      "tier": 3,
+      "why": [
+        "matches 'rapporter' — the project's .resx translation of the story's English term"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/tid/reports/accruedexpenses.vb",
+      "rank": 84,
+      "set": "companion",
+      "signals": [
+        "concept",
+        "lexicon"
+      ],
+      "tier": 3,
+      "why": [
+        "matches 'rapporter' — the project's .resx translation of the story's English term"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Services/storage/StorageFileService.vb",
+      "rank": 85,
+      "set": "companion",
+      "signals": [
+        "concept",
+        "lexicon"
+      ],
+      "tier": 3,
+      "why": [
+        "matches 'rapporter' — the project's .resx translation of the story's English term"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Services/timeReporting/TimeReportEntryService.vb",
+      "rank": 86,
+      "set": "companion",
+      "signals": [
+        "broad",
+        "concept",
+        "lexicon"
+      ],
+      "tier": 3,
+      "why": [
+        "matches 'reporting' — too common in this index (358 files) to discriminate; not counted as evidence",
+        "matches 'rapporter' — the project's .resx translation of the story's English term"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Services/timeReporting/TimeReportPayPeriodService.vb",
+      "rank": 87,
+      "set": "companion",
+      "signals": [
+        "concept",
+        "lexicon"
+      ],
+      "tier": 3,
+      "why": [
+        "matches 'rapporter' — the project's .resx translation of the story's English term"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/tid/tidsregistrering/code/SalaryPayPeriod.vb",
+      "rank": 88,
+      "set": "companion",
+      "signals": [
+        "concept",
+        "lexicon"
+      ],
+      "tier": 3,
+      "why": [
+        "matches 'rapporter' — the project's .resx translation of the story's English term"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/tid/tidsregistrering/code/maintenancetasks.vb",
+      "rank": 89,
+      "set": "companion",
+      "signals": [
+        "broad",
+        "concept",
+        "lexicon"
+      ],
+      "tier": 3,
+      "why": [
+        "matches 'main' — too common in this index (784 files) to discriminate; not counted as evidence",
+        "matches 'rapporter' — the project's .resx translation of the story's English term"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Services/timeReporting/interfaces/ITimeReportEntryService.vb",
+      "rank": 90,
+      "set": "companion",
+      "signals": [
+        "broad",
+        "concept",
+        "lexicon"
+      ],
+      "tier": 3,
+      "why": [
+        "interface/implementation pair of site/app_code/api-v2/services/timereporting/timereportentryservice.vb"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Services/timeReporting/interfaces/ITimeReportPayPeriodService.vb",
+      "rank": 91,
+      "set": "companion",
+      "signals": [
+        "concept",
+        "lexicon"
+      ],
+      "tier": 3,
+      "why": [
+        "interface/implementation pair of site/app_code/api-v2/services/timereporting/timereportpayperiodservice.vb"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/BundleConfig.vb",
+      "rank": 92,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'main' — too common in this index (784 files) to discriminate; not counted as evidence",
+        "matches 'reporting' — too common in this index (358 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/GdalConfiguration.vb",
+      "rank": 93,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'main' — too common in this index (784 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/Global.asax.vb",
+      "rank": 94,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'main' — too common in this index (784 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/HostEnvironment.vb",
+      "rank": 95,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'main' — too common in this index (784 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/WebApiConfig.vb",
+      "rank": 96,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'category' — too common in this index (277 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/shared-code/ConfigSettings.vb",
+      "rank": 97,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'reporting' — too common in this index (358 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/ata/code/ChangeRequestHelper.vb",
+      "rank": 98,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'main' — too common in this index (784 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/ata/code/huvud.vb",
+      "rank": 99,
+      "set": "companion",
+      "signals": [
+        "vector"
+      ],
+      "tier": 4,
+      "why": [
+        "semantic match to the story (rank 24)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/ata/code/kostnader.vb",
+      "rank": 100,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'kategori' — too common in this index (117 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/ata/reports/detaljerue.vb",
+      "rank": 101,
+      "set": "companion",
+      "signals": [
+        "vector"
+      ],
+      "tier": 4,
+      "why": [
+        "semantic match to the story (rank 4)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/ata/reports/summeringue.vb",
+      "rank": 102,
+      "set": "companion",
+      "signals": [
+        "vector"
+      ],
+      "tier": 4,
+      "why": [
+        "semantic match to the story (rank 9)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/permits/permits.aspx",
+      "rank": 103,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "page markup of site/modules/dashboard/pages/admin/permits/permits.aspx.vb"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/production/copycodelist.aspx",
+      "rank": 104,
+      "set": "companion",
+      "signals": [
+        "vector"
+      ],
+      "tier": 4,
+      "why": [
+        "page markup of site/modules/dashboard/pages/admin/production/copycodelist.aspx.vb"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/production/copycodelist.aspx.vb",
+      "rank": 105,
+      "set": "companion",
+      "signals": [
+        "vector"
+      ],
+      "tier": 4,
+      "why": [
+        "semantic match to the story (rank 11)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/projectresult/projectfollowup.aspx",
+      "rank": 106,
+      "set": "companion",
+      "signals": [
+        "vector"
+      ],
+      "tier": 4,
+      "why": [
+        "page markup of site/modules/dashboard/pages/admin/projectresult/projectfollowup.aspx.vb"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/timereporting/ReportedHoursVsCheckInOutTime.aspx",
+      "rank": 107,
+      "set": "companion",
+      "signals": [
+        "vector"
+      ],
+      "tier": 4,
+      "why": [
+        "page markup of site/modules/dashboard/pages/admin/timereporting/reportedhoursvscheckinouttime.aspx.vb"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/timereporting/ReportedHoursVsCheckInOutTime.aspx.vb",
+      "rank": 108,
+      "set": "companion",
+      "signals": [
+        "vector"
+      ],
+      "tier": 4,
+      "why": [
+        "semantic match to the story (rank 12)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/public/fact/assetaccessrequest.aspx",
+      "rank": 109,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "page markup of site/modules/dashboard/pages/public/fact/assetaccessrequest.aspx.vb"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/public/producedq/estimatedvsreportedquantities.aspx",
+      "rank": 110,
+      "set": "companion",
+      "signals": [
+        "broad",
+        "vector"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'category' — too common in this index (277 files) to discriminate; not counted as evidence",
+        "page markup of site/modules/dashboard/pages/public/producedq/estimatedvsreportedquantities.aspx.vb"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/public/producedq/estimatedvsreportedquantities.aspx.vb",
+      "rank": 111,
+      "set": "companion",
+      "signals": [
+        "broad",
+        "vector"
+      ],
+      "tier": 4,
+      "why": [
+        "code-behind/designer companion of site/modules/dashboard/pages/public/producedq/estimatedvsreportedquantities.aspx",
+        "semantic match to the story (rank 3)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/public/producedq/undoinvocing.aspx",
+      "rank": 112,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "page markup of site/modules/dashboard/pages/public/producedq/undoinvocing.aspx.vb"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/markers/marker.aspx",
+      "rank": 113,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'kategori' — too common in this index (117 files) to discriminate; not counted as evidence",
+        "page markup of site/modules/dashboard/pages/admin/system/markers/marker.aspx.vb"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/project/markers.aspx",
+      "rank": 114,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "page markup of site/modules/dashboard/pages/admin/system/project/markers.aspx.vb"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/public/producedq/reports/excelexport.aspx",
+      "rank": 115,
+      "set": "companion",
+      "signals": [
+        "vector"
+      ],
+      "tier": 4,
+      "why": [
+        "page markup of site/modules/dashboard/pages/public/producedq/reports/excelexport.aspx.vb"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/public/projectplanner/admin/roqmode.aspx",
+      "rank": 116,
+      "set": "companion",
+      "signals": [
+        "vector"
+      ],
+      "tier": 4,
+      "why": [
+        "semantic match to the story (rank 7)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/public/projectplanner/admin/roqmode.aspx.vb",
+      "rank": 117,
+      "set": "companion",
+      "signals": [
+        "vector"
+      ],
+      "tier": 4,
+      "why": [
+        "code-behind/designer companion of site/modules/dashboard/pages/public/projectplanner/admin/roqmode.aspx"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Client (TypeScript / JavaScript)",
+      "path": "Site/ts/imgHandler/imgHandler.ts",
+      "rank": 118,
+      "set": "companion",
+      "signals": [
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "co-changed with the seed files in merged history",
+        "presentation-layer co-change partner (bundle / markup / stylesheet)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Client (TypeScript / JavaScript)",
+      "path": "Site/modules/gpsstatus/~.js/index.js",
+      "rank": 119,
+      "set": "companion",
+      "signals": [
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "co-changed with the seed files in merged history",
+        "presentation-layer co-change partner (bundle / markup / stylesheet)",
+        "presentation-layer co-change partner (bundle / markup / stylesheet)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Client (TypeScript / JavaScript)",
+      "path": "Site/modules/dashboard/pages/public/taskmanagement/fullcalendar/fullcalendar.js",
+      "rank": 120,
+      "set": "companion",
+      "signals": [
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "co-changed with the seed files in merged history"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Client (TypeScript / JavaScript)",
+      "path": "Site/modules/dashboard/pages/public/taskmanagement/~.js/trp_main.js",
+      "rank": 121,
+      "set": "companion",
+      "signals": [
+        "broad",
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "matches 'main' — too common in this index (784 files) to discriminate; not counted as evidence",
+        "presentation-layer co-change partner (bundle / markup / stylesheet)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Client (TypeScript / JavaScript)",
+      "path": "Site/modules/dashboard/pages/public/timeReporting/~.js/timeReporting.js",
+      "rank": 122,
+      "set": "companion",
+      "signals": [
+        "name"
+      ],
+      "tier": 1,
+      "why": [
+        "the story's own words compose the file name: reporting, reports, time (3 of 11 story terms)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Client (TypeScript / JavaScript)",
+      "path": "Site/modules/dashboard/pages/admin/system/markers/~.js/marker.edit.js",
+      "rank": 123,
+      "set": "companion",
+      "signals": [
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "presentation-layer co-change partner (bundle / markup / stylesheet)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Client (TypeScript / JavaScript)",
+      "path": "Site/modules/dashboard/ts/map/vsMap/iomarker/filterManagers/ioMarkerTypeFilterManager.ts",
+      "rank": 124,
+      "set": "companion",
+      "signals": [
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "presentation-layer co-change partner (bundle / markup / stylesheet)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Client (TypeScript / JavaScript)",
+      "path": "Site/ts/fbinstplan/app.ts",
+      "rank": 125,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'main' — too common in this index (784 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Client (TypeScript / JavaScript)",
+      "path": "Site/ts/fbinstplan/main.ts",
+      "rank": 126,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'main' — too common in this index (784 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Client (TypeScript / JavaScript)",
+      "path": "Site/ts/qty/IQtyManager.ts",
+      "rank": 127,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'reporting' — too common in this index (358 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Client (TypeScript / JavaScript)",
+      "path": "Site/ts/qty/qtyManager.ts",
+      "rank": 128,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'reporting' — too common in this index (358 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Client (TypeScript / JavaScript)",
+      "path": "Site/modules/map/~.js/map.js",
+      "rank": 129,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'main' — too common in this index (784 files) to discriminate; not counted as evidence",
+        "matches 'reporting' — too common in this index (358 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Client (TypeScript / JavaScript)",
+      "path": "Site/modules/dashboard/ts/map/main.ts",
+      "rank": 130,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'main' — too common in this index (784 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Client (TypeScript / JavaScript)",
+      "path": "Site/modules/dashboard/ts/taskresourceplanner/main.ts",
+      "rank": 131,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'main' — too common in this index (784 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Client (TypeScript / JavaScript)",
+      "path": "Site/modules/dashboard/ts/visualization/main.ts",
+      "rank": 132,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'main' — too common in this index (784 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Client (TypeScript / JavaScript)",
+      "path": "Site/modules/dashboard/ts/map/vsMap/vsMap.ts",
+      "rank": 133,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'main' — too common in this index (784 files) to discriminate; not counted as evidence",
+        "matches 'reporting' — too common in this index (358 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Client (TypeScript / JavaScript)",
+      "path": "Site/modules/dashboard/ts/map/vsMap/iomarker/filterManagers/ioRoqFilterManager.ts",
+      "rank": 134,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'category' — too common in this index (277 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Resources (.resx — translate EVERY language)",
+      "path": "Site/App_GlobalResources/control.de.resx",
+      "rank": 135,
+      "set": "companion",
+      "signals": [
+        "concept",
+        "lexicon"
+      ],
+      "tier": 3,
+      "why": [
+        "localized .resx sibling of site/app_globalresources/control.no.resx (atomic set)",
+        "localized .resx sibling of site/app_globalresources/control.resx (atomic set)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Resources (.resx — translate EVERY language)",
+      "path": "Site/App_GlobalResources/control.en.resx",
+      "rank": 136,
+      "set": "companion",
+      "signals": [
+        "concept",
+        "lexicon"
+      ],
+      "tier": 3,
+      "why": [
+        "localized .resx sibling of site/app_globalresources/control.no.resx (atomic set)",
+        "localized .resx sibling of site/app_globalresources/control.resx (atomic set)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Resources (.resx — translate EVERY language)",
+      "path": "Site/App_GlobalResources/control.es.resx",
+      "rank": 137,
+      "set": "companion",
+      "signals": [
+        "concept",
+        "lexicon"
+      ],
+      "tier": 3,
+      "why": [
+        "localized .resx sibling of site/app_globalresources/control.no.resx (atomic set)",
+        "localized .resx sibling of site/app_globalresources/control.resx (atomic set)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Resources (.resx — translate EVERY language)",
+      "path": "Site/App_GlobalResources/control.no.resx",
+      "rank": 138,
+      "set": "companion",
+      "signals": [
+        "concept",
+        "lexicon"
+      ],
+      "tier": 3,
+      "why": [
+        "localized .resx sibling of site/app_globalresources/control.no.resx (atomic set)",
+        "localized .resx sibling of site/app_globalresources/control.resx (atomic set)",
+        "matches 'rapporter' — the project's .resx translation of the story's English term"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Resources (.resx — translate EVERY language)",
+      "path": "Site/App_GlobalResources/control.pt.resx",
+      "rank": 139,
+      "set": "companion",
+      "signals": [
+        "concept",
+        "lexicon"
+      ],
+      "tier": 3,
+      "why": [
+        "localized .resx sibling of site/app_globalresources/control.no.resx (atomic set)",
+        "localized .resx sibling of site/app_globalresources/control.resx (atomic set)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Resources (.resx — translate EVERY language)",
+      "path": "Site/App_GlobalResources/control.resx",
+      "rank": 140,
+      "set": "companion",
+      "signals": [
+        "concept",
+        "lexicon"
+      ],
+      "tier": 3,
+      "why": [
+        "localized .resx sibling of site/app_globalresources/control.no.resx (atomic set)",
+        "localized .resx sibling of site/app_globalresources/control.resx (atomic set)",
+        "matches 'kodlista' — the project's .resx translation of the story's English term",
+        "matches 'rapporter' — the project's .resx translation of the story's English term"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Resources (.resx — translate EVERY language)",
+      "path": "Site/App_GlobalResources/control.sl.resx",
+      "rank": 141,
+      "set": "companion",
+      "signals": [
+        "concept",
+        "lexicon"
+      ],
+      "tier": 3,
+      "why": [
+        "localized .resx sibling of site/app_globalresources/control.no.resx (atomic set)",
+        "localized .resx sibling of site/app_globalresources/control.resx (atomic set)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Resources (.resx — translate EVERY language)",
+      "path": "Site/App_GlobalResources/text.de.resx",
+      "rank": 142,
+      "set": "companion",
+      "signals": [
+        "concept",
+        "lexicon"
+      ],
+      "tier": 3,
+      "why": [
+        "localized .resx sibling of site/app_globalresources/text.resx (atomic set)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Resources (.resx — translate EVERY language)",
+      "path": "Site/App_GlobalResources/text.en.resx",
+      "rank": 143,
+      "set": "companion",
+      "signals": [
+        "concept",
+        "lexicon"
+      ],
+      "tier": 3,
+      "why": [
+        "localized .resx sibling of site/app_globalresources/text.resx (atomic set)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Resources (.resx — translate EVERY language)",
+      "path": "Site/App_GlobalResources/text.es.resx",
+      "rank": 144,
+      "set": "companion",
+      "signals": [
+        "concept",
+        "lexicon"
+      ],
+      "tier": 3,
+      "why": [
+        "localized .resx sibling of site/app_globalresources/text.resx (atomic set)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Resources (.resx — translate EVERY language)",
+      "path": "Site/App_GlobalResources/text.no.resx",
+      "rank": 145,
+      "set": "companion",
+      "signals": [
+        "concept",
+        "lexicon"
+      ],
+      "tier": 3,
+      "why": [
+        "localized .resx sibling of site/app_globalresources/text.resx (atomic set)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Resources (.resx — translate EVERY language)",
+      "path": "Site/App_GlobalResources/text.pt.resx",
+      "rank": 146,
+      "set": "companion",
+      "signals": [
+        "concept",
+        "lexicon"
+      ],
+      "tier": 3,
+      "why": [
+        "localized .resx sibling of site/app_globalresources/text.resx (atomic set)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Resources (.resx — translate EVERY language)",
+      "path": "Site/App_GlobalResources/text.resx",
+      "rank": 147,
+      "set": "companion",
+      "signals": [
+        "concept",
+        "lexicon"
+      ],
+      "tier": 3,
+      "why": [
+        "localized .resx sibling of site/app_globalresources/text.resx (atomic set)",
+        "matches 'kodlista' — the project's .resx translation of the story's English term"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Resources (.resx — translate EVERY language)",
+      "path": "Site/App_GlobalResources/text.sl.resx",
+      "rank": 148,
+      "set": "companion",
+      "signals": [
+        "concept",
+        "lexicon"
+      ],
+      "tier": 3,
+      "why": [
+        "localized .resx sibling of site/app_globalresources/text.resx (atomic set)"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Data (SQL)",
+      "path": "db-ociusx.sql/dbo/Tables/dup_dashboarduserprojekt.sql",
+      "rank": 149,
+      "set": "companion",
+      "signals": [
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "co-changed with the seed files in merged history"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Data (SQL)",
+      "path": "db-ociusx.sql/dbo/Tables/io_cff_markerCustomFormFieldMapping.sql",
+      "rank": 150,
+      "set": "companion",
+      "signals": [
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "co-changed with the seed files in merged history"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Data (SQL)",
+      "path": "db-ociusx.sql/dbo/Tables/pai_project_available_io.sql",
+      "rank": 151,
+      "set": "companion",
+      "signals": [
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "co-changed with the seed files in merged history"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Data (SQL)",
+      "path": "db-ociusx.sql/Security/aspnet_Membership_ReportingAccess.sql",
+      "rank": 152,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'reporting' — too common in this index (358 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Data (SQL)",
+      "path": "db-ociusx.sql/Security/aspnet_Membership_ReportingAccess_1.sql",
+      "rank": 153,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'reporting' — too common in this index (358 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Data (SQL)",
+      "path": "db-ociusx.sql/Security/aspnet_Personalization_ReportingAccess.sql",
+      "rank": 154,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'reporting' — too common in this index (358 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Data (SQL)",
+      "path": "db-ociusx.sql/Security/aspnet_Personalization_ReportingAccess_1.sql",
+      "rank": 155,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'reporting' — too common in this index (358 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Data (SQL)",
+      "path": "db-ociusx.sql/Security/aspnet_Profile_ReportingAccess.sql",
+      "rank": 156,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'reporting' — too common in this index (358 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Data (SQL)",
+      "path": "db-ociusx.sql/Security/aspnet_Profile_ReportingAccess_1.sql",
+      "rank": 157,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'reporting' — too common in this index (358 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Data (SQL)",
+      "path": "db-ociusx.sql/Security/aspnet_Roles_ReportingAccess.sql",
+      "rank": 158,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'reporting' — too common in this index (358 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Data (SQL)",
+      "path": "db-ociusx.sql/Security/aspnet_Roles_ReportingAccess_1.sql",
+      "rank": 159,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'reporting' — too common in this index (358 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Data (SQL)",
+      "path": "db-ociusx.sql/dbo/Tables/rv_redovisning.sql",
+      "rank": 160,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'main' — too common in this index (784 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Data (SQL)",
+      "path": "db-ociusx.sql/dbo/Tables/sst_systemsupporttickets.sql",
+      "rank": 161,
+      "set": "companion",
+      "signals": [
+        "broad"
+      ],
+      "tier": 4,
+      "why": [
+        "matches 'kategori' — too common in this index (117 files) to discriminate; not counted as evidence"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Markup / styles / config",
+      "path": "Site/modules/dashboard/~.css/sb-admin-2-custom.css",
+      "rank": 162,
+      "set": "companion",
+      "signals": [
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "presentation-layer co-change partner (bundle / markup / stylesheet)"
+      ]
+    },
+    {
+      "historical": true,
+      "layer": "Other",
+      "path": "docs/ox-fiber.yaml",
+      "rank": 163,
+      "set": "companion",
+      "signals": [
+        "cochange"
+      ],
+      "tier": 1,
+      "why": [
+        "co-changed with the seed files in merged history"
+      ]
+    },
+    {
+      "historical": false,
+      "layer": "Other",
+      "path": "docs/openapi/ox-fiber.yaml",
+      "rank": 164,
+      "set": "companion",
+      "signals": [],
+      "tier": 4,
+      "why": [
+        "API contract document (API-layer code is in the set)"
+      ]
+    }
+  ],
+  "omissions": [
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/ata/code/kostnadkategori.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/fact/code/assetAccessRequest.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/installationsobjekt/code/io-category.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/redovisning/code/ReportingMode.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/tid/grunddata/aktiviteter.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Controllers/mapFeatureTypeCategory/MapFeatureTypeCategoriesController.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Controllers/timeReporting/TimeCodeCategoriesController.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/DataTransferObjects/common/ImageMainSection-In.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/DataTransferObjects/common/ImageMainSection-Out.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/DataTransferObjects/common/ImageMainSection.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/DataTransferObjects/common/User-Out.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/DataTransferObjects/common/UserCreate-In.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/DataTransferObjects/mapFeatureType/MapFeatureTypeCategoryOut.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/DataTransferObjects/mapFeatureType/MapFeatureTypeOut.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/DataTransferObjects/reportingOfQuantities/RoqDay-Out.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/DataTransferObjects/reportingOfQuantities/RoqReportItem-Out.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Services/common/ImageService.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Services/common/UserService.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Services/mapFeatureType/MapFeatureTypeService.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Services/mapFeatureTypeCategory/MapFeatureTypeCategoryService.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Services/reportingOfQuantities/RoqEntryService.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Services/webhook/WebhookVetroService.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/tid/fakturering/code/fakturering.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Services/common/interfaces/IImageService.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Services/common/interfaces/IUserService.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Services/mapFeatureType/interfaces/IMapFeatureTypeService.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Services/mapFeatureTypeCategory/interfaces/IMapFeatureTypeCategoryService.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Services/reportingOfQuantities/interfaces/IRoqEntryService.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Services/reportingOfQuantities/interfaces/IRoqPriceListItemCategoryService.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/api-v2/Services/webhook/interfaces/IWebhookVetroService.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/permits/permits.aspx.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/projectresult/projectfollowup.aspx.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/public/fact/assetaccessrequest.aspx.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/public/producedq/producedq.aspx",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/public/producedq/producedq.aspx.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/public/producedq/undoinvocing.aspx.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/App_Code/integration/code/gis/vetrofibermap/ApiCommonDTO/CategoryDTO.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/import/import_networkdesign.aspx",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/import/import_networkdesign.aspx.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/markers/marker.aspx.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/markers/marker_category.aspx",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/markers/marker_category.aspx.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/project/blank.master",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/project/markers.aspx.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/user/user_edit.aspx",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/admin/system/user/user_edit.aspx.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    },
+    {
+      "layer": "Server (VB / code-behind / markup)",
+      "path": "Site/modules/dashboard/pages/public/producedq/reports/excelexport.aspx.vb",
+      "reason": "weak-signal tail cap (18 per layer) in 'Server (VB / code-behind / markup)'"
+    }
+  ],
+  "permission_gates": {
+    "cap": 10,
+    "listed": [
+      {
+        "gate": "checkwrite",
+        "gated_symbols": 9
+      },
+      {
+        "gate": "check_pr_id",
+        "gated_symbols": 7
+      }
+    ],
+    "omitted": [],
+    "shown": 2,
+    "total": 2
+  },
+  "story": "As an admin I want to set a main reporting category (huvudredovisningskategori) for each production code list category so that time reports roll up to it",
+  "ui_contract": null
+}

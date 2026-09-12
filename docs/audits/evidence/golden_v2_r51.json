@@ -1,0 +1,930 @@
+{
+ "summary": {
+  "corpus": "eval\\data\\ask_golden_ociusx.jsonl",
+  "corpus_sha256": "3ec8522f6d68b2eca0af1de4d48933e2d62e5646903561e6474e8746b43f0679",
+  "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+  "rows": 35,
+  "status_match": 35,
+  "abstain_ok": 4,
+  "abstain_total": 4,
+  "correct": 34,
+  "mean_cite": 0.957,
+  "gate": "FAIL",
+  "insights": false,
+  "finished_utc": "2026-08-31T08:24:24Z"
+ },
+ "rows": [
+  {
+   "id": "ox_missing_1",
+   "category": "missing_knowledge",
+   "question": "What is the Kubernetes pod autoscaling policy for the map tiles service?",
+   "status": "unsupported",
+   "expect_status": [
+    "unsupported"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "-",
+   "ms": 1452,
+   "evidence_paths": [
+    "Site/App_GlobalResources/text.sl.resx",
+    "Site/modules/dashboard/ts/map/vsMap/vsMap.ts",
+    "Site/App_GlobalResources/text.resx",
+    "Site/App_Code/projektplanering/code/resurs.vb",
+    "Site/Q/typings/google.maps/index.d.ts",
+    ".github/instructions/map-marker.instructions.md",
+    "db-ociusx.sql/dbo/Tables/aar_assetAccessRequest.sql",
+    "db-ociusx.sql/dbo/Tables/aar_assetAccessRequest.sql",
+    "db-ociusx.sql/dbo/Tables/cf_crpt_customFormCustomReports.sql",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_missing_2",
+   "category": "missing_knowledge",
+   "question": "How does the GraphQL subscription layer push marker updates to the mobile app?",
+   "status": "unsupported",
+   "expect_status": [
+    "unsupported"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "-",
+   "ms": 1616,
+   "evidence_paths": [
+    "Site/App_Code/installationsobjekt/code/ExportMarkersToFile/GeoSpatialDataFormat.vb",
+    "Site/App_Code/visualisering/code/GISLayer.vb",
+    "Site/App_Code/installationsobjekt/api-json/api-installationsobjektprojekt.vb",
+    "docs/openapi/ox-fiber.yaml",
+    "docs/openapi/ox-fiber.yaml",
+    "Site/modules/dashboard/ts/map/vsMap/iomarker/ioMarkerBulkStatusUpdate.ts",
+    "Site/Q/typings/google.maps/index.d.ts",
+    "Site/App_Code/integration/code/gis/GISSources.vb",
+    "db-ociusx.sql/dbo/Tables/flt_featureLayerType.sql",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_missing_3",
+   "category": "missing_knowledge",
+   "question": "Which Redis cluster caches the redovisningskategori list?",
+   "status": "unsupported",
+   "expect_status": [
+    "unsupported"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "-",
+   "ms": 1335,
+   "evidence_paths": [
+    "Site/App_Code/redovisning/code/redovisninglastvecka.vb",
+    "Site/App_Code/redovisning/code/redovisning.vb",
+    "Site/App_Code/redovisning/code/redovisningsartiklar.vb",
+    "Site/App_Code/iFalt.designer.vb",
+    "Site/App_Code/iFalt.designer.vb",
+    "db-ociusx.sql/dbo/Tables/rk_redovisningskategorier.sql",
+    "Site/App_Code/redovisning/api-json/api-redovisning.vb",
+    "Site/modules/dashboard/pages/admin/production/productioncodelistcategory.aspx.vb",
+    "Site/App_Code/api-v2/Controllers/common/LogoutController.vb",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_missing_4",
+   "category": "missing_knowledge",
+   "question": "What is the retention policy of the Kafka topic for inspection events?",
+   "status": "unsupported",
+   "expect_status": [
+    "unsupported"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "-",
+   "ms": 1633,
+   "evidence_paths": [
+    "Site/App_Code/installationsobjekt/code/io-installationsobjektprojektmoment.vb",
+    ".github/instructions/map-marker-checklist.instructions.md",
+    ".github/instructions/map-marker-checklist.instructions.md",
+    "Site/modules/dashboard/Default.aspx.vb",
+    "Site/App_Code/redovisning/code/redovisninglastvecka.vb",
+    "Site/modules/dashboard/ts/map/vsMap/iomarker/ioMarkerInfowindow.ts",
+    "Site/modules/map/~.js/map.js",
+    "Site/App_Code/Security.designer.vb",
+    "Site/App_Code/api-json/api-files.vb",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_exact_1",
+   "category": "exact_fact",
+   "question": "Where is Check_pr_id defined and who calls it?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 888,
+   "evidence_paths": [
+    "Site/App_Code/users-security/code/accessctrl.vb",
+    "Site/App_Code/ata/code/huvud.vb",
+    "Site/App_Code/ata/code/huvud.vb",
+    "Site/App_Code/fbinstplan/api-json/api-migrera.vb",
+    "Site/App_Code/fbinstplan/code/fiberjobb.vb",
+    "Site/App_Code/fbinstplan/code/fiberjobb.vb",
+    "Site/App_Code/api-v2/Services/common/ImageService.vb",
+    "Site/App_Code/api-v2/Services/installationplan/InstallationPlanService.vb",
+    "Site/App_Code/redovisning/code/redovisning.vb",
+    "db-ociusx.sql/dbo/Tables/pdmf_preDefinedMapFilter.sql"
+   ]
+  },
+  {
+   "id": "ox_exact_2",
+   "category": "exact_fact",
+   "question": "Which file defines the redovisningskategorier data-access class?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 1719,
+   "evidence_paths": [
+    "Site/App_Code/iFalt.designer.vb",
+    "Site/App_Code/iFalt.designer.vb",
+    "Site/App_Code/redovisning/code/redovisningskategorier.vb",
+    "Site/App_Code/redovisning/code/redovisninglista.vb",
+    "Site/App_Code/redovisning/code/redovisningsartiklar.vb",
+    "Site/App_Code/redovisning/code/redovisningslisttyp.vb",
+    "Site/App_Code/redovisning/code/redovisning.vb",
+    "Site/App_Code/redovisning/code/redovisningslistaredovisningsartiklar.vb",
+    "Site/App_Code/HostEnvironment.vb",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_exact_3",
+   "category": "exact_fact",
+   "question": "Where is CanUserBulkUpdate defined?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 725,
+   "evidence_paths": [
+    "Site/App_Code/installationsobjekt/api-json/api-installationsobjektprojekt.vb",
+    "Site/App_Code/installationsobjekt/api-json/api-installationsobjektprojekt.vb",
+    "Site/App_Code/grunddata/code/projectsetupguide.vb",
+    "Site/App_Code/installationsobjekt/code/FileLibrary.vb",
+    "Site/App_Code/users-security/code/UserAccountRequest.vb",
+    "Site/App_Code/iFalt.designer.vb",
+    "Site/App_Code/iFalt.designer.vb",
+    "Site/App_Code/integration/code/gis/Layer/DataSources/WMS/v1.1.1/capabilities_1_1_1.vb",
+    "Site/App_Code/permits/code/PredefinedAppicationStatus.vb",
+    "Site/App_Code/permits/code/PredefinedAppicationStatus.vb"
+   ]
+  },
+  {
+   "id": "ox_exact_4",
+   "category": "exact_fact",
+   "question": "Which table stores reporting categories (redovisningskategorier)?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "0.67",
+   "ms": 2591,
+   "evidence_paths": [
+    "Site/App_Code/redovisning/code/redovisningslistaredovisningsartiklar.vb",
+    "Site/App_Code/redovisning/code/redovisningslisttyp.vb",
+    "Site/App_Code/redovisning/code/redovisning.vb",
+    "Site/App_Code/redovisning/code/redovisninglista.vb",
+    "db-ociusx.sql/Scripts/Post/ss_systemsettings.sql",
+    "db-ociusx.sql/Scripts/Post/ss_systemsettings.sql",
+    "Site/App_Code/redovisning/code/redovisninglista.vb",
+    "db-ociusx.sql/dbo/Tables/lg_rk_lagredovisningskategorier.sql",
+    "db-ociusx.sql/dbo/Tables/rk_redovisningskategorier.sql",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_exact_5",
+   "category": "exact_fact",
+   "question": "Where is CheckIfAdminOrArbetsledare defined?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 742,
+   "evidence_paths": [
+    "Site/App_Code/users-security/code/aspnetUsers.vb",
+    "Site/App_Code/users-security/code/aspnetUsers.vb",
+    "Site/App_Code/api-json/api-useraccess.vb",
+    "Site/App_Code/api-json/api-useraccess.vb",
+    "Site/App_Code/api-v2/Services/common/ImageService.vb",
+    "Site/App_Code/api-v2/Services/common/TeamService.vb",
+    "Site/App_Code/api-v2/Services/common/TeamService.vb",
+    "Site/App_Code/api-v2/Services/installationplan/InstallationPlanService.vb",
+    "Site/App_Code/ata/api-json/api-atadetaljer.vb",
+    "db-ociusx.sql/dbo/Tables/pdmf_preDefinedMapFilter.sql"
+   ]
+  },
+  {
+   "id": "ox_exact_6",
+   "category": "exact_fact",
+   "question": "Which API file exposes ioUpdateBaseTypeInBulk?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 1299,
+   "evidence_paths": [
+    "Site/App_Code/installationsobjekt/api-json/api-installationsobjektprojekt.vb",
+    "Site/App_Code/installationsobjekt/code/FileLibrary.vb",
+    "Site/App_Code/shared-code/FileLibraryBase.vb",
+    "Site/App_Code/installationsobjekt/code/NonGeoSpatialExport/ExportToFile.vb",
+    "Site/Q/typings/google.maps/index.d.ts",
+    "Site/App_Code/installationsobjekt/api-json/api-installationsobjektprojekt.vb",
+    ".github/instructions/map-marker-checklist.instructions.md",
+    "Site/modules/map/~.js/map.js",
+    "Site/modules/dashboard/pages/public/map/map.aspx",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_usage_1",
+   "category": "usage",
+   "question": "Which reports (.rdl) read the rk_redovisningskategorier table?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 2725,
+   "evidence_paths": [
+    "Site/App_Code/iFalt.designer.vb",
+    "Site/App_Code/iFalt.designer.vb",
+    "Site/Reports/ata/detaljerue.en.rdl",
+    "Site/Reports/ata/detaljerue.en.rdl",
+    "Site/Reports/ata/detaljerue.nb.rdl",
+    "db-ociusx.sql/dbo/Tables/cf_crpt_customFormCustomReports.sql",
+    "db-ociusx.sql/dbo/Tables/crpt_customReports.sql",
+    "db-ociusx.sql/dbo/Tables/rk_redovisningskategorier.sql",
+    "memory_bank:engram/index_report",
+    "db-ociusx.sql/dbo/Tables/rk_redovisningskategorier.sql"
+   ]
+  },
+  {
+   "id": "ox_usage_2",
+   "category": "usage",
+   "question": "Where is the enable_admin_role_upload_of_marker_icons setting used?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 618,
+   "evidence_paths": [
+    "Site/Web.config",
+    "Site/App_Code/grunddata/code/systemsettings.vb",
+    "Site/App_Code/grunddata/code/systemsettings.vb",
+    "Site/Web.config",
+    "Site/modules/dashboard/pages/admin/system/markers/marker_edit.aspx.vb",
+    "Site/App_Code/shared-code/ConfigSettings.vb",
+    "Site/modules/dashboard/pages/admin/system/markers/~.js/marker.edit.js",
+    "Site/App_Code/Global.asax.vb",
+    "Site/App_Code/Global.asax.vb",
+    "Site/App_Code/HostEnvironment.vb"
+   ]
+  },
+  {
+   "id": "ox_usage_3",
+   "category": "usage",
+   "question": "Which pages use the ctrl_files upload control?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 3991,
+   "evidence_paths": [
+    "Site/modules/dashboard/pages/public/shared/ctrl_files.ascx.vb",
+    "Site/modules/dashboard/pages/admin/production/import_price_list.aspx.vb",
+    "Site/modules/dashboard/pages/public/storage/storage.aspx",
+    "Site/modules/dashboard/pages/public/storage/storage.aspx",
+    "Site/modules/dashboard/pages/public/shared/ctrl_files.ascx.vb",
+    "Site/modules/dashboard/pages/public/shared/ctrl_files.ascx",
+    "Site/modules/dashboard/pages/public/storage/storage.aspx.vb",
+    "Site/modules/dashboard/pages/admin/system/customform/form.aspx",
+    "Site/modules/dashboard/pages/public/shared/ctrl_files.ascx",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_usage_4",
+   "category": "usage",
+   "question": "Where is GetDictionaryIntegerValue used to read pr_id from the request?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 846,
+   "evidence_paths": [
+    "Site/App_Code/fbinstplan/api-json/api-fiberjobb.vb",
+    "Site/App_Code/shared-code/sharedfunc.vb",
+    "db-ociusx.sql/dbo/Tables/al_atalista.sql",
+    "None",
+    "None",
+    "None",
+    "None",
+    "None",
+    "Site/App_Code/visualisering/api-json/api-visualisering-chart.vb",
+    "db-ociusx.sql/dbo/Tables/uar_userAccountRequest.sql"
+   ]
+  },
+  {
+   "id": "ox_usage_5",
+   "category": "usage",
+   "question": "Which TypeScript files under ts/map render the camera icon on a marker?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 3149,
+   "evidence_paths": [
+    "Site/Q/typings/google.maps/index.d.ts",
+    ".coderabbit.yaml",
+    ".coderabbit.yaml",
+    "Site/ts/imgHandler/imgHandler.ts",
+    "Site/ts/imgHandler/imgHandler.ts",
+    "Site/Q/typings/google.maps/index.d.ts",
+    "Site/ts/imgHandler/IETypeDefinitions.ts",
+    ".github/instructions/map-marker-checklist.instructions.md",
+    "Site/Q/typings/google.maps/index.d.ts",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_multi_1",
+   "category": "multi_hop",
+   "question": "How does a bulk base-type update on installation objects get authorized, from the API entry point to the DAL?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 1482,
+   "evidence_paths": [
+    "Site/App_Code/users-security/code/aspnetUsers.vb",
+    "Site/App_Code/users-security/code/useraccess.vb",
+    "Site/App_Code/installationsobjekt/code/FileLibrary.vb",
+    "Site/App_Code/installationsobjekt/code/io-installationsobjektprojektmoment.vb",
+    "Site/App_Code/installationsobjekt/tbl-classes/io_pr_installationsobjektprojekt.vb",
+    "Site/App_Code/installationsobjekt/code/io-installationsobjektprojekt.vb",
+    "Site/App_Code/installationsobjekt/api-json/api-installationsobjektprojekt.vb",
+    "Site/App_Code/grunddata/code/projectsetupguide.vb",
+    "Site/App_Code/installationsobjekt/api-json/api-installationsobjektprojekt.vb",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_multi_2",
+   "category": "multi_hop",
+   "question": "How does a custom marker icon get from the upload control to the marker editor's icon picker?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 1300,
+   "evidence_paths": [
+    "Site/App_Code/shared-code/sharedfunc.vb",
+    "Site/App_Code/customform/code/customFormSheet.vb",
+    "Site/App_Code/users-security/code/aspnetUsers.vb",
+    "Site/modules/dashboard/pages/admin/system/markers/marker_edit.aspx.vb",
+    "Site/modules/dashboard/pages/admin/system/markers/manage_custom_icons.aspx.vb",
+    "Site/App_Code/installationsobjekt/code/NonGeoSpatialExport/GisPdfElementFactoryForMapMarkers.vb",
+    "Site/modules/dashboard/ts/map/vsMap/iomarker/ioMarkerBulkStatusUpdate.ts",
+    "Site/modules/dashboard/ts/map/vsMap/iomarker/ioMarker.ts",
+    "Site/modules/dashboard/pages/public/shared/ctrl_files.ascx.vb",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_multi_3",
+   "category": "multi_hop",
+   "question": "How does a reporting category reach the accounting report output?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 2299,
+   "evidence_paths": [
+    "Site/App_Code/grunddata/code/verksamhetsbedrivarebild.vb",
+    "Site/App_Code/shared-code/ifreports.vb",
+    "Site/App_Code/redovisning/code/RoQReportFilter.vb",
+    "Site/App_GlobalResources/text.en.resx",
+    "Site/Reports/economy/accruedexpenses.rdl",
+    "Site/Reports/requisition/requisition.nb.rdl",
+    "Site/App_Code/redovisning/code/RoQReportItem.vb",
+    "Site/App_Code/redovisning/code/redovisningshuvudkategori.vb",
+    "Site/Reports/ata/detaljerue.en.rdl",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_multi_4",
+   "category": "multi_hop",
+   "question": "How does the map's marker info window fetch a marker's images?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "required symbols/files not cited: ['api-images']",
+   "cite_coverage": "0.50",
+   "ms": 1163,
+   "evidence_paths": [
+    "Site/Q/typings/jquery/jquery.d.ts",
+    "Site/Q/typings/google.visualization/google.visualization.d.ts",
+    "Site/App_Code/installationsobjekt/api-json/api-installationsobjektprojekt.vb",
+    "Site/Q/api/ajax.ts",
+    "Site/modules/dashboard/pages/public/caw/caw.aspx",
+    "Site/App_Code/fact/api-json/api-assetAccessRequest.vb",
+    "Site/App_Code/installationsobjekt/code/FileLibrary.vb",
+    "Site/modules/dashboard/ts/map/vsMap/dockedInfoWindow.ts",
+    "Site/modules/dashboard/ts/map/vsMap/iomarker/ioManager.ts",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_impact_1",
+   "category": "impact",
+   "question": "What breaks if I change the signature of Check_pr_id?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 1266,
+   "evidence_paths": [
+    "Site/App_Code/users-security/code/accessctrl.vb",
+    "Site/App_Code/api-v2/Services/markerInspection/MarkerInspectionService.vb",
+    "Site/App_Code/api-v2/Services/permit/PermitService.vb",
+    "Site/App_Code/api-v2/Services/permit/PermitService.vb",
+    "Site/App_Code/api-v2/Services/projectPlanning/TaskService.vb",
+    "Site/App_Code/api-v2/Services/projectPlanning/TaskService.vb",
+    "Site/App_Code/api-v2/Services/projektplanering/RoqEstimatesService.vb",
+    "Site/App_Code/api-v2/Services/projektplanering/RoqEstimatesService.vb",
+    "Site/App_Code/api-v2/Services/reportingOfQuantities/RoqEntryService.vb",
+    ".github/instructions/map-marker-checklist.instructions.md"
+   ]
+  },
+  {
+   "id": "ox_impact_2",
+   "category": "impact",
+   "question": "What depends on the rk_redovisningskategorier table?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 2416,
+   "evidence_paths": [
+    "Site/App_Code/redovisning/code/redovisningsartiklar.vb",
+    "Site/App_Code/redovisning/code/redovisningsartiklar.vb",
+    "Site/Reports/redovisning/redovisning.en.rdl",
+    "Site/Reports/redovisning/redovisning.nb.rdl",
+    "Site/Reports/redovisning/redovisning.rdl",
+    "Site/Reports/redovisning/redovisning.sl.rdl",
+    "Site/App_Code/iFalt.designer.vb",
+    "db-ociusx.sql/dbo/Tables/rk_redovisningskategorier.sql",
+    "db-ociusx.sql/dbo/Tables/rk_redovisningskategorier.sql",
+    "db-ociusx.sql/dbo/Tables/rk_redovisningskategorier.sql"
+   ]
+  },
+  {
+   "id": "ox_impact_3",
+   "category": "impact",
+   "question": "Which files change together with text.resx when a resource key is added?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 1647,
+   "evidence_paths": [
+    "Site/App_GlobalResources/text.resx",
+    "Site/App_Code/installationsobjekt/code/io_installationsobjektimagelabel.vb",
+    "Site/modules/dashboard/pages/public/taskmanagement/fullcalendar-scheduler/scheduler.js",
+    "Site/modules/dashboard/pages/admin/system/markers/imagegrouplabeltext/ctrl_image_group_label_text.ascx.vb",
+    "Site/App_Code/installationsobjekt/code/FileLibrary.vb",
+    "Site/App_GlobalResources/control.de.resx",
+    "Site/modules/dashboard/pages/admin/projectresult/projectresult.aspx",
+    "Site/App_GlobalResources/help.en.resx",
+    "Site/App_GlobalResources/label.pt.resx",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_impact_4",
+   "category": "impact",
+   "question": "What would break if GetByID in the projekt DAL stopped calling check_pr_id?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 1378,
+   "evidence_paths": [
+    "Site/App_Code/grunddata/code/projekt.vb",
+    "Site/App_Code/grunddata/code/projekt_anvandare.vb",
+    "Site/App_Code/users-security/code/accessctrl.vb",
+    "Site/App_Code/grunddata/code/kunder.vb",
+    "Site/modules/dashboard/pages/admin/projectresult/projectresult.aspx.vb",
+    "Site/modules/dashboard/Default.aspx.vb",
+    "Site/modules/dashboard/pages/admin/system/project/harddelete/harddeleteproject.aspx.vb",
+    "Site/modules/dashboard/pages/admin/system/markers/marker_edit.aspx.vb",
+    "Site/App_Code/redovisning/code/redovisninglista.vb",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_rationale_1",
+   "category": "rationale",
+   "question": "Why do the bulk endpoints in api-installationsobjektprojekt check CanUserBulkUpdate only on some branches?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 1379,
+   "evidence_paths": [
+    "Site/App_Code/users-security/code/aspnetUsers.vb",
+    "Site/App_Code/users-security/code/useraccess.vb",
+    "Site/App_Code/installationsobjekt/code/FileLibrary.vb",
+    "Site/App_Code/installationsobjekt/code/io-installationsobjektprojektmoment.vb",
+    "Site/App_Code/shared-code/FileLibraryBase.vb",
+    "Site/App_Code/installationsobjekt/tbl-classes/io_pr_installationsobjektprojekt.vb",
+    "Site/App_Code/installationsobjekt/api-json/api-installationsobjektprojekt.vb",
+    "Site/App_Code/installationsobjekt/api-json/api-installationsobjektprojekt.vb",
+    "Site/App_Code/projektplanering/code/resurs.vb",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_rationale_2",
+   "category": "rationale",
+   "question": "Why is marker-icon upload gated by a web.config setting instead of a role alone?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial",
+    "unsupported"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "-",
+   "ms": 1640,
+   "evidence_paths": [
+    "Site/Q/web.config",
+    "Site/modules/ata/web.config",
+    "Site/modules/dashboard/pages/admin/system/accountrequest/web.config",
+    "Site/modules/dashboard/pages/admin/projectresult/projectresultimport.aspx.vb",
+    "Site/App_Code/shared-code/SystemSettingStore.vb",
+    "Site/App_Code/shared-code/ConfigSettings.vb",
+    "Site/modules/dashboard/pages/public/storage/ctrl_markerfiles.ascx.vb",
+    "Site/App_Code/users-security/code/role.vb",
+    "None",
+    "diff:0dcad18aad92401c691c4c8d8bd2f9aabbd77853:Web.config"
+   ]
+  },
+  {
+   "id": "ox_compound_1",
+   "category": "compound",
+   "question": "How are permission checks done in api-installationsobjektprojekt, and which endpoints read a client pr_id without an object-level check?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 1465,
+   "evidence_paths": [
+    "Site/App_Code/users-security/code/aspnetUsers.vb",
+    "Site/App_Code/users-security/code/useraccess.vb",
+    "Site/App_Code/installationsobjekt/code/FileLibrary.vb",
+    "Site/App_Code/installationsobjekt/code/io-installationsobjektprojektmoment.vb",
+    "Site/App_Code/shared-code/FileLibraryBase.vb",
+    "Site/App_Code/installationsobjekt/tbl-classes/io_pr_installationsobjektprojekt.vb",
+    "Site/App_Code/installationsobjekt/api-json/api-installationsobjektprojekt.vb",
+    "db-ociusx.sql/dbo/Tables/io_pr_installationsobjektprojekt.sql",
+    "Site/App_Code/projektplanering/code/resurs.vb",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_compound_2",
+   "category": "compound",
+   "question": "Which code reads the redovisningskategori table, and what would a column rename touch?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 2613,
+   "evidence_paths": [
+    "Site/App_Code/redovisning/code/redovisningslistaredovisningsartiklar.vb",
+    "Site/App_Code/redovisning/code/redovisningslisttyp.vb",
+    "Site/App_Code/redovisning/code/redovisningshuvudkategori.vb",
+    "Site/App_Code/redovisning/code/redovisninglista.vb",
+    "Site/App_Code/redovisning/code/redovisninglista.vb",
+    "db-ociusx.sql/dbo/Tables/lg_rk_lagredovisningskategorier.sql",
+    "db-ociusx.sql/dbo/Tables/an_arbetsnummer.sql",
+    "db-ociusx.sql/dbo/Tables/aspnet_WebEvent_Events.sql",
+    "db-ociusx.sql/dbo/Tables/aspnet_WebEvent_Events.sql",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_history_1",
+   "category": "history",
+   "question": "When was the custom marker icon upload last changed?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial",
+    "unsupported"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "-",
+   "ms": 967,
+   "evidence_paths": [
+    "Site/modules/dashboard/pages/admin/system/markers/marker_edit.aspx.vb",
+    "Site/modules/dashboard/pages/admin/system/markers/marker_edit.aspx.vb",
+    "Site/App_Code/installationsobjekt/code/io-installationsobjektprojekt.vb",
+    "Site/App_Code/installationsobjekt/code/NonGeoSpatialExport/GisPdfElementFactoryForMapMarkers.vb",
+    "Site/App_Code/api-json/api-files.vb",
+    "Site/modules/dashboard/ts/customform/cfManager.ts",
+    "commit:e53cffd14cc64ceedf63a700e4accd1ab9768108",
+    "commit:6c48cf86d8b8ac839cc030467a1ce23cbcb565b4",
+    "diff:1505378993b23cf8bdb60456d0fcfd90f5fd9860:Web.config",
+    "commit:510737468422e48edf9d0af63f3ceec7230d0974"
+   ]
+  },
+  {
+   "id": "ox_history_2",
+   "category": "history",
+   "question": "Which merged PR introduced the bulk base-type update endpoint?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial",
+    "unsupported"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "-",
+   "ms": 1032,
+   "evidence_paths": [
+    "Site/modules/dashboard/pages/public/map/map.aspx",
+    "Site/modules/dashboard/pages/public/map/map.aspx",
+    "Site/App_Code/installationsobjekt/api-json/api-installationsobjektprojekt.vb",
+    "Site/modules/dashboard/pages/admin/system/import/import.aspx.vb",
+    "Site/App_Code/grunddata/code/projectsetupguide.vb",
+    "Site/modules/dashboard/ts/map/vsMap/addressMarker/addressManager.ts",
+    "commit:32ab39f68baf1a3b352d125f31f01b9cf25c6d8e",
+    "commit:4dba388b363574e77cd8152cf733174643ee640b",
+    "commit:865eaf30fb5183ec5b1655bcb46c085b2420d576",
+    "commit:1d6d0c7933ee992542bd8d2ee8a5e88117209cb6"
+   ]
+  },
+  {
+   "id": "ox_bug_1",
+   "category": "bug",
+   "question": "Why might the camera icon stay lit after all images of a marker are removed?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "0.75",
+   "ms": 1200,
+   "evidence_paths": [
+    "Site/App_Code/users-security/code/aspnetUsers.vb",
+    "Site/App_Code/customform/code/markerCustomForm.vb",
+    "Site/App_Code/installationsobjekt/code/io_installationsobjektimagelabel.vb",
+    "Site/modules/dashboard/pages/admin/system/markers/marker_edit.aspx.vb",
+    "Site/modules/map/bilder/~.js/index.js",
+    "Site/ts/imgHandler/imgGroupHandler.ts",
+    "Site/modules/dashboard/ts/map/vsMap/iomarker/ioMarkerInfowindow.ts",
+    ".github/instructions/map-marker-checklist.instructions.md",
+    "Site/Q/typings/google.maps/index.d.ts",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_bug_2",
+   "category": "bug",
+   "question": "Why could a non-admin user update installation objects of another project through the bulk API?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 1311,
+   "evidence_paths": [
+    "Site/App_Code/users-security/code/aspnetUsers.vb",
+    "Site/App_Code/users-security/code/useraccess.vb",
+    "Site/App_Code/grunddata/code/projekt_anvandare.vb",
+    "Site/App_Code/installationsobjekt/code/io-installationsobjekt.vb",
+    "Site/App_Code/installationsobjekt/code/io-installationsobjektprojektmoment.vb",
+    "Site/App_Code/installationsobjekt/tbl-classes/io_pr_installationsobjektprojekt.vb",
+    "Site/modules/dashboard/pages/public/map/map.aspx",
+    "Site/App_Code/installationsobjekt/api-json/api-installationsobjektprojekt.vb",
+    "Site/App_Code/api-v2/Services/mapFeatureType/MapFeatureTypeService.vb",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_requirements_1",
+   "category": "requirements",
+   "question": "What rule says a main code category cannot be deleted while in use?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial",
+    "unsupported"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "-",
+   "ms": 1477,
+   "evidence_paths": [
+    "Site/App_Code/redovisning/code/redovisningskategorier.vb",
+    "Site/modules/dashboard/pages/admin/production/copycodelistcategory.aspx.vb",
+    "Site/modules/dashboard/pages/admin/production/copycodelistcategory.aspx.vb",
+    "Site/App_GlobalResources/text.en.resx",
+    "Site/App_Code/redovisning/code/redovisningshuvudkategori.vb",
+    "Site/modules/dashboard/pages/admin/production/productioncodelistmaincategory.aspx.vb",
+    "Site/modules/dashboard/ts/map/vsMap/iomarker/filterManagers/ioRoqFilterManager.ts",
+    "db-ociusx.sql/dbo/Tables/aspnet_UsersInRoles.sql",
+    "db-ociusx.sql/dbo/Tables/ath_UserId.sql",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_requirements_2",
+   "category": "requirements",
+   "question": "Which resource keys describe the main code category workflow?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 1655,
+   "evidence_paths": [
+    "Site/App_Code/grunddata/code/verksamhetsbedrivare.vb",
+    "Site/App_Code/redovisning/code/redovisningsartiklar.vb",
+    "Site/App_Code/redovisning/code/estimatedVsReported.vb",
+    "Site/App_GlobalResources/text.en.resx",
+    "Site/App_GlobalResources/text.en.resx",
+    "Site/modules/dashboard/pages/admin/production/copycodelistcategory.aspx.vb",
+    "Site/modules/dashboard/pages/admin/production/copycodelistcategory.aspx.vb",
+    "Site/App_GlobalResources/text.en.resx",
+    "Site/App_GlobalResources/text.es.resx",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_ambiguous_1",
+   "category": "usage",
+   "question": "Where is GetByID used?",
+   "status": "ambiguous",
+   "expect_status": [
+    "answered",
+    "partial",
+    "ambiguous"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "-",
+   "ms": 645,
+   "evidence_paths": [
+    "Site/App_Code/ata/code/atalista.vb",
+    "Site/App_Code/ata/code/atalistaatakostnader.vb",
+    "Site/App_Code/ata/code/detaljer.vb",
+    "Site/App_Code/ata/code/kostnadkategori.vb",
+    "Site/App_Code/ata/code/kostnadkategori.vb",
+    "Site/App_Code/customform/api-json/api-customForm.vb",
+    "Site/App_Code/customform/api-json/api-customForm.vb",
+    "Site/App_Code/customform/code/customForm.vb",
+    "Site/App_Code/fbinstplan/code/fiberjobb.vb",
+    "Site/modules/dashboard/pages/public/taskmanagement/ctrl_bulk_edit_tasks.ascx"
+   ]
+  },
+  {
+   "id": "ox_ambiguous_2",
+   "category": "usage",
+   "question": "Where is Save called?",
+   "status": "ambiguous",
+   "expect_status": [
+    "answered",
+    "partial",
+    "ambiguous"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "-",
+   "ms": 739,
+   "evidence_paths": [
+    "Site/modules/dashboard/pages/admin/system/user/ctrl_ppresource.ascx.vb",
+    "Site/modules/dashboard/pages/admin/system/user/ctrl_userinformation.ascx.vb",
+    "Site/App_Code/shared-code/PDFImage/PdfToImageConverter.vb",
+    "Site/App_Code/visualisering/api-json/api-visualisering-lager.vb",
+    "Site/language.aspx.vb",
+    "Site/modules/dashboard/pages/admin/system/user/ctrl_integrations.ascx.vb",
+    "Site/modules/dashboard/pages/admin/system/user/ctrl_ppresource.ascx.vb",
+    "Site/modules/dashboard/pages/admin/system/user/ctrl_userinformation.ascx.vb",
+    "Site/App_Code/grunddata/code/systemsettings.vb",
+    "Site/ts/forecastQtyManager/IQtyManager.ts"
+   ]
+  }
+ ]
+}

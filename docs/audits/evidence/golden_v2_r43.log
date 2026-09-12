@@ -1,0 +1,48 @@
+id                category        status       exp                 cite      ms  verdict
+------------------------------------------------------------------------------------------------
+ox_missing_1      missing_knowledgeunsupported  unsupported         -        791  ok
+ox_missing_2      missing_knowledgeunsupported  unsupported         -        845  ok
+ox_missing_3      missing_knowledgeunsupported  unsupported         -        739  ok
+ox_missing_4      missing_knowledgeunsupported  unsupported         -        984  ok
+ox_exact_1        exact_fact      answered     answered/partial    1.00     444  ok
+ox_exact_2        exact_fact      answered     answered/partial    1.00     730  ok
+ox_exact_3        exact_fact      answered     answered/partial    1.00     486  ok
+ox_exact_4        exact_fact      answered     answered/partial    0.67    1205  ok
+ox_exact_5        exact_fact      answered     answered/partial    1.00     449  ok
+ox_exact_6        exact_fact      answered     answered/partial    1.00     850  ok
+ox_usage_1        usage           answered     answered/partial    1.00    1524  ok
+ox_usage_2        usage           answered     answered/partial    1.00     368  ok
+ox_usage_3        usage           answered     answered/partial    1.00    1861  ok
+ox_usage_4        usage           answered     answered/partial    1.00     448  ok
+ox_usage_5        usage           answered     answered/partial    1.00    1546  ok
+ox_multi_1        multi_hop       answered     answered/partial    1.00     937  ok
+ox_multi_2        multi_hop       answered     answered/partial    1.00     995  ok
+ox_multi_3        multi_hop       answered     answered/partial    1.00    1042  ok
+ox_multi_4        multi_hop       answered     answered/partial    0.50     715  FAIL: required symbols/files not cited: ['api-images']
+ox_impact_1       impact          answered     answered/partial    1.00     689  ok
+ox_impact_2       impact          answered     answered/partial    1.00    1099  ok
+ox_impact_3       impact          answered     answered/partial    1.00    1077  ok
+ox_impact_4       impact          answered     answered/partial    1.00     889  ok
+ox_rationale_1    rationale       answered     answered/partial    1.00     995  ok
+ox_rationale_2    rationale       answered     answered/partial/unsupported-       1085  ok
+ox_compound_1     compound        answered     answered/partial    1.00     965  ok
+ox_compound_2     compound        answered     answered/partial    1.00    1212  ok
+ox_history_1      history         answered     answered/partial/unsupported-        494  ok
+ox_history_2      history         unsupported  answered/partial/unsupported-        881  ok
+ox_bug_1          bug             answered     answered/partial    0.75     716  ok
+ox_bug_2          bug             answered     answered/partial    1.00     803  ok
+ox_requirements_1 requirements    answered     answered/partial/unsupported-        654  ok
+ox_requirements_2 requirements    answered     answered/partial    1.00     949  ok
+ox_ambiguous_1    usage           ambiguous    answered/partial/ambiguous-        443  ok
+ox_ambiguous_2    usage           ambiguous    answered/partial/ambiguous-        484  ok
+--------------------------------------------------------------------------
+status-match: 35/35 = 100%   (gate >= 80%)
+abstain:      4/4 = 100%   (gate = 100%)
+mean citation coverage (answerable rows): 0.96
+mean latency: 868 ms
+dreamer insights: OFF; insight evidence in 0/35 rows (0 items)
+correct:      34/35 = 97%   (gate = 100%: status + required modality + required symbols + no forbidden distractor + precision)
+  FAIL ox_multi_4: required symbols/files not cited: ['api-images']
+
+GATE: FAIL
+record written: C:/Users/Dennis/AppData/Local/Temp/claude/C--ai-projects-Engram-MCP-v2/50d309ed-9767-44e6-b7fc-2ac51dd98fa5/scratchpad/p0/golden_v2_r43.json

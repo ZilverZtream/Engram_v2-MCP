@@ -191,7 +191,7 @@ without re-reading an entire file:
 | Tool | Purpose |
 |---|---|
 | `get_method_info` | Signature, surrounding class, edges |
-| `get_full_method_body` | Full source |
+| `get_full_method_body` | Indexed method or explicit range, with source fingerprint status |
 | `get_method_edit_context` | Source + immediate call / caller neighbourhood |
 | `get_page_context` · `prepare_implementation_context` | ASPX-aware context for WebForms edits |
 | `validate_generated_code` · `validate_sql_fragment` | Pre-commit validation |
@@ -302,7 +302,31 @@ allowed_roots:
 data_dir: /home/user/.engram-data
 
 embedding_backend: local       # "local" | "ollama" | "openai"
+advertise_all_tools: true       # default: full tool discovery, including .NET tools
 ```
+
+Set `advertise_all_tools: false` only for clients requiring the limited core
+tool list. Tools omitted from `tools/list` may be unavailable to client agents;
+`list_advanced_tools` is a catalog, not a substitute for protocol discovery.
+Restart the daemon and reconnect clients after changing this setting.
+
+`validate_generated_code` defaults to checking native code edits. Set
+`include_migration_advice: true` when you also want VB-to-C# translation and
+ASP.NET Core migration cautions. Blocking task/lock checks run in both modes.
+
+`analyze_business_logic` preserves separate method overloads. When analyzing a
+single overloaded name, pass its one-based declaration `line`; file analysis
+returns that selector as `overload_line`. Empty VB methods receive a deterministic
+summary. VB extraction preserves Windows line endings and one-based source
+references, and successful file reanalysis removes obsolete method summaries.
+Interface and abstract declarations have no executable body and are excluded.
+Incomplete model JSON receives one retry with a larger response budget;
+its deadline fits within the HTTP transport ceiling. If that also fails,
+the original diagnostic remains available.
+
+`grep_project` includes a `doc_id` for indexed matches in both JSON and Markdown,
+so they can be passed directly to `get_chunk`. Working-tree-only matches have no
+indexed identifier and explicitly point callers to the file instead.
 
 Point the server at it via environment variable:
 

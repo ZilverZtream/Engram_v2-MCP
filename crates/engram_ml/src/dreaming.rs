@@ -175,7 +175,11 @@ impl LlmBackend {
     /// disable the LLM.
     pub fn from_config(cfg: &engram_core::Config) -> anyhow::Result<Self> {
         let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(120))
+            // Callers impose their own shorter deadlines with tokio::timeout.
+            // Keep the transport ceiling above the large structured-analysis
+            // retry, otherwise reading its response fails at 120 seconds even
+            // though the caller explicitly allowed it more time.
+            .timeout(Duration::from_secs(300))
             .connect_timeout(Duration::from_secs(10))
             .build()
             .map_err(|e| {
@@ -315,6 +319,12 @@ impl DreamingEngine {
     /// `new()`. (ENG-AUD-2026-N12-0005)
     pub fn is_degraded(&self) -> bool {
         self.degraded
+    }
+
+    /// Effective immutable provider identity, excluding credentials, endpoints
+    /// and headers. A provider may route the requested model elsewhere.
+    pub fn text_generation_identity(&self) -> Option<(&'static str, Option<&str>)> {
+        self.llm.as_ref().map(|handle| (handle.provider.name(), handle.provider.requested_model()))
     }
 
     /// Public entry point with timeout and fallback logic.

@@ -14,6 +14,54 @@ use crate::services::ask_engine::retrieval::{self, RetrievalCtx, parse_depth};
 use crate::services::ask_engine::{planner, ranking, resolver, status};
 use crate::tools::Engram;
 
+/// Round-2 audit P1-4: the dreamer-insight arm is OFF unless the caller asks
+/// for it (`include_insights: true`) — the ablation showed no measurable
+/// effect, so the default must not spend retrieval budget on it.
+pub fn insights_enabled(req: &crate::models::AskCodebaseRequest) -> bool {
+    req.include_insights.unwrap_or(false)
+}
+
+/// Apply the same persisted-rule/source-version check as query_business_logic.
+pub(crate) fn verify_business_sources(
+    search: &engram_index::HybridSearchEngine,
+    root: &std::path::Path,
+    project_id: &str,
+    items: &mut [crate::services::ask_engine::evidence::EvidenceItem],
+) -> Result<usize, String> {
+    use crate::services::ask_engine::evidence::Authority;
+    let mut audit = super::business_source::SourceAudit::default();
+    let mut unverified = 0;
+    for item in items {
+        let status = match item.document_id.as_deref() {
+            Some(id) => match search
+                .get_doc_by_doc_id(project_id, "business_logic", 0, id)
+                .map_err(|error| error.to_string())?
+            {
+                Some((_, _, document, _, _)) => {
+                    item.warnings.extend(audit.qualifications(&document, root));
+                    item.warnings.push(format!("full_document: get_chunk({})", serde_json::json!({"project_id":project_id,"namespace":"business_logic","doc_id":id})));
+                    item.warnings.extend(super::business_source::claim_review_guidance(project_id, id, &document));
+                    item.content = super::business_source::substantive_excerpt(&document);
+                    audit.describe(&document, root)
+                }
+                None => "UNVERIFIED: full business-rule document unavailable".into(),
+            },
+            None => "UNVERIFIED: business-rule document identity unavailable".into(),
+        };
+        if !status.starts_with("VERIFIED_METHOD_HASH:") {
+            unverified += 1;
+            item.confidence = item.confidence.min(0.35);
+            item.warnings.push(status.clone());
+            if status.starts_with("STALE:") {
+                item.confidence = item.confidence.min(0.15);
+                item.authority = Authority::SemanticSimilarity;
+            }
+        }
+        item.source_verification = Some(status);
+    }
+    Ok(unverified)
+}
+
 impl Engram {
     pub async fn handle_ask_codebase(
         &self,
@@ -47,6 +95,9 @@ impl Engram {
                 &mut plan,
                 &question_for_resolve,
             );
+            // Batch 8: infix path scopes expand to real prefixes here — the
+            // graph is already on this blocking thread.
+            resolver::expand_path_scopes(&graph, &pid_for_resolve, &mut plan.qualifiers);
             plan
         })
         .await
@@ -54,7 +105,7 @@ impl Engram {
 
         // Retrieve across the intent-specific arms.
         let ctx = RetrievalCtx {
-            insights_enabled: req.include_insights.unwrap_or(true),
+            insights_enabled: insights_enabled(&req),
             search: ps.search.clone(),
             graph: self.state.graph.clone(),
             registry: self.state.registry.clone(),
@@ -63,9 +114,273 @@ impl Engram {
         };
         let (raw, providers) =
             retrieval::gather_evidence(&ctx, &plan, &req.question, depth, deadline, cancel).await;
+        // Round-2 audit P0-4c (owner 2026-08-30): one bounded call-graph hop
+        // from the files the first pass cited — the answer to "how does X get
+        // authorized" is usually one call away from the entry point.
+        let (raw, providers) = {
+            let mut raw = raw;
+            let mut providers = providers;
+            let mut seeds: Vec<String> = Vec::new();
+            // Item 8: the files the question names seed the hop first — raw
+            // evidence order put six lexical hits ahead of the asked file, so
+            // "which server API functions does X.ts call?" never hopped from X.
+            for ent in plan
+                .entities
+                .iter()
+                .filter(|e| e.guessed_kind == crate::services::ask_engine::plan::EntityKind::File)
+            {
+                for r in &ent.resolved {
+                    if let Some(p) = r.node_id.as_deref().and_then(|id| id.strip_prefix("file:")) {
+                        if !seeds.contains(&p.to_string()) {
+                            seeds.push(p.to_string());
+                        }
+                    }
+                }
+            }
+            for e in &raw {
+                if let Some(p) = &e.path
+                    && !p.starts_with("pr:")
+                    && !p.starts_with("commit:")
+                    && !seeds.contains(p)
+                {
+                    seeds.push(p.clone());
+                }
+                if seeds.len() >= 4 {
+                    break;
+                }
+            }
+            // P0-4d: only multi-hop questions (how/why/what breaks) get the hop;
+            // a lookup ("which table", "which resource keys") does not.
+            let wants_hop = plan.intents.iter().any(|(i, _)| {
+                matches!(
+                    i,
+                    crate::services::ask_engine::plan::Intent::Explain
+                        | crate::services::ask_engine::plan::Intent::Impact
+                        | crate::services::ask_engine::plan::Intent::BugDiagnosis
+                        | crate::services::ask_engine::plan::Intent::Rationale
+                        | crate::services::ask_engine::plan::Intent::Compare
+                )
+            });
+            if wants_hop && !seeds.is_empty() {
+                let graph = self.state.graph.clone();
+                let pid = req.project_id.clone();
+                let question = req.question.clone();
+                let project_dir = self
+                    .state
+                    .registry
+                    .get_project(&pid)
+                    .ok()
+                    .flatten()
+                    .map(|rec| std::path::PathBuf::from(rec.directory));
+                // Item 8: the files the question names — a hop from them is
+                // direct evidence (see providers::callee_evidence).
+                let named_files: Vec<String> = plan
+                    .entities
+                    .iter()
+                    .filter(|e| {
+                        e.guessed_kind == crate::services::ask_engine::plan::EntityKind::File
+                    })
+                    .map(|e| e.text.replace('\\', "/"))
+                    .collect();
+                let hop = tokio::task::spawn_blocking(move || {
+                    // Item 8, cycle 32 (owner-approved): a compound name that
+                    // matches a FAMILY of stems seeds the hop from each member
+                    // — the io marker infowindow's images route lives two hops
+                    // from a file no entity can name unambiguously.
+                    let family = crate::services::ask_engine::resolver::compound_family_seeds(
+                        &graph, &pid, &question,
+                    );
+                    let mut seeds2: Vec<String> = family.clone();
+                    for s in &seeds {
+                        if !seeds2.contains(s) {
+                            seeds2.push(s.clone());
+                        }
+                    }
+                    let mut named2 = named_files.clone();
+                    for f in &family {
+                        if let Some(base) = f.rsplit('/').next() {
+                            named2.push(base.to_string());
+                        }
+                    }
+                    let mut id = 10_000usize;
+                    crate::services::ask_engine::providers::callee_evidence(
+                        &graph,
+                        project_dir.as_deref(),
+                        &pid,
+                        &seeds2,
+                        &named2,
+                        &question,
+                        3,
+                        &mut id,
+                    )
+                })
+                .await
+                .unwrap_or_default();
+                let status = if hop.is_empty() {
+                    status::ProviderStatus::Empty
+                } else {
+                    status::ProviderStatus::Hit
+                };
+                providers.push(status::ProviderReport {
+                    provider: "callee".into(),
+                    status,
+                    count: hop.len(),
+                    note: None,
+                    examined: hop.len(),
+                    available: None,
+                    // Doc-13 Phase B: the hop caps at 3 (6 with named files);
+                    // exact walked/available counts land with Phase C.
+                    truncated: hop.len() >= 3,
+                    proof: None,
+                });
+                raw.extend(hop);
+            }
+            (raw, providers)
+        };
 
         // Rank (anti-anchoring), detect conflicts, snapshot, calibrate status.
-        let evidence = ranking::rank_and_select(raw, depth.evidence_cap());
+        // Batch 7: a question-named path scope ("under ts/map") filters the
+        // whole pool before ranking — every arm honors it (fail-safe inside).
+        let mut raw = raw;
+        ranking::retain_path_scoped(&mut raw, &plan.qualifiers.path_prefixes);
+        // Round-2 audit P0-4: the requested modality survives the cap.
+        let raw_pool = raw.clone();
+        // Doc-13 Phase C (round-3 audit P0-2): a Callees + ExhaustiveSet
+        // contract on ONE resolved file gets the full graph walk — the set
+        // IS the answer; caps and lookup trims stand down for it.
+        let exhaustive_contract = matches!(
+            plan.contract.direction,
+            crate::services::ask_engine::plan::ContractDirection::Callees
+        ) && matches!(
+            plan.contract.cardinality,
+            crate::services::ask_engine::plan::Cardinality::ExhaustiveSet
+        );
+        let mut raw = raw;
+        // Phase C: the exhaustive arm reports through the shared provider list.
+        let mut providers = providers;
+        let mut answer_members: Vec<crate::services::ask_engine::providers::AnswerMember> =
+            Vec::new();
+        if exhaustive_contract {
+            let named: Vec<String> = plan
+                .entities
+                .iter()
+                .filter(|e| e.guessed_kind == crate::services::ask_engine::plan::EntityKind::File)
+                .flat_map(|e| e.resolved.iter())
+                .filter_map(|r| r.node_id.as_deref())
+                .filter_map(|nid| nid.strip_prefix("file:"))
+                .map(|p| p.to_string())
+                .collect();
+            if let Some(fp) = named.first().cloned() {
+                let graph = self.state.graph.clone();
+                let pid_x = req.project_id.clone();
+                let project_dir = self
+                    .state
+                    .registry
+                    .get_project(&pid_x)
+                    .ok()
+                    .flatten()
+                    .map(|rec| std::path::PathBuf::from(rec.directory));
+                // Phase C2: the question's own vocabulary picks the walk —
+                // "API" asks for routes, not every helper the file touches.
+                let kinds: Vec<engram_graph::EdgeKind> =
+                    if req.question.to_lowercase().contains("api") {
+                        vec![engram_graph::EdgeKind::ApiCall]
+                    } else {
+                        vec![
+                            engram_graph::EdgeKind::ApiCall,
+                            engram_graph::EdgeKind::SqlCalls,
+                            engram_graph::EdgeKind::Calls,
+                        ]
+                    };
+                let (set, members, cov, proof) = tokio::task::spawn_blocking(move || {
+                    let mut id = 20_000usize;
+                    crate::services::ask_engine::providers::exhaustive_callee_set(
+                        &graph,
+                        project_dir.as_deref(),
+                        &pid_x,
+                        &fp,
+                        &kinds,
+                        &mut id,
+                    )
+                })
+                .await
+                .unwrap_or_else(|_| {
+                    (
+                        Vec::new(),
+                        Vec::new(),
+                        crate::services::ask_engine::providers::ArmCoverage::default(),
+                        crate::services::ask_engine::providers::CoverageProof::default(),
+                    )
+                });
+                providers.push(status::ProviderReport {
+                    provider: "callee_set".into(),
+                    status: if set.is_empty() {
+                        status::ProviderStatus::Empty
+                    } else {
+                        status::ProviderStatus::Hit
+                    },
+                    count: set.len(),
+                    note: None,
+                    examined: cov.examined,
+                    available: cov.available,
+                    truncated: cov.truncated,
+                    proof: Some(proof),
+                });
+                answer_members = members;
+                raw.extend(set);
+            }
+        }
+        // Batch 1 Fix A (doc 11 grind): lookup-shaped questions answer small.
+        // Phase C2: the exhaustive set rides the EXEMPT lane below — the cap
+        // governs supporting evidence only, so it stays small (r70's widened
+        // cap flooded 73 items and cost the set question its precision).
+        let lcap = ranking::lookup_cap(&plan.entities, &plan.intents, depth);
+        // Batch 4: the ranker sees the asked terms — co-occurrence beats swarms.
+        // Batch 5: RESOLVED mentions only — a junk mention must not flip the
+        // co-occurrence switch (live r61: "data-access" cost exact_2/exact_5).
+        let terms = ranking::cooccurrence_terms(&plan.entities);
+        let mut evidence = ranking::rank_and_select_with_terms_exempt(
+            raw,
+            lcap,
+            &terms,
+            exhaustive_contract.then_some("callee_set"),
+        );
+        // P0-4e: one reserve pass — modality, needed kind, named file — with
+        // protected eviction (no reserve evicts another reserve's item).
+        // Batch 4e: the reserve's guarantees are VISIBLE to the trims — a
+        // protected item is never anchored-evicted nor per-path-collapsed
+        // (sweep 71: trim-after-reserve evicted the reserved .rdl item;
+        // c43d: reserve-after-trim evicted the trim-approved asked file).
+        let protected = ranking::reserve_required(&mut evidence, &raw_pool, &plan, &req.question);
+        // Batch 3: under the lookup cap, one item per file.
+        // Batch 4: and each slot must mention the asked entity (fail-safe).
+        if lcap < depth.evidence_cap() && !exhaustive_contract {
+            let mut needles: Vec<String> = plan
+                .entities
+                .iter()
+                .flat_map(|e| {
+                    e.resolved
+                        .iter()
+                        .map(|r| r.canonical.to_lowercase())
+                        .chain(std::iter::once(e.text.to_lowercase()))
+                })
+                .filter(|s| s.len() >= 3)
+                .collect();
+            // Batch 4b: a filename-like needle also anchors by its STEM —
+            // callee evidence names "orderpanel.fetchOrders", never the
+            // ".ts" form of the asked file.
+            let stems: Vec<String> = needles
+                .iter()
+                .filter_map(|n| {
+                    let base = n.rsplit(['/', '\\']).next().unwrap_or(n);
+                    let stem = base.split('.').next().unwrap_or(base);
+                    (stem.len() >= 3 && stem != base).then(|| stem.to_string())
+                })
+                .collect();
+            needles.extend(stems);
+            ranking::retain_entity_anchored(&mut evidence, &needles, &protected);
+            ranking::retain_one_per_path(&mut evidence, &protected);
+        }
         let conflicts = ranking::detect_conflicts(&evidence, gen_);
         let snapshot = status::build_snapshot(
             &ctx,
@@ -113,6 +428,7 @@ impl Engram {
             next_best,
             snapshot,
             providers,
+            answer_members,
         };
 
         let body = match req.output_format.to_lowercase().as_str() {

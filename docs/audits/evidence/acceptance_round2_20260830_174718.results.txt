@@ -1,0 +1,24 @@
+P0-3 critical files PRIMARY within top 30            PASS  positions [13, 14, 3, 22, 20, 5]
+P0-3 primary set <= 40 candidates                    PASS  primary 40 of 174
+P0-3 first call after restart <= 5 s                 PASS  3 s
+P0-2 health: path sets per store, complete, no %     PASS  expected paths: 2277; tantivy: 2277, vectors: 2277, graph: 2277
+P0-2 freshness generation_complete (path sets)       PASS  generation_complete: true (2277 of 2277 eligible paths present in every store; missing 0, cross-stor
+P0-1 update reports the post-publish purge           PASS  purge: ok
+P0-1 completeness survives an update                 PASS  active_generation: 840
+P0-1 Tantivy == LanceDB after update + GC            PASS  tantivy 172145 = vectors 172145, healthy
+P0-4 golden: every row CORRECT (not just status)     FAIL  correct:      34/35 = 97%   (g; 1 rows
+P1-1 pre-commit gates run, integrity-aware           PASS  19 gates, degraded=[], integrity notes=0, verdict=yellow
+P1-2 warm snapshot, no call-time git walk            PASS  133 ms; co-change snapshot: warm (served without a git walk)
+P1-4 Dream arm off by default, on when asked         PASS  default 0, opt-in 1
+Row 1 EN story -> SV concepts (<= 8 s)               PASS  6 s; concepts: project, manager, reporting, fiberinstallationsplan, mängdredovisning, mangdredovisning, projektansvarig
+Row 2 edit-context parity                            PASS  20/20
+Row 4 G1 literal completeness (5 concepts)           PASS  none short, none slow
+Row 5 house_style section (siblings, <= 3 s)         PASS  3 siblings, 223 ms
+Row 5 ui_house_style gate (live probe)               PASS  1 finding(s) naming alert-primary
+Row 5 get_ui_conformance (region pull)               PASS  7 families
+Row 7 trace_data_flow smoke                          PASS  # Data flow: `btnSave_Click` (Button click (postback))
+Row 8 enforced rule -> Critical; clean -> none       PASS  violating ['critical'], clean 0
+Row 9 similar + incomplete changes (<= 3 s)          PASS  303 ms
+Row 10 caller parity (refs == impact)                PASS  76 callers
+Tool surface: <= 32 core advertised                  PASS  32 advertised
+produce_claude_md contract (render ok; rules say edited_files=) PASS  render 39344 bytes; engram-workflow.md: edited_files= 3, (files= 0

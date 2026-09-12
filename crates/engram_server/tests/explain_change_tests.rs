@@ -131,15 +131,10 @@ diff --git a/Site/App_Code/dal/Orders.vb b/Site/App_Code/dal/Orders.vb
         .unwrap()
         .expect("narrative must be produced");
 
-    // Kind: modified-only with no "fix" keyword → refactor.
-    assert!(
-        matches!(
-            narrative.kind,
-            ChangeKind::Refactor | ChangeKind::Fix | ChangeKind::Feat
-        ),
-        "unexpected kind: {:?}",
-        narrative.kind
-    );
+    // Existing-file changes do not establish refactor intent or preserved behavior.
+    assert_eq!(narrative.kind, ChangeKind::Unclassified);
+    assert!(!rendered.commit_message.starts_with("refactor"));
+    assert!(!rendered.pr_description.contains("No behavioural change intended"));
 
     // Risk: immune flag on this file → red.
     assert_eq!(narrative.risk_badge, "red", "got: {narrative:#?}");

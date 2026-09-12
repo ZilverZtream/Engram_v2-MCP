@@ -51,8 +51,104 @@ pub struct ResolvedEntity {
     pub confidence: f32,
 }
 
+/// Doc-13 Phase A (round-3 audit item 1): the typed ANSWER CONTRACT — what
+/// SHAPE of answer the question demands. Traversal policy (Phase C) and
+/// status validation (Phase D) key off this, never off intent heuristics.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum ContractDirection {
+    None,
+    Callers,
+    Callees,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum ContractEntityType {
+    Any,
+    Function,
+    File,
+    Table,
+    Route,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum Cardinality {
+    One,
+    TopK,
+    ExhaustiveSet,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum Facet {
+    Definition,
+    Caller,
+    Implementation,
+    Rationale,
+}
+
+/// Requested behavior, not a claim that matching words prove its implementation.
+/// A future evidence verifier can discharge these obligations per operation and
+/// requested scope; ordinary retrieval currently provides no such proof.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BehaviorOperation {
+    Create,
+    Rename,
+    Update,
+    Remove,
+    Read,
+    Validate,
+}
+
+impl BehaviorOperation {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Create => "create",
+            Self::Rename => "rename",
+            Self::Update => "update",
+            Self::Remove => "remove",
+            Self::Read => "read",
+            Self::Validate => "validate/enforce constraints",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AnswerContract {
+    pub direction: ContractDirection,
+    pub entity_type: ContractEntityType,
+    pub cardinality: Cardinality,
+    pub required_facets: Vec<Facet>,
+    /// Empty = every evidence class is admissible.
+    pub allowed_evidence: Vec<EvidenceKind>,
+    pub completeness_required: bool,
+    /// Coordinated behavioral obligations, separate from exhaustive graph sets.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub behavior_requirements: Vec<BehaviorOperation>,
+    /// Original scope wording is a hint for verification, not resolved scopes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub behavior_scope_context: Option<String>,
+}
+
+impl Default for AnswerContract {
+    fn default() -> Self {
+        Self {
+            direction: ContractDirection::None,
+            entity_type: ContractEntityType::Any,
+            cardinality: Cardinality::TopK,
+            required_facets: Vec::new(),
+            allowed_evidence: Vec::new(),
+            completeness_required: false,
+            behavior_requirements: Vec::new(),
+            behavior_scope_context: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct Qualifiers {
+    /// Batch 7 (doc 11, live r63 usage_5): "under ts/map" — directory-shaped
+    /// scopes the question names; retrieval honors them pool-wide.
+    pub path_prefixes: Vec<String>,
     pub roles: Vec<String>,               // admin, tenant-admin, user
     pub change: Option<(String, String)>, // (from, to): XML → JSON
     pub scopes: Vec<String>,              // import, export, ...
@@ -83,4 +179,59 @@ pub struct QueryPlan {
     pub qualifiers: Qualifiers,
     pub needed_evidence: Vec<EvidenceKind>,
     pub answer_type: AnswerType,
+    /// Round-2 audit P0-4: the evidence modalities the question asks for.
+    pub modalities: Vec<Modality>,
+    /// Doc-13 Phase A: the typed answer contract derived from the question's shape.
+    pub contract: AnswerContract,
+}
+
+/// Round-2 audit P0-4: the evidence MODALITY a question names — "which
+/// reports (.rdl) …", "which table …", "which resource keys …". Retrieval
+/// runs a modality-filtered arm for each, the ranker keeps its best item,
+/// and an answer with no evidence of a requested modality is at most Partial.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum Modality {
+    Sql,
+    Report,
+    Resource,
+    Markup,
+    Script,
+}
+
+impl Modality {
+    pub fn suffixes(self) -> &'static [&'static str] {
+        match self {
+            Modality::Sql => &[".sql", ".dbml", ".edmx"],
+            Modality::Report => &[".rdl", ".rdlc"],
+            Modality::Resource => &[".resx"],
+            Modality::Markup => &[".aspx", ".ascx", ".master", ".cshtml", ".vbhtml", ".html"],
+            Modality::Script => &[".ts", ".tsx", ".js", ".jsx"],
+        }
+    }
+
+    /// Stable provider id ("modality:<id>").
+    pub fn id(self) -> &'static str {
+        match self {
+            Modality::Sql => "sql",
+            Modality::Report => "report",
+            Modality::Resource => "resource",
+            Modality::Markup => "markup",
+            Modality::Script => "script",
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Modality::Sql => "SQL schema (.sql/.dbml)",
+            Modality::Report => "report (.rdl)",
+            Modality::Resource => "resource (.resx)",
+            Modality::Markup => "page markup (.aspx/.ascx)",
+            Modality::Script => "script (.ts/.js)",
+        }
+    }
+
+    pub fn matches(self, path: &str) -> bool {
+        let p = path.to_lowercase();
+        self.suffixes().iter().any(|s| p.ends_with(s))
+    }
 }

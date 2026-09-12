@@ -15,6 +15,7 @@ use std::sync::{Arc, LazyLock};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ValidationMap {
+    pub coverage: Vec<String>,
     pub file_path: String,
     pub validators: Vec<ValidatorMapping>,
     pub validation_groups: Vec<ValidationGroupInfo>,
@@ -91,29 +92,43 @@ pub struct CausesValidationButton {
 // ── Regex patterns ────────────────────────────────────────────────────────
 
 static RE_VALIDATOR_TAG: LazyLock<Regex> = LazyLock::new(|| {
-    // Match the opening tag only — all validator attributes live on the opening tag.
-    // Previous regex used \1 backreference (unsupported by Rust regex crate).
-    Regex::new(r"(?is)<asp:(RequiredFieldValidator|CompareValidator|RangeValidator|RegularExpressionValidator|CustomValidator)\b([^>]*?)(?:/\s*>|>)")
-        .expect("valid regex")
+    Regex::new(r#"(?is)<asp:(RequiredFieldValidator|CompareValidator|RangeValidator|RegularExpressionValidator|CustomValidator)\b((?:[^>"']|"[^"]*"|'[^']*')*)>"#).expect("validator tag")
 });
-
 static RE_VALIDATION_SUMMARY: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?is)<asp:ValidationSummary\b([^>]*?)(/\s*>|>.*?</asp:ValidationSummary\s*>)")
-        .expect("valid regex")
+    Regex::new(r#"(?is)<asp:ValidationSummary\b((?:[^>"']|"[^"]*"|'[^']*')*)>"#)
+        .expect("summary tag")
 });
-
 static RE_BUTTON_TAGS: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?is)<asp:(Button|LinkButton|ImageButton)\b([^>]*?)(/\s*>|>)")
-        .expect("valid regex")
+    Regex::new(r#"(?is)<asp:(Button|LinkButton|ImageButton)\b((?:[^>"']|"[^"]*"|'[^']*')*)>"#)
+        .expect("button tag")
 });
-
+static RE_ATTRIBUTES: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?:^|\s)([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')"#).expect("attributes")
+});
+static RE_SERVER_COMMENT: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?s)<%--.*?(?:--%>|$)").expect("server comments"));
 fn extract_attr(tag: &str, attr: &str) -> String {
-    let pattern = format!(r#"(?i){}\s*=\s*"([^"]*)""#, regex::escape(attr));
-    Regex::new(&pattern)
-        .ok()
-        .and_then(|re| re.captures(tag))
-        .map(|c| c[1].to_string())
+    RE_ATTRIBUTES
+        .captures_iter(tag)
+        .find(|c| c[1].eq_ignore_ascii_case(attr))
+        .and_then(|c| {
+            c.get(2)
+                .or_else(|| c.get(3))
+                .map(|v| v.as_str().to_string())
+        })
         .unwrap_or_default()
+}
+
+pub(crate) fn declared_codebehind(markup: &str) -> Option<String> {
+    static DIRECTIVE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?is)<%@\s*(?:Page|Control|Master)\b.*?%>").expect("directive"));
+    let clean = RE_SERVER_COMMENT.replace_all(markup, "");
+    DIRECTIVE.find_iter(&clean).find_map(|m| {
+        ["CodeFile", "CodeBehind"]
+            .iter()
+            .map(|key| extract_attr(m.as_str(), key))
+            .find(|v| !v.is_empty())
+    })
 }
 
 fn extract_attr_bool(tag: &str, attr: &str, default: bool) -> bool {
@@ -133,6 +148,8 @@ pub fn analyze_validation_controls(
     aspx_content: &str,
     codebehind_content: Option<&str>,
 ) -> anyhow::Result<ValidationMap> {
+    let uncommented = RE_SERVER_COMMENT.replace_all(aspx_content, "");
+    let aspx_content = uncommented.as_ref();
     let mut validators = Vec::new();
     let mut custom_validators = Vec::new();
     let mut validation_summary = None;
@@ -348,6 +365,7 @@ pub fn analyze_validation_controls(
     };
 
     Ok(ValidationMap {
+        coverage: vec!["Static markup mapping only; conditional execution, custom handler behavior and generated replacement code are unverified.".into()],
         file_path: file_path.to_string(),
         validators,
         validation_groups,

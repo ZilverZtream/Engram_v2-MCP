@@ -26,6 +26,9 @@ fn ev(
 ) -> EvidenceItem {
     EvidenceItem {
         evidence_id: id.into(),
+        document_id: None,
+        document_namespace: None,
+        source_verification: None,
         kind,
         authority: Authority::CurrentCode,
         path: Some(path.into()),
@@ -52,6 +55,10 @@ fn rep(p: &str) -> ProviderReport {
         status: ProviderStatus::Hit,
         count: 1,
         note: None,
+        examined: 0,
+        available: None,
+        truncated: false,
+        proof: None,
     }
 }
 

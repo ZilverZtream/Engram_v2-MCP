@@ -16,7 +16,7 @@ use engram_index::HybridSearchEngine;
 use tokio_util::sync::CancellationToken;
 
 use super::evidence::{Authority, EvidenceItem, EvidenceKind};
-use super::plan::{Intent, QueryPlan};
+use super::plan::{Intent, Modality, QueryPlan};
 use super::providers;
 use super::status::{ProviderReport, ProviderStatus};
 
@@ -61,7 +61,7 @@ pub struct RetrievalCtx {
     pub generation: u64,
 }
 
-type ArmOut = (String, Vec<EvidenceItem>, ProviderStatus, Option<String>);
+type ArmOut = (String, Vec<EvidenceItem>, providers::ProviderOutcome);
 type ArmFuture = Pin<Box<dyn Future<Output = ArmOut> + Send>>;
 
 #[allow(clippy::too_many_arguments)]
@@ -72,28 +72,120 @@ fn search_arm(
     authority: Authority,
     provider: &'static str,
     question: &str,
+    scopes: Vec<String>,
     top_k: usize,
     generation: u64,
     deadline: Duration,
     cancel: CancellationToken,
 ) -> ArmFuture {
     let search = ctx.search.clone();
+    let registry = ctx.registry.clone();
     let pid = ctx.project_id.clone();
     let gen_ = generation;
     let q = question.to_string();
     Box::pin(async move {
         let fut = async move {
             let mut id = 0usize;
-            let (items, out) = providers::knowledge_evidence(
-                &search, &pid, gen_, namespace, kind, authority, provider, &q, top_k, &cancel,
-                &mut id,
+            let (mut items, mut out) = providers::knowledge_evidence(
+                &search, &pid, gen_, namespace, kind, authority, provider, &q, top_k, &scopes,
+                &cancel, &mut id,
             )
             .await;
-            (provider.to_string(), items, out.status, out.note)
+            if kind == EvidenceKind::BusinessRule && !items.is_empty() {
+                let checked = tokio::task::spawn_blocking(move || -> Result<_, String> {
+                    let project = registry
+                        .get_project(&pid)
+                        .map_err(|error| error.to_string())?
+                        .ok_or_else(|| {
+                            "project unavailable for rule source verification".to_string()
+                        })?;
+                    let unverified = crate::handlers::ask_tools::verify_business_sources(
+                        &search,
+                        std::path::Path::new(&project.directory),
+                        &pid,
+                        &mut items,
+                    )?;
+                    Ok((items, unverified))
+                })
+                .await;
+                match checked {
+                    Ok(Ok((checked, unverified))) => {
+                        items = checked;
+                        if unverified > 0 {
+                            out.note = Some(format!(
+                                "{unverified} business-rule packs have stale or unverified source versions; inspect evidence warnings"
+                            ));
+                        }
+                    }
+                    Ok(Err(error)) => {
+                        return (
+                            provider.to_string(),
+                            vec![],
+                            providers::ProviderOutcome::failed(error),
+                        );
+                    }
+                    Err(error) => {
+                        return (
+                            provider.to_string(),
+                            vec![],
+                            providers::ProviderOutcome::failed(format!(
+                                "rule source verification task failed: {error}"
+                            )),
+                        );
+                    }
+                }
+            }
+            (provider.to_string(), items, out)
         };
         match tokio::time::timeout(deadline, fut).await {
             Ok(o) => o,
-            Err(_) => (provider.to_string(), vec![], ProviderStatus::TimedOut, None),
+            Err(_) => (
+                provider.to_string(),
+                vec![],
+                providers::ProviderOutcome::timed_out(),
+            ),
+        }
+    })
+}
+
+/// Round-2 audit P0-4: a code-namespace arm restricted to the paths of the
+/// modality the question asks for (.rdl / .sql / .resx / …).
+fn modality_arm(
+    ctx: &RetrievalCtx,
+    modality: Modality,
+    question: &str,
+    scopes: Vec<String>,
+    top_k: usize,
+    deadline: Duration,
+    cancel: CancellationToken,
+) -> ArmFuture {
+    let search = ctx.search.clone();
+    let pid = ctx.project_id.clone();
+    let gen_ = ctx.generation;
+    let q = question.to_string();
+    let provider = format!("modality:{}", modality.id());
+    Box::pin(async move {
+        let name = provider.clone();
+        let fut = async {
+            let mut id = 0usize;
+            let (items, out) = providers::modality_evidence(
+                &search,
+                &pid,
+                gen_,
+                modality.suffixes(),
+                &provider,
+                &q,
+                top_k,
+                &scopes,
+                &cancel,
+                &mut id,
+            )
+            .await;
+            (provider.clone(), items, out)
+        };
+        match tokio::time::timeout(deadline, fut).await {
+            Ok(o) => o,
+            Err(_) => (name, vec![], providers::ProviderOutcome::timed_out()),
         }
     })
 }
@@ -110,18 +202,21 @@ fn memory_arm(ctx: &RetrievalCtx, question: &str, top_k: usize, deadline: Durati
             })
             .await
             {
-                Ok((items, out)) => ("memory".to_string(), items, out.status, out.note),
+                Ok((items, out)) => ("memory".to_string(), items, out),
                 Err(e) => (
                     "memory".to_string(),
                     vec![],
-                    ProviderStatus::Failed,
-                    Some(e.to_string()),
+                    providers::ProviderOutcome::failed(e.to_string()),
                 ),
             }
         };
         match tokio::time::timeout(deadline, fut).await {
             Ok(o) => o,
-            Err(_) => ("memory".to_string(), vec![], ProviderStatus::TimedOut, None),
+            Err(_) => (
+                "memory".to_string(),
+                vec![],
+                providers::ProviderOutcome::timed_out(),
+            ),
         }
     })
 }
@@ -133,18 +228,21 @@ where
     Box::pin(async move {
         let fut = async move {
             match tokio::task::spawn_blocking(f).await {
-                Ok((items, out)) => (provider.to_string(), items, out.status, out.note),
+                Ok((items, out)) => (provider.to_string(), items, out),
                 Err(e) => (
                     provider.to_string(),
                     vec![],
-                    ProviderStatus::Failed,
-                    Some(e.to_string()),
+                    providers::ProviderOutcome::failed(e.to_string()),
                 ),
             }
         };
         match tokio::time::timeout(deadline, fut).await {
             Ok(o) => o,
-            Err(_) => (provider.to_string(), vec![], ProviderStatus::TimedOut, None),
+            Err(_) => (
+                provider.to_string(),
+                vec![],
+                providers::ProviderOutcome::timed_out(),
+            ),
         }
     })
 }
@@ -211,6 +309,18 @@ pub async fn gather_evidence(
         .collect();
 
     let mut arms: Vec<ArmFuture> = Vec::new();
+    // Round-2 audit P0-4: one filtered arm per requested modality.
+    for m in &plan.modalities {
+        arms.push(modality_arm(
+            ctx,
+            *m,
+            question,
+            plan.qualifiers.path_prefixes.clone(),
+            top_k,
+            deadline,
+            cancel.clone(),
+        ));
+    }
     if want_code {
         arms.push(search_arm(
             ctx,
@@ -219,6 +329,7 @@ pub async fn gather_evidence(
             Authority::CurrentCode,
             "code",
             question,
+            plan.qualifiers.path_prefixes.clone(),
             top_k,
             ctx.generation,
             deadline,
@@ -233,6 +344,7 @@ pub async fn gather_evidence(
             Authority::CurrentDocs,
             "doc",
             question,
+            plan.qualifiers.path_prefixes.clone(),
             top_k,
             0,
             deadline,
@@ -247,6 +359,7 @@ pub async fn gather_evidence(
             Authority::DerivedBusinessLogic,
             "business_logic",
             question,
+            plan.qualifiers.path_prefixes.clone(),
             top_k,
             0,
             deadline,
@@ -261,6 +374,7 @@ pub async fn gather_evidence(
             Authority::DreamerInsight,
             "insight",
             question,
+            plan.qualifiers.path_prefixes.clone(),
             top_k,
             0,
             deadline,
@@ -275,6 +389,7 @@ pub async fn gather_evidence(
             Authority::MergedHistory,
             "history",
             question,
+            plan.qualifiers.path_prefixes.clone(),
             top_k,
             0,
             deadline,
@@ -355,12 +470,16 @@ pub async fn gather_evidence(
     let mut reports: Vec<ProviderReport> = Vec::new();
     while let Some(joined) = set.join_next().await {
         match joined {
-            Ok((provider, mut items, status, note)) => {
+            Ok((provider, mut items, out)) => {
                 reports.push(ProviderReport {
                     provider,
-                    status,
+                    status: out.status,
                     count: items.len(),
-                    note,
+                    note: out.note,
+                    examined: out.coverage.examined,
+                    available: out.coverage.available,
+                    truncated: out.coverage.truncated,
+                    proof: None,
                 });
                 evidence.append(&mut items);
             }
@@ -369,6 +488,10 @@ pub async fn gather_evidence(
                 status: ProviderStatus::Failed,
                 count: 0,
                 note: Some(e.to_string()),
+                examined: 0,
+                available: None,
+                truncated: false,
+                proof: None,
             }),
         }
     }

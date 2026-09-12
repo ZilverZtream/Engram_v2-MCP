@@ -38,12 +38,13 @@ use crate::state::AppState;
 
 // ─── Public types ───────────────────────────────────────────────────────────
 
-/// Conventional-commits change kind. Picked deterministically from the
-/// file-kind distribution, graph node delta, and a small keyword
-/// heuristic on diff content.
+/// Suggested change kind from file categories and diff-text heuristics.
+/// Unclassified changes need caller review before choosing a Conventional Commit type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ChangeKind {
+    /// Structural changes do not establish the author's intent or behavioral impact.
+    Unclassified,
     Feat,
     Fix,
     Refactor,
@@ -58,6 +59,7 @@ pub enum ChangeKind {
 impl ChangeKind {
     pub fn conventional_prefix(self) -> &'static str {
         match self {
+            Self::Unclassified => "",
             Self::Feat => "feat",
             Self::Fix => "fix",
             Self::Refactor => "refactor",
@@ -72,6 +74,7 @@ impl ChangeKind {
 
     pub fn plain_label(self) -> &'static str {
         match self {
+            Self::Unclassified => "Changed",
             Self::Feat => "Added",
             Self::Fix => "Fixed",
             Self::Refactor => "Changed",
@@ -88,6 +91,7 @@ impl ChangeKind {
     /// the changelog renderer.
     pub fn changelog_section(self) -> &'static str {
         match self {
+            Self::Unclassified => "",
             Self::Feat => "Added",
             Self::Fix => "Fixed",
             Self::Refactor | Self::Perf | Self::Style => "Changed",
@@ -169,7 +173,8 @@ pub struct ChangeNarrative {
 }
 
 impl ChangeNarrative {
-    pub const SCHEMA_VERSION: u32 = 1;
+    // v2 adds `unclassified` instead of treating modified files as proven refactors.
+    pub const SCHEMA_VERSION: u32 = 2;
 }
 
 // ─── Config ────────────────────────────────────────────────────────────────
@@ -331,25 +336,21 @@ pub fn classify_change_kind(diff_files: &[DiffFile], affected: &[AffectedFile]) 
         return ChangeKind::Perf;
     }
 
-    // Rule 6: graph-delta shape.
-    //   - new public symbols added AND no existing ones modified → feat
-    //   - only existing symbols modified → refactor
-    //   - mix of both → feat (new surface dominates)
-    let (added_sym, modified_sym) = graph_delta_counts(affected);
-    if added_sym >= 1 {
+    // Rule 6: file-change shape, not a semantic graph delta.
+    let (added_files, modified_files) = file_delta_counts(affected);
+    if added_files >= 1 {
         return ChangeKind::Feat;
     }
-    if modified_sym >= 1 {
-        // Distinguish fix vs refactor: if the diff has `fix:` / `bug`
-        // / `error` keywords in the added content, it's a fix.
+    if modified_files >= 1 {
+        // Fix-related text is a classification hint, not proof of a correction.
         if has_fix_keywords(diff_files) {
             return ChangeKind::Fix;
         }
-        return ChangeKind::Refactor;
+        return ChangeKind::Unclassified;
     }
 
-    // Rule 7: no symbols touched, non-test / non-doc / non-build — chore.
-    ChangeKind::Chore
+    // Missing graph symbols do not prove housekeeping either (e.g. markup/JS).
+    ChangeKind::Unclassified
 }
 
 fn is_doc_path(p: &str) -> bool {
@@ -446,7 +447,7 @@ fn has_fix_keywords(diff_files: &[DiffFile]) -> bool {
     })
 }
 
-fn graph_delta_counts(affected: &[AffectedFile]) -> (usize, usize) {
+fn file_delta_counts(affected: &[AffectedFile]) -> (usize, usize) {
     // We don't have a true pre/post graph diff here — approximate by
     // bucketing per-file change type. A file marked `Added` contributes
     // 1 "added symbol" to this count regardless of how many symbols it
@@ -729,6 +730,7 @@ pub async fn detect_rule_alignments(
                 fts_mode: "loose".into(),
                 include_path_prefixes: None,
                 exclude_path_prefixes: None,
+                include_path_suffixes: None,
                 language_filters: None,
                 author_filter: None,
                 date_after: None,
@@ -958,6 +960,14 @@ fn render_subject(
     // Heuristic one-line summary. Prefer the dominant
     // verb-extracted-from-changes. Fall back to a neutral phrase.
     let verb = summarise_verb_phrase(kind, diff_files);
+    if kind == ChangeKind::Unclassified {
+        // Do not fabricate a Conventional Commit type. The caller can choose
+        // one after reviewing the actual behavior and intent.
+        return match scope {
+            Some(s) => format!("update {s}: {verb}"),
+            None => verb,
+        };
+    }
     match style {
         SubjectStyle::Conventional => match scope {
             Some(s) => format!("{prefix}({s}): {verb}", prefix = kind.conventional_prefix()),
@@ -1011,6 +1021,7 @@ fn summarise_verb_phrase(kind: ChangeKind, diff_files: &[DiffFile]) -> String {
     };
     let n = diff_files.len();
     match kind {
+        ChangeKind::Unclassified => format!("modify {n} {file_word}"),
         ChangeKind::Feat => match focus.as_deref() {
             Some(name) if added >= 1 => format!("add {name}"),
             Some(name) => format!("introduce {name}"),
@@ -1127,14 +1138,15 @@ fn render_body_bullets(
 
     // Bullet: kind-specific closer.
     let closer = match kind {
-        ChangeKind::Feat => "New surface added; callers should update",
-        ChangeKind::Fix => "Bug fix; preserves previous public behaviour",
-        ChangeKind::Refactor => "No behavioural change intended",
-        ChangeKind::Perf => "Performance change; verify benchmarks",
-        ChangeKind::Test => "Test-only change",
-        ChangeKind::Docs => "Documentation-only change",
+        ChangeKind::Unclassified => "Change type is undetermined from the structural diff; review behavior before selecting feat, fix or refactor",
+        ChangeKind::Feat => "Added surface detected; caller compatibility requires review",
+        ChangeKind::Fix => "Fix-related text detected; correction and behavioral compatibility require review",
+        ChangeKind::Refactor => "Refactor classification does not establish behavioral equivalence",
+        ChangeKind::Perf => "Performance-related text detected; verify benchmarks",
+        ChangeKind::Test => "Test-dominated change; inspect any non-test files separately",
+        ChangeKind::Docs => "Documentation-dominated change; inspect any non-documentation files separately",
         ChangeKind::Build => "Build / config change",
-        ChangeKind::Style => "Whitespace / formatting only",
+        ChangeKind::Style => "Whitespace similarity detected; semantic equivalence is not established",
         ChangeKind::Chore => "Housekeeping change",
     };
     bullets.push(closer.to_string());
@@ -1457,7 +1469,7 @@ mod tests {
     }
 
     #[test]
-    fn classify_modified_only_without_fix_keyword_returns_refactor() {
+    fn modified_only_does_not_establish_refactor_intent() {
         let diff = vec![mk_diff(
             ChangeType::Modified,
             "src/service.rs",
@@ -1465,7 +1477,35 @@ mod tests {
             &["fn old_name() {}"],
         )];
         let affected = vec![mk_affected("src/service.rs", "modified")];
-        assert_eq!(classify_change_kind(&diff, &affected), ChangeKind::Refactor);
+        assert_eq!(classify_change_kind(&diff, &affected), ChangeKind::Unclassified);
+    }
+
+    #[test]
+    fn an_existing_file_can_add_behavior_without_an_inferred_commit_type() {
+        let diff = vec![mk_diff(
+            ChangeType::Modified,
+            "src/panel.ts",
+            &["button.addEventListener('click', () => openPanel());"],
+            &[],
+        )];
+        for affected in [vec![], vec![mk_affected("src/panel.ts", "modified")]] {
+            let kind = classify_change_kind(&diff, &affected);
+            assert_eq!(kind, ChangeKind::Unclassified);
+            let subject = render_subject(kind, Some("panel"), &diff, SubjectStyle::Conventional);
+            assert_eq!(subject, "update panel: modify 1 file");
+            let bullets = render_body_bullets(kind, &affected, &[]).join("\n");
+            assert!(bullets.contains("Change type is undetermined"));
+            assert!(!bullets.contains("No behavioural change intended"));
+            assert_eq!(kind.changelog_section(), "");
+            assert_eq!(serde_json::to_value(kind).unwrap(), "unclassified");
+        }
+    }
+
+    #[test]
+    fn a_fix_keyword_does_not_prove_behavior_preservation() {
+        let bullets = render_body_bullets(ChangeKind::Fix, &[], &[]).join("\n");
+        assert!(bullets.contains("correction and behavioral compatibility require review"));
+        assert!(!bullets.contains("preserves previous public behaviour"));
     }
 
     #[test]

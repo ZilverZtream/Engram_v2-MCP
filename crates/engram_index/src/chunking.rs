@@ -6,6 +6,7 @@ const OVERLAP_LINES: usize = 5;
 
 #[derive(Debug, Clone)]
 pub struct Chunk {
+    /// First line of stored content, including overlap context (1-based).
     pub start_line: u32,
     pub end_line: u32,
     pub content: String,
@@ -124,6 +125,7 @@ pub fn semantic_chunk_lines(
                         }
                         combined.push_str(&chunk.content);
                         chunk.content = combined;
+                        chunk.start_line = (overlap_start + 1) as u32;
                         // Recompute hash for the overlapped content.
                         chunk.content_hash = ContentHash::compute(chunk.content.as_bytes());
                     }
@@ -255,12 +257,13 @@ mod tests {
         let chunks = chunk_lines(&text, max);
         // Each *original* (pre-overlap) chunk must be ≤ max_chars.
         // Because overlap prepends up to OVERLAP_LINES lines to chunks[1..],
-        // we verify the *start_line→end_line* span fits.
-        for c in &chunks {
+        // recover each original boundary from the preceding chunk's end.
+        for (index, c) in chunks.iter().enumerate() {
+            let original_start = if index == 0 { 0 } else { chunks[index - 1].end_line as usize };
             let span_chars: usize = text
                 .lines()
-                .skip(c.start_line as usize - 1)
-                .take((c.end_line - c.start_line + 1) as usize)
+                .skip(original_start)
+                .take(c.end_line as usize - original_start)
                 .map(|l| l.len() + 1)
                 .sum();
             assert!(
@@ -334,7 +337,7 @@ mod tests {
         assert!(chunks.len() >= 3, "need ≥3 chunks to check overlap cap");
 
         for (idx, _chunk) in chunks.iter().enumerate().skip(1) {
-            let curr_start_0 = chunks[idx].start_line as usize - 1; // 0-indexed original start
+            let curr_start_0 = chunks[idx - 1].end_line as usize; // 0-indexed original start
             // The overlap prefix is lines[overlap_start..curr_start_0].
             // Number of prepended lines = curr_start_0 - overlap_start ≤ OVERLAP_LINES.
             let expected_overlap = OVERLAP_LINES.min(curr_start_0);

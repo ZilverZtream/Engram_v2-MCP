@@ -1,0 +1,149 @@
+{
+ "summary": {
+  "judge": "v3-item-level",
+  "corpus": "eval\\data\\ask_causal_holdout_ociusx.jsonl",
+  "corpus_sha256": "550241a9e2ef76628f7f15ead8ad606c5f4e92440bb2e98bd5f20bd1670948a4",
+  "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+  "rows": 5,
+  "status_match": 3,
+  "abstain_ok": 0,
+  "abstain_total": 0,
+  "correct": 1,
+  "mean_cite": 0.867,
+  "gate": "FAIL",
+  "insights": false,
+  "finished_utc": "2026-08-31T15:53:30Z"
+ },
+ "rows": [
+  {
+   "id": "hx_causal_1",
+   "category": "causal",
+   "question": "Who calls SyncItem on the Fortnox customer invoices?",
+   "status": "ambiguous",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "status ambiguous not in ['answered', 'partial']",
+   "cite_coverage": "1.00",
+   "ms": 1027,
+   "evidence_paths": [
+    "Site/App_Code/integration/code/fortnoxArbetsnummer.vb",
+    "Site/App_Code/integration/code/fortnoxKundfakturor.vb",
+    "Site/App_Code/integration/code/fortnoxLeverantorsfakturor.vb",
+    "Site/modules/dashboard/pages/admin/system/integration/fortnox/fortnoxKundfakturorServices.aspx.vb",
+    "Site/modules/dashboard/pages/admin/system/integration/fortnox/fortnoxLeverantorsfakturorServices.aspx.vb",
+    "Site/modules/dashboard/pages/admin/system/integration/tripletex/tripletexCustomerInvoicesServices.aspx.vb",
+    "Site/modules/dashboard/pages/admin/system/integration/tripletex/tripletexSupplierInvoicesServices.aspx.vb",
+    "Site/App_Code/integration/code/integrationsynctask.vb",
+    "db-ociusx.sql/dbo/Tables/te_tenants.sql",
+    "Site/modules/dashboard/pages/admin/system/integration/fortnox/fortnox.aspx"
+   ]
+  },
+  {
+   "id": "hx_causal_2",
+   "category": "causal",
+   "question": "Which TypeScript files call the fjUpdate API?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "no evidence item satisfies {'path_suffix': 'app.ts', 'path_any': ['fbinstplan'], 'content_all': ['fjupdate']}",
+   "cite_coverage": "1.00",
+   "ms": 2464,
+   "evidence_paths": [
+    "Site/App_Code/fbinstplan/api-json/api-fiberjobb.vb",
+    "Site/ts/imgHandler/imgHandler.ts",
+    ".github/copilot-instructions.md",
+    ".github/copilot-instructions.md",
+    "Site/ts/imgHandler/imgHandler.ts",
+    ".github/instructions/map-marker-checklist.instructions.md",
+    "Site/modules/map/~.js/map.js",
+    "Site/ts/imgHandler/IETypeDefinitions.ts",
+    "Site/modules/storage/~.js/storage.js",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "hx_causal_3",
+   "category": "causal",
+   "question": "Which server API functions does the fiber installation plan app.ts call?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "required symbols/files not cited: ['fjupdate']",
+   "cite_coverage": "0.33",
+   "ms": 2764,
+   "evidence_paths": [
+    "Site/App_Code/fbinstplan/api-json/api-fiberjobbmoment.vb",
+    "Site/App_Code/fbinstplan/api-json/api-fiberjobb.vb",
+    "Site/App_Code/fbinstplan/api-json/api-fiberjobbmomentlogg.vb",
+    "Site/ts/fbinstplan/app.ts",
+    "Site/App_Code/api-v2/ErrorResponses.vb",
+    "Site/App_Code/fbinstplan/code/fiberjobb.vb",
+    "Site/modules/dashboard/ts/map/vsMap/addressMarker/addressManager.ts",
+    "Site/modules/fbinstplan/~.js/fbinstplan.js",
+    "Site/~.js/imgManager.js",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "hx_causal_4",
+   "category": "causal",
+   "question": "Which VB function handles the vehQuery API and which TS client calls it?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 2187,
+   "evidence_paths": [
+    "Site/App_Code/visualisering/api-json/api-visualisering-vehicle.vb",
+    "Site/App_Code/visualisering/api-json/api-visualisering-vehicle.vb",
+    "Site/modules/dashboard/ts/map/vsMap/vehicle/vehicleManager.ts",
+    "Site/modules/dashboard/ts/map/vsMap/vehicle/vehicleManager.ts",
+    "Site/modules/dashboard/ts/map/vsMap/vehicle/vehicleMarkerInfowindow.ts",
+    "Site/modules/dashboard/ts/map/vsMap/vehicle/vehicleMarkerInfowindow.ts",
+    "Site/modules/map/~.js/map.js",
+    "Site/modules/map/~.js/map.js",
+    "Site/modules/dashboard/ts/map/vsMap/common/sharedFunctions.ts",
+    "Site/modules/dashboard/ts/map/vsMap/common/sharedFunctions.ts"
+   ]
+  },
+  {
+   "id": "hx_causal_5",
+   "category": "causal",
+   "question": "What breaks if GetAllUnSynced on the Fortnox customer invoices changes its return type?",
+   "status": "ambiguous",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "status ambiguous not in ['answered', 'partial']",
+   "cite_coverage": "1.00",
+   "ms": 1150,
+   "evidence_paths": [
+    "Site/App_Code/integration/code/fortnoxArbetsnummer.vb",
+    "Site/App_Code/integration/code/fortnoxKundfakturor.vb",
+    "Site/App_Code/integration/code/fortnoxLeverantorsfakturor.vb",
+    "Site/App_Code/tid/fakturering/code/fakturahistorik.vb",
+    "Site/App_Code/financialdata/CustomerInvoiceImporter.vb",
+    "Site/App_Code/financialdata/SupplierInvoiceImporter.vb",
+    "Site/App_Code/integration/code/fortnoxKundfakturor.vb",
+    "Site/App_Code/integration/code/fortnoxLeverantorsfakturor.vb",
+    "Site/App_Code/integration/code/integrationsynctask.vb",
+    "Site/App_Code/integration/code/fortnoxKundfakturor.vb"
+   ]
+  }
+ ]
+}

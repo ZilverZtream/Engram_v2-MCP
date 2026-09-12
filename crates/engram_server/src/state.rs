@@ -14,8 +14,9 @@ use tokio_util::sync::CancellationToken;
 // (defaults to num_cpus, capped at 16). See engram_core::config.
 
 /// Maximum number of project search engines cached in memory simultaneously.
-/// Beyond this limit, the least recently inserted project is evicted.
-const MAX_CACHED_PROJECTS: usize = 5;
+/// Beyond this limit, the least recently accessed project is evicted.
+/// Startup priming shares this bound so it cannot churn through the registry.
+pub(crate) const MAX_CACHED_PROJECTS: usize = 5;
 
 #[derive(Debug, Clone)]
 pub enum AppEvent {
@@ -40,6 +41,9 @@ pub enum AppEvent {
 
 #[derive(Debug, Clone)]
 pub struct SearchHitLite {
+    /// Explicit origin; absent provenance must not be treated as project source.
+    pub source_project_id: Option<String>,
+    pub namespace: Option<String>,
     pub pk: String,
     pub doc_id: String,
     pub path: engram_core::RelPath,
@@ -106,6 +110,7 @@ pub struct AppState {
     /// for the same project (e.g. watcher + agent MCP call racing each other),
     /// which would corrupt Tantivy/LanceDB by writing the same generation twice.
     pub project_update_locks: Arc<RwLock<HashMap<String, Arc<tokio::sync::Mutex<()>>>>>,
+    pub project_runtime_locks: Arc<RwLock<HashMap<String, Arc<tokio::sync::Mutex<()>>>>>,
 
     /// Send events to background actors.
     pub events_tx: broadcast::Sender<AppEvent>,
@@ -278,6 +283,7 @@ impl AppState {
                 gc_sweeps_completed: Arc::new(std::sync::atomic::AtomicU64::new(0)),
                 parse_semaphore: Arc::new(Semaphore::new(parse_concurrency)),
                 project_update_locks: Arc::new(RwLock::new(HashMap::new())),
+                project_runtime_locks: Arc::new(RwLock::new(HashMap::new())),
                 events_tx,
                 memory_budget: Arc::new(memory_budget),
                 checkpoints: Arc::new(checkpoints),
@@ -327,6 +333,32 @@ impl AppState {
             .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))
             .clone();
         lock.lock_owned().await
+    }
+
+    /// The GC's view of the same per-project update mutex (external audit
+    /// round 2 P0-1): `None` while an update holds it — the sweep yields,
+    /// it never queues behind an update.
+    pub async fn try_acquire_project_update_lock(
+        &self,
+        project_id: &str,
+    ) -> Option<tokio::sync::OwnedMutexGuard<()>> {
+        let lock = if let Some(lock) = self
+            .project_update_locks
+            .read()
+            .await
+            .get(project_id)
+            .cloned()
+        {
+            lock
+        } else {
+            self.project_update_locks
+                .write()
+                .await
+                .entry(project_id.to_string())
+                .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))
+                .clone()
+        };
+        lock.try_lock_owned().ok()
     }
 
     pub fn get_project_cached(&self, project_id: &str) -> Option<ProjectState> {

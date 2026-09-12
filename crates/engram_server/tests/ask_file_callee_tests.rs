@@ -1,0 +1,526 @@
+#![allow(clippy::unwrap_used)]
+//! External audit round 2, item 8 — end to end: "which server API functions
+//! does <file>.ts call?" must reach the VB implementation through the name
+//! route (`api.ajax('ordGetLines')` → broker `Case "ordGetLines"` →
+//! `GetOrderLines`). Live r43 found the callee hop's two items and then let
+//! concept chunks evict them: a hop from the file the question NAMES is
+//! direct evidence, not a 0.6 guess — and the hop must also read the file
+//! node's own ApiCall edges, since a call outside any function body is still
+//! that file calling the server.
+use engram_core::config::Config;
+use engram_server::models::AskCodebaseRequest;
+use engram_server::state::AppState;
+use engram_server::tools::Engram;
+use rmcp::handler::server::tool::Parameters;
+use serde_json::{Value, json};
+
+async fn build() -> (tempfile::TempDir, Engram, String) {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let root = tmp.path().join("proj");
+    for d in [
+        "Site/ts/orders",
+        "Site/ts/misc",
+        "Site/Q/api",
+        "Site/App_Code/api-json",
+        "Site/App_Code/orders/api-json",
+        "Site/App_Code/noise",
+    ] {
+        std::fs::create_dir_all(root.join(d)).unwrap();
+    }
+    std::fs::write(
+        root.join("Site/ts/orders/orderPanel.ts"),
+        "namespace orders {\n    export class orderPanel {\n        private _id: number;\n        public load(): void {\n            trim(this._id.toString());\n            new api.ajax('ordGetLines', { ord_id: this._id }, null, (ret) => {\n                this.render(ret);\n            });\n        }\n        private render(ret: any): void {\n        }\n    }\n}\n",
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("Site/App_Code/api-json/api-broker.vb"),
+        "Public Class api\n    Public Shared Function action(ByVal qry As JSONqry) As JSONreturn\n        Dim s As JSONreturn = Nothing\n        Select Case qry.func\n            Case \"ordGetLines\"\n                s = GetOrderLines(qry)\n            Case \"ordGetNoiseA\"
+                s = ordGetNoiseA(qry)
+            Case \"ordGetNoiseB\"
+                s = ordGetNoiseB(qry)
+            Case \"ordGetNoiseC\"
+                s = ordGetNoiseC(qry)
+            Case \"ordGetNoiseD\"
+                s = ordGetNoiseD(qry)
+            Case \"ordGetNoiseE\"
+                s = ordGetNoiseE(qry)
+            Case \"ordGetNoiseF\"
+                s = ordGetNoiseF(qry)
+        End Select\n        Return s\n    End Function\nEnd Class\n",
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("Site/App_Code/orders/api-json/api-orders.vb"),
+        "Partial Class api\n    Public Shared Function GetOrderLines(ByVal qry As JSONqry) As JSONreturn\n        Dim lines = orderLines.LoadByOrder(qry.ord_id)\n        Return Nothing\n    End Function\nEnd Class\n",
+    )
+    .unwrap();
+    // The wrapper class: TS reaches /api.asmx/getimg through api.ajax().getImage.
+    std::fs::write(
+        root.join("Site/Q/api/ajax.ts"),
+        "namespace api {
+    export class ajax {
+        public getImage(module: string, id: number, imageName: string): void {
+            let req = new XMLHttpRequest();
+            req.open('POST', '/api.asmx/getimg', true);
+            req.send(JSON.stringify({ module: module, id: id, name: imageName }));
+        }
+    }
+}
+",
+    )
+    .unwrap();
+    // A LEGACY client twin of the API name (live r45: `athDeleteByID` is also
+    // a caw.js function, and the resolver bound the mention to it instead of
+    // the broker's implementation).
+    std::fs::write(
+        root.join("Site/ts/misc/legacy.js"),
+        "function ordGetLines(orderId) {
+    return null;
+}
+",
+    )
+    .unwrap();
+    // A decoy getImage so only the receiver (`new api.ajax()`) disambiguates.
+    std::fs::write(
+        root.join("Site/ts/misc/thumbs.ts"),
+        "export function getImage(cacheKey: any): void {
+}
+",
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("Site/api.asmx"),
+        "<%@ WebService Language=\"VB\" CodeBehind=\"api.vb\" Class=\"api\" %>
+",
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("Site/App_Code/api-json/api-images.vb"),
+        "Partial Class api
+    Public Function getimg(ByVal o As imgData) As String
+        Return \"\"
+    End Function
+End Class
+",
+    )
+    .unwrap();
+    // A SECOND family member: "order info panel" now matches two distinct
+    // stems, so no unique compound file exists — the FAMILY seeds the hop
+    // (cycle 32, owner-approved) instead of one entity being minted.
+    std::fs::write(
+        root.join("Site/ts/orders/ataOrderInfoPanel.ts"),
+        "namespace orders {
+    export class ataOrderInfoPanel {
+        private _id: number;
+        public loadImages(): void {
+            new api.ajax('ordGetNoiseA', { o: this._id }, null, null);
+            new api.ajax('ordGetNoiseB', { o: this._id }, null, null);
+            new api.ajax('ordGetNoiseC', { o: this._id }, null, null);
+            new api.ajax('ordGetNoiseD', { o: this._id }, null, null);
+            new api.ajax('ordGetNoiseE', { o: this._id }, null, null);
+            new api.ajax('ordGetNoiseF', { o: this._id }, null, null);
+            new api.ajax('ordGetAvailableImages', { o: this._id }, null, null);
+            new api.ajax('ordGetPanelInfo', { o: this._id }, null, null);
+            new api.ajax().getImage('ata', this._id, 'Img.1');
+        }
+    }
+}
+",
+    )
+    .unwrap();
+    // Live r49: the real family has FIVE members (ata/io/permit/pl/vehicle
+    // MarkerInfowindow) and the 2..=4 gate rejected it — a family is a family
+    // whatever its size; the seed list is what gets capped.
+    for extra in [
+        "vehicleOrderInfoPanel",
+        "permitOrderInfoPanel",
+        "plOrderInfoPanel",
+    ] {
+        std::fs::write(
+            root.join(format!("Site/ts/orders/{extra}.ts")),
+            format!(
+                "namespace orders {{
+    export class {extra} {{
+        private _id: number;
+        public loadImages(): void {{
+            new api.ajax().getImage('x', this._id, 'Img.1');
+        }}
+    }}
+}}
+"
+            ),
+        )
+        .unwrap();
+    }
+    // The compiled twin: same stem, so distinct-stem uniqueness must still
+    // pick the .ts source (live r46: ioMarkerInfowindow.{ts,js}).
+    std::fs::write(
+        root.join("Site/ts/orders/orderInfoPanel.js"),
+        "var orders;
+(function (orders) {
+    var orderInfoPanel = (function () {
+        function orderInfoPanel() { }
+        orderInfoPanel.prototype.loadImages = function () {
+            new api.ajax().getImage('orders', this._id, 'Img.1');
+        };
+        return orderInfoPanel;
+    })();
+})(orders || (orders = {}));
+",
+    )
+    .unwrap();
+    // Three more name-routed calls whose implementations live in three files:
+    // without the named-seed cap raise they fill the hop before the wrapper.
+    for (name, file) in [
+        ("ordGetNoiseA", "api-noisea.vb"),
+        ("ordGetNoiseB", "api-noiseb.vb"),
+        ("ordGetNoiseC", "api-noisec.vb"),
+        ("ordGetNoiseD", "api-noised.vb"),
+        ("ordGetNoiseE", "api-noisee.vb"),
+        ("ordGetNoiseF", "api-noisef.vb"),
+    ] {
+        std::fs::write(
+            root.join(format!("Site/App_Code/orders/api-json/{file}")),
+            format!(
+                "Partial Class api
+    Public Shared Function {name}(ByVal qry As JSONqry) As JSONreturn
+        Return Nothing
+    End Function
+End Class
+"
+            ),
+        )
+        .unwrap();
+    }
+    // Cycle 35 RED (live r51): CUE-HIT routes met BEFORE the wrapper edge —
+    // their names carry the question's words ("images", "panel", "info") so
+    // they seat the v2 reserved slots and the provider returns at cap without
+    // ever iterating the getImage edge. Ranking, not reservation, must decide.
+    for (name, file) in [
+        ("ordGetAvailableImages", "api-availimages.vb"),
+        ("ordGetPanelInfo", "api-panelinfo.vb"),
+    ] {
+        std::fs::write(
+            root.join(format!("Site/App_Code/orders/api-json/{file}")),
+            format!(
+                "Partial Class api
+    Public Shared Function {name}(ByVal qry As JSONqry) As JSONreturn
+        Return Nothing
+    End Function
+End Class
+"
+            ),
+        )
+        .unwrap();
+    }
+    // The info panel: a COMPOUND name ("order info panel" -> orderInfoPanel.ts)
+    // whose images arrive through the wrapper, two hops from this file.
+    std::fs::write(
+        root.join("Site/ts/orders/orderInfoPanel.ts"),
+        "namespace orders {
+    export class orderInfoPanel {
+        private _id: number;
+        public loadImages(): void {
+            new api.ajax('ordGetNoiseA', { o: this._id }, null, null);
+            new api.ajax('ordGetNoiseB', { o: this._id }, null, null);
+            new api.ajax('ordGetNoiseC', { o: this._id }, null, null);
+            new api.ajax().getImage('orders', this._id, 'Img.1');
+        }
+    }
+}
+",
+    )
+    .unwrap();
+    // Cycle 36 (doc 11 padding): a type DECLARATION the extractor indexes as a
+    // function — live r53 cited jquery.d.ts's trim as a "callee". A call into
+    // a declaration is not a served implementation.
+    std::fs::create_dir_all(root.join("Site/Q/typings")).unwrap();
+    std::fs::write(
+        root.join("Site/Q/typings/jquery.d.ts"),
+        "interface JQueryStatic {
+    trim(str: string): string;
+}
+",
+    )
+    .unwrap();
+    // Cycle 37 (doc 11 snippet window): the matched literal sits BEYOND the
+    // 1,200-char snippet head — live r53's ConfigSettings.vb:83 shape.
+    std::fs::create_dir_all(root.join("Site/App_Code/settings")).unwrap();
+    let pad = "the padded settings reader documentation sentence repeats itself here. ".repeat(20);
+    std::fs::write(
+        root.join("Site/App_Code/settings/PaddedSettings.vb"),
+        format!(
+            "Public Class PaddedSettings\n    ''' <summary>{pad}</summary>\n    Public Shared Function ReadTail() As String\n        Return ConfigurationManager.AppSettings.Item(\"fixture_padding_setting_xyz\")\n    End Function\nEnd Class\n"
+        ),
+    )
+    .unwrap();
+    // Cycle 38 (doc 11 padding, search-arm leg): a DECLARATION file whose text
+    // matches the question's words — the search arms cited such chunks live
+    // (held-out hx_golden_2: google.maps typings) after the hop was fixed.
+    std::fs::write(
+        root.join("Site/Q/typings/serverapideclarations.d.ts"),
+        "// declarations for the order panel server api functions surface\ninterface OrderPanelServerApiFunctions {\n    call(name: string): void;\n}\n",
+    )
+    .unwrap();
+    // Enough chunks about "server api functions" and "order panel" to fill the
+    // evidence cap on their own.
+    for i in 0..30 {
+        std::fs::write(
+            root.join(format!("Site/App_Code/noise/order_panel_server_api{i:02}.vb")),
+            format!(
+                "Public Class order_panel_server_api{i:02}\n    ' the order panel and the server API functions it depends on\n    Public Function ServerApiFunction{i:02}() As String\n        Return \"order panel server api functions\"\n    End Function\nEnd Class\n"
+            ),
+        )
+        .unwrap();
+    }
+    let cfg = Config {
+        allowed_roots: vec![root.clone()],
+        data_dir: tmp.path().join("data"),
+        max_project_files: Some(200),
+        max_project_bytes: Some(4 * 1024 * 1024),
+        embedding_backend: "fts_only".into(),
+        ..Default::default()
+    };
+    std::fs::create_dir_all(&cfg.data_dir).unwrap();
+    let (state, _rx) = AppState::new(cfg).unwrap();
+    let engram = Engram::new(state.clone());
+    engram
+        .index_project(Parameters(engram_server::IndexProjectRequest {
+            directory: root.to_string_lossy().to_string(),
+            project_name: "FileCallee".into(),
+            project_type: engram_server::models::ProjectType::DotnetWebformsVb,
+            wait: true,
+            dedupe_by_directory: false,
+        }))
+        .await
+        .unwrap();
+    let pid = state.registry.list_projects().unwrap()[0]
+        .project_id
+        .clone();
+    // Cycle 39 (doc 11): a SYSTEM section under the reserved engram/ prefix
+    // whose content mirrors the live index report's shape — a path list that
+    // term-matches any code question. Written through the same handler the
+    // auto-writer uses (project_tools index_project tail).
+    engram
+        .handle_update_memory_bank(engram_server::UpdateMemoryBankRequest {
+            project_id: pid.clone(),
+            section_id: Some("engram/fixture_report".into()),
+            section: "Indexing Report".into(),
+            content: "Indexed files: Site/ts/orders/orderInfoPanel.ts \
+Site/ts/orders/ataOrderInfoPanel.ts Site/App_Code/api-json/api-images.vb — \
+the order info panel and its images route were indexed in this generation."
+                .into(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    (tmp, engram, pid)
+}
+
+async fn ask(engram: &Engram, pid: &str, question: &str) -> Value {
+    let req: AskCodebaseRequest = serde_json::from_value(json!({
+        "project_id": pid,
+        "question": question,
+        "output_format": "json",
+        "depth": "standard"
+    }))
+    .unwrap();
+    let res = engram.handle_ask_codebase(req).await.unwrap();
+    let t = res.content[0].as_text().unwrap().text.clone();
+    let start = t.find('{').unwrap_or(0);
+    serde_json::from_str(&t[start..]).unwrap_or_else(|e| panic!("not JSON ({e}):\n{t}"))
+}
+
+fn paths(v: &Value) -> Vec<String> {
+    v["evidence"]
+        .as_array()
+        .map(|a| {
+            a.iter()
+                .map(|e| e["path"].as_str().unwrap_or("").to_lowercase())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+#[tokio::test]
+async fn what_a_named_ts_file_calls_reaches_the_vb_implementation_through_the_name_route() {
+    let (_tmp, engram, pid) = build().await;
+    let v = ask(
+        &engram,
+        &pid,
+        "Which server API functions does orderPanel.ts call?",
+    )
+    .await;
+    let ps = paths(&v);
+    assert!(
+        ps.iter().any(|p| p.ends_with("api-orders.vb")),
+        "the served implementation must be cited; got {ps:?}"
+    );
+    assert!(
+        ps.iter().any(|p| p.ends_with("orderpanel.ts")),
+        "the asked file itself must be cited; got {ps:?}"
+    );
+    // Cycle 36 (doc 11): padding classes never reach the evidence — a .d.ts
+    // declaration is not a callee answer, and Engram's own index report is
+    // meta, not project knowledge.
+    assert!(
+        !ps.iter().any(|p| p.ends_with(".d.ts")),
+        "a type declaration must not be cited as a callee; got {ps:?}"
+    );
+    assert!(
+        !ps.iter().any(|p| p.starts_with("memory_bank:engram/")),
+        "engram's own system sections must not pad a code answer; got {ps:?}"
+    );
+}
+
+#[tokio::test]
+async fn who_calls_the_implementation_lists_the_ts_client() {
+    let (_tmp, engram, pid) = build().await;
+    let v = ask(&engram, &pid, "What calls GetOrderLines?").await;
+    let ps = paths(&v);
+    assert!(
+        ps.iter().any(|p| p.ends_with("orderpanel.ts")),
+        "the TS client reached through the broker arm must be cited; got {ps:?}"
+    );
+}
+
+#[tokio::test]
+async fn an_api_name_literal_binds_to_the_implementation_the_broker_dispatches_it_to() {
+    // Live r44 (ox_causal_1): `athDeleteByID` names no symbol — only the broker's
+    // arm knows it is served by DeleteChangeRequest — so "which VB function
+    // handles it?" never cited the implementation file.
+    let (_tmp, engram, pid) = build().await;
+    let v = ask(
+        &engram,
+        &pid,
+        "Which VB function handles the ordGetLines API?",
+    )
+    .await;
+    let ps = paths(&v);
+    assert!(
+        ps.iter().any(|p| p.ends_with("api-orders.vb")),
+        "the dispatched implementation must be cited; got {ps:?}"
+    );
+    // Live r46: the legacy twin + the served implementation were called
+    // AMBIGUOUS. They are the two ends of one route, not competing symbols.
+    assert_eq!(
+        v["status"].as_str(),
+        Some("answered"),
+        "a name with a legacy twin and one served implementation is not ambiguous"
+    );
+}
+
+#[tokio::test]
+async fn a_compound_name_reaches_the_implementation_through_the_wrapper_route() {
+    // The golden ox_multi_4 shape: "marker info window" names no token the
+    // planner sees, and the image fetch is TWO hops (panel → api.ajax().getImage
+    // → /api.asmx/getimg → api-images.vb).
+    let (_tmp, engram, pid) = build().await;
+    let v = ask(
+        &engram,
+        &pid,
+        "How does the order info panel fetch its images?",
+    )
+    .await;
+    let ps = paths(&v);
+    // Cycle 32 (owner-approved): with TWO *OrderInfoPanel families no entity
+    // is minted — a wrong guess and an ambiguity status are both worse — but
+    // the FAMILY seeds the hop, so the served implementation still arrives.
+    assert!(
+        ps.iter().any(|p| p.ends_with("api-images.vb")),
+        "the served implementation two hops away must be cited; got {ps:?}"
+    );
+    // Cycle 39 (doc 11): engram's own meta-report (auto-written at index time,
+    // full of file paths that match any code question) is not evidence — live
+    // it rode in as a DocSection on nine open rows and two held-out rows.
+    assert!(
+        !ps.iter().any(|p| p.starts_with("memory_bank:engram/")),
+        "engram's own system sections must never pad a code answer; got {ps:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_question_scoped_under_a_directory_cites_only_that_directory() {
+    // Batch 7 wiring guard (live r63 usage_5): "under <dir>" scopes the
+    // WHOLE evidence pool — every arm honors it.
+    let (_tmp, engram, pid) = build().await;
+    let v = ask(
+        &engram,
+        &pid,
+        "Which files under ts/orders fetch order data?",
+    )
+    .await;
+    let ev = v["evidence"].as_array().cloned().unwrap_or_default();
+    assert!(!ev.is_empty(), "scoped question must still answer: {v}");
+    for it in &ev {
+        let p = it["path"].as_str().unwrap_or("").to_lowercase();
+        assert!(
+            p.contains("ts/orders"),
+            "an item outside the asked scope: {p}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn a_where_defined_lookup_answers_small_and_anchored() {
+    // Batch 4 wiring guard (live r60 exact_3): "Where is X defined?" engages
+    // the lookup cap (no breadth Usage) and every slot mentions the entity.
+    let (_tmp, engram, pid) = build().await;
+    let v = ask(&engram, &pid, "Where is PaddedSettings defined?").await;
+    let st = v["status"].as_str().unwrap_or("");
+    assert!(
+        st == "answered" || st == "partial",
+        "where-defined on a real file must answer, got {st}: {v}"
+    );
+    let ev = v["evidence"].as_array().cloned().unwrap_or_default();
+    assert!(
+        !ev.is_empty() && ev.len() <= 5,
+        "lookup cap must engage: {} items",
+        ev.len()
+    );
+    for it in &ev {
+        let hay = it.to_string().to_lowercase();
+        assert!(hay.contains("paddedsettings"), "unanchored slot: {it}");
+    }
+}
+
+#[tokio::test]
+async fn a_speculative_word_with_twin_files_is_not_ambiguous() {
+    // Live r59: batch 2's long-stem minting minted "installation" (bare
+    // lowercase), it resolved to four files, and the answer flipped to
+    // Ambiguous — a speculative shape may help when unique, never veto.
+    // The fixture's orderInfoPanel.{ts,js} twins reproduce the shape.
+    let (_tmp, engram, pid) = build().await;
+    let v = ask(&engram, &pid, "How does orderinfopanel fetch its images?").await;
+    assert_ne!(
+        v["status"].as_str(),
+        Some("ambiguous"),
+        "a bare-lowercase speculative mention must never drive Ambiguous"
+    );
+}
+
+#[tokio::test]
+async fn a_snippet_shows_the_matched_region_not_the_chunk_head() {
+    // Cycle 37 (doc 11): the evidence content must SHOW the region that
+    // matched — a truncated chunk head hides the fact from the judge and the
+    // reader alike (live r53: ConfigSettings.vb lines 71-84, literal on 83,
+    // snippet ended before it).
+    let (_tmp, engram, pid) = build().await;
+    let v = ask(
+        &engram,
+        &pid,
+        "Where is the fixture_padding_setting_xyz setting used?",
+    )
+    .await;
+    let ev = v["evidence"].as_array().cloned().unwrap_or_default();
+    assert!(
+        ev.iter().any(|e| e["content"]
+            .as_str()
+            .unwrap_or("")
+            .contains("fixture_padding_setting_xyz")),
+        "the matched literal must be visible in some item's content; paths: {:?}",
+        ev.iter()
+            .map(|e| e["path"].as_str().unwrap_or(""))
+            .collect::<Vec<_>>()
+    );
+}

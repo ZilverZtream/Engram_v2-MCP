@@ -71,6 +71,18 @@ pub async fn ensure_project_runtime(
         return Ok(p);
     }
 
+    let runtime_lock = state
+        .project_runtime_locks
+        .write()
+        .await
+        .entry(project_id.to_string())
+        .or_insert_with(|| std::sync::Arc::new(tokio::sync::Mutex::new(())))
+        .clone();
+    let _initializing = runtime_lock.lock().await;
+    if let Some(p) = state.get_project_cached(project_id) {
+        return Ok(p);
+    }
+
     let mut rec = ensure_project_record(state, project_id).await?;
     if let Some(project_type) = ProjectType::from_registry_str(&rec.project_type) {
         let canonical = project_type.as_str();
@@ -238,12 +250,51 @@ pub(crate) fn meta_has_fingerprint(meta: &Option<serde_json::Value>) -> bool {
 }
 
 /// Compute incremental changes between on-disk files and graph-stored file metadata.
+pub async fn outdated_source_index_paths(
+    state: &AppState,
+    project_id: &str,
+) -> anyhow::Result<Vec<String>> {
+    Ok(source_index_format_coverage(state, project_id).await?.1)
+}
+
+pub async fn source_index_format_coverage(
+    state: &AppState,
+    project_id: &str,
+) -> anyhow::Result<(usize, Vec<String>)> {
+    let active_generation = get_active_generation(state, project_id).await?;
+    source_index_format_coverage_for_generation(state, project_id, active_generation).await
+}
+
+pub async fn source_index_format_coverage_for_generation(
+    state: &AppState,
+    project_id: &str,
+    active_generation: u64,
+) -> anyhow::Result<(usize, Vec<String>)> {
+    let graph = state.graph.clone();
+    let pid = project_id.to_string();
+    tokio::task::spawn_blocking(move || {
+        let mut paths = std::collections::BTreeMap::<String, (bool, bool)>::new();
+        for (path, metadata, generation) in graph.list_file_node_metadata_with_generation(&pid)? {
+            let current = metadata.as_ref().is_some_and(|m|
+                m.get("source_index_version").and_then(|v| v.as_u64())
+                    == Some(engram_index::SOURCE_INDEX_VERSION));
+            // Legacy shadow file nodes must not hide the canonical file's marker.
+            let entry = paths.entry(path.as_str().to_owned()).or_default();
+            entry.0 |= current;
+            entry.1 |= generation > active_generation;
+        }
+        Ok((paths.len(), paths.into_iter().filter_map(|(p, (current, pending))| (!current || pending).then_some(p)).collect()))
+    }).await?
+}
+
+/// Changes include files requiring migration to the current source-index contract.
 pub async fn get_incremental_changes(
     state: &AppState,
     project_id: &str,
     root: &Path,
     exts: &[&str],
 ) -> anyhow::Result<(Vec<PathBuf>, Vec<engram_core::RelPath>)> {
+    let active_generation = get_active_generation(state, project_id).await?;
     let verify_hashes = state.cfg.verify_unchanged_hashes;
     // 1. Scan disk
     let root_clone = root.to_path_buf();
@@ -258,7 +309,7 @@ pub async fn get_incremental_changes(
     let graph = state.graph.clone();
     let pid = project_id.to_string();
     let db_file_meta =
-        tokio::task::spawn_blocking(move || graph.list_file_node_metadata(&pid)).await??;
+        tokio::task::spawn_blocking(move || graph.list_file_node_metadata_with_generation(&pid)).await??;
 
     // 3. Compare
     let root_owned = root.to_path_buf();
@@ -273,7 +324,9 @@ pub async fn get_incremental_changes(
         // stat_mismatch with identical values run after run).
         let mut change_reasons: Vec<String> = Vec::new();
 
-        for (file_path, metadata) in db_file_meta {
+        let mut unpublished_paths = std::collections::HashSet::new();
+        for (file_path, metadata, generation) in db_file_meta {
+            if generation > active_generation { unpublished_paths.insert(file_path.clone()); }
             // Duplicate file-typed nodes can exist for one path (legacy
             // `sym:file:…` parse-status shadows from before the ingest
             // merge fix). Never let a fingerprint-less entry displace one
@@ -336,6 +389,16 @@ pub async fn get_incremental_changes(
                 let mut reason = "meta_none".to_string();
 
                 if let Some(meta) = db_meta {
+                    if unpublished_paths.contains(&rel)
+                        || meta.get("source_index_version").and_then(|v| v.as_u64())
+                        != Some(engram_index::SOURCE_INDEX_VERSION)
+                    {
+                        if change_reasons.len() < 10 {
+                            change_reasons.push(format!("{} [source_index_version requires re-extraction]", rel.as_str()));
+                        }
+                        changed.push(p);
+                        continue;
+                    }
                     let stored_mtime = meta.get("mtime").and_then(|v| v.as_u64()).unwrap_or(0);
                     let stored_size = meta.get("size").and_then(|v| v.as_u64()).unwrap_or(0);
                     let stored_hash = meta
@@ -431,6 +494,14 @@ pub async fn repair_project_scoped(
     let generation = get_active_generation(state, project_id).await?;
 
     match scope {
+        "initialize_vectors" => {
+            let _active = crate::state::ActiveIndexingSlot::acquire(state);
+            let count = ps.search.initialize_vectors(
+                project_id,
+                &tokio_util::sync::CancellationToken::new(),
+            ).await?;
+            Ok(format!("Initialized {count} vectors from stored documents. Text, history, knowledge and active generation were preserved."))
+        }
         // `tantivy_only` and `vector_only` both used to write a registry key
         // ("tantivy_needs_repair" / "vector_needs_repair") that NO code has
         // ever read, then return Ok — so the integrity checker recorded a
@@ -465,7 +536,7 @@ pub async fn repair_project_scoped(
         }
         _ => {
             anyhow::bail!(
-                "Unknown repair scope: {scope}. Valid: tantivy_only, vector_only, graph_only"
+                "Unknown repair scope: {scope}. Valid: tantivy_only, vector_only, graph_only, initialize_vectors"
             )
         }
     }
@@ -544,5 +615,95 @@ mod p0_stat_trust_tests {
         assert!(!meta_has_fingerprint(&shadow));
         assert!(!meta_has_fingerprint(&None));
         assert!(meta_has_fingerprint(&real));
+    }
+}
+
+/// Select explicit re-extraction only from the same ignore/extension-filtered
+/// source set as normal indexing. Validate the whole request before mutation.
+pub fn include_reindex_paths(
+    root: &Path,
+    exts: &[&str],
+    requested: &[String],
+    changed: &mut Vec<PathBuf>,
+) -> anyhow::Result<()> {
+    if requested.is_empty() {
+        return Ok(());
+    }
+    anyhow::ensure!(
+        requested.len() <= 100,
+        "reindex_paths accepts at most 100 files"
+    );
+    let allowed = engram_index::ingest::iter_files(root, exts);
+    let mut selected = Vec::new();
+    for raw in requested {
+        let normalized = raw.replace('\\', "/");
+        anyhow::ensure!(
+            !normalized.is_empty()
+                && !normalized.starts_with('/')
+                && !normalized.contains(':')
+                && normalized
+                    .split('/')
+                    .all(|p| !p.is_empty() && p != "." && p != ".."),
+            "reindex_paths requires exact project-relative paths: {raw}"
+        );
+        let path = allowed
+            .iter()
+            .find(|p| {
+                engram_core::RelPath::from_relative(root, p)
+                    .is_some_and(|r| r.as_str() == normalized)
+            })
+            .ok_or_else(|| {
+                anyhow::anyhow!("reindex path is missing, ignored, or unsupported: {raw}")
+            })?;
+        anyhow::ensure!(
+            path.canonicalize()?.starts_with(root.canonicalize()?),
+            "reindex path resolves outside project: {raw}"
+        );
+        selected.push(path.clone());
+    }
+    for path in selected {
+        if !changed.contains(&path) {
+            changed.push(path);
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod reindex_tests {
+    use super::*;
+    #[test]
+    fn explicit_reindex_deduplicates_and_rejects_invalid_requests_atomically() {
+        let root = tempfile::tempdir().unwrap();
+        let file = root.path().join("helper.vb");
+        std::fs::write(&file, "Class C\nEnd Class").unwrap();
+        let mut changed = Vec::new();
+        include_reindex_paths(
+            root.path(),
+            &["vb"],
+            &["helper.vb".into(), "helper.vb".into()],
+            &mut changed,
+        )
+        .unwrap();
+        assert_eq!(changed, vec![file]);
+        for bad in [
+            "../helper.vb",
+            "C:/helper.vb",
+            "/helper.vb",
+            "missing.vb",
+            "./helper.vb",
+        ] {
+            let mut unchanged = Vec::new();
+            assert!(
+                include_reindex_paths(
+                    root.path(),
+                    &["vb"],
+                    &["helper.vb".into(), bad.into()],
+                    &mut unchanged
+                )
+                .is_err()
+            );
+            assert!(unchanged.is_empty());
+        }
     }
 }

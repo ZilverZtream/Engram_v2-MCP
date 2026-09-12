@@ -81,8 +81,9 @@ pub async fn run_gc_scheduler_with_delay(
                 );
                 break;
             }
-            if let Err(e) = purge_project_old_gens(&state, &pid).await {
-                tracing::error!("GC error for project {}: {:?}", pid, e);
+            match purge_project_old_gens(&state, &pid).await {
+                Ok(outcome) => tracing::debug!(project_id = %pid, ?outcome, "GC: purge outcome"),
+                Err(e) => tracing::error!("GC error for project {}: {:?}", pid, e),
             }
         }
         state
@@ -91,7 +92,20 @@ pub async fn run_gc_scheduler_with_delay(
     }
 }
 
-pub async fn purge_project_old_gens(state: &AppState, project_id: &str) -> anyhow::Result<()> {
+/// What one GC visit to a project did — the loop logs it, the race tests
+/// assert it (external audit round 2 P0-1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GcOutcome {
+    Purged,
+    SkippedIndexing,
+    SkippedUpdateInFlight,
+    SkippedNoGeneration,
+}
+
+pub async fn purge_project_old_gens(
+    state: &AppState,
+    project_id: &str,
+) -> anyhow::Result<GcOutcome> {
     // External audit 2026-08-29 P0-1: the guard lives HERE too, not only in the
     // scheduler loop, so every caller (nudge, tests, tools) skips a project
     // while any generation is being written.
@@ -104,8 +118,19 @@ pub async fn purge_project_old_gens(state: &AppState, project_id: &str) -> anyho
             active_jobs = active,
             "GC: skipping purge — {active} indexing job(s) in progress"
         );
-        return Ok(());
+        return Ok(GcOutcome::SkippedIndexing);
     }
+    // External audit round 2 (docs/audits/10) P0-1: the counter check is a
+    // check-then-act window — an update can start building N+1 right after
+    // it. The GC and the update share the per-project lock; a held lock
+    // means "yield" (never wait: the sweep must not queue behind an update).
+    let Some(_update_guard) = state.try_acquire_project_update_lock(project_id).await else {
+        tracing::info!(
+            project_id = project_id,
+            "GC: skipping purge — a project update holds the update lock"
+        );
+        return Ok(GcOutcome::SkippedUpdateInFlight);
+    };
     let reg = state.registry.clone();
     let pid = project_id.to_string();
     let (active_gen_opt, full_gen_opt) = tokio::task::spawn_blocking(move || {
@@ -129,7 +154,7 @@ pub async fn purge_project_old_gens(state: &AppState, project_id: &str) -> anyho
             project_id = project_id,
             "JOB1/GC: skipping purge — active_generation metadata missing or not parseable as u64"
         );
-        return Ok(());
+        return Ok(GcOutcome::SkippedNoGeneration);
     };
 
     // Purge GraphStore — baselined on the LAST FULL INDEX generation, never
@@ -169,8 +194,29 @@ pub async fn purge_project_old_gens(state: &AppState, project_id: &str) -> anyho
             .purge_old_generations(project_id, active_gen)
             .await?;
     }
+    // A purge owed by a failed post-publication purge (`purge_pending`, set by
+    // update_project_impl) is settled by this sweep.
+    {
+        let reg = state.registry.clone();
+        let pid = project_id.to_string();
+        tokio::task::spawn_blocking(move || {
+            if reg
+                .get_meta(&pid, "purge_pending")
+                .ok()
+                .flatten()
+                .is_some_and(|v| !v.trim().is_empty())
+            {
+                if let Err(e) = reg.set_meta(&pid, "purge_pending", "") {
+                    tracing::warn!(project_id = %pid, "GC: could not clear purge_pending: {e:#}");
+                } else {
+                    tracing::info!(project_id = %pid, "GC: settled a pending post-publication purge");
+                }
+            }
+        })
+        .await?;
+    }
 
-    Ok(())
+    Ok(GcOutcome::Purged)
 }
 
 async fn load_project_runtime_minimal(

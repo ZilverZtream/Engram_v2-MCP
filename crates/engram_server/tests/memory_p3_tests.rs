@@ -23,6 +23,7 @@ async fn setup() -> (tempfile::TempDir, AppState, engram_server::Engram, String)
         max_project_files: Some(20),
         max_project_bytes: Some(512 * 1024),
         embedding_backend: "fts_only".into(),
+        llm_backend: "none".into(),
         ..Default::default()
     };
     std::fs::create_dir_all(&cfg.data_dir).unwrap();
@@ -183,4 +184,89 @@ async fn project_and_user_memory_coexist() {
         out.contains("memory_bank:widget-pref") && out.contains("source: user:memory_bank"),
         "the user note must surface, labelled user-level:\n{out}"
     );
+}
+
+#[tokio::test]
+async fn user_hit_full_content_and_recovery_keep_project_namespace_identity() {
+    let (_tmp, state, engram, pid) = setup().await;
+    engram
+        .update_memory_bank(Parameters(write(
+            USER,
+            "ensure-user",
+            "initialize isolated user store",
+        )))
+        .await
+        .unwrap();
+    for (project, marker) in [
+        (pid.as_str(), "PROJECT_PAYLOAD_TAIL"),
+        (USER, "USER_PAYLOAD_TAIL"),
+    ] {
+        let content = format!("userrouteprobe {} {marker}", "padding ".repeat(100));
+        state
+            .get_project_cached(project)
+            .unwrap()
+            .search
+            .index_docs(
+                project,
+                &[engram_index::IndexDoc {
+                    generation: 0,
+                    chunk_id: 999,
+                    doc_id: "same-project-doc".into(),
+                    content_hash: engram_core::ContentHash::compute(content.as_bytes()).0,
+                    path: engram_core::RelPath::new("src/lib.rs"),
+                    content,
+                    language: "markdown".into(),
+                    namespace: "memory_bank".into(),
+                    author: None,
+                    timestamp: None,
+                    start_line: 1,
+                    end_line: 1,
+                }],
+                &tokio_util::sync::CancellationToken::new(),
+            )
+            .await
+            .unwrap();
+    }
+    let response = engram
+        .search_memory(Parameters(engram_server::SearchMemoryRequest {
+            project_id: pid.clone(),
+            query: "userrouteprobe".into(),
+            search_scope: "knowledge".into(),
+            semantic: false,
+            include_user_memory: true,
+            include_content: true,
+            max_content_chars_per_result: 2000,
+            max_results: 20,
+            ..Default::default()
+        }))
+        .await
+        .unwrap();
+    let out = text(&response);
+    assert!(
+        out.contains("PROJECT_PAYLOAD_TAIL") && out.contains("USER_PAYLOAD_TAIL"),
+        "Requested user full content silently became snippet: {out}"
+    );
+    assert!(
+        !out.contains("symbols:"),
+        "Knowledge borrowed caller source symbols: {out}"
+    );
+    let mut projects = std::collections::BTreeSet::new();
+    for line in out.lines().filter_map(|l| {
+        l.strip_prefix("full_chunk: get_chunk(")
+            .and_then(|s| s.strip_suffix(')'))
+    }) {
+        let request: engram_server::GetChunkRequest = serde_json::from_str(line).unwrap();
+        assert_eq!(request.namespace, "memory_bank");
+        assert_eq!(request.doc_id, "same-project-doc");
+        let expected = if request.project_id == USER {
+            "USER_PAYLOAD_TAIL"
+        } else {
+            assert_eq!(request.project_id, pid);
+            "PROJECT_PAYLOAD_TAIL"
+        };
+        projects.insert(request.project_id.clone());
+        let result = engram.get_chunk(Parameters(request)).await.unwrap();
+        assert!(text(&result).contains(expected));
+    }
+    assert_eq!(projects.len(), 2, "Both project identities required: {out}");
 }

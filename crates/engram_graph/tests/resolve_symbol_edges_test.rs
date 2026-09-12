@@ -11,6 +11,117 @@ fn open_store(tmp: &tempfile::TempDir) -> GraphStore {
     GraphStore::open(&tmp.path().join("graph.redb")).expect("GraphStore::open")
 }
 
+#[test]
+fn refreshed_stable_source_retires_only_superseded_extracted_edges() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "source-edge-lifetimes";
+    let mut caller = make_node("caller", "Caller.Run", "caller.vb");
+    caller.generation = 2; // Stable ID was overwritten by the new extraction.
+    graph
+        .upsert_nodes(
+            pid,
+            &[caller, make_node("target", "Target.Run", "target.vb")],
+        )
+        .unwrap();
+    let old = make_call("caller", "target");
+    let mut current = make_call("caller", "::External.Run");
+    current.generation = 2;
+    let mut temporal = old.clone();
+    temporal.edge_kind = EdgeKind::TemporalCoupling;
+    let mut knowledge = old.clone();
+    knowledge.edge_kind = EdgeKind::QueriesTable;
+    knowledge.namespace = "business_logic".into();
+    let inbound = make_call("target", "caller");
+    graph
+        .upsert_edges(pid, &[old, current, temporal, knowledge, inbound])
+        .unwrap();
+    let (_, removed) = graph
+        .purge_stale_nodes_for_paths(pid, &["caller.vb".to_string()].into_iter().collect(), 2)
+        .unwrap();
+    assert_eq!(removed, 1);
+    let calls = graph.list_edges(pid, Some(EdgeKind::Calls)).unwrap();
+    assert_eq!(calls.len(), 2);
+    assert!(calls.iter().any(|e| e.target_id == "::External.Run"));
+    assert!(
+        calls
+            .iter()
+            .any(|e| e.source_id == "target" && e.target_id == "caller")
+    );
+    assert_eq!(
+        graph
+            .list_edges(pid, Some(EdgeKind::TemporalCoupling))
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        graph
+            .list_edges(pid, Some(EdgeKind::QueriesTable))
+            .unwrap()
+            .len(),
+        1
+    );
+}
+
+#[test]
+fn qualified_receiver_is_preserved_in_call_resolution() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "qualified-receivers";
+    let caller = make_node("caller", "Example.Caller.Copy", "sample.vb");
+    let exists = make_node("exists", "Example.Marker.Exists", "sample.vb");
+    let load = make_node("load", "Example.Factory.Load", "sample.vb");
+    graph
+        .upsert_nodes(pid, &[caller.clone(), exists.clone(), load.clone()])
+        .unwrap();
+    graph
+        .upsert_edges(
+            pid,
+            &[
+                make_call("caller", "::IO.Directory.Exists"),
+                make_call("caller", "::System.Reflection.Assembly.Load"),
+                make_call("caller", "::Marker.Exists"),
+                make_call("caller", "::Example.Factory.Load"),
+            ],
+        )
+        .unwrap();
+    graph.resolve_symbol_edges(pid).unwrap();
+    let targets: Vec<_> = graph
+        .neighbors(pid, EdgeKind::Calls, "caller", 10)
+        .unwrap()
+        .into_iter()
+        .map(|(id, _)| id)
+        .collect();
+    assert!(targets.contains(&"::IO.Directory.Exists".to_string()));
+    assert!(targets.contains(&"::System.Reflection.Assembly.Load".to_string()));
+    assert!(targets.contains(&exists.node_id));
+    assert!(targets.contains(&load.node_id));
+}
+
+#[test]
+fn traversal_does_not_rebind_unknown_qualified_receiver() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "qualified-traversal";
+    graph
+        .upsert_nodes(
+            pid,
+            &[
+                make_node("caller", "Caller.Run", "sample.vb"),
+                make_node("wrong", "Local.Exists", "sample.vb"),
+            ],
+        )
+        .unwrap();
+    graph
+        .upsert_edges(pid, &[make_call("caller", "::IO.Directory.Exists")])
+        .unwrap();
+    let found = graph
+        .traverse(pid, "caller", 2, Some(vec![EdgeKind::Calls]), "out")
+        .unwrap();
+    assert!(!found.iter().any(|(n, _)| n.node_id == "wrong"));
+}
+
 fn make_node(node_id: &str, name: &str, file_path: &str) -> Node {
     Node {
         node_id: node_id.to_string(),
@@ -55,6 +166,312 @@ fn make_call(source_id: &str, target_id: &str) -> Edge {
         metadata: None,
         updated_at_ms: 1_000_000,
     }
+}
+
+fn make_api_call_transport(
+    source_id: &str,
+    target_id: &str,
+    method: &str,
+    transport: Option<&str>,
+) -> Edge {
+    let mut m = serde_json::Map::new();
+    m.insert(
+        "ajax_target_method".into(),
+        serde_json::Value::String(method.to_string()),
+    );
+    if let Some(t) = transport {
+        m.insert(
+            "ajax_transport".into(),
+            serde_json::Value::String(t.to_string()),
+        );
+    }
+    Edge {
+        source_id: source_id.to_string(),
+        target_id: target_id.to_string(),
+        namespace: "memory".to_string(),
+        language: "javascript".to_string(),
+        edge_kind: EdgeKind::ApiCall,
+        weight: 1,
+        generation: 1,
+        metadata: Some(serde_json::Value::Object(m)),
+        updated_at_ms: 1_000_000,
+    }
+}
+
+/// An api-name broker route (the ONLY ajax shape the api-layer preference fires
+/// on): transport `api_name`.
+fn make_api_call(source_id: &str, target_id: &str, method: &str) -> Edge {
+    make_api_call_transport(source_id, target_id, method, Some("api_name"))
+}
+
+/// Resolved Calls neighbors of a source, as target ids.
+fn calls_targets(graph: &GraphStore, pid: &str, src: &str) -> Vec<String> {
+    graph
+        .neighbors(pid, EdgeKind::ApiCall, src, 10)
+        .unwrap()
+        .into_iter()
+        .map(|(t, _)| t)
+        .collect()
+}
+
+#[test]
+fn webmethod_ajax_is_not_rebound_to_an_api_layer_method() {
+    // P1-2 negative: a WebMethod/PageMethods ajax route (transport != api_name)
+    // with an unrelated same-name api.* candidate must NOT be rebound to the
+    // api-layer method — it stays an honest `::` placeholder.
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "test-webmethod";
+    let api_fn = make_node(
+        "sym:function:Site/x/api-json/api-x.vb:api.doThing:1",
+        "api.doThing",
+        "Site/x/api-json/api-x.vb",
+    );
+    let page_fn = make_node(
+        "sym:function:Site/pages/thing.aspx.vb:Thing.doThing:1",
+        "Thing.doThing",
+        "Site/pages/thing.aspx.vb",
+    );
+    let caller = make_node("file:Site/js/thing.js", "thing.js", "Site/js/thing.js");
+    graph
+        .upsert_nodes(pid, &[api_fn.clone(), page_fn.clone(), caller.clone()])
+        .unwrap();
+    graph
+        .upsert_edges(
+            pid,
+            &[make_api_call_transport(
+                &caller.node_id,
+                "::doThing",
+                "doThing",
+                Some("web_method"),
+            )],
+        )
+        .unwrap();
+    graph.resolve_symbol_edges(pid).unwrap();
+    let targets = calls_targets(&graph, pid, &caller.node_id);
+    assert!(
+        !targets.contains(&api_fn.node_id),
+        "a WebMethod ajax route must not be rebound to an api.* method: {targets:?}"
+    );
+}
+
+#[test]
+fn api_call_without_api_name_transport_is_not_resolved() {
+    // P1-2 negative: ajax_target_method present but NO transport → not an
+    // api-name broker route → stays a placeholder.
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "test-notransport";
+    let api_fn = make_node(
+        "sym:function:Site/x/api-json/api-x.vb:api.foo:1",
+        "api.foo",
+        "Site/x/api-json/api-x.vb",
+    );
+    let impl_fn = make_node(
+        "sym:function:Site/x/code/x.vb:_c.Bar.foo:1",
+        "_c.Bar.foo",
+        "Site/x/code/x.vb",
+    );
+    let caller = make_node("file:Site/js/f.js", "f.js", "Site/js/f.js");
+    graph
+        .upsert_nodes(pid, &[api_fn.clone(), impl_fn.clone(), caller.clone()])
+        .unwrap();
+    graph
+        .upsert_edges(
+            pid,
+            &[make_api_call_transport(
+                &caller.node_id,
+                "::foo",
+                "foo",
+                None,
+            )],
+        )
+        .unwrap();
+    graph.resolve_symbol_edges(pid).unwrap();
+    let targets = calls_targets(&graph, pid, &caller.node_id);
+    assert!(
+        !targets.contains(&api_fn.node_id),
+        "no api_name transport → must not bind to the api.* method: {targets:?}"
+    );
+}
+
+#[test]
+fn non_function_api_candidate_is_not_selected() {
+    // P1-2 negative: the sole api.* candidate is a PAGE, not a function → the
+    // dispatch preference must not bind to it.
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "test-nonfn";
+    let mut api_page = make_node(
+        "page:Site/x/api-json/api.aspx:api.render:1",
+        "api.render",
+        "Site/x/api-json/api.aspx",
+    );
+    api_page.node_type = "page".into();
+    let impl_fn = make_node(
+        "sym:function:Site/x/code/x.vb:_c.Bar.render:1",
+        "_c.Bar.render",
+        "Site/x/code/x.vb",
+    );
+    let caller = make_node("file:Site/js/r.js", "r.js", "Site/js/r.js");
+    graph
+        .upsert_nodes(pid, &[api_page.clone(), impl_fn.clone(), caller.clone()])
+        .unwrap();
+    graph
+        .upsert_edges(pid, &[make_api_call(&caller.node_id, "::render", "render")])
+        .unwrap();
+    graph.resolve_symbol_edges(pid).unwrap();
+    let targets = calls_targets(&graph, pid, &caller.node_id);
+    assert!(
+        !targets.contains(&api_page.node_id),
+        "a non-function api.* candidate must not be selected: {targets:?}"
+    );
+}
+
+#[test]
+fn api_routed_call_resolves_to_the_api_layer_handler() {
+    // A client `api.ajax('iopX')` (ApiCall carrying ajax_target_method) names an
+    // overloaded server function: an api-json handler `api.iopX` beside a code
+    // implementation `_io.Foo.iopX`. Both are real, so the bare name is
+    // ambiguous; and because real function nodes are class-QUALIFIED, the
+    // candidates surface through the TERMINAL index (`iopX`), never the
+    // bare-name index. The generic file/receiver tiebreak can't choose (the .ts
+    // source is in neither file), which previously left a dangling `::`
+    // placeholder (the ox_causal_20 finding). Api-routed calls bind to the
+    // `api.`-class handler.
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "test-api-layer";
+
+    let handler = make_node(
+        "sym:function:Site/x/api-json/api-x.vb:api.iopX:1",
+        "api.iopX",
+        "Site/x/api-json/api-x.vb",
+    );
+    let impl_node = make_node(
+        "sym:function:Site/x/code/x.vb:_io.Foo.iopX:1",
+        "_io.Foo.iopX",
+        "Site/x/code/x.vb",
+    );
+    let caller = make_node(
+        "file:Site/modules/ts/panel.ts",
+        "panel.ts",
+        "Site/modules/ts/panel.ts",
+    );
+    graph
+        .upsert_nodes(pid, &[handler.clone(), impl_node.clone(), caller.clone()])
+        .unwrap();
+    graph
+        .upsert_edges(pid, &[make_api_call(&caller.node_id, "::iopX", "iopX")])
+        .unwrap();
+
+    graph.resolve_symbol_edges(pid).unwrap();
+
+    let out = graph
+        .neighbors(pid, EdgeKind::ApiCall, &caller.node_id, 10)
+        .unwrap();
+    let targets: Vec<String> = out.into_iter().map(|(t, _)| t).collect();
+    assert!(
+        targets.contains(&handler.node_id),
+        "api-routed call must resolve to the api-layer handler; got {targets:?}"
+    );
+    assert!(
+        !targets.iter().any(|t| t.starts_with("::")),
+        "no dangling placeholder must remain; got {targets:?}"
+    );
+    assert!(
+        !targets.contains(&impl_node.node_id),
+        "must not bind to the code-layer impl; got {targets:?}"
+    );
+}
+
+#[test]
+fn api_route_does_not_bind_to_a_unique_non_api_symbol() {
+    // Round-8 re-audit P0-2: an api_name route whose method name matches a
+    // UNIQUE unrelated symbol (NOT an `api.`-class function) must NOT silently
+    // bind to it — the api-layer rule runs BEFORE the generic exact-name match
+    // and does not fall through, so the route stays a VISIBLE unbound placeholder.
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "test-p0-2";
+    // A unique symbol named exactly "Foo" that is NOT in the api class.
+    let unrelated = make_node("sym:function:Site/other.vb:Foo:1", "Foo", "Site/other.vb");
+    let caller = make_node("file:Site/ts/x.ts", "x.ts", "Site/ts/x.ts");
+    graph
+        .upsert_nodes(pid, &[unrelated.clone(), caller.clone()])
+        .unwrap();
+    graph
+        .upsert_edges(pid, &[make_api_call(&caller.node_id, "::Foo", "Foo")])
+        .unwrap();
+    graph.resolve_symbol_edges(pid).unwrap();
+    let targets = calls_targets(&graph, pid, &caller.node_id);
+    assert!(
+        !targets.contains(&unrelated.node_id),
+        "an api route must NOT bind to a non-api unique symbol; got {targets:?}"
+    );
+    assert!(
+        targets.iter().any(|t| t.starts_with("::")),
+        "the unresolved api route stays a visible `::` placeholder; got {targets:?}"
+    );
+}
+
+#[test]
+fn ajax_metadata_on_a_calls_edge_is_not_api_routed() {
+    // Round-8 P1-3: the api-layer preference must fire on the RIGHT edge kind —
+    // ajax_target_method on an ApiCall edge, dispatch_key on a Calls edge — not
+    // any edge that merely carries the metadata field. The SAME api_name ajax
+    // metadata on a Calls edge must NOT be routed to the api. handler; it stays
+    // on the generic ladder (here: an unresolved terminal placeholder).
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "test-p1-3";
+    let handler = make_node(
+        "sym:function:Site/api-json/api-x.vb:api.iopX:1",
+        "api.iopX",
+        "Site/api-json/api-x.vb",
+    );
+    let impl_node = make_node(
+        "sym:function:Site/code/x.vb:_io.Foo.iopX:1",
+        "_io.Foo.iopX",
+        "Site/code/x.vb",
+    );
+    let caller = make_node("file:Site/ts/panel.ts", "panel.ts", "Site/ts/panel.ts");
+    graph
+        .upsert_nodes(pid, &[handler.clone(), impl_node.clone(), caller.clone()])
+        .unwrap();
+    // api_name ajax metadata, but on a CALLS edge (wrong kind for an ajax route).
+    let mut m = serde_json::Map::new();
+    m.insert(
+        "ajax_target_method".into(),
+        serde_json::Value::String("iopX".into()),
+    );
+    m.insert(
+        "ajax_transport".into(),
+        serde_json::Value::String("api_name".into()),
+    );
+    let edge = Edge {
+        source_id: caller.node_id.clone(),
+        target_id: "::iopX".to_string(),
+        namespace: "memory".into(),
+        language: "javascript".into(),
+        edge_kind: EdgeKind::Calls,
+        weight: 1,
+        generation: 1,
+        metadata: Some(serde_json::Value::Object(m)),
+        updated_at_ms: 1_000_000,
+    };
+    graph.upsert_edges(pid, &[edge]).unwrap();
+    graph.resolve_symbol_edges(pid).unwrap();
+    let targets: Vec<String> = graph
+        .neighbors(pid, EdgeKind::Calls, &caller.node_id, 10)
+        .unwrap()
+        .into_iter()
+        .map(|(t, _)| t)
+        .collect();
+    assert!(
+        !targets.contains(&handler.node_id),
+        "ajax metadata on a Calls edge must NOT be api-routed to the api. handler; got {targets:?}"
+    );
 }
 
 #[test]
@@ -420,7 +837,7 @@ fn signature_shaped_target_resolves_via_suffix_step() {
 }
 
 #[test]
-fn edge_metadata_fqn_misses_fall_through_to_terminal_segment() {
+fn missing_explicit_fqn_does_not_bind_to_an_unrelated_terminal_name() {
     let tmp = tempfile::TempDir::new().unwrap();
     let graph = open_store(&tmp);
     let pid = "test-edge-fqn-miss";
@@ -449,8 +866,8 @@ fn edge_metadata_fqn_misses_fall_through_to_terminal_segment() {
 
     let resolved = graph.resolve_symbol_edges(pid).unwrap();
     assert_eq!(
-        resolved, 1,
-        "terminal fallback still applies after fqn miss"
+        resolved, 0,
+        "missing explicit identity must remain unresolved"
     );
 
     let calls = graph.list_edges(pid, Some(EdgeKind::Calls)).unwrap();
@@ -458,5 +875,61 @@ fn edge_metadata_fqn_misses_fall_through_to_terminal_segment() {
         .iter()
         .filter(|e| e.source_id == source.node_id)
         .collect();
-    assert_eq!(rewritten[0].target_id, t.node_id);
+    assert_eq!(rewritten[0].target_id, "::DoWork");
+}
+
+#[test]
+fn duplicate_metadata_fqn_does_not_select_first_overload() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "ambiguous-qualified-overload";
+    let source = make_node("caller", "Caller", "caller.vb");
+    let first = make_node_with_fqn("first", "SaveOne", "service.vb", "Ns.Service.Save");
+    let second = make_node_with_fqn("second", "SaveTwo", "service.vb", "Ns.Service.Save");
+    graph.upsert_nodes(pid, &[source, first, second]).unwrap();
+    graph
+        .upsert_edges(pid, &[make_call("caller", "::Ns.Service.Save")])
+        .unwrap();
+    assert_eq!(graph.resolve_symbol_edges(pid).unwrap(), 0);
+    let edges = graph.list_edges(pid, Some(EdgeKind::Calls)).unwrap();
+    assert_eq!(edges[0].target_id, "::Ns.Service.Save");
+}
+
+#[test]
+fn event_qualified_identity_wins_over_unique_bare_name() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "event-qualified-identity";
+    let source = make_node("control", "SaveButton", "edit.aspx");
+    let decoy = make_node("decoy", "OnSave", "other.vb");
+    let target = make_node("handler", "Editor.OnSave", "edit.aspx.vb");
+    graph.upsert_nodes(pid, &[source, decoy, target]).unwrap();
+    let mut edge = make_call("control", "::OnSave");
+    edge.metadata = Some(serde_json::json!({"fqn":"Editor.OnSave", "via":"event_wiring"}));
+    graph.upsert_edges(pid, &[edge]).unwrap();
+    assert_eq!(graph.resolve_symbol_edges(pid).unwrap(), 1);
+    let edges = graph.list_edges(pid, Some(EdgeKind::Calls)).unwrap();
+    assert_eq!(edges[0].target_id, "handler");
+    assert_eq!(
+        edges[0].metadata.as_ref().unwrap()["resolution"],
+        "post_edge_fqn"
+    );
+}
+
+#[test]
+fn equal_suffix_names_are_not_proof_of_duplicate_identity() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "ambiguous-suffix-overload";
+    let source = make_node("caller", "Caller", "caller.vb");
+    let first = make_node("first", "Ns.Service.Save", "service.vb");
+    let mut second = make_node("second", "Ns.Service.Save", "service.vb");
+    second.start_line = 20;
+    graph.upsert_nodes(pid, &[source, first, second]).unwrap();
+    graph
+        .upsert_edges(pid, &[make_call("caller", "::Service.Save")])
+        .unwrap();
+    assert_eq!(graph.resolve_symbol_edges(pid).unwrap(), 0);
+    let edges = graph.list_edges(pid, Some(EdgeKind::Calls)).unwrap();
+    assert_eq!(edges[0].target_id, "::Service.Save");
 }

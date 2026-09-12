@@ -18,6 +18,10 @@ use tokio_util::sync::CancellationToken;
 
 const FILES: &[(&str, &str)] = &[
     (
+        "resources/messages.resx",
+        "<data name=\"Search\" xml:space=\"preserve\">\nÅÄ\nabc---ÅÄ\nPath: C:\\Temp\\[Item]+{Value}\n",
+    ),
+    (
         "Site/App_Code/lower.vb",
         "Public Class lower\n    Dim personalliggare_id As Integer = 1\nEnd Class\n",
     ),
@@ -174,4 +178,48 @@ async fn case_sensitive_literal_still_matches_exact_case_only() {
     )
     .unwrap();
     assert_eq!(files_of(&r), vec!["Site/App_Code/lower.vb".to_string()]);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn raw_literal_punctuation_and_unicode_are_searchable() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let (engine, stats) = build(tmp.path()).await;
+    let root = tmp.path().join("project");
+    for (pattern, regex, tier) in [
+        (r#"<data name="Search" xml:space"#, false, GrepTier::TermIndex),
+        (r#"<data name="Search" xml:space="preserve">"#, false, GrepTier::TermIndex),
+        (r#"^<data name="Search".*$"#, true, GrepTier::TermNarrowed),
+        (r"Path: C:\Temp\[Item]+{Value}", false, GrepTier::TermIndex),
+        ("ÅÄ", false, GrepTier::FullScan),
+        ("^ÅÄ$", true, GrepTier::FullScan),
+        ("abc.*ÅÄ", true, GrepTier::TermNarrowed),
+    ] {
+        for case in [None, Some(true), Some(false)] {
+            let mut q = query(pattern, case);
+            q.regex = regex;
+            let result = grep(&engine, &root, &q, || Ok(stats.clone())).unwrap();
+            assert_eq!(files_of(&result), vec!["resources/messages.resx"], "pattern={pattern:?}, case={case:?}");
+            assert_eq!(result.tier_used, tier, "pattern={pattern:?}");
+            assert!(result.matches.iter().all(|hit| hit.doc_id.as_deref() == Some("doc_0")));
+        }
+    }
+
+    // Candidate trigrams are only a prefilter. Exact text, case, and all
+    // caller scopes must still be enforced after replacing the query parser.
+    for pattern in [r#"<data name="search" xml:space"#, r#"xml:space <data name="Search""#] {
+        let result = grep(&engine, &root, &query(pattern, Some(true)), || Ok(stats.clone())).unwrap();
+        assert!(result.matches.is_empty(), "pattern={pattern:?}");
+    }
+    for scope in 0..5 {
+        let mut q = query(r#"<data name="Search" xml:space"#, None);
+        match scope {
+            0 => q.project_id = "other-project".into(),
+            1 => q.namespace = "other-namespace".into(),
+            2 => q.generation = 2,
+            3 => q.path_prefix = Some("other/".into()),
+            _ => q.language = Some("other-language".into()),
+        }
+        let result = grep(&engine, &root, &q, || Ok(stats.clone())).unwrap();
+        assert!(result.matches.is_empty(), "scope={scope}");
+    }
 }

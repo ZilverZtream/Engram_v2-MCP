@@ -181,6 +181,7 @@ async fn feature_matrix_fts_only_engine_returns_fts_results_without_panic() {
                 fts_mode: "strict".into(),
                 include_path_prefixes: None,
                 exclude_path_prefixes: None,
+                include_path_suffixes: None,
                 language_filters: None,
                 author_filter: None,
                 date_after: None,

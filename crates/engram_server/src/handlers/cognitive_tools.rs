@@ -77,6 +77,16 @@ fn antipattern_hit_text(snippet: Option<&str>, include_content: bool) -> String 
     out
 }
 
+// Missing evidence must not erase a positive violation or imply clearance.
+fn immune_status(verdict_rank: u8, incomplete_evidence: bool) -> &'static str {
+    match verdict_rank {
+        2 => "🔴 BLOCKED",
+        1 => "🟡 WARNING",
+        _ if incomplete_evidence => "INSUFFICIENT",
+        _ => "🟢 CLEAN",
+    }
+}
+
 fn immune_rule_matches_path(file_pattern: &str, target_path: &str) -> bool {
     if file_pattern.is_empty() {
         return false;
@@ -873,6 +883,10 @@ impl Engram {
             };
 
             let mut out = format!("## Table: {}\n\n", table_node.name);
+            out.push_str(&format!(
+                "Source: {} (indexed DDL; verify against the deployed database)\n\n",
+                table_node.file_path
+            ));
 
             if let Some(ref meta) = table_node.metadata
                 && let Some(ddl) = meta.get("ddl").and_then(|v| v.as_str())
@@ -882,14 +896,23 @@ impl Engram {
                 out.push_str("\n```\n\n");
             }
 
-            let columns = graph
-                .neighbors(&req.project_id, EdgeKind::HasColumn, &table_id, 200)
+            let mut columns = graph
+                .neighbors(&req.project_id, EdgeKind::HasColumn, &table_id, 201)
                 .map_err(|e| e.to_string())?;
+            if columns.len() > 200 {
+                out.push_str(
+                    "INCOMPLETE: columns and foreign keys truncated to the first 200 columns.\n",
+                );
+                columns.truncate(200);
+            }
 
             if !columns.is_empty() {
                 out.push_str("### Columns\n");
                 for (col_id, _weight) in &columns {
-                    if let Ok(Some(col_node)) = graph.get_node(&req.project_id, col_id) {
+                    if let Some(col_node) = graph
+                        .get_node(&req.project_id, col_id)
+                        .map_err(|e| e.to_string())?
+                    {
                         let data_type = col_node
                             .metadata
                             .as_ref()
@@ -906,6 +929,10 @@ impl Engram {
                             "- **{}** {} (nullable: {})\n",
                             col_node.name, data_type, nullable
                         ));
+                    } else {
+                        out.push_str(&format!(
+                            "- INCOMPLETE: column node unavailable: {col_id}\n"
+                        ));
                     }
                 }
                 out.push('\n');
@@ -913,9 +940,15 @@ impl Engram {
 
             let mut fk_lines = Vec::new();
             for (col_id, _) in &columns {
-                let fks = graph
-                    .neighbors(&req.project_id, EdgeKind::ForeignKey, col_id, 50)
+                let mut fks = graph
+                    .neighbors(&req.project_id, EdgeKind::ForeignKey, col_id, 51)
                     .map_err(|e| e.to_string())?;
+                if fks.len() > 50 {
+                    out.push_str(&format!(
+                        "INCOMPLETE: foreign keys for {col_id} truncated at 50.\n"
+                    ));
+                    fks.truncate(50);
+                }
                 for (ref_col_id, _) in fks {
                     fk_lines.push(format!("- {} -> {}", col_id, ref_col_id));
                 }
@@ -929,16 +962,26 @@ impl Engram {
                 out.push('\n');
             }
 
-            let referencing = graph
-                .find_incoming_edges(&req.project_id, Some(EdgeKind::QueriesTable), &table_id, 50)
+            let mut referencing = graph
+                .find_incoming_edges(&req.project_id, Some(EdgeKind::QueriesTable), &table_id, 51)
                 .map_err(|e| e.to_string())?;
+            if referencing.len() > 50 {
+                out.push_str("INCOMPLETE: SQL references truncated at 50.\n");
+                referencing.truncate(50);
+            }
 
             if !referencing.is_empty() {
                 out.push_str("### Referenced by SQL Nodes\n");
                 for (sql_id, weight) in &referencing {
-                    let callers = graph
-                        .find_incoming_edges(&req.project_id, Some(EdgeKind::SqlCalls), sql_id, 20)
+                    let mut callers = graph
+                        .find_incoming_edges(&req.project_id, Some(EdgeKind::SqlCalls), sql_id, 21)
                         .map_err(|e| e.to_string())?;
+                    if callers.len() > 20 {
+                        out.push_str(&format!(
+                            "INCOMPLETE: callers for {sql_id} truncated at 20.\n"
+                        ));
+                        callers.truncate(20);
+                    }
                     let caller_strs: Vec<_> = callers.iter().map(|(id, _)| id.as_str()).collect();
                     if caller_strs.is_empty() {
                         out.push_str(&format!("- {} (weight: {})\n", sql_id, weight));
@@ -967,6 +1010,12 @@ impl Engram {
         req: TraceStateUsageRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        if req.state_type.trim().is_empty() || req.state_key.trim().is_empty() {
+            return Err(McpError::invalid_params(
+                "state_type and state_key must not be blank",
+                None,
+            ));
+        }
         let _ = self.ensure_project_runtime(&req.project_id).await?;
 
         let project_id_outer = req.project_id.clone();
@@ -1008,6 +1057,7 @@ impl Engram {
                 req.state_type, req.state_key
             );
 
+            out.push_str("Coverage: locations are indexed containing-symbol declarations, not verified access-site positions. Current source and runtime behavior are unverified.\n\n");
             // MCP1: use sanitized limit to prevent resource amplification.
             let limit = req.sanitized_limit();
             let writers = graph
@@ -1015,14 +1065,15 @@ impl Engram {
                     &req.project_id,
                     Some(EdgeKind::WritesState),
                     &state_id,
-                    limit,
+                    limit + 1,
                 )
                 .map_err(|e| format!("DB error querying writers: {e}"))?;
 
+            if writers.len() > limit { out.push_str(&format!("Coverage: writers truncated at {limit}.\n")); }
             if !writers.is_empty() {
                 out.push_str("### Writers\n");
-                for (writer_id, weight) in &writers {
-                    if let Ok(Some(node)) = graph.get_node(&req.project_id, writer_id) {
+                for (writer_id, weight) in writers.iter().take(limit) {
+                    if let Some(node) = graph.get_node(&req.project_id, writer_id).map_err(|e| format!("Writer node lookup failed: {e}"))? {
                         out.push_str(&format!(
                             "- {} [{}] in {}:{} (weight: {})\n",
                             node.name,
@@ -1032,12 +1083,12 @@ impl Engram {
                             weight
                         ));
                     } else {
-                        out.push_str(&format!("- {} (weight: {})\n", writer_id, weight));
+                        out.push_str(&format!("- {} (weight: {}; indexed node unavailable)\n", writer_id, weight));
                     }
                 }
                 out.push('\n');
             } else {
-                out.push_str("### Writers\nNo writers found.\n\n");
+                out.push_str("### Writers\nNo indexed writers found; dynamic access may be absent from the graph.\n\n");
             }
 
             let readers = graph
@@ -1045,14 +1096,15 @@ impl Engram {
                     &req.project_id,
                     Some(EdgeKind::ReadsState),
                     &state_id,
-                    limit,
+                    limit + 1,
                 )
                 .map_err(|e| format!("DB error querying readers: {e}"))?;
 
+            if readers.len() > limit { out.push_str(&format!("Coverage: readers truncated at {limit}.\n")); }
             if !readers.is_empty() {
                 out.push_str("### Readers\n");
-                for (reader_id, weight) in &readers {
-                    if let Ok(Some(node)) = graph.get_node(&req.project_id, reader_id) {
+                for (reader_id, weight) in readers.iter().take(limit) {
+                    if let Some(node) = graph.get_node(&req.project_id, reader_id).map_err(|e| format!("Reader node lookup failed: {e}"))? {
                         out.push_str(&format!(
                             "- {} [{}] in {}:{} (weight: {})\n",
                             node.name,
@@ -1062,11 +1114,11 @@ impl Engram {
                             weight
                         ));
                     } else {
-                        out.push_str(&format!("- {} (weight: {})\n", reader_id, weight));
+                        out.push_str(&format!("- {} (weight: {}; indexed node unavailable)\n", reader_id, weight));
                     }
                 }
             } else {
-                out.push_str("### Readers\nNo readers found.\n");
+                out.push_str("### Readers\nNo indexed readers found; dynamic access may be absent from the graph.\n");
             }
             out.push_str(
                 "\nnext: writers before readers when changing the shape of this value; \
@@ -1081,10 +1133,7 @@ impl Engram {
         .map_err(|e| McpError::internal_error(e, None))?;
 
         let mut result = out;
-        let gen_ = self
-            .get_active_generation(&project_id_outer)
-            .await
-            .unwrap_or(1);
+        let gen_ = self.get_active_generation(&project_id_outer).await?;
         result.push_str(&self.freshness_footer(&project_id_outer, gen_).await);
         Ok(CallToolResult::success(vec![Content::text(result)]))
     }
@@ -1389,6 +1438,7 @@ impl Engram {
                     fts_mode: "loose".into(),
                     include_path_prefixes: None,
                     exclude_path_prefixes: None,
+                    include_path_suffixes: None,
                     language_filters: None,
                     author_filter: None,
                     date_after: None,
@@ -2287,10 +2337,11 @@ impl Engram {
         &self,
         project_id: &str,
         methods: &[crate::services::business_logic_service::MethodBusinessLogic],
+        complete_files: &[String],
     ) -> Result<usize, McpError> {
         use engram_core::{ContentHash, DocIdStr, RelPath};
 
-        if methods.is_empty() {
+        if methods.is_empty() && complete_files.is_empty() {
             return Ok(0);
         }
         let ps = self.ensure_project_runtime(project_id).await?;
@@ -2298,18 +2349,24 @@ impl Engram {
 
         let mut docs: Vec<engram_index::IndexDoc> = Vec::with_capacity(methods.len());
         for m in methods {
-            // Skip empty analyses (LLM unavailable/failed) — a doc with no
-            // purpose and no rules only pollutes retrieval.
-            if m.purpose.is_empty() && m.business_rules.is_empty() {
+            // Failed JSON must not overwrite an earlier complete analysis.
+            // Its diagnostic is still returned to the requesting client.
+            if !m.parse_diagnostic.is_empty()
+                || (m.purpose.is_empty() && m.business_rules.is_empty())
+            {
                 continue;
             }
             let mut content = crate::services::business_logic_service::render_method_as_doc(m);
             content.push_str(&format!("\n_Source: {}_\n", m.file_path));
 
+            let method_key = m
+                .overload_line
+                .map(|line| format!("{}__L{line}", m.method_name))
+                .unwrap_or_else(|| m.method_name.clone());
             let synthetic_path = format!(
                 "__business_logic/{}/{}.md",
                 m.file_path.replace('\\', "/"),
-                m.method_name
+                method_key
             );
             // Path-stable identity: doc_id/chunk_id derive from the path so
             // updated analyses replace (pk delete-then-add), never duplicate.
@@ -2338,18 +2395,49 @@ impl Engram {
                 content_hash: content_hash.0,
             });
         }
-        if docs.is_empty() {
-            return Ok(0);
-        }
         let n = docs.len();
-        ps.search
-            .index_docs(
-                project_id,
-                &docs,
-                &tokio_util::sync::CancellationToken::new(),
-            )
-            .await
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        if !docs.is_empty() {
+            ps.search
+                .index_docs(
+                    project_id,
+                    &docs,
+                    &tokio_util::sync::CancellationToken::new(),
+                )
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        }
+        // Only a successful whole-file analysis can retire old identities.
+        // A single-method retry must preserve its sibling overloads.
+        let prefixes: Vec<String> = complete_files
+            .iter()
+            .filter(|file| {
+                methods.iter().filter(|m| &m.file_path == *file).all(|m| {
+                    m.parse_diagnostic.is_empty()
+                        && (!m.purpose.is_empty() || !m.business_rules.is_empty())
+                })
+            })
+            .map(|file| format!("__business_logic/{}/", file.replace('\\', "/")))
+            .collect();
+        if !prefixes.is_empty() {
+            let keep: std::collections::HashSet<String> =
+                docs.iter().map(|d| d.path.as_str().to_string()).collect();
+            let stale: Vec<RelPath> = ps
+                .search
+                .list_docs_in_namespace(project_id, namespace)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                .into_iter()
+                .filter(|d| {
+                    prefixes.iter().any(|p| d.path.starts_with(p)) && !keep.contains(&d.path)
+                })
+                .map(|d| RelPath::new(&d.path))
+                .collect();
+            if !stale.is_empty() {
+                ps.search
+                    .delete_files(project_id, namespace, &stale)
+                    .await
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            }
+        }
         Ok(n)
     }
 
@@ -2363,6 +2451,13 @@ impl Engram {
 
         let cached_hashes: std::collections::HashMap<String, String> =
             std::collections::HashMap::new();
+
+        if p.line.is_some() && p.method_name.is_none() {
+            return Err(McpError::invalid_params(
+                "line requires method_name and file_path",
+                None,
+            ));
+        }
 
         if p.method_name.is_some() && p.file_path.is_none() {
             return Ok(CallToolResult::success(vec![Content::text(
@@ -2380,72 +2475,111 @@ impl Engram {
             if let Some(method_name) = &p.method_name {
                 let language =
                     crate::services::business_logic_service::detect_language(file_path, &content);
-                let class_name =
-                    crate::services::business_logic_service::detect_class_name(&content);
-                let body_opt = match language {
-                    "ml" => {
-                        crate::services::full_project_migration_service::extract_ml_method_body(
-                            &content,
-                            method_name,
-                        )
-                    }
-                    "vb" => {
-                        crate::services::full_project_migration_service::extract_vb_method_body(
-                            &content,
-                            method_name,
-                        )
-                    }
-                    _ => crate::services::full_project_migration_service::extract_cs_method_body(
-                        &content,
-                        method_name,
-                    ),
-                };
-
-                let Some((body, start, _end, _lines)) = body_opt else {
+                let candidates: Vec<_> =
+                    crate::services::business_logic_service::extract_logic_methods(
+                        &content, language,
+                    )
+                    .into_iter()
+                    .filter(|m| {
+                        if language == "vb" {
+                            m.name.eq_ignore_ascii_case(method_name)
+                        } else {
+                            m.name == *method_name
+                        }
+                    })
+                    .collect();
+                if candidates.len() > 1 && p.line.is_none() {
+                    return Err(McpError::invalid_params(
+                        format!(
+                            "Ambiguous method '{method_name}'; provide line from {:?}",
+                            candidates
+                                .iter()
+                                .map(|m| m.overload_line.unwrap_or(m.start_line))
+                                .collect::<Vec<_>>()
+                        ),
+                        None,
+                    ));
+                }
+                let selected = candidates.into_iter().find(|m| {
+                    p.line
+                        .is_none_or(|line| m.overload_line.unwrap_or(m.start_line) == line)
+                });
+                let Some(selected) = selected else {
                     return Ok(CallToolResult::success(vec![Content::text(format!(
                         "Method '{method_name}' not found in {file_path}"
                     ))]));
                 };
 
-                let result = crate::services::business_logic_service::analyze_method_logic(
+                let dependency_context = crate::services::business_outcome_dependencies::SourceContext {
+                    graph: &self.state.graph, project_id: &p.project_id, root: std::path::Path::new(&project_dir),
+                };
+                let mut evidence = crate::services::business_outcome_dependencies::collect(
+                    &selected.body, &selected.owner, language, selected.start_line, file_path, Some(&dependency_context),
+                );
+                evidence.return_paths = crate::services::business_return_paths::collect(file_path, &content, &selected.body, selected.start_line, language).await;
+                let mut result = crate::services::business_logic_service::analyze_method_logic_with_evidence(
                     dreaming,
                     file_path,
-                    method_name,
-                    &body,
-                    &class_name,
+                    &selected.name,
+                    &selected.body,
+                    &selected.owner,
                     language,
-                    start as u32,
+                    selected.start_line,
+                    evidence,
                 )
                 .await;
+                result.overload_line = selected.overload_line;
 
                 let persisted = self
-                    .persist_business_logic(&p.project_id, std::slice::from_ref(&result))
+                    .persist_business_logic(&p.project_id, std::slice::from_ref(&result), &[])
                     .await?;
 
+                let extraction_failed =
+                    !result.parse_diagnostic.is_empty() || result.purpose.trim().is_empty();
                 if p.output_json {
                     let json = serde_json::to_string_pretty(&result)
                         .unwrap_or_else(|e| format!("JSON error: {e}"));
-                    return Ok(CallToolResult::success(vec![Content::text(json)]));
+                    return Ok(if extraction_failed {
+                        CallToolResult::error(vec![Content::text(json)])
+                    } else {
+                        CallToolResult::success(vec![Content::text(json)])
+                    });
                 }
                 let mut md = crate::services::business_logic_service::render_method_as_doc(&result);
-                md.push_str(&format!(
-                    "\n_{persisted} doc(s) persisted to the business_logic namespace — retrieve later with query_business_logic._\n"
-                ));
-                return Ok(CallToolResult::success(vec![Content::text(md)]));
+                if extraction_failed {
+                    md.push_str("\n_No business-logic documents were persisted for this failed extraction._\n");
+                } else {
+                    md.push_str(&format!(
+                        "\n_{persisted} doc(s) persisted to the business_logic namespace ? retrieve later with query_business_logic._\n"
+                    ));
+                }
+                return Ok(if extraction_failed {
+                    CallToolResult::error(vec![Content::text(md)])
+                } else {
+                    CallToolResult::success(vec![Content::text(md)])
+                });
             }
 
             // File-level mode
+            let dependency_context = crate::services::business_outcome_dependencies::SourceContext {
+                graph: &self.state.graph, project_id: &p.project_id, root: std::path::Path::new(&project_dir),
+            };
             let (file_logic, analyzed, skipped) =
-                crate::services::business_logic_service::analyze_file_logic(
+                crate::services::business_logic_service::analyze_file_logic_with_context(
                     dreaming,
                     file_path,
                     &content,
                     &cached_hashes,
+                    Some(&dependency_context),
                 )
                 .await;
 
             let persisted = self
-                .persist_business_logic(&p.project_id, &file_logic.methods)
+                .persist_business_logic(
+                    &p.project_id,
+                    &file_logic.methods,
+                    std::slice::from_ref(file_path),
+                )
                 .await?;
 
             if p.output_json {
@@ -2455,8 +2589,8 @@ impl Engram {
             }
 
             let mut md = format!(
-                "# Business Logic — {}\n\n*{}*\n\n- Methods analyzed: {analyzed}\n- Cached (skipped): {skipped}\n- Persisted to business_logic namespace: {persisted}\n\n",
-                file_logic.class_name, file_logic.file_purpose
+                "# Business Logic — {}\n\n{}- Methods analyzed: {analyzed}\n- Cached (skipped): {skipped}\n- Persisted to business_logic namespace: {persisted}\n\n",
+                file_logic.class_name, crate::services::business_logic_service::render_file_purpose(&file_logic)
             );
             for m in &file_logic.methods {
                 md.push_str(&crate::services::business_logic_service::render_method_as_doc(m));
@@ -2501,7 +2635,15 @@ impl Engram {
             .flat_map(|f| f.methods.iter().cloned())
             .collect();
         let persisted = self
-            .persist_business_logic(&p.project_id, &all_methods)
+            .persist_business_logic(
+                &p.project_id,
+                &all_methods,
+                &report
+                    .file_summaries
+                    .iter()
+                    .map(|f| f.file_path.clone())
+                    .collect::<Vec<_>>(),
+            )
             .await?;
 
         if p.output_json {
@@ -2521,6 +2663,9 @@ impl Engram {
         &self,
         p: QueryBusinessLogicRequest,
     ) -> Result<CallToolResult, McpError> {
+        if p.query.trim().is_empty() {
+            return Err(McpError::invalid_params("query must not be blank", None));
+        }
         let ps = self.ensure_project_runtime(&p.project_id).await?;
         let gen_ = self.get_active_generation(&p.project_id).await?;
 
@@ -2533,6 +2678,7 @@ impl Engram {
             fts_mode: "loose".to_string(),
             include_path_prefixes: None,
             exclude_path_prefixes: None,
+            include_path_suffixes: None,
             language_filters: None,
             author_filter: None,
             date_after: None,
@@ -2544,7 +2690,9 @@ impl Engram {
             .search
             .search(&query, None, &tokio_util::sync::CancellationToken::new())
             .await
-            .unwrap_or_default();
+            .map_err(|e| {
+                McpError::internal_error(format!("business-logic search failed: {e}"), None)
+            })?;
 
         // Render the actual rules — the original implementation returned the
         // literal string "Hits: N" and threw the content away, which made
@@ -2558,32 +2706,42 @@ impl Engram {
             )]));
         }
 
-        let mut out = format!("# Business-logic matches for '{}'\n", p.query);
-        for (i, h) in hits.iter().enumerate() {
-            out.push_str(&format!(
-                "\n## #{} {} (score {:.3})\n\n",
-                i + 1,
-                h.path,
-                h.score
-            ));
-            // Business-logic docs are small (~1 KB rendered markdown) —
-            // include the full stored document, not just a snippet.
-            match ps.search.get_doc_by_doc_id(
+        let mut analyses = Vec::new();
+        for h in &hits {
+            let content = match ps.search.get_doc_by_doc_id(
                 &p.project_id,
                 engram_core::namespaces::NAMESPACE_BUSINESS_LOGIC,
-                0, // GlobalMutable namespace stores at generation 0
+                0,
                 &h.doc_id,
             ) {
-                Ok(Some((_, _, content, _, _))) => out.push_str(&content),
-                _ => {
-                    if let Some(sn) = &h.snippet {
-                        out.push_str(sn);
-                        out.push('\n');
-                    }
-                }
-            }
+                Ok(Some((_, _, content, _, _))) => content,
+                Ok(None) => format!(
+                    "[INCOMPLETE: full stored analysis unavailable; search excerpt only]\n{}",
+                    h.snippet.as_deref().unwrap_or("")
+                ),
+                Err(error) => format!(
+                    "[INCOMPLETE: stored analysis lookup failed: {error}]\n{}",
+                    h.snippet.as_deref().unwrap_or("")
+                ),
+            };
+            analyses.push((h.doc_id.clone(), h.path.to_string(), h.score, content));
         }
-        out.push_str(&self.freshness_footer(&p.project_id, gen_).await);
+        let root = ps.info.directory.clone();
+        let question = p.query.clone();
+        let project_id = p.project_id.clone();
+        let footer = self.freshness_footer(&p.project_id, gen_).await;
+        let footer = if footer.len() > 4096 {
+            format!("{}\nINCOMPLETE: freshness footer truncated; call get_index_freshness.\n", super::business_source::utf8_prefix(&footer, 4000))
+        } else { footer };
+        let budget = 48 * 1024 - footer.len();
+        let mut out = tokio::task::spawn_blocking(move || {
+            super::business_source::render_matches(&project_id, &question, std::path::Path::new(&root), analyses, budget)
+        })
+        .await
+        .map_err(|error| {
+            McpError::internal_error(format!("source verification failed: {error}"), None)
+        })?;
+        out.push_str(&footer);
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
@@ -2754,12 +2912,36 @@ impl Engram {
 
     pub async fn handle_immune_check(
         &self,
-        req: ImmuneCheckRequest,
+        mut req: ImmuneCheckRequest,
     ) -> Result<CallToolResult, McpError> {
+        let input = crate::utils::candidate_code_input::resolve(self, &req.project_id,
+            req.code.as_deref(), req.code_file.as_deref(), req.code_file_blake3.as_deref(), req.file_path.as_deref()).await?;
+        let output_json = false;
+        if input.evidence.is_some() { req.file_path = input.context.clone(); }
+        let result = self.handle_immune_check_resolved(req, input.code).await;
+        crate::utils::candidate_code_input::attach(result, input.evidence, output_json)
+    }
+
+    async fn handle_immune_check_resolved(
+        &self,
+        req: ImmuneCheckRequest,
+        code: String,
+    ) -> Result<CallToolResult, McpError> {
+        if code.trim().is_empty() {
+            return Err(McpError::invalid_params("code must not be empty", None));
+        }
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
+        let mut evidence_gaps = Vec::new();
+        match ps.search.count_docs_by_namespace(&req.project_id) {
+            Ok(counts) if counts.get("antipattern").copied().unwrap_or(0) == 0 => {
+                evidence_gaps.push("No anti-patterns are indexed; run analyze_reverts before treating this check as evidence.".to_string());
+            }
+            Err(error) => evidence_gaps.push(format!("Anti-pattern corpus availability is unknown: {error}")),
+            _ => {}
+        }
 
-        let q = crate::utils::text::code_to_query(&req.code);
+        let q = crate::utils::text::code_to_query(&code);
         let fts_mode = if req.use_vector { "loose" } else { "strict" };
 
         let hits = ps
@@ -2774,6 +2956,7 @@ impl Engram {
                     fts_mode: fts_mode.into(),
                     include_path_prefixes: None,
                     exclude_path_prefixes: None,
+                    include_path_suffixes: None,
                     language_filters: None,
                     author_filter: None,
                     date_after: None,
@@ -2835,7 +3018,7 @@ impl Engram {
         // DROP / TRUNCATE literal. When the snippet matches at least one
         // of these AND the target file is immune-flagged, we force at
         // least WARN even if similarity scores are low.
-        let destructive_hits = detect_destructive_patterns(&req.code);
+        let destructive_hits = detect_destructive_patterns(&code);
 
         let match_count = hits.len();
         let mut highest_score = 0.0;
@@ -2851,6 +3034,7 @@ impl Engram {
             }
         );
         if let Some(ref f) = repo_rule_failure {
+            evidence_gaps.push(f.clone());
             out.push_str(&format!(
                 "FAILURE: {f} — immune-file escalation could not run\n\n"
             ));
@@ -2904,11 +3088,14 @@ impl Engram {
             verdict_rank = verdict_rank.max(2);
         }
 
-        let status = match verdict_rank {
-            2 => "🔴 BLOCKED",
-            1 => "🟡 WARNING",
-            _ => "🟢 CLEAN",
-        };
+        let status = immune_status(verdict_rank, !evidence_gaps.is_empty());
+        if !evidence_gaps.is_empty() {
+            out.push_str("## Incomplete evidence\n\n");
+            for gap in &evidence_gaps {
+                out.push_str(&format!("- {gap}\n"));
+            }
+            out.push('\n');
+        }
 
         // Surface the escalation reasoning so callers see WHY the verdict
         // landed where it did, not just the bare label.
@@ -2946,24 +3133,30 @@ impl Engram {
         &self,
         req: AntiPatternGuardRequest,
     ) -> Result<CallToolResult, McpError> {
+        let input = crate::utils::candidate_code_input::resolve(self, &req.project_id,
+            req.code.as_deref(), req.code_file.as_deref(), req.code_file_blake3.as_deref(), None).await?;
+        let output_json = false;
+        let result = self.handle_anti_pattern_guard_resolved(req, input.code).await;
+        crate::utils::candidate_code_input::attach(result, input.evidence, output_json)
+    }
+
+    async fn handle_anti_pattern_guard_resolved(
+        &self,
+        req: AntiPatternGuardRequest,
+        code: String,
+    ) -> Result<CallToolResult, McpError> {
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
 
-        let ns_counts = ps
-            .search
-            .count_docs_by_namespace(&req.project_id)
-            .unwrap_or_default();
-        let ap_count = ns_counts.get("antipattern").copied().unwrap_or(0);
+        let count = ps.search.count_docs_by_namespace(&req.project_id)
+            .map(|counts| counts.get("antipattern").copied().unwrap_or(0))
+            .map_err(|error| error.to_string());
+        let ap_count = match anti_pattern_corpus_preflight(count) {
+            Ok(count) => count,
+            Err(report) => return Ok(CallToolResult::success(vec![Content::text(report)])),
+        };
 
-        if ap_count == 0 {
-            return Ok(CallToolResult::success(vec![Content::text(
-                "verdict: PASS\n\
-                 note: No anti-patterns indexed for this project. \
-                 Run analyze_reverts first to populate the anti-pattern index.",
-            )]));
-        }
-
-        let q = crate::utils::text::code_to_query(&req.code);
+        let q = crate::utils::text::code_to_query(&code);
         let fts_mode = if req.use_vector { "loose" } else { "strict" };
 
         let hits = ps
@@ -2978,6 +3171,7 @@ impl Engram {
                     fts_mode: fts_mode.into(),
                     include_path_prefixes: None,
                     exclude_path_prefixes: None,
+                    include_path_suffixes: None,
                     language_filters: None,
                     author_filter: None,
                     date_after: None,
@@ -3005,7 +3199,10 @@ impl Engram {
             "PASS"
         };
 
-        let mut out = format!("verdict: {}\nscore: {:.3}\n\n", verdict, highest_score);
+        let mut out = format!(
+            "verdict: {}\nscore: {:.3}\nindexed_patterns: {}\ncomparison: completed\nnote: Verdict applies only to matches in the queried anti-pattern index; it does not certify code safety.\n\n",
+            verdict, highest_score, ap_count
+        );
         if !hits.is_empty() {
             out.push_str("Matches in anti-pattern index:\n");
             for h in hits.iter().take(3) {
@@ -3300,6 +3497,7 @@ impl Engram {
                             fts_mode: "loose".into(),
                             include_path_prefixes,
                             exclude_path_prefixes: None,
+                            include_path_suffixes: None,
                             language_filters: None,
                             author_filter: None,
                             date_after: None,
@@ -4813,6 +5011,7 @@ impl Engram {
                         fts_mode: "strict".to_string(),
                         include_path_prefixes: None,
                         exclude_path_prefixes: None,
+                        include_path_suffixes: None,
                         language_filters: None,
                         author_filter: None,
                         date_after: None,
@@ -5065,6 +5264,7 @@ impl Engram {
                         fts_mode: "strict".into(),
                         include_path_prefixes: None,
                         exclude_path_prefixes: None,
+                        include_path_suffixes: None,
                         language_filters: None,
                         author_filter: None,
                         date_after: None,
@@ -5847,6 +6047,14 @@ async fn gather_language_style(
 mod tests {
     use super::{detect_destructive_patterns, immune_rule_matches_path, path_confidence_score};
 
+    #[test]
+    fn incomplete_immune_evidence_cannot_clear_or_demote_violations() {
+        assert_eq!(super::immune_status(0, true), "INSUFFICIENT");
+        assert!(super::immune_status(1, true).contains("WARNING"));
+        assert!(super::immune_status(2, true).contains("BLOCKED"));
+        assert!(super::immune_status(0, false).contains("CLEAN"));
+    }
+
     // ── path_confidence_score ───────────────────────────────────────────
 
     fn node(node_type: &str) -> engram_graph::Node {
@@ -6100,4 +6308,30 @@ pub fn render_edge_kind_histogram(counts: &std::collections::HashMap<String, usi
         out.push_str(&format!("  {}: {}\n", ekind, count));
     }
     out
+}
+
+/// Keep missing evidence distinct from a completed search with no risky match.
+fn anti_pattern_corpus_preflight(count: Result<usize, String>) -> Result<usize, String> {
+    match count {
+        Ok(0) => Err("verdict: INSUFFICIENT\nindexed_patterns: 0\ncomparison: not_run\nnote: No anti-patterns indexed for this project; pattern evidence must be populated before this check can run.".into()),
+        Ok(count) => Ok(count),
+        Err(error) => Err(format!("verdict: UNAVAILABLE\ncomparison: not_run\nnote: Could not read anti-pattern index counts: {error}")),
+    }
+}
+
+#[cfg(test)]
+mod anti_pattern_evidence_tests {
+    use super::anti_pattern_corpus_preflight;
+
+    #[test]
+    fn missing_and_unavailable_evidence_never_pass() {
+        let empty = anti_pattern_corpus_preflight(Ok(0)).unwrap_err();
+        assert!(empty.starts_with("verdict: INSUFFICIENT\n"));
+        assert!(empty.contains("comparison: not_run"));
+        let failed = anti_pattern_corpus_preflight(Err("synthetic provider read failure".into())).unwrap_err();
+        assert!(failed.starts_with("verdict: UNAVAILABLE\n"));
+        assert!(failed.contains("synthetic provider read failure"));
+        assert!(failed.contains("comparison: not_run"));
+        assert_eq!(anti_pattern_corpus_preflight(Ok(2)), Ok(2));
+    }
 }

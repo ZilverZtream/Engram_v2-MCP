@@ -1,0 +1,63 @@
+id                category        status       exp                 cite      ms  verdict
+------------------------------------------------------------------------------------------------
+ox_missing_1      missing_knowledgeunsupported  unsupported         -       1119  ok
+ox_missing_2      missing_knowledgeunsupported  unsupported         -       1252  ok
+ox_missing_3      missing_knowledgeunsupported  unsupported         -       1114  ok
+ox_missing_4      missing_knowledgeunsupported  unsupported         -       1015  ok
+ox_exact_1        exact_fact      answered     answered/partial    1.00     617  ok
+ox_exact_2        exact_fact      answered     answered/partial    1.00    1042  ok
+ox_exact_3        exact_fact      answered     answered/partial    1.00     586  FAIL: item precision 0.20 < 0.5 (2/10 relevant)
+ox_exact_4        exact_fact      answered     answered/partial    0.67    1264  ok
+ox_exact_5        exact_fact      answered     answered/partial    1.00     586  ok
+ox_exact_6        exact_fact      answered     answered/partial    1.00    1128  FAIL: item precision 0.40 < 0.5 (2/5 relevant)
+ox_usage_1        usage           answered     answered/partial    1.00    1220  ok
+ox_usage_2        usage           answered     answered/partial    1.00     417  FAIL: no evidence item satisfies {'path_suffix': 'aspnetusers.vb', 'content_all': ['isadminroleuploadofmarkericonsenabled']}
+ox_usage_3        usage           answered     answered/partial    1.00    1407  FAIL: no evidence item satisfies {'path_any': ['permit_edit', 'manage_custom_icons', 'fortnoxinvoicepreview'], 'content_all': []}
+ox_usage_4        usage           answered     answered/partial    1.00     533  FAIL: no evidence item satisfies {'path_suffix': 'api-atahuvud.vb', 'content_all': ['getdictionaryintegervalue', 'pr_id']}
+ox_usage_5        usage           answered     answered/partial    0.50    1245  FAIL: required symbols/files not cited: ['iomarker']
+ox_multi_1        multi_hop       ambiguous    answered/partial    0.67    1035  FAIL: status ambiguous not in ['answered', 'partial']
+ox_multi_2        multi_hop       answered     answered/partial    1.00     876  FAIL: no evidence item satisfies {'path_suffix': 'manage_custom_icons.aspx.vb', 'content_all': ['mapmarkercustomicons']}
+ox_multi_3        multi_hop       answered     answered/partial    1.00    1114  FAIL: no evidence item satisfies {'path_suffix': '.rdl', 'path_any': ['redovisning'], 'content_all': []}
+ox_multi_4        multi_hop       answered     answered/partial    0.83     879  FAIL: item precision 0.30 < 0.34 (3/10 relevant)
+ox_impact_1       impact          answered     answered/partial    1.00     918  ok
+ox_impact_2       impact          answered     answered/partial    1.00    1135  ok
+ox_impact_3       impact          answered     answered/partial    1.00    1079  ok
+ox_impact_4       impact          answered     answered/partial    1.00    1237  ok
+ox_rationale_1    rationale       answered     answered/partial    1.00    1165  ok
+ox_rationale_2    rationale       answered     answered/partial/unsupported0.00    1119  FAIL: item precision 0.30 < 0.34 (3/10 relevant)
+ox_compound_1     compound        answered     answered/partial    1.00    1181  FAIL: item precision 0.30 < 0.34 (3/10 relevant)
+ox_compound_2     compound        answered     answered/partial    1.00    1356  ok
+ox_history_1      history         answered     answered/partial/unsupported-        601  ok
+ox_history_2      history         answered     answered/partial/unsupported-        715  ok
+ox_bug_1          bug             answered     answered/partial    0.75     895  FAIL: required symbols/files not cited: ['highlightcamerabutton']
+ox_bug_2          bug             ambiguous    answered/partial    0.50    1106  FAIL: status ambiguous not in ['answered', 'partial']
+ox_requirements_1 requirements    answered     answered/partial/unsupported-        817  ok
+ox_requirements_2 requirements    answered     answered/partial    1.00    1039  ok
+ox_ambiguous_1    usage           ambiguous    answered/partial/ambiguous-        474  ok
+ox_ambiguous_2    usage           ambiguous    answered/partial/ambiguous-        478  ok
+--------------------------------------------------------------------------
+judge:        v3-item-level
+status-match: 33/35 = 94%   (gate >= 80%)
+abstain:      4/4 = 100%   (gate = 100%)
+mean citation coverage (answerable rows): 0.88
+mean latency: 965 ms
+dreamer insights: OFF; insight evidence in 0/35 rows (0 items)
+correct:      21/35 = 60%   (gate = 100%: status + modality + item-scoped symbols + required_items + file recall + no forbidden + item precision)
+  FAIL ox_exact_3: item precision 0.20 < 0.5 (2/10 relevant)
+  FAIL ox_exact_6: item precision 0.40 < 0.5 (2/5 relevant)
+  FAIL ox_usage_2: no evidence item satisfies {'path_suffix': 'aspnetusers.vb', 'content_all': ['isadminroleuploadofmarkericonsenabled']}
+  FAIL ox_usage_3: no evidence item satisfies {'path_any': ['permit_edit', 'manage_custom_icons', 'fortnoxinvoicepreview'], 'content_all': []}
+  FAIL ox_usage_4: no evidence item satisfies {'path_suffix': 'api-atahuvud.vb', 'content_all': ['getdictionaryintegervalue', 'pr_id']}
+  FAIL ox_usage_5: required symbols/files not cited: ['iomarker']
+  FAIL ox_multi_1: status ambiguous not in ['answered', 'partial']
+  FAIL ox_multi_2: no evidence item satisfies {'path_suffix': 'manage_custom_icons.aspx.vb', 'content_all': ['mapmarkercustomicons']}
+  FAIL ox_multi_3: no evidence item satisfies {'path_suffix': '.rdl', 'path_any': ['redovisning'], 'content_all': []}
+  FAIL ox_multi_4: item precision 0.30 < 0.34 (3/10 relevant)
+  FAIL ox_rationale_2: item precision 0.30 < 0.34 (3/10 relevant)
+  FAIL ox_compound_1: item precision 0.30 < 0.34 (3/10 relevant)
+  FAIL ox_bug_1: required symbols/files not cited: ['highlightcamerabutton']
+  FAIL ox_bug_2: status ambiguous not in ['answered', 'partial']
+no-regression gate: correct 21 >= 14 -> ok
+
+GATE: PASS
+record written: C:/Users/Dennis/AppData/Local/Temp/claude/C--ai-projects-Engram-MCP-v2/50d309ed-9767-44e6-b7fc-2ac51dd98fa5/scratchpad/p0/golden_v3_r59.json

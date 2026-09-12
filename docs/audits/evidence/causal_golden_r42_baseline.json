@@ -1,0 +1,534 @@
+{
+ "summary": {
+  "corpus": "eval\\data\\ask_causal_ociusx.jsonl",
+  "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+  "rows": 20,
+  "status_match": 20,
+  "abstain_ok": 0,
+  "abstain_total": 0,
+  "correct": 5,
+  "mean_cite": 0.825,
+  "gate": "FAIL",
+  "insights": false,
+  "finished_utc": "2026-08-30T16:08:37Z"
+ },
+ "rows": [
+  {
+   "id": "ox_causal_1",
+   "category": "causal",
+   "question": "Which TypeScript code calls the athDeleteByID API, and which VB function handles it?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "required symbols/files not cited: ['api-atahuvud']",
+   "cite_coverage": "1.00",
+   "ms": 5270,
+   "evidence_paths": [
+    "Site/App_Code/shared-code/ConfigSettings.vb",
+    "Site/modules/dashboard/ts/caw/caw/caw.ts",
+    "Site/modules/map/~.js/map.js",
+    "Site/modules/map/~.js/map.js",
+    "Site/modules/dashboard/pages/public/caw/~.js/caw.js",
+    ".github/instructions/map-marker-checklist.instructions.md",
+    ".coderabbit.yaml",
+    "Site/api.asmx",
+    "Site/modules/dashboard/ts/caw/caw/caw.ts",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_causal_2",
+   "category": "causal",
+   "question": "Who calls the iopGetAvailableImages API and where is it implemented?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "required symbols/files not cited: ['ioMarkerInfowindow']",
+   "cite_coverage": "0.50",
+   "ms": 869,
+   "evidence_paths": [
+    "Site/App_Code/installationsobjekt/api-json/api-installationsobjektprojekt.vb",
+    "Site/App_Code/shared-code/ConfigSettings.vb",
+    "Site/App_Code/api-json/api-files.vb",
+    "Site/App_Code/api-json/api-images.vb",
+    "Site/App_Code/api-json/api-sms.vb",
+    "Site/App_Code/api-json/api-useraccess.vb",
+    "Site/App_Code/ata/api-json/api-atadetaljer.vb",
+    "Site/App_Code/ata/api-json/api-atahuvud.vb",
+    "Site/App_Code/api-json/api-broker.vb",
+    "db-ociusx.sql/dbo/Tables/hl_handelselogg.sql"
+   ]
+  },
+  {
+   "id": "ox_causal_3",
+   "category": "causal",
+   "question": "What breaks if ioCheckCanUserDeleteOrMoveMarker changes what it returns?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "required symbols/files not cited: ['ioMarker.ts']",
+   "cite_coverage": "1.00",
+   "ms": 669,
+   "evidence_paths": [
+    "Site/App_Code/installationsobjekt/api-json/api-installationsobjektprojekt.vb",
+    "Site/App_Code/ata/api-json/api-atadetaljer.vb",
+    "Site/App_Code/ata/api-json/api-atahuvud.vb",
+    "Site/App_Code/ata/code/ChangeRequestHelper.vb",
+    "Site/App_Code/installationsobjekt/api-json/api-installationsobjektprojekt.vb",
+    "Site/App_Code/api-json/api-broker.vb",
+    "Site/modules/map/~.js/map.js",
+    "Site/App_Code/api-json/api-broker.vb",
+    "Site/modules/dashboard/ts/map/vsMap/addressMarker/addressManager.ts",
+    "Site/modules/dashboard/ts/map/vsMap/iomarker/ioManager.ts"
+   ]
+  },
+  {
+   "id": "ox_causal_4",
+   "category": "causal",
+   "question": "Which frontend files depend on the permitDelete API?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 1070,
+   "evidence_paths": [
+    "Site/App_Code/permits/api-json/api-permits.vb",
+    "Site/App_Code/shared-code/ConfigSettings.vb",
+    "Site/App_Code/permits/code/permitApplicationStatus.vb",
+    "Site/modules/map/~.js/map.js",
+    "Site/modules/map/~.js/map.js",
+    "Site/App_Code/api-v2/DataTransferObjects/permit/Permit-Out.vb",
+    "Site/App_Code/permits/code/FileLibrary.vb",
+    "Site/modules/dashboard/ts/map/vsMap/permit/permitModalPopup.ts",
+    "Site/App_Code/api-json/api-broker.vb",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_causal_5",
+   "category": "causal",
+   "question": "What calls prGetSubProjects?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "no evidence of the requested modality ['.ts']",
+   "cite_coverage": "0.50",
+   "ms": 880,
+   "evidence_paths": [
+    ".github/prompts/sentry-error-analysis.prompt.md",
+    "Site/modules/dashboard/pages/admin/production/productioncodelistmaincategory.aspx.vb",
+    "Site/App_Code/fbinstplan/api-json/api-fiberjobbmoment.vb",
+    "Site/App_GlobalResources/text.en.resx",
+    "Site/App_Code/api-v2/Owin/OAuthAppProvider.vb",
+    "Site/App_Code/iFalt.designer.vb",
+    "Site/App_Code/Global.asax.vb",
+    "Site/App_Code/grunddata/api-json/api-projekt.vb",
+    "Site/App_Code/shared-code/ConfigSettings.vb",
+    "Site/App_Code/grunddata/api-json/api-projekt.vb"
+   ]
+  },
+  {
+   "id": "ox_causal_6",
+   "category": "causal",
+   "question": "Who uses the athGetByFilter API?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "no evidence of the requested modality ['.ts']",
+   "cite_coverage": "0.50",
+   "ms": 636,
+   "evidence_paths": [
+    "Site/App_Code/ata/api-json/api-atahuvud.vb",
+    "Site/App_Code/shared-code/ConfigSettings.vb",
+    "Site/App_Code/gpsstatus/api-json/api-gpsstatus.vb",
+    "Site/App_Code/grunddata/api-json/api-kunder.vb",
+    "Site/App_Code/grunddata/api-json/api-lag.vb",
+    "Site/App_Code/grunddata/api-json/api-projekt.vb",
+    "Site/App_Code/imagegallery/api-json/api-imagegallery.vb",
+    "Site/App_Code/installationsobjekt/api-json/api-installationsobjektprojekt.vb",
+    "Site/App_Code/ata/api-json/api-atahuvud.vb",
+    "db-ociusx.sql/dbo/Tables/prmt_permit_type.sql"
+   ]
+  },
+  {
+   "id": "ox_causal_7",
+   "category": "causal",
+   "question": "What breaks if I rename rltUpdateUser?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "no evidence of the requested modality ['.ts']",
+   "cite_coverage": "0.50",
+   "ms": 809,
+   "evidence_paths": [
+    "Site/App_Code/redovisning/api-json/api-redovisningslisttyp.vb",
+    "Site/App_Code/redovisning/api-json/api-redovisningslisttyp.vb",
+    "Site/App_Code/api-json/api-broker.vb",
+    "Site/App_Code/redovisning/code/redovisninglista.vb",
+    "Site/App_Code/redovisning/code/redovisninglista.vb",
+    "Site/App_Code/api-v2/Owin/OAuthAppProvider.vb",
+    "Site/App_GlobalResources/text.en.resx",
+    "Site/App_Code/iFalt.designer.vb",
+    "Site/App_Code/installationsobjekt/code/NonGeoSpatialExport/GisPdfExport.vb"
+   ]
+  },
+  {
+   "id": "ox_causal_8",
+   "category": "causal",
+   "question": "Which TypeScript calls rvGetUsersForFilter?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "required symbols/files not cited: ['ioRoqFilterManager']",
+   "cite_coverage": "1.00",
+   "ms": 1919,
+   "evidence_paths": [
+    "Site/ts/imgHandler/imgHandler.ts",
+    "Site/ts/imgHandler/imgHandler.ts",
+    ".coderabbit.yaml",
+    "Site/ts/imgHandler/IETypeDefinitions.ts",
+    "Site/modules/dashboard/ts/system/integration/fortnox/worknumber/fortnox_arbetsnummer.ts",
+    "Site/modules/dashboard/ts/system/integration/tripletex/worknumber/tripletex_worknumber.ts",
+    ".github/copilot-instructions.md",
+    "Site/App_Code/redovisning/code/estimatedVsReported.vb",
+    "memory_bank:engram/index_report",
+    "Site/App_Code/redovisning/api-json/api-redovisning.vb"
+   ]
+  },
+  {
+   "id": "ox_causal_9",
+   "category": "causal",
+   "question": "What depends on the fjMigrateWithinTotalProject API?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 888,
+   "evidence_paths": [
+    "Site/App_Code/fbinstplan/api-json/api-migrera.vb",
+    "Site/App_Code/shared-code/ConfigSettings.vb",
+    "Site/App_Code/fbinstplan/api-json/api-migrera.vb",
+    "Site/App_Code/shared-code/ConfigSettings.vb",
+    "Site/App_Code/api-json/api-broker.vb",
+    "Site/modules/dashboard/pages/public/installation/~.js/installation_edit.js",
+    "Site/modules/dashboard/ts/installation/installation_edit/installation_edit.ts",
+    "Site/App_Code/api-json/api-broker.vb",
+    "Site/App_Code/integration/code/gis/vetrofibermap/APIv2/DTO/FeatureQueryDTO.vb"
+   ]
+  },
+  {
+   "id": "ox_causal_10",
+   "category": "causal",
+   "question": "Which client code calls fmUpdateStatus?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "required symbols/files not cited: ['addressMarkerMoment', 'app.ts']",
+   "cite_coverage": "1.00",
+   "ms": 1052,
+   "evidence_paths": [
+    "Site/App_Code/fbinstplan/api-json/api-fiberjobbmoment.vb",
+    "Site/App_Code/fbinstplan/api-json/api-fiberjobbmoment.vb",
+    "Site/App_Code/visualisering/code/visualisering-vehicle.vb",
+    "Site/modules/dashboard/ts/map/vsMap/iomarker/vsIOMarkerToobox.ts",
+    "Site/modules/fbinstplan/~.js/fbinstplan.js",
+    "Site/modules/dashboard/pages/public/installation/installation_edit.aspx.vb",
+    "Site/App_Code/integration/code/gis/vetrofibermap/APIv2/Feature.vb",
+    "Site/App_Code/api-v2/Controllers/reportingOfQuantities/CodelisttypesController.vb",
+    "Site/App_Code/api-v2/Controllers/timeReporting/TimeCodeCategoriesController.vb",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_causal_11",
+   "category": "causal",
+   "question": "Who calls fjGet?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "no evidence of the requested modality ['.ts']",
+   "cite_coverage": "0.50",
+   "ms": 562,
+   "evidence_paths": [
+    "Site/App_Code/api-json/api-broker.vb",
+    "Site/App_Code/fbinstplan/api-json/api-fiberjobb.vb",
+    "Site/App_Code/fbinstplan/api-json/api-fiberjobb.vb",
+    "Site/App_Code/users-security/code/aspnetUsers.vb",
+    "Site/App_Code/users-security/code/aspnetUsers.vb",
+    "Site/App_Code/fbinstplan/code/fiberjobb.vb",
+    "Site/modules/dashboard/pages/public/taskmanagement/fullcalendar/fullcalendar.js",
+    "Site/modules/map/~.js/map.js",
+    "Site/App_Code/iFalt.designer.vb",
+    "Site/App_Code/iFalt.designer.vb"
+   ]
+  },
+  {
+   "id": "ox_causal_12",
+   "category": "causal",
+   "question": "What breaks if cfSaveSheetRow changes?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "no evidence of the requested modality ['.ts']",
+   "cite_coverage": "0.50",
+   "ms": 896,
+   "evidence_paths": [
+    "Site/App_Code/customform/api-json/api-customForm.vb",
+    "Site/App_Code/ata/api-json/api-atadetaljer.vb",
+    "Site/App_Code/ata/api-json/api-atahuvud.vb",
+    "Site/App_Code/ata/code/ChangeRequestHelper.vb",
+    "Site/App_Code/customform/api-json/api-customForm.vb",
+    "Site/App_Code/api-json/api-broker.vb",
+    "Site/App_Code/iFalt.designer.vb",
+    "Site/App_Code/iFalt.designer.vb",
+    "Site/App_Code/api-json/api-broker.vb",
+    "Site/modules/dashboard/pages/admin/system/import/import_permits.aspx.vb"
+   ]
+  },
+  {
+   "id": "ox_causal_13",
+   "category": "causal",
+   "question": "Which TypeScript files call gisGetProjectImportData?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 1757,
+   "evidence_paths": [
+    "Site/App_Code/installationsobjekt/code/ImportOfmarkers/api-json/api-markerimport.vb",
+    ".coderabbit.yaml",
+    ".coderabbit.yaml",
+    "Site/ts/imgHandler/imgHandler.ts",
+    "Site/ts/imgHandler/imgHandler.ts",
+    ".github/instructions/map-marker-checklist.instructions.md",
+    "Site/modules/map/~.js/map.js",
+    "Site/ts/imgHandler/IETypeDefinitions.ts",
+    "Site/modules/storage/~.js/storage.js",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_causal_14",
+   "category": "causal",
+   "question": "What depends on usGetAllUserAccessObjects?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "required symbols/files not cited: ['user_edit']",
+   "cite_coverage": "1.00",
+   "ms": 1128,
+   "evidence_paths": [
+    "Site/App_Code/api-json/api-useraccess.vb",
+    "Site/App_Code/api-json/api-broker.vb",
+    "Site/App_Code/api-json/api-useraccess.vb",
+    "Site/App_Code/users-security/code/AccountType.vb",
+    "Site/Q/typings/google.maps/index.d.ts",
+    "Site/modules/dashboard/pages/admin/system/user/ctrl_userinformation.ascx.vb",
+    "Site/ts/qty/qtyManager.ts",
+    "Site/App_Code/shared-code/SmsUsingIP1.vb",
+    "Site/modules/dashboard/ts/map/vsMap/iomarker/filterManagers/ioRoqFilterManager.ts"
+   ]
+  },
+  {
+   "id": "ox_causal_15",
+   "category": "causal",
+   "question": "Who calls pp_akSaveTask?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "no evidence of the requested modality ['.ts']",
+   "cite_coverage": "0.50",
+   "ms": 537,
+   "evidence_paths": [
+    "Site/App_Code/api-json/api-broker.vb",
+    "Site/App_Code/projektplanering/api-json/api-taskManagement.vb",
+    "Site/App_Code/projektplanering/api-json/api-taskManagement.vb",
+    "Site/App_Code/fbinstplan/code/fiberjobb.vb",
+    "Site/App_Code/projektplanering/code/TaskBulkUpdate.vb",
+    "Site/App_Code/permits/tbl-classes/prm_permitsEx.vb",
+    "Site/App_Code/users-security/code/aspnetUsers.vb",
+    "Site/modules/dashboard/pages/public/taskmanagement/fullcalendar/fullcalendar.js",
+    "Site/App_Code/permits/dto/PermitApplicationStatus-Out.vb",
+    "Site/App_Code/iFalt.designer.vb"
+   ]
+  },
+  {
+   "id": "ox_causal_16",
+   "category": "causal",
+   "question": "Which TypeScript calls the getimg web method, and which VB file implements it?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "required symbols/files not cited: ['ajax.ts', 'api-images']",
+   "cite_coverage": "1.00",
+   "ms": 1741,
+   "evidence_paths": [
+    "Site/Q/typings/google.maps/index.d.ts",
+    "Site/Q/typings/google.maps/index.d.ts",
+    "Site/ts/imgHandler/Interfaces.ts",
+    ".github/prompts/local-pr-review.prompt.md",
+    ".coderabbit.yaml",
+    "Site/modules/dashboard/pages/public/taskmanagement/fullcalendar-scheduler/scheduler.js",
+    "Site/modules/dashboard/pages/admin/system/integration/gis/vetro/webhook_setup.aspx.vb",
+    "Site/Q/typings/google.maps/index.d.ts",
+    "Site/modules/dashboard/ts/map/vsMap/interfaces/ILatLngAndDegree.ts",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_causal_17",
+   "category": "causal",
+   "question": "What breaks if uploadimg in api-images.vb changes its parameters?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 728,
+   "evidence_paths": [
+    "None",
+    "None",
+    "None",
+    "None",
+    "None",
+    "None",
+    "None",
+    "None",
+    "Site/ts/imgHandler/imgHandler.ts",
+    "Site/App_Code/api-json/api-images.vb"
+   ]
+  },
+  {
+   "id": "ox_causal_18",
+   "category": "causal",
+   "question": "Who calls DeleteImage on the server?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": true,
+   "reason": "",
+   "cite_coverage": "1.00",
+   "ms": 612,
+   "evidence_paths": [
+    "Site/App_Code/api-json/api-images.vb",
+    "Site/App_Code/api-json/api-images.vb",
+    "Site/modules/fbinstplan/~.js/fbinstplan.js",
+    "Site/ts/imgHandler/imgGroupHandler.ts",
+    "Site/ts/imgHandler/imgGroupHandler.ts",
+    "Site/ts/imgHandler/imgManager.ts",
+    "Site/~.js/imgManager.js",
+    "Site/ts/imgHandler/imgManager.ts",
+    "Site/ts/imgHandler/imgHandler.ts",
+    "db-ociusx.sql/dbo/Tables/aarl_assetAccessRequestLog.sql"
+   ]
+  },
+  {
+   "id": "ox_causal_19",
+   "category": "causal",
+   "question": "Which frontend code depends on ConvertHeicToBase64String?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "required symbols/files not cited: ['imgHandler']",
+   "cite_coverage": "1.00",
+   "ms": 887,
+   "evidence_paths": [
+    "Site/App_Code/redovisning/code/redovisningsartiklar.vb",
+    "Site/App_Code/api-json/api-images.vb",
+    "Site/App_Code/installationsobjekt/code/io-installationsobjektprojekt.vb",
+    "Site/App_Code/redovisning/code/RoQReport.vb",
+    "Site/Q/typings/google.maps/index.d.ts",
+    "Site/App_Code/shared-code/CryptoHelper.vb",
+    "Site/ts/qty/qtyManager.ts",
+    "Site/App_Code/api-v2/Controllers/reportingOfQuantities/CodelisttypesController.vb",
+    "Site/App_Code/api-v2/Controllers/timeReporting/TimeCodeCategoriesController.vb",
+    "memory_bank:engram/index_report"
+   ]
+  },
+  {
+   "id": "ox_causal_20",
+   "category": "causal",
+   "question": "Which server API functions does ioMarkerInfowindow.ts call?",
+   "status": "answered",
+   "expect_status": [
+    "answered",
+    "partial"
+   ],
+   "correct": false,
+   "reason": "required symbols/files not cited: ['api-installationsobjektprojekt']",
+   "cite_coverage": "1.00",
+   "ms": 1654,
+   "evidence_paths": [
+    "Site/App_Code/shared-code/ConfigSettings.vb",
+    "Site/modules/dashboard/ts/map/vsMap/iomarker/ioMarkerInfowindow.ts",
+    "Site/Q/typings/jquery/jquery.d.ts",
+    "Site/modules/map/bootstrap/js/bootstrap.js",
+    "Site/modules/dashboard/pages/admin/projectresult/~.js/accruedexpenses.js",
+    "Site/modules/dashboard/pages/public/caw/~.js/caw.js",
+    "Site/modules/dashboard/ts/map/vsMap/common/sharedFunctions.ts",
+    "Site/modules/dashboard/ts/map/vsMap/common/sharedFunctions.ts",
+    "Site/modules/dashboard/ts/map/vsMap/iomarker/ioMarkerInfowindow.ts",
+    "memory_bank:engram/index_report"
+   ]
+  }
+ ]
+}

@@ -498,3 +498,133 @@ main.main()
         assert!(!query.split_whitespace().any(|t| t == "void"));
     }
 }
+
+
+/// Bounded, file-balanced query sampling for quality-rule retrieval, not code verification.
+#[derive(Debug)]
+pub struct AuditQuery {
+    pub query: String,
+    pub input_bytes: usize,
+    pub scanned_bytes: usize,
+    pub groups_observed: usize,
+    pub groups_sampled: usize,
+    pub group_budget_reached: bool,
+    pub term_candidates_capped: bool,
+    pub query_terms: usize,
+    pub query_terms_omitted: bool,
+}
+impl AuditQuery {
+    pub fn coverage(&self) -> String {
+        format!("Retrieval sampling only (NOT whole-diff verification): scanned {}/{} input bytes; {}/{} observed file/code groups contributing distinct selected terms; max32 groups, max64 distinct terms/group, max64 query terms; group_limit={}, candidate_term_limit={}, byte_limit={}; query_terms={}, query_term_limit={}. Later bytes/groups/terms may be omitted even when retrieval succeeds.\n",
+            self.scanned_bytes, self.input_bytes, self.groups_sampled, self.groups_observed,
+            self.group_budget_reached, self.term_candidates_capped,
+            self.scanned_bytes < self.input_bytes, self.query_terms, self.query_terms_omitted)
+    }
+}
+
+pub fn audit_code_query(code: &str) -> AuditQuery {
+    use std::collections::HashSet;
+    const BYTE_LIMIT: usize = 256 * 1024;
+    const GROUP_LIMIT: usize = 32;
+    const TERM_LIMIT: usize = 64;
+    let mut end = code.len().min(BYTE_LIMIT);
+    while !code.is_char_boundary(end) { end -= 1; }
+    let input = &code[..end];
+    let diff = input.lines().any(|line| line.starts_with("diff --git "));
+    let mut groups: Vec<Vec<String>> = Vec::new();
+    let mut observed = 0usize;
+    let mut current = None;
+    let mut in_hunk = false;
+    let mut capped = false;
+    let mut group_seen = HashSet::new();
+    for line in input.lines() {
+        if diff && line.starts_with("diff --git ") {
+            observed += 1;
+            in_hunk=false;
+            group_seen.clear();
+            current = if groups.len() < GROUP_LIMIT {
+                groups.push(Vec::new()); Some(groups.len()-1)
+            } else { None };
+            continue;
+        }
+        if !diff && groups.is_empty() { groups.push(Vec::new()); current=Some(0); observed=1; }
+        let Some(index) = current else { continue; };
+        let content = if diff {
+            if line.starts_with("@@") { in_hunk=true; continue; }
+            if !in_hunk { continue; }
+            match line.as_bytes().first() {
+                Some(b'+') | Some(b'-') | Some(b' ') => &line[1..],
+                _ => continue,
+            }
+        } else { line };
+        // ASCII identifier splitting matches the old identifier domain without regex-prefix bias.
+        for raw in content.split(|c: char| !c.is_ascii_alphanumeric() && c != '_') {
+            if raw.len()<3 || raw.len()>30 || raw.as_bytes()[0].is_ascii_digit() { continue; }
+            let term=raw.to_ascii_lowercase();
+            if matches!(term.as_str(), "self"|"this"|"that"|"some"|"none"|"result"|"public"|"private"|"class"|"function"|"sub"|"end"|"return"|"true"|"false"|"null"|"nothing"|"imports"|"using") { continue; }
+            if group_seen.contains(&term) { continue; }
+            if groups[index].len()==TERM_LIMIT { capped=true; continue; }
+            group_seen.insert(term.clone()); groups[index].push(term);
+        }
+    }
+    let mut terms=Vec::new();
+    let mut seen=HashSet::new();
+    let mut sampled=HashSet::new();
+    'rounds: for round in 0..TERM_LIMIT {
+        for (index,group) in groups.iter().enumerate() {
+            if let Some(term)=group.get(round) {
+                if seen.insert(term.clone()) { terms.push(term.clone()); sampled.insert(index); }
+                if terms.len()==TERM_LIMIT { break 'rounds; }
+            }
+        }
+    }
+    let candidates: HashSet<&String> = groups.iter().flat_map(|g|g.iter()).collect();
+    let query_terms_omitted=candidates.len()>terms.len();
+    AuditQuery { query:terms.join(" "),input_bytes:code.len(),scanned_bytes:end,
+        groups_observed:observed,groups_sampled:sampled.len(),group_budget_reached:observed>GROUP_LIMIT,
+        term_candidates_capped:capped,query_terms:terms.len(),query_terms_omitted }
+}
+
+#[cfg(test)]
+mod audit_query_tests {
+    use super::*;
+    #[test]
+    fn later_diff_files_survive_long_first_file_and_repeated_headers() {
+        let first=(0..90).map(|i|format!("+FirstIdentifier{i}\n")).collect::<String>();
+        let query=audit_code_query(&format!("diff --git a/First.vb b/First.vb\n--- a/First.vb\n+++ b/First.vb\n@@ -1 +1 @@\n{first}diff --git a/Later.vb b/Later.vb\n--- a/Later.vb\n+++ b/Later.vb\n@@ -1 +1 @@\n+TenantAuthorization\n"));
+        assert!(query.query.contains("tenantauthorization"));
+        assert!(!query.query.contains("diff"));
+        assert_eq!(query.groups_sampled,2);
+        assert!(query.term_candidates_capped);
+        assert!(query.query_terms<=64);
+    }
+    #[test]
+    fn filters_and_duplicates_do_not_consume_query_budget() {
+        let q=audit_code_query(&format!("{} {} TenantAuthorization", "self ".repeat(100),"RepeatName ".repeat(100)));
+        assert_eq!(q.query,"repeatname tenantauthorization");
+        assert_eq!(q.groups_observed,1);
+        assert_eq!(audit_code_query("self this Some None").query,"");
+    }
+    #[test]
+    fn source_marker_prefixes_inside_hunks_are_not_mistaken_for_headers() {
+        let q=audit_code_query("diff --git a/a b/a\n--- a/a\n+++ b/a\n@@ -1 +1 @@\n+++TenantAuthorization\n---DeletedGuard\n");
+        assert!(q.query.contains("tenantauthorization"));assert!(q.query.contains("deletedguard"));
+    }
+    #[test]
+    fn query_term_budget_reports_only_actual_omission() {
+        let one=(0..32).map(|i|format!("First{i} ")).collect::<String>();
+        let two=(0..32).map(|i|format!("Later{i} ")).collect::<String>();
+        let exact=format!("diff --git a/a b/a\n@@ -1 +1 @@\n+{one}\ndiff --git a/b b/b\n@@ -1 +1 @@\n+{two}\n");
+        assert_eq!(audit_code_query(&exact).query_terms,64);assert!(!audit_code_query(&exact).query_terms_omitted);
+        assert!(audit_code_query(&(exact+"+ExtraTerm\n")).query_terms_omitted);
+    }
+    #[test]
+    fn byte_and_group_caps_are_explicit_and_unicode_safe() {
+        let q=audit_code_query(&"\u{00e9}".repeat(200_000));
+        assert!(q.scanned_bytes<q.input_bytes);assert!(q.coverage().contains("byte_limit=true"));
+        let input=(0..33).map(|i|format!("diff --git a/{i} b/{i}\n@@ -1 +1 @@\n+Token{i}\n")).collect::<String>();
+        let q=audit_code_query(&input);assert!(q.group_budget_reached);assert_eq!(q.groups_observed,33);assert_eq!(q.groups_sampled,32);
+        let exact=(0..32).map(|i|format!("diff --git a/{i} b/{i}\n@@ -1 +1 @@\n+Token{i}\n")).collect::<String>();
+        assert!(!audit_code_query(&exact).group_budget_reached);
+    }
+}

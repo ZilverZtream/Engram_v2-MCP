@@ -79,7 +79,7 @@ async fn audit(engram: &Engram, pid: &str, code: &str) -> String {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn the_audit_states_how_many_rules_it_checked() {
+async fn the_audit_states_how_many_rules_it_retrieved() {
     let (_tmp, _state, engram, pid) = build(true).await;
     let out = audit(
         &engram,
@@ -88,10 +88,12 @@ async fn the_audit_states_how_many_rules_it_checked() {
     )
     .await;
     assert!(
-        out.contains("rule(s) checked")
-            || out.contains("rules checked")
-            || out.contains("Checked:"),
-        "the tally must be printed:\n{out}"
+        out.contains("candidate rule(s)") || out.contains("Retrieved"),
+        "the tally must be printed as RETRIEVED (not verified):\n{out}"
+    );
+    assert!(
+        !out.contains("Checked:"),
+        "must not claim it 'Checked' — it only retrieves rules:\n{out}"
     );
     assert!(
         out.contains("of 3") || out.contains("3 rule"),
@@ -111,4 +113,45 @@ async fn an_empty_quality_gate_namespace_is_reported_as_inactive() {
         out.contains("ingest_quality_gates"),
         "the remedy must be named:\n{out}"
     );
+}
+
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn later_file_rule_is_retrieved_with_inline_and_bound_file_inputs() {
+    let (tmp,state,engram,pid)=build(false).await;
+    let engine=state.get_project_cached(&pid).unwrap().search;
+    let unique="zebratennantisolator";
+    engine.index_docs(&pid,&[engram_index::IndexDoc {
+        generation:1,chunk_id:990,doc_id:"qg:later-only".into(),content_hash:"qgh-later-only".into(),
+        path:RelPath::new("quality_gate/later-only.md"),content:unique.into(),language:"markdown".into(),
+        namespace:"quality_gate".into(),author:None,timestamp:None,start_line:1,end_line:1,
+    }],&tokio_util::sync::CancellationToken::new()).await.unwrap();
+    let prefix=(0..100).map(|i|format!("+UnrelatedIdentifier{i}\n")).collect::<String>();
+    let diff=format!("diff --git a/first.vb b/first.vb\n--- a/first.vb\n+++ b/first.vb\n@@ -1 +1 @@\n{prefix}diff --git a/later.vb b/later.vb\n--- a/later.vb\n+++ b/later.vb\n@@ -1 +1 @@\n+{unique}\n");
+    let old_query=engram_server::utils::text::code_to_query(&diff);
+    assert!(!old_query.contains(unique),"Regression fixture must evade old prefix-only query");
+    let old_hits=engine.search(&engram_index::HybridQuery {
+        project_id:pid.clone(),namespace:"quality_gate".into(),generation:1,text:old_query,top_k:12,
+        fts_mode:"loose".into(),include_path_prefixes:None,exclude_path_prefixes:None,include_path_suffixes:None,
+        language_filters:None,author_filter:None,date_after:None,date_before:None,use_mmr:true,
+    },None,&tokio_util::sync::CancellationToken::new()).await.unwrap();
+    assert!(old_hits.is_empty(),"Only later distinctive term should match seeded FTS corpus");
+    let inline=audit(&engram,&pid,&diff).await;
+    assert!(inline.contains("quality_gate/later-only.md"),"Later-file rule missing: {inline}");
+    assert!(inline.contains("NOT whole-diff verification"));
+    let root=tmp.path().join("proj");std::fs::write(root.join("candidate.patch"),diff.as_bytes()).unwrap();
+    let hash=blake3::hash(diff.as_bytes()).to_hex().to_string();
+    let file_req:PrePushAuditRequest=serde_json::from_value(json!({"project_id":pid,"diff_file":"candidate.patch","diff_file_blake3":hash})).unwrap();
+    let file=engram.handle_pre_push_audit(file_req).await.unwrap();
+    let file=file.content[0].as_text().unwrap().text.clone();
+    // Input kind differs; the actual candidate retrieval/rule portion must agree.
+    assert_eq!(inline.split("## Other relevant rules").last(),file.split("## Other relevant rules").last());
+    assert!(file.contains(&hash));assert!(file.contains("project-relative file"));
+    let mismatch:PrePushAuditRequest=serde_json::from_value(json!({"project_id":pid,"diff_file":"candidate.patch","diff_file_blake3":"0".repeat(64)})).unwrap();
+    assert!(engram.handle_pre_push_audit(mismatch).await.is_err());
+    let no_query=audit(&engram,&pid,"self Some None return true").await;
+    assert!(no_query.contains("Retrieval NOT RUN"));assert!(no_query.contains("no usable identifier terms"));
+    assert!(!no_query.contains("quality_gate/later-only.md"));
+    assert!(no_query.contains("Known quality-gate rule count: 1."));
+    assert!(!no_query.contains("Count diagnostic:"));
 }

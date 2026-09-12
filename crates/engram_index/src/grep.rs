@@ -102,6 +102,9 @@ pub struct GrepQuery {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GrepMatch {
+    /// Identifier accepted by get_chunk; absent for working-tree-only hits.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub doc_id: Option<String>,
     pub file_path: String,
     pub line: u32,
     pub column: u32,
@@ -326,12 +329,12 @@ fn pick_tier(q: &GrepQuery) -> GrepTier {
         // every regex through Tier 2 (full scan) to avoid the
         // complexity of literal-extraction from regex — Tier 1 is a
         // planned optimisation.
-        if q.pattern.len() >= MIN_TRIGRAM_LEN && regex_has_literal_anchor(&q.pattern) {
+        if q.pattern.chars().take(MIN_TRIGRAM_LEN).count() >= MIN_TRIGRAM_LEN && regex_has_literal_anchor(&q.pattern) {
             GrepTier::TermNarrowed
         } else {
             GrepTier::FullScan
         }
-    } else if q.pattern.len() >= MIN_TRIGRAM_LEN {
+    } else if q.pattern.chars().take(MIN_TRIGRAM_LEN).count() >= MIN_TRIGRAM_LEN {
         GrepTier::TermIndex
     } else {
         GrepTier::FullScan
@@ -361,12 +364,14 @@ fn regex_has_literal_anchor(pat: &str) -> bool {
 /// - Quantifiers (`?`, `*`, `+`): drop the preceding char from the
 ///   current run, since it may not actually appear
 /// - Class metacharacters (`.`, `^`, `$`): break the run
-/// - Groups / character classes (`(`, `)`, `[`, `]`): break the run
 /// - Character escapes that don't match a specific byte (`\d`, `\w`,
 ///   `\s`, `\b`, `\A`, `\z`, back-references): break the run
 ///
 /// Not supported (return `None`):
 /// - Alternation (`|`) — requires intersecting literals across branches
+/// - Groups and character classes — their interior is not necessarily a
+///   required literal (optional groups and multi-choice classes in particular)
+/// - Hex/Unicode/property escapes — require parsing their complete payload
 /// - Lookaround (`(?=`, `(?!`, `(?<=`, `(?<!`, `(?:`) — too-complex
 /// - Counted quantifiers (`{n,m}`) — rare; not worth the complexity
 pub(crate) fn extract_literal_anchor(pattern: &str) -> Option<String> {
@@ -389,20 +394,26 @@ pub(crate) fn extract_literal_anchor(pattern: &str) -> Option<String> {
                 // `\d`, `\w`, `\s`, assertions, back-refs — not literal.
                 if matches!(
                     next,
-                    'd' | 'D' | 's' | 'S' | 'w' | 'W' | 'b' | 'B' | 'A' | 'z' | 'Z' | '0'..='9'
+                    'd' | 'D' | 's' | 'S' | 'w' | 'W' | 'b' | 'B' | 'A' | 'z' | 'Z'
+                        | 'n' | 'r' | 't' | 'f' | 'a' | 'v' | '0'..='9'
                 ) {
-                    if current.len() > best.len() {
+                    if current.chars().count() > best.chars().count() {
                         best.clone_from(&current);
                     }
                     current.clear();
+                } else if next.is_ascii_alphabetic() {
+                    // Hex/Unicode/property escapes can consume more than one
+                    // following character. Do not invent a literal from them.
+                    return None;
                 } else {
                     // Plain escape (`\.`, `\(`, `\\`, `\"`, …) → the
                     // escaped char IS a required literal.
                     current.push(next);
                 }
             }
-            '(' | ')' | '[' | ']' | '^' | '$' | '.' => {
-                if current.len() > best.len() {
+            '(' | ')' | '[' | ']' => return None,
+            '^' | '$' | '.' => {
+                if current.chars().count() > best.chars().count() {
                     best.clone_from(&current);
                 }
                 current.clear();
@@ -412,7 +423,7 @@ pub(crate) fn extract_literal_anchor(pattern: &str) -> Option<String> {
                 // not actually appear in the match, so drop it from
                 // the current run.
                 current.pop();
-                if current.len() > best.len() {
+                if current.chars().count() > best.chars().count() {
                     best.clone_from(&current);
                 }
                 current.clear();
@@ -420,10 +431,10 @@ pub(crate) fn extract_literal_anchor(pattern: &str) -> Option<String> {
             _ => current.push(c),
         }
     }
-    if current.len() > best.len() {
+    if current.chars().count() > best.chars().count() {
         best = current;
     }
-    if best.len() >= MIN_TRIGRAM_LEN {
+    if best.chars().count() >= MIN_TRIGRAM_LEN {
         Some(best)
     } else {
         None
@@ -484,11 +495,12 @@ where
     let case_sensitive = resolve_case_sensitive(&q.pattern, q.case_sensitive);
 
     // ── Step 2: execute tier ──
-    let (matches, chunks_scanned, files_scanned) = match tier {
+    let (mut matches, chunks_scanned, files_scanned) = match tier {
         GrepTier::TermIndex => execute_term_index(engine, q, case_sensitive)?,
         GrepTier::TermNarrowed => execute_term_narrowed(engine, q, case_sensitive)?,
         GrepTier::FullScan => execute_full_scan(engine, q, case_sensitive)?,
     };
+    dedup_source_matches(&mut matches);
 
     // Prefer a real staleness warning; otherwise fail loud if the
     // full-scan tier scanned nothing (so 0 matches isn't read as absence).
@@ -504,6 +516,15 @@ where
         tier_used: tier,
         elapsed_ms: start.elapsed().as_millis() as u64,
     })
+}
+
+/// Overlapping chunks can return the same source occurrence with different
+/// document identities. Keep a deterministic recovery document while retaining
+/// separate columns and source files (including case-distinct paths).
+fn dedup_source_matches(matches: &mut Vec<GrepMatch>) {
+    matches.sort_by(|a, b| (&a.file_path, a.line, a.column, &a.doc_id, a.chunk_id)
+        .cmp(&(&b.file_path, b.line, b.column, &b.doc_id, b.chunk_id)));
+    matches.dedup_by(|a, b| a.file_path == b.file_path && a.line == b.line && a.column == b.column);
 }
 
 // ── Tier 0: term-indexed literal lookup ──
@@ -529,12 +550,13 @@ fn execute_term_index(
         // The trigram index preserves case; a case-insensitive literal
         // must reach every spelling (row-4 slice 4, live miss).
         fts_mode: if case_sensitive {
-            "strict".into()
+            "literal_cs".into()
         } else {
             "literal_ci".into()
         },
         include_path_prefixes: q.path_prefix.as_ref().map(|p| vec![p.clone()]),
         exclude_path_prefixes: None,
+        include_path_suffixes: None,
         language_filters: q.language.as_ref().map(|l| vec![l.clone()]),
         author_filter: None,
         date_after: None,
@@ -567,6 +589,7 @@ fn execute_term_index(
         }
         chunks_scanned += 1;
         files_seen.insert(hit.path.as_str().to_string());
+        let mut local_matches = Vec::new();
         scan_chunk(
             &content,
             start_line,
@@ -578,10 +601,16 @@ fn execute_term_index(
             hit.chunk_id,
             q.context_before,
             q.context_after,
-            &mut matches,
+            &mut local_matches,
             q.max_results,
         );
+        for found in &mut local_matches {
+            found.doc_id = Some(hit.doc_id.clone());
+        }
+        matches.extend(local_matches);
+        dedup_source_matches(&mut matches);
         if matches.len() >= q.max_results {
+            matches.truncate(q.max_results);
             break;
         }
     }
@@ -616,12 +645,13 @@ fn execute_term_narrowed(
         top_k: oversample,
         // Same case rule as the term-index tier: the anchor is a literal.
         fts_mode: if case_sensitive {
-            "strict".into()
+            "literal_cs".into()
         } else {
             "literal_ci".into()
         },
         include_path_prefixes: q.path_prefix.as_ref().map(|p| vec![p.clone()]),
         exclude_path_prefixes: None,
+        include_path_suffixes: None,
         language_filters: q.language.as_ref().map(|l| vec![l.clone()]),
         author_filter: None,
         date_after: None,
@@ -657,6 +687,7 @@ fn execute_term_narrowed(
         }
         chunks_scanned += 1;
         files_seen.insert(hit.path.as_str().to_string());
+        let mut local_matches = Vec::new();
         scan_chunk_with_precompiled(
             &content,
             start_line,
@@ -669,10 +700,16 @@ fn execute_term_narrowed(
             hit.chunk_id,
             q.context_before,
             q.context_after,
-            &mut matches,
+            &mut local_matches,
             q.max_results,
         );
+        for found in &mut local_matches {
+            found.doc_id = Some(hit.doc_id.clone());
+        }
+        matches.extend(local_matches);
+        dedup_source_matches(&mut matches);
         if matches.len() >= q.max_results {
+            matches.truncate(q.max_results);
             break;
         }
     }
@@ -777,7 +814,7 @@ fn execute_full_scan(
             q.multiline,
             compiled_regex.as_ref(),
             &chunk.path,
-            0,
+            chunk.chunk_id,
             q.context_before,
             q.context_after,
             &mut local_matches,
@@ -789,12 +826,12 @@ fn execute_full_scan(
                 Ok(g) => g,
                 Err(poisoned) => poisoned.into_inner(),
             };
-            for m in local_matches {
-                if global.len() >= q.max_results {
-                    break;
-                }
+            for mut m in local_matches {
+                m.doc_id = Some(chunk.doc_id.clone());
                 global.push(m);
             }
+            dedup_source_matches(&mut global);
+            global.truncate(q.max_results);
             total_matches.store(global.len(), Ordering::Relaxed);
         }
     });
@@ -820,6 +857,46 @@ fn execute_full_scan(
 }
 
 // ── Per-chunk scanner ─────────────────────────────────────────────────────────
+
+/// Scan current file contents with exactly the indexed search's matching semantics.
+/// Disk matches deliberately carry no index document identity.
+pub fn scan_working_tree_content(
+    content: &str,
+    path: &str,
+    q: &GrepQuery,
+) -> anyhow::Result<Vec<GrepMatch>> {
+    let case_sensitive = resolve_case_sensitive(&q.pattern, q.case_sensitive);
+    let compiled = if q.regex {
+        Some(
+            regex::RegexBuilder::new(&q.pattern)
+                .case_insensitive(!case_sensitive)
+                .multi_line(true)
+                .dot_matches_new_line(q.multiline)
+                .build()?,
+        )
+    } else {
+        None
+    };
+    let mut matches = Vec::new();
+    if q.max_results > 0 {
+        scan_chunk_with_precompiled(
+            content,
+            1,
+            &q.pattern,
+            case_sensitive,
+            q.regex,
+            q.multiline,
+            compiled.as_ref(),
+            path,
+            0,
+            q.context_before,
+            q.context_after,
+            &mut matches,
+            q.max_results,
+        );
+    }
+    Ok(matches)
+}
 
 /// Per-chunk scanner that accepts a pre-compiled regex when one is
 /// available. Workers in the parallel full-scan path share a single
@@ -973,7 +1050,12 @@ fn push_match(
     context_before: usize,
     context_after: usize,
 ) {
-    let line_text = lines.get(line_idx).copied().unwrap_or("").to_string();
+    // Empty files and zero-width matches after a trailing newline have no
+    // source line to render. Never slice context outside the line table.
+    let Some(line) = lines.get(line_idx) else {
+        return;
+    };
+    let line_text = (*line).to_string();
     let before_start = line_idx.saturating_sub(context_before);
     let after_end = (line_idx + 1 + context_after).min(lines.len());
     let context_before_v: Vec<String> = lines[before_start..line_idx]
@@ -985,6 +1067,7 @@ fn push_match(
         .map(|s| s.to_string())
         .collect();
     out.push(GrepMatch {
+        doc_id: None,
         file_path: file_path.to_string(),
         // start_line is 1-based; lines are 0-indexed within the chunk.
         line: chunk_start_line + line_idx as u32,

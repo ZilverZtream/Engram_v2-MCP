@@ -13,6 +13,8 @@ use tantivy::schema::{IndexRecordOption, Term, Value};
 use tantivy::{DocAddress, Score};
 use tokio_util::sync::CancellationToken;
 
+mod vector_initialization;
+
 #[derive(Debug, Clone)]
 pub struct HybridQuery {
     pub project_id: String,
@@ -23,6 +25,9 @@ pub struct HybridQuery {
     pub fts_mode: String, // "strict", "loose", "regex"
     pub include_path_prefixes: Option<Vec<String>>,
     pub exclude_path_prefixes: Option<Vec<String>>,
+    /// Round-2 audit P0-4: keep only paths ending with one of these suffixes
+    /// (".rdl", ".sql", ".resx" …), case-insensitively, on BOTH legs.
+    pub include_path_suffixes: Option<Vec<String>>,
     pub language_filters: Option<Vec<String>>,
     pub author_filter: Option<String>,
     pub date_after: Option<u64>,
@@ -216,6 +221,8 @@ impl Drop for BulkWriterGuard {
 /// A chunk's stored fields, for callers that scan text directly.
 #[derive(Debug, Clone)]
 pub struct StoredChunk {
+    pub doc_id: String,
+    pub chunk_id: u64,
     pub path: String,
     pub language: String,
     pub start_line: u32,
@@ -228,6 +235,8 @@ pub struct HybridSearchEngine {
     extractor: Arc<crate::parsing::SymbolExtractor>,
     #[cfg(feature = "vector")]
     embedder: Arc<dyn engram_ml::Embedder>,
+    #[cfg(feature = "vector")]
+    query_embedder: Arc<dyn engram_ml::Embedder>,
     #[cfg(feature = "vector")]
     lance_conn: lancedb::Connection,
     embedding_backend: String,
@@ -291,6 +300,10 @@ impl HybridSearchEngine {
             anyhow::bail!("Embedder reported dimension 0 — check embedding_backend config");
         }
 
+        #[cfg(feature = "vector")]
+        let query_embedder: Arc<dyn engram_ml::Embedder> =
+            Arc::new(crate::embed_cache::QueryEmbedder::new(embedder.clone()));
+
         // 16b: wrap remote embedders in the cross-project content-hash cache.
         // Reindex cycles, copy-forward, and history re-runs become cache hits
         // instead of full re-embeds. Local/deterministic embedders are cheap
@@ -302,13 +315,10 @@ impl HybridSearchEngine {
                 && !cfg.data_dir.as_os_str().is_empty()
             {
                 let cache_path = cfg.data_dir.join("embed_cache.redb");
-                match crate::embed_cache::CachedEmbedder::new(embedder.clone(), &cache_path) {
-                    Ok(cached) => Arc::new(cached),
-                    Err(e) => {
-                        tracing::warn!("embed cache unavailable, continuing uncached: {e:#}");
-                        embedder
-                    }
-                }
+                Arc::new(crate::embed_cache::CachedEmbedder::new_lazy(
+                    embedder,
+                    &cache_path,
+                ))
             } else {
                 embedder
             };
@@ -319,6 +329,8 @@ impl HybridSearchEngine {
             extractor: Arc::new(crate::parsing::SymbolExtractor::new()),
             #[cfg(feature = "vector")]
             embedder,
+            #[cfg(feature = "vector")]
+            query_embedder,
             #[cfg(feature = "vector")]
             lance_conn,
             embedding_backend,
@@ -500,6 +512,16 @@ impl HybridSearchEngine {
         docs: &[IndexDoc],
         cancel: &CancellationToken,
     ) -> anyhow::Result<()> {
+        self.embed_and_upsert_vectors_to_table(project_id, docs, cancel, None).await
+    }
+
+    async fn embed_and_upsert_vectors_to_table(
+        &self,
+        project_id: &str,
+        docs: &[IndexDoc],
+        cancel: &CancellationToken,
+        _table_override: Option<&str>,
+    ) -> anyhow::Result<()> {
         if docs.is_empty() || cancel.is_cancelled() {
             return Ok(());
         }
@@ -522,7 +544,8 @@ impl HybridSearchEngine {
                 }
             }
 
-            let table_name = format!("project_{}", project_id.replace('-', "_"));
+            let table_name = _table_override.map(str::to_owned)
+                .unwrap_or_else(|| format!("project_{}", project_id.replace('-', "_")));
             let (table, open_outcome) = crate::vector::open_or_create_table(
                 &self.lance_conn,
                 &table_name,
@@ -1285,6 +1308,46 @@ impl HybridSearchEngine {
         Ok(matched)
     }
 
+    /// Remove only the named document identities within a project/namespace.
+    /// Used after replacement content is successfully indexed; a failure can
+    /// leave duplicate old evidence, but never deletes the replacement by path.
+    pub async fn delete_documents(
+        &self,
+        project_id: &str,
+        namespace: &str,
+        doc_ids: &[String],
+    ) -> anyhow::Result<()> {
+        if doc_ids.is_empty() { return Ok(()); }
+        #[cfg(feature = "vector")]
+        {
+            let table_name = format!("project_{}", project_id.replace('-', "_"));
+            if self.lance_conn.table_names().execute().await?.contains(&table_name) {
+                let table = self.lance_conn.open_table(&table_name).execute().await?;
+                for batch in doc_ids.chunks(200) {
+                    let ids = batch.iter().map(|s| format!("'{}'", s.replace('\'', "''")))
+                        .collect::<Vec<_>>().join(", ");
+                    table.delete(&format!("namespace = '{}' AND doc_id IN ({ids})",
+                        namespace.replace('\'', "''"))).await?;
+                }
+            }
+        }
+        let _budget = self.memory_budget.as_ref().map(|budget|
+            AllocationGuard::try_new(budget, self.tantivy_writer_memory as u64,
+                Subsystem::Tantivy, "document cleanup writer")).transpose()?;
+        let mut writer = self.acquire_writer("delete_documents", &CancellationToken::new()).await?;
+        for id in doc_ids {
+            let terms = [(self.fields.project_id, project_id),
+                (self.fields.namespace, namespace), (self.fields.doc_id, id.as_str())];
+            let query = BooleanQuery::new(terms.into_iter().map(|(field, value)|
+                (Occur::Must, Box::new(TermQuery::new(Term::from_field_text(field, value),
+                    IndexRecordOption::Basic)) as Box<dyn tantivy::query::Query>)).collect());
+            writer.delete_query(Box::new(query))?;
+        }
+        writer.commit()?;
+        writer.wait_merging_threads()?;
+        Ok(())
+    }
+
     pub async fn delete_files(
         &self,
         project_id: &str,
@@ -1396,6 +1459,11 @@ impl HybridSearchEngine {
                 .to_string()
         };
         Ok(StoredChunk {
+            doc_id: get_str(self.fields.doc_id),
+            chunk_id: doc
+                .get_first(self.fields.chunk_id)
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0),
             path: get_str(self.fields.path),
             language: get_str(self.fields.language),
             start_line: doc
@@ -1616,6 +1684,154 @@ impl HybridSearchEngine {
         Ok(searcher.search(&q, &tantivy::collector::Count)?)
     }
 
+    /// The distinct PATHS one generation holds (all namespaces, or one) —
+    /// external audit round 2 P0-2: completeness is a path-set comparison,
+    /// never a chunk/file ratio.
+    pub fn paths_in_generation(
+        &self,
+        project_id: &str,
+        namespace: Option<&str>,
+        generation: u64,
+    ) -> anyhow::Result<std::collections::BTreeSet<String>> {
+        use tantivy::schema::Value;
+        let reader = self.tantivy_index.reader()?;
+        let searcher = reader.searcher();
+        let mut clauses: Vec<(Occur, Box<dyn tantivy::query::Query>)> = vec![
+            (
+                Occur::Must,
+                Box::new(TermQuery::new(
+                    Term::from_field_text(self.fields.project_id, project_id),
+                    IndexRecordOption::Basic,
+                )),
+            ),
+            (
+                Occur::Must,
+                Box::new(TermQuery::new(
+                    Term::from_field_u64(self.fields.generation, generation),
+                    IndexRecordOption::Basic,
+                )),
+            ),
+        ];
+        if let Some(ns) = namespace {
+            clauses.push((
+                Occur::Must,
+                Box::new(TermQuery::new(
+                    Term::from_field_text(self.fields.namespace, ns),
+                    IndexRecordOption::Basic,
+                )),
+            ));
+        }
+        let q = BooleanQuery::new(clauses);
+        let addrs = searcher.search(&q, &tantivy::collector::DocSetCollector)?;
+        let mut out = std::collections::BTreeSet::new();
+        for addr in addrs {
+            let doc: tantivy::TantivyDocument = searcher.doc(addr)?;
+            if let Some(p) = doc.get_first(self.fields.path).and_then(|v| v.as_str()) {
+                out.insert(p.to_string());
+            }
+        }
+        Ok(out)
+    }
+
+    /// The distinct PATHS one generation holds in the VECTOR store
+    /// (external audit round 2 P0-2 — the vector store was never checked).
+    pub async fn vector_paths_in_generation(
+        &self,
+        project_id: &str,
+        namespace: Option<&str>,
+        generation: u64,
+    ) -> anyhow::Result<std::collections::BTreeSet<String>> {
+        #[cfg(feature = "vector")]
+        {
+            use lancedb::query::Select;
+            let table_name = format!("project_{}", project_id.replace('-', "_"));
+            if !self
+                .lance_conn
+                .table_names()
+                .execute()
+                .await?
+                .contains(&table_name)
+            {
+                return Ok(Default::default());
+            }
+            let table = self.lance_conn.open_table(&table_name).execute().await?;
+            let filter = match namespace {
+                Some(ns) => format!(
+                    "namespace = '{}' AND generation = {generation}",
+                    ns.replace('\'', "''")
+                ),
+                None => format!("generation = {generation}"),
+            };
+            let mut results = table
+                .query()
+                .only_if(filter)
+                .select(Select::Columns(vec!["path".to_string()]))
+                .execute()
+                .await?;
+            let mut out = std::collections::BTreeSet::new();
+            use futures::TryStreamExt;
+            while let Some(batch) = TryStreamExt::try_next(&mut results).await? {
+                let batch: arrow_array::RecordBatch = batch;
+                let path_arr = batch
+                    .column_by_name("path")
+                    .and_then(|c| c.as_any().downcast_ref::<arrow_array::StringArray>())
+                    .ok_or_else(|| anyhow::anyhow!("missing path"))?;
+                for i in 0..batch.num_rows() {
+                    out.insert(path_arr.value(i).to_string());
+                }
+            }
+            Ok(out)
+        }
+        #[cfg(not(feature = "vector"))]
+        {
+            let _ = (project_id, namespace, generation);
+            Ok(Default::default())
+        }
+    }
+
+    /// Delete the vector rows of `paths` and nothing else — the one-sided loss
+    /// the integrity tests inject (Tantivy keeps the paths).
+    pub async fn delete_vector_rows_for_paths(
+        &self,
+        project_id: &str,
+        namespace: &str,
+        paths: &[RelPath],
+    ) -> anyhow::Result<()> {
+        #[cfg(feature = "vector")]
+        {
+            if paths.is_empty() {
+                return Ok(());
+            }
+            let table_name = format!("project_{}", project_id.replace('-', "_"));
+            if !self
+                .lance_conn
+                .table_names()
+                .execute()
+                .await?
+                .contains(&table_name)
+            {
+                return Ok(());
+            }
+            let table = self.lance_conn.open_table(&table_name).execute().await?;
+            let safe_ns = namespace.replace('\'', "''");
+            for chunk in paths.chunks(200) {
+                let list = chunk
+                    .iter()
+                    .map(|p| format!("'{}'", p.as_str().replace('\'', "''")))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let filter = format!("namespace = '{safe_ns}' AND path IN ({list})");
+                table.delete(&filter).await?;
+            }
+            Ok(())
+        }
+        #[cfg(not(feature = "vector"))]
+        {
+            let _ = (project_id, namespace, paths);
+            Ok(())
+        }
+    }
+
     pub fn count_docs_by_namespace(
         &self,
         project_id: &str,
@@ -1706,6 +1922,37 @@ impl HybridSearchEngine {
             }
         }
         Ok(counts)
+    }
+
+    /// Vector rows of ONE generation — external audit round 2 P0-1: the
+    /// generation race is asserted on LanceDB, not only on Tantivy.
+    pub async fn count_vectors_in_generation(
+        &self,
+        project_id: &str,
+        generation: u64,
+    ) -> anyhow::Result<usize> {
+        #[cfg(feature = "vector")]
+        {
+            let table_name = format!("project_{}", project_id.replace('-', "_"));
+            if !self
+                .lance_conn
+                .table_names()
+                .execute()
+                .await?
+                .contains(&table_name)
+            {
+                return Ok(0);
+            }
+            let table = self.lance_conn.open_table(&table_name).execute().await?;
+            Ok(table
+                .count_rows(Some(format!("generation = {generation}")))
+                .await?)
+        }
+        #[cfg(not(feature = "vector"))]
+        {
+            let _ = (project_id, generation);
+            Ok(0)
+        }
     }
 
     pub async fn count_vectors(&self, project_id: &str) -> anyhow::Result<usize> {
@@ -1869,17 +2116,23 @@ impl HybridSearchEngine {
                                 file_hash,
                             });
 
-                        let Ok(text) = String::from_utf8(bytes) else {
-                            // DS1/D5: log unexpected UTF-8 failures (fail-open:
-                            // skip content, keep the fingerprint node).
-                            tracing::warn!(
-                                path = %p.display(),
-                                "DS1/D5: file UTF-8 decode failed during indexing — file skipped (fail-open)"
-                            );
-                            local_stats
-                                .skipped_files
-                                .push(((*arc_rel).clone(), "Invalid UTF-8 encoding".into()));
-                            return (local_stats, local_docs);
+                        // Round-2 audit P0-2 follow-up: a Latin-1 comment must not
+                        // eject a whole source file from the corpus (live: 4 OciusX
+                        // files were fingerprinted — a graph File node — yet absent
+                        // from every search store). Decode lossily and say so.
+                        let text = match String::from_utf8(bytes) {
+                            Ok(t) => t,
+                            Err(e) => {
+                                tracing::warn!(
+                                    path = %p.display(),
+                                    "file is not valid UTF-8 — indexed with lossy decoding"
+                                );
+                                local_stats.warnings.push(format!(
+                                    "{}: not valid UTF-8, indexed lossily",
+                                    arc_rel.as_str()
+                                ));
+                                String::from_utf8_lossy(e.as_bytes()).into_owned()
+                            }
                         };
                         let language = engram_core::guess_language(p);
                         *local_stats
@@ -1997,6 +2250,21 @@ impl HybridSearchEngine {
                             }
                         }
 
+                        // General templates can host the same static bundle as WebForms.
+                        // Keep their source a file; do not run WebForms control extraction.
+                        if !is_vendor
+                            && matches!(
+                                ext_lower.as_deref(),
+                                Some("html" | "htm" | "cshtml" | "vbhtml" | "razor")
+                            )
+                        {
+                            for edge in crate::webforms::extract_template_script_includes(
+                                &root_buf, &arc_rel, &text,
+                            ) {
+                                local_stats.edges.push((arc_rel.clone(), edge));
+                            }
+                        }
+
                         // Post-processing: detect Crystal Reports usage in C#/VB/ASPX files.
                         if matches!(language, "csharp" | "vbnet") {
                             let (cr_syms, cr_edges) =
@@ -2026,8 +2294,8 @@ impl HybridSearchEngine {
                         // Post-processing: detect global state accesses in C#/VB files.
                         if matches!(language, "csharp" | "vbnet") {
                             let (state_syms, state_edges) =
-                                crate::state_extractor::extract_state_accesses(
-                                    &arc_rel, &text, language,
+                                crate::state_extractor::extract_state_accesses_with_members(
+                                    &arc_rel, &text, language, &syms,
                                 );
                             for s in &state_syms {
                                 local_stats.symbols.push((arc_rel.clone(), s.clone()));
@@ -2155,6 +2423,28 @@ impl HybridSearchEngine {
     }
 
     pub fn lexical_search(&self, q: &HybridQuery) -> anyhow::Result<Vec<HybridHit>> {
+        self.lexical_search_matching_impl(q, None)
+    }
+
+    /// Apply a stored-document predicate before counting a result toward top_k.
+    /// Pages share one searcher snapshot, so rejected high-ranked documents
+    /// cannot hide qualifying results below an arbitrary candidate cap.
+    pub fn lexical_search_matching(
+        &self,
+        q: &HybridQuery,
+        accept: &mut dyn FnMut(&str, &str) -> bool,
+    ) -> anyhow::Result<Vec<HybridHit>> {
+        self.lexical_search_matching_impl(q, Some(accept))
+    }
+
+    fn lexical_search_matching_impl(
+        &self,
+        q: &HybridQuery,
+        mut accept: Option<&mut dyn FnMut(&str, &str) -> bool>,
+    ) -> anyhow::Result<Vec<HybridHit>> {
+        if q.top_k == 0 {
+            return Ok(Vec::new());
+        }
         let reader = self.tantivy_index.reader()?;
         let searcher = reader.searcher();
 
@@ -2274,6 +2564,23 @@ impl HybridSearchEngine {
             }
         }
 
+        if let Some(suffixes) = &q.include_path_suffixes {
+            let mut suffix_queries: Vec<(Occur, Box<dyn tantivy::query::Query>)> = Vec::new();
+            for s in suffixes {
+                for variant in [s.to_lowercase(), s.to_uppercase()] {
+                    if let Ok(rq) = tantivy::query::RegexQuery::from_pattern(
+                        &format!(".*{}", regex::escape(&variant)),
+                        self.fields.path,
+                    ) {
+                        suffix_queries.push((Occur::Should, Box::new(rq)));
+                    }
+                }
+            }
+            if !suffix_queries.is_empty() {
+                must_clauses.push((Occur::Must, Box::new(BooleanQuery::new(suffix_queries))));
+            }
+        }
+
         if let Some(langs) = &q.language_filters {
             let mut lang_queries: Vec<(Occur, Box<dyn tantivy::query::Query>)> = Vec::new();
             for l in langs {
@@ -2309,65 +2616,90 @@ impl HybridSearchEngine {
 
         let query = BooleanQuery::new(must_clauses);
 
-        let top_docs: Vec<(Score, DocAddress)> =
-            searcher.search(&query, &TopDocs::with_limit(q.top_k))?;
+        let mut out = Vec::with_capacity(q.top_k.min(128));
+        let page_size = if accept.is_some() {
+            q.top_k.clamp(32, 128)
+        } else {
+            q.top_k
+        };
+        let mut offset = 0;
+        'pages: loop {
+            let top_docs: Vec<(Score, DocAddress)> =
+                searcher.search(&query, &TopDocs::with_limit(page_size).and_offset(offset))?;
+            let page_len = top_docs.len();
+            for (score, addr) in top_docs {
+                let doc: tantivy::TantivyDocument = searcher.doc(addr)?;
+                let pk = doc
+                    .get_first(self.fields.pk)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let chunk_id = doc
+                    .get_first(self.fields.chunk_id)
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0);
+                let path_str = doc
+                    .get_first(self.fields.path)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                let path = RelPath::new(path_str);
+                let doc_id_str = doc
+                    .get_first(self.fields.doc_id)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let content = doc
+                    .get_first(self.fields.content)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                if accept
+                    .as_mut()
+                    .is_some_and(|predicate| !predicate(&doc_id_str, content))
+                {
+                    continue;
+                }
+                let (snippet, snippet_truncated) =
+                    match doc.get_first(self.fields.content).and_then(|v| v.as_str()) {
+                        Some(s) => {
+                            let (sn, truncated) = snippet_of(s, SNIPPET_MAX_CHARS);
+                            (Some(sn), truncated)
+                        }
+                        None => (None, false),
+                    };
+                let start_line = doc
+                    .get_first(self.fields.start_line)
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0) as u32;
+                let end_line = doc
+                    .get_first(self.fields.end_line)
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0) as u32;
 
-        let mut out = Vec::with_capacity(top_docs.len());
-        for (score, addr) in top_docs {
-            let doc: tantivy::TantivyDocument = searcher.doc(addr)?;
-            let pk = doc
-                .get_first(self.fields.pk)
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-            let chunk_id = doc
-                .get_first(self.fields.chunk_id)
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0);
-            let path_str = doc
-                .get_first(self.fields.path)
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
-            let path = RelPath::new(path_str);
-            let doc_id_str = doc
-                .get_first(self.fields.doc_id)
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-            let (snippet, snippet_truncated) =
-                match doc.get_first(self.fields.content).and_then(|v| v.as_str()) {
-                    Some(s) => {
-                        let (sn, truncated) = snippet_of(s, SNIPPET_MAX_CHARS);
-                        (Some(sn), truncated)
-                    }
-                    None => (None, false),
-                };
-            let start_line = doc
-                .get_first(self.fields.start_line)
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0) as u32;
-            let end_line = doc
-                .get_first(self.fields.end_line)
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0) as u32;
-
-            let timestamp = doc
-                .get_first(self.fields.timestamp)
-                .and_then(|v| v.as_u64())
-                .filter(|&t| t > 0);
-            out.push(HybridHit {
-                pk,
-                chunk_id,
-                path,
-                score,
-                centrality: 0.0,
-                snippet,
-                doc_id: doc_id_str,
-                start_line,
-                end_line,
-                timestamp,
-                snippet_truncated,
-            });
+                let timestamp = doc
+                    .get_first(self.fields.timestamp)
+                    .and_then(|v| v.as_u64())
+                    .filter(|&t| t > 0);
+                out.push(HybridHit {
+                    pk,
+                    chunk_id,
+                    path,
+                    score,
+                    centrality: 0.0,
+                    snippet,
+                    doc_id: doc_id_str,
+                    start_line,
+                    end_line,
+                    timestamp,
+                    snippet_truncated,
+                });
+                if out.len() >= q.top_k {
+                    break 'pages;
+                }
+            }
+            if page_len < page_size {
+                break;
+            }
+            offset += page_len;
         }
 
         // Same vendor demotion as the hybrid path: minified bundles match
@@ -2402,14 +2734,14 @@ impl HybridSearchEngine {
     ///
     /// Returns `Vec<(HybridHit, content, start_line)>` so the caller
     /// can feed each hit directly into the per-chunk scanner.
-    /// Conjunction over the pattern's trigrams where each trigram matches
-    /// ANY of its case variants (`per` | `Per` | `pER` | …, ≤ 8 for three
-    /// letters). Falls back to the strict parser for patterns shorter than
-    /// one trigram. Only the candidate set is widened — literal
-    /// verification happens in the grep scanner.
-    fn case_variant_trigram_query(
+    /// Build candidates from raw tokenizer output, without query syntax.
+    /// Case-insensitive searches admit each trigram's case variants; grep
+    /// verifies the actual literal/regex in every candidate. With no token,
+    /// no content prefilter is safe (project and other filters still apply).
+    fn literal_trigram_query(
         &self,
         text: &str,
+        case_sensitive: bool,
     ) -> anyhow::Result<Box<dyn tantivy::query::Query>> {
         let mut analyzer = self
             .tantivy_index
@@ -2422,13 +2754,18 @@ impl HybridSearchEngine {
         trigrams.sort();
         trigrams.dedup();
         if trigrams.is_empty() {
-            let mut parser = QueryParser::for_index(&self.tantivy_index, vec![self.fields.content]);
-            parser.set_conjunction_by_default();
-            return Ok(parser.parse_query(&escape_tantivy_literal(text))?);
+            return Ok(Box::new(tantivy::query::AllQuery));
         }
         let mut must: Vec<(Occur, Box<dyn tantivy::query::Query>)> =
             Vec::with_capacity(trigrams.len());
         for tri in &trigrams {
+            if case_sensitive {
+                must.push((Occur::Must, Box::new(TermQuery::new(
+                    Term::from_field_text(self.fields.content, tri),
+                    IndexRecordOption::Basic,
+                ))));
+                continue;
+            }
             let should: Vec<(Occur, Box<dyn tantivy::query::Query>)> = case_variants(tri)
                 .into_iter()
                 .map(|v| {
@@ -2490,10 +2827,11 @@ impl HybridSearchEngine {
             // trigram becomes a Should-set of its case variants, Must
             // across trigrams; the caller verifies each candidate chunk,
             // so a superset of candidates is correct and complete.
-            "literal_ci" => self.case_variant_trigram_query(&q.text)?,
+            "literal_ci" => self.literal_trigram_query(&q.text, false)?,
+            "literal_cs" => self.literal_trigram_query(&q.text, true)?,
             unknown => {
                 anyhow::bail!(
-                    "unknown fts_mode '{unknown}': must be strict, loose, regex, or literal_ci"
+                    "unknown fts_mode '{unknown}': must be strict, loose, regex, literal_ci, or literal_cs"
                 )
             }
         };
@@ -2511,6 +2849,7 @@ impl HybridSearchEngine {
             (Occur::Must, Box::new(pid_q)),
             (Occur::Must, Box::new(ns_q)),
         ];
+        self.add_generation_filter(&q.namespace, q.generation, &mut must)?;
 
         if let Some(langs) = &q.language_filters {
             let mut lq: Vec<(Occur, Box<dyn tantivy::query::Query>)> = Vec::new();
@@ -2545,6 +2884,23 @@ impl HybridSearchEngine {
             }
             if !prefix_queries.is_empty() {
                 must.push((Occur::Must, Box::new(BooleanQuery::new(prefix_queries))));
+            }
+        }
+
+        if let Some(suffixes) = &q.include_path_suffixes {
+            let mut suffix_queries: Vec<(Occur, Box<dyn tantivy::query::Query>)> = Vec::new();
+            for s in suffixes {
+                for variant in [s.to_lowercase(), s.to_uppercase()] {
+                    if let Ok(rq) = tantivy::query::RegexQuery::from_pattern(
+                        &format!(".*{}", regex::escape(&variant)),
+                        self.fields.path,
+                    ) {
+                        suffix_queries.push((Occur::Should, Box::new(rq)));
+                    }
+                }
+            }
+            if !suffix_queries.is_empty() {
+                must.push((Occur::Must, Box::new(BooleanQuery::new(suffix_queries))));
             }
         }
 
@@ -2792,7 +3148,10 @@ impl HybridSearchEngine {
 
             // EMB1-x8q2: use embed_cancellable so in-flight embed can be cooperatively
             // interrupted if the job or request is cancelled before the remote returns.
-            let query_vec = self.embedder.embed_cancellable(&q.text, cancel).await?;
+            let query_vec = self
+                .query_embedder
+                .embed_cancellable(&q.text, cancel)
+                .await?;
 
             // Build the WHERE clause into a single pre-allocated String instead
             // of N separate format!() + Vec<String> + join(). Saves ~10 intermediate
@@ -2834,6 +3193,24 @@ impl HybridSearchEngine {
                         let safe_p = escape_like(p);
                         let _ = write!(wc, " AND path NOT LIKE '{}%' ESCAPE '\\'", safe_p);
                     }
+                }
+
+                if let Some(suffixes) = &q.include_path_suffixes
+                    && !suffixes.is_empty()
+                {
+                    wc.push_str(" AND (");
+                    for (i, s) in suffixes.iter().enumerate() {
+                        if i > 0 {
+                            wc.push_str(" OR ");
+                        }
+                        let lo = escape_like(&s.to_lowercase());
+                        let up = escape_like(&s.to_uppercase());
+                        let _ = write!(
+                            wc,
+                            "path LIKE '%{lo}' ESCAPE '\\' OR path LIKE '%{up}' ESCAPE '\\'"
+                        );
+                    }
+                    wc.push(')');
                 }
 
                 if let Some(langs) = &q.language_filters

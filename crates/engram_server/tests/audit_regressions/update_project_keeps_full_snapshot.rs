@@ -103,6 +103,7 @@ async fn test_update_project_keeps_full_snapshot() {
 
     // 3. Run update_project (gen=2)
     let update_req = UpdateProjectRequest {
+        reindex_paths: Vec::new(),
         project_id: project_id.to_string(),
         wait: true,
         max_commits: 100,
