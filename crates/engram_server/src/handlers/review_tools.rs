@@ -25,6 +25,21 @@ impl Engram {
         req: PreCommitReviewRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        let min_severity = Severity::from_str(&req.min_severity).ok_or_else(|| {
+            McpError::invalid_params(
+                "min_severity must be critical, warning, info, or style",
+                None,
+            )
+        })?;
+        let gates = crate::services::pre_commit_review_service::all_gates();
+        for name in &req.skip_gates {
+            if !gates.iter().any(|gate| gate.name() == name) {
+                return Err(McpError::invalid_params(
+                    format!("unknown skip_gates entry: {name}"),
+                    None,
+                ));
+            }
+        }
         let rec = ensure_project_record(&self.state, &req.project_id)
             .await
             .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
@@ -38,17 +53,37 @@ impl Engram {
         // Resolve the diff input into raw unified-diff text.
         let diff_text = resolve_diff_source(&project_dir, &req.diff)
             .map_err(|e| McpError::invalid_params(format!("diff resolution failed: {e}"), None))?;
+        let parsed = crate::services::pre_commit_review_service::parse_unified_diff(&diff_text);
+        let head_before = head_commit(&project_dir);
+        let source_before = source_snapshot(&project_dir, &parsed);
 
         if diff_text.trim().is_empty() {
+            if req.output_json {
+                return Ok(CallToolResult::success(vec![Content::text(
+                    serde_json::json!({
+                        "verdict": "NO_CHANGES", "findings": [], "gate_status": [],
+                        "summary": { "files_analysed": 0, "gates_run": 0, "total_findings": 0 },
+                        "coverage": {"submitted_files": [], "textual_diff_files": [], "unexamined_files": [], "static_analysis": "not_run", "compilation": "not_run", "test_execution": "not_run"},
+                        "note": "No changes detected; review gates were not run."
+                    })
+                    .to_string(),
+                )]));
+            }
             let body = "No changes detected in the requested diff. Nothing to review.";
             return Ok(CallToolResult::success(vec![Content::text(
                 body.to_string(),
             )]));
         }
 
+        if crate::services::pre_commit_review_service::parse_unified_diff(&diff_text).is_empty() {
+            return Err(McpError::invalid_params(
+                "diff contains no parseable file changes; review was not run",
+                None,
+            ));
+        }
         let config = ReviewConfig {
             max_findings: req.max_findings.clamp(1, 200),
-            min_severity: Severity::from_str(&req.min_severity).unwrap_or(Severity::Style),
+            min_severity,
             skip_gates: req.skip_gates.iter().cloned().collect(),
             output_json: req.output_json,
         };
@@ -65,6 +100,29 @@ impl Engram {
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         let elapsed_ms = start.elapsed().as_millis();
+        let source_after = source_snapshot(&project_dir, &parsed);
+        let head_after = head_commit(&project_dir);
+        let changed_during_review = head_before != head_after || source_before != source_after;
+        let snapshot_unavailable = source_after
+            .iter()
+            .any(|(_, value)| value.starts_with("unavailable:"));
+        let unexamined: Vec<_> = parsed.iter().filter(|f| f.is_binary || f.hunks.is_empty()).map(|f|
+            serde_json::json!({"path":f.path,"reason":if f.is_binary {"binary_content_not_inspected"} else {"no_text_hunks; metadata_only"}})).collect();
+        let coverage = serde_json::json!({
+            "submitted_files":parsed.iter().map(|f| &f.path).collect::<Vec<_>>(),
+            "textual_diff_files":parsed.iter().filter(|f| !f.is_binary && !f.hunks.is_empty()).map(|f| &f.path).collect::<Vec<_>>(),
+            "unexamined_files":unexamined,
+            "static_analysis":if gates_run == 0 {"not_run"} else {"gate_scoped; not a complete code audit"},
+            "compilation":"not_run","test_execution":"not_run",
+            "head_before":head_before,"head_after":head_after,
+            "changed_during_review":changed_during_review,
+            "source_snapshot_complete":!snapshot_unavailable,
+            "diff_blake3":blake3::hash(diff_text.as_bytes()).to_hex().to_string(),
+            "source_before":source_before,"source_after":source_after,
+            "source_scope":"bounded current-file snapshots; supplied diff is not certified to match current files",
+            "provider_coverage":"see gate_status; failed, skipped and degraded gates are not passing evidence",
+            "review_decisions":"not_consulted; retrieve get_review_decisions for the relevant review before reconciling findings"
+        });
 
         tracing::info!(
             project_id = %req.project_id,
@@ -76,13 +134,98 @@ impl Engram {
         );
 
         let body = if config.output_json {
-            let payload = render_json(findings, files_analysed, gates_run, elapsed_ms, &outcomes);
+            let mut payload = serde_json::to_value(render_json(
+                findings,
+                files_analysed,
+                gates_run,
+                elapsed_ms,
+                &outcomes,
+            ))
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            payload["coverage"] = coverage;
+            if (changed_during_review || snapshot_unavailable) && payload["verdict"] == "green" {
+                payload["verdict"] = "yellow".into();
+            }
             serde_json::to_string_pretty(&payload)
                 .map_err(|e| McpError::internal_error(format!("json render: {e}"), None))?
         } else {
-            render_markdown(&findings, files_analysed, gates_run, elapsed_ms, &outcomes)
+            let mut report =
+                render_markdown(&findings, files_analysed, gates_run, elapsed_ms, &outcomes);
+            if changed_during_review || snapshot_unavailable {
+                report = report.replace(
+                    "GREEN — no concerns within reported static gate coverage",
+                    "YELLOW — source snapshot changed or unavailable",
+                );
+            }
+            if changed_during_review {
+                report.insert_str(
+                    0,
+                    "SOURCE CHANGED DURING REVIEW: results are not a current-source clearance.\n\n",
+                );
+            }
+            report.push_str(&format!(
+                "\n## Coverage evidence\n```json\n{}\n```\n",
+                serde_json::to_string_pretty(&coverage).unwrap_or_default()
+            ));
+            report
         };
 
         Ok(CallToolResult::success(vec![Content::text(body)]))
     }
+}
+
+fn head_commit(root: &std::path::Path) -> Option<String> {
+    git2::Repository::open(root)
+        .ok()
+        .and_then(|r| r.head().ok().and_then(|h| h.target()))
+        .map(|id| id.to_string())
+}
+
+fn source_snapshot(
+    root: &std::path::Path,
+    files: &[crate::services::pre_commit_review_service::DiffFile],
+) -> std::collections::BTreeMap<String, String> {
+    use std::io::Read;
+    let mut budget = 64 * 1024 * 1024usize;
+    files
+        .iter()
+        .map(|file| {
+            if matches!(
+                file.change_type,
+                crate::services::pre_commit_review_service::ChangeType::Deleted
+            ) {
+                return (
+                    file.path.clone(),
+                    "deleted_in_supplied_diff; previous_content_not_verified".into(),
+                );
+            }
+            let read = || -> Result<Vec<u8>, String> {
+                let path = engram_core::safe_join(root, &file.path)
+                    .map_err(|e| e.to_string())?
+                    .canonicalize()
+                    .map_err(|e| e.to_string())?;
+                if !path.starts_with(root.canonicalize().map_err(|e| e.to_string())?) {
+                    return Err("path outside project".into());
+                }
+                let mut bytes = Vec::new();
+                std::fs::File::open(path)
+                    .map_err(|e| e.to_string())?
+                    .take((budget.min(8 * 1024 * 1024) + 1) as u64)
+                    .read_to_end(&mut bytes)
+                    .map_err(|e| e.to_string())?;
+                if bytes.len() > budget.min(8 * 1024 * 1024) {
+                    return Err("snapshot budget exceeded".into());
+                }
+                Ok(bytes)
+            };
+            let value = match read() {
+                Ok(bytes) => {
+                    budget -= bytes.len();
+                    format!("blake3:{}", blake3::hash(&bytes).to_hex())
+                }
+                Err(error) => format!("unavailable:{error}"),
+            };
+            (file.path.clone(), value)
+        })
+        .collect()
 }

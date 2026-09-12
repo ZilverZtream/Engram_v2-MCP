@@ -3,6 +3,10 @@
 #![cfg_attr(test, allow(clippy::unwrap_used))]
 
 pub mod asp_classic_extractor;
+/// Source chunk ranges, qualified call binding and source-edge replacement
+/// contract, including parsed member ownership and declaration-specific FQNs. Older
+/// metadata must be re-extracted even with unchanged source.
+pub const SOURCE_INDEX_VERSION: u64 = 6;
 pub mod chunking;
 pub mod confidence;
 pub mod config_extractor;

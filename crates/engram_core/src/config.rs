@@ -274,14 +274,11 @@ pub struct Config {
     #[serde(default)]
     pub log_file: Option<PathBuf>,
 
-    /// Tiered tool surface (external audit 2026-08-29, auditor P0 #6). Default
-    /// FALSE: `tools/list` advertises the core tier only (the tools behind the
-    /// ten vital capabilities + index/health/search essentials, see
-    /// `tool_surface::CORE_TOOLS`); every other tool stays fully CALLABLE and is
-    /// discoverable through `list_advanced_tools`. Set true to advertise the
-    /// whole surface (schemas are always sanitized: `$ref`/`definitions`
-    /// inlined, `T | null` collapsed, so a strict client never rejects the list).
-    #[serde(default = "default_false")]
+    /// Advertise every registered tool, including .NET tools. Default TRUE:
+    /// clients can only discover and invoke tools present in `tools/list`.
+    /// Set false to opt into the limited core surface for constrained clients.
+    /// Schemas are sanitized in both modes.
+    #[serde(default = "default_true")]
     pub advertise_all_tools: bool,
 
     // --- ADP vNext ---
@@ -513,10 +510,6 @@ fn default_scaffold_target_stack() -> String {
     "blazor".into()
 }
 
-fn default_false() -> bool {
-    false
-}
-
 fn default_true() -> bool {
     true
 }
@@ -584,7 +577,7 @@ impl Default for Config {
             multi_client_daemon: true,
             multi_client_connect_timeout_secs: default_multi_client_connect_timeout_secs(),
             log_file: None,
-            advertise_all_tools: false,
+            advertise_all_tools: true,
             adp_default_evidence_depth: default_adp_evidence_depth(),
             adp_cache_retrieval: default_adp_cache_retrieval(),
             adp_evidence_timeout_ms: default_adp_evidence_timeout_ms(),

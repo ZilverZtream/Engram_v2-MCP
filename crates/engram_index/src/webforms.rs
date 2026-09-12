@@ -24,6 +24,7 @@
 ///   6. DataSource controls → `sql_calls` and `event_wiring` edges
 ///   7. Data-binding expressions → `data_binding` edges to `binding_field:*` nodes
 ///   8. Server-Side Includes → `includes_file` edges
+///      Static local `<script src="...">` references also emit `includes_file`.
 ///   9. Service endpoint directives (P13):
 ///       - `exposes_web_service` — .asmx → backing class
 ///       - `exposes_http_handler` — .ashx → backing class
@@ -559,6 +560,16 @@ pub fn extract_webforms(
         rel_path,
         &source_file,
         &char_to_line,
+        &mut edges,
+    );
+
+    extract_script_includes(
+        source,
+        project_root,
+        rel_path,
+        &source_file,
+        &char_to_line,
+        "page",
         &mut edges,
     );
 
@@ -1785,6 +1796,130 @@ fn extract_server_side_includes(
 }
 
 // ── Path Utilities ──────────────────────────────────────────────────────────
+
+/// Record static local script hosting without guessing an emitted bundle's sources.
+/// Consume whole script blocks so script-shaped strings in inline JS are not tags.
+pub fn extract_template_script_includes(
+    project_root: &Path,
+    rel_path: &RelPath,
+    source: &str,
+) -> Vec<ExtractedEdge> {
+    let mut edges = Vec::new();
+    let newlines: Vec<_> = source
+        .match_indices('\n')
+        .map(|(offset, _)| offset)
+        .collect();
+    extract_script_includes(
+        source,
+        project_root,
+        rel_path,
+        rel_path.as_str(),
+        &|offset| newlines.partition_point(|&newline| newline < offset) as u32,
+        "file",
+        &mut edges,
+    );
+    edges
+}
+
+fn extract_script_includes(
+    source: &str,
+    project_root: &Path,
+    rel_path: &RelPath,
+    source_file: &str,
+    char_to_line: &impl Fn(usize) -> u32,
+    source_kind: &str,
+    edges: &mut Vec<ExtractedEdge>,
+) {
+    static TAGS: OnceLock<Regex> = OnceLock::new();
+    static ATTRS: OnceLock<Regex> = OnceLock::new();
+    let Some(tags) = get_compiled_regex(
+        &TAGS,
+        r#"(?is)<!--.*?-->|<%.*?%>|@\*.*?\*@|<script\b(?P<attrs>(?:[^>"']|"[^"]*"|'[^']*')*)>(?:.*?</script\s*>|$)"#,
+        "script includes",
+    ) else {
+        return;
+    };
+    let Some(attrs) = get_compiled_regex(
+        &ATTRS,
+        r#"([^\s=/>]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))"#,
+        "script attributes",
+    ) else {
+        return;
+    };
+    let mut seen = std::collections::HashSet::new();
+    for tag in tags.captures_iter(source) {
+        let Some(attributes) = tag.name("attrs") else {
+            continue; // HTML comments and server expressions are not rendered tags.
+        };
+        let mut src = None;
+        let mut server = false;
+        for attr in attrs.captures_iter(attributes.as_str()) {
+            let value = attr.get(2).or_else(|| attr.get(3)).or_else(|| attr.get(4));
+            if attr[1].eq_ignore_ascii_case("src") && src.is_none() {
+                src = value.map(|v| v.as_str());
+            }
+            if attr[1].eq_ignore_ascii_case("runat") {
+                server = value.is_some_and(|v| v.as_str().eq_ignore_ascii_case("server"));
+            }
+        }
+        let Some(raw) = src.filter(|_| !server) else {
+            continue;
+        };
+        let raw = raw.trim();
+        // Query/fragment expressions do not change the static file path.
+        let path = raw
+            .split(['?', '#'])
+            .next()
+            .unwrap_or("")
+            .replace('\\', "/");
+        if path.is_empty()
+            || path.starts_with("//")
+            || path.contains(['<', '>', '{', '}', '@', ':', '&', '%'])
+        {
+            continue;
+        }
+        // As with other ASP.NET paths, / and ~/ assume the indexed project
+        // root is the web application root. No deployment-root inference or
+        // basename fallback is attempted here.
+        let scoped =
+            if let Some(rooted) = path.strip_prefix("~/").or_else(|| path.strip_prefix('/')) {
+                rooted.to_string()
+            } else {
+                let parent = rel_path.as_str().rsplit_once('/').map_or("", |(p, _)| p);
+                format!("{parent}/{path}")
+            };
+        if RelPath::new(&scoped).as_str().is_empty() {
+            continue;
+        }
+        let Some(resolved) = resolve_aspnet_path(project_root, rel_path, &path) else {
+            continue;
+        };
+        // The shared resolver preserves root-relative dot segments. Normalize
+        // those too and reject any escape above the project root.
+        let target = RelPath::new(&resolved).as_str().to_string();
+        if target.is_empty() || !seen.insert(target.clone()) {
+            continue;
+        }
+        edges.push(ExtractedEdge {
+            source_name: source_file.to_string(),
+            source_kind: source_kind.to_string(),
+            source_start_line: char_to_line(tag.get(0).map_or(0, |m| m.start())),
+            source_language: Path::new(rel_path.as_str())
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .unwrap_or("html")
+                .to_ascii_lowercase(),
+            target_name: target,
+            target_kind: Some("file".to_string()),
+            target_start_line: None,
+            kind: "includes_file".to_string(),
+            metadata: Some(HashMap::from([
+                ("include_type".to_string(), "script_src".to_string()),
+                ("raw_path".to_string(), raw.to_string()),
+            ])),
+        });
+    }
+}
 
 /// Simple lexical path normalization to handle ".." and "." components without hitting the disk.
 fn lexically_normalize(path: &Path) -> std::path::PathBuf {

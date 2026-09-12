@@ -112,53 +112,50 @@ fn rejects_path_shaped_node_id_as_fqn() {
     );
 }
 
-/// Bug 2 + 3 regression: when two App_Code nodes share a terminal name
-/// (e.g., both have "Create"), the prefer_file_path tiebreaker resolves
-/// ambiguity. Also verifies that nodes without metadata.fqn still get
-/// registered in terminal_to_fqn via node.name fallback.
+/// A known lexical owner disambiguates an unresolved bare call. File proximity
+/// alone must not rewrite an already canonical target to an unrelated function.
 #[test]
-fn disambiguates_by_source_file_path_with_bare_names() {
+fn disambiguates_bare_names_by_lexical_owner() {
     let tmp = tempfile::TempDir::new().unwrap();
     let graph = open_store(&tmp);
     let pid = "test-disambig";
 
-    // Two App_Code functions named "Create" in different files, no metadata.fqn.
+    // Two App_Code functions named "Create" in different lexical owners.
     let node_a = make_app_code_function(
         "sym:function:Site/App_Code/handelselogg.vb:Create:10",
         "Create",
         "Site/App_Code/handelselogg.vb",
-        None,
+        Some("AuditLog.Create"),
     );
     let node_b = make_app_code_function(
         "sym:function:Site/App_Code/orders.vb:Create:20",
         "Create",
         "Site/App_Code/orders.vb",
-        None,
+        Some("Orders.Create"),
     );
 
-    // Source lives in same file as node_a.
+    // Source belongs to the same lexical owner as node_a.
     let source_node = Node {
         node_id: "sym:function:Site/App_Code/handelselogg.vb:DoStuff:50".to_string(),
         node_type: "function".to_string(),
-        name: "DoStuff".to_string(),
+        name: "AuditLog.DoStuff".to_string(),
         namespace: "memory".to_string(),
         language: "vbnet".to_string(),
         file_path: RelPath::new("Site/App_Code/handelselogg.vb"),
         start_line: 50,
         end_line: 60,
         generation: 1,
-        metadata: None,
+        metadata: Some(serde_json::json!({"fqn": "AuditLog.DoStuff"})),
     };
 
     graph
         .upsert_nodes(pid, &[node_a.clone(), node_b.clone(), source_node.clone()])
         .unwrap();
 
-    // Call edge with composite target that Step 3 processes.
-    // extract_terminal_name extracts "Create" from this format.
+    // An unresolved call inside AuditLog, where AuditLog.Create is in scope.
     let call_edge = Edge {
         source_id: source_node.node_id.clone(),
-        target_id: "sym:function:Pages/SomePage.aspx.vb:Create:42".to_string(),
+        target_id: "::Create".to_string(),
         namespace: "memory".to_string(),
         language: "vbnet".to_string(),
         edge_kind: EdgeKind::Calls,
@@ -191,10 +188,10 @@ fn disambiguates_by_source_file_path_with_bare_names() {
             .collect::<Vec<_>>()
     );
 
-    // Should resolve to node_a (same file as source).
+    // Should resolve to node_a (same lexical owner as source).
     assert_eq!(
         rewritten[0].target_id, node_a.node_id,
-        "Expected resolution to node_a (same file as source), got {}",
+        "Expected resolution to node_a (same lexical owner as source), got {}",
         rewritten[0].target_id
     );
 }

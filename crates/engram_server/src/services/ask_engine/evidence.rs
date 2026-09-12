@@ -57,6 +57,12 @@ impl Authority {
 #[derive(Debug, Clone, Serialize)]
 pub struct EvidenceItem {
     pub evidence_id: String, // "ev_<n>"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub document_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub document_namespace: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_verification: Option<String>,
     pub kind: EvidenceKind,
     pub authority: Authority,
     pub path: Option<String>,

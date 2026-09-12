@@ -1,11 +1,11 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-// ── Validated enum types (fail-closed at JSON deserialization) ────────────────
+// â”€â”€ Validated enum types (fail-closed at JSON deserialization) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // These replace String fields that previously accepted arbitrary values and
 // silently coerced unknown inputs to a default.  With enum types, serde rejects
-// unknown values at the request boundary — before any handler code runs —
+// unknown values at the request boundary â€” before any handler code runs â€”
 // producing a clear deserialization error that names the bad value.
 
 /// Full-text search mode. Unknown values are rejected at the JSON boundary.
@@ -117,7 +117,7 @@ impl MinSeverity {
     }
 }
 
-/// ENG-AUD-2026-EXH-P1-0001: Project type — replaces the stringly-typed
+/// ENG-AUD-2026-EXH-P1-0001: Project type â€” replaces the stringly-typed
 /// `project_type: String` field.  Unknown values are rejected at the JSON
 /// deserialization boundary before any handler code runs.
 ///
@@ -126,7 +126,7 @@ impl MinSeverity {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ProjectType {
-    /// ASP.NET WebForms — C# backend.
+    /// ASP.NET WebForms â€” C# backend.
     /// Aliases: `dotnetwebformscs`, `webforms_cs`, `webformscs`
     #[serde(
         alias = "dotnetwebformscs",
@@ -136,7 +136,7 @@ pub enum ProjectType {
         alias = "aspnet_webformscs"
     )]
     DotnetWebformsCs,
-    /// ASP.NET WebForms — VB.NET backend.
+    /// ASP.NET WebForms â€” VB.NET backend.
     /// Aliases: `dotnetwebformsvb`, `webforms_vb`, `webformsvb`
     #[serde(
         alias = "dotnetwebformsvb",
@@ -155,7 +155,7 @@ pub enum ProjectType {
     Rust,
     /// C# projects (non-WebForms focused indexing profile).
     /// Keep in sync with `from_registry_str`, which already accepted
-    /// "csharp" — the serde alias list had drifted behind it.
+    /// "csharp" â€” the serde alias list had drifted behind it.
     #[serde(
         alias = "csharp",
         alias = "c#",
@@ -170,14 +170,14 @@ pub enum ProjectType {
     /// C projects.
     #[serde(alias = "ansi_c")]
     C,
-    /// MiniLang — native systems language compiled by MiniLangCompiler.
+    /// MiniLang â€” native systems language compiled by MiniLangCompiler.
     /// Indexes `.ml`/`.mlinc` alongside the polyglot compiler sources and
     /// conformance-test goldens that share the repository.
     ///
     /// `minilang` (no underscore) is REQUIRED, not decorative: `rename_all =
     /// "snake_case"` makes the canonical wire name `mini_lang`, but
     /// `as_str()` below returns `"minilang"`. Without this alias the type
-    /// cannot round-trip its own output — a real `index_project` call was
+    /// cannot round-trip its own output â€” a real `index_project` call was
     /// rejected with "unknown variant `minilang`" on 2026-07-28. Same drift
     /// the `CSharp` comment above records.
     #[serde(alias = "mini_lang", alias = "minilang", alias = "ml")]
@@ -405,7 +405,7 @@ pub struct RefreshCorporaRequest {
     /// Optional Azure DevOps PAT. When present (together with the three
     /// ado_* fields), a fourth refresh stage runs: incremental
     /// code-review-history ingest (anti-pattern clusters + wontFix
-    /// suppressions) continuing from the registry's last_pr_id marker —
+    /// suppressions) continuing from the registry's last_pr_id marker â€”
     /// repeat calls only process new PRs. The token is never logged and
     /// never persisted; omitting it skips the stage (the corpora then
     /// rot until the next explicit ingest_code_review_history call).
@@ -425,6 +425,10 @@ pub struct RefreshCorporaRequest {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct UpdateProjectRequest {
+    /// Re-extract these exact project-relative files even when unchanged.
+    /// Files must belong to the normal indexed source set; maximum 100 paths.
+    #[serde(default)]
+    pub reindex_paths: Vec<String>,
     pub project_id: String,
     #[serde(default = "default_true")]
     pub wait: bool,
@@ -445,8 +449,10 @@ pub struct ProjectIdRequest {
 #[serde(deny_unknown_fields)]
 pub struct GetIndexFreshnessRequest {
     pub project_id: String,
-    /// Also stat the project directory and count files modified since the
-    /// last index completed. Costs one directory walk; default true.
+    /// Compare disk files against indexed metadata using the incremental
+    /// change detector, including additions and deletions. Default true.
+    /// Unchanged metadata is not exhaustive content verification. When false,
+    /// disk freshness is explicitly unknown even if generation coverage passes.
     #[serde(default = "default_true")]
     pub check_disk: bool,
 }
@@ -459,13 +465,13 @@ pub struct GetConceptFootprintRequest {
     /// Domain term to map, e.g. "photo", "code category", "OrderStatus".
     pub concept: String,
     /// Cap per output group. Default 8, ceiling 500; a cut is always
-    /// reported as "… and N more" — raise this to see a whole section.
+    /// reported as "â€¦ and N more" â€” raise this to see a whole section.
     #[serde(default = "default_footprint_group_cap")]
     pub max_per_group: usize,
 }
 
 pub fn default_footprint_group_cap() -> usize {
-    // Was 15 (×2 for the consumers group = ~17 KB, the largest single response a
+    // Was 15 (Ã—2 for the consumers group = ~17 KB, the largest single response a
     // review still emitted). 8 keeps the map readable while halving the payload;
     // callers wanting the full fan-out pass a larger max_per_group.
     8
@@ -510,7 +516,9 @@ impl FindSimilarChangesRequest {
 pub struct MapGuardsAndSettingsRequest {
     pub project_id: String,
     /// File path, directory prefix, or exact function name to scope the
-    /// analysis to. Omit for a project-wide view.
+    /// analysis to. An indexed file/directory takes
+    /// precedence over a same-named function; use a qualified function name
+    /// to disambiguate. Omit for a project-wide view.
     #[serde(default)]
     pub scope: Option<String>,
     /// Return the full report (every function's verdict, full lists,
@@ -528,7 +536,7 @@ pub struct ReviewFindingIn {
     /// Rule/check identifier (e.g. "csharpsquid:S2076", "cto:always-audit").
     #[serde(default)]
     pub rule: Option<String>,
-    /// The finding text — what was wrong and what to do instead.
+    /// The finding text â€” what was wrong and what to do instead.
     pub message: String,
     /// blocker|critical|major|minor|info (free-form accepted).
     #[serde(default)]
@@ -574,7 +582,7 @@ pub struct GenerateAgentIntegrationRequest {
 #[serde(deny_unknown_fields)]
 pub struct PlanUserStoryRequest {
     pub project_id: String,
-    /// The user story, verbatim — e.g. "As an admin I would like to set
+    /// The user story, verbatim â€” e.g. "As an admin I would like to set
     /// minimum number of photos required".
     pub story: String,
     /// Override the automatically extracted domain concepts (max 3 used).
@@ -582,43 +590,42 @@ pub struct PlanUserStoryRequest {
     pub concepts: Option<Vec<String>>,
 }
 
-/// Planning: the ranked, co-change-confirmed, family-complete set of files a
-/// user story is likely to require — one call. Concept-footprint + git co-change
-/// + structural graph, fused with co-change-first ranking, .NET family expansion,
-/// and vendor-noise filtering. (Validated on the pilot eval: this packaging flips
-/// Engram from hurting to helping a code-gen agent.)
+/// Planning: candidate files for a user story, ranked using concepts,
+/// historical co-change and structural graph evidence. Includes related .NET
+/// file families where discovered. Results are investigation leads, not proof
+/// of complete scope or implementation correctness.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetChangeSetRequest {
     pub project_id: String,
-    /// Point-in-time replay: only surface approved exemplars merged
-    /// STRICTLY BEFORE this date (YYYY-MM-DD). Keeps evaluations and
-    /// historical replays leak-free. Omit for the full corpus.
+    /// Restrict indexed merged-work exemplars to dates strictly before this
+    /// YYYY-MM-DD cutoff. Git history does not establish reviewer approval.
+    /// Historical evaluation also requires isolated pre-change source and
+    /// index data; this cutoff alone does not prevent future-source leakage.
     #[serde(default)]
     pub merged_before: Option<String>,
     /// The user story, verbatim.
     pub story: String,
-    /// Carry the `ui_contract` section (the UI families the top-tier
-    /// candidate markup belongs to). OPT-IN: two A/Bs measured it negative on
-    /// file-F1 (region-pulled −4.1, in-dossier −9.7 at n = 8 — the section is
-    /// story-invariant on a Bootstrap WebForms app), so a default change set
-    /// stays clean while the v3 conformance program measures markup instead.
+    /// Include the `ui_contract` section describing UI families found in
+    /// candidate markup. Opt-in; these conventions are context, not proof
+    /// that every suggested family applies to the requested change.
     #[serde(default)]
     pub include_ui_contract: Option<bool>,
     /// Override the automatically extracted domain concepts (max 3 used).
     #[serde(default)]
     pub concepts: Option<Vec<String>>,
-    /// The FULL work-item text (bug report / US description / acceptance
-    /// criteria) when the story references one. Input parity is the #1
-    /// one-shot lever measured (arm-B run 3 vs 4: F1 22 -> 71 from this
-    /// alone): a bare title under-determines the fix; the full item names
-    /// the defect class. Merged into concept extraction and rendered as
-    /// its own dossier section.
+    /// Available work-item text (bug report, user-story description and
+    /// acceptance criteria) when the story references one. Used for concept
+    /// extraction and included in the dossier. Supply only available evidence;
+    /// missing requirements must not be invented.
+    /// An explicit leading work-item reference (for example DMO-847 or Bug #847)
+    /// requires nonblank supplied text or a successful automatic fetch. Otherwise
+    /// intake returns INCOMPLETE_INTAKE instead of generating a title-only dossier.
     #[serde(default)]
     pub work_item_text: Option<String>,
     /// Azure DevOps PAT for AUTO-FETCHING the work item when the story
     /// references an id (e.g. "Bug #847") and `work_item_text` is not
-    /// provided. Per-call only — never persisted (same stance as
+    /// provided. Per-call only â€” never persisted (same stance as
     /// refresh_corpora). When omitted, the server falls back to its own
     /// `ADO_PAT` env var, so live agent sessions (which never hold
     /// credentials) still get input parity. Org/project default from the
@@ -653,7 +660,7 @@ pub struct IngestQualityGatesRequest {
     pub source_type: String,
     /// When true, EVERY existing rule in the project's `quality_gate` namespace
     /// is purged before this source is ingested (all sources, not just this
-    /// file) — the way to replace a corpus. Re-ingesting without it accumulates
+    /// file) â€” the way to replace a corpus. Re-ingesting without it accumulates
     /// (rules dedup by content).
     #[serde(default)]
     pub clear_existing: bool,
@@ -694,9 +701,16 @@ fn default_distill_concurrency() -> usize {
 #[serde(deny_unknown_fields)]
 pub struct PrePushAuditRequest {
     pub project_id: String,
-    /// The proposed code or unified diff to audit.
+    /// Proposed code or unified diff. Omit only for hash-bound diff_file input.
+    #[serde(default)]
     pub code: String,
-    /// Optional path of the file being changed — rules scoped to it rank first.
+    /// Alternative project-relative UTF-8 diff file, maximum4MiB; never an external absolute path.
+    #[serde(default)]
+    pub diff_file: Option<String>,
+    /// Exact BLAKE3 of diff_file raw bytes (64hex); required with file, forbidden with inline code.
+    #[serde(default)]
+    pub diff_file_blake3: Option<String>,
+    /// Optional path of the file being changed â€” rules scoped to it rank first.
     #[serde(default)]
     pub file_path: Option<String>,
     /// Max rules to return (default 12, max 50).
@@ -748,13 +762,13 @@ pub struct AskCodebaseRequest {
     /// Pin the answer to a branch/commit (branch is advisory in M1).
     #[serde(default)]
     pub as_of: Option<AsOf>,
-    /// Who is asking (role/permissions — carried for future ACL).
+    /// Who is asking (role/permissions â€” carried for future ACL).
     #[serde(default)]
     pub audience: Option<Audience>,
-    /// "quick" | "standard" (default) | "deep" — controls arm breadth + budget.
+    /// "quick" | "standard" (default) | "deep" â€” controls arm breadth + budget.
     #[serde(default = "default_ask_depth")]
     pub depth: String,
-    /// "best_effort" (default) | "require_current" — gate on freshness.
+    /// "best_effort" (default) | "require_current" â€” gate on freshness.
     #[serde(default = "default_ask_freshness")]
     pub freshness_policy: String,
     /// "markdown" (default) | "json" | "both".
@@ -765,7 +779,7 @@ pub struct AskCodebaseRequest {
     pub deadline_ms: Option<u64>,
     /// Dream switch: `true` adds the dreamer-insight retrieval arm (the
     /// `insights` namespace) and nothing else. Default: OFF (round-2 audit
-    /// P1-4 — the arm showed no measurable effect in the ablation).
+    /// P1-4 â€” the arm showed no measurable effect in the ablation).
     #[serde(default)]
     pub include_insights: Option<bool>,
 }
@@ -798,11 +812,15 @@ fn default_ask_output() -> String {
     "markdown".into()
 }
 
-/// TODO-29: open an edit session — snapshot intent before editing.
+/// TODO-29: open an edit session â€” snapshot intent before editing.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct BeginEditSessionRequest {
     pub project_id: String,
+    /// Optional worker/session identity. Generated when omitted; returned by begin.
+    /// Caller-supplied identities require the returned session_revision on explicit completion.
+    #[serde(default)]
+    pub session_id: Option<String>,
     /// Files you INTEND to edit.
     pub planned_files: Vec<String>,
     /// Optional one-line description of the change.
@@ -810,23 +828,27 @@ pub struct BeginEditSessionRequest {
     pub story: Option<String>,
 }
 
-/// TODO-29: close an edit session — verify completeness against intent.
+/// TODO-29: close an edit session â€” verify completeness against intent.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CompleteEditSessionRequest {
     pub project_id: String,
+    /// Session returned by begin. May be omitted only when exactly one is open.
+    #[serde(default)]
+    pub session_id: Option<String>,
+    /// Lifecycle token returned by begin. Required when explicitly selecting a
+    /// caller-supplied session identity; prevents stale completion after ID reuse.
+    #[serde(default)]
+    pub session_revision: Option<String>,
     /// Files actually edited. When omitted, the session's planned set is
     /// checked as-is.
     #[serde(default)]
     pub edited_files: Vec<String>,
-    /// Optional: the get_change_set dossier this implementation was based
-    /// on. When provided, the completion check RECONCILES the edited set
-    /// against the dossier's own obligations — the file references inside
-    /// its structured sections (co-change partners, resx families,
-    /// history/log tables, permission gates, sibling controls) — and
-    /// names every obligation the diff left unmet. This turns the dossier
-    /// from advice into a contract; unmet items are the classic one-shot
-    /// gaps.
+    /// Optional get_change_set dossier used for planning. Reconciles its
+    /// referenced files (co-change partners, resource families, history/log
+    /// tables, permission gates and siblings) with the edited set. Untouched
+    /// references are candidates requiring an applicability assessment and
+    /// disposition; they are not mandatory edits or an approval contract.
     #[serde(default)]
     pub dossier: Option<String>,
 }
@@ -913,7 +935,8 @@ pub struct WatchProjectRequest {
 #[serde(deny_unknown_fields)]
 pub struct RepairProjectRequest {
     pub project_id: String,
-    /// Repair scope: "full" (default), "graph_only", "tantivy_only", "vector_only".
+    /// Repair scope: "full" (default), "graph_only", "tantivy_only", "vector_only", "initialize_vectors".
+    /// initialize_vectors synchronously embeds all stored documents into an absent vector table, preserving text/history/knowledge and generation. Requires an embedding backend; refuses existing tables and wipe_and_reindex. May take several minutes. vector_only only purges superseded generations; it does not re-embed.
     #[serde(default = "default_repair_scope")]
     pub scope: String,
     /// Wipe all data and re-index from scratch. Default: false.
@@ -937,7 +960,7 @@ pub struct ListSettingsRequest {
     #[serde(default)]
     pub scope: Option<String>,
     /// Max settings rendered per category. Default 25 (raise up to 500 for
-    /// the exhaustive dump) — the pilot corpus's full catalog at 100/category was
+    /// the exhaustive dump) â€” the pilot corpus's full catalog at 100/category was
     /// ~58K chars, too heavy for a planning-phase call.
     #[serde(default = "default_settings_per_category")]
     pub max_per_category: usize,
@@ -961,6 +984,10 @@ pub struct DescribeSettingRequest {
     pub project_id: String,
     /// Setting name (dotted store paths like ConfigSettings.Multitenant.IsMaster work).
     pub name: String,
+    /// Publish this inferred description to the business_logic corpus.
+    /// Default false: return a planning preview without changing the corpus.
+    #[serde(default)]
+    pub persist: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -1014,6 +1041,11 @@ pub struct FindMergedWorkRequest {
     /// Story/task description or domain terms (matched against PR titles,
     /// bodies, file paths, and domains).
     pub story: String,
+    /// Optional shipped-file cohort filter (at most 10 relative paths).
+    /// Exact paths or multi-segment trailing path matches are leads; a suffix
+    /// match does not prove rename/root equivalence. Body mentions do not qualify.
+    #[serde(default)]
+    pub file_paths: Vec<String>,
     /// Ultra-coarse change-kind filter: ui-markup | ui-code | js | database |
     /// settings | resources | api | backend. Omit for all kinds.
     #[serde(default)]
@@ -1021,9 +1053,10 @@ pub struct FindMergedWorkRequest {
     /// How many exemplar PRs to return. Default 3.
     #[serde(default = "default_find_merged_top")]
     pub top: usize,
-    /// Point-in-time replay: only exemplars merged STRICTLY BEFORE this
-    /// date (YYYY-MM-DD). Use for leak-free evaluation or "what did the
-    /// team know at the time" questions. Omit for the full corpus.
+    /// Return indexed exemplars merged strictly before this YYYY-MM-DD date.
+    /// This filters merge dates, not later edits to imported records. Historical
+    /// evaluation also requires appropriately isolated source and index data.
+    /// Omit to search the full indexed corpus.
     #[serde(default)]
     pub merged_before: Option<String>,
 }
@@ -1043,9 +1076,10 @@ pub struct SearchMemoryRequest {
     pub namespace: String,
     #[serde(default = "default_top_k")]
     pub max_results: usize,
-    /// Skip this many ranked results before returning `max_results` —
-    /// page 2 is `offset: 10`. Ranking is deterministic for a fixed
-    /// index generation, so pages don't overlap. Default: 0.
+    /// Skip this many ranked results within the bounded first 200 results.
+    /// Offsets at or beyond 200 return no hits with cap guidance, never an earlier
+    /// page. Pages share a bounded candidate window, not a snapshot: changing
+    /// knowledge, ranking inputs or time may change results. Default: 0.
     #[serde(default)]
     pub offset: usize,
     #[serde(default = "default_true")]
@@ -1054,7 +1088,7 @@ pub struct SearchMemoryRequest {
     #[serde(default)]
     pub fts_mode: FtsMode,
     /// Include chunk content bodies (up to `max_content_chars_per_result`
-    /// each) in every hit. Default: false — hits carry a 500-char snippet
+    /// each) in every hit. Default: false â€” hits carry a 500-char snippet
     /// already; fetch full source for the hits that matter via
     /// `get_chunk(doc_id)`. Setting this true on a default 10-result
     /// search adds ~3K tokens per call.
@@ -1074,11 +1108,11 @@ pub struct SearchMemoryRequest {
     /// `language_filters`, which are applied.
     #[serde(default)]
     pub metadata_filter: Option<serde_json::Value>,
-    /// Which namespaces to search. `"code"` (default) — the `memory`
+    /// Which namespaces to search. `"code"` (default) â€” the `memory`
     /// namespace (or an explicit `namespace` override); today's behaviour,
-    /// unchanged. `"knowledge"` — all curated knowledge namespaces
+    /// unchanged. `"knowledge"` â€” all curated knowledge namespaces
     /// (memory_bank, insights, business_logic, antipattern, wontfix_patterns,
-    /// quality_gate), fused by rank and labelled by source. `"all"` — code
+    /// quality_gate), fused by rank and labelled by source. `"all"` â€” code
     /// plus knowledge. When scope is knowledge/all the `namespace` field is
     /// ignored.
     #[serde(default = "default_search_scope")]
@@ -1112,7 +1146,7 @@ pub struct SearchMemoryRequest {
 
 /// Fast literal / regex search over the indexed file set. Prefilters
 /// via the existing Tantivy trigram index and verifies the actual
-/// literal inside each candidate chunk — beats ripgrep on warm queries
+/// literal inside each candidate chunk â€” beats ripgrep on warm queries
 /// because the index already knows which chunks contain the token.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -1142,13 +1176,13 @@ pub struct GrepProjectRequest {
     /// Lines of context after each match. Default: 0.
     #[serde(default)]
     pub context_after: usize,
-    /// Cap on returned matches. Default: 200.
+    /// Cap on returned matches, clamped to 1..1000. Default: 20.
     #[serde(default = "default_grep_max_results")]
     pub max_results: usize,
-    /// How to handle staleness between the index and disk:
-    /// `"strict"` (default) — fingerprint every tracked file, surface
-    /// stale paths in the result; `"warn"` — note staleness but don't
-    /// prioritise re-scanning; `"off"` — skip the check entirely.
+    /// Source freshness: "strict" (default) hash-checks and overlays changed/new
+    /// files; "warn" overlays size/mtime changes and new files; "off" uses only
+    /// the index. Overlays honor regex, context (max 100 lines), path and language
+    /// filters. Read/size/budget limits are reported. Knowledge is index-only.
     #[serde(default = "default_grep_freshness")]
     pub freshness: String,
     /// Namespace to search. Default: "memory" (same as search tools).
@@ -1188,6 +1222,9 @@ pub struct GetChunkRequest {
     /// "sql_queries", "state_access".
     #[serde(default)]
     pub logical_slice: Option<String>,
+    /// Exact stored-document citation as JSON; incompatible with rule injection or slicing.
+    #[serde(default)]
+    pub citation: Option<StoredCitationRequest>,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -1236,7 +1273,9 @@ pub struct FindSymbolReferencesRequest {
     /// Filter by specific edge kinds (e.g. ["dependency", "imports"]). Default: all kinds.
     #[serde(default)]
     pub edge_kind_filter: Option<Vec<String>>,
-    /// Filter references to files under this path prefix.
+    /// Select symbol definitions in this file or directory (path boundary).
+    /// Callers and dependencies outside that scope remain visible so cross-file
+    /// impact is not lost. Use this to disambiguate same-named methods.
     #[serde(default)]
     pub file_scope: Option<String>,
 }
@@ -1316,6 +1355,45 @@ pub struct ImportMemoryBankRequest {
 pub struct MemorySectionRequest {
     pub project_id: String,
     pub section: String,
+}
+
+/// Read-only request; delete_memory_bank intentionally retains MemorySectionRequest.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ReadMemoryBankRequest {
+    pub project_id: String,
+    pub section: String,
+    /// Exact stored content, raw UTF-8 hash and bounded range as JSON.
+    #[serde(default)]
+    pub citation: Option<StoredCitationRequest>,
+}
+
+/// Ranges refer to the stored document, never inferred physical source lines.
+#[derive(Debug, Clone, Default, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct StoredCitationRequest {
+    #[serde(default)]
+    pub unit: StoredCitationUnit,
+    /// Defaults to 1 for lines or 0 for bytes.
+    pub start: Option<usize>,
+    /// Inclusive line number or exclusive UTF-8 byte offset. Omit for a bounded page.
+    pub end: Option<usize>,
+    /// blake3-raw-utf8:<hex>; mismatch fails closed without returning content.
+    pub expected_raw_hash: Option<String>,
+    /// Optional exact stored-byte substring verification within the selected range.
+    /// Requires expected_raw_hash; 1..=4000 UTF-8 bytes, not whitespace-only.
+    /// Returns a compact proof envelope without content; omit verify_quote to retrieve text.
+    /// No normalization, semantic validation or primary-source authority inference.
+    #[serde(default)]
+    pub verify_quote: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize, serde::Serialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum StoredCitationUnit {
+    #[default]
+    Lines,
+    Utf8Bytes,
 }
 
 // -------------------- Repo rules --------------------
@@ -1460,6 +1538,10 @@ pub struct GetUiBlueprintRequest {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum GitHistoryMode {
+    /// Refresh already indexed diff text only. Preserves graph edges and history
+    /// watermarks; resumes its own cursor in max_commits batches. force restarts
+    /// only that refresh cursor. Does not ingest new commits or anti-patterns.
+    Refresh,
     /// Walk newer commits at HEAD that postdate the last_oid.
     Forward,
     /// Walk older commits from oldest_indexed_oid backwards through history.
@@ -1609,11 +1691,22 @@ pub struct SuggestMigrationBoundariesRequest {
 pub struct ImmuneCheckRequest {
     pub project_id: String,
     /// Code snippet to check against the anti-pattern index.
-    pub code: String,
+    #[serde(default, deserialize_with = "deserialize_present_code_string")]
+    #[schemars(with = "String")]
+    pub code: Option<String>,
+    /// Alternative to inline code: exact project-relative file to read (maximum 4 MiB, strict UTF-8).
+    /// Requires code_file_blake3; do not also send code. Existing target context must match this path.
+    #[serde(default, deserialize_with = "deserialize_present_code_string")]
+    #[schemars(with = "String")]
+    pub code_file: Option<String>,
+    /// BLAKE3 of the complete raw code_file bytes, 64 hexadecimal characters; no newline normalization.
+    #[serde(default, deserialize_with = "deserialize_present_code_string")]
+    #[schemars(with = "String")]
+    pub code_file_blake3: Option<String>,
     /// Optional target file path the snippet would be applied to. When
     /// supplied, the check cross-references active `immune_*` repo rules
     /// whose `file_pattern` matches this path and escalates the verdict
-    /// accordingly — a snippet that touches a previously-reverted file
+    /// accordingly â€” a snippet that touches a previously-reverted file
     /// AND contains destructive patterns is never CLEAN regardless of
     /// raw similarity score.
     #[serde(default)]
@@ -1634,7 +1727,18 @@ pub struct ImmuneCheckRequest {
 pub struct AntiPatternGuardRequest {
     pub project_id: String,
     /// Code snippet to check for anti-pattern matches.
-    pub code: String,
+    #[serde(default, deserialize_with = "deserialize_present_code_string")]
+    #[schemars(with = "String")]
+    pub code: Option<String>,
+    /// Alternative to inline code: exact project-relative file to read (maximum 4 MiB, strict UTF-8).
+    /// Requires code_file_blake3; do not also send code.
+    #[serde(default, deserialize_with = "deserialize_present_code_string")]
+    #[schemars(with = "String")]
+    pub code_file: Option<String>,
+    /// BLAKE3 of the complete raw code_file bytes, 64 hexadecimal characters; no newline normalization.
+    #[serde(default, deserialize_with = "deserialize_present_code_string")]
+    #[schemars(with = "String")]
+    pub code_file_blake3: Option<String>,
     /// Maximum anti-pattern matches to return (default 5, max 200).
     #[serde(default = "default_limit_5")]
     pub limit: usize,
@@ -1831,12 +1935,9 @@ impl SearchMemoryRequest {
         self.max_results.clamp(1, MAX_SEARCH_RESULTS)
     }
 
-    /// Clamp `offset` so `offset + max_results` never exceeds the engine's
-    /// hard result cap — pages past the cap return empty rather than
-    /// re-ranking the world.
+    /// Preserve requested position up to the cap sentinel; never rewind a page.
     pub fn sanitized_offset(&self) -> usize {
-        self.offset
-            .min(MAX_SEARCH_RESULTS.saturating_sub(self.sanitized_max_results()))
+        self.offset.min(MAX_SEARCH_RESULTS)
     }
 
     pub fn sanitized_max_content_chars_per_result(&self) -> usize {
@@ -2092,10 +2193,10 @@ pub struct EvaluateSafetyRequest {
     /// Number of nodes affected by impact analysis.
     #[serde(default)]
     pub impact_node_count: u64,
-    /// Confidence from impact analysis (0.0–1.0).
+    /// Confidence from impact analysis (0.0â€“1.0).
     #[serde(default = "default_safety_confidence")]
     pub impact_confidence: f64,
-    /// Test coverage of affected files (0.0–1.0, or -1.0 if unknown). Default: -1.0.
+    /// Test coverage of affected files (0.0â€“1.0, or -1.0 if unknown). Default: -1.0.
     #[serde(default = "default_unknown_coverage")]
     pub test_coverage: f64,
     /// Anti-pattern guard passed for affected files. Default: true.
@@ -2227,7 +2328,7 @@ pub struct AutonomousDecisionGateRequest {
     /// Return JSON output instead of human-readable text. Default: false.
     #[serde(default)]
     pub output_json: bool,
-    /// Pre-computed extraction confidence score (0.0–1.0). If not provided, skipped.
+    /// Pre-computed extraction confidence score (0.0â€“1.0). If not provided, skipped.
     #[serde(default)]
     pub extraction_confidence: Option<f64>,
     /// Extraction type that was scored (e.g., "event_wiring", "sql_trace").
@@ -2236,7 +2337,7 @@ pub struct AutonomousDecisionGateRequest {
     /// Pre-computed immune check verdict ("PASS", "WARN", "BLOCK"). If not provided, skipped.
     #[serde(default)]
     pub immune_verdict: Option<String>,
-    /// Immune similarity score (0.0–1.0).
+    /// Immune similarity score (0.0â€“1.0).
     #[serde(default)]
     pub immune_confidence: Option<f32>,
     /// Whether the trace for this change used a fallback candidate resolution.
@@ -2249,7 +2350,7 @@ pub struct AutonomousDecisionGateRequest {
     #[serde(default)]
     pub has_runtime_evidence: bool,
 
-    // ── vNext fields ──
+    // â”€â”€ vNext fields â”€â”€
     /// Evidence depth: "fast", "standard", or "deep". Default: "standard".
     /// Controls how much evidence ADP gathers itself via the Evidence Orchestration Engine.
     #[serde(default = "default_evidence_depth")]
@@ -2476,7 +2577,7 @@ pub struct MapValidationControlsRequest {
 #[serde(deny_unknown_fields)]
 pub struct MapAuthConfigRequest {
     pub project_id: String,
-    /// Optional file scope — if provided, only scan this file for code-level
+    /// Optional file scope â€” if provided, only scan this file for code-level
     /// auth checks. If omitted, scans all indexed code files.
     #[serde(default)]
     pub file_scope: Option<String>,
@@ -2550,7 +2651,7 @@ pub struct GetMigrationDossierRequest {
     pub output_json: bool,
 }
 
-/// Ticket 5: Check migration coverage — what did the modern code miss?
+/// Ticket 5: Check migration coverage â€” what did the modern code miss?
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CheckMigrationCoverageRequest {
@@ -2576,7 +2677,7 @@ pub struct UpdateMigrationStatusRequest {
     /// Free-form notes (PR links, comments, blockers).
     #[serde(default)]
     pub notes: String,
-    /// Optional risk score (0–100).
+    /// Optional risk score (0â€“100).
     #[serde(default)]
     pub risk_score: Option<u8>,
     /// Reason the file is blocked (only relevant when status = "blocked").
@@ -2650,13 +2751,13 @@ pub struct AnalyzeFullProjectMigrationRequest {
     pub llm_max_pages: usize,
 }
 
-// ── Phase 36: Business Logic Comprehension ───────────────────────────────────
+// â”€â”€ Phase 36: Business Logic Comprehension â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn default_max_concurrent() -> usize {
     2
 }
 
-/// Analyze business logic of methods using the local LLM.
+/// Analyze methods and executable VB property blocks using the configured LLM provider.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AnalyzeBusinessLogicRequest {
@@ -2664,9 +2765,13 @@ pub struct AnalyzeBusinessLogicRequest {
     /// Specific file to analyze. If omitted, analyzes all code-behind files.
     #[serde(default)]
     pub file_path: Option<String>,
-    /// Specific method to analyze (requires file_path).
+    /// Specific method or executable VB property to analyze (requires file_path).
     #[serde(default)]
     pub method_name: Option<String>,
+    /// One-based declaration line to select an overloaded method. Required
+    /// when method_name matches multiple declarations in file_path.
+    #[serde(default)]
+    pub line: Option<u32>,
     /// Reserved: no analysis cache exists, so every call already re-analyzes
     /// and this is a no-op. Kept for forward compatibility.
     #[serde(default)]
@@ -2698,7 +2803,7 @@ impl QueryBusinessLogicRequest {
     }
 }
 
-// ── Phase 37: Wiring — Expose Existing Services ──────────────────────────────
+// â”€â”€ Phase 37: Wiring â€” Expose Existing Services â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn default_sp_limit() -> usize {
     500
@@ -2797,7 +2902,7 @@ pub struct GetSessionWorkflowsRequest {
     pub output_json: bool,
 }
 
-/// Detect VB.NET → C# translation traps (14 categories of semantic differences).
+/// Detect VB.NET â†’ C# translation traps (14 categories of semantic differences).
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetVbTranslationTrapsRequest {
@@ -2865,7 +2970,7 @@ pub struct GetRustDiagnosticsRequest {
     pub output_json: bool,
 }
 
-// ── Phase 38: The Access Layer ────────────────────────────────────────────────
+// â”€â”€ Phase 38: The Access Layer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn default_context_lines() -> u32 {
     5
@@ -2890,7 +2995,8 @@ pub struct GetMethodInfoRequest {
     pub output_json: bool,
 }
 
-/// Retrieve the complete, untruncated source code of a method.
+/// Retrieve an indexed method body or an explicit source range. Explicit ranges
+/// do not resolve method boundaries and may contain only part of a method.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetFullMethodBodyRequest {
@@ -2898,7 +3004,8 @@ pub struct GetFullMethodBodyRequest {
     /// Fully qualified name from method index. Mutually exclusive with file_path + line_start.
     #[serde(default)]
     pub fqn: Option<String>,
-    /// Explicit file path (alternative to FQN lookup).
+    /// Explicit file path (alternative to FQN lookup). Returns only the requested
+    /// range, without establishing that it is a complete method.
     #[serde(default)]
     pub file_path: Option<String>,
     /// Start line (1-based). Required if file_path is used instead of fqn.
@@ -2907,7 +3014,7 @@ pub struct GetFullMethodBodyRequest {
     /// End line (1-based). Required if file_path is used instead of fqn.
     #[serde(default)]
     pub line_end: Option<u32>,
-    /// Lines of context above/below the method. Default: 5.
+    /// Lines of context above the returned source span. Default: 5.
     #[serde(default = "default_context_lines")]
     pub context_lines: u32,
     /// Also return bodies of top callers. Default: false.
@@ -2930,7 +3037,7 @@ fn default_max_callers_3() -> usize {
     3
 }
 
-/// "Everything I need before touching a method" — assembles method info, full body,
+/// "Everything I need before touching a method" â€” assembles method info, full body,
 /// callers, database footprint, session state, VB traps, sync hazards, blast radius,
 /// and business logic into a single response.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -2942,19 +3049,31 @@ pub struct GetMethodEditContextRequest {
     /// Method name to analyze.
     #[serde(alias = "name", alias = "method")]
     pub method_name: String,
+    /// Include up to two indexed historical changes whose shipped file cohorts
+    /// match the method file. Leads, not approval or proof of applicability.
+    #[serde(default = "default_true")]
+    pub include_history: bool,
+    /// Optional task wording to rank file-related history. Defaults to filename.
+    #[serde(default)]
+    pub history_query: Option<String>,
+    /// Only history merged strictly before this YYYY-MM-DD date. For historical
+    /// replay, also use an isolated pre-change source/index snapshot.
+    #[serde(default)]
+    pub merged_before: Option<String>,
     /// Class name (optional, for disambiguation).
     #[serde(default)]
     pub class_name: Option<String>,
     /// Include the complete, untruncated method body. Default: true.
     #[serde(default = "default_true")]
     pub include_full_body: bool,
-    /// Include full bodies of the top N callers. Default: false —
-    /// callers are listed as signature + file:line; set true only when
+    /// Include full bodies of the top N callers. Default: false â€”
+    /// callers include identities and bounded verified lexical excerpts; set true only when
     /// you need to read caller implementations (large output).
     #[serde(default)]
     pub include_caller_bodies: bool,
-    /// Maximum callers to include. Default: 3. Raise deliberately when
-    /// auditing a hot method's full fan-in.
+    /// Maximum confirmed callers to include, and separately the maximum
+    /// unresolved-name inspection leads (hard cap 20). Default: 3.
+    /// Unresolved leads do not establish overload binding or full caller coverage.
     #[serde(default = "default_max_callers_3")]
     pub max_callers: usize,
     /// Include business-rule evidence for this method from the
@@ -2979,7 +3098,7 @@ pub struct GetPageContextRequest {
     pub project_id: String,
     /// Path to the .aspx/.ascx/.master file.
     pub aspx_file: String,
-    /// Include full bodies of all event handlers. Default: false — a page
+    /// Include full bodies of all event handlers. Default: false â€” a page
     /// with 30 handlers rendered ~50K chars of source; the summary
     /// (controls, handler signatures, effects, data layer) is what page
     /// orientation needs. Fetch specific bodies with get_full_method_body.
@@ -2993,7 +3112,7 @@ pub struct GetPageContextRequest {
     pub include_codebehind: bool,
     /// Include the house-style section: the nearest sibling pages of this
     /// page's territory and the idioms they share (user controls, resource
-    /// families, classes) — what to copy from next door before writing
+    /// families, classes) â€” what to copy from next door before writing
     /// markup here. Default: true.
     #[serde(default = "default_true")]
     pub include_house_style: bool,
@@ -3002,7 +3121,7 @@ pub struct GetPageContextRequest {
     pub output_json: bool,
 }
 
-// ── Phase 38-5: prepare_implementation_context ────────────────────────────────
+// â”€â”€ Phase 38-5: prepare_implementation_context â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn default_max_pattern_examples() -> usize {
     3
@@ -3023,6 +3142,10 @@ pub struct PrepareImplementationContextRequest {
     /// Optional class name for disambiguation.
     #[serde(default)]
     pub class_name: Option<String>,
+    /// Exact declaration start line when the same class has overloaded methods.
+    /// Omit to retain ambiguity reporting; an unknown line is rejected.
+    #[serde(default)]
+    pub line: Option<u32>,
     /// Target framework for migration (e.g., "blazor", "razor-pages", "react").
     /// If provided, control mappings will include migration-specific guidance.
     #[serde(default)]
@@ -3053,11 +3176,11 @@ pub struct PrepareImplementationContextRequest {
     pub output_json: bool,
 }
 
-// ── Phase 38-6: validate_generated_code ───────────────────────────────────────
+// â”€â”€ Phase 38-6: validate_generated_code â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Round-8 P1-3: a STRICT change kind. Missing ⇒ `modify` (the safe default: a
-/// modification must be verified against an existing file). Any OTHER value —
-/// including a typo like `modfiy` — is REJECTED at deserialization, never
+/// Round-8 P1-3: a STRICT change kind. Missing â‡’ `modify` (the safe default: a
+/// modification must be verified against an existing file). Any OTHER value â€”
+/// including a typo like `modfiy` â€” is REJECTED at deserialization, never
 /// silently coerced to modify (which used to bypass the modify-needs-a-target
 /// gate and grant PASS).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, JsonSchema, Default)]
@@ -3066,7 +3189,7 @@ pub enum ChangeKind {
     /// The file must already exist in the index.
     #[default]
     Modify,
-    /// A new file — absence from the index is expected, and a target that
+    /// A new file â€” absence from the index is expected, and a target that
     /// ALREADY exists is an error.
     Create,
 }
@@ -3079,15 +3202,31 @@ pub enum ChangeKind {
 pub struct ValidateGeneratedCodeRequest {
     pub project_id: String,
     /// The generated or modified code to validate.
-    pub code: String,
+    #[serde(default, deserialize_with = "deserialize_present_code_string")]
+    #[schemars(with = "String")]
+    pub code: Option<String>,
+    /// Alternative to inline code: exact project-relative file to read (maximum 4 MiB, strict UTF-8).
+    /// Requires code_file_blake3; do not also send code. Existing target context must match this path.
+    #[serde(default, deserialize_with = "deserialize_present_code_string")]
+    #[schemars(with = "String")]
+    pub code_file: Option<String>,
+    /// BLAKE3 of the complete raw code_file bytes, 64 hexadecimal characters; no newline normalization.
+    #[serde(default, deserialize_with = "deserialize_present_code_string")]
+    #[schemars(with = "String")]
+    pub code_file_blake3: Option<String>,
     /// The language of the code: "vb" or "csharp". Default: "csharp".
     #[serde(default = "default_csharp")]
     pub language: String,
+    /// Include VB-to-C# and framework-migration advice. Default false for
+    /// ordinary edits to existing VB.NET/WebForms code. Blocking task/lock
+    /// hazards are checked in both modes.
+    #[serde(default)]
+    pub include_migration_advice: bool,
     /// The file path this code is intended for (used for context resolution).
     #[serde(default)]
     pub target_file: Option<String>,
     /// Round-6/8: whether the target is being modified or newly created.
-    /// `modify` (default) — the file must already exist in the index; `create` —
+    /// `modify` (default) â€” the file must already exist in the index; `create` â€”
     /// a new file, absent from the index. A typo/unknown value is REJECTED.
     #[serde(default)]
     pub change_kind: ChangeKind,
@@ -3115,10 +3254,11 @@ fn default_csharp() -> String {
     "csharp".to_string()
 }
 
-// ── Phase 38-7: validate_sql_fragment ─────────────────────────────────────────
+// â”€â”€ Phase 38-7: validate_sql_fragment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Validate a SQL fragment against the project's schema knowledge: table/column
-/// existence, SP parameter types, join correctness, and common SQL anti-patterns.
+/// Check indexed table identities, simple single-table SELECT columns/aliases,
+/// and SQL anti-patterns. Returns explicit incomplete coverage for other SQL
+/// shapes; does not validate joins, predicates, types, or stored-procedure contracts.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ValidateSqlFragmentRequest {
@@ -3133,7 +3273,7 @@ pub struct ValidateSqlFragmentRequest {
     pub output_json: bool,
 }
 
-// ── Phase 38-8: find_tests_for_method ─────────────────────────────────────────
+// â”€â”€ Phase 38-8: find_tests_for_method â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Find existing tests that exercise a given method, by searching for references
 /// to the method name in test files (files matching *Test*, *Spec*, *_test*).
@@ -3147,18 +3287,22 @@ pub struct FindTestsForMethodRequest {
     /// Optional: specific file to narrow the search.
     #[serde(default)]
     pub file_path: Option<String>,
+    /// Exact indexed declaration start line (1-based). Requires file_path;
+    /// use the line returned in an ambiguity response to select an overload.
+    #[serde(default)]
+    pub start_line: Option<u32>,
     /// Output as JSON instead of Markdown. Default: false.
     #[serde(default)]
     pub output_json: bool,
 }
 
-// ── Phase 38-9: find_dead_methods ─────────────────────────────────────────────
+// â”€â”€ Phase 38-9: find_dead_methods â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn default_dead_method_limit() -> usize {
     100
 }
 
-/// Find methods with zero callers, no Handles clause, and no lifecycle hooks —
+/// Find methods with zero callers, no Handles clause, and no lifecycle hooks â€”
 /// candidates for dead code removal.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -3175,7 +3319,7 @@ pub struct FindDeadMethodsRequest {
     pub output_json: bool,
 }
 
-// ── Phase 38-10: check_edit_safety ────────────────────────────────────────────
+// â”€â”€ Phase 38-10: check_edit_safety â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Standalone edit safety check: returns green/yellow/red verdict for a method
 /// without the full edit context overhead. Faster alternative to get_method_edit_context.
@@ -3200,14 +3344,14 @@ pub struct CheckEditSafetyRequest {
     pub line: Option<u32>,
 }
 
-// ── produce_claude_md ──────────────────────────────────────────────────────
+// â”€â”€ produce_claude_md â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn default_max_root_lines() -> usize {
     60
 }
 
 /// Generate `CLAUDE.md` (+ optional `AGENTS.md`) and a `.claude/rules/`
-/// directory from the project's indexed graph. Language-agnostic —
+/// directory from the project's indexed graph. Language-agnostic â€”
 /// sections are driven entirely by what the graph contains.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -3251,21 +3395,21 @@ pub struct ProduceClaudeMdRequest {
     /// `CLAUDE.md`, when `overwrite_existing=true` AND a CLAUDE.md is
     /// present. Options:
     ///
-    /// - `"splice"` (default) — preserve every byte of the existing
+    /// - `"splice"` (default) â€” preserve every byte of the existing
     ///   file; if the `<!-- engram:begin --> ... <!-- engram:end -->`
     ///   markers are present, replace their content with the new
     ///   engram block; otherwise append the engram block at the end.
     ///   Safe but may leave redundancy (engram critical-rules +
     ///   existing critical-rules both present).
     ///
-    /// - `"optimize"` — section-level rewrite. Headings that engram
+    /// - `"optimize"` â€” section-level rewrite. Headings that engram
     ///   owns (Critical rules, Danger zones, language conventions)
     ///   are replaced with the fresh engram output. Headings that
     ///   engram does NOT own (domain context, architecture
     ///   decisions, onboarding) are preserved verbatim. Produces a
     ///   tighter CLAUDE.md without losing unique human insight.
     ///
-    /// - `"replace"` — full overwrite with the engram-generated
+    /// - `"replace"` â€” full overwrite with the engram-generated
     ///   content. Back-up still runs first (recoverable), but the
     ///   new file contains only engram output.
     #[serde(default = "default_merge_mode")]
@@ -3281,7 +3425,7 @@ pub struct ProduceClaudeMdRequest {
     /// (class names, framework helpers, etc).
     ///
     /// Results are cached in the registry keyed by
-    /// `blake3(candidates + project_context)` — reruns against the
+    /// `blake3(candidates + project_context)` â€” reruns against the
     /// same inputs spend zero tokens. On any LLM failure (no
     /// backend, timeout, parse error) the deterministic baseline
     /// is used untouched. Default: false.
@@ -3293,7 +3437,7 @@ fn default_merge_mode() -> String {
     "splice".into()
 }
 
-// ─── Code-review history ingestion ──────────────────────────────────────────
+// â”€â”€â”€ Code-review history ingestion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn default_code_review_source() -> String {
     "json_file".into()
@@ -3328,7 +3472,7 @@ pub struct IngestCodeReviewHistoryRequest {
     #[serde(default)]
     pub file_path: Option<String>,
     /// For `azure_devops`: Personal Access Token. Never logged, never
-    /// persisted to the registry — used only to drive the live fetch
+    /// persisted to the registry â€” used only to drive the live fetch
     /// for this request.
     #[serde(default)]
     pub pat_token: Option<String>,
@@ -3354,17 +3498,17 @@ pub struct IngestCodeReviewHistoryRequest {
     /// fewer, larger clusters. Default 0.4.
     #[serde(default = "default_token_overlap")]
     pub token_overlap_threshold: f32,
-    /// Force a full rescan — ignore the registry's last_pr_id marker.
+    /// Force a full rescan â€” ignore the registry's last_pr_id marker.
     /// Use when you've rerun the scraper with a different filter and
     /// want to rebuild the index from scratch.
     #[serde(default)]
     pub force_full_rescan: bool,
     /// When true, classify ambiguous `closed` threads (resolved
-    /// manually, no `✅ Addressed in commits` marker) via the
+    /// manually, no `âœ… Addressed in commits` marker) via the
     /// configured `llm_backend`. Results are cached per-finding under
     /// `cr_llm:<hash>` in the registry so the classifier spends
     /// tokens at most once per unique finding across all runs.
-    /// Off by default — the deterministic path works fine without it.
+    /// Off by default â€” the deterministic path works fine without it.
     #[serde(default)]
     pub use_llm_for_ambiguous: bool,
     /// Minimum fix rate required for a cluster to auto-promote to a
@@ -3382,15 +3526,15 @@ pub struct IngestCodeReviewHistoryRequest {
     pub promote_min_prs: usize,
     /// Author-adjusted promotion threshold: a cluster ALSO promotes to a repo
     /// rule when its fix-rate is at least this far ABOVE the mean of its
-    /// authors' own baselines (the "lift"), fixed by ≥2 distinct authors across
-    /// ≥2 PRs. De-confounds a corpus where one high-volume author dismisses most
+    /// authors' own baselines (the "lift"), fixed by â‰¥2 distinct authors across
+    /// â‰¥2 PRs. De-confounds a corpus where one high-volume author dismisses most
     /// findings. Default 0.15; raise to require a bigger surprise, lower (even
     /// negative) to promote more permissively.
     #[serde(default = "default_promote_lift")]
     pub promote_min_lift: f32,
 }
 
-// ─── Support KB ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Support KB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn default_max_features() -> usize {
     50
@@ -3401,7 +3545,7 @@ fn default_max_features() -> usize {
 pub struct ProduceSupportKbRequest {
     pub project_id: String,
     /// Write the generated cards to `<project>/support-kb/` (engram-owned
-    /// directory, regenerated wholesale). Default false — the tool always
+    /// directory, regenerated wholesale). Default false â€” the tool always
     /// returns the summary + index inline.
     #[serde(default)]
     pub write_to_disk: bool,
@@ -3410,7 +3554,7 @@ pub struct ProduceSupportKbRequest {
     pub max_features: usize,
 }
 
-// ─── Explain change ──────────────────────────────────────────────────────────
+// â”€â”€â”€ Explain change â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn default_explain_diff() -> String {
     "staged".into()
@@ -3431,12 +3575,12 @@ pub struct ExplainChangeRequest {
     /// path ending in `.patch` / `.diff`. Default `"staged"`.
     #[serde(default = "default_explain_diff")]
     pub diff: String,
-    /// Commit-subject style. `"conventional"` → `feat(scope): …`.
-    /// `"plain"` → natural prose (`Added in scope: …`). Default
+    /// Commit-subject style. `"conventional"` â†’ `feat(scope): â€¦`.
+    /// `"plain"` â†’ natural prose (`Added in scope: â€¦`). Default
     /// `"conventional"`.
     #[serde(default = "default_explain_style")]
     pub subject_style: String,
-    /// Output format — `"markdown"` (default, human-readable) or
+    /// Output format â€” `"markdown"` (default, human-readable) or
     /// `"json"` (structured schema for CI pipelines).
     #[serde(default = "default_explain_format")]
     pub output_format: String,
@@ -3445,13 +3589,13 @@ pub struct ExplainChangeRequest {
     #[serde(default = "default_true")]
     pub include_changelog: bool,
     /// Reserved for a future LLM polish pass. No-op in the current
-    /// build — the deterministic renderer produces the final output
+    /// build â€” the deterministic renderer produces the final output
     /// directly.
     #[serde(default)]
     pub use_llm: bool,
 }
 
-// ─── Pre-commit review ───────────────────────────────────────────────────────
+// â”€â”€â”€ Pre-commit review â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn default_diff_source() -> String {
     "staged".into()
@@ -3469,10 +3613,10 @@ pub struct PreCommitReviewRequest {
     pub project_id: String,
     /// The diff to review. Accepts:
     /// - A raw unified-diff string (`git diff` output)
-    /// - `"staged"` — runs the `git diff --staged` equivalent via git2
-    /// - `"unstaged"` — runs the working-tree diff via git2
-    /// - `"head"` — runs the equivalent of `git diff HEAD~1`
-    /// - A path ending in `.patch` or `.diff` — reads from disk
+    /// - `"staged"` â€” runs the `git diff --staged` equivalent via git2
+    /// - `"unstaged"` â€” runs the working-tree diff via git2
+    /// - `"head"` â€” runs the equivalent of `git diff HEAD~1`
+    /// - A path ending in `.patch` or `.diff` â€” reads from disk
     ///
     /// Default: `"staged"`.
     #[serde(default = "default_diff_source")]
@@ -3484,7 +3628,7 @@ pub struct PreCommitReviewRequest {
     /// `"style"`). Default `"style"` (include everything).
     #[serde(default = "default_min_severity")]
     pub min_severity: String,
-    /// Skip specific gates by name — e.g. `["temporal", "audit"]`. Gate
+    /// Skip specific gates by name â€” e.g. `["temporal", "audit"]`. Gate
     /// names: `immune`, `blast_radius`, `style`, `temporal`, `state`,
     /// `audit`, `antipattern`, `new_file`, `test_coverage`,
     /// `secret_leakage`.
@@ -3764,7 +3908,7 @@ mod project_type_round_trip_tests {
     ///
     /// This is not hypothetical. `rename_all = "snake_case"` makes the
     /// canonical wire name `mini_lang`, but `MiniLang::as_str()` returns
-    /// `minilang`, and no alias covered it — a real `index_project` call was
+    /// `minilang`, and no alias covered it â€” a real `index_project` call was
     /// rejected on 2026-07-28 with:
     ///
     /// ```text
@@ -3789,7 +3933,7 @@ mod project_type_round_trip_tests {
             });
             assert_eq!(
                 back, *pt,
-                "{s:?} deserialized to {back:?}, not {pt:?} — two variants claim \
+                "{s:?} deserialized to {back:?}, not {pt:?} â€” two variants claim \
                  the same wire name"
             );
         }
@@ -3813,7 +3957,7 @@ mod project_type_round_trip_tests {
 
     /// The serialized form must also be accepted back. `Serialize` emits the
     /// `rename_all` name (`mini_lang`), which is a DIFFERENT string from
-    /// `as_str()` (`minilang`) — both must work, and this pins the second one.
+    /// `as_str()` (`minilang`) â€” both must work, and this pins the second one.
     #[test]
     fn serialized_form_deserializes_back_to_the_same_variant() {
         for pt in ALL {
@@ -3858,4 +4002,10 @@ pub struct GetUiConformanceRequest {
     /// Minimum instances for a family (default 2).
     #[serde(default)]
     pub min_instances: Option<usize>,
+}
+
+// Missing input fields default to None; explicit null is not an inline/file string.
+fn deserialize_present_code_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where D: serde::Deserializer<'de> {
+    String::deserialize(deserializer).map(Some)
 }

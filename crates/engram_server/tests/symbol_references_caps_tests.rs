@@ -157,3 +157,203 @@ async fn the_label_resolution_cap_is_stated() {
             .join("\n")
     );
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn kind_filter_is_applied_before_the_incoming_cap() {
+    let (_tmp, state) = build_state();
+    let target = func("Site/target.vb", "T", "Target");
+    let mut nodes = vec![target.clone()];
+    let mut edges = Vec::new();
+    for i in 0..12 {
+        let n = func(&format!("Site/a{i}.vb"), "Other", "UnrelatedKind");
+        let mut e = calls(&n.node_id, &target.node_id);
+        e.edge_kind = EdgeKind::Dependency;
+        edges.push(e);
+        nodes.push(n);
+    }
+    let caller = func("Site/z.vb", "C", "RealCaller");
+    edges.push(calls(&caller.node_id, &target.node_id));
+    nodes.push(caller);
+    state.graph.upsert_nodes(PID, &nodes).unwrap();
+    state.graph.upsert_edges(PID, &edges).unwrap();
+    let engram = Engram::new(state);
+    let out = engram
+        .handle_find_symbol_references(
+            serde_json::from_value(json!({
+                "project_id": PID, "symbol_name": "Target", "max_incoming": 1,
+                "edge_kind_filter": ["calls"]
+            }))
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    let text = &out.content[0].as_text().unwrap().text;
+    assert!(text.contains("RealCaller"), "{text}");
+    assert!(!text.contains("UnrelatedKind"), "{text}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unknown_reference_kind_is_rejected_and_isolated_symbols_remain_graph_results() {
+    let (_tmp, state) = build_state();
+    state
+        .graph
+        .upsert_nodes(PID, &[func("Site/only.vb", "C", "Isolated")])
+        .unwrap();
+    let engram = Engram::new(state);
+    let bad = engram
+        .handle_find_symbol_references(
+            serde_json::from_value(json!({
+                "project_id": PID, "symbol_name": "Isolated", "edge_kind_filter": ["calss"]
+            }))
+            .unwrap(),
+        )
+        .await;
+    assert!(bad.is_err());
+    let out = refs(&engram, "Isolated", 1).await;
+    assert!(out.contains("Symbol:"), "{out}");
+    assert!(!out.contains("No graph symbol found"), "{out}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn outgoing_reference_truncation_is_visible() {
+    let (_tmp, state) = build_state();
+    let target = func("Site/source.vb", "C", "Source");
+    let a = func("Site/a.vb", "A", "A");
+    let b = func("Site/b.vb", "B", "B");
+    state
+        .graph
+        .upsert_nodes(PID, &[target.clone(), a.clone(), b.clone()])
+        .unwrap();
+    state
+        .graph
+        .upsert_edges(
+            PID,
+            &[
+                calls(&target.node_id, &a.node_id),
+                calls(&target.node_id, &b.node_id),
+            ],
+        )
+        .unwrap();
+    let out = Engram::new(state)
+        .handle_find_symbol_references(
+            serde_json::from_value(json!({
+                "project_id": PID, "symbol_name": "Source", "max_outgoing_per_kind": 1
+            }))
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert!(
+        out.content[0]
+            .as_text()
+            .unwrap()
+            .text
+            .contains("truncated at 1")
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn definition_scope_preserves_callers_outside_the_selected_file() {
+    let (_tmp, state) = build_state();
+    let target = func("Site/ata/target.vb", "T", "Target");
+    let caller = func("Site/map/caller.vb", "C", "ExternalCaller");
+    let wrong = func("Site/ata-old/target.vb", "T", "Target");
+    state
+        .graph
+        .upsert_nodes(PID, &[target.clone(), caller.clone(), wrong])
+        .unwrap();
+    state
+        .graph
+        .upsert_edges(PID, &[calls(&caller.node_id, &target.node_id)])
+        .unwrap();
+    let out = Engram::new(state)
+        .handle_find_symbol_references(
+            serde_json::from_value(json!({
+                "project_id": PID, "symbol_name": "Target", "file_scope": "Site/ata"
+            }))
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    let text = &out.content[0].as_text().unwrap().text;
+    assert!(text.contains("ExternalCaller"), "{text}");
+    assert!(!text.contains("ata-old"), "{text}");
+}
+
+#[tokio::test]
+async fn declaration_anchors_are_not_presented_as_verified_call_sites() {
+    let (_tmp, state) = build_state();
+    let target = func("Site/target.vb", "Target", "Run");
+    let caller = func("Site/caller.vb", "Caller", "CallRun");
+    state
+        .graph
+        .upsert_nodes(PID, &[target.clone(), caller.clone()])
+        .unwrap();
+    let mut edge = calls(&caller.node_id, &target.node_id);
+    edge.metadata = Some(json!({"src_line":"12"}));
+    state.graph.upsert_edges(PID, &[edge]).unwrap();
+    let out = refs(&Engram::new(state), "Run", 10).await;
+    assert!(
+        out.contains("extractor anchor L12; call site unverified"),
+        "{out}"
+    );
+    assert!(
+        !out.contains("@L12"),
+        "a declaration anchor is not a proven call-site line"
+    );
+}
+
+#[tokio::test]
+async fn indexed_call_sites_survive_unrelated_high_degree_metadata_crowding() {
+    let (_tmp, state) = build_state();
+    let target = func("src/target.vb", "Target", "Run");
+    let caller = func("src/caller.vb", "Caller", "Execute");
+    state
+        .graph
+        .upsert_nodes(PID, &[target.clone(), caller.clone()])
+        .unwrap();
+    let mut edges = Vec::new();
+    for i in 0..1100 {
+        let mut edge = calls(&target.node_id, &format!("child:{i}"));
+        edge.edge_kind = EdgeKind::Contains;
+        edges.push(edge);
+    }
+    let mut edge = calls(&caller.node_id, &target.node_id);
+    edge.metadata =
+        Some(json!({"src_line":"12", "call_site_line":"34", "call_site_lines":[34,40]}));
+    edges.push(edge);
+    state.graph.upsert_edges(PID, &edges).unwrap();
+    let result = Engram::new(state)
+        .handle_find_symbol_references(
+            serde_json::from_value(json!({
+                "project_id":PID,"symbol_name":"Run","edge_kind_filter":["calls"]
+            }))
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    let text = &result.content[0].as_text().unwrap().text;
+    assert!(text.contains("indexed call sites L34, L40"), "{text}");
+    assert!(!text.contains("extractor anchor L12"), "{text}");
+    assert!(text.contains("verify source freshness"), "{text}");
+}
+
+#[tokio::test]
+async fn call_site_location_truncation_is_reported() {
+    let (_tmp, state) = build_state();
+    let target = func("src/target.vb", "Target", "Run");
+    let caller = func("src/caller.vb", "Caller", "Execute");
+    state
+        .graph
+        .upsert_nodes(PID, &[target.clone(), caller.clone()])
+        .unwrap();
+    let mut edge = calls(&caller.node_id, &target.node_id);
+    edge.metadata = Some(json!({"call_site_lines":(1..=25).collect::<Vec<_>>()}));
+    state.graph.upsert_edges(PID, &[edge]).unwrap();
+    let text = refs(&Engram::new(state), "Run", 10).await;
+    assert!(
+        text.contains("locations truncated; inspect source"),
+        "{text}"
+    );
+    assert!(!text.contains("L21"), "{text}");
+}

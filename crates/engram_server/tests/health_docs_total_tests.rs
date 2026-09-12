@@ -102,3 +102,129 @@ async fn the_total_counts_every_namespace_not_a_hardcoded_subset() {
          and every other namespace included), not a hardcoded subset:\n{text}"
     );
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn healthy_storage_reports_audit_records_added_and_removed_in_health_and_freshness() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("project");
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(root.join("Sample.vb"), "Public Class Sample\nEnd Class\n").unwrap();
+    let (state, _) = AppState::new(Config {
+        data_dir: tmp.path().join("data"),
+        allowed_roots: vec![root.clone()],
+        embedding_backend: "fts_only".into(),
+        llm_backend: "none".into(),
+        ..Default::default()
+    })
+    .unwrap();
+    let engram = Engram::new(state.clone());
+    engram
+        .index_project(Parameters(engram_server::IndexProjectRequest {
+            directory: root.to_string_lossy().into_owned(),
+            project_name: "availability".into(),
+            project_type: engram_server::models::ProjectType::General,
+            wait: true,
+            dedupe_by_directory: false,
+        }))
+        .await
+        .unwrap();
+    let pid = state.registry.list_projects().unwrap()[0]
+        .project_id
+        .clone();
+    let ps = engram_server::services::project_service::ensure_project_runtime(&state, &pid)
+        .await
+        .unwrap();
+    let mut initial_generation = None;
+    for phase in [0, 1, 2] {
+        if phase == 1 {
+            // Deliberately arbitrary records: count presence cannot certify that
+            // contents are valid/approved rules. An unrelated namespace is not counted.
+            let docs: Vec<_> = ["quality_gate", "quality_gate", "antipattern", "memory_bank"]
+                .iter()
+                .enumerate()
+                .map(|(i, namespace)| IndexDoc {
+                    generation: 0,
+                    chunk_id: i as u64,
+                    path: RelPath::new(&format!("notes/{i}.md")),
+                    language: "markdown".into(),
+                    content: format!("Unvalidated generic note {i}"),
+                    namespace: (*namespace).into(),
+                    author: None,
+                    timestamp: None,
+                    start_line: 1,
+                    end_line: 1,
+                    doc_id: format!("availability-{i}"),
+                    content_hash: format!("note-{i}"),
+                })
+                .collect();
+            // The index requires each batch to contain one namespace.
+            for batch in [&docs[..2], &docs[2..3], &docs[3..]] {
+                ps.search
+                    .index_docs(&pid, batch, &tokio_util::sync::CancellationToken::new())
+                    .await
+                    .unwrap();
+            }
+        } else if phase == 2 {
+            assert_eq!(
+                ps.search
+                    .delete_namespace(&pid, "quality_gate")
+                    .await
+                    .unwrap(),
+                2
+            );
+            assert_eq!(ps.search.delete_namespace(&pid, "antipattern").await.unwrap(), 1);
+        }
+        let result = engram
+            .project_health(Parameters(engram_server::ProjectIdRequest {
+                project_id: pid.clone(),
+            }))
+            .await
+            .unwrap();
+        let text = &result.content[0].as_text().unwrap().text;
+        assert!(text.starts_with("Health: OK\n"), "{text}");
+        assert!(
+            text.contains("OK does not imply optional knowledge availability or audit coverage")
+        );
+        let generation = text
+            .lines()
+            .find(|line| line.starts_with("active_generation:"))
+            .unwrap()
+            .to_owned();
+        if let Some(initial) = &initial_generation {
+            assert_eq!(&generation, initial);
+        } else {
+            initial_generation = Some(generation);
+        }
+        if phase == 1 {
+            assert!(text.contains("quality_gate_records: 2\n"), "{text}");
+            assert!(text.contains("pre_push_audit_knowledge: RECORDS_PRESENT_NOT_VALIDATED"));
+            assert!(
+                text.contains(
+                    "parsing, relevance, approval and audit execution are not established"
+                )
+            );
+        } else {
+            assert!(text.contains("quality_gate_records: 0\n"), "{text}");
+            assert!(text.contains("pre_push_audit_knowledge: INACTIVE_EMPTY"));
+        }
+        let freshness = engram.handle_get_index_freshness(serde_json::from_value(serde_json::json!({
+            "project_id":pid,"check_disk":true
+        })).unwrap()).await.unwrap();
+        let fresh_text = &freshness.content[0].as_text().unwrap().text;
+        assert!(fresh_text.contains("generation_complete: true"), "{fresh_text}");
+        assert!(fresh_text.contains("disk_check: no_changes_detected"), "{fresh_text}");
+        assert!(fresh_text.contains("audit_knowledge_scope: optional stored evidence"), "{fresh_text}");
+        for report in [text, fresh_text] {
+            if phase == 1 {
+                assert!(report.contains("antipattern_records: 1\n"), "{report}");
+                assert!(report.contains("anti_pattern_knowledge: RECORDS_PRESENT_NOT_VALIDATED"), "{report}");
+                assert!(report.contains("quality_gate_records: 2\n"), "{report}");
+            } else {
+                assert!(report.contains("antipattern_records: 0\n"), "{report}");
+                assert!(report.contains("anti_pattern_knowledge: INACTIVE_EMPTY"), "{report}");
+                assert!(report.contains("analyze_reverts"), "{report}");
+                assert!(report.contains("quality_gate_records: 0\n"), "{report}");
+            }
+        }
+    }
+}

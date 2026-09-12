@@ -84,6 +84,15 @@ const VB_CALL_HEAD_STOPWORDS: [&str; 10] = [
 static RE_VB_WITHEVENTS: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)\bWithEvents\s+([A-Za-z_]\w*)\s+As\b").expect("valid VB WithEvents regex")
 });
+// Only declaration prefixes may precede Sub/Function. Searching for these
+// keywords anywhere in a line mistakes documentation, strings and trailing
+// comments for methods, and gives those phantom methods real body ranges.
+static RE_VB_METHOD_DECL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r#"(?i)^(?:<(?:[^>"]|"(?:[^"]|"")*")*>\s*|(?:Public|Protected|Friend|Private|Shared|Shadows|Overloads|Overrides|Overridable|NotOverridable|MustOverride|Partial|Async|Iterator|Declare|Ansi|Unicode|Auto|Delegate)\s+)*(?:Sub|Function)\s+"#,
+    )
+    .expect("valid VB method declaration regex")
+});
 // Settings reads: ConfigurationManager.AppSettings("Key") (VB call syntax)
 // and My.Settings.Key. Generic name shapes only.
 static RE_VB_APPSETTINGS: LazyLock<Regex> = LazyLock::new(|| {
@@ -92,6 +101,52 @@ static RE_VB_APPSETTINGS: LazyLock<Regex> = LazyLock::new(|| {
 static RE_VB_MY_SETTINGS: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)\bMy\.Settings\.([A-Za-z_]\w*)").expect("valid My.Settings regex")
 });
+
+/// Keep byte offsets stable while excluding VB string contents and comments
+/// from name-shape detection. Literal setting keys are still read from the
+/// original line, but only when their AppSettings call starts in code.
+fn vb_settings_code_mask(line: &str) -> String {
+    let bytes = line.as_bytes();
+    let mut masked = bytes.to_vec();
+    let mut i = 0;
+    let mut statement_start = true;
+    while i < bytes.len() {
+        if bytes[i] == b'\''
+            || (statement_start
+                && bytes.get(i..i + 3).is_some_and(|s| s.eq_ignore_ascii_case(b"rem"))
+                && bytes.get(i + 3).is_none_or(u8::is_ascii_whitespace))
+        {
+            masked[i..].fill(b' ');
+            break;
+        }
+        if bytes[i] == b'"' {
+            masked[i] = b' ';
+            i += 1;
+            while i < bytes.len() {
+                masked[i] = b' ';
+                if bytes[i] == b'"' {
+                    i += 1;
+                    if bytes.get(i) == Some(&b'"') {
+                        masked[i] = b' ';
+                    } else {
+                        break;
+                    }
+                }
+                i += 1;
+            }
+            statement_start = false;
+            continue;
+        }
+        if bytes[i] == b':' {
+            statement_start = true;
+        } else if !bytes[i].is_ascii_whitespace() {
+            statement_start = false;
+        }
+        i += 1;
+    }
+    // Replacing complete string/comment byte spans with ASCII preserves UTF-8.
+    String::from_utf8(masked).expect("VB code mask preserves UTF-8")
+}
 // Settings-STORE property reads: the dominant house pattern in mature apps
 // is a static store class (ConfigSettings.Multitenant.IsMaster,
 // SystemSettingStore.General.RoqEnableListTypeDimension) — NOT raw
@@ -313,11 +368,12 @@ struct SidecarEdge {
     metadata: HashMap<String, String>,
 }
 
-fn parse_via_sidecar(
+fn source_request_via_sidecar(
     sidecar: &mut Sidecar,
     path: &Path,
     source: &str,
-) -> Result<(Vec<ExtractedSymbol>, Vec<ExtractedEdge>), SidecarParseError> {
+    payload: String,
+) -> Result<String, SidecarParseError> {
     // WEDGE-2026-06-12: the request write used to be a plain blocking
     // writeln! into the child's stdin pipe. When the child dies mid-exchange
     // (and an inherited handle keeps the pipe's read end alive — a classic
@@ -346,13 +402,6 @@ fn parse_via_sidecar(
             path.display()
         )));
     }
-
-    let req = SidecarRequest {
-        cmd: "parse",
-        path: path.display().to_string(),
-        source,
-    };
-    let payload = serde_json::to_string(&req).map_err(|e| SidecarParseError::Protocol(e.into()))?;
 
     let timeout_secs = std::env::var("ENGRAM_VB_SIDECAR_TIMEOUT_SECS")
         .ok()
@@ -418,6 +467,17 @@ fn parse_via_sidecar(
         }
     };
     sidecar.stdout = Some(stdout);
+    Ok(line)
+}
+
+fn parse_via_sidecar(
+    sidecar: &mut Sidecar,
+    path: &Path,
+    source: &str,
+) -> Result<(Vec<ExtractedSymbol>, Vec<ExtractedEdge>), SidecarParseError> {
+    let req = SidecarRequest { cmd: "parse", path: path.display().to_string(), source };
+    let payload = serde_json::to_string(&req).map_err(|e| SidecarParseError::Protocol(e.into()))?;
+    let line = source_request_via_sidecar(sidecar, path, source, payload)?;
     let response: SidecarResponse =
         serde_json::from_str(&line).map_err(|e| SidecarParseError::Protocol(e.into()))?;
     if let Some(error) = response.error {
@@ -1100,10 +1160,14 @@ fn enrich_vb_source(source: &str, symbols: &mut [ExtractedSymbol], edges: &mut V
         }
 
         // Settings reads → edges from the enclosing function (or file).
+        let settings_code = vb_settings_code_mask(line);
         for cap in RE_VB_APPSETTINGS
             .captures_iter(line)
             .chain(RE_VB_MY_SETTINGS.captures_iter(line))
         {
+            if cap.get(0).is_none_or(|m| settings_code.as_bytes()[m.start()] == b' ') {
+                continue;
+            }
             let Some(key) = cap.get(1).map(|m| m.as_str()) else {
                 continue;
             };
@@ -1122,11 +1186,18 @@ fn enrich_vb_source(source: &str, symbols: &mut [ExtractedSymbol], edges: &mut V
 
         // Settings-store property reads (ConfigSettings.X.Y — see the
         // RE_VB_SETTINGS_STORE rationale above).
-        for cap in RE_VB_SETTINGS_STORE.captures_iter(line) {
+        for cap in RE_VB_SETTINGS_STORE.captures_iter(&settings_code) {
             let (Some(root), Some(tail)) = (cap.get(1), cap.get(2)) else {
                 continue;
             };
             let root_l = root.as_str().to_lowercase();
+            // My.Settings is already handled by its framework-key pattern.
+            // Do not emit a second, unresolved Settings.Member dependency.
+            if root_l == "settings" && RE_VB_MY_SETTINGS.find_iter(&settings_code)
+                .any(|m| m.start() + 3 == root.start())
+            {
+                continue;
+            }
             // Framework roots covered by the AppSettings shape; `My.Settings`
             // covered above; declarations like `Dim x As ConfigSettings` are
             // filtered by requiring a property tail (regex already does).
@@ -1425,10 +1496,14 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
         }
 
         // Settings reads (web.config appSettings + My.Settings members).
+        let settings_code = vb_settings_code_mask(line);
         for cap in RE_VB_APPSETTINGS
             .captures_iter(line)
             .chain(RE_VB_MY_SETTINGS.captures_iter(line))
         {
+            if cap.get(0).is_none_or(|m| settings_code.as_bytes()[m.start()] == b' ') {
+                continue;
+            }
             let Some(key) = cap.get(1).map(|m| m.as_str()) else {
                 continue;
             };
@@ -1447,11 +1522,18 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
 
         // Settings-store property reads (ConfigSettings.X.Y) — same shape as
         // the sidecar path; see RE_VB_SETTINGS_STORE.
-        for cap in RE_VB_SETTINGS_STORE.captures_iter(line) {
+        for cap in RE_VB_SETTINGS_STORE.captures_iter(&settings_code) {
             let (Some(root), Some(tail)) = (cap.get(1), cap.get(2)) else {
                 continue;
             };
             let root_l = root.as_str().to_lowercase();
+            // My.Settings is already handled by its framework-key pattern.
+            // Do not emit a second, unresolved Settings.Member dependency.
+            if root_l == "settings" && RE_VB_MY_SETTINGS.find_iter(&settings_code)
+                .any(|m| m.start() + 3 == root.start())
+            {
+                continue;
+            }
             if matches!(
                 root_l.as_str(),
                 "configurationmanager" | "webconfigurationmanager" | "configurationsettings"
@@ -1581,21 +1663,15 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
                     });
                 }
             }
-        } else if lower.contains(" sub ")
-            || lower.starts_with("sub ")
-            || lower.contains(" function ")
-            || lower.starts_with("function ")
-        {
-            let tokens: Vec<_> = line.split_whitespace().collect();
-            let kw_idx = tokens
-                .iter()
-                .position(|t| matches!(t.to_ascii_lowercase().as_str(), "sub" | "function"));
-            if let Some(i) = kw_idx {
-                let mut method = tokens.get(i + 1).copied().unwrap_or_default().to_string();
+        } else if let Some(declaration) = RE_VB_METHOD_DECL.find(line) {
+            // Attribute strings may themselves contain Sub/Function tokens.
+            // The prefix match ends after the actual declaration keyword.
+            if let Some(method_token) = line[declaration.end()..].split_whitespace().next() {
+                let mut method = method_token.to_string();
                 if let Some(p) = method.find('(') {
                     method.truncate(p);
                 }
-                let mut meta = HashMap::new();
+                let mut meta = fallback_method_metadata(source, line_no as usize);
                 // TODO-13: parameter count from the signature line so the
                 // degraded path also feeds arity-aware resolution. Counts
                 // top-level commas inside the first paren group; nested
@@ -1802,6 +1878,108 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
     (symbols, edges)
 }
 
+// Preserve the logical declaration, including multiline parameter lists. The
+// degraded parser only claims explicitly written accessibility/type facts.
+fn fallback_method_metadata(source: &str, start_line: usize) -> HashMap<String, String> {
+    let mut meta = HashMap::new();
+    let mut signature = String::new();
+    let mut depth = 0i32;
+    for line in source.lines().skip(start_line.saturating_sub(1)) {
+        let mut quoted = false;
+        let mut clean = String::new();
+        for ch in line.trim().chars() {
+            if ch == '"' {
+                quoted = !quoted;
+            }
+            if ch == '\'' && !quoted {
+                break;
+            }
+            if !quoted {
+                if ch == '(' {
+                    depth += 1;
+                }
+                if ch == ')' {
+                    depth -= 1;
+                }
+            }
+            clean.push(ch);
+        }
+        let clean = clean.trim();
+        let continued = clean.ends_with('_');
+        if !signature.is_empty() {
+            signature.push(' ');
+        }
+        signature.push_str(clean.trim_end_matches('_').trim_end());
+        if depth <= 0 && !continued {
+            break;
+        }
+    }
+    if depth != 0 {
+        return meta;
+    }
+    let Some(decl) = RE_VB_METHOD_DECL.find(&signature) else {
+        return meta;
+    };
+    let prefix = signature[..decl.end()].to_ascii_lowercase();
+    // Ignore attribute contents when inspecting modifiers.
+    let prefix = prefix.rsplit('>').next().unwrap_or(&prefix);
+    let words: Vec<_> = prefix.split_whitespace().collect();
+    let access = if words.contains(&"private") && words.contains(&"protected") {
+        Some("Private Protected")
+    } else if words.contains(&"protected") && words.contains(&"friend") {
+        Some("Protected Friend")
+    } else if words.contains(&"public") {
+        Some("Public")
+    } else if words.contains(&"private") {
+        Some("Private")
+    } else if words.contains(&"protected") {
+        Some("Protected")
+    } else if words.contains(&"friend") {
+        Some("Friend")
+    } else {
+        None
+    };
+    if let Some(access) = access {
+        meta.insert("access_level".into(), access.into());
+    }
+    if words.last() == Some(&"sub") {
+        meta.insert("return_type".into(), "Void".into());
+    } else {
+        // The last parameter-list close precedes As; the type itself may have
+        // generic parentheses, so find the first top-level As after the name.
+        let tail = &signature[decl.end()..];
+        let mut nesting = 0i32;
+        let mut quoted = false;
+        for (i, ch) in tail.char_indices() {
+            if ch == '"' {
+                quoted = !quoted;
+            }
+            if quoted {
+                continue;
+            }
+            if ch == '(' {
+                nesting += 1;
+            }
+            if ch == ')' {
+                nesting -= 1;
+            }
+            if nesting == 0 && tail[i..].to_ascii_lowercase().starts_with(" as ") {
+                let ty = &tail[i + 4..];
+                let lower = ty.to_ascii_lowercase();
+                let end = [" handles ", " implements "]
+                    .iter()
+                    .filter_map(|s| lower.find(s))
+                    .min()
+                    .unwrap_or(ty.len());
+                meta.insert("return_type".into(), ty[..end].trim().into());
+                break;
+            }
+        }
+    }
+    meta.insert("signature".into(), signature);
+    meta
+}
+
 /// Eval/test entry to the degraded-mode extractor: deterministic (no
 /// sidecar dependency), used by the graph-accuracy eval (TODO-49) and
 /// unit tests. Not part of the indexing API.
@@ -1878,6 +2056,59 @@ mod tests {
         // Must NOT match ordinary calls.
         assert!(!re.is_match("Dim n = GetCount(list)"));
         assert!(!re.is_match("results.CheckSum(data)"));
+    }
+
+    #[test]
+    fn settings_dependencies_ignore_literals_and_comments_on_both_extraction_paths() {
+        let code = r#"Class Reader
+  Public Sub Load()
+    Dim cached = Session("PermissionCache.CurrentUser")
+    Dim quoted = "åäö ""ConfigSettings.FalsePositive"" My.Settings.Fake"
+    Dim text = "My.Settings.Fake" : Dim real = ConfigSettings.General.Enabled
+    Dim text2 = "it's text" : Dim actual = My.Settings.Locale
+    Dim plain = ConfigurationManager.AppSettings("PermissionCache.CurrentUser")
+    ' ConfigSettings.Commented My.Settings.Commented AppSettings("Commented")
+    Rem ConfigSettings.RemComment My.Settings.RemComment AppSettings("RemComment")
+    Dim n = 1 : rEm ConfigSettings.InlineComment
+    Dim trailing = 2 ' ConfigSettings.Trailing
+    Dim escaped = """AppSettings(""NotARead"")"""
+  End Sub
+End Class"#;
+        let (mut symbols, fallback_edges) =
+            super::fallback_extract_vb_for_test(Path::new("Reader.vb"), code);
+        // Sidecar enrichment receives real method ranges rather than fallback
+        // one-line symbols. No external parser process is needed for this check.
+        for symbol in &mut symbols {
+            symbol.end_line = code.lines().count() as u32;
+        }
+        let mut enriched_edges = Vec::new();
+        super::enrich_vb_source(code, &mut symbols, &mut enriched_edges);
+        for (path, edges) in [("fallback", fallback_edges), ("sidecar enrichment", enriched_edges)] {
+            let mut reads: Vec<_> = edges.iter()
+                .filter(|e| e.kind == "reads_setting")
+                .map(|e| (e.target_name.as_str(), e.source_start_line))
+                .collect();
+            reads.sort_unstable();
+            assert_eq!(reads, vec![
+                ("ConfigSettings.General.Enabled", 5),
+                ("Locale", 6),
+                ("PermissionCache.CurrentUser", 7),
+            ], "{path}: quoted cache keys/comments must not become settings dependencies");
+        }
+    }
+
+    #[test]
+    fn settings_code_mask_preserves_unicode_offsets_and_statement_boundaries() {
+        let source = "Dim å = \"é\" : Dim x = My.Settings.Locale ' ignored";
+        let masked = super::vb_settings_code_mask(source);
+        assert_eq!(masked.len(), source.len());
+        assert_eq!(masked.find("My.Settings.Locale"), source.find("My.Settings.Locale"));
+        assert!(!masked.contains("é") && !masked.contains("ignored"));
+        assert!(super::vb_settings_code_mask("Dim remember = ConfigSettings.Real")
+            .contains("ConfigSettings.Real"));
+        assert!(super::vb_settings_code_mask("Rem").trim().is_empty());
+        assert!(!super::vb_settings_code_mask("Dim x = \"unterminated ConfigSettings.Fake")
+            .contains("ConfigSettings.Fake"));
     }
 
     #[test]
@@ -2173,5 +2404,71 @@ End Class\n";
         // a query clause.
         let src = "Public Class api\n    Public Function f() As String\n        Dim v = item.statusId\n        s.SetOK(qry.params)\n        Return v\n    End Function\nEnd Class\n";
         assert!(targets(src).is_empty(), "{:?}", targets(src));
+    }
+}
+
+/// Fresh source request over the serialized, timeout-protected sidecar pipe.
+/// An old/missing sidecar is unavailable, never a fallback path analysis.
+pub fn vb_return_paths(path: &Path, source: &str, start: u32, end: u32) -> Result<serde_json::Value, String> {
+    if source.len() > 2_000_000 || start == 0 || end < start {
+        return Err("return-path source/bounds exceed supported limits".into());
+    }
+    let request_id = format!("{}:{start}:{end}", blake3::hash(source.as_bytes()).to_hex());
+    let payload = serde_json::json!({"cmd":"return_paths", "path":path.display().to_string(),
+        "source":source,"method_start_line":start,"method_end_line":end,"request_id":request_id}).to_string();
+    let mut guard = get_or_spawn_sidecar().lock().map_err(|_| "sidecar mutex poisoned")?;
+    let sidecar = ensure_sidecar(&mut guard).map_err(|e| format!("return-path sidecar unavailable: {e}"))?;
+    let line = match source_request_via_sidecar(sidecar,path,source,payload) {
+        Ok(line) => line,
+        Err(error) => {
+            let _ = sidecar.child.kill();
+            *guard = None;
+            return Err(format!("return-path transport failed: {error:?}"));
+        }
+    };
+    if line.len() > 256 * 1024 { return Err("return-path response exceeds 256 KiB".into()); }
+    let response: serde_json::Value = serde_json::from_str(&line).map_err(|e| e.to_string())?;
+    if let Some(error) = response.get("error").and_then(|v| v.as_str()) { return Err(error.to_owned()); }
+    let result = response.get("return_paths").ok_or("return-path response missing")?;
+    // An echoed request id alone cannot detect console transcoding of source.
+    // Bind evidence to the bytes independently hashed by the sidecar.
+    if !return_path_source_matches(result, source) {
+        return Err("return-path response source fingerprint mismatch".into());
+    }
+    if result.get("request_id").and_then(|v|v.as_str()) != Some(request_id.as_str())
+        || result.get("version").and_then(|v|v.as_str()) != Some("vb-return-paths-v1")
+        || result.get("method_start_line").and_then(|v|v.as_u64()) != Some(start as u64)
+        || result.get("method_end_line").and_then(|v|v.as_u64()) != Some(end as u64) {
+        return Err("return-path response identity mismatch".into());
+    }
+    Ok(result.clone())
+}
+
+fn return_path_source_matches(result: &serde_json::Value, source: &str) -> bool {
+    use sha2::{Digest, Sha256};
+    let expected = format!("{:x}", Sha256::digest(source.as_bytes()));
+    result.get("source_sha256").and_then(|v| v.as_str()) == Some(expected.as_str())
+}
+
+#[cfg(test)]
+mod return_path_source_identity_tests {
+    use super::return_path_source_matches;
+    use sha2::{Digest, Sha256};
+
+    #[test]
+    fn echoed_request_id_does_not_validate_transcoded_or_changed_source() {
+        let source = "\u{feff}Class Sample\r\n' åäö 日本語\r\nEnd Class\r\n";
+        let mut result = serde_json::json!({
+            "request_id": "unchanged-echo",
+            "source_sha256": format!("{:x}", Sha256::digest(source.as_bytes()))
+        });
+        assert!(return_path_source_matches(&result, source));
+        assert!(!return_path_source_matches(&result, source.trim_start_matches('\u{feff}')));
+        assert!(!return_path_source_matches(&result, &source.replace("åäö", "???")));
+        assert!(!return_path_source_matches(&result, &source.replace("\r\n", "\n")));
+        for invalid in [serde_json::Value::Null, serde_json::json!(42), serde_json::json!("0000")] {
+            result["source_sha256"] = invalid;
+            assert!(!return_path_source_matches(&result, source));
+        }
     }
 }

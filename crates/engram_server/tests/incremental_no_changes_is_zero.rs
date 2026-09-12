@@ -73,6 +73,7 @@ async fn test_incremental_no_changes_is_zero() {
 
     // 2. Run update_project without any changes
     let update_req = UpdateProjectRequest {
+        reindex_paths: Vec::new(),
         project_id: project_id.to_string(),
         wait: true,
         max_commits: 100,
@@ -114,4 +115,25 @@ async fn test_incremental_no_changes_is_zero() {
         "Should still find file1.rs in the new generation after zero-change update. Output: \n{}",
         text
     );
+    // An extractor upgrade can explicitly refresh unchanged source, while the
+    // following ordinary update must still recognize the unchanged file.
+    for (paths, expected) in [
+        (vec!["file1.rs".to_string()], "files=1"),
+        (vec![], "files=0"),
+    ] {
+        let res = engram
+            .update_project(Parameters(UpdateProjectRequest {
+                project_id: project_id.to_string(),
+                reindex_paths: paths,
+                wait: true,
+                max_commits: 100,
+                index_antipatterns: false,
+            }))
+            .await
+            .unwrap();
+        let rmcp::model::RawContent::Text(text) = &res.content[0].raw else {
+            panic!("expected text")
+        };
+        assert!(text.text.contains(expected), "{}", text.text);
+    }
 }

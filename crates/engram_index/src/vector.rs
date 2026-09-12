@@ -79,6 +79,14 @@ fn stored_vector_dim(tschema: &arrow_schema::Schema) -> Option<usize> {
     }
 }
 
+/// Create an empty table exclusively; never open or replace an existing table.
+pub(crate) async fn create_new_table(conn: &Connection, name: &str, dim: usize) -> anyhow::Result<Table> {
+    let schema = vector_schema(dim);
+    let batch = RecordBatch::new_empty(schema.clone());
+    let reader = RecordBatchIterator::new(vec![Ok(batch)], schema);
+    Ok(conn.create_table(name, reader).execute().await?)
+}
+
 /// Open or create a LanceDB table with the given vector `dim`.
 ///
 /// If the existing table has a different vector dimension (e.g. an old 384-dim table

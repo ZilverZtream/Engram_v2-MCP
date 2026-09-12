@@ -206,7 +206,13 @@ pub fn uncovered_named_terms_with(
 ) -> Vec<String> {
     let hay = evidence_haystack(evidence, known);
     let mut out: Vec<String> = Vec::new();
+    let mut sentence_start = true;
     for (i, raw) in question.split_whitespace().enumerate() {
+        let starts_sentence = sentence_start;
+        sentence_start = raw
+            .trim_end_matches(['"', '\'', '`', ')', ']'])
+            .ends_with(['.', '?', '!']);
+        let explicit_code_name = raw.starts_with('`');
         let tok = raw
             .trim_matches(|c: char| !c.is_ascii_alphanumeric() && c != '_' && c != '.')
             .trim_matches('.');
@@ -216,11 +222,50 @@ pub fn uncovered_named_terms_with(
         let upper_start = tok.chars().next().is_some_and(|c| c.is_ascii_uppercase());
         let inner_upper = tok.chars().skip(1).any(|c| c.is_ascii_uppercase());
         let identifier = tok.contains('_') || tok.contains('.');
-        let named = identifier || inner_upper || (upper_start && i > 0);
+        let named = explicit_code_name || identifier || inner_upper || (upper_start && i > 0);
         if !named {
             continue;
         }
         let lower = tok.to_lowercase();
+        // A sentence-leading instruction is not an asserted project symbol.
+        // Keep ordinary proper nouns, explicit code names and names used in
+        // the middle of a sentence subject to the missing-premise guard.
+        if starts_sentence
+            && !explicit_code_name
+            && !identifier
+            && !inner_upper
+            && matches!(
+                lower.as_str(),
+                "include"
+                    | "identify"
+                    | "describe"
+                    | "explain"
+                    | "list"
+                    | "show"
+                    | "find"
+                    | "check"
+                    | "cover"
+                    | "consider"
+                    | "compare"
+                    | "summarize"
+                    | "trace"
+                    | "locate"
+                    | "report"
+                    | "give"
+                    | "provide"
+                    | "outline"
+                    | "verify"
+                    | "analyze"
+                    | "analyse"
+                    | "inspect"
+                    | "review"
+                    | "highlight"
+                    | "evaluate"
+                    | "determine"
+            )
+        {
+            continue;
+        }
         if is_filler_term(&lower) || is_tech_role_term(&lower) || hay.contains(&lower) {
             continue;
         }
@@ -486,6 +531,31 @@ pub fn assess_status(
         }
     }
     let primary = primary_kind(plan.answer_type);
+    // Retained stale or unverified rule evidence is a material coverage gap.
+    // Current-code hits must not silently certify an outdated inferred rule.
+    if evidence.iter().any(|e| {
+        e.source_verification
+            .as_deref()
+            .is_some_and(|s| !s.starts_with("VERIFIED_METHOD_HASH:"))
+    }) {
+        return if evidence.iter().all(|e| {
+            e.source_verification
+                .as_deref()
+                .is_some_and(|s| s.starts_with("STALE:"))
+        }) {
+            AnswerStatus::Stale
+        } else {
+            AnswerStatus::Partial
+        };
+    }
+    // A coordinated behavior contract requires per-operation/per-scope
+    // verification. Current providers return snippets and relation identities,
+    // not verified behavior claims. Even keyword-rich source cannot discharge
+    // these obligations merely by being present. Keep useful evidence Partial
+    // until a typed verifier can link each obligation to supporting evidence.
+    if !plan.contract.behavior_requirements.is_empty() {
+        return AnswerStatus::Partial;
+    }
     if evidence.iter().any(|e| e.kind == primary) {
         AnswerStatus::Answered
     } else {

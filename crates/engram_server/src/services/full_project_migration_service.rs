@@ -1,4 +1,4 @@
-//! Full project migration analysis — the "one call, everything" service.
+//! Full project migration analysis â€” the "one call, everything" service.
 //!
 //! Orchestrates every migration sub-service to produce a single comprehensive
 //! report covering every file in the project.
@@ -35,7 +35,7 @@ pub(super) fn edges_or_warn(
     context: &'static str,
 ) -> Vec<engram_graph::Edge> {
     result.unwrap_or_else(|e| {
-        tracing::warn!("MIG1: graph query failed ({context}): {e:#} — returning empty result");
+        tracing::warn!("MIG1: graph query failed ({context}): {e:#} â€” returning empty result");
         record_mig_degraded(context);
         Vec::new()
     })
@@ -48,7 +48,7 @@ pub(super) fn nodes_or_warn(
     context: &'static str,
 ) -> Vec<engram_graph::Node> {
     result.unwrap_or_else(|e| {
-        tracing::warn!("MIG1: graph query failed ({context}): {e:#} — returning empty result");
+        tracing::warn!("MIG1: graph query failed ({context}): {e:#} â€” returning empty result");
         record_mig_degraded(context);
         Vec::new()
     })
@@ -63,7 +63,7 @@ use super::state_migration_service::{self, StateMigrationReport};
 
 // Data model (every `pub struct` / `pub enum` for the report) lives
 // in `full_project_migration_service/model.rs`. Re-exported at the
-// module root so external callers keep using the same paths —
+// module root so external callers keep using the same paths â€”
 // `use super::full_project_migration_service::FullProjectMigrationReport;`
 // still compiles exactly as before.
 pub mod model;
@@ -97,7 +97,7 @@ use llm_enhancement::{
 /// (parent_class, file_path, methods, state_writes, base_calls) per class.
 pub(super) type ClassInfo = (String, String, Vec<String>, Vec<String>, Vec<String>);
 
-// ── Main entry point ──────────────────────────────────────────────────────────
+// â”€â”€ Main entry point â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Analyze an entire project for migration.
 ///
@@ -109,7 +109,7 @@ pub(super) type ClassInfo = (String, String, Vec<String>, Vec<String>, Vec<Strin
 /// analysis phase; if cancelled it returns `Err` immediately, allowing the
 /// caller to surface the abort without leaving the service in partial state.
 ///
-/// MIG3-3410fe: This function is **purely in-memory** — no checkpoint or phase
+/// MIG3-3410fe: This function is **purely in-memory** â€” no checkpoint or phase
 /// marker is written between analysis phases.  Cancellation is safe (no partial
 /// writes can corrupt storage), but there is **no resume capability**: a cancelled
 /// run must restart from scratch on retry.  For short projects this is acceptable;
@@ -153,7 +153,7 @@ pub fn analyze_full_project(
         .map(|(p, c)| (p.as_str(), c.as_str()))
         .collect();
 
-    // ── 1. Project-wide analyses (graph-only, no file I/O) ────────────────
+    // â”€â”€ 1. Project-wide analyses (graph-only, no file I/O) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     let migration_order = migration_order_service::suggest_migration_order(graph, project_id)
         .unwrap_or_else(|e| {
@@ -212,7 +212,7 @@ pub fn analyze_full_project(
     // pattern: log a tracing::warn, return a safe empty/default value, and record the
     // context via edges_or_warn/nodes_or_warn (which call record_mig_degraded) so the
     // final report carries an explicit degraded_sections list and report_is_complete=false.
-    // No sub-service failure is silently discarded — every arm surfaces in the report.
+    // No sub-service failure is silently discarded â€” every arm surfaces in the report.
     let data_access_profiles =
         db_strategy_service::classify_data_access_patterns(graph, project_id).unwrap_or_else(|e| {
             tracing::warn!("data_access classification failed: {e}");
@@ -226,7 +226,7 @@ pub fn analyze_full_project(
         ));
     }
 
-    // ── 2. Per-file dossiers ──────────────────────────────────────────────
+    // â”€â”€ 2. Per-file dossiers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     let file_contents = &bundle.markup_files;
     let capped = if file_contents.len() > max_files {
@@ -283,7 +283,7 @@ pub fn analyze_full_project(
         ));
     }
 
-    // ── 3. Phase 32 analyses ─────────────────────────────────────────────
+    // â”€â”€ 3. Phase 32 analyses â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     let web_config_inv = web_config_content
         .map(|wc| analyzers::web_config::extract_webconfig_inventory(wc, &code_refs))
@@ -336,7 +336,7 @@ pub fn analyze_full_project(
 
     let reports = analyzers::reports::build_report_summary(graph, project_id, &bundle.report_files);
 
-    // ── 3b. Phase 33 analyses ──────────────────────────────────────────────
+    // â”€â”€ 3b. Phase 33 analyses â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     // Gap 1: Code-behind method inventory
     let method_inventories =
@@ -391,7 +391,7 @@ pub fn analyze_full_project(
             .map(|ga| ga.codebehind_content.as_deref().unwrap_or("")),
     );
 
-    // ── 3c. Phase 34 analyses ─────────────────────────────────────────────
+    // â”€â”€ 3c. Phase 34 analyses â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     // Ticket 1: Stored procedure catalog
     let sp_catalog = analyzers::sp_catalog::build_sp_catalog(&bundle.sql_files, &code_refs);
@@ -446,7 +446,7 @@ pub fn analyze_full_project(
     // Ticket 6c: Resource file inventory
     let resource_inventory = analyzers::resources::build_resource_inventory(&bundle.resx_files);
 
-    // ── 3d. Phase 35 analyses ─────────────────────────────────────────────
+    // â”€â”€ 3d. Phase 35 analyses â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     // VB.NET translation traps
     let vb_translation_traps =
@@ -465,7 +465,7 @@ pub fn analyze_full_project(
     let jquery_inventory =
         engram_index::jquery_inventory::build_jquery_inventory(&js_refs, &markup_refs);
 
-    // Cross-layer AJAX→Handler→Data tracing
+    // Cross-layer AJAXâ†’Handlerâ†’Data tracing
     let cross_layer_traces = analyzers::cross_layer::build_cross_layer_traces(
         &js_analysis,
         &sp_catalog,
@@ -473,7 +473,7 @@ pub fn analyze_full_project(
         &code_refs,
     );
 
-    // ── 4. Cross-cutting aggregation ──────────────────────────────────────
+    // â”€â”€ 4. Cross-cutting aggregation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     let cross_cutting = analyzers::cross_cutting::build_cross_cutting_summary(
         &page_dossiers,
@@ -497,7 +497,7 @@ pub fn analyze_full_project(
         &vb_translation,
     );
 
-    // ── 5. Build the wave lookup (file_path → wave number) ────────────────
+    // â”€â”€ 5. Build the wave lookup (file_path â†’ wave number) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     let mut wave_lookup: BTreeMap<String, u32> = BTreeMap::new();
     for wave in &migration_order.waves {
@@ -506,7 +506,7 @@ pub fn analyze_full_project(
         }
     }
 
-    // ── 6. Deterministic business logic summaries ─────────────────────────
+    // â”€â”€ 6. Deterministic business logic summaries â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // (LLM-powered summaries are available via the `analyze_business_logic` tool)
 
     let business_logic = {
@@ -542,6 +542,7 @@ pub fn analyze_full_project(
                 file_path: file_path.clone(),
                 class_name,
                 file_purpose: String::new(), // No LLM available in sync context
+                file_purpose_evidence: None,
                 methods,
                 analyzed_at: now.clone(),
             });
@@ -556,7 +557,7 @@ pub fn analyze_full_project(
         }
     };
 
-    // ── 7. Phase 37: Database Intelligence ─────────────────────────────
+    // â”€â”€ 7. Phase 37: Database Intelligence â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     // Collect code-level table references for cross-referencing
     let code_tables: std::collections::HashSet<String> = {
@@ -587,12 +588,12 @@ pub fn analyze_full_project(
         &code_tables,
     );
 
-    // ── 8. Phase 37: Session Workflow Reconstruction ────────────────────
+    // â”€â”€ 8. Phase 37: Session Workflow Reconstruction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     let session_workflows =
         super::session_workflow_service::reconstruct_session_workflows(graph, project_id);
 
-    // ── 9. Render markdown ──────────────────────────────────────────────
+    // â”€â”€ 9. Render markdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     let markdown_report = rendering::render_markdown(
         project_id,
@@ -650,7 +651,7 @@ pub fn analyze_full_project(
         tracing::warn!(
             project_id,
             degraded_count = degraded_sections.len(),
-            "MIG1: report generated with {} degraded section(s) — \
+            "MIG1: report generated with {} degraded section(s) â€” \
              some graph queries failed and sections contain empty defaults",
             degraded_sections.len()
         );
@@ -701,13 +702,13 @@ pub fn analyze_full_project(
     })
 }
 
-// ── Per-page LLM Enhancement ─────────────────────────────────────────────────
+// â”€â”€ Per-page LLM Enhancement â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ── Ticket 37.1: Async LLM Enhancement Pass ──────────────────────────────────
+// â”€â”€ Ticket 37.1: Async LLM Enhancement Pass â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ── Cross-cutting aggregation ─────────────────────────────────────────────────
+// â”€â”€ Cross-cutting aggregation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ── Phase 32: Pre-compiled regex statics ──────────────────────────────────────
+// â”€â”€ Phase 32: Pre-compiled regex statics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Each function in this section previously compiled between 1 and 19 Regex
 // objects on every call.  Moving them to LazyLock statics compiles each pattern
 // exactly once at first use and eliminates all per-call allocation.
@@ -814,25 +815,25 @@ pub(super) static RPT_DATASOURCE_RE: std::sync::LazyLock<Regex> = std::sync::Laz
     Regex::new(r#"<DataSource\s+Name\s*=\s*"([^"]+)""#).expect("valid regex")
 });
 
-// ── Phase 32: Analysis functions ──────────────────────────────────────────────
+// â”€â”€ Phase 32: Analysis functions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ── Global.asax analysis ──────────────────────────────────────────────────────
+// â”€â”€ Global.asax analysis â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ── Service endpoint summary ──────────────────────────────────────────────────
+// â”€â”€ Service endpoint summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ── Anti-pattern summary ──────────────────────────────────────────────────────
+// â”€â”€ Anti-pattern summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ── JavaScript / jQuery analysis ──────────────────────────────────────────────
+// â”€â”€ JavaScript / jQuery analysis â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ── GIS / Spatial analysis ────────────────────────────────────────────────────
+// â”€â”€ GIS / Spatial analysis â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ── Classic ASP summary ───────────────────────────────────────────────────────
+// â”€â”€ Classic ASP summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ── Report summary ────────────────────────────────────────────────────────────
+// â”€â”€ Report summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ── Phase 33 analysis functions ────────────────────────────────────────────────
+// â”€â”€ Phase 33 analysis functions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ── Gap 1: Code-behind method inventory ─────────────────────────────────────
+// â”€â”€ Gap 1: Code-behind method inventory â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Fallback: extract method signatures directly from code-behind text using regex.
 pub(crate) fn extract_methods_from_content(content: &str) -> Vec<MethodInfo> {
@@ -1002,29 +1003,29 @@ pub(crate) fn extract_methods_from_content(content: &str) -> Vec<MethodInfo> {
     methods
 }
 
-// ── Gap 2: Third-party control detection ────────────────────────────────────
+// â”€â”€ Gap 2: Third-party control detection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ── Gap 3: Dependency inventory ─────────────────────────────────────────────
+// â”€â”€ Gap 3: Dependency inventory â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ── Gap 4: Caching inventory ────────────────────────────────────────────────
+// â”€â”€ Gap 4: Caching inventory â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ── Gap 5: URL routing/rewrite rules ────────────────────────────────────────
+// â”€â”€ Gap 5: URL routing/rewrite rules â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ── Gap 6: VB.NET → C# translation flags ───────────────────────────────────
+// â”€â”€ Gap 6: VB.NET â†’ C# translation flags â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ── Gap 7: Multi-tenancy detection ──────────────────────────────────────────
+// â”€â”€ Gap 7: Multi-tenancy detection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ── Gap 8: Email & background job detection ─────────────────────────────────
+// â”€â”€ Gap 8: Email & background job detection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ── Markdown renderer ─────────────────────────────────────────────────────────
+// â”€â”€ Markdown renderer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[allow(clippy::too_many_arguments)]
 
 /// Render a top-level confidence dashboard summarizing intelligence coverage.
 
-// ── Phase 34: Stored Procedure Catalog Builder ───────────────────────────────
+// â”€â”€ Phase 34: Stored Procedure Catalog Builder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ── Phase 34: Inheritance Chain Resolution ───────────────────────────────────
+// â”€â”€ Phase 34: Inheritance Chain Resolution â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub(super) static VB_CLASS_INHERITS_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| {
@@ -1080,7 +1081,7 @@ const LIFECYCLE_METHODS: &[&str] = &[
     "Render",
 ];
 
-// ── Phase 35: Inherited effect propagation ───────────────────────────────────
+// â”€â”€ Phase 35: Inherited effect propagation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // Effect detection regexes for method bodies
 pub(super) static EFFECT_SQL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
@@ -1104,7 +1105,7 @@ pub(super) static EFFECT_HTTP_RE: std::sync::LazyLock<Regex> = std::sync::LazyLo
     .expect("effect_http")
 });
 
-// ── Phase 35: Cross-Layer AJAX→Handler→Data Tracing ──────────────────────────
+// â”€â”€ Phase 35: Cross-Layer AJAXâ†’Handlerâ†’Data Tracing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub(super) static HANDLER_SP_NAME_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)CommandText\s*=\s*"(sp_\w+|usp_\w+|\w+_\w+)""#).expect("handler_sp_name")
@@ -1120,9 +1121,9 @@ struct UrlParts {
     method_part: Option<String>,
 }
 
-// ── Phase 34: packages.config Parser ─────────────────────────────────────────
+// â”€â”€ Phase 34: packages.config Parser â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// packages.config element regex — matches the entire <package ... /> tag
+// packages.config element regex â€” matches the entire <package ... /> tag
 // regardless of attribute order. Individual attributes are extracted inside.
 pub(super) static PKG_CONFIG_ELEMENT_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| {
@@ -1140,7 +1141,7 @@ pub(super) static PKG_ATTR_DEV_RE: std::sync::LazyLock<Regex> = std::sync::LazyL
     Regex::new(r#"(?i)\bdevelopmentDependency\s*=\s*"true""#).expect("pkg_attr_dev")
 });
 
-// ── Phase 34: Binding Redirect Parser ────────────────────────────────────────
+// â”€â”€ Phase 34: Binding Redirect Parser â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // Binding redirect parsing: matches the entire <dependentAssembly> block,
 // then extracts attributes individually for order-independence.
@@ -1159,7 +1160,7 @@ pub(super) static BR_NEW_VER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLoc
     Regex::new(r#"(?i)\bnewVersion\s*=\s*"([^"]+)""#).expect("br_new_ver")
 });
 
-// ── Phase 34: Method Body Extraction ─────────────────────────────────────────
+// â”€â”€ Phase 34: Method Body Extraction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Extract VB method body by tracking Sub/Function to End Sub/End Function.
 pub(crate) fn extract_vb_method_body(
@@ -1168,7 +1169,7 @@ pub(crate) fn extract_vb_method_body(
 ) -> Option<(String, u32, u32, u32)> {
     // Find the method signature line
     let pattern = format!(
-        r"(?im)^\s*(?:(?:Public|Private|Protected|Friend)\s+)?(?:Shared\s+)?(?:Overrides\s+)?(?:Overridable\s+)?(?:Async\s+)?(Sub|Function)\s+{}\s*\(",
+        r"(?im)^\s*(?:(?:Public|Private|Protected|Friend)\s+)?(?:(?:Shared|Overrides|Overridable|MustOverride|NotOverridable|Overloads)\s+)*(?:Async\s+)?(Sub|Function)\s+{}\s*\(",
         regex::escape(method_name)
     );
     // MIG1/D2: log before early-return so operators can see which method name caused failure.
@@ -1221,7 +1222,7 @@ pub(crate) fn extract_vb_method_body(
             depth += 1;
         }
 
-        // Count closings — must match BOTH End Sub and End Function
+        // Count closings â€” must match BOTH End Sub and End Function
         // because a Function can contain nested Sub (and vice versa).
         // Only break when depth reaches 0 AND closing kind matches the opening kind.
         if trimmed.starts_with("END SUB") || trimmed.starts_with("END FUNCTION") {
@@ -1229,9 +1230,9 @@ pub(crate) fn extract_vb_method_body(
             if depth == 0 && trimmed.starts_with(&format!("END {upper_kind}")) {
                 // Calculate byte offset
                 let line_start = after_start
-                    .lines()
+                    .split_inclusive('\n')
                     .take(i)
-                    .map(|l| l.len() + 1)
+                    .map(str::len)
                     .sum::<usize>();
                 end_pos = Some(start_offset + line_start + line.len());
                 break;
@@ -1239,7 +1240,9 @@ pub(crate) fn extract_vb_method_body(
         }
     }
 
-    let end_offset = end_pos.unwrap_or(content.len());
+    // Interface/MustOverride declarations have no implementation. Treating
+    // the rest of the file as their body invents executable business logic.
+    let end_offset = end_pos?;
     let body = &content[start_offset..end_offset];
     let line_count = body.lines().count() as u32;
     let end_line = start_line + line_count.saturating_sub(1);
@@ -1253,28 +1256,28 @@ pub(crate) fn extract_vb_method_body(
 /// MiniLang differs from VB in three ways that matter here: it has no
 /// access-modifier requirement (but `Public`/`Private` are legal), generic
 /// parameters sit BETWEEN the name and the parameter list
-/// (`Function BTreeMap_Get Of K, V(…)`), and bodies nest `End Type` /
+/// (`Function BTreeMap_Get Of K, V(â€¦)`), and bodies nest `End Type` /
 /// `End Unsafe` / `End Using` / `End Match` / `End Repeat` / `End Union`
 /// blocks that must not be counted as function terminators. A `Function`
 /// declared inside a `Type` body (MLH-2080 inline methods) is handled by
 /// the same depth counter that already handles VB's Sub-inside-Function
 /// case: only `Function`/`Sub`/`Func` opens and `End Function`/`End
 /// Sub`/`End Func` closes move the counter, so any enclosing
-/// `Type`/`Namespace`/`Unsafe` block is simply transparent to it — no
+/// `Type`/`Namespace`/`Unsafe` block is simply transparent to it â€” no
 /// special-casing needed.
 ///
 /// `Func` (`Func Name(...) -> Type ... End Func`, MiniLang's alternate
-/// function-declaration syntax — see `ml_extractor::is_function_like`) is
+/// function-declaration syntax â€” see `ml_extractor::is_function_like`) is
 /// handled the same way as `Function`/`Sub` here. NOTE the collision this
 /// creates: `"End Func"` is a literal string prefix of `"End Function"`,
 /// so the own-end check below cannot use a plain `starts_with` on the
-/// built marker — that would let a nested `Function`'s `End Function` line
+/// built marker â€” that would let a nested `Function`'s `End Function` line
 /// masquerade as an enclosing `Func`'s own end. See `is_own_end` below.
 pub(crate) fn extract_ml_method_body(
     content: &str,
     method_name: &str,
 ) -> Option<(String, u32, u32, u32)> {
-    // The name may be followed by `(` or by an ` Of …` generic clause, so
+    // The name may be followed by `(` or by an ` Of â€¦` generic clause, so
     // the pattern must not demand an immediate open paren.
     let pattern = format!(
         r"(?im)^\s*(?:(?:Public|Private)\s+)?(Function|Sub|Func)\s+{}\s*(?:\(|Of\s)",
@@ -1290,8 +1293,8 @@ pub(crate) fn extract_ml_method_body(
     // plus 1. `content[..start_offset]` always ends exactly at a line
     // boundary here (m.start() is either 0 or immediately after a `\n`,
     // since the pattern is anchored on `^`), so `.lines().count()` yields
-    // the count of complete lines before the match — i.e. the 0-based line
-    // index of the match line — and needs `+ 1` to become a 1-based number.
+    // the count of complete lines before the match â€” i.e. the 0-based line
+    // index of the match line â€” and needs `+ 1` to become a 1-based number.
     let start_line = content[..start_offset].lines().count() as u32 + 1;
 
     // Determine if it's Sub or Function
@@ -1320,16 +1323,16 @@ pub(crate) fn extract_ml_method_body(
         }
         let trimmed = line.trim().to_uppercase();
 
-        // Count nested Function/Sub/Func openings (skip End … lines).
+        // Count nested Function/Sub/Func openings (skip End â€¦ lines).
         // Non-function block openers (Type, Namespace, Unsafe, Using,
         // Match, Repeat, Union, If) never match ML_NESTED_OPEN_RE, so they
-        // are transparent to this counter — only Function/Sub/Func nesting
+        // are transparent to this counter â€” only Function/Sub/Func nesting
         // affects depth.
         if !trimmed.starts_with("END ") && ML_NESTED_OPEN_RE.is_match(line.trim()) {
             depth += 1;
         }
 
-        // Only Function/Sub/Func terminators change depth — End Type, End
+        // Only Function/Sub/Func terminators change depth â€” End Type, End
         // If, End Unsafe, End Using, End Match, End Repeat, End Union are
         // unrelated nesting and must be ignored.
         if trimmed.starts_with("END FUNCTION")
@@ -1501,7 +1504,7 @@ pub(crate) fn extract_cs_method_body(
     Some((body.to_string(), start_line, end_line, line_count))
 }
 
-// ── Phase 34 second-pass: LazyLock statics for compute_complexity_score ──────
+// â”€â”€ Phase 34 second-pass: LazyLock statics for compute_complexity_score â”€â”€â”€â”€â”€â”€
 // Pre-compiled regexes avoid recompiling 18 patterns on every method body.
 
 pub(super) static CX_IF_RE: std::sync::LazyLock<Regex> =
@@ -1557,7 +1560,7 @@ pub(super) static CX_SQL_ADAPTER_RE: std::sync::LazyLock<Regex> =
 pub(super) static CX_SESSION_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r#"(?i)Session\s*[\(\[]"#).expect("valid regex"));
 
-// ── Phase 34: Config Transform Parser ────────────────────────────────────────
+// â”€â”€ Phase 34: Config Transform Parser â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub(super) static XDT_TRANSFORM_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)xdt:Transform\s*=\s*"(\w+)""#).expect("xdt_transform")
@@ -1579,7 +1582,7 @@ pub(super) static XDT_DEBUG_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock
     Regex::new(r#"(?i)<compilation[^>]*debug\s*=\s*"(true|false)""#).expect("xdt_debug")
 });
 
-// ── Phase 34: Master Page Region Mapping ─────────────────────────────────────
+// â”€â”€ Phase 34: Master Page Region Mapping â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub(super) static CONTENT_PLACEHOLDER_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| {
@@ -1600,7 +1603,7 @@ pub(super) static PLACEHOLDER_DEFAULT_RE: std::sync::LazyLock<Regex> =
             .expect("placeholder_default")
     });
 
-// ── Phase 34: Resource File (.resx) Inventory ────────────────────────────────
+// â”€â”€ Phase 34: Resource File (.resx) Inventory â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub(super) static RESX_DATA_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)<data\s+name\s*=\s*"([^"]+)""#).expect("resx_data")
@@ -1628,7 +1631,7 @@ pub(crate) fn epoch_days_to_date(days: u64) -> (u64, u64, u64) {
     (y, m, d)
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
@@ -1855,12 +1858,12 @@ mod tests {
             &empty_vb_translation(),
         );
 
-        // "Users" appears in Page1 and Page2 → shared
+        // "Users" appears in Page1 and Page2 â†’ shared
         assert_eq!(cross.shared_sql_tables.len(), 1);
         assert_eq!(cross.shared_sql_tables[0].name, "Users");
         assert_eq!(cross.shared_sql_tables[0].used_by.len(), 2);
 
-        // "Orders" and "Logs" appear in only one file → not shared
+        // "Orders" and "Logs" appear in only one file â†’ not shared
     }
 
     #[test]
@@ -2045,7 +2048,7 @@ mod tests {
         assert!(cross.has_background_jobs);
     }
 
-    // ── flag_belongs_to_page: per-dossier VB flag scoping ───────────────────
+    // â”€â”€ flag_belongs_to_page: per-dossier VB flag scoping â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     //
     // Regression guard: before this helper, the filter used
     // `flag_path.contains(codebehind.unwrap_or(""))`. When the dossier had
@@ -2074,8 +2077,8 @@ mod tests {
 
     #[test]
     fn flag_belongs_to_page_accepts_conventional_aspx_sibling_without_codebehind() {
-        // Page inherits `System.Web.UI.Page` directly — dossier builder
-        // sets `codebehind_file = None` — the conventional `.aspx.vb`
+        // Page inherits `System.Web.UI.Page` directly â€” dossier builder
+        // sets `codebehind_file = None` â€” the conventional `.aspx.vb`
         // sibling still belongs to this page.
         assert!(analyzers::vb_translation::flag_belongs_to_page(
             "Site/AuthCallback.aspx.vb",
@@ -2134,7 +2137,7 @@ mod tests {
     #[test]
     fn flag_belongs_to_page_non_aspx_page_does_not_fall_back_to_sibling() {
         // For an .ascx / .master page we don't blindly accept
-        // `<page>.vb` — only explicit codebehind detection counts.
+        // `<page>.vb` â€” only explicit codebehind detection counts.
         assert!(!analyzers::vb_translation::flag_belongs_to_page(
             "Controls/MyControl.ascx.vb",
             "Controls/MyControl.ascx",
@@ -2148,7 +2151,7 @@ mod tests {
         ));
     }
 
-    // ── Per-page LLM enhancement: selection + parsing ──────────────────────
+    // â”€â”€ Per-page LLM enhancement: selection + parsing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     fn dossier_with(file_path: &str, complexity: &str, blast_radius: u8) -> MigrationDossier {
         make_test_dossier(file_path, vec![], blast_radius)
@@ -2175,7 +2178,7 @@ mod tests {
     fn dossier_llm_priority_falls_back_to_band_weight_when_no_score() {
         let d = dossier_with("p.aspx", "Medium: moderate effort", 4);
         let (score, br) = dossier_llm_priority(&d);
-        assert_eq!(score, 10, "Medium band without numeric score → weight 10");
+        assert_eq!(score, 10, "Medium band without numeric score â†’ weight 10");
         assert_eq!(br, 4);
     }
 
@@ -2191,7 +2194,7 @@ mod tests {
         let picked = select_dossiers_for_llm(&dossiers, 3);
         let paths: Vec<&str> = picked.iter().map(|d| d.file_path.as_str()).collect();
         // Both 28-score pages come first, tie-broken by blast radius desc.
-        // d.aspx: 28 + br 6; b.aspx: 28 + br 7 → b first, d second.
+        // d.aspx: 28 + br 6; b.aspx: 28 + br 7 â†’ b first, d second.
         // c.aspx (12) rounds out the top 3.
         assert_eq!(paths, vec!["b.aspx", "d.aspx", "c.aspx"]);
     }
@@ -2204,7 +2207,7 @@ mod tests {
 
     #[test]
     fn select_dossiers_for_llm_tie_broken_by_path_when_all_else_equal() {
-        // Same complexity, same blast radius → alphabetical file_path wins
+        // Same complexity, same blast radius â†’ alphabetical file_path wins
         // so the set of enhanced pages is reproducible run-to-run.
         let dossiers = vec![
             dossier_with("zeta.aspx", "High (score 20)", 5),
@@ -2261,7 +2264,7 @@ mod tests {
         d.risk_factors = vec!["Heavy ViewState".into()];
         let prompt = build_page_llm_prompt(
             &d,
-            "<html>…</html>",
+            "<html>â€¦</html>",
             Some("Public Class Foo\nEnd Class"),
             "blazor",
         );
@@ -2287,12 +2290,12 @@ mod tests {
     #[test]
     fn dossier_llm_priority_is_stable_for_typical_complexity_strings() {
         // The strings produced by `estimate_complexity_for_dossier` all
-        // look like "Band (score N): …". Spot-check a handful.
+        // look like "Band (score N): â€¦". Spot-check a handful.
         let cases = [
             ("Low (score 3): straightforward migration", 3u32),
-            ("Medium (score 12): moderate effort — address state", 12),
+            ("Medium (score 12): moderate effort â€” address state", 12),
             (
-                "High (score 26): significant effort — plan multiple sprints",
+                "High (score 26): significant effort â€” plan multiple sprints",
                 26,
             ),
             ("Critical (score 45): rip-and-replace territory", 45),
@@ -2836,7 +2839,7 @@ public class Page2 : AppBasePage
             ],
             &[m1, m2],
         );
-        // AppBasePage referenced by 2 pages — should be in base_classes
+        // AppBasePage referenced by 2 pages â€” should be in base_classes
         let base_info = report
             .base_classes
             .iter()
@@ -2916,7 +2919,7 @@ public class Level2 : Level1
             ],
             &[markup],
         );
-        // Chain: Level2 → Level1 → Level0 → System.Web.UI.Page = depth 4
+        // Chain: Level2 â†’ Level1 â†’ Level0 â†’ System.Web.UI.Page = depth 4
         assert!(
             report.deepest_chain_depth >= 3,
             "Expected depth >= 3, got {}",
@@ -3267,7 +3270,7 @@ End Func
         // opens, the nested `End Func` would still decrement depth (it
         // matches the "END FUNC" disjunct) without a matching increment,
         // driving depth to 0 prematurely and permanently desyncing the
-        // counter — the real `End Function` would then never be seen at
+        // counter â€” the real `End Function` would then never be seen at
         // depth 0, and the body would over-capture to end of file.
         let src = "\
 Function Outer() As Int
@@ -3316,7 +3319,7 @@ End Function
     fn make_body_preview_short_method() {
         let body = "protected void Page_Load(object sender, EventArgs e)\n{\n    var x = 1;\n}";
         let preview = analyzers::methods::make_body_preview(body, 4);
-        // Short method (≤30 lines) should be returned in full
+        // Short method (â‰¤30 lines) should be returned in full
         assert!(preview.contains("var x = 1"));
         assert!(!preview.contains("more lines"));
     }
@@ -3774,7 +3777,7 @@ var cart = Session["cart"];
         assert_eq!(inv.embedded_resource_count, 1);
     }
 
-    // ── Second-pass improvement tests ────────────────────────────────────────
+    // â”€â”€ Second-pass improvement tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn cs_method_body_handles_verbatim_string() {
@@ -3901,7 +3904,7 @@ End Class
 
     #[test]
     fn inheritance_per_class_method_scoping() {
-        // Two classes in one file — methods should be scoped to each class
+        // Two classes in one file â€” methods should be scoped to each class
         let code = r#"
 public partial class PageA : BasePage {
     protected void Page_Load(object sender, EventArgs e) { }
@@ -4018,7 +4021,7 @@ public class BasePage : System.Web.UI.Page {
         );
     }
 
-    // ── Third-Pass Tests ─────────────────────────────────────────────────────
+    // â”€â”€ Third-Pass Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn vb_method_body_function_containing_nested_sub() {
@@ -4153,7 +4156,7 @@ End Class
         let report = analyzers::inheritance::resolve_inheritance_chains(&code_files, &markup);
 
         // Verify the _Default class merged methods from both files
-        // The chain should include _Default → BasePage
+        // The chain should include _Default â†’ BasePage
         assert!(
             !report.chains.is_empty(),
             "Should have at least one inheritance chain"
@@ -4287,7 +4290,7 @@ End Class
         assert_eq!(score, 1, "do while should count as 1, not 2, got {score}");
     }
 
-    // ── Phase 35: Inherited Effect Propagation ───────────────────────────
+    // â”€â”€ Phase 35: Inherited Effect Propagation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn inherited_effects_propagate_down() {
@@ -4414,7 +4417,7 @@ public class _Default : SectionPage {
         assert!(!from_section.is_empty(), "should inherit from SectionPage");
     }
 
-    // ── Phase 35: Cross-Layer Tracing ────────────────────────────────────
+    // â”€â”€ Phase 35: Cross-Layer Tracing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn cross_layer_trace_ajax_to_handler() {
@@ -4568,7 +4571,7 @@ public class MapData : WebService {
         assert!(parts2.method_part.is_none() || parts2.file_part == "search");
     }
 
-    // ── Phase 36: Business Logic Integration Tests ───────────────────────
+    // â”€â”€ Phase 36: Business Logic Integration Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn business_logic_deterministic_in_report() {
@@ -4620,6 +4623,7 @@ public class MapData : WebService {
                 file_path: "Default.aspx.vb".to_string(),
                 class_name: "_Default".to_string(),
                 file_purpose: "Main page".to_string(),
+                file_purpose_evidence: None,
                 methods: vec![business_logic_service::MethodBusinessLogic {
                     file_path: "Default.aspx.vb".to_string(),
                     method_name: "Page_Load".to_string(),
@@ -4631,8 +4635,14 @@ public class MapData : WebService {
                     error_handling: String::new(),
                     side_effects_detail: String::new(),
                     content_hash: "h".to_string(),
+                    member_kind: None,
+                    outcome_evidence: None,
+                    rule_source_diagnostics: None,
+                    extraction_provenance: None,
+                    semantic_validation: "not_performed",
                     confidence: String::new(),
                     validation_warnings: vec![],
+                    overload_line: None,
                     parse_diagnostic: String::new(),
                 }],
                 analyzed_at: "2026-01-01".to_string(),
@@ -4646,7 +4656,7 @@ public class MapData : WebService {
         assert!(md.contains("Auth required"));
     }
 
-    // ── ENG-AUD-2026-S10-0003 audit tests ─────────────────────────────────────
+    // â”€â”€ ENG-AUD-2026-S10-0003 audit tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Verifies that the audit tag ENG-AUD-2026-S10-0003 appears in at least 3
     /// places within the migration_tools handler, proving multiple read-error
@@ -4664,7 +4674,7 @@ public class MapData : WebService {
         );
     }
 
-    // ── MIG1/D2: report completeness surface ──────────────────────────────────
+    // â”€â”€ MIG1/D2: report completeness surface â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// MIG1/D2: `edges_or_warn` records degraded sections in TLS when it handles
     /// an error, and `take_mig_degraded` drains the accumulator correctly.
@@ -4726,7 +4736,7 @@ public class MapData : WebService {
         );
     }
 
-    /// MIG1-k2v6: Non-rollback contract — a failure in one phase does not undo
+    /// MIG1-k2v6: Non-rollback contract â€” a failure in one phase does not undo
     /// results from other phases.  `edges_or_warn` returns an empty Vec (not Err),
     /// so subsequent calls continue normally and accumulate their own results.
     /// After a mixed sequence (fail + succeed), only the failure appears in degraded_sections.
@@ -4734,7 +4744,7 @@ public class MapData : WebService {
     fn mig1_non_rollback_contract_mixed_phase_leaves_prior_data_intact() {
         MIG_DEGRADED.with(|v| v.borrow_mut().clear());
 
-        // Phase A fails — returns empty vec, records degraded context.
+        // Phase A fails â€” returns empty vec, records degraded context.
         let phase_a: Vec<engram_graph::Edge> = edges_or_warn(
             Err(anyhow::anyhow!("phase A graph failure")),
             "phase_a_edges",
@@ -4744,7 +4754,7 @@ public class MapData : WebService {
             "MIG1: failed phase must return empty vec (best-effort)"
         );
 
-        // Phase B succeeds — returns its data, does NOT record degraded context.
+        // Phase B succeeds â€” returns its data, does NOT record degraded context.
         let phase_b: Vec<engram_graph::Edge> = edges_or_warn(Ok(Vec::new()), "phase_b_edges");
         // phase_b is empty here because we passed Ok(Vec::new()); the key assertion
         // is that the degraded list still has only the ONE failure from phase A.
@@ -4758,11 +4768,11 @@ public class MapData : WebService {
         );
         assert_eq!(degraded[0], "phase_a_edges");
 
-        // Phase B's result is usable even after phase A failed — no rollback.
+        // Phase B's result is usable even after phase A failed â€” no rollback.
         let _ = phase_b; // both vecs are usable simultaneously
     }
 
-    /// MIG1-k2v6: clients MUST check `report_is_complete` — structural proof that
+    /// MIG1-k2v6: clients MUST check `report_is_complete` â€” structural proof that
     /// `FullProjectMigrationReport` exposes the field at the type level and that
     /// `report_is_complete = false` <=> `degraded_sections` is non-empty.
     #[test]
@@ -4778,7 +4788,7 @@ public class MapData : WebService {
         let degraded_sections = take_mig_degraded();
         let report_is_complete = degraded_sections.is_empty();
 
-        // Contract: non-empty degraded_sections → report_is_complete = false.
+        // Contract: non-empty degraded_sections â†’ report_is_complete = false.
         assert!(
             !report_is_complete,
             "MIG1-k2v6: partial-failure must set report_is_complete=false; \
@@ -4795,7 +4805,7 @@ public class MapData : WebService {
     fn mig1_report_is_complete_derived_correctly() {
         MIG_DEGRADED.with(|v| v.borrow_mut().clear());
 
-        // No failures → report_is_complete should be true.
+        // No failures â†’ report_is_complete should be true.
         let degraded = take_mig_degraded();
         assert!(degraded.is_empty());
         let complete = degraded.is_empty();
@@ -4804,7 +4814,7 @@ public class MapData : WebService {
             "MIG1: empty degraded_sections must give report_is_complete = true"
         );
 
-        // One failure → report_is_complete should be false.
+        // One failure â†’ report_is_complete should be false.
         let _: Vec<engram_graph::Edge> = edges_or_warn(Err(anyhow::anyhow!("failure")), "ctx");
         let degraded2 = take_mig_degraded();
         let complete2 = degraded2.is_empty();
@@ -4815,7 +4825,7 @@ public class MapData : WebService {
     }
 
     /// Verifies that when Global.asax does not exist on disk, the analysis
-    /// function handles it gracefully — `extract_global_asax_info` with empty
+    /// function handles it gracefully â€” `extract_global_asax_info` with empty
     /// input returns a summary with `has_global_asax = false` and no events.
     #[test]
     fn global_asax_not_found_is_not_an_error() {

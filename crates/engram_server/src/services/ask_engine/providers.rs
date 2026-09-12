@@ -128,6 +128,7 @@ fn hit_to_evidence(
     kind: EvidenceKind,
     authority: Authority,
     provider: &str,
+    namespace: &str,
     generation: u64,
     content: String,
     id: &mut usize,
@@ -135,6 +136,9 @@ fn hit_to_evidence(
     *id += 1;
     EvidenceItem {
         evidence_id: format!("ev_{id}"),
+        document_id: Some(h.doc_id.clone()),
+        document_namespace: Some(namespace.into()),
+        source_verification: None,
         kind,
         authority,
         path: Some(h.path.as_str().replace('\\', "/")),
@@ -290,7 +294,14 @@ async fn search_with(
                     .unwrap_or_default();
                 let content = windowed_snippet(&full, &terms);
                 items.push(hit_to_evidence(
-                    h, kind, authority, provider, generation, content, id,
+                    h,
+                    kind,
+                    authority,
+                    provider,
+                    &q.namespace,
+                    generation,
+                    content,
+                    id,
                 ));
             }
             (
@@ -408,6 +419,9 @@ pub fn memory_evidence(
         };
         items.push(EvidenceItem {
             evidence_id: format!("ev_{id}"),
+            document_id: None,
+            document_namespace: None,
+            source_verification: None,
             kind: EvidenceKind::MemoryNote,
             authority,
             path: None,
@@ -468,6 +482,9 @@ fn graph_relation_item(
     *id += 1;
     EvidenceItem {
         evidence_id: format!("ev_{id}"),
+        document_id: None,
+        document_namespace: None,
+        source_verification: None,
         kind: EvidenceKind::GraphRelation,
         authority,
         path,
@@ -547,15 +564,40 @@ pub fn symbol_ref_evidence(
     if nodes.is_empty() {
         return (vec![], ProviderOutcome::empty());
     }
+    // Containment describes where a symbol is declared, not a use of it.
+    // Similarity, history and inferred affinities belong to their own providers.
+    let usage_kinds: Vec<engram_graph::EdgeKind> = engram_graph::EdgeKind::ALL
+        .iter()
+        .filter(|kind| {
+            !matches!(
+                kind,
+                engram_graph::EdgeKind::Contains
+                    | engram_graph::EdgeKind::ContainsUi
+                    | engram_graph::EdgeKind::HasColumn
+                    | engram_graph::EdgeKind::CoOccurrence
+                    | engram_graph::EdgeKind::TemporalCoupling
+                    | engram_graph::EdgeKind::Insight
+                    | engram_graph::EdgeKind::AntiPattern
+                    | engram_graph::EdgeKind::UiLayoutNeighbor
+                    | engram_graph::EdgeKind::StateAffinity
+                    | engram_graph::EdgeKind::TestOracle
+            )
+        })
+        .cloned()
+        .collect();
     let mut items = Vec::new();
     for node in &nodes {
         // Propagate a graph read error as Failed — never let it look like "no
         // usages found" (the invariant this module's header states).
-        let incoming =
-            match graph.find_incoming_edges_with_kind(project_id, None, &node.node_id, max) {
-                Ok(v) => v,
-                Err(e) => return (vec![], ProviderOutcome::failed(e.to_string())),
-            };
+        let incoming = match graph.find_incoming_edges_with_kinds(
+            project_id,
+            &usage_kinds,
+            &node.node_id,
+            max,
+        ) {
+            Ok(v) => v,
+            Err(e) => return (vec![], ProviderOutcome::failed(e.to_string())),
+        };
         for (src, kind, weight) in incoming.into_iter().take(max) {
             let src_node = graph.get_node(project_id, &src).ok().flatten();
             let (path, lines, name, gen_) = node_fields(&src_node, &src);
@@ -988,6 +1030,9 @@ pub fn exhaustive_callee_set_with_caps(
                 *id += 1;
                 items.push(EvidenceItem {
                     evidence_id: format!("ev_x{id}"),
+                    document_id: None,
+                    document_namespace: None,
+                    source_verification: None,
                     kind: EvidenceKind::GraphRelation,
                     authority: Authority::CurrentCode,
                     path: Some(tpath),

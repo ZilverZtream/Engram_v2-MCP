@@ -1,8 +1,5 @@
 #![allow(clippy::unwrap_used)]
-//! External audit 2026-08-29, auditor P0 #6 / row 0 (owner decision 09:32):
-//! the 143-tool surface must be TIERED — the vital-capability tools are
-//! advertised by default, everything else stays callable but is listed only
-//! through `list_advanced_tools` (or `advertise_all_tools = true`).
+//! Full discovery by default, with an explicit limited core opt-in.
 
 use engram_core::config::Config;
 use engram_server::state::AppState;
@@ -75,7 +72,7 @@ fn every_core_tool_exists_and_covers_the_ten_capabilities() {
 }
 
 #[test]
-fn the_default_surface_is_the_core_tier_and_the_full_surface_is_opt_in() {
+fn full_and_core_surfaces_cover_their_registered_tools() {
     let (_tmp, engram) = engram();
     let all = engram.tool_router.list_all();
     assert!(
@@ -104,10 +101,79 @@ fn the_default_surface_is_the_core_tier_and_the_full_surface_is_opt_in() {
 }
 
 #[test]
-fn advertise_all_tools_defaults_to_the_tiered_surface() {
+fn advertise_all_tools_defaults_to_full_for_rust_and_yaml() {
     let cfg = Config::default();
-    assert!(
-        !cfg.advertise_all_tools,
-        "the tiered surface is the default (auditor P0 #6); the full list is opt-in"
+    assert!(cfg.advertise_all_tools);
+    let mut value = serde_yaml::to_value(&cfg).unwrap();
+    value
+        .as_mapping_mut()
+        .unwrap()
+        .remove(serde_yaml::Value::String("advertise_all_tools".into()));
+    let yaml: Config = serde_yaml::from_value(value.clone()).unwrap();
+    assert!(yaml.advertise_all_tools);
+    value["advertise_all_tools"] = serde_yaml::Value::Bool(false);
+    let core: Config = serde_yaml::from_value(value).unwrap();
+    assert!(!core.advertise_all_tools);
+}
+
+#[tokio::test]
+async fn protocol_discovery_includes_ociusx_agent_dependencies_with_schemas() {
+    use rmcp::ServiceExt;
+    let (_tmp, engram) = engram();
+    let expected: BTreeSet<String> = engram
+        .tool_router
+        .list_all()
+        .into_iter()
+        .map(|t| t.name.to_string())
+        .collect();
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let server = tokio::spawn(async move { engram.serve(server_io).await.unwrap() });
+    let client = ().serve(client_io).await.unwrap();
+    let server = server.await.unwrap();
+    let listed = client.list_all_tools().await.unwrap();
+    let names: BTreeSet<String> = listed.iter().map(|t| t.name.to_string()).collect();
+    assert_eq!(
+        names, expected,
+        "tools/list must not silently remove .NET tools"
     );
+    for name in [
+        "get_full_method_body",
+        "get_chunk",
+        "get_table_schema",
+        "describe_setting",
+        "find_merged_work",
+        "query_business_logic",
+        "read_memory_bank",
+        "validate_generated_code",
+        "validate_sql_fragment",
+        "derive_test_matrix",
+        "find_tests_for_method",
+        "map_validation_controls",
+        "trace_state_usage",
+        "analyze_business_logic",
+        "list_memory_bank",
+        "list_repo_rules",
+        "get_setting",
+        "list_settings",
+        "find_references",
+        "analyze_temporal_couplings",
+        "list_projects",
+    ] {
+        let tool = listed
+            .iter()
+            .find(|t| t.name == name)
+            .unwrap_or_else(|| panic!("missing {name}"));
+        assert_eq!(
+            tool.input_schema.get("type"),
+            Some(&serde_json::json!("object")),
+            "{name}"
+        );
+        let schema = serde_json::to_string(&tool.input_schema).unwrap();
+        assert!(
+            !schema.contains("\"$ref\""),
+            "unresolved reference in {name}"
+        );
+    }
+    client.cancel().await.unwrap();
+    server.cancel().await.unwrap();
 }

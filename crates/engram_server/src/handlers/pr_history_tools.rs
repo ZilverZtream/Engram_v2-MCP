@@ -1,4 +1,4 @@
-//! Merged-work corpus: PR-level exemplars of APPROVED changes.
+//! Merged-work corpus: PR-level examples from Git history, not approval proof.
 //!
 //! The `history` namespace already indexes per-commit messages and per-file
 //! diffs, but an agent asking "how was similar work done here?" needs the
@@ -12,7 +12,7 @@
 //! - `ingest_merged_prs` — incremental (watermarked) walk of first-parent
 //!   commits; one compact searchable doc per merged PR / change unit.
 //! - `find_merged_work` — story/domain query → top-N merged-PR cards, each
-//!   showing the approved file cohort to mirror.
+//!   showing shipped file cohorts to inspect for applicable patterns.
 
 use crate::handlers::validate_project_id;
 use crate::tools::Engram;
@@ -22,6 +22,157 @@ use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, Content};
 use std::collections::HashMap;
 use std::sync::LazyLock;
+
+fn primary_task_text(story: &str) -> &str {
+    if story.contains(['"', '`']) {
+        return story;
+    }
+    static CONTEXT_START: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(r"(?i)\s+(?:from|using|via|with|between)\s+")
+            .expect("task context boundary")
+    });
+    CONTEXT_START
+        .find(story)
+        .map(|matched| &story[..matched.start()])
+        .filter(|prefix| !prefix.trim().is_empty())
+        .unwrap_or(story)
+}
+
+/// Literal task/title matching, not a semantic similarity claim. Preserve
+/// query adjacency for phrase matches; stopwords cannot create new phrases.
+fn exemplar_title_rank(story: &str, content: &str) -> (usize, usize, usize, usize) {
+    fn words(text: &str) -> Vec<String> {
+        let mut separated = String::with_capacity(text.len());
+        let mut previous_lower = false;
+        for c in text.chars() {
+            if c.is_uppercase() && previous_lower {
+                separated.push(' ');
+            }
+            previous_lower = c.is_lowercase() || c.is_numeric();
+            separated.push(c);
+        }
+        separated
+            .split(|c: char| !c.is_alphanumeric())
+            .filter(|w| !w.is_empty())
+            .map(|w| {
+                let word = w.to_lowercase();
+                if !meaningful(&word) {
+                    word
+                } else if word.len() > 4 && word.ends_with("ies") {
+                    format!("{}y", &word[..word.len() - 3])
+                } else if word.len() > 3
+                    && word.ends_with('s')
+                    && !word.ends_with("ss")
+                    && !word.ends_with("us")
+                {
+                    word[..word.len() - 1].to_string()
+                } else {
+                    word
+                }
+            })
+            .collect()
+    }
+    fn meaningful(word: &str) -> bool {
+        !matches!(
+            word,
+            "a" | "an"
+                | "the"
+                | "from"
+                | "for"
+                | "to"
+                | "of"
+                | "in"
+                | "on"
+                | "with"
+                | "and"
+                | "or"
+                | "how"
+                | "can"
+                | "should"
+                | "was"
+                | "were"
+                | "is"
+                | "are"
+                | "be"
+                | "by"
+                | "as"
+                | "this"
+                | "that"
+        )
+    }
+    let mut title = content
+        .lines()
+        .next()
+        .and_then(|s| s.split_once(':'))
+        .map(|(_, s)| s)
+        .unwrap_or("");
+    // Conventional leading change classifications are metadata, not task
+    // objects. Unknown/domain tags remain searchable title content.
+    loop {
+        title = title.trim_start_matches(|c: char| c.is_whitespace() || c == '+' || c == '-');
+        let Some(rest) = title.strip_prefix('[') else {
+            break;
+        };
+        let Some((tag, rest)) = rest.split_once(']') else {
+            break;
+        };
+        let tag = tag.to_lowercase();
+        let conventional = !tag.is_empty()
+            && tag.split_whitespace().all(|word| {
+                matches!(
+                    word,
+                    "feature"
+                        | "change"
+                        | "bug"
+                        | "fix"
+                        | "bugfix"
+                        | "chore"
+                        | "refactor"
+                        | "improvement"
+                        | "enhancement"
+                        | "docs"
+                        | "documentation"
+                        | "test"
+                        | "tests"
+                        | "perf"
+                        | "performance"
+                ) || word.strip_prefix('p').is_some_and(|digits| {
+                    !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit())
+                })
+            });
+        if !conventional {
+            break;
+        }
+        title = rest;
+    }
+    let query = words(story);
+    let title = words(title);
+    let rank = |query: &[String]| {
+        let terms: std::collections::HashSet<_> = query.iter().filter(|w| meaningful(w)).collect();
+        let coverage = terms.iter().filter(|word| title.contains(word)).count();
+        let phrases: std::collections::HashSet<_> = query
+            .windows(2)
+            .filter(|pair| meaningful(&pair[0]) && meaningful(&pair[1]))
+            .collect();
+        let phrase_matches = phrases
+            .iter()
+            .filter(|pair| title.windows(2).any(|t| t == **pair))
+            .count();
+        (phrase_matches, coverage)
+    };
+    // Bounded English heuristic: task before contextual clauses such as
+    // "create purchase request FROM invoice rows". Quoted/identifier queries
+    // are kept whole rather than reinterpreting a quoted preposition.
+    let boundary = words(primary_task_text(story)).len();
+    let boundary = if query[..boundary].iter().any(|word| meaningful(word)) {
+        boundary
+    } else {
+        query.len()
+    };
+    let primary = rank(&query[..boundary]);
+    let all = rank(&query);
+    (primary.0, primary.1, all.0, all.1)
+}
 
 /// Parse a PR identity from a first-parent commit summary.
 /// Returns (pr_id, title). Falls back to the short oid + full summary for
@@ -159,16 +310,14 @@ pub(crate) fn render_pr_doc(
             kinds.join(", ")
         }
     ));
+    md.push_str("provenance: git commit contents; review approvals were not fetched\n");
     let trimmed_body: String = body.trim().chars().take(600).collect();
     if !trimmed_body.is_empty() && trimmed_body != title {
         md.push_str(&format!("\n{trimmed_body}\n"));
     }
-    md.push_str("\n## Files shipped together in this approved change\n");
-    for f in files.iter().take(60) {
+    md.push_str("\n## Files shipped together in this change\n");
+    for f in files {
         md.push_str(&format!("- {f}\n"));
-    }
-    if files.len() > 60 {
-        md.push_str(&format!("... and {} more\n", files.len() - 60));
     }
     md
 }
@@ -202,7 +351,14 @@ pub(crate) fn ymd_to_epoch_secs(ymd: &str) -> Option<u64> {
     let y: i64 = ymd.get(0..4)?.parse().ok()?;
     let m: i64 = ymd.get(5..7)?.parse().ok()?;
     let d: i64 = ymd.get(8..10)?.parse().ok()?;
-    if !(1..=12).contains(&m) || !(1..=31).contains(&d) {
+    let max_day = match m {
+        2 if y % 4 == 0 && (y % 100 != 0 || y % 400 == 0) => 29,
+        2 => 28,
+        4 | 6 | 9 | 11 => 30,
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        _ => return None,
+    };
+    if !(1..=max_day).contains(&d) {
         return None;
     }
     let y = if m <= 2 { y - 1 } else { y };
@@ -228,7 +384,7 @@ pub(crate) fn exemplar_view(content: &str, max_files: usize) -> String {
     let mut shown_files = 0usize;
     let mut extra_files = 0usize;
     for (i, line) in content.lines().enumerate() {
-        if i == 0 || line.starts_with("merged: ") {
+        if i == 0 || line.starts_with("merged: ") || line.starts_with("provenance: ") {
             out.push_str(line);
             out.push('\n');
             continue;
@@ -294,6 +450,7 @@ impl Engram {
             .map(str::to_string);
         if let Some(d) = &merged_before
             && (d.len() != 10
+                || ymd_to_epoch_secs(d).is_none()
                 || !d.chars().enumerate().all(|(i, c)| {
                     if i == 4 || i == 7 {
                         c == '-'
@@ -327,35 +484,19 @@ impl Engram {
                 .and_then(|s| git2::Oid::from_str(s).ok())
         };
 
-        if req.rebuild {
-            // Stable-pk upserts only overwrite ids that recur; a rebuild
-            // must clear the previous pr:* docs first, or stale ids from a
-            // differently-rooted walk linger and can outrank fresh docs
-            // (observed live: an unmerged branch commit stayed match #1
-            // after the approved-root fix). Scoped to pr:* paths — the
-            // history namespace also carries revert/insight docs owned by
-            // index_git_history.
-            let stale: std::collections::BTreeSet<String> = ps
-                .search
+        // Preserve the current corpus until the git walk and new indexing
+        // succeed. A failed rebuild must not erase previously usable evidence.
+        let previous_paths: std::collections::BTreeSet<String> = if req.rebuild {
+            ps.search
                 .list_docs_in_namespace(&req.project_id, engram_core::namespaces::NAMESPACE_HISTORY)
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                .map_err(|error| McpError::internal_error(error.to_string(), None))?
                 .into_iter()
-                .filter(|d| d.path.starts_with("pr:"))
-                .map(|d| d.path)
-                .collect();
-            if !stale.is_empty() {
-                let paths: Vec<engram_core::RelPath> =
-                    stale.iter().map(|p| engram_core::RelPath::new(p)).collect();
-                ps.search
-                    .delete_files(
-                        &req.project_id,
-                        engram_core::namespaces::NAMESPACE_HISTORY,
-                        &paths,
-                    )
-                    .await
-                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            }
-        }
+                .filter(|doc| doc.path.starts_with("pr:"))
+                .map(|doc| doc.path)
+                .collect()
+        } else {
+            Default::default()
+        };
 
         let repo_dir = std::path::PathBuf::from(&rec.directory);
         type PrUnit = (String, String, String, u64, String, Vec<String>);
@@ -365,7 +506,7 @@ impl Engram {
                 let repo = GitWalker::open_repo(&repo_dir)?;
                 let cancel = tokio_util::sync::CancellationToken::new();
                 // Walk the REMOTE DEFAULT branch, not the checkout: this
-                // corpus presents itself as merged/APPROVED work, and a
+                // corpus presents itself as merged work, and a
                 // checked-out feature branch would leak in-flight commits
                 // into it (observed live with an unmerged dialog PR).
                 let root = GitWalker::approved_history_root(&repo);
@@ -486,6 +627,25 @@ impl Engram {
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         }
 
+        if req.rebuild {
+            let current_paths: std::collections::BTreeSet<String> =
+                docs.iter().map(|doc| doc.path.to_string()).collect();
+            let obsolete: Vec<engram_core::RelPath> = previous_paths
+                .difference(&current_paths)
+                .map(|path| engram_core::RelPath::new(path))
+                .collect();
+            if !obsolete.is_empty() {
+                ps.search
+                    .delete_files(
+                        &req.project_id,
+                        engram_core::namespaces::NAMESPACE_HISTORY,
+                        &obsolete,
+                    )
+                    .await
+                    .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+            }
+        }
+
         // A cutoff ingest must NOT advance the watermark: the walk visited
         // post-cutoff commits but skipped their units, and marking them
         // ingested would silently exclude them from any later full ingest.
@@ -503,7 +663,7 @@ impl Engram {
              change units indexed: {indexed} ({pr_count} merged PRs, {direct_count} direct commits)\n\
              walk root: {root_note}\n\
              namespace: history (docs `pr:<id>`)\n\
-             next: find_merged_work(story=\"...\") to see how similar approved work was done.\n"
+             next: find_merged_work(story=\"...\") to see how similar indexed work was done.\n"
         );
         if indexed == 0 {
             out.push_str(
@@ -522,6 +682,12 @@ impl Engram {
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
         let top = req.top.clamp(1, 10);
+        if req.file_paths.len() > 10 || req.file_paths.iter().any(|p| {
+            p.trim().is_empty() || p.len() > 2048 || p.starts_with(['/', '\\'])
+                || p.contains(':') || p.replace('\\', "/").split('/').any(|s| s == "..")
+        }) {
+            return Err(McpError::invalid_params("file_paths must contain at most 10 nonempty relative paths without traversal", None));
+        }
 
         let merged_before = req
             .merged_before
@@ -531,6 +697,7 @@ impl Engram {
             .map(str::to_string);
         if let Some(d) = &merged_before
             && (d.len() != 10
+                || ymd_to_epoch_secs(d).is_none()
                 || !d.chars().enumerate().all(|(i, c)| {
                     if i == 4 || i == 7 {
                         c == '-'
@@ -545,12 +712,20 @@ impl Engram {
             ));
         }
 
+        let kind_filter = req
+            .kind
+            .as_deref()
+            .map(str::trim)
+            .filter(|k| !k.is_empty())
+            .map(str::to_lowercase);
         let q = engram_index::HybridQuery {
             project_id: req.project_id.clone(),
             namespace: engram_core::namespaces::NAMESPACE_HISTORY.into(),
             generation: gen_,
             text: req.story.clone(),
-            top_k: top * 3,
+            // Rank a bounded pool of eligible documents, not just the final
+            // top-N BM25 hits (repeated boilerplate can monopolize those).
+            top_k: 100,
             fts_mode: "loose".into(),
             // Only the PR-level docs — not raw commit messages or diffs.
             include_path_prefixes: Some(vec!["pr:".into()]),
@@ -570,7 +745,75 @@ impl Engram {
             use_mmr: false,
         };
         let engine = ps.search.clone();
-        let hits = tokio::task::spawn_blocking(move || engine.lexical_search(&q))
+        let selected_kind = kind_filter.clone();
+        let cutoff = merged_before.clone();
+        let story = req.story.clone();
+        let file_paths = req.file_paths.clone();
+        let (hits, title_ranks, candidate_count, candidate_lists_capped) =
+            tokio::task::spawn_blocking(move || {
+                let mut ranks = HashMap::new();
+                let mut queries = vec![q.clone()];
+                let primary = primary_task_text(&story);
+                if primary != story {
+                    let mut task_query = q.clone();
+                    task_query.text = primary.to_string();
+                    queries.push(task_query);
+                }
+                // File history remains discoverable when a new task uses words
+                // absent from an older regression title. Eligibility still
+                // requires a shipped-cohort match, not a prose mention.
+                for path in &file_paths {
+                    let mut file_query = q.clone();
+                    file_query.text = path.replace('\\', "/").rsplit('/').next().unwrap_or(path).to_string();
+                    if !queries.iter().any(|query| query.text == file_query.text) {
+                        queries.push(file_query);
+                    }
+                }
+                let mut candidates = HashMap::new();
+                let mut support: HashMap<String, f32> = HashMap::new();
+                let mut capped = false;
+                for query in queries {
+                    let mut seen = std::collections::HashSet::new();
+                    let found =
+                        engine.lexical_search_matching(&query, &mut |doc_id, content| {
+                            let eligible = merged_document_matches(
+                                content,
+                                selected_kind.as_deref(),
+                                cutoff.as_deref(),
+                            ) && cohort_path_matches(content, &file_paths)
+                                && seen.insert(doc_id.to_string());
+                            if eligible {
+                                ranks.insert(
+                                    doc_id.to_string(),
+                                    exemplar_title_rank(&story, content),
+                                );
+                            }
+                            eligible
+                        })?;
+                    capped |= found.len() == 100;
+                    for (position, hit) in found.into_iter().enumerate() {
+                        // Rank fusion avoids comparing raw BM25 scores from
+                        // different query lengths. It is support, not probability.
+                        *support.entry(hit.doc_id.clone()).or_default() +=
+                            1.0 / (61.0 + position as f32);
+                        candidates.entry(hit.doc_id.clone()).or_insert(hit);
+                    }
+                }
+                let mut hits: Vec<_> = candidates.into_values().collect();
+                for hit in &mut hits {
+                    hit.score = support[&hit.doc_id];
+                }
+                let candidate_count = hits.len();
+                hits.sort_by(|a, b| {
+                    ranks
+                        .get(&b.doc_id)
+                        .cmp(&ranks.get(&a.doc_id))
+                        .then_with(|| b.score.total_cmp(&a.score))
+                        .then_with(|| a.doc_id.cmp(&b.doc_id))
+                });
+                hits.truncate(top);
+                Ok::<_, anyhow::Error>((hits, ranks, candidate_count, capped))
+            })
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -585,20 +828,20 @@ impl Engram {
             return Ok(CallToolResult::success(vec![Content::text(out)]));
         }
 
-        let kind_filter = req
-            .kind
-            .as_deref()
-            .map(str::trim)
-            .filter(|k| !k.is_empty())
-            .map(str::to_lowercase);
         let mut out = format!(
-            "# How similar approved work was done — '{}'{}\n",
+            "# How similar indexed work was done — '{}'{}\n",
             req.story,
             kind_filter
                 .as_deref()
                 .map(|k| format!(" [kind: {k}]"))
                 .unwrap_or_default()
         );
+        out.push_str("Evidence: indexed git history; review approvals were not fetched. Direct commits may also appear.\n");
+        if !req.file_paths.is_empty() {
+            out.push_str("File scope: shipped cohort paths, exact or multi-segment suffix matches. Suffix matches are leads only; root/rename equivalence and applicability to this method are not proven.\n");
+        }
+        out.push_str(&format!("Ranking: primary-task title matches, then full-query title matches and fused lexical rank; {candidate_count} eligible candidates inspected (limit 100 per query, at most {}{}).\n", 200 + 100 * req.file_paths.len(),
+            if candidate_lists_capped { "; a candidate list reached its limit, so broader candidates were not reranked" } else { "" }));
         let mut shown = 0usize;
         // A rebuilt corpus can briefly hold the same PR at two generations
         // (gen-0 + a legacy gen) — same doc_id, two pks. Render each once.
@@ -629,41 +872,76 @@ impl Engram {
             };
             match fetched {
                 Ok(Some((_, _, content, _, _))) => {
-                    // Ultra-coarse kind filter: match against the doc's
-                    // `kinds:` line so "database" only returns exemplars
-                    // that actually shipped SQL.
-                    if let Some(k) = &kind_filter {
-                        let has_kind = content
-                            .lines()
-                            .find(|l| l.contains("| kinds: "))
-                            .is_some_and(|l| l.to_lowercase().contains(k.as_str()));
-                        if !has_kind {
-                            continue;
-                        }
-                    }
-                    // Point-in-time replay / leak-free eval: drop exemplars
-                    // merged ON or AFTER the cutoff. ISO dates compare
-                    // correctly as strings against the doc's `merged:` line.
-                    if let Some(cut) = &merged_before {
-                        let leaks = content
-                            .lines()
-                            .find_map(|l| l.split("merged: ").nth(1))
-                            .and_then(|rest| rest.get(..10))
-                            .is_none_or(|d| d >= cut.as_str());
-                        if leaks {
-                            continue;
-                        }
+                    if !merged_document_matches(
+                        &content,
+                        kind_filter.as_deref(),
+                        merged_before.as_deref(),
+                    ) || !cohort_path_matches(&content, &req.file_paths) {
+                        continue;
                     }
                     shown += 1;
-                    out.push_str(&format!("\n## match #{shown} (score {:.3})\n", h.score));
-                    out.push_str(&content);
+                    let (primary_phrases, primary_terms, phrases, terms) =
+                        title_ranks.get(&h.doc_id).copied().unwrap_or_default();
+                    out.push_str(&format!("\n## match #{shown} (primary title phrases: {primary_phrases}, primary title terms: {primary_terms}, full title phrases: {phrases}, full title terms: {terms}, fused lexical rank {:.4})\n", h.score));
+                    let view = exemplar_view(&content, 60).replace(
+                        "## Files shipped together in this approved change",
+                        "## Files shipped together in this change",
+                    );
+                    out.push_str(&view);
+                    // PR identity comes from the stored document, not the search
+                    // query. Imported decisions never silently suppress results.
+                    if merged_before.is_some() {
+                        out.push_str("Review decisions omitted for point-in-time replay: imported event times are not independently verified.\n");
+                    } else if let Some(review_id) = content
+                        .lines()
+                        .next()
+                        .and_then(|line| line.strip_prefix("# "))
+                        .and_then(|line| line.split_whitespace().next())
+                        .map(|s| s.trim_end_matches(':'))
+                    {
+                        if review_id.starts_with("PR-") {
+                            let rec = self.ensure_project_record(&req.project_id).await?;
+                            match super::review_decisions::snapshot(
+                                &self.state,
+                                &req.project_id,
+                                review_id,
+                                std::path::Path::new(&rec.directory),
+                            ) {
+                                Ok(mut decisions) => {
+                                    decisions.as_object_mut().map(|v| v.remove("events"));
+                                    if let Some(current) = decisions["current"].as_array_mut() {
+                                        let total = current.len();
+                                        current.truncate(20);
+                                        decisions["total_current_decisions"] = total.into();
+                                    }
+                                    out.push_str(&format!("\nReview decision evidence (at most 20; use get_review_decisions for full history):\n{}\n", decisions));
+                                }
+                                Err(error) => out.push_str(&format!(
+                                    "\nReview decisions unavailable: {error}\n"
+                                )),
+                            }
+                        }
+                    }
+                    let recovery = serde_json::json!({
+                        "project_id": req.project_id,
+                        "doc_id": h.doc_id,
+                        "namespace": "history",
+                    });
+                    out.push_str(&format!("full_document: get_chunk({recovery})\n"));
+                    if content.lines().any(|line| line.starts_with("... and ")) {
+                        out.push_str("LEGACY_TRUNCATED: rebuild the merged corpus to recover the complete stored file cohort.\n");
+                    }
                 }
                 _ => {
-                    if kind_filter.is_none()
+                    if req.file_paths.is_empty() && kind_filter.is_none()
+                        && merged_before.is_none()
                         && let Some(sn) = &h.snippet
                     {
                         shown += 1;
                         out.push_str(&format!("\n## match #{shown} (score {:.3})\n", h.score));
+                        out.push_str(
+                            "[INCOMPLETE: full PR document unavailable; search excerpt only]\n",
+                        );
                         out.push_str(sn);
                         out.push('\n');
                     }
@@ -677,17 +955,108 @@ impl Engram {
             );
         }
         out.push_str(
-            "\nnext: mirror the file cohort of the closest match; get_change_set(story=...) \
-             fuses these exemplars with concept/graph evidence into a ranked file list.\n",
+            "\nnext: inspect the closest change and its consumers for applicability; a shared file is not proof that its solution should be copied. get_change_set(story=...) \
+             combines history with concept/graph evidence into a ranked file list.\n",
         );
         out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 }
 
+fn cohort_path_matches(content: &str, paths: &[String]) -> bool {
+    if paths.is_empty() { return true; }
+    let Some((_, cohort)) = content.rsplit_once("## Files shipped together") else { return false; };
+    cohort.lines().skip(1).take_while(|line| !line.starts_with("## "))
+        .filter_map(|line| line.strip_prefix("- "))
+        .any(|shipped| paths.iter().any(|path| {
+            let shipped = shipped.trim().replace('\\', "/");
+            let path = path.trim().replace('\\', "/");
+            shipped == path || (shipped.contains('/') && path.ends_with(&format!("/{shipped}")))
+                || (path.contains('/') && shipped.ends_with(&format!("/{path}")))
+        }))
+}
+
+fn merged_document_matches(content: &str, kind: Option<&str>, cutoff: Option<&str>) -> bool {
+    let kind_matches = kind.is_none_or(|kind| {
+        content
+            .lines()
+            .find_map(|line| line.split("| kinds: ").nth(1))
+            .is_some_and(|kinds| {
+                kinds
+                    .split(',')
+                    .any(|value| value.trim().eq_ignore_ascii_case(kind))
+            })
+    });
+    let before_cutoff = cutoff.is_none_or(|cut| {
+        content
+            .lines()
+            .find_map(|line| line.strip_prefix("merged: "))
+            .and_then(|rest| rest.get(..10))
+            .is_some_and(|date| ymd_to_epoch_secs(date).is_some() && date < cut)
+    });
+    kind_matches && before_cutoff
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn title_rank_normalizes_identifiers_and_plurals_without_joining_stopwords() {
+        assert_eq!(
+            exemplar_title_rank(
+                "how create invoices from selected orders",
+                "# PR-1: CreateInvoices from SelectedOrders"
+            ),
+            (1, 2, 2, 4)
+        );
+        assert_eq!(
+            exemplar_title_rank("invoice from orders", "# PR-1: Invoice orders"),
+            (0, 1, 0, 2)
+        );
+        assert_eq!(
+            exemplar_title_rank("this invoice", "# PR-1: This unrelated update"),
+            (0, 0, 0, 0)
+        );
+        assert_eq!(
+            exemplar_title_rank("change request", "# PR-1: +[Change] Invoice rows"),
+            (0, 0, 0, 0)
+        );
+        assert_eq!(
+            exemplar_title_rank("billing", "# PR-1: [Billing] Invoice rows"),
+            (0, 1, 0, 1)
+        );
+    }
+
+    #[test]
+    fn identifiers_and_quoted_context_words_do_not_split_the_task() {
+        let rank = exemplar_title_rank("LoadFromStorage", "# PR-1: LoadFromStorage");
+        assert_eq!((rank.0, rank.1), (rank.2, rank.3));
+        let rank = exemplar_title_rank("\"load from storage\"", "# PR-1: load from storage");
+        assert_eq!((rank.0, rank.1), (rank.2, rank.3));
+    }
+
+    #[test]
+    fn merged_metadata_filters_require_exact_kinds_and_valid_prior_dates() {
+        let doc = "merged: 2026-01-03 | author: author | kinds: ui-code, database\n";
+        assert!(merged_document_matches(
+            doc,
+            Some("database"),
+            Some("2026-01-04")
+        ));
+        assert!(!merged_document_matches(doc, Some("data"), None));
+        assert!(!merged_document_matches(doc, None, Some("2026-01-03")));
+        assert!(!merged_document_matches(
+            "merged: 2026-02-31 | kinds: database",
+            None,
+            Some("2027-01-01")
+        ));
+        assert!(!merged_document_matches(
+            "no metadata",
+            None,
+            Some("2027-01-01")
+        ));
+    }
 
     #[test]
     fn parse_ado_and_github_pr_identities() {
@@ -729,7 +1098,7 @@ mod tests {
     }
 
     #[test]
-    fn pr_doc_is_compact_and_carries_cohort() {
+    fn pr_document_preserves_full_cohort_and_view_is_compact() {
         let files: Vec<String> = (0..70).map(|i| format!("dir/file{i}.vb")).collect();
         let doc = render_pr_doc(
             "PR-9",
@@ -742,7 +1111,11 @@ mod tests {
         );
         assert!(doc.contains("# PR-9: Add department field"));
         assert!(doc.contains("files: 70"));
-        assert!(doc.contains("... and 10 more"), "{doc}");
+        assert!(doc.contains("dir/file69.vb"), "{doc}");
+        assert!(!doc.contains("... and "), "{doc}");
+        let view = exemplar_view(&doc, 60);
+        assert!(view.contains("... and 10 more"), "{view}");
+        assert!(!view.contains("dir/file69.vb"), "{view}");
     }
 
     #[test]
@@ -779,8 +1152,7 @@ mod tests {
 
     #[test]
     fn exemplar_view_folds_doc_overflow_marker() {
-        // Doc itself capped at 60 with "... and 10 more"; viewing at 20
-        // must fold both remainders: 40 hidden here + 10 already folded.
+        // Storage retains the full cohort; only the displayed view is capped.
         let files: Vec<String> = (0..70).map(|i| format!("dir/file{i}.vb")).collect();
         let doc = render_pr_doc(
             "PR-9",
@@ -792,7 +1164,82 @@ mod tests {
             &files,
         );
         let view = exemplar_view(&doc, 20);
+        assert!(doc.contains("dir/file69.vb"));
+        assert!(!doc.contains("... and "));
+        assert!(!view.contains("dir/file69.vb"));
         assert!(view.contains("... and 50 more"), "{view}");
+    }
+
+    #[tokio::test]
+    async fn failed_git_walk_during_rebuild_preserves_existing_corpus() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("project");
+        std::fs::create_dir_all(&root).unwrap();
+        let cfg = engram_core::Config {
+            data_dir: tmp.path().join("data"),
+            allowed_roots: vec![root.clone()],
+            embedding_backend: "fts_only".into(),
+            ..Default::default()
+        };
+        let (state, _rx) = crate::AppState::new(cfg).unwrap();
+        let pid = "rebuild-preservation";
+        state
+            .registry
+            .put_project(&engram_core::ProjectRecord {
+                project_id: pid.into(),
+                project_name: pid.into(),
+                directory: root.to_string_lossy().into_owned(),
+                project_type: "general".into(),
+                created_at_ms: 0,
+                updated_at_ms: 0,
+                reindex_required_since_ms: None,
+            })
+            .unwrap();
+        state
+            .registry
+            .set_meta(pid, "active_generation", "1")
+            .unwrap();
+        let engram = Engram::new(state);
+        let runtime = engram.ensure_project_runtime(pid).await.unwrap();
+        let content = "preserved historical evidence";
+        let doc = engram_index::IndexDoc {
+            generation: 0,
+            chunk_id: 1,
+            path: engram_core::RelPath::new("pr:PR-1"),
+            language: "markdown".into(),
+            content: content.into(),
+            namespace: "history".into(),
+            author: None,
+            timestamp: None,
+            start_line: 0,
+            end_line: 0,
+            doc_id: "preserved".into(),
+            content_hash: ContentHash::compute(content.as_bytes()).0,
+        };
+        runtime
+            .search
+            .index_docs(pid, &[doc], &tokio_util::sync::CancellationToken::new())
+            .await
+            .unwrap();
+        let result = engram
+            .handle_ingest_merged_prs(crate::models::IngestMergedPrsRequest {
+                project_id: pid.into(),
+                rebuild: true,
+                max_commits: 5,
+                merged_before: None,
+            })
+            .await;
+        assert!(
+            result.is_err(),
+            "fixture deliberately has no git repository"
+        );
+        assert!(
+            runtime
+                .search
+                .get_doc_by_doc_id(pid, "history", 0, "preserved")
+                .unwrap()
+                .is_some()
+        );
     }
 
     #[test]

@@ -7,7 +7,6 @@
 
 use crate::actors::dreamer::{dream_once, record_cooccurrence};
 use crate::state::{AppState, SearchHitLite};
-use engram_core::RelPath;
 use std::time::Duration;
 
 // ---------------------------------------------------------------------------
@@ -79,6 +78,26 @@ pub async fn analyze_file_style(
     project_id: &str,
     file_path: &str,
     diff_limit: usize,
+) -> StyleAnalysisResult {
+    analyze_file_style_inner(state, project_id, file_path, diff_limit, true).await
+}
+
+/// Fast context assembly keeps deterministic source/history evidence.
+pub async fn analyze_file_style_deterministic(
+    state: &AppState,
+    project_id: &str,
+    file_path: &str,
+    diff_limit: usize,
+) -> StyleAnalysisResult {
+    analyze_file_style_inner(state, project_id, file_path, diff_limit, false).await
+}
+
+async fn analyze_file_style_inner(
+    state: &AppState,
+    project_id: &str,
+    file_path: &str,
+    diff_limit: usize,
+    enhance_with_llm: bool,
 ) -> StyleAnalysisResult {
     // Locate the project directory.
     let pid = project_id.to_string();
@@ -179,7 +198,13 @@ pub async fn analyze_file_style(
     let mut diffs_text = String::new();
     for (commit_hash, message, diff_content) in &diffs {
         let truncated = if diff_content.len() > 2000 {
-            format!("{}\n... (truncated)", &diff_content[..2000])
+            {
+                let mut boundary = 2000;
+                while !diff_content.is_char_boundary(boundary) {
+                    boundary -= 1;
+                }
+                format!("{}\n... (truncated)", &diff_content[..boundary])
+            }
         } else {
             diff_content.clone()
         };
@@ -230,7 +255,11 @@ pub async fn analyze_file_style(
     let mimicry_combined = merged_bullets.join("\n");
 
     // Try LLM enhancement with the style-analysis prompt.
-    let llm_guide = try_llm_style_analysis(state, file_path, &diffs_text).await;
+    let llm_guide = if enhance_with_llm {
+        try_llm_style_analysis(state, file_path, &diffs_text).await
+    } else {
+        None
+    };
     basis.llm_used = llm_guide.is_some();
 
     // Merge policy:
@@ -2863,45 +2892,80 @@ fn collect_file_diffs(
         &cancel,
     )?;
 
-    let target = RelPath::new(file_path);
-    let is_dir = std::path::Path::new(directory).join(file_path).is_dir();
+    let root = directory.canonicalize()?;
+    let workdir = repo
+        .workdir()
+        .ok_or_else(|| anyhow::anyhow!("style history requires a working tree"))?
+        .canonicalize()?;
+    let project_prefix = root.strip_prefix(&workdir)?;
+    let target = project_prefix.join(file_path);
+    let is_dir = directory.join(file_path).is_dir();
     let mut out: Vec<(String, String, String)> = Vec::new();
-
     for oid in oids.iter().rev() {
         if out.len() >= limit {
             break;
         }
         let commit = repo.find_commit(*oid)?;
-        let changed = GitWalker::files_changed_in_commit(&repo, *oid)?;
-
-        let touches_target = changed.iter().any(|fc| {
-            let p = fc.path().as_str();
-            if is_dir {
-                p.starts_with(target.as_str())
-            } else {
-                fc.path() == &target
+        let tree = commit.tree()?;
+        let parent = if commit.parent_count() > 0 {
+            Some(commit.parent(0)?.tree()?)
+        } else {
+            None
+        };
+        let entry = |tree: &git2::Tree<'_>| -> anyhow::Result<Option<git2::Oid>> {
+            match tree.get_path(&target) {
+                Ok(value) => Ok(Some(value.id())),
+                Err(error) if error.code() == git2::ErrorCode::NotFound => Ok(None),
+                Err(error) => Err(error.into()),
             }
-        });
-
-        if !touches_target {
+        };
+        let current = entry(&tree)?;
+        let previous = parent.as_ref().map(entry).transpose()?.flatten();
+        // Tree/blob identity skips unchanged history without constructing a
+        // repository-wide diff (or scanning every changed path in a commit).
+        if current == previous {
             continue;
         }
-
-        let per_file = GitWalker::diff_text_for_commit(&repo, *oid, 4096)?;
-        for (path, diff_text) in per_file {
-            let matched = if is_dir {
-                path.as_str().starts_with(target.as_str())
-            } else {
-                path == target
+        let mut opts = git2::DiffOptions::new();
+        let old_subtree;
+        let new_subtree;
+        let diff = if is_dir {
+            old_subtree = previous.map(|id| repo.find_tree(id)).transpose()?;
+            new_subtree = current.map(|id| repo.find_tree(id)).transpose()?;
+            repo.diff_tree_to_tree(old_subtree.as_ref(), new_subtree.as_ref(), Some(&mut opts))?
+        } else {
+            opts.pathspec(target.to_string_lossy().replace('\\', "/"))
+                .disable_pathspec_match(true);
+            repo.diff_tree_to_tree(parent.as_ref(), Some(&tree), Some(&mut opts))?
+        };
+        let mut text = String::new();
+        let mut first_path = None;
+        diff.print(git2::DiffFormat::Patch, |delta, _, line| {
+            let path = delta.new_file().path().or_else(|| delta.old_file().path());
+            let Some(path) = path else {
+                return true;
             };
-
-            if matched && !diff_text.trim().is_empty() {
-                let msg = commit.message().unwrap_or("").to_string();
-                out.push((oid.to_string(), msg, diff_text));
-                // For directories, we might want multiple files from same commit,
-                // but let's stick to one diff text block for simplicity like v1.
-                break;
+            if first_path.is_none() {
+                first_path = Some(path.to_path_buf());
             }
+            if first_path.as_deref() != Some(path) || text.len() >= 4096 {
+                return true;
+            }
+            if let Ok(content) = std::str::from_utf8(line.content()) {
+                let mut end = content.len().min(4096 - text.len());
+                while !content.is_char_boundary(end) {
+                    end -= 1;
+                }
+                text.push_str(&content[..end]);
+            }
+            true
+        })?;
+        if !text.trim().is_empty() {
+            out.push((
+                oid.to_string(),
+                commit.message().unwrap_or("").to_string(),
+                text,
+            ));
         }
     }
 

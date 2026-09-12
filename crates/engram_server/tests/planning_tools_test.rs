@@ -313,7 +313,7 @@ namespace App {
         .map_guards_and_settings(Parameters(
             engram_server::models::MapGuardsAndSettingsRequest {
                 project_id: project_id.clone(),
-                scope: Some("AdminApi".into()),
+                scope: Some("AdminApi.aspx.cs".into()),
                 output_json: false,
             },
         ))
@@ -384,7 +384,12 @@ namespace App {
         text.contains("Concept footprint: 'photos'"),
         "per-concept footprint section"
     );
-    assert!(text.contains("## Checklist"), "checklist section");
+    assert!(text.contains("## Scope and evidence checklist"), "checklist section");
+    assert!(
+        text.contains("Missing acceptance criteria do not establish approval")
+            && text.contains("co-change frequency alone does not make a file mandatory"),
+        "sparse stories and historical co-changes must not silently expand approved scope"
+    );
     assert!(
         text.contains("detect_incomplete_changes") && text.contains("pre_commit_review"),
         "checklist must chain into the completeness (fast, precomputed) and review tools"

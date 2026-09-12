@@ -1,12 +1,5 @@
-//! External audit 2026-08-29 row 5 v3 (owner: "metric → exemplar → enforce").
-//! The house style of a page's TERRITORY — what an engineer opens next door
-//! before writing markup. On a Bootstrap WebForms app without a component
-//! layer (OciusX: 211 pages, 36 user controls, `.row` on 81 % of pages) the
-//! convention lives in the nearest sibling pages, the user controls they
-//! reuse and the idioms they share; a catalog of container/class families
-//! was measured negative twice (story-invariant Bootstrap universals).
-//! Shared by `get_page_context` (slice 2) and the pre_push_audit gate
-//! (slice 3).
+//! Bounded neighboring-page idioms shared by page context and review advice.
+//! Sampled markup conventions are examples, not universal UI requirements.
 
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
@@ -59,13 +52,14 @@ pub struct MarkupIdioms {
     pub user_controls: BTreeSet<String>,
     pub resource_families: BTreeSet<String>,
     pub classes: BTreeSet<String>,
+    /// False means malformed/over-budget markup, not an empty class inventory.
+    pub class_inventory_known: bool,
     pub message_panels: Vec<String>,
 }
 
 pub fn markup_idioms(content: &str) -> MarkupIdioms {
     let tag_re = regex::Regex::new(r"<([A-Za-z][A-Za-z0-9]*):([A-Za-z_][A-Za-z0-9_]*)").unwrap();
     let res_re = regex::Regex::new(r"Resources\s*[.:]\s*([A-Za-z_][A-Za-z0-9_]*)").unwrap();
-    let class_re = regex::Regex::new(r#"(?i)(?:class|CssClass)\s*=\s*"([^"]*)""#).unwrap();
     let panel_re =
         regex::Regex::new(r#"(?i)<asp:Panel[^>]*CssClass\s*=\s*"([^"]*alert[^"]*)""#).unwrap();
     let mut m = MarkupIdioms::default();
@@ -81,11 +75,10 @@ pub fn markup_idioms(content: &str) -> MarkupIdioms {
     for c in res_re.captures_iter(content) {
         m.resource_families.insert(c[1].to_lowercase());
     }
-    for c in class_re.captures_iter(content) {
-        for t in c[1].split_whitespace() {
-            if !t.contains(['<', '%', '(', ')']) {
-                m.classes.insert(t.to_lowercase());
-            }
+    if let Ok(occurrences) = static_class_occurrences(content) {
+        m.class_inventory_known = true;
+        for occurrence in occurrences {
+            m.classes.extend(occurrence.classes);
         }
     }
     for c in panel_re.captures_iter(content) {
@@ -159,6 +152,10 @@ pub fn house_style_for(project_dir: &Path, aspx_file: &str, page_content: &str) 
     let page = markup_idioms(page_content);
     let (territory, cands) = scan_siblings(project_dir, aspx_file);
     let scanned = cands.len();
+    let unknown_class_siblings = cands
+        .iter()
+        .filter(|(_, m)| !m.class_inventory_known)
+        .count();
     let mut scored: Vec<(f32, String, MarkupIdioms)> = cands
         .into_iter()
         .map(|(p, m)| {
@@ -201,7 +198,11 @@ pub fn house_style_for(project_dir: &Path, aspx_file: &str, page_content: &str) 
             }
         }
         for (name, c) in &cls {
-            if *c == n && !page.classes.contains(name) {
+            if page.class_inventory_known
+                && unknown_class_siblings == 0
+                && *c == n
+                && !page.classes.contains(name)
+            {
                 missing.push(name.clone());
             }
         }
@@ -211,7 +212,7 @@ pub fn house_style_for(project_dir: &Path, aspx_file: &str, page_content: &str) 
             }
         }
     }
-    let note = if n == 0 {
+    let mut note = if n == 0 {
         format!(
             "no sibling page in `{territory}` — nothing to copy from next door; use find_implementation_pattern for the idiom you need"
         )
@@ -220,6 +221,12 @@ pub fn house_style_for(project_dir: &Path, aspx_file: &str, page_content: &str) 
             "{n} nearest sibling(s) of {scanned} scanned in `{territory}`; copy their containers, classes and resource keys when you add markup here"
         )
     };
+    if !page.class_inventory_known || unknown_class_siblings > 0 {
+        note.push_str(&format!(
+            "; static class coverage: current page {}; {unknown_class_siblings} of {scanned} sampled sibling inventories unknown. Missing-class advice skipped; observed class exemplars are partial. Resource/user-control checks are independent.",
+            if page.class_inventory_known { "known" } else { "unknown" }
+        ));
+    }
     HouseStyle {
         territory,
         siblings: scored
@@ -303,4 +310,296 @@ pub fn render_house_style(hs: &HouseStyle) -> String {
     }
     md.push('\n');
     md
+}
+
+/// Source-spanned static class values only; not DOM rendering or CSS resolution.
+#[derive(Debug)]
+pub struct ClassOccurrence {
+    pub classes: BTreeSet<String>,
+    pub attribute_lines: std::ops::RangeInclusive<usize>,
+    pub tag_lines: std::ops::RangeInclusive<usize>,
+}
+
+/// Bounded lexical markup inventory. Server expressions, entity-dependent and
+/// dynamic values are omitted; malformed ownership makes the inventory unknown.
+/// Raw-text elements and comments never supply fake tags or attributes.
+pub fn static_class_occurrences(source: &str) -> Result<Vec<ClassOccurrence>, &'static str> {
+    if source.len() > 2 * 1024 * 1024 {
+        return Err("markup exceeds 2 MiB class inventory budget");
+    }
+    let b = source.as_bytes();
+    let lower = source.to_ascii_lowercase();
+    let mut i = 0;
+    let mut out = Vec::new();
+    let starts: Vec<usize> = std::iter::once(0)
+        .chain(
+            b.iter()
+                .enumerate()
+                .filter_map(|(n, c)| (*c == b'\n').then_some(n + 1)),
+        )
+        .collect();
+    let line = |offset| starts.partition_point(|n| *n <= offset);
+    let name_byte = |c: u8| c.is_ascii_alphanumeric() || matches!(c, b':' | b'_' | b'-' | b'.');
+    while i < b.len() {
+        if b[i] != b'<' {
+            i += 1;
+            continue;
+        }
+        let skip = if source[i..].starts_with("<!--") {
+            Some((4, "-->"))
+        } else if source[i..].starts_with("<%--") {
+            Some((4, "--%>"))
+        } else if source[i..].starts_with("<%") {
+            Some((2, "%>"))
+        } else if source[i..].starts_with("<![CDATA[") {
+            Some((9, "]]>"))
+        } else {
+            None
+        };
+        if let Some((n, end)) = skip {
+            i += n;
+            i += source[i..]
+                .find(end)
+                .ok_or("unterminated comment/server block")?
+                + end.len();
+            continue;
+        }
+        let tag_start = i;
+        i += 1;
+        let closing = b.get(i) == Some(&b'/');
+        if closing {
+            i += 1;
+        }
+        if b.get(i) == Some(&b'!') {
+            // Only the common simple doctype form; internal subsets are unknown.
+            let end = source[i..].find('>').ok_or("unterminated declaration")? + i;
+            if !lower[i..end].starts_with("!doctype ")
+                || source[i..end].contains(['<', '[', '\'', '"'])
+            {
+                return Err("unsupported markup declaration");
+            }
+            i = end + 1;
+            continue;
+        }
+        if !b.get(i).is_some_and(u8::is_ascii_alphabetic) {
+            return Err("ambiguous tag opening");
+        }
+        let ns = i;
+        while i < b.len() && name_byte(b[i]) {
+            i += 1;
+        }
+        let tag = &lower[ns..i];
+        let mut classes = Vec::new();
+        let mut dynamic_attributes = false;
+        let mut seen = BTreeSet::new();
+        loop {
+            let before_space = i;
+            while i < b.len() && b[i].is_ascii_whitespace() {
+                i += 1;
+            }
+            if b.get(i) == Some(&b'>') {
+                i += 1;
+                break;
+            }
+            if b.get(i..i + 2) == Some(b"/>") {
+                i += 2;
+                break;
+            }
+            if closing || i == before_space {
+                return Err("ambiguous attribute boundary");
+            }
+            if b.get(i..i + 2) == Some(b"<%") {
+                dynamic_attributes = true;
+                i += 2;
+                i += source[i..]
+                    .find("%>")
+                    .ok_or("unterminated tag server expression")?
+                    + 2;
+                continue;
+            }
+            let attr_start = i;
+            if !b
+                .get(i)
+                .is_some_and(|c| c.is_ascii_alphabetic() || matches!(c, b'_' | b':'))
+            {
+                return Err("unsupported attribute syntax");
+            }
+            while i < b.len() && name_byte(b[i]) {
+                i += 1;
+            }
+            let attr = &lower[attr_start..i];
+            if !seen.insert(attr) {
+                return Err("duplicate attribute ownership");
+            }
+            let name_end = i;
+            while i < b.len() && b[i].is_ascii_whitespace() {
+                i += 1;
+            }
+            if b.get(i) != Some(&b'=') {
+                i = name_end;
+                continue;
+            }
+            i += 1;
+            while i < b.len() && b[i].is_ascii_whitespace() {
+                i += 1;
+            }
+            let quote = *b.get(i).ok_or("missing attribute value")?;
+            if !matches!(quote, b'\'' | b'"') {
+                // Unquoted values aren't used as exact class evidence.
+                while i < b.len() && !b[i].is_ascii_whitespace() && b[i] != b'>' {
+                    if matches!(b[i], b'<' | b'\'' | b'"' | b'=' | b'`') {
+                        return Err("ambiguous unquoted attribute");
+                    }
+                    i += 1;
+                }
+                continue;
+            }
+            i += 1;
+            let value_start = i;
+            while i < b.len() && b[i] != quote {
+                if b.get(i..i + 2) == Some(b"<%") {
+                    i += 2;
+                    i += source[i..]
+                        .find("%>")
+                        .ok_or("unterminated attribute server expression")?
+                        + 2;
+                } else {
+                    i += 1;
+                }
+            }
+            if i == b.len() {
+                return Err("unterminated quoted attribute");
+            }
+            let value = &source[value_start..i];
+            i += 1;
+            if matches!(attr, "class" | "cssclass")
+                && !value.contains(['<', '>', '&', '{', '}', '%', '\\'])
+            {
+                let tokens: BTreeSet<_> =
+                    value.split_ascii_whitespace().map(str::to_string).collect();
+                if tokens.iter().all(|t| {
+                    t.chars()
+                        .all(|c| c.is_alphanumeric() || matches!(c, '_' | '-'))
+                }) {
+                    classes.push((tokens, attr_start, i - 1));
+                }
+            }
+        }
+        if dynamic_attributes {
+            classes.clear();
+        }
+        for (classes, start, end) in classes {
+            out.push(ClassOccurrence {
+                classes,
+                attribute_lines: line(start)..=line(end),
+                tag_lines: line(tag_start)..=line(i - 1),
+            });
+            if out.len() > 50_000 {
+                return Err("class inventory exceeds 50000 attributes");
+            }
+        }
+        if !closing
+            && matches!(
+                tag,
+                "script"
+                    | "style"
+                    | "textarea"
+                    | "title"
+                    | "xmp"
+                    | "iframe"
+                    | "noembed"
+                    | "noframes"
+                    | "plaintext"
+            )
+        {
+            if tag == "plaintext" {
+                break;
+            }
+            let marker = format!("</{tag}");
+            let mut from = i;
+            loop {
+                let at = lower[from..]
+                    .find(&marker)
+                    .ok_or("unterminated raw-text element")?
+                    + from;
+                let end = at + marker.len();
+                if b.get(end)
+                    .is_some_and(|c| c.is_ascii_whitespace() || *c == b'>')
+                {
+                    i = at;
+                    break;
+                }
+                from = end;
+            }
+        }
+    }
+    Ok(out)
+}
+
+/// Check every supplied new-side hunk line, not merely added lines. Unknown or
+/// inconsistent hunk counts cannot prove which current attributes are unchanged.
+pub fn source_bound_classes(
+    source: &str,
+    diff: &super::pre_commit_review_service::DiffFile,
+) -> Result<(BTreeSet<String>, BTreeSet<String>), &'static str> {
+    if source.len() > 2 * 1024 * 1024 {
+        return Err("markup exceeds 2 MiB class inventory budget");
+    }
+    let lines: Vec<_> = source.lines().collect();
+    let mut added = BTreeSet::new();
+    if diff.hunks.is_empty() {
+        return Err("no source-bound diff hunks");
+    }
+    for h in &diff.hunks {
+        let mut new = h.new_start;
+        let mut old_count = 0;
+        let mut new_count = 0;
+        for raw in &h.body {
+            let Some(prefix) = raw.as_bytes().first() else {
+                return Err("invalid hunk body");
+            };
+            match prefix {
+                b' ' | b'+' => {
+                    if new == 0 || lines.get(new - 1).copied() != Some(&raw[1..]) {
+                        return Err("diff new-side context does not match current source");
+                    }
+                    if *prefix == b'+' {
+                        added.insert(new);
+                    }
+                    if *prefix == b' ' {
+                        old_count += 1;
+                    }
+                    new = new.checked_add(1).ok_or("hunk line overflow")?;
+                    new_count += 1;
+                }
+                b'-' => old_count += 1,
+                b'\\' => {}
+                _ => return Err("invalid hunk prefix"),
+            }
+        }
+        if old_count != h.old_count || new_count != h.new_count {
+            return Err("hunk counts do not establish source coverage");
+        }
+    }
+    if added.len() != diff.added_lines.len()
+        || diff.added_lines.iter().any(|(n, s)| {
+            !added.contains(n) || lines.get(n.saturating_sub(1)).copied() != Some(s.as_str())
+        })
+    {
+        return Err("added-line inventory mismatch");
+    }
+    let mut new_classes = BTreeSet::new();
+    let mut existing = BTreeSet::new();
+    for occurrence in static_class_occurrences(source)? {
+        if occurrence
+            .attribute_lines
+            .clone()
+            .any(|n| added.contains(&n))
+        {
+            new_classes.extend(occurrence.classes);
+        } else if !occurrence.tag_lines.clone().any(|n| added.contains(&n)) {
+            existing.extend(occurrence.classes);
+        }
+    }
+    Ok((new_classes, existing))
 }

@@ -16,6 +16,9 @@ use engram_server::services::ask_engine::status::{
 fn ev(content: &str) -> EvidenceItem {
     EvidenceItem {
         evidence_id: "ev_1".into(),
+        document_id: None,
+        document_namespace: None,
+        source_verification: None,
         kind: EvidenceKind::SourceCode,
         authority: Authority::CurrentCode,
         path: Some("Site/App_Code/users-security/code/aspnetUsers.vb".into()),

@@ -98,7 +98,7 @@ fn func(name: &str, start: u32, end: u32) -> Node {
         end_line: end,
         generation: 1,
         metadata: Some(
-            json!({"permission_checks": "CheckRead", "guard_roles": "vs_karta_io_objekt"}),
+            json!({"permission_checks": if name == "BulkPost" { "CheckWrite" } else { "CheckRead" }, "guard_roles": "vs_karta_io_objekt"}),
         ),
     }
 }

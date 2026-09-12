@@ -21,6 +21,9 @@ use engram_server::services::ask_engine::status::{
 fn ev(id: &str, kind: EvidenceKind, provider: &str, path: &str, content: &str) -> EvidenceItem {
     EvidenceItem {
         evidence_id: id.into(),
+        document_id: None,
+        document_namespace: None,
+        source_verification: None,
         kind,
         authority: Authority::CurrentCode,
         path: Some(path.into()),
@@ -193,4 +196,47 @@ fn the_same_symbol_under_two_node_kinds_is_not_ambiguous() {
         true,
     );
     assert_eq!(s2, AnswerStatus::Ambiguous);
+}
+
+#[test]
+fn sentence_leading_instructions_do_not_invent_missing_symbols() {
+    for question in [
+        "Where are categories saved? Identify methods and guards.",
+        "Where are categories saved. Include relevant consumers.",
+        "Where are categories saved! Describe validation.",
+    ] {
+        assert!(
+            uncovered_named_terms(question, &[]).is_empty(),
+            "{question}"
+        );
+    }
+}
+
+#[test]
+fn sentence_instruction_exception_preserves_actual_named_premises() {
+    for (question, missing) in [
+        (
+            "Where are categories saved? Redis provides the cache.",
+            "Redis",
+        ),
+        ("Where does Include store categories?", "Include"),
+        (
+            "Where are categories saved? `Include` provides validation.",
+            "Include",
+        ),
+        (
+            "Where are categories saved? IncludeService provides validation.",
+            "IncludeService",
+        ),
+        (
+            "Where are categories saved? Identify MissingCache and guards.",
+            "MissingCache",
+        ),
+    ] {
+        assert_eq!(
+            uncovered_named_terms(question, &[]),
+            vec![missing.to_string()],
+            "{question}"
+        );
+    }
 }

@@ -148,21 +148,9 @@ fn inline(v: &mut Value, defs: &Map<String, Value>, depth: usize) {
     }
 }
 
-/// True when a tool should be hidden from the advertised list when the curated
-/// surface is opted into (`advertise_all_tools = false`). `[.NET legacy]` tools
-/// are migration-only and niche off that stack; hiding them shrinks the surface
-/// for a client with a hard tool-count ceiling. Hidden tools stay fully callable
-/// — this governs discovery only.
-pub fn is_curated_out(description: Option<&str>) -> bool {
-    description
-        .map(|d| d.contains("[.NET legacy]"))
-        .unwrap_or(false)
-}
-
-/// External audit 2026-08-29 (auditor P0 #6, row 0; owner decision 09:32):
-/// the tools behind the ten vital capabilities plus the index/health/search
-/// essentials. Advertised by default; every other tool stays CALLABLE and is
-/// listed by `list_advanced_tools` (or `advertise_all_tools = true`).
+/// Opt-in limited surface for clients with a hard tool-count ceiling.
+/// Full discovery is the default: a text catalog cannot grant clients access
+/// to tools omitted from the protocol's tools/list response.
 pub const CORE_TOOLS: &[&str] = &[
     // 6 natural-language understanding + identity
     "ask_codebase",
@@ -209,9 +197,8 @@ pub const CORE_TOOLS: &[&str] = &[
     "list_advanced_tools",
 ];
 
-/// The one filter `list_tools` applies. `advertise_all = false` (the default)
-/// advertises exactly the core tier; `true` advertises everything except the
-/// `[.NET legacy]`-curated tools' legacy marker rule, which still applies.
+/// The one filter `list_tools` applies. `true` (default) advertises every
+/// registered tool, including .NET tools; `false` advertises the core tier.
 pub fn advertised(items: Vec<rmcp::model::Tool>, advertise_all: bool) -> Vec<rmcp::model::Tool> {
     items
         .into_iter()
@@ -225,7 +212,7 @@ pub fn advertised(items: Vec<rmcp::model::Tool>, advertise_all: bool) -> Vec<rmc
         .collect()
 }
 
-/// Tools that are callable but not advertised by default.
+/// Tools outside the optional core tier.
 pub fn advanced(items: Vec<rmcp::model::Tool>) -> Vec<rmcp::model::Tool> {
     items
         .into_iter()
@@ -320,12 +307,5 @@ mod tests {
         assert_eq!(cleaned["properties"]["project_id"]["type"], json!("string"));
         assert_eq!(cleaned["properties"]["limit"]["format"], json!("uint32"));
         assert_eq!(cleaned["required"], json!(["project_id"]));
-    }
-
-    #[test]
-    fn curated_out_flags_only_legacy() {
-        assert!(is_curated_out(Some("[.NET legacy] migrate the thing")));
-        assert!(!is_curated_out(Some("search the codebase")));
-        assert!(!is_curated_out(None));
     }
 }
