@@ -455,6 +455,11 @@ pub struct GetIndexFreshnessRequest {
     /// disk freshness is explicitly unknown even if generation coverage passes.
     #[serde(default = "default_true")]
     pub check_disk: bool,
+    /// Optional immutable Git revision expected by a historical replay or
+    /// pinned checkout. When supplied, freshness also verifies HEAD and that
+    /// tracked files are clean, even when check_disk is false.
+    #[serde(default)]
+    pub expected_git_commit: Option<String>,
 }
 
 /// Planning: every touchpoint of a domain concept, grouped by role.
