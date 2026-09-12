@@ -3618,6 +3618,9 @@ fn default_max_findings() -> usize {
 fn default_min_severity() -> String {
     "style".into()
 }
+fn default_review_detail_level() -> String {
+    "compact".into()
+}
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -3655,6 +3658,11 @@ pub struct PreCommitReviewRequest {
     /// CI integrations want `true`; humans want `false`. Default `false`.
     #[serde(default)]
     pub output_json: bool,
+    /// Markdown detail level: `compact` returns a bounded agent-readable
+    /// finding ledger; `full` includes explanations, evidence and diff
+    /// snippets for every finding. Ignored when output_json is true.
+    #[serde(default = "default_review_detail_level")]
+    pub detail_level: String,
 }
 
 #[cfg(test)]

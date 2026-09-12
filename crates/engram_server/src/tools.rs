@@ -903,7 +903,8 @@ impl Engram {
                        checked. Accepts a raw diff, `staged`, `unstaged`, `head`, or a `.patch` path. \
                        When the agent edits a linked worktree instead of the indexed checkout, pass \
                        `working_directory`; Engram verifies repository identity and binds both the diff \
-                       and current-file snapshots to that worktree. No LLM calls."
+                       and current-file snapshots to that worktree. Markdown defaults to a bounded compact \
+                       ledger; pass `detail_level=full` for all explanations and snippets. No LLM calls."
     )]
     pub async fn pre_commit_review(
         &self,
