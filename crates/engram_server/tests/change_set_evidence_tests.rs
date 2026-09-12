@@ -228,6 +228,54 @@ async fn json_flag_is_rejected_nowhere_and_markdown_stays_default() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn structured_output_is_compact_by_default_and_full_is_explicit() {
+    let (_tmp, state) = build_state();
+    seed(&state);
+    let engram = Engram::new(state);
+
+    let compact = change_set(
+        &engram,
+        json!({"project_id": PID, "story": STORY, "output_json": true}),
+    )
+    .await;
+    assert_eq!(compact["view"]["detail"], "compact");
+    assert!(compact["view"]["files_total"].is_number());
+    assert!(compact["view"]["files_omitted_from_view"].is_number());
+    assert_eq!(compact["view"]["full_detail_request"]["detail"], "full");
+
+    let full = change_set(
+        &engram,
+        json!({
+            "project_id": PID,
+            "story": STORY,
+            "output_json": true,
+            "detail": "full"
+        }),
+    )
+    .await;
+    assert_eq!(full["view"]["detail"], "full");
+    assert_eq!(full["view"]["files_omitted_from_view"], 0);
+    assert_eq!(full["view"]["omissions_omitted_from_view"], 0);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unknown_structured_detail_is_rejected() {
+    let (_tmp, state) = build_state();
+    seed(&state);
+    let engram = Engram::new(state);
+    let req: GetChangeSetRequest = serde_json::from_value(json!({
+        "project_id": PID,
+        "story": STORY,
+        "output_json": true,
+        "detail": "everything"
+    }))
+    .unwrap();
+    let error = engram.handle_get_change_set(req).await.unwrap_err();
+    assert!(error.message.contains("compact"), "{error}");
+    assert!(error.message.contains("full"), "{error}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn one_call_performs_one_full_node_scan() {
     // Slice 2 (audit D7): the 2-3 detect_incomplete_changes passes inside a
     // single get_change_set call share ONE node snapshot instead of each
