@@ -1998,6 +1998,118 @@ fn attach_diff_snippets(findings: &mut [ReviewFinding], diff_files: &[DiffFile])
 
 // ─── Rendering ──────────────────────────────────────────────────────────────
 
+fn review_utf8_prefix(value: &str, max_bytes: usize) -> &str {
+    let mut end = value.len().min(max_bytes);
+    while !value.is_char_boundary(end) {
+        end -= 1;
+    }
+    &value[..end]
+}
+
+/// Bounded default view for an agent tool call. The complete renderer remains
+/// available through `detail_level=full`; this view keeps high-priority
+/// findings visible instead of triggering client-side result offloading.
+pub fn render_compact_markdown(
+    findings: &[ReviewFinding],
+    files_analysed: usize,
+    gates_run: usize,
+    elapsed_ms: u128,
+    outcomes: &[GateOutcome],
+) -> String {
+    const BUDGET: usize = 20 * 1024;
+    let verdict = Verdict::with_outcomes(findings, outcomes);
+    let mut counts: BTreeMap<Severity, usize> = BTreeMap::new();
+    for finding in findings {
+        *counts.entry(finding.severity).or_insert(0) += 1;
+    }
+    let missing = outcomes.iter().filter(|outcome| outcome.did_not_run()).count();
+    let degraded = outcomes.iter().filter(|outcome| outcome.is_degraded()).count();
+    let capped = outcomes.iter().filter(|outcome| !outcome.caps.is_empty()).count();
+    let mut out = format!(
+        "# Pre-Commit Review - {}\nFindings: {} total ({} critical, {} warning, {} info, {} style); files={files_analysed}; gates={gates_run}/{}; missing={missing}; degraded={degraded}; capped={capped}; time={elapsed_ms}ms.\nScope: static gates only; compilation and tests were not run.\n",
+        verdict.as_str().to_ascii_uppercase(),
+        findings.len(),
+        counts.get(&Severity::Critical).copied().unwrap_or(0),
+        counts.get(&Severity::Warning).copied().unwrap_or(0),
+        counts.get(&Severity::Info).copied().unwrap_or(0),
+        counts.get(&Severity::Style).copied().unwrap_or(0),
+        gates::all_gates().len(),
+    );
+
+    if missing + degraded + capped > 0 {
+        out.push_str("\n## Incomplete gate evidence\n");
+        for outcome in outcomes.iter().filter(|outcome| {
+            outcome.did_not_run() || outcome.is_degraded() || !outcome.caps.is_empty()
+        }) {
+            let status = match &outcome.status {
+                GateStatus::Failed(reason) => format!("failed: {reason}"),
+                GateStatus::Panicked(reason) => format!("panicked: {reason}"),
+                GateStatus::Skipped(reason) => format!("skipped: {reason}"),
+                GateStatus::Degraded { findings, notes } => {
+                    format!("degraded ({findings} findings): {}", notes.join("; "))
+                }
+                GateStatus::Passed => "passed".into(),
+                GateStatus::Findings(count) => format!("{count} findings"),
+            };
+            let caps = if outcome.caps.is_empty() {
+                String::new()
+            } else {
+                format!("; caps: {}", review_utf8_prefix(&outcome.caps.join("; "), 500))
+            };
+            out.push_str(&format!(
+                "- [{}] {}{}\n",
+                outcome.name,
+                review_utf8_prefix(&status, 500),
+                caps
+            ));
+        }
+    }
+
+    out.push_str("\n## Finding ledger\n");
+    let mut shown = 0usize;
+    for finding in findings {
+        let lines = finding
+            .lines
+            .iter()
+            .take(8)
+            .map(usize::to_string)
+            .collect::<Vec<_>>()
+            .join(",");
+        let location = if lines.is_empty() {
+            String::new()
+        } else {
+            format!(":{lines}")
+        };
+        let mut row = format!(
+            "- [{}][{}][{}] {} - {}{}\n  Fix: {}\n",
+            finding.severity.as_str(),
+            finding.gate,
+            finding.finding_id,
+            review_utf8_prefix(&finding.title, 240),
+            review_utf8_prefix(&finding.file_path, 320),
+            location,
+            review_utf8_prefix(&finding.suggestion, 500),
+        );
+        if let Some(next) = &finding.next_tool {
+            row.push_str(&format!("  Next: {}\n", review_utf8_prefix(next, 320)));
+        }
+        if out.len() + row.len() + 512 > BUDGET {
+            break;
+        }
+        out.push_str(&row);
+        shown += 1;
+    }
+    if shown < findings.len() {
+        out.push_str(&format!(
+            "OMITTED FINDINGS: {} of {} did not fit the compact response. Raise min_severity or inspect one gate at a time.\n",
+            findings.len() - shown,
+            findings.len()
+        ));
+    }
+    out.push_str("\nFor complete explanations, evidence and diff snippets, rerun with detail_level=\"full\". For machine-readable complete data, use output_json=true.\n");
+    out
+}
+
 /// Markdown payload returned from the handler when the caller did not ask
 /// for JSON.
 pub fn render_markdown(

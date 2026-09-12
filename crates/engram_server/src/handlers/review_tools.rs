@@ -13,7 +13,7 @@ use rmcp::model::{CallToolResult, Content};
 use crate::handlers::validate_project_id;
 use crate::models::requests::PreCommitReviewRequest;
 use crate::services::pre_commit_review_service::{
-    ReviewConfig, Severity, render_json, render_markdown, resolve_diff_source,
+    ReviewConfig, Severity, render_compact_markdown, render_json, render_markdown, resolve_diff_source,
     run_pre_commit_review,
 };
 use crate::services::project_service::{ensure_project_record, get_active_generation};
@@ -31,6 +31,12 @@ impl Engram {
                 None,
             )
         })?;
+        if !matches!(req.detail_level.to_ascii_lowercase().as_str(), "compact" | "full") {
+            return Err(McpError::invalid_params(
+                "detail_level must be compact or full",
+                None,
+            ));
+        }
         let gates = crate::services::pre_commit_review_service::all_gates();
         for name in &req.skip_gates {
             if !gates.iter().any(|gate| gate.name() == name) {
@@ -155,12 +161,26 @@ impl Engram {
             serde_json::to_string_pretty(&payload)
                 .map_err(|e| McpError::internal_error(format!("json render: {e}"), None))?
         } else {
-            let mut report =
-                render_markdown(&findings, files_analysed, gates_run, elapsed_ms, &outcomes);
+            let compact = req.detail_level.eq_ignore_ascii_case("compact");
+            let mut report = if compact {
+                render_compact_markdown(
+                    &findings,
+                    files_analysed,
+                    gates_run,
+                    elapsed_ms,
+                    &outcomes,
+                )
+            } else {
+                render_markdown(&findings, files_analysed, gates_run, elapsed_ms, &outcomes)
+            };
             if changed_during_review || snapshot_unavailable {
                 report = report.replace(
                     "GREEN — no concerns within reported static gate coverage",
                     "YELLOW — source snapshot changed or unavailable",
+                );
+                report = report.replace(
+                    "# Pre-Commit Review - GREEN",
+                    "# Pre-Commit Review - YELLOW",
                 );
             }
             if changed_during_review {
@@ -169,10 +189,20 @@ impl Engram {
                     "SOURCE CHANGED DURING REVIEW: results are not a current-source clearance.\n\n",
                 );
             }
-            report.push_str(&format!(
-                "\n## Coverage evidence\n```json\n{}\n```\n",
-                serde_json::to_string_pretty(&coverage).unwrap_or_default()
-            ));
+            if compact {
+                report.push_str(&format!(
+                    "\nCoverage: submitted_files={}, textual_diff_files={}, unexamined_files={}, changed_during_review={}, compilation=not_run, tests=not_run. Use detail_level=\"full\" or output_json=true for complete coverage evidence.\n",
+                    parsed.len(),
+                    parsed.iter().filter(|f| !f.is_binary && !f.hunks.is_empty()).count(),
+                    unexamined.len(),
+                    changed_during_review,
+                ));
+            } else {
+                report.push_str(&format!(
+                    "\n## Coverage evidence\n```json\n{}\n```\n",
+                    serde_json::to_string_pretty(&coverage).unwrap_or_default()
+                ));
+            }
             report
         };
 
