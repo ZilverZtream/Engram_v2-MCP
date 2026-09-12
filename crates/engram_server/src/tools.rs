@@ -207,7 +207,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Check whether a project's index is current: active generation, time since last index, watcher status, and (by default) a count of files modified on disk since the last index. Use before trusting search/graph results, or when results look stale. Related: update_project to refresh, watch_project for auto-refresh."
+        description = "Check whether a project's index is current: active generation, time since last index, watcher status, and (by default) a count of files modified on disk since the last index. For historical replays or pinned checkouts, pass expected_git_commit to verify both HEAD and tracked-worktree cleanliness even when check_disk is false. Use before trusting search/graph results, or when results look stale. Related: update_project to refresh, watch_project for auto-refresh."
     )]
     pub async fn get_index_freshness(
         &self,

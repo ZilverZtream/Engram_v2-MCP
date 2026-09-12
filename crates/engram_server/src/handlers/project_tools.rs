@@ -2833,6 +2833,74 @@ impl Engram {
             ));
         }
 
+        // Historical and detached-checkout workflows need a stronger binding
+        // than generation completeness. A complete index can still contain a
+        // dirty worktree at the expected commit.
+        let mut source_binding_invalid = false;
+        let mut source_binding_unknown = false;
+        if let Some(expected) = req.expected_git_commit.as_deref() {
+            let valid = matches!(expected.len(), 40 | 64)
+                && expected.bytes().all(|b| b.is_ascii_hexdigit());
+            if !valid {
+                return Err(McpError::invalid_params(
+                    "expected_git_commit must be a full 40- or 64-character hexadecimal object id",
+                    None,
+                ));
+            }
+            let expected = expected.to_ascii_lowercase();
+            let directory = PathBuf::from(&rec.directory);
+            let check = tokio::task::spawn_blocking(move || {
+                let head = std::process::Command::new("git")
+                    .args(["--no-optional-locks", "-C"])
+                    .arg(&directory)
+                    .args(["rev-parse", "--verify", "HEAD"])
+                    .output()?;
+                if !head.status.success() {
+                    return Ok::<_, std::io::Error>(None);
+                }
+                let status = std::process::Command::new("git")
+                    .args(["--no-optional-locks", "-C"])
+                    .arg(&directory)
+                    .args(["status", "--porcelain=v1", "--untracked-files=no"])
+                    .output()?;
+                if !status.status.success() {
+                    return Ok(None);
+                }
+                Ok(Some((
+                    String::from_utf8_lossy(&head.stdout).trim().to_ascii_lowercase(),
+                    String::from_utf8_lossy(&status.stdout).lines().count(),
+                )))
+            })
+            .await;
+            out.push_str(&format!("expected_git_commit: {expected}\n"));
+            match check {
+                Ok(Ok(Some((head, dirty)))) => {
+                    let matches = head == expected;
+                    source_binding_invalid = !matches || dirty > 0;
+                    out.push_str(&format!("source_git_head: {head}\n"));
+                    out.push_str(&format!(
+                        "source_revision_check: {}\ntracked_worktree_changes: {dirty}\nsource_binding_check: {}\n",
+                        if matches { "match" } else { "MISMATCH" },
+                        if source_binding_invalid { "FAILED" } else { "pass" }
+                    ));
+                }
+                Ok(Ok(None)) => {
+                    source_binding_unknown = true;
+                    out.push_str("source_revision_check: unavailable (directory is not a readable Git worktree)\nsource_binding_check: unknown\n");
+                }
+                Ok(Err(error)) => {
+                    source_binding_unknown = true;
+                    out.push_str(&format!("source_revision_check: unavailable ({error})\nsource_binding_check: unknown\n"));
+                }
+                Err(error) => {
+                    source_binding_unknown = true;
+                    out.push_str(&format!("source_revision_check: unavailable ({error})\nsource_binding_check: unknown\n"));
+                }
+            }
+        } else {
+            out.push_str("source_revision_check: not_requested\nsource_binding_check: not_requested\n");
+        }
+
         // Compare with each indexed file, not the wall-clock end of a job.
         // Restored files can have older timestamps, and deletions have no mtime.
         // This is the incremental indexer's change detector, not proof that all
@@ -2896,7 +2964,11 @@ impl Engram {
                 false
             }
         };
-        let advice = if source_format.is_err() || source_format.as_ref().is_ok_and(|(count, _)| *count == 0) {
+        let advice = if source_binding_invalid {
+            "source revision binding FAILED — do not trust indexed source; restore the expected clean Git worktree and run update_project"
+        } else if source_binding_unknown {
+            "freshness unknown — the requested Git source revision could not be verified"
+        } else if source_format.is_err() || source_format.as_ref().is_ok_and(|(count, _)| *count == 0) {
             "freshness unknown — source-index format could not be verified; restore index access and retry"
         } else if source_format.as_ref().is_ok_and(|(_, paths)| !paths.is_empty()) {
             "run update_project — source-index migration automatically re-extracts old files while retaining this project ID and knowledge corpora"

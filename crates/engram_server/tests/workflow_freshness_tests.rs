@@ -74,3 +74,72 @@ async fn unchanged_metadata_is_qualified_not_claimed_as_content_proof() {
     assert!(result.contains("unchanged metadata does not prove identical content"), "{result}");
     assert!(result.contains("generation_complete: true"), "{result}");
 }
+
+#[tokio::test]
+async fn expected_revision_detects_a_dirty_tracked_worktree_when_disk_check_is_skipped() {
+    let (_temp, engram, pid, root) = fixture().await;
+    for args in [
+        vec!["init"],
+        vec!["config", "user.email", "freshness@example.invalid"],
+        vec!["config", "user.name", "Freshness Test"],
+        vec!["add", "Value.vb"],
+        vec!["commit", "-m", "base"],
+    ] {
+        let status = std::process::Command::new("git")
+            .args(args)
+            .current_dir(&root)
+            .status()
+            .unwrap();
+        assert!(status.success());
+    }
+    let head = String::from_utf8(
+        std::process::Command::new("git")
+            .args(["rev-parse", "HEAD"])
+            .current_dir(&root)
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+    let head = head.trim();
+
+    let clean: GetIndexFreshnessRequest = serde_json::from_value(json!({
+        "project_id": &pid,
+        "check_disk": false,
+        "expected_git_commit": head,
+    }))
+    .unwrap();
+    let clean = engram
+        .handle_get_index_freshness(clean)
+        .await
+        .unwrap()
+        .content[0]
+        .as_text()
+        .unwrap()
+        .text
+        .clone();
+    assert!(clean.contains("source_revision_check: match"), "{clean}");
+    assert!(clean.contains("tracked_worktree_changes: 0"), "{clean}");
+    assert!(clean.contains("source_binding_check: pass"), "{clean}");
+
+    std::fs::write(root.join("Value.vb"), "dirty source\n").unwrap();
+    let dirty: GetIndexFreshnessRequest = serde_json::from_value(json!({
+        "project_id": &pid,
+        "check_disk": false,
+        "expected_git_commit": head,
+    }))
+    .unwrap();
+    let dirty = engram
+        .handle_get_index_freshness(dirty)
+        .await
+        .unwrap()
+        .content[0]
+        .as_text()
+        .unwrap()
+        .text
+        .clone();
+    assert!(dirty.contains("source_revision_check: match"), "{dirty}");
+    assert!(dirty.contains("tracked_worktree_changes: 1"), "{dirty}");
+    assert!(dirty.contains("source_binding_check: FAILED"), "{dirty}");
+    assert!(dirty.contains("source revision binding FAILED"), "{dirty}");
+}
