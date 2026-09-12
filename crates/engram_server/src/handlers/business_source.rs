@@ -353,17 +353,44 @@ pub(super) fn render_matches(
 ) -> String {
     let mut audit = SourceAudit::default();
     let matched = analyses.len();
+    // Search relevance alone must not put stale or identity-free documents
+    // ahead of evidence that still matches the current source. Preserve the
+    // search engine's order within each evidence class.
+    let mut analyses = analyses
+        .into_iter()
+        .map(|(doc_id, path, score, content)| {
+            let status = audit.describe(&content, root);
+            let rank = if status.starts_with("VERIFIED_METHOD_HASH:") {
+                0
+            } else if status.starts_with("STALE:") {
+                1
+            } else {
+                2
+            };
+            (rank, status, doc_id, path, score, content)
+        })
+        .collect::<Vec<_>>();
+    analyses.sort_by_key(|entry| entry.0);
+    let source_current = analyses.iter().filter(|entry| entry.0 == 0).count();
+    let stale = analyses.iter().filter(|entry| entry.0 == 1).count();
+    let unverified = matched.saturating_sub(source_current + stale);
     let mut displayed = 0;
     let mut truncated = 0;
     let mut out = format!(
-        "# Business-logic matches for '{}'\nEvidence excerpts, not complete rule inventories. Limits: 8 KiB content per document, 48 KiB total response.\n",
-        utf8_prefix(question, 1024)
+        "# Business-logic matches for '{}'\nEvidence readiness: source_current={source_current}, stale={stale}, unverified={unverified}, matched={matched}. A matching method hash establishes source currency only; rules remain inferred until domain/test validation.\nEvidence excerpts, not complete rule inventories. Limits: 8 KiB content per document, 48 KiB total response.\n",
+        utf8_prefix(question, 1024),
     );
+    if source_current == 0 {
+        out.push_str("USABLE CURRENT-SOURCE EVIDENCE: 0. Do not use these matches as current behavior. Run analyze_business_logic for the exact relevant source files, then query again.\n");
+    } else if source_current < matched {
+        out.push_str("PARTIAL CURRENT-SOURCE EVIDENCE: use only source_current cards; refresh stale/unverified files with analyze_business_logic before relying on them.\n");
+    } else {
+        out.push_str("CURRENT-SOURCE COVERAGE: all retrieved cards match their current method bodies; semantic/domain validation is still required.\n");
+    }
     if question.len() > 1024 {
         out.push_str("Query display truncated at 1024 bytes.\n");
     }
-    for (doc_id, path, score, content) in analyses {
-        let status = audit.describe(&content, root);
+    for (_, status, doc_id, path, score, content) in analyses {
         let mut qualifications = audit.qualifications(&content, root);
         qualifications.extend(claim_review_guidance(project_id, &doc_id, &content));
         let recovery = serde_json::json!({"project_id":project_id,"doc_id":doc_id,"namespace":"business_logic"});
@@ -865,6 +892,55 @@ mod tests {
             );
             assert!(recovery_call(&rendered).is_none());
         }
+    }
+
+    #[test]
+    fn query_readiness_is_explicit_and_current_source_ranks_first() {
+        let tmp = tempfile::tempdir().unwrap();
+        let source = "Class Rules\n Public Function ReadValue() As Integer\n Return 1\n End Function\nEnd Class\n";
+        std::fs::write(tmp.path().join("Rules.vb"), source).unwrap();
+        let current = document(source);
+        let stale = current.replace(
+            current
+                .lines()
+                .find_map(|line| line.strip_prefix("**Analysis method hash**: `"))
+                .unwrap()
+                .trim_end_matches('`'),
+            &"0".repeat(64),
+        );
+        let rendered = render_matches(
+            "project",
+            "ReadValue",
+            tmp.path(),
+            vec![
+                ("legacy".into(), "legacy.md".into(), 1.0, "legacy summary".into()),
+                ("stale".into(), "stale.md".into(), 0.9, stale),
+                ("current".into(), "current.md".into(), 0.8, current),
+            ],
+            48 * 1024,
+        );
+        assert!(rendered.contains(
+            "Evidence readiness: source_current=1, stale=1, unverified=1, matched=3"
+        ));
+        assert!(rendered.contains("PARTIAL CURRENT-SOURCE EVIDENCE"));
+        assert!(
+            rendered.find("## #1 current.md").unwrap()
+                < rendered.find("## #2 stale.md").unwrap()
+        );
+        assert!(
+            rendered.find("## #2 stale.md").unwrap()
+                < rendered.find("## #3 legacy.md").unwrap()
+        );
+
+        let legacy_only = render_matches(
+            "project",
+            "ReadValue",
+            tmp.path(),
+            vec![("legacy".into(), "legacy.md".into(), 1.0, "legacy summary".into())],
+            48 * 1024,
+        );
+        assert!(legacy_only.contains("USABLE CURRENT-SOURCE EVIDENCE: 0"));
+        assert!(legacy_only.contains("Run analyze_business_logic"));
     }
 
     #[test]
