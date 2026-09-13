@@ -379,7 +379,7 @@ internal sealed class AstEmitter
             metadata["arity_variadic"] = parameters.Any(p => p.Modifiers.Any(m => m.IsKind(SyntaxKind.ParamArrayKeyword))).ToString().ToLowerInvariant();
             if (node is ConstructorBlockSyntax)
                 metadata["constructor"] = "true";
-            if (stmt.Modifiers.Any(m => m.Kind() == SyntaxKind.AsyncKeyword))
+            if (stmt.Modifiers.Any(m => m.IsKind(SyntaxKind.AsyncKeyword)))
                 metadata["async"] = "true";
             if (Lifecycle(name) is { } life)
             {
@@ -597,7 +597,10 @@ internal sealed class AstEmitter
                 // .Controls.Add check (merged from the old separate DescendantNodes loop).
                 if (exprText.EndsWith(".Controls.Add", StringComparison.OrdinalIgnoreCase))
                 {
-                    var controlVar = SanitizeName(inv.ArgumentList?.Arguments.FirstOrDefault()?.ToString());
+                    var controlArgument = inv.ArgumentList?.Arguments.FirstOrDefault();
+                    var controlVar = controlArgument is null
+                        ? string.Empty
+                        : SanitizeName(controlArgument.ToString());
                     if (!string.IsNullOrWhiteSpace(controlVar) &&
                         (dynamicControls.Contains(controlVar) || knownControlNames.Contains(controlVar)))
                     {

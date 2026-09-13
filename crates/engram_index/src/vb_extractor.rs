@@ -267,6 +267,9 @@ struct Sidecar {
 static SIDECAR: OnceLock<Mutex<Option<Sidecar>>> = OnceLock::new();
 
 fn sidecar_binary_path() -> PathBuf {
+    if let Some(path) = std::env::var_os("ENGRAM_VB_SIDECAR_PATH").filter(|value| !value.is_empty()) {
+        return PathBuf::from(path);
+    }
     let exe = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("engram_server"));
     let dir = exe.parent().unwrap_or_else(|| Path::new("."));
     let name = match std::env::consts::OS {
@@ -337,11 +340,64 @@ struct SidecarRequest<'a> {
 #[derive(Debug, Deserialize)]
 struct SidecarResponse {
     #[serde(default)]
+    path: Option<String>,
+    #[serde(default)]
     symbols: Vec<SidecarSymbol>,
     #[serde(default)]
     edges: Vec<SidecarEdge>,
     #[serde(default)]
     error: Option<String>,
+    #[serde(default)]
+    invocation_report: Option<VbInvocationReport>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct VbInvocationReport {
+    pub version: String,
+    pub request_id: Option<String>,
+    pub source_sha256: String,
+    pub source_count: u32,
+    pub scope: String,
+    pub parse_status: String,
+    pub parse_error_count: u32,
+    #[serde(default)]
+    pub invocations: Vec<VbInvocation>,
+    #[serde(default)]
+    pub truncated: bool,
+    #[serde(default)]
+    pub omitted_invocation_count: u32,
+    #[serde(default)]
+    pub omitted_argument_count: u32,
+    #[serde(default)]
+    pub notes: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct VbInvocation {
+    pub source_index: u32,
+    pub span_start: u32,
+    pub span_length: u32,
+    pub callee_span_start: u32,
+    pub callee_span_length: u32,
+    pub start_line: u32,
+    pub end_line: u32,
+    pub target_method_id: Option<String>,
+    pub resolution: String,
+    #[serde(default)]
+    pub arguments: Vec<VbInvocationArgument>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct VbInvocationArgument {
+    pub source_index: u32,
+    pub span_start: u32,
+    pub span_length: u32,
+    pub start_line: u32,
+    pub end_line: u32,
+    pub name: Option<String>,
+    pub classification: String,
+    pub syntax_ordinal: u32,
+    pub parameter_ordinal: Option<u32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -2442,6 +2498,129 @@ pub fn vb_return_paths(path: &Path, source: &str, start: u32, end: u32) -> Resul
         return Err("return-path response identity mismatch".into());
     }
     Ok(result.clone())
+}
+
+/// Parse the supplied VB source bytes fresh and return bounded Roslyn
+/// invocation syntax. This never falls back to lexical extraction.
+pub fn vb_invocations(path: &Path, source: &str) -> Result<VbInvocationReport, String> {
+    if source.len() > 2_000_000 {
+        return Err("invocation source exceeds the 2,000,000-byte transport cap".into());
+    }
+    let request_id = format!("invocations:{}", blake3::hash(source.as_bytes()).to_hex());
+    let payload = serde_json::json!({
+        "cmd": "invocations",
+        "path": path.display().to_string(),
+        "source": source,
+        "request_id": request_id,
+    })
+    .to_string();
+    let mut guard = get_or_spawn_sidecar()
+        .lock()
+        .map_err(|_| "sidecar mutex poisoned")?;
+    let sidecar = ensure_sidecar(&mut guard)
+        .map_err(|error| format!("invocation sidecar unavailable: {error}"))?;
+    let line = match source_request_via_sidecar(sidecar, path, source, payload) {
+        Ok(line) => line,
+        Err(error) => {
+            let _ = sidecar.child.kill();
+            *guard = None;
+            return Err(format!("invocation transport failed: {error:?}"));
+        }
+    };
+    if line.len() > 512 * 1024 {
+        return Err("invocation response exceeds the 512-KiB response cap".into());
+    }
+    let response: SidecarResponse = serde_json::from_str(&line).map_err(|e| e.to_string())?;
+    if let Some(error) = response.error {
+        return Err(error);
+    }
+    let expected_path = path.display().to_string();
+    if response.path.as_deref() != Some(expected_path.as_str()) {
+        return Err("invocation response path mismatch".into());
+    }
+    let report = response
+        .invocation_report
+        .ok_or("invocation response missing report")?;
+    if report.version != "vb-invocations-v1"
+        || report.request_id.as_deref() != Some(request_id.as_str())
+        || report.scope != "full_source"
+        || report.source_count != 1
+        || !invocation_source_matches(&report, source)
+    {
+        return Err("invocation response source identity mismatch".into());
+    }
+    for invocation in &report.invocations {
+        let invocation_end = invocation
+            .span_start
+            .checked_add(invocation.span_length)
+            .ok_or("invocation span overflow")?;
+        let callee_end = invocation
+            .callee_span_start
+            .checked_add(invocation.callee_span_length)
+            .ok_or("invocation callee span overflow")?;
+        if invocation.source_index != 0
+            || invocation.callee_span_start < invocation.span_start
+            || callee_end > invocation_end
+            || vb_utf16_span_text(
+                source,
+                invocation.callee_span_start,
+                invocation.callee_span_length,
+            )
+            .is_none()
+        {
+            return Err("invocation response contains an invalid callee/source span".into());
+        }
+        for argument in &invocation.arguments {
+            let argument_end = argument
+                .span_start
+                .checked_add(argument.span_length)
+                .ok_or("invocation argument span overflow")?;
+            if argument.source_index != 0
+                || argument.span_start < invocation.span_start
+                || argument_end > invocation_end
+                || vb_utf16_span_text(source, argument.span_start, argument.span_length).is_none()
+            {
+                return Err("invocation response contains an invalid argument/source span".into());
+            }
+        }
+    }
+    Ok(report)
+}
+
+/// Slice a Roslyn UTF-16 span from the exact source whose fingerprint was
+/// verified by [`vb_invocations`]. Returns `None` for malformed boundaries.
+pub fn vb_utf16_span_text(source: &str, start: u32, length: u32) -> Option<&str> {
+    let start = start as usize;
+    let end = start.checked_add(length as usize)?;
+    let mut utf16 = 0_usize;
+    let mut start_byte = None;
+    let mut end_byte = None;
+    for (byte, character) in source.char_indices() {
+        if utf16 == start {
+            start_byte = Some(byte);
+        }
+        if utf16 == end {
+            end_byte = Some(byte);
+            break;
+        }
+        utf16 += character.len_utf16();
+        if (utf16 > start && start_byte.is_none()) || utf16 > end {
+            return None;
+        }
+    }
+    if utf16 == start && start_byte.is_none() {
+        start_byte = Some(source.len());
+    }
+    if utf16 == end && end_byte.is_none() {
+        end_byte = Some(source.len());
+    }
+    source.get(start_byte?..end_byte?)
+}
+
+fn invocation_source_matches(report: &VbInvocationReport, source: &str) -> bool {
+    use sha2::{Digest, Sha256};
+    let expected = format!("{:x}", Sha256::digest(source.as_bytes()));
+    report.source_sha256 == expected
 }
 
 fn return_path_source_matches(result: &serde_json::Value, source: &str) -> bool {
