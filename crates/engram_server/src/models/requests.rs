@@ -1009,11 +1009,11 @@ pub struct DeriveTestMatrixRequest {
     /// The changed/planned files. The matrix derives from the settings,
     /// role gates, and shared-state keys wired to THESE files' methods.
     pub files: Vec<String>,
-    /// Optional approved story/contract wording. This enables proposed-change
+    /// Optional story/contract wording. This enables proposed-change
     /// risk axes (for example discriminator compatibility or canonical-token
     /// migration) that cannot be inferred from the pre-edit source alone.
     /// These axes are labelled intent-derived and never presented as current
-    /// source behavior.
+    /// source behavior or as human-approved merely because text was supplied.
     #[serde(default, alias = "story", alias = "intent")]
     pub change_intent: Option<String>,
 }
@@ -3530,6 +3530,12 @@ pub struct IngestCodeReviewHistoryRequest {
     /// Optional cap on the number of PRs fetched (newest-first).
     #[serde(default)]
     pub max_prs: Option<usize>,
+    /// Optional inclusive upper PR id. Use this with `force_full_rescan=true`
+    /// to build a leakage-free historical review corpus that cannot include
+    /// the replayed PR or later reviews. `max_prs` counts eligible PRs at or
+    /// below this boundary.
+    #[serde(default)]
+    pub max_pr_id: Option<u64>,
     /// Minimum fix rate (fixed / (fixed + wontFix)) for a cluster to
     /// be indexed as a positive anti-pattern. WontFix clusters are
     /// always indexed into the suppression namespace regardless of

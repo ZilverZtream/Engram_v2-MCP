@@ -301,6 +301,9 @@ pub struct IngestConfig {
     /// hash so the classifier never spends tokens twice on the same
     /// finding. Off by default — deterministic path works fine.
     pub use_llm_for_ambiguous: bool,
+    /// Inclusive historical boundary. PRs above this id never enter parsing,
+    /// clustering, graph storage or promoted rules.
+    pub max_pr_id: Option<u64>,
 }
 
 impl Default for IngestConfig {
@@ -320,6 +323,7 @@ impl Default for IngestConfig {
             promote_lift_threshold: 0.15,
             force_full_rescan: false,
             use_llm_for_ambiguous: false,
+            max_pr_id: None,
         }
     }
 }
@@ -367,7 +371,14 @@ pub async fn ingest_code_review_history(
 ) -> anyhow::Result<IngestStats> {
     let start = std::time::Instant::now();
     let mut stats = IngestStats::default();
-    let source_sig = config.source.signature();
+    let source_sig = format!(
+        "{}:max_pr_id={}",
+        config.source.signature(),
+        config
+            .max_pr_id
+            .map(|id| id.to_string())
+            .unwrap_or_else(|| "latest".into())
+    );
 
     // Read incremental state unless the caller forced a full rescan.
     let last_pr_id: Option<u64> = if config.force_full_rescan {
@@ -382,7 +393,7 @@ pub async fn ingest_code_review_history(
     };
 
     // Stage 1: fetch
-    let (raw, skipped) = fetch_raw_comments(&config.source, last_pr_id).await?;
+    let (raw, skipped) = fetch_raw_comments(&config.source, last_pr_id, config.max_pr_id).await?;
     stats.total_raw = raw.len();
     stats.incremental_skipped_prs = skipped;
     stats.raw_with_fix_hunk = raw.iter().filter(|r| r.fix_hunk.is_some()).count();
@@ -663,22 +674,27 @@ fn now_ms() -> u64 {
 async fn fetch_raw_comments(
     source: &IngestSource,
     last_pr_id: Option<u64>,
+    max_pr_id: Option<u64>,
 ) -> anyhow::Result<(Vec<RawReviewComment>, usize)> {
     match source {
-        IngestSource::JsonlFile { path } => read_jsonl(path, last_pr_id),
+        IngestSource::JsonlFile { path } => read_jsonl(path, last_pr_id, max_pr_id),
         IngestSource::AzureDevops {
             org,
             project,
             repo,
             pat_token,
             max_prs,
-        } => fetch_azure_devops(org, project, repo, pat_token, *max_prs, last_pr_id).await,
+        } => {
+            fetch_azure_devops(org, project, repo, pat_token, *max_prs, last_pr_id, max_pr_id)
+            .await
+        }
     }
 }
 
 fn read_jsonl(
     path: &Path,
     last_pr_id: Option<u64>,
+    max_pr_id: Option<u64>,
 ) -> anyhow::Result<(Vec<RawReviewComment>, usize)> {
     let bytes = std::fs::read_to_string(path)
         .map_err(|e| anyhow::anyhow!("failed to read jsonl at {}: {e}", path.display()))?;
@@ -701,6 +717,10 @@ fn read_jsonl(
                 continue;
             }
         }
+        if max_pr_id.is_some_and(|maximum| rec.pr_id > maximum) {
+            skipped += 1;
+            continue;
+        }
         out.push(rec);
     }
     Ok((out, skipped))
@@ -713,6 +733,7 @@ async fn fetch_azure_devops(
     pat_token: &str,
     max_prs: Option<usize>,
     last_pr_id: Option<u64>,
+    max_pr_id: Option<u64>,
 ) -> anyhow::Result<(Vec<RawReviewComment>, usize)> {
     use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
 
@@ -758,7 +779,13 @@ async fn fetch_azure_devops(
             .cloned()
             .unwrap_or_default();
         let n = batch.len();
-        prs_raw.extend(batch);
+        prs_raw.extend(batch.into_iter().filter(|pr| {
+            let id = pr
+                .get("pullRequestId")
+                .and_then(|value| value.as_u64())
+                .unwrap_or(0);
+            id != 0 && max_pr_id.is_none_or(|maximum| id <= maximum)
+        }));
         if n < page_size {
             break;
         }

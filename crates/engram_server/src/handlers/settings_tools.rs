@@ -715,7 +715,7 @@ impl Engram {
         let mut out = format!("# Test matrix — {} requested file(s)\n", req.files.len());
         out.push_str("Evidence scope: indexed settings, permission and state references plus bounded runtime-risk triggers from source-verified snapshots. Test discovery: not_run. Test execution: not_run. These are proposed cases, not verified outcomes.\n");
         if !intent_axes.is_empty() {
-            out.push_str("Approved change intent was supplied. Its risk axes are labelled separately and do not establish current source behavior.\n");
+            out.push_str("Caller-supplied change intent was provided. Its risk axes are labelled separately and establish neither current source behavior nor human approval.\n");
         }
         if configured_risk_count > 0 {
             out.push_str(&format!("Configured risk packs: {configured_risk_count} validated rule(s) loaded at call time; repository rules override organization rules by stable id.\n"));

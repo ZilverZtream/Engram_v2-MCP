@@ -217,6 +217,38 @@ async fn jsonl_ingest_respects_incremental_marker() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn jsonl_ingest_excludes_reviews_after_historical_pr_boundary() {
+    let (tmp, state) = build_state();
+    let project_id = register_project(&state, &tmp).await;
+    let body = "**Bound archive extraction.** `ZipArchive` readers must reject excessive expanded bytes. ✅ Addressed in commits abc1234";
+    let path = write_fixture_jsonl(
+        &tmp,
+        &[
+            mk_record(100, "fixed", "/src/A.cs", "major", body),
+            mk_record(101, "fixed", "/src/B.cs", "major", body),
+            mk_record(102, "fixed", "/src/C.cs", "major", body),
+        ],
+    );
+
+    let stats = ingest_code_review_history(
+        &state,
+        &project_id,
+        IngestConfig {
+            source: IngestSource::JsonlFile { path },
+            max_pr_id: Some(101),
+            force_full_rescan: true,
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(stats.total_raw, 2, "post-boundary PR must not enter the corpus");
+    assert_eq!(stats.newest_pr_id, Some(101));
+    assert!(stats.incremental_skipped_prs >= 1);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn jsonl_ingest_force_full_rescan_ignores_marker() {
     let (tmp, state) = build_state();
     let project_id = register_project(&state, &tmp).await;

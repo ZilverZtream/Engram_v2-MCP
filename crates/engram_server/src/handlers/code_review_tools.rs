@@ -72,6 +72,7 @@ impl Engram {
             token_overlap_threshold: req.token_overlap_threshold.clamp(0.1, 0.95),
             force_full_rescan: req.force_full_rescan,
             use_llm_for_ambiguous: req.use_llm_for_ambiguous,
+            max_pr_id: req.max_pr_id,
             // The two auto-promotion knobs — lets callers tune from the
             // default (0.7, 3) without recompiling. Low end is
             // permissive (promote a lot of rules); high end is strict
@@ -117,12 +118,17 @@ impl Engram {
         ));
         if stats.incremental_skipped_prs > 0 {
             out.push_str(&format!(
-                "**Skipped via incremental state**: {} already-seen PRs\n",
+                "**Skipped before parsing**: {} PRs outside the incremental or historical boundary\n",
                 stats.incremental_skipped_prs
             ));
         }
         if let Some(pr) = stats.newest_pr_id {
             out.push_str(&format!("**Newest PR seen**: #{pr}\n"));
+        }
+        if let Some(maximum) = req.max_pr_id {
+            out.push_str(&format!(
+                "**Historical boundary**: PR #{maximum} inclusive; later PRs were excluded before parsing and storage\n"
+            ));
         }
         out.push_str(&format!(
             "**Fix exemplars**: {} attached to raw comments · {} survived into parsed rules\n",

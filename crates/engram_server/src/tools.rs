@@ -427,7 +427,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Suggest candidate files for a user story using concepts, historical co-change and structural graph evidence. Ranks candidates, expands discovered .NET WebForms file families (code-behind, designer and resources), and filters vendor/minified noise. Returns grouped candidates and a scope checklist. Use to investigate which files may need changes; results do not establish complete scope, required edits or reviewer approval."
+        description = "Suggest candidate files for a user story using concepts, historical co-change and structural graph evidence. Ranks candidates, expands discovered deployable families (including WebForms code-behind/resources, TypeScript bundles, DBML schema/designer/layout units and nearest owning SQL projects), and filters vendor/minified noise. Deterministic companions that exist on disk but are excluded from the source index are labelled existing_unindexed rather than historical. Returns grouped candidates and a scope checklist. Use to investigate which files may need changes; results do not establish complete scope, required edits or reviewer approval."
     )]
     pub async fn get_change_set(
         &self,
@@ -921,7 +921,9 @@ impl Engram {
                        (2) wontFix rules to a file-scoped suppression namespace, (3) graph \
                        review_pattern nodes with AntiPattern edges to every flagged file. \
                        High-confidence rules auto-promote to repo rules. Incremental across \
-                       runs via a per-source last_pr_id marker."
+                       runs via a per-source last_pr_id marker. For historical replays, set \
+                       max_pr_id to the PR immediately before the replayed change and force a \
+                       full rescan; later reviews are excluded before parsing or storage."
     )]
     pub async fn ingest_code_review_history(
         &self,
