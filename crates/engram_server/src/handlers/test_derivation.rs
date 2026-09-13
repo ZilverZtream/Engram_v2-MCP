@@ -260,7 +260,17 @@ pub(super) fn intent_risk_axes(intent: Option<&str>) -> Vec<(String, String)> {
     {
         axes.push((
             "Discriminator compatibility and presenter completeness".into(),
-            "approved change intent introduces or changes a discriminator: test the legacy/default value, every defined value, an unknown value, persistence/model type and default parity, label/formatter coverage, and an explicit fallback; an undefined product mapping remains a decision rather than an implementation guess".into(),
+            "approved change intent introduces or changes a discriminator: test the legacy/default value, every defined and reserved value, an unknown value, persistence/model type, nullability and default parity, label/formatter coverage, and an explicit fallback. Treat supplied numeric mappings and schema constraints as exact assertions; an undefined product mapping remains a blocking decision rather than an implementation guess".into(),
+        ));
+    }
+    let has_literal_contract = (intent.contains('=') || lower.contains("default") || lower.contains("not null"))
+        && ["required", "approved", "must", "decision", "invariant"]
+            .iter()
+            .any(|term| lower.contains(term));
+    if has_literal_contract {
+        axes.push((
+            "Approved contract invariant fidelity".into(),
+            "approved change intent contains literal mappings or schema constraints: transcribe each into a machine-checkable assertion and compare it with the final diff. Missing reserved values, shifted identifiers, changed nullability/defaults, or implementation-selected substitutes fail the gate; prose confidence cannot override an approved decision".into(),
         ));
     }
     if ["canonical", "prefix", "constant", "token"].iter().any(|term| lower.contains(term)) {
@@ -337,6 +347,18 @@ pub(super) fn runtime_risk_axes(file: &str, source: &str) -> Vec<(String, String
         || lower.contains("htmlencode")
         || lower.contains("htmlattributeencode")
         || lower.contains("httputility.");
+    let has_reinterpreted_html_payload = lower.contains("data-content=")
+        || lower.contains("data-html=")
+        || lower.contains("popover")
+        || lower.contains("tooltip")
+        || lower.contains("innerhtml")
+        || lower.contains("insertadjacenthtml");
+    let has_spreadsheet_cell_sink = lower.contains("setcellvalue(")
+        || lower.contains("xssfworkbook")
+        || lower.contains("hssfworkbook")
+        || lower.contains("npoi.")
+        || lower.contains("exceljs")
+        || lower.contains("openxml");
     let has_normalizer = ["left(", "substring(", ".trim(", "trim(", ".tolower", ".toupper"]
         .iter()
         .any(|token| lower.contains(token));
@@ -360,6 +382,9 @@ pub(super) fn runtime_risk_axes(file: &str, source: &str) -> Vec<(String, String
     } else {
         Vec::new()
     };
+    let has_unbounded_text_storage = matches!(ext.as_str(), "sql" | "dbml")
+        && regex::Regex::new(r"(?i)\b(?:n?varchar|n?text)\s*\(\s*max\s*\)")
+            .is_ok_and(|pattern| pattern.is_match(source));
 
     let mut axes = Vec::new();
     if has_session && has_view_state {
@@ -421,6 +446,18 @@ pub(super) fn runtime_risk_axes(file: &str, source: &str) -> Vec<(String, String
             format!("{file}: bound or HTML-attribute output was found without an adjacent explicit encoding signal; exercise quotes, angle brackets, ampersands, Unicode and line breaks in text and attribute contexts, and verify the framework control or formatter encodes for that exact sink"),
         ));
     }
+    if has_reinterpreted_html_payload {
+        axes.push((
+            "Multi-stage browser/plugin output context".into(),
+            format!("{file}: a value crosses an HTML attribute, DOM property, or widget boundary (`data-content`, popover/tooltip, innerHTML or equivalent). Trace server encoding through browser entity decoding and the plugin's final text-versus-HTML insertion mode. Encoding for an intermediate attribute is not proof of safety at the terminal sink; verify the rendered DOM with markup-shaped input"),
+        ));
+    }
+    if has_spreadsheet_cell_sink {
+        axes.push((
+            "Spreadsheet terminal value limit".into(),
+            format!("{file}: spreadsheet cell output detected; reconcile every upstream text/storage maximum with the target format and library limit. For Excel text cells, exercise 32,767 characters and 32,768 characters plus Unicode, then apply the contract's explicit truncate, reject, split or reference behavior before calling the cell writer"),
+        ));
+    }
     if !optional_text.is_empty() {
         let names = bounded_names(optional_text.clone());
         axes.push((
@@ -459,6 +496,12 @@ pub(super) fn runtime_risk_axes(file: &str, source: &str) -> Vec<(String, String
         axes.push((
             "Bounded storage and payload-expansion boundary".into(),
             format!("{file}: bounded character widths [{widths}] detected; trace upstream maximum lengths and any formatting/concatenation into these sinks. Test exact limit, one over, Unicode, and deferred transaction/commit failure; choose explicit truncate, reject, widen or reference semantics from the contract"),
+        ));
+    }
+    if has_unbounded_text_storage {
+        axes.push((
+            "Unbounded persistence policy and downstream limits".into(),
+            format!("{file}: MAX/unbounded text persistence detected; require an explicit retention, duplication, audience and volume decision, then trace the value to every bounded UI, export, message and third-party sink. Storage acceptance does not establish downstream acceptance"),
         ));
     }
     if is_generated_artifact {
@@ -1161,6 +1204,50 @@ End Function
         assert!(joined.contains("Page/control DataBind"), "{joined}");
         assert!(joined.contains("Bound-value output-context safety"), "{joined}");
         assert!(joined.contains("quotes") && joined.contains("attribute contexts"), "{joined}");
+    }
+
+    #[test]
+    fn runtime_axes_follow_reinterpreted_html_to_the_terminal_sink() {
+        let source = r#"Return HtmlAttributeEncode(value) + "<a class='popover' data-content='...'>""#;
+        let axes = runtime_risk_axes("Presenters/EventText.vb", source);
+        let joined = axes.iter().map(|(axis, evidence)| format!("{axis}: {evidence}"))
+            .collect::<Vec<_>>().join("\n");
+        assert!(joined.contains("Multi-stage browser/plugin output context"), "{joined}");
+        assert!(joined.contains("browser entity decoding"), "{joined}");
+        assert!(joined.contains("terminal sink"), "{joined}");
+    }
+
+    #[test]
+    fn runtime_axes_cover_excel_cell_and_unbounded_storage_limits() {
+        let export = runtime_risk_axes(
+            "Reports/Export.vb",
+            "Imports NPOI.XSSF.UserModel\ncell.SetCellValue(row.DisplayText)",
+        );
+        let export_text = export.iter().map(|(axis, evidence)| format!("{axis}: {evidence}"))
+            .collect::<Vec<_>>().join("\n");
+        assert!(export_text.contains("Spreadsheet terminal value limit"), "{export_text}");
+        assert!(export_text.contains("32,767") && export_text.contains("32,768"), "{export_text}");
+
+        let schema = runtime_risk_axes(
+            "Database/Events.sql",
+            "[complete_value] NVARCHAR(MAX) NULL",
+        );
+        let schema_text = schema.iter().map(|(axis, evidence)| format!("{axis}: {evidence}"))
+            .collect::<Vec<_>>().join("\n");
+        assert!(schema_text.contains("Unbounded persistence policy"), "{schema_text}");
+        assert!(schema_text.contains("retention") && schema_text.contains("downstream"), "{schema_text}");
+    }
+
+    #[test]
+    fn intent_axes_turn_approved_literal_decisions_into_hard_assertions() {
+        let axes = intent_risk_axes(Some(
+            "Approved decision: Entity=0, Name=1, Type=2 reserved; field_id INT NOT NULL DEFAULT 0 is required",
+        ));
+        let joined = axes.iter().map(|(axis, evidence)| format!("{axis}: {evidence}"))
+            .collect::<Vec<_>>().join("\n");
+        assert!(joined.contains("Approved contract invariant fidelity"), "{joined}");
+        assert!(joined.contains("machine-checkable assertion"), "{joined}");
+        assert!(joined.contains("shifted identifiers") && joined.contains("nullability"), "{joined}");
     }
 
     #[test]

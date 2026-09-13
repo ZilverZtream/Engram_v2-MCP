@@ -2809,10 +2809,51 @@ fn build_files_by_parent(
     by_parent
 }
 
-/// Detect the project's audit-log convention by name. Searches for
-/// function nodes whose names contain common audit identifiers.
-/// Returns the most-specific name (longest match) or `None` when no
-/// convention exists.
+/// Rank an audit-function candidate by the operation named by its final
+/// symbol segment. A type such as `AuditLog` may expose both readers and
+/// writers; selecting the longest matching name used to prefer methods such
+/// as `GetByDateRangeAndOrProjectId` and then recommend that reader as the
+/// project's audit-write API.
+fn audit_candidate_score(name: &str) -> i32 {
+    let terminal = name
+        .rsplit(['.', ':'])
+        .find(|part| !part.is_empty())
+        .unwrap_or(name)
+        .to_ascii_lowercase();
+
+    const READ_PREFIXES: &[&str] = &[
+        "get", "find", "list", "read", "search", "query", "select", "fetch", "load",
+        "describe", "count", "has", "is",
+    ];
+    if READ_PREFIXES.iter().any(|prefix| terminal.starts_with(prefix)) {
+        return -1;
+    }
+
+    const EXACT_WRITERS: &[&str] = &[
+        "audit", "log", "record", "write", "create", "add", "insert", "append", "track",
+    ];
+    if EXACT_WRITERS.contains(&terminal.as_str()) {
+        return 3;
+    }
+
+    const WRITER_PREFIXES: &[&str] = &[
+        "audit", "log", "record", "write", "create", "add", "insert", "append", "track",
+    ];
+    if WRITER_PREFIXES
+        .iter()
+        .any(|prefix| terminal.starts_with(prefix))
+    {
+        return 2;
+    }
+
+    0
+}
+
+/// Detect the project's audit-write convention by name. Searches for
+/// function nodes whose names contain common audit identifiers, rejects
+/// reader-shaped methods, and prefers a direct writer name over a longer
+/// specialized writer. Returns `None` when no writer-shaped convention is
+/// found.
 fn detect_audit_function(
     graph: &GraphStore,
     project_id: &str,
@@ -2825,6 +2866,8 @@ fn detect_audit_function(
         "LogActivity",
         "AuditTrail",
     ];
+    let mut candidates = Vec::new();
+    let mut seen = HashSet::new();
     for pat in AUDIT_PATTERNS {
         let matches = graph
             .query_nodes(project_id, Some("function"), Some(pat), None, 11)
@@ -2841,15 +2884,24 @@ fn detect_audit_function(
                 format!("audit convention candidate search for {pat} truncated at 10"),
             ));
         }
-        if !matches.is_empty() {
-            return matches
-                .iter()
-                .take(10)
-                .max_by_key(|n| n.name.len())
-                .map(|n| n.name.clone());
+        for candidate in matches.into_iter().take(10) {
+            if seen.insert(candidate.node_id.clone()) {
+                candidates.push(candidate);
+            }
         }
     }
-    None
+    candidates
+        .into_iter()
+        .filter(|candidate| audit_candidate_score(&candidate.name) > 0)
+        .max_by(|a, b| {
+            audit_candidate_score(&a.name)
+                .cmp(&audit_candidate_score(&b.name))
+                // On equal writer strength, the shorter public operation is
+                // generally the canonical API rather than a specialized path.
+                .then_with(|| b.name.len().cmp(&a.name.len()))
+                .then_with(|| b.name.cmp(&a.name))
+        })
+        .map(|candidate| candidate.name)
 }
 
 fn count_commits_best_effort(project_dir: &Path) -> anyhow::Result<u32> {
@@ -2986,6 +3038,52 @@ pub use gates::all_gates;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn audit_candidate_ranking_rejects_readers_and_prefers_canonical_writer() {
+        assert!(audit_candidate_score("handelselogg.GetByDateRangeAndOrProjectId") < 0);
+        assert!(audit_candidate_score("AuditLog.Search") < 0);
+        assert!(
+            audit_candidate_score("AuditLog.Create")
+                > audit_candidate_score("AuditLog.CreateMarkerUpdate")
+        );
+        assert!(audit_candidate_score("AuditTrail.WriteEntry") > 0);
+        assert_eq!(audit_candidate_score("AuditLog.FormatDisplayText"), 0);
+    }
+
+    #[test]
+    fn audit_detection_selects_writer_when_longer_reader_is_present() {
+        let temp = tempfile::tempdir().unwrap();
+        let graph = GraphStore::open(&temp.path().join("graph")).unwrap();
+        let node = |id: &str, name: &str| engram_graph::Node {
+            node_id: id.into(),
+            node_type: "function".into(),
+            name: name.into(),
+            namespace: "test".into(),
+            language: "vbnet".into(),
+            file_path: engram_core::RelPath::new("App_Code/Audit.vb"),
+            start_line: 1,
+            end_line: 20,
+            generation: 1,
+            metadata: None,
+        };
+        graph
+            .upsert_nodes(
+                "project",
+                &[
+                    node("fn:reader", "handelselogg.GetByDateRangeAndOrProjectId"),
+                    node("fn:special", "handelselogg.CreateMarkerUpdate"),
+                    node("fn:writer", "handelselogg.Create"),
+                ],
+            )
+            .unwrap();
+        let mut notes = Vec::new();
+        assert_eq!(
+            detect_audit_function(&graph, "project", &mut notes).as_deref(),
+            Some("handelselogg.Create")
+        );
+        assert!(notes.is_empty());
+    }
 
     #[test]
     fn verdict_green_when_only_style() {
