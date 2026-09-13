@@ -3,6 +3,101 @@ use super::business_source::SourceAudit;
 use engram_index::{HybridQuery, HybridSearchEngine};
 use std::{collections::HashSet, path::Path};
 
+/// Source-triggered runtime scenarios that graph settings/role/state edges do
+/// not express. These are bounded lexical observations over a source-verified
+/// snapshot. They propose tests; they do not claim that a defect exists.
+pub(super) fn runtime_risk_axes(file: &str, source: &str) -> Vec<(String, String)> {
+    let lower = source.to_ascii_lowercase();
+    let ext = Path::new(file)
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    let is_markup = matches!(
+        ext.as_str(),
+        "aspx" | "ascx" | "master" | "html" | "htm" | "razor" | "jsx" | "tsx" | "vue"
+    );
+    let has_session = lower.contains("session(")
+        || lower.contains("session[")
+        || lower.contains("session.")
+        || lower.contains("sessionstate");
+    let has_view_state = lower.contains("viewstate(")
+        || lower.contains("viewstate[")
+        || lower.contains("viewstate.");
+    let has_full_postback = lower.contains("ispostback")
+        || lower.contains("__dopostback")
+        || lower.contains("postbackoptions")
+        || lower.contains("asp:linkbutton");
+    let has_partial_postback = lower.contains("updatepanel")
+        || lower.contains("asyncpostbacktrigger")
+        || lower.contains("pagerequestmanager");
+    let has_keyboard_or_activation = lower.contains("keydown")
+        || lower.contains("keyup")
+        || lower.contains("keypress")
+        || lower.contains("onclick")
+        || lower.contains("_click")
+        || lower.contains(".click");
+    let has_interactive_markup = is_markup
+        && (lower.contains("<button")
+            || lower.contains("<a ")
+            || lower.contains("<a>")
+            || lower.contains("<input")
+            || lower.contains("asp:button")
+            || lower.contains("asp:linkbutton")
+            || lower.contains("role=\"button\"")
+            || lower.contains("role='button'"));
+
+    let mut axes = Vec::new();
+    if has_session && has_view_state {
+        axes.push((
+            "Cross-window Session/ViewState coherence".into(),
+            format!(
+                "{file}: open two windows in one authenticated session; change the shared preference/state in one, then full-postback the stale window and verify rendered state, ViewState and Session converge without restoring the stale value"
+            ),
+        ));
+    } else if has_session {
+        axes.push((
+            "Shared-session navigation and multi-window state".into(),
+            format!(
+                "{file}: change the Session-backed behavior, navigate away/back and exercise a second window in the same session; verify both consumers observe the intended state"
+            ),
+        ));
+    }
+    if has_view_state || has_full_postback {
+        axes.push((
+            "Initial load and full-postback reconstruction".into(),
+            format!(
+                "{file}: compare initial load with a full postback; verify selection, visibility, grouping and navigation state are reconstructed from the intended authority"
+            ),
+        ));
+    }
+    if has_partial_postback {
+        axes.push((
+            "Partial-postback refresh and handler rebinding".into(),
+            format!(
+                "{file}: trigger every relevant async postback and verify updated DOM state plus client handlers after one and repeated partial refreshes"
+            ),
+        ));
+    }
+    if has_keyboard_or_activation || has_interactive_markup {
+        axes.push((
+            "Keyboard activation parity".into(),
+            format!(
+                "{file}: focus each changed interactive control and exercise Enter and Space where its native role requires them; verify one activation, correct navigation/action, and no global handler suppresses native behavior"
+            ),
+        ));
+    }
+    if has_interactive_markup {
+        axes.push((
+            "DOM accessible names for interactive controls".into(),
+            format!(
+                "{file}: inspect the accessibility tree and require a non-empty computed name for every changed link, button and input, including icon-only controls"
+            ),
+        ));
+    }
+    axes
+}
+
 /// Presentation-only correction for historical setting-shaped edges. Only a
 /// source-proven, uniquely declared private nullable field qualifies; a real
 /// resolved setting or a qualified configuration/member chain stays a setting.
@@ -544,6 +639,39 @@ mod tests {
     use super::*;
     use engram_core::{Config, ContentHash, RelPath};
     use engram_index::IndexDoc;
+
+    #[test]
+    fn runtime_axes_cover_cross_window_postback_keyboard_and_names() {
+        let source = r#"
+            <%@ Page Language="VB" %>
+            <asp:UpdatePanel runat="server">
+              <ContentTemplate>
+                <asp:LinkButton ID="choose" runat="server" OnClick="choose_Click"><i class="icon"></i></asp:LinkButton>
+              </ContentTemplate>
+            </asp:UpdatePanel>
+            <% If Session("mode") IsNot Nothing AndAlso ViewState("mode") IsNot Nothing Then %>
+        "#;
+        let axes = runtime_risk_axes("Pages/Choose.aspx", source);
+        let labels = axes
+            .iter()
+            .map(|(label, _)| label.as_str())
+            .collect::<Vec<_>>();
+        assert!(labels.contains(&"Cross-window Session/ViewState coherence"));
+        assert!(labels.contains(&"Initial load and full-postback reconstruction"));
+        assert!(labels.contains(&"Partial-postback refresh and handler rebinding"));
+        assert!(labels.contains(&"Keyboard activation parity"));
+        assert!(labels.contains(&"DOM accessible names for interactive controls"));
+        assert!(
+            axes
+                .iter()
+                .all(|(_, evidence)| evidence.contains("Pages/Choose.aspx"))
+        );
+    }
+
+    #[test]
+    fn noninteractive_source_does_not_get_browser_scenarios() {
+        assert!(runtime_risk_axes("Math.cs", "public int Add(int a, int b) => a + b;").is_empty());
+    }
 
     #[tokio::test]
     async fn proposed_cases_require_matching_source_hash_and_exact_file_scope() {

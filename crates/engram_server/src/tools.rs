@@ -387,7 +387,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "QA/test-plan generator: given the changed files, derives WHAT TO TEST â€” the settings that fork behaviour in that code (test ON and OFF), the roles/permissions gating it (run as each role + a denial case), and the shared Session/Application keys coupling it to other pages. Turns the 'which of the 400 settings and 6 user types affect my change?' question into a concrete matrix."
+        description = "QA/test-plan generator: given the changed files, derives WHAT TO TEST: settings that fork behaviour, roles/permissions, shared Session/Application keys, and source-verified runtime risks such as full/partial postback, multi-window Session/ViewState coherence, keyboard activation, and DOM accessible names. Returns proposed cases with evidence limits; it does not execute tests."
     )]
     pub async fn derive_test_matrix(
         &self,
@@ -1250,7 +1250,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "[.NET legacy] Trace a data item from UI control through code-behind to database column (and back through bindings)."
+        description = "[.NET legacy] Trace an event handler's ordered flow through controls, helper calls, SQL, bindings, redirects and shared state. Bounded graph follow includes indirect state writes proved by uniquely resolved property setters; unresolved or ambiguous paths are reported rather than guessed."
     )]
     pub async fn trace_data_flow(
         &self,

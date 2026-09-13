@@ -1274,6 +1274,9 @@ pub struct GraphSearchRequest {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FindSymbolReferencesRequest {
+    /// Symbol or qualified member name. `symbol` is accepted as a compatibility
+    /// alias because several MCP clients naturally shorten this field.
+    #[serde(alias = "symbol")]
     pub symbol_name: String,
     pub project_id: String,
     /// Maximum number of incoming references to return per symbol. Default: 200.
@@ -3108,7 +3111,9 @@ pub struct GetMethodEditContextRequest {
 #[serde(deny_unknown_fields)]
 pub struct GetPageContextRequest {
     pub project_id: String,
-    /// Path to the .aspx/.ascx/.master file.
+    /// Path to the .aspx/.ascx/.master file. `page_path` is accepted as a
+    /// compatibility alias.
+    #[serde(alias = "page_path")]
     pub aspx_file: String,
     /// Include full bodies of all event handlers. Default: false â€” a page
     /// with 30 handlers rendered ~50K chars of source; the summary
@@ -3663,6 +3668,43 @@ pub struct PreCommitReviewRequest {
     /// snippets for every finding. Ignored when output_json is true.
     #[serde(default = "default_review_detail_level")]
     pub detail_level: String,
+}
+
+#[cfg(test)]
+mod request_alias_tests {
+    use super::{FindSymbolReferencesRequest, GetPageContextRequest};
+
+    #[test]
+    fn symbol_alias_deserializes_to_canonical_field() {
+        let request: FindSymbolReferencesRequest = serde_json::from_value(serde_json::json!({
+            "project_id": "p",
+            "symbol": "Namespace.Type.Member"
+        }))
+        .unwrap();
+        assert_eq!(request.symbol_name, "Namespace.Type.Member");
+    }
+
+    #[test]
+    fn page_path_alias_deserializes_to_canonical_field() {
+        let request: GetPageContextRequest = serde_json::from_value(serde_json::json!({
+            "project_id": "p",
+            "page_path": "Pages/Overview.aspx"
+        }))
+        .unwrap();
+        assert_eq!(request.aspx_file, "Pages/Overview.aspx");
+    }
+
+    #[test]
+    fn canonical_and_alias_together_are_rejected_as_duplicates() {
+        let symbol = serde_json::from_value::<FindSymbolReferencesRequest>(serde_json::json!({
+            "project_id": "p", "symbol": "A", "symbol_name": "B"
+        }));
+        let page = serde_json::from_value::<GetPageContextRequest>(serde_json::json!({
+            "project_id": "p", "page_path": "A.aspx", "aspx_file": "B.aspx"
+        }));
+        assert!(symbol.is_err());
+        assert!(page.is_err());
+    }
 }
 
 #[cfg(test)]

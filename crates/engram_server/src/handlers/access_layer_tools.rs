@@ -1737,11 +1737,16 @@ fn compute_edit_safety(
         .any(|e| e.contains("On_Error_Resume_Next") || e.contains("OnErrorResumeNext"));
     let complexity = method_info.complexity_score;
     let is_web_service = method_info.method_kind == "WebMethod";
-    // "No callers found" is only an orphan when the caller lookup ran to
-    // completion AND no incoming edge was left unresolved (audit D11).
-    let is_orphan = method_info.called_by.is_empty()
+    // A complete static lookup with zero callers is uncertainty, not proof of
+    // high risk. Framework entry points, constructors, reflection, markup and
+    // configuration can all invoke a member without a graph caller edge.
+    let framework_entry_point = matches!(
+        method_info.method_kind.as_str(),
+        "Lifecycle" | "ControlEvent" | "WebMethod"
+    ) || method_info.method_name.eq_ignore_ascii_case("new")
+        || method_info.method_name.eq_ignore_ascii_case("__init__");
+    let has_no_bound_callers = method_info.called_by.is_empty()
         && method_info.handles_clause.is_empty()
-        && method_info.method_kind != "Lifecycle"
         && !callers_unknown
         && completeness.callers_dangling == 0;
 
@@ -1755,7 +1760,6 @@ fn compute_edit_safety(
         || is_web_service
         || has_on_error
         || complexity > 40
-        || is_orphan
     {
         if has_on_error {
             reasons.push("On Error Resume Next makes behavior unknowable".to_string());
@@ -1778,11 +1782,6 @@ fn compute_edit_safety(
                 complexity
             ));
         }
-        if is_orphan {
-            reasons.push(
-                "No bound callers found in the index — unresolved overloads, extraction gaps, reflection or dynamic dispatch may hide consumers".to_string(),
-            );
-        }
         if has_triggers {
             reasons.push("Seam candidates present — downstream triggers may fire".to_string());
         }
@@ -1798,6 +1797,7 @@ fn compute_edit_safety(
         || has_session_writes
         || has_triggers
         || complexity > 15
+        || (has_no_bound_callers && !framework_entry_point)
     {
         if br_score > 20.0 {
             reasons.push(format!(
@@ -1817,6 +1817,13 @@ fn compute_edit_safety(
         if complexity > 15 {
             reasons.push(format!("Complexity {} — moderate", complexity));
         }
+        if has_no_bound_callers && !framework_entry_point {
+            reasons.push(
+                "No statically bound callers were found — verify framework, markup, configuration, reflection and dynamic entry points before editing"
+                    .to_string(),
+            );
+            pre_checklist.push("Verify non-static entry points before modifying".to_string());
+        }
         pre_checklist.push("Review all callers for compatibility".to_string());
         if has_session_writes {
             pre_checklist.push("Audit session key consumers across all pages".to_string());
@@ -1827,6 +1834,12 @@ fn compute_edit_safety(
     // ── GREEN: safe ─────────────────────────────────────────────────────
     else {
         reasons.push("Low blast radius, few callers, no complex state".to_string());
+        if has_no_bound_callers && framework_entry_point {
+            reasons.push(
+                "No static caller edge is expected for this framework or constructor entry point; its entry-point classification prevented a false orphan warning"
+                    .to_string(),
+            );
+        }
         "green"
     };
 
@@ -6177,6 +6190,34 @@ mod edit_safety_tests {
         assert_ne!(r.verdict, "red", "{r:?}");
         assert!(
             r.reasons.iter().any(|s| s.contains("3 dangling")),
+            "{:?}",
+            r.reasons
+        );
+    }
+
+    #[test]
+    fn complete_zero_callers_is_caution_not_high_risk() {
+        let r = compute_edit_safety(&info(0, 3, 0), None, &complete());
+        assert_eq!(r.verdict, "yellow", "{r:?}");
+        assert!(
+            r.reasons
+                .iter()
+                .any(|reason| reason.contains("No statically bound callers")),
+            "{:?}",
+            r.reasons
+        );
+    }
+
+    #[test]
+    fn framework_event_without_graph_callers_is_not_an_orphan() {
+        let mut event = info(0, 3, 0);
+        event.method_kind = "ControlEvent".into();
+        let r = compute_edit_safety(&event, None, &complete());
+        assert_ne!(r.verdict, "red", "{r:?}");
+        assert!(
+            r.reasons
+                .iter()
+                .any(|reason| reason.contains("entry-point classification")),
             "{:?}",
             r.reasons
         );
