@@ -57,6 +57,14 @@ static RE_STATE_WRITE: LazyLock<Regex> = LazyLock::new(|| {
         .expect("RE_STATE_WRITE")
 });
 
+/// A qualified property assignment such as `preferences.GroupByCustomer = true`.
+/// Direct state stores are handled above; this pattern lets the graph prove that
+/// an apparently ordinary property setter writes state internally.
+static RE_QUALIFIED_ASSIGNMENT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\b((?:[A-Za-z_][A-Za-z0-9_]*\.)+[A-Za-z_][A-Za-z0-9_]*)\s*=")
+        .expect("RE_QUALIFIED_ASSIGNMENT")
+});
+
 /// new SqlCommand, new SqlDataAdapter, .Fill(, .ExecuteReader(), .ExecuteNonQuery(), .ExecuteScalar()
 static RE_SQL_SETUP: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)\b(new\s+Sql(?:Command|DataAdapter|DataReader)|SqlCommand\s*\()")
@@ -737,6 +745,15 @@ pub fn trace_data_flow(
             "{entry_point}: more than {FOLLOW_EDGE_CAP} edges on the entry node — its own edges are partial"
         ));
     }
+    collect_property_state_writes(
+        graph,
+        project_id,
+        &method_body,
+        entry_point,
+        &mut steps,
+        &mut state_writes,
+        &mut follow,
+    )?;
     follow_calls(
         graph,
         project_id,
@@ -786,6 +803,124 @@ pub fn trace_data_flow(
         modern_flow_hint,
         follow,
     })
+}
+
+/// Resolve qualified assignments in the handler to indexed property nodes and
+/// surface state writes performed by their setters. A state write is reported
+/// only when one best property match is available and that exact node owns a
+/// `WritesState` edge. Ambiguous graph matches remain explicit coverage stops.
+fn collect_property_state_writes(
+    graph: &Arc<GraphStore>,
+    project_id: &str,
+    method_body: &str,
+    entry_point: &str,
+    steps: &mut Vec<DataFlowStep>,
+    state_writes: &mut Vec<StateAccessInfo>,
+    follow: &mut FollowCoverage,
+) -> anyhow::Result<()> {
+    use std::collections::BTreeSet;
+
+    let mut assignments = BTreeSet::new();
+    for line in method_body.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("//") || trimmed.starts_with('\'') {
+            continue;
+        }
+        for capture in RE_QUALIFIED_ASSIGNMENT.captures_iter(trimmed) {
+            let Some(whole_match) = capture.get(0) else {
+                continue;
+            };
+            if trimmed[whole_match.end()..].trim_start().starts_with('=') {
+                continue;
+            }
+            assignments.insert(capture[1].to_string());
+        }
+    }
+
+    for assignment in assignments {
+        let terminal = assignment.rsplit('.').next().unwrap_or(&assignment);
+        let candidates = graph.query_nodes(
+            project_id,
+            Some("property"),
+            Some(terminal),
+            None,
+            51,
+        )?;
+        if candidates.is_empty() {
+            continue;
+        }
+
+        let assignment_lower = assignment.to_ascii_lowercase();
+        let mut scored: Vec<(u8, engram_graph::Node)> = candidates
+            .into_iter()
+            .filter_map(|node| {
+                let name = node.name.to_ascii_lowercase();
+                let score = if name == assignment_lower {
+                    3
+                } else if name.ends_with(&format!(".{assignment_lower}")) {
+                    2
+                } else if name.contains('.') && assignment_lower.ends_with(&format!(".{name}")) {
+                    1
+                } else {
+                    0
+                };
+                (score > 0).then_some((score, node))
+            })
+            .collect();
+        scored.sort_by(|a, b| b.0.cmp(&a.0));
+        let Some((best_score, best_node)) = scored.first() else {
+            continue;
+        };
+        if scored.get(1).is_some_and(|(score, _)| score == best_score) {
+            follow.stops.push(format!(
+                "{assignment}: multiple indexed properties match the assignment; setter state was not attributed"
+            ));
+            continue;
+        }
+
+        let (edges, truncated) = graph.edges_touching_with_coverage(
+            project_id,
+            &best_node.node_id,
+            FOLLOW_EDGE_CAP,
+        )?;
+        if truncated {
+            follow.truncated_nodes += 1;
+            follow.stops.push(format!(
+                "{assignment}: property edge cap {FOLLOW_EDGE_CAP} reached; setter evidence is partial"
+            ));
+        }
+        for edge in edges.into_iter().filter(|edge| {
+            edge.source_id == best_node.node_id && edge.edge_kind == EdgeKind::WritesState
+        }) {
+            let (state_type, key) = parse_state_target(&edge.target_id);
+            if !state_writes
+                .iter()
+                .any(|state| state.key == key && state.state_type == state_type)
+            {
+                state_writes.push(StateAccessInfo {
+                    state_type: state_type.clone(),
+                    key: key.clone(),
+                    direction: "write".into(),
+                    method_context: entry_point.to_string(),
+                });
+            }
+            let mut details = HashMap::new();
+            details.insert("source".into(), "property_setter_graph".into());
+            details.insert("property_node_id".into(), best_node.node_id.clone());
+            steps.push(DataFlowStep {
+                sequence: steps.len() + 1,
+                step_type: "GraphEdge".into(),
+                description: format!(
+                    "Graph: assigning {assignment} invokes a setter that writes {state_type}[\"{key}\"]"
+                ),
+                source: assignment.clone(),
+                target: edge.target_id,
+                details,
+                resolved: Some(true),
+            });
+        }
+    }
+    Ok(())
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -1548,6 +1683,21 @@ mod tests {
         }
     }
 
+    fn make_property_node(id: &str, file: &str, name: &str) -> engram_graph::Node {
+        engram_graph::Node {
+            node_id: id.into(),
+            node_type: "property".into(),
+            name: name.into(),
+            namespace: "test".into(),
+            language: "vbnet".into(),
+            file_path: engram_core::RelPath::new(file),
+            start_line: 1,
+            end_line: 8,
+            generation: 1,
+            metadata: None,
+        }
+    }
+
     // ── Test 1: Search-and-bind pattern ──────────────────────────────────────
 
     #[test]
@@ -1909,6 +2059,103 @@ protected void btnSearch_Click(object sender, EventArgs e)
         // Steps should include at least one GraphEdge step
         let has_graph_step = trace.steps.iter().any(|s| s.step_type == "GraphEdge");
         assert!(has_graph_step, "expected GraphEdge step");
+    }
+
+    #[test]
+    fn property_setter_graph_edge_surfaces_indirect_state_write() {
+        let graph = make_graph();
+        let property_id = "property:Preferences.GroupByCustomer";
+        graph
+            .upsert_nodes(
+                "proj",
+                &[make_property_node(
+                    property_id,
+                    "Preferences.vb",
+                    "Preferences.GroupByCustomer",
+                )],
+            )
+            .expect("upsert property node");
+        graph
+            .upsert_edges(
+                "proj",
+                &[make_edge(
+                    property_id,
+                    "state:Session:GroupByCustomer",
+                    EdgeKind::WritesState,
+                    None,
+                )],
+            )
+            .expect("upsert property state edge");
+
+        let source = r#"
+Protected Sub btnMode_Click(sender As Object, e As EventArgs)
+    Preferences.GroupByCustomer = True
+    Response.Redirect("Dashboard.aspx")
+End Sub
+"#;
+        let trace = trace_data_flow(&graph, "proj", "Dashboard.aspx.vb", "btnMode_Click", source)
+            .expect("trace ok");
+
+        assert!(trace
+            .state_writes
+            .iter()
+            .any(|state| state.state_type == "Session" && state.key == "GroupByCustomer"));
+        assert!(trace.steps.iter().any(|step| {
+            step.details.get("source").map(String::as_str) == Some("property_setter_graph")
+                && step.target == "state:Session:GroupByCustomer"
+        }));
+    }
+
+    #[test]
+    fn ambiguous_property_assignment_does_not_invent_state_write() {
+        let graph = make_graph();
+        let nodes = [
+            make_property_node(
+                "property:One.Preferences.GroupByCustomer",
+                "One.vb",
+                "One.Preferences.GroupByCustomer",
+            ),
+            make_property_node(
+                "property:Two.Preferences.GroupByCustomer",
+                "Two.vb",
+                "Two.Preferences.GroupByCustomer",
+            ),
+        ];
+        graph.upsert_nodes("proj", &nodes).expect("upsert properties");
+        graph
+            .upsert_edges(
+                "proj",
+                &[
+                    make_edge(
+                        &nodes[0].node_id,
+                        "state:Session:OneGroup",
+                        EdgeKind::WritesState,
+                        None,
+                    ),
+                    make_edge(
+                        &nodes[1].node_id,
+                        "state:Session:TwoGroup",
+                        EdgeKind::WritesState,
+                        None,
+                    ),
+                ],
+            )
+            .expect("upsert property state edges");
+
+        let source = r#"
+Protected Sub btnMode_Click(sender As Object, e As EventArgs)
+    Preferences.GroupByCustomer = True
+End Sub
+"#;
+        let trace = trace_data_flow(&graph, "proj", "Dashboard.aspx.vb", "btnMode_Click", source)
+            .expect("trace ok");
+
+        assert!(trace.state_writes.is_empty());
+        assert!(trace
+            .follow
+            .stops
+            .iter()
+            .any(|stop| stop.contains("multiple indexed properties")));
     }
 
     // ── Test 8: Output structure / serialization ──────────────────────────────

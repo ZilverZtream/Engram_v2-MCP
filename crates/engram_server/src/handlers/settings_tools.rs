@@ -384,12 +384,13 @@ impl Engram {
         let axis_root = std::path::PathBuf::from(&_rec.directory);
 
         type Axis = BTreeMap<String, Vec<String>>; // axis value -> methods
-        let (settings_axis, setting_labels, roles_axis, state_axis, unresolved, coverage_notes, companion_context, member_observations) =
+        let (settings_axis, setting_labels, roles_axis, state_axis, runtime_axes, unresolved, coverage_notes, companion_context, member_observations) =
             tokio::task::spawn_blocking(move || {
                 let mut settings_axis: Axis = BTreeMap::new();
                 let mut setting_labels: BTreeMap<String, String> = BTreeMap::new();
                 let mut roles_axis: Axis = BTreeMap::new();
                 let mut state_axis: Axis = BTreeMap::new();
+                let mut runtime_axes: Axis = BTreeMap::new();
                 let mut unresolved: Vec<String> = Vec::new();
                 let mut coverage_notes = Vec::new();
                 let mut source_bytes = 0;
@@ -430,6 +431,19 @@ impl Engram {
                             }
                             Ok(None) => {}
                             Err(error) => coverage_notes.push(format!("{file}: {error}")),
+                        }
+                    }
+                    // Runtime/UI axes come from the verified file snapshot and
+                    // remain useful even when the parser emitted no symbols
+                    // for a markup or client-only file.
+                    if let Some(source) = snapshot
+                        .as_deref()
+                        .and_then(|bytes| std::str::from_utf8(bytes).ok())
+                    {
+                        for (axis, evidence) in
+                            super::test_derivation::runtime_risk_axes(&file, source)
+                        {
+                            runtime_axes.entry(axis).or_default().push(evidence);
                         }
                     }
                     let mut symbols = match graph.query_nodes_in_file(&pid, None, &file, 2_001) {
@@ -570,7 +584,7 @@ impl Engram {
                         }
                     }
                 }
-                for axis in [&mut settings_axis, &mut roles_axis, &mut state_axis] {
+                for axis in [&mut settings_axis, &mut roles_axis, &mut state_axis, &mut runtime_axes] {
                     for v in axis.values_mut() {
                         v.sort();
                         v.dedup();
@@ -581,6 +595,7 @@ impl Engram {
                     setting_labels,
                     roles_axis,
                     state_axis,
+                    runtime_axes,
                     unresolved,
                     coverage_notes,
                     companion_context,
@@ -615,7 +630,7 @@ impl Engram {
         };
 
         let mut out = format!("# Test matrix — {} changed file(s)\n", req.files.len());
-        out.push_str("Evidence scope: indexed settings, permission and state references. Test discovery: not_run. Test execution: not_run. These are proposed cases, not verified outcomes.\n");
+        out.push_str("Evidence scope: indexed settings, permission and state references plus bounded runtime-risk triggers from source-verified snapshots. Test discovery: not_run. Test execution: not_run. These are proposed cases, not verified outcomes.\n");
         if !companion_context.is_empty() {
             out.push_str("Direct code-behind context: declarations from source-verified markup. A companion is context, not a changed file; its indexed axes are separately checked below. No transitive helpers are inferred. Business-rule cases remain scoped to the explicitly requested files.\n");
             for relation in &companion_context {
@@ -700,6 +715,13 @@ impl Engram {
             None,
             &mut out,
         );
+        render_axis(
+            "Runtime interaction / lifecycle axis",
+            "Source-verified lexical triggers propose these browser/runtime cases. They are risk-directed scenarios, not proof of current behavior or a complete runtime matrix:",
+            &runtime_axes,
+            None,
+            &mut out,
+        );
 
         out.push_str("\n## Source-linked proposed cases\nExpected outcomes below are inferred business rules whose method hashes match current source; confirm the requirements before implementing the tests.\n");
         render_rule_cases(&mut out, &rule_cases);
@@ -707,9 +729,9 @@ impl Engram {
             out.push_str("No source-verified rule cases available; run analyze_business_logic for the requested files to populate or refresh them.\n");
         }
 
-        if settings_axis.is_empty() && roles_axis.is_empty() && state_axis.is_empty() {
+        if settings_axis.is_empty() && roles_axis.is_empty() && state_axis.is_empty() && runtime_axes.is_empty() {
             out.push_str(
-                "\nNo usable setting/role/state axes were emitted. This does not establish \
+                "\nNo usable setting/role/state/runtime axes were emitted. This does not establish \
                  that the change is gate-free; check incomplete evidence above and \
                  helper paths: run get_method_edit_context on the changed \
                  methods and derive_test_matrix on the helper files it names.\n",
@@ -720,7 +742,7 @@ impl Engram {
                  denied access and relevant boundary values. Discovered axes: \
                  {} setting/value references and {} role/guard entries. The graph does \
                  not establish their value types, privilege ordering, or a complete \
-                 Cartesian test matrix; confirm those in the cited methods.\n",
+                 Cartesian or runtime test matrix; confirm those in the cited methods.\n",
                 settings_axis.len(),
                 roles_axis.len()
             ));

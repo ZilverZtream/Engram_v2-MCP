@@ -36,7 +36,26 @@ async fn markup_matrix_exposes_its_declared_companion_and_scope() {
     let text = matrix(&server, &pid).await;
     assert!(text.contains("Session:Theme") && text.contains("LoadTheme (ShellCode.cs:"), "{text}");
     assert!(text.contains("Shell.master -> ShellCode.cs") && text.contains("Direct code-behind context"), "{text}");
+    assert!(text.contains("Runtime interaction / lifecycle axis") && text.contains("Shared-session navigation and multi-window state"), "{text}");
     assert!(text.contains("not a changed file") && text.contains("Test execution: not_run"), "{text}");
+}
+
+#[tokio::test]
+async fn markup_matrix_proposes_postback_keyboard_and_accessibility_cases() {
+    let (_temp, server, pid) = fixture(
+        "<%@ Master Language=\"C#\" CodeFile=\"ShellCode.cs\" %>\n<asp:UpdatePanel runat=\"server\"><ContentTemplate><asp:LinkButton ID=\"Search\" runat=\"server\" OnClick=\"Search_Click\"><i class=\"icon-search\"></i></asp:LinkButton></ContentTemplate></asp:UpdatePanel>\n",
+    )
+    .await;
+    let text = matrix(&server, &pid).await;
+    for expected in [
+        "Initial load and full-postback reconstruction",
+        "Partial-postback refresh and handler rebinding",
+        "Keyboard activation parity",
+        "DOM accessible names for interactive controls",
+    ] {
+        assert!(text.contains(expected), "missing {expected}: {text}");
+    }
+    assert!(text.contains("risk-directed scenarios, not proof"), "{text}");
 }
 
 #[tokio::test]
