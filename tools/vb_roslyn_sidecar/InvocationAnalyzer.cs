@@ -15,7 +15,12 @@ internal static class InvocationAnalyzer
     internal static InvocationReport Analyze(string source, string? requestId)
     {
         // Always parse the request text. This query never consults AstEmitter's cached trees.
-        var tree = VisualBasicSyntaxTree.ParseText(source);
+        // A decoded leading BOM is an encoding marker, not VB syntax. Replace
+        // it with one space so every UTF-16 span remains aligned to `source`.
+        var parseSource = source.StartsWith("\uFEFF", StringComparison.Ordinal)
+            ? " " + source[1..]
+            : source;
+        var tree = VisualBasicSyntaxTree.ParseText(parseSource);
         var diagnostics = tree.GetDiagnostics().ToList();
         var compilation = VisualBasicCompilation.Create("invocation_query").AddSyntaxTrees(tree);
         var semanticModel = compilation.GetSemanticModel(tree, ignoreAccessibility: true);

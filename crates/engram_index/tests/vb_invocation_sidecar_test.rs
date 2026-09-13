@@ -21,7 +21,7 @@ fn sidecar_path() -> Option<PathBuf> {
 #[test]
 fn roslyn_invocation_query_handles_multiline_named_arguments_and_ignores_text() {
     let Some(binary) = sidecar_path() else { return };
-    let source = r#"Class Sample
+    let source = format!("\u{feff}{}", r#"Class Sample
     Private Sub Save()
         Dim fake = "AuditTrail.Record(category := EventPrefix.Fake)"
         ' AuditTrail.Record(category := EventPrefix.Comment)
@@ -30,7 +30,7 @@ fn roslyn_invocation_query_handles_multiline_named_arguments_and_ignores_text() 
             category := EventPrefix.Widget)
     End Sub
 End Class
-"#;
+"#);
     let mut child = Command::new(binary)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -42,7 +42,7 @@ End Class
     writeln!(stdin, "{}", serde_json::json!({
         "cmd": "invocations",
         "path": "Sample.vb",
-        "source": source,
+        "source": &source,
         "request_id": "fixture-request"
     }))
     .unwrap();
