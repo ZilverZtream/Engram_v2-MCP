@@ -367,6 +367,7 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
         let _rec = self.ensure_project_record(&req.project_id).await?;
+        let intent_axes = super::test_derivation::intent_risk_axes(req.change_intent.as_deref());
         if req.files.is_empty()
             || req.files.len() > 100
             || req.files.iter().any(|file| file.trim().is_empty())
@@ -382,6 +383,12 @@ impl Engram {
         let files: Vec<String> = req.files.iter().map(|f| f.replace('\\', "/")).collect();
         let rule_files = files.clone();
         let axis_root = std::path::PathBuf::from(&_rec.directory);
+        let (configured_risk_pack, configured_risk_notes) =
+            super::test_derivation::load_configured_risk_pack(
+                &self.state.cfg.data_dir,
+                &axis_root,
+            );
+        let configured_risk_count = configured_risk_pack.len();
 
         type Axis = BTreeMap<String, Vec<String>>; // axis value -> methods
         let (settings_axis, setting_labels, roles_axis, state_axis, runtime_axes, unresolved, coverage_notes, companion_context, member_observations) =
@@ -392,7 +399,7 @@ impl Engram {
                 let mut state_axis: Axis = BTreeMap::new();
                 let mut runtime_axes: Axis = BTreeMap::new();
                 let mut unresolved: Vec<String> = Vec::new();
-                let mut coverage_notes = Vec::new();
+                let mut coverage_notes = configured_risk_notes;
                 let mut source_bytes = 0;
                 let mut companion_context = Vec::new();
                 let mut member_observations = std::collections::BTreeSet::new();
@@ -403,11 +410,11 @@ impl Engram {
                     // Folding here can hide distinct files or suppress the
                     // diagnostic for a request that has no indexed identity.
                     if seen.insert(file.clone()) {
-                        pending.push_back((file, true));
+                        pending.push_back((file, true, None::<String>));
                     }
                 }
 
-                while let Some((file, discover_companion)) = pending.pop_front() {
+                while let Some((file, discover_companion, companion_relation)) = pending.pop_front() {
                     let (usable, note, snapshot) = super::test_derivation::axis_source(
                         &graph,
                         &pid,
@@ -421,17 +428,42 @@ impl Engram {
                     if !usable {
                         continue;
                     }
+                    if let Some(relation) = companion_relation {
+                        companion_context.push(relation);
+                    }
                     if discover_companion && let Some(snapshot) = snapshot.as_deref() {
                         match super::test_derivation::declared_axis_companion(&axis_root, &file, snapshot) {
-                            Ok(Some(companion)) => {
-                                companion_context.push(format!("{file} -> {companion}"));
+                            Ok(Some((companion, relation_verified))) => {
+                                let relation = format!("{file} -> {companion}");
+                                if relation_verified {
+                                    companion_context.push(relation.clone());
+                                }
                                 if seen.insert(companion.clone()) {
-                                    pending.push_back((companion, false));
+                                    pending.push_back((companion, false, (!relation_verified).then_some(relation)));
                                 }
                             }
                             Ok(None) => {}
                             Err(error) => coverage_notes.push(format!("{file}: {error}")),
                         }
+                    }
+                    match super::test_derivation::registered_control_hosts(&graph, &pid, &file) {
+                        Ok((hosts, truncated)) => {
+                            if truncated {
+                                coverage_notes.push(format!(
+                                    "{file}: registered-control hosts truncated at 32"
+                                ));
+                            }
+                            for host in hosts {
+                                if seen.insert(host.clone()) {
+                                    pending.push_back((
+                                        host.clone(),
+                                        true,
+                                        Some(format!("{host} registers {file}")),
+                                    ));
+                                }
+                            }
+                        }
+                        Err(error) => coverage_notes.push(format!("{file}: {error}")),
                     }
                     // Runtime/UI axes come from the verified file snapshot and
                     // remain useful even when the parser emitted no symbols
@@ -442,6 +474,15 @@ impl Engram {
                     {
                         for (axis, evidence) in
                             super::test_derivation::runtime_risk_axes(&file, source)
+                        {
+                            runtime_axes.entry(axis).or_default().push(evidence);
+                        }
+                        for (axis, evidence) in
+                            super::test_derivation::configured_risk_axes(
+                                &configured_risk_pack,
+                                &file,
+                                source,
+                            )
                         {
                             runtime_axes.entry(axis).or_default().push(evidence);
                         }
@@ -629,10 +670,16 @@ impl Engram {
             ),
         };
 
-        let mut out = format!("# Test matrix — {} changed file(s)\n", req.files.len());
+        let mut out = format!("# Test matrix — {} requested file(s)\n", req.files.len());
         out.push_str("Evidence scope: indexed settings, permission and state references plus bounded runtime-risk triggers from source-verified snapshots. Test discovery: not_run. Test execution: not_run. These are proposed cases, not verified outcomes.\n");
+        if !intent_axes.is_empty() {
+            out.push_str("Approved change intent was supplied. Its risk axes are labelled separately and do not establish current source behavior.\n");
+        }
+        if configured_risk_count > 0 {
+            out.push_str(&format!("Configured risk packs: {configured_risk_count} validated rule(s) loaded at call time; repository rules override organization rules by stable id.\n"));
+        }
         if !companion_context.is_empty() {
-            out.push_str("Direct code-behind context: declarations from source-verified markup. A companion is context, not a changed file; its indexed axes are separately checked below. No transitive helpers are inferred. Business-rule cases remain scoped to the explicitly requested files.\n");
+            out.push_str("Direct UI context: code-behind declarations and one-hop user-control hosts from source-verified markup/graph edges. A companion or host is context, not a changed file; its indexed axes are separately checked below. No transitive helper calls are inferred. Business-rule cases remain scoped to the explicitly requested files.\n");
             for relation in &companion_context {
                 out.push_str(&format!("- {relation}\n"));
             }
@@ -722,6 +769,12 @@ impl Engram {
             None,
             &mut out,
         );
+        if !intent_axes.is_empty() {
+            out.push_str(&format!("\n## Planned-behavior risk axis — {}\nThese cases derive from supplied approved change wording, not from proof that the behavior exists in source. Resolve product decisions before implementation; use source and consumer evidence to bind each case to concrete files:\n", intent_axes.len()));
+            for (axis, evidence) in &intent_axes {
+                out.push_str(&format!("- **{axis}** → {evidence}\n"));
+            }
+        }
 
         out.push_str("\n## Source-linked proposed cases\nExpected outcomes below are inferred business rules whose method hashes match current source; confirm the requirements before implementing the tests.\n");
         render_rule_cases(&mut out, &rule_cases);
@@ -729,7 +782,7 @@ impl Engram {
             out.push_str("No source-verified rule cases available; run analyze_business_logic for the requested files to populate or refresh them.\n");
         }
 
-        if settings_axis.is_empty() && roles_axis.is_empty() && state_axis.is_empty() && runtime_axes.is_empty() {
+        if settings_axis.is_empty() && roles_axis.is_empty() && state_axis.is_empty() && runtime_axes.is_empty() && intent_axes.is_empty() {
             out.push_str(
                 "\nNo usable setting/role/state/runtime axes were emitted. This does not establish \
                  that the change is gate-free; check incomplete evidence above and \

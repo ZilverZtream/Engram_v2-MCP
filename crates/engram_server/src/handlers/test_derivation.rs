@@ -1,7 +1,286 @@
 //! Source-linked proposed tests from version-checked inferred requirements.
 use super::business_source::SourceAudit;
 use engram_index::{HybridQuery, HybridSearchEngine};
-use std::{collections::HashSet, path::Path};
+use serde::Deserialize;
+use std::{collections::{BTreeMap, HashSet}, path::Path};
+
+const RISK_PACK_MAX_BYTES: u64 = 256 * 1024;
+const RISK_PACK_MAX_RULES: usize = 128;
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RiskRuleFile {
+    version: u32,
+    #[serde(default)]
+    rules: Vec<ConfiguredRiskRule>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ConfiguredRiskRule {
+    id: String,
+    title: String,
+    guidance: String,
+    #[serde(default = "default_risk_severity")]
+    severity: String,
+    #[serde(default)]
+    extensions: Vec<String>,
+    #[serde(default)]
+    path_any: Vec<String>,
+    #[serde(default)]
+    all_terms: Vec<String>,
+    #[serde(default)]
+    any_terms: Vec<String>,
+    #[serde(default)]
+    none_terms: Vec<String>,
+    #[serde(skip)]
+    source: String,
+}
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct ConfiguredRiskPack {
+    rules: Vec<ConfiguredRiskRule>,
+}
+
+impl ConfiguredRiskPack {
+    pub(crate) fn len(&self) -> usize { self.rules.len() }
+}
+
+fn default_risk_severity() -> String { "warning".into() }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ConfiguredRiskMatch {
+    pub id: String,
+    pub title: String,
+    pub guidance: String,
+    pub severity: String,
+    pub source: String,
+}
+
+fn clean_rule_value(value: &str, max: usize) -> bool {
+    !value.trim().is_empty()
+        && value.len() <= max
+        && !value.chars().any(|ch| ch.is_control())
+}
+
+fn normalize_rule(mut rule: ConfiguredRiskRule, source: &str) -> Result<ConfiguredRiskRule, String> {
+    if !clean_rule_value(&rule.id, 64)
+        || !rule.id.chars().all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.'))
+    {
+        return Err("rule id must be 1-64 ASCII letters, digits, dot, dash or underscore".into());
+    }
+    if !clean_rule_value(&rule.title, 160) || !clean_rule_value(&rule.guidance, 1500) {
+        return Err(format!("rule {} title/guidance is blank, too long or contains controls", rule.id));
+    }
+    rule.severity = rule.severity.trim().to_ascii_lowercase();
+    if !matches!(rule.severity.as_str(), "critical" | "warning" | "info" | "style") {
+        return Err(format!("rule {} severity must be critical, warning, info or style", rule.id));
+    }
+    let lists = [&rule.extensions, &rule.path_any, &rule.all_terms, &rule.any_terms, &rule.none_terms];
+    if lists.iter().any(|values| values.len() > 32)
+        || lists.iter().flat_map(|values| values.iter())
+            .any(|value| !clean_rule_value(value, 128))
+    {
+        return Err(format!("rule {} has too many predicates or an invalid predicate", rule.id));
+    }
+    if lists.iter().all(|values| values.is_empty()) {
+        return Err(format!("rule {} has no predicates", rule.id));
+    }
+    rule.id = rule.id.trim().to_string();
+    rule.title = rule.title.trim().to_string();
+    rule.guidance = rule.guidance.trim().to_string();
+    rule.extensions = rule.extensions.into_iter()
+        .map(|value| value.trim().trim_start_matches('.').to_ascii_lowercase()).collect();
+    rule.path_any = rule.path_any.into_iter()
+        .map(|value| value.trim().replace('\\', "/").to_ascii_lowercase()).collect();
+    for values in [&mut rule.all_terms, &mut rule.any_terms, &mut rule.none_terms] {
+        for value in values.iter_mut() { *value = value.trim().to_ascii_lowercase(); }
+    }
+    rule.source = source.to_string();
+    Ok(rule)
+}
+
+fn read_risk_rule_file(path: &Path, boundary: &Path, source: &str) -> Result<Vec<ConfiguredRiskRule>, String> {
+    if !path.exists() { return Ok(Vec::new()); }
+    let boundary = boundary.canonicalize().map_err(|error| format!("{source} rule-pack boundary unavailable: {error}"))?;
+    let canonical = path.canonicalize().map_err(|error| format!("{source} rule pack unavailable: {error}"))?;
+    if !canonical.starts_with(&boundary) {
+        return Err(format!("{source} rule pack resolves outside its configured boundary"));
+    }
+    let metadata = std::fs::metadata(&canonical).map_err(|error| format!("{source} rule-pack metadata unavailable: {error}"))?;
+    if !metadata.is_file() || metadata.len() > RISK_PACK_MAX_BYTES {
+        return Err(format!("{source} rule pack must be a file no larger than {RISK_PACK_MAX_BYTES} bytes"));
+    }
+    let bytes = std::fs::read(&canonical).map_err(|error| format!("{source} rule pack cannot be read: {error}"))?;
+    let text = std::str::from_utf8(&bytes).map_err(|_| format!("{source} rule pack must be UTF-8"))?;
+    let parsed: RiskRuleFile = serde_yaml::from_str(text)
+        .map_err(|error| format!("{source} rule pack is invalid YAML/schema: {error}"))?;
+    if parsed.version != 1 { return Err(format!("{source} rule-pack version must be 1")); }
+    if parsed.rules.len() > RISK_PACK_MAX_RULES {
+        return Err(format!("{source} rule pack exceeds {RISK_PACK_MAX_RULES} rules"));
+    }
+    let mut seen = HashSet::new();
+    parsed.rules.into_iter().map(|rule| {
+        let rule = normalize_rule(rule, source)?;
+        if !seen.insert(rule.id.clone()) { return Err(format!("{source} rule pack repeats id {}", rule.id)); }
+        Ok(rule)
+    }).collect()
+}
+
+/// Load organization and repository rule packs on every matrix call. Project
+/// rules override global rules by stable id, so policy tuning needs no daemon
+/// rebuild or restart. Both files are size/count bounded and use substring
+/// predicates rather than executable expressions.
+pub(crate) fn load_configured_risk_pack(
+    data_dir: &Path,
+    project_root: &Path,
+) -> (ConfiguredRiskPack, Vec<String>) {
+    let sources = [
+        (data_dir.join("rules/test-risk-rules.yaml"), data_dir, "global"),
+        (project_root.join(".engram/test-risk-rules.yaml"), project_root, "project"),
+    ];
+    let mut merged = BTreeMap::new();
+    let mut notes = Vec::new();
+    for (path, boundary, source) in sources {
+        match read_risk_rule_file(&path, boundary, source) {
+            Ok(rules) => for rule in rules { merged.insert(rule.id.clone(), rule); },
+            Err(error) => notes.push(error),
+        }
+    }
+    (ConfiguredRiskPack { rules: merged.into_values().collect() }, notes)
+}
+
+pub(crate) fn configured_risk_matches(
+    pack: &ConfiguredRiskPack,
+    file: &str,
+    source: &str,
+) -> Vec<ConfiguredRiskMatch> {
+    let lower_file = file.replace('\\', "/").to_ascii_lowercase();
+    let extension = Path::new(file).extension().and_then(|value| value.to_str())
+        .unwrap_or_default().to_ascii_lowercase();
+    let lower_source = source.to_ascii_lowercase();
+    pack.rules.iter().filter(|rule| {
+        (rule.extensions.is_empty() || rule.extensions.iter().any(|value| value == &extension))
+            && (rule.path_any.is_empty() || rule.path_any.iter().any(|value| lower_file.contains(value)))
+            && rule.all_terms.iter().all(|value| lower_source.contains(value))
+            && (rule.any_terms.is_empty() || rule.any_terms.iter().any(|value| lower_source.contains(value)))
+            && rule.none_terms.iter().all(|value| !lower_source.contains(value))
+    }).map(|rule| ConfiguredRiskMatch {
+        id: rule.id.clone(),
+        title: rule.title.clone(),
+        guidance: rule.guidance.clone(),
+        severity: rule.severity.clone(),
+        source: rule.source.clone(),
+    }).collect()
+}
+
+pub(crate) fn configured_risk_axes(
+    pack: &ConfiguredRiskPack,
+    file: &str,
+    source: &str,
+) -> Vec<(String, String)> {
+    configured_risk_matches(pack, file, source).into_iter().map(|rule| (
+        rule.title,
+        format!("{file}: configured rule `{}` from {} pack: {}", rule.id, rule.source, rule.guidance),
+    )).collect()
+}
+
+fn bounded_names<I>(names: I) -> String
+where
+    I: IntoIterator<Item = String>,
+{
+    let mut names = names.into_iter().collect::<Vec<_>>();
+    names.sort();
+    names.dedup();
+    let omitted = names.len().saturating_sub(8);
+    names.truncate(8);
+    let mut rendered = names.join(", ");
+    if omitted > 0 {
+        rendered.push_str(&format!(" (+{omitted} more)"));
+    }
+    rendered
+}
+
+fn optional_text_parameters(source: &str, ext: &str) -> Vec<String> {
+    use regex::Regex;
+    let is_vb = ext.eq_ignore_ascii_case("vb");
+    let executable = crate::services::business_outcome_dependencies::executable_lines(source, is_vb);
+    let pattern = if is_vb {
+        r"(?i)\bOptional\s+([A-Za-z_]\w*)\s+As\s+(?:System\.)?String\b"
+    } else {
+        // Bounded to a signature-shaped parameter segment so ordinary local
+        // initializers are not classified as optional inputs.
+        r"(?i)(?:\(|,)\s*(?:string|String)\??\s+([A-Za-z_]\w*)\s*=\s*(?:null|default|[^,)]*)"
+    };
+    let Ok(regex) = Regex::new(pattern) else { return Vec::new(); };
+    regex.captures_iter(&executable)
+        .filter_map(|captures| captures.get(1).map(|value| value.as_str().to_string()))
+        .take(65)
+        .collect()
+}
+
+fn bound_presentation_members(source: &str) -> Vec<String> {
+    use regex::Regex;
+    let patterns = [
+        r#"(?i)\bDataField\s*=\s*["']([^"']+)["']"#,
+        r#"(?i)\b(?:Eval|Bind)\s*\(\s*["']([^"']+)["']"#,
+    ];
+    let mut members = Vec::new();
+    for pattern in patterns {
+        let Ok(regex) = Regex::new(pattern) else { continue; };
+        members.extend(regex.captures_iter(source)
+            .filter_map(|captures| captures.get(1).map(|value| value.as_str().to_string()))
+            .take(65));
+    }
+    members
+}
+
+/// Risk axes derived only from supplied approved change wording. They remain
+/// separate from source-triggered axes so a plan cannot mistake a requested
+/// change for evidence that the behavior already exists.
+pub(super) fn intent_risk_axes(intent: Option<&str>) -> Vec<(String, String)> {
+    let Some(intent) = intent.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Vec::new();
+    };
+    let lower = intent.to_ascii_lowercase();
+    let mut axes = Vec::new();
+    if [
+        "field id",
+        "field_id",
+        "field-level",
+        "field level",
+        "individual field",
+        "per-field",
+        "field-specific",
+        "discriminator",
+        "enum",
+    ]
+    .iter()
+    .any(|term| lower.contains(term))
+    {
+        axes.push((
+            "Discriminator compatibility and presenter completeness".into(),
+            "approved change intent introduces or changes a discriminator: test the legacy/default value, every defined value, an unknown value, persistence/model type and default parity, label/formatter coverage, and an explicit fallback; an undefined product mapping remains a decision rather than an implementation guess".into(),
+        ));
+    }
+    if ["canonical", "prefix", "constant", "token"].iter().any(|term| lower.contains(term)) {
+        axes.push((
+            "Canonical-token migration completeness".into(),
+            "approved change intent centralizes an identifier/token: reconcile the canonical definition, every producer write, every reader/filter comparison, stored legacy values, and a repository literal sweep; list intentional aliases and deferred residual literals instead of silently widening scope".into(),
+        ));
+    }
+    if ["log", "logging", "audit", "event"].iter().any(|term| lower.contains(term)) {
+        axes.push((
+            "Event cardinality and failure boundary".into(),
+            "approved change intent affects event/audit output: test no-op, one-field and simultaneous changes, suppressed/bulk paths, caller-owned contexts, persistence-call cardinality, and logger/persistence failures without assuming audit success is atomic with the business write".into(),
+        ));
+        axes.push((
+            "Event payload persistence-to-presentation chain".into(),
+            "approved change intent affects event/audit output: decide which facts are stored and which prose is rendered, then trace legacy and new payloads through persistence/model mappings, formatter or presenter fallbacks, every UI/export/API consumer, and every supported locale. Verify writer culture does not permanently determine reader-facing text".into(),
+        ));
+    }
+    axes
+}
 
 /// Source-triggered runtime scenarios that graph settings/role/state edges do
 /// not express. These are bounded lexical observations over a source-verified
@@ -46,6 +325,41 @@ pub(super) fn runtime_risk_axes(file: &str, source: &str) -> Vec<(String, String
             || lower.contains("asp:linkbutton")
             || lower.contains("role=\"button\"")
             || lower.contains("role='button'"));
+    let optional_text = optional_text_parameters(source, &ext);
+    let bound_members = if is_markup { bound_presentation_members(source) } else { Vec::new() };
+    let has_localized_content = lower.contains("getdeployedcultureresxstring")
+        || lower.contains("<%$ resources:")
+        || lower.contains("resources.");
+    let has_deferred_binding = is_markup && lower.contains("<%#");
+    let has_inline_bound_output = is_markup
+        && (lower.contains("<%#") || lower.contains("data-content=") || lower.contains("innerhtml"));
+    let has_explicit_output_encoding = lower.contains("<%:")
+        || lower.contains("htmlencode")
+        || lower.contains("htmlattributeencode")
+        || lower.contains("httputility.");
+    let has_normalizer = ["left(", "substring(", ".trim(", "trim(", ".tolower", ".toupper"]
+        .iter()
+        .any(|token| lower.contains(token));
+    let has_value_comparison = ["<>", "!=", "==", ".equals(", "string.equals("]
+        .iter()
+        .any(|token| lower.contains(token));
+    let lower_file = file.to_ascii_lowercase();
+    let is_generated_artifact = lower_file.contains(".designer.")
+        || lower_file.ends_with(".g.cs")
+        || lower_file.ends_with(".g.vb")
+        || matches!(ext.as_str(), "dbml" | "generated")
+        || lower.lines().take(20).any(|line| line.contains("auto-generated"));
+    let bounded_storage_widths = if matches!(ext.as_str(), "sql" | "dbml") {
+        let pattern = regex::Regex::new(r"(?i)\b(?:n?varchar|n?char)\s*\(\s*(\d+)\s*\)");
+        pattern.map(|pattern| {
+            pattern.captures_iter(source)
+                .filter_map(|captures| captures.get(1).map(|value| value.as_str().to_string()))
+                .take(16)
+                .collect::<Vec<_>>()
+        }).unwrap_or_default()
+    } else {
+        Vec::new()
+    };
 
     let mut axes = Vec::new();
     if has_session && has_view_state {
@@ -93,6 +407,64 @@ pub(super) fn runtime_risk_axes(file: &str, source: &str) -> Vec<(String, String
             format!(
                 "{file}: inspect the accessibility tree and require a non-empty computed name for every changed link, button and input, including icon-only controls"
             ),
+        ));
+    }
+    if has_deferred_binding {
+        axes.push((
+            "Deferred binding lifecycle and refresh parity".into(),
+            format!("{file}: WebForms-style `<%# ... %>` binding detected; prove every bound property is populated before its first consumer in Init/Load and after explicit refresh calls. Exercise initial request and postback, and identify the Page/control DataBind call instead of assuming declarative assignment has executed"),
+        ));
+    }
+    if has_inline_bound_output && !has_explicit_output_encoding {
+        axes.push((
+            "Bound-value output-context safety".into(),
+            format!("{file}: bound or HTML-attribute output was found without an adjacent explicit encoding signal; exercise quotes, angle brackets, ampersands, Unicode and line breaks in text and attribute contexts, and verify the framework control or formatter encodes for that exact sink"),
+        ));
+    }
+    if !optional_text.is_empty() {
+        let names = bounded_names(optional_text.clone());
+        axes.push((
+            "Optional text-input omission semantics".into(),
+            format!("{file}: defaulted text parameter candidates [{names}]; exercise argument omitted, explicit null/Nothing, empty, whitespace, unchanged and a changed value. Verify preserve/clear/reject behavior from the contract and ensure an omitted sibling cannot overwrite stored data"),
+        ));
+    }
+    if optional_text.len() > 1 {
+        let names = bounded_names(optional_text);
+        axes.push((
+            "Sibling-field isolation and multi-change side-effect cardinality".into(),
+            format!("{file}: defaulted text parameter candidates [{names}]; change each independently while omitting its siblings, then change multiple fields together. Verify stored values plus the intended number and ordering of writes, audit rows, notifications and commit/submit operations"),
+        ));
+    }
+    if has_normalizer && has_value_comparison {
+        axes.push((
+            "Normalize-before-comparison and side-effect parity".into(),
+            format!("{file}: normalization/truncation and value comparison coexist; compare canonical stored values rather than raw inputs. Test distinct raw inputs that normalize to the same value and require no write, audit row, notification or commit unless the contract says otherwise"),
+        ));
+    }
+    if !bound_members.is_empty() {
+        let names = bounded_names(bound_members);
+        axes.push((
+            "Stored-to-presented value parity".into(),
+            format!("{file}: source-bound presentation members [{names}]; trace legacy/default and newly introduced values through any presenter/formatter into every affected view and export. Verify no consumer bypasses the intended formatted property and that fallback output remains readable"),
+        ));
+    }
+    if has_localized_content {
+        axes.push((
+            "Localization family and fallback parity".into(),
+            format!("{file}: localized resource use detected; verify the complete deployed locale family, placeholder/value formatting, missing-key fallback and encoding in UI plus export/text-only consumers"),
+        ));
+    }
+    if !bounded_storage_widths.is_empty() {
+        let widths = bounded_names(bounded_storage_widths);
+        axes.push((
+            "Bounded storage and payload-expansion boundary".into(),
+            format!("{file}: bounded character widths [{widths}] detected; trace upstream maximum lengths and any formatting/concatenation into these sinks. Test exact limit, one over, Unicode, and deferred transaction/commit failure; choose explicit truncate, reject, widen or reference semantics from the contract"),
+        ));
+    }
+    if is_generated_artifact {
+        axes.push((
+            "Generated-artifact provenance and synchronization".into(),
+            format!("{file}: generated or tool-managed artifact detected; require the authoritative source/schema change, generator command and receipt, plus deterministic synchronization of every generated companion. A shape/XML check alone does not prove safe regeneration"),
         ));
     }
     axes
@@ -337,21 +709,63 @@ pub(super) fn axis_source(
     }
 }
 
-/// Resolve only an explicit code-behind directive in the verified markup
-/// snapshot. No filename guessing or transitive helper expansion.
+/// Resolve only an explicit code-behind directive. Markup requests use their
+/// already verified snapshot. Code-behind requests scan a bounded sibling
+/// directory for markup that explicitly declares the exact source path; the
+/// caller must freshness-verify that returned markup before using the inverse
+/// relationship.
 pub(super) fn declared_axis_companion(
     root: &Path,
     file: &str,
     snapshot: &[u8],
-) -> Result<Option<String>, String> {
-    if !matches!(
-        Path::new(file)
-            .extension()
-            .and_then(|e| e.to_str())
-            .map(str::to_ascii_lowercase)
-            .as_deref(),
-        Some("aspx" | "ascx" | "master")
-    ) {
+) -> Result<Option<(String, bool)>, String> {
+    let extension = Path::new(file).extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase);
+    let is_markup = matches!(extension.as_deref(), Some("aspx" | "ascx" | "master"));
+    if !is_markup {
+        // Follow code-behind to markup only when that existing markup
+        // explicitly declares this exact source file. The caller separately
+        // freshness-verifies the markup before rendering its axes/relation.
+        if !matches!(extension.as_deref(), Some("vb" | "cs")) {
+            return Ok(None);
+        }
+        let root = root.canonicalize().map_err(|e| e.to_string())?;
+        let source_file = engram_core::safe_join(&root, file).map_err(|e| e.to_string())?
+            .canonicalize().map_err(|e| format!("code-behind {file} is unavailable: {e}"))?;
+        let Some(parent) = source_file.parent() else { return Ok(None); };
+        let mut candidates = std::fs::read_dir(parent).map_err(|e| e.to_string())?
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .filter(|path| matches!(path.extension().and_then(|value| value.to_str())
+                .map(str::to_ascii_lowercase).as_deref(), Some("aspx" | "ascx" | "master")))
+            .collect::<Vec<_>>();
+        candidates.sort();
+        if candidates.len() > 256 {
+            return Err(format!("code-behind sibling markup scan truncated at 256 of {} files", candidates.len()));
+        }
+        let mut scanned_bytes = 0_u64;
+        for markup_file in candidates {
+            let Ok(markup_file) = markup_file.canonicalize() else { continue; };
+            let Ok(relative) = markup_file.strip_prefix(&root) else { continue; };
+            let Ok(metadata) = std::fs::metadata(&markup_file) else { continue; };
+            if !metadata.is_file() || metadata.len() > 4 * 1024 * 1024 { continue; }
+            scanned_bytes = scanned_bytes.saturating_add(metadata.len());
+            if scanned_bytes > 4 * 1024 * 1024 {
+                return Err("code-behind sibling markup scan exceeded 4 MiB; narrow the requested files".into());
+            }
+            let Ok(markup_bytes) = std::fs::read(&markup_file) else { continue; };
+            let Ok(markup) = std::str::from_utf8(&markup_bytes) else { continue; };
+            let Some(declared) = crate::services::validation_mapping_service::declared_codebehind(markup) else { continue; };
+            let declared = declared.replace('\\', "/");
+            let declared_file = if let Some(relative) = declared.strip_prefix("~/") {
+                super::access_layer_tools::discover_web_application_root(&root, &markup_file).join(relative)
+            } else {
+                markup_file.parent().unwrap_or(&root).join(&declared)
+            };
+            let Ok(declared_file) = declared_file.canonicalize() else { continue; };
+            if declared_file == source_file {
+                return Ok(Some((relative.to_string_lossy().replace('\\', "/"), false)));
+            }
+        }
         return Ok(None);
     }
     let markup = std::str::from_utf8(snapshot).map_err(|_| {
@@ -389,7 +803,42 @@ pub(super) fn declared_axis_companion(
             "declared code-behind {declared} is not a supported VB/C# source file"
         ));
     }
-    Ok(Some(relative.to_string_lossy().replace('\\', "/")))
+    Ok(Some((relative.to_string_lossy().replace('\\', "/"), true)))
+}
+
+/// Return markup files that directly register the requested user control.
+/// This is a single graph hop over source-extracted `registers_control` edges;
+/// callers still freshness-verify every returned host before using it.
+pub(super) fn registered_control_hosts(
+    graph: &engram_graph::GraphStore,
+    project_id: &str,
+    file: &str,
+) -> Result<(Vec<String>, bool), String> {
+    if !file.to_ascii_lowercase().ends_with(".ascx") {
+        return Ok((Vec::new(), false));
+    }
+    let node_id = format!("file:{}", file.replace('\\', "/"));
+    let incoming = graph.find_incoming_edges_with_kind(
+        project_id,
+        Some(engram_graph::EdgeKind::RegistersControl),
+        &node_id,
+        33,
+    ).map_err(|error| format!("registered-control host lookup failed: {error}"))?;
+    let truncated = incoming.len() > 32;
+    let mut hosts = incoming.into_iter().take(32)
+        .filter_map(|(source, _, _)| {
+            source.strip_prefix("page:").or_else(|| source.strip_prefix("file:"))
+                .map(str::to_string)
+        })
+        .filter(|path| matches!(
+            Path::new(path).extension().and_then(|value| value.to_str())
+                .map(str::to_ascii_lowercase).as_deref(),
+            Some("aspx" | "ascx" | "master")
+        ))
+        .collect::<Vec<_>>();
+    hosts.sort();
+    hosts.dedup();
+    Ok((hosts, truncated))
 }
 
 pub(super) struct RuleCase {
@@ -666,6 +1115,167 @@ mod tests {
                 .iter()
                 .all(|(_, evidence)| evidence.contains("Pages/Choose.aspx"))
         );
+    }
+
+    #[test]
+    fn runtime_axes_separate_omitted_empty_and_sibling_text_updates() {
+        let source = r#"
+Public Shared Function UpdateRow(Optional name As String = "", Optional notes As String = Nothing, Optional coordinates As String = "") As Boolean
+    Return True
+End Function
+"#;
+        let axes = runtime_risk_axes("Domain/Writer.vb", source);
+        let joined = axes.iter().map(|(axis, evidence)| format!("{axis}: {evidence}"))
+            .collect::<Vec<_>>().join("\n");
+        assert!(joined.contains("Optional text-input omission semantics"), "{joined}");
+        assert!(joined.contains("Sibling-field isolation"), "{joined}");
+        for expected in ["name", "notes", "coordinates", "omitted", "empty", "whitespace"] {
+            assert!(joined.contains(expected), "missing {expected}: {joined}");
+        }
+    }
+
+    #[test]
+    fn markup_axes_trace_bound_values_and_localization() {
+        let source = r#"
+<asp:BoundField DataField="raw_text" HeaderText="<%$ Resources: text, Event %>" />
+<%# Eval("FormattedText") %>
+"#;
+        let axes = runtime_risk_axes("Pages/Events.ascx", source);
+        let joined = axes.iter().map(|(axis, evidence)| format!("{axis}: {evidence}"))
+            .collect::<Vec<_>>().join("\n");
+        assert!(joined.contains("Stored-to-presented value parity"), "{joined}");
+        assert!(joined.contains("FormattedText") && joined.contains("raw_text"), "{joined}");
+        assert!(joined.contains("Localization family and fallback parity"), "{joined}");
+    }
+
+    #[test]
+    fn markup_axes_cover_deferred_binding_and_unproven_output_encoding() {
+        let source = r#"
+<uc:Events runat="server" TablePrefix="<%# Model.Prefix %>" />
+<span data-content='<%# Eval("RawText") %>'></span>
+"#;
+        let axes = runtime_risk_axes("Pages/Events.aspx", source);
+        let joined = axes.iter().map(|(axis, evidence)| format!("{axis}: {evidence}"))
+            .collect::<Vec<_>>().join("\n");
+        assert!(joined.contains("Deferred binding lifecycle"), "{joined}");
+        assert!(joined.contains("Page/control DataBind"), "{joined}");
+        assert!(joined.contains("Bound-value output-context safety"), "{joined}");
+        assert!(joined.contains("quotes") && joined.contains("attribute contexts"), "{joined}");
+    }
+
+    #[test]
+    fn source_axes_cover_normalization_storage_width_and_generator_provenance() {
+        let mutation = "If row.Name <> input Then row.Name = Left(input, 100)";
+        let mutation_axes = runtime_risk_axes("Domain/Writer.vb", mutation);
+        assert!(mutation_axes.iter().any(|(axis, evidence)|
+            axis.contains("Normalize-before-comparison") && evidence.contains("same value")));
+
+        let schema = "<Column DbType=\"NVarChar(256) NOT NULL\" />";
+        let schema_axes = runtime_risk_axes("Model/Store.dbml", schema);
+        let joined = schema_axes.iter().map(|(axis, evidence)| format!("{axis}: {evidence}"))
+            .collect::<Vec<_>>().join("\n");
+        assert!(joined.contains("Bounded storage") && joined.contains("256"), "{joined}");
+        assert!(joined.contains("Generated-artifact provenance"), "{joined}");
+        assert!(joined.contains("generator command"), "{joined}");
+    }
+
+    #[test]
+    fn configured_risk_packs_hot_reload_and_project_ids_override_global() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let data = temp.path().join("data");
+        let project = temp.path().join("project");
+        std::fs::create_dir_all(data.join("rules")).unwrap();
+        std::fs::create_dir_all(project.join(".engram")).unwrap();
+        std::fs::write(data.join("rules/test-risk-rules.yaml"), r#"
+version: 1
+rules:
+  - id: team.no-blocking-wait
+    title: Global wait rule
+    guidance: Verify the asynchronous alternative and cancellation behavior.
+    extensions: [vb]
+    any_terms: [".Wait()"]
+  - id: team.no-inline-if
+    title: Single-line conditional convention
+    guidance: Expand the conditional according to the repository convention.
+    extensions: [vb]
+    any_terms: [" Then Return "]
+"#).unwrap();
+        std::fs::write(project.join(".engram/test-risk-rules.yaml"), r#"
+version: 1
+rules:
+  - id: team.no-blocking-wait
+    title: Repository wait rule v1
+    guidance: Use this repository's asynchronous helper and verify cancellation.
+    extensions: [.vb]
+    any_terms: [".Wait()"]
+"#).unwrap();
+
+        let (pack, notes) = load_configured_risk_pack(&data, &project);
+        assert!(notes.is_empty(), "{notes:?}");
+        assert_eq!(pack.len(), 2);
+        let first = configured_risk_axes(&pack, "Site/Worker.vb", "task.Wait()");
+        assert_eq!(first.len(), 1, "{first:?}");
+        assert_eq!(first[0].0, "Repository wait rule v1");
+        assert!(first[0].1.contains("project pack"), "{:?}", first[0]);
+
+        std::fs::write(project.join(".engram/test-risk-rules.yaml"), r#"
+version: 1
+rules:
+  - id: team.no-blocking-wait
+    title: Repository wait rule v2
+    guidance: Reloaded without a daemon restart.
+    extensions: [vb]
+    any_terms: [".Wait()"]
+"#).unwrap();
+        let (reloaded, notes) = load_configured_risk_pack(&data, &project);
+        assert!(notes.is_empty(), "{notes:?}");
+        let second = configured_risk_axes(&reloaded, "Site/Worker.vb", "task.Wait()");
+        assert_eq!(second[0].0, "Repository wait rule v2");
+        assert!(second[0].1.contains("Reloaded without a daemon restart"));
+    }
+
+    #[test]
+    fn invalid_risk_pack_is_reported_and_never_partially_applied() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let data = temp.path().join("data");
+        let project = temp.path().join("project");
+        std::fs::create_dir_all(data.join("rules")).unwrap();
+        std::fs::create_dir_all(&project).unwrap();
+        std::fs::write(data.join("rules/test-risk-rules.yaml"), r#"
+version: 1
+rules:
+  - id: valid-looking-rule
+    title: This must not be partially loaded
+    guidance: Reject the complete pack when any rule is invalid.
+    extensions: [vb]
+    any_terms: ["Execute("]
+  - id: invalid-rule
+    title: Unknown fields are rejected
+    guidance: This pack is invalid.
+    extensions: [vb]
+    any_terms: ["Execute("]
+    executable: powershell.exe
+"#).unwrap();
+
+        let (pack, notes) = load_configured_risk_pack(&data, &project);
+        assert_eq!(pack.len(), 0);
+        assert_eq!(notes.len(), 1, "{notes:?}");
+        assert!(notes[0].contains("invalid YAML/schema"), "{notes:?}");
+        assert!(configured_risk_matches(&pack, "Worker.vb", "Execute(input)").is_empty());
+    }
+
+    #[test]
+    fn intent_axes_are_explicitly_change_derived_and_cover_migrations() {
+        let axes = intent_risk_axes(Some("Add individual field-level event logging and use one canonical prefix constant"));
+        let joined = axes.iter().map(|(axis, evidence)| format!("{axis}: {evidence}"))
+            .collect::<Vec<_>>().join("\n");
+        assert!(joined.contains("Discriminator compatibility"), "{joined}");
+        assert!(joined.contains("Canonical-token migration"), "{joined}");
+        assert!(joined.contains("Event cardinality"), "{joined}");
+        assert!(joined.contains("persistence-to-presentation"), "{joined}");
+        assert!(joined.contains("writer culture"), "{joined}");
+        assert!(joined.contains("approved change intent"), "{joined}");
+        assert!(intent_risk_axes(None).is_empty());
     }
 
     #[test]

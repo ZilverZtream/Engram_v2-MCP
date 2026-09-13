@@ -23,7 +23,7 @@ pub mod settings_tools;
 mod sql_binding;
 mod sql_scopes;
 pub mod support_kb_tools;
-mod test_derivation;
+pub(crate) mod test_derivation;
 
 pub mod runtime_observation_tools;
 

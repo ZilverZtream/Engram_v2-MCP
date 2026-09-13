@@ -4784,18 +4784,49 @@ impl Gate for RepoRuleGate {
     }
 
     fn run(&self, ctx: &GateContext<'_>) -> anyhow::Result<Vec<ReviewFinding>> {
+        let (configured, configured_notes) =
+            crate::handlers::test_derivation::load_configured_risk_pack(
+                &ctx.state.cfg.data_dir,
+                ctx.project_dir,
+            );
+        for note in configured_notes { ctx.degrade(note); }
         let checked: Vec<(&RepoRule, RuleCheck)> = ctx
             .repo_rules
             .iter()
             .filter_map(|r| parse_rule_check(&r.rule_text).map(|c| (r, c)))
             .collect();
-        if checked.is_empty() {
+        if checked.is_empty() && configured.len() == 0 {
             return Ok(Vec::new());
         }
         let mut findings = Vec::new();
         for df in ctx.diff_files {
             if df.is_binary || matches!(df.change_type, ChangeType::Deleted) {
                 continue;
+            }
+            for matched in crate::handlers::test_derivation::configured_risk_matches(
+                &configured,
+                &df.path,
+                &df.added_content,
+            ) {
+                let severity = Severity::from_str(&matched.severity)
+                    .unwrap_or(Severity::Warning);
+                findings.push(
+                    ReviewFinding::new(
+                        severity,
+                        "repo_rules",
+                        df.path.clone(),
+                        format!("Configured risk rule matched: {}", matched.title),
+                        format!(
+                            "Rule `{}` from the {} risk pack matched added code in this file.",
+                            matched.id, matched.source
+                        ),
+                        matched.guidance,
+                    )
+                    .with_evidence(vec![
+                        format!("configured_rule_id = {}", matched.id),
+                        format!("configured_rule_source = {}", matched.source),
+                    ]),
+                );
             }
             for (rule, check) in &checked {
                 if !path_pattern_matches(&rule.file_pattern, &df.path) {
