@@ -16,12 +16,16 @@ use std::sync::{Arc, LazyLock};
 /// Matches `Protected/Private/Public Sub/Function <name>(...)` in VB.NET or
 /// `protected/private/public void/... <name>(...)` in C#.
 static RE_METHOD_START_CS: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(private|protected|public|internal|static|\s)+[\w<>\[\]]+\s+(\w+)\s*\(")
+    Regex::new(
+        r"(?i)^\s*((?:(?:private|protected|public|internal|static|async|virtual|override|sealed|partial|extern|unsafe|new)\s+)+)(?:[\w<>\[\],?.]+\s+)+(\w+)\s*(?:<[^>]+>)?\s*\(",
+    )
         .expect("RE_METHOD_START_CS")
 });
 
 static RE_METHOD_START_VB: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(Private|Protected|Public|Friend|Shared)\s+(Sub|Function)\s+(\w+)\s*\(")
+    Regex::new(
+        r"(?i)^\s*((?:(?:Private|Protected|Public|Friend|Shared|Async|Overrides|Overloads|MustOverride|NotOverridable|Partial|Static)\s+)*)(Sub|Function)\s+(\w+)\s*\(",
+    )
         .expect("RE_METHOD_START_VB")
 });
 
@@ -57,12 +61,13 @@ static RE_STATE_WRITE: LazyLock<Regex> = LazyLock::new(|| {
         .expect("RE_STATE_WRITE")
 });
 
-/// A qualified property assignment such as `preferences.GroupByCustomer = true`.
+/// A property assignment such as `preferences.GroupByCustomer = true` or
+/// `GroupByCustomer = true` inside the declaring file.
 /// Direct state stores are handled above; this pattern lets the graph prove that
 /// an apparently ordinary property setter writes state internally.
-static RE_QUALIFIED_ASSIGNMENT: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\b((?:[A-Za-z_][A-Za-z0-9_]*\.)+[A-Za-z_][A-Za-z0-9_]*)\s*=")
-        .expect("RE_QUALIFIED_ASSIGNMENT")
+static RE_PROPERTY_ASSIGNMENT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^\s*((?:[A-Za-z_][A-Za-z0-9_]*\.)*[A-Za-z_][A-Za-z0-9_]*)\s*=")
+        .expect("RE_PROPERTY_ASSIGNMENT")
 });
 
 /// new SqlCommand, new SqlDataAdapter, .Fill(, .ExecuteReader(), .ExecuteNonQuery(), .ExecuteScalar()
@@ -749,6 +754,7 @@ pub fn trace_data_flow(
         graph,
         project_id,
         &method_body,
+        file_path,
         entry_point,
         &mut steps,
         &mut state_writes,
@@ -763,6 +769,8 @@ pub fn trace_data_flow(
         &mut state_reads,
         &mut state_writes,
         &mut follow,
+        file_path,
+        codebehind_content,
     )?;
 
     // ── Step 4: re-sequence all steps ────────────────────────────────────────
@@ -813,6 +821,7 @@ fn collect_property_state_writes(
     graph: &Arc<GraphStore>,
     project_id: &str,
     method_body: &str,
+    source_file: &str,
     entry_point: &str,
     steps: &mut Vec<DataFlowStep>,
     state_writes: &mut Vec<StateAccessInfo>,
@@ -826,7 +835,7 @@ fn collect_property_state_writes(
         if trimmed.starts_with("//") || trimmed.starts_with('\'') {
             continue;
         }
-        for capture in RE_QUALIFIED_ASSIGNMENT.captures_iter(trimmed) {
+        for capture in RE_PROPERTY_ASSIGNMENT.captures_iter(trimmed) {
             let Some(whole_match) = capture.get(0) else {
                 continue;
             };
@@ -839,11 +848,12 @@ fn collect_property_state_writes(
 
     for assignment in assignments {
         let terminal = assignment.rsplit('.').next().unwrap_or(&assignment);
+        let is_qualified = assignment.contains('.');
         let candidates = graph.query_nodes(
             project_id,
             Some("property"),
             Some(terminal),
-            None,
+            (!is_qualified).then_some(source_file),
             51,
         )?;
         if candidates.is_empty() {
@@ -855,7 +865,14 @@ fn collect_property_state_writes(
             .into_iter()
             .filter_map(|node| {
                 let name = node.name.to_ascii_lowercase();
-                let score = if name == assignment_lower {
+                let same_file = node.file_path.as_str().eq_ignore_ascii_case(source_file);
+                let node_terminal = name.rsplit('.').next().unwrap_or(&name);
+                let score = if !is_qualified
+                    && same_file
+                    && node_terminal == assignment_lower
+                {
+                    3
+                } else if name == assignment_lower {
                     3
                 } else if name.ends_with(&format!(".{assignment_lower}")) {
                     2
@@ -1013,13 +1030,15 @@ fn extract_method_body_cs(lines: &[&str], method_name: &str) -> String {
     let mut start_line = None;
 
     for (i, line) in lines.iter().enumerate() {
-        // Look for a line that names the method and has a `(`
-        if line.contains(method_name) && line.contains('(') {
-            // Verify it looks like a method declaration via regex
-            if RE_METHOD_START_CS.is_match(line) || line.contains(method_name) {
-                start_line = Some(i);
-                break;
-            }
+        // Require a declaration and an exact declared name. Treating the first
+        // call site as the declaration can splice the caller into the callee.
+        if RE_METHOD_START_CS
+            .captures(line)
+            .and_then(|capture| capture.get(2))
+            .is_some_and(|name| name.as_str().eq_ignore_ascii_case(method_name))
+        {
+            start_line = Some(i);
+            break;
         }
     }
 
@@ -1057,9 +1076,10 @@ fn extract_method_body_vb(lines: &[&str], method_name: &str) -> String {
     let mut start_line = None;
 
     for (i, line) in lines.iter().enumerate() {
-        if line.contains(method_name)
-            && line.contains('(')
-            && (RE_METHOD_START_VB.is_match(line) || line.contains(method_name))
+        if RE_METHOD_START_VB
+            .captures(line)
+            .and_then(|capture| capture.get(3))
+            .is_some_and(|name| name.as_str().eq_ignore_ascii_case(method_name))
         {
             start_line = Some(i);
             break;
@@ -1363,6 +1383,8 @@ fn follow_calls(
     state_reads: &mut Vec<StateAccessInfo>,
     state_writes: &mut Vec<StateAccessInfo>,
     follow: &mut FollowCoverage,
+    source_file: &str,
+    source_text: &str,
 ) -> anyhow::Result<()> {
     use std::collections::{HashSet, VecDeque};
     let mut visited: HashSet<String> = entry_ids.iter().cloned().collect();
@@ -1388,6 +1410,22 @@ fn follow_calls(
                 "{name} (depth {depth}): beyond depth cap {FOLLOW_DEPTH_CAP} — not followed"
             ));
             continue;
+        }
+        if let Some(node) = graph.get_node(project_id, &node_id)?
+            && node.file_path.as_str().eq_ignore_ascii_case(source_file)
+        {
+            let method_name = node.name.rsplit('.').next().unwrap_or(&node.name);
+            let body = extract_method_body(source_text, method_name);
+            collect_property_state_writes(
+                graph,
+                project_id,
+                &body,
+                source_file,
+                method_name,
+                steps,
+                state_writes,
+                follow,
+            )?;
         }
         let (edges, truncated) =
             graph.edges_touching_with_coverage(project_id, &node_id, FOLLOW_EDGE_CAP)?;
@@ -2107,6 +2145,71 @@ End Sub
     }
 
     #[test]
+    fn same_file_helper_follow_surfaces_bare_property_state_write() {
+        let graph = make_graph();
+        let entry_id = "fn:Dashboard.aspx.vb:btnMode_Click";
+        let helper_id = "fn:Dashboard.aspx.vb:SetGrouping";
+        let property_id = "property:Dashboard.IsGroupingByCustomer";
+        graph
+            .upsert_nodes(
+                "proj",
+                &[
+                    make_fn_node(entry_id, "Dashboard.aspx.vb", "Dashboard.btnMode_Click"),
+                    make_fn_node(helper_id, "Dashboard.aspx.vb", "Dashboard.SetGrouping"),
+                    make_property_node(
+                        property_id,
+                        "Dashboard.aspx.vb",
+                        "Dashboard.IsGroupingByCustomer",
+                    ),
+                ],
+            )
+            .expect("upsert same-file nodes");
+        graph
+            .upsert_edges(
+                "proj",
+                &[
+                    make_edge(entry_id, helper_id, EdgeKind::Calls, None),
+                    make_edge(
+                        property_id,
+                        "state:Session:GroupingMode",
+                        EdgeKind::WritesState,
+                        None,
+                    ),
+                ],
+            )
+            .expect("upsert helper and state edges");
+
+        let source = r#"
+Protected Sub btnMode_Click(sender As Object, e As EventArgs)
+    SetGrouping(True)
+End Sub
+
+Private Sub SetGrouping(value As Boolean)
+    If IsGroupingByCustomer = value Then
+        Return
+    End If
+    IsGroupingByCustomer = value
+End Sub
+"#;
+        let trace = trace_data_flow(&graph, "proj", "Dashboard.aspx.vb", "btnMode_Click", source)
+            .expect("trace ok");
+
+        assert!(trace
+            .state_writes
+            .iter()
+            .any(|state| state.key == "GroupingMode" && state.method_context == "SetGrouping"));
+        assert_eq!(
+            trace
+                .steps
+                .iter()
+                .filter(|step| step.target == "state:Session:GroupingMode")
+                .count(),
+            1,
+            "the comparison in the helper must not be treated as an assignment"
+        );
+    }
+
+    #[test]
     fn ambiguous_property_assignment_does_not_invent_state_write() {
         let graph = make_graph();
         let nodes = [
@@ -2207,6 +2310,31 @@ protected void btnLoad_Click(object sender, EventArgs e)
     }
 
     // ── Additional: trigger inference ─────────────────────────────────────────
+
+    #[test]
+    fn method_body_extraction_skips_earlier_call_sites() {
+        let vb = r#"
+Private Sub Caller()
+    LoadData()
+End Sub
+Private Async Function LoadData() As Task
+    Session("Loaded") = True
+End Function
+"#;
+        let cs = r#"
+private void Caller() { LoadData(); }
+private async Task LoadData()
+{
+    Session["Loaded"] = true;
+}
+"#;
+        let vb_body = extract_method_body(vb, "LoadData");
+        let cs_body = extract_method_body(cs, "LoadData");
+        assert!(vb_body.contains("Session(\"Loaded\")"), "{vb_body}");
+        assert!(!vb_body.contains("Caller"), "{vb_body}");
+        assert!(cs_body.contains("Session[\"Loaded\"]"), "{cs_body}");
+        assert!(!cs_body.contains("Caller"), "{cs_body}");
+    }
 
     #[test]
     fn callee_names_bare_and_qualified() {
