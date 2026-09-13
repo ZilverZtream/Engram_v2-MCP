@@ -43,6 +43,7 @@ be project-relative. A valid receipt must identify the tool, say it was invoked,
 cover its source and the requested target, contain internally consistent
 before/after data, and match every current file it claims exists. Stale hashes,
 path escapes, an uninvoked tool, and a missing target produce a failing check or
-an input error. A successful receipt establishes generator provenance and byte
+an input error. UTF-8 JSON with or without the standard BOM is accepted; the BOM
+remains part of the exact receipt SHA-256. A successful receipt establishes generator provenance and byte
 identity; it does not establish product behavior, database deployment, runtime
 success, or semantic equivalence to another file.
