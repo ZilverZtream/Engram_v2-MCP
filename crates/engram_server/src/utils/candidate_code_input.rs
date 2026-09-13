@@ -21,9 +21,24 @@ fn relative_identity(path: &str) -> String {
     path.replace('\\', "/").split('/').filter(|p| !p.is_empty() && *p != ".").collect::<Vec<_>>().join("/")
 }
 
+#[derive(Clone, Copy)]
+enum DigestKind { Blake3, Sha256 }
+
 fn resolve_file(root: &Path, project_id: &str, path: &str, expected: &str, context: Option<&str>) -> Result<ResolvedCodeInput, McpError> {
+    resolve_file_with_digest(root, project_id, path, expected, context, DigestKind::Blake3)
+}
+
+fn resolve_file_sha256(root: &Path, project_id: &str, path: &str, expected: &str, context: Option<&str>) -> Result<ResolvedCodeInput, McpError> {
+    resolve_file_with_digest(root, project_id, path, expected, context, DigestKind::Sha256)
+}
+
+fn resolve_file_with_digest(root: &Path, project_id: &str, path: &str, expected: &str, context: Option<&str>, kind: DigestKind) -> Result<ResolvedCodeInput, McpError> {
+    let (field, label) = match kind {
+        DigestKind::Blake3 => ("code_file_blake3", "BLAKE3"),
+        DigestKind::Sha256 => ("code_file_sha256", "SHA-256"),
+    };
     if expected.len() != 64 || !expected.bytes().all(|b| b.is_ascii_hexdigit()) {
-        return Err(invalid("code_file_blake3 must be 64 hexadecimal characters"));
+        return Err(invalid(format!("{field} must be 64 hexadecimal characters")));
     }
     engram_core::safe_join(root, path).map_err(|e| invalid(e.to_string()))?;
     let identity = relative_identity(path);
@@ -40,16 +55,24 @@ fn resolve_file(root: &Path, project_id: &str, path: &str, expected: &str, conte
     let mut bytes = Vec::new();
     file.take((MAX_CODE_BYTES + 1) as u64).read_to_end(&mut bytes).map_err(|e| invalid(e.to_string()))?;
     if bytes.len() > MAX_CODE_BYTES { return Err(invalid("code_file exceeds 4 MiB; no partial input is checked")); }
-    let digest = blake3::hash(&bytes).to_hex().to_string();
-    if !digest.eq_ignore_ascii_case(expected) { return Err(invalid("code_file BLAKE3 mismatch; refresh the exact raw-byte hash")); }
+    let digest = match kind {
+        DigestKind::Blake3 => blake3::hash(&bytes).to_hex().to_string(),
+        DigestKind::Sha256 => {
+            use sha2::{Digest, Sha256};
+            format!("{:X}", Sha256::digest(&bytes))
+        }
+    };
+    if !digest.eq_ignore_ascii_case(expected) { return Err(invalid(format!("code_file {label} mismatch; refresh the exact raw-byte hash"))); }
     let byte_length = bytes.len();
     let code = String::from_utf8(bytes).map_err(|_| invalid("code_file must be UTF-8; no lossy conversion"))?;
     if code.trim().is_empty() { return Err(invalid("code_file must contain nonblank code")); }
-    Ok(ResolvedCodeInput { code, context: Some(identity.clone()), evidence: Some(json!({
+    let mut evidence = json!({
         "kind":"project_file", "project_id":project_id, "project_relative_path":identity,
-        "byte_length":byte_length, "raw_blake3":digest,
+        "byte_length":byte_length,
         "scope":"exact buffered UTF-8 bytes; no later file immutability or semantic approval"
-    })) })
+    });
+    evidence[match kind { DigestKind::Blake3 => "raw_blake3", DigestKind::Sha256 => "raw_sha256" }] = json!(digest);
+    Ok(ResolvedCodeInput { code, context: Some(identity), evidence: Some(evidence) })
 }
 
 pub async fn resolve(engram: &crate::tools::Engram, project_id: &str, code: Option<&str>, path: Option<&str>, expected: Option<&str>, context: Option<&str>) -> Result<ResolvedCodeInput, McpError> {
@@ -64,6 +87,19 @@ pub async fn resolve(engram: &crate::tools::Engram, project_id: &str, code: Opti
         }
         _ => Err(invalid("Provide code OR code_file + code_file_blake3; inputs must not be mixed or incomplete")),
     }
+}
+
+/// SHA-256 binding for generator hosts that already emit SHA-256 receipts.
+/// Separate entry point preserves the established BLAKE3 contract elsewhere.
+pub async fn resolve_sha256(engram: &crate::tools::Engram, project_id: &str, path: Option<&str>, expected: Option<&str>, context: Option<&str>) -> Result<ResolvedCodeInput, McpError> {
+    let (Some(path), Some(expected)) = (path, expected) else {
+        return Err(invalid("code_file_sha256 requires code_file"));
+    };
+    let record = engram.ensure_project_record(project_id).await?;
+    let root = std::path::PathBuf::from(record.directory);
+    let (project_id, path, expected, context) = (project_id.to_owned(), path.to_owned(), expected.to_owned(), context.map(str::to_owned));
+    tokio::task::spawn_blocking(move || resolve_file_sha256(&root, &project_id, &path, &expected, context.as_deref()))
+        .await.map_err(|e| McpError::internal_error(e.to_string(), None))?
 }
 
 /// Preserve inline output; attach read identity even to corpus-empty/degraded or error exits.

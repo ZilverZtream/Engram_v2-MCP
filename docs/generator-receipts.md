@@ -7,7 +7,8 @@ against their current on-disk bytes.
 
 Supply all of these fields together:
 
-- `code_file` and its raw-byte `code_file_blake3`;
+- `code_file` and either its raw-byte `code_file_sha256` (normally copied
+  from the receipt's target `Sha256After`) or `code_file_blake3`;
 - the same exact project-relative path as `target_file`;
 - project-relative `generator_receipt_file` and its raw-byte
   `generator_receipt_sha256`.
@@ -49,11 +50,10 @@ identity; it does not establish product behavior, database deployment, runtime
 success, or semantic equivalence to another file.
 
 For `change_kind: modify`, an exact current target that is absent from the
-index can still be validated when both the BLAKE3-bound `code_file` and the
+index can still be validated when both the hash-bound `code_file` and the
 receipt independently cover it. The report labels this target
 `receipt_verified`; it does not claim that the file was indexed.
 
-For `change_kind: modify`, an exact current target that is absent from the
-index can still be validated when both the BLAKE3-bound `code_file` and the
-receipt independently cover it. The report labels this target
-`receipt_verified`; it does not claim that the file was indexed.
+The two code-file hash fields are mutually exclusive. The SHA-256 alternative
+is limited to this validator; other quality tools retain their existing BLAKE3
+file-input contract.
