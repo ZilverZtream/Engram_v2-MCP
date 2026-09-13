@@ -347,12 +347,18 @@ pub(super) fn runtime_risk_axes(file: &str, source: &str) -> Vec<(String, String
         || lower.contains("htmlencode")
         || lower.contains("htmlattributeencode")
         || lower.contains("httputility.");
-    let has_reinterpreted_html_payload = lower.contains("data-content=")
-        || lower.contains("data-html=")
-        || lower.contains("popover")
-        || lower.contains("tooltip")
-        || lower.contains("innerhtml")
-        || lower.contains("insertadjacenthtml");
+    let is_browser_code = matches!(
+        ext.as_str(),
+        "vb" | "cs" | "aspx" | "ascx" | "master" | "html" | "htm" | "razor" | "js"
+            | "jsx" | "ts" | "tsx" | "vue"
+    );
+    let has_reinterpreted_html_payload = is_browser_code
+        && (lower.contains("data-content=")
+            || lower.contains("data-html=")
+            || lower.contains("popover")
+            || lower.contains("tooltip")
+            || lower.contains("innerhtml")
+            || lower.contains("insertadjacenthtml"));
     let has_spreadsheet_cell_sink = lower.contains("setcellvalue(")
         || lower.contains("xssfworkbook")
         || lower.contains("hssfworkbook")
