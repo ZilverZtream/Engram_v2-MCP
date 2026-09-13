@@ -339,7 +339,11 @@ pub async fn resolve(
                 "generator receipt SHA-256 mismatch; refresh the exact raw-byte hash",
             ));
         }
-        let receipt: GeneratorReceipt = serde_json::from_slice(&bytes)
+        // Windows-hosted IDE/PowerShell writers commonly emit a UTF-8 BOM.
+        // Keep it inside the caller-bound raw SHA-256, then remove only those
+        // three standard bytes for JSON decoding.
+        let json_bytes = bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(&bytes);
+        let receipt: GeneratorReceipt = serde_json::from_slice(json_bytes)
             .map_err(|error| invalid(format!("invalid generator receipt JSON: {error}")))?;
         Ok(validate_receipt(&root, receipt, &target_file))
     })

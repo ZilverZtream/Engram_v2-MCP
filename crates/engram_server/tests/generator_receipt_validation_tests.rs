@@ -77,7 +77,9 @@ fn write_receipt(root: &std::path::Path, invoked: bool) -> String {
             }
         ]
     });
-    let bytes = serde_json::to_vec_pretty(&receipt).unwrap();
+    // Exercise the Windows-hosted receipt shape used by IDE command buses.
+    let mut bytes = vec![0xEF, 0xBB, 0xBF];
+    bytes.extend(serde_json::to_vec_pretty(&receipt).unwrap());
     std::fs::write(root.join("generator-receipt.json"), &bytes).unwrap();
     sha256(&bytes)
 }
