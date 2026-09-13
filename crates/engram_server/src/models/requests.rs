@@ -3238,6 +3238,11 @@ pub struct ValidateGeneratedCodeRequest {
     #[serde(default, deserialize_with = "deserialize_present_code_string")]
     #[schemars(with = "String")]
     pub code_file_blake3: Option<String>,
+    /// SHA-256 alternative to code_file_blake3 for generator workflows whose
+    /// receipt already contains the target's after SHA-256. Do not supply both.
+    #[serde(default, deserialize_with = "deserialize_present_code_string")]
+    #[schemars(with = "String")]
+    pub code_file_sha256: Option<String>,
     /// Optional project-relative JSON receipt from the external IDE/compiler/generator.
     /// Requires generator_receipt_sha256 and hash-bound code_file input. The portable
     /// receipt records generator/tool identity, invocation status, and before/after

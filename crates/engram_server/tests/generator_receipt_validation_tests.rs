@@ -103,7 +103,7 @@ fn request(project_id: &str, root: &std::path::Path, receipt_sha256: &str) -> se
     json!({
         "project_id": project_id,
         "code_file": "Generated.designer.vb",
-        "code_file_blake3": blake3::hash(&code).to_hex().to_string(),
+        "code_file_sha256": sha256(&code),
         "target_file": "Generated.designer.vb",
         "language": "vb",
         "generator_receipt_file": "generator-receipt.json",
@@ -176,6 +176,11 @@ async fn not_invoked_receipt_fails_and_inline_code_cannot_claim_provenance() {
 async fn receipt_hash_and_project_boundary_are_enforced() {
     let (_temp, engram, project_id, root) = fixture().await;
     let receipt_sha256 = write_receipt(&root, true);
+    let mut wrong_code_hash = request(&project_id, &root, &receipt_sha256);
+    wrong_code_hash["code_file_sha256"] = json!("0".repeat(64));
+    let error = validate(&engram, wrong_code_hash).await.unwrap_err();
+    assert!(error.contains("code_file SHA-256 mismatch"), "{error}");
+
     let mut wrong_hash = request(&project_id, &root, &"0".repeat(64));
     let error = validate(&engram, wrong_hash.take()).await.unwrap_err();
     assert!(error.contains("receipt SHA-256 mismatch"), "{error}");
@@ -193,4 +198,18 @@ async fn receipt_hash_and_project_boundary_are_enforced() {
         error.contains("escapes") || error.contains("resolve") || error.contains("traversal"),
         "{error}"
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn sha256_and_blake3_file_bindings_are_mutually_exclusive() {
+    let (_temp, engram, project_id, root) = fixture().await;
+    let receipt_sha256 = write_receipt(&root, true);
+    let mut both = request(&project_id, &root, &receipt_sha256);
+    both["code_file_blake3"] = json!(
+        blake3::hash(&std::fs::read(root.join("Generated.designer.vb")).unwrap())
+            .to_hex()
+            .to_string()
+    );
+    let error = validate(&engram, both).await.unwrap_err();
+    assert!(error.contains("mutually exclusive"), "{error}");
 }

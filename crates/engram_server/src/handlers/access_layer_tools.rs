@@ -4876,8 +4876,24 @@ impl Engram {
         &self,
         mut req: ValidateGeneratedCodeRequest,
     ) -> Result<CallToolResult, McpError> {
-        let input = crate::utils::candidate_code_input::resolve(self, &req.project_id,
-            req.code.as_deref(), req.code_file.as_deref(), req.code_file_blake3.as_deref(), req.target_file.as_deref()).await?;
+        let input = if req.code_file_sha256.is_some() {
+            if req.code.is_some() || req.code_file_blake3.is_some() {
+                return Err(McpError::invalid_params(
+                    "code_file_sha256 is mutually exclusive with inline code and code_file_blake3",
+                    None,
+                ));
+            }
+            crate::utils::candidate_code_input::resolve_sha256(
+                self,
+                &req.project_id,
+                req.code_file.as_deref(),
+                req.code_file_sha256.as_deref(),
+                req.target_file.as_deref(),
+            ).await?
+        } else {
+            crate::utils::candidate_code_input::resolve(self, &req.project_id,
+                req.code.as_deref(), req.code_file.as_deref(), req.code_file_blake3.as_deref(), req.target_file.as_deref()).await?
+        };
         let output_json = req.output_json;
         if input.evidence.is_some() { req.target_file = input.context.clone(); }
         let generator_evidence = crate::utils::generator_receipt::resolve(
