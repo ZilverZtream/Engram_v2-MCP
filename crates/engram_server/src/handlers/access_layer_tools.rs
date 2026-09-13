@@ -2922,6 +2922,9 @@ pub enum TargetStatus {
     Unspecified,
     /// The exact path is present in the index.
     Exists,
+    /// The file is absent from the index, but exact current bytes are covered
+    /// by both code_file BLAKE3 and a verified external-generator receipt.
+    ReceiptVerified,
     /// change_kind=modify but the exact path is not in the index.
     NotFound,
     /// change_kind=create and the path is absent — expected, not a failure.
@@ -3086,7 +3089,12 @@ pub fn compute_validation_verdict(
     if matches!(coverage.target, TargetStatus::ProviderFailed) {
         return "INSUFFICIENT".to_string();
     }
-    if coverage.change_kind_modify && !matches!(coverage.target, TargetStatus::Exists) {
+    if coverage.change_kind_modify
+        && !matches!(
+            coverage.target,
+            TargetStatus::Exists | TargetStatus::ReceiptVerified
+        )
+    {
         // A modification is verified AGAINST the existing file; without it in
         // the index there is nothing to check the change against.
         return "INSUFFICIENT".to_string();
@@ -3122,6 +3130,9 @@ fn render_validation_report_markdown(report: &ValidationReport) -> String {
     let target_label = match report.coverage.target {
         TargetStatus::Unspecified => "no target file given",
         TargetStatus::Exists => "target file exists in index",
+        TargetStatus::ReceiptVerified => {
+            "target file absent from index; current disk bytes verified by generator receipt"
+        }
         TargetStatus::NotFound => "target file NOT in index",
         TargetStatus::NewTarget => "new file (create) — absence expected",
         TargetStatus::ProviderFailed => "target lookup FAILED (unknown)",
@@ -4900,6 +4911,9 @@ impl Engram {
         let change_kind = req.change_kind;
         let output_json = req.output_json;
         let include_migration_advice = req.include_migration_advice;
+        let generator_target_verified = generator_evidence
+            .as_ref()
+            .is_some_and(|evidence| evidence.status != "fail");
 
         let result = tokio::task::spawn_blocking(move || {
             let mut checks: Vec<ValidationCheck> = Vec::new();
@@ -4919,7 +4933,7 @@ impl Engram {
             // modify/create semantics can no longer be bypassed by an unknown
             // value.
             let is_create = change_kind == crate::models::ChangeKind::Create;
-            let target_status = match &target_file {
+            let indexed_target_status = match &target_file {
                 None => TargetStatus::Unspecified,
                 Some(tf) => {
                     let norm = tf.replace('\\', "/");
@@ -4960,6 +4974,17 @@ impl Engram {
                         Err(_) => TargetStatus::ProviderFailed,
                     }
                 }
+            };
+            // Generated artifacts can be deliberately absent from an index or
+            // can have appeared after its last generation. Hash-bound code_file
+            // input plus a verified receipt establishes the exact current disk
+            // target without pretending it was present in the index.
+            let target_status = if generator_target_verified
+                && matches!(indexed_target_status, TargetStatus::NotFound)
+            {
+                TargetStatus::ReceiptVerified
+            } else {
+                indexed_target_status
             };
             match target_status {
                 TargetStatus::NotFound => checks.push(ValidationCheck::new(
