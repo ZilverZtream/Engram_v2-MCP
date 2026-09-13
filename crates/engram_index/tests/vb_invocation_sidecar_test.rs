@@ -26,6 +26,7 @@ fn roslyn_invocation_query_handles_multiline_named_arguments_and_ignores_text() 
         Dim fake = "AuditTrail.Record(category := EventPrefix.Fake)"
         ' AuditTrail.Record(category := EventPrefix.Comment)
         AuditTrail.Record(
+            ,
             value := "a""b",
             category := EventPrefix.Widget)
     End Sub
@@ -65,11 +66,13 @@ End Class
     let calls = report["invocations"].as_array().unwrap();
     assert_eq!(calls.len(), 1, "{response:#}");
     assert_eq!(calls[0]["start_line"], 5);
-    assert_eq!(calls[0]["end_line"], 7);
+    assert_eq!(calls[0]["end_line"], 8);
     let arguments = calls[0]["arguments"].as_array().unwrap();
-    assert_eq!(arguments[0]["name"], "value");
-    assert_eq!(arguments[0]["classification"], "string_literal");
-    assert_eq!(arguments[1]["name"], "category");
-    assert_eq!(arguments[1]["classification"], "member_access");
-    assert_eq!(arguments[1]["start_line"], 7);
+    assert_eq!(arguments[0]["classification"], "omitted");
+    assert_eq!(arguments[0]["syntax_ordinal"], 0);
+    assert_eq!(arguments[1]["name"], "value");
+    assert_eq!(arguments[1]["classification"], "string_literal");
+    assert_eq!(arguments[2]["name"], "category");
+    assert_eq!(arguments[2]["classification"], "member_access");
+    assert_eq!(arguments[2]["start_line"], 8);
 }

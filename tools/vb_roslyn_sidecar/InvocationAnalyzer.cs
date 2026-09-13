@@ -75,15 +75,32 @@ internal static class InvocationAnalyzer
                         report.OmittedArgumentCount++;
                         continue;
                     }
-                    if (arguments.Value[ordinal] is not SimpleArgumentSyntax simple)
+                    var argumentSyntax = arguments.Value[ordinal];
+                    var argumentOperation = operation?.Arguments.FirstOrDefault(candidate =>
+                        candidate.Syntax.Span == argumentSyntax.Span);
+                    if (argumentSyntax is OmittedArgumentSyntax omitted)
+                    {
+                        dto.Arguments.Add(new InvocationArgumentDto
+                        {
+                            SourceIndex = 0,
+                            SpanStart = omitted.Span.Start,
+                            SpanLength = omitted.Span.Length,
+                            StartLine = StartLine(omitted),
+                            EndLine = EndLine(omitted),
+                            Classification = "omitted",
+                            SyntaxOrdinal = ordinal,
+                            ParameterOrdinal = argumentOperation?.Parameter?.Ordinal
+                        });
+                        continue;
+                    }
+
+                    if (argumentSyntax is not SimpleArgumentSyntax simple)
                     {
                         report.OmittedArgumentCount++;
-                        report.Notes.Add($"unsupported argument syntax at line {StartLine(arguments.Value[ordinal])}");
+                        report.Notes.Add($"unsupported argument syntax at line {StartLine(argumentSyntax)}");
                         continue;
                     }
                     var expression = simple.Expression;
-                    var argumentOperation = operation?.Arguments.FirstOrDefault(candidate =>
-                        candidate.Syntax.Span == simple.Span);
                     var classification = expression is MemberAccessExpressionSyntax
                         ? "member_access"
                         : expression.IsKind(SyntaxKind.StringLiteralExpression)
