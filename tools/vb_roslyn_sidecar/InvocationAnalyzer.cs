@@ -8,8 +8,8 @@ using Microsoft.CodeAnalysis.VisualBasic.Syntax;
 
 internal static class InvocationAnalyzer
 {
-    private const int MaxInvocations = 256;
-    private const int MaxArgumentsPerInvocation = 24;
+    private const int MaxInvocations = 512;
+    private const int MaxArgumentsPerInvocation = 64;
     private const int MaxIdentityChars = 512;
 
     internal static InvocationReport Analyze(string source, string? requestId)
