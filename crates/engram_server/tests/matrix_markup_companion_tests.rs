@@ -110,6 +110,9 @@ async fn codebehind_matrix_recovers_declaring_markup_and_bound_presenters() {
     assert!(text.contains("Planned-behavior risk axis"), "{text}");
     assert!(text.contains("Discriminator compatibility"), "{text}");
     assert!(text.contains("Canonical-token migration"), "{text}");
+    assert!(text.contains("Caller-supplied change intent"), "{text}");
+    assert!(text.contains("nor human approval"), "{text}");
+    assert!(!text.contains("Approved change intent"), "{text}");
     assert!(text.contains("1 requested file(s)") && !text.contains("1 changed file(s)"), "{text}");
 }
 

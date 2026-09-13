@@ -35,6 +35,86 @@ fn is_safe_zip_member_path(name: &str) -> bool {
     })
 }
 
+/// Reconcile a current project-relative file path with a pre-move history path.
+///
+/// Repositories sometimes move their entire source tree under a new top-level
+/// directory. Git history then contains temporal edges for both `src/x` and
+/// `Site/src/x`, while callers naturally use the current path. Querying only the
+/// literal node silently loses the older cohort. Limit aliases to a path proven
+/// by the current filesystem so unrelated same-named files are never combined.
+fn temporal_source_aliases(file_path: &str, project_root: &Path) -> Vec<String> {
+    let normalized = file_path
+        .strip_prefix("file:")
+        .unwrap_or(file_path)
+        .replace('\\', "/")
+        .trim_start_matches("./")
+        .to_string();
+    let mut aliases = vec![format!("file:{normalized}")];
+    let relative = Path::new(&normalized);
+    if normalized.is_empty()
+        || relative.is_absolute()
+        || relative.components().any(|c| {
+            matches!(
+                c,
+                std::path::Component::ParentDir
+                    | std::path::Component::RootDir
+                    | std::path::Component::Prefix(_)
+            )
+        })
+    {
+        return aliases;
+    }
+
+    if project_root.join(relative).is_file() {
+        if let Some((_, stripped)) = normalized.split_once('/') {
+            if !stripped.is_empty() && !project_root.join(stripped).exists() {
+                aliases.push(format!("file:{stripped}"));
+            }
+        }
+    } else if let Ok(entries) = std::fs::read_dir(project_root) {
+        let mut prefixed = entries
+            .flatten()
+            .filter(|entry| entry.file_type().map(|t| t.is_dir()).unwrap_or(false))
+            .filter_map(|entry| {
+                let name = entry.file_name().to_string_lossy().to_string();
+                entry
+                    .path()
+                    .join(relative)
+                    .is_file()
+                    .then(|| format!("file:{name}/{normalized}"))
+            });
+        if let Some(candidate) = prefixed.next()
+            && prefixed.next().is_none()
+        {
+            aliases.push(candidate);
+        }
+    }
+    aliases.sort();
+    aliases.dedup();
+    aliases
+}
+
+fn canonical_temporal_file_id(
+    node_id: &str,
+    project_root: &Path,
+    current_prefix: Option<&str>,
+) -> String {
+    let path = node_id
+        .strip_prefix("file:")
+        .unwrap_or(node_id)
+        .replace('\\', "/");
+    if project_root.join(&path).is_file() {
+        return format!("file:{path}");
+    }
+    if let Some(prefix) = current_prefix {
+        let candidate = format!("{prefix}/{path}");
+        if project_root.join(&candidate).is_file() {
+            return format!("file:{candidate}");
+        }
+    }
+    node_id.to_string()
+}
+
 /// Core blocking logic for zip-snapshot history ingestion.
 /// Shared between the synchronous (wait=true) and background (wait=false) paths.
 ///
@@ -1476,23 +1556,67 @@ impl Engram {
         req: AnalyzeTemporalCouplingsRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
-        self.ensure_project_record(&req.project_id).await?;
+        let project = self.ensure_project_record(&req.project_id).await?;
         let limit = req.sanitized_limit();
         let minimum = req.sanitized_min_frequency() as u32;
+        let mut aliases_used = Vec::new();
         let mut couplings = if let Some(ref file_path) = req.file_path {
             // Focused search
-            let node_id = if file_path.starts_with("file:") {
-                file_path.clone()
-            } else {
-                format!("file:{file_path}")
-            };
-            engram_graph::algorithms::coupling::file_temporal_couplings(
-                &self.state.graph,
-                &req.project_id,
-                &node_id,
-                minimum,
-                limit + 1,
-            )
+            let project_root = Path::new(&project.directory);
+            let aliases = temporal_source_aliases(file_path, project_root);
+            let normalized_request = file_path
+                .strip_prefix("file:")
+                .unwrap_or(file_path)
+                .replace('\\', "/")
+                .trim_start_matches("./")
+                .to_string();
+            let canonical_source = aliases
+                .iter()
+                .find(|alias| {
+                    project_root
+                        .join(alias.strip_prefix("file:").unwrap_or(alias))
+                        .is_file()
+                })
+                .cloned()
+                .unwrap_or_else(|| format!("file:{normalized_request}"));
+            let canonical_path = canonical_source
+                .strip_prefix("file:")
+                .unwrap_or(&canonical_source);
+            let current_prefix = canonical_path.split_once('/').map(|(first, _)| first);
+            aliases_used = aliases.clone();
+            let per_alias_limit = (limit + 1).saturating_mul(aliases.len().max(1));
+            let mut merged: Vec<engram_graph::algorithms::coupling::Coupling> = Vec::new();
+            for alias in aliases {
+                let found = engram_graph::algorithms::coupling::file_temporal_couplings(
+                    &self.state.graph,
+                    &req.project_id,
+                    &alias,
+                    minimum,
+                    per_alias_limit,
+                )
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                for mut coupling in found {
+                    coupling.file_node_id = canonical_source.clone();
+                    coupling.neighbor_node_id = canonical_temporal_file_id(
+                        &coupling.neighbor_node_id,
+                        project_root,
+                        current_prefix,
+                    );
+                    if let Some(existing) = merged.iter_mut().find(|existing| {
+                        existing
+                            .neighbor_node_id
+                            .eq_ignore_ascii_case(&coupling.neighbor_node_id)
+                    }) {
+                        // Aliased edge identities can overlap. Max retains the strongest
+                        // observed frequency without double-counting the same commits.
+                        existing.weight = existing.weight.max(coupling.weight);
+                    } else {
+                        merged.push(coupling);
+                    }
+                }
+            }
+            merged.sort_by(|a, b| b.weight.cmp(&a.weight));
+            merged
         } else {
             // Global search
             engram_graph::algorithms::coupling::top_project_couplings(
@@ -1500,8 +1624,8 @@ impl Engram {
                 &req.project_id,
                 limit + 1,
             )
-        }
-        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        };
 
         // Both algorithms rank by descending weight before limiting, so this
         // global filter cannot hide a stronger qualifying edge below the cap.
@@ -1521,6 +1645,12 @@ impl Engram {
         let mut out = String::new();
         if let Some(ref fp) = req.file_path {
             out.push_str(&format!("Temporal couplings for {fp}:\n"));
+            if aliases_used.len() > 1 {
+                out.push_str(&format!(
+                    "Path aliases reconciled from current filesystem identity: {}. Duplicate neighbor identities use the maximum observed weight to avoid double-counting.\n",
+                    aliases_used.join(", ")
+                ));
+            }
         } else {
             out.push_str("Top temporal couplings:\n");
         }

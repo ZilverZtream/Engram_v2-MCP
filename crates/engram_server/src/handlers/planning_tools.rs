@@ -494,6 +494,152 @@ pub(crate) fn interface_pair_candidates(ps: &str) -> Vec<String> {
     out
 }
 
+/// Deterministic companions for designer-managed LINQ-to-SQL models. A model
+/// schema, generated source and layout metadata are one regeneration unit. The
+/// caller keeps only paths present in the current index, so this remains a
+/// framework convention rather than a repository-specific guess.
+pub(crate) fn dbml_family_candidates(ps: &str) -> Vec<String> {
+    let lower = ps.to_ascii_lowercase();
+    let suffix = [".dbml.layout", ".dbml", ".designer.vb", ".designer.cs"]
+        .into_iter()
+        .find(|suffix| lower.ends_with(suffix));
+    let Some(suffix) = suffix else {
+        return Vec::new();
+    };
+    let stem = &ps[..ps.len() - suffix.len()];
+    [".dbml", ".dbml.layout", ".designer.vb", ".designer.cs"]
+        .iter()
+        .map(|suffix| format!("{stem}{suffix}"))
+        .filter(|candidate| !candidate.eq_ignore_ascii_case(ps))
+        .collect()
+}
+
+/// Resolve one deterministic project-relative companion against the current
+/// checkout without broadening relevance. This is deliberately a single-file
+/// probe: project/build metadata may be excluded from the source index, but a
+/// file that exists on disk is still part of the deployable regeneration unit.
+fn project_relative_existing_file(
+    project_root: &std::path::Path,
+    relative: &str,
+) -> Option<String> {
+    let normalized = relative.replace('\\', "/");
+    let path = std::path::Path::new(&normalized);
+    if normalized.is_empty()
+        || path.is_absolute()
+        || path.components().any(|component| {
+            matches!(
+                component,
+                std::path::Component::ParentDir
+                    | std::path::Component::RootDir
+                    | std::path::Component::Prefix(_)
+            )
+        })
+    {
+        return None;
+    }
+    // Resolve one component at a time so the result uses the checkout's actual
+    // spelling even on a case-insensitive filesystem. Prefer an exact match if
+    // a case-sensitive checkout deliberately contains two case variants.
+    let mut absolute = project_root.to_path_buf();
+    let mut resolved = std::path::PathBuf::new();
+    for component in path.components() {
+        let std::path::Component::Normal(wanted) = component else {
+            return None;
+        };
+        let mut matches = std::fs::read_dir(&absolute)
+            .ok()?
+            .flatten()
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .eq_ignore_ascii_case(&wanted.to_string_lossy())
+            })
+            .collect::<Vec<_>>();
+        matches.sort_by_key(|entry| entry.file_name());
+        let chosen = matches
+            .iter()
+            .find(|entry| entry.file_name() == wanted)
+            .or_else(|| (matches.len() == 1).then(|| &matches[0]))?;
+        resolved.push(chosen.file_name());
+        absolute = chosen.path();
+    }
+    if !absolute.is_file() {
+        return None;
+    }
+    let boundary = project_root.canonicalize().ok()?;
+    let target = absolute.canonicalize().ok()?;
+    target
+        .starts_with(&boundary)
+        .then(|| resolved.to_string_lossy().replace('\\', "/"))
+}
+
+/// Find the nearest owning SQL project for a current SQL artifact. Only the
+/// artifact's ancestor directories are inspected, and the nearest directory
+/// wins. This recovers build manifests that are intentionally absent from the
+/// code index without scanning or guessing across the repository.
+fn disk_sql_project_candidates(project_root: &std::path::Path, sql_path: &str) -> Vec<String> {
+    let Some(sql_path) = project_relative_existing_file(project_root, sql_path) else {
+        return Vec::new();
+    };
+    if !sql_path.to_ascii_lowercase().ends_with(".sql") {
+        return Vec::new();
+    }
+    let mut directory = std::path::Path::new(&sql_path).parent();
+    while let Some(relative_dir) = directory {
+        let absolute_dir = project_root.join(relative_dir);
+        let mut projects = std::fs::read_dir(&absolute_dir)
+            .ok()
+            .into_iter()
+            .flatten()
+            .flatten()
+            .filter(|entry| entry.file_type().map(|kind| kind.is_file()).unwrap_or(false))
+            .filter(|entry| {
+                entry
+                    .path()
+                    .extension()
+                    .is_some_and(|extension| extension.to_string_lossy().eq_ignore_ascii_case("sqlproj"))
+            })
+            .filter_map(|entry| {
+                entry
+                    .path()
+                    .strip_prefix(project_root)
+                    .ok()
+                    .map(|path| path.to_string_lossy().replace('\\', "/"))
+            })
+            .collect::<Vec<_>>();
+        projects.sort();
+        projects.dedup();
+        if !projects.is_empty() {
+            return projects;
+        }
+        directory = relative_dir.parent();
+    }
+    Vec::new()
+}
+
+/// The closest SQL project above a SQL artifact is its build/deployment
+/// manifest. Return every project at the deepest matching directory (normally
+/// one) and let the caller retain only paths from the current index.
+pub(crate) fn sql_project_candidates(sql_path: &str, index: &[String]) -> Vec<String> {
+    if !sql_path.ends_with(".sql") || sql_path.ends_with(".sqlproj") {
+        return Vec::new();
+    }
+    let mut candidates = index
+        .iter()
+        .filter(|path| path.ends_with(".sqlproj"))
+        .filter_map(|path| {
+            let directory = path.rsplit_once('/').map(|(dir, _)| dir).unwrap_or("");
+            let owns = directory.is_empty() || sql_path.starts_with(&format!("{directory}/"));
+            owns.then_some((directory.matches('/').count(), path.clone()))
+        })
+        .collect::<Vec<_>>();
+    let deepest = candidates.iter().map(|(depth, _)| *depth).max();
+    candidates.retain(|(depth, _)| Some(*depth) == deepest);
+    candidates.sort_by(|a, b| a.1.cmp(&b.1));
+    candidates.into_iter().map(|(_, path)| path).collect()
+}
+
 /// OpenAPI/Swagger contract documents in a (lowercased) file index. The
 /// spec is an ASSERTED CONTRACT for the API layer — endpoint/DTO changes
 /// ship a spec update (recurring recall miss: docs/openapi/*.yaml shipped
@@ -2696,6 +2842,16 @@ mod tests {
             change_set_paths("- `docs/openapi/ox-fiber.yaml`"),
             vec!["docs/openapi/ox-fiber.yaml".to_string()]
         );
+        assert_eq!(
+            change_set_paths(
+                "- models/store.dbml.layout\n- database/app.sql.sqlproj\n- models/store.dbml"
+            ),
+            vec![
+                "models/store.dbml.layout".to_string(),
+                "database/app.sql.sqlproj".to_string(),
+                "models/store.dbml".to_string(),
+            ]
+        );
     }
 
     #[test]
@@ -2889,6 +3045,74 @@ mod tests {
         assert!(interface_pair_candidates("a/b/form.designer.cs").is_empty());
         // Root-level file (no dir) yields nothing.
         assert!(interface_pair_candidates("standalone.vb").is_empty());
+    }
+
+    #[test]
+    fn dbml_family_candidates_keep_designer_schema_and_layout_atomic() {
+        let from_schema = dbml_family_candidates("models/store.dbml");
+        assert!(from_schema.contains(&"models/store.dbml.layout".to_string()));
+        assert!(from_schema.contains(&"models/store.designer.vb".to_string()));
+        assert!(!from_schema.contains(&"models/store.dbml".to_string()));
+
+        let from_designer = dbml_family_candidates("models/store.designer.vb");
+        assert!(from_designer.contains(&"models/store.dbml".to_string()));
+        assert!(from_designer.contains(&"models/store.dbml.layout".to_string()));
+        assert!(dbml_family_candidates("models/store.vb").is_empty());
+
+        let mixed_case = dbml_family_candidates("Models/Store.DBML");
+        assert!(mixed_case.contains(&"Models/Store.dbml.layout".to_string()));
+        assert!(!mixed_case.iter().any(|path| path.eq_ignore_ascii_case("Models/Store.DBML")));
+    }
+
+    #[test]
+    fn sql_project_candidates_choose_the_closest_owning_project() {
+        let index = [
+            "database/root.sqlproj",
+            "database/reporting/reporting.sqlproj",
+            "database/unrelated.sqlproj",
+        ]
+        .into_iter()
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+        assert_eq!(
+            sql_project_candidates("database/reporting/dbo/tables/events.sql", &index),
+            vec!["database/reporting/reporting.sqlproj".to_string()]
+        );
+        assert!(sql_project_candidates("src/events.cs", &index).is_empty());
+    }
+
+    #[test]
+    fn disk_project_artifacts_are_recovered_without_a_source_index_entry() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        std::fs::create_dir_all(root.join("Models")).unwrap();
+        std::fs::create_dir_all(root.join("Database/Reporting/dbo/Tables")).unwrap();
+        std::fs::write(root.join("Models/Store.dbml.layout"), "layout").unwrap();
+        std::fs::write(
+            root.join("Database/Reporting/dbo/Tables/Events.sql"),
+            "create table Events(Id int)",
+        )
+        .unwrap();
+        std::fs::write(root.join("Database/root.sqlproj"), "root").unwrap();
+        std::fs::write(
+            root.join("Database/Reporting/reporting.SQLPROJ"),
+            "nearest",
+        )
+        .unwrap();
+
+        assert_eq!(
+            project_relative_existing_file(root, "Models/Store.dbml.layout"),
+            Some("Models/Store.dbml.layout".to_string())
+        );
+        assert_eq!(
+            project_relative_existing_file(root, "Models/Store.DBML.LAYOUT"),
+            Some("Models/Store.dbml.layout".to_string())
+        );
+        assert_eq!(
+            disk_sql_project_candidates(root, "Database/Reporting/dbo/Tables/Events.sql"),
+            vec!["Database/Reporting/reporting.SQLPROJ".to_string()]
+        );
+        assert!(project_relative_existing_file(root, "../outside.sqlproj").is_none());
     }
 
     #[test]
@@ -5385,7 +5609,7 @@ fn change_set_paths(text: &str) -> Vec<String> {
     // The class also admits `~ @ +` (legal in build-output / scoped dirs) so
     // such paths aren't fragmented into slashless pieces the `keep` filter drops.
     let re = regex::Regex::new(
-        r"(?i)[\w./\\~@+-]*\.(?:aspx\.vb|ascx\.vb|asax\.vb|asmx\.vb|ashx\.vb|svc\.vb|master\.vb|aspx\.cs|ascx\.cs|asax\.cs|asmx\.cs|ashx\.cs|svc\.cs|master\.cs|aspx|ascx|asax|ashx|asmx|svc|master|vb|css|cs|ts|tsx|js|jsx|sql|config|vbhtml|cshtml|resx|html|yaml|yml|dbml|edmx)\b",
+        r"(?i)[\w./\\~@+-]*\.(?:aspx\.vb|ascx\.vb|asax\.vb|asmx\.vb|ashx\.vb|svc\.vb|master\.vb|aspx\.cs|ascx\.cs|asax\.cs|asmx\.cs|ashx\.cs|svc\.cs|master\.cs|dbml\.layout|aspx|ascx|asax|ashx|asmx|svc|master|vb|css|cs|ts|tsx|js|jsx|sqlproj|sql|config|vbhtml|cshtml|resx|html|yaml|yml|dbml|edmx)\b",
     )
     .expect("change_set_paths regex");
     let mut seen = HashSet::new();
@@ -5807,14 +6031,17 @@ pub(crate) fn footprint_total(text: &str) -> usize {
 /// term. Story-word NAME coverage is independent (it never consults the
 /// footprint).
 fn change_set_independent(s: &str) -> bool {
-    !matches!(s, "concept" | "lexicon" | "gloss" | "family" | "broad")
+    !matches!(
+        s,
+        "concept" | "lexicon" | "gloss" | "family" | "broad" | "disk"
+    )
 }
 
 /// How many signals count as EVIDENCE (round-2 audit P0-3): the family
 /// expansion inherits its partner's signals and a broad term is not evidence.
 fn change_set_strength(sigs: &BTreeSet<&'static str>) -> usize {
     sigs.iter()
-        .filter(|s| !matches!(**s, "family" | "broad"))
+        .filter(|s| !matches!(**s, "family" | "broad" | "disk"))
         .count()
 }
 
@@ -6483,7 +6710,10 @@ pub(crate) const CHANGE_SET_LAYERS: &[(&str, &[&str])] = &[
         &[".ts", ".tsx", ".js", ".jsx"],
     ),
     ("Resources (.resx — translate EVERY language)", &[".resx"]),
-    ("Data (SQL)", &[".sql"]),
+    (
+        "Data (SQL / ORM model)",
+        &[".sql", ".sqlproj", ".dbml", ".dbml.layout", ".edmx"],
+    ),
     (
         "Markup / styles / config",
         &[".html", ".css", ".config", ".vbhtml", ".cshtml"],
@@ -7183,6 +7413,8 @@ impl Engram {
         req: crate::models::GetChangeSetRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        let project = self.ensure_project_record(&req.project_id).await?;
+        let project_root = std::path::PathBuf::from(&project.directory);
         if req.story.trim().is_empty() {
             return Err(McpError::invalid_params("story must not be empty", None));
         }
@@ -7885,6 +8117,15 @@ impl Engram {
             };
             let index: Vec<String> = meta.iter().map(|(rp, _)| strip(rp.as_str())).collect();
             let index_set: HashSet<&String> = index.iter().collect();
+            let indexed_by_normalized: HashMap<String, String> = meta
+                .iter()
+                .map(|(path, _)| {
+                    (
+                        strip(path.as_str()),
+                        path.as_str().replace('\\', "/"),
+                    )
+                })
+                .collect();
             let mut fam: Vec<(String, BTreeSet<&'static str>)> = Vec::new();
             for (p, sigs) in &prov {
                 let ps = strip(p);
@@ -7996,6 +8237,64 @@ impl Engram {
                             .push(format!("interface/implementation pair of {p}"));
                         fam.push((c, sigs.clone()));
                     }
+                }
+                for candidate in dbml_family_candidates(&p.replace('\\', "/")) {
+                    let indexed = indexed_by_normalized.get(&strip(&candidate)).cloned();
+                    let resolved = indexed.map(|path| (path, false)).or_else(|| {
+                        project_relative_existing_file(&project_root, &candidate)
+                            .map(|path| (path, true))
+                    });
+                    if let Some((path, disk_only)) = resolved {
+                        let mut fs = sigs.clone();
+                        fs.insert("family");
+                        if disk_only {
+                            fs.insert("disk");
+                        }
+                        why.entry(path.clone()).or_default().push(format!(
+                            "DBML schema/designer/layout regeneration companion of {p}{}",
+                            if disk_only {
+                                " (exists on disk; excluded from the current source index)"
+                            } else {
+                                ""
+                            }
+                        ));
+                        fam.push((path, fs));
+                    }
+                }
+            }
+            let sql_candidates = prov
+                .keys()
+                .filter(|path| path.to_ascii_lowercase().ends_with(".sql"))
+                .cloned()
+                .collect::<Vec<_>>();
+            for sql in sql_candidates {
+                let mut projects: BTreeMap<String, bool> = BTreeMap::new();
+                for path in sql_project_candidates(&strip(&sql), &index) {
+                    let canonical = indexed_by_normalized
+                        .get(&strip(&path))
+                        .cloned()
+                        .unwrap_or(path);
+                    projects.insert(canonical, false);
+                }
+                for path in disk_sql_project_candidates(&project_root, &sql) {
+                    projects.entry(path).or_insert(true);
+                }
+                for (project, disk_only) in projects {
+                    why.entry(project.clone())
+                        .or_default()
+                        .push(format!(
+                            "closest owning SQL project for {sql}{}",
+                            if disk_only {
+                                " (exists on disk; excluded from the current source index)"
+                            } else {
+                                ""
+                            }
+                        ));
+                    let mut signals = BTreeSet::from(["family"]);
+                    if disk_only {
+                        signals.insert("disk");
+                    }
+                    fam.push((project, signals));
                 }
             }
             // API-spec contract documents: set-level rule — any API-layer
@@ -8144,7 +8443,9 @@ impl Engram {
                 let key = match indexed.as_ref() {
                     Some(c) => c.clone(),
                     None => {
-                        historical.insert(p.clone());
+                        if !sigs.contains("disk") {
+                            historical.insert(p.clone());
+                        }
                         p.clone()
                     }
                 };
@@ -8664,6 +8965,8 @@ impl Engram {
                     }
                     serde_json::json!({
                         "path": r.path,
+                        "path_kind": if r.signals.contains(&"disk") { "existing_unindexed" } else { "existing" },
+                        "indexed": !r.signals.contains(&"disk"),
                         "layer": r.layer,
                         "tier": r.tier,
                         "set": r.set,
@@ -11149,8 +11452,18 @@ impl Engram {
                         .strip_prefix("file:")
                         .unwrap_or(&e.source_id)
                         .to_string();
+                    let library = {
+                        let current = get("library");
+                        if current.is_empty() {
+                            // Compatibility for indexes built before the extractor
+                            // standardized the key as `library`.
+                            get("gis_library")
+                        } else {
+                            current
+                        }
+                    };
                     (
-                        get("gis_library"),
+                        library,
                         get("map_class"),
                         get("modern_equivalent"),
                         file,
@@ -11158,7 +11471,7 @@ impl Engram {
                     )
                 })
                 .collect();
-            // Edges without gis_library metadata are config/layer references
+            // Edges without library metadata are config/layer references
             // (file → gis_config node), not API call sites — the configs and
             // layer sections already cover them.
             let rows: Vec<_> = rows.into_iter().filter(|r| !r.0.is_empty()).collect();
@@ -11752,6 +12065,11 @@ mod change_set_tier_tests {
     #[test]
     fn concept_plus_weak_beats_concept_alone_which_beats_weak_pairs() {
         assert!(t(&["concept", "vector"]) < t(&["concept"]));
+        assert_eq!(
+            t(&["concept", "disk"]),
+            t(&["concept"]),
+            "disk existence is path provenance, not independent relevance evidence"
+        );
         assert!(
             t(&["concept"]) < t(&["vector", "graph"]),
             "two associative signals must not outrank an entity match: concept={} vector+graph={}",

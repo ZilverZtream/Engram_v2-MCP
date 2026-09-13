@@ -240,9 +240,10 @@ fn bound_presentation_members(source: &str) -> Vec<String> {
     members
 }
 
-/// Risk axes derived only from supplied approved change wording. They remain
+/// Risk axes derived only from caller-supplied change wording. They remain
 /// separate from source-triggered axes so a plan cannot mistake a requested
-/// change for evidence that the behavior already exists.
+/// change for evidence that the behavior already exists or assume the wording
+/// has passed a human checkpoint.
 pub(super) fn intent_risk_axes(intent: Option<&str>) -> Vec<(String, String)> {
     let Some(intent) = intent.map(str::trim).filter(|value| !value.is_empty()) else {
         return Vec::new();
@@ -265,7 +266,7 @@ pub(super) fn intent_risk_axes(intent: Option<&str>) -> Vec<(String, String)> {
     {
         axes.push((
             "Discriminator compatibility and presenter completeness".into(),
-            "approved change intent introduces or changes a discriminator: test the legacy/default value, every defined and reserved value, an unknown value, persistence/model type, nullability and default parity, label/formatter coverage, and an explicit fallback. Treat supplied numeric mappings and schema constraints as exact assertions; an undefined product mapping remains a blocking decision rather than an implementation guess".into(),
+            "supplied change intent introduces or changes a discriminator: test the legacy/default value, every defined and reserved value, an unknown value, persistence/model type, nullability and default parity, label/formatter coverage, and an explicit fallback. Treat numeric mappings and schema constraints as exact assertions only after contract approval; an undefined product mapping remains a blocking decision rather than an implementation guess".into(),
         ));
     }
     let has_literal_contract = (intent.contains('=') || lower.contains("default") || lower.contains("not null"))
@@ -274,24 +275,63 @@ pub(super) fn intent_risk_axes(intent: Option<&str>) -> Vec<(String, String)> {
             .any(|term| lower.contains(term));
     if has_literal_contract {
         axes.push((
-            "Approved contract invariant fidelity".into(),
-            "approved change intent contains literal mappings or schema constraints: transcribe each into a machine-checkable assertion and compare it with the final diff. Missing reserved values, shifted identifiers, changed nullability/defaults, or implementation-selected substitutes fail the gate; prose confidence cannot override an approved decision".into(),
+            "Supplied contract invariant fidelity".into(),
+            "supplied change intent contains literal mappings or schema constraints: retain each as a candidate machine-checkable assertion until the contract is human-approved, then compare it with the final diff. Missing reserved values, shifted identifiers, changed nullability/defaults, or implementation-selected substitutes fail the gate only when bound to an approved decision".into(),
         ));
     }
     if ["canonical", "prefix", "constant", "token"].iter().any(|term| lower.contains(term)) {
         axes.push((
             "Canonical-token migration completeness".into(),
-            "approved change intent centralizes an identifier/token: reconcile the canonical definition, every producer write, every reader/filter comparison, stored legacy values, and a repository literal sweep; list intentional aliases and deferred residual literals instead of silently widening scope".into(),
+            "supplied change intent centralizes an identifier/token: reconcile the canonical definition, every producer write, every reader/filter comparison, stored legacy values, and a repository literal sweep; list intentional aliases and deferred residual literals instead of silently widening scope".into(),
         ));
     }
     if ["log", "logging", "audit", "event"].iter().any(|term| lower.contains(term)) {
         axes.push((
             "Event cardinality and failure boundary".into(),
-            "approved change intent affects event/audit output: test no-op, one-field and simultaneous changes, suppressed/bulk paths, caller-owned contexts, persistence-call cardinality, and logger/persistence failures without assuming audit success is atomic with the business write".into(),
+            "supplied change intent affects event/audit output: test no-op, one-field and simultaneous changes, suppressed/bulk paths, caller-owned contexts, persistence-call cardinality, and logger/persistence failures without assuming audit success is atomic with the business write".into(),
         ));
         axes.push((
             "Event payload persistence-to-presentation chain".into(),
-            "approved change intent affects event/audit output: decide which facts are stored and which prose is rendered, then trace legacy and new payloads through persistence/model mappings, formatter or presenter fallbacks, every UI/export/API consumer, and every supported locale. Verify writer culture does not permanently determine reader-facing text".into(),
+            "supplied change intent affects event/audit output: decide which facts are stored and which prose is rendered, then trace legacy and new payloads through persistence/model mappings, formatter or presenter fallbacks, every UI/export/API consumer, and every supported locale. Verify writer culture does not permanently determine reader-facing text".into(),
+        ));
+    }
+    if ["archive", "zip", "kmz", "compressed", "extract"].iter().any(|term| lower.contains(term)) {
+        axes.push((
+            "Bounded archive processing contract".into(),
+            "supplied change intent reads or extracts an archive: require one shared bounded path across every entry point and test entry count, total expanded bytes, per-entry bytes, compression ratio, path depth, duplicate/case-colliding names, traversal/absolute paths, nested archives, allowlisted content types, cancellation, and cleanup after partial failure. Limits and rejection behavior remain contract decisions rather than inferred constants".into(),
+        ));
+    }
+    if ["lazy", "convert", "conversion", "derived", "cache", "retry"]
+        .iter()
+        .any(|term| lower.contains(term))
+    {
+        axes.push((
+            "Persistent derived-state lifecycle".into(),
+            "supplied change intent creates lazy, converted, derived, or cached state: model absent, queued/converting, ready, failed, stale/version-mismatched, deleted, and retryable states explicitly. Test simultaneous first readers, process restart, source replacement, persistent failure suppression, deliberate retry, version invalidation, partial rows/artifacts, and isolation between owners or tenants".into(),
+        ));
+    }
+    if ["icon", "image", "canvas", "object url", "listener", "browser cache"]
+        .iter()
+        .any(|term| lower.contains(term))
+    {
+        axes.push((
+            "Asynchronous browser-resource lifecycle".into(),
+            "supplied change intent creates browser media or callback resources: test repeated attach/detach and route/owner switches, callback completion after disposal, listener cardinality, cache invalidation, object-URL revocation, failed image/canvas/CORS operations, and decoded pixel/dimension limits before allocation. A bounded file byte size alone does not bound decoded memory".into(),
+        ));
+    }
+    if ["dto", "interface", "serialized", "json", "wire", "generated javascript", "generated js"]
+        .iter()
+        .any(|term| lower.contains(term))
+    {
+        axes.push((
+            "End-to-end wire-contract parity".into(),
+            "supplied change intent changes a serialized contract: reconcile server serializer names/types/nullability/defaults and child collections with persisted representation, client DTOs, every reader, and committed generated output. Require the repository's real type-check/build plus a representative serialized fixture; textual name overlap is not proof of wire compatibility".into(),
+        ));
+    }
+    if ["xml", "kml", "xdocument", "xmldocument"].iter().any(|term| lower.contains(term)) {
+        axes.push((
+            "XML encoding and declaration round trip".into(),
+            "supplied change intent reads or rewrites XML-family content: test UTF-8 with and without BOM, UTF-16 LE/BE, non-ASCII text, declarations and namespace attributes. Preserve or deliberately normalize encoding according to the contract, and verify bytes can be reparsed after every mutation/error path".into(),
         ));
     }
     axes
@@ -978,6 +1018,64 @@ pub(super) fn runtime_risk_axes(file: &str, source: &str) -> Vec<(String, String
     let has_unbounded_text_storage = matches!(ext.as_str(), "sql" | "dbml")
         && regex::Regex::new(r"(?i)\b(?:n?varchar|n?text)\s*\(\s*max\s*\)")
             .is_ok_and(|pattern| pattern.is_match(source));
+    let has_archive_processing = [
+        "ziparchive",
+        "zipfile",
+        "archive.entries",
+        "getentry(",
+        "extractto",
+        ".kmz",
+        "compressedlength",
+    ]
+    .iter()
+    .any(|token| lower.contains(token));
+    let has_optional_data_context = regex::Regex::new(
+        r"(?i)\b(?:optional\s+)?\w*(?:db|context)\w*\s+as\s+(?:[\w.]*data|[\w.]*db)context\b[^\r\n,)]*(?:nothing|null)?|\b(?:data|db)context\??\s+\w+\s*=\s*null\b",
+    )
+    .is_ok_and(|pattern| pattern.is_match(source));
+    let has_unit_of_work_operation = lower.contains("submitchanges(")
+        || lower.contains("savechanges(")
+        || lower.contains(".dispose(")
+        || lower.contains("using (")
+        || lower.contains("using ");
+    let has_async_browser_resource = is_browser_code
+        && [
+            "createobjecturl",
+            "revokeobjecturl",
+            "addeventlistener",
+            "removeeventlistener",
+            "new image(",
+            "htmlimageelement",
+            "getcontext(\"2d\")",
+            "getcontext('2d')",
+            ".onload",
+            ".onerror",
+        ]
+        .iter()
+        .any(|token| lower.contains(token));
+    let has_serialized_contract = [
+        "jsonproperty",
+        "jsonconvert",
+        "serializeobject",
+        "system.text.json",
+        "datacontract",
+        "datamember",
+    ]
+    .iter()
+    .any(|token| lower.contains(token))
+        || matches!(ext.as_str(), "ts" | "tsx")
+            && (lower.contains("interface ") || lower.contains("type "));
+    let has_xml_roundtrip = [
+        "xmldocument",
+        "xdocument",
+        "xmlreader",
+        "xmlwriter",
+        "loadxml(",
+        "document.save(",
+        ".save(writer",
+    ]
+    .iter()
+    .any(|token| lower.contains(token));
 
     let mut axes = Vec::new();
     if has_session && has_view_state {
@@ -1101,6 +1199,36 @@ pub(super) fn runtime_risk_axes(file: &str, source: &str) -> Vec<(String, String
         axes.push((
             "Generated-artifact provenance and synchronization".into(),
             format!("{file}: generated or tool-managed artifact detected; require the authoritative source/schema change, generator command and receipt, plus deterministic synchronization of every generated companion. A shape/XML check alone does not prove safe regeneration"),
+        ));
+    }
+    if has_archive_processing {
+        axes.push((
+            "Archive resource, namespace and cleanup bounds".into(),
+            format!("{file}: archive processing detected; exercise entry-count, total-expanded-byte, per-entry-byte, compression-ratio and path-depth limits; duplicate and case-colliding names; traversal/absolute paths; nested archives; allowlisted types; cancellation; and cleanup after a mid-stream rejection. Verify every extraction entry point delegates to the same bounded helper"),
+        ));
+    }
+    if has_optional_data_context {
+        axes.push((
+            "Caller-owned unit-of-work boundary".into(),
+            format!("{file}: a caller-supplied data context was detected; exercise owned and borrowed contexts with unrelated pending changes. A helper must submit/save, dispose, roll back, or expose those pending changes only when the API explicitly transfers ownership; verify failure and retry paths preserve the same boundary{}", if has_unit_of_work_operation { ", especially around the detected commit/disposal operation" } else { "" }),
+        ));
+    }
+    if has_async_browser_resource {
+        axes.push((
+            "Browser callback and resource disposal".into(),
+            format!("{file}: asynchronous browser media/listener resources detected; run repeated attach/detach and owner/route switches, then complete callbacks after disposal. Assert stable listener count, generation-token cancellation, cache invalidation, object-URL revocation, safe failure on image/canvas/CORS errors, and decoded pixel/dimension limits before allocation"),
+        ));
+    }
+    if has_serialized_contract {
+        axes.push((
+            "Serialized server/client/generated contract parity".into(),
+            format!("{file}: serialized or typed wire contract detected; compare exact names, types, nullability, defaults, discriminators and child collections across server serializer output, persisted representation, client DTO/readers and committed generated output. Run the repository's real type-check/build against a representative serialized fixture"),
+        ));
+    }
+    if has_xml_roundtrip {
+        axes.push((
+            "XML byte-encoding round trip".into(),
+            format!("{file}: XML read/write operations detected; round-trip UTF-8 with and without BOM, UTF-16 LE/BE, non-ASCII text, declarations and namespace attributes. Assert the emitted declaration matches the actual bytes and that mutation plus failure paths preserve or deliberately normalize encoding according to the contract"),
         ));
     }
     axes
@@ -1838,9 +1966,24 @@ End Function
         ));
         let joined = axes.iter().map(|(axis, evidence)| format!("{axis}: {evidence}"))
             .collect::<Vec<_>>().join("\n");
-        assert!(joined.contains("Approved contract invariant fidelity"), "{joined}");
+        assert!(joined.contains("Supplied contract invariant fidelity"), "{joined}");
         assert!(joined.contains("machine-checkable assertion"), "{joined}");
         assert!(joined.contains("shifted identifiers") && joined.contains("nullability"), "{joined}");
+    }
+
+    #[test]
+    fn unapproved_intent_is_never_labelled_as_approved() {
+        let axes = intent_risk_axes(Some(
+            "UNAPPROVED contract checkpoint pending: field_id=2 is a candidate invariant",
+        ));
+        let joined = axes
+            .iter()
+            .map(|(axis, evidence)| format!("{axis}: {evidence}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(joined.contains("Supplied contract invariant fidelity"), "{joined}");
+        assert!(!joined.to_ascii_lowercase().contains("approved change intent"), "{joined}");
+        assert!(joined.contains("until the contract is human-approved"), "{joined}");
     }
 
     #[test]
@@ -1857,6 +2000,78 @@ End Function
         assert!(joined.contains("Bounded storage") && joined.contains("256"), "{joined}");
         assert!(joined.contains("Generated-artifact provenance"), "{joined}");
         assert!(joined.contains("generator command"), "{joined}");
+    }
+
+    #[test]
+    fn intent_axes_cover_archive_derived_state_browser_lifecycle_and_wire_contracts() {
+        let axes = intent_risk_axes(Some(
+            "Convert uploaded KML/KMZ archives lazily into derived JSON; cache tinted icons and update the generated JavaScript DTO interface",
+        ));
+        let joined = axes
+            .iter()
+            .map(|(axis, evidence)| format!("{axis}: {evidence}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        for expected in [
+            "Bounded archive processing contract",
+            "Persistent derived-state lifecycle",
+            "Asynchronous browser-resource lifecycle",
+            "End-to-end wire-contract parity",
+            "XML encoding and declaration round trip",
+        ] {
+            assert!(joined.contains(expected), "missing {expected}: {joined}");
+        }
+        assert!(joined.contains("entry count") && joined.contains("expanded bytes"), "{joined}");
+        assert!(joined.contains("simultaneous first readers") && joined.contains("version invalidation"), "{joined}");
+        assert!(joined.contains("object-URL revocation") && joined.contains("listener cardinality"), "{joined}");
+        assert!(joined.contains("representative serialized fixture"), "{joined}");
+        assert!(joined.contains("UTF-16 LE/BE") && joined.contains("reparsed"), "{joined}");
+    }
+
+    #[test]
+    fn source_axes_cover_archive_context_browser_and_serialized_contract_risks() {
+        let archive = runtime_risk_axes(
+            "Conversion/ArchiveReader.cs",
+            "using var zip = new ZipArchive(stream); foreach (var entry in zip.Entries) { entry.ExtractToFile(path); }",
+        );
+        let context = runtime_risk_axes(
+            "Data/Writer.vb",
+            "Public Shared Sub Save(Optional db As AppDataContext = Nothing)\n db.SubmitChanges()\nEnd Sub",
+        );
+        let browser = runtime_risk_axes(
+            "client/iconCache.ts",
+            "const image = new Image(); image.onload = draw; target.addEventListener('load', draw); return URL.createObjectURL(blob);",
+        );
+        let wire = runtime_risk_axes(
+            "client/contracts.ts",
+            "export interface LayerDto { status?: string; children: LayerDto[]; }",
+        );
+        let xml = runtime_risk_axes(
+            "Conversion/XmlUpdater.vb",
+            "Dim document As New XmlDocument()\n document.LoadXml(text)\n document.Save(writer)",
+        );
+        let render = |axes: Vec<(String, String)>| {
+            axes
+                .iter()
+                .map(|(axis, evidence)| format!("{axis}: {evidence}"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        };
+        let archive = render(archive);
+        let context = render(context);
+        let browser = render(browser);
+        let wire = render(wire);
+        let xml = render(xml);
+        assert!(archive.contains("Archive resource, namespace and cleanup bounds"), "{archive}");
+        assert!(archive.contains("case-colliding") && archive.contains("mid-stream rejection"), "{archive}");
+        assert!(context.contains("Caller-owned unit-of-work boundary"), "{context}");
+        assert!(context.contains("unrelated pending changes") && context.contains("commit/disposal"), "{context}");
+        assert!(browser.contains("Browser callback and resource disposal"), "{browser}");
+        assert!(browser.contains("generation-token") && browser.contains("pixel/dimension"), "{browser}");
+        assert!(wire.contains("Serialized server/client/generated contract parity"), "{wire}");
+        assert!(wire.contains("type-check/build") && wire.contains("child collections"), "{wire}");
+        assert!(xml.contains("XML byte-encoding round trip"), "{xml}");
+        assert!(xml.contains("UTF-16 LE/BE") && xml.contains("actual bytes"), "{xml}");
     }
 
     #[test]
@@ -1954,7 +2169,8 @@ rules:
         assert!(joined.contains("Event cardinality"), "{joined}");
         assert!(joined.contains("persistence-to-presentation"), "{joined}");
         assert!(joined.contains("writer culture"), "{joined}");
-        assert!(joined.contains("approved change intent"), "{joined}");
+        assert!(joined.contains("supplied change intent"), "{joined}");
+        assert!(!joined.contains("approved change intent"), "{joined}");
         assert!(intent_risk_axes(None).is_empty());
     }
 
