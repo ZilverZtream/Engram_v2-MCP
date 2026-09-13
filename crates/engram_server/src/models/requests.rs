@@ -1009,6 +1009,13 @@ pub struct DeriveTestMatrixRequest {
     /// The changed/planned files. The matrix derives from the settings,
     /// role gates, and shared-state keys wired to THESE files' methods.
     pub files: Vec<String>,
+    /// Optional approved story/contract wording. This enables proposed-change
+    /// risk axes (for example discriminator compatibility or canonical-token
+    /// migration) that cannot be inferred from the pre-edit source alone.
+    /// These axes are labelled intent-derived and never presented as current
+    /// source behavior.
+    #[serde(default, alias = "story", alias = "intent")]
+    pub change_intent: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]

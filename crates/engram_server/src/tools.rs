@@ -387,7 +387,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "QA/test-plan generator: given the changed files, derives WHAT TO TEST: settings that fork behaviour, roles/permissions, shared Session/Application keys, and source-verified runtime risks such as full/partial postback, multi-window Session/ViewState coherence, keyboard activation, and DOM accessible names. Returns proposed cases with evidence limits; it does not execute tests."
+        description = "QA/test-plan generator: given requested changed/planned files, derives WHAT TO TEST: settings that fork behaviour, roles/permissions, shared Session/Application keys, optional-argument isolation, source-verified runtime/presentation risks, and (when change_intent is supplied) clearly labelled proposed-change risks such as discriminator compatibility and canonical-token migration. Hot-loads bounded organization rules from data_dir/rules/test-risk-rules.yaml and repository rules from .engram/test-risk-rules.yaml; repository rule IDs override organization IDs without a rebuild. Returns proposed cases with evidence limits; it does not execute tests."
     )]
     pub async fn derive_test_matrix(
         &self,
