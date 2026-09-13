@@ -3238,6 +3238,19 @@ pub struct ValidateGeneratedCodeRequest {
     #[serde(default, deserialize_with = "deserialize_present_code_string")]
     #[schemars(with = "String")]
     pub code_file_blake3: Option<String>,
+    /// Optional project-relative JSON receipt from the external IDE/compiler/generator.
+    /// Requires generator_receipt_sha256 and hash-bound code_file input. The portable
+    /// receipt records generator/tool identity, invocation status, and before/after
+    /// SHA-256 fingerprints for its source and outputs. PascalCase field aliases used
+    /// by common command-bus clients are accepted.
+    #[serde(default, deserialize_with = "deserialize_present_code_string")]
+    #[schemars(with = "String")]
+    pub generator_receipt_file: Option<String>,
+    /// SHA-256 of the complete raw generator_receipt_file bytes, 64 hexadecimal
+    /// characters. Engram also re-hashes every receipt member against current disk.
+    #[serde(default, deserialize_with = "deserialize_present_code_string")]
+    #[schemars(with = "String")]
+    pub generator_receipt_sha256: Option<String>,
     /// The language of the code: "vb" or "csharp". Default: "csharp".
     #[serde(default = "default_csharp")]
     pub language: String,

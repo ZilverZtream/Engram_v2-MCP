@@ -4869,7 +4869,15 @@ impl Engram {
             req.code.as_deref(), req.code_file.as_deref(), req.code_file_blake3.as_deref(), req.target_file.as_deref()).await?;
         let output_json = req.output_json;
         if input.evidence.is_some() { req.target_file = input.context.clone(); }
-        let result = self.handle_validate_generated_code_resolved(req, input.code).await;
+        let generator_evidence = crate::utils::generator_receipt::resolve(
+            self,
+            &req.project_id,
+            req.generator_receipt_file.as_deref(),
+            req.generator_receipt_sha256.as_deref(),
+            req.target_file.as_deref(),
+            req.code_file.as_deref(),
+        ).await?;
+        let result = self.handle_validate_generated_code_resolved(req, input.code, generator_evidence).await;
         crate::utils::candidate_code_input::attach(result, input.evidence, output_json)
     }
 
@@ -4877,6 +4885,7 @@ impl Engram {
         &self,
         req: ValidateGeneratedCodeRequest,
         code: String,
+        generator_evidence: Option<crate::utils::generator_receipt::GeneratorReceiptEvidence>,
     ) -> Result<CallToolResult, McpError> {
         let _rec = self.ensure_project_record(&req.project_id).await?;
         let graph = self.state.graph.clone();
@@ -4895,6 +4904,15 @@ impl Engram {
         let result = tokio::task::spawn_blocking(move || {
             let mut checks: Vec<ValidationCheck> = Vec::new();
             let is_vb = language.starts_with("vb");
+
+            if let Some(evidence) = generator_evidence {
+                checks.push(ValidationCheck::new(
+                    "generator_provenance",
+                    evidence.status,
+                    CoverageClass::Verified,
+                    evidence.details,
+                ));
+            }
 
             // Round-6/8: resolve the target against the index EXACTLY. Change kind
             // is now a typed enum (a typo is rejected at deserialization), so the

@@ -30,6 +30,7 @@ tokio.workspace = true
 tokio-util.workspace = true
 uuid.workspace = true
 blake3.workspace = true
+sha2.workspace = true
 regex.workspace = true
 git2.workspace = true
 notify.workspace = true
