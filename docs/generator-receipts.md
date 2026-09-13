@@ -47,3 +47,13 @@ an input error. UTF-8 JSON with or without the standard BOM is accepted; the BOM
 remains part of the exact receipt SHA-256. A successful receipt establishes generator provenance and byte
 identity; it does not establish product behavior, database deployment, runtime
 success, or semantic equivalence to another file.
+
+For `change_kind: modify`, an exact current target that is absent from the
+index can still be validated when both the BLAKE3-bound `code_file` and the
+receipt independently cover it. The report labels this target
+`receipt_verified`; it does not claim that the file was indexed.
+
+For `change_kind: modify`, an exact current target that is absent from the
+index can still be validated when both the BLAKE3-bound `code_file` and the
+receipt independently cover it. The report labels this target
+`receipt_verified`; it does not claim that the file was indexed.

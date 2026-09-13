@@ -16,7 +16,6 @@ async fn fixture() -> (tempfile::TempDir, Engram, String, std::path::PathBuf) {
     let root = temp.path().join("project");
     std::fs::create_dir_all(&root).unwrap();
     std::fs::write(root.join("Model.schema"), "entity Order\n").unwrap();
-    std::fs::write(root.join("Generated.vb"), "Public Class Order\nEnd Class\n").unwrap();
     let config = Config {
         allowed_roots: vec![root.clone()],
         data_dir: temp.path().join("data"),
@@ -39,12 +38,18 @@ async fn fixture() -> (tempfile::TempDir, Engram, String, std::path::PathBuf) {
     let project_id = state.registry.list_projects().unwrap()[0]
         .project_id
         .clone();
+    // Reproduce a generated artifact that appeared after the current index.
+    std::fs::write(
+        root.join("Generated.designer.vb"),
+        "Public Class Order\nEnd Class\n",
+    )
+    .unwrap();
     (temp, engram, project_id, root)
 }
 
 fn write_receipt(root: &std::path::Path, invoked: bool) -> String {
     let source = root.join("Model.schema");
-    let target = root.join("Generated.vb");
+    let target = root.join("Generated.designer.vb");
     let source_bytes = std::fs::read(&source).unwrap();
     let target_bytes = std::fs::read(&target).unwrap();
     let receipt = json!({
@@ -94,12 +99,12 @@ async fn validate(engram: &Engram, value: serde_json::Value) -> Result<String, S
 }
 
 fn request(project_id: &str, root: &std::path::Path, receipt_sha256: &str) -> serde_json::Value {
-    let code = std::fs::read(root.join("Generated.vb")).unwrap();
+    let code = std::fs::read(root.join("Generated.designer.vb")).unwrap();
     json!({
         "project_id": project_id,
-        "code_file": "Generated.vb",
+        "code_file": "Generated.designer.vb",
         "code_file_blake3": blake3::hash(&code).to_hex().to_string(),
-        "target_file": "Generated.vb",
+        "target_file": "Generated.designer.vb",
         "language": "vb",
         "generator_receipt_file": "generator-receipt.json",
         "generator_receipt_sha256": receipt_sha256,
@@ -127,7 +132,7 @@ async fn current_output_mismatch_fails_instead_of_replaying_stale_success() {
     let (_temp, engram, project_id, root) = fixture().await;
     let receipt_sha256 = write_receipt(&root, true);
     std::fs::write(
-        root.join("Generated.vb"),
+        root.join("Generated.designer.vb"),
         "Public Class Tampered\nEnd Class\n",
     )
     .unwrap();
@@ -155,7 +160,7 @@ async fn not_invoked_receipt_fails_and_inline_code_cannot_claim_provenance() {
         json!({
             "project_id": project_id,
             "code": "Public Class Order\nEnd Class",
-            "target_file": "Generated.vb",
+            "target_file": "Generated.designer.vb",
             "language": "vb",
             "generator_receipt_file": "generator-receipt.json",
             "generator_receipt_sha256": receipt_sha256,
