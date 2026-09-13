@@ -383,6 +383,9 @@ impl Engram {
         let files: Vec<String> = req.files.iter().map(|f| f.replace('\\', "/")).collect();
         let rule_files = files.clone();
         let axis_root = std::path::PathBuf::from(&_rec.directory);
+        let canonical_files = files.clone();
+        let canonical_root = axis_root.clone();
+        let canonical_intent = req.change_intent.clone();
         let (configured_risk_pack, configured_risk_notes) =
             super::test_derivation::load_configured_risk_pack(
                 &self.state.cfg.data_dir,
@@ -646,6 +649,45 @@ impl Engram {
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
+        let canonical_sweep = tokio::task::spawn_blocking(move || {
+            use crate::services::pre_commit_review_service::{
+                parse_unified_diff, resolve_bounded_worktree_diff,
+            };
+            let resolved = resolve_bounded_worktree_diff(
+                &canonical_root,
+                &canonical_files,
+                100,
+                20_000,
+                2 * 1024 * 1024,
+            );
+            let (diffs, diff_notes) = match resolved {
+                Ok(resolved) => (
+                    parse_unified_diff(&resolved.text),
+                    resolved
+                        .notes
+                        .into_iter()
+                        .map(|note| format!("canonical-call {note}"))
+                        .collect::<Vec<_>>(),
+                ),
+                Err(error) => (
+                    Vec::new(),
+                    vec![format!(
+                        "canonical-call bounded Git diff resolution failed: {error}"
+                    )],
+                ),
+            };
+            let mut sweep = super::test_derivation::canonical_call_migration_sweep(
+                &canonical_root,
+                canonical_intent.as_deref().unwrap_or_default(),
+                &canonical_files,
+                &diffs,
+            );
+            sweep.notes.extend(diff_notes);
+            sweep
+        })
+        .await
+        .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+
         let (rule_cases, rule_notes) = match self.ensure_project_runtime(&req.project_id).await {
             Ok(runtime) => {
                 let search = runtime.search.clone();
@@ -690,7 +732,11 @@ impl Engram {
                 out.push_str(&format!("- {observation}\n"));
             }
         }
-        for note in coverage_notes.iter().chain(rule_notes.iter()) {
+        for note in coverage_notes
+            .iter()
+            .chain(rule_notes.iter())
+            .chain(canonical_sweep.notes.iter())
+        {
             out.push_str(&format!("INCOMPLETE: {note}\n"));
         }
         if !unresolved.is_empty() {
@@ -769,6 +815,20 @@ impl Engram {
             None,
             &mut out,
         );
+        if canonical_sweep.attempted && !canonical_sweep.summary.is_empty() {
+            out.push_str(&format!(
+                "\n## Canonical-call residual sweep — {}\n{}\n",
+                canonical_sweep.residuals.len(),
+                canonical_sweep.summary,
+            ));
+            if canonical_sweep.residuals.is_empty() {
+                out.push_str("No same-callee plain-string residual was observed within the reported bounded scan. This is not proof that the repository has no aliases, indirect calls, multiline calls, generated sources, non-UTF-8 sources, or sites outside the scan caps.\n");
+            } else {
+                for residual in &canonical_sweep.residuals {
+                    out.push_str(&format!("- {residual}\n"));
+                }
+            }
+        }
         if !intent_axes.is_empty() {
             out.push_str(&format!("\n## Planned-behavior risk axis — {}\nThese cases derive from supplied approved change wording, not from proof that the behavior exists in source. Resolve product decisions before implementation; use source and consumer evidence to bind each case to concrete files:\n", intent_axes.len()));
             for (axis, evidence) in &intent_axes {

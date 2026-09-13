@@ -38,7 +38,7 @@
 //!    `suggestion` field. Findings without a fix are not findings — they
 //!    are noise.
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -2847,6 +2847,112 @@ fn audit_candidate_score(name: &str) -> i32 {
     }
 
     0
+}
+
+/// A requested-path-only HEAD-to-current-worktree diff with explicit render
+/// caps. Staged and unstaged edits share the final worktree coordinates.
+#[derive(Debug)]
+pub struct BoundedWorktreeDiff {
+    pub text: String,
+    pub notes: Vec<String>,
+}
+
+pub fn resolve_bounded_worktree_diff(
+    project_dir: &Path,
+    requested_paths: &[String],
+    max_files: usize,
+    max_lines: usize,
+    max_bytes: usize,
+) -> anyhow::Result<BoundedWorktreeDiff> {
+    anyhow::ensure!(max_files > 0 && max_lines > 0 && max_bytes > 0, "diff caps must be positive");
+    let mut paths = requested_paths
+        .iter()
+        .map(|path| path.trim().replace('\\', "/"))
+        .filter(|path| !path.is_empty() && path.to_ascii_lowercase().ends_with(".vb"))
+        .collect::<Vec<_>>();
+    paths.sort();
+    paths.dedup();
+    if paths.is_empty() {
+        return Ok(BoundedWorktreeDiff { text: String::new(), notes: Vec::new() });
+    }
+    for path in &paths {
+        anyhow::ensure!(!path.contains('\0'), "requested diff path contains a NUL byte");
+        anyhow::ensure!(
+            path.split('/').all(|component| {
+                !component.is_empty() && component != "." && component != ".."
+            }),
+            "requested VB diff path must be normalized and project-relative: {path}"
+        );
+        anyhow::ensure!(
+            std::path::Path::new(path).components().all(|component| {
+                matches!(component, std::path::Component::Normal(_))
+            }),
+            "requested VB diff path must be normalized and project-relative: {path}"
+        );
+    }
+    let repo = git2::Repository::discover(project_dir)?;
+    let workdir = repo.workdir().ok_or_else(|| anyhow::anyhow!("bare repository has no worktree"))?;
+    anyhow::ensure!(
+        workdir.canonicalize()? == project_dir.canonicalize()?,
+        "project root must equal the Git worktree root for bounded diff coordinates"
+    );
+    let mut options = git2::DiffOptions::new();
+    options
+        .include_untracked(true)
+        .recurse_untracked_dirs(true)
+        .show_untracked_content(true)
+        .disable_pathspec_match(true);
+    for path in &paths {
+        options.pathspec(path);
+    }
+    let head_tree = repo.head().ok().and_then(|head| head.peel_to_tree().ok());
+    let diff = repo.diff_tree_to_workdir_with_index(head_tree.as_ref(), Some(&mut options))?;
+    let mut diff_paths = diff
+        .deltas()
+        .filter_map(|delta| delta.new_file().path().or_else(|| delta.old_file().path()))
+        .map(|path| path.to_string_lossy().replace('\\', "/"))
+        .collect::<Vec<_>>();
+    diff_paths.sort();
+    diff_paths.dedup();
+    let omitted_files = diff_paths.len().saturating_sub(max_files);
+    let allowed = diff_paths.into_iter().take(max_files).collect::<BTreeSet<_>>();
+    let mut text = String::new();
+    let mut rendered_lines = 0_usize;
+    let mut truncated = false;
+    diff.print(git2::DiffFormat::Patch, |delta, _hunk, line| {
+        if truncated {
+            return true;
+        }
+        let path = delta
+            .new_file()
+            .path()
+            .or_else(|| delta.old_file().path())
+            .map(|path| path.to_string_lossy().replace('\\', "/"));
+        if path.as_ref().is_none_or(|path| !allowed.contains(path)) {
+            return true;
+        }
+        let prefix = matches!(line.origin(), ' ' | '+' | '-').then_some(line.origin());
+        let content = String::from_utf8_lossy(line.content());
+        let added_bytes = content.len() + usize::from(prefix.is_some());
+        if rendered_lines >= max_lines || text.len().saturating_add(added_bytes) > max_bytes {
+            truncated = true;
+            return true;
+        }
+        if let Some(prefix) = prefix {
+            text.push(prefix);
+        }
+        text.push_str(&content);
+        rendered_lines += 1;
+        true
+    })?;
+    let mut notes = Vec::new();
+    if omitted_files > 0 {
+        notes.push(format!("bounded worktree diff omitted {omitted_files} requested changed file(s) above the {max_files}-file cap"));
+    }
+    if truncated {
+        notes.push(format!("bounded worktree diff stopped at {rendered_lines} rendered line(s), {} byte(s); caps are {max_lines} lines and {max_bytes} bytes", text.len()));
+    }
+    Ok(BoundedWorktreeDiff { text, notes })
 }
 
 /// Detect the project's audit-write convention by name. Searches for
