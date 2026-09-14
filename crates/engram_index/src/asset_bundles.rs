@@ -29,7 +29,11 @@ static BUNDLE_RENDER: LazyLock<Regex> = LazyLock::new(|| {
 /// This deliberately accepts only statically named bundles and concrete member
 /// paths. Dynamic expressions and wildcard members remain visible in source
 /// search, but do not become misleading graph edges.
-pub fn extract_bundle_definitions(rel_path: &RelPath, source: &str) -> Vec<ExtractedEdge> {
+pub fn extract_bundle_definitions(
+    project_root: &Path,
+    rel_path: &RelPath,
+    source: &str,
+) -> Vec<ExtractedEdge> {
     let mut edges = Vec::new();
     let mut seen = HashSet::new();
     let language = source_language(rel_path);
@@ -82,7 +86,7 @@ pub fn extract_bundle_definitions(rel_path: &RelPath, source: &str) -> Vec<Extra
 
         // The regex ends immediately after Include's opening parenthesis.
         for (raw_member, member_offset) in quoted_arguments(source, whole.end() - 1) {
-            let Some(target) = resolve_member_path(rel_path, &raw_member) else {
+            let Some(target) = resolve_member_path(project_root, rel_path, &raw_member) else {
                 continue;
             };
             if !seen.insert((bundle_id.clone(), target.clone(), "member")) {
@@ -176,7 +180,7 @@ fn canonical_bundle_id(raw: &str) -> Option<String> {
     Some(format!("bundle:~/{}", normalized.to_ascii_lowercase()))
 }
 
-fn resolve_member_path(rel_path: &RelPath, raw: &str) -> Option<String> {
+fn resolve_member_path(project_root: &Path, rel_path: &RelPath, raw: &str) -> Option<String> {
     let path = raw
         .trim()
         .split(['?', '#'])
@@ -190,12 +194,51 @@ fn resolve_member_path(rel_path: &RelPath, raw: &str) -> Option<String> {
         return None;
     }
     let scoped = if let Some(rooted) = path.strip_prefix("~/").or_else(|| path.strip_prefix('/')) {
-        rooted.to_string()
+        resolve_application_root_path(project_root, rel_path, rooted)?
     } else {
         let parent = rel_path.as_str().rsplit_once('/').map_or("", |(p, _)| p);
         format!("{parent}/{path}")
     };
     normalize_relative(&scoped)
+}
+
+/// Resolve ASP.NET's `~/` against the web-application root even when Engram
+/// indexes a repository or solution above it. `App_Code` and `App_Start` are
+/// conventional application-root children; for other layouts, an existing
+/// candidate under the nearest source ancestor is strong deterministic proof.
+fn resolve_application_root_path(
+    project_root: &Path,
+    declaration_path: &RelPath,
+    rooted: &str,
+) -> Option<String> {
+    let rooted = normalize_relative(rooted)?;
+    if project_root.join(&rooted).is_file() {
+        return Some(rooted);
+    }
+
+    let declaration_parts: Vec<&str> = declaration_path.as_str().split('/').collect();
+    if let Some(boundary) = declaration_parts.iter().position(|part| {
+        part.eq_ignore_ascii_case("App_Code") || part.eq_ignore_ascii_case("App_Start")
+    }) {
+        let prefix = declaration_parts[..boundary].join("/");
+        return Some(if prefix.is_empty() {
+            rooted
+        } else {
+            format!("{prefix}/{rooted}")
+        });
+    }
+
+    // A custom bundle-registration folder can still reveal the app root from
+    // a concrete member. Prefer the nearest ancestor so sibling web apps do
+    // not cross-link identical asset names.
+    for depth in (0..declaration_parts.len().saturating_sub(1)).rev() {
+        let prefix = declaration_parts[..=depth].join("/");
+        let candidate = format!("{prefix}/{rooted}");
+        if project_root.join(&candidate).is_file() {
+            return Some(candidate);
+        }
+    }
+    Some(rooted)
 }
 
 fn normalize_relative(raw: &str) -> Option<String> {
@@ -295,7 +338,11 @@ mod tests {
     bundles.Add(New ScriptBundle("~/Bundles/App").Include("~/scripts/a.js",
                                                            "~/scripts/b.js"))
 End Sub"#;
-        let edges = extract_bundle_definitions(&RelPath::new("App_Start/BundleConfig.vb"), source);
+        let edges = extract_bundle_definitions(
+            Path::new("."),
+            &RelPath::new("App_Start/BundleConfig.vb"),
+            source,
+        );
         assert_eq!(edges.len(), 3);
         assert_eq!(edges[0].target_name, "bundle:~/bundles/app");
         assert_eq!(edges[1].source_name, "bundle:~/bundles/app");
@@ -309,7 +356,8 @@ End Sub"#;
     fn extracts_csharp_style_bundle_and_rejects_dynamic_or_wildcard_members() {
         let source = r#"bundles.Add(new StyleBundle("/Styles/Main").Include(
             "../content/site.css", "~/content/*.css", GetTheme()));"#;
-        let edges = extract_bundle_definitions(&RelPath::new("Config/Bundles.cs"), source);
+        let edges =
+            extract_bundle_definitions(Path::new("."), &RelPath::new("Config/Bundles.cs"), source);
         assert_eq!(edges.len(), 2);
         assert_eq!(edges[0].target_name, "bundle:~/styles/main");
         assert_eq!(edges[1].target_name, "content/site.css");
@@ -337,5 +385,17 @@ End Sub"#;
                 .collect::<Vec<_>>(),
             vec!["bundle:~/bundles/core", "bundle:~/bundles/page"]
         );
+    }
+
+    #[test]
+    fn rooted_members_follow_the_web_app_above_app_code() {
+        let source =
+            r#"bundles.Add(New ScriptBundle("~/bundles/app").Include("~/scripts/app.js"))"#;
+        let edges = extract_bundle_definitions(
+            Path::new("C:/repo"),
+            &RelPath::new("src/Web/App_Code/BundleConfig.vb"),
+            source,
+        );
+        assert_eq!(edges[1].target_name, "src/Web/scripts/app.js");
     }
 }

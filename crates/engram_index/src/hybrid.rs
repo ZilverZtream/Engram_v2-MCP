@@ -2229,7 +2229,7 @@ impl HybridSearchEngine {
                         // calls live in WebForms or Razor-family templates.
                         if !is_vendor && matches!(ext_lower.as_deref(), Some("vb" | "cs")) {
                             for edge in crate::asset_bundles::extract_bundle_definitions(
-                                &arc_rel, &text,
+                                &root_buf, &arc_rel, &text,
                             ) {
                                 local_stats.edges.push((arc_rel.clone(), edge));
                             }
