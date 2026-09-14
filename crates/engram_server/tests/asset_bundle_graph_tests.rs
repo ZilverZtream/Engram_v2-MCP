@@ -13,6 +13,8 @@ async fn indexed_bundle_connects_rendering_markup_to_static_assets() {
     std::fs::create_dir_all(root.join("Views")).unwrap();
     std::fs::create_dir_all(root.join("Scripts")).unwrap();
     std::fs::create_dir_all(root.join("Content")).unwrap();
+    std::fs::create_dir_all(root.join("Services")).unwrap();
+    std::fs::create_dir_all(root.join("Pages")).unwrap();
     std::fs::write(
         root.join("App_Start/BundleConfig.cs"),
         r#"public static class BundleConfig {
@@ -36,6 +38,16 @@ async fn indexed_bundle_connects_rendering_markup_to_static_assets() {
     )
     .unwrap();
     std::fs::write(root.join("Content/site.css"), "body { color: black; }").unwrap();
+    std::fs::write(
+        root.join("Services/AuthenticationService.cs"),
+        "public class AuthenticationService { public void AuthenticationSession() {} }",
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("Pages/DashboardPage.cs"),
+        "public class DashboardPage { public void Load() { new AuthenticationService().AuthenticationSession(); } }",
+    )
+    .unwrap();
 
     let (state, _) = AppState::new(Config {
         data_dir: temp.path().join("data"),
@@ -87,25 +99,21 @@ async fn indexed_bundle_connects_rendering_markup_to_static_assets() {
 
     // Reverse causal traversal can now move from an edited asset through its
     // bundle to every rendering artifact without filename heuristics.
-    assert!(
-        graph
-            .find_incoming_edges(
-                project_id,
-                Some(EdgeKind::IncludesFile),
-                "file:Scripts/app.js",
-                10
-            )
-            .unwrap()
-            .iter()
-            .any(|(id, _)| id == script_bundle)
-    );
-    assert!(
-        graph
-            .find_incoming_edges(project_id, Some(EdgeKind::IncludesFile), script_bundle, 10,)
-            .unwrap()
-            .iter()
-            .any(|(id, _)| id == layout)
-    );
+    assert!(graph
+        .find_incoming_edges(
+            project_id,
+            Some(EdgeKind::IncludesFile),
+            "file:Scripts/app.js",
+            10
+        )
+        .unwrap()
+        .iter()
+        .any(|(id, _)| id == script_bundle));
+    assert!(graph
+        .find_incoming_edges(project_id, Some(EdgeKind::IncludesFile), script_bundle, 10,)
+        .unwrap()
+        .iter()
+        .any(|(id, _)| id == layout));
 
     let request: GetChangeSetRequest = serde_json::from_value(json!({
         "project_id": project_id,
@@ -125,12 +133,41 @@ async fn indexed_bundle_connects_rendering_markup_to_static_assets() {
         .filter_map(|file| file["path"].as_str())
         .collect::<Vec<_>>();
     assert!(paths.contains(&"Scripts/app.js"), "{payload}");
-    assert!(paths.contains(&"Views/_Layout.cshtml"), "{payload}");
-    assert!(paths.contains(&"App_Start/BundleConfig.cs"), "{payload}");
+    assert!(
+        paths.contains(&"Services/AuthenticationService.cs"),
+        "{payload}"
+    );
+    let dependency_paths = payload["asset_dependencies"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|file| file["path"].as_str())
+        .collect::<Vec<_>>();
+    assert!(
+        dependency_paths.contains(&"Views/_Layout.cshtml"),
+        "{payload}"
+    );
+    assert!(
+        dependency_paths.contains(&"App_Start/BundleConfig.cs"),
+        "{payload}"
+    );
     assert!(
         payload["coverage"]["asset_graph"]["hits"]
             .as_u64()
             .is_some_and(|hits| hits >= 2),
+        "{payload}"
+    );
+    let caller_paths = payload["caller_dependencies"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|file| file["path"].as_str())
+        .collect::<Vec<_>>();
+    assert!(caller_paths.contains(&"Pages/DashboardPage.cs"), "{payload}");
+    assert!(
+        payload["coverage"]["caller_graph"]["hits"]
+            .as_u64()
+            .is_some_and(|hits| hits >= 1),
         "{payload}"
     );
 }

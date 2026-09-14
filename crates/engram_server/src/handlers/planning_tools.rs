@@ -2915,6 +2915,10 @@ mod tests {
             extract_story_concepts("only authorized managers can approve")
                 .contains(&"role".to_string())
         );
+        assert!(
+            extract_story_concepts("Revalidate authenticated sessions")
+                .contains(&"authentication".to_string())
+        );
 
         // No auth language -> no auth concept (no false trigger / noise).
         let plain = extract_story_concepts("Show the invoice filter form on the report page");
@@ -4659,6 +4663,10 @@ const STORY_STOPWORDS: &[&str] = &[
     "handle",
     "avoid",
     "prevent",
+    "chore",
+    "improve",
+    "improved",
+    "current",
     // Story-structure / Gherkin labels and HTTP verbs: scaffolding, not
     // domain concepts (they otherwise steal a top-3 slot from real tokens).
     "acceptance",
@@ -4787,6 +4795,16 @@ pub(crate) fn extract_story_concept_candidates(story: &str) -> Vec<String> {
         }
     }
 
+    // Keep later entity words available for index resolution. Sparse stories
+    // commonly begin with workflow prose, while the code noun appears later.
+    for word in story.split(|c: char| !c.is_alphanumeric()) {
+        if let Some(token) = story_token(word)
+            && seen.insert(token.clone())
+        {
+            out.push(token);
+        }
+    }
+
     // Noun phrases: runs of acceptable tokens, longest window first.
     let toks: Vec<Option<String>> = story
         .split(|c: char| !c.is_alphanumeric())
@@ -4810,7 +4828,7 @@ pub(crate) fn extract_story_concept_candidates(story: &str) -> Vec<String> {
             }
         }
     }
-    out.truncate(24);
+    out.truncate(120);
     out
 }
 
@@ -4834,42 +4852,75 @@ pub(crate) fn resolve_story_concepts(
         .iter()
         .map(|p| p.replace('\\', "/").to_lowercase())
         .collect();
-    let occurs = |needle: &str| -> bool { paths.iter().any(|p| p.contains(needle)) };
+    let occurrence_count =
+        |needle: &str| -> usize { paths.iter().filter(|p| p.contains(needle)).count() };
     let mut out: Vec<String> = cands.iter().take(3).cloned().collect();
     let mut seen: HashSet<String> = out.iter().cloned().collect();
-    for c in cands.iter().skip(3) {
-        if out.len() >= max {
-            break;
-        }
-        let c = c.to_lowercase();
-        if seen.contains(&c) {
+    let mut corroborated: Vec<(usize, usize, String)> = Vec::new();
+    for (position, candidate) in cands.iter().enumerate().skip(3) {
+        let candidate = candidate.to_lowercase();
+        if seen.contains(&candidate) {
             continue;
         }
-        if c.contains(' ') {
-            let compact: String = c.chars().filter(|ch| !ch.is_whitespace()).collect();
-            if compact.len() >= 6 && occurs(&compact) && seen.insert(c.clone()) {
-                out.push(c);
-            }
-            continue;
-        }
-        if c.len() >= 5 && occurs(&c) {
-            if seen.insert(c.clone()) {
-                out.push(c);
-            }
-            continue;
-        }
-        if c.chars().count() >= 10 {
-            // Compound split: the longest corroborated suffix wins.
-            let chars: Vec<char> = c.chars().collect();
-            for k in 1..=chars.len().saturating_sub(8) {
-                let suffix: String = chars[k..].iter().collect();
-                if occurs(&suffix) {
-                    if seen.insert(suffix.clone()) {
-                        out.push(suffix);
-                    }
+        let resolved = if candidate.contains(' ') {
+            let compact: String = candidate
+                .chars()
+                .filter(|ch| !ch.is_whitespace())
+                .collect();
+            (compact.len() >= 6 && occurrence_count(&compact) > 0).then_some(compact)
+        } else if occurrence_count(&candidate) > 0 {
+            Some(candidate.clone())
+        } else if let Some(stem) = concept_stems(&candidate)
+            .into_iter()
+            .skip(1)
+            .filter(|stem| stem.len() >= 5 && occurrence_count(stem) > 0)
+            .min_by_key(|stem| occurrence_count(stem))
+        {
+            Some(stem)
+        } else if candidate.len() >= 10 {
+            let mut derived = None;
+            // Grammatical variants often differ from code nouns while retaining
+            // a long, discriminating stem: authenticated -> authentication*.
+            for suffix in ["ing", "ed", "ation", "ition", "ment", "es", "s"] {
+                if let Some(stem) = candidate.strip_suffix(suffix)
+                    && stem.len() >= 8
+                    && occurrence_count(stem) > 0
+                {
+                    derived = Some(stem.to_string());
                     break;
                 }
             }
+            if derived.is_none() {
+                // Compound split: the longest corroborated suffix wins.
+                let chars: Vec<char> = candidate.chars().collect();
+                for k in 1..=chars.len().saturating_sub(8) {
+                    let suffix: String = chars[k..].iter().collect();
+                    if occurrence_count(&suffix) > 0 {
+                        derived = Some(suffix);
+                        break;
+                    }
+                }
+            }
+            derived
+        } else {
+            None
+        };
+        if let Some(resolved) = resolved {
+            let count = occurrence_count(&resolved);
+            if count > 0 && !seen.contains(&resolved) {
+                corroborated.push((count, position, resolved));
+            }
+        }
+    }
+    // Low document frequency is the most useful generic discriminator. Keep
+    // document order as a stable tie-breaker.
+    corroborated.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+    for (_, _, resolved) in corroborated {
+        if out.len() >= max {
+            break;
+        }
+        if seen.insert(resolved.clone()) {
+            out.push(resolved);
         }
     }
     out
@@ -4933,6 +4984,12 @@ pub(crate) fn extract_story_concepts(story: &str) -> Vec<String> {
         let auth = "role".to_string();
         if seen.insert(auth.clone()) {
             out.push(auth);
+        }
+    }
+    if lower_story.contains("authenticat") {
+        let authentication = "authentication".to_string();
+        if seen.insert(authentication.clone()) {
+            out.push(authentication);
         }
     }
     out
@@ -6228,9 +6285,9 @@ fn change_set_tier(sigs: &BTreeSet<&'static str>) -> u8 {
 }
 
 const ASSET_GRAPH_ANCHOR_CAP: usize = 32;
-const ASSET_GRAPH_BUNDLES_PER_ANCHOR_CAP: usize = 8;
+const ASSET_GRAPH_BUNDLES_PER_ANCHOR_CAP: usize = 3;
 const ASSET_GRAPH_FILES_PER_BUNDLE_CAP: usize = 25;
-const ASSET_GRAPH_RESULT_CAP: usize = 48;
+const ASSET_GRAPH_RESULT_CAP: usize = 32;
 
 #[derive(Debug, Clone)]
 pub(crate) struct AssetGraphFile {
@@ -6434,6 +6491,103 @@ pub(crate) fn expand_asset_bundle_graph(
         }
     }
     result.files.truncate(ASSET_GRAPH_RESULT_CAP);
+    result
+}
+
+const CALLER_GRAPH_ANCHOR_CAP: usize = 24;
+const CALLER_GRAPH_SYMBOLS_PER_ANCHOR_CAP: usize = 24;
+const CALLER_GRAPH_CALLERS_PER_SYMBOL_CAP: usize = 8;
+const CALLER_GRAPH_RESULT_CAP: usize = 32;
+
+#[derive(Debug, Clone)]
+pub(crate) struct CallerGraphFile {
+    pub path: String,
+    pub caller_symbol: String,
+    pub target_symbol: String,
+    pub anchor_path: String,
+    pub edge_kind: String,
+}
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct CallerGraphExpansion {
+    pub files: Vec<CallerGraphFile>,
+    pub skipped_hub_symbols: usize,
+    pub truncated_anchor_symbols: usize,
+    pub query_failures: usize,
+}
+
+/// Find direct source consumers of methods in strong candidate files. Results
+/// are context for inspection/testing, not presumed edits. High-fanout methods
+/// are skipped because framework hooks and generic helpers otherwise dominate.
+pub(crate) fn expand_direct_caller_graph(
+    graph: &engram_graph::GraphStore,
+    project_id: &str,
+    anchor_paths: &[String],
+) -> CallerGraphExpansion {
+    let mut result = CallerGraphExpansion::default();
+    let mut seen_paths = HashSet::new();
+    for anchor_path in anchor_paths.iter().take(CALLER_GRAPH_ANCHOR_CAP) {
+        let nodes = match graph.query_nodes_in_file(project_id, None, anchor_path, 200) {
+            Ok(nodes) => nodes,
+            Err(_) => {
+                result.query_failures += 1;
+                continue;
+            }
+        };
+        let mut callable_nodes: Vec<_> = nodes
+            .into_iter()
+            .filter(|node| node.node_type == "function")
+            .collect();
+        callable_nodes.sort_by(|a, b| a.name.cmp(&b.name));
+        if callable_nodes.len() > CALLER_GRAPH_SYMBOLS_PER_ANCHOR_CAP {
+            result.truncated_anchor_symbols +=
+                callable_nodes.len() - CALLER_GRAPH_SYMBOLS_PER_ANCHOR_CAP;
+        }
+        for target in callable_nodes
+            .into_iter()
+            .take(CALLER_GRAPH_SYMBOLS_PER_ANCHOR_CAP)
+        {
+            let (callers, truncated) = match crate::handlers::incoming_caller_edges_checked(
+                graph,
+                project_id,
+                &target.node_id,
+                CALLER_GRAPH_CALLERS_PER_SYMBOL_CAP,
+            ) {
+                Ok(value) => value,
+                Err(_) => {
+                    result.query_failures += 1;
+                    continue;
+                }
+            };
+            if truncated {
+                result.skipped_hub_symbols += 1;
+                continue;
+            }
+            for (source_id, kind, _) in callers {
+                let Ok(Some(source)) = graph.get_node(project_id, &source_id) else {
+                    continue;
+                };
+                let path = source.file_path.as_str().replace('\\', "/");
+                if path.is_empty()
+                    || path.eq_ignore_ascii_case(anchor_path)
+                    || engram_core::is_vendor_path(&path)
+                    || !seen_paths.insert(path.clone())
+                {
+                    continue;
+                }
+                result.files.push(CallerGraphFile {
+                    path,
+                    caller_symbol: source.name,
+                    target_symbol: target.name.clone(),
+                    anchor_path: anchor_path.clone(),
+                    edge_kind: kind.as_str().to_string(),
+                });
+                if result.files.len() >= CALLER_GRAPH_RESULT_CAP {
+                    return result;
+                }
+            }
+        }
+    }
     result
 }
 
@@ -7189,6 +7343,10 @@ pub(crate) struct ChangeSetCoverage {
     /// ASP.NET Optimization bundle declaration/render relationships.
     #[serde(default)]
     pub asset_graph: ArmCoverage,
+    /// Bounded direct callers of methods in strong candidate files. These are
+    /// consumer/test-surface leads and are kept separate from edit ranking.
+    #[serde(default)]
+    pub caller_graph: ArmCoverage,
     /// Full project node scans performed by this call (audit D7: the
     /// repeated detect_incomplete_changes passes used to re-scan 200k nodes
     /// each; they now share one snapshot).
@@ -7377,6 +7535,7 @@ fn render_change_set_coverage(cov: &ChangeSetCoverage, omitted: usize) -> String
     }
     s.push_str(&format!("- family: {}\n", cov.family.line()));
     s.push_str(&format!("- asset graph: {}\n", cov.asset_graph.line()));
+    s.push_str(&format!("- caller graph: {}\n", cov.caller_graph.line()));
     s.push_str(&format!("- node scans: {}\n", cov.node_scans));
     if !cov.lexicon_concepts.is_empty() {
         s.push_str(&format!(
@@ -7705,7 +7864,7 @@ impl Engram {
         // drive retrieval when the caller opts in (see the request doc).
         let concept_candidates: Vec<String> = {
             let cands = extract_story_concept_candidates(&retrieval_story);
-            resolve_story_concepts(&cands, &index_paths, 6)
+            resolve_story_concepts(&cands, &index_paths, 10)
         };
         // External audit 2026-08-29 P0-3: an explicit gloss retrieves by DEFAULT.
         let gloss_terms = extract_story_gloss_concepts(&retrieval_story);
@@ -7733,6 +7892,7 @@ impl Engram {
                 None => (Vec::new(), Vec::new()),
             }
         };
+        let has_explicit_concepts = req.concepts.as_ref().is_some_and(|c| !c.is_empty());
         let mut concepts: Vec<String> = match &req.concepts {
             Some(c) if !c.is_empty() => c.iter().take(3).cloned().collect(),
             _ if req.expand_concepts => concept_candidates.clone(),
@@ -7749,6 +7909,23 @@ impl Engram {
                 base
             }
         };
+        if has_explicit_concepts {
+            // Agent hints are useful evidence, but they must not suppress the
+            // server's index-resolved reading of the full story. Merge both,
+            // preserving explicit priority and bounding the retrieval fan-out.
+            for candidate in concept_candidates
+                .iter()
+                .chain(gloss_concepts.iter())
+                .chain(lexicon_concepts.iter().take(LEXICON_CONCEPT_CAP))
+            {
+                if concepts.len() >= 10 {
+                    break;
+                }
+                if !concepts.contains(candidate) {
+                    concepts.push(candidate.clone());
+                }
+            }
+        }
 
         // Row-1 audit: every candidate carries WHY it is here and every arm
         // reports what it delivered (never a silent `if let Ok`).
@@ -8330,6 +8507,8 @@ impl Engram {
         // index: code-behind/designer of a page, and the full .resx language set.
         // Generic framework patterns, not per-repo. Match prefix-insensitively
         // (the "Site/" web-root prefix is stripped on both sides).
+        let mut asset_dependencies: Vec<AssetGraphFile> = Vec::new();
+        let mut caller_dependencies: Vec<CallerGraphFile> = Vec::new();
         if let Ok(meta) = self.state.graph.list_file_node_metadata(&req.project_id) {
             let strip = |p: &str| -> String {
                 let p = p.replace('\\', "/").to_lowercase();
@@ -8544,6 +8723,22 @@ impl Engram {
                 .filter(|(_, signals)| {
                     !signals.contains("broad") && change_set_strength(signals) > 0
                 })
+                .filter(|(path, signals)| {
+                    let lower = path.to_ascii_lowercase();
+                    let asset = lower.ends_with(".js") || lower.ends_with(".css");
+                    let markup = [
+                        ".aspx", ".ascx", ".master", ".vbhtml", ".cshtml", ".razor", ".html",
+                    ]
+                    .iter()
+                    .any(|suffix| lower.ends_with(suffix));
+                    let direct_story_evidence = signals.contains("concept")
+                        || signals.contains("history")
+                        || signals.contains("name")
+                        || signals.contains("gloss")
+                        || signals.contains("vtop3")
+                        || change_set_strength(signals) >= 2;
+                    asset || (markup && direct_story_evidence)
+                })
                 .filter_map(|(path, signals)| {
                     indexed_by_normalized
                         .get(&strip(path))
@@ -8570,28 +8765,7 @@ impl Engram {
             .await
             .unwrap_or_default();
             let asset_hits = asset_expansion.files.len();
-            for linked in asset_expansion.files {
-                let Some(anchor_key) = prov
-                    .keys()
-                    .find(|path| strip(path) == strip(&linked.anchor_path))
-                    .cloned()
-                else {
-                    continue;
-                };
-                let mut signals = prov.get(&anchor_key).cloned().unwrap_or_default();
-                signals.insert("graph");
-                signals.insert("family");
-                let bundle = linked
-                    .bundle_id
-                    .as_deref()
-                    .map(|id| format!(" through `{id}`"))
-                    .unwrap_or_default();
-                why.entry(linked.path.clone()).or_default().push(format!(
-                    "{}{}; structural anchor `{}`",
-                    linked.relation, bundle, linked.anchor_path
-                ));
-                prov.entry(linked.path).or_default().extend(signals);
-            }
+            asset_dependencies = asset_expansion.files;
             cov.asset_graph = ArmCoverage::complete(
                 asset_hits,
                 asset_started.elapsed().as_millis(),
@@ -8604,6 +8778,80 @@ impl Engram {
                     "bounded fan-out skipped {} hub anchor traversal(s) and {} oversized bundle traversal(s)",
                     asset_expansion.skipped_hub_anchors,
                     asset_expansion.skipped_hub_bundles
+                );
+            }
+
+            let caller_started = std::time::Instant::now();
+            let mut ranked_caller_anchors: Vec<(u8, usize, String)> = prov
+                .iter()
+                .filter(|(_, signals)| {
+                    (signals.contains("concept") && !signals.contains("lexicon"))
+                        || signals.contains("history")
+                        || signals.contains("name")
+                        || signals.contains("gloss")
+                        || signals.contains("vtop3")
+                })
+                .filter(|(path, _)| {
+                    let lower = path.to_ascii_lowercase();
+                    lower.ends_with(".vb")
+                        || lower.ends_with(".cs")
+                        || lower.ends_with(".fs")
+                        || lower.ends_with(".java")
+                        || lower.ends_with(".kt")
+                        || lower.ends_with(".ts")
+                        || lower.ends_with(".tsx")
+                        || lower.ends_with(".js")
+                        || lower.ends_with(".jsx")
+                        || lower.ends_with(".py")
+                        || lower.ends_with(".rb")
+                        || lower.ends_with(".go")
+                        || lower.ends_with(".rs")
+                })
+                .filter_map(|(path, signals)| {
+                    indexed_by_normalized
+                        .get(&strip(path))
+                        .cloned()
+                        .map(|exact| (change_set_tier(signals), change_set_strength(signals), exact))
+                })
+                .collect();
+            ranked_caller_anchors.sort_by(|a, b| {
+                a.0.cmp(&b.0)
+                    .then_with(|| b.1.cmp(&a.1))
+                    .then_with(|| a.2.cmp(&b.2))
+            });
+            ranked_caller_anchors.dedup_by(|a, b| a.2.eq_ignore_ascii_case(&b.2));
+            let caller_anchor_paths: Vec<String> = ranked_caller_anchors
+                .into_iter()
+                .take(CALLER_GRAPH_ANCHOR_CAP)
+                .map(|(_, _, path)| path)
+                .collect();
+            let caller_graph = self.state.graph.clone();
+            let caller_pid = req.project_id.clone();
+            let caller_expansion = tokio::task::spawn_blocking(move || {
+                expand_direct_caller_graph(&caller_graph, &caller_pid, &caller_anchor_paths)
+            })
+            .await
+            .unwrap_or_default();
+            let caller_hits = caller_expansion.files.len();
+            caller_dependencies = caller_expansion.files;
+            cov.caller_graph = ArmCoverage::complete(
+                caller_hits,
+                caller_started.elapsed().as_millis(),
+            );
+            if caller_expansion.skipped_hub_symbols > 0
+                || caller_expansion.truncated_anchor_symbols > 0
+                || caller_expansion.query_failures > 0
+            {
+                cov.caller_graph.status = if caller_expansion.query_failures > 0 {
+                    "incomplete".into()
+                } else {
+                    "truncated".into()
+                };
+                cov.caller_graph.note = format!(
+                    "bounded traversal skipped {} high-fanout symbol(s), omitted {} anchor symbol(s), and had {} query failure(s)",
+                    caller_expansion.skipped_hub_symbols,
+                    caller_expansion.truncated_anchor_symbols,
+                    caller_expansion.query_failures
                 );
             }
             // Round-2 audit P0-3 (compound / name coverage): a file whose NAME
@@ -8660,6 +8908,7 @@ impl Engram {
         } else {
             cov.family = ArmCoverage::failed("file index unavailable".into(), 0);
             cov.asset_graph = ArmCoverage::failed("file index unavailable".into(), 0);
+            cov.caller_graph = ArmCoverage::failed("file index unavailable".into(), 0);
         }
         cov.stages
             .insert("family_done".into(), t_all.elapsed().as_millis());
@@ -9122,6 +9371,39 @@ impl Engram {
         );
         cov.stages
             .insert("render".into(), t_all.elapsed().as_millis());
+        if !asset_dependencies.is_empty() {
+            out.push_str("\n## Asset delivery consumers and dependencies\n\n");
+            out.push_str(
+                "These are exact static include/bundle links to inspect or test. The graph link alone does not imply that the file should be edited.\n\n",
+            );
+            for linked in &asset_dependencies {
+                let bundle = linked
+                    .bundle_id
+                    .as_deref()
+                    .map(|id| format!(" through `{id}`"))
+                    .unwrap_or_default();
+                out.push_str(&format!(
+                    "- `{}` — {}{}; anchor `{}`\n",
+                    linked.path, linked.relation, bundle, linked.anchor_path
+                ));
+            }
+        }
+        if !caller_dependencies.is_empty() {
+            out.push_str("\n## Direct source consumers\n\n");
+            out.push_str(
+                "These are bounded static caller links to inspect or test. A caller link alone does not imply that the file should be edited.\n\n",
+            );
+            for linked in &caller_dependencies {
+                out.push_str(&format!(
+                    "- `{}` — `{}` {} `{}` from anchor `{}`\n",
+                    linked.path,
+                    linked.caller_symbol,
+                    linked.edge_kind,
+                    linked.target_symbol,
+                    linked.anchor_path
+                ));
+            }
+        }
         // Row 5 (owner 2026-08-29): the UI contract rides with the change set —
         // gated on markup in the top tier, filtered to the families that markup
         // already belongs to. The catalog is cached per generation and the gate
@@ -9287,6 +9569,31 @@ impl Engram {
                 .collect();
             let files_shown = files.len();
             let omissions_shown = output_omissions.len();
+            let asset_dependencies_json = asset_dependencies
+                .iter()
+                .map(|linked| {
+                    serde_json::json!({
+                        "path": linked.path,
+                        "relation": linked.relation,
+                        "bundle_id": linked.bundle_id,
+                        "anchor_path": linked.anchor_path,
+                        "disposition": "inspect_or_test",
+                    })
+                })
+                .collect::<Vec<_>>();
+            let caller_dependencies_json = caller_dependencies
+                .iter()
+                .map(|linked| {
+                    serde_json::json!({
+                        "path": linked.path,
+                        "caller_symbol": linked.caller_symbol,
+                        "target_symbol": linked.target_symbol,
+                        "anchor_path": linked.anchor_path,
+                        "edge_kind": linked.edge_kind,
+                        "disposition": "inspect_or_test",
+                    })
+                })
+                .collect::<Vec<_>>();
             let payload = serde_json::json!({
                 "story": req.story.trim(),
                 "concepts": concepts,
@@ -9308,6 +9615,8 @@ impl Engram {
                     .as_ref()
                     .and_then(|c| serde_json::to_value(c).ok())
                     .unwrap_or(serde_json::Value::Null),
+                "asset_dependencies": asset_dependencies_json,
+                "caller_dependencies": caller_dependencies_json,
                 "permission_gates": permission_gates_json,
             });
             return Ok(CallToolResult::success(vec![Content::text(
@@ -12339,6 +12648,28 @@ mod story_concept_resolution_tests {
         ];
         let resolved = resolve_story_concepts(&cands, &[], 6);
         assert_eq!(resolved, vec!["main", "reporting", "category"]);
+    }
+
+    #[test]
+    fn resolution_uses_later_story_entities_and_long_inflection_stems() {
+        let story = "Improve active user sessions after authorization changes so authenticated accounts are revalidated";
+        let index = vec![
+            "src/security/AuthenticationService.vb".to_string(),
+            "src/security/SessionRepository.vb".to_string(),
+        ];
+        let resolved = resolve_story_concepts(
+            &extract_story_concept_candidates(story),
+            &index,
+            6,
+        );
+        assert!(
+            resolved.iter().any(|c| c == "authenticat"),
+            "authenticated must reach AuthenticationService: {resolved:?}"
+        );
+        assert!(
+            resolved.iter().any(|c| c == "session" || c == "sessions"),
+            "session entity must remain eligible: {resolved:?}"
+        );
     }
 }
 
