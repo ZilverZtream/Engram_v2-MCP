@@ -1782,6 +1782,8 @@ impl Engram {
                 rule_text,
                 priority: 10,
                 updated_at_ms: now_ms(),
+                introduced_at: None,
+                provenance: Some("revert-derived rule".into()),
             };
             self.state
                 .registry

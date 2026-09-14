@@ -427,7 +427,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Suggest candidate files for a user story using exact code-shaped entities, concepts, historical co-change and structural graph evidence. Ranks candidates, expands discovered deployable families (including WebForms code-behind/resources, TypeScript bundles, DBML schema/designer/layout units and nearest owning SQL projects), and follows bounded direct caller plus asset-bundle links. Deterministic companions that exist on disk but are excluded from the source index are labelled existing_unindexed rather than historical. Primary and dependency rows carry stable P/A/C IDs plus a SHA-256 reconciliation receipt; copy every row and classify it as include, conditional or evidence-backed exclude before planning so useful evidence cannot silently disappear. Results do not establish complete scope, required edits or reviewer approval."
+        description = "Suggest candidate files for a user story using exact code-shaped entities, concepts, historical co-change and structural graph evidence. Ranks candidates, expands deployable families, follows direct caller and asset-bundle links, supplies applicable repository rules, cross-cutting obligations, and new-component responsibility hypotheses. Primary and dependency rows carry stable P/A/C IDs plus a SHA-256 reconciliation receipt; copy every row and classify it before planning. Use detail=reconciled for the complete receipt-bound planning payload without the unbounded companion tail; use full only for forensic diagnostics. Results do not establish complete scope, required edits or reviewer approval."
     )]
     pub async fn get_change_set(
         &self,
@@ -585,7 +585,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Add a persistent repo constraint (e.g. 'always use SafeRedirect'). Rules are injected into get_chunk output and enforced by review tools."
+        description = "Add a persistent repository constraint. Rules are injected into get_chunk, surfaced during change-set planning, and enforced by review tools. Supply introduced_at and provenance when the rule must participate in point-in-time historical work."
     )]
     pub async fn add_repo_rule(
         &self,
@@ -594,7 +594,7 @@ impl Engram {
         self.handle_add_repo_rule(params.0).await
     }
 
-    #[tool(description = "List the project's repo rules with their rule_ids.")]
+    #[tool(description = "List repository rules with their full text, file scope, priority, evidence date, provenance, and stable rule_id.")]
     pub async fn list_repo_rules(
         &self,
         params: Parameters<ProjectIdRequest>,

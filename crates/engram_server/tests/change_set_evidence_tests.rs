@@ -228,7 +228,7 @@ async fn json_flag_is_rejected_nowhere_and_markdown_stays_default() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn structured_output_is_compact_by_default_and_full_is_explicit() {
+async fn structured_output_has_compact_reconciled_and_forensic_views() {
     let (_tmp, state) = build_state();
     seed(&state);
     let engram = Engram::new(state);
@@ -242,6 +242,22 @@ async fn structured_output_is_compact_by_default_and_full_is_explicit() {
     assert!(compact["view"]["files_total"].is_number());
     assert!(compact["view"]["files_omitted_from_view"].is_number());
     assert_eq!(compact["view"]["full_detail_request"]["detail"], "full");
+
+    let reconciled = change_set(
+        &engram,
+        json!({
+            "project_id": PID,
+            "story": "Revalidate authenticated browser sessions after role changes",
+            "output_json": true,
+            "detail": "reconciled"
+        }),
+    )
+    .await;
+    assert_eq!(reconciled["view"]["detail"], "reconciled");
+    assert!(reconciled["files"].as_array().unwrap().iter().all(|row| row["set"] == "primary"));
+    assert!(reconciled["cross_cutting_obligations"].as_array().unwrap().len() >= 5);
+    assert!(!reconciled["component_hypotheses"].as_array().unwrap().is_empty());
+    assert!(reconciled["applicable_repository_rules"]["rules"].is_array());
 
     let full = change_set(
         &engram,

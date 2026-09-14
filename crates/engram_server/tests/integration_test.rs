@@ -1129,6 +1129,8 @@ async fn test_delete_project() {
             rule_text: "Rule".into(),
             priority: 1,
             rule_id: None,
+            introduced_at: None,
+            provenance: None,
         }))
         .await
         .unwrap();
@@ -1641,6 +1643,8 @@ async fn test_get_chunk_hardening() {
             rule_text: "Use four spaces".into(),
             priority: 1,
             rule_id: None,
+            introduced_at: None,
+            provenance: None,
         }))
         .await
         .unwrap();

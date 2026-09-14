@@ -2764,6 +2764,17 @@ impl Engram {
             engram_index::SemanticQuality::Off => "off (fts_only)",
         };
         out.push_str(&format!("semantic_search: {semantic}\n"));
+        match ps.search.semantic_quality() {
+            engram_index::SemanticQuality::Semantic => {
+                out.push_str("retrieval_readiness: READY (lexical and semantic providers available)\n");
+            }
+            engram_index::SemanticQuality::DegradedTrigram => {
+                out.push_str("retrieval_readiness: DEGRADED (semantic provider is a trigram projection; meaning-based recall is not fully available)\n");
+            }
+            engram_index::SemanticQuality::Off => {
+                out.push_str("retrieval_readiness: DEGRADED (semantic retrieval is disabled; Health: OK covers source-index integrity only)\n");
+            }
+        }
 
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
@@ -4272,6 +4283,14 @@ impl Engram {
         req: AddRepoRuleRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        if req.introduced_at.as_deref().is_some_and(|date| {
+            !crate::handlers::test_derivation::valid_yyyy_mm_dd(date)
+        }) {
+            return Err(McpError::invalid_params(
+                "introduced_at must be YYYY-MM-DD",
+                None,
+            ));
+        }
         let rule_id = req.rule_id.unwrap_or_else(|| Uuid::new_v4().to_string());
         let rule = engram_core::RepoRule {
             rule_id: rule_id.clone(),
@@ -4279,6 +4298,8 @@ impl Engram {
             rule_text: req.rule_text,
             priority: req.priority,
             updated_at_ms: now_ms(),
+            introduced_at: req.introduced_at,
+            provenance: req.provenance,
         };
         self.state
             .registry
@@ -4298,9 +4319,22 @@ impl Engram {
             .registry
             .list_repo_rules(&req.project_id)
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        let mut out = String::new();
+        let mut out = String::from("# Repository rules\n\n");
+        if rules.is_empty() {
+            out.push_str("No repository rules are stored for this project.\n");
+        }
         for r in rules {
-            out.push_str(&format!("- {} | {}\n", r.rule_id, r.file_pattern));
+            let text = r.rule_text.replace(['\r', '\n'], " ");
+            out.push_str(&format!(
+                "- `{}` | files: `{}` | priority: {} | introduced: {} | provenance: {} | updated_at_ms: {}\n  {}\n",
+                r.rule_id,
+                r.file_pattern,
+                r.priority,
+                r.introduced_at.as_deref().unwrap_or("undated"),
+                r.provenance.as_deref().unwrap_or("unspecified"),
+                r.updated_at_ms,
+                text
+            ));
         }
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }

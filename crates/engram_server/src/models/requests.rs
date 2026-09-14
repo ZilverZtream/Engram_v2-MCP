@@ -640,11 +640,13 @@ pub struct GetChangeSetRequest {
     /// Return the structured JSON payload (concepts, per-file evidence with
     /// rationale, per-arm coverage, omissions) instead of markdown. The
     /// default compact detail keeps the highest-ranked candidates and reports
-    /// every cut; set `detail` to `full` for forensic output.
+    /// every cut. `reconciled` returns exactly the receipt-bound primary rows
+    /// plus asset/caller dependencies and planning obligations. `full` is the
+    /// unbounded forensic view.
     /// Default false.
     #[serde(default)]
     pub output_json: bool,
-    /// Structured response detail: `compact` (default) or `full`. Compact is
+    /// Structured response detail: `compact` (default), `reconciled`, or `full`. Compact is
     /// designed for an agent's planning context; it caps displayed candidates,
     /// omissions and diagnostic messages while retaining their exact totals.
     #[serde(default)]
@@ -1452,6 +1454,12 @@ pub struct AddRepoRuleRequest {
     pub priority: i32,
     #[serde(default)]
     pub rule_id: Option<String>,
+    /// Date on which the rule became supported by its source evidence.
+    /// Required for the rule to participate in historical replays.
+    #[serde(default)]
+    pub introduced_at: Option<String>,
+    #[serde(default)]
+    pub provenance: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]

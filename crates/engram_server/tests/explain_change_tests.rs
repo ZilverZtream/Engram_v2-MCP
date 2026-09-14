@@ -105,6 +105,8 @@ async fn staged_diff_with_immune_file_gets_red_risk_and_addresses_rule() {
                 rule_text: "BaseDeleteByInputQuery lacked multitenant WHERE".into(),
                 priority: 1,
                 updated_at_ms: 1,
+                introduced_at: None,
+                provenance: None,
             },
         )
         .unwrap();

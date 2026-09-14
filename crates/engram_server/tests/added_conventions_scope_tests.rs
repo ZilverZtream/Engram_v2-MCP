@@ -55,6 +55,8 @@ async fn review(patterns: &[(&str, &str)], documented: bool) -> Vec<ReviewFindin
                     rule_text: (*text).into(),
                     priority: 50,
                     updated_at_ms: 1,
+                    introduced_at: None,
+                    provenance: None,
                 },
             )
             .unwrap();
