@@ -7976,7 +7976,13 @@ fn change_set_boundary_audit(
         serde_json::json!({
             "boundary": key,
             "purpose": purpose,
-            "status": if total == 0 { "unresolved" } else { "evidence_present" },
+            "status": if total == 0 {
+                "unresolved"
+            } else if total > 20 {
+                "partial"
+            } else {
+                "evidence_present"
+            },
             "paths": paths.into_iter().take(20).collect::<Vec<_>>(),
             "paths_total": total,
             "truncated": total > 20,
@@ -7986,12 +7992,23 @@ fn change_set_boundary_audit(
         .filter(|category| category["status"] == "unresolved")
         .filter_map(|category| category["boundary"].as_str())
         .collect::<Vec<_>>();
+    let coverage_stops = category_values.iter()
+        .filter(|category| category["status"] == "partial")
+        .map(|category| serde_json::json!({
+            "boundary": category["boundary"],
+            "paths_shown": category["paths"].as_array().map_or(0, Vec::len),
+            "paths_total": category["paths_total"],
+            "reason": "candidate paths were truncated; displayed evidence cannot establish complete boundary coverage"
+        }))
+        .collect::<Vec<_>>();
+    let complete = unresolved.is_empty() && coverage_stops.is_empty();
 
     serde_json::json!({
-        "status": if unresolved.is_empty() { "covered_by_retrieved_evidence" } else { "incomplete" },
+        "status": if complete { "covered_by_retrieved_evidence" } else { "incomplete" },
         "categories": category_values,
         "unresolved": unresolved,
-        "instruction": "For every category, reconcile literal search with graph, state, history, and current source. Evidence present is a starting set, not proof of completeness. An unresolved category needs an evidence-backed not-applicable decision or additional paths before the feature contract is complete."
+        "coverage_stops": coverage_stops,
+        "instruction": "For every category, reconcile literal search with graph, state, history, and current source. Evidence present is a starting set, not proof of completeness. An unresolved category needs an evidence-backed not-applicable decision or additional paths; a partial category needs the omitted paths or an independent exhaustive inventory before the feature contract is complete."
     })
 }
 
@@ -14271,6 +14288,42 @@ mod change_set_rows_tests {
             .any(|path| path == "src/Global.asax.vb"));
         assert!(audit["unresolved"].as_array().unwrap().iter()
             .any(|boundary| boundary == "security_state_persistence"));
+    }
+
+    #[test]
+    fn auth_boundary_audit_never_claims_complete_coverage_for_truncated_paths() {
+        let rows = (0..21)
+            .map(|index| ChangeSetRow {
+                path: format!("src/security-{index}.config"),
+                layer: "Config",
+                layer_index: 0,
+                tier: 0,
+                signals: vec!["business"],
+                omitted: false,
+                set: "primary",
+                rank: index + 1,
+            })
+            .collect::<Vec<_>>();
+        let audit = change_set_boundary_audit(
+            "Revalidate authenticated sessions after permission changes",
+            &rows,
+            &[],
+            &[],
+        );
+        let deployment = audit["categories"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|category| category["boundary"] == "deployment_and_runtime_prerequisites")
+            .unwrap();
+        assert_eq!(deployment["status"], "partial");
+        assert_eq!(deployment["paths_total"], 21);
+        assert_eq!(deployment["paths"].as_array().unwrap().len(), 20);
+        assert_eq!(audit["status"], "incomplete");
+        assert!(audit["coverage_stops"].as_array().unwrap().iter().any(|stop| {
+            stop["boundary"] == "deployment_and_runtime_prerequisites"
+                && stop["paths_total"] == 21
+        }));
     }
 
     #[test]
