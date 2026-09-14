@@ -27,6 +27,116 @@ use rmcp::model::{CallToolResult, Content};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::PathBuf;
 
+const PROJECT_POLICY_SOURCE_CAP: usize = 8;
+const PROJECT_POLICY_SOURCE_CHAR_CAP: usize = 10_000;
+const PROJECT_POLICY_TOTAL_CHAR_CAP: usize = 24_000;
+
+fn is_project_policy_path(path: &str) -> bool {
+    let normalized = path.replace('\\', "/");
+    let lower = normalized.to_ascii_lowercase();
+    let name = lower.rsplit('/').next().unwrap_or(&lower);
+    matches!(
+        name,
+        "agents.md"
+            | "claude.md"
+            | "contributing.md"
+            | "copilot-instructions.md"
+            | "coding-standards.md"
+            | "code-style.md"
+    ) || name.ends_with(".instructions.md")
+        || ((lower.starts_with(".cursor/rules/") || lower.contains("/.cursor/rules/"))
+            && (name.ends_with(".md") || name.ends_with(".mdc")))
+}
+
+fn project_policy_priority(path: &str) -> (u8, usize, String) {
+    let normalized = path.replace('\\', "/");
+    let lower = normalized.to_ascii_lowercase();
+    let name = lower.rsplit('/').next().unwrap_or(&lower);
+    let class = match name {
+        "agents.md" => 0,
+        "claude.md" => 1,
+        "copilot-instructions.md" => 2,
+        _ if name.ends_with(".instructions.md") => 3,
+        "coding-standards.md" | "code-style.md" => 4,
+        "contributing.md" => 5,
+        _ => 6,
+    };
+    (class, normalized.matches('/').count(), lower)
+}
+
+/// Read human-authored repository instructions from the checked-out source.
+/// These files are first-party evidence and must reach planning even when the
+/// optional quality-gate ingestion job has not run. Content is hash-bound and
+/// bounded so a large instruction tree cannot flood the tool response.
+fn project_policy_sources(
+    project_root: &std::path::Path,
+    indexed_paths: &[String],
+) -> serde_json::Value {
+    let mut candidates = indexed_paths
+        .iter()
+        .filter(|path| is_project_policy_path(path))
+        .map(|path| path.replace('\\', "/"))
+        .collect::<Vec<_>>();
+    for conventional in [
+        "AGENTS.md",
+        "CLAUDE.md",
+        ".github/copilot-instructions.md",
+        "CONTRIBUTING.md",
+        "CODING-STANDARDS.md",
+        "CODE_STYLE.md",
+    ] {
+        if project_root.join(conventional).is_file() {
+            candidates.push(conventional.to_string());
+        }
+    }
+    candidates.sort_by_key(|path| project_policy_priority(path));
+    candidates.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
+    let discovered = candidates.len();
+
+    let mut remaining = PROJECT_POLICY_TOTAL_CHAR_CAP;
+    let mut sources = Vec::new();
+    for relative in candidates.into_iter().take(PROJECT_POLICY_SOURCE_CAP) {
+        if remaining == 0 {
+            break;
+        }
+        let Ok(path) = engram_core::safe_join(project_root, &relative) else {
+            continue;
+        };
+        let Ok(bytes) = std::fs::read(&path) else {
+            continue;
+        };
+        let Ok(text) = String::from_utf8(bytes.clone()) else {
+            continue;
+        };
+        let take = text
+            .chars()
+            .count()
+            .min(PROJECT_POLICY_SOURCE_CHAR_CAP)
+            .min(remaining);
+        let content = text.chars().take(take).collect::<String>();
+        remaining = remaining.saturating_sub(take);
+        sources.push(serde_json::json!({
+            "path": relative,
+            "blake3": blake3::hash(&bytes).to_hex().to_string(),
+            "characters_total": text.chars().count(),
+            "characters_shown": take,
+            "truncated": take < text.chars().count(),
+            "content": content,
+        }));
+    }
+
+    serde_json::json!({
+        "status": if sources.is_empty() { "absent" } else { "present" },
+        "sources": sources,
+        "sources_discovered": discovered,
+        "sources_shown": sources.len(),
+        "source_cap": PROJECT_POLICY_SOURCE_CAP,
+        "character_cap_per_source": PROJECT_POLICY_SOURCE_CHAR_CAP,
+        "character_cap_total": PROJECT_POLICY_TOTAL_CHAR_CAP,
+        "instruction": "Treat these checked-out, hash-bound files as repository policy evidence. Apply the sections relevant to the planned files and record any conflict or ambiguity; do not silently replace them with inferred conventions."
+    })
+}
+
 // ── Pure helpers ─────────────────────────────────────────────────────────────
 
 /// Lowercase concept stems used for substring matching: the term itself,
@@ -7486,7 +7596,9 @@ fn change_set_cross_cutting_obligations(story: &str) -> Vec<serde_json::Value> {
             "trigger": "the story persists or versions state",
             "checks": [
                 "keep schema, migration or post-deploy script, generated or mapped model, and data access behavior aligned",
-                "define defaults, nullability, concurrency, and rollback or compatibility behavior"
+                "define defaults, nullability, concurrency, and rollback or compatibility behavior",
+                "for an added or tightened column, prove the upgrade path for existing rows: explicit backfill, compatible default, or evidence that NULL is accepted end to end",
+                "preserve the schema model's established column-order convention and verify that deployment tooling does not infer a destructive rebuild from an incidental reorder"
             ],
             "candidate_mechanism_roles": ["persistence schema or data operation", "configuration and defaults"]
         }));
@@ -10538,6 +10650,7 @@ impl Engram {
                 req.story.trim(),
                 req.merged_before.as_deref(),
             );
+            let project_policy_sources = project_policy_sources(&project_root, &index_paths);
             let payload = serde_json::json!({
                 "story": req.story.trim(),
                 "concepts": concepts,
@@ -10567,6 +10680,7 @@ impl Engram {
                 "cross_cutting_obligations": cross_cutting_obligations,
                 "component_hypotheses": component_hypotheses,
                 "work_item_evidence_risk": work_item_evidence_risk,
+                "project_policy_sources": project_policy_sources,
                 "applicable_repository_rules": {
                     "rules": applicable_rules,
                     "exclusive_cutoff": req.merged_before,
