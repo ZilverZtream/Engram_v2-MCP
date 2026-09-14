@@ -368,6 +368,14 @@ impl Engram {
         validate_project_id(&req.project_id)?;
         let _rec = self.ensure_project_record(&req.project_id).await?;
         let intent_axes = super::test_derivation::intent_risk_axes(req.change_intent.as_deref());
+        if req.knowledge_before.as_deref()
+            .is_some_and(|date| !super::test_derivation::valid_yyyy_mm_dd(date))
+        {
+            return Err(McpError::invalid_params(
+                "knowledge_before must be YYYY-MM-DD",
+                None,
+            ));
+        }
         if req.files.is_empty()
             || req.files.len() > 100
             || req.files.iter().any(|file| file.trim().is_empty())
@@ -387,9 +395,10 @@ impl Engram {
         let canonical_root = axis_root.clone();
         let canonical_intent = req.change_intent.clone();
         let (configured_risk_pack, configured_risk_notes) =
-            super::test_derivation::load_configured_risk_pack(
+            super::test_derivation::load_configured_risk_pack_before(
                 &self.state.cfg.data_dir,
                 &axis_root,
+                req.knowledge_before.as_deref(),
             );
         let configured_risk_count = configured_risk_pack.len();
 
@@ -728,6 +737,9 @@ impl Engram {
         }
         if configured_risk_count > 0 {
             out.push_str(&format!("Configured risk packs: {configured_risk_count} validated rule(s) loaded at call time; repository rules override organization rules by stable id.\n"));
+        }
+        if let Some(cutoff) = req.knowledge_before.as_deref() {
+            out.push_str(&format!("Historical knowledge cutoff: configured rules require dated provenance strictly before {cutoff}; undated and newer rules are excluded and reported.\n"));
         }
         if !companion_context.is_empty() {
             out.push_str("Direct UI context: code-behind declarations and one-hop user-control hosts from source-verified markup/graph edges. A companion or host is context, not a changed file; its indexed axes are separately checked below. No transitive helper calls are inferred. Business-rule cases remain scoped to the explicitly requested files.\n");

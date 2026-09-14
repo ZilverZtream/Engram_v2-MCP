@@ -356,12 +356,27 @@ pub(super) fn render_matches(
     render_matches_with_limit(project_id, question, root, analyses, budget, result_limit)
 }
 
+#[cfg(test)]
 pub(super) fn render_matches_with_limit(
     project_id: &str,
     question: &str,
     root: &Path,
     analyses: Vec<(String, String, f32, String)>,
     budget: usize,
+    result_limit: usize,
+) -> String {
+    render_matches_window(
+        project_id, question, root, analyses, budget, 0, result_limit,
+    )
+}
+
+pub(super) fn render_matches_window(
+    project_id: &str,
+    question: &str,
+    root: &Path,
+    analyses: Vec<(String, String, f32, String)>,
+    budget: usize,
+    offset: usize,
     result_limit: usize,
 ) -> String {
     let mut audit = SourceAudit::default();
@@ -384,7 +399,8 @@ pub(super) fn render_matches_with_limit(
         })
         .collect::<Vec<_>>();
     analyses.sort_by_key(|entry| entry.0);
-    analyses.truncate(result_limit.max(1));
+    let available_after_offset = analyses.len().saturating_sub(offset);
+    analyses = analyses.into_iter().skip(offset).take(result_limit.max(1)).collect();
     let matched = analyses.len();
     let source_current = analyses.iter().filter(|entry| entry.0 == 0).count();
     let stale = analyses.iter().filter(|entry| entry.0 == 1).count();
@@ -392,7 +408,7 @@ pub(super) fn render_matches_with_limit(
     let mut displayed = 0;
     let mut truncated = 0;
     let mut out = format!(
-        "# Business-logic matches for '{}'\nEvidence readiness: source_current={source_current}, stale={stale}, unverified={unverified}, matched={matched}, candidates_checked={candidates}. A matching method hash establishes source currency only; rules remain inferred until domain/test validation.\nEvidence excerpts, not complete rule inventories. Limits: 8 KiB content per document, 48 KiB total response.\n",
+        "# Business-logic matches for '{}'\nEvidence readiness: source_current={source_current}, stale={stale}, unverified={unverified}, matched={matched}, candidates_checked={candidates}, offset={offset}, available_after_offset={available_after_offset}. A matching method hash establishes source currency only; rules remain inferred until domain/test validation.\nEvidence excerpts, not complete rule inventories. Limits: 8 KiB content per document, 48 KiB total response.\n",
         utf8_prefix(question, 1024),
     );
     if source_current == 0 {
@@ -467,7 +483,11 @@ pub(super) fn render_matches_with_limit(
     }
     out.push_str(&format!("\nDisplay coverage: matched={matched}, displayed={displayed}, omitted={}, truncated_documents={truncated}. Counts apply to retrieved matches, not the entire corpus.\n", matched - displayed));
     if displayed < matched {
-        out.push_str("INCOMPLETE: total response budget reached; narrow the query to recover omitted matches.\n");
+        let continuation = serde_json::json!({"project_id":project_id,"query":question,"top_k":result_limit.max(1),"offset":offset + displayed});
+        out.push_str(&format!("INCOMPLETE: total response budget reached; continue without changing the query using query_business_logic({continuation}).\n"));
+    } else if available_after_offset > matched {
+        let continuation = serde_json::json!({"project_id":project_id,"query":question,"top_k":result_limit.max(1),"offset":offset + matched});
+        out.push_str(&format!("More source-ranked matches are available; continue with query_business_logic({continuation}).\n"));
     }
     out
 }
@@ -840,6 +860,22 @@ mod tests {
             .lines()
             .find_map(|line| line.strip_prefix("source_body: get_full_method_body("))
             .map(|value| serde_json::from_str(value.strip_suffix(')').unwrap()).unwrap())
+    }
+
+    #[test]
+    fn business_rule_windows_return_an_exact_continuation() {
+        let tmp = tempfile::tempdir().unwrap();
+        let analyses = (1..=3).map(|index| (
+            format!("doc-{index}"), format!("rule-{index}.md"), 1.0,
+            format!("# Rule {index}\n## Business Rules\n- value {index}"),
+        )).collect();
+        let rendered = render_matches_window(
+            "project", "session policy", tmp.path(), analyses, 48 * 1024, 1, 1,
+        );
+        assert!(rendered.contains("rule-2.md"), "{rendered}");
+        assert!(!rendered.contains("rule-1.md") && !rendered.contains("rule-3.md"));
+        assert!(rendered.contains("\"offset\":2"), "{rendered}");
+        assert!(rendered.contains("More source-ranked matches are available"), "{rendered}");
     }
 
     #[test]
