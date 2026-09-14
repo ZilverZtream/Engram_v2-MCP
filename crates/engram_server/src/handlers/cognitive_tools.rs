@@ -1101,6 +1101,7 @@ impl Engram {
                 .map_err(|e| format!("DB error querying readers: {e}"))?;
 
             if readers.len() > limit { out.push_str(&format!("Coverage: readers truncated at {limit}.\n")); }
+            let mut property_readers = Vec::new();
             if !readers.is_empty() {
                 out.push_str("### Readers\n");
                 for (reader_id, weight) in readers.iter().take(limit) {
@@ -1113,12 +1114,63 @@ impl Engram {
                             node.start_line,
                             weight
                         ));
+                        if node.node_type == "property" {
+                            property_readers.push(node);
+                        }
                     } else {
                         out.push_str(&format!("- {} (weight: {}; indexed node unavailable)\n", reader_id, weight));
                     }
                 }
             } else {
                 out.push_str("### Readers\nNo indexed readers found; dynamic access may be absent from the graph.\n");
+            }
+
+            // The direct state edge identifies the property accessor. Follow one
+            // typed Calls hop to expose the actual behavioral consumers as well.
+            let mut indirect = std::collections::BTreeMap::new();
+            let mut indirect_truncated = false;
+            for accessor in &property_readers {
+                let callers = graph
+                    .find_incoming_edges(
+                        &req.project_id,
+                        Some(EdgeKind::Calls),
+                        &accessor.node_id,
+                        limit + 1,
+                    )
+                    .map_err(|e| format!("DB error querying property consumers: {e}"))?;
+                if callers.len() > limit {
+                    indirect_truncated = true;
+                }
+                for (caller_id, weight) in callers.into_iter().take(limit) {
+                    indirect
+                        .entry(caller_id)
+                        .or_insert_with(|| (accessor.name.clone(), weight));
+                }
+            }
+            if !indirect.is_empty() {
+                out.push_str("\n### Indirect Readers Through Properties\n");
+                out.push_str("Coverage: one static Calls hop from each property that directly reads this state; reflection and runtime dispatch remain unverified.\n");
+                for (caller_id, (accessor_name, weight)) in indirect.iter().take(limit) {
+                    if let Some(node) = graph.get_node(&req.project_id, caller_id).map_err(|e| format!("Property consumer lookup failed: {e}"))? {
+                        out.push_str(&format!(
+                            "- {} [{}] in {}:{} -> {} (weight: {})\n",
+                            node.name,
+                            node.node_type,
+                            node.file_path.as_str(),
+                            node.start_line,
+                            accessor_name,
+                            weight
+                        ));
+                    } else {
+                        out.push_str(&format!(
+                            "- {} -> {} (weight: {}; indexed node unavailable)\n",
+                            caller_id, accessor_name, weight
+                        ));
+                    }
+                }
+                if indirect.len() > limit || indirect_truncated {
+                    out.push_str(&format!("Coverage: indirect property readers truncated at {limit}.\n"));
+                }
             }
             out.push_str(
                 "\nnext: writers before readers when changing the shape of this value; \

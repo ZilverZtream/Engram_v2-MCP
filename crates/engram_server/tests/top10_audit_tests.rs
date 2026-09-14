@@ -178,6 +178,41 @@ async fn state_trace_reports_independent_caps_and_indexed_only_positions() {
 }
 
 #[tokio::test]
+async fn state_trace_expands_property_mediated_readers() {
+    let (_tmp, state) = build_state();
+    let mut state_node = func("State.vb", "", "Tenant");
+    state_node.node_id = engram_core::NodeId::state("Session", "Tenant").0;
+    state_node.node_type = "global_state".into();
+    let mut accessor = func("Account.vb", "Account", "CurrentTenant");
+    accessor.node_type = "property".into();
+    let caller = func("Global.asax.vb", "App", "AcquireRequestState");
+    state
+        .graph
+        .upsert_nodes(PID, &[state_node.clone(), accessor.clone(), caller.clone()])
+        .unwrap();
+    let mut direct = calls(&accessor.node_id, &state_node.node_id);
+    direct.edge_kind = EdgeKind::ReadsState;
+    state
+        .graph
+        .upsert_edges(PID, &[direct, calls(&caller.node_id, &accessor.node_id)])
+        .unwrap();
+
+    let result = Engram::new(state)
+        .handle_trace_state_usage(
+            serde_json::from_value(
+                json!({"project_id":PID,"state_type":"Session","state_key":"Tenant","limit":20}),
+            )
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    let text = &result.content[0].as_text().unwrap().text;
+    assert!(text.contains("Indirect Readers Through Properties"), "{text}");
+    assert!(text.contains("AcquireRequestState"), "{text}");
+    assert!(text.contains("CurrentTenant"), "{text}");
+}
+
+#[tokio::test]
 async fn setting_accessors_keep_their_qualified_identity() {
     let (_tmp, state) = build_state();
     let nodes: Vec<_> = ["ConfigSettings.A", "ConfigSettings.B"]
