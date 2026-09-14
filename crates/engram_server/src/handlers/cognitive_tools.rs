@@ -2565,12 +2565,13 @@ impl Engram {
                 graph: &self.state.graph, project_id: &p.project_id, root: std::path::Path::new(&project_dir),
             };
             let (file_logic, analyzed, skipped) =
-                crate::services::business_logic_service::analyze_file_logic_with_context(
+                crate::services::business_logic_service::analyze_file_logic_with_context_concurrency(
                     dreaming,
                     file_path,
                     &content,
                     &cached_hashes,
                     Some(&dependency_context),
+                    p.max_concurrent,
                 )
                 .await;
 

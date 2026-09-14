@@ -1,8 +1,13 @@
 #![allow(clippy::unwrap_used)]
 use engram_core::Config;
 use engram_ml::DreamingEngine;
-use engram_server::services::business_logic_service::analyze_method_logic;
+use engram_server::services::business_logic_service::{
+    analyze_file_logic_with_context_concurrency, analyze_method_logic,
+};
 use serde_json::{Value, json};
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 async fn analyze_with_responses(responses: Vec<&'static str>) -> (String, String, Vec<u64>) {
@@ -101,6 +106,79 @@ async fn complete_analysis_needs_no_retry() {
     assert_eq!(purpose, "Save the model");
     assert!(diagnostic.is_empty());
     assert_eq!(budgets, [3072]);
+}
+
+#[tokio::test]
+async fn file_analysis_applies_concurrency_to_independent_methods() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let active = Arc::new(AtomicUsize::new(0));
+    let peak = Arc::new(AtomicUsize::new(0));
+    let server_active = active.clone();
+    let server_peak = peak.clone();
+    let server = tokio::spawn(async move {
+        let mut handles = Vec::new();
+        for _ in 0..3 {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let active = server_active.clone();
+            let peak = server_peak.clone();
+            handles.push(tokio::spawn(async move {
+                let mut request = vec![];
+                let body_start = loop {
+                    let mut bytes = [0; 4096];
+                    let count = socket.read(&mut bytes).await.unwrap();
+                    request.extend_from_slice(&bytes[..count]);
+                    if let Some(pos) = request.windows(4).position(|w| w == b"\r\n\r\n") {
+                        break pos + 4;
+                    }
+                };
+                let headers = String::from_utf8_lossy(&request[..body_start]).to_lowercase();
+                let length: usize = headers.lines()
+                    .find_map(|line| line.strip_prefix("content-length:"))
+                    .unwrap().trim().parse().unwrap();
+                while request.len() < body_start + length {
+                    let mut bytes = [0; 4096];
+                    let count = socket.read(&mut bytes).await.unwrap();
+                    request.extend_from_slice(&bytes[..count]);
+                }
+                let now = active.fetch_add(1, Ordering::SeqCst) + 1;
+                peak.fetch_max(now, Ordering::SeqCst);
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                let request_text = String::from_utf8_lossy(&request);
+                let content = if request_text.contains("Summarize only the visible behavior") {
+                    r#"{"summary":"The supplied members assign local values.","member_refs":["Sample.First:2"]}"#
+                } else {
+                    r#"{"purpose":"Assigns a local value.","business_rules":[]}"#
+                };
+                let payload = json!({"choices":[{"message":{"content":content}}]}).to_string();
+                socket.write_all(format!("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{payload}", payload.len()).as_bytes()).await.unwrap();
+                active.fetch_sub(1, Ordering::SeqCst);
+            }));
+        }
+        for handle in handles {
+            handle.await.unwrap();
+        }
+    });
+    let engine = DreamingEngine::with_config(&Config {
+        llm_backend: "openai".into(),
+        llm_model: Some("test-model".into()),
+        llm_openai_api_key: Some("test-key".into()),
+        llm_openai_api_base: Some(format!("http://{address}/v1")),
+        ..Default::default()
+    });
+    let source = "Public Class Sample\nPublic Sub First()\nDim x = 1\nEnd Sub\nPublic Sub Second()\nDim y = 2\nEnd Sub\nEnd Class";
+    let (file, analyzed, skipped) = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        analyze_file_logic_with_context_concurrency(
+            &engine, "Sample.vb", source, &HashMap::new(), None, 2,
+        ),
+    ).await.unwrap();
+    server.await.unwrap();
+
+    assert_eq!(analyzed, 2);
+    assert_eq!(skipped, 0);
+    assert_eq!(file.methods.len(), 2);
+    assert!(peak.load(Ordering::SeqCst) >= 2, "method calls stayed serial");
 }
 
 #[tokio::test]
