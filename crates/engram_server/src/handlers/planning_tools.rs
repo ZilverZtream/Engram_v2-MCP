@@ -6368,6 +6368,16 @@ fn change_set_path_key(path: &str) -> String {
         .to_lowercase()
 }
 
+fn business_logic_source_path(path: &str) -> Option<String> {
+    let normalized = path.replace('\\', "/");
+    let source_and_member = normalized.strip_prefix("__business_logic/")?;
+    let (source, member) = source_and_member.rsplit_once('/')?;
+    if source.is_empty() || !member.to_ascii_lowercase().ends_with(".md") {
+        return None;
+    }
+    Some(source.to_string())
+}
+
 fn path_spelling_quality(path: &str) -> (usize, usize) {
     (
         path.chars().filter(|c| c.is_ascii_uppercase()).count(),
@@ -6516,6 +6526,7 @@ fn change_set_tier(sigs: &BTreeSet<&'static str>) -> u8 {
         sigs.contains("lexicon") && sigs.iter().any(|s| change_set_independent(s));
     let golden = sigs.contains("cochange")
         || sigs.contains("history")
+        || sigs.contains("business")
         || sigs.contains("entity")
         || sigs.contains("gloss")
         || sigs.contains("name")
@@ -8081,6 +8092,10 @@ pub(crate) struct ChangeSetCoverage {
     /// name) and do not need a second retrieval arm to be actionable.
     #[serde(default)]
     pub entity: ArmCoverage,
+    /// Current source files named by business-logic cards matching the story.
+    /// This is path evidence only; the card's inferred claims remain qualified.
+    #[serde(default)]
+    pub business_logic: ArmCoverage,
     pub concept: ArmCoverage,
     pub history: ArmCoverage,
     pub cochange: ArmCoverage,
@@ -8266,6 +8281,7 @@ fn render_ui_contract(
 fn render_change_set_coverage(cov: &ChangeSetCoverage, omitted: usize) -> String {
     let mut s = String::from("\n## Coverage\n");
     s.push_str(&format!("- exact entities: {}\n", cov.entity.line()));
+    s.push_str(&format!("- business-rule anchors: {}\n", cov.business_logic.line()));
     s.push_str(&format!("- concept: {}\n", cov.concept.line()));
     s.push_str(&format!("- history: {}\n", cov.history.line()));
     s.push_str(&format!("- co-change: {}\n", cov.cochange.line()));
@@ -8844,6 +8860,99 @@ impl Engram {
         }
         let mut prov: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
         let mut seed_order: Vec<String> = Vec::new(); // concept hits in relevance order
+
+        // Business-rule source anchors. The rule corpus already knows which
+        // current methods implement behavior matching the story; using those
+        // source identities here closes the handoff gap where an agent could
+        // read excellent rules yet receive an unrelated lexical file list.
+        // Only the checked-out source path is promoted. Rule prose and model
+        // inference still require query_business_logic/source verification.
+        let business_started = std::time::Instant::now();
+        let business_query = if concepts.is_empty() {
+            retrieval_story.clone()
+        } else {
+            concepts.join(" ")
+        };
+        match self.ensure_project_runtime(&req.project_id).await {
+            Ok(ps) => {
+                let query = HybridQuery {
+                    project_id: req.project_id.clone(),
+                    namespace: engram_core::namespaces::NAMESPACE_BUSINESS_LOGIC.into(),
+                    generation: 0,
+                    text: business_query,
+                    top_k: 40,
+                    fts_mode: "loose".into(),
+                    include_path_prefixes: None,
+                    exclude_path_prefixes: None,
+                    include_path_suffixes: None,
+                    language_filters: None,
+                    author_filter: None,
+                    date_after: None,
+                    date_before: None,
+                    use_mmr: false,
+                };
+                match ps
+                    .search
+                    .search(&query, None, &tokio_util::sync::CancellationToken::new())
+                    .await
+                {
+                    Ok(hits) => {
+                        let mut current_paths = HashMap::<String, String>::new();
+                        for path in &index_paths {
+                            current_paths
+                                .entry(change_set_path_key(path))
+                                .and_modify(|current| {
+                                    if path_spelling_quality(path) > path_spelling_quality(current) {
+                                        *current = path.clone();
+                                    }
+                                })
+                                .or_insert_with(|| path.clone());
+                        }
+                        let mut seen = HashSet::new();
+                        let mut anchored = 0usize;
+                        for hit in hits {
+                            let Some(source) = business_logic_source_path(hit.path.as_str()) else {
+                                continue;
+                            };
+                            let Some(current) = current_paths.get(&change_set_path_key(&source)) else {
+                                continue;
+                            };
+                            if !seen.insert(current.clone()) {
+                                continue;
+                            }
+                            if !prov.contains_key(current) {
+                                seed_order.push(current.clone());
+                            }
+                            why.entry(current.clone()).or_default().push(
+                                "business-logic analysis matching the story is anchored to a method in this checked-out source file; inspect the source-verified rule card before relying on its claims".into(),
+                            );
+                            prov.entry(current.clone()).or_default().insert("business");
+                            anchored += 1;
+                            if anchored >= 16 {
+                                break;
+                            }
+                        }
+                        cov.business_logic = ArmCoverage::complete(
+                            anchored,
+                            business_started.elapsed().as_millis(),
+                        );
+                        cov.business_logic.note = "source-path anchors only; use query_business_logic for qualified rule claims and current method bodies".into();
+                    }
+                    Err(error) => {
+                        cov.business_logic = ArmCoverage::failed(
+                            format!("business-logic search failed: {error}"),
+                            business_started.elapsed().as_millis(),
+                        );
+                    }
+                }
+            }
+            Err(error) => {
+                cov.business_logic = ArmCoverage::failed(
+                    format!("business-logic runtime unavailable: {error}"),
+                    business_started.elapsed().as_millis(),
+                );
+            }
+        }
 
         // Exact entity arm. Work items frequently name an existing type,
         // method, table or setting even when their prose topic is broad. Map
@@ -12151,6 +12260,7 @@ fn compact_change_set_coverage(
         }
     };
     trim("entity", &mut compact.entity);
+    trim("business_logic", &mut compact.business_logic);
     trim("concept", &mut compact.concept);
     trim("history", &mut compact.history);
     trim("cochange", &mut compact.cochange);
@@ -13546,6 +13656,30 @@ mod agent_integration_tests {
 #[cfg(test)]
 mod change_set_rows_tests {
     use super::*;
+
+    #[test]
+    fn business_logic_documents_recover_the_checked_out_source_identity() {
+        assert_eq!(
+            business_logic_source_path(
+                "__business_logic/Site/App_Code/security/Policy.vb/Validate__L42.md"
+            )
+            .as_deref(),
+            Some("Site/App_Code/security/Policy.vb")
+        );
+        assert!(business_logic_source_path("Site/App_Code/security/Policy.vb").is_none());
+    }
+
+    #[test]
+    fn a_business_rule_anchor_is_primary_evidence() {
+        let prov = BTreeMap::from([(
+            "src/security/Policy.cs".to_string(),
+            BTreeSet::from(["business"]),
+        )]);
+        let (rows, _) = change_set_rows(&prov);
+        assert_eq!(rows[0].tier, 1);
+        assert_eq!(rows[0].set, "primary");
+        assert_eq!(rows[0].signals, vec!["business"]);
+    }
 
     #[test]
     fn compound_name_evidence_deduplicates_plural_variants() {
