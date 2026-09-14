@@ -5222,6 +5222,21 @@ fn code_entity_file_matches(candidate: &str, file_stem: &str) -> bool {
     compound_prefix || acronym_prefix
 }
 
+/// Generated code and workspace manifests can repeat a product/type name but
+/// are not implementations of that entity. They can still enter through
+/// explicit history, build-family, schema, or dependency evidence.
+fn code_entity_path_eligible(path: &str) -> bool {
+    let lower = path.replace('\\', "/").to_ascii_lowercase();
+    !lower.contains(".designer.")
+        && !lower.ends_with(".g.cs")
+        && !lower.ends_with(".g.vb")
+        && ![
+            ".sln", ".slnx", ".csproj", ".vbproj", ".fsproj", ".vcxproj",
+        ]
+        .iter()
+        .any(|suffix| lower.ends_with(suffix))
+}
+
 pub(crate) fn extract_story_concepts(story: &str) -> Vec<String> {
     let candidate = story_token;
     let mut seen = HashSet::new();
@@ -9422,6 +9437,9 @@ impl Engram {
                 let mut file_matches = Vec::new();
                 for path in &entity_index {
                     let file = path.replace('\\', "/");
+                    if !code_entity_path_eligible(&file) {
+                        continue;
+                    }
                     let stem = file
                         .rsplit('/')
                         .next()
@@ -9453,7 +9471,9 @@ impl Engram {
                             .filter(|node| code_entity_matches(&entity, &node.name))
                             .map(|node| node.file_path.as_str().replace('\\', "/"))
                             .filter(|path| {
-                                !path.is_empty() && !engram_core::is_vendor_path(path)
+                                !path.is_empty()
+                                    && !engram_core::is_vendor_path(path)
+                                    && code_entity_path_eligible(path)
                             })
                             .collect::<Vec<_>>();
                         matches.sort();
@@ -14758,6 +14778,10 @@ mod story_concept_resolution_tests {
             "_us.SetPwdManager.ResetPassword"
         ));
         assert!(!code_entity_matches("ordinary", "Coordinator"));
+        assert!(code_entity_path_eligible("src/AuthenticationService.vb"));
+        assert!(!code_entity_path_eligible("src/Tenant.designer.vb"));
+        assert!(!code_entity_path_eligible("Product.sln"));
+        assert!(!code_entity_path_eligible("src/App.csproj"));
     }
 }
 
