@@ -12116,8 +12116,6 @@ impl Engram {
 
         let (partners, states, unwired, unresolved, mut coverage) = tokio::task::spawn_blocking(move || {
             let mut coverage = EditCompletenessCoverage::default();
-            let edited_set: HashSet<String> = edited.iter().map(|file| edit_path_key(file)).collect();
-            let covered = |file: &str| edited_set.contains(&file.replace('\\', "/").trim_start_matches('/').to_lowercase());
             let real_case: HashMap<String, String> = match graph.list_file_node_metadata(&pid) {
                 Ok(files) => files.into_iter().map(|(file, _)| {
                     let path = file.as_str().replace('\\', "/");
@@ -12126,13 +12124,17 @@ impl Engram {
                 Err(error) => { coverage.note(format!("file inventory lookup failed: {error}")); HashMap::new() },
             };
             let current_files: Vec<String> = real_case.values().cloned().collect();
-            let mut unresolved = Vec::new();
+            let (resolved_edits, unresolved, resolution_notes) =
+                resolve_current_edit_paths(&edited, &current_files);
+            for note in resolution_notes {
+                coverage.note(note);
+            }
+            let edited_set: HashSet<String> = resolved_edits.iter()
+                .flat_map(|(requested, resolved)| [edit_path_key(requested), edit_path_key(resolved)])
+                .collect();
+            let covered = |file: &str| edited_set.contains(&edit_path_key(file));
             let mut raw = Vec::new();
-            for file in &edited {
-                let resolved = real_case.get(&file.to_lowercase()).map(String::as_str).unwrap_or_else(|| {
-                    unresolved.push(file.clone());
-                    file.as_str()
-                });
+            for (file, resolved) in &resolved_edits {
                 let mut neighbors = match graph.neighbors(&pid, EdgeKind::TemporalCoupling, &format!("file:{resolved}"), 501) {
                     Ok(neighbors) => neighbors,
                     Err(error) => { coverage.note(format!("temporal neighbors for {file} failed: {error}")); continue; },
@@ -12380,7 +12382,49 @@ const EDIT_SESSION_META_KEY: &str = "edit_session_v1";
 type EditSessions = std::collections::BTreeMap<String, serde_json::Value>;
 
 fn edit_path_key(path: &str) -> String {
-    path.to_lowercase()
+    path.replace('\\', "/").trim_start_matches('/').to_lowercase()
+}
+
+/// Resolve caller-provided project-relative paths to graph identities. A
+/// unique suffix handles indexes that retain one additional source-root
+/// segment; ambiguous suffixes stay unresolved instead of selecting a file.
+fn resolve_current_edit_paths(
+    edited: &[String],
+    current_files: &[String],
+) -> (Vec<(String, String)>, Vec<String>, Vec<String>) {
+    let exact = current_files
+        .iter()
+        .map(|file| (edit_path_key(file), file.clone()))
+        .collect::<HashMap<_, _>>();
+    let mut resolved = Vec::with_capacity(edited.len());
+    let mut unresolved = Vec::new();
+    let mut notes = Vec::new();
+    for file in edited {
+        if let Some(current) = exact.get(&edit_path_key(file)) {
+            resolved.push((file.clone(), current.clone()));
+            continue;
+        }
+        let matches = current_files
+            .iter()
+            .filter(|current| path_suffix_match(file, current))
+            .take(2)
+            .collect::<Vec<_>>();
+        match matches.as_slice() {
+            [only] => resolved.push((file.clone(), (*only).clone())),
+            [] => {
+                unresolved.push(file.clone());
+                resolved.push((file.clone(), file.clone()));
+            }
+            _ => {
+                notes.push(format!(
+                    "edited path {file} has ambiguous current-file suffix matches; no arbitrary file was selected"
+                ));
+                unresolved.push(file.clone());
+                resolved.push((file.clone(), file.clone()));
+            }
+        }
+    }
+    (resolved, unresolved, notes)
 }
 
 fn normalize_edit_files(files: &[String]) -> Result<Vec<String>, McpError> {
@@ -14515,6 +14559,30 @@ mod change_set_rows_tests {
             surface["boundary"] == "machine_and_browser_consumers"
                 && surface["status"] == "unresolved"
         }));
+    }
+
+    #[test]
+    fn edited_paths_resolve_only_unique_source_root_aliases() {
+        let current = vec![
+            "Site/App_Code/Auth/Login.vb".to_string(),
+            "Site/Admin/Login.vb".to_string(),
+            "src/Exact.cs".to_string(),
+        ];
+        let (resolved, unresolved, notes) = resolve_current_edit_paths(
+            &[
+                "App_Code/Auth/Login.vb".to_string(),
+                "src\\Exact.cs".to_string(),
+                "Login.vb".to_string(),
+                "missing.cs".to_string(),
+            ],
+            &current,
+        );
+        assert_eq!(resolved[0].1, "Site/App_Code/Auth/Login.vb");
+        assert_eq!(resolved[1].1, "src/Exact.cs");
+        assert_eq!(resolved[2].1, "Login.vb");
+        assert_eq!(unresolved, vec!["Login.vb", "missing.cs"]);
+        assert_eq!(notes.len(), 1);
+        assert!(notes[0].contains("ambiguous"));
     }
 
     #[test]
