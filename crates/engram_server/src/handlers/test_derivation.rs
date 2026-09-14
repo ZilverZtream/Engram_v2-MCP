@@ -408,6 +408,35 @@ pub(super) fn intent_risk_axes(intent: Option<&str>) -> Vec<(String, String)> {
             "supplied change intent reads or rewrites XML-family content: test UTF-8 with and without BOM, UTF-16 LE/BE, non-ASCII text, declarations and namespace attributes. Preserve or deliberately normalize encoding according to the contract, and verify bytes can be reparsed after every mutation/error path".into(),
         ));
     }
+    let authentication_lifecycle = [
+        "authentication", "authorization", "login", "logout", "sign in", "sign out",
+        "credential", "password", "security stamp", "auth token", "forms ticket",
+        "session revocation", "session invalidation",
+    ]
+    .iter()
+    .any(|term| lower.contains(term));
+    if authentication_lifecycle {
+        axes.push((
+            "Credential freshness and replay timeline".into(),
+            "supplied change intent affects authentication lifetime: freeze tests for issue -> accept -> authority mutation -> reject stale credential -> restore prior authority -> reject replay. Repeat mutation without an intervening request, exercise stale credentials at login/issue, page, API, asynchronous, refresh and logout entry points, and require a monotonic compare-and-advance rule rather than equality with reusable state".into(),
+        ));
+        axes.push((
+            "Credential scope and concurrent-client isolation".into(),
+            "supplied change intent affects authentication lifetime: test two devices, two browser windows, concurrent requests, multiple credentials for one identity, tenant or impersonation transitions, logout scope, password rotation and role/permission changes. State which credentials are invalidated and prove one client cannot restore, terminate or inherit another client's authority accidentally".into(),
+        ));
+        axes.push((
+            "Durable authority across runtime topology".into(),
+            "supplied change intent affects authentication lifetime: test process restart, application recycle, multiple server instances, cache loss, failover and mixed-version deployment while a shared credential survives. The accepted design must identify a durable current authority and may not depend on per-process or per-session memory for cross-instance invalidation".into(),
+        ));
+        axes.push((
+            "Framework session acquisition and request completion".into(),
+            "supplied change intent affects authentication/session processing: inventory which pages, handlers, APIs, modules and child/default-document or rewritten requests acquire read-only, exclusive or no session state. Test same-session concurrency, nested or redirected requests and timeout/cancellation; every request must complete without recursive session locking or unintended session-cookie creation".into(),
+        ));
+        axes.push((
+            "Authentication response transformation contract".into(),
+            "supplied change intent affects authentication failures: test unauthenticated, expired, revoked and malformed credentials through browser navigation, API and asynchronous callers. Verify framework redirects do not rewrite machine-readable 401/403 contracts, redirects remain local, cache/history cannot reveal authenticated content, and simultaneous client failures trigger one bounded cleanup/navigation action".into(),
+        ));
+    }
     axes
 }
 
@@ -1011,6 +1040,22 @@ pub(super) fn runtime_risk_axes(file: &str, source: &str) -> Vec<(String, String
         || lower.contains("session[")
         || lower.contains("session.")
         || lower.contains("sessionstate");
+    let has_session_handler_contract = lower.contains("irequiressessionstate")
+        || lower.contains("ireadonlysessionstate")
+        || lower.contains("enablesessionstate")
+        || lower.contains("sessionstatemodule");
+    let has_framework_auth_response_transform = lower.contains("formsauthentication")
+        || lower.contains("suppressformsauthenticationredirect")
+        || lower.contains("unauthorized")
+        || lower.contains("statuscode = 401")
+        || lower.contains("statuscode=401")
+        || lower.contains("statuscodes.status401unauthorized");
+    let has_routing_reentry = lower.contains("rewritepath")
+        || lower.contains("transferrequest")
+        || lower.contains("defaultdocument")
+        || lower.contains("maproute")
+        || lower.contains("routecollection")
+        || lower.contains("urlrewrite");
     let has_view_state = lower.contains("viewstate(")
         || lower.contains("viewstate[")
         || lower.contains("viewstate.");
@@ -1164,6 +1209,30 @@ pub(super) fn runtime_risk_axes(file: &str, source: &str) -> Vec<(String, String
             "Shared-session navigation and multi-window state".into(),
             format!(
                 "{file}: change the Session-backed behavior, navigate away/back and exercise a second window in the same session; verify both consumers observe the intended state"
+            ),
+        ));
+    }
+    if has_session || has_session_handler_contract {
+        axes.push((
+            "Session acquisition, locking and stateless-entry isolation".into(),
+            format!(
+                "{file}: identify whether each affected page, handler, API, module and child request acquires exclusive, read-only or no session state; run two same-session requests concurrently and verify bounded completion. Exercise Basic/Bearer or otherwise stateless entry points and verify they do not allocate a server session or emit a session cookie unless the approved contract requires it"
+            ),
+        ));
+    }
+    if has_framework_auth_response_transform {
+        axes.push((
+            "Framework authentication response transformation".into(),
+            format!(
+                "{file}: send expired, revoked, malformed and missing credentials through browser, API and asynchronous callers; assert the final wire status/body/redirect after framework modules run. In Forms-style pipelines, prove machine callers retain the intended 401/403 rather than receiving an automatic login 302"
+            ),
+        ));
+    }
+    if has_session && has_routing_reentry {
+        axes.push((
+            "Rewritten and default-document session re-entry".into(),
+            format!(
+                "{file}: request extensionless, directory/default-document and rewritten routes while another request holds the same session; verify one bounded pipeline traversal, no recursive exclusive-session wait, correct authentication outcome and no accidental session creation"
             ),
         ));
     }
@@ -2137,6 +2206,50 @@ End Function
         assert!(joined.contains("object-URL revocation") && joined.contains("listener cardinality"), "{joined}");
         assert!(joined.contains("representative serialized fixture"), "{joined}");
         assert!(joined.contains("UTF-16 LE/BE") && joined.contains("reparsed"), "{joined}");
+    }
+
+    #[test]
+    fn auth_intent_axes_cover_replay_topology_framework_and_client_boundaries() {
+        let axes = intent_risk_axes(Some(
+            "Revalidate authentication sessions after password or authorization changes and handle logout in browser clients",
+        ));
+        let joined = axes
+            .iter()
+            .map(|(axis, evidence)| format!("{axis}: {evidence}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        for expected in [
+            "Credential freshness and replay timeline",
+            "Credential scope and concurrent-client isolation",
+            "Durable authority across runtime topology",
+            "Framework session acquisition and request completion",
+            "Authentication response transformation contract",
+        ] {
+            assert!(joined.contains(expected), "missing {expected}: {joined}");
+        }
+        assert!(joined.contains("restore prior authority") && joined.contains("reject replay"), "{joined}");
+        assert!(joined.contains("multiple server instances") && joined.contains("per-process"), "{joined}");
+        assert!(joined.contains("default-document") && joined.contains("recursive session locking"), "{joined}");
+        assert!(joined.contains("401/403") && joined.contains("cache/history"), "{joined}");
+    }
+
+    #[test]
+    fn source_axes_expose_session_lock_and_framework_response_hazards() {
+        let axes = runtime_risk_axes(
+            "Handlers/AuthHandler.vb",
+            "Implements IRequiresSessionState\nSession(\"user\") = principal\nFormsAuthentication.SignOut()\nResponse.StatusCode = 401\nContext.RewritePath(\"~/default.aspx\")",
+        );
+        let joined = axes
+            .iter()
+            .map(|(axis, evidence)| format!("{axis}: {evidence}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(joined.contains("Session acquisition, locking and stateless-entry isolation"), "{joined}");
+        assert!(joined.contains("same-session requests") && joined.contains("session cookie"), "{joined}");
+        assert!(joined.contains("Framework authentication response transformation"), "{joined}");
+        assert!(joined.contains("automatic login 302"), "{joined}");
+        assert!(joined.contains("Rewritten and default-document session re-entry"), "{joined}");
+        assert!(joined.contains("recursive exclusive-session wait"), "{joined}");
     }
 
     #[test]
