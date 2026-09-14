@@ -4891,6 +4891,43 @@ fn story_name_term_matches_stem(term: &str, stem: &str) -> bool {
             && stem.contains(&term[..term.len() - 1]))
 }
 
+/// Terms allowed to promote a file through compound filename coverage.
+/// A long work item mentions many incidental nouns once (example names,
+/// negative cases, unrelated linked-item prose). Keep headline terms and
+/// body terms repeated at least twice; a singleton can still reach the file
+/// through exact entities, concepts, history, graph or business rules.
+fn story_name_terms(story: &str) -> BTreeSet<String> {
+    let headline = story.split("## Work item").next().unwrap_or(story);
+    let headline_terms = headline
+        .split(|character: char| !character.is_alphanumeric())
+        .filter_map(story_token)
+        .map(|term| canonical_story_name_term(&term))
+        .collect::<BTreeSet<_>>();
+    let body = story
+        .split_once("## Work item")
+        .and_then(|(_, remainder)| remainder.split_once('\n').map(|(_, body)| body))
+        .unwrap_or("");
+    let occurrence_source = if body.is_empty() {
+        headline.to_string()
+    } else {
+        format!("{headline}\n{body}")
+    };
+    let mut occurrences = BTreeMap::<String, usize>::new();
+    for term in occurrence_source
+        .split(|character: char| !character.is_alphanumeric())
+        .filter_map(story_token)
+        .map(|term| canonical_story_name_term(&term))
+    {
+        *occurrences.entry(term).or_default() += 1;
+    }
+    occurrences
+        .into_iter()
+        .filter_map(|(term, count)| {
+            (count >= 2 || headline_terms.contains(&term)).then_some(term)
+        })
+        .collect()
+}
+
 /// Story concept CANDIDATES (row-1 audit A1). The plain document-order
 /// recipe comes first and is never dropped (it is what the eval validated);
 /// then the author's own domain names: parenthesized glosses ("… category
@@ -9951,12 +9988,7 @@ impl Engram {
             // index-local breadth filter prevents common framework vocabulary
             // from promoting an entire file family. This scans the complete
             // non-vendor file index rather than a capped concept footprint.
-            let story_terms: BTreeSet<String> = req
-                .story
-                .split(|ch: char| !ch.is_alphanumeric())
-                .filter_map(story_token)
-                .map(|term| canonical_story_name_term(&term))
-                .collect();
+            let story_terms = story_name_terms(&req.story);
             if story_terms.len() >= NAME_COVERAGE_MIN {
                 let mut term_file_counts = BTreeMap::<String, usize>::new();
                 for (rp, _) in meta.iter() {
@@ -13689,6 +13721,21 @@ mod change_set_rows_tests {
         assert_eq!(canonical_story_name_term("status"), "status");
         assert_eq!(canonical_story_name_term("analysis"), "analysis");
         assert!(story_name_term_matches_stem("role", "aspnet_roles_basicaccess"));
+    }
+
+    #[test]
+    fn compound_name_evidence_ignores_incidental_singletons_in_long_work_items() {
+        let terms = story_name_terms(
+            "AB#42 Revalidate user sessions\n\n## Work item (full text)\n\
+             Sessions must be revalidated. A map feature item is an unrelated example.\n\
+             Password reset rotates the password generation.",
+        );
+        assert!(terms.contains("session"));
+        assert!(terms.contains("revalidate"));
+        assert!(terms.contains("password"));
+        assert!(!terms.contains("map"));
+        assert!(!terms.contains("feature"));
+        assert!(!terms.contains("item"));
     }
 
     #[test]
