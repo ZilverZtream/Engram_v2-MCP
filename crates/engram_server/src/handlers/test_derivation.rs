@@ -2,7 +2,7 @@
 use super::business_source::SourceAudit;
 use engram_index::{HybridQuery, HybridSearchEngine};
 use serde::Deserialize;
-use std::{collections::{BTreeMap, BTreeSet, HashSet}, path::Path};
+use std::{collections::{BTreeMap, BTreeSet, HashSet, VecDeque}, path::Path};
 
 const RISK_PACK_MAX_BYTES: u64 = 256 * 1024;
 const RISK_PACK_MAX_RULES: usize = 128;
@@ -1667,6 +1667,7 @@ pub(super) fn collect(
     generation: u64,
     files: &[String],
     root: &Path,
+    max_cases: usize,
 ) -> Result<(Vec<RuleCase>, Vec<String>), String> {
     let query = HybridQuery {
         project_id: pid.into(),
@@ -1784,14 +1785,16 @@ pub(super) fn collect(
                 .collect()
         });
         for rule in &rules {
-            if cases.len() >= 40 {
-                if cases.len() == cases_before_document {
-                    notes.extend(warning_notes());
-                }
-                notes.push(
-                    "proposed case output truncated at 40; narrow the requested files".into(),
-                );
-                return Ok((cases, notes));
+            // Bound each document before global balancing. Business-rule
+            // documents can contain hundreds of lines; eight candidates retain
+            // local variety while preventing one method from monopolizing the
+            // final matrix.
+            if cases.len() - cases_before_document >= 8 {
+                notes.push(format!(
+                    "{}: source-linked case candidates truncated at 8 for document balance",
+                    hit.doc_id
+                ));
+                break;
             }
             let mut requirement: String = rule.chars().take(1000).collect();
             if rule.chars().count() > 1000 {
@@ -1844,7 +1847,41 @@ pub(super) fn collect(
             notes.extend(warning_notes());
         }
     }
-    Ok((cases, notes))
+    let candidate_count = cases.len();
+    let mut groups: Vec<(String, VecDeque<RuleCase>)> = Vec::new();
+    for case in cases {
+        if let Some((_, queue)) = groups.iter_mut().find(|(id, _)| id == &case.doc_id) {
+            queue.push_back(case);
+        } else {
+            groups.push((case.doc_id.clone(), VecDeque::from([case])));
+        }
+    }
+    let mut balanced = Vec::with_capacity(candidate_count.min(max_cases));
+    while balanced.len() < max_cases {
+        let mut advanced = false;
+        for (_, queue) in &mut groups {
+            if let Some(case) = queue.pop_front() {
+                balanced.push(case);
+                advanced = true;
+                if balanced.len() == max_cases {
+                    break;
+                }
+            }
+        }
+        if !advanced {
+            break;
+        }
+    }
+    if candidate_count > balanced.len() {
+        notes.push(format!(
+            "source-linked cases sampled round-robin across {} evidence document(s): showing {} of {} candidates (max_source_cases={})",
+            groups.len(),
+            balanced.len(),
+            candidate_count,
+            max_cases
+        ));
+    }
+    Ok((balanced, notes))
 }
 
 #[cfg(test)]
@@ -2512,7 +2549,8 @@ rules:
             .index_docs("test", &docs, &tokio_util::sync::CancellationToken::new())
             .await
             .unwrap();
-        let (cases, notes) = collect(&search, "test", 1, &["Rules.vb".into()], tmp.path()).unwrap();
+        let (cases, notes) =
+            collect(&search, "test", 1, &["Rules.vb".into()], tmp.path(), 40).unwrap();
         assert_eq!(cases.len(), 1);
         assert_eq!(
             cases[0].source_warnings,
@@ -2528,7 +2566,8 @@ rules:
             source.replace("value < 0", "value > 0"),
         )
         .unwrap();
-        let (cases, notes) = collect(&search, "test", 1, &["Rules.vb".into()], tmp.path()).unwrap();
+        let (cases, notes) =
+            collect(&search, "test", 1, &["Rules.vb".into()], tmp.path(), 40).unwrap();
         assert!(cases.is_empty());
         assert!(notes.iter().any(|note| note.contains("STALE:")));
         assert!(notes

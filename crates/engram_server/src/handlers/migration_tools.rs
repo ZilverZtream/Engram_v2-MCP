@@ -44,6 +44,56 @@ fn format_ambiguous_symbol_error(input: &str, candidates: &[engram_graph::Node])
     )
 }
 
+/// Find the effective application-level Web.config when the indexed project is
+/// a solution/repository root. Prefer the shallowest readable configuration
+/// that declares authentication; otherwise return the shallowest readable one.
+async fn discover_web_config(
+    graph: &engram_graph::GraphStore,
+    project_id: &str,
+    project_dir: &str,
+) -> Result<Option<(String, String)>, McpError> {
+    let mut candidates = graph
+        .list_file_node_metadata(project_id)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(path, _)| path.as_str().replace('\\', "/"))
+        .filter(|path| {
+            path.rsplit('/')
+                .next()
+                .is_some_and(|name| name.eq_ignore_ascii_case("web.config"))
+        })
+        .collect::<Vec<_>>();
+    for root_name in ["Web.config", "web.config"] {
+        if !candidates
+            .iter()
+            .any(|path| path.eq_ignore_ascii_case(root_name))
+        {
+            candidates.push(root_name.to_string());
+        }
+    }
+    candidates.sort_by(|left, right| {
+        left.matches('/')
+            .count()
+            .cmp(&right.matches('/').count())
+            .then_with(|| left.to_ascii_lowercase().cmp(&right.to_ascii_lowercase()))
+    });
+    candidates.dedup_by(|left, right| left.eq_ignore_ascii_case(right));
+
+    let mut readable = Vec::new();
+    for relative in candidates {
+        if let Ok(full) = safe_join(Path::new(project_dir), &relative)
+            && let Ok(content) = tokio::fs::read_to_string(&full).await
+        {
+            readable.push((relative, content));
+        }
+    }
+    let preferred = readable
+        .iter()
+        .position(|(_, content)| content.to_ascii_lowercase().contains("<authentication"))
+        .unwrap_or(0);
+    Ok((!readable.is_empty()).then(|| readable.swap_remove(preferred)))
+}
+
 impl Engram {
     pub async fn handle_suggest_migration_boundaries(
         &self,
@@ -1099,21 +1149,8 @@ impl Engram {
         let classic_asp_files: Vec<(String, String)> = asp_results.into_iter().flatten().collect();
         let report_files: Vec<(String, String)> = report_results.into_iter().flatten().collect();
 
-        let webconfig_path = safe_join(Path::new(&project_dir), "web.config");
-        let webconfig_content = if let Ok(wc) = webconfig_path {
-            tokio::fs::read_to_string(&wc).await.ok()
-        } else {
-            None
-        };
-        let webconfig_content = if webconfig_content.is_none() {
-            if let Ok(alt) = safe_join(Path::new(&project_dir), "Web.config") {
-                tokio::fs::read_to_string(&alt).await.ok()
-            } else {
-                None
-            }
-        } else {
-            webconfig_content
-        };
+        let selected_config = discover_web_config(&graph, &pid, &project_dir).await?;
+        let webconfig_content = selected_config.map(|(_, content)| content);
 
         let global_asax = {
             let ga_path = safe_join(Path::new(&project_dir), "Global.asax");
@@ -1797,21 +1834,12 @@ impl Engram {
         let pid = req.project_id.clone();
         let project_dir = rec.directory.clone();
 
-        let webconfig_path = safe_join(Path::new(&project_dir), "web.config");
-        let webconfig_content = if let Ok(wc) = webconfig_path {
-            tokio::fs::read_to_string(&wc).await.ok()
-        } else {
-            None
-        };
-        let webconfig_content = if webconfig_content.is_none() {
-            if let Ok(alt) = safe_join(Path::new(&project_dir), "Web.config") {
-                tokio::fs::read_to_string(&alt).await.ok()
-            } else {
-                None
-            }
-        } else {
-            webconfig_content
-        };
+        // The repository root is often a solution container rather than the web
+        // application root. Discover indexed Web.config files and prefer the
+        // shallowest readable one that owns an authentication declaration.
+        let selected_config = discover_web_config(&graph, &pid, &project_dir).await?;
+        let webconfig_source = selected_config.as_ref().map(|(path, _)| path.clone());
+        let webconfig_content = selected_config.map(|(_, content)| content);
 
         let code_files = if let Some(ref scope) = req.file_scope {
             let full = safe_join(Path::new(&project_dir), scope)
@@ -1870,6 +1898,9 @@ impl Engram {
         }
 
         let mut out = String::from("# Authentication & Authorization Map\n\n");
+        if let Some(source) = webconfig_source {
+            out.push_str(&format!("**Configuration source**: `{source}`\n"));
+        }
         out.push_str(&format!("**Auth Mode**: {}\n", result.auth_mode));
 
         if !result.recommendations.is_empty() {

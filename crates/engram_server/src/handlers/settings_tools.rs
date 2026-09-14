@@ -688,13 +688,22 @@ impl Engram {
         .await
         .map_err(|error| McpError::internal_error(error.to_string(), None))?;
 
+        let max_source_cases = req.max_source_cases.clamp(1, 40);
+        let max_coverage_notes = req.max_coverage_notes.clamp(5, 100);
         let (rule_cases, rule_notes) = match self.ensure_project_runtime(&req.project_id).await {
             Ok(runtime) => {
                 let search = runtime.search.clone();
                 let pid = req.project_id.clone();
                 let root = std::path::PathBuf::from(_rec.directory);
                 match tokio::task::spawn_blocking(move || {
-                    super::test_derivation::collect(&search, &pid, gen_, &rule_files, &root)
+                    super::test_derivation::collect(
+                        &search,
+                        &pid,
+                        gen_,
+                        &rule_files,
+                        &root,
+                        max_source_cases,
+                    )
                 })
                 .await
                 {
@@ -732,12 +741,20 @@ impl Engram {
                 out.push_str(&format!("- {observation}\n"));
             }
         }
-        for note in coverage_notes
+        let matrix_notes = coverage_notes
             .iter()
             .chain(rule_notes.iter())
             .chain(canonical_sweep.notes.iter())
-        {
+            .collect::<Vec<_>>();
+        let note_limit = max_coverage_notes;
+        for note in matrix_notes.iter().take(note_limit) {
             out.push_str(&format!("INCOMPLETE: {note}\n"));
+        }
+        if matrix_notes.len() > note_limit {
+            out.push_str(&format!(
+                "INCOMPLETE: {} additional coverage note(s) omitted by max_coverage_notes={note_limit}. Source-linked matrix evidence below retains each included document's get_chunk recovery pointer; narrow files or raise max_coverage_notes for diagnostics.\n",
+                matrix_notes.len() - note_limit
+            ));
         }
         if !unresolved.is_empty() {
             out.push_str(&format!(

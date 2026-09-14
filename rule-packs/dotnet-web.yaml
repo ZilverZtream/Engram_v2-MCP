@@ -1,0 +1,46 @@
+version: 1
+rules:
+  - id: dotnet.aspnet.required-session-state
+    title: Session allocation, locking and stateless-request isolation
+    guidance: Run concurrent requests sharing one session and prove the intended serialization boundary. Exercise anonymous, static, Basic, token-only and other stateless requests; require no session allocation or session cookie unless the contract explicitly requires one.
+    severity: critical
+    extensions: [vb, cs]
+    any_terms:
+      - sessionstatebehavior.required
+      - setsessionstatebehavior(
+      - irequiressessionstate
+
+  - id: dotnet.aspnet.pipeline-session-reentry
+    title: Authentication-pipeline re-entry and session-lock deadlock
+    guidance: Exercise extensionless and directory/default-document URLs, rewrites, reroutes, error transfers and nested requests. Require one authorization pass, no second acquisition of the same session lock, and bounded completion under concurrent requests sharing a session.
+    severity: critical
+    extensions: [vb, cs]
+    all_terms:
+      - setsessionstatebehavior(
+    any_terms:
+      - postauthorizerequest
+      - acquirerequeststate
+      - postauthenticaterequest
+      - beginrequest
+
+  - id: dotnet.auth.cleanup-idempotence
+    title: Authentication cleanup availability and idempotence
+    guidance: Exercise logout or termination with stale, malformed, already-revoked and missing credentials, plus primary-store and logging outages. Cleanup must remain idempotent, clear only the intended local credential and session state, and never depend on successful revalidation before it can run.
+    severity: critical
+    extensions: [vb, cs]
+    any_terms:
+      - session.abandon
+      - session.clear
+      - formsauthentication.signout
+      - signoutasync(
+      - deletecookie
+      - expirecookie
+
+  - id: dotnet.auth.authentication-type-nullability
+    title: Authentication principal nullability and scheme normalization
+    guidance: Exercise missing principal or identity, null and empty authentication type, mixed casing, multiple identities and an unexpected scheme. Require deterministic classification without a null-reference failure or fallback to a different credential.
+    severity: critical
+    extensions: [vb, cs]
+    any_terms:
+      - .authenticationtype
+      - getauthenticationtype(

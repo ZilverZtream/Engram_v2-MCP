@@ -277,6 +277,12 @@ pub struct IngestStats {
     /// parsed rules. Surfaced in the report to localize losses.
     pub raw_with_fix_hunk: usize,
     pub parsed_with_fix_hunk: usize,
+    /// Immutable per-PR decision events made available to find_merged_work and
+    /// get_review_decisions. Re-ingest is idempotent by event id.
+    pub review_decisions_recorded: usize,
+    /// Findings lacking sufficient provenance, or PR groups that could not be
+    /// persisted without violating immutable-event validation.
+    pub review_decisions_skipped: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -426,6 +432,117 @@ pub async fn ingest_code_review_history(
         for r in &mut parsed {
             if let Some(verdict) = classify_ambiguous(state, project_id, r).await {
                 r.llm_resolution = Some(verdict);
+            }
+        }
+    }
+
+    // Preserve individual, disposition-aware review evidence as well as the
+    // clustered anti-pattern corpus. Clusters answer "what usually matters";
+    // per-PR decisions answer "what happened in this exemplar" and prevent an
+    // agent from re-raising accepted exceptions. These are imported claims,
+    // never verified-fix attestations and never automatic suppressions.
+    let mut decisions_by_pr: std::collections::BTreeMap<
+        u64,
+        Vec<crate::handlers::review_decisions::ReviewDecision>,
+    > = std::collections::BTreeMap::new();
+    for rule in &parsed {
+        if !rule.pr_url.starts_with("https://")
+            || rule.pr_author.trim().is_empty()
+            || rule.pr_date.trim().is_empty()
+        {
+            stats.review_decisions_skipped += 1;
+            continue;
+        }
+        use crate::handlers::review_decisions::{DecisionKind, ReviewDecision};
+        let (kind, disposition) = match rule.llm_resolution {
+            Some(LlmResolution::Fixed) => (DecisionKind::ClaimedFix, "llm_classified_fixed"),
+            Some(LlmResolution::Dismissed) => {
+                (DecisionKind::AcceptedException, "llm_classified_dismissed")
+            }
+            Some(LlmResolution::Unknown) => (DecisionKind::Open, "llm_unclassified"),
+            None => match rule.fix_status {
+                ThreadStatus::Fixed => (DecisionKind::ClaimedFix, "fixed"),
+                ThreadStatus::WontFix => (DecisionKind::AcceptedException, "wont_fix"),
+                ThreadStatus::Active => (DecisionKind::Open, "active"),
+                ThreadStatus::Closed => (DecisionKind::Open, "closed_unclassified"),
+                ThreadStatus::Unknown => (DecisionKind::Open, "unknown"),
+            },
+        };
+        let finding_id = if rule.thread_id > 0 {
+            format!("thread:{}", rule.thread_id)
+        } else {
+            format!(
+                "finding:{}",
+                &rule.semantic_hash[..16.min(rule.semantic_hash.len())]
+            )
+        };
+        decisions_by_pr
+            .entry(rule.pr_id)
+            .or_default()
+            .push(ReviewDecision {
+                event_id: format!("review-history:{}", rule.content_hash),
+                finding_id,
+                supersedes: None,
+                kind,
+                source_url: rule.pr_url.clone(),
+                author: rule.pr_author.clone(),
+                recorded_at: rule.pr_date.clone(),
+                rationale: format!(
+                    "Imported review disposition={disposition}; file={}; finding={}",
+                    rule.file_path, rule.rule_text
+                ),
+                verification: None,
+            });
+    }
+    for (pr_id, mut decisions) in decisions_by_pr {
+        let review_id = format!("PR-{pr_id}");
+        let existing = match crate::handlers::review_decisions::read(
+            state,
+            project_id,
+            &review_id,
+        ) {
+            Ok(events) => events,
+            Err(error) => {
+                stats.review_decisions_skipped += decisions.len();
+                tracing::warn!(
+                    project_id,
+                    pr_id,
+                    count = decisions.len(),
+                    "existing review decision evidence was unreadable: {error}"
+                );
+                continue;
+            }
+        };
+        let mut latest_by_finding = std::collections::BTreeMap::new();
+        for event in &existing {
+            latest_by_finding.insert(event.finding_id.clone(), event.event_id.clone());
+        }
+        for decision in &mut decisions {
+            if let Some(old) = existing
+                .iter()
+                .find(|event| event.event_id == decision.event_id)
+            {
+                decision.supersedes = old.supersedes.clone();
+            } else {
+                decision.supersedes = latest_by_finding.get(&decision.finding_id).cloned();
+                latest_by_finding.insert(decision.finding_id.clone(), decision.event_id.clone());
+            }
+        }
+        match crate::handlers::review_decisions::append(
+            state,
+            project_id,
+            &review_id,
+            &decisions,
+        ) {
+            Ok(_) => stats.review_decisions_recorded += decisions.len(),
+            Err(error) => {
+                stats.review_decisions_skipped += decisions.len();
+                tracing::warn!(
+                    project_id,
+                    pr_id,
+                    count = decisions.len(),
+                    "review decision evidence was not persisted: {error}"
+                );
             }
         }
     }

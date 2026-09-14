@@ -7,11 +7,13 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use engram_core::config::Config;
+use engram_server::handlers::review_decisions::GetReviewDecisionsRequest;
 use engram_server::services::code_review_ingest_service::{
     IngestConfig, IngestSource, ingest_code_review_history,
 };
 use engram_server::services::project_service::ensure_project_record;
 use engram_server::state::AppState;
+use engram_server::tools::Engram;
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -170,6 +172,85 @@ async fn jsonl_ingest_indexes_clusters_and_separates_wontfix() {
         "3-PR 100% fix-rate cluster must auto-promote"
     );
     assert_eq!(stats.newest_pr_id, Some(4));
+    assert_eq!(stats.review_decisions_recorded, 4);
+    assert_eq!(stats.review_decisions_skipped, 0);
+
+    let snapshot = Engram::new(state.clone())
+        .handle_get_review_decisions(GetReviewDecisionsRequest {
+            project_id: project_id.clone(),
+            review_id: "PR-4".into(),
+        })
+        .await
+        .unwrap();
+    let json: serde_json::Value =
+        serde_json::from_str(&snapshot.content[0].as_text().unwrap().text).unwrap();
+    assert_eq!(json["coverage"], "imported_events_only", "{json}");
+    assert_eq!(
+        json["current"][0]["effective_status"], "accepted_exception",
+        "{json}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn changed_thread_disposition_appends_a_superseding_event() {
+    let (tmp, state) = build_state();
+    let project_id = register_project(&state, &tmp).await;
+    let path = write_fixture_jsonl(
+        &tmp,
+        &[mk_record(
+            8,
+            "wontFix",
+            "/Site/Example.vb",
+            "major",
+            "_Potential issue_ | _Major_\n\n**Keep the caller-owned fallback.**\n\nThe caller owns this behavior and the fallback remains intentional.",
+        )],
+    );
+    ingest_code_review_history(
+        &state,
+        &project_id,
+        IngestConfig {
+            source: IngestSource::JsonlFile { path: path.clone() },
+            force_full_rescan: true,
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+
+    write_fixture_jsonl(
+        &tmp,
+        &[mk_record(
+            8,
+            "fixed",
+            "/Site/Example.vb",
+            "major",
+            "_Potential issue_ | _Major_\n\n**Remove the caller-owned fallback.**\n\nThe fallback caused a defect and was removed.\n\nAddressed in commits 0123456",
+        )],
+    );
+    ingest_code_review_history(
+        &state,
+        &project_id,
+        IngestConfig {
+            source: IngestSource::JsonlFile { path },
+            force_full_rescan: true,
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+
+    let snapshot = Engram::new(state)
+        .handle_get_review_decisions(GetReviewDecisionsRequest {
+            project_id,
+            review_id: "PR-8".into(),
+        })
+        .await
+        .unwrap();
+    let json: serde_json::Value =
+        serde_json::from_str(&snapshot.content[0].as_text().unwrap().text).unwrap();
+    assert_eq!(json["events"].as_array().unwrap().len(), 2, "{json}");
+    assert_eq!(json["current"][0]["effective_status"], "claimed_fix", "{json}");
+    assert!(json["current"][0]["evidence"]["supersedes"].is_string(), "{json}");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
