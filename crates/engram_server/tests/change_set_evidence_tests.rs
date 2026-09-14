@@ -148,6 +148,9 @@ async fn json_output_carries_per_file_evidence_and_arm_coverage() {
             f["why"].as_array().is_some_and(|w| !w.is_empty()),
             "every candidate carries a rationale: {f}"
         );
+        assert!(f["evidence_class"].is_string(), "{f}");
+        assert!(f["impact_question"].is_string(), "{f}");
+        assert!(f["exclusion_evidence_required"].is_string(), "{f}");
     }
     let coverage = v["coverage"].as_object().expect("coverage object");
     for arm in ["concept", "history", "cochange", "vector"] {
