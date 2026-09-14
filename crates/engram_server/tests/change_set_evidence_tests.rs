@@ -153,6 +153,7 @@ async fn json_output_carries_per_file_evidence_and_arm_coverage() {
         assert!(f["exclusion_evidence_required"].is_string(), "{f}");
     }
     let coverage = v["coverage"].as_object().expect("coverage object");
+    assert_eq!(v["boundary_audit"]["status"], "not_applicable");
     for arm in ["concept", "history", "cochange", "vector"] {
         assert!(
             coverage[arm]["status"].is_string(),
@@ -260,6 +261,9 @@ async fn structured_output_has_compact_reconciled_and_forensic_views() {
     assert!(reconciled["files"].as_array().unwrap().iter().all(|row| row["set"] == "primary"));
     assert!(reconciled["cross_cutting_obligations"].as_array().unwrap().len() >= 5);
     assert!(!reconciled["component_hypotheses"].as_array().unwrap().is_empty());
+    assert_eq!(reconciled["boundary_audit"]["status"], "incomplete");
+    assert_eq!(reconciled["boundary_audit"]["categories"].as_array().unwrap().len(), 10);
+    assert!(reconciled["boundary_audit"]["unresolved"].as_array().unwrap().len() > 0);
     assert!(reconciled["applicable_repository_rules"]["rules"].is_array());
     assert!(reconciled["project_policy_sources"]["sources"].is_array());
 

@@ -7862,6 +7862,139 @@ fn change_set_component_hypotheses(story: &str) -> Vec<serde_json::Value> {
     out
 }
 
+/// Show whether the current evidence set spans the lifecycle boundaries that
+/// commonly participate in an authentication or session change. This is a
+/// bounded audit of retrieved evidence, not a claim that the repository has no
+/// additional entry points. Empty categories become explicit search work.
+fn change_set_boundary_audit(
+    story: &str,
+    rows: &[ChangeSetRow],
+    asset_dependencies: &[AssetGraphFile],
+    caller_dependencies: &[CallerGraphFile],
+) -> serde_json::Value {
+    let lower = story.to_ascii_lowercase();
+    let applicable = [
+        "authenticat", "authoriz", "session", "login", "logout", "cookie", "token",
+        "credential", "password", "permission", "role", "impersonat", "tenant access",
+    ].iter().any(|term| lower.contains(term));
+    if !applicable {
+        return serde_json::json!({
+            "status": "not_applicable",
+            "categories": [],
+            "instruction": "No authentication or session boundary vocabulary was detected in the story."
+        });
+    }
+
+    let mut all_paths = rows.iter()
+        .filter(|row| !row.omitted)
+        .map(|row| row.path.clone())
+        .chain(asset_dependencies.iter().map(|row| row.path.clone()))
+        .chain(caller_dependencies.iter().map(|row| row.path.clone()))
+        .collect::<Vec<_>>();
+    all_paths.sort();
+    all_paths.dedup();
+
+    let mut categories: BTreeMap<&'static str, BTreeSet<String>> = BTreeMap::new();
+    for path in &all_paths {
+        let normalized = path.replace('\\', "/").to_ascii_lowercase();
+        let name = normalized.rsplit('/').next().unwrap_or(&normalized);
+        let role = change_set_mechanism_role(path);
+        let add = |categories: &mut BTreeMap<&'static str, BTreeSet<String>>, key, path: &String| {
+            categories.entry(key).or_default().insert(path.clone());
+        };
+        if matches!(role, "application request pipeline" | "request pipeline and principal propagation")
+            || ["global.asax", "startup", "middleware", "module", "pipeline"]
+                .iter().any(|term| name.contains(term))
+        {
+            add(&mut categories, "request_pipeline", path);
+        }
+        if role == "authentication or authorization gate"
+            || ["authorize", "authorization", "authfilter", "permission"]
+                .iter().any(|term| name.contains(term))
+        {
+            add(&mut categories, "authorization_gates", path);
+        }
+        if ["login", "signin", "authenticate", "oauth", "saml", "mfa", "refresh", "callback"]
+            .iter().any(|term| name.contains(term))
+        {
+            add(&mut categories, "authentication_entry_and_refresh", path);
+        }
+        if ["logout", "signout", "termination", "cleanup", "revoke"]
+            .iter().any(|term| name.contains(term))
+        {
+            add(&mut categories, "termination_and_logout", path);
+        }
+        if ["password", "membership", "account", "user", "role", "permission", "tenant", "access"]
+            .iter().any(|term| name.contains(term))
+        {
+            add(&mut categories, "credential_and_authorization_mutations", path);
+        }
+        if role == "browser or client behavior"
+            || caller_dependencies.iter().any(|row| row.path.eq_ignore_ascii_case(path))
+        {
+            add(&mut categories, "machine_and_browser_consumers", path);
+        }
+        if matches!(role, "asset registration and delivery" | "rendered user-interface host")
+            || asset_dependencies.iter().any(|row| row.path.eq_ignore_ascii_case(path))
+        {
+            add(&mut categories, "client_delivery_and_hosts", path);
+        }
+        if role == "persistence schema or data operation"
+            || [".sql", ".sqlproj", ".dbml", ".edmx"]
+                .iter().any(|suffix| normalized.ends_with(suffix))
+        {
+            add(&mut categories, "security_state_persistence", path);
+        }
+        if role == "audit and operational logging" {
+            add(&mut categories, "audit_and_observability", path);
+        }
+        if normalized.ends_with(".config")
+            || normalized.ends_with(".yaml")
+            || normalized.ends_with(".yml")
+            || normalized.contains("migration")
+            || normalized.contains("deploy")
+        {
+            add(&mut categories, "deployment_and_runtime_prerequisites", path);
+        }
+    }
+
+    let definitions = [
+        ("request_pipeline", "request pipeline, middleware, modules, and session acquisition"),
+        ("authorization_gates", "authorization filters and permission gates"),
+        ("authentication_entry_and_refresh", "login, SSO, token issue, callback, MFA, and refresh paths"),
+        ("termination_and_logout", "logout, revocation, expiry, and cleanup paths"),
+        ("credential_and_authorization_mutations", "password, account, role, permission, and tenant write paths"),
+        ("machine_and_browser_consumers", "API, asynchronous, and browser consumers of the response contract"),
+        ("client_delivery_and_hosts", "client assets, bundle registries, layouts, shells, and page hosts"),
+        ("security_state_persistence", "schema, migration, generated model, and state data operations"),
+        ("audit_and_observability", "security audit and failure diagnostics"),
+        ("deployment_and_runtime_prerequisites", "configuration, deployment order, modules, rewrites, and feature prerequisites"),
+    ];
+    let category_values = definitions.iter().map(|(key, purpose)| {
+        let paths = categories.get(key).cloned().unwrap_or_default();
+        let total = paths.len();
+        serde_json::json!({
+            "boundary": key,
+            "purpose": purpose,
+            "status": if total == 0 { "unresolved" } else { "evidence_present" },
+            "paths": paths.into_iter().take(20).collect::<Vec<_>>(),
+            "paths_total": total,
+            "truncated": total > 20,
+        })
+    }).collect::<Vec<_>>();
+    let unresolved = category_values.iter()
+        .filter(|category| category["status"] == "unresolved")
+        .filter_map(|category| category["boundary"].as_str())
+        .collect::<Vec<_>>();
+
+    serde_json::json!({
+        "status": if unresolved.is_empty() { "covered_by_retrieved_evidence" } else { "incomplete" },
+        "categories": category_values,
+        "unresolved": unresolved,
+        "instruction": "For every category, reconcile literal search with graph, state, history, and current source. Evidence present is a starting set, not proof of completeness. An unresolved category needs an evidence-backed not-applicable decision or additional paths before the feature contract is complete."
+    })
+}
+
 fn change_set_rule_matches_path(file_pattern: &str, target_path: &str) -> bool {
     if file_pattern.trim().is_empty() {
         return false;
@@ -10978,6 +11111,12 @@ impl Engram {
                 change_set_cross_cutting_obligations(req.story.trim());
             let component_hypotheses =
                 change_set_component_hypotheses(req.story.trim());
+            let boundary_audit = change_set_boundary_audit(
+                req.story.trim(),
+                &rows,
+                &asset_dependencies,
+                &caller_dependencies,
+            );
             let work_item_evidence_risk = change_set_work_item_evidence_risk(
                 req.story.trim(),
                 req.merged_before.as_deref(),
@@ -11011,6 +11150,7 @@ impl Engram {
                 "permission_gates": permission_gates_json,
                 "cross_cutting_obligations": cross_cutting_obligations,
                 "component_hypotheses": component_hypotheses,
+                "boundary_audit": boundary_audit,
                 "work_item_evidence_risk": work_item_evidence_risk,
                 "project_policy_sources": project_policy_sources,
                 "applicable_repository_rules": {
@@ -14102,6 +14242,35 @@ mod change_set_rows_tests {
             change_set_impact_question("App_Start/BundleConfig.cs")
                 .contains("registry")
         );
+    }
+
+    #[test]
+    fn auth_boundary_audit_exposes_present_and_missing_lifecycle_surfaces() {
+        let rows = vec![ChangeSetRow {
+            path: "src/Global.asax.vb".into(),
+            layer: "Server",
+            layer_index: 0,
+            tier: 0,
+            signals: vec!["business"],
+            omitted: false,
+            set: "primary",
+            rank: 1,
+        }];
+        let audit = change_set_boundary_audit(
+            "Revalidate authenticated sessions after permission changes",
+            &rows,
+            &[],
+            &[],
+        );
+        assert_eq!(audit["status"], "incomplete");
+        let pipeline = audit["categories"].as_array().unwrap().iter()
+            .find(|category| category["boundary"] == "request_pipeline")
+            .unwrap();
+        assert_eq!(pipeline["status"], "evidence_present");
+        assert!(pipeline["paths"].as_array().unwrap().iter()
+            .any(|path| path == "src/Global.asax.vb"));
+        assert!(audit["unresolved"].as_array().unwrap().iter()
+            .any(|boundary| boundary == "security_state_persistence"));
     }
 
     #[test]
