@@ -258,6 +258,7 @@ async fn structured_output_has_compact_reconciled_and_forensic_views() {
     assert!(reconciled["cross_cutting_obligations"].as_array().unwrap().len() >= 5);
     assert!(!reconciled["component_hypotheses"].as_array().unwrap().is_empty());
     assert!(reconciled["applicable_repository_rules"]["rules"].is_array());
+    assert!(reconciled["project_policy_sources"]["sources"].is_array());
 
     let full = change_set(
         &engram,
@@ -272,6 +273,40 @@ async fn structured_output_has_compact_reconciled_and_forensic_views() {
     assert_eq!(full["view"]["detail"], "full");
     assert_eq!(full["view"]["files_omitted_from_view"], 0);
     assert_eq!(full["view"]["omissions_omitted_from_view"], 0);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn structured_output_includes_hash_bound_repository_policy_without_prior_ingestion() {
+    let (tmp, state) = build_state();
+    seed(&state);
+    let policy_dir = tmp.path().join("project").join(".github");
+    std::fs::create_dir_all(&policy_dir).unwrap();
+    std::fs::write(
+        policy_dir.join("copilot-instructions.md"),
+        "# Coding standards\n\n- Document public members.\n- Use multiline conditionals.\n",
+    )
+    .unwrap();
+    let engram = Engram::new(state);
+
+    let result = change_set(
+        &engram,
+        json!({
+            "project_id": PID,
+            "story": STORY,
+            "output_json": true,
+            "detail": "reconciled"
+        }),
+    )
+    .await;
+
+    let policy = &result["project_policy_sources"];
+    assert_eq!(policy["status"], "present", "{policy}");
+    let sources = policy["sources"].as_array().unwrap();
+    assert_eq!(sources.len(), 1, "{policy}");
+    assert_eq!(sources[0]["path"], ".github/copilot-instructions.md");
+    assert!(sources[0]["blake3"].as_str().is_some_and(|hash| hash.len() == 64));
+    assert!(sources[0]["content"].as_str().unwrap().contains("multiline conditionals"));
+    assert_eq!(sources[0]["truncated"], false);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
