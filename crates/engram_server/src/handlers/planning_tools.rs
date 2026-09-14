@@ -2745,7 +2745,21 @@ mod tests {
             - `diagnostics/NotAPartner.vb` (40 co-changes with `diagnostics/NotASeed.vb`)\n\
             next: pre_commit_review\n";
         let (paths, notes) = detect_cochange_evidence(report);
-        assert_eq!(paths, vec!["nested/rules.vb", "rules.vb"]);
+        assert_eq!(
+            paths,
+            vec![
+                CochangePartnerEvidence {
+                    path: "nested/rules.vb".into(),
+                    anchor_path: "src/seed.vb".into(),
+                    weight: 25,
+                },
+                CochangePartnerEvidence {
+                    path: "rules.vb".into(),
+                    anchor_path: "src/otherseed.vb".into(),
+                    weight: 15,
+                },
+            ]
+        );
         assert!(notes.iter().any(|note| note.contains("diagnostics/Skipped.vb")));
         let mut coverage = ArmCoverage::complete(paths.len(), 7);
         apply_detect_cochange_coverage(&mut coverage, notes);
@@ -6021,7 +6035,14 @@ mod history_path_identity_tests {
 
 /// Consume only explicit temporal partner records from the completeness report.
 /// State readers, wiring candidates, seeds and diagnostic paths are not history evidence.
-fn detect_cochange_evidence(text: &str) -> (Vec<String>, Vec<String>) {
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CochangePartnerEvidence {
+    path: String,
+    anchor_path: String,
+    weight: u32,
+}
+
+fn detect_cochange_evidence(text: &str) -> (Vec<CochangePartnerEvidence>, Vec<String>) {
     let mut in_partners = false;
     let mut in_coverage = false;
     let mut paths = Vec::new();
@@ -6045,12 +6066,25 @@ fn detect_cochange_evidence(text: &str) -> (Vec<String>, Vec<String>) {
         if !in_partners { continue; }
         let Some(record) = line.strip_prefix("- `") else { continue; };
         let Some((path, tail)) = record.split_once('`') else { continue; };
-        let weight = tail.strip_prefix(" (").and_then(|tail| tail.split_once(" co-changes with `")).and_then(|(weight, _)| weight.parse::<u32>().ok());
-        if weight.is_none() { notes.push("Malformed temporal partner record; not used as co-change evidence".into()); continue; }
-        match normalize_edit_files(&[path.to_string()]) {
+        let relation = tail
+            .strip_prefix(" (")
+            .and_then(|tail| tail.split_once(" co-changes with `"))
+            .and_then(|(weight, anchor)| {
+                let weight = weight.parse::<u32>().ok()?;
+                let anchor = anchor.split_once('`')?.0;
+                Some((weight, anchor))
+            });
+        let Some((weight, anchor)) = relation else {
+            notes.push("Malformed temporal partner record; not used as co-change evidence".into());
+            continue;
+        };
+        match normalize_edit_files(&[path.to_string(), anchor.to_string()]) {
             Ok(normalized) => {
                 let path = normalized[0].to_lowercase();
-                if seen.insert(path.clone()) { paths.push(path); }
+                let anchor_path = normalized[1].to_lowercase();
+                if seen.insert(path.clone()) {
+                    paths.push(CochangePartnerEvidence { path, anchor_path, weight });
+                }
             },
             Err(_) => notes.push("Invalid temporal partner path; not used as co-change evidence".into()),
         }
@@ -7524,6 +7558,107 @@ fn change_set_mechanism_role(path: &str) -> &'static str {
     }
 }
 
+/// State what kind of claim a candidate row carries. This prevents planners
+/// from treating a direct behavioral anchor, a static dependency, and a loose
+/// lexical match as interchangeable entries in one flat list.
+fn change_set_evidence_class(signals: &[&str]) -> &'static str {
+    let has = |signal: &str| signals.contains(&signal);
+    let direct = has("business") || has("entity") || has("name");
+    let historical = has("history") || has("cochange");
+    if direct && historical {
+        "corroborated_behavioral_candidate"
+    } else if direct {
+        "direct_behavioral_candidate"
+    } else if historical {
+        "historical_companion_candidate"
+    } else if has("family") || has("disk") {
+        "structural_companion_candidate"
+    } else {
+        "retrieval_candidate"
+    }
+}
+
+fn change_set_impact_question(path: &str) -> &'static str {
+    match change_set_mechanism_role(path) {
+        "asset registration and delivery" =>
+            "Does this registry deliver any changed or newly required client behavior to the affected surface?",
+        "application request pipeline" =>
+            "Does this pipeline stage acquire state, select a principal, classify the request, or rewrite the response affected by the story?",
+        "request pipeline and principal propagation" =>
+            "Must this middleware keep framework principals, authentication schemes, and response behavior consistent with the changed boundary?",
+        "authentication or authorization gate" =>
+            "Must this gate apply the same rule and denial contract as the changed authentication or authorization path?",
+        "endpoint controller" =>
+            "Can this endpoint enter, leave, refresh, or clean up the lifecycle changed by the story?",
+        "error and response contract" =>
+            "Does the changed behavior require a distinct status, body, redirect, or framework-suppression response here?",
+        "audit and operational logging" =>
+            "Does this component record the changed decision or sit on an error path where logging must preserve the primary outcome?",
+        "shared protocol or contract constants" =>
+            "Does the changed protocol, claim, route, cache, or response contract require a shared constant here?",
+        "persistence schema or data operation" =>
+            "Does the changed behavior require persisted state, a write-side invalidation, an upgrade path, or concurrency protection here?",
+        "rendered user-interface host" =>
+            "Does this host initiate or consume the changed behavior, load its client asset, or need to handle its response and navigation lifecycle?",
+        "browser or client behavior" =>
+            "Does this client call the changed endpoint or handle its status, redirect, cache, logout, or navigation lifecycle?",
+        "service boundary" =>
+            "Does this service implement or reuse the changed rule across another entry path?",
+        _ =>
+            "Does source in this file read, write, call, host, configure, or observe behavior changed by the story?",
+    }
+}
+
+fn change_set_exclusion_evidence(signals: &[&str]) -> &'static str {
+    match change_set_evidence_class(signals) {
+        "corroborated_behavioral_candidate" =>
+            "inspect the named member or story entity and its historical relationship; exclude only with source evidence that the changed behavior cannot reach this file",
+        "direct_behavioral_candidate" =>
+            "inspect the named member or story entity; exclude only with source evidence that its behavior is outside the contract",
+        "historical_companion_candidate" =>
+            "inspect the reported anchor and relevant historical cohort; 'unchanged' is not evidence unless the shared behavior is shown not to apply",
+        "structural_companion_candidate" =>
+            "inspect the static family or delivery edge and prove the affected artifact is not built, hosted, registered, or deployed through this file",
+        _ =>
+            "verify against current source; a lexical or semantic match may be excluded when no behavioral or structural path is found",
+    }
+}
+
+fn change_set_reason_priority(reason: &str) -> u8 {
+    if reason.starts_with("story explicitly names code entity") {
+        0
+    } else if reason.starts_with("business-rule match")
+        || reason.starts_with("historical co-change:")
+        || reason.starts_with("presentation dependency:")
+        || reason.contains("companion of")
+        || reason.contains("pair of")
+    {
+        1
+    } else if reason.starts_with("past commits") || reason.starts_with("co-changed with") {
+        2
+    } else if reason.contains("too common in this index") {
+        9
+    } else {
+        4
+    }
+}
+
+fn ranked_change_set_reasons(
+    why: &BTreeMap<String, Vec<String>>,
+    path: &str,
+    limit: usize,
+) -> Vec<String> {
+    let mut reasons = why.get(path).cloned().unwrap_or_default();
+    reasons.sort_by(|left, right| {
+        change_set_reason_priority(left)
+            .cmp(&change_set_reason_priority(right))
+            .then_with(|| left.cmp(right))
+    });
+    reasons.dedup();
+    reasons.truncate(limit);
+    reasons
+}
+
 /// Cross-cutting mechanism checks implied by the work-item vocabulary. These
 /// are questions for the planner, not claims that a particular implementation
 /// is required. Keeping them in the structured response prevents a strong
@@ -7565,6 +7700,8 @@ fn change_set_cross_cutting_obligations(story: &str) -> Vec<serde_json::Value> {
             "checks": [
                 "enumerate every write path for the mutable security state, including administrative pages, APIs, imports, and background work",
                 "decide whether each write must invalidate, advance, reissue, or terminate existing authentication state",
+                "include credential write paths such as password change, reset, recovery, lockout, role or tenant assignment, and administrator edits even when the story names only request-time validation",
+                "compare a security stamp, generation counter, version, or equivalent repository precedent; define its scope across devices and tenants and prevent replay after state is restored",
                 "verify ordering: persist the change before synchronizing the acting user's current session"
             ],
             "candidate_mechanism_roles": ["mutation command handlers", "session or token lifecycle", "audit and operational logging"]
@@ -7576,8 +7713,10 @@ fn change_set_cross_cutting_obligations(story: &str) -> Vec<serde_json::Value> {
             "trigger": "the story changes authentication, authorization, or session behavior",
             "checks": [
                 "compare page, API, bearer, basic, MFA, impersonation, and tenant entry paths that exist in this repository",
+                "inventory every concrete boundary entry point: controllers, WebMethods or page methods, handlers, middleware, pipeline events, login and logout routes, and client response consumers",
                 "keep framework and thread/request principals synchronized where the stack exposes both",
-                "define denial behavior separately for redirecting pages and machine-readable API or asynchronous requests"
+                "define denial behavior separately for redirecting pages and machine-readable API or asynchronous requests",
+                "decide credential precedence when more than one scheme is present, including an explicit Authorization header alongside a session or Forms cookie"
             ],
             "candidate_mechanism_roles": ["application request pipeline", "request pipeline and principal propagation", "authentication or authorization gate", "error and response contract"]
         }));
@@ -7586,6 +7725,8 @@ fn change_set_cross_cutting_obligations(story: &str) -> Vec<serde_json::Value> {
             "trigger": "a request can discover stale, revoked, invalid, or signed-out authentication state",
             "checks": [
                 "inventory every authentication and session artifact that must be expired or abandoned",
+                "keep logout and cleanup callable with stale, malformed, missing, or already-revoked credentials and during primary-store or audit-log failure",
+                "decide whether termination is local-session, tenant-local, account-wide, or multi-device and preserve credentials that are intentionally outside that scope",
                 "clear in-process principals and response caches as well as cookies or tokens",
                 "verify that a copied stale credential and browser back-forward restoration cannot recover protected state"
             ],
@@ -7621,7 +7762,8 @@ fn change_set_cross_cutting_obligations(story: &str) -> Vec<serde_json::Value> {
             "checks": [
                 "verify that framework Forms Authentication does not rewrite an intended 401 into a 302 on API or asynchronous paths",
                 "verify that IIS or custom-error handling does not replace the intended status code and body",
-                "keep redirect targets in an explicit response contract and validate them before navigation"
+                "keep redirect targets in an explicit response contract and validate local ReturnUrl or redirect targets before navigation",
+                "exercise partial-page and asynchronous framework transports whose status and redirect headers may be consumed differently from full navigation"
             ],
             "candidate_mechanism_roles": ["authentication or authorization gate", "error and response contract", "request pipeline and principal propagation", "browser or client behavior"]
         }));
@@ -7633,7 +7775,8 @@ fn change_set_cross_cutting_obligations(story: &str) -> Vec<serde_json::Value> {
             "checks": [
                 "identify every layout, shell, or entry point that must load the client behavior",
                 "verify asset registration or bundling rather than assuming a new source file is delivered",
-                "cover asynchronous denial, redirects, cache headers, and back-forward cache restoration where applicable"
+                "cover asynchronous denial, validate local ReturnUrl or other redirect targets, cache headers, and back-forward cache restoration where applicable",
+                "verify that authenticated history cannot be restored after revocation and that client cleanup still works when the server refuses validation"
             ],
             "candidate_mechanism_roles": ["asset registration and delivery", "asset delivery consumer or host", "browser or client behavior", "rendered user-interface host", "error and response contract"]
         }));
@@ -7645,6 +7788,7 @@ fn change_set_cross_cutting_obligations(story: &str) -> Vec<serde_json::Value> {
             "checks": [
                 "keep schema, migration or post-deploy script, generated or mapped model, and data access behavior aligned",
                 "define defaults, nullability, concurrency, and rollback or compatibility behavior",
+                "state deployment order and runtime prerequisites for database, application, proxy, rewrite, module, or feature-flag changes; fail with an operator-visible diagnostic when one is missing",
                 "for an added or tightened column, prove the upgrade path for existing rows: explicit backfill, compatible default, or evidence that NULL is accepted end to end",
                 "preserve the schema model's established column-order convention and verify that deployment tooling does not infer a destructive rebuild from an incidental reorder"
             ],
@@ -8566,18 +8710,26 @@ fn render_change_set(
         } else {
             ""
         };
-        let rationale = why.get(&r.path).map(|reasons| {
-            reasons.iter().take(2).cloned().collect::<Vec<_>>().join("; ")
-        }).filter(|value| !value.is_empty()).unwrap_or_else(|| "ranked retrieval evidence".into());
+        let rationale = {
+            let reasons = ranked_change_set_reasons(why, &r.path, 2);
+            if reasons.is_empty() {
+                "ranked retrieval evidence".into()
+            } else {
+                reasons.join("; ")
+            }
+        };
         s.push_str(&format!(
-            "P{:03}. `{}`  [rank {}|{}]  — {}; role: {}; why: {}{hist}\n",
+            "P{:03}. `{}`  [rank {}|{}]  — {}; evidence: {}; role: {}; why: {}; impact question: {}; exclusion evidence: {}{hist}\n",
             row_index + 1,
             r.path,
             r.rank,
             r.signals.join("|"),
             r.layer,
+            change_set_evidence_class(&r.signals),
             change_set_mechanism_role(&r.path),
             rationale,
+            change_set_impact_question(&r.path),
+            change_set_exclusion_evidence(&r.signals),
         ));
     }
     s.push_str(
@@ -8960,9 +9112,17 @@ impl Engram {
                             if !prov.contains_key(current) {
                                 seed_order.push(current.clone());
                             }
-                            why.entry(current.clone()).or_default().push(
-                                "business-logic analysis matching the story is anchored to a method in this checked-out source file; inspect the source-verified rule card before relying on its claims".into(),
-                            );
+                            let member = hit.path
+                                .as_str()
+                                .replace('\\', "/")
+                                .rsplit('/')
+                                .next()
+                                .unwrap_or("unknown member")
+                                .trim_end_matches(".md")
+                                .to_string();
+                            why.entry(current.clone()).or_default().push(format!(
+                                "business-rule match anchors the story to member `{member}` in this checked-out source file; inspect that method and its source-verified rule card before excluding it"
+                            ));
                             prov.entry(current.clone()).or_default().insert("business");
                             anchored += 1;
                             if anchored >= 16 {
@@ -9354,8 +9514,14 @@ impl Engram {
             {
                 Ok(r) => {
                     if let Some(t) = r.content.first().and_then(|x| x.as_text()) {
-                        let (paths, notes) = detect_cochange_evidence(&t.text);
-                        detected_paths.extend(paths);
+                        let (partners, notes) = detect_cochange_evidence(&t.text);
+                        for partner in partners {
+                            why.entry(partner.path.clone()).or_default().push(format!(
+                                "historical co-change: {} indexed change(s) paired this file with anchor `{}`; inspect the shared behavior before excluding it",
+                                partner.weight, partner.anchor_path
+                            ));
+                            detected_paths.push(partner.path);
+                        }
                         detect_notes.extend(notes);
                     } else {
                         detect_notes.push("detect_incomplete_changes returned no text result".into());
@@ -9533,16 +9699,17 @@ impl Engram {
                 )
                 .await {
               Ok(r) => if let Some(t) = r.content.first().and_then(|x| x.as_text()) {
-                let (paths, notes) = detect_cochange_evidence(&t.text);
+                let (partners, notes) = detect_cochange_evidence(&t.text);
                 apply_detect_cochange_coverage(&mut cov.cochange, notes);
-                for p in paths {
+                for partner in partners {
+                let p = partner.path;
                 let pl = p.to_lowercase();
                 if PRESENTATION.iter().any(|e| pl.ends_with(e)) && !engram_core::is_vendor_path(&p)
                 {
-                    why.entry(p.clone()).or_default().push(
-                        "presentation-layer co-change partner (bundle / markup / stylesheet)"
-                            .into(),
-                    );
+                    why.entry(p.clone()).or_default().push(format!(
+                        "presentation dependency: {} indexed change(s) paired this bundle, markup, or stylesheet with anchor `{}`",
+                        partner.weight, partner.anchor_path
+                    ));
                     prov.entry(p).or_default().insert("cochange");
                     cov.cochange.hits += 1;
                 }
@@ -10689,14 +10856,18 @@ impl Engram {
                 .filter(|row| !reconciled_detail || row.set == "primary")
                 .take(file_cap)
                 .map(|r| {
-                    let mut reasons = why.get(&r.path).cloned().unwrap_or_default();
-                    if !full_detail {
-                        reasons.truncate(4);
-                    }
+                    let reasons = ranked_change_set_reasons(
+                        &why,
+                        &r.path,
+                        if full_detail { usize::MAX } else { 4 },
+                    );
                     serde_json::json!({
                         "row_id": primary_row_ids.get(&r.path),
                         "path": r.path,
                         "mechanism_role": change_set_mechanism_role(&r.path),
+                        "evidence_class": change_set_evidence_class(&r.signals),
+                        "impact_question": change_set_impact_question(&r.path),
+                        "exclusion_evidence_required": change_set_exclusion_evidence(&r.signals),
                         "path_kind": if r.signals.contains(&"disk") { "existing_unindexed" } else { "existing" },
                         "indexed": !r.signals.contains(&"disk"),
                         "layer": r.layer,
@@ -10735,6 +10906,16 @@ impl Engram {
                         "row_id": format!("A{:03}", index + 1),
                         "path": linked.path,
                         "mechanism_role": "asset delivery consumer or host",
+                        "evidence_class": "structural_dependency",
+                        "impact_question": "Does this exact asset, bundle, host, or code-behind edge deliver or consume behavior changed by the story?",
+                        "causal_chain": format!(
+                            "{} --{}{}--> {}",
+                            linked.anchor_path,
+                            linked.relation,
+                            linked.bundle_id.as_deref().map(|id| format!(" via {id}")).unwrap_or_default(),
+                            linked.path,
+                        ),
+                        "exclusion_evidence_required": "inspect the reported static edge and prove the changed artifact is not built, hosted, registered, or deployed through this path",
                         "relation": linked.relation,
                         "bundle_id": linked.bundle_id,
                         "anchor_path": linked.anchor_path,
@@ -10750,6 +10931,16 @@ impl Engram {
                         "row_id": format!("C{:03}", index + 1),
                         "path": linked.path,
                         "mechanism_role": "direct source consumer",
+                        "evidence_class": "direct_behavioral_consumer",
+                        "impact_question": format!(
+                            "If `{}` changes its contract, must caller `{}` preserve, translate, or expose that behavior?",
+                            linked.target_symbol, linked.caller_symbol,
+                        ),
+                        "causal_chain": format!(
+                            "{} --{} {}--> {}",
+                            linked.path, linked.edge_kind, linked.target_symbol, linked.anchor_path,
+                        ),
+                        "exclusion_evidence_required": "inspect the caller at the reported edge; 'unchanged' is not evidence unless its observable contract is shown unaffected",
                         "caller_symbol": linked.caller_symbol,
                         "target_symbol": linked.target_symbol,
                         "anchor_path": linked.anchor_path,
@@ -13884,10 +14075,33 @@ mod change_set_rows_tests {
             "security decision observability",
             "client delivery and navigation lifecycle",
             "session acquisition and concurrency",
+            "security stamp",
+            "password change, reset, recovery",
+            "explicit Authorization header",
+            "logout and cleanup callable",
+            "local ReturnUrl",
         ] {
             assert!(rendered.contains(expected), "missing {expected}: {rendered}");
         }
         assert!(!rendered.contains("OciusX"));
+    }
+
+    #[test]
+    fn change_set_rows_explain_evidence_strength_and_causal_check() {
+        let direct = vec!["business", "cochange"];
+        assert_eq!(
+            change_set_evidence_class(&direct),
+            "corroborated_behavioral_candidate"
+        );
+        assert!(change_set_exclusion_evidence(&direct).contains("source evidence"));
+        assert!(
+            change_set_impact_question("src/AuthMiddleware.vb")
+                .contains("framework principals")
+        );
+        assert!(
+            change_set_impact_question("App_Start/BundleConfig.cs")
+                .contains("registry")
+        );
     }
 
     #[test]

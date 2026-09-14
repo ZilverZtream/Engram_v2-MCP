@@ -184,7 +184,15 @@ async fn indexed_bundle_connects_rendering_markup_to_static_assets() {
     assert!(payload["reconciliation"]["receipt_id"].as_str()
         .is_some_and(|value| value.starts_with("sha256:") && value.len() == 71));
     assert!(payload["asset_dependencies"].as_array().unwrap().iter()
-        .all(|row| row["row_id"].as_str().is_some_and(|id| id.starts_with('A'))));
+        .all(|row| row["row_id"].as_str().is_some_and(|id| id.starts_with('A'))
+            && row["evidence_class"] == "structural_dependency"
+            && row["causal_chain"].is_string()
+            && row["impact_question"].is_string()
+            && row["exclusion_evidence_required"].is_string()));
     assert!(payload["caller_dependencies"].as_array().unwrap().iter()
-        .all(|row| row["row_id"].as_str().is_some_and(|id| id.starts_with('C'))));
+        .all(|row| row["row_id"].as_str().is_some_and(|id| id.starts_with('C'))
+            && row["evidence_class"] == "direct_behavioral_consumer"
+            && row["causal_chain"].is_string()
+            && row["impact_question"].is_string()
+            && row["exclusion_evidence_required"].is_string()));
 }
