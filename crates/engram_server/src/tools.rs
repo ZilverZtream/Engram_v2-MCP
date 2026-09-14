@@ -427,7 +427,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Suggest candidate files for a user story using concepts, historical co-change and structural graph evidence. Ranks candidates, expands discovered deployable families (including WebForms code-behind/resources, TypeScript bundles, DBML schema/designer/layout units and nearest owning SQL projects), and filters vendor/minified noise. Deterministic companions that exist on disk but are excluded from the source index are labelled existing_unindexed rather than historical. Returns grouped candidates and a scope checklist. Use to investigate which files may need changes; results do not establish complete scope, required edits or reviewer approval."
+        description = "Suggest candidate files for a user story using exact code-shaped entities, concepts, historical co-change and structural graph evidence. Ranks candidates, expands discovered deployable families (including WebForms code-behind/resources, TypeScript bundles, DBML schema/designer/layout units and nearest owning SQL projects), and follows bounded direct caller plus asset-bundle links. Deterministic companions that exist on disk but are excluded from the source index are labelled existing_unindexed rather than historical. Before planning, classify every primary/dependency row as include, conditional or evidence-backed exclude in the consumer ledger. Results do not establish complete scope, required edits or reviewer approval."
     )]
     pub async fn get_change_set(
         &self,

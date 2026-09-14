@@ -4560,16 +4560,30 @@ pub(crate) fn story_asks_analytics_over_time(story: &str) -> bool {
         "time to",
         "aging",
         "over time",
-        "history",
-        "audit",
         "trend",
         "duration",
         "elapsed",
-        "performance of",
-        "completion",
+        "completion time",
+        "time until",
+        "how long",
     ]
     .iter()
     .any(|t| s.contains(t))
+        || (["history", "audit", "performance"]
+            .iter()
+            .any(|t| s.contains(t))
+            && [
+                "report",
+                "analytics",
+                "metric",
+                "dashboard",
+                "visualize",
+                "chart",
+                "measure",
+                "show",
+            ]
+            .iter()
+            .any(|t| s.contains(t)))
 }
 
 /// Log/history/audit table-name shape (db_table node names are lowercase).
@@ -4667,6 +4681,7 @@ const STORY_STOPWORDS: &[&str] = &[
     "improve",
     "improved",
     "current",
+    "than",
     // Story-structure / Gherkin labels and HTTP verbs: scaffolding, not
     // domain concepts (they otherwise steal a top-3 slot from real tokens).
     "acceptance",
@@ -4926,6 +4941,94 @@ pub(crate) fn resolve_story_concepts(
     out
 }
 
+/// Code-shaped identifiers explicitly written by the story author. These
+/// carry much stronger identity than ordinary prose: `SessionGeneration`,
+/// `aspnet_Membership` and `ResetPassword` can be resolved directly to a
+/// current file or graph symbol without guessing a repository vocabulary.
+/// Keep this generic by recognizing identifier shape rather than names.
+pub(crate) fn extract_story_code_entities(story: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut seen = HashSet::new();
+    for raw in story.split_whitespace() {
+        let token = raw.trim_matches(|c: char| {
+            !c.is_alphanumeric() && c != '_' && c != '.' && c != '-'
+        });
+        let token = token.trim_matches(|c| c == '.' || c == '-');
+        if token.starts_with("http") {
+            continue;
+        }
+        let chars: Vec<char> = token.chars().collect();
+        let camel = chars.windows(2).any(|pair| {
+            (pair[0].is_lowercase() && pair[1].is_uppercase())
+                || (pair[0].is_alphabetic() && pair[1].is_ascii_digit())
+        });
+        let uppercase = chars.iter().filter(|c| c.is_uppercase()).count();
+        let acronym_or_protocol = (3..=12).contains(&chars.len()) && uppercase >= 2;
+        if token.len() < 6 && !acronym_or_protocol {
+            continue;
+        }
+        let structured = token.contains('_')
+            || token.contains('.')
+            || token.contains('-')
+            || camel
+            || acronym_or_protocol;
+        if !structured {
+            continue;
+        }
+        let normalized: String = token
+            .chars()
+            .filter(|c| c.is_alphanumeric())
+            .flat_map(char::to_lowercase)
+            .collect();
+        if (normalized.len() >= 6 || acronym_or_protocol) && seen.insert(normalized) {
+            out.push(token.to_string());
+        }
+        if out.len() >= 32 {
+            break;
+        }
+    }
+    out
+}
+
+fn normalized_code_entity(value: &str) -> String {
+    value
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .flat_map(char::to_lowercase)
+        .collect()
+}
+
+fn code_entity_matches(candidate: &str, indexed_name: &str) -> bool {
+    let candidate = normalized_code_entity(candidate);
+    let indexed = normalized_code_entity(indexed_name);
+    if candidate.len() < 6 || indexed.len() < 6 {
+        return false;
+    }
+    candidate == indexed
+        || candidate.contains(&indexed)
+        || (indexed.len() >= 8 && indexed.contains(&candidate))
+}
+
+fn code_entity_file_matches(candidate: &str, file_stem: &str) -> bool {
+    let candidate_normalized = normalized_code_entity(candidate);
+    let stem_normalized = normalized_code_entity(file_stem);
+    if candidate_normalized == stem_normalized {
+        return true;
+    }
+    // Prefix recovery is for a compound identifier naming a more specific
+    // state/outcome of an existing compound type (`TenantAccessRevoked` ->
+    // `TenantAccess`). A generic one-word stem such as `Membership` must not
+    // pull every similarly named file.
+    let stem_parts = split_symmetric_name_tokens(file_stem);
+    let compound_prefix = stem_parts.len() >= 2
+        && stem_normalized.len() >= 8
+        && candidate_normalized.starts_with(&stem_normalized);
+    let acronym_prefix = candidate.chars().filter(|c| c.is_uppercase()).count() >= 2
+        && candidate_normalized.len() >= 3
+        && stem_normalized.starts_with(&candidate_normalized);
+    compound_prefix || acronym_prefix
+}
+
 pub(crate) fn extract_story_concepts(story: &str) -> Vec<String> {
     let candidate = story_token;
     let mut seen = HashSet::new();
@@ -5183,6 +5286,12 @@ mod guards_settings_tests {
         ));
         assert!(!story_asks_analytics_over_time(
             "Rename the export button on the invoice page"
+        ));
+        assert!(!story_asks_analytics_over_time(
+            "Allow login after MFA completion and write a security audit entry"
+        ));
+        assert!(story_asks_analytics_over_time(
+            "Show an audit history report for each account"
         ));
     }
 
@@ -6090,7 +6199,7 @@ pub(crate) fn footprint_total(text: &str) -> usize {
 fn change_set_independent(s: &str) -> bool {
     !matches!(
         s,
-        "concept" | "lexicon" | "gloss" | "family" | "broad" | "disk"
+        "concept" | "specific" | "lexicon" | "gloss" | "family" | "broad" | "disk"
     )
 }
 
@@ -6098,7 +6207,7 @@ fn change_set_independent(s: &str) -> bool {
 /// expansion inherits its partner's signals and a broad term is not evidence.
 fn change_set_strength(sigs: &BTreeSet<&'static str>) -> usize {
     sigs.iter()
-        .filter(|s| !matches!(**s, "family" | "broad" | "disk"))
+        .filter(|s| !matches!(**s, "family" | "broad" | "disk" | "specific"))
         .count()
 }
 
@@ -6263,6 +6372,7 @@ fn change_set_tier(sigs: &BTreeSet<&'static str>) -> u8 {
         sigs.contains("lexicon") && sigs.iter().any(|s| change_set_independent(s));
     let golden = sigs.contains("cochange")
         || sigs.contains("history")
+        || sigs.contains("entity")
         || sigs.contains("gloss")
         || sigs.contains("name")
         || sigs.contains("vtop3")
@@ -6287,7 +6397,7 @@ fn change_set_tier(sigs: &BTreeSet<&'static str>) -> u8 {
 const ASSET_GRAPH_ANCHOR_CAP: usize = 32;
 const ASSET_GRAPH_BUNDLES_PER_ANCHOR_CAP: usize = 3;
 const ASSET_GRAPH_FILES_PER_BUNDLE_CAP: usize = 25;
-const ASSET_GRAPH_RESULT_CAP: usize = 32;
+const ASSET_GRAPH_RESULT_CAP: usize = 48;
 
 #[derive(Debug, Clone)]
 pub(crate) struct AssetGraphFile {
@@ -6490,11 +6600,39 @@ pub(crate) fn expand_asset_bundle_graph(
             }
         }
     }
+    // A page that renders a relevant bundle and its code-behind are one
+    // runtime surface. IncludesFile edges terminate at the markup file, so
+    // carry the existing code-behind companion explicitly rather than making
+    // the caller infer it from a path convention. The graph lookup confirms
+    // the companion exists; no language or repository name is assumed.
+    let hosting_markup = result.files.clone();
+    for linked in hosting_markup {
+        let lower = linked.path.to_ascii_lowercase();
+        if !(lower.ends_with(".aspx")
+            || lower.ends_with(".ascx")
+            || lower.ends_with(".master"))
+        {
+            continue;
+        }
+        for extension in ["vb", "cs"] {
+            let companion = format!("{}.{}", linked.path, extension);
+            add_asset_graph_file(
+                graph,
+                project_id,
+                &format!("file:{companion}"),
+                &linked.anchor_path,
+                linked.bundle_id.as_deref(),
+                "is code-behind for asset-hosting markup",
+                &mut seen,
+                &mut result.files,
+            );
+        }
+    }
     result.files.truncate(ASSET_GRAPH_RESULT_CAP);
     result
 }
 
-const CALLER_GRAPH_ANCHOR_CAP: usize = 24;
+const CALLER_GRAPH_ANCHOR_CAP: usize = 64;
 const CALLER_GRAPH_SYMBOLS_PER_ANCHOR_CAP: usize = 24;
 const CALLER_GRAPH_CALLERS_PER_SYMBOL_CAP: usize = 8;
 const CALLER_GRAPH_RESULT_CAP: usize = 32;
@@ -6527,6 +6665,61 @@ pub(crate) fn expand_direct_caller_graph(
     let mut result = CallerGraphExpansion::default();
     let mut seen_paths = HashSet::new();
     for anchor_path in anchor_paths.iter().take(CALLER_GRAPH_ANCHOR_CAP) {
+        // Conventional Web API controllers often have no explicit route
+        // attribute: FooController is reached through a concrete .../foo URL.
+        // Client extractors preserve those URL nodes. Join only an exact final
+        // route segment to the controller stem, then return the client file
+        // recorded on that observed route node. This is bounded and requires
+        // both the controller naming convention and a real client call.
+        if let Some(file_name) = anchor_path.rsplit('/').next() {
+            let stem = file_name.split('.').next().unwrap_or(file_name);
+            let stem_lower = stem.to_ascii_lowercase();
+            if let Some(route_term) = stem_lower.strip_suffix("controller")
+                && !route_term.is_empty()
+            {
+                let route_nodes = graph
+                    .query_nodes(
+                        project_id,
+                        Some("route_handler"),
+                        Some(route_term),
+                        None,
+                        CALLER_GRAPH_CALLERS_PER_SYMBOL_CAP,
+                    )
+                    .unwrap_or_default();
+                for route in route_nodes {
+                    let terminal = route
+                        .name
+                        .split(['?', '#'])
+                        .next()
+                        .unwrap_or(&route.name)
+                        .trim_end_matches('/')
+                        .rsplit('/')
+                        .next()
+                        .unwrap_or_default();
+                    if !terminal.eq_ignore_ascii_case(route_term) {
+                        continue;
+                    }
+                    let path = route.file_path.as_str().replace('\\', "/");
+                    if path.is_empty()
+                        || path.eq_ignore_ascii_case(anchor_path)
+                        || engram_core::is_vendor_path(&path)
+                        || !seen_paths.insert(path.clone())
+                    {
+                        continue;
+                    }
+                    result.files.push(CallerGraphFile {
+                        path,
+                        caller_symbol: route.name.clone(),
+                        target_symbol: stem.to_string(),
+                        anchor_path: anchor_path.clone(),
+                        edge_kind: "api_route_convention".into(),
+                    });
+                    if result.files.len() >= CALLER_GRAPH_RESULT_CAP {
+                        return result;
+                    }
+                }
+            }
+        }
         let nodes = match graph.query_nodes_in_file(project_id, None, anchor_path, 200) {
             Ok(nodes) => nodes,
             Err(_) => {
@@ -7189,7 +7382,7 @@ pub(crate) fn change_set_rows(
     });
     let signals = |sigs: &BTreeSet<&'static str>| -> Vec<&'static str> {
         sigs.iter()
-            .filter(|s| **s != "family")
+            .filter(|s| !matches!(**s, "family" | "specific"))
             .map(|s| {
                 if matches!(*s, "vtop" | "vtop3") {
                     "vector"
@@ -7333,6 +7526,12 @@ impl ArmCoverage {
 
 #[derive(Debug, Clone, Default, serde::Serialize)]
 pub(crate) struct ChangeSetCoverage {
+    /// Exact code-shaped identifiers from the story resolved against current
+    /// file stems and graph symbols. Unlike free-text concepts these are
+    /// direct author evidence (for example a table, type, method or setting
+    /// name) and do not need a second retrieval arm to be actionable.
+    #[serde(default)]
+    pub entity: ArmCoverage,
     pub concept: ArmCoverage,
     pub history: ArmCoverage,
     pub cochange: ArmCoverage,
@@ -7517,6 +7716,7 @@ fn render_ui_contract(
 
 fn render_change_set_coverage(cov: &ChangeSetCoverage, omitted: usize) -> String {
     let mut s = String::from("\n## Coverage\n");
+    s.push_str(&format!("- exact entities: {}\n", cov.entity.line()));
     s.push_str(&format!("- concept: {}\n", cov.concept.line()));
     s.push_str(&format!("- history: {}\n", cov.history.line()));
     s.push_str(&format!("- co-change: {}\n", cov.cochange.line()));
@@ -7600,7 +7800,9 @@ fn render_change_set(
         "Ranked by corroboration — git CO-CHANGE / history first (files that \
          historically shipped together with this kind of work), then concept/graph. \
          A starting map, not exhaustive: verify each against the code and add the \
-         files it misses.\n\n",
+         files it misses. Before planning, reconcile every primary candidate and every \
+         dependency row below into one consumer ledger with an explicit include, \
+         conditional or evidence-backed exclude disposition.\n\n",
     );
     // A live A/B showed strong planners SKIP ranked candidates whose signal
     // they don't understand (the source page edit was ranked and still
@@ -7610,7 +7812,8 @@ fn render_change_set(
         "Signal legend — [cochange]: this file SHIPPED TOGETHER with other \
          candidates in past MERGED changes of this kind (strongest evidence; \
          skipping one requires POSITIVE evidence of irrelevance grounded in the code - and a .ts with its committed .js bundle listed together is part of the change until PROVEN otherwise (a live A/B dismissed exactly that pair as bleed-through; it was real)). [history]: past \
-         commits in this story's domain touched it. [concept]: name/content \
+         commits in this story's domain touched it. [entity]: a code-shaped identifier \
+         written in the story resolved to this current file or symbol. [concept]: name/content \
          matches the story's concepts. [semantic]: embedding; [graph]: statically extracted include/bundle or \
          dependency-graph association (weakest — verify before trusting).\n\n",
     );
@@ -7864,7 +8067,20 @@ impl Engram {
         // drive retrieval when the caller opts in (see the request doc).
         let concept_candidates: Vec<String> = {
             let cands = extract_story_concept_candidates(&retrieval_story);
-            resolve_story_concepts(&cands, &index_paths, 10)
+            let mut resolved = resolve_story_concepts(&cands, &index_paths, 10);
+            // Preserve explicit authorization/authentication cues ahead of
+            // the IDF-ranked tail. Central security words are common by
+            // nature, but dropping them for rare incidental words removes
+            // the exact surface named by the story.
+            let cue_concepts = extract_story_concepts(&retrieval_story);
+            for cue in cue_concepts.iter().skip(3).rev() {
+                if let Some(position) = resolved.iter().position(|item| item == cue) {
+                    resolved.remove(position);
+                }
+                resolved.insert(resolved.len().min(3), cue.clone());
+            }
+            resolved.truncate(10);
+            resolved
         };
         // External audit 2026-08-29 P0-3: an explicit gloss retrieves by DEFAULT.
         let gloss_terms = extract_story_gloss_concepts(&retrieval_story);
@@ -8051,6 +8267,99 @@ impl Engram {
         let mut prov: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
         let mut seed_order: Vec<String> = Vec::new(); // concept hits in relevance order
 
+        // Exact entity arm. Work items frequently name an existing type,
+        // method, table or setting even when their prose topic is broad. Map
+        // code-shaped identifiers to current file stems and graph symbols
+        // before fuzzy concepts. This is direct story evidence and is bounded.
+        let entity_started = std::time::Instant::now();
+        let entity_candidates = extract_story_code_entities(&retrieval_story);
+        let entity_graph = self.state.graph.clone();
+        let entity_pid = req.project_id.clone();
+        let entity_index = index_paths.clone();
+        let (entity_hits, entity_failures, entity_hubs) = tokio::task::spawn_blocking(move || {
+            let mut hits: Vec<(String, String, &'static str)> = Vec::new();
+            let mut seen = HashSet::new();
+            let mut failures = 0usize;
+            let mut hubs = 0usize;
+            for entity in entity_candidates {
+                for path in &entity_index {
+                    let file = path.replace('\\', "/");
+                    let stem = file
+                        .rsplit('/')
+                        .next()
+                        .unwrap_or(file.as_str())
+                        .split('.')
+                        .next()
+                        .unwrap_or("");
+                    if code_entity_file_matches(&entity, stem)
+                        && !engram_core::is_vendor_path(&file)
+                        && seen.insert(file.clone())
+                    {
+                        hits.push((file, entity.clone(), "file name"));
+                    }
+                }
+                match entity_graph.query_nodes(&entity_pid, None, Some(&entity), None, 24) {
+                    Ok(nodes) => {
+                        let mut matches = nodes
+                            .into_iter()
+                            .filter(|node| code_entity_matches(&entity, &node.name))
+                            .map(|node| node.file_path.as_str().replace('\\', "/"))
+                            .filter(|path| {
+                                !path.is_empty() && !engram_core::is_vendor_path(path)
+                            })
+                            .collect::<Vec<_>>();
+                        matches.sort();
+                        matches.dedup();
+                        if matches.len() > 8 {
+                            hubs += 1;
+                            continue;
+                        }
+                        for path in matches {
+                            if !seen.insert(path.clone()) {
+                                continue;
+                            }
+                            hits.push((path, entity.clone(), "graph symbol"));
+                            if hits.len() >= 64 {
+                                return (hits, failures, hubs);
+                            }
+                        }
+                    }
+                    Err(_) => failures += 1,
+                }
+            }
+            (hits, failures, hubs)
+        })
+        .await
+        .unwrap_or_default();
+        for (path, entity, source) in &entity_hits {
+            if !prov.contains_key(path) {
+                seed_order.push(path.clone());
+            }
+            why.entry(path.clone()).or_default().push(format!(
+                "story explicitly names code entity '{entity}', resolved by {source}"
+            ));
+            prov.entry(path.clone()).or_default().insert("entity");
+        }
+        cov.entity = if entity_failures == 0 && entity_hubs == 0 {
+            ArmCoverage::complete(entity_hits.len(), entity_started.elapsed().as_millis())
+        } else {
+            let mut arm = if entity_failures == 0 {
+                ArmCoverage::complete(entity_hits.len(), entity_started.elapsed().as_millis())
+            } else {
+                ArmCoverage::failed(
+                    format!("{entity_failures} bounded graph entity lookup(s) failed"),
+                    entity_started.elapsed().as_millis(),
+                )
+            };
+            if entity_hubs > 0 {
+                arm.status = "truncated".into();
+                arm.note = format!(
+                    "skipped {entity_hubs} code-shaped identifier(s) resolving to more than 8 files"
+                );
+            }
+            arm
+        };
+
         // Concept arm — typed footprint of each domain concept.
         let t_concept = std::time::Instant::now();
         let mut concept_hits = 0usize;
@@ -8105,6 +8414,7 @@ impl Engram {
                                 });
                                 let e = prov.entry(p).or_default();
                                 e.insert("concept");
+                                e.insert("specific");
                                 if from_gloss {
                                     e.insert("gloss");
                                 }
@@ -8732,6 +9042,7 @@ impl Engram {
                     .iter()
                     .any(|suffix| lower.ends_with(suffix));
                     let direct_story_evidence = signals.contains("concept")
+                        || signals.contains("entity")
                         || signals.contains("history")
                         || signals.contains("name")
                         || signals.contains("gloss")
@@ -8782,10 +9093,13 @@ impl Engram {
             }
 
             let caller_started = std::time::Instant::now();
-            let mut ranked_caller_anchors: Vec<(u8, usize, String)> = prov
+            let mut ranked_caller_anchors: Vec<(bool, u8, bool, usize, String)> = prov
                 .iter()
                 .filter(|(_, signals)| {
-                    (signals.contains("concept") && !signals.contains("lexicon"))
+                    signals.contains("entity")
+                        || (signals.contains("concept")
+                            && !signals.contains("lexicon")
+                            && !signals.contains("broad"))
                         || signals.contains("history")
                         || signals.contains("name")
                         || signals.contains("gloss")
@@ -8811,19 +9125,36 @@ impl Engram {
                     indexed_by_normalized
                         .get(&strip(path))
                         .cloned()
-                        .map(|exact| (change_set_tier(signals), change_set_strength(signals), exact))
+                        .map(|exact| {
+                            let stem = exact
+                                .rsplit('/')
+                                .next()
+                                .unwrap_or(&exact)
+                                .split('.')
+                                .next()
+                                .unwrap_or_default();
+                            (
+                                stem.to_ascii_lowercase().ends_with("controller"),
+                                change_set_tier(signals),
+                                signals.contains("specific"),
+                                change_set_strength(signals),
+                                exact,
+                            )
+                        })
                 })
                 .collect();
             ranked_caller_anchors.sort_by(|a, b| {
-                a.0.cmp(&b.0)
-                    .then_with(|| b.1.cmp(&a.1))
-                    .then_with(|| a.2.cmp(&b.2))
+                b.0.cmp(&a.0)
+                    .then_with(|| a.1.cmp(&b.1))
+                    .then_with(|| b.2.cmp(&a.2))
+                    .then_with(|| b.3.cmp(&a.3))
+                    .then_with(|| a.4.cmp(&b.4))
             });
-            ranked_caller_anchors.dedup_by(|a, b| a.2.eq_ignore_ascii_case(&b.2));
+            ranked_caller_anchors.dedup_by(|a, b| a.4.eq_ignore_ascii_case(&b.4));
             let caller_anchor_paths: Vec<String> = ranked_caller_anchors
                 .into_iter()
                 .take(CALLER_GRAPH_ANCHOR_CAP)
-                .map(|(_, _, path)| path)
+                .map(|(_, _, _, _, path)| path)
                 .collect();
             let caller_graph = self.state.graph.clone();
             let caller_pid = req.project_id.clone();
@@ -8853,6 +9184,60 @@ impl Engram {
                     caller_expansion.truncated_anchor_symbols,
                     caller_expansion.query_failures
                 );
+            }
+
+            // A source caller can be a WebForms code-behind whose markup owns
+            // the actual client bundle. Carry that exact family edge into one
+            // bounded asset traversal so a server method change can expose its
+            // browser consumer and bundle registry. This closes a common
+            // cross-artifact gap without treating either file as a presumed
+            // edit.
+            let mut caller_markup_anchors = caller_dependencies
+                .iter()
+                .filter_map(|linked| {
+                    let normalized = strip(&linked.path);
+                    [".aspx.vb", ".aspx.cs", ".ascx.vb", ".ascx.cs", ".master.vb", ".master.cs"]
+                        .iter()
+                        .find_map(|suffix| {
+                            normalized
+                                .strip_suffix(suffix)
+                                .map(|base| format!("{base}{}", &suffix[..suffix.len() - 3]))
+                        })
+                        .and_then(|markup| indexed_by_normalized.get(&markup).cloned())
+                })
+                .collect::<Vec<_>>();
+            caller_markup_anchors.sort();
+            caller_markup_anchors.dedup();
+            caller_markup_anchors.truncate(12);
+            if !caller_markup_anchors.is_empty() {
+                let graph = self.state.graph.clone();
+                let pid = req.project_id.clone();
+                let started = std::time::Instant::now();
+                let expansion = tokio::task::spawn_blocking(move || {
+                    expand_asset_bundle_graph(&graph, &pid, &caller_markup_anchors)
+                })
+                .await
+                .unwrap_or_default();
+                let mut seen_assets = asset_dependencies
+                    .iter()
+                    .map(|linked| linked.path.to_ascii_lowercase())
+                    .collect::<HashSet<_>>();
+                for linked in expansion.files {
+                    if seen_assets.insert(linked.path.to_ascii_lowercase()) {
+                        asset_dependencies.push(linked);
+                    }
+                }
+                asset_dependencies.truncate(ASSET_GRAPH_RESULT_CAP);
+                cov.asset_graph.hits = asset_dependencies.len();
+                cov.asset_graph.ms += started.elapsed().as_millis();
+                if expansion.skipped_hub_anchors > 0 || expansion.skipped_hub_bundles > 0 {
+                    cov.asset_graph.status = "truncated".into();
+                    cov.asset_graph.note = format!(
+                        "bounded fan-out skipped {} hub anchor traversal(s) and {} oversized bundle traversal(s), including caller-markup expansion",
+                        expansion.skipped_hub_anchors,
+                        expansion.skipped_hub_bundles
+                    );
+                }
             }
             // Round-2 audit P0-3 (compound / name coverage): a file whose NAME
             // is composed of NAME_COVERAGE_MIN+ of the story's own words is what
@@ -9374,7 +9759,7 @@ impl Engram {
         if !asset_dependencies.is_empty() {
             out.push_str("\n## Asset delivery consumers and dependencies\n\n");
             out.push_str(
-                "These are exact static include/bundle links to inspect or test. The graph link alone does not imply that the file should be edited.\n\n",
+                "These are exact static include/bundle links. Put every row in the intake consumer ledger with an explicit include, conditional or exclude disposition and evidence. The graph link alone does not imply that the file should be edited, but it may not be silently omitted.\n\n",
             );
             for linked in &asset_dependencies {
                 let bundle = linked
@@ -9391,7 +9776,7 @@ impl Engram {
         if !caller_dependencies.is_empty() {
             out.push_str("\n## Direct source consumers\n\n");
             out.push_str(
-                "These are bounded static caller links to inspect or test. A caller link alone does not imply that the file should be edited.\n\n",
+                "These are bounded static caller links. Put every row in the intake consumer ledger with an explicit include, conditional or exclude disposition and evidence. A caller link alone does not imply that the file should be edited, but it may not be silently omitted.\n\n",
             );
             for linked in &caller_dependencies {
                 out.push_str(&format!(
@@ -9577,7 +9962,7 @@ impl Engram {
                         "relation": linked.relation,
                         "bundle_id": linked.bundle_id,
                         "anchor_path": linked.anchor_path,
-                        "disposition": "inspect_or_test",
+                        "disposition": "requires_explicit_classification",
                     })
                 })
                 .collect::<Vec<_>>();
@@ -9590,7 +9975,7 @@ impl Engram {
                         "target_symbol": linked.target_symbol,
                         "anchor_path": linked.anchor_path,
                         "edge_kind": linked.edge_kind,
-                        "disposition": "inspect_or_test",
+                        "disposition": "requires_explicit_classification",
                     })
                 })
                 .collect::<Vec<_>>();
@@ -11081,6 +11466,7 @@ fn compact_change_set_coverage(
             omitted.insert(name.to_string(), cut);
         }
     };
+    trim("entity", &mut compact.entity);
     trim("concept", &mut compact.concept);
     trim("history", &mut compact.history);
     trim("cochange", &mut compact.cochange);
@@ -12671,6 +13057,34 @@ mod story_concept_resolution_tests {
             "session entity must remain eligible: {resolved:?}"
         );
     }
+
+    #[test]
+    fn code_shaped_story_entities_resolve_without_prose_noise() {
+        let story = "Update SessionGeneration in aspnet_Membership through ResetPassword while ordinary users continue";
+        let entities = extract_story_code_entities(story);
+        assert_eq!(
+            entities,
+            vec!["SessionGeneration", "aspnet_Membership", "ResetPassword"]
+        );
+        assert!(code_entity_file_matches(
+            "aspnet_Membership",
+            "aspnet_Membership"
+        ));
+        assert!(code_entity_file_matches(
+            "TenantAccessRevoked",
+            "TenantAccess"
+        ));
+        assert!(!code_entity_file_matches(
+            "aspnet_Membership",
+            "Membership"
+        ));
+        assert!(code_entity_file_matches("SAML", "SAMLService"));
+        assert!(code_entity_matches(
+            "ResetPassword",
+            "_us.SetPwdManager.ResetPassword"
+        ));
+        assert!(!code_entity_matches("ordinary", "Coordinator"));
+    }
 }
 
 #[cfg(test)]
@@ -12686,6 +13100,7 @@ mod change_set_tier_tests {
     #[test]
     fn golden_signals_stay_on_top() {
         assert_eq!(t(&["cochange", "concept"]), 0);
+        assert_eq!(t(&["entity"]), 1);
         assert_eq!(t(&["history"]), 1);
         assert!(t(&["history"]) < t(&["concept", "vector"]));
     }
