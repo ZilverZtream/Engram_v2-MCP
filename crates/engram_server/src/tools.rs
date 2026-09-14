@@ -387,7 +387,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "QA/test-plan generator: given requested changed/planned files, derives WHAT TO TEST: settings that fork behaviour, roles/permissions, shared Session/Application keys, optional-argument isolation, source-verified runtime/presentation risks, and (when change_intent is supplied) clearly labelled proposed-change risks such as discriminator compatibility and canonical-token migration. Hot-loads bounded organization rules from data_dir/rules/test-risk-rules.yaml and repository rules from .engram/test-risk-rules.yaml; repository rule IDs override organization IDs without a rebuild. Returns proposed cases with evidence limits; it does not execute tests."
+        description = "QA/test-plan generator: given requested changed/planned files, derives WHAT TO TEST: settings that fork behaviour, roles/permissions, shared Session/Application keys, optional-argument isolation, source-verified runtime/presentation risks, and (when change_intent is supplied) clearly labelled proposed-change risks such as discriminator compatibility and canonical-token migration. Hot-loads bounded organization rules from data_dir/rules/test-risk-rules.yaml and repository rules from .engram/test-risk-rules.yaml; repository rule IDs override organization IDs without a rebuild. For historical replay, knowledge_before excludes undated rules and rules introduced on/after the exclusive YYYY-MM-DD cutoff. Returns proposed cases with evidence limits; it does not execute tests."
     )]
     pub async fn derive_test_matrix(
         &self,
@@ -427,7 +427,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Suggest candidate files for a user story using exact code-shaped entities, concepts, historical co-change and structural graph evidence. Ranks candidates, expands discovered deployable families (including WebForms code-behind/resources, TypeScript bundles, DBML schema/designer/layout units and nearest owning SQL projects), and follows bounded direct caller plus asset-bundle links. Deterministic companions that exist on disk but are excluded from the source index are labelled existing_unindexed rather than historical. Before planning, classify every primary/dependency row as include, conditional or evidence-backed exclude in the consumer ledger. Results do not establish complete scope, required edits or reviewer approval."
+        description = "Suggest candidate files for a user story using exact code-shaped entities, concepts, historical co-change and structural graph evidence. Ranks candidates, expands discovered deployable families (including WebForms code-behind/resources, TypeScript bundles, DBML schema/designer/layout units and nearest owning SQL projects), and follows bounded direct caller plus asset-bundle links. Deterministic companions that exist on disk but are excluded from the source index are labelled existing_unindexed rather than historical. Primary and dependency rows carry stable P/A/C IDs plus a SHA-256 reconciliation receipt; copy every row and classify it as include, conditional or evidence-backed exclude before planning so useful evidence cannot silently disappear. Results do not establish complete scope, required edits or reviewer approval."
     )]
     pub async fn get_change_set(
         &self,
@@ -1332,7 +1332,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Search stored business rules by domain concept (e.g. 'credit limit', 'checkout'). Returns full anchored rule docs (purpose, IF/THEN rules with file:line, data flow, side effects) persisted by analyze_business_logic â€” run that first to populate."
+        description = "Search stored business rules by domain concept (e.g. 'credit limit', 'checkout'). Returns anchored rule cards (purpose, IF/THEN rules with file:line, data flow, side effects) persisted by analyze_business_logic. Each card links to get_chunk for its full document; when the response budget omits cards, use the exact continuation call returned or the offset parameter. Run analyze_business_logic first to populate."
     )]
     pub async fn query_business_logic(
         &self,

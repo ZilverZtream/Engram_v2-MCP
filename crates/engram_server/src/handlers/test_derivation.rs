@@ -16,6 +16,12 @@ const CANONICAL_SWEEP_MAX_RESULTS: usize = 40;
 #[serde(deny_unknown_fields)]
 struct RiskRuleFile {
     version: u32,
+    /// Default provenance date inherited by rules that omit introduced_at.
+    #[serde(default)]
+    introduced_at: Option<String>,
+    /// Human-readable source (PR, board, handbook revision, etc.).
+    #[serde(default)]
+    provenance: Option<String>,
     #[serde(default)]
     rules: Vec<ConfiguredRiskRule>,
 }
@@ -38,6 +44,10 @@ struct ConfiguredRiskRule {
     any_terms: Vec<String>,
     #[serde(default)]
     none_terms: Vec<String>,
+    #[serde(default)]
+    introduced_at: Option<String>,
+    #[serde(default)]
+    provenance: Option<String>,
     #[serde(skip)]
     source: String,
 }
@@ -60,6 +70,8 @@ pub(crate) struct ConfiguredRiskMatch {
     pub guidance: String,
     pub severity: String,
     pub source: String,
+    pub introduced_at: Option<String>,
+    pub provenance: Option<String>,
 }
 
 fn clean_rule_value(value: &str, max: usize) -> bool {
@@ -94,6 +106,14 @@ fn normalize_rule(mut rule: ConfiguredRiskRule, source: &str) -> Result<Configur
     rule.id = rule.id.trim().to_string();
     rule.title = rule.title.trim().to_string();
     rule.guidance = rule.guidance.trim().to_string();
+    if let Some(date) = rule.introduced_at.as_deref()
+        && !valid_yyyy_mm_dd(date)
+    {
+        return Err(format!("rule {} introduced_at must be YYYY-MM-DD", rule.id));
+    }
+    if rule.provenance.as_deref().is_some_and(|value| !clean_rule_value(value, 300)) {
+        return Err(format!("rule {} provenance is blank, too long or contains controls", rule.id));
+    }
     rule.extensions = rule.extensions.into_iter()
         .map(|value| value.trim().trim_start_matches('.').to_ascii_lowercase()).collect();
     rule.path_any = rule.path_any.into_iter()
@@ -103,6 +123,17 @@ fn normalize_rule(mut rule: ConfiguredRiskRule, source: &str) -> Result<Configur
     }
     rule.source = source.to_string();
     Ok(rule)
+}
+
+pub(crate) fn valid_yyyy_mm_dd(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.len() == 10
+        && bytes[4] == b'-' && bytes[7] == b'-'
+        && bytes.iter().enumerate().all(|(index, byte)| {
+            index == 4 || index == 7 || byte.is_ascii_digit()
+        })
+        && value[5..7].parse::<u8>().is_ok_and(|month| (1..=12).contains(&month))
+        && value[8..10].parse::<u8>().is_ok_and(|day| (1..=31).contains(&day))
 }
 
 fn read_risk_rule_file(path: &Path, boundary: &Path, source: &str) -> Result<Vec<ConfiguredRiskRule>, String> {
@@ -125,7 +156,17 @@ fn read_risk_rule_file(path: &Path, boundary: &Path, source: &str) -> Result<Vec
         return Err(format!("{source} rule pack exceeds {RISK_PACK_MAX_RULES} rules"));
     }
     let mut seen = HashSet::new();
-    parsed.rules.into_iter().map(|rule| {
+    if parsed.introduced_at.as_deref().is_some_and(|date| !valid_yyyy_mm_dd(date)) {
+        return Err(format!("{source} rule-pack introduced_at must be YYYY-MM-DD"));
+    }
+    if parsed.provenance.as_deref().is_some_and(|value| !clean_rule_value(value, 300)) {
+        return Err(format!("{source} rule-pack provenance is blank, too long or contains controls"));
+    }
+    let default_introduced_at = parsed.introduced_at;
+    let default_provenance = parsed.provenance;
+    parsed.rules.into_iter().map(|mut rule| {
+        if rule.introduced_at.is_none() { rule.introduced_at = default_introduced_at.clone(); }
+        if rule.provenance.is_none() { rule.provenance = default_provenance.clone(); }
         let rule = normalize_rule(rule, source)?;
         if !seen.insert(rule.id.clone()) { return Err(format!("{source} rule pack repeats id {}", rule.id)); }
         Ok(rule)
@@ -140,6 +181,14 @@ pub(crate) fn load_configured_risk_pack(
     data_dir: &Path,
     project_root: &Path,
 ) -> (ConfiguredRiskPack, Vec<String>) {
+    load_configured_risk_pack_before(data_dir, project_root, None)
+}
+
+pub(crate) fn load_configured_risk_pack_before(
+    data_dir: &Path,
+    project_root: &Path,
+    knowledge_before: Option<&str>,
+) -> (ConfiguredRiskPack, Vec<String>) {
     let sources = [
         (data_dir.join("rules/test-risk-rules.yaml"), data_dir, "global"),
         (project_root.join(".engram/test-risk-rules.yaml"), project_root, "project"),
@@ -148,7 +197,22 @@ pub(crate) fn load_configured_risk_pack(
     let mut notes = Vec::new();
     for (path, boundary, source) in sources {
         match read_risk_rule_file(&path, boundary, source) {
-            Ok(rules) => for rule in rules { merged.insert(rule.id.clone(), rule); },
+            Ok(rules) => for rule in rules {
+                if let Some(cutoff) = knowledge_before {
+                    match rule.introduced_at.as_deref() {
+                        Some(date) if date < cutoff => {}
+                        Some(date) => {
+                            notes.push(format!("configured rule {} excluded: introduced_at {date} is not before historical cutoff {cutoff}", rule.id));
+                            continue;
+                        }
+                        None => {
+                            notes.push(format!("configured rule {} excluded: no introduced_at provenance for historical cutoff {cutoff}", rule.id));
+                            continue;
+                        }
+                    }
+                }
+                merged.insert(rule.id.clone(), rule);
+            },
             Err(error) => notes.push(error),
         }
     }
@@ -176,6 +240,8 @@ pub(crate) fn configured_risk_matches(
         guidance: rule.guidance.clone(),
         severity: rule.severity.clone(),
         source: rule.source.clone(),
+        introduced_at: rule.introduced_at.clone(),
+        provenance: rule.provenance.clone(),
     }).collect()
 }
 
@@ -184,10 +250,18 @@ pub(crate) fn configured_risk_axes(
     file: &str,
     source: &str,
 ) -> Vec<(String, String)> {
-    configured_risk_matches(pack, file, source).into_iter().map(|rule| (
-        rule.title,
-        format!("{file}: configured rule `{}` from {} pack: {}", rule.id, rule.source, rule.guidance),
-    )).collect()
+    configured_risk_matches(pack, file, source).into_iter().map(|rule| {
+        let provenance = match (rule.introduced_at.as_deref(), rule.provenance.as_deref()) {
+            (Some(date), Some(origin)) => format!("; introduced {date}; provenance {origin}"),
+            (Some(date), None) => format!("; introduced {date}"),
+            (None, Some(origin)) => format!("; provenance {origin}"),
+            (None, None) => "; provenance undated".to_string(),
+        };
+        (
+            rule.title,
+            format!("{file}: configured rule `{}` from {} pack{provenance}: {}", rule.id, rule.source, rule.guidance),
+        )
+    }).collect()
 }
 
 fn bounded_names<I>(names: I) -> String
@@ -2194,6 +2268,45 @@ rules:
         assert_eq!(notes.len(), 1, "{notes:?}");
         assert!(notes[0].contains("invalid YAML/schema"), "{notes:?}");
         assert!(configured_risk_matches(&pack, "Worker.vb", "Execute(input)").is_empty());
+    }
+
+    #[test]
+    fn historical_cutoff_excludes_newer_and_undated_configured_rules() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let data = temp.path().join("data");
+        let project = temp.path().join("project");
+        std::fs::create_dir_all(data.join("rules")).unwrap();
+        std::fs::create_dir_all(&project).unwrap();
+        std::fs::write(data.join("rules/test-risk-rules.yaml"), r#"
+version: 1
+provenance: review corpus
+rules:
+  - id: before
+    title: Before cutoff
+    guidance: This rule is available to the replay.
+    introduced_at: 2026-01-01
+    any_terms: ["Execute("]
+  - id: after
+    title: After cutoff
+    guidance: This rule must not leak backwards.
+    introduced_at: 2026-09-14
+    any_terms: ["Execute("]
+  - id: undated
+    title: Undated
+    guidance: Undated knowledge is not replay-safe.
+    any_terms: ["Execute("]
+"#).unwrap();
+
+        let (pack, notes) = load_configured_risk_pack_before(
+            &data, &project, Some("2026-09-03"),
+        );
+        assert_eq!(pack.len(), 1);
+        assert_eq!(notes.len(), 2, "{notes:?}");
+        let matched = configured_risk_matches(&pack, "Worker.vb", "Execute(input)");
+        assert_eq!(matched.len(), 1);
+        assert_eq!(matched[0].id, "before");
+        assert_eq!(matched[0].introduced_at.as_deref(), Some("2026-01-01"));
+        assert_eq!(matched[0].provenance.as_deref(), Some("review corpus"));
     }
 
     #[test]

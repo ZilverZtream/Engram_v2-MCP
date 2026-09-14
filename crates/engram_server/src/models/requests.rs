@@ -1016,6 +1016,11 @@ pub struct DeriveTestMatrixRequest {
     /// source behavior or as human-approved merely because text was supplied.
     #[serde(default, alias = "story", alias = "intent")]
     pub change_intent: Option<String>,
+    /// Optional exclusive YYYY-MM-DD knowledge cutoff for historical replay.
+    /// Configured risk rules introduced on/after this date, or without dated
+    /// provenance, are excluded and reported. Current/live use should omit it.
+    #[serde(default)]
+    pub knowledge_before: Option<String>,
     /// Maximum source-linked business-rule cases to render. Cases are sampled
     /// round-robin across evidence documents so one large method cannot consume
     /// the budget. Default 20, bounded to 1..=40.
@@ -2833,12 +2838,20 @@ pub struct QueryBusinessLogicRequest {
     /// Maximum number of results. Default: 5.
     #[serde(default = "default_limit_5")]
     pub top_k: usize,
+    /// Skip this many source-ranked matches before rendering. Use the returned
+    /// continuation call when the response budget omits matched cards.
+    #[serde(default)]
+    pub offset: usize,
 }
 
 impl QueryBusinessLogicRequest {
     /// MCP1: clamp top_k to MAX_SEARCH_RESULTS to prevent resource amplification.
     pub fn sanitized_top_k(&self) -> usize {
         self.top_k.clamp(1, MAX_SEARCH_RESULTS)
+    }
+
+    pub fn sanitized_offset(&self) -> usize {
+        self.offset.min(MAX_SEARCH_RESULTS.saturating_sub(1))
     }
 }
 

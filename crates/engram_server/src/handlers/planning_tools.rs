@@ -7296,6 +7296,42 @@ pub(crate) fn change_set_layer_name(i: usize) -> &'static str {
     CHANGE_SET_LAYERS.get(i).map(|(n, _)| *n).unwrap_or("Other")
 }
 
+/// A deliberately coarse, repository-agnostic role inferred from the artifact
+/// name. It explains why a surfaced path may matter without claiming that the
+/// file must be edited or inventing domain behavior.
+fn change_set_mechanism_role(path: &str) -> &'static str {
+    let lower = path.replace('\\', "/").to_ascii_lowercase();
+    let name = lower.rsplit('/').next().unwrap_or(&lower);
+    if name.contains("bundleconfig") || name.contains("webpack") || name.contains("vite.config") {
+        "asset registration and delivery"
+    } else if name.contains("global.asax") || name.contains("startup") || name == "program.cs" {
+        "application request pipeline"
+    } else if name.contains("middleware") {
+        "request pipeline and principal propagation"
+    } else if name.contains("authorize") || name.contains("authorization") || name.contains("authfilter") {
+        "authentication or authorization gate"
+    } else if name.contains("controller") {
+        "endpoint controller"
+    } else if name.contains("errorresponse") || name.contains("problem") {
+        "error and response contract"
+    } else if name.contains("audit") || name.contains("log") {
+        "audit and operational logging"
+    } else if name.contains("constant") {
+        "shared protocol or contract constants"
+    } else if lower.ends_with(".sql") || lower.ends_with(".dbml") {
+        "persistence schema or data operation"
+    } else if lower.ends_with(".master") || lower.ends_with(".aspx") || lower.ends_with(".ascx")
+        || lower.ends_with(".cshtml") || lower.ends_with(".vbhtml") {
+        "rendered user-interface host"
+    } else if lower.ends_with(".js") || lower.ends_with(".ts") || lower.ends_with(".tsx") {
+        "browser or client behavior"
+    } else if name.contains("service") {
+        "service boundary"
+    } else {
+        "source implementation or integration point"
+    }
+}
+
 /// Per-layer cap on WEAK-signal candidates (tier ≥ 2, not `vtop`/`family`).
 /// The eval sweet spot (45cf172); what it cuts is now REPORTED as omissions.
 pub(crate) const CHANGE_SET_TAIL_CAP: usize = 18;
@@ -7319,6 +7355,53 @@ pub(crate) struct ChangeSetRow {
     pub set: &'static str,
     /// 1-based render position over the non-omitted rows (0 when omitted).
     pub rank: usize,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct ChangeSetReconciliationReceipt {
+    receipt_id: String,
+    algorithm: &'static str,
+    primary_rows: usize,
+    asset_rows: usize,
+    caller_rows: usize,
+    required_rows: usize,
+}
+
+/// Bind the exact rows shown to a planner into one reproducible receipt. Row
+/// IDs stay short enough to copy into a contract; the digest detects an
+/// omitted, reordered, or substituted row. This binds evidence that must be
+/// classified, not a list of presumed edits.
+fn change_set_reconciliation_receipt(
+    rows: &[ChangeSetRow],
+    asset_dependencies: &[AssetGraphFile],
+    caller_dependencies: &[CallerGraphFile],
+) -> ChangeSetReconciliationReceipt {
+    let primary = rows.iter()
+        .filter(|row| !row.omitted && row.set == "primary")
+        .collect::<Vec<_>>();
+    let mut canonical = String::new();
+    for (index, row) in primary.iter().enumerate() {
+        canonical.push_str(&format!("P{:03}\0{}\n", index + 1, row.path));
+    }
+    for (index, row) in asset_dependencies.iter().enumerate() {
+        canonical.push_str(&format!("A{:03}\0{}\n", index + 1, row.path));
+    }
+    for (index, row) in caller_dependencies.iter().enumerate() {
+        canonical.push_str(&format!("C{:03}\0{}\n", index + 1, row.path));
+    }
+    use sha2::{Digest, Sha256};
+    let digest = format!("{:x}", Sha256::digest(canonical.as_bytes()));
+    let primary_rows = primary.len();
+    let asset_rows = asset_dependencies.len();
+    let caller_rows = caller_dependencies.len();
+    ChangeSetReconciliationReceipt {
+        receipt_id: format!("sha256:{digest}"),
+        algorithm: "SHA-256 over ordered row-id NUL path LF records",
+        primary_rows,
+        asset_rows,
+        caller_rows,
+        required_rows: primary_rows + asset_rows + caller_rows,
+    }
 }
 
 /// Ranked rows in render order (layer, tier, depth, path) with the tail-cap
@@ -7767,6 +7850,7 @@ fn render_change_set(
     story: &str,
     concepts: &[String],
     prov: &BTreeMap<String, BTreeSet<&'static str>>,
+    why: &BTreeMap<String, Vec<String>>,
     temporal_section: Option<&str>,
     sibling_section: Option<&str>,
     setting_prior: Option<(usize, usize)>,
@@ -7938,18 +8022,24 @@ fn render_change_set(
          of independent signals; the layer is shown per row. Work the list top-down.\n",
         rows.len()
     ));
-    for r in rows.iter().filter(|r| r.set == "primary") {
+    for (row_index, r) in rows.iter().filter(|r| r.set == "primary").enumerate() {
         let hist = if historical.contains(&r.path) {
             "  (historical path — not in the current index)"
         } else {
             ""
         };
+        let rationale = why.get(&r.path).map(|reasons| {
+            reasons.iter().take(2).cloned().collect::<Vec<_>>().join("; ")
+        }).filter(|value| !value.is_empty()).unwrap_or_else(|| "ranked retrieval evidence".into());
         s.push_str(&format!(
-            "{}. `{}`  [{}]  — {}{hist}\n",
-            r.rank,
+            "P{:03}. `{}`  [rank {}|{}]  — {}; role: {}; why: {}{hist}\n",
+            row_index + 1,
             r.path,
+            r.rank,
             r.signals.join("|"),
-            r.layer
+            r.layer,
+            change_set_mechanism_role(&r.path),
+            rationale,
         ));
     }
     s.push_str(
@@ -9749,6 +9839,7 @@ impl Engram {
             req.story.trim(),
             &concepts,
             &prov,
+            &why,
             temporal_section.as_deref(),
             sibling_section.as_deref(),
             setting_prior,
@@ -9761,15 +9852,15 @@ impl Engram {
             out.push_str(
                 "These are exact static include/bundle links. Put every row in the intake consumer ledger with an explicit include, conditional or exclude disposition and evidence. The graph link alone does not imply that the file should be edited, but it may not be silently omitted.\n\n",
             );
-            for linked in &asset_dependencies {
+            for (row_index, linked) in asset_dependencies.iter().enumerate() {
                 let bundle = linked
                     .bundle_id
                     .as_deref()
                     .map(|id| format!(" through `{id}`"))
                     .unwrap_or_default();
                 out.push_str(&format!(
-                    "- `{}` — {}{}; anchor `{}`\n",
-                    linked.path, linked.relation, bundle, linked.anchor_path
+                    "- A{:03} `{}` — {}{}; anchor `{}`\n",
+                    row_index + 1, linked.path, linked.relation, bundle, linked.anchor_path
                 ));
             }
         }
@@ -9778,9 +9869,10 @@ impl Engram {
             out.push_str(
                 "These are bounded static caller links. Put every row in the intake consumer ledger with an explicit include, conditional or exclude disposition and evidence. A caller link alone does not imply that the file should be edited, but it may not be silently omitted.\n\n",
             );
-            for linked in &caller_dependencies {
+            for (row_index, linked) in caller_dependencies.iter().enumerate() {
                 out.push_str(&format!(
-                    "- `{}` — `{}` {} `{}` from anchor `{}`\n",
+                    "- C{:03} `{}` — `{}` {} `{}` from anchor `{}`\n",
+                    row_index + 1,
                     linked.path,
                     linked.caller_symbol,
                     linked.edge_kind,
@@ -9789,6 +9881,15 @@ impl Engram {
                 ));
             }
         }
+        let (receipt_rows, _) = change_set_rows(&prov);
+        let reconciliation = change_set_reconciliation_receipt(
+            &receipt_rows, &asset_dependencies, &caller_dependencies,
+        );
+        out.push_str(&format!(
+            "\n## Reconciliation receipt\n\nreceipt_id: `{}`  \nrequired rows: primary={} asset={} caller={} total={}  \nCopy this receipt ID and all P/A/C row IDs into the feature contract. Every row needs INCLUDE, CONDITIONAL, or EXCLUDE plus evidence. The row totals must match this receipt; selecting only rows already judged relevant is not reconciliation.\n\n",
+            reconciliation.receipt_id, reconciliation.primary_rows, reconciliation.asset_rows,
+            reconciliation.caller_rows, reconciliation.required_rows,
+        ));
         // Row 5 (owner 2026-08-29): the UI contract rides with the change set —
         // gated on markup in the top tier, filtered to the families that markup
         // already belongs to. The catalog is cached per generation and the gate
@@ -9916,6 +10017,11 @@ impl Engram {
             } else {
                 CHANGE_SET_COMPACT_FILE_CAP
             };
+            let primary_row_ids = rows.iter()
+                .filter(|row| !row.omitted && row.set == "primary")
+                .enumerate()
+                .map(|(index, row)| (row.path.clone(), format!("P{:03}", index + 1)))
+                .collect::<std::collections::HashMap<_, _>>();
             let files: Vec<serde_json::Value> = visible_rows
                 .iter()
                 .take(file_cap)
@@ -9925,7 +10031,9 @@ impl Engram {
                         reasons.truncate(4);
                     }
                     serde_json::json!({
+                        "row_id": primary_row_ids.get(&r.path),
                         "path": r.path,
+                        "mechanism_role": change_set_mechanism_role(&r.path),
                         "path_kind": if r.signals.contains(&"disk") { "existing_unindexed" } else { "existing" },
                         "indexed": !r.signals.contains(&"disk"),
                         "layer": r.layer,
@@ -9956,9 +10064,12 @@ impl Engram {
             let omissions_shown = output_omissions.len();
             let asset_dependencies_json = asset_dependencies
                 .iter()
-                .map(|linked| {
+                .enumerate()
+                .map(|(index, linked)| {
                     serde_json::json!({
+                        "row_id": format!("A{:03}", index + 1),
                         "path": linked.path,
+                        "mechanism_role": "asset delivery consumer or host",
                         "relation": linked.relation,
                         "bundle_id": linked.bundle_id,
                         "anchor_path": linked.anchor_path,
@@ -9968,9 +10079,12 @@ impl Engram {
                 .collect::<Vec<_>>();
             let caller_dependencies_json = caller_dependencies
                 .iter()
-                .map(|linked| {
+                .enumerate()
+                .map(|(index, linked)| {
                     serde_json::json!({
+                        "row_id": format!("C{:03}", index + 1),
                         "path": linked.path,
+                        "mechanism_role": "direct source consumer",
                         "caller_symbol": linked.caller_symbol,
                         "target_symbol": linked.target_symbol,
                         "anchor_path": linked.anchor_path,
@@ -9979,6 +10093,9 @@ impl Engram {
                     })
                 })
                 .collect::<Vec<_>>();
+            let reconciliation = change_set_reconciliation_receipt(
+                &rows, &asset_dependencies, &caller_dependencies,
+            );
             let payload = serde_json::json!({
                 "story": req.story.trim(),
                 "concepts": concepts,
@@ -10002,6 +10119,7 @@ impl Engram {
                     .unwrap_or(serde_json::Value::Null),
                 "asset_dependencies": asset_dependencies_json,
                 "caller_dependencies": caller_dependencies_json,
+                "reconciliation": reconciliation,
                 "permission_gates": permission_gates_json,
             });
             return Ok(CallToolResult::success(vec![Content::text(
@@ -12956,6 +13074,44 @@ mod change_set_rows_tests {
             rows.iter()
                 .any(|r| r.path.ends_with(".resx") && !r.signals.contains(&"family"))
         );
+    }
+
+    #[test]
+    fn reconciliation_receipt_binds_every_required_row_and_exact_path() {
+        let prov = BTreeMap::from([
+            ("src/account.vb".to_string(), BTreeSet::from(["entity"])),
+            ("src/login.js".to_string(), BTreeSet::from(["cochange"])),
+        ]);
+        let (rows, _) = change_set_rows(&prov);
+        let assets = vec![AssetGraphFile {
+            path: "Site/master.aspx".into(), anchor_path: "src/login.js".into(),
+            bundle_id: Some("bundle:login".into()), relation: "renders bundle",
+        }];
+        let callers = vec![CallerGraphFile {
+            path: "src/caller.vb".into(), caller_symbol: "Call".into(),
+            target_symbol: "Authorize".into(), anchor_path: "src/account.vb".into(),
+            edge_kind: "calls".into(),
+        }];
+        let receipt = change_set_reconciliation_receipt(&rows, &assets, &callers);
+        assert_eq!((receipt.primary_rows, receipt.asset_rows, receipt.caller_rows), (2, 1, 1));
+        assert_eq!(receipt.required_rows, 4);
+        assert!(receipt.receipt_id.starts_with("sha256:"));
+
+        let mut changed = callers.clone();
+        changed[0].path = "src/other-caller.vb".into();
+        assert_ne!(
+            receipt.receipt_id,
+            change_set_reconciliation_receipt(&rows, &assets, &changed).receipt_id
+        );
+    }
+
+    #[test]
+    fn mechanism_roles_explain_cross_layer_candidates_without_repo_names() {
+        assert_eq!(change_set_mechanism_role("src/AuthMiddleware.vb"), "request pipeline and principal propagation");
+        assert_eq!(change_set_mechanism_role("src/ErrorResponses.cs"), "error and response contract");
+        assert_eq!(change_set_mechanism_role("src/security_audit.vb"), "audit and operational logging");
+        assert_eq!(change_set_mechanism_role("App_Start/BundleConfig.cs"), "asset registration and delivery");
+        assert_eq!(change_set_mechanism_role("Views/Site.master"), "rendered user-interface host");
     }
 }
 

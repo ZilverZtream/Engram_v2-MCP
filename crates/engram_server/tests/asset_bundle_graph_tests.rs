@@ -170,4 +170,21 @@ async fn indexed_bundle_connects_rendering_markup_to_static_assets() {
             .is_some_and(|hits| hits >= 1),
         "{payload}"
     );
+    let primary_count = payload["files"].as_array().unwrap().iter()
+        .filter(|row| row["row_id"].is_string()).count() as u64;
+    assert_eq!(payload["reconciliation"]["primary_rows"], primary_count);
+    assert_eq!(
+        payload["reconciliation"]["asset_rows"],
+        payload["asset_dependencies"].as_array().unwrap().len() as u64
+    );
+    assert_eq!(
+        payload["reconciliation"]["caller_rows"],
+        payload["caller_dependencies"].as_array().unwrap().len() as u64
+    );
+    assert!(payload["reconciliation"]["receipt_id"].as_str()
+        .is_some_and(|value| value.starts_with("sha256:") && value.len() == 71));
+    assert!(payload["asset_dependencies"].as_array().unwrap().iter()
+        .all(|row| row["row_id"].as_str().is_some_and(|id| id.starts_with('A'))));
+    assert!(payload["caller_dependencies"].as_array().unwrap().iter()
+        .all(|row| row["row_id"].as_str().is_some_and(|id| id.starts_with('C'))));
 }
