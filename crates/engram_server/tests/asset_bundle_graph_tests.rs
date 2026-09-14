@@ -1,0 +1,105 @@
+#![allow(clippy::unwrap_used)]
+
+use engram_core::Config;
+use engram_graph::EdgeKind;
+use engram_server::{AppState, Engram};
+use serde_json::json;
+
+#[tokio::test]
+async fn indexed_bundle_connects_rendering_markup_to_static_assets() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("repo");
+    std::fs::create_dir_all(root.join("App_Start")).unwrap();
+    std::fs::create_dir_all(root.join("Views")).unwrap();
+    std::fs::create_dir_all(root.join("Scripts")).unwrap();
+    std::fs::create_dir_all(root.join("Content")).unwrap();
+    std::fs::write(
+        root.join("App_Start/BundleConfig.cs"),
+        r#"public static class BundleConfig {
+ public static void RegisterBundles(BundleCollection bundles) {
+  bundles.Add(new ScriptBundle("~/Bundles/App").Include("~/Scripts/app.js"));
+  bundles.Add(new StyleBundle("~/Styles/App").Include("~/Content/site.css"));
+ }
+}"#,
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("Views/_Layout.cshtml"),
+        r#"@Styles.Render("~/styles/app")
+<main>@RenderBody()</main>
+@System.Web.Optimization.Scripts.Render("/bundles/app")"#,
+    )
+    .unwrap();
+    std::fs::write(root.join("Scripts/app.js"), "window.app = true;").unwrap();
+    std::fs::write(root.join("Content/site.css"), "body { color: black; }").unwrap();
+
+    let (state, _) = AppState::new(Config {
+        data_dir: temp.path().join("data"),
+        allowed_roots: vec![root.clone()],
+        embedding_backend: "fts_only".into(),
+        llm_backend: "none".into(),
+        ..Default::default()
+    })
+    .unwrap();
+    let engram = Engram::new(state.clone());
+    engram
+        .handle_index_project(
+            serde_json::from_value(json!({
+                "directory": root,
+                "project_name": "asset-bundle-graph",
+                "project_type": "dotnet_webforms_cs",
+                "wait": true
+            }))
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    let project_id = &state.registry.list_projects().unwrap()[0].project_id;
+    let graph = &state.graph;
+
+    let script_bundle = "bundle:~/bundles/app";
+    let style_bundle = "bundle:~/styles/app";
+    let layout = "file:Views/_Layout.cshtml";
+    assert!(graph.get_node(project_id, script_bundle).unwrap().is_some());
+    assert!(graph.get_node(project_id, style_bundle).unwrap().is_some());
+
+    let edges = graph
+        .list_edges(project_id, Some(EdgeKind::IncludesFile))
+        .unwrap();
+    for (source, target) in [
+        ("file:App_Start/BundleConfig.cs", script_bundle),
+        (script_bundle, "file:Scripts/app.js"),
+        (layout, script_bundle),
+        (style_bundle, "file:Content/site.css"),
+        (layout, style_bundle),
+    ] {
+        assert!(
+            edges
+                .iter()
+                .any(|edge| edge.source_id == source && edge.target_id == target),
+            "missing {source} -> {target}; edges={edges:#?}"
+        );
+    }
+
+    // Reverse causal traversal can now move from an edited asset through its
+    // bundle to every rendering artifact without filename heuristics.
+    assert!(
+        graph
+            .find_incoming_edges(
+                project_id,
+                Some(EdgeKind::IncludesFile),
+                "file:Scripts/app.js",
+                10
+            )
+            .unwrap()
+            .iter()
+            .any(|(id, _)| id == script_bundle)
+    );
+    assert!(
+        graph
+            .find_incoming_edges(project_id, Some(EdgeKind::IncludesFile), script_bundle, 10,)
+            .unwrap()
+            .iter()
+            .any(|(id, _)| id == layout)
+    );
+}

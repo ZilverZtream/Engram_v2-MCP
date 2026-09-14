@@ -2224,6 +2224,17 @@ impl HybridSearchEngine {
                             local_stats.edges.push((arc_rel.clone(), e));
                         }
 
+                        // ASP.NET Optimization bundles cross code and markup
+                        // artifacts. Definitions live in VB/C# while render
+                        // calls live in WebForms or Razor-family templates.
+                        if !is_vendor && matches!(ext_lower.as_deref(), Some("vb" | "cs")) {
+                            for edge in crate::asset_bundles::extract_bundle_definitions(
+                                &arc_rel, &text,
+                            ) {
+                                local_stats.edges.push((arc_rel.clone(), edge));
+                            }
+                        }
+
                         // Post-processing: extract JS→ASP.NET bridge edges.
                         // Use extension-based gating so `.jsx`/`.tsx` files are included.
                         if is_vendor {
@@ -2260,6 +2271,27 @@ impl HybridSearchEngine {
                         {
                             for edge in crate::webforms::extract_template_script_includes(
                                 &root_buf, &arc_rel, &text,
+                            ) {
+                                local_stats.edges.push((arc_rel.clone(), edge));
+                            }
+                        }
+
+                        if !is_vendor
+                            && (crate::webforms::is_webforms_markup(p)
+                                || matches!(
+                                    ext_lower.as_deref(),
+                                    Some("html" | "htm" | "cshtml" | "vbhtml" | "razor")
+                                ))
+                        {
+                            let source_kind = if crate::webforms::is_webforms_markup(p) {
+                                "page"
+                            } else {
+                                "file"
+                            };
+                            for edge in crate::asset_bundles::extract_bundle_renders(
+                                &arc_rel,
+                                &text,
+                                source_kind,
                             ) {
                                 local_stats.edges.push((arc_rel.clone(), edge));
                             }

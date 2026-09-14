@@ -374,6 +374,36 @@ pub async fn process_ingest_stats(
         });
     }
 
+    // A bundle node is owned by its declaration file. Render-only references
+    // intentionally do not mint or relocate it: an edge to an absent node is
+    // useful evidence of an undefined bundle, while declaration ownership lets
+    // incremental stale-node cleanup remove obsolete members safely.
+    for (rel_path, edge) in &stats.edges {
+        if edge.source_kind != "asset_bundle" || !edge.source_name.starts_with("bundle:") {
+            continue;
+        }
+        if !seen_virtual_node_ids.insert(edge.source_name.clone()) {
+            continue;
+        }
+        let virtual_path = edge.source_name.strip_prefix("bundle:").unwrap_or("");
+        nodes.push(engram_graph::Node {
+            node_id: edge.source_name.clone(),
+            node_type: "asset_bundle".into(),
+            name: virtual_path.to_string(),
+            namespace: engram_core::namespaces::NAMESPACE_MEMORY.into(),
+            language: edge.source_language.clone(),
+            file_path: (**rel_path).clone(),
+            start_line: edge.source_start_line,
+            end_line: edge.source_start_line,
+            generation,
+            metadata: Some(serde_json::json!({
+                "virtual_path": virtual_path,
+                "asset_kind": edge.metadata.as_ref().and_then(|m| m.get("asset_kind")),
+                "declaration_file": rel_path.as_str(),
+            })),
+        });
+    }
+
     // ── GRAPH-WIRE: batch symbol lookup for edge endpoints ───────────────────
     // Edge endpoints MUST reproduce the exact node IDs minted in the symbol
     // loop above (location-based: sym:{kind}:{path}:{name}:{line}). Extractors
@@ -639,7 +669,11 @@ pub async fn process_ingest_stats(
             edge.source_language
         )));
 
-        let source_id = if edge.source_name == "file" || edge.source_kind == "file" {
+        let source_id = if edge.source_kind == "asset_bundle"
+            && edge.source_name.starts_with("bundle:")
+        {
+            edge.source_name.clone()
+        } else if edge.source_name == "file" || edge.source_kind == "file" {
             let path = if edge.source_name == "file" {
                 rel_path.as_str()
             } else {
@@ -751,7 +785,11 @@ pub async fn process_ingest_stats(
         // the post-pass).
         let mut target_resolution: Option<(f32, &'static str)> = None;
         let mut target_crossed_language = false;
-        let target_id = if edge.target_name == "file" || edge.target_kind.as_deref() == Some("file")
+        let target_id = if edge.target_kind.as_deref() == Some("asset_bundle")
+            && edge.target_name.starts_with("bundle:")
+        {
+            edge.target_name.clone()
+        } else if edge.target_name == "file" || edge.target_kind.as_deref() == Some("file")
         {
             let path = if edge.target_name == "file" {
                 rel_path.as_str()
