@@ -3574,6 +3574,13 @@ pub struct IngestCodeReviewHistoryRequest {
     /// below this boundary.
     #[serde(default)]
     pub max_pr_id: Option<u64>,
+    /// Optional exclusive completion-date boundary (`YYYY-MM-DD`). PRs whose
+    /// closed date is on or after this date are excluded before their review
+    /// threads are fetched, parsed, or stored. Undated records are excluded
+    /// too. Combine with `force_full_rescan=true` for leakage-free historical
+    /// replays; unlike a PR-id boundary this catches older PRs completed late.
+    #[serde(default)]
+    pub completed_before: Option<String>,
     /// Minimum fix rate (fixed / (fixed + wontFix)) for a cluster to
     /// be indexed as a positive anti-pattern. WontFix clusters are
     /// always indexed into the suppression namespace regardless of

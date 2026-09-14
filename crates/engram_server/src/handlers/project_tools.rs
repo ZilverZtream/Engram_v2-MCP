@@ -1855,6 +1855,7 @@ impl Engram {
                                 repo: Some(repo),
                                 max_prs: Some(200),
                                 max_pr_id: None,
+                                completed_before: None,
                                 min_fix_rate: 0.5,
                                 token_overlap_threshold: 0.4,
                                 force_full_rescan: false,

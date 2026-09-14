@@ -922,8 +922,9 @@ impl Engram {
                        review_pattern nodes with AntiPattern edges to every flagged file. \
                        High-confidence rules auto-promote to repo rules. Incremental across \
                        runs via a per-source last_pr_id marker. For historical replays, set \
-                       max_pr_id to the PR immediately before the replayed change and force a \
-                       full rescan; later reviews are excluded before parsing or storage."
+                       completed_before to the replay's exclusive evidence date, optionally \
+                       max_pr_id as a second boundary, and force a full rescan; later and \
+                       undated reviews are excluded before parsing or storage."
     )]
     pub async fn ingest_code_review_history(
         &self,
