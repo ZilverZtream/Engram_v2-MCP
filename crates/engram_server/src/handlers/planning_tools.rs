@@ -6109,7 +6109,12 @@ fn canonicalize_change_set_evidence(
     let old_historical = std::mem::take(historical);
     for path in old_historical {
         let key = change_set_path_key(&path);
-        historical.insert(canonical.get(&key).cloned().unwrap_or(path));
+        // If the corpus spelling resolves to a current indexed path, it is no
+        // longer historical. Keeping the canonical current path in this set made
+        // the renderer claim that live files were absent from the index.
+        if !canonical.contains_key(&key) {
+            historical.insert(path);
+        }
     }
 }
 
@@ -11925,7 +11930,10 @@ mod change_set_rows_tests {
         assert_eq!(prov.len(), 1);
         assert_eq!(prov[current], BTreeSet::from(["concept", "history"]));
         assert_eq!(why[current].len(), 2);
-        assert_eq!(historical, BTreeSet::from([current.to_string()]));
+        assert!(
+            historical.is_empty(),
+            "a safely canonicalized current file must not retain the historical label"
+        );
     }
 
     #[test]

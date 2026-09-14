@@ -81,6 +81,25 @@ fn valid_hex(s: &str, lengths: &[usize]) -> bool {
     lengths.contains(&s.len()) && s.bytes().all(|b| b.is_ascii_hexdigit())
 }
 
+fn valid_iso_date(value: &str) -> bool {
+    if value.len() != 10
+        || value.as_bytes()[4] != b'-'
+        || value.as_bytes()[7] != b'-'
+        || !value
+            .bytes()
+            .enumerate()
+            .all(|(index, byte)| matches!(index, 4 | 7) || byte.is_ascii_digit())
+    {
+        return false;
+    }
+    let year = value[..4].parse::<u32>().unwrap_or(0);
+    let month = value[5..7].parse::<usize>().unwrap_or(0);
+    let day = value[8..10].parse::<u32>().unwrap_or(0);
+    let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let days = [0, 31, if leap { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    month > 0 && month < days.len() && day > 0 && day <= days[month]
+}
+
 fn validate(event: &ReviewDecision) -> Result<(), String> {
     for value in [
         &event.event_id,
@@ -134,6 +153,47 @@ pub(crate) fn read(
         .map(|v| v.unwrap_or_default())
 }
 
+/// Append provider-imported decision evidence through the same immutable event
+/// checks as the public tool. The caller remains responsible for provenance;
+/// imported status is evidence and never suppresses a finding automatically.
+pub(crate) fn append(
+    state: &crate::state::AppState,
+    pid: &str,
+    review: &str,
+    decisions: &[ReviewDecision],
+) -> Result<usize, String> {
+    let _guard = WRITES
+        .lock()
+        .map_err(|_| "decision writer lock unavailable")?;
+    let mut events = read(state, pid, review)?;
+    for event in decisions {
+        validate(event)?;
+        if let Some(existing) = events.iter().find(|old| old.event_id == event.event_id) {
+            if existing != event {
+                return Err("event IDs are immutable; append a superseding event".into());
+            }
+            continue;
+        }
+        let previous = events
+            .iter()
+            .rev()
+            .find(|old| old.finding_id == event.finding_id);
+        if previous.map(|e| e.event_id.as_str()) != event.supersedes.as_deref() {
+            return Err("supersedes must identify the latest event for this finding".into());
+        }
+        events.push(event.clone());
+    }
+    let encoded = serde_json::to_string(&events).map_err(|e| e.to_string())?;
+    if events.len() > 500 || encoded.len() > 1024 * 1024 {
+        return Err("review evidence exceeds 500 events or 1 MiB".into());
+    }
+    state
+        .registry
+        .set_meta(pid, &key(review)?, &encoded)
+        .map_err(|e| e.to_string())?;
+    Ok(events.len())
+}
+
 pub(crate) fn snapshot(
     state: &crate::state::AppState,
     pid: &str,
@@ -173,45 +233,72 @@ pub(crate) fn snapshot(
     )
 }
 
+/// Historical view containing only events whose source date is strictly before
+/// an ISO YYYY-MM-DD cutoff. Invalid or missing source dates are counted and
+/// excluded rather than allowed to leak future review outcomes into a replay.
+pub(crate) fn snapshot_before(
+    state: &crate::state::AppState,
+    pid: &str,
+    review: &str,
+    exclusive_date: &str,
+) -> Result<serde_json::Value, String> {
+    if !valid_iso_date(exclusive_date) {
+        return Err("historical review cutoff must be YYYY-MM-DD".into());
+    }
+    let all = read(state, pid, review)?;
+    let mut invalid_or_future = 0usize;
+    let events = all
+        .into_iter()
+        .filter(|event| {
+            let date = event.recorded_at.get(..10);
+            let included = date.is_some_and(|date| valid_iso_date(date) && date < exclusive_date);
+            if !included {
+                invalid_or_future += 1;
+            }
+            included
+        })
+        .collect::<Vec<_>>();
+    let mut latest = std::collections::BTreeMap::new();
+    for event in &events {
+        latest.insert(&event.finding_id, event);
+    }
+    let current = latest
+        .values()
+        .map(|event| {
+            let status = match event.kind {
+                DecisionKind::Open => "open",
+                DecisionKind::AcceptedException => "accepted_exception",
+                DecisionKind::ClaimedFix => "claimed_fix",
+                DecisionKind::VerifiedFix => "externally_attested_fix_before_cutoff",
+            };
+            serde_json::json!({
+                "finding_id": event.finding_id,
+                "event_id": event.event_id,
+                "effective_status": status,
+                "evidence": event,
+            })
+        })
+        .collect::<Vec<_>>();
+    Ok(serde_json::json!({
+        "review_id": review,
+        "exclusive_cutoff": exclusive_date,
+        "coverage": if events.is_empty() { "no_dated_events_before_cutoff" } else { "imported_events_before_cutoff" },
+        "excluded_future_or_unparseable_events": invalid_or_future,
+        "verification_origin": "imported source dates and external attestations; Engram did not authenticate them",
+        "automatic_finding_suppression": false,
+        "current": current,
+        "events": events,
+    }))
+}
+
 impl Engram {
     pub async fn handle_record_review_decisions(
         &self,
         req: RecordReviewDecisionsRequest,
     ) -> Result<CallToolResult, McpError> {
         self.ensure_project_record(&req.project_id).await?;
-        let update = || -> Result<usize, String> {
-            let _guard = WRITES
-                .lock()
-                .map_err(|_| "decision writer lock unavailable")?;
-            let mut events = read(&self.state, &req.project_id, &req.review_id)?;
-            for event in &req.decisions {
-                validate(event)?;
-                if let Some(existing) = events.iter().find(|old| old.event_id == event.event_id) {
-                    if existing != event {
-                        return Err("event IDs are immutable; append a superseding event".into());
-                    }
-                    continue;
-                }
-                let previous = events
-                    .iter()
-                    .rev()
-                    .find(|old| old.finding_id == event.finding_id);
-                if previous.map(|e| e.event_id.as_str()) != event.supersedes.as_deref() {
-                    return Err("supersedes must identify the latest event for this finding".into());
-                }
-                events.push(event.clone());
-            }
-            let encoded = serde_json::to_string(&events).map_err(|e| e.to_string())?;
-            if events.len() > 500 || encoded.len() > 1024 * 1024 {
-                return Err("review evidence exceeds 500 events or 1 MiB".into());
-            }
-            self.state
-                .registry
-                .set_meta(&req.project_id, &key(&req.review_id)?, &encoded)
-                .map_err(|e| e.to_string())?;
-            Ok(events.len())
-        };
-        let count = update().map_err(|e| McpError::invalid_params(e, None))?;
+        let count = append(&self.state, &req.project_id, &req.review_id, &req.decisions)
+            .map_err(|e| McpError::invalid_params(e, None))?;
         Ok(CallToolResult::success(vec![Content::text(format!(
             "Stored {count} immutable review events. External attestations only; no checks were executed and no findings suppressed."
         ))]))
@@ -232,5 +319,66 @@ impl Engram {
         Ok(CallToolResult::success(vec![Content::text(
             serde_json::to_string_pretty(&value).unwrap_or_else(|_| value.to_string()),
         )]))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use engram_core::config::Config;
+
+    #[test]
+    fn historical_snapshot_excludes_future_and_unparseable_events() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let project = tmp.path().join("project");
+        std::fs::create_dir_all(&project).unwrap();
+        let cfg = Config {
+            data_dir: tmp.path().join("data"),
+            allowed_roots: vec![project.clone()],
+            embedding_backend: "fts_only".into(),
+            max_concurrent_jobs: 1,
+            ..Default::default()
+        };
+        let (state, _rx) = crate::state::AppState::new(cfg).unwrap();
+        state
+            .registry
+            .put_project(&engram_core::ProjectRecord {
+                project_id: "p".into(),
+                project_name: "p".into(),
+                directory: project.to_string_lossy().into_owned(),
+                project_type: "general".into(),
+                created_at_ms: 0,
+                updated_at_ms: 0,
+                reindex_required_since_ms: None,
+            })
+            .unwrap();
+        let event = |id: &str, date: &str| ReviewDecision {
+            event_id: id.into(),
+            finding_id: id.into(),
+            supersedes: None,
+            kind: DecisionKind::ClaimedFix,
+            source_url: "https://example.test/review".into(),
+            author: "reviewer".into(),
+            recorded_at: date.into(),
+            rationale: "imported finding".into(),
+            verification: None,
+        };
+        append(
+            &state,
+            "p",
+            "PR-1",
+            &[
+                event("old", "2025-12-31T23:59:59Z"),
+                event("future", "2026-02-01T00:00:00Z"),
+                event("invalid", "unknown"),
+                event("invalid-calendar", "2025-02-30T00:00:00Z"),
+            ],
+        )
+        .unwrap();
+
+        let view = snapshot_before(&state, "p", "PR-1", "2026-01-15").unwrap();
+        assert_eq!(view["current"].as_array().unwrap().len(), 1, "{view}");
+        assert_eq!(view["current"][0]["event_id"], "old", "{view}");
+        assert_eq!(view["excluded_future_or_unparseable_events"], 3, "{view}");
     }
 }

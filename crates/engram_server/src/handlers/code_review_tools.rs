@@ -134,6 +134,10 @@ impl Engram {
             "**Fix exemplars**: {} attached to raw comments · {} survived into parsed rules\n",
             stats.raw_with_fix_hunk, stats.parsed_with_fix_hunk
         ));
+        out.push_str(&format!(
+            "**Review decisions**: {} immutable per-PR events recorded · {} skipped for missing/invalid provenance\n",
+            stats.review_decisions_recorded, stats.review_decisions_skipped
+        ));
         out.push_str(&format!("\n_Completed in {}ms._\n", stats.elapsed_ms));
 
         tracing::info!(

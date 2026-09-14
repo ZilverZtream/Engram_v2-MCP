@@ -1016,6 +1016,23 @@ pub struct DeriveTestMatrixRequest {
     /// source behavior or as human-approved merely because text was supplied.
     #[serde(default, alias = "story", alias = "intent")]
     pub change_intent: Option<String>,
+    /// Maximum source-linked business-rule cases to render. Cases are sampled
+    /// round-robin across evidence documents so one large method cannot consume
+    /// the budget. Default 20, bounded to 1..=40.
+    #[serde(default = "default_matrix_source_cases")]
+    pub max_source_cases: usize,
+    /// Maximum detailed coverage/incompleteness notes to render before a counted
+    /// omission summary. Default 24, bounded to 5..=100.
+    #[serde(default = "default_matrix_coverage_notes")]
+    pub max_coverage_notes: usize,
+}
+
+fn default_matrix_source_cases() -> usize {
+    20
+}
+
+fn default_matrix_coverage_notes() -> usize {
+    24
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]

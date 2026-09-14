@@ -890,9 +890,7 @@ impl Engram {
                     out.push_str(&view);
                     // PR identity comes from the stored document, not the search
                     // query. Imported decisions never silently suppress results.
-                    if merged_before.is_some() {
-                        out.push_str("Review decisions omitted for point-in-time replay: imported event times are not independently verified.\n");
-                    } else if let Some(review_id) = content
+                    if let Some(review_id) = content
                         .lines()
                         .next()
                         .and_then(|line| line.strip_prefix("# "))
@@ -901,12 +899,21 @@ impl Engram {
                     {
                         if review_id.starts_with("PR-") {
                             let rec = self.ensure_project_record(&req.project_id).await?;
-                            match super::review_decisions::snapshot(
-                                &self.state,
-                                &req.project_id,
-                                review_id,
-                                std::path::Path::new(&rec.directory),
-                            ) {
+                            let decision_snapshot = match merged_before.as_deref() {
+                                Some(cutoff) => super::review_decisions::snapshot_before(
+                                    &self.state,
+                                    &req.project_id,
+                                    review_id,
+                                    cutoff,
+                                ),
+                                None => super::review_decisions::snapshot(
+                                    &self.state,
+                                    &req.project_id,
+                                    review_id,
+                                    std::path::Path::new(&rec.directory),
+                                ),
+                            };
+                            match decision_snapshot {
                                 Ok(mut decisions) => {
                                     decisions.as_object_mut().map(|v| v.remove("events"));
                                     if let Some(current) = decisions["current"].as_array_mut() {

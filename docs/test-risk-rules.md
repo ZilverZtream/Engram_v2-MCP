@@ -9,6 +9,8 @@ Engram reads these files on every call:
 
 Rules merge by `id`; a repository rule with the same ID replaces the organization rule. Engram does not create either file. Missing packs are valid. Invalid packs are reported as incomplete evidence in the tool response rather than silently ignored.
 
+Maintained framework packs live under `rule-packs/`. Install or merge the relevant rules into the organization file above. For example, `rule-packs/dotnet-web.yaml` covers ASP.NET session-lock, authentication cleanup and principal-nullability hazards. These packs are data: editing the installed YAML takes effect on the next tool call without rebuilding or restarting Engram.
+
 ```yaml
 version: 1
 rules:
