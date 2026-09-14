@@ -6227,6 +6227,216 @@ fn change_set_tier(sigs: &BTreeSet<&'static str>) -> u8 {
     }
 }
 
+const ASSET_GRAPH_ANCHOR_CAP: usize = 32;
+const ASSET_GRAPH_BUNDLES_PER_ANCHOR_CAP: usize = 8;
+const ASSET_GRAPH_FILES_PER_BUNDLE_CAP: usize = 25;
+const ASSET_GRAPH_RESULT_CAP: usize = 48;
+
+#[derive(Debug, Clone)]
+pub(crate) struct AssetGraphFile {
+    pub path: String,
+    pub anchor_path: String,
+    pub bundle_id: Option<String>,
+    pub relation: &'static str,
+}
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct AssetGraphExpansion {
+    pub files: Vec<AssetGraphFile>,
+    pub skipped_hub_anchors: usize,
+    pub skipped_hub_bundles: usize,
+}
+
+fn add_asset_graph_file(
+    graph: &engram_graph::GraphStore,
+    project_id: &str,
+    node_id: &str,
+    anchor_path: &str,
+    bundle_id: Option<&str>,
+    relation: &'static str,
+    seen: &mut HashSet<String>,
+    files: &mut Vec<AssetGraphFile>,
+) {
+    if files.len() >= ASSET_GRAPH_RESULT_CAP {
+        return;
+    }
+    let Ok(Some(node)) = graph.get_node(project_id, node_id) else {
+        return;
+    };
+    if node.node_type == "asset_bundle" {
+        return;
+    }
+    let path = node.file_path.as_str().replace('\\', "/");
+    if path.is_empty() || engram_core::is_vendor_path(&path) || !seen.insert(path.clone()) {
+        return;
+    }
+    files.push(AssetGraphFile {
+        path,
+        anchor_path: anchor_path.to_string(),
+        bundle_id: bundle_id.map(str::to_string),
+        relation,
+    });
+}
+
+/// Expand strong change-set seeds through statically proven asset hosting.
+///
+/// Direction matters. From a script/style member we discover the pages that
+/// render its bundle, but do not pull every sibling asset. From a rendering
+/// page we discover the concrete members it serves. High-fanout bundle
+/// registries and oversized bundles are reported as truncated instead of
+/// flooding the candidate list.
+pub(crate) fn expand_asset_bundle_graph(
+    graph: &engram_graph::GraphStore,
+    project_id: &str,
+    anchor_paths: &[String],
+) -> AssetGraphExpansion {
+    let mut result = AssetGraphExpansion::default();
+    let mut seen = HashSet::new();
+
+    for anchor_path in anchor_paths.iter().take(ASSET_GRAPH_ANCHOR_CAP) {
+        let identities = [format!("file:{anchor_path}"), format!("page:{anchor_path}")];
+        for identity in identities {
+            let incoming = graph
+                .find_incoming_edges(
+                    project_id,
+                    Some(engram_graph::EdgeKind::IncludesFile),
+                    &identity,
+                    ASSET_GRAPH_BUNDLES_PER_ANCHOR_CAP + 2,
+                )
+                .unwrap_or_default();
+            let incoming_bundles: Vec<&str> = incoming
+                .iter()
+                .filter_map(|(source, _)| source.starts_with("bundle:").then_some(source.as_str()))
+                .collect();
+            if incoming_bundles.len() > ASSET_GRAPH_BUNDLES_PER_ANCHOR_CAP {
+                result.skipped_hub_anchors += 1;
+            } else {
+                for (source, _) in incoming {
+                    if source.starts_with("bundle:") {
+                        let hosts = graph
+                            .find_incoming_edges(
+                                project_id,
+                                Some(engram_graph::EdgeKind::IncludesFile),
+                                &source,
+                                ASSET_GRAPH_FILES_PER_BUNDLE_CAP + 1,
+                            )
+                            .unwrap_or_default();
+                        if hosts.len() > ASSET_GRAPH_FILES_PER_BUNDLE_CAP {
+                            result.skipped_hub_bundles += 1;
+                            continue;
+                        }
+                        for (host, _) in hosts {
+                            add_asset_graph_file(
+                                graph,
+                                project_id,
+                                &host,
+                                anchor_path,
+                                Some(&source),
+                                "renders the anchor's asset bundle",
+                                &mut seen,
+                                &mut result.files,
+                            );
+                        }
+                    } else {
+                        add_asset_graph_file(
+                            graph,
+                            project_id,
+                            &source,
+                            anchor_path,
+                            None,
+                            "directly includes the anchor asset",
+                            &mut seen,
+                            &mut result.files,
+                        );
+                    }
+                }
+            }
+
+            let outgoing = graph
+                .neighbors(
+                    project_id,
+                    engram_graph::EdgeKind::IncludesFile,
+                    &identity,
+                    ASSET_GRAPH_FILES_PER_BUNDLE_CAP + ASSET_GRAPH_BUNDLES_PER_ANCHOR_CAP + 1,
+                )
+                .unwrap_or_default();
+            let outgoing_bundles: Vec<&str> = outgoing
+                .iter()
+                .filter_map(|(target, _)| target.starts_with("bundle:").then_some(target.as_str()))
+                .collect();
+            if outgoing_bundles.len() > ASSET_GRAPH_BUNDLES_PER_ANCHOR_CAP {
+                result.skipped_hub_anchors += 1;
+            } else {
+                for (target, _) in outgoing {
+                    if target.starts_with("bundle:") {
+                        let members = graph
+                            .neighbors(
+                                project_id,
+                                engram_graph::EdgeKind::IncludesFile,
+                                &target,
+                                ASSET_GRAPH_FILES_PER_BUNDLE_CAP + 1,
+                            )
+                            .unwrap_or_default();
+                        if members.len() > ASSET_GRAPH_FILES_PER_BUNDLE_CAP {
+                            result.skipped_hub_bundles += 1;
+                        } else {
+                            for (member, _) in members {
+                                add_asset_graph_file(
+                                    graph,
+                                    project_id,
+                                    &member,
+                                    anchor_path,
+                                    Some(&target),
+                                    "is served by the anchor's rendered bundle",
+                                    &mut seen,
+                                    &mut result.files,
+                                );
+                            }
+                        }
+                        let definitions = graph
+                            .find_incoming_edges(
+                                project_id,
+                                Some(engram_graph::EdgeKind::IncludesFile),
+                                &target,
+                                ASSET_GRAPH_FILES_PER_BUNDLE_CAP + 1,
+                            )
+                            .unwrap_or_default();
+                        if definitions.len() > ASSET_GRAPH_FILES_PER_BUNDLE_CAP {
+                            result.skipped_hub_bundles += 1;
+                        } else {
+                            for (definition, _) in definitions {
+                                add_asset_graph_file(
+                                    graph,
+                                    project_id,
+                                    &definition,
+                                    anchor_path,
+                                    Some(&target),
+                                    "defines or renders the anchor's bundle",
+                                    &mut seen,
+                                    &mut result.files,
+                                );
+                            }
+                        }
+                    } else {
+                        add_asset_graph_file(
+                            graph,
+                            project_id,
+                            &target,
+                            anchor_path,
+                            None,
+                            "is directly included by the anchor",
+                            &mut seen,
+                            &mut result.files,
+                        );
+                    }
+                }
+            }
+        }
+    }
+    result.files.truncate(ASSET_GRAPH_RESULT_CAP);
+    result
+}
+
 /// Split an identifier into lowercase tokens on camelCase, snake_case and
 /// kebab-case boundaries (plus letter/digit transitions), handling acronym
 /// runs: `ddlBillingStatusMainContractor` -> [ddl, billing, status, main,
@@ -6975,6 +7185,10 @@ pub(crate) struct ChangeSetCoverage {
     pub vector: ArmCoverage,
     pub kb_bridge: ArmCoverage,
     pub family: ArmCoverage,
+    /// Bounded structural expansion through direct script/style includes and
+    /// ASP.NET Optimization bundle declaration/render relationships.
+    #[serde(default)]
+    pub asset_graph: ArmCoverage,
     /// Full project node scans performed by this call (audit D7: the
     /// repeated detect_incomplete_changes passes used to re-scan 200k nodes
     /// each; they now share one snapshot).
@@ -7162,6 +7376,7 @@ fn render_change_set_coverage(cov: &ChangeSetCoverage, omitted: usize) -> String
         ));
     }
     s.push_str(&format!("- family: {}\n", cov.family.line()));
+    s.push_str(&format!("- asset graph: {}\n", cov.asset_graph.line()));
     s.push_str(&format!("- node scans: {}\n", cov.node_scans));
     if !cov.lexicon_concepts.is_empty() {
         s.push_str(&format!(
@@ -7237,7 +7452,7 @@ fn render_change_set(
          candidates in past MERGED changes of this kind (strongest evidence; \
          skipping one requires POSITIVE evidence of irrelevance grounded in the code - and a .ts with its committed .js bundle listed together is part of the change until PROVEN otherwise (a live A/B dismissed exactly that pair as bleed-through; it was real)). [history]: past \
          commits in this story's domain touched it. [concept]: name/content \
-         matches the story's concepts. [semantic]/[graph]: embedding or \
+         matches the story's concepts. [semantic]: embedding; [graph]: statically extracted include/bundle or \
          dependency-graph association (weakest — verify before trusting).\n\n",
     );
     s.push_str(
@@ -8318,6 +8533,79 @@ impl Engram {
             for (k, v) in fam {
                 prov.entry(k).or_default().extend(v);
             }
+
+            // Cross-artifact asset hosting: strong source candidates can live
+            // in a bundle declared in code and rendered by unrelated markup.
+            // Traverse only statically extracted IncludesFile edges and bound
+            // fan-out before adding exact current file paths.
+            let asset_started = std::time::Instant::now();
+            let mut ranked_asset_anchors: Vec<(u8, usize, String)> = prov
+                .iter()
+                .filter(|(_, signals)| {
+                    !signals.contains("broad") && change_set_strength(signals) > 0
+                })
+                .filter_map(|(path, signals)| {
+                    indexed_by_normalized
+                        .get(&strip(path))
+                        .cloned()
+                        .map(|exact| (change_set_tier(signals), change_set_strength(signals), exact))
+                })
+                .collect();
+            ranked_asset_anchors.sort_by(|a, b| {
+                a.0.cmp(&b.0)
+                    .then_with(|| b.1.cmp(&a.1))
+                    .then_with(|| a.2.cmp(&b.2))
+            });
+            ranked_asset_anchors.dedup_by(|a, b| a.2.eq_ignore_ascii_case(&b.2));
+            let anchor_paths: Vec<String> = ranked_asset_anchors
+                .into_iter()
+                .take(ASSET_GRAPH_ANCHOR_CAP)
+                .map(|(_, _, path)| path)
+                .collect();
+            let graph = self.state.graph.clone();
+            let asset_pid = req.project_id.clone();
+            let asset_expansion = tokio::task::spawn_blocking(move || {
+                expand_asset_bundle_graph(&graph, &asset_pid, &anchor_paths)
+            })
+            .await
+            .unwrap_or_default();
+            let asset_hits = asset_expansion.files.len();
+            for linked in asset_expansion.files {
+                let Some(anchor_key) = prov
+                    .keys()
+                    .find(|path| strip(path) == strip(&linked.anchor_path))
+                    .cloned()
+                else {
+                    continue;
+                };
+                let mut signals = prov.get(&anchor_key).cloned().unwrap_or_default();
+                signals.insert("graph");
+                signals.insert("family");
+                let bundle = linked
+                    .bundle_id
+                    .as_deref()
+                    .map(|id| format!(" through `{id}`"))
+                    .unwrap_or_default();
+                why.entry(linked.path.clone()).or_default().push(format!(
+                    "{}{}; structural anchor `{}`",
+                    linked.relation, bundle, linked.anchor_path
+                ));
+                prov.entry(linked.path).or_default().extend(signals);
+            }
+            cov.asset_graph = ArmCoverage::complete(
+                asset_hits,
+                asset_started.elapsed().as_millis(),
+            );
+            if asset_expansion.skipped_hub_anchors > 0
+                || asset_expansion.skipped_hub_bundles > 0
+            {
+                cov.asset_graph.status = "truncated".into();
+                cov.asset_graph.note = format!(
+                    "bounded fan-out skipped {} hub anchor traversal(s) and {} oversized bundle traversal(s)",
+                    asset_expansion.skipped_hub_anchors,
+                    asset_expansion.skipped_hub_bundles
+                );
+            }
             // Round-2 audit P0-3 (compound / name coverage): a file whose NAME
             // is composed of NAME_COVERAGE_MIN+ of the story's own words is what
             // a developer opens first (productioncodelistmaincategory.aspx for
@@ -8371,6 +8659,7 @@ impl Engram {
                 .insert("name_done".into(), t_all.elapsed().as_millis());
         } else {
             cov.family = ArmCoverage::failed("file index unavailable".into(), 0);
+            cov.asset_graph = ArmCoverage::failed("file index unavailable".into(), 0);
         }
         cov.stages
             .insert("family_done".into(), t_all.elapsed().as_millis());
