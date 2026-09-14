@@ -384,6 +384,8 @@ diff --git a/Site/App_Code/dal/fiberjobb.vb b/Site/App_Code/dal/fiberjobb.vb
                 rule_text: "Previous revert removed unscoped DeleteAllOnSubmit.".into(),
                 priority: 1,
                 updated_at_ms: 1,
+                introduced_at: None,
+                provenance: None,
             },
         )
         .unwrap();
@@ -435,6 +437,8 @@ diff --git a/Site/App_Code/dal/fiberjobb.vb b/Site/App_Code/dal/fiberjobb.vb
                 rule_text: "Previous revert context.".into(),
                 priority: 1,
                 updated_at_ms: 1,
+                introduced_at: None,
+                provenance: None,
             },
         )
         .unwrap();

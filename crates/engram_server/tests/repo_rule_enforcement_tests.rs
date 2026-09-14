@@ -70,6 +70,8 @@ fn rule(state: &AppState, id: &str, text: &str, priority: i32) {
                 rule_text: text.into(),
                 priority,
                 updated_at_ms: 1,
+                introduced_at: None,
+                provenance: None,
             },
         )
         .unwrap();

@@ -743,6 +743,16 @@ pub async fn ingest_code_review_history(
                 rule_text: format!("{base_text} — CodeRabbit pattern, {how}"),
                 priority: (c.confidence * 100.0) as i32,
                 updated_at_ms: now_ms(),
+                introduced_at: c
+                    .members
+                    .iter()
+                    .filter_map(|member| member.pr_date.get(..10))
+                    .max()
+                    .map(str::to_string),
+                provenance: Some(format!(
+                    "recurring review cluster {} across {} PRs",
+                    c.cluster_id, pr_span
+                )),
             };
             state.registry.put_repo_rule(project_id, &rule)?;
             stats.repo_rules_promoted += 1;

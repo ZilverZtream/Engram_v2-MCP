@@ -55,3 +55,9 @@ The migration sweep is review evidence rather than an instruction to edit every 
 The loader accepts version 1, at most 128 rules per pack, at most 32 values per predicate list, and files no larger than 256 KiB. It rejects invalid provenance dates, unknown YAML fields, duplicate IDs inside a pack, control characters, and repository-pack paths that resolve outside the repository. The format deliberately has no regular expressions, scripts, commands, or templating.
 
 Each emitted matrix axis names its stable rule ID and whether it came from the organization or repository pack. The same rule is checked against added diff content by `pre_commit_review`, so repository policy participates before implementation and again before completion. Rules propose tests or review work; they do not certify behavior or execute commands.
+
+Promoted or manually stored repository rules use the same provenance principle. `add_repo_rule`
+accepts optional `introduced_at` and `provenance` fields, and `list_repo_rules` returns the complete
+rule rather than only its ID. `get_change_set` includes rules whose file patterns match its candidate
+cohort. When `merged_before` is set, it excludes undated rules and rules introduced on or after the
+exclusive cutoff so a historical replay cannot learn from later reviews.

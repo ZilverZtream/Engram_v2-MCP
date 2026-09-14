@@ -379,6 +379,7 @@ pub(super) fn render_matches_window(
     offset: usize,
     result_limit: usize,
 ) -> String {
+    const CARD_EXCERPT_BYTES: usize = 4 * 1024;
     let mut audit = SourceAudit::default();
     let candidates = analyses.len();
     // Search relevance alone must not put stale or identity-free documents
@@ -408,7 +409,7 @@ pub(super) fn render_matches_window(
     let mut displayed = 0;
     let mut truncated = 0;
     let mut out = format!(
-        "# Business-logic matches for '{}'\nEvidence readiness: source_current={source_current}, stale={stale}, unverified={unverified}, matched={matched}, candidates_checked={candidates}, offset={offset}, available_after_offset={available_after_offset}. A matching method hash establishes source currency only; rules remain inferred until domain/test validation.\nEvidence excerpts, not complete rule inventories. Limits: 8 KiB content per document, 48 KiB total response.\n",
+        "# Business-logic matches for '{}'\nEvidence readiness: source_current={source_current}, stale={stale}, unverified={unverified}, matched={matched}, candidates_checked={candidates}, offset={offset}, available_after_offset={available_after_offset}. A matching method hash establishes source currency only; rules remain inferred until domain/test validation.\nCompact evidence cards, not complete rule inventories. Limits: 4 KiB content per card, 48 KiB total response. Use each full_document call for the complete stored analysis.\n",
         utf8_prefix(question, 1024),
     );
     if source_current == 0 {
@@ -426,7 +427,7 @@ pub(super) fn render_matches_window(
         qualifications.extend(claim_review_guidance(project_id, &doc_id, &content));
         let recovery = serde_json::json!({"project_id":project_id,"doc_id":doc_id,"namespace":"business_logic"});
         let presentation = claim_presentation(&content);
-        let excerpt = utf8_prefix(&presentation, 8 * 1024);
+        let excerpt = utf8_prefix(&presentation, CARD_EXCERPT_BYTES);
         let is_truncated = excerpt.len() < presentation.len();
         // Critical qualifications are independent of the bounded raw excerpt.
         let summary = qualifications
@@ -472,7 +473,7 @@ pub(super) fn render_matches_window(
             );
         }
         if is_truncated {
-            card.push_str("INCOMPLETE: document excerpt truncated at 8 KiB; use full_document for the stored rules.\n");
+            card.push_str("INCOMPLETE: compact card excerpt truncated at 4 KiB; use full_document for the complete stored rules.\n");
         }
         if out.len() + card.len() + 512 > budget {
             break;
@@ -1401,7 +1402,7 @@ mod predicate_preview_tests {
             .collect();
         let multi = render_matches("p", "read", tmp.path(), cards, 48 * 1024 - 1024);
         let useful = multi.matches("Returns one in every case.").count();
-        assert!(useful >= 3, "{multi}");
+        assert_eq!(useful, 5, "the compact first page should retain every requested card: {multi}");
         assert!(multi.contains("matched=5"));
         if useful < 5 { assert!(multi.contains("INCOMPLETE: total response budget reached")); }
 

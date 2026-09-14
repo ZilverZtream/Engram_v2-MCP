@@ -82,6 +82,10 @@ pub struct RepoRule {
     pub rule_text: String,
     pub priority: i32,
     pub updated_at_ms: u64,
+    #[serde(default)]
+    pub introduced_at: Option<String>,
+    #[serde(default)]
+    pub provenance: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

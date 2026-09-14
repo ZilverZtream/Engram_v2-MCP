@@ -55,6 +55,11 @@ pub const CHANGE_SET_COMPACT_DIAGNOSTIC_CAP: usize = 5;
 /// A concept whose footprint matches this many files is too common to
 /// discriminate (IDF proxy): its hits are `broad`, never evidence.
 pub const BROAD_CONCEPT_MIN_FILES: usize = 40;
+/// A story word present in this many file names is too common to make a
+/// compound file-name match specific. This is an index-local IDF proxy: a
+/// long work item cannot promote whole framework or generated-file families
+/// merely by repeating words such as access, file, or membership.
+pub const BROAD_NAME_TERM_MIN_FILES: usize = 40;
 /// Story words that must compose a file NAME for the `name` signal.
 pub const NAME_COVERAGE_MIN: usize = 3;
 pub(crate) const ANCHOR_CAP: usize = 50;
@@ -4749,6 +4754,33 @@ pub(crate) fn story_token(w: &str) -> Option<String> {
     Some(lower)
 }
 
+/// Canonicalize the light English plural variants that commonly coexist in a
+/// work item. Without this, `role` and `roles` counted as two independent
+/// pieces of evidence for the same file-name fragment.
+fn canonical_story_name_term(term: &str) -> String {
+    if let Some(base) = term.strip_suffix("ies")
+        && base.len() >= 3
+    {
+        return format!("{base}y");
+    }
+    if let Some(base) = term.strip_suffix('s')
+        && base.len() >= 4
+        && !term.ends_with("ss")
+        && !term.ends_with("us")
+        && !term.ends_with("is")
+    {
+        return base.to_string();
+    }
+    term.to_string()
+}
+
+fn story_name_term_matches_stem(term: &str, stem: &str) -> bool {
+    stem.contains(term)
+        || (term.len() > 5
+            && term.ends_with('s')
+            && stem.contains(&term[..term.len() - 1]))
+}
+
 /// Story concept CANDIDATES (row-1 audit A1). The plain document-order
 /// recipe comes first and is never dropped (it is what the eval validated);
 /// then the author's own domain names: parenthesized glosses ("… category
@@ -5713,6 +5745,8 @@ impl Engram {
                             rule_text: text,
                             priority: 2,
                             updated_at_ms: now,
+                            introduced_at: None,
+                            provenance: Some("manually ingested review finding".into()),
                         };
                         let _ = reg.put_repo_rule(&pid, &rule);
                     }
@@ -7332,6 +7366,326 @@ fn change_set_mechanism_role(path: &str) -> &'static str {
     }
 }
 
+/// Cross-cutting mechanism checks implied by the work-item vocabulary. These
+/// are questions for the planner, not claims that a particular implementation
+/// is required. Keeping them in the structured response prevents a strong
+/// lexical file match from narrowing a change to its obvious method while
+/// omitting lifecycle boundaries that commonly carry the observable contract.
+fn change_set_cross_cutting_obligations(story: &str) -> Vec<serde_json::Value> {
+    let lower = story.to_ascii_lowercase();
+    let contains_any = |terms: &[&str]| terms.iter().any(|term| lower.contains(term));
+    let auth = contains_any(&[
+        "authenticat", "authoriz", "session", "login", "logout", "cookie", "token",
+        "credential", "password", "permission", "role", "impersonat", "tenant access",
+    ]);
+    let mutation = contains_any(&[
+        "change", "update", "disable", "inactive", "lock", "reset", "revoke", "remove",
+        "assign", "switch", "expire",
+    ]);
+    let browser = contains_any(&[
+        "browser", "client", "javascript", "typescript", "cache", "history", "navigation",
+        "redirect", "ajax", "async", "page",
+    ]);
+    let persistence = contains_any(&[
+        "database", "table", "column", "schema", "persist", "stored procedure", "migration",
+        "generation", "version",
+    ]);
+    let session_lifecycle = contains_any(&[
+        "session", "forms authentication", "formsauthentication", "sessionstate",
+        "session state", "revalidat", "logout",
+    ]);
+    let aspnet_pipeline = contains_any(&[
+        "asp.net", "aspnet", "forms authentication", "formsauthentication", "owin",
+        "global.asax", "webforms", "web forms",
+    ]);
+
+    let mut out = Vec::new();
+    if auth && mutation {
+        out.push(serde_json::json!({
+            "obligation": "authorization mutation boundaries",
+            "trigger": "the story changes credentials, account state, roles, permissions, tenant access, or another authorization input",
+            "checks": [
+                "enumerate every write path for the mutable security state, including administrative pages, APIs, imports, and background work",
+                "decide whether each write must invalidate, advance, reissue, or terminate existing authentication state",
+                "verify ordering: persist the change before synchronizing the acting user's current session"
+            ],
+            "candidate_mechanism_roles": ["mutation command handlers", "session or token lifecycle", "audit and operational logging"]
+        }));
+    }
+    if auth {
+        out.push(serde_json::json!({
+            "obligation": "authentication boundary consistency",
+            "trigger": "the story changes authentication, authorization, or session behavior",
+            "checks": [
+                "compare page, API, bearer, basic, MFA, impersonation, and tenant entry paths that exist in this repository",
+                "keep framework and thread/request principals synchronized where the stack exposes both",
+                "define denial behavior separately for redirecting pages and machine-readable API or asynchronous requests"
+            ],
+            "candidate_mechanism_roles": ["application request pipeline", "request pipeline and principal propagation", "authentication or authorization gate", "error and response contract"]
+        }));
+        out.push(serde_json::json!({
+            "obligation": "complete authentication-state termination",
+            "trigger": "a request can discover stale, revoked, invalid, or signed-out authentication state",
+            "checks": [
+                "inventory every authentication and session artifact that must be expired or abandoned",
+                "clear in-process principals and response caches as well as cookies or tokens",
+                "verify that a copied stale credential and browser back-forward restoration cannot recover protected state"
+            ],
+            "candidate_mechanism_roles": ["session or token lifecycle", "request pipeline and principal propagation", "browser or client behavior", "rendered user-interface host"]
+        }));
+        out.push(serde_json::json!({
+            "obligation": "security decision observability",
+            "trigger": "access can be granted, denied, revoked, or revalidated",
+            "checks": [
+                "follow the repository's audit convention for security-significant outcomes",
+                "preserve useful actor, subject, reason, and correlation context without recording credentials or secrets"
+            ],
+            "candidate_mechanism_roles": ["audit and operational logging"]
+        }));
+    }
+    if session_lifecycle {
+        out.push(serde_json::json!({
+            "obligation": "session acquisition and concurrency",
+            "trigger": "the story changes server-side session use or authenticated-session validation",
+            "checks": [
+                "prove which request classes acquire writable, read-only, or no session state; stateless calls must not allocate a session cookie",
+                "exercise concurrent requests sharing one session and state the intended serialization boundary",
+                "exercise extensionless, directory/default-document, rewrite, reroute, error-transfer, and nested-request paths with a bounded-completion oracle",
+                "verify that pipeline re-entry cannot acquire the same session lock twice"
+            ],
+            "candidate_mechanism_roles": ["application request pipeline", "session or token lifecycle", "endpoint controller"]
+        }));
+    }
+    if auth && aspnet_pipeline {
+        out.push(serde_json::json!({
+            "obligation": "framework authentication-response rewriting",
+            "trigger": "ASP.NET or OWIN authentication can serve both redirecting pages and API or asynchronous requests",
+            "checks": [
+                "verify that framework Forms Authentication does not rewrite an intended 401 into a 302 on API or asynchronous paths",
+                "verify that IIS or custom-error handling does not replace the intended status code and body",
+                "keep redirect targets in an explicit response contract and validate them before navigation"
+            ],
+            "candidate_mechanism_roles": ["authentication or authorization gate", "error and response contract", "request pipeline and principal propagation", "browser or client behavior"]
+        }));
+    }
+    if browser || auth {
+        out.push(serde_json::json!({
+            "obligation": "client delivery and navigation lifecycle",
+            "trigger": "the behavior is observable in a browser or changes interactive authentication state",
+            "checks": [
+                "identify every layout, shell, or entry point that must load the client behavior",
+                "verify asset registration or bundling rather than assuming a new source file is delivered",
+                "cover asynchronous denial, redirects, cache headers, and back-forward cache restoration where applicable"
+            ],
+            "candidate_mechanism_roles": ["asset registration and delivery", "asset delivery consumer or host", "browser or client behavior", "rendered user-interface host", "error and response contract"]
+        }));
+    }
+    if persistence {
+        out.push(serde_json::json!({
+            "obligation": "persistence contract coherence",
+            "trigger": "the story persists or versions state",
+            "checks": [
+                "keep schema, migration or post-deploy script, generated or mapped model, and data access behavior aligned",
+                "define defaults, nullability, concurrency, and rollback or compatibility behavior"
+            ],
+            "candidate_mechanism_roles": ["persistence schema or data operation", "configuration and defaults"]
+        }));
+    }
+    out
+}
+
+/// Candidate responsibilities for behavior that usually needs a reusable
+/// boundary of its own. These are deliberately role-level hypotheses: the
+/// repository's existing exemplars and naming conventions decide whether the
+/// responsibility becomes a new file, extends an existing type, or is rejected.
+fn change_set_component_hypotheses(story: &str) -> Vec<serde_json::Value> {
+    let lower = story.to_ascii_lowercase();
+    let has = |terms: &[&str]| terms.iter().any(|term| lower.contains(term));
+    let auth = has(&[
+        "authenticat", "authoriz", "session", "login", "logout", "cookie", "token",
+        "credential", "password", "permission", "role", "tenant access",
+    ]);
+    let mutable_state = has(&[
+        "revalidat", "revoke", "disable", "change", "update", "generation", "version",
+        "current account", "current authorization",
+    ]);
+    let browser = has(&[
+        "browser", "page", "redirect", "cache", "history", "javascript", "client",
+        "cookie", "login", "logout",
+    ]);
+    let persistence = has(&[
+        "database", "persist", "table", "column", "schema", "generation", "version",
+    ]);
+    let mut out = Vec::new();
+    if auth && mutable_state {
+        out.push(serde_json::json!({
+            "responsibility": "current authorization state reader and atomic version store",
+            "verify_against": "existing repository/service patterns and transaction boundaries",
+            "decision": "new component, extension of an existing data service, or unnecessary"
+        }));
+        out.push(serde_json::json!({
+            "responsibility": "immutable credential snapshot codec and comparison policy",
+            "verify_against": "existing token, ticket, claims, and authorization-policy abstractions",
+            "decision": "separate codec/policy roles or one established repository abstraction"
+        }));
+    }
+    if auth && has(&["session", "logout", "revoke", "invalid", "expire", "cookie"]) {
+        out.push(serde_json::json!({
+            "responsibility": "central authentication-state termination",
+            "verify_against": "all logout, denial, expiry, revocation, and malformed-credential paths",
+            "decision": "one idempotent lifecycle component or evidence that existing paths are already centralized"
+        }));
+        out.push(serde_json::json!({
+            "responsibility": "authenticated response cache policy",
+            "verify_against": "existing global filters, response helpers, middleware, and page base classes",
+            "decision": "central policy or explicit per-surface behavior"
+        }));
+    }
+    if auth && browser {
+        out.push(serde_json::json!({
+            "responsibility": "client authentication lifecycle handler",
+            "verify_against": "asynchronous request wrappers, navigation lifecycle, layouts, bundles, and entry points",
+            "decision": "shared client module plus delivery wiring or evidence that every consumer handles the contract"
+        }));
+    }
+    if auth && persistence {
+        out.push(serde_json::json!({
+            "responsibility": "deployment and recovery contract",
+            "verify_against": "schema rollout ordering, mixed-version behavior, failure mode, rollback, and operator diagnostics",
+            "decision": "documentation/runbook plus executable migration checks or an existing equivalent"
+        }));
+    }
+    out
+}
+
+fn change_set_rule_matches_path(file_pattern: &str, target_path: &str) -> bool {
+    if file_pattern.trim().is_empty() {
+        return false;
+    }
+    let pattern = file_pattern.replace('\\', "/").to_ascii_lowercase();
+    let path = target_path.replace('\\', "/").to_ascii_lowercase();
+    if pattern == path {
+        return true;
+    }
+    if pattern.contains('*') || pattern.contains('?') {
+        let mut expression = String::with_capacity(pattern.len() + 8);
+        expression.push('^');
+        for character in pattern.chars() {
+            match character {
+                '*' => expression.push_str(".*"),
+                '?' => expression.push('.'),
+                '.' | '+' | '(' | ')' | '[' | ']' | '{' | '}' | '|' | '^' | '$' | '\\' => {
+                    expression.push('\\');
+                    expression.push(character);
+                }
+                _ => expression.push(character),
+            }
+        }
+        expression.push('$');
+        return regex::Regex::new(&expression)
+            .is_ok_and(|compiled| compiled.is_match(&path));
+    }
+    path.contains(&pattern)
+}
+
+fn applicable_change_set_rules(
+    rules: Vec<engram_core::RepoRule>,
+    paths: &[String],
+    exclusive_cutoff: Option<&str>,
+) -> (Vec<serde_json::Value>, usize) {
+    let mut excluded_undated_or_future = 0usize;
+    let mut applicable = rules
+        .into_iter()
+        .filter(|rule| {
+            if let Some(cutoff) = exclusive_cutoff {
+                let before = rule
+                    .introduced_at
+                    .as_deref()
+                    .is_some_and(|date| date < cutoff);
+                if !before {
+                    excluded_undated_or_future += 1;
+                }
+                before
+            } else {
+                true
+            }
+        })
+        .filter(|rule| {
+            paths
+                .iter()
+                .any(|path| change_set_rule_matches_path(&rule.file_pattern, path))
+        })
+        .collect::<Vec<_>>();
+    applicable.sort_by(|left, right| {
+        right
+            .priority
+            .cmp(&left.priority)
+            .then_with(|| left.rule_id.cmp(&right.rule_id))
+    });
+    let result = applicable
+        .into_iter()
+        .take(32)
+        .map(|rule| {
+            serde_json::json!({
+                "rule_id": rule.rule_id,
+                "file_pattern": rule.file_pattern,
+                "rule_text": rule.rule_text,
+                "priority": rule.priority,
+                "introduced_at": rule.introduced_at,
+                "provenance": rule.provenance,
+            })
+        })
+        .collect();
+    (result, excluded_undated_or_future)
+}
+
+fn change_set_work_item_evidence_risk(
+    story: &str,
+    exclusive_cutoff: Option<&str>,
+) -> serde_json::Value {
+    let lower = story.to_ascii_lowercase();
+    let review_markers = [
+        "summary by coderabbit",
+        "auto-generated comment",
+        "review findings",
+        "addressed in commits",
+        "remediation verification",
+        "must not be reported as a finding",
+        "performed user tests",
+        "pr checklist",
+    ];
+    let matched_markers = review_markers
+        .iter()
+        .filter(|marker| lower.contains(**marker))
+        .copied()
+        .collect::<Vec<_>>();
+    let mut post_cutoff_dates = regex::Regex::new(r"\b\d{4}-\d{2}-\d{2}\b")
+        .ok()
+        .map(|expression| {
+            expression
+                .find_iter(story)
+                .map(|found| found.as_str().to_string())
+                .filter(|date| exclusive_cutoff.is_some_and(|cutoff| date.as_str() >= cutoff))
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    post_cutoff_dates.truncate(20);
+    let risky = !matched_markers.is_empty() || !post_cutoff_dates.is_empty();
+    serde_json::json!({
+        "status": if risky { "review_or_post_cutoff_material_detected" } else { "no_obvious_review_material_detected" },
+        "matched_review_markers": matched_markers,
+        "post_cutoff_dates": post_cutoff_dates,
+        "exclusive_cutoff": exclusive_cutoff,
+        "instruction": if risky {
+            "Do not label affected clauses as pre-implementation evidence. Separate original requirements from later PR summaries, review outcomes, test reports, and remediation notes; score or plan from the uncontaminated portion and record the boundary."
+        } else {
+            "No lexical contamination marker was found; this is not proof that the work item is historically unchanged."
+        }
+    })
+}
+
 /// Per-layer cap on WEAK-signal candidates (tier ≥ 2, not `vtop`/`family`).
 /// The eval sweet spot (45cf172); what it cuts is now REPORTED as omissions.
 pub(crate) const CHANGE_SET_TAIL_CAP: usize = 18;
@@ -7923,6 +8277,25 @@ fn render_change_set(
          explicitly (the highest-scoring plans in live A/Bs stated every \
          decision; silent omissions were the top failure mode):\n",
     );
+    for obligation in change_set_cross_cutting_obligations(story) {
+        let name = obligation["obligation"].as_str().unwrap_or("cross-cutting behavior");
+        let trigger = obligation["trigger"].as_str().unwrap_or("");
+        s.push_str(&format!("- {name}: {trigger}.\n"));
+        if let Some(checks) = obligation["checks"].as_array() {
+            for check in checks.iter().filter_map(|value| value.as_str()) {
+                s.push_str(&format!("  - {check}.\n"));
+            }
+        }
+    }
+    let component_hypotheses = change_set_component_hypotheses(story);
+    if !component_hypotheses.is_empty() {
+        s.push_str("- Component responsibility hypotheses (verify against existing exemplars; do not create files by default):\n");
+        for hypothesis in component_hypotheses {
+            let responsibility = hypothesis["responsibility"].as_str().unwrap_or("component boundary");
+            let verify = hypothesis["verify_against"].as_str().unwrap_or("current source");
+            s.push_str(&format!("  - {responsibility}; verify against {verify}.\n"));
+        }
+    }
     s.push_str(
         "- Every page touched: edit BOTH the .aspx/.ascx markup AND its \
          .aspx.vb/.ascx.vb code-behind (and .designer.vb if present).\n",
@@ -8128,16 +8501,19 @@ impl Engram {
             }
         }
         req.story = story_with_work_item_text(&req.story, req.work_item_text.take())?;
-        let full_detail = match req.detail.as_deref().unwrap_or("compact") {
-            "compact" => false,
-            "full" => true,
+        let detail = match req.detail.as_deref().unwrap_or("compact") {
+            "compact" => "compact",
+            "reconciled" => "reconciled",
+            "full" => "full",
             _ => {
                 return Err(McpError::invalid_params(
-                    "detail must be 'compact' or 'full'",
+                    "detail must be 'compact', 'reconciled', or 'full'",
                     None,
                 ));
             }
         };
+        let full_detail = detail == "full";
+        let reconciled_detail = detail == "reconciled";
         // One presentation-free view for every retrieval arm. Keep req.story as
         // original evidence for the dossier; metadata URLs are not task intent.
         let retrieval_story = story_for_concepts(&req.story);
@@ -8372,6 +8748,7 @@ impl Engram {
             let mut failures = 0usize;
             let mut hubs = 0usize;
             for entity in entity_candidates {
+                let mut file_matches = Vec::new();
                 for path in &entity_index {
                     let file = path.replace('\\', "/");
                     let stem = file
@@ -8383,9 +8760,19 @@ impl Engram {
                         .unwrap_or("");
                     if code_entity_file_matches(&entity, stem)
                         && !engram_core::is_vendor_path(&file)
-                        && seen.insert(file.clone())
                     {
-                        hits.push((file, entity.clone(), "file name"));
+                        file_matches.push(file);
+                    }
+                }
+                file_matches.sort();
+                file_matches.dedup();
+                if file_matches.len() > 8 {
+                    hubs += 1;
+                } else {
+                    for file in file_matches {
+                        if seen.insert(file.clone()) {
+                            hits.push((file, entity.clone(), "file name"));
+                        }
                     }
                 }
                 match entity_graph.query_nodes(&entity_pid, None, Some(&entity), None, 24) {
@@ -8808,6 +9195,15 @@ impl Engram {
                 });
             }
             cov.vector = ArmCoverage::complete(n, t_vec.elapsed().as_millis());
+        }
+        if matches!(self.state.cfg.embedding_backend.as_str(), "fts_only" | "") {
+            cov.vector = ArmCoverage::with_reason(
+                "incomplete",
+                0,
+                t_vec.elapsed().as_millis(),
+                "semantic retrieval disabled by embedding_backend=fts_only; lexical evidence remains available but meaning-based recall and confidence are degraded"
+                    .into(),
+            );
         }
 
         cov.stages
@@ -9329,18 +9725,32 @@ impl Engram {
                     );
                 }
             }
-            // Round-2 audit P0-3 (compound / name coverage): a file whose NAME
-            // is composed of NAME_COVERAGE_MIN+ of the story's own words is what
-            // a developer opens first (productioncodelistmaincategory.aspx for
-            // "production code list … main … category"); the per-group
-            // footprint cap hid it behind broad terms. Scans the whole file
-            // index — no cap — and never consults the footprint.
+            // Compound/name coverage: a file whose name is composed of
+            // several specific story words is often a useful candidate. The
+            // index-local breadth filter prevents common framework vocabulary
+            // from promoting an entire file family. This scans the complete
+            // non-vendor file index rather than a capped concept footprint.
             let story_terms: BTreeSet<String> = req
                 .story
                 .split(|ch: char| !ch.is_alphanumeric())
                 .filter_map(story_token)
+                .map(|term| canonical_story_name_term(&term))
                 .collect();
             if story_terms.len() >= NAME_COVERAGE_MIN {
+                let mut term_file_counts = BTreeMap::<String, usize>::new();
+                for (rp, _) in meta.iter() {
+                    let full = rp.as_str().replace('\\', "/").to_lowercase();
+                    if engram_core::is_vendor_path(&full) {
+                        continue;
+                    }
+                    let fname = full.rsplit('/').next().unwrap_or(full.as_str());
+                    let stem = fname.split('.').next().unwrap_or("");
+                    for term in &story_terms {
+                        if story_name_term_matches_stem(term, stem) {
+                            *term_file_counts.entry(term.clone()).or_default() += 1;
+                        }
+                    }
+                }
                 for (rp, _) in meta.iter() {
                     let full = rp.as_str().replace('\\', "/").to_lowercase();
                     if engram_core::is_vendor_path(&full) {
@@ -9355,10 +9765,9 @@ impl Engram {
                         .iter()
                         .map(String::as_str)
                         .filter(|t| {
-                            stem.contains(t)
-                                || (t.len() > 5
-                                    && t.ends_with('s')
-                                    && stem.contains(&t[..t.len() - 1]))
+                            term_file_counts.get(*t).copied().unwrap_or(0)
+                                < BROAD_NAME_TERM_MIN_FILES
+                                && story_name_term_matches_stem(t, stem)
                         })
                         .collect();
                     if covered.len() >= NAME_COVERAGE_MIN && covered.iter().any(|t| t.len() >= 6) {
@@ -10012,7 +10421,7 @@ impl Engram {
             let (rows, omissions) = change_set_rows(&prov);
             let visible_rows: Vec<&ChangeSetRow> = rows.iter().filter(|r| !r.omitted).collect();
             let files_total = visible_rows.len();
-            let file_cap = if full_detail {
+            let file_cap = if full_detail || reconciled_detail {
                 usize::MAX
             } else {
                 CHANGE_SET_COMPACT_FILE_CAP
@@ -10024,6 +10433,7 @@ impl Engram {
                 .collect::<std::collections::HashMap<_, _>>();
             let files: Vec<serde_json::Value> = visible_rows
                 .iter()
+                .filter(|row| !reconciled_detail || row.set == "primary")
                 .take(file_cap)
                 .map(|r| {
                     let mut reasons = why.get(&r.path).cloned().unwrap_or_default();
@@ -10056,6 +10466,8 @@ impl Engram {
                 .iter()
                 .take(if full_detail {
                     usize::MAX
+                } else if reconciled_detail {
+                    0
                 } else {
                     CHANGE_SET_COMPACT_OMISSION_CAP
                 })
@@ -10096,6 +10508,36 @@ impl Engram {
             let reconciliation = change_set_reconciliation_receipt(
                 &rows, &asset_dependencies, &caller_dependencies,
             );
+            let mut rule_paths = visible_rows
+                .iter()
+                .map(|row| row.path.clone())
+                .collect::<Vec<_>>();
+            rule_paths.extend(asset_dependencies.iter().map(|row| row.path.clone()));
+            rule_paths.extend(caller_dependencies.iter().map(|row| row.path.clone()));
+            rule_paths.sort();
+            rule_paths.dedup();
+            let registry = self.state.registry.clone();
+            let rule_project = req.project_id.clone();
+            let stored_rules = tokio::task::spawn_blocking(move || {
+                registry.list_repo_rules(&rule_project)
+            })
+            .await
+            .ok()
+            .and_then(Result::ok)
+            .unwrap_or_default();
+            let (applicable_rules, excluded_rules) = applicable_change_set_rules(
+                stored_rules,
+                &rule_paths,
+                req.merged_before.as_deref(),
+            );
+            let cross_cutting_obligations =
+                change_set_cross_cutting_obligations(req.story.trim());
+            let component_hypotheses =
+                change_set_component_hypotheses(req.story.trim());
+            let work_item_evidence_risk = change_set_work_item_evidence_risk(
+                req.story.trim(),
+                req.merged_before.as_deref(),
+            );
             let payload = serde_json::json!({
                 "story": req.story.trim(),
                 "concepts": concepts,
@@ -10103,7 +10545,7 @@ impl Engram {
                 "coverage": output_coverage,
                 "omissions": output_omissions,
                 "view": {
-                    "detail": if full_detail { "full" } else { "compact" },
+                    "detail": detail,
                     "files_total": files_total,
                     "files_shown": files_shown,
                     "files_omitted_from_view": files_total.saturating_sub(files_shown),
@@ -10111,6 +10553,7 @@ impl Engram {
                     "omissions_shown": omissions_shown,
                     "omissions_omitted_from_view": omissions_total.saturating_sub(omissions_shown),
                     "diagnostic_entries_omitted_from_view": diagnostic_omissions,
+                    "reconciled_detail_request": { "detail": "reconciled" },
                     "full_detail_request": { "detail": "full" }
                 },
                 "ui_contract": ui_contract
@@ -10121,6 +10564,15 @@ impl Engram {
                 "caller_dependencies": caller_dependencies_json,
                 "reconciliation": reconciliation,
                 "permission_gates": permission_gates_json,
+                "cross_cutting_obligations": cross_cutting_obligations,
+                "component_hypotheses": component_hypotheses,
+                "work_item_evidence_risk": work_item_evidence_risk,
+                "applicable_repository_rules": {
+                    "rules": applicable_rules,
+                    "exclusive_cutoff": req.merged_before,
+                    "excluded_undated_or_future": excluded_rules,
+                    "instruction": "Apply every matching rule during planning and acceptance-test derivation; a rule is evidence of repository convention, not proof that the current source complies."
+                },
             });
             return Ok(CallToolResult::success(vec![Content::text(
                 serde_json::to_string_pretty(&payload).unwrap_or_default(),
@@ -12982,6 +13434,16 @@ mod change_set_rows_tests {
     use super::*;
 
     #[test]
+    fn compound_name_evidence_deduplicates_plural_variants() {
+        assert_eq!(canonical_story_name_term("roles"), "role");
+        assert_eq!(canonical_story_name_term("categories"), "category");
+        assert_eq!(canonical_story_name_term("address"), "address");
+        assert_eq!(canonical_story_name_term("status"), "status");
+        assert_eq!(canonical_story_name_term("analysis"), "analysis");
+        assert!(story_name_term_matches_stem("role", "aspnet_roles_basicaccess"));
+    }
+
+    #[test]
     fn strongest_semantic_matches_can_lead_a_sparse_story_layer() {
         let prov = BTreeMap::from([
             (
@@ -13112,6 +13574,102 @@ mod change_set_rows_tests {
         assert_eq!(change_set_mechanism_role("src/security_audit.vb"), "audit and operational logging");
         assert_eq!(change_set_mechanism_role("App_Start/BundleConfig.cs"), "asset registration and delivery");
         assert_eq!(change_set_mechanism_role("Views/Site.master"), "rendered user-interface host");
+    }
+
+    #[test]
+    fn auth_state_changes_emit_cross_cutting_planning_obligations() {
+        let obligations = change_set_cross_cutting_obligations(
+            "Revalidate authenticated sessions after role, password, or tenant access changes",
+        );
+        let rendered = serde_json::to_string(&obligations).unwrap();
+        for expected in [
+            "authorization mutation boundaries",
+            "authentication boundary consistency",
+            "complete authentication-state termination",
+            "security decision observability",
+            "client delivery and navigation lifecycle",
+            "session acquisition and concurrency",
+        ] {
+            assert!(rendered.contains(expected), "missing {expected}: {rendered}");
+        }
+        assert!(!rendered.contains("OciusX"));
+    }
+
+    #[test]
+    fn unrelated_data_change_does_not_invent_auth_obligations() {
+        let obligations = change_set_cross_cutting_obligations(
+            "Add a nullable database column and migration for report titles",
+        );
+        let rendered = serde_json::to_string(&obligations).unwrap();
+        assert!(rendered.contains("persistence contract coherence"));
+        assert!(!rendered.contains("authentication boundary consistency"));
+    }
+
+    #[test]
+    fn session_revalidation_proposes_roles_without_repository_specific_paths() {
+        let hypotheses = change_set_component_hypotheses(
+            "Persist a versioned authentication snapshot and revalidate browser sessions after authorization changes",
+        );
+        let rendered = serde_json::to_string(&hypotheses).unwrap();
+        for expected in [
+            "current authorization state reader and atomic version store",
+            "immutable credential snapshot codec and comparison policy",
+            "central authentication-state termination",
+            "authenticated response cache policy",
+            "client authentication lifecycle handler",
+            "deployment and recovery contract",
+        ] {
+            assert!(rendered.contains(expected), "missing {expected}: {rendered}");
+        }
+        assert!(!rendered.contains("Site/"));
+        assert!(!rendered.contains("OciusX"));
+    }
+
+    #[test]
+    fn applicable_rules_are_path_scoped_and_historical_cutoff_safe() {
+        let rule = |id: &str, pattern: &str, date: Option<&str>, priority: i32| {
+            engram_core::RepoRule {
+                rule_id: id.into(),
+                file_pattern: pattern.into(),
+                rule_text: format!("rule {id}"),
+                priority,
+                updated_at_ms: 1,
+                introduced_at: date.map(str::to_string),
+                provenance: Some("review corpus".into()),
+            }
+        };
+        let rules = vec![
+            rule("old-vb", "**/*.vb", Some("2025-01-01"), 80),
+            rule("future-vb", "**/*.vb", Some("2027-01-01"), 90),
+            rule("undated", "**/*.vb", None, 100),
+            rule("old-js", "**/*.js", Some("2025-01-01"), 70),
+        ];
+        let (matched, excluded) = applicable_change_set_rules(
+            rules,
+            &["src/Login.vb".into()],
+            Some("2026-09-03"),
+        );
+        assert_eq!(excluded, 2);
+        assert_eq!(matched.len(), 1);
+        assert_eq!(matched[0]["rule_id"], "old-vb");
+        assert_eq!(matched[0]["rule_text"], "rule old-vb");
+    }
+
+    #[test]
+    fn historical_work_item_review_material_is_explicitly_flagged() {
+        let risk = change_set_work_item_evidence_risk(
+            "Acceptance criteria. <!-- auto-generated comment --> Summary by CodeRabbit. Local remediation verification completed 2026-09-10.",
+            Some("2026-09-03"),
+        );
+        assert_eq!(risk["status"], "review_or_post_cutoff_material_detected");
+        assert!(risk["matched_review_markers"].as_array().unwrap().len() >= 3);
+        assert_eq!(risk["post_cutoff_dates"][0], "2026-09-10");
+
+        let clean = change_set_work_item_evidence_risk(
+            "As a user, I can save a report.",
+            Some("2026-09-03"),
+        );
+        assert_eq!(clean["status"], "no_obvious_review_material_detected");
     }
 }
 
