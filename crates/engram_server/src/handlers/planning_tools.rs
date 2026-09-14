@@ -7825,41 +7825,139 @@ fn change_set_component_hypotheses(story: &str) -> Vec<serde_json::Value> {
         out.push(serde_json::json!({
             "responsibility": "current authorization state reader and atomic version store",
             "verify_against": "existing repository/service patterns and transaction boundaries",
-            "decision": "new component, extension of an existing data service, or unnecessary"
+            "decision": "new component, extension of an existing data service, or unnecessary",
+            "required_surface_categories": ["credential_and_authorization_mutations", "security_state_persistence", "authentication_entry_and_refresh"],
+            "required_contract_evidence": [
+                "the persisted authority and field or claim that changes monotonically",
+                "every mutation writer that advances the authority, including password, permission, role, account, and tenant changes",
+                "the compare-and-advance concurrency or transaction rule",
+                "schema rollout, existing-row initialization, mixed-version behavior, and rollback"
+            ]
         }));
         out.push(serde_json::json!({
             "responsibility": "immutable credential snapshot codec and comparison policy",
             "verify_against": "existing token, ticket, claims, and authorization-policy abstractions",
-            "decision": "separate codec/policy roles or one established repository abstraction"
+            "decision": "separate codec/policy roles or one established repository abstraction",
+            "required_surface_categories": ["authentication_entry_and_refresh", "request_pipeline", "security_state_persistence", "machine_and_browser_consumers"],
+            "required_contract_evidence": [
+                "the exact credential fields or claims captured when the credential is issued",
+                "issue, decode, validate, refresh, and rejection entry points",
+                "the current authority used for comparison and behavior after process or per-instance state loss",
+                "compatibility and failure behavior for legacy, malformed, missing, and stale credentials"
+            ]
         }));
     }
     if auth && has(&["session", "logout", "revoke", "invalid", "expire", "cookie"]) {
         out.push(serde_json::json!({
             "responsibility": "central authentication-state termination",
             "verify_against": "all logout, denial, expiry, revocation, and malformed-credential paths",
-            "decision": "one idempotent lifecycle component or evidence that existing paths are already centralized"
+            "decision": "one idempotent lifecycle component or evidence that existing paths are already centralized",
+            "required_surface_categories": ["termination_and_logout", "request_pipeline", "authentication_entry_and_refresh", "machine_and_browser_consumers"],
+            "required_contract_evidence": [
+                "every server entry point that can reject or terminate authentication",
+                "credential, principal, session, and client-state cleanup performed by each path",
+                "idempotent behavior for repeated, concurrent, missing, malformed, and already-expired credentials",
+                "observable API, asynchronous, and browser responses after termination"
+            ]
         }));
         out.push(serde_json::json!({
             "responsibility": "authenticated response cache policy",
             "verify_against": "existing global filters, response helpers, middleware, and page base classes",
-            "decision": "central policy or explicit per-surface behavior"
+            "decision": "central policy or explicit per-surface behavior",
+            "required_surface_categories": ["request_pipeline", "machine_and_browser_consumers", "client_delivery_and_hosts"],
+            "required_contract_evidence": [
+                "the shared server location that applies cache headers to authenticated responses",
+                "coverage of pages, APIs, asynchronous calls, redirects, errors, and static delivery exceptions",
+                "browser history and back-navigation behavior after logout, expiry, or revocation"
+            ]
         }));
     }
     if auth && browser {
         out.push(serde_json::json!({
             "responsibility": "client authentication lifecycle handler",
             "verify_against": "asynchronous request wrappers, navigation lifecycle, layouts, bundles, and entry points",
-            "decision": "shared client module plus delivery wiring or evidence that every consumer handles the contract"
+            "decision": "shared client module plus delivery wiring or evidence that every consumer handles the contract",
+            "required_surface_categories": ["machine_and_browser_consumers", "client_delivery_and_hosts", "authentication_entry_and_refresh"],
+            "required_contract_evidence": [
+                "all client request wrappers and navigation or page lifecycle entry points",
+                "the machine-readable expiry or revocation signal and its redirect/cleanup behavior",
+                "bundle registration, layout, shell, and page hosts that deliver the handler",
+                "deduplication and ordering for simultaneous failures or repeated initialization"
+            ]
         }));
     }
     if auth && persistence {
         out.push(serde_json::json!({
             "responsibility": "deployment and recovery contract",
             "verify_against": "schema rollout ordering, mixed-version behavior, failure mode, rollback, and operator diagnostics",
-            "decision": "documentation/runbook plus executable migration checks or an existing equivalent"
+            "decision": "documentation/runbook plus executable migration checks or an existing equivalent",
+            "required_surface_categories": ["security_state_persistence", "deployment_and_runtime_prerequisites", "audit_and_observability"],
+            "required_contract_evidence": [
+                "deployment order and prerequisites across schema, application instances, proxy or rewrite rules, modules, and feature flags",
+                "mixed-version and rollback behavior while old and new credentials coexist",
+                "operator-visible startup, migration, decode, validation, and recovery diagnostics"
+            ]
         }));
     }
     out
+}
+
+/// Bind each role-level hypothesis to the concrete boundary evidence retrieved
+/// for this repository. A hypothesis without complete surfaces remains an
+/// explicit planning unknown; prose acknowledgement cannot satisfy the gate.
+fn bind_component_hypothesis_surfaces(
+    hypotheses: Vec<serde_json::Value>,
+    boundary_audit: &serde_json::Value,
+) -> Vec<serde_json::Value> {
+    let categories = boundary_audit["categories"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    hypotheses
+        .into_iter()
+        .map(|mut hypothesis| {
+            let requested = hypothesis["required_surface_categories"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default();
+            let mut surfaces = Vec::new();
+            let mut incomplete = false;
+            for boundary in requested.iter().filter_map(|value| value.as_str()) {
+                if let Some(category) = categories.iter().find(|category| {
+                    category["boundary"].as_str() == Some(boundary)
+                }) {
+                    let status = category["status"].as_str().unwrap_or("unresolved");
+                    incomplete |= status != "evidence_present";
+                    surfaces.push(serde_json::json!({
+                        "boundary": boundary,
+                        "status": status,
+                        "paths": category["paths"],
+                        "paths_total": category["paths_total"],
+                        "truncated": category["truncated"],
+                    }));
+                } else {
+                    incomplete = true;
+                    surfaces.push(serde_json::json!({
+                        "boundary": boundary,
+                        "status": "unresolved",
+                        "paths": [],
+                        "paths_total": 0,
+                        "truncated": false,
+                    }));
+                }
+            }
+            if let Some(object) = hypothesis.as_object_mut() {
+                object.insert("surface_status".into(), serde_json::json!(
+                    if incomplete { "incomplete" } else { "evidence_present" }
+                ));
+                object.insert("concrete_surfaces".into(), serde_json::Value::Array(surfaces));
+                object.insert("verification_gate".into(), serde_json::json!(
+                    "For every required contract item, cite the concrete source paths and behavior. Resolve every missing or partial boundary with additional evidence or an evidence-backed not-applicable decision before implementation planning."
+                ));
+            }
+            hypothesis
+        })
+        .collect()
 }
 
 /// Show whether the current evidence set spans the lifecycle boundaries that
@@ -8753,6 +8851,11 @@ fn render_change_set(
             let responsibility = hypothesis["responsibility"].as_str().unwrap_or("component boundary");
             let verify = hypothesis["verify_against"].as_str().unwrap_or("current source");
             s.push_str(&format!("  - {responsibility}; verify against {verify}.\n"));
+            if let Some(requirements) = hypothesis["required_contract_evidence"].as_array() {
+                for requirement in requirements.iter().filter_map(|value| value.as_str()) {
+                    s.push_str(&format!("    - Required evidence: {requirement}.\n"));
+                }
+            }
         }
     }
     s.push_str(
@@ -11126,13 +11229,15 @@ impl Engram {
             );
             let cross_cutting_obligations =
                 change_set_cross_cutting_obligations(req.story.trim());
-            let component_hypotheses =
-                change_set_component_hypotheses(req.story.trim());
             let boundary_audit = change_set_boundary_audit(
                 req.story.trim(),
                 &rows,
                 &asset_dependencies,
                 &caller_dependencies,
+            );
+            let component_hypotheses = bind_component_hypothesis_surfaces(
+                change_set_component_hypotheses(req.story.trim()),
+                &boundary_audit,
             );
             let work_item_evidence_risk = change_set_work_item_evidence_risk(
                 req.story.trim(),
@@ -14354,6 +14459,62 @@ mod change_set_rows_tests {
         }
         assert!(!rendered.contains("Site/"));
         assert!(!rendered.contains("OciusX"));
+    }
+
+    #[test]
+    fn component_hypotheses_bind_required_contracts_to_concrete_surfaces() {
+        let audit = serde_json::json!({
+            "categories": [
+                {
+                    "boundary": "authentication_entry_and_refresh",
+                    "status": "evidence_present",
+                    "paths": ["src/Login.cs"],
+                    "paths_total": 1,
+                    "truncated": false
+                },
+                {
+                    "boundary": "request_pipeline",
+                    "status": "evidence_present",
+                    "paths": ["src/AuthMiddleware.cs"],
+                    "paths_total": 1,
+                    "truncated": false
+                },
+                {
+                    "boundary": "security_state_persistence",
+                    "status": "partial",
+                    "paths": ["db/001-auth.sql"],
+                    "paths_total": 24,
+                    "truncated": true
+                }
+            ]
+        });
+        let hypotheses = bind_component_hypothesis_surfaces(
+            change_set_component_hypotheses(
+                "Persist a versioned authentication snapshot and revalidate sessions",
+            ),
+            &audit,
+        );
+        let snapshot = hypotheses.iter().find(|hypothesis| {
+            hypothesis["responsibility"]
+                == "immutable credential snapshot codec and comparison policy"
+        }).unwrap();
+        assert_eq!(snapshot["surface_status"], "incomplete");
+        assert!(snapshot["required_contract_evidence"].as_array().unwrap().iter()
+            .any(|item| item.as_str().unwrap().contains("credential fields or claims")));
+        let surfaces = snapshot["concrete_surfaces"].as_array().unwrap();
+        assert!(surfaces.iter().any(|surface| {
+            surface["boundary"] == "authentication_entry_and_refresh"
+                && surface["paths"][0] == "src/Login.cs"
+        }));
+        assert!(surfaces.iter().any(|surface| {
+            surface["boundary"] == "security_state_persistence"
+                && surface["status"] == "partial"
+                && surface["paths_total"] == 24
+        }));
+        assert!(surfaces.iter().any(|surface| {
+            surface["boundary"] == "machine_and_browser_consumers"
+                && surface["status"] == "unresolved"
+        }));
     }
 
     #[test]
