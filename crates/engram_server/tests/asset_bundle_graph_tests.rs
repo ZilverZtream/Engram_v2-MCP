@@ -2,7 +2,7 @@
 
 use engram_core::Config;
 use engram_graph::EdgeKind;
-use engram_server::{AppState, Engram};
+use engram_server::{AppState, Engram, GetChangeSetRequest};
 use serde_json::json;
 
 #[tokio::test]
@@ -30,7 +30,11 @@ async fn indexed_bundle_connects_rendering_markup_to_static_assets() {
 @System.Web.Optimization.Scripts.Render("/bundles/app")"#,
     )
     .unwrap();
-    std::fs::write(root.join("Scripts/app.js"), "window.app = true;").unwrap();
+    std::fs::write(
+        root.join("Scripts/app.js"),
+        "function authenticationSession() { window.app = true; }",
+    )
+    .unwrap();
     std::fs::write(root.join("Content/site.css"), "body { color: black; }").unwrap();
 
     let (state, _) = AppState::new(Config {
@@ -101,5 +105,32 @@ async fn indexed_bundle_connects_rendering_markup_to_static_assets() {
             .unwrap()
             .iter()
             .any(|(id, _)| id == layout)
+    );
+
+    let request: GetChangeSetRequest = serde_json::from_value(json!({
+        "project_id": project_id,
+        "story": "Change authentication session behavior",
+        "concepts": ["authenticationSession"],
+        "output_json": true,
+        "detail": "full"
+    }))
+    .unwrap();
+    let response = engram.handle_get_change_set(request).await.unwrap();
+    let payload: serde_json::Value =
+        serde_json::from_str(&response.content[0].as_text().unwrap().text).unwrap();
+    let paths = payload["files"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|file| file["path"].as_str())
+        .collect::<Vec<_>>();
+    assert!(paths.contains(&"Scripts/app.js"), "{payload}");
+    assert!(paths.contains(&"Views/_Layout.cshtml"), "{payload}");
+    assert!(paths.contains(&"App_Start/BundleConfig.cs"), "{payload}");
+    assert!(
+        payload["coverage"]["asset_graph"]["hits"]
+            .as_u64()
+            .is_some_and(|hits| hits >= 2),
+        "{payload}"
     );
 }
