@@ -310,6 +310,9 @@ pub struct IngestConfig {
     /// Inclusive historical boundary. PRs above this id never enter parsing,
     /// clustering, graph storage or promoted rules.
     pub max_pr_id: Option<u64>,
+    /// Exclusive `YYYY-MM-DD` completion boundary. PRs completed on or after
+    /// this date, plus undated records, never enter parsing or storage.
+    pub completed_before: Option<String>,
 }
 
 impl Default for IngestConfig {
@@ -330,6 +333,7 @@ impl Default for IngestConfig {
             force_full_rescan: false,
             use_llm_for_ambiguous: false,
             max_pr_id: None,
+            completed_before: None,
         }
     }
 }
@@ -378,12 +382,13 @@ pub async fn ingest_code_review_history(
     let start = std::time::Instant::now();
     let mut stats = IngestStats::default();
     let source_sig = format!(
-        "{}:max_pr_id={}",
+        "{}:max_pr_id={}:completed_before={}",
         config.source.signature(),
         config
             .max_pr_id
             .map(|id| id.to_string())
-            .unwrap_or_else(|| "latest".into())
+            .unwrap_or_else(|| "latest".into()),
+        config.completed_before.as_deref().unwrap_or("latest")
     );
 
     // Read incremental state unless the caller forced a full rescan.
@@ -399,7 +404,12 @@ pub async fn ingest_code_review_history(
     };
 
     // Stage 1: fetch
-    let (raw, skipped) = fetch_raw_comments(&config.source, last_pr_id, config.max_pr_id).await?;
+    let (raw, skipped) = fetch_raw_comments(
+        &config.source,
+        last_pr_id,
+        config.max_pr_id,
+        config.completed_before.as_deref(),
+    ).await?;
     stats.total_raw = raw.len();
     stats.incremental_skipped_prs = skipped;
     stats.raw_with_fix_hunk = raw.iter().filter(|r| r.fix_hunk.is_some()).count();
@@ -802,9 +812,10 @@ async fn fetch_raw_comments(
     source: &IngestSource,
     last_pr_id: Option<u64>,
     max_pr_id: Option<u64>,
+    completed_before: Option<&str>,
 ) -> anyhow::Result<(Vec<RawReviewComment>, usize)> {
     match source {
-        IngestSource::JsonlFile { path } => read_jsonl(path, last_pr_id, max_pr_id),
+        IngestSource::JsonlFile { path } => read_jsonl(path, last_pr_id, max_pr_id, completed_before),
         IngestSource::AzureDevops {
             org,
             project,
@@ -812,8 +823,10 @@ async fn fetch_raw_comments(
             pat_token,
             max_prs,
         } => {
-            fetch_azure_devops(org, project, repo, pat_token, *max_prs, last_pr_id, max_pr_id)
-            .await
+            fetch_azure_devops(
+                org, project, repo, pat_token, *max_prs, last_pr_id, max_pr_id,
+                completed_before,
+            ).await
         }
     }
 }
@@ -822,6 +835,7 @@ fn read_jsonl(
     path: &Path,
     last_pr_id: Option<u64>,
     max_pr_id: Option<u64>,
+    completed_before: Option<&str>,
 ) -> anyhow::Result<(Vec<RawReviewComment>, usize)> {
     let bytes = std::fs::read_to_string(path)
         .map_err(|e| anyhow::anyhow!("failed to read jsonl at {}: {e}", path.display()))?;
@@ -848,6 +862,10 @@ fn read_jsonl(
             skipped += 1;
             continue;
         }
+        if completed_before.is_some_and(|cutoff| !is_before_completion_cutoff(&rec.pr_date, cutoff)) {
+            skipped += 1;
+            continue;
+        }
         out.push(rec);
     }
     Ok((out, skipped))
@@ -861,6 +879,7 @@ async fn fetch_azure_devops(
     max_prs: Option<usize>,
     last_pr_id: Option<u64>,
     max_pr_id: Option<u64>,
+    completed_before: Option<&str>,
 ) -> anyhow::Result<(Vec<RawReviewComment>, usize)> {
     use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
 
@@ -966,6 +985,10 @@ async fn fetch_azure_devops(
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
+        if completed_before.is_some_and(|cutoff| !is_before_completion_cutoff(&pr_date, cutoff)) {
+            skipped_incremental += 1;
+            continue;
+        }
         let pr_branch = pr
             .get("sourceRefName")
             .and_then(|v| v.as_str())
@@ -1082,6 +1105,10 @@ async fn fetch_azure_devops(
     attach_fix_hunks(&client, &base, &auth, &mut out).await;
 
     Ok((out, skipped_incremental))
+}
+
+fn is_before_completion_cutoff(pr_date: &str, cutoff: &str) -> bool {
+    pr_date.get(..10).is_some_and(|date| date < cutoff)
 }
 
 /// Per-PR map of `changes-API path → [blob objectId in iteration order]`

@@ -330,6 +330,37 @@ async fn jsonl_ingest_excludes_reviews_after_historical_pr_boundary() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn jsonl_ingest_excludes_reviews_at_or_after_completion_boundary() {
+    let (tmp, state) = build_state();
+    let project_id = register_project(&state, &tmp).await;
+    let body = "**Bound archive extraction.** `ZipArchive` readers must reject excessive expanded bytes. ✅ Addressed in commits abc1234";
+    let mut before = mk_record(200, "fixed", "/src/A.cs", "major", body);
+    before["pr_date"] = serde_json::json!("2026-08-17T23:59:59Z");
+    let mut at_cutoff = mk_record(199, "fixed", "/src/B.cs", "major", body);
+    at_cutoff["pr_date"] = serde_json::json!("2026-08-18T00:00:00Z");
+    let mut after_with_older_id = mk_record(150, "fixed", "/src/C.cs", "major", body);
+    after_with_older_id["pr_date"] = serde_json::json!("2026-09-01T12:00:00Z");
+    let mut undated = mk_record(100, "fixed", "/src/D.cs", "major", body);
+    undated["pr_date"] = serde_json::json!("");
+    let path = write_fixture_jsonl(&tmp, &[before, at_cutoff, after_with_older_id, undated]);
+
+    let stats = ingest_code_review_history(
+        &state,
+        &project_id,
+        IngestConfig {
+            source: IngestSource::JsonlFile { path },
+            completed_before: Some("2026-08-18".into()),
+            force_full_rescan: true,
+            ..Default::default()
+        },
+    ).await.unwrap();
+
+    assert_eq!(stats.total_raw, 1);
+    assert_eq!(stats.newest_pr_id, Some(200));
+    assert_eq!(stats.incremental_skipped_prs, 3);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn jsonl_ingest_force_full_rescan_ignores_marker() {
     let (tmp, state) = build_state();
     let project_id = register_project(&state, &tmp).await;
