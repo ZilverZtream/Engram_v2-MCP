@@ -21,6 +21,11 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
+GUIDANCE_FIELDS = (
+    "mechanism_role", "evidence_class", "impact_question", "exclusion_evidence_required"
+)
+
+
 @dataclass(frozen=True)
 class Signal:
     id: str
@@ -150,6 +155,113 @@ def value_text(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True)
 
 
+def hydrated_rows(evidence: dict[str, Any], family: str) -> list[dict[str, Any]]:
+    guidance = {
+        str(entry.get("id")): entry
+        for entry in evidence.get("row_guidance", {}).get("entries", [])
+    }
+    hydrated: list[dict[str, Any]] = []
+    for original in evidence.get(family, []):
+        row = dict(original)
+        for field in GUIDANCE_FIELDS:
+            reference = row.pop(f"{field}_ref", None)
+            if reference is not None:
+                entry = guidance.get(str(reference))
+                if not entry or entry.get("field") != field:
+                    raise ValueError(f"{family} row has unresolved {field}_ref {reference!r}")
+                row[field] = entry.get("text", "")
+        hydrated.append(row)
+    return hydrated
+
+
+def contract_requirements(evidence: dict[str, Any]) -> dict[str, str]:
+    result: dict[str, str] = {}
+    for item in evidence.get("contract_checkpoint", {}).get("hard_items", []):
+        result[str(item.get("id"))] = str(item.get("requirement", ""))
+    for obligation in evidence.get("cross_cutting_obligations", []):
+        items = list(obligation.get("contract_items", []))
+        items.extend(obligation.get("advisory_contract_items", []))
+        for item in items:
+            result[str(item.get("check_id"))] = str(item.get("requirement", ""))
+    for hypothesis in evidence.get("component_hypotheses", []):
+        items = list(hypothesis.get("contract_evidence_items", []))
+        items.extend(hypothesis.get("advisory_contract_evidence", []))
+        for item in items:
+            result[str(item.get("evidence_id"))] = str(item.get("requirement", ""))
+    return {key: value for key, value in result.items() if key and key != "None"}
+
+
+def evidence_payload_metrics(evidence: dict[str, Any]) -> dict[str, Any]:
+    checkpoint = evidence.get("contract_checkpoint", {})
+    receipt = checkpoint.get("receipt", {})
+    checkpoint_ids = (
+        list(checkpoint.get("obligation_check_ids", []))
+        + list(checkpoint.get("hypothesis_evidence_ids", []))
+        + list(checkpoint.get("configured_rule_ids", []))
+    )
+    checkpoint_digest = hashlib.sha256(
+        "".join(f"{item_id}\n" for item_id in checkpoint_ids).encode("utf-8")
+    ).hexdigest()
+    row_ids: list[tuple[str, str]] = []
+    for family in ("files", "asset_dependencies", "caller_dependencies"):
+        for row in hydrated_rows(evidence, family):
+            row_id = row.get("row_id")
+            path = row.get("path")
+            if row_id and path:
+                row_ids.append((str(row_id), str(path)))
+    row_digest = hashlib.sha256(
+        "".join(f"{row_id}\0{path}\n" for row_id, path in row_ids).encode("utf-8")
+    ).hexdigest()
+    requirements = contract_requirements(evidence)
+    hard_count = len(checkpoint.get("hard_items", []))
+    return {
+        "compact_json_chars": len(json.dumps(evidence, ensure_ascii=False, separators=(",", ":"))),
+        "rows": {
+            family: len(evidence.get(family, []))
+            for family in ("files", "asset_dependencies", "caller_dependencies")
+        },
+        "row_guidance_entries": len(evidence.get("row_guidance", {}).get("entries", [])),
+        "contract_requirements": len(requirements),
+        "hard_items": hard_count,
+        "advisory_items": checkpoint.get("advisory_items_total"),
+        "hard_share": round(hard_count / len(requirements), 4) if requirements else None,
+        "contract_receipt_valid": receipt.get("receipt_id") == f"sha256:{checkpoint_digest}",
+        "reconciliation_receipt_valid": evidence.get("reconciliation", {}).get("receipt_id") == f"sha256:{row_digest}",
+    }
+
+
+def compare_evidence_payloads(
+    baseline: dict[str, Any], candidate: dict[str, Any], max_hard_items: int = 24
+) -> dict[str, Any]:
+    baseline_metrics = evidence_payload_metrics(baseline)
+    candidate_metrics = evidence_payload_metrics(candidate)
+    row_equality = {
+        family: hydrated_rows(baseline, family) == hydrated_rows(candidate, family)
+        for family in ("files", "asset_dependencies", "caller_dependencies")
+    }
+    baseline_requirements = contract_requirements(baseline)
+    candidate_requirements = contract_requirements(candidate)
+    baseline_chars = baseline_metrics["compact_json_chars"]
+    candidate_chars = candidate_metrics["compact_json_chars"]
+    gates = {
+        "all_rows_lossless": all(row_equality.values()),
+        "contract_requirements_lossless": baseline_requirements == candidate_requirements,
+        "contract_receipt_valid": candidate_metrics["contract_receipt_valid"],
+        "reconciliation_receipt_valid": candidate_metrics["reconciliation_receipt_valid"],
+        "hard_item_budget": candidate_metrics["hard_items"] <= max_hard_items,
+        "response_not_larger": candidate_chars <= baseline_chars,
+    }
+    return {
+        "baseline": baseline_metrics,
+        "candidate": candidate_metrics,
+        "saved_chars": baseline_chars - candidate_chars,
+        "saved_percent": round(100 * (1 - candidate_chars / baseline_chars), 2) if baseline_chars else None,
+        "row_exact_equality_after_hydration": row_equality,
+        "gates": gates,
+        "ready_for_single_agent_validation": all(gates.values()),
+    }
+
+
 def evidence_candidates(evidence: dict[str, Any], matrix_text: str) -> list[Candidate]:
     candidates: list[Candidate] = []
     for item in evidence.get("contract_checkpoint", {}).get("hard_items", []):
@@ -180,19 +292,8 @@ def evidence_candidates(evidence: dict[str, Any], matrix_text: str) -> list[Cand
                 id=str(item.get("evidence_id")), kind="hypothesis",
                 text=prefix + " " + value_text(item),
             ))
-    guidance = {
-        str(entry.get("id")): entry
-        for entry in evidence.get("row_guidance", {}).get("entries", [])
-    }
     for family, kind in (("files", "primary"), ("asset_dependencies", "asset"), ("caller_dependencies", "caller")):
-        for row in evidence.get(family, []):
-            row = dict(row)
-            for field in (
-                "mechanism_role", "evidence_class", "impact_question", "exclusion_evidence_required"
-            ):
-                reference = row.pop(f"{field}_ref", None)
-                if reference in guidance:
-                    row[field] = guidance[reference].get("text", "")
+        for row in hydrated_rows(evidence, family):
             row_id = str(row.get("row_id") or f"{kind}:{row.get('path', '')}")
             candidates.append(Candidate(id=row_id, kind=kind, text=value_text(row)))
 
@@ -237,6 +338,35 @@ def candidate_masks(candidates: list[Candidate], signals: list[Signal]) -> list[
             per_signal.append(mask)
         masks.append(tuple(per_signal))
     return masks
+
+
+def signal_diagnostics(candidates: list[Candidate], signals: list[Signal]) -> list[dict[str, Any]]:
+    """Explain evidence gaps without asking an agent to rediscover them."""
+    masks = candidate_masks(candidates, signals)
+    diagnostics: list[dict[str, Any]] = []
+    for signal_index, signal in enumerate(signals):
+        available_mask = 0
+        for mask in masks:
+            available_mask |= mask[signal_index]
+        required_mask = (1 << len(signal.groups)) - 1
+        if available_mask == required_mask:
+            continue
+        missing_groups = []
+        for group_index, patterns in enumerate(signal.groups):
+            if available_mask & (1 << group_index):
+                continue
+            missing_groups.append({
+                "group": group_index + 1,
+                "patterns": [pattern.pattern for pattern in patterns],
+            })
+        diagnostics.append({
+            "signal_id": signal.id,
+            "weight": signal.weight,
+            "available_groups": available_mask.bit_count(),
+            "required_groups": len(signal.groups),
+            "missing_groups": missing_groups,
+        })
+    return diagnostics
 
 
 def covered_from_state(state: list[int], signals: list[Signal]) -> tuple[float, list[str]]:
@@ -336,13 +466,106 @@ def optimize_packets(
     return results
 
 
+def optimize_packets_by_chars(
+    candidates: list[Candidate], signals: list[Signal], budgets: list[int], iterations: int, seed: int
+) -> dict[str, Any]:
+    """Find a compact evidence packet under actual payload budgets.
+
+    Count budgets are useful for workflow gates, but MCP cost and model attention
+    follow characters. This optimizer makes that tradeoff testable offline.
+    """
+    masks = candidate_masks(candidates, signals)
+    rng = random.Random(seed ^ 0xC0FFEE)
+    total_weight = sum(signal.weight for signal in signals)
+    results: dict[str, Any] = {}
+    for budget in budgets:
+        if budget < 1:
+            raise ValueError("character budgets must be positive")
+        selected: list[int] = []
+        state = [0] * len(signals)
+        used = 0
+        remaining = set(range(len(candidates)))
+        while remaining:
+            current_score, _ = covered_from_state(state, signals)
+            current_progress = progress_from_state(state, signals)
+            feasible = [
+                index for index in remaining
+                if used + len(candidates[index].text) <= budget
+            ]
+            if not feasible:
+                break
+            ranked = []
+            for index in feasible:
+                next_state = add_mask(state, masks[index])
+                score_gain = covered_from_state(next_state, signals)[0] - current_score
+                progress_gain = progress_from_state(next_state, signals) - current_progress
+                chars = max(1, len(candidates[index].text))
+                ranked.append((score_gain / chars, progress_gain / chars, score_gain,
+                               progress_gain, -chars, candidates[index].id, index, next_state))
+            best = max(ranked)
+            if best[1] <= 0:
+                break
+            index, next_state = best[-2], best[-1]
+            selected.append(index)
+            remaining.remove(index)
+            used += len(candidates[index].text)
+            state = next_state
+
+        best_selected = tuple(selected)
+        best_score, best_covered = covered_from_state(state, signals)
+        best_progress = progress_from_state(state, signals)
+        best_chars = used
+        for _ in range(iterations):
+            selected_set = set(best_selected)
+            outside = [index for index in range(len(candidates)) if index not in selected_set]
+            if not outside:
+                break
+            trial = list(best_selected)
+            add_only = rng.random() < 0.3 or not trial
+            if add_only:
+                trial.append(rng.choice(outside))
+            else:
+                trial[rng.randrange(len(trial))] = rng.choice(outside)
+            trial = list(dict.fromkeys(trial))
+            trial_chars = sum(len(candidates[index].text) for index in trial)
+            if trial_chars > budget:
+                continue
+            trial_state = [0] * len(signals)
+            for index in trial:
+                trial_state = add_mask(trial_state, masks[index])
+            trial_score, trial_covered = covered_from_state(trial_state, signals)
+            trial_progress = progress_from_state(trial_state, signals)
+            if (trial_score, trial_progress, -trial_chars) > (
+                best_score, best_progress, -best_chars
+            ):
+                best_selected = tuple(trial)
+                best_score, best_covered = trial_score, trial_covered
+                best_progress, best_chars = trial_progress, trial_chars
+        selected_candidates = [candidates[index] for index in best_selected]
+        results[str(budget)] = {
+            "char_budget": budget,
+            "selected_count": len(selected_candidates),
+            "weighted_signal_recall": round(best_score / total_weight, 4) if total_weight else None,
+            "covered_signal_ids": best_covered,
+            "selected": [
+                {"id": candidate.id, "kind": candidate.kind, "chars": len(candidate.text)}
+                for candidate in selected_candidates
+            ],
+            "packet_chars": best_chars,
+            "unused_chars": budget - best_chars,
+        }
+    return results
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--fixture", required=True, type=Path)
     parser.add_argument("--artifacts", required=True, type=Path)
     parser.add_argument("--evidence", type=Path)
+    parser.add_argument("--baseline-evidence", type=Path)
     parser.add_argument("--matrix", type=Path)
     parser.add_argument("--budgets", default="8,12,16,24")
+    parser.add_argument("--char-budgets", default="4000,8000,12000,20000")
     parser.add_argument("--iterations", type=int, default=10_000)
     parser.add_argument("--seed", type=int, default=2033)
     parser.add_argument("--out", type=Path)
@@ -362,8 +585,15 @@ def main() -> int:
         "artifacts": artifact_metrics(fixture, signals, args.artifacts),
     }
     if args.evidence and args.matrix:
-        candidates = evidence_candidates(read_json(args.evidence), args.matrix.read_text(encoding="utf-8-sig", errors="replace"))
+        evidence = read_json(args.evidence)
+        report["evidence_payload"] = evidence_payload_metrics(evidence)
+        if args.baseline_evidence:
+            report["evidence_comparison"] = compare_evidence_payloads(
+                read_json(args.baseline_evidence), evidence
+            )
+        candidates = evidence_candidates(evidence, args.matrix.read_text(encoding="utf-8-sig", errors="replace"))
         budgets = sorted({int(value) for value in args.budgets.split(",") if value.strip()})
+        char_budgets = sorted({int(value) for value in args.char_budgets.split(",") if value.strip()})
         report["packet_optimizer"] = {
             "candidate_count": len(candidates),
             "hard_packet": packet_metrics(
@@ -372,6 +602,10 @@ def main() -> int:
             ),
             "iterations_per_budget": args.iterations,
             "budgets": optimize_packets(candidates, signals, budgets, args.iterations, args.seed),
+            "character_budgets": optimize_packets_by_chars(
+                candidates, signals, char_budgets, args.iterations, args.seed
+            ),
+            "unavailable_signal_diagnostics": signal_diagnostics(candidates, signals),
         }
     report["elapsed_ms"] = round((time.perf_counter() - started) * 1000, 3)
     rendered = json.dumps(report, indent=2, ensure_ascii=False) + "\n"
