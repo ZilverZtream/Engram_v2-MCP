@@ -154,6 +154,8 @@ pub const CO_CHANGE_DEPTH: usize = 800;
 /// Round-2 audit P0-3: the ranked PRIMARY set is capped here; everything
 /// else renders as a layer-grouped companion.
 pub const CHANGE_SET_PRIMARY_CAP: usize = 40;
+pub const CHANGE_SET_REQUIRED_FAMILY_EXTRA_CAP: usize = 16;
+pub const CHANGE_SET_BOUNDARY_FAMILY_EXTRA_CAP: usize = 8;
 /// Rows above this tier are never primary (tier 2 = concept corroborated
 /// by an independent arm).
 pub const CHANGE_SET_PRIMARY_MAX_TIER: u8 = 2;
@@ -6620,7 +6622,11 @@ fn change_set_tier(sigs: &BTreeSet<&'static str>) -> u8 {
         || corroborated_lexicon;
     let concept = sigs.contains("concept");
     let independent = sigs.iter().filter(|s| change_set_independent(s)).count();
-    if sigs.contains("vtop3") {
+    if sigs.contains("required_family") && golden {
+        0
+    } else if sigs.contains("entrypoint_family") {
+        1
+    } else if sigs.contains("vtop3") {
         0
     } else if golden && change_set_strength(sigs) >= 2 {
         0
@@ -7553,6 +7559,158 @@ fn is_additive_registry_path(path: &str) -> bool {
         || name.contains("catalog")
 }
 
+/// Normalize the subject named by an additive registry so equivalent
+/// representations can be joined without repository-specific aliases. For
+/// example, `ss_accountsettings.sql`, `AccountSettingStore.vb`, and
+/// `accountsettings.en.resx` all describe the same `accountsetting` subject.
+/// Short generic names such as `text` and `label` deliberately do not qualify;
+/// their locale family is already handled by the exact `.resx` expansion.
+fn additive_registry_subject(path: &str) -> Option<String> {
+    if !is_additive_registry_path(path) {
+        return None;
+    }
+    let lower = path.replace('\\', "/").to_ascii_lowercase();
+    let name = lower.rsplit('/').next().unwrap_or(&lower);
+    let mut stem = name.split('.').next().unwrap_or(name).to_string();
+    for prefix in ["ss_", "tbl_", "sp_"] {
+        if let Some(value) = stem.strip_prefix(prefix) {
+            stem = value.to_string();
+            break;
+        }
+    }
+    let mut compact = stem
+        .chars()
+        .filter(|character| character.is_ascii_alphanumeric())
+        .collect::<String>();
+    for suffix in ["registry", "catalog", "store"] {
+        if let Some(value) = compact.strip_suffix(suffix) {
+            compact = value.to_string();
+            break;
+        }
+    }
+    if compact.ends_with('s') {
+        compact.pop();
+    }
+    (compact.len() >= 6).then_some(compact)
+}
+
+fn additive_registry_family_candidates(path: &str, indexed_paths: &[String]) -> Vec<String> {
+    let Some(subject) = additive_registry_subject(path) else {
+        return Vec::new();
+    };
+    let mut matches = indexed_paths
+        .iter()
+        .filter(|candidate| !candidate.eq_ignore_ascii_case(path))
+        .filter(|candidate| {
+            additive_registry_subject(candidate).as_deref() == Some(subject.as_str())
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    matches.sort_by_key(|candidate| candidate.to_ascii_lowercase());
+    matches.dedup_by(|left, right| left.eq_ignore_ascii_case(right));
+    matches
+}
+
+fn strongest_registry_hub_paths(
+    candidates: &[(String, u32)],
+    limit: usize,
+) -> HashSet<String> {
+    let mut ranked = candidates
+        .iter()
+        .map(|(path, weight)| (*weight, path.to_ascii_lowercase()))
+        .collect::<Vec<_>>();
+    ranked.sort_by(|left, right| {
+        right.0.cmp(&left.0).then_with(|| left.1.cmp(&right.1))
+    });
+    ranked
+        .into_iter()
+        .take(limit)
+        .map(|(_, path)| path)
+        .collect()
+}
+
+fn webforms_codebehind_family(path: &str) -> Option<(String, &'static str)> {
+    let normalized = path.replace('\\', "/").to_ascii_lowercase();
+    let kind = if normalized.ends_with(".aspx.vb") || normalized.ends_with(".aspx.cs") {
+        "page"
+    } else if normalized.ends_with(".ascx.vb") || normalized.ends_with(".ascx.cs") {
+        "control"
+    } else {
+        return None;
+    };
+    Some((
+        normalized
+            .rsplit_once('/')
+            .map_or(String::new(), |(directory, _)| directory.to_string()),
+        kind,
+    ))
+}
+
+fn authorization_entrypoint_family_candidates(
+    story: &str,
+    prov: &BTreeMap<String, BTreeSet<&'static str>>,
+    indexed_paths: &[String],
+    limit: usize,
+) -> Vec<(String, Vec<String>)> {
+    let lower = story.to_ascii_lowercase();
+    if ![
+        "authoriz",
+        "permission",
+        "role",
+        "privilege",
+        "access control",
+        "restrict access",
+    ]
+    .iter()
+    .any(|term| lower.contains(term))
+    {
+        return Vec::new();
+    }
+
+    let mut anchors_by_directory: BTreeMap<(String, &'static str), Vec<String>> = BTreeMap::new();
+    for (path, signals) in prov {
+        if change_set_tier(signals) > 1 {
+            continue;
+        }
+        if let Some(family) = webforms_codebehind_family(path) {
+            anchors_by_directory
+                .entry(family)
+                .or_default()
+                .push(path.replace('\\', "/"));
+        }
+    }
+    let existing = prov
+        .keys()
+        .map(|path| path.replace('\\', "/").to_ascii_lowercase())
+        .collect::<HashSet<_>>();
+    let mut candidates = Vec::new();
+    for (family, mut anchors) in anchors_by_directory {
+        anchors.sort_by_key(|path| path.to_ascii_lowercase());
+        anchors.dedup_by(|left, right| left.eq_ignore_ascii_case(right));
+        if anchors.len() < 2 {
+            continue;
+        }
+        for path in indexed_paths {
+            if candidates.len() >= limit {
+                break;
+            }
+            if existing.contains(&path.to_ascii_lowercase())
+                || webforms_codebehind_family(path).as_ref() != Some(&family)
+            {
+                continue;
+            }
+            candidates.push((path.clone(), anchors.clone()));
+        }
+        if candidates.len() >= limit {
+            break;
+        }
+    }
+    candidates.sort_by_key(|(path, _)| path.to_ascii_lowercase());
+    candidates.dedup_by(|left, right| left.0.eq_ignore_ascii_case(&right.0));
+    candidates.truncate(limit);
+    candidates
+}
+
 fn cochange_specificity_score(weight: u32, partner_degree: usize) -> u128 {
     (weight as u128)
         .saturating_mul(weight as u128)
@@ -7670,7 +7828,7 @@ fn change_set_impact_question(path: &str) -> &'static str {
 
 fn change_set_exclusion_evidence(path: &str, signals: &[&str]) -> &'static str {
     if is_additive_registry_path(path) {
-        return "absence of a current reference is not exclusion evidence for an additive registry; decide whether the story adds a default, label, setting, permission, status, route, seed, or catalog entry, inspect analogous additions, and exclude only when the contract rejects that mechanism";
+        return "absence of a current reference is not exclusion evidence for an additive registry; decide whether the story adds a default, label, setting, permission, status, route, seed, or catalog entry, inspect analogous additions, and exclude this exact file only when source proves it represents a different domain or the contract rejects that mechanism";
     }
     match change_set_evidence_class(signals) {
         "corroborated_behavioral_candidate" =>
@@ -8455,11 +8613,39 @@ pub(crate) fn change_set_rows(
     for &i in &heads {
         primary.push(all[i]);
     }
+    let mut ordinary_primary = primary
+        .iter()
+        .filter(|item| {
+            !item.1.contains("required_family") && !item.1.contains("entrypoint_family")
+        })
+        .count();
+    let mut required_family_primary = primary
+        .iter()
+        .filter(|item| item.1.contains("required_family"))
+        .count();
+    let mut boundary_family_primary = primary
+        .iter()
+        .filter(|item| item.1.contains("entrypoint_family"))
+        .count();
     for (i, it) in all.into_iter().enumerate() {
         if heads.contains(&i) {
             continue;
         }
-        if it.2 <= CHANGE_SET_PRIMARY_MAX_TIER && primary.len() < CHANGE_SET_PRIMARY_CAP {
+        let has_primary_slot = if it.1.contains("required_family") {
+            required_family_primary < CHANGE_SET_REQUIRED_FAMILY_EXTRA_CAP
+        } else if it.1.contains("entrypoint_family") {
+            boundary_family_primary < CHANGE_SET_BOUNDARY_FAMILY_EXTRA_CAP
+        } else {
+            ordinary_primary < CHANGE_SET_PRIMARY_CAP
+        };
+        if it.2 <= CHANGE_SET_PRIMARY_MAX_TIER && has_primary_slot {
+            if it.1.contains("required_family") {
+                required_family_primary += 1;
+            } else if it.1.contains("entrypoint_family") {
+                boundary_family_primary += 1;
+            } else {
+                ordinary_primary += 1;
+            }
             primary.push(it);
         } else {
             rest.push(it);
@@ -8473,7 +8659,16 @@ pub(crate) fn change_set_rows(
     });
     let signals = |sigs: &BTreeSet<&'static str>| -> Vec<&'static str> {
         sigs.iter()
-            .filter(|s| !matches!(**s, "family" | "specific"))
+            .filter(|s| {
+                !matches!(
+                    **s,
+                    "family"
+                        | "specific"
+                        | "registry_family"
+                        | "required_family"
+                        | "entrypoint_family"
+                )
+            })
             .map(|s| {
                 if matches!(*s, "vtop" | "vtop3") {
                     "vector"
@@ -9052,9 +9247,21 @@ fn render_change_set(
     // Round-2 audit P0-3: a ranked PRIMARY set across layers, then
     // layer-grouped companions. Critical files must land in the primary set.
     let n_primary = rows.iter().filter(|r| r.set == "primary").count();
+    let registry_family_extra = prov
+        .values()
+        .filter(|signals| signals.contains("required_family"))
+        .count()
+        .min(CHANGE_SET_REQUIRED_FAMILY_EXTRA_CAP);
+    let boundary_family_extra = prov
+        .values()
+        .filter(|signals| signals.contains("entrypoint_family"))
+        .count()
+        .min(CHANGE_SET_BOUNDARY_FAMILY_EXTRA_CAP);
+    let effective_primary_cap =
+        CHANGE_SET_PRIMARY_CAP + registry_family_extra + boundary_family_extra;
     s.push_str(&format!(
         "## Primary candidates — ranked by evidence ({n_primary} of {} candidates; cap \
-         {CHANGE_SET_PRIMARY_CAP})\nCritical files belong HERE. Rank = evidence tier (0 \
+         {effective_primary_cap} = base {CHANGE_SET_PRIMARY_CAP} + {registry_family_extra} corroborated atomic-family rows + {boundary_family_extra} co-located boundary rows)\nCritical files belong HERE. Rank = evidence tier (0 \
          strongest: a golden signal corroborated by an independent arm), then the number \
          of independent signals; the layer is shown per row. Work the list top-down.\n",
         rows.len()
@@ -10175,12 +10382,39 @@ impl Engram {
                                 // seeded family is never shown half-complete.
                                 let mut fs = sigs.clone();
                                 fs.insert("family");
+                                fs.insert("required_family");
                                 why.entry(f.clone())
                                     .or_default()
                                     .push(format!("localized .resx sibling of {p} (atomic set)"));
                                 fam.push((f.clone(), fs));
                             }
                         }
+                    }
+                }
+                // The same additive registry may be represented in several
+                // layers: a seed/post-deploy script, a typed settings store,
+                // and a localized resource family. Join only a distinctive
+                // normalized subject. This recovers the complete mechanism
+                // while avoiding broad `text`/`label` families and unrelated
+                // registries that merely share a directory or file type.
+                if let Some(subject) = additive_registry_subject(&ps) {
+                    let registry_family = additive_registry_family_candidates(&ps, &index);
+                    if !registry_family.is_empty() {
+                        let mut fs = sigs.clone();
+                        fs.insert("family");
+                        fs.insert("registry_family");
+                        fs.insert("required_family");
+                        fam.push((p.clone(), fs));
+                    }
+                    for f in registry_family {
+                        let mut fs = sigs.clone();
+                        fs.insert("family");
+                        fs.insert("registry_family");
+                        fs.insert("required_family");
+                        why.entry(f.clone()).or_default().push(format!(
+                            "additive registry representation of {p} (subject `{subject}`)"
+                        ));
+                        fam.push((f, fs));
                     }
                 }
                 // TypeScript source <-> its committed compiled JS bundle. The
@@ -10288,6 +10522,18 @@ impl Engram {
                         .push("API contract document (API-layer code is in the set)".into());
                     fam.push((f, BTreeSet::from(["family"])));
                 }
+            }
+            for (candidate, anchors) in authorization_entrypoint_family_candidates(
+                &retrieval_story,
+                &prov,
+                &index,
+                CHANGE_SET_BOUNDARY_FAMILY_EXTRA_CAP,
+            ) {
+                why.entry(candidate.clone()).or_default().push(format!(
+                    "co-located WebForms authorization entry-point candidate; directory already contains strong anchors {}",
+                    anchors.join(", ")
+                ));
+                fam.push((candidate, BTreeSet::from(["entrypoint_family"])));
             }
             cov.family = ArmCoverage::complete(fam.len(), 0);
             for (k, v) in fam {
@@ -12301,8 +12547,22 @@ impl Engram {
                     weight,
                 ));
             }
+            // A pure specificity sort can discard the strongest raw
+            // registry signal when ubiquitous seed/resource files have high
+            // graph degree. Reserve the two strongest raw registry hubs, then
+            // use the normalized score for every remaining comparison. The
+            // later exact-file review still decides relevance.
+            let registry_by_raw = scored_partners
+                .iter()
+                .filter(|candidate| candidate.1)
+                .map(|candidate| (candidate.3.clone(), candidate.4))
+                .collect::<Vec<_>>();
+            let reserved_registry_hubs = strongest_registry_hub_paths(&registry_by_raw, 2);
             scored_partners.sort_by(|left, right| {
-                right.0.cmp(&left.0)
+                let left_reserved = reserved_registry_hubs.contains(&left.3.to_ascii_lowercase());
+                let right_reserved = reserved_registry_hubs.contains(&right.3.to_ascii_lowercase());
+                right_reserved.cmp(&left_reserved)
+                    .then_with(|| right.0.cmp(&left.0))
                     .then_with(|| right.4.cmp(&left.4))
                     .then_with(|| left.3.cmp(&right.3))
             });
@@ -14538,7 +14798,166 @@ mod change_set_rows_tests {
             change_set_exclusion_evidence("Resources/labels.resx", &["cochange"])
                 .contains("absence of a current reference is not exclusion evidence")
         );
+        assert!(
+            change_set_exclusion_evidence("Database/Scripts/Post/statuses.sql", &["cochange"])
+                .contains("different domain")
+        );
         assert!(cochange_specificity_score(20, 100) > cochange_specificity_score(20, 1_000));
+    }
+
+    #[test]
+    fn additive_registry_subject_joins_cross_layer_representations_conservatively() {
+        for path in [
+            "Database/Scripts/Post/ss_accountsettings.sql",
+            "src/AccountSettingStore.vb",
+            "Resources/accountsettings.en.resx",
+        ] {
+            assert_eq!(additive_registry_subject(path).as_deref(), Some("accountsetting"));
+        }
+        assert_eq!(additive_registry_subject("Resources/text.en.resx"), None);
+        assert_eq!(additive_registry_subject("Resources/labels.resx"), None);
+        assert_eq!(additive_registry_subject("src/UnrelatedService.vb"), None);
+
+        let index = vec![
+            "Resources/accountsettings.en.resx".to_string(),
+            "src/UnrelatedService.vb".to_string(),
+            "src/AccountSettingStore.vb".to_string(),
+            "Database/Scripts/Post/ss_accountsettings.sql".to_string(),
+        ];
+        assert_eq!(
+            additive_registry_family_candidates(
+                "Database/Scripts/Post/ss_accountsettings.sql",
+                &index,
+            ),
+            vec![
+                "Resources/accountsettings.en.resx".to_string(),
+                "src/AccountSettingStore.vb".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn corroborated_cross_layer_registry_family_is_primary_tier() {
+        assert_eq!(
+            change_set_tier(&BTreeSet::from([
+                "cochange",
+                "family",
+                "registry_family",
+                "required_family",
+            ])),
+            0
+        );
+        assert_eq!(
+            change_set_tier(&BTreeSet::from([
+                "family",
+                "registry_family",
+                "required_family",
+            ])),
+            4
+        );
+    }
+
+    #[test]
+    fn corroborated_registry_family_extends_cap_without_evicting_base_candidates() {
+        let mut prov = BTreeMap::new();
+        for index in 0..CHANGE_SET_PRIMARY_CAP {
+            prov.insert(
+                format!("src/ordinary-{index:02}.vb"),
+                BTreeSet::from(["history"]),
+            );
+        }
+        for index in 0..3 {
+            prov.insert(
+                format!("resources/policy-{index}.resx"),
+                BTreeSet::from([
+                    "cochange",
+                    "family",
+                    "registry_family",
+                    "required_family",
+                ]),
+            );
+        }
+        let (rows, _) = change_set_rows(&prov);
+        assert_eq!(rows.iter().filter(|row| row.set == "primary").count(), 43);
+        assert!(rows.iter().all(|row| !row.omitted));
+    }
+
+    #[test]
+    fn raw_registry_reservation_is_bounded_and_deterministic() {
+        let selected = strongest_registry_hub_paths(
+            &[
+                ("z/low.sql".into(), 10),
+                ("b/high.sql".into(), 85),
+                ("a/high.sql".into(), 85),
+            ],
+            2,
+        );
+        assert_eq!(selected, HashSet::from(["a/high.sql".into(), "b/high.sql".into()]));
+    }
+
+    #[test]
+    fn authorization_entrypoint_family_requires_two_strong_colocated_anchors() {
+        let prov = BTreeMap::from([
+            (
+                "pages/users/list.aspx.vb".to_string(),
+                BTreeSet::from(["business"]),
+            ),
+            (
+                "pages/users/edit.aspx.vb".to_string(),
+                BTreeSet::from(["history"]),
+            ),
+        ]);
+        let index = vec![
+            "pages/users/list.aspx.vb".to_string(),
+            "pages/users/edit.aspx.vb".to_string(),
+            "pages/users/company.aspx.vb".to_string(),
+            "pages/projects/edit.aspx.vb".to_string(),
+        ];
+        let candidates = authorization_entrypoint_family_candidates(
+            "Restrict access with a custom permission",
+            &prov,
+            &index,
+            8,
+        );
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].0, "pages/users/company.aspx.vb");
+        assert_eq!(candidates[0].1.len(), 2);
+        assert!(authorization_entrypoint_family_candidates(
+            "Change the page heading",
+            &prov,
+            &index,
+            8,
+        )
+        .is_empty());
+
+        let one_anchor = BTreeMap::from([prov.into_iter().next().unwrap()]);
+        assert!(authorization_entrypoint_family_candidates(
+            "Restrict access with a custom permission",
+            &one_anchor,
+            &index,
+            8,
+        )
+        .is_empty());
+    }
+
+    #[test]
+    fn boundary_family_has_its_own_bounded_primary_budget() {
+        let mut prov = BTreeMap::new();
+        for index in 0..CHANGE_SET_PRIMARY_CAP {
+            prov.insert(
+                format!("src/ordinary-{index:02}.vb"),
+                BTreeSet::from(["history"]),
+            );
+        }
+        for index in 0..3 {
+            prov.insert(
+                format!("pages/users/peer-{index}.aspx.vb"),
+                BTreeSet::from(["entrypoint_family"]),
+            );
+        }
+        let (rows, _) = change_set_rows(&prov);
+        assert_eq!(rows.iter().filter(|row| row.set == "primary").count(), 43);
+        assert!(rows.iter().all(|row| !row.omitted));
     }
 
     #[test]
