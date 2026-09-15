@@ -13,6 +13,9 @@
 //!   imitate better than they invent.
 
 use crate::handlers::validate_project_id;
+use crate::handlers::planning_contract_rules::{
+    load_matching_planning_rules, PlanningContractRuleMatch,
+};
 use crate::models::{
     FindImplementationPatternRequest, FindSimilarChangesRequest, GetConceptFootprintRequest,
 };
@@ -8208,6 +8211,49 @@ fn obligation_oracle_guard(check: &str) -> Option<&'static str> {
     }
 }
 
+fn hypothesis_evidence_severity(requirement: &str) -> &'static str {
+    let lower = requirement.to_ascii_lowercase();
+    if [
+        "every mutation writer",
+        "partial failure",
+        "persistence succeeds",
+        "process or session loss",
+        "per-instance",
+        "multiple application instance",
+        "proof that changing a value away",
+        "mixed-version",
+        "rollback",
+        "deployment order",
+        "idempotent behavior",
+    ]
+    .iter()
+    .any(|term| lower.contains(term))
+    {
+        "release_blocking_if_applicable"
+    } else {
+        "required_if_applicable"
+    }
+}
+
+fn hypothesis_oracle_guard(requirement: &str) -> Option<&'static str> {
+    let lower = requirement.to_ascii_lowercase();
+    if lower.contains("partial failure") || lower.contains("persistence succeeds") {
+        Some("Frozen scenarios must state the authoritative persisted result and the acting user's continuity or recovery behavior when the primary write succeeds but credential, cache, or session synchronization fails.")
+    } else if lower.contains("process or session loss") || lower.contains("per-instance") {
+        Some("Frozen scenarios must exercise a second process or instance and loss of transient server state; process-local success is not evidence of durable correctness.")
+    } else if lower.contains("mixed-version") || lower.contains("deployment order") || lower.contains("rollback") {
+        Some("Frozen scenarios must cover the supported deployment order, a mixed-version interval, and rollback or fail-closed behavior before this item can be satisfied.")
+    } else if lower.contains("every mutation writer") {
+        Some("The consumer ledger must reconcile every writer found by literal search, graph/state analysis, and historical co-change; one exemplar writer is not complete evidence.")
+    } else if lower.contains("proof that changing a value away") {
+        Some("Frozen scenarios must change, reject stale state, restore the prior mutable value, and prove the originally issued credential remains stale.")
+    } else if lower.contains("idempotent behavior") {
+        Some("Frozen scenarios must cover repeated, concurrent, missing, malformed, and already-completed termination without duplicate or contradictory observable effects.")
+    } else {
+        None
+    }
+}
+
 fn attach_obligation_contract_items(
     mut obligations: Vec<serde_json::Value>,
 ) -> Vec<serde_json::Value> {
@@ -8442,15 +8488,24 @@ fn bind_component_hypothesis_surfaces(
                 .iter()
                 .filter_map(|value| value.as_str())
                 .enumerate()
-                .map(|(evidence_index, requirement)| serde_json::json!({
-                    "evidence_id": format!("{hypothesis_id}-E{:02}", evidence_index + 1),
-                    "requirement": requirement,
-                    "required_disposition": [
-                        "SATISFIED_WITH_CONCRETE_SURFACES",
-                        "BLOCKING_UNKNOWN",
-                        "NOT_APPLICABLE_WITH_EVIDENCE"
-                    ]
-                }))
+                .map(|(evidence_index, requirement)| {
+                    let mut item = serde_json::json!({
+                        "evidence_id": format!("{hypothesis_id}-E{:02}", evidence_index + 1),
+                        "severity": hypothesis_evidence_severity(requirement),
+                        "requirement": requirement,
+                        "required_disposition": [
+                            "SATISFIED_WITH_CONCRETE_SURFACES",
+                            "BLOCKING_UNKNOWN",
+                            "NOT_APPLICABLE_WITH_EVIDENCE"
+                        ]
+                    });
+                    if let Some(guard) = hypothesis_oracle_guard(requirement) {
+                        item.as_object_mut()
+                            .expect("contract evidence is an object")
+                            .insert("oracle_guard".into(), serde_json::json!(guard));
+                    }
+                    item
+                })
                 .collect::<Vec<_>>();
             let mut surfaces = Vec::new();
             let mut incomplete = false;
@@ -8501,27 +8556,85 @@ fn change_set_contract_checkpoint(
     obligations: &[serde_json::Value],
     hypotheses: &[serde_json::Value],
     boundary_audit: &serde_json::Value,
+    configured_rules: &[PlanningContractRuleMatch],
 ) -> serde_json::Value {
-    let obligation_check_ids = obligations
+    let all_obligation_items = obligations
         .iter()
         .flat_map(|obligation| {
+            let obligation_name = obligation["obligation"]
+                .as_str()
+                .unwrap_or("cross-cutting behavior")
+                .to_string();
             obligation["contract_items"]
                 .as_array()
                 .cloned()
                 .unwrap_or_default()
+                .into_iter()
+                .map(move |item| (obligation_name.clone(), item))
         })
-        .filter_map(|item| item["check_id"].as_str().map(str::to_string))
         .collect::<Vec<_>>();
-    let hypothesis_evidence_ids = hypotheses
+    let all_hypothesis_items = hypotheses
         .iter()
         .flat_map(|hypothesis| {
+            let responsibility = hypothesis["responsibility"]
+                .as_str()
+                .unwrap_or("component boundary")
+                .to_string();
             hypothesis["contract_evidence_items"]
                 .as_array()
                 .cloned()
                 .unwrap_or_default()
+                .into_iter()
+                .map(move |item| (responsibility.clone(), item))
         })
-        .filter_map(|item| item["evidence_id"].as_str().map(str::to_string))
         .collect::<Vec<_>>();
+    let is_hard = |item: &serde_json::Value| {
+        item["severity"].as_str() == Some("release_blocking_if_applicable")
+            || item.get("oracle_guard").and_then(|value| value.as_str()).is_some()
+    };
+    let hard_obligation_items = all_obligation_items.iter()
+        .filter(|(_, item)| is_hard(item))
+        .collect::<Vec<_>>();
+    let hard_hypothesis_items = all_hypothesis_items.iter()
+        .filter(|(_, item)| is_hard(item))
+        .collect::<Vec<_>>();
+    let hard_configured_rules = configured_rules.iter()
+        .filter(|rule| rule.severity == "release_blocking_if_applicable" || rule.oracle_guard.is_some())
+        .collect::<Vec<_>>();
+    let obligation_check_ids = hard_obligation_items.iter()
+        .filter_map(|(_, item)| item["check_id"].as_str().map(str::to_string))
+        .collect::<Vec<_>>();
+    let hypothesis_evidence_ids = hard_hypothesis_items.iter()
+        .filter_map(|(_, item)| item["evidence_id"].as_str().map(str::to_string))
+        .collect::<Vec<_>>();
+    let configured_rule_ids = hard_configured_rules.iter()
+        .map(|rule| rule.id.clone())
+        .collect::<Vec<_>>();
+    let hard_items = hard_obligation_items.iter().map(|(group, item)| serde_json::json!({
+        "id": item["check_id"],
+        "kind": "obligation",
+        "group": group,
+        "severity": item["severity"],
+        "requirement": item["requirement"],
+        "oracle_guard": item.get("oracle_guard").cloned().unwrap_or(serde_json::Value::Null),
+    })).chain(hard_hypothesis_items.iter().map(|(group, item)| serde_json::json!({
+        "id": item["evidence_id"],
+        "kind": "hypothesis_evidence",
+        "group": group,
+        "severity": item["severity"],
+        "requirement": item["requirement"],
+        "oracle_guard": item.get("oracle_guard").cloned().unwrap_or(serde_json::Value::Null),
+    }))).chain(hard_configured_rules.iter().map(|rule| serde_json::json!({
+        "id": rule.id,
+        "kind": "configured_rule",
+        "group": rule.title,
+        "severity": rule.severity,
+        "requirement": rule.requirement,
+        "oracle_guard": rule.oracle_guard,
+        "source": rule.source,
+        "introduced_at": rule.introduced_at,
+        "provenance": rule.provenance,
+    }))).collect::<Vec<_>>();
     let unresolved_boundaries = boundary_audit["unresolved"]
         .as_array()
         .cloned()
@@ -8529,6 +8642,7 @@ fn change_set_contract_checkpoint(
     let ordered_ids = obligation_check_ids
         .iter()
         .chain(hypothesis_evidence_ids.iter())
+        .chain(configured_rule_ids.iter())
         .cloned()
         .collect::<Vec<_>>();
     let canonical = ordered_ids
@@ -8543,18 +8657,24 @@ fn change_set_contract_checkpoint(
             "receipt_id": format!("sha256:{checkpoint_digest}"),
             "obligation_checks": obligation_check_ids.len(),
             "hypothesis_evidence": hypothesis_evidence_ids.len(),
+            "configured_rules": configured_rule_ids.len(),
             "total": ordered_ids.len(),
             "algorithm": "SHA-256 over ordered contract ID LF records"
         },
         "obligation_check_ids": obligation_check_ids,
         "hypothesis_evidence_ids": hypothesis_evidence_ids,
+        "configured_rule_ids": configured_rule_ids,
+        "hard_items": hard_items,
+        "all_items_total": all_obligation_items.len() + all_hypothesis_items.len() + configured_rules.len(),
+        "advisory_items_total": all_obligation_items.len() + all_hypothesis_items.len() + configured_rules.len() - ordered_ids.len(),
         "unresolved_boundaries": unresolved_boundaries,
         "allowed_dispositions": [
             "SATISFIED_WITH_SOURCE_OR_APPROVED_DECISION",
             "BLOCKING_UNKNOWN",
             "NOT_APPLICABLE_WITH_EVIDENCE"
         ],
-        "instruction": "Copy every listed ID into the feature contract with one allowed disposition and concrete citations. The checkpoint fails on a missing ID, an unresolved boundary, or an expected scenario outcome that contradicts an oracle_guard. Product decisions require an approved human answer; the agent may not satisfy them from a hypothesis or implementation preference."
+        "instruction": "Copy every hard_items ID into the feature contract with one allowed disposition and concrete citations. The checkpoint fails on a missing hard ID, an unresolved boundary, or an expected scenario outcome that contradicts an oracle_guard. Product decisions require an approved human answer; the agent may not satisfy them from a hypothesis or implementation preference.",
+        "advisory_instruction": "The full obligation and hypothesis arrays remain available for investigation. Promote an applicable advisory item into the contract when source evidence shows it can change accepted behavior; do not copy every advisory item mechanically."
     })
 }
 
@@ -12079,6 +12199,26 @@ impl Engram {
                 &rule_paths,
                 req.merged_before.as_deref(),
             );
+            let (configured_contract_rules, configured_contract_rule_notes) =
+                load_matching_planning_rules(
+                    &self.state.cfg.data_dir,
+                    &project_root,
+                    req.story.trim(),
+                    &rule_paths,
+                    req.merged_before.as_deref(),
+                );
+            let configured_contract_rules_json = configured_contract_rules.iter()
+                .map(|rule| serde_json::json!({
+                    "id": rule.id,
+                    "title": rule.title,
+                    "requirement": rule.requirement,
+                    "severity": rule.severity,
+                    "oracle_guard": rule.oracle_guard,
+                    "source": rule.source,
+                    "introduced_at": rule.introduced_at,
+                    "provenance": rule.provenance,
+                }))
+                .collect::<Vec<_>>();
             let cross_cutting_obligations =
                 change_set_cross_cutting_obligations(req.story.trim());
             let boundary_audit = change_set_boundary_audit(
@@ -12095,6 +12235,7 @@ impl Engram {
                 &cross_cutting_obligations,
                 &component_hypotheses,
                 &boundary_audit,
+                &configured_contract_rules,
             );
             let work_item_evidence_risk = change_set_work_item_evidence_risk(
                 req.story.trim(),
@@ -12130,6 +12271,13 @@ impl Engram {
                 "permission_gates": permission_gates_json,
                 "cross_cutting_obligations": cross_cutting_obligations,
                 "component_hypotheses": component_hypotheses,
+                "configured_contract_rules": {
+                    "rules": configured_contract_rules_json,
+                    "notes": configured_contract_rule_notes,
+                    "global_path": "<data_dir>/rules/planning-contract-rules.yaml",
+                    "project_path": ".engram/planning-contract-rules.yaml",
+                    "instruction": "Rules are hot-loaded on every call. Repository rules override organization rules by stable id; historical requests exclude undated and future rules."
+                },
                 "boundary_audit": boundary_audit,
                 "work_item_evidence_risk": work_item_evidence_risk,
                 "project_policy_sources": project_policy_sources,
@@ -15764,10 +15912,21 @@ mod change_set_rows_tests {
             change_set_component_hypotheses(story),
             &serde_json::json!({"categories": [], "unresolved": ["request_pipeline"]}),
         );
+        let configured_rules = vec![PlanningContractRuleMatch {
+            id: "RULE-generic-probe".into(),
+            title: "Configured release rule".into(),
+            requirement: "prove the configured release behavior".into(),
+            severity: "release_blocking_if_applicable".into(),
+            oracle_guard: Some("the scenario must exercise the configured behavior".into()),
+            source: "project".into(),
+            introduced_at: Some("2020-01-01".into()),
+            provenance: Some("test fixture".into()),
+        }];
         let checkpoint = change_set_contract_checkpoint(
             &obligation_values,
             &bound_hypotheses,
             &serde_json::json!({"unresolved": ["request_pipeline"]}),
+            &configured_rules,
         );
         assert_eq!(checkpoint["status"], "REQUIRES_EXPLICIT_DISPOSITIONS");
         assert!(checkpoint["receipt"]["receipt_id"]
@@ -15778,11 +15937,29 @@ mod change_set_rows_tests {
             checkpoint["receipt"]["total"].as_u64().unwrap(),
             checkpoint["obligation_check_ids"].as_array().unwrap().len() as u64
                 + checkpoint["hypothesis_evidence_ids"].as_array().unwrap().len() as u64
+                + checkpoint["configured_rule_ids"].as_array().unwrap().len() as u64
         );
+        assert!(checkpoint["advisory_items_total"].as_u64().unwrap() > 0);
+        assert_eq!(
+            checkpoint["hard_items"].as_array().unwrap().len(),
+            checkpoint["receipt"]["total"].as_u64().unwrap() as usize,
+        );
+        let hard_items = serde_json::to_string(&checkpoint["hard_items"]).unwrap();
+        for release_risk in [
+            "same-device continuity",
+            "process or session loss",
+            "mixed-version behavior",
+        ] {
+            assert!(
+                hard_items.contains(release_risk),
+                "release-critical risk was buried in advisory evidence: {release_risk}"
+            );
+        }
         assert!(checkpoint["obligation_check_ids"].as_array().unwrap().iter()
             .all(|id| id.as_str().unwrap().starts_with("OBL-")));
         assert!(checkpoint["hypothesis_evidence_ids"].as_array().unwrap().iter()
             .all(|id| id.as_str().unwrap().starts_with("HYP-")));
+        assert_eq!(checkpoint["configured_rule_ids"][0], "RULE-generic-probe");
         assert!(obligation_values.iter().flat_map(|obligation| {
             obligation["contract_items"].as_array().unwrap().iter()
         }).any(|item| item["oracle_guard"].as_str().is_some_and(|guard| {
