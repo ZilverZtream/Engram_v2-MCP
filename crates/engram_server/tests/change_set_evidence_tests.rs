@@ -356,10 +356,11 @@ async fn one_call_performs_one_full_node_scan() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn concept_expansion_is_reported_but_off_by_default() {
+async fn concept_expansion_keeps_one_corroborated_entity_bounded_by_default() {
     // Gate decision (docs/audits/03 §7): on the 5-PR harness the extra
-    // concepts inflated the weak tier past the tail cap and cost recall, so
-    // they are advisory unless expand_concepts=true.
+    // concepts inflated the weak tier past the tail cap and cost recall. One
+    // index-confirmed compound is now retrieved by default; the rest remain
+    // advisory unless expand_concepts=true.
     let (_tmp, state) = build_state();
     seed(&state);
     let engram = Engram::new(state);
@@ -372,13 +373,14 @@ async fn concept_expansion_is_reported_but_off_by_default() {
     let concepts = v["concepts"].as_array().unwrap();
     assert_eq!(
         concepts.len(),
-        3,
-        "default = the three recipe concepts: {concepts:?}"
+        4,
+        "default = three recipe concepts plus one corroborated entity: {concepts:?}"
     );
+    assert_eq!(concepts[3], "invoicecategory");
     let cands = v["coverage"]["concept_candidates"].as_array().unwrap();
     assert!(
-        cands.len() > 3,
-        "index-corroborated extras must still be REPORTED: {cands:?}"
+        cands.len() >= concepts.len(),
+        "every default and remaining index-corroborated extra must be REPORTED: {cands:?}"
     );
 
     let v = change_set(
@@ -387,8 +389,8 @@ async fn concept_expansion_is_reported_but_off_by_default() {
     )
     .await;
     assert!(
-        v["concepts"].as_array().unwrap().len() > 3,
-        "opt-in expands retrieval: {}",
+        v["concepts"].as_array().unwrap().len() >= concepts.len(),
+        "opt-in keeps all resolved candidates and may expand retrieval: {}",
         v["concepts"]
     );
 }
