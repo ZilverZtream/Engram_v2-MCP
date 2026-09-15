@@ -43,7 +43,7 @@ impl Engram {
     // ---- Project lifecycle ----
 
     #[tool(
-        description = "Index a local directory into the project's search, graph, and vector stores. Run once per project; long-running (returns a job â€” poll get_job_status). Use update_project for refreshes afterwards."
+        description = "Index a local directory into the project's search, graph, and vector stores. Run once per project; long-running (returns a job — poll get_job_status). Use update_project for refreshes afterwards."
     )]
     pub async fn index_project(
         &self,
@@ -109,10 +109,10 @@ impl Engram {
             }
             n += 1;
             let first = desc.split(". ").next().unwrap_or(desc);
-            out.push_str(&format!("- `{}` â€” {}\n", t.name, first));
+            out.push_str(&format!("- `{}` — {}\n", t.name, first));
         }
         let header = format!(
-            "# Advanced tools â€” {n} tool(s) outside the core tier ({} core tools){}\n\n",
+            "# Advanced tools — {n} tool(s) outside the core tier ({} core tools){}\n\n",
             crate::tool_surface::CORE_TOOLS.len(),
             if filter.is_empty() {
                 String::new()
@@ -179,7 +179,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Permanently delete a project's indexes, graph, and metadata. Irreversible â€” the source directory is untouched."
+        description = "Permanently delete a project's indexes, graph, and metadata. Irreversible — the source directory is untouched."
     )]
     pub async fn delete_project(
         &self,
@@ -237,7 +237,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Given the files you plan to change, find the most similar historical commits and report the recurring companion artifacts MISSING from your set (admin pages, menu/sitemap entries, registrations â€” the things reviewers notice are absent). Call before implementing and again before committing. Scans recent git history at request time (max_commits, default 500)."
+        description = "Given the files you plan to change, find the most similar historical commits and report the recurring companion artifacts MISSING from your set (admin pages, menu/sitemap entries, registrations — the things reviewers notice are absent). Call before implementing and again before committing. Scans recent git history at request time (max_commits, default 500)."
     )]
     pub async fn find_similar_changes(
         &self,
@@ -247,7 +247,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Find concrete exemplars of how THIS codebase implements a pattern (e.g. 'admin settings page save', 'dropdown bound to lookup table'): top matching files with their symbols, SQL/table/state edges, co-changed partners, and a snippet â€” plus the ingredients common across exemplars. Imitate the best exemplar instead of inventing a new approach. Related: get_chunk for full source."
+        description = "Find concrete exemplars of how THIS codebase implements a pattern (e.g. 'admin settings page save', 'dropdown bound to lookup table'): top matching files with their symbols, SQL/table/state edges, co-changed partners, and a snippet — plus the ingredients common across exemplars. Imitate the best exemplar instead of inventing a new approach. Related: get_chunk for full source."
     )]
     pub async fn find_implementation_pattern(
         &self,
@@ -307,7 +307,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Open an edit session BEFORE changing code: persists your planned file set and returns the expectation brief â€” co-change partners and shared state the plan must account for. Bookend with complete_edit_session. Related: plan_user_story for the planning stage."
+        description = "Open an edit session BEFORE changing code: persists your planned file set and returns the expectation brief — co-change partners and shared state the plan must account for. Bookend with complete_edit_session. Related: plan_user_story for the planning stage."
     )]
     pub async fn begin_edit_session(
         &self,
@@ -327,7 +327,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Edit-completeness check: given the files you edited, reports the strong co-change partners you did NOT touch (with historical evidence) and state keys shared with untouched files. Run before committing any multi-file change â€” it is the 'you forgot the other side' detector. Related: pre_commit_review."
+        description = "Edit-completeness check: given the files you edited, reports the strong co-change partners you did NOT touch (with historical evidence) and state keys shared with untouched files. Run before committing any multi-file change — it is the 'you forgot the other side' detector. Related: pre_commit_review."
     )]
     pub async fn detect_incomplete_changes(
         &self,
@@ -387,7 +387,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "QA/test-plan generator: given requested changed/planned files, derives WHAT TO TEST: settings that fork behaviour, roles/permissions, shared Session/Application keys, optional-argument isolation, source-verified runtime/presentation risks, and (when change_intent is supplied) clearly labelled proposed-change risks such as discriminator compatibility and canonical-token migration. Hot-loads bounded organization rules from data_dir/rules/test-risk-rules.yaml and repository rules from .engram/test-risk-rules.yaml; repository rule IDs override organization IDs without a rebuild. For historical replay, knowledge_before excludes undated rules and rules introduced on/after the exclusive YYYY-MM-DD cutoff. Returns proposed cases with evidence limits; it does not execute tests."
+        description = "QA/test-plan generator: given requested changed/planned files, derives WHAT TO TEST: settings that fork behaviour, roles/permissions, shared Session/Application keys, source-verified business-rule cases, and (for VB members named in change_intent or added by the diff) a residual string-literal call-site sweep. Hot-loads bounded organization rules from data_dir/rules/test-risk-rules.yaml and repository rules from .engram/test-risk-rules.yaml; repository rule IDs override organization IDs without a rebuild. For historical replay, knowledge_before excludes undated rules and rules introduced on/after the exclusive YYYY-MM-DD cutoff. Returns proposed cases with evidence limits; it does not execute tests."
     )]
     pub async fn derive_test_matrix(
         &self,
@@ -427,7 +427,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Suggest candidate files for a user story using exact code-shaped entities, concepts, historical co-change and structural graph evidence. Ranks candidates, expands deployable families, follows direct caller and asset-bundle links, supplies hash-bound checked-out repository policy, applicable learned rules, cross-cutting obligations, new-component responsibility hypotheses, and a boundary audit that exposes missing entry, mutation, cleanup, client, persistence, audit, and deployment evidence. The contract checkpoint contains a compact hard_items packet of release-critical requirements plus a copy-ready workflow_scaffold whose MISSING fields must be resolved; broader obligation/hypothesis arrays remain advisory evidence. Hot-loads bounded organization rules from data_dir/rules/planning-contract-rules.yaml and repository rules from .engram/planning-contract-rules.yaml, with project overrides and historical-cutoff provenance. Each file row distinguishes behavioral, historical and structural evidence, preserves its causal anchor, asks a mechanism-specific impact question, and states the source evidence required to exclude it; repeated guidance in compact/reconciled responses is losslessly referenced through row_guidance. Primary and dependency rows carry stable P/A/C IDs plus a SHA-256 reconciliation receipt; copy every row and classify it before planning. Use detail=reconciled for the complete receipt-bound planning payload without the unbounded companion tail; use full only for forensic diagnostics. Results do not establish complete scope, required edits or reviewer approval."
+        description = "Suggest candidate files for a user story using exact code-shaped entities, concepts, historical co-change and structural graph evidence. Ranks candidates, expands deployable families, follows direct caller and asset-bundle links, supplies hash-bound checked-out repository policy, applicable learned rules, and a contract checkpoint that turns release-critical configured planning rules into a hard_items packet plus a copy-ready workflow_scaffold whose MISSING fields must be resolved. Engram ships no built-in domain checklist. Hot-loads bounded organization rules from data_dir/rules/planning-contract-rules.yaml and repository rules from .engram/planning-contract-rules.yaml, with project overrides and historical-cutoff provenance. Each file row distinguishes behavioral, historical and structural evidence, preserves its causal anchor, asks a mechanism-specific impact question, and states the source evidence required to exclude it; repeated guidance in compact/reconciled responses is losslessly referenced through row_guidance. Primary and dependency rows carry stable P/A/C IDs plus a SHA-256 reconciliation receipt; copy every row and classify it before planning. Use detail=reconciled for the complete receipt-bound planning payload without the unbounded companion tail; use full only for forensic diagnostics. Results do not establish complete scope, required edits or reviewer approval."
     )]
     pub async fn get_change_set(
         &self,
@@ -437,7 +437,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Hard gate between get_change_set and planning/implementation. Validates the exact checkpoint receipt and row order; requires exactly one completed ledger row for every release-critical hard_items and unresolved-boundary ID; verifies allowed dispositions, concrete evidence, numbered human questions, scenario mappings, and oracle-guard results. Returns BLOCKED when a product decision is still BLOCKING_UNKNOWN and FAIL on missing, duplicate, reordered, malformed, or unevidenced rows. Pass the exact contract_checkpoint object, completed feature-contract Markdown, and independently drafted acceptance-scenario Markdown."
+        description = "Hard gate between get_change_set and planning/implementation. Validates the exact checkpoint receipt and row order; requires exactly one completed ledger row for every release-critical hard_items ID (an empty checkpoint passes with nothing to disposition); verifies allowed dispositions, concrete evidence, numbered human questions, scenario mappings, and oracle-guard results. Returns BLOCKED when a product decision is still BLOCKING_UNKNOWN and FAIL on missing, duplicate, reordered, malformed, or unevidenced rows. Pass the exact contract_checkpoint object, completed feature-contract Markdown, and independently drafted acceptance-scenario Markdown."
     )]
     pub async fn validate_feature_contract(
         &self,
@@ -499,7 +499,7 @@ impl Engram {
     // ---- Search + chunks ----
 
     #[tool(
-        description = "Hybrid lexical+vector search over indexed code/docs. Hits carry path, line range, doc_id, covering symbols (node_ids), and a 500-char snippet (include_content=true for full bodies). search_scope: 'code' (default) searches code; 'knowledge' searches curated agent memory (memory_bank notes, dreamer insights, business_logic, antipattern/wontfix/quality_gate rules); 'all' searches both, fused by rank and labelled by source â€” use it to recall what past sessions learned, not just where code lives. Knowledge scopes also fold in USER-LEVEL memory (the reserved __user__ project) so a standing preference recorded once surfaces everywhere, labelled source: user:* (set include_user_memory=false to exclude). Filter by author_filter / date_after / date_before (unix ms). Page with offset. Set semantic=false for exact-identifier lookups. For literal/regex matching prefer grep_project; for full chunk text use get_chunk."
+        description = "Hybrid lexical+vector search over indexed code/docs. Hits carry path, line range, doc_id, covering symbols (node_ids), and a 500-char snippet (include_content=true for full bodies). search_scope: 'code' (default) searches code; 'knowledge' searches curated agent memory (memory_bank notes, dreamer insights, business_logic, antipattern/wontfix/quality_gate rules); 'all' searches both, fused by rank and labelled by source — use it to recall what past sessions learned, not just where code lives. Knowledge scopes also fold in USER-LEVEL memory (the reserved __user__ project) so a standing preference recorded once surfaces everywhere, labelled source: user:* (set include_user_memory=false to exclude). Filter by author_filter / date_after / date_before (unix ms). Page with offset. Set semantic=false for exact-identifier lookups. For literal/regex matching prefer grep_project; for full chunk text use get_chunk."
     )]
     pub async fn search_memory(
         &self,
@@ -509,7 +509,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Vector-only similarity search (no lexical fusion). Quality depends on the configured embedding backend â€” the response states which tier is active. Prefer search_memory for most queries."
+        description = "Vector-only similarity search (no lexical fusion). Quality depends on the configured embedding backend — the response states which tier is active. Prefer search_memory for most queries."
     )]
     pub async fn vector_search(
         &self,
@@ -519,7 +519,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Fast literal/regex grep over the indexed file set. Uses the Tantivy trigram index as a prefilter â€” typically beats ripgrep on warm queries. Returns file:line:col matches with optional context lines."
+        description = "Fast literal/regex grep over the indexed file set. Uses the Tantivy trigram index as a prefilter — typically beats ripgrep on warm queries. Returns file:line:col matches with optional context lines."
     )]
     pub async fn grep_project(
         &self,
@@ -541,7 +541,7 @@ impl Engram {
     // ---- Memory bank + repo rules ----
 
     #[tool(
-        description = "Write a persistent agent note (named markdown section) scoped to the project. Survives reindexing and is searchable (recall via search_memory search_scope=knowledge) â€” use for decisions, gotchas, preferences, and session handoffs. Set kind (preference|decision|gotcha|reference|note), author, tags, and related_files (files/symbols the note is about) to make recall meaningful and staleness detectable. append=true adds to the existing body; pass expected_updated_at_ms (from read_memory_bank) to avoid clobbering a concurrent session's edit. Long bodies are chunked automatically. Write to project_id=__user__ for cross-project preferences that should surface in every project's recall."
+        description = "Write a persistent agent note (named markdown section) scoped to the project. Survives reindexing and is searchable (recall via search_memory search_scope=knowledge) — use for decisions, gotchas, preferences, and session handoffs. Set kind (preference|decision|gotcha|reference|note), author, tags, and related_files (files/symbols the note is about) to make recall meaningful and staleness detectable. append=true adds to the existing body; pass expected_updated_at_ms (from read_memory_bank) to avoid clobbering a concurrent session's edit. Long bodies are chunked automatically. Write to project_id=__user__ for cross-project preferences that should surface in every project's recall."
     )]
     pub async fn update_memory_bank(
         &self,
@@ -643,7 +643,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Search ranked by text relevance blended with graph centrality â€” surfaces the load-bearing code for a topic, not just the best textual match. Use when you want 'the important file about X'."
+        description = "Search ranked by text relevance blended with graph centrality — surfaces the load-bearing code for a topic, not just the best textual match. Use when you want 'the important file about X'."
     )]
     pub async fn graph_search(
         &self,
@@ -665,7 +665,7 @@ impl Engram {
     // ---- Git/history tools ----
 
     #[tool(
-        description = "Index commit history into temporal intelligence: co-change couplings, revert detection, author data. Run once after index_project; long-running on big repos (job â€” poll get_job_status). Unlocks analyze_temporal_couplings and analyze_reverts. Use mode='refresh' to regenerate already indexed diff text without changing graph relationships or history watermarks; repeat while more=true."
+        description = "Index commit history into temporal intelligence: co-change couplings, revert detection, author data. Run once after index_project; long-running on big repos (job — poll get_job_status). Unlocks analyze_temporal_couplings and analyze_reverts. Use mode='refresh' to regenerate already indexed diff text without changing graph relationships or history watermarks; repeat while more=true."
     )]
     pub async fn index_git_history(
         &self,
@@ -717,7 +717,7 @@ impl Engram {
     // ---- Agent / cognitive tools ----
 
     #[tool(
-        description = "1-HOP incoming impact of a file or symbol (NOT transitive; no ripple beyond direct dependents). Separates CAUSAL dependents (calls/uses/imports/state/table/api â€” may break) from structural context and historical companions (co-change â€” not breakage), names the contained symbol each dependent reaches, reports unique-node counts with honest truncation, and the evidence body is deterministic across runs (the trailing freshness footer varies with index age). Takes no change spec: results are whole-target exposure. Use compute_blast_radius for the advisory risk profile."
+        description = "1-HOP incoming impact of a file or symbol (NOT transitive; no ripple beyond direct dependents). Separates CAUSAL dependents (calls/uses/imports/state/table/api — may break) from structural context and historical companions (co-change — not breakage), names the contained symbol each dependent reaches, reports unique-node counts with honest truncation, and the evidence body is deterministic across runs (the trailing freshness footer varies with index age). Takes no change spec: results are whole-target exposure. Use compute_blast_radius for the advisory risk profile."
     )]
     pub async fn impact_analysis(
         &self,
@@ -737,7 +737,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "[.NET legacy] All readers and writers of Session/ViewState/Application/Cache keys. Use before touching shared state â€” hidden readers are the classic WebForms regression."
+        description = "[.NET legacy] All readers and writers of Session/ViewState/Application/Cache keys. Use before touching shared state — hidden readers are the classic WebForms regression."
     )]
     pub async fn trace_state_usage(
         &self,
@@ -819,7 +819,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Heuristic stacktrace triage: parses frames, searches the index for matching files/functions, ranks by frame match + centrality. Good first pass at 'where is this crash' â€” not a debugger."
+        description = "Heuristic stacktrace triage: parses frames, searches the index for matching files/functions, ranks by frame match + centrality. Good first pass at 'where is this crash' — not a debugger."
     )]
     pub async fn analyze_error_stack(
         &self,
@@ -829,7 +829,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Run a consolidation ('dream') cycle: clusters co-retrieved chunks into insight nodes. Background maintenance that improves future retrieval â€” not a query tool."
+        description = "Run a consolidation ('dream') cycle: clusters co-retrieved chunks into insight nodes. Background maintenance that improves future retrieval — not a query tool."
     )]
     pub async fn dream_project(
         &self,
@@ -838,7 +838,7 @@ impl Engram {
         self.handle_dream_project(params.0).await
     }
 
-    #[tool(description = "Deprecated alias of dream_project â€” call dream_project instead.")]
+    #[tool(description = "Deprecated alias of dream_project — call dream_project instead.")]
     pub async fn trigger_rem_cycle(
         &self,
         params: Parameters<DreamProjectRequest>,
@@ -883,7 +883,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Score proposed code against revert-derived anti-patterns (hybrid FTS+vector); returns matched rules with the reverting commit hash as evidence. Run before committing risky changes â€” this is how you avoid re-introducing what was already reverted once. Input: inline code OR project-relative code_file with exact raw code_file_blake3 (4 MiB UTF-8 maximum); file mode returns checked byte count/hash/path. Do not mix inputs; target context must match code_file."
+        description = "Score proposed code against revert-derived anti-patterns (hybrid FTS+vector); returns matched rules with the reverting commit hash as evidence. Run before committing risky changes — this is how you avoid re-introducing what was already reverted once. Input: inline code OR project-relative code_file with exact raw code_file_blake3 (4 MiB UTF-8 maximum); file mode returns checked byte count/hash/path. Do not mix inputs; target context must match code_file."
     )]
     pub async fn immune_check(
         &self,
@@ -903,7 +903,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Pre-commit review â€” runs Engram's full registered gate set (19 graph-backed \
+        description = "Pre-commit review — runs Engram's full registered gate set (19 graph-backed \
                        gates unless you pass `skip_gates`: immune, repo-rule, blast-radius, style, \
                        temporal, state, audit, anti-pattern, new-file, test-coverage, secret-leakage, \
                        guard-parity, unwired, product-intent, sync-contract, co-added-family, \
@@ -944,7 +944,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Explain a diff â€” natural dual of pre_commit_review. Takes the same \
+        description = "Explain a diff — natural dual of pre_commit_review. Takes the same \
                        inputs (staged / unstaged / head / raw / .patch) and produces a \
                        Conventional-Commits commit message, a structured PR description, and \
                        a Keep-a-Changelog entry, all derived deterministically from the \
@@ -1029,7 +1029,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Maintain (rebuild/refresh) the dedicated anti-pattern index. Maintenance only â€” to query anti-patterns use immune_check or anti_pattern_guard."
+        description = "Maintain (rebuild/refresh) the dedicated anti-pattern index. Maintenance only — to query anti-patterns use immune_check or anti_pattern_guard."
     )]
     pub async fn dedicated_antipattern_index(
         &self,
@@ -1233,7 +1233,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "[.NET legacy] Page lifecycle hooks per page (Init, Page_Load, PreRender...) and what each one does â€” essential before reordering page logic."
+        description = "[.NET legacy] Page lifecycle hooks per page (Init, Page_Load, PreRender...) and what each one does — essential before reordering page logic."
     )]
     pub async fn map_page_lifecycle(
         &self,
@@ -1273,7 +1273,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "[.NET legacy] Full per-page migration dossier: everything needed to rewrite one page (controls, handlers, data, state, AJAX, risks). The per-page workhorse â€” prefer this over the full-project report inside agent loops."
+        description = "[.NET legacy] Full per-page migration dossier: everything needed to rewrite one page (controls, handlers, data, state, AJAX, risks). The per-page workhorse — prefer this over the full-project report inside agent loops."
     )]
     pub async fn get_migration_dossier(
         &self,
@@ -1283,7 +1283,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "[.NET legacy] Which extraction dimensions are covered for a page â€” uncovered dimensions mean 'verify manually before migrating'."
+        description = "[.NET legacy] Which extraction dimensions are covered for a page — uncovered dimensions mean 'verify manually before migrating'."
     )]
     pub async fn check_migration_coverage(
         &self,
@@ -1323,7 +1323,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "[.NET legacy] One-call full migration report: inventory, DB, state, AJAX, JS, risks, order. LARGE output intended for humans/docs â€” inside agent loops prefer get_migration_dossier per page."
+        description = "[.NET legacy] One-call full migration report: inventory, DB, state, AJAX, JS, risks, order. LARGE output intended for humans/docs — inside agent loops prefer get_migration_dossier per page."
     )]
     pub async fn analyze_full_project_migration(
         &self,
@@ -1352,7 +1352,7 @@ impl Engram {
         self.handle_query_business_logic(params.0).await
     }
 
-    // â”€â”€ Phase 37: Wiring â€” Expose Existing Services â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Phase 37: Wiring — Expose Existing Services ──────────────────────────
 
     #[tool(
         description = "Full database intelligence: schema, stored procedures, triggers, SP call chains, cross-reference warnings."
@@ -1415,7 +1415,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "[.NET legacy] Detect VB.NET â†’ C# translation traps: 14 categories of semantic differences (silent bugs like Nothing/ValueType, Is vs =; compile errors like On Error GoTo, ReDim Preserve, My.* namespace)."
+        description = "[.NET legacy] Detect VB.NET → C# translation traps: 14 categories of semantic differences (silent bugs like Nothing/ValueType, Is vs =; compile errors like On Error GoTo, ReDim Preserve, My.* namespace)."
     )]
     pub async fn get_vb_translation_traps(
         &self,
@@ -1464,7 +1464,7 @@ impl Engram {
         self.handle_get_rust_diagnostics(params.0).await
     }
 
-    // â”€â”€ Phase 38: The Access Layer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Phase 38: The Access Layer ────────────────────────────────────────────
 
     #[tool(
         description = "Fast per-method metadata lookup from the method index. Returns signature, callers, callees, DB tables, session keys, complexity, VB traps, and method kind. Sub-200ms."
@@ -1507,7 +1507,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "LLM context packer for editing an EXISTING method: assembles whichever of these it can resolve â€” coding style profile, caller pattern examples, database schema for referenced tables, SP signatures, session state context, control mappings, VB translation traps, language-family diagnostics (C#/C/C++/Rust), and sync hazards. Every optional provider is BEST-EFFORT and may be SILENTLY ABSENT: only a failure to read the target method's own body is reported in `warnings`; a provider that finds nothing, or whose lookup fails, simply yields an empty section with no warning â€” so an empty section does NOT mean 'nothing there'. It is a starting context, NOT a guarantee of everything needed â€” verify against the real code before editing. Requires the target method to already exist (it resolves it by exact name, refusing cross-class/overload ambiguity)."
+        description = "LLM context packer for editing an EXISTING method: assembles whichever of these it can resolve — coding style profile, caller pattern examples, database schema for referenced tables, SP signatures, session state context, control mappings, VB translation traps, language-family diagnostics (C#/C/C++/Rust), and sync hazards. Every optional provider is BEST-EFFORT and may be SILENTLY ABSENT: only a failure to read the target method's own body is reported in `warnings`; a provider that finds nothing, or whose lookup fails, simply yields an empty section with no warning — so an empty section does NOT mean 'nothing there'. It is a starting context, NOT a guarantee of everything needed — verify against the real code before editing. Requires the target method to already exist (it resolves it by exact name, refusing cross-class/overload ambiguity)."
     )]
     pub async fn prepare_implementation_context(
         &self,
@@ -1577,7 +1577,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Standalone edit safety check: green/yellow/red verdict for a method from blast radius, exact caller count, session writes, triggers, and complexity (measured from the body), computed from the SAME evidence as get_method_edit_context and reported with per-provider coverage â€” missing evidence is never green. Use when you only need the verdict."
+        description = "Standalone edit safety check: green/yellow/red verdict for a method from blast radius, exact caller count, session writes, triggers, and complexity (measured from the body), computed from the SAME evidence as get_method_edit_context and reported with per-provider coverage — missing evidence is never green. Use when you only need the verdict."
     )]
     pub async fn check_edit_safety(
         &self,
@@ -1593,12 +1593,12 @@ impl ServerHandler for Engram {
             instructions: Some(
                 "Engram gives agents a persistent, indexed memory of a codebase: hybrid \
                  search, a typed code graph, git temporal intelligence, and edit-safety \
-                 checks. Typical flow: list_projects (get the project_id) â†’ \
-                 get_codebase_overview (orient) â†’ search_memory or grep_project (find \
-                 code; hits carry doc_ids, line ranges, and symbol node_ids) â†’ get_chunk \
-                 (full text) â†’ resolve_id / find_symbol_references / traverse_graph \
-                 (structure) â†’ check_edit_safety or get_method_edit_context (before \
-                 editing) â†’ pre_commit_review (on your diff). If results look stale, \
+                 checks. Typical flow: list_projects (get the project_id) → \
+                 get_codebase_overview (orient) → search_memory or grep_project (find \
+                 code; hits carry doc_ids, line ranges, and symbol node_ids) → get_chunk \
+                 (full text) → resolve_id / find_symbol_references / traverse_graph \
+                 (structure) → check_edit_safety or get_method_edit_context (before \
+                 editing) → pre_commit_review (on your diff). If results look stale, \
                  call get_index_freshness; update_project refreshes incrementally. \
                  Tools prefixed [.NET legacy] target ASP.NET WebForms / VB.NET / Classic \
                  ASP migration work and return little on other stacks."
@@ -1621,7 +1621,7 @@ impl ServerHandler for Engram {
     ) -> Result<CallToolResult, McpError> {
         // Per-call observability at INFO: tool name, RESPONSE SIZE, latency. The
         // response size is what a review's cumulative request budget is spent on
-        // â€” logging it here is what turns "the review 400s somewhere" into
+        // — logging it here is what turns "the review 400s somewhere" into
         // "grep_project on <x> returned N bytes". One line per call, cheap.
         let tool_name = request.name.to_string();
         let started = std::time::Instant::now();

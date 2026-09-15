@@ -36,26 +36,7 @@ async fn markup_matrix_exposes_its_declared_companion_and_scope() {
     let text = matrix(&server, &pid).await;
     assert!(text.contains("Session:Theme") && text.contains("LoadTheme (ShellCode.cs:"), "{text}");
     assert!(text.contains("Shell.master -> ShellCode.cs") && text.contains("Direct UI context"), "{text}");
-    assert!(text.contains("Runtime interaction / lifecycle axis") && text.contains("Shared-session navigation and multi-window state"), "{text}");
     assert!(text.contains("not a changed file") && text.contains("Test execution: not_run"), "{text}");
-}
-
-#[tokio::test]
-async fn markup_matrix_proposes_postback_keyboard_and_accessibility_cases() {
-    let (_temp, server, pid) = fixture(
-        "<%@ Master Language=\"C#\" CodeFile=\"ShellCode.cs\" %>\n<asp:UpdatePanel runat=\"server\"><ContentTemplate><asp:LinkButton ID=\"Search\" runat=\"server\" OnClick=\"Search_Click\"><i class=\"icon-search\"></i></asp:LinkButton></ContentTemplate></asp:UpdatePanel>\n",
-    )
-    .await;
-    let text = matrix(&server, &pid).await;
-    for expected in [
-        "Initial load and full-postback reconstruction",
-        "Partial-postback refresh and handler rebinding",
-        "Keyboard activation parity",
-        "DOM accessible names for interactive controls",
-    ] {
-        assert!(text.contains(expected), "missing {expected}: {text}");
-    }
-    assert!(text.contains("risk-directed scenarios, not proof"), "{text}");
 }
 
 async fn registered_control_fixture() -> (tempfile::TempDir, Engram, String) {
@@ -94,25 +75,16 @@ async fn registered_control_fixture() -> (tempfile::TempDir, Engram, String) {
 }
 
 #[tokio::test]
-async fn codebehind_matrix_recovers_declaring_markup_and_bound_presenters() {
+async fn codebehind_matrix_recovers_declaring_markup() {
     let (_temp, server, pid) = fixture(
         "<%@ Master Language=\"C#\" CodeFile=\"ShellCode.cs\" %>\n<asp:BoundField DataField=\"RawText\" /><%# Eval(\"FormattedText\") %>\n",
     ).await;
     let response = server.handle_derive_test_matrix(serde_json::from_value(json!({
         "project_id":pid,
-        "files":["ShellCode.cs"],
-        "change_intent":"Add a field_id discriminator and canonical event prefix"
+        "files":["ShellCode.cs"]
     })).unwrap()).await.unwrap();
     let text = &response.content[0].as_text().unwrap().text;
     assert!(text.contains("ShellCode.cs -> Shell.master"), "{text}");
-    assert!(text.contains("Stored-to-presented value parity"), "{text}");
-    assert!(text.contains("RawText") && text.contains("FormattedText"), "{text}");
-    assert!(text.contains("Planned-behavior risk axis"), "{text}");
-    assert!(text.contains("Discriminator compatibility"), "{text}");
-    assert!(text.contains("Canonical-token migration"), "{text}");
-    assert!(text.contains("Caller-supplied change intent"), "{text}");
-    assert!(text.contains("nor human approval"), "{text}");
-    assert!(!text.contains("Approved change intent"), "{text}");
     assert!(text.contains("1 requested file(s)") && !text.contains("1 changed file(s)"), "{text}");
 }
 
@@ -163,8 +135,6 @@ async fn codebehind_matrix_follows_registered_control_to_host_and_host_codebehin
     assert!(text.contains("Controls/Panel.ascx.vb -> Controls/Panel.ascx"), "{text}");
     assert!(text.contains("Host.aspx registers Controls/Panel.ascx"), "{text}");
     assert!(text.contains("Host.aspx -> Host.aspx.vb"), "{text}");
-    assert!(text.contains("Deferred binding lifecycle and refresh parity"), "{text}");
-    assert!(text.contains("Host.aspx: WebForms-style"), "{text}");
 }
 
 #[tokio::test]
@@ -177,7 +147,6 @@ async fn stale_inverse_markup_cannot_supply_a_companion_relationship() {
     })).unwrap()).await.unwrap();
     let text = &response.content[0].as_text().unwrap().text;
     assert!(!text.contains("ShellCode.cs -> Shell.master"), "{text}");
-    assert!(!text.contains("Stored-to-presented value parity"), "{text}");
 }
 
 #[tokio::test]

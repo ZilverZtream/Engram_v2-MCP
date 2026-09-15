@@ -41,13 +41,6 @@ exclusions. Omit the cutoff for live work so the newest reviewed rules apply.
 
 All predicates are case-insensitive literal substrings. `extensions`, `path_any`, `all_terms`, `any_terms`, and `none_terms` are optional, but every rule needs at least one predicate. `all_terms` must all occur, at least one `any_terms` value must occur, no `none_terms` value may occur, and at least one `path_any` value must occur. An empty predicate list places no restriction on that dimension. `severity` is optional and defaults to `warning`; allowed values are `critical`, `warning`, `info`, and `style`.
 
-The built-in matrix also derives terminal-boundary checks that should not need a repository rule:
-
-- HTML attributes, DOM properties and popover/tooltip/`innerHTML` flows are treated as multi-stage sinks. Encoding an intermediate attribute does not prove safety after browser decoding or plugin reinterpretation.
-- Spreadsheet writers require upstream-length reconciliation and exact 32,767/32,768-character Excel cases.
-- `VARCHAR(MAX)`, `NVARCHAR(MAX)` and equivalent unbounded persistence require an explicit retention, duplication, audience and volume decision plus downstream-limit checks.
-- When `change_intent` contains approved literal mappings or schema constraints, the matrix emits an invariant-fidelity axis. Pass the complete approved contract and decision table rather than only the story title.
-
 For VB changes, the built-in matrix can also detect an incomplete migration from string literals to a canonical member. It activates only when a requested file's current HEAD-to-worktree diff adds a member argument whose name contains a canonical marker such as `prefix`, `token`, or `constant`, or when the exact member appears in `change_intent`. Engram then uses the Roslyn sidecar to find string literals passed to the same callee and argument identity across the bounded project scan, including multiline and named arguments. Resolved parameter ordinals connect named and positional forms when Roslyn has enough semantic information; otherwise the output states that matching is lexical.
 
 The migration sweep is review evidence rather than an instruction to edit every match. It prioritizes requested files, excludes generated and dependency directories, caps candidate members, source bytes, files, invocations, arguments, results, and response size, and reports every cap or parser failure as `INCOMPLETE`. Diff collection is limited to literal requested paths and combines staged and unstaged changes into final worktree coordinates. Older or unavailable sidecars fail closed without a regex fallback.

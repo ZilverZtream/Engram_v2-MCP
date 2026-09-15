@@ -367,7 +367,6 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
         let _rec = self.ensure_project_record(&req.project_id).await?;
-        let intent_axes = super::test_derivation::intent_risk_axes(req.change_intent.as_deref());
         if req.knowledge_before.as_deref()
             .is_some_and(|date| !super::test_derivation::valid_yyyy_mm_dd(date))
         {
@@ -477,18 +476,13 @@ impl Engram {
                         }
                         Err(error) => coverage_notes.push(format!("{file}: {error}")),
                     }
-                    // Runtime/UI axes come from the verified file snapshot and
-                    // remain useful even when the parser emitted no symbols
-                    // for a markup or client-only file.
+                    // Configured risk rules match the verified file snapshot, so
+                    // they apply even when the parser emitted no symbols for a
+                    // markup or client-only file.
                     if let Some(source) = snapshot
                         .as_deref()
                         .and_then(|bytes| std::str::from_utf8(bytes).ok())
                     {
-                        for (axis, evidence) in
-                            super::test_derivation::runtime_risk_axes(&file, source)
-                        {
-                            runtime_axes.entry(axis).or_default().push(evidence);
-                        }
                         for (axis, evidence) in
                             super::test_derivation::configured_risk_axes(
                                 &configured_risk_pack,
@@ -731,33 +725,7 @@ impl Engram {
         };
 
         let mut out = format!("# Test matrix — {} requested file(s)\n", req.files.len());
-        out.push_str("Evidence scope: indexed settings, permission and state references plus bounded runtime-risk triggers from source-verified snapshots. Test discovery: not_run. Test execution: not_run. These are proposed cases, not verified outcomes.\n");
-        let intent_checkpoint_ids = (1..=intent_axes.len())
-            .map(|index| format!("TM-INTENT-{index:02}"))
-            .collect::<Vec<_>>();
-        let intent_checkpoint_canonical = intent_checkpoint_ids
-            .iter()
-            .map(|id| format!("{id}\n"))
-            .collect::<String>();
-        use sha2::{Digest, Sha256};
-        let intent_checkpoint_digest = format!(
-            "{:x}",
-            Sha256::digest(intent_checkpoint_canonical.as_bytes())
-        );
-        out.push_str(&format!(
-            "derive_test_matrix contract checkpoint: sha256:{intent_checkpoint_digest} items={}\n",
-            intent_checkpoint_ids.len()
-        ));
-        if !intent_axes.is_empty() {
-            out.push_str("Caller-supplied change intent was provided. Its risk axes are labelled separately and establish neither current source behavior nor human approval.\n");
-            out.push_str("\n## CONTRACT CHECKPOINT — planned-behavior dispositions required\nEvery TM-INTENT item below must appear in the feature contract with SATISFIED_WITH_SOURCE_OR_APPROVED_DECISION, BLOCKING_UNKNOWN, or NOT_APPLICABLE_WITH_EVIDENCE and concrete citations. A scenario may freeze one expected outcome only after source or an approved human answer establishes it. If an item describes competing behavior or a blocking choice, keep the alternatives in the scenario and do not let the plan or implementation choose the oracle.\n");
-            for (index, (axis, evidence)) in intent_axes.iter().enumerate() {
-                out.push_str(&format!(
-                    "- **TM-INTENT-{:02}** [REQUIRED] {axis}\n  - Requirement: {evidence}\n  - Disposition: MISSING — contract checkpoint remains incomplete\n",
-                    index + 1
-                ));
-            }
-        }
+        out.push_str("Evidence scope: indexed settings, permission and state references plus configured risk rules matched against source-verified snapshots. Test discovery: not_run. Test execution: not_run. These are proposed cases, not verified outcomes.\n");
         if configured_risk_count > 0 {
             out.push_str(&format!("Configured risk packs: {configured_risk_count} validated rule(s) loaded at call time; repository rules override organization rules by stable id.\n"));
         }
@@ -861,8 +829,8 @@ impl Engram {
             &mut out,
         );
         render_axis(
-            "Runtime interaction / lifecycle axis",
-            "Source-verified lexical triggers propose these browser/runtime cases. They are risk-directed scenarios, not proof of current behavior or a complete runtime matrix:",
+            "Configured risk axis",
+            "Organization or repository risk rules matched these source-verified files. Each case names its rule and pack; they propose tests, not proof of current behavior:",
             &runtime_axes,
             None,
             &mut out,
@@ -881,12 +849,6 @@ impl Engram {
                 }
             }
         }
-        if !intent_axes.is_empty() {
-            out.push_str(&format!("\n## Planned-behavior risk axis — {}\nThese cases derive from supplied approved change wording, not from proof that the behavior exists in source. Resolve product decisions before implementation; use source and consumer evidence to bind each case to concrete files:\n", intent_axes.len()));
-            for (axis, evidence) in &intent_axes {
-                out.push_str(&format!("- **{axis}** → {evidence}\n"));
-            }
-        }
 
         out.push_str("\n## Source-linked proposed cases\nExpected outcomes below are inferred business rules whose method hashes match current source; confirm the requirements before implementing the tests.\n");
         render_rule_cases(&mut out, &rule_cases);
@@ -894,9 +856,9 @@ impl Engram {
             out.push_str("No source-verified rule cases available; run analyze_business_logic for the requested files to populate or refresh them.\n");
         }
 
-        if settings_axis.is_empty() && roles_axis.is_empty() && state_axis.is_empty() && runtime_axes.is_empty() && intent_axes.is_empty() {
+        if settings_axis.is_empty() && roles_axis.is_empty() && state_axis.is_empty() && runtime_axes.is_empty() {
             out.push_str(
-                "\nNo usable setting/role/state/runtime axes were emitted. This does not establish \
+                "\nNo usable setting/role/state/configured-risk axes were emitted. This does not establish \
                  that the change is gate-free; check incomplete evidence above and \
                  helper paths: run get_method_edit_context on the changed \
                  methods and derive_test_matrix on the helper files it names.\n",
