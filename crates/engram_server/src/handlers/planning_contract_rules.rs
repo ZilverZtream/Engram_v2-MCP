@@ -168,7 +168,7 @@ fn normalize_rule(
     {
         return Err(format!("planning rule {} provenance is invalid", rule.id));
     }
-    rule.id = rule.id.trim().to_string();
+    rule.id = rule.id.trim().to_ascii_lowercase();
     rule.title = rule.title.trim().to_string();
     rule.requirement = rule.requirement.trim().to_string();
     rule.oracle_guard = rule.oracle_guard.map(|value| value.trim().to_string());
@@ -335,7 +335,7 @@ pub(crate) fn load_matching_planning_rules(
         .into_values()
         .filter(|rule| matches(rule, story, paths))
         .map(|rule| PlanningContractRuleMatch {
-            id: format!("RULE-{}", rule.id),
+            id: format!("RULE-{}", rule.id.to_ascii_uppercase()),
             title: rule.title,
             requirement: rule.requirement,
             severity: rule.severity,
@@ -365,7 +365,7 @@ mod tests {
 version: 1
 introduced_at: 2020-01-01
 rules:
-  - id: continuity
+  - id: CONTINUITY
     title: global title
     requirement: global requirement
     story_any: [password]
@@ -391,7 +391,7 @@ rules:
             load_matching_planning_rules(&data, &project, "change password", &[], None);
         assert!(notes.is_empty(), "{notes:?}");
         assert_eq!(matched.len(), 1);
-        assert_eq!(matched[0].id, "RULE-continuity");
+        assert_eq!(matched[0].id, "RULE-CONTINUITY");
         assert_eq!(matched[0].requirement, "project requirement");
         assert_eq!(matched[0].severity, "release_blocking_if_applicable");
 
@@ -457,7 +457,7 @@ rules:
                 .iter()
                 .map(|rule| rule.id.as_str())
                 .collect::<Vec<_>>(),
-            ["RULE-old"]
+            ["RULE-OLD"]
         );
         assert_eq!(notes.len(), 2);
     }
