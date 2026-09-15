@@ -17,7 +17,7 @@ use engram_server::tools::Engram;
 use rmcp::handler::server::tool::Parameters;
 use serde_json::{Value, json};
 
-const STORY: &str = "As an admin I want to set a main reporting category (huvudredovisningskategori) for each production code list category so that time reports roll up correctly.";
+const STORY: &str = "As an admin I want to set a main reporting category (huvudkostnadskategori) for each production code list category so that time reports roll up correctly.";
 const PAGE: &str =
     "Site/modules/dashboard/pages/admin/production/productioncodelistmaincategory.aspx";
 const OTHER: &str = "Site/modules/dashboard/pages/other/unrelated.aspx";
@@ -57,7 +57,7 @@ async fn build(candidate_page_has_family: bool) -> (tempfile::TempDir, Engram, A
     let tmp = tempfile::TempDir::new().unwrap();
     let root = tmp.path().join("proj");
     for d in [
-        "Site/App_Code/redovisning/code",
+        "Site/App_Code/leverans/code",
         "Site/modules/dashboard/pages/admin/production",
         "Site/modules/dashboard/pages/other",
         "Site/App_Code/noise",
@@ -65,13 +65,13 @@ async fn build(candidate_page_has_family: bool) -> (tempfile::TempDir, Engram, A
         std::fs::create_dir_all(root.join(d)).unwrap();
     }
     std::fs::write(
-        root.join("Site/App_Code/redovisning/code/redovisningskategorier.vb"),
-        "Public Class redovisningskategorier\n    Public Function GetByProjectId(pr_id As Integer) As Object\n        Return Nothing\n    End Function\nEnd Class\n",
+        root.join("Site/App_Code/leverans/code/kostnadskategorier.vb"),
+        "Public Class kostnadskategorier\n    Public Function GetByProjectId(pr_id As Integer) As Object\n        Return Nothing\n    End Function\nEnd Class\n",
     )
     .unwrap();
     std::fs::write(
         root.join(format!("{PAGE}.vb")),
-        "Partial Class productioncodelistmaincategory\n    Inherits System.Web.UI.Page\n    Protected Sub Page_Load(sender As Object, e As EventArgs)\n        ' main reporting category (huvudredovisningskategori) for the production code list category\n        Dim mainReportingCategory = redovisningskategorier.GetByProjectId(1)\n    End Sub\nEnd Class\n",
+        "Partial Class productioncodelistmaincategory\n    Inherits System.Web.UI.Page\n    Protected Sub Page_Load(sender As Object, e As EventArgs)\n        ' main reporting category (huvudkostnadskategori) for the production code list category\n        Dim mainReportingCategory = kostnadskategorier.GetByProjectId(1)\n    End Sub\nEnd Class\n",
     )
     .unwrap();
     let page_body = if candidate_page_has_family {

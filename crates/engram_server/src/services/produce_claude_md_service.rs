@@ -1459,7 +1459,7 @@ pub fn finalize_co_change_pairs(
 
 /// Derive a coarse "section" (architectural area) from a file path: the first
 /// two path segments after stripping diff/web-root prefixes (a/ b/ site/ src/).
-/// Generic — groups e.g. `app_code/redovisning/...` and `modules/dashboard/...`
+/// Generic — groups e.g. `app_code/leverans/...` and `modules/dashboard/...`
 /// so co-change can be aggregated by area. No per-repo names.
 pub fn section_of(path: &str) -> String {
     let p = path.replace('\\', "/").to_lowercase();
@@ -2146,8 +2146,8 @@ mod tests {
     #[test]
     fn section_of_groups_by_area() {
         assert_eq!(
-            section_of("Site/App_Code/redovisning/code/RoQReport.vb"),
-            "app_code/redovisning"
+            section_of("Site/App_Code/leverans/code/RoQReport.vb"),
+            "app_code/leverans"
         );
         assert_eq!(
             section_of("site/modules/dashboard/pages/x.aspx"),
@@ -2163,21 +2163,21 @@ mod tests {
     #[test]
     fn cross_section_aggregates_and_drops_same_section() {
         let pairs = vec![
-            // cross-section: redovisning <-> dashboard (summed across two file pairs)
+            // cross-section: leverans <-> dashboard (summed across two file pairs)
             (
-                "App_Code/redovisning/a.vb".into(),
+                "App_Code/leverans/a.vb".into(),
                 "modules/dashboard/x.aspx.vb".into(),
                 5u32,
             ),
             (
-                "App_Code/redovisning/b.vb".into(),
+                "App_Code/leverans/b.vb".into(),
                 "modules/dashboard/y.aspx.vb".into(),
                 3u32,
             ),
             // same-section: dropped
             (
-                "App_Code/redovisning/a.vb".into(),
-                "App_Code/redovisning/c.vb".into(),
+                "App_Code/leverans/a.vb".into(),
+                "App_Code/leverans/c.vb".into(),
                 9u32,
             ),
         ];
@@ -2185,7 +2185,7 @@ mod tests {
         assert_eq!(agg.len(), 1, "{agg:?}");
         assert_eq!(agg[0].2, 8); // 5 + 3, same-section 9 excluded
         let map = render_cross_section_map(&agg);
-        assert!(map.contains("app_code/redovisning") && map.contains("modules/dashboard"));
+        assert!(map.contains("app_code/leverans") && map.contains("modules/dashboard"));
         assert!(map.contains("Changing"));
     }
 
@@ -2854,7 +2854,7 @@ Read docs/internal.md first.
                 confidence: Default::default(),
             },
             CriticalRule {
-                text: "Call handelselogg.Create after SubmitChanges".into(),
+                text: "Call aktivitetslogg.Create after SubmitChanges".into(),
                 evidence: Some("(cr_deadbeef)".into()),
                 source: RuleSource::CodeRabbit,
                 confidence: Default::default(),
@@ -2872,7 +2872,7 @@ Read docs/internal.md first.
             "immune tag expected; got:\n{md}"
         );
         assert!(
-            md.contains("🐰 [CodeRabbit]") && md.contains("handelselogg"),
+            md.contains("🐰 [CodeRabbit]") && md.contains("aktivitetslogg"),
             "CodeRabbit tag expected; got:\n{md}"
         );
         // Plain repo rule shouldn't get a tag — spills the attention
@@ -3124,7 +3124,7 @@ Read docs/internal.md first.
             }),
             Some(&DbSummary {
                 table_count: 192,
-                top_tables: vec![("fj_fiberjobb".into(), 27)],
+                top_tables: vec![("ao_arbetsorder".into(), 27)],
             }),
             Some(&AuthSummary {
                 mode: "ASP.NET Membership + OAuth2".into(),
@@ -3153,7 +3153,7 @@ Read docs/internal.md first.
         );
         // The central DB table rule must name the table.
         assert!(
-            md.contains("fj_fiberjobb"),
+            md.contains("ao_arbetsorder"),
             "central-table rule must cite the table:\n{md}"
         );
         // Hottest state key rule must name the key.

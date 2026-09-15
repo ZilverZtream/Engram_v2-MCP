@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used)]
 //! External audit round 2 (docs/audits/10, P0-4), live r39 after the callee
 //! arm shipped: correctness fell 32 → 29 because the hop's graph items (seven
-//! same-file callees of redovisninglista.vb, five of marker_edit.aspx.vb)
+//! same-file callees of leveranslista.vb, five of marker_edit.aspx.vb)
 //! crowded the 10-item cap — a history question lost its commit documents
 //! although they were in the index, and "which table stores reporting
 //! categories" kept ss_systemsettings.sql instead of the table the question
@@ -83,14 +83,14 @@ fn a_needed_evidence_kind_survives_the_cap() {
 
 #[test]
 fn the_modality_reserve_prefers_the_candidate_that_carries_the_questions_words() {
-    let question = "Which table stores reporting categories (redovisningskategorier)?";
+    let question = "Which table stores reporting categories (kostnadskategorier)?";
     let mut chosen: Vec<EvidenceItem> = (0..10)
         .map(|i| {
             item(
                 &format!("c{i}"),
                 EvidenceKind::SourceCode,
-                &format!("Site/redovisninglista{i}.vb"),
-                "redovisning",
+                &format!("Site/leveranslista{i}.vb"),
+                "leverans",
                 0.9,
             )
         })
@@ -107,8 +107,8 @@ fn the_modality_reserve_prefers_the_candidate_that_carries_the_questions_words()
         r.push(item(
             "s2",
             EvidenceKind::SourceCode,
-            "db-x.sql/dbo/Tables/rk_redovisningskategorier.sql",
-            "CREATE TABLE rk_redovisningskategorier",
+            "db-x.sql/dbo/Tables/kk_kostnadskategorier.sql",
+            "CREATE TABLE kk_kostnadskategorier",
             0.5,
         ));
         r
@@ -118,7 +118,7 @@ fn the_modality_reserve_prefers_the_candidate_that_carries_the_questions_words()
         chosen.iter().any(|e| e
             .path
             .as_deref()
-            .is_some_and(|p| p.ends_with("rk_redovisningskategorier.sql"))),
+            .is_some_and(|p| p.ends_with("kk_kostnadskategorier.sql"))),
         "the .sql that carries the question's own word wins over a higher-relevance stranger: {:?}",
         chosen
             .iter()

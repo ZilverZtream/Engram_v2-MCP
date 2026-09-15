@@ -117,7 +117,7 @@ diff --git a/Site/App_Code/dal/Orders.vb b/Site/App_Code/dal/Orders.vb
 +++ b/Site/App_Code/dal/Orders.vb
 @@ -10,6 +10,8 @@
  Public Sub DeleteOrder(id As Integer)
-     Dim db As New iFaltDataContext()
+     Dim db As New iCoreDataContext()
 +    Dim row = db.Orders.FirstOrDefault(Function(o) o.Id = id)
 +    If row Is Nothing Then Return
      db.SubmitChanges()

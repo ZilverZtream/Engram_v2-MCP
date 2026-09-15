@@ -83,8 +83,8 @@ fn dedup(items: Vec<EvidenceItem>) -> Vec<EvidenceItem> {
 /// schema / resource question is answered from that modality whenever the
 /// index has it.
 /// The question's own words (>= 5 letters, lowercase): the reserves prefer a
-/// candidate that carries them ("which table stores … redovisningskategorier"
-/// → rk_redovisningskategorier.sql over a higher-relevance stranger).
+/// candidate that carries them ("which table stores … kostnadskategorier"
+/// → kk_kostnadskategorier.sql over a higher-relevance stranger).
 fn question_words(question: &str) -> Vec<String> {
     question
         .to_lowercase()

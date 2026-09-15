@@ -1002,7 +1002,7 @@ fn summarise_verb_phrase(kind: ChangeKind, diff_files: &[DiffFile]) -> String {
         .count();
 
     // Pick the most-modified file's stem as a focal noun when we have
-    // one. Helps produce "add fiberjobb_audit helper" instead of
+    // one. Helps produce "add arbetsorder_audit helper" instead of
     // "add 1 file".
     let focus = diff_files
         .iter()
@@ -1797,7 +1797,7 @@ mod tests {
             affected_files: Vec::new(),
             rule_alignments: vec![RuleAlignment {
                 rule_id: "cr_abc12345".into(),
-                rule_text: "Call handelselogg.Create after SubmitChanges".into(),
+                rule_text: "Call aktivitetslogg.Create after SubmitChanges".into(),
                 source: RuleAlignmentSource::CodeRabbit,
                 file_path: "orders/service.vb".into(),
             }],

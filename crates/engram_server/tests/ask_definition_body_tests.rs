@@ -30,7 +30,7 @@ async fn fixture() -> (tempfile::TempDir, AppState, String) {
     std::fs::create_dir_all(&data_dir).unwrap();
     std::fs::write(
         proj.join("Site/App_Code/grunddata/code/projekt.vb"),
-        "Namespace _gd\nPublic Class projekt\n    ''' <summary>Get a project by id</summary>\n    ''' <param name=\"pr_id\">Project Id#</param>\n    Public Shared Function GetByID(pr_id As Integer) As pr_projekt\n        ' DATA ACCESS CHECKED (PR)\n        If Not _us.accessctrl.Check_pr_id(pr_id) Then Return Nothing\n        Dim db = New iFaltDataContext()\n        Return db.pr_projekts.FirstOrDefault(Function(p) p.pr_id = pr_id)\n    End Function\nEnd Class\nEnd Namespace\n",
+        "Namespace _gd\nPublic Class projekt\n    ''' <summary>Get a project by id</summary>\n    ''' <param name=\"pr_id\">Project Id#</param>\n    Public Shared Function GetByID(pr_id As Integer) As pr_projekt\n        ' DATA ACCESS CHECKED (PR)\n        If Not _us.accessctrl.Check_pr_id(pr_id) Then Return Nothing\n        Dim db = New iCoreDataContext()\n        Return db.pr_projekts.FirstOrDefault(Function(p) p.pr_id = pr_id)\n    End Function\nEnd Class\nEnd Namespace\n",
     )
     .unwrap();
     let cfg = Config {

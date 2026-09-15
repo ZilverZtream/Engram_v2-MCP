@@ -412,7 +412,7 @@ async fn suppression_is_scoped_to_wontfix_file_family_not_language() {
 
     let body_fix = "_⚠️ Potential issue_ | _🟠 Major_\n\n\
         **Avoid calling `SubmitChanges()` without audit log.**\n\n\
-        `SubmitChanges()` on `DataContext` must be preceded by `handelselogg.Create()`.\n\n\
+        `SubmitChanges()` on `DataContext` must be preceded by `aktivitetslogg.Create()`.\n\n\
         ✅ Addressed in commits abc1234";
     let body_wontfix = "_⚠️ Potential issue_ | _🟡 Minor_\n\n\
         **Consider null-checking `gQtyManager.validate()`.**\n\n\

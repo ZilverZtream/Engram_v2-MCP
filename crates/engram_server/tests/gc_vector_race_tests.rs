@@ -29,7 +29,7 @@ async fn build(files: usize) -> (tempfile::TempDir, AppState, Engram, String) {
         std::fs::write(
             root.join(format!("Site/App_Code/mod{i:02}.vb")),
             format!(
-                "Public Class mod{i:02}\n    Public Function GetByID{i}(id As Integer) As String\n        Return \"redovisningskategori {i}\"\n    End Function\nEnd Class\n"
+                "Public Class mod{i:02}\n    Public Function GetByID{i}(id As Integer) As String\n        Return \"kostnadskategori {i}\"\n    End Function\nEnd Class\n"
             ),
         )
         .unwrap();

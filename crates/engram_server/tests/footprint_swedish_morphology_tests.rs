@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used)]
 //! Row-4 audit (docs/audits/04-concept-and-consumer-discovery.md) A4/D5:
 //! concept morphology was English-only (`'s'`, `ies→y`, `es`); a Swedish
-//! plural / definite concept ("redovisningskategorier", "projekten") only
+//! plural / definite concept ("kostnadskategorier", "projekten") only
 //! matched when the singular happened to be a literal prefix of the query.
 //! On a Swedish codebase (VB.NET first-class, Swedish domain) the concept
 //! footprint must find the identifier in the other form — behaviourally,
@@ -101,20 +101,17 @@ fn engram_with(nodes: &[Node]) -> (tempfile::TempDir, Engram) {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_swedish_plural_concept_finds_the_singular_identifier() {
     let (_tmp, engram) = engram_with(&[
-        table("redovisningskategori"),
-        class("InstallationsObjekt"),
+        table("kostnadskategori"),
+        class("BokningsObjekt"),
         table("projekt"),
     ]);
     // Assert on the rendered node line, never on the name alone — the
     // header echoes the concept, which contains the singular as a substring.
     for (concept, expect) in [
+        ("kostnadskategorier", "node_id=db:table:kostnadskategori "),
         (
-            "redovisningskategorier",
-            "node_id=db:table:redovisningskategori ",
-        ),
-        (
-            "installationsobjekten",
-            "node_id=sym:class:Site/App_Code/gd/InstallationsObjekt.vb:InstallationsObjekt:1",
+            "bokningsobjekten",
+            "node_id=sym:class:Site/App_Code/gd/BokningsObjekt.vb:BokningsObjekt:1",
         ),
         ("projekten", "node_id=db:table:projekt "),
     ] {

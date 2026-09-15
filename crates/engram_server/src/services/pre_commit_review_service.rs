@@ -2966,7 +2966,7 @@ fn detect_audit_function(
     notes: &mut Vec<ProviderNote>,
 ) -> Option<String> {
     const AUDIT_PATTERNS: &[&str] = &[
-        "handelselogg",
+        "aktivitetslogg",
         "AuditLog",
         "audit_log",
         "LogActivity",
@@ -3147,7 +3147,7 @@ mod tests {
 
     #[test]
     fn audit_candidate_ranking_rejects_readers_and_prefers_canonical_writer() {
-        assert!(audit_candidate_score("handelselogg.GetByDateRangeAndOrProjectId") < 0);
+        assert!(audit_candidate_score("aktivitetslogg.GetByDateRangeAndOrProjectId") < 0);
         assert!(audit_candidate_score("AuditLog.Search") < 0);
         assert!(
             audit_candidate_score("AuditLog.Create")
@@ -3177,16 +3177,16 @@ mod tests {
             .upsert_nodes(
                 "project",
                 &[
-                    node("fn:reader", "handelselogg.GetByDateRangeAndOrProjectId"),
-                    node("fn:special", "handelselogg.CreateMarkerUpdate"),
-                    node("fn:writer", "handelselogg.Create"),
+                    node("fn:reader", "aktivitetslogg.GetByDateRangeAndOrProjectId"),
+                    node("fn:special", "aktivitetslogg.CreateMarkerUpdate"),
+                    node("fn:writer", "aktivitetslogg.Create"),
                 ],
             )
             .unwrap();
         let mut notes = Vec::new();
         assert_eq!(
             detect_audit_function(&graph, "project", &mut notes).as_deref(),
-            Some("handelselogg.Create")
+            Some("aktivitetslogg.Create")
         );
         assert!(notes.is_empty());
     }
@@ -3400,13 +3400,13 @@ interface IProduct { id: number; }
     fn path_suffix_match_positive_historical_vs_current_spelling() {
         // Pre-restructure spelling matches the post-restructure spelling.
         assert!(path_suffix_match(
-            "App_Code/iFalt.designer.vb",
-            "Site/App_Code/iFalt.designer.vb"
+            "App_Code/iCore.designer.vb",
+            "Site/App_Code/iCore.designer.vb"
         ));
         // Direction shouldn't matter.
         assert!(path_suffix_match(
-            "Site/App_Code/iFalt.designer.vb",
-            "App_Code/iFalt.designer.vb"
+            "Site/App_Code/iCore.designer.vb",
+            "App_Code/iCore.designer.vb"
         ));
         // Exact match is trivially a match.
         assert!(path_suffix_match("a/b/c.vb", "a/b/c.vb"));
@@ -3414,8 +3414,8 @@ interface IProduct { id: number; }
         assert!(path_suffix_match("APP_CODE/X.VB", "app_code/x.vb"));
         // Backslash-normalised.
         assert!(path_suffix_match(
-            "App_Code\\iFalt.designer.vb",
-            "Site/App_Code/iFalt.designer.vb"
+            "App_Code\\iCore.designer.vb",
+            "Site/App_Code/iCore.designer.vb"
         ));
     }
 
@@ -3428,7 +3428,7 @@ interface IProduct { id: number; }
         // Unrelated paths never match.
         assert!(!path_suffix_match(
             "Site/App_Code/Other.vb",
-            "Site/App_Code/iFalt.designer.vb"
+            "Site/App_Code/iCore.designer.vb"
         ));
         // Same filename, different directory family.
         assert!(!path_suffix_match("Scripts/x.vb", "App_Code/x.vb"));
@@ -3488,7 +3488,7 @@ interface IProduct { id: number; }
 
     #[test]
     fn is_generated_filename_matches_known_patterns() {
-        assert!(is_generated_filename("Site/App_Code/iFalt.designer.vb"));
+        assert!(is_generated_filename("Site/App_Code/iCore.designer.vb"));
         assert!(
             is_generated_filename("Foo/Bar.Designer.cs"),
             "case-insensitive"
@@ -3503,7 +3503,7 @@ interface IProduct { id: number; }
 
     #[test]
     fn is_generated_filename_negative_on_normal_files() {
-        assert!(!is_generated_filename("Site/App_Code/iFalt.vb"));
+        assert!(!is_generated_filename("Site/App_Code/iCore.vb"));
         assert!(!is_generated_filename("Site/Default.aspx.vb"));
         assert!(!is_generated_filename("src/handler.ts"));
         assert!(
@@ -3591,7 +3591,7 @@ interface IProduct { id: number; }
                 ReviewFinding::new(
                     Severity::Style,
                     "style",
-                    "Site/App_Code/iFalt.designer.vb",
+                    "Site/App_Code/iCore.designer.vb",
                     "Indentation mismatch — space on tab-indented file",
                     "d",
                     "s",

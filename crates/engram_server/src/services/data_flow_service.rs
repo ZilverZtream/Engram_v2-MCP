@@ -945,7 +945,7 @@ fn collect_property_state_writes(
 /// Infer a human-readable trigger description from the handler name.
 /// Does an indexed function node NAME denote the callee of `expr`?
 /// Page members are indexed bare (`Page_Load`); App_Code class members are
-/// indexed QUALIFIED (`_io.installationsobjektprojekt.GetAllByCheckingTotalProject`),
+/// indexed QUALIFIED (`_io.bokningsobjektprojekt.GetAllByCheckingTotalProject`),
 /// so a bare comparison reported every domain-helper call as unresolved
 /// (live, 2026-08-28). Match the bare name, or a qualified name whose last
 /// segments agree with the expression's `Class.Method` tail.
@@ -2340,19 +2340,19 @@ private async Task LoadData()
     fn callee_names_bare_and_qualified() {
         assert!(callee_name_matches("Page_Load", "Page_Load", "Page_Load"));
         assert!(callee_name_matches(
-            "_io.installationsobjektprojekt.GetAllByCheckingTotalProject",
-            "_io.installationsobjektprojekt.GetAllByCheckingTotalProject",
+            "_io.bokningsobjektprojekt.GetAllByCheckingTotalProject",
+            "_io.bokningsobjektprojekt.GetAllByCheckingTotalProject",
             "GetAllByCheckingTotalProject"
         ));
         assert!(callee_name_matches(
-            "installationsobjektprojekt.GetAllByCheckingTotalProject",
-            "_io.installationsobjektprojekt.GetAllByCheckingTotalProject",
+            "bokningsobjektprojekt.GetAllByCheckingTotalProject",
+            "_io.bokningsobjektprojekt.GetAllByCheckingTotalProject",
             "GetAllByCheckingTotalProject"
         ));
         // Same method name on a different class is NOT the callee.
         assert!(!callee_name_matches(
             "_rv.other.GetAllByCheckingTotalProject",
-            "_io.installationsobjektprojekt.GetAllByCheckingTotalProject",
+            "_io.bokningsobjektprojekt.GetAllByCheckingTotalProject",
             "GetAllByCheckingTotalProject"
         ));
         assert!(!callee_name_matches("SetOK", "s.SetError", "SetError"));

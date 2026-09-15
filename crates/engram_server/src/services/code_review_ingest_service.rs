@@ -2624,7 +2624,7 @@ mod tests {
         // The literal PR1874 fix the probe recovered: nullable-guard change.
         let diff = "@@ -18,7 +18,7 @@ Namespace _api2.svc\n\
                      \n\
-                                     Using db As New iFaltDataContext\n\
+                                     Using db As New iCoreDataContext\n\
                      \n\
                      -                If Query.projectId.HasValue Then\n\
                      +                If Query?.projectId IsNot Nothing Then\n\

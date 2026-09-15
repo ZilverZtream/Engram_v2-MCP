@@ -38,13 +38,13 @@ fn item(id: &str, path: &str, content: &str, relevance: f32) -> EvidenceItem {
 
 #[test]
 fn a_requested_modality_gets_up_to_three_slots() {
-    let question = "Which table stores reporting categories (redovisningskategorier)?";
+    let question = "Which table stores reporting categories (kostnadskategorier)?";
     let mut chosen: Vec<EvidenceItem> = (0..10)
         .map(|i| {
             item(
                 &format!("c{i}"),
-                &format!("Site/App_Code/redovisning{i}.vb"),
-                "redovisning",
+                &format!("Site/App_Code/leverans{i}.vb"),
+                "leverans",
                 0.9,
             )
         })
@@ -53,8 +53,8 @@ fn a_requested_modality_gets_up_to_three_slots() {
         let mut r = chosen.clone();
         r.push(item(
             "s1",
-            "db/Tables/rk_redovisningskategorier.sql",
-            "CREATE TABLE rk_redovisningskategorier",
+            "db/Tables/kk_kostnadskategorier.sql",
+            "CREATE TABLE kk_kostnadskategorier",
             0.5,
         ));
         r.push(item(
@@ -65,8 +65,8 @@ fn a_requested_modality_gets_up_to_three_slots() {
         ));
         r.push(item(
             "s3",
-            "db/Views/rlv_redovisninglastvecka.sql",
-            "CREATE VIEW rlv_redovisninglastvecka",
+            "db/Views/llv_leveranslastvecka.sql",
+            "CREATE VIEW llv_leveranslastvecka",
             0.7,
         ));
         r.push(item(
@@ -96,8 +96,7 @@ fn a_requested_modality_gets_up_to_three_slots() {
         "up to three items of the requested modality are reserved: {sql:?}"
     );
     assert!(
-        sql.iter()
-            .any(|p| p.ends_with("rk_redovisningskategorier.sql")),
+        sql.iter().any(|p| p.ends_with("kk_kostnadskategorier.sql")),
         "the one carrying the question's word is among them: {sql:?}"
     );
     assert_eq!(chosen.len(), 10, "the cap holds");

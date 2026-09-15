@@ -162,7 +162,7 @@ mod vendor_path_tests {
         assert!(!is_vendor_path("Site/modules/map/~.js/map.js"));
         // App-owned dist + a custom jquery plugin stay in the graph.
         assert!(!is_vendor_path("frontend/dist/app.js"));
-        assert!(!is_vendor_path("Scripts/jquery.ociusGrid.js"));
+        assert!(!is_vendor_path("Scripts/jquery.pilotGrid.js"));
         // 'package'/'libs' singular or different segments do not match.
         assert!(!is_vendor_path("src/package/manager.vb"));
     }

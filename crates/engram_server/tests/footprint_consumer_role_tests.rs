@@ -193,7 +193,7 @@ async fn every_consumer_carries_a_role_and_the_header_tallies_the_roles() {
     );
 }
 
-/// Live finding (release 15, `redovisningskategori`): the DAL reader
+/// Live finding (release 15, `kostnadskategori`): the DAL reader
 /// `GetCodeWithEstimateAndReportedQty` was labelled `export` because its
 /// name contains "report" — the export words must be about producing an
 /// export (export / excel / pdf / download / .rdl), not any "report".
@@ -256,7 +256,7 @@ fn file_node(path: &str) -> Node {
     }
 }
 
-/// Live finding (release 16, `redovisningskategori`): the `.rdl` report
+/// Live finding (release 16, `kostnadskategori`): the `.rdl` report
 /// definitions are FILE nodes (`file:<path>`), whose path is the second id
 /// segment, not the third — after "report" left the export words they fell
 /// to `read`. The role rule must read the path from a `file:` id too.

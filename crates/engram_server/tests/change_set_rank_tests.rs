@@ -20,14 +20,14 @@ use engram_server::tools::Engram;
 use rmcp::handler::server::tool::Parameters;
 use serde_json::{Value, json};
 
-const STORY: &str = "As an admin I want to set a main reporting category (huvudredovisningskategori) for each production code list category so that time reports roll up to it";
+const STORY: &str = "As an admin I want to set a main reporting category (huvudkostnadskategori) for each production code list category so that time reports roll up to it";
 
 const MUST: &[&str] = &[
     "productioncodelistmaincategory.aspx",
     "productioncodelistmaincategory.aspx.vb",
-    "rk_redovisningskategorier.sql",
-    "redovisningskategorier.vb",
-    "api-redovisning.vb",
+    "kk_kostnadskategorier.sql",
+    "kostnadskategorier.vb",
+    "api-leverans.vb",
 ];
 
 fn resx(entries: &[(&str, &str)]) -> String {
@@ -46,8 +46,8 @@ async fn build() -> (tempfile::TempDir, Engram, String) {
     let root = tmp.path().join("proj");
     for d in [
         "Site/App_GlobalResources",
-        "Site/App_Code/redovisning/code",
-        "Site/App_Code/redovisning/api-json",
+        "Site/App_Code/leverans/code",
+        "Site/App_Code/leverans/api-json",
         "Site/modules/dashboard/pages/admin/production",
         "db-x.sql/dbo/Tables",
         "Site/App_Code/noise",
@@ -89,18 +89,18 @@ async fn build() -> (tempfile::TempDir, Engram, String) {
     )
     .unwrap();
     std::fs::write(
-        root.join("Site/App_Code/redovisning/code/redovisningskategorier.vb"),
-        "Public Class redovisningskategorier\n    ' huvudredovisningskategori per kodlista\n    Public Function GetByProjectId(pr_id As Integer) As Object\n        Return Nothing\n    End Function\nEnd Class\n",
+        root.join("Site/App_Code/leverans/code/kostnadskategorier.vb"),
+        "Public Class kostnadskategorier\n    ' huvudkostnadskategori per kodlista\n    Public Function GetByProjectId(pr_id As Integer) As Object\n        Return Nothing\n    End Function\nEnd Class\n",
     )
     .unwrap();
     std::fs::write(
-        root.join("Site/App_Code/redovisning/api-json/api-redovisning.vb"),
-        "Public Class api_redovisning\n    ' returns the huvudredovisningskategori for a category\n    Public Function GetCategories(qry As Object) As String\n        Return \"\"\n    End Function\nEnd Class\n",
+        root.join("Site/App_Code/leverans/api-json/api-leverans.vb"),
+        "Public Class api_leverans\n    ' returns the huvudkostnadskategori for a category\n    Public Function GetCategories(qry As Object) As String\n        Return \"\"\n    End Function\nEnd Class\n",
     )
     .unwrap();
     std::fs::write(
-        root.join("db-x.sql/dbo/Tables/rk_redovisningskategorier.sql"),
-        "CREATE TABLE [dbo].[rk_redovisningskategorier] (\n    [id] INT NOT NULL,\n    [huvudredovisningskategori_id] INT NULL,\n    [namn] NVARCHAR(200) NULL\n);\n",
+        root.join("db-x.sql/dbo/Tables/kk_kostnadskategorier.sql"),
+        "CREATE TABLE [dbo].[kk_kostnadskategorier] (\n    [id] INT NOT NULL,\n    [huvudkostnadskategori_id] INT NULL,\n    [namn] NVARCHAR(200) NULL\n);\n",
     )
     .unwrap();
     // 60 files whose ONLY relation to the story is the generic translated

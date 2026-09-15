@@ -6245,8 +6245,8 @@ mod tests {
     #[test]
     fn immune_rule_matches_exact_path() {
         assert!(immune_rule_matches_path(
-            "Site/App_Code/fiberjobb.vb",
-            "Site/App_Code/fiberjobb.vb"
+            "Site/App_Code/arbetsorder.vb",
+            "Site/App_Code/arbetsorder.vb"
         ));
     }
 
@@ -6255,16 +6255,16 @@ mod tests {
         // The rule might have been stored with Windows backslashes but the
         // target path carries forward slashes (or vice versa).
         assert!(immune_rule_matches_path(
-            "Site\\App_Code\\fiberjobb.vb",
-            "Site/App_Code/fiberjobb.vb"
+            "Site\\App_Code\\arbetsorder.vb",
+            "Site/App_Code/arbetsorder.vb"
         ));
     }
 
     #[test]
     fn immune_rule_matches_path_is_case_insensitive() {
         assert!(immune_rule_matches_path(
-            "site/app_code/fiberjobb.vb",
-            "Site/App_Code/FiberJobb.vb"
+            "site/app_code/arbetsorder.vb",
+            "Site/App_Code/ArbetsOrder.vb"
         ));
     }
 
@@ -6272,26 +6272,26 @@ mod tests {
     fn immune_rule_matches_glob_star() {
         assert!(immune_rule_matches_path(
             "Site/App_Code/*.vb",
-            "Site/App_Code/fiberjobb.vb"
+            "Site/App_Code/arbetsorder.vb"
         ));
         assert!(immune_rule_matches_path(
-            "**/fiberjobb.vb",
-            "Site/App_Code/fiberjobb.vb"
+            "**/arbetsorder.vb",
+            "Site/App_Code/arbetsorder.vb"
         ));
         assert!(!immune_rule_matches_path(
             "Site/App_Code/*.cs",
-            "Site/App_Code/fiberjobb.vb"
+            "Site/App_Code/arbetsorder.vb"
         ));
     }
 
     #[test]
     fn immune_rule_matches_plain_substring_without_globs() {
         // Bare patterns without metacharacters fall back to substring match
-        // so a rule keyed on `fiberjobb.vb` catches the file regardless of
+        // so a rule keyed on `arbetsorder.vb` catches the file regardless of
         // which directory the caller passes.
         assert!(immune_rule_matches_path(
-            "fiberjobb.vb",
-            "Site/App_Code/fiberjobb.vb"
+            "arbetsorder.vb",
+            "Site/App_Code/arbetsorder.vb"
         ));
     }
 
@@ -6305,7 +6305,7 @@ mod tests {
     #[test]
     fn detect_destructive_flags_linq_bulk_delete() {
         let hits = detect_destructive_patterns(
-            "db.fj_fiberjobb.DeleteAllOnSubmit(db.fj_fiberjobb.Where(x => x.active))",
+            "db.ao_arbetsorder.DeleteAllOnSubmit(db.ao_arbetsorder.Where(x => x.active))",
         );
         assert!(hits.iter().any(|h| h == "DeleteAllOnSubmit"));
     }
