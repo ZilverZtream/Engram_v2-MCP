@@ -586,6 +586,10 @@ impl Engram {
             let start_backfill = oldest.as_deref().and_then(|s| git2::Oid::from_str(s).ok());
 
             let mut temporal_edges: u64 = 0;
+            // Commits touching more files than this are bulk changes; they
+            // add no co-change weight (see engram_git::temporal::file_pairs).
+            const MAX_COUPLED_FILES: usize = 80;
+            let mut bulk_commits_skipped: u64 = 0;
             let mut reverts: usize = 0;
             let mut history_docs: Vec<engram_index::IndexDoc> = Vec::new();
             let mut history_batch_bytes: usize = 0;
@@ -690,7 +694,10 @@ impl Engram {
                 // ── Temporal coupling ────────────────────────────────
                 let files: Vec<engram_core::RelPath> =
                     changes.iter().map(|c| c.path().clone()).collect();
-                let pairs = engram_git::temporal::file_pairs(&files, 80);
+                let pairs = engram_git::temporal::file_pairs(&files, MAX_COUPLED_FILES);
+                if files.len() > MAX_COUPLED_FILES {
+                    bulk_commits_skipped += 1;
+                }
 
                 for (a, b) in &pairs {
                     let na = format!("file:{}", a);
@@ -991,7 +998,7 @@ impl Engram {
             };
 
             Ok(format!(
-                "git_update:\ncommits_processed: {}\ntemporal_edges_added: {}\nreverted_commits: {}\nantipattern_docs: {}\nlast_oid: {}\noldest_indexed_oid: {}\nbackfill_complete: {}\ndiagnostic: {}",
+                "git_update:\ncommits_processed: {}\ntemporal_edges_added: {}\nbulk_commits_skipped_for_coupling: {bulk_commits_skipped}\nreverted_commits: {}\nantipattern_docs: {}\nlast_oid: {}\noldest_indexed_oid: {}\nbackfill_complete: {}\ndiagnostic: {}",
                 commits_processed,
                 temporal_edges,
                 reverts,
