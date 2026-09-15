@@ -182,6 +182,15 @@ class ContractPacketEvalTests(unittest.TestCase):
             )
             loaded = subject.read_supplements([supplement])
             self.assertEqual(loaded, [subject.Candidate("NEW", "obligation", "gamma")])
+            self.assertFalse(subject.supplement_source_bindings([supplement])[0]["bound"])
+            source = root / "production.rs"
+            source.write_text("required gamma behavior", encoding="utf-8")
+            supplement.write_text(
+                '{"version":1,"candidates":[{"id":"NEW","kind":"obligation","text":"gamma",'
+                '"source_path":"production.rs","source_contains":"gamma behavior"}]}',
+                encoding="utf-8",
+            )
+            self.assertTrue(subject.supplement_source_bindings([supplement])[0]["bound"])
             supplement.write_text(
                 '{"version":1,"candidates":[{"id":"NEW","text":""}]}', encoding="utf-8"
             )

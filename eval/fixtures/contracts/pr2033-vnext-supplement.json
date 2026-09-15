@@ -4,17 +4,23 @@
     {
       "id": "VNEXT-SESSION-PRINCIPAL-BINDING",
       "kind": "hard_obligation",
-      "text": "Bind any server-session or cached security baseline to the current request principal identity and fail closed for a missing session owner, owner mismatch, principal mismatch, or username change."
+      "text": "Bind any server-session or cached security baseline to the current request principal identity and fail closed for a missing session owner, owner mismatch, principal mismatch, or username change.",
+      "source_path": "../../../crates/engram_server/src/handlers/planning_tools.rs",
+      "source_contains": "bind any server-session or cached security baseline to the current request principal identity"
     },
     {
       "id": "VNEXT-AUTHORIZATION-SYNC",
       "kind": "obligation",
-      "text": "Identify tenant sync events and other account, role, or permission synchronization paths; define observable behavior while propagation is delayed, stale, skipped, retried, or permanently failed."
+      "text": "Identify tenant sync events and other account, role, or permission synchronization paths; define observable behavior while propagation is delayed, stale, skipped, retried, or permanently failed.",
+      "source_path": "../../../crates/engram_server/src/handlers/planning_tools.rs",
+      "source_contains": "identify tenant sync events and other account, role, or permission synchronization paths"
     },
     {
       "id": "VNEXT-SCOPE-DECISION-FEEDBACK",
       "kind": "obligation",
-      "text": "Preserve the established user-facing message, status, and redirect contract for each tenant decision or scope-selection flag, including disabled, missing, and inaccessible targets."
+      "text": "Preserve the established user-facing message, status, and redirect contract for each tenant decision or scope-selection flag, including disabled, missing, and inaccessible targets.",
+      "source_path": "../../../crates/engram_server/src/handlers/planning_tools.rs",
+      "source_contains": "preserve the established user-facing message, status, and redirect contract for each tenant decision"
     }
   ]
 }
