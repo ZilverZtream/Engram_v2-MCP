@@ -1225,6 +1225,10 @@ pub struct GrepProjectRequest {
     /// Only scan files whose indexed path starts with this prefix.
     #[serde(default)]
     pub path_prefix: Option<String>,
+    /// Skip files whose path starts with any of these prefixes (forward
+    /// slashes, case-insensitive), e.g. bundled output or vendored copies.
+    #[serde(default)]
+    pub exclude_path_prefixes: Vec<String>,
     /// Only scan chunks in this language.
     #[serde(default)]
     pub language: Option<String>,

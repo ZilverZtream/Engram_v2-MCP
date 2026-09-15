@@ -52,7 +52,7 @@ async fn all_grep_tiers_report_source_lines_once_and_retain_retrievable_document
     ] {
         let query = GrepQuery {
             project_id:"p".into(), namespace:"memory".into(), generation:1, pattern:pattern.into(),
-            regex, multiline, case_sensitive:Some(true), path_prefix:None, language:None,
+            regex, multiline, case_sensitive:Some(true), path_prefix:None, exclude_path_prefixes:Vec::new(), language:None,
             context_before:1, context_after:1, max_results:1000, freshness:FreshnessMode::Off,
         };
         let result = grep(&engine, temp.path(), &query, || Ok(Vec::new())).unwrap();
@@ -86,7 +86,7 @@ async fn character_classes_optional_groups_and_encoded_escapes_cannot_invent_req
     for (pattern, expected_line) in [("[abc]",1), ("(longprefix)?bar",2), ("(absent|bar)",2), (r"\x41foo",3)] {
         let query = GrepQuery {
             project_id:"p".into(), namespace:"memory".into(), generation:1, pattern:pattern.into(),
-            regex:true, multiline:false, case_sensitive:Some(true), path_prefix:None, language:None,
+            regex:true, multiline:false, case_sensitive:Some(true), path_prefix:None, exclude_path_prefixes:Vec::new(), language:None,
             context_before:0, context_after:0, max_results:100, freshness:FreshnessMode::Off,
         };
         let result = grep(&engine, temp.path(), &query, || Ok(Vec::new())).unwrap();

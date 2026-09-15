@@ -95,6 +95,7 @@ fn query(pattern: &str, case_sensitive: Option<bool>) -> GrepQuery {
         case_sensitive,
         multiline: false,
         path_prefix: None,
+        exclude_path_prefixes: Vec::new(),
         language: None,
         context_before: 0,
         context_after: 0,
