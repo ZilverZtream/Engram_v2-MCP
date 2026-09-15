@@ -8651,6 +8651,33 @@ fn change_set_contract_checkpoint(
         .collect::<String>();
     use sha2::{Digest, Sha256};
     let checkpoint_digest = format!("{:x}", Sha256::digest(canonical.as_bytes()));
+    let receipt_line = format!(
+        "`get_change_set contract checkpoint: sha256:{checkpoint_digest} obligation_checks={} hypothesis_evidence={} configured_rules={} total={}`",
+        obligation_check_ids.len(),
+        hypothesis_evidence_ids.len(),
+        configured_rule_ids.len(),
+        ordered_ids.len(),
+    );
+    let ledger_header = "| Contract ID | Severity | Requirement | Disposition (SATISFIED_WITH_SOURCE_OR_APPROVED_DECISION / BLOCKING_UNKNOWN / NOT_APPLICABLE_WITH_EVIDENCE) | Evidence | Scenario IDs or question | Oracle guard (PASS / NOT_APPLICABLE_WITH_EVIDENCE) |\n|---|---|---|---|---|---|---|";
+    let ledger_rows = hard_items.iter().filter_map(|item| {
+        let id = item["id"].as_str()?;
+        let severity = item["severity"].as_str().unwrap_or("release_blocking_if_applicable");
+        Some(format!(
+            "| {id} | {severity} | see `contract_checkpoint.hard_items` entry `{id}` | MISSING | | | MISSING |"
+        ))
+    }).collect::<Vec<_>>();
+    let scaffold_markdown = format!(
+        "{receipt_line}\n\n{ledger_header}\n{}",
+        ledger_rows.join("\n")
+    );
+    let workflow_scaffold = serde_json::json!({
+        "status": "INTENTIONALLY_INCOMPLETE_UNTIL_AGENT_SUPPLIES_DISPOSITIONS_AND_EVIDENCE",
+        "receipt_line": receipt_line,
+        "ledger_header": ledger_header,
+        "ledger_rows": ledger_rows,
+        "markdown": scaffold_markdown,
+        "instruction": "Copy this scaffold verbatim, then replace every MISSING disposition and oracle-guard result and fill evidence plus scenario/question mapping. Do not alter ID order or the receipt."
+    });
     serde_json::json!({
         "status": "REQUIRES_EXPLICIT_DISPOSITIONS",
         "receipt": {
@@ -8665,6 +8692,7 @@ fn change_set_contract_checkpoint(
         "hypothesis_evidence_ids": hypothesis_evidence_ids,
         "configured_rule_ids": configured_rule_ids,
         "hard_items": hard_items,
+        "workflow_scaffold": workflow_scaffold,
         "all_items_total": all_obligation_items.len() + all_hypothesis_items.len() + configured_rules.len(),
         "advisory_items_total": all_obligation_items.len() + all_hypothesis_items.len() + configured_rules.len() - ordered_ids.len(),
         "unresolved_boundaries": unresolved_boundaries,
@@ -16146,6 +16174,18 @@ mod change_set_rows_tests {
             checkpoint["hard_items"].as_array().unwrap().len(),
             checkpoint["receipt"]["total"].as_u64().unwrap() as usize,
         );
+        assert_eq!(
+            checkpoint["workflow_scaffold"]["ledger_rows"].as_array().unwrap().len(),
+            checkpoint["receipt"]["total"].as_u64().unwrap() as usize,
+        );
+        assert!(checkpoint["workflow_scaffold"]["receipt_line"]
+            .as_str()
+            .unwrap()
+            .contains("configured_rules=1 total="));
+        assert!(checkpoint["workflow_scaffold"]["markdown"]
+            .as_str()
+            .unwrap()
+            .contains("| Contract ID | Severity | Requirement |"));
         let hard_items = serde_json::to_string(&checkpoint["hard_items"]).unwrap();
         for release_risk in [
             "same-device continuity",
