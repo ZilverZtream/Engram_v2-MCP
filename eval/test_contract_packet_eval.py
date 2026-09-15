@@ -143,6 +143,15 @@ class ContractPacketEvalTests(unittest.TestCase):
         self.assertTrue(result["gates"]["contract_requirements_lossless"])
         self.assertTrue(result["candidate"]["contract_receipt_valid"])
 
+    def test_contract_requirements_include_configured_advisory_rules(self):
+        evidence = {"configured_contract_rules": {"rules": [
+            {"id": "RULE-ADVISORY", "requirement": "inspect the configured behavior"}
+        ]}}
+        self.assertEqual(
+            subject.contract_requirements(evidence),
+            {"RULE-ADVISORY": "inspect the configured behavior"},
+        )
+
     def test_hydrated_rows_rejects_missing_or_wrong_dictionary_entries(self):
         with self.assertRaisesRegex(ValueError, "unresolved impact_question_ref"):
             subject.hydrated_rows({"files": [{"impact_question_ref": "G404"}]}, "files")
