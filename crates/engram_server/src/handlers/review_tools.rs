@@ -117,8 +117,14 @@ impl Engram {
             .any(|(_, value)| value.starts_with("unavailable:"));
         let unexamined: Vec<_> = parsed.iter().filter(|f| f.is_binary || f.hunks.is_empty()).map(|f|
             serde_json::json!({"path":f.path,"reason":if f.is_binary {"binary_content_not_inspected"} else {"no_text_hunks; metadata_only"}})).collect();
+        let unindexed =
+            unindexed_changed_files(&self.state, &req.project_id, &rec.project_type, &parsed).await;
+        let unindexed_count = unindexed
+            .as_array()
+            .map_or_else(|| "unknown".to_string(), |files| files.len().to_string());
         let coverage = serde_json::json!({
             "submitted_files":parsed.iter().map(|f| &f.path).collect::<Vec<_>>(),
+            "unindexed_files":unindexed,
             "textual_diff_files":parsed.iter().filter(|f| !f.is_binary && !f.hunks.is_empty()).map(|f| &f.path).collect::<Vec<_>>(),
             "unexamined_files":unexamined,
             "static_analysis":if gates_run == 0 {"not_run"} else {"gate_scoped; not a complete code audit"},
@@ -191,10 +197,11 @@ impl Engram {
             }
             if compact {
                 report.push_str(&format!(
-                    "\nCoverage: submitted_files={}, textual_diff_files={}, unexamined_files={}, changed_during_review={}, compilation=not_run, tests=not_run. Use detail_level=\"full\" or output_json=true for complete coverage evidence.\n",
+                    "\nCoverage: submitted_files={}, textual_diff_files={}, unexamined_files={}, unindexed_files={}, changed_during_review={}, compilation=not_run, tests=not_run. Use detail_level=\"full\" or output_json=true for complete coverage evidence.\n",
                     parsed.len(),
                     parsed.iter().filter(|f| !f.is_binary && !f.hunks.is_empty()).count(),
                     unexamined.len(),
+                    unindexed_count,
                     changed_during_review,
                 ));
             } else {
@@ -207,6 +214,52 @@ impl Engram {
         };
 
         Ok(CallToolResult::success(vec![Content::text(body)]))
+    }
+}
+
+/// Changed files the index has never seen, typically files this diff adds.
+/// Graph-backed gates have no symbols for them, so their silence is not a
+/// clean result. Deleted and binary files, and extensions the indexer never
+/// takes, are not listed. An unreadable file index is reported as unknown.
+async fn unindexed_changed_files(
+    state: &crate::state::AppState,
+    project_id: &str,
+    project_type: &str,
+    parsed: &[crate::services::pre_commit_review_service::DiffFile],
+) -> serde_json::Value {
+    use crate::services::pre_commit_review_service::ChangeType;
+    let exts = crate::utils::files::exts_for_project_type(project_type);
+    let candidates: Vec<String> = parsed
+        .iter()
+        .filter(|f| !f.is_binary && !matches!(f.change_type, ChangeType::Deleted))
+        .filter(|f| {
+            std::path::Path::new(&f.path)
+                .extension()
+                .and_then(|e| e.to_str())
+                .is_some_and(|e| exts.iter().any(|x| x.eq_ignore_ascii_case(e)))
+        })
+        .map(|f| f.path.clone())
+        .collect();
+    if candidates.is_empty() {
+        return serde_json::json!([]);
+    }
+    let graph = state.graph.clone();
+    let pid = project_id.to_string();
+    match tokio::task::spawn_blocking(move || graph.list_file_node_metadata(&pid)).await {
+        Ok(Ok(rows)) => {
+            let known: std::collections::HashSet<String> = rows
+                .into_iter()
+                .map(|(path, _)| path.as_str().replace('\\', "/").to_ascii_lowercase())
+                .collect();
+            serde_json::json!(
+                candidates
+                    .into_iter()
+                    .filter(|p| !known.contains(&p.replace('\\', "/").to_ascii_lowercase()))
+                    .collect::<Vec<_>>()
+            )
+        }
+        Ok(Err(e)) => serde_json::json!(format!("unknown: file index unreadable ({e})")),
+        Err(e) => serde_json::json!(format!("unknown: file index lookup failed ({e})")),
     }
 }
 
