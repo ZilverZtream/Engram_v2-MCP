@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "candidates": [
+    {
+      "id": "VNEXT-SESSION-PRINCIPAL-BINDING",
+      "kind": "hard_obligation",
+      "text": "Bind any server-session or cached security baseline to the current request principal identity and fail closed for a missing session owner, owner mismatch, principal mismatch, or username change."
+    },
+    {
+      "id": "VNEXT-AUTHORIZATION-SYNC",
+      "kind": "obligation",
+      "text": "Identify tenant sync events and other account, role, or permission synchronization paths; define observable behavior while propagation is delayed, stale, skipped, retried, or permanently failed."
+    },
+    {
+      "id": "VNEXT-SCOPE-DECISION-FEEDBACK",
+      "kind": "obligation",
+      "text": "Preserve the established user-facing message, status, and redirect contract for each tenant decision or scope-selection flag, including disabled, missing, and inaccessible targets."
+    }
+  ]
+}
