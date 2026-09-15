@@ -207,9 +207,14 @@ pub(crate) fn snapshot(
         .and_then(|r| r.head().ok())
         .and_then(|h| h.target())
         .map(|id| id.to_string());
+    // Ignored build output is not a working-tree change; untracked files are.
     let clean = repo
         .as_ref()
-        .and_then(|r| r.statuses(None).ok())
+        .and_then(|r| {
+            let mut options = git2::StatusOptions::new();
+            options.include_ignored(false).include_untracked(true);
+            r.statuses(Some(&mut options)).ok()
+        })
         .map(|s| s.is_empty());
     let mut latest = std::collections::BTreeMap::new();
     for event in &events {
@@ -380,5 +385,39 @@ mod tests {
         assert_eq!(view["current"].as_array().unwrap().len(), 1, "{view}");
         assert_eq!(view["current"][0]["event_id"], "old", "{view}");
         assert_eq!(view["excluded_future_or_unparseable_events"], 3, "{view}");
+    }
+
+    #[test]
+    fn ignored_build_output_does_not_make_the_working_tree_dirty() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let project = tmp.path().join("project");
+        std::fs::create_dir_all(project.join("bin")).unwrap();
+        std::fs::write(project.join(".gitignore"), "bin/\n").unwrap();
+        std::fs::write(project.join("App.cs"), "class App {}\n").unwrap();
+        let repo = git2::Repository::init(&project).unwrap();
+        let mut index = repo.index().unwrap();
+        index.add_path(std::path::Path::new(".gitignore")).unwrap();
+        index.add_path(std::path::Path::new("App.cs")).unwrap();
+        index.write().unwrap();
+        let tree = repo.find_tree(index.write_tree().unwrap()).unwrap();
+        let signature = git2::Signature::now("Test", "test@example.com").unwrap();
+        repo.commit(Some("HEAD"), &signature, &signature, "init", &tree, &[])
+            .unwrap();
+        std::fs::write(project.join("bin").join("App.dll"), [0u8; 4]).unwrap();
+        let cfg = Config {
+            data_dir: tmp.path().join("data"),
+            allowed_roots: vec![project.clone()],
+            embedding_backend: "fts_only".into(),
+            max_concurrent_jobs: 1,
+            ..Default::default()
+        };
+        let (state, _rx) = crate::state::AppState::new(cfg).unwrap();
+
+        let view = snapshot(&state, "p", "PR-1", &project).unwrap();
+        assert_eq!(view["working_tree_clean"], true, "{view}");
+
+        std::fs::write(project.join("App.cs"), "class App { int x; }\n").unwrap();
+        let view = snapshot(&state, "p", "PR-1", &project).unwrap();
+        assert_eq!(view["working_tree_clean"], false, "{view}");
     }
 }
