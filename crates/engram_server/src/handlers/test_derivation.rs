@@ -433,19 +433,23 @@ pub(super) fn intent_risk_axes(intent: Option<&str>) -> Vec<(String, String)> {
     if authentication_lifecycle {
         axes.push((
             "Credential freshness and replay timeline".into(),
-            "supplied change intent affects authentication lifetime: freeze tests for issue -> accept -> authority mutation -> reject stale credential -> restore prior authority -> reject replay. Repeat mutation without an intervening request, exercise stale credentials at login/issue, page, API, asynchronous, refresh and logout entry points, and require a monotonic compare-and-advance rule rather than equality with reusable state".into(),
+            "supplied change intent affects authentication lifetime: freeze tests for issue -> accept -> authority mutation -> reject stale credential -> restore prior authority -> reject replay. Repeat mutation without an intervening request, exercise stale credentials at login/issue, page, API, asynchronous, refresh and logout entry points, and require a monotonic authority. Decide from accepted evidence whether it advances at mutation time or through an atomic compare-and-advance when stale state is detected; do not choose one as an expected result while that product decision is unresolved".into(),
         ));
         axes.push((
             "Credential scope and concurrent-client isolation".into(),
-            "supplied change intent affects authentication lifetime: test two devices, two browser windows, concurrent requests, multiple credentials for one identity, tenant or impersonation transitions, logout scope, password rotation and role/permission changes. State which credentials are invalidated and prove one client cannot restore, terminate or inherit another client's authority accidentally".into(),
+            "supplied change intent affects authentication lifetime: test two devices, two browser windows, concurrent requests, multiple credentials for one identity, tenant or impersonation transitions, logout scope, password rotation and role/permission changes. State invalidation independently for account, tenant, credential, device and acting session; decide tenant-local exemptions and same-device continuity from accepted evidence. Test partial failure between the authoritative mutation and acting-credential synchronization, and prove one client cannot restore, terminate or inherit another client's authority accidentally".into(),
         ));
         axes.push((
             "Durable authority across runtime topology".into(),
-            "supplied change intent affects authentication lifetime: test process restart, application recycle, multiple server instances, cache loss, failover and mixed-version deployment while a shared credential survives. The accepted design must identify a durable current authority and may not depend on per-process or per-session memory for cross-instance invalidation".into(),
+            "supplied change intent affects authentication lifetime: test process restart, application recycle, multiple server instances, cache loss, failover and mixed-version deployment while a shared credential survives. Inspect protected ticket user-data, token claims, signed/encrypted cookie payloads and equivalent credential-carried snapshots. The accepted design must identify a durable current authority and a baseline reconstructible from the surviving credential plus that authority; otherwise forced reauthentication is a blocking product choice, because per-process or per-session memory alone cannot prove cross-instance invalidation".into(),
+        ));
+        axes.push((
+            "Fresh credential issuance and baseline reconstruction".into(),
+            "supplied change intent affects authentication lifetime: separate initial issue from later validation. Test the exact identity proof, issue age/time, audience and tenant scope that may establish a fresh immutable baseline, plus legacy, malformed and missing snapshot payloads. Record bootstrap alternatives as a blocking human decision when evidence does not settle them; do not let the implementation or test plan select its own product behavior".into(),
         ));
         axes.push((
             "Framework session acquisition and request completion".into(),
-            "supplied change intent affects authentication/session processing: inventory which pages, handlers, APIs, modules and child/default-document or rewritten requests acquire read-only, exclusive or no session state. Test same-session concurrency, nested or redirected requests and timeout/cancellation; every request must complete without recursive session locking or unintended session-cookie creation".into(),
+            "supplied change intent affects authentication/session processing: build a request-class by credential-scheme matrix for pages, handlers, APIs, modules and physical-directory/default-document or rewritten requests that acquire read-only, exclusive or no session state. Preserve each scheme's established statefulness and side effects; a stateless header or direct-credential scheme must not begin browser/session authentication state unless an accepted requirement changes it. Test same-session concurrency, nested or redirected requests and timeout/cancellation; every request must complete without recursive session locking or unintended session-cookie creation. Unsettled scheme behavior remains a blocking product question, not an expected test result".into(),
         ));
         axes.push((
             "Authentication response transformation contract".into(),
@@ -2237,6 +2241,7 @@ End Function
             "Credential freshness and replay timeline",
             "Credential scope and concurrent-client isolation",
             "Durable authority across runtime topology",
+            "Fresh credential issuance and baseline reconstruction",
             "Framework session acquisition and request completion",
             "Authentication response transformation contract",
         ] {
@@ -2244,7 +2249,11 @@ End Function
         }
         assert!(joined.contains("restore prior authority") && joined.contains("reject replay"), "{joined}");
         assert!(joined.contains("multiple server instances") && joined.contains("per-process"), "{joined}");
-        assert!(joined.contains("default-document") && joined.contains("recursive session locking"), "{joined}");
+        assert!(joined.contains("protected ticket user-data") && joined.contains("baseline reconstructible from the surviving credential"), "{joined}");
+        assert!(joined.contains("initial issue") && joined.contains("blocking human decision"), "{joined}");
+        assert!(joined.contains("request-class by credential-scheme matrix") && joined.contains("physical-directory/default-document") && joined.contains("recursive session locking") && joined.contains("stateless header"), "{joined}");
+        assert!(joined.contains("same-device continuity") && joined.contains("partial failure") && joined.contains("account, tenant, credential, device and acting session"), "{joined}");
+        assert!(joined.contains("mutation time") && joined.contains("atomic compare-and-advance") && joined.contains("product decision is unresolved"), "{joined}");
         assert!(joined.contains("401/403") && joined.contains("cache/history"), "{joined}");
     }
 
