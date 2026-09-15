@@ -172,14 +172,16 @@ class ContractPacketEvalTests(unittest.TestCase):
 
     def test_signal_diagnostics_names_only_unavailable_regex_groups(self):
         signals = subject.compile_signals([{
-            "id": "partial", "weight": 3, "groups": [["password"], ["rollback|restore"]]
+            "id": "partial", "weight": 3, "lead_paths": ["RecoveryService.cs"],
+            "groups": [["password"], ["rollback|restore"]]
         }])
         diagnostics = subject.signal_diagnostics(
-            [subject.Candidate("A", "row", "password change")], signals
+            [subject.Candidate("A", "row", "password change in src/RecoveryService.cs")], signals
         )
         self.assertEqual(diagnostics[0]["signal_id"], "partial")
         self.assertEqual(diagnostics[0]["available_groups"], 1)
         self.assertEqual(diagnostics[0]["missing_groups"][0]["patterns"], ["rollback|restore"])
+        self.assertEqual(diagnostics[0]["discovery_leads_found"], ["RecoveryService.cs"])
 
     def test_supplements_are_strict_and_measure_material_gain(self):
         with tempfile.TemporaryDirectory() as folder:
