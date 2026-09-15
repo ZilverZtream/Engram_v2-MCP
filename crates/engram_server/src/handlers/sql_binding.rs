@@ -19,10 +19,13 @@ pub(super) fn bind(sql: &str, graph: &GraphStore, pid: &str) -> Result<Binding, 
     let statements = match Parser::parse_sql(&MsSqlDialect {}, sql) {
         Ok(statements) => statements,
         Err(error) => {
+            // The parser cannot tell invalid SQL from valid T-SQL it does not
+            // support (for example `MERGE t WITH (HOLDLOCK) AS a`), so a parse
+            // failure leaves the statement unverified rather than invalid.
             result.issues.push(issue(
-                "fail",
-                "sql_syntax",
-                format!("T-SQL parsing failed: {error}"),
+                "info",
+                "sql_parse_unverified",
+                format!("T-SQL could not be parsed by the validator ({error}). The statement may be invalid or may use syntax this parser does not support; verify it with a database compile."),
             ));
             return Ok(result);
         }

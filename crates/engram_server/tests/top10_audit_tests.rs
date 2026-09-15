@@ -940,8 +940,14 @@ async fn sql_validator_checks_exact_bare_and_aliased_columns_without_certifying_
         ("INSERT INTO Orders (id) VALUES (1)", "PASS"),
         ("INSERT INTO Orders (id) VALUES (1, 2)", "FAIL"),
         ("UPDATE Orders SET id = 1 WHERE missing = 1", "WARN"),
-        ("SELECT [id FROM Orders", "FAIL"),
-        ("this is not SQL", "FAIL"),
+        // A parse failure cannot distinguish invalid SQL from valid T-SQL the
+        // parser does not support, so it is unverified rather than invalid.
+        ("SELECT [id FROM Orders", "INSUFFICIENT"),
+        ("this is not SQL", "INSUFFICIENT"),
+        (
+            "MERGE Orders WITH (HOLDLOCK) AS tgt USING (SELECT 1 AS id) AS src ON tgt.id = src.id WHEN MATCHED THEN UPDATE SET id = 1;",
+            "INSUFFICIENT",
+        ),
     ] {
         let result = engram
             .handle_validate_sql_fragment(

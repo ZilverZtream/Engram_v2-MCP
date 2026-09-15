@@ -65,9 +65,11 @@ fn temporal_source_aliases(file_path: &str, project_root: &Path) -> Vec<String> 
         return aliases;
     }
 
-    if project_root.join(relative).is_file() {
+    if engram_core::safe_join(project_root, &normalized).is_ok_and(|path| path.is_file()) {
         if let Some((_, stripped)) = normalized.split_once('/') {
-            if !stripped.is_empty() && !project_root.join(stripped).exists() {
+            if !stripped.is_empty()
+                && engram_core::safe_join(project_root, stripped).is_ok_and(|path| !path.exists())
+            {
                 aliases.push(format!("file:{stripped}"));
             }
         }
@@ -77,10 +79,8 @@ fn temporal_source_aliases(file_path: &str, project_root: &Path) -> Vec<String> 
             .filter(|entry| entry.file_type().map(|t| t.is_dir()).unwrap_or(false))
             .filter_map(|entry| {
                 let name = entry.file_name().to_string_lossy().to_string();
-                entry
-                    .path()
-                    .join(relative)
-                    .is_file()
+                engram_core::safe_join(&entry.path(), &normalized)
+                    .is_ok_and(|path| path.is_file())
                     .then(|| format!("file:{name}/{normalized}"))
             });
         if let Some(candidate) = prefixed.next()
@@ -103,12 +103,12 @@ fn canonical_temporal_file_id(
         .strip_prefix("file:")
         .unwrap_or(node_id)
         .replace('\\', "/");
-    if project_root.join(&path).is_file() {
+    if engram_core::safe_join(project_root, &path).is_ok_and(|file| file.is_file()) {
         return format!("file:{path}");
     }
     if let Some(prefix) = current_prefix {
         let candidate = format!("{prefix}/{path}");
-        if project_root.join(&candidate).is_file() {
+        if engram_core::safe_join(project_root, &candidate).is_ok_and(|file| file.is_file()) {
             return format!("file:{candidate}");
         }
     }
@@ -1573,9 +1573,8 @@ impl Engram {
             let canonical_source = aliases
                 .iter()
                 .find(|alias| {
-                    project_root
-                        .join(alias.strip_prefix("file:").unwrap_or(alias))
-                        .is_file()
+                    engram_core::safe_join(project_root, alias.strip_prefix("file:").unwrap_or(alias))
+                        .is_ok_and(|path| path.is_file())
                 })
                 .cloned()
                 .unwrap_or_else(|| format!("file:{normalized_request}"));
