@@ -8035,8 +8035,10 @@ fn change_set_cross_cutting_obligations(story: &str) -> Vec<serde_json::Value> {
                 "enumerate every write path for the mutable security state, including administrative pages, APIs, imports, and background work",
                 "decide whether each write must invalidate, advance, reissue, or terminate existing authentication state",
                 "include credential write paths such as password change, reset, recovery, lockout, role or tenant assignment, and administrator edits even when the story names only request-time validation",
-                "compare a security stamp, generation counter, version, or equivalent repository precedent; define its scope across devices and tenants and prevent replay after state is restored",
-                "verify ordering: persist the change before synchronizing the acting user's current session"
+                "compare a security stamp, generation counter, version, or equivalent repository precedent; choose whether invalidation advances at mutation time or uses an atomic compare-and-advance when stale state is detected",
+                "define invalidation scope independently for the account, tenant, credential, device, and acting session; include tenant-local exemptions and same-device continuity only when product evidence supports them",
+                "prove that restoring a prior mutable value cannot revive a credential issued before the intervening change",
+                "verify ordering and partial failure: persist the authoritative change before synchronizing or reissuing the acting credential, and define recovery when either step fails"
             ],
             "candidate_mechanism_roles": ["mutation command handlers", "session or token lifecycle", "audit and operational logging"]
         }));
@@ -8050,7 +8052,10 @@ fn change_set_cross_cutting_obligations(story: &str) -> Vec<serde_json::Value> {
                 "inventory every concrete boundary entry point: controllers, WebMethods or page methods, handlers, middleware, pipeline events, login and logout routes, and client response consumers",
                 "keep framework and thread/request principals synchronized where the stack exposes both",
                 "define denial behavior separately for redirecting pages and machine-readable API or asynchronous requests",
-                "decide credential precedence when more than one scheme is present, including an explicit Authorization header alongside a session or Forms cookie"
+                "decide credential precedence when more than one scheme is present, including an explicit Authorization header alongside a session or browser cookie",
+                "preserve each credential scheme's established state model and side effects; a stateless scheme must not start browser or server-session authentication state unless an explicit accepted requirement says it should",
+                "define fresh-credential bootstrap separately from later revalidation, including proof strength, issue time or age, audience, tenant scope, and the exact protected ticket, token, claim, or cookie payload used",
+                "when repository and product evidence do not settle a scheme's statefulness or bootstrap behavior, record the alternatives as a blocking product question instead of choosing an expected result in the test matrix"
             ],
             "candidate_mechanism_roles": ["application request pipeline", "request pipeline and principal propagation", "authentication or authorization gate", "error and response contract"]
         }));
@@ -8086,7 +8091,7 @@ fn change_set_cross_cutting_obligations(story: &str) -> Vec<serde_json::Value> {
             "obligation": "security decision observability",
             "trigger": "access can be granted, denied, revoked, or revalidated",
             "checks": [
-                "follow the repository's audit convention for security-significant outcomes",
+                "follow the repository's audit convention for security-significant outcomes and resolve the logging API from local precedents in each architectural layer rather than copying a wrapper symbol across layers",
                 "preserve useful actor, subject, reason, and correlation context without recording credentials or secrets"
             ],
             "candidate_mechanism_roles": ["audit and operational logging"]
@@ -8097,9 +8102,10 @@ fn change_set_cross_cutting_obligations(story: &str) -> Vec<serde_json::Value> {
             "obligation": "session acquisition and concurrency",
             "trigger": "the story changes server-side session use or authenticated-session validation",
             "checks": [
-                "prove which request classes acquire writable, read-only, or no session state; stateless calls must not allocate a session cookie",
+                "build a request-class by credential-scheme matrix that proves which entry points acquire writable, read-only, or no session state; schemes established as stateless must not allocate a session or browser cookie",
+                "distinguish anonymous, browser-cookie, header-token, and direct credential requests at each page, API, handler, and asynchronous entry point; preserve the pre-change statefulness of each scheme unless an accepted requirement changes it",
                 "exercise concurrent requests sharing one session and state the intended serialization boundary",
-                "exercise extensionless, directory/default-document, rewrite, reroute, error-transfer, and nested-request paths with a bounded-completion oracle",
+                "exercise extensionless, physical-directory/default-document, rewrite, reroute, error-transfer, and nested-request paths with a bounded-completion oracle",
                 "verify that pipeline re-entry cannot acquire the same session lock twice"
             ],
             "candidate_mechanism_roles": ["application request pipeline", "session or token lifecycle", "endpoint controller"]
@@ -8221,19 +8227,24 @@ fn change_set_component_hypotheses(story: &str) -> Vec<serde_json::Value> {
             "required_contract_evidence": [
                 "the persisted authority and field or claim that changes monotonically",
                 "every mutation writer that advances the authority, including password, permission, role, account, and tenant changes",
-                "the compare-and-advance concurrency or transaction rule",
+                "the invalidation event: mutation-time advance or detection-time atomic compare-and-advance, including idempotence and concurrent stale requests",
+                "the scope of each advance across account, tenant, credential, device, and acting session, including any evidence-backed tenant-local exemption",
+                "same-device continuity after a credential update and recovery when persistence succeeds but acting-credential synchronization or reissue fails",
+                "proof that changing a value away and restoring it cannot make a previously issued credential current again",
                 "schema rollout, existing-row initialization, mixed-version behavior, and rollback"
             ]
         }));
         out.push(serde_json::json!({
             "responsibility": "immutable credential snapshot codec and comparison policy",
-            "verify_against": "existing token, ticket, claims, and authorization-policy abstractions",
+            "verify_against": "existing protected token, ticket, cookie payload, user-data field, claims, and authorization-policy abstractions",
             "decision": "separate codec/policy roles or one established repository abstraction",
             "required_surface_categories": ["authentication_entry_and_refresh", "request_pipeline", "security_state_persistence", "machine_and_browser_consumers"],
             "required_contract_evidence": [
-                "the exact credential fields or claims captured when the credential is issued",
+                "the exact protected credential fields, ticket user-data, token claims, or cookie payload captured when the credential is issued",
                 "issue, decode, validate, refresh, and rejection entry points",
-                "the current authority used for comparison and behavior after process or per-instance state loss",
+                "fresh-issue bootstrap rules: identity proof strength, issue time or age, audience, tenant scope, and when the first immutable baseline is established",
+                "the current authority used for comparison and behavior after process, per-instance, or server-session state loss",
+                "for any credential that survives process or session loss, either a baseline reconstructible from the protected credential plus the authoritative store, or a blocking human decision that forced reauthentication is the product contract; session-only storage cannot silently satisfy this gate",
                 "compatibility and failure behavior for legacy, malformed, missing, and stale credentials"
             ]
         }));
@@ -8522,7 +8533,7 @@ fn change_set_boundary_audit(
         })
     }).collect::<Vec<_>>();
     let unresolved = category_values.iter()
-        .filter(|category| category["status"] == "unresolved")
+        .filter(|category| category["status"] != "evidence_present")
         .filter_map(|category| category["boundary"].as_str())
         .collect::<Vec<_>>();
     let coverage_stops = category_values.iter()
@@ -8541,7 +8552,7 @@ fn change_set_boundary_audit(
         "categories": category_values,
         "unresolved": unresolved,
         "coverage_stops": coverage_stops,
-        "instruction": "For every category, reconcile literal search with graph, state, history, and current source. Evidence present is a starting set, not proof of completeness. An unresolved category needs an evidence-backed not-applicable decision or additional paths; a partial category needs the omitted paths or an independent exhaustive inventory before the feature contract is complete. For ownership changes, explicitly inspect copy, move or reassignment even when the initial story names only create or read behavior."
+        "instruction": "For every category, reconcile literal search with graph, state, history, and current source. Evidence present is a starting set, not proof of completeness. The unresolved list includes both empty and truncated categories: an empty category needs an evidence-backed not-applicable decision or additional paths; a partial category needs the omitted paths or an independent exhaustive inventory before the feature contract is complete. Treat leaf consumers and test-only paths as regression evidence unless behavior originates there; prefer their shared host, registry, middleware, policy, or service as the implementation surface. Resolve conventions such as logging independently from local precedents in each architectural layer. For ownership changes, explicitly inspect copy, move or reassignment even when the initial story names only create or read behavior."
     })
 }
 
@@ -15422,6 +15433,9 @@ mod change_set_rows_tests {
         assert_eq!(deployment["paths_total"], 21);
         assert_eq!(deployment["paths"].as_array().unwrap().len(), 20);
         assert_eq!(audit["status"], "incomplete");
+        assert!(audit["unresolved"].as_array().unwrap().iter().any(|boundary| {
+            boundary == "deployment_and_runtime_prerequisites"
+        }));
         assert!(audit["coverage_stops"].as_array().unwrap().iter().any(|stop| {
             stop["boundary"] == "deployment_and_runtime_prerequisites"
                 && stop["paths_total"] == 21
@@ -15501,9 +15515,8 @@ mod change_set_rows_tests {
 
     #[test]
     fn session_revalidation_proposes_roles_without_repository_specific_paths() {
-        let hypotheses = change_set_component_hypotheses(
-            "Persist a versioned authentication snapshot and revalidate browser sessions after authorization changes",
-        );
+        let story = "Persist a versioned authentication snapshot and revalidate browser sessions after authorization changes";
+        let hypotheses = change_set_component_hypotheses(story);
         let rendered = serde_json::to_string(&hypotheses).unwrap();
         for expected in [
             "current authorization state reader and atomic version store",
@@ -15515,8 +15528,35 @@ mod change_set_rows_tests {
         ] {
             assert!(rendered.contains(expected), "missing {expected}: {rendered}");
         }
+        for expected in [
+            "mutation-time advance or detection-time atomic compare-and-advance",
+            "account, tenant, credential, device, and acting session",
+            "same-device continuity",
+            "protected credential fields, ticket user-data, token claims, or cookie payload",
+            "fresh-issue bootstrap rules",
+            "baseline reconstructible from the protected credential",
+            "session-only storage cannot silently satisfy this gate",
+        ] {
+            assert!(rendered.contains(expected), "missing {expected}: {rendered}");
+        }
+
+        let obligations = serde_json::to_string(&change_set_cross_cutting_obligations(story))
+            .unwrap();
+        for expected in [
+            "preserve each credential scheme's established state model",
+            "blocking product question",
+            "request-class by credential-scheme matrix",
+            "physical-directory/default-document",
+            "local precedents in each architectural layer",
+        ] {
+            assert!(
+                obligations.contains(expected),
+                "missing {expected}: {obligations}"
+            );
+        }
         assert!(!rendered.contains("Site/"));
         assert!(!rendered.contains("OciusX"));
+        assert!(!obligations.contains("OciusX"));
     }
 
     #[test]
@@ -15558,7 +15598,7 @@ mod change_set_rows_tests {
         }).unwrap();
         assert_eq!(snapshot["surface_status"], "incomplete");
         assert!(snapshot["required_contract_evidence"].as_array().unwrap().iter()
-            .any(|item| item.as_str().unwrap().contains("credential fields or claims")));
+            .any(|item| item.as_str().unwrap().contains("protected credential fields")));
         let surfaces = snapshot["concrete_surfaces"].as_array().unwrap();
         assert!(surfaces.iter().any(|surface| {
             surface["boundary"] == "authentication_entry_and_refresh"
