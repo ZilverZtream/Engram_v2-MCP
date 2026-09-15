@@ -41,7 +41,6 @@ fn every_core_tool_exists_and_covers_the_ten_capabilities() {
     );
     for must in [
         "get_change_set",
-        "validate_feature_contract",
         "get_method_edit_context",
         "get_page_context",
         "pre_commit_review",
@@ -118,7 +117,7 @@ fn advertise_all_tools_defaults_to_full_for_rust_and_yaml() {
 }
 
 #[tokio::test]
-async fn protocol_discovery_includes_ociusx_agent_dependencies_with_schemas() {
+async fn protocol_discovery_includes_pilotapp_agent_dependencies_with_schemas() {
     use rmcp::ServiceExt;
     let (_tmp, engram) = engram();
     let expected: BTreeSet<String> = engram

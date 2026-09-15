@@ -149,11 +149,21 @@ async fn json_output_carries_per_file_evidence_and_arm_coverage() {
             "every candidate carries a rationale: {f}"
         );
         assert!(f["evidence_class"].is_string(), "{f}");
-        assert!(f["impact_question"].is_string(), "{f}");
-        assert!(f["exclusion_evidence_required"].is_string(), "{f}");
+        // Compact views move repeated guidance into row_guidance; a row
+        // carries either the text or a reference that resolves to it.
+        for field in ["impact_question", "exclusion_evidence_required"] {
+            let text = f[field].as_str().map(str::to_string).or_else(|| {
+                let reference = f[format!("{field}_ref")].as_str()?;
+                v["row_guidance"]["entries"]
+                    .as_array()?
+                    .iter()
+                    .find(|entry| entry["id"] == reference)
+                    .and_then(|entry| entry["text"].as_str().map(str::to_string))
+            });
+            assert!(text.is_some_and(|t| !t.is_empty()), "{field} missing: {f}");
+        }
     }
     let coverage = v["coverage"].as_object().expect("coverage object");
-    assert_eq!(v["boundary_audit"]["status"], "not_applicable");
     for arm in ["concept", "history", "cochange", "vector"] {
         assert!(
             coverage[arm]["status"].is_string(),
@@ -259,11 +269,9 @@ async fn structured_output_has_compact_reconciled_and_forensic_views() {
     .await;
     assert_eq!(reconciled["view"]["detail"], "reconciled");
     assert!(reconciled["files"].as_array().unwrap().iter().all(|row| row["set"] == "primary"));
-    assert!(reconciled["cross_cutting_obligations"].as_array().unwrap().len() >= 5);
-    assert!(!reconciled["component_hypotheses"].as_array().unwrap().is_empty());
-    assert_eq!(reconciled["boundary_audit"]["status"], "incomplete");
-    assert_eq!(reconciled["boundary_audit"]["categories"].as_array().unwrap().len(), 10);
-    assert!(reconciled["boundary_audit"]["unresolved"].as_array().unwrap().len() > 0);
+    // Engram ships no built-in domain checklist: without configured planning
+    // rules, even an authentication-heavy story yields no contract items.
+    assert!(reconciled["contract_checkpoint"]["hard_items"].as_array().unwrap().is_empty());
     assert!(reconciled["applicable_repository_rules"]["rules"].is_array());
     assert!(reconciled["project_policy_sources"]["sources"].is_array());
 
@@ -356,11 +364,10 @@ async fn one_call_performs_one_full_node_scan() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn concept_expansion_keeps_one_corroborated_entity_bounded_by_default() {
+async fn concept_expansion_is_reported_but_off_by_default() {
     // Gate decision (docs/audits/03 §7): on the 5-PR harness the extra
-    // concepts inflated the weak tier past the tail cap and cost recall. One
-    // index-confirmed compound is now retrieved by default; the rest remain
-    // advisory unless expand_concepts=true.
+    // concepts inflated the weak tier past the tail cap and cost recall, so
+    // they are advisory unless expand_concepts=true.
     let (_tmp, state) = build_state();
     seed(&state);
     let engram = Engram::new(state);
@@ -373,14 +380,13 @@ async fn concept_expansion_keeps_one_corroborated_entity_bounded_by_default() {
     let concepts = v["concepts"].as_array().unwrap();
     assert_eq!(
         concepts.len(),
-        4,
-        "default = three recipe concepts plus one corroborated entity: {concepts:?}"
+        3,
+        "default = the three recipe concepts: {concepts:?}"
     );
-    assert_eq!(concepts[3], "invoicecategory");
     let cands = v["coverage"]["concept_candidates"].as_array().unwrap();
     assert!(
-        cands.len() >= concepts.len(),
-        "every default and remaining index-corroborated extra must be REPORTED: {cands:?}"
+        cands.len() > 3,
+        "index-corroborated extras must still be REPORTED: {cands:?}"
     );
 
     let v = change_set(
@@ -389,8 +395,8 @@ async fn concept_expansion_keeps_one_corroborated_entity_bounded_by_default() {
     )
     .await;
     assert!(
-        v["concepts"].as_array().unwrap().len() >= concepts.len(),
-        "opt-in keeps all resolved candidates and may expand retrieval: {}",
+        v["concepts"].as_array().unwrap().len() > 3,
+        "opt-in expands retrieval: {}",
         v["concepts"]
     );
 }

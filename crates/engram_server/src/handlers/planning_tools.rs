@@ -34,7 +34,6 @@ use std::path::PathBuf;
 const PROJECT_POLICY_SOURCE_CAP: usize = 8;
 const PROJECT_POLICY_SOURCE_CHAR_CAP: usize = 10_000;
 const PROJECT_POLICY_TOTAL_CHAR_CAP: usize = 24_000;
-const BOUNDARY_CANDIDATE_STORE_CAP: usize = 64;
 
 fn is_project_policy_path(path: &str) -> bool {
     let normalized = path.replace('\\', "/");
@@ -159,8 +158,6 @@ pub const CO_CHANGE_DEPTH: usize = 800;
 /// Round-2 audit P0-3: the ranked PRIMARY set is capped here; everything
 /// else renders as a layer-grouped companion.
 pub const CHANGE_SET_PRIMARY_CAP: usize = 40;
-pub const CHANGE_SET_REQUIRED_FAMILY_EXTRA_CAP: usize = 16;
-pub const CHANGE_SET_BOUNDARY_FAMILY_EXTRA_CAP: usize = 8;
 /// Rows above this tier are never primary (tier 2 = concept corroborated
 /// by an independent arm).
 pub const CHANGE_SET_PRIMARY_MAX_TIER: u8 = 2;
@@ -1257,7 +1254,7 @@ impl Engram {
 
         // Literal pass (row-4 audit A2): substring, case-insensitive, over the
         // indexed chunk text — the tokenized index cannot see the stem inside
-        // `rk_redovisningskategorier`; this can.
+        // `kk_kostnadskategorier`; this can.
         let rec_dir = self
             .ensure_project_record(&req.project_id)
             .await
@@ -2577,7 +2574,7 @@ mod implementation_pattern_unit_tests {
             infer_pattern_kind("admin page with a GridView and a save button"),
             PatternKind::Page
         );
-        // Live miss (OciusX G1, 2026-08-29): "user control" / "dropdown" are
+        // Live miss (pilot corpus G1, 2026-08-29): "user control" / "dropdown" are
         // page-side words too.
         assert_eq!(
             infer_pattern_kind(
@@ -2849,21 +2846,21 @@ mod tests {
 
     #[test]
     fn the_best_row_of_each_layer_leads_the_primary_set() {
-        // Round-2 audit P0-3, live r37: rk_redovisningskategorier.sql — the
+        // Round-2 audit P0-3, live r37: kk_kostnadskategorier.sql — the
         // only Data-layer critical file — ranked 37 behind forty Server rows
         // carrying one more signal. A change set spans layers: the best
         // tier<=1 row of EVERY layer belongs in the head of the primary set.
         let mut prov: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
         for i in 0..45 {
             prov.insert(
-                format!("site/app_code/redovisning/file{i:02}.vb"),
+                format!("site/app_code/leverans/file{i:02}.vb"),
                 ["cochange", "concept", "gloss", "vector"]
                     .into_iter()
                     .collect(),
             );
         }
         prov.insert(
-            "db-x.sql/dbo/tables/rk_redovisningskategorier.sql".into(),
+            "db-x.sql/dbo/tables/kk_kostnadskategorier.sql".into(),
             ["cochange", "concept", "gloss"].into_iter().collect(),
         );
         prov.insert(
@@ -2873,7 +2870,7 @@ mod tests {
         let (rows, _) = change_set_rows(&prov);
         let sql = rows
             .iter()
-            .find(|r| r.path.ends_with("rk_redovisningskategorier.sql"))
+            .find(|r| r.path.ends_with("kk_kostnadskategorier.sql"))
             .unwrap();
         assert_eq!(sql.set, "primary", "{sql:?}");
         assert!(
@@ -2905,7 +2902,7 @@ mod tests {
         let mut prov: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
         for i in 0..45 {
             prov.insert(
-                format!("site/app_code/redovisning/file{i:02}.vb"),
+                format!("site/app_code/leverans/file{i:02}.vb"),
                 ["cochange", "concept", "gloss"].into_iter().collect(),
             );
         }
@@ -2932,14 +2929,14 @@ mod tests {
 
     #[test]
     fn change_set_paths_keeps_orm_model_files() {
-        // External audit 2026-08-29 P0-3: the footprint named `iFalt.dbml` and
+        // External audit 2026-08-29 P0-3: the footprint named `iCore.dbml` and
         // the candidate parser dropped it — the LINQ-to-SQL / EF model files
         // must survive the extension alternation like any code file.
         let v = change_set_paths(
-            "touch Site/App_Code/iFalt.dbml and Models/Ocius.edmx next to Site/x.vb",
+            "touch Site/App_Code/iCore.dbml and Models/Pilot.edmx next to Site/x.vb",
         );
-        assert!(v.contains(&"site/app_code/ifalt.dbml".to_string()), "{v:?}");
-        assert!(v.contains(&"models/ocius.edmx".to_string()), "{v:?}");
+        assert!(v.contains(&"site/app_code/icore.dbml".to_string()), "{v:?}");
+        assert!(v.contains(&"models/pilot.edmx".to_string()), "{v:?}");
         assert!(v.contains(&"site/x.vb".to_string()), "{v:?}");
     }
 
@@ -2975,8 +2972,8 @@ mod tests {
         // deliberately NOT recognized — package.json/tsconfig.json co-change with
         // too much to be useful signal.
         assert_eq!(
-            change_set_paths("- `docs/openapi/ox-fiber.yaml`"),
-            vec!["docs/openapi/ox-fiber.yaml".to_string()]
+            change_set_paths("- `docs/openapi/app-api.yaml`"),
+            vec!["docs/openapi/app-api.yaml".to_string()]
         );
         assert_eq!(
             change_set_paths(
@@ -3051,10 +3048,6 @@ mod tests {
             extract_story_concepts("only authorized managers can approve")
                 .contains(&"role".to_string())
         );
-        assert!(
-            extract_story_concepts("Revalidate authenticated sessions")
-                .contains(&"authentication".to_string())
-        );
 
         // No auth language -> no auth concept (no false trigger / noise).
         let plain = extract_story_concepts("Show the invoice filter form on the report page");
@@ -3070,7 +3063,7 @@ mod tests {
         // and stole the concept slots, tanking recall. They must be rejected so
         // the real domain tokens surface.
         let c = extract_story_concepts(
-            "acmeorg0375 a778c06a field worker searches the RoQ code list by redovisning category",
+            "acmeorg0375 a778c06a field worker searches the RoQ code list by leverans category",
         );
         assert!(
             !c.contains(&"a778c06a".to_string()),
@@ -3110,43 +3103,6 @@ mod tests {
         // non-TS/JS paths yield nothing (no false pairing for .json/.css/.vb).
         assert!(transpile_pair_candidates("a/b/config.json").is_empty());
         assert!(transpile_pair_candidates("a/b/page.aspx.vb").is_empty());
-    }
-
-    #[test]
-    fn semantic_script_family_recovers_page_codebehind_and_bundle() {
-        let index = [
-            "modules/dashboard/ts/dashboard.master/dashboard.master.ts",
-            "modules/dashboard/dashboard.master",
-            "modules/dashboard/dashboard.master.vb",
-            "modules/dashboard/~.js/dashboard.master.js",
-            "modules/dashboard/other/dashboard.master.css",
-            "modules/another/dashboard.master",
-        ]
-        .into_iter()
-        .map(str::to_string)
-        .collect::<Vec<_>>();
-        let family = semantic_presentation_family_candidates(
-            "modules/dashboard/ts/dashboard.master/dashboard.master.ts",
-            &index,
-        );
-        assert!(
-            family.contains(&"modules/dashboard/dashboard.master".to_string()),
-            "{family:?}"
-        );
-        assert!(
-            family.contains(&"modules/dashboard/dashboard.master.vb".to_string()),
-            "{family:?}"
-        );
-        assert!(
-            family.contains(&"modules/dashboard/~.js/dashboard.master.js".to_string()),
-            "{family:?}"
-        );
-        assert!(
-            !family.contains(&"modules/another/dashboard.master".to_string()),
-            "must stay inside the feature area: {family:?}"
-        );
-        assert!(semantic_presentation_family_candidates("src/index.ts", &index).is_empty());
-        assert!(semantic_presentation_family_candidates("types/google.d.ts", &index).is_empty());
     }
 
     #[test]
@@ -3274,8 +3230,8 @@ mod tests {
     fn api_spec_docs_finds_contract_documents() {
         use super::{api_spec_docs, is_api_code_path};
         let index: Vec<String> = [
-            "docs/openapi/ox-fiber.yaml",
-            "docs/openapi/ox-core.yaml",
+            "docs/openapi/app-api.yaml",
+            "docs/openapi/app-core.yaml",
             "app_code/api-v2/controllers/roqentriescontroller.vb",
             "node_modules/swagger-ui/dist/swagger-ui.json", // vendor → excluded
             "docs/readme.md",                               // not a spec
@@ -3289,20 +3245,18 @@ mod tests {
             specs,
             vec![
                 "config/swagger.json".to_string(),
-                "docs/openapi/ox-core.yaml".to_string(),
-                "docs/openapi/ox-fiber.yaml".to_string(),
+                "docs/openapi/app-api.yaml".to_string(),
+                "docs/openapi/app-core.yaml".to_string(),
             ]
         );
         // API-layer detection: api-ish path segment + code extension.
         assert!(is_api_code_path(
             "app_code/api-v2/controllers/roqentriescontroller.vb"
         ));
-        assert!(is_api_code_path(
-            "app_code/installationsobjekt/api-json/x.vb"
-        ));
+        assert!(is_api_code_path("app_code/bokningsobjekt/api-json/x.vb"));
         // Not API code: no api segment, or non-code files.
         assert!(!is_api_code_path("modules/dashboard/pages/map.aspx.vb"));
-        assert!(!is_api_code_path("docs/openapi/ox-fiber.yaml"));
+        assert!(!is_api_code_path("docs/openapi/app-api.yaml"));
         // "apiary-docs-archive" style long segments do not count.
         assert!(!is_api_code_path("apiary-docs-archive/util.vb"));
     }
@@ -4952,11 +4906,11 @@ fn story_name_terms(story: &str) -> BTreeSet<String> {
 /// Story concept CANDIDATES (row-1 audit A1). The plain document-order
 /// recipe comes first and is never dropped (it is what the eval validated);
 /// then the author's own domain names: parenthesized glosses ("… category
-/// (huvudredovisningskategori)") and adjacent non-stopword pairs/triples
+/// (huvudkostnadskategori)") and adjacent non-stopword pairs/triples
 /// (noun phrases). [`resolve_story_concepts`] decides which of the extras
 /// survive by asking the index.
 /// External audit 2026-08-29 P0-3: the parenthesized glosses of a story —
-/// "a main reporting category (huvudredovisningskategori)" — are the author
+/// "a main reporting category (huvudkostnadskategori)" — are the author
 /// naming the entity in the code's own language. They are the one class of
 /// candidate that retrieves BY DEFAULT (index-corroborated, compound suffix
 /// split by `resolve_story_concepts`); noun-phrase expansions stay opt-in
@@ -4978,8 +4932,8 @@ pub(crate) fn extract_story_gloss_concepts(story: &str) -> Vec<String> {
 }
 
 /// Which resolved candidates came from a gloss: the gloss itself, its
-/// compacted form, or a compound suffix of it (`huvudredovisningskategori`
-/// → `redovisningskategori`).
+/// compacted form, or a compound suffix of it (`huvudkostnadskategori`
+/// → `kostnadskategori`).
 pub(crate) fn gloss_derived<'a>(glosses: &[String], candidates: &'a [String]) -> Vec<&'a String> {
     candidates
         .iter()
@@ -5053,8 +5007,8 @@ pub(crate) fn extract_story_concept_candidates(story: &str) -> Vec<String> {
 ///   path;
 /// - a single token >= 5 chars that occurs in some indexed path;
 /// - a long single token (>= 10 chars) that does NOT occur as-is but whose
-///   SUFFIX (>= 8 chars) does — a compound split ("huvudredovisningskategori"
-///   -> "redovisningskategori"), which is how the story's language reaches
+///   SUFFIX (>= 8 chars) does — a compound split ("huvudkostnadskategori"
+///   -> "kostnadskategori"), which is how the story's language reaches
 ///   the code's.
 /// Uncorroborated extras are dropped; with an empty index the result is the
 /// plain recipe.
@@ -5142,8 +5096,8 @@ pub(crate) fn resolve_story_concepts(
 }
 
 /// Code-shaped identifiers explicitly written by the story author. These
-/// carry much stronger identity than ordinary prose: `SessionGeneration`,
-/// `aspnet_Membership` and `ResetPassword` can be resolved directly to a
+/// carry much stronger identity than ordinary prose: `TokenEpoch`,
+/// `app_Accounts` and `ResetPassword` can be resolved directly to a
 /// current file or graph symbol without guessing a repository vocabulary.
 /// Keep this generic by recognizing identifier shape rather than names.
 pub(crate) fn extract_story_code_entities(story: &str) -> Vec<String> {
@@ -5216,8 +5170,8 @@ fn code_entity_file_matches(candidate: &str, file_stem: &str) -> bool {
         return true;
     }
     // Prefix recovery is for a compound identifier naming a more specific
-    // state/outcome of an existing compound type (`TenantAccessRevoked` ->
-    // `TenantAccess`). A generic one-word stem such as `Membership` must not
+    // state/outcome of an existing compound type (`LicenseSeatRevoked` ->
+    // `LicenseSeat`). A generic one-word stem such as `Membership` must not
     // pull every similarly named file.
     let stem_parts = split_symmetric_name_tokens(file_stem);
     let compound_prefix = stem_parts.len() >= 2
@@ -5302,12 +5256,6 @@ pub(crate) fn extract_story_concepts(story: &str) -> Vec<String> {
         let auth = "role".to_string();
         if seen.insert(auth.clone()) {
             out.push(auth);
-        }
-    }
-    if lower_story.contains("authenticat") {
-        let authentication = "authentication".to_string();
-        if seen.insert(authentication.clone()) {
-            out.push(authentication);
         }
     }
     out
@@ -6441,9 +6389,6 @@ fn change_set_independent(s: &str) -> bool {
             | "lexicon"
             | "gloss"
             | "family"
-            | "registry_family"
-            | "required_family"
-            | "entrypoint_family"
             | "broad"
             | "disk"
     )
@@ -6457,9 +6402,6 @@ fn change_set_strength(sigs: &BTreeSet<&'static str>) -> usize {
             !matches!(
                 **s,
                 "family"
-                    | "registry_family"
-                    | "required_family"
-                    | "entrypoint_family"
                     | "broad"
                     | "disk"
                     | "specific"
@@ -6469,16 +6411,11 @@ fn change_set_strength(sigs: &BTreeSet<&'static str>) -> usize {
 }
 
 /// Identity used only to merge evidence for the same current source file.
-/// Historical corpora can contain lower-cased and web-root-prefixed spellings
-/// while the active graph carries the repository's real casing.
+/// Historical corpora can contain lower-cased or differently rooted spellings
+/// while the active graph carries the repository's real casing; the
+/// canonicalizer resolves those through an exact key or a unique path suffix.
 fn change_set_path_key(path: &str) -> String {
-    let normalized = path.replace('\\', "/");
-    let normalized = normalized.trim_start_matches('/');
-    normalized
-        .strip_prefix("Site/")
-        .or_else(|| normalized.strip_prefix("site/"))
-        .unwrap_or(normalized)
-        .to_lowercase()
+    path.replace('\\', "/").trim_start_matches('/').to_lowercase()
 }
 
 fn business_logic_source_path(path: &str) -> Option<String> {
@@ -6520,17 +6457,33 @@ fn canonicalize_change_set_evidence(
             .or_insert(path);
     }
 
+    // A corpus path can be rooted differently from the current checkout (for
+    // example before the repository moved its web root). Without an exact key
+    // it resolves to the one indexed path ending with it; an ambiguous suffix
+    // stays unresolved rather than merging unrelated files.
+    let resolve = |path: &str| -> Option<String> {
+        let key = change_set_path_key(path);
+        if let Some(current) = canonical.get(&key) {
+            return Some(current.clone());
+        }
+        let suffix = format!("/{key}");
+        let mut matches = canonical
+            .iter()
+            .filter(|(indexed, _)| indexed.ends_with(&suffix))
+            .map(|(_, current)| current);
+        let first = matches.next()?;
+        matches.next().is_none().then(|| first.clone())
+    };
+
     let old_prov = std::mem::take(prov);
     for (path, signals) in old_prov {
-        let key = change_set_path_key(&path);
-        let target = canonical.get(&key).cloned().unwrap_or(path);
+        let target = resolve(&path).unwrap_or(path);
         prov.entry(target).or_default().extend(signals);
     }
 
     let old_why = std::mem::take(why);
     for (path, reasons) in old_why {
-        let key = change_set_path_key(&path);
-        let target = canonical.get(&key).cloned().unwrap_or(path);
+        let target = resolve(&path).unwrap_or(path);
         let target_reasons = why.entry(target).or_default();
         for reason in reasons {
             if !target_reasons.contains(&reason) {
@@ -6541,86 +6494,12 @@ fn canonicalize_change_set_evidence(
 
     let old_historical = std::mem::take(historical);
     for path in old_historical {
-        let key = change_set_path_key(&path);
         // If the corpus spelling resolves to a current indexed path, it is no
         // longer historical. Keeping the canonical current path in this set made
         // the renderer claim that live files were absent from the index.
-        if !canonical.contains_key(&key) {
+        if resolve(&path).is_none() {
             historical.insert(path);
         }
-    }
-}
-
-/// Existing presentation files that form one deployable unit with a strong
-/// semantic script hit. This covers source layouts where TypeScript lives in
-/// a nested `ts/` directory while the page, code-behind and committed bundle
-/// live elsewhere in the same feature area. The match is deliberately exact
-/// on the script stem and bounded; generic names cannot pull a broad subtree.
-pub(crate) fn semantic_presentation_family_candidates(
-    ps: &str,
-    indexed_paths: &[String],
-) -> Vec<String> {
-    let normalized = ps.replace('\\', "/").to_lowercase();
-    let Some(file) = normalized.rsplit('/').next() else {
-        return Vec::new();
-    };
-    let stem = [".tsx", ".jsx", ".ts", ".js"]
-        .iter()
-        .find_map(|ext| file.strip_suffix(ext));
-    let Some(stem) = stem else {
-        return Vec::new();
-    };
-    if stem.ends_with(".d")
-        || stem.len() < 5
-        || matches!(stem, "index" | "main" | "app" | "default" | "common")
-    {
-        return Vec::new();
-    }
-
-    let area_end = ["/ts/", "/~.js/", "/js/", "/scripts/"]
-        .iter()
-        .filter_map(|marker| normalized.find(marker))
-        .min()
-        .unwrap_or_else(|| normalized.rfind('/').unwrap_or(0));
-    let area = &normalized[..area_end];
-    let family_names: HashSet<String> = [
-        stem.to_string(),
-        format!("{stem}.vb"),
-        format!("{stem}.cs"),
-        format!("{stem}.designer.vb"),
-        format!("{stem}.designer.cs"),
-        format!("{stem}.ts"),
-        format!("{stem}.tsx"),
-        format!("{stem}.js"),
-        format!("{stem}.jsx"),
-        format!("{stem}.css"),
-    ]
-    .into_iter()
-    .collect();
-
-    let mut matches: Vec<String> = indexed_paths
-        .iter()
-        .map(|p| p.replace('\\', "/").to_lowercase())
-        .filter(|candidate| candidate != &normalized)
-        .filter(|candidate| {
-            area.is_empty()
-                || candidate
-                    .strip_prefix(area)
-                    .is_some_and(|remainder| remainder.starts_with('/'))
-        })
-        .filter(|candidate| {
-            candidate
-                .rsplit('/')
-                .next()
-                .is_some_and(|name| family_names.contains(name))
-        })
-        .collect();
-    matches.sort();
-    matches.dedup();
-    if matches.len() <= 12 {
-        matches
-    } else {
-        Vec::new()
     }
 }
 
@@ -6643,17 +6522,10 @@ fn change_set_tier(sigs: &BTreeSet<&'static str>) -> u8 {
         || sigs.contains("entity")
         || sigs.contains("gloss")
         || sigs.contains("name")
-        || sigs.contains("vtop3")
         || corroborated_lexicon;
     let concept = sigs.contains("concept");
     let independent = sigs.iter().filter(|s| change_set_independent(s)).count();
-    if sigs.contains("required_family") && golden {
-        0
-    } else if sigs.contains("entrypoint_family") {
-        1
-    } else if sigs.contains("vtop3") {
-        0
-    } else if golden && change_set_strength(sigs) >= 2 {
+    if golden && change_set_strength(sigs) >= 2 {
         0
     } else if golden {
         1
@@ -6907,7 +6779,6 @@ pub(crate) fn expand_asset_bundle_graph(
 const CALLER_GRAPH_ANCHOR_CAP: usize = 64;
 const CALLER_GRAPH_SYMBOLS_PER_ANCHOR_CAP: usize = 24;
 const CALLER_GRAPH_CALLERS_PER_SYMBOL_CAP: usize = 8;
-const CALLER_GRAPH_RESULTS_PER_ANCHOR_CAP: usize = 12;
 const CALLER_GRAPH_RESULT_CAP: usize = 32;
 
 #[derive(Debug, Clone)]
@@ -6934,34 +6805,10 @@ pub(crate) fn expand_direct_caller_graph(
     graph: &engram_graph::GraphStore,
     project_id: &str,
     anchor_paths: &[String],
-    preferred_symbols: &BTreeMap<String, BTreeSet<String>>,
-    intent_terms: &[String],
 ) -> CallerGraphExpansion {
     let mut result = CallerGraphExpansion::default();
     let mut seen_paths = HashSet::new();
-    let mut normalized_intent = intent_terms
-        .iter()
-        .flat_map(|term| concept_stems(term))
-        .map(|term| normalized_code_entity(&term))
-        .filter(|term| term.len() >= 5)
-        .collect::<BTreeSet<_>>();
-    for term in normalized_intent.clone() {
-        for prefix in ["sub", "parent", "child", "top", "total", "root"] {
-            if let Some(base) = term.strip_prefix(prefix)
-                && base.len() >= 5
-            {
-                normalized_intent.insert(base.to_string());
-            }
-        }
-    }
-    let scoped_ownership_intent = intent_terms.iter().any(|term| {
-        let term = term.to_ascii_lowercase();
-        ["scope", "scoped", "owner", "parent", "child", "subproject", "tenant"]
-            .iter()
-            .any(|cue| term.contains(cue))
-    });
     for anchor_path in anchor_paths.iter().take(CALLER_GRAPH_ANCHOR_CAP) {
-        let mut anchor_results = 0usize;
         // Conventional Web API controllers often have no explicit route
         // attribute: FooController is reached through a concrete .../foo URL.
         // Client extractors preserve those URL nodes. Join only an exact final
@@ -7011,12 +6858,8 @@ pub(crate) fn expand_direct_caller_graph(
                         anchor_path: anchor_path.clone(),
                         edge_kind: "api_route_convention".into(),
                     });
-                    anchor_results += 1;
                     if result.files.len() >= CALLER_GRAPH_RESULT_CAP {
                         return result;
-                    }
-                    if anchor_results >= CALLER_GRAPH_RESULTS_PER_ANCHOR_CAP {
-                        break;
                     }
                 }
             }
@@ -7032,45 +6875,12 @@ pub(crate) fn expand_direct_caller_graph(
             .into_iter()
             .filter(|node| node.node_type == "function")
             .collect();
-        let preferred = preferred_symbols
-            .iter()
-            .find(|(path, _)| path.eq_ignore_ascii_case(anchor_path))
-            .map(|(_, symbols)| symbols);
-        let is_preferred = |name: &str| {
-            let normalized = normalized_code_entity(name);
-            preferred.is_some_and(|symbols| {
-                symbols.iter().any(|symbol| {
-                    let symbol = normalized_code_entity(symbol);
-                    normalized == symbol || normalized.ends_with(&symbol)
-                })
-            })
-        };
-        let matches_intent = |name: &str| {
-            let normalized = normalized_code_entity(name);
-            normalized_intent
-                .iter()
-                .any(|term| normalized.contains(term))
-                || (scoped_ownership_intent
-                    && normalized.contains("by")
-                    && normalized.contains("id"))
-        };
-        // Business-rule hits identify a concrete owner method. Put those
-        // methods ahead of the per-file symbol cap so alphabetical order can
-        // never discard their direct consumers before traversal begins.
-        callable_nodes.sort_by(|a, b| {
-            is_preferred(&b.name)
-                .cmp(&is_preferred(&a.name))
-                .then_with(|| matches_intent(&b.name).cmp(&matches_intent(&a.name)))
-                .then_with(|| a.name.cmp(&b.name))
-        });
-        if preferred.is_some() {
-            callable_nodes.retain(|node| is_preferred(&node.name) || matches_intent(&node.name));
-        }
+        callable_nodes.sort_by(|a, b| a.name.cmp(&b.name));
         if callable_nodes.len() > CALLER_GRAPH_SYMBOLS_PER_ANCHOR_CAP {
             result.truncated_anchor_symbols +=
                 callable_nodes.len() - CALLER_GRAPH_SYMBOLS_PER_ANCHOR_CAP;
         }
-        'targets: for target in callable_nodes
+        for target in callable_nodes
             .into_iter()
             .take(CALLER_GRAPH_SYMBOLS_PER_ANCHOR_CAP)
         {
@@ -7109,12 +6919,8 @@ pub(crate) fn expand_direct_caller_graph(
                     anchor_path: anchor_path.clone(),
                     edge_kind: kind.as_str().to_string(),
                 });
-                anchor_results += 1;
                 if result.files.len() >= CALLER_GRAPH_RESULT_CAP {
                     return result;
-                }
-                if anchor_results >= CALLER_GRAPH_RESULTS_PER_ANCHOR_CAP {
-                    break 'targets;
                 }
             }
         }
@@ -7528,7 +7334,7 @@ mod symmetric_sibling_tests {
             BTreeSet::from(["cochange", "history", "vtop"]),
         );
         prov.insert(
-            "site/app_code/ifalt.designer.vb".into(),
+            "site/app_code/icore.designer.vb".into(),
             BTreeSet::from(["cochange", "concept"]),
         );
         prov.insert(
@@ -7637,199 +7443,11 @@ pub(crate) fn change_set_layer_name(i: usize) -> &'static str {
 /// A deliberately coarse, repository-agnostic role inferred from the artifact
 /// name. It explains why a surfaced path may matter without claiming that the
 /// file must be edited or inventing domain behavior.
-fn is_additive_registry_path(path: &str) -> bool {
-    let lower = path.replace('\\', "/").to_ascii_lowercase();
-    let name = lower.rsplit('/').next().unwrap_or(&lower);
-    lower.ends_with(".resx")
-        || lower.contains("/scripts/post/")
-        || lower.contains("/migrations/")
-        || lower.contains("/seeds/")
-        || name.contains("settingstore")
-        || name.contains("settingsstore")
-        || name.contains("registry")
-        || name.contains("catalog")
-}
-
-/// Normalize the subject named by an additive registry so equivalent
-/// representations can be joined without repository-specific aliases. For
-/// example, `ss_accountsettings.sql`, `AccountSettingStore.vb`, and
-/// `accountsettings.en.resx` all describe the same `accountsetting` subject.
-/// Short generic names such as `text` and `label` deliberately do not qualify;
-/// their locale family is already handled by the exact `.resx` expansion.
-fn additive_registry_subject(path: &str) -> Option<String> {
-    if !is_additive_registry_path(path) {
-        return None;
-    }
-    let lower = path.replace('\\', "/").to_ascii_lowercase();
-    let name = lower.rsplit('/').next().unwrap_or(&lower);
-    let mut stem = name.split('.').next().unwrap_or(name).to_string();
-    for prefix in ["ss_", "tbl_", "sp_"] {
-        if let Some(value) = stem.strip_prefix(prefix) {
-            stem = value.to_string();
-            break;
-        }
-    }
-    let mut compact = stem
-        .chars()
-        .filter(|character| character.is_ascii_alphanumeric())
-        .collect::<String>();
-    for suffix in ["registry", "catalog", "store"] {
-        if let Some(value) = compact.strip_suffix(suffix) {
-            compact = value.to_string();
-            break;
-        }
-    }
-    if compact.ends_with('s') {
-        compact.pop();
-    }
-    (compact.len() >= 6).then_some(compact)
-}
-
-fn additive_registry_family_candidates(path: &str, indexed_paths: &[String]) -> Vec<String> {
-    let Some(subject) = additive_registry_subject(path) else {
-        return Vec::new();
-    };
-    let mut matches = indexed_paths
-        .iter()
-        .filter(|candidate| !candidate.eq_ignore_ascii_case(path))
-        .filter(|candidate| {
-            additive_registry_subject(candidate).as_deref() == Some(subject.as_str())
-        })
-        .cloned()
-        .collect::<Vec<_>>();
-    matches.sort_by_key(|candidate| candidate.to_ascii_lowercase());
-    matches.dedup_by(|left, right| left.eq_ignore_ascii_case(right));
-    matches
-}
-
-fn strongest_registry_hub_paths(
-    candidates: &[(String, u32)],
-    limit: usize,
-) -> HashSet<String> {
-    let mut ranked = candidates
-        .iter()
-        .map(|(path, weight)| (*weight, path.to_ascii_lowercase()))
-        .collect::<Vec<_>>();
-    ranked.sort_by(|left, right| {
-        right.0.cmp(&left.0).then_with(|| left.1.cmp(&right.1))
-    });
-    ranked
-        .into_iter()
-        .take(limit)
-        .map(|(_, path)| path)
-        .collect()
-}
-
-fn webforms_codebehind_family(path: &str) -> Option<(String, &'static str)> {
-    let normalized = path.replace('\\', "/").to_ascii_lowercase();
-    let kind = if normalized.ends_with(".aspx.vb") || normalized.ends_with(".aspx.cs") {
-        "page"
-    } else if normalized.ends_with(".ascx.vb") || normalized.ends_with(".ascx.cs") {
-        "control"
-    } else {
-        return None;
-    };
-    Some((
-        normalized
-            .rsplit_once('/')
-            .map_or(String::new(), |(directory, _)| directory.to_string()),
-        kind,
-    ))
-}
-
-fn authorization_entrypoint_family_candidates(
-    story: &str,
-    prov: &BTreeMap<String, BTreeSet<&'static str>>,
-    indexed_paths: &[String],
-    limit: usize,
-) -> Vec<(String, Vec<String>)> {
-    let lower = story.to_ascii_lowercase();
-    if ![
-        "authoriz",
-        "permission",
-        "role",
-        "privilege",
-        "access control",
-        "restrict access",
-    ]
-    .iter()
-    .any(|term| lower.contains(term))
-    {
-        return Vec::new();
-    }
-
-    let mut anchors_by_directory: BTreeMap<(String, &'static str), Vec<String>> = BTreeMap::new();
-    for (path, signals) in prov {
-        if change_set_tier(signals) > 1 {
-            continue;
-        }
-        if let Some(family) = webforms_codebehind_family(path) {
-            anchors_by_directory
-                .entry(family)
-                .or_default()
-                .push(path.replace('\\', "/"));
-        }
-    }
-    let existing = prov
-        .keys()
-        .map(|path| path.replace('\\', "/").to_ascii_lowercase())
-        .collect::<HashSet<_>>();
-    let mut candidates = Vec::new();
-    for (family, mut anchors) in anchors_by_directory {
-        anchors.sort_by_key(|path| path.to_ascii_lowercase());
-        anchors.dedup_by(|left, right| left.eq_ignore_ascii_case(right));
-        if anchors.len() < 2 {
-            continue;
-        }
-        for path in indexed_paths {
-            if candidates.len() >= limit {
-                break;
-            }
-            if existing.contains(&path.to_ascii_lowercase())
-                || webforms_codebehind_family(path).as_ref() != Some(&family)
-            {
-                continue;
-            }
-            candidates.push((path.clone(), anchors.clone()));
-        }
-        if candidates.len() >= limit {
-            break;
-        }
-    }
-    candidates.sort_by_key(|(path, _)| path.to_ascii_lowercase());
-    candidates.dedup_by(|left, right| left.0.eq_ignore_ascii_case(&right.0));
-    candidates.truncate(limit);
-    candidates
-}
-
-fn cochange_specificity_score(weight: u32, partner_degree: usize) -> u128 {
-    (weight as u128)
-        .saturating_mul(weight as u128)
-        .saturating_mul(1_000_000)
-        / partner_degree.max(1) as u128
-}
-
-fn retain_temporal_hub(path: &str, weight: u32, degree: Option<usize>, hub_degree: usize) -> bool {
-    !degree.is_some_and(|value| value >= hub_degree)
-        || (is_additive_registry_path(path) && weight >= 10)
-}
-
 fn change_set_mechanism_role(path: &str) -> &'static str {
     let lower = path.replace('\\', "/").to_ascii_lowercase();
     let name = lower.rsplit('/').next().unwrap_or(&lower);
     if name.contains("bundleconfig") || name.contains("webpack") || name.contains("vite.config") {
         "asset registration and delivery"
-    } else if lower.ends_with(".resx") {
-        "additive localized resource registry"
-    } else if lower.contains("/scripts/post/")
-        || lower.contains("/migrations/")
-        || lower.contains("/seeds/")
-    {
-        "additive deployment or seed registry"
-    } else if name.contains("settingstore") || name.contains("settingsstore") {
-        "configuration and default registry"
-    } else if name.contains("registry") || name.contains("catalog") {
-        "additive code registry or catalog"
     } else if name.contains("global.asax") || name.contains("startup") || name == "program.cs" {
         "application request pipeline"
     } else if name.contains("middleware") {
@@ -7882,14 +7500,6 @@ fn change_set_impact_question(path: &str) -> &'static str {
     match change_set_mechanism_role(path) {
         "asset registration and delivery" =>
             "Does this registry deliver any changed or newly required client behavior to the affected surface?",
-        "additive localized resource registry" =>
-            "Does the story add or rename a user-visible label, setting description, enum value, permission, or status whose complete locale family must gain a new entry?",
-        "additive deployment or seed registry" =>
-            "Does the story add a setting, default, permission, status, route, or persisted catalog entry that must be created idempotently for existing deployments?",
-        "configuration and default registry" =>
-            "Does the story need a configurable default, feature switch, tenant policy, or cached setting accessor rather than one fixed behavior for every deployment?",
-        "additive code registry or catalog" =>
-            "Does the story introduce a new named item whose first reference is expected to be added to this registry or catalog by the change itself?",
         "application request pipeline" =>
             "Does this pipeline stage acquire state, select a principal, classify the request, or rewrite the response affected by the story?",
         "request pipeline and principal propagation" =>
@@ -7909,7 +7519,7 @@ fn change_set_impact_question(path: &str) -> &'static str {
         "rendered user-interface host" =>
             "Does this host initiate or consume the changed behavior, load its client asset, or need to handle its response and navigation lifecycle?",
         "browser or client behavior" =>
-            "Does this client call the changed endpoint or handle its status, redirect, cache, logout, or navigation lifecycle?",
+            "Does this client call the changed endpoint or handle its status, redirect, cache, or navigation lifecycle?",
         "service boundary" =>
             "Does this service implement or reuse the changed rule across another entry path?",
         _ =>
@@ -7917,10 +7527,7 @@ fn change_set_impact_question(path: &str) -> &'static str {
     }
 }
 
-fn change_set_exclusion_evidence(path: &str, signals: &[&str]) -> &'static str {
-    if is_additive_registry_path(path) {
-        return "absence of a current reference is not exclusion evidence for an additive registry; decide whether the story adds a default, label, setting, permission, status, route, seed, or catalog entry, inspect analogous additions, and exclude this exact file only when source proves it represents a different domain or the contract rejects that mechanism";
-    }
+fn change_set_exclusion_evidence(signals: &[&str]) -> &'static str {
     match change_set_evidence_class(signals) {
         "corroborated_behavioral_candidate" =>
             "inspect the named member or story entity and its historical relationship; exclude only with source evidence that the changed behavior cannot reach this file",
@@ -7970,690 +7577,20 @@ fn ranked_change_set_reasons(
     reasons
 }
 
-/// Cross-cutting mechanism checks implied by the work-item vocabulary. These
-/// are questions for the planner, not claims that a particular implementation
-/// is required. Keeping them in the structured response prevents a strong
-/// lexical file match from narrowing a change to its obvious method while
-/// omitting lifecycle boundaries that commonly carry the observable contract.
-fn change_set_cross_cutting_obligations(story: &str) -> Vec<serde_json::Value> {
-    let lower = story.to_ascii_lowercase();
-    let contains_any = |terms: &[&str]| terms.iter().any(|term| lower.contains(term));
-    let authentication_lifecycle = contains_any(&[
-        "authenticat", "session", "login", "logout", "cookie", "token", "credential",
-        "password", "impersonat", "security stamp", "forms ticket", "revalidat",
-    ]);
-    let authorization_policy = contains_any(&[
-        "authoriz", "permission", "role", "privilege", "access control", "restrict access",
-        "tenant access",
-    ]);
-    let auth = authentication_lifecycle || authorization_policy;
-    let mutation = contains_any(&[
-        "change", "update", "disable", "inactive", "lock", "reset", "revoke", "remove",
-        "assign", "switch", "expire",
-    ]);
-    let browser = contains_any(&[
-        "browser", "client", "javascript", "typescript", "cache", "history", "navigation",
-        "redirect", "ajax", "async", "page",
-    ]);
-    let persistence = contains_any(&[
-        "database", "table", "column", "schema", "persist", "stored procedure", "migration",
-        "generation", "version",
-    ]);
-    let session_lifecycle = contains_any(&[
-        "session", "forms authentication", "formsauthentication", "sessionstate",
-        "session state", "revalidat", "logout",
-    ]);
-    let aspnet_pipeline = contains_any(&[
-        "asp.net", "aspnet", "forms authentication", "formsauthentication", "owin",
-        "global.asax", "webforms", "web forms",
-    ]);
-    let scoped_ownership = contains_any(&[
-        " scoped", "scope ", "scope-", "owned by", "owner", "belongs to", "belong to",
-        "inherit", "override", "fallback", "parent", "child", "subproject", "sub-project",
-        "per tenant", "per customer", "per account", "per project", "per organization",
-        "tenant-specific", "customer-specific", "account-specific", "project-specific",
-        "organization-specific",
-    ]);
-
-    let mut out = Vec::new();
-    if scoped_ownership {
-        out.push(serde_json::json!({
-            "obligation": "scoped ownership and resolution lifecycle",
-            "trigger": "the story introduces or changes ownership, hierarchy, inheritance, override, fallback, or per-scope behavior",
-            "checks": [
-                "identify the authoritative owner key and scope hierarchy, including the behavior for missing, deleted, disabled, or inaccessible owners",
-                "define create, list, read, update, delete, and uniqueness behavior at each scope; state whether uniqueness is global, per owner, per parent, or per effective value",
-                "define resolution precedence between directly owned, inherited, shared, default, and overridden values, including deterministic tie-breaking and whether resolution happens once per collection or independently per item",
-                "cover reassignment or moving between scopes, including authorization at source and destination, duplicate collisions, dependent records, atomicity, and audit history",
-                "cover copy and clone flows in both directions, including which records are eligible, destination collisions, identity regeneration, and whether inherited records become owned copies",
-                "reconcile the same ownership and effective-value rule across UI pages, API versions, imports, background work, reports, cached readers, and direct SQL views or procedures",
-                "follow the repository's audit and notification conventions and include the old owner, new owner, actor, effective fallback, and affected scope when those facts are available"
-            ],
-            "candidate_mechanism_roles": ["service boundary", "persistence schema or data operation", "endpoint controller", "rendered user-interface host", "audit and operational logging"]
-        }));
-    }
-    if auth && mutation {
-        out.push(serde_json::json!({
-            "obligation": "authorization mutation boundaries",
-            "trigger": "the story changes credentials, account state, roles, permissions, tenant access, or another authorization input",
-            "checks": [
-                "enumerate every write path for the mutable security state, including administrative pages, APIs, imports, and background work",
-                "decide whether each write must invalidate, advance, reissue, or terminate existing authentication state",
-                "include credential write paths such as password change, reset, recovery, lockout, role or tenant assignment, and administrator edits even when the story names only request-time validation",
-                "compare a security stamp, generation counter, version, or equivalent repository precedent; choose whether invalidation advances at mutation time or uses an atomic compare-and-advance when stale state is detected",
-                "define invalidation scope independently for the account, tenant, credential, device, and acting session; include tenant-local exemptions and same-device continuity only when product evidence supports them",
-                "prove that restoring a prior mutable value cannot revive a credential issued before the intervening change",
-                "verify ordering and partial failure: persist the authoritative change before synchronizing or reissuing the acting credential, and define recovery when either step fails"
-            ],
-            "candidate_mechanism_roles": ["mutation command handlers", "session or token lifecycle", "audit and operational logging"]
-        }));
-    }
-    if authentication_lifecycle {
-        out.push(serde_json::json!({
-            "obligation": "authentication boundary consistency",
-            "trigger": "the story changes authentication, authorization, or session behavior",
-            "checks": [
-                "compare page, API, bearer, basic, MFA, impersonation, and tenant entry paths that exist in this repository",
-                "inventory every concrete boundary entry point: controllers, WebMethods or page methods, handlers, middleware, pipeline events, login and logout routes, and client response consumers",
-                "build an authentication-pipeline principal map for every request class and credential scheme: identify the principal before and after each framework stage, the gate that validates it, and the denial path; if a gate is skipped, prove the principal is anonymous or independently authenticated",
-                "keep framework and thread/request principals synchronized where the stack exposes both",
-                "define denial behavior separately for redirecting pages and machine-readable API or asynchronous requests",
-                "decide credential precedence when more than one scheme is present, including an explicit Authorization header alongside a session or browser cookie",
-                "treat every user-controlled gate selector such as a header, query parameter, path prefix, cookie, route value, or session-presence check as a bypass boundary; add a negative scenario proving it cannot preserve an otherwise-revoked principal",
-                "compare access before and after the change for every request class and role; any access widening or replacement of a deny default requires an explicit approved human decision",
-                "preserve each credential scheme's established state model and side effects; a stateless scheme must not start browser or server-session authentication state unless an explicit accepted requirement says it should",
-                "define fresh-credential bootstrap separately from later revalidation, including proof strength, issue time or age, audience, tenant scope, and the exact protected ticket, token, claim, or cookie payload used",
-                "bind any server-session or cached security baseline to the current request principal identity and define fail-closed behavior for a missing owner, owner mismatch, principal mismatch, or username change",
-                "name and verify every concrete stateless login or token-issue route; do not infer its bootstrap payload or session behavior from a different credential entry point",
-                "when repository and product evidence do not settle a scheme's statefulness or bootstrap behavior, record the alternatives as a blocking product question instead of choosing an expected result in the test matrix"
-            ],
-            "candidate_mechanism_roles": ["application request pipeline", "request pipeline and principal propagation", "authentication or authorization gate", "error and response contract"]
-        }));
-        out.push(serde_json::json!({
-            "obligation": "complete authentication-state termination",
-            "trigger": "a request can discover stale, revoked, invalid, or signed-out authentication state",
-            "checks": [
-                "inventory every authentication and session artifact that must be expired or abandoned",
-                "keep logout and cleanup callable with stale, malformed, missing, or already-revoked credentials and during primary-store or audit-log failure",
-                "decide whether termination is local-session, tenant-local, account-wide, or multi-device and preserve credentials that are intentionally outside that scope",
-                "clear in-process principals and response caches as well as cookies or tokens",
-                "verify that a copied stale credential and browser back-forward restoration cannot recover protected state"
-            ],
-            "candidate_mechanism_roles": ["session or token lifecycle", "request pipeline and principal propagation", "browser or client behavior", "rendered user-interface host"]
-        }));
-    }
-    if authorization_policy {
-        out.push(serde_json::json!({
-            "obligation": "authorization policy and default rollout",
-            "trigger": "the story adds or changes a role, permission, privilege, access restriction, or tenant authorization policy",
-            "checks": [
-                "define eligible identities, privileged exemptions, explicit deny and allow precedence, and behavior when no per-subject override exists",
-                "decide whether the default is fixed, tenant-configurable, feature-controlled, or migrated for existing subjects; inspect the repository's setting accessor, resource-family, seed, and deployment conventions",
-                "define who may view, grant, revoke, or change the policy for themselves and peers, including recovery from self-lockout and last-administrator cases",
-                "reconcile navigation visibility with server-side enforcement at every page, API, asynchronous, import, and background entry point; hiding a control is not authorization",
-                "identify tenant sync events and other account, role, or permission synchronization paths; define the observable behavior while propagation is delayed, stale, skipped, retried, or permanently failed",
-                "preserve the established user-facing message, status, and redirect contract for each tenant decision or scope-selection flag, including disabled, missing, and inaccessible targets",
-                "test default on and off, explicit deny, explicit allow, unsupported roles, privileged exemptions, cache refresh, tenant isolation, and grant/revoke audit behavior"
-            ],
-            "candidate_mechanism_roles": ["authentication or authorization gate", "configuration and default registry", "additive deployment or seed registry", "additive localized resource registry", "audit and operational logging"]
-        }));
-    }
-    if auth {
-        out.push(serde_json::json!({
-            "obligation": "security decision observability",
-            "trigger": "access can be granted, denied, revoked, or revalidated",
-            "checks": [
-                "follow the repository's audit convention for security-significant outcomes and resolve the logging API from local precedents in each architectural layer rather than copying a wrapper symbol across layers",
-                "preserve useful actor, subject, reason, and correlation context without recording credentials or secrets"
-            ],
-            "candidate_mechanism_roles": ["audit and operational logging"]
-        }));
-    }
-    if session_lifecycle {
-        out.push(serde_json::json!({
-            "obligation": "session acquisition and concurrency",
-            "trigger": "the story changes server-side session use or authenticated-session validation",
-            "checks": [
-                "build a request-class by credential-scheme matrix that proves which entry points acquire writable, read-only, or no session state; schemes established as stateless must not allocate a session or browser cookie",
-                "distinguish anonymous, browser-cookie, header-token, and direct credential requests at each page, API, handler, and asynchronous entry point; preserve the pre-change statefulness of each scheme unless an accepted requirement changes it",
-                "exercise concurrent requests sharing one session and state the intended serialization boundary",
-                "exercise extensionless, physical-directory/default-document, rewrite, reroute, error-transfer, and nested-request paths with a bounded-completion oracle",
-                "verify that pipeline re-entry cannot acquire the same session lock twice"
-            ],
-            "candidate_mechanism_roles": ["application request pipeline", "session or token lifecycle", "endpoint controller"]
-        }));
-    }
-    if auth && aspnet_pipeline {
-        out.push(serde_json::json!({
-            "obligation": "framework authentication-response rewriting",
-            "trigger": "ASP.NET or OWIN authentication can serve both redirecting pages and API or asynchronous requests",
-            "checks": [
-                "verify that framework Forms Authentication does not rewrite an intended 401 into a 302 on API or asynchronous paths",
-                "verify that IIS or custom-error handling does not replace the intended status code and body",
-                "keep redirect targets in an explicit response contract and validate local ReturnUrl or redirect targets before navigation",
-                "exercise partial-page and asynchronous framework transports whose status and redirect headers may be consumed differently from full navigation"
-            ],
-            "candidate_mechanism_roles": ["authentication or authorization gate", "error and response contract", "request pipeline and principal propagation", "browser or client behavior"]
-        }));
-    }
-    if browser || authentication_lifecycle {
-        out.push(serde_json::json!({
-            "obligation": "client delivery and navigation lifecycle",
-            "trigger": "the behavior is observable in a browser or changes interactive authentication state",
-            "checks": [
-                "identify every layout, shell, or entry point that must load the client behavior",
-                "verify asset registration or bundling rather than assuming a new source file is delivered",
-                "cover asynchronous denial, validate local ReturnUrl or other redirect targets, cache headers, and back-forward cache restoration where applicable",
-                "verify that authenticated history cannot be restored after revocation and that client cleanup still works when the server refuses validation"
-            ],
-            "candidate_mechanism_roles": ["asset registration and delivery", "asset delivery consumer or host", "browser or client behavior", "rendered user-interface host", "error and response contract"]
-        }));
-    }
-    if persistence {
-        out.push(serde_json::json!({
-            "obligation": "persistence contract coherence",
-            "trigger": "the story persists or versions state",
-            "checks": [
-                "keep schema, migration or post-deploy script, generated or mapped model, and data access behavior aligned",
-                "define defaults, nullability, concurrency, and rollback or compatibility behavior",
-                "state deployment order and runtime prerequisites for database, application, proxy, rewrite, module, or feature-flag changes; fail with an operator-visible diagnostic when one is missing",
-                "for an added or tightened column, prove the upgrade path for existing rows: explicit backfill, compatible default, or evidence that NULL is accepted end to end",
-                "preserve the schema model's established column-order convention and verify that deployment tooling does not infer a destructive rebuild from an incidental reorder"
-            ],
-            "candidate_mechanism_roles": ["persistence schema or data operation", "configuration and defaults"]
-        }));
-    }
-    attach_obligation_contract_items(out)
-}
-
-fn contract_id_fragment(value: &str) -> String {
-    let mut out = String::new();
-    let mut separator = false;
-    for character in value.chars() {
-        if character.is_ascii_alphanumeric() {
-            if separator && !out.is_empty() {
-                out.push('_');
-            }
-            out.push(character.to_ascii_uppercase());
-            separator = false;
-        } else {
-            separator = true;
-        }
-    }
-    out.trim_matches('_').to_string()
-}
-
-fn obligation_check_severity(check: &str) -> &'static str {
-    let lower = check.to_ascii_lowercase();
-    if [
-        "blocking product question",
-        "stateless",
-        "cannot revive",
-        "compare-and-advance",
-        "partial failure",
-        "session lock",
-        "re-entry",
-        "identity mismatch",
-        "principal mismatch",
-        "authentication-pipeline principal map",
-        "user-controlled gate selector",
-        "access widening",
-        "tenant-local",
-    ]
-    .iter()
-    .any(|term| lower.contains(term))
-    {
-        "release_blocking_if_applicable"
-    } else {
-        "required_if_applicable"
-    }
-}
-
-fn obligation_oracle_guard(check: &str) -> Option<&'static str> {
-    let lower = check.to_ascii_lowercase();
-    if lower.contains("stateless") {
-        Some("A scenario must not assert creation of browser credentials or server-session state for an established stateless scheme unless an approved requirement explicitly changes that scheme.")
-    } else if lower.contains("blocking product question") {
-        Some("Until a human resolves this decision, scenarios must show the competing outcomes and BLOCKING status; they may not select one outcome as the oracle.")
-    } else if lower.contains("cannot revive") || lower.contains("prevent replay") {
-        Some("The frozen scenarios must include change, stale rejection, restore, and replay rejection; equality with a restored mutable value is not a sufficient oracle.")
-    } else if lower.contains("logging api") {
-        Some("A logging symbol is valid only for the architectural layer whose local source precedent is cited; do not propagate one layer's wrapper into another.")
-    } else if lower.contains("session lock") || lower.contains("re-entry") {
-        Some("The scenario set must exercise bounded completion and session allocation for the concrete affected entry-point and routing classes before this check can be satisfied.")
-    } else if lower.contains("identity mismatch") || lower.contains("principal mismatch") {
-        Some("Frozen scenarios must bind the cached or session owner to the current request principal and prove fail-closed behavior after session reuse, identity replacement, or principal mismatch.")
-    } else if lower.contains("authentication-pipeline principal map") {
-        Some("Every affected request class and credential combination must name the active principal and validation gate; a skipped gate may retain authority only when another cited gate authenticates that principal.")
-    } else if lower.contains("user-controlled gate selector") {
-        Some("Each user-controlled header, query, path, cookie, route, or session-state branch that changes validation must have a negative scenario proving it cannot preserve revoked or stale authority.")
-    } else if lower.contains("access widening") {
-        Some("A scenario may widen access relative to the verified pre-change behavior only when it cites an explicit approved human decision.")
-    } else if lower.contains("tenant-local") {
-        Some("Every denial and revocation scenario must assert its exact invalidation scope. A tenant-local denial must preserve credentials and sessions outside that tenant unless an explicit approved decision broadens the scope.")
-    } else {
-        None
-    }
-}
-
-fn hypothesis_evidence_severity(requirement: &str) -> &'static str {
-    let lower = requirement.to_ascii_lowercase();
-    if [
-        "every mutation writer",
-        "partial failure",
-        "persistence succeeds",
-        "process or session loss",
-        "per-instance",
-        "multiple application instance",
-        "proof that changing a value away",
-        "mixed-version",
-        "rollback",
-        "deployment order",
-        "idempotent behavior",
-    ]
-    .iter()
-    .any(|term| lower.contains(term))
-    {
-        "release_blocking_if_applicable"
-    } else {
-        "required_if_applicable"
-    }
-}
-
-fn hypothesis_oracle_guard(requirement: &str) -> Option<&'static str> {
-    let lower = requirement.to_ascii_lowercase();
-    if lower.contains("partial failure") || lower.contains("persistence succeeds") {
-        Some("Frozen scenarios must state the authoritative persisted result and the acting user's continuity or recovery behavior when the primary write succeeds but credential, cache, or session synchronization fails.")
-    } else if lower.contains("process or session loss") || lower.contains("per-instance") {
-        Some("Frozen scenarios must exercise a second process or instance and loss of transient server state; process-local success is not evidence of durable correctness.")
-    } else if lower.contains("mixed-version") || lower.contains("deployment order") || lower.contains("rollback") {
-        Some("Frozen scenarios must cover the supported deployment order, a mixed-version interval, and rollback or fail-closed behavior before this item can be satisfied.")
-    } else if lower.contains("every mutation writer") {
-        Some("The consumer ledger must reconcile every writer found by literal search, graph/state analysis, and historical co-change; one exemplar writer is not complete evidence.")
-    } else if lower.contains("proof that changing a value away") {
-        Some("Frozen scenarios must change, reject stale state, restore the prior mutable value, and prove the originally issued credential remains stale.")
-    } else if lower.contains("idempotent behavior") {
-        Some("Frozen scenarios must cover repeated, concurrent, missing, malformed, and already-completed termination without duplicate or contradictory observable effects.")
-    } else {
-        None
-    }
-}
-
-fn attach_obligation_contract_items(
-    mut obligations: Vec<serde_json::Value>,
-) -> Vec<serde_json::Value> {
-    for (obligation_index, obligation) in obligations.iter_mut().enumerate() {
-        let name = obligation["obligation"]
-            .as_str()
-            .unwrap_or("cross-cutting behavior")
-            .to_string();
-        let obligation_id = format!(
-            "OBL-{:02}-{}",
-            obligation_index + 1,
-            contract_id_fragment(&name)
-        );
-        let checks = obligation["checks"].as_array().cloned().unwrap_or_default();
-        let contract_items = checks
-            .iter()
-            .filter_map(|value| value.as_str())
-            .enumerate()
-            .map(|(check_index, requirement)| {
-                let mut item = serde_json::json!({
-                    "check_id": format!("{obligation_id}-C{:02}", check_index + 1),
-                    "severity": obligation_check_severity(requirement),
-                    "requirement": requirement,
-                    "required_disposition": [
-                        "SATISFIED_WITH_SOURCE_OR_APPROVED_DECISION",
-                        "BLOCKING_UNKNOWN",
-                        "NOT_APPLICABLE_WITH_EVIDENCE"
-                    ]
-                });
-                if let Some(guard) = obligation_oracle_guard(requirement) {
-                    item.as_object_mut()
-                        .expect("contract check is an object")
-                        .insert("oracle_guard".into(), serde_json::json!(guard));
-                }
-                item
-            })
-            .collect::<Vec<_>>();
-        if let Some(object) = obligation.as_object_mut() {
-            object.insert("obligation_id".into(), serde_json::json!(obligation_id));
-            object.insert("contract_items".into(), serde_json::json!(contract_items));
-            object.insert(
-                "contract_gate".into(),
-                serde_json::json!("Every contract item requires one allowed disposition and cited evidence. Missing dispositions keep the feature contract incomplete."),
-            );
-        }
-    }
-    obligations
-}
-
-/// Candidate responsibilities for behavior that usually needs a reusable
-/// boundary of its own. These are deliberately role-level hypotheses: the
-/// repository's existing exemplars and naming conventions decide whether the
-/// responsibility becomes a new file, extends an existing type, or is rejected.
-fn change_set_component_hypotheses(story: &str) -> Vec<serde_json::Value> {
-    let lower = story.to_ascii_lowercase();
-    let has = |terms: &[&str]| terms.iter().any(|term| lower.contains(term));
-    let scoped_ownership = has(&[
-        " scoped", "scope ", "scope-", "owned by", "owner", "belongs to", "belong to",
-        "inherit", "override", "fallback", "parent", "child", "subproject", "sub-project",
-        "per tenant", "per customer", "per account", "per project", "per organization",
-        "tenant-specific", "customer-specific", "account-specific", "project-specific",
-        "organization-specific",
-    ]);
-    let auth = has(&[
-        "authenticat", "authoriz", "session", "login", "logout", "cookie", "token",
-        "credential", "password", "permission", "role", "tenant access",
-    ]);
-    let authorization_policy = has(&[
-        "authoriz", "permission", "role", "privilege", "access control", "restrict access",
-        "tenant access",
-    ]);
-    let mutable_state = has(&[
-        "revalidat", "revoke", "disable", "change", "update", "generation", "version",
-        "current account", "current authorization",
-    ]);
-    let browser = has(&[
-        "browser", "page", "redirect", "cache", "history", "javascript", "client",
-        "cookie", "login", "logout",
-    ]);
-    let persistence = has(&[
-        "database", "persist", "table", "column", "schema", "generation", "version",
-    ]);
-    let mut out = Vec::new();
-    if scoped_ownership {
-        out.push(serde_json::json!({
-            "responsibility": "scoped ownership resolver and lifecycle policy",
-            "verify_against": "existing owner keys, hierarchy traversal, effective-value readers, write services, copy or move flows, APIs, reports, SQL projections, and audit conventions",
-            "decision": "reuse one authoritative resolution policy across entry points, extend an established owner-aware service, or cite why separate implementations cannot diverge",
-            "required_surface_categories": ["scope_owner_persistence", "scope_resolution_and_writes", "scope_consumers", "scope_copy_move_import", "scope_audit_and_observability"],
-            "required_contract_evidence": [
-                "the authoritative owner identity, parent hierarchy, and behavior for missing, inactive, deleted, or inaccessible owners",
-                "direct ownership, inheritance, sharing, override, fallback, and deterministic tie-breaking, including collection-level versus per-item resolution",
-                "create, edit, delete, uniqueness, move or reassignment, and copy behavior at both source and destination scopes",
-                "consistent effective behavior across every UI, API version, import, background job, report, cache, and SQL reader",
-                "audit and notification records that preserve actor, old scope, new scope, and effective fallback without making logging failure corrupt the primary operation"
-            ]
-        }));
-    }
-    if authorization_policy {
-        out.push(serde_json::json!({
-            "responsibility": "authorization policy, administration, and default rollout",
-            "verify_against": "existing permission catalogs, policy predicates, setting/default mechanisms, enforcement surfaces, and grant/revoke workflows",
-            "decision": "one authoritative policy with an explicit fixed or configurable default, or evidence that an existing policy already supplies the complete contract",
-            "required_surface_categories": ["authorization_gates", "security_state_persistence", "deployment_and_runtime_prerequisites", "machine_and_browser_consumers", "audit_and_observability"],
-            "required_contract_evidence": [
-                "eligible roles and identities, privileged exemptions, explicit deny and allow precedence, and the no-override default",
-                "who may view, grant, revoke, or change the policy for themselves and peers, including self-lockout and recovery",
-                "whether the default is fixed, tenant-configurable, feature-controlled, or migrated for existing subjects, with the repository's accessor, resource-family, seed, deployment, and rollback conventions",
-                "every server enforcement and presentation surface, including pages, APIs, asynchronous calls, imports, background work, direct navigation, and hidden controls",
-                "persistence scope, cache invalidation or refresh, tenant isolation, and grant, revoke, and denial observability"
-            ]
-        }));
-    }
-    if auth && mutable_state {
-        out.push(serde_json::json!({
-            "responsibility": "current authorization state reader and atomic version store",
-            "verify_against": "existing repository/service patterns and transaction boundaries",
-            "decision": "new component, extension of an existing data service, or unnecessary",
-            "required_surface_categories": ["credential_and_authorization_mutations", "security_state_persistence", "authentication_entry_and_refresh"],
-            "required_contract_evidence": [
-                "the persisted authority and field or claim that changes monotonically",
-                "every mutation writer that advances the authority, including password, permission, role, account, and tenant changes",
-                "the invalidation event: mutation-time advance or detection-time atomic compare-and-advance, including idempotence and concurrent stale requests",
-                "the scope of each advance across account, tenant, credential, device, and acting session, including any evidence-backed tenant-local exemption",
-                "same-device continuity after a credential update and recovery when persistence succeeds but acting-credential synchronization or reissue fails",
-                "proof that changing a value away and restoring it cannot make a previously issued credential current again",
-                "schema rollout, existing-row initialization, mixed-version behavior, and rollback"
-            ]
-        }));
-        out.push(serde_json::json!({
-            "responsibility": "immutable credential snapshot codec and comparison policy",
-            "verify_against": "existing protected token, ticket, cookie payload, user-data field, claims, and authorization-policy abstractions",
-            "decision": "separate codec/policy roles or one established repository abstraction",
-            "required_surface_categories": ["authentication_entry_and_refresh", "request_pipeline", "security_state_persistence", "machine_and_browser_consumers"],
-            "required_contract_evidence": [
-                "the exact protected credential fields, ticket user-data, token claims, or cookie payload captured when the credential is issued",
-                "issue, decode, validate, refresh, and rejection entry points",
-                "fresh-issue bootstrap rules: identity proof strength, issue time or age, audience, tenant scope, and when the first immutable baseline is established",
-                "the current authority used for comparison and behavior after process, per-instance, or server-session state loss",
-                "for any credential that survives process or session loss, either a baseline reconstructible from the protected credential plus the authoritative store, or a blocking human decision that forced reauthentication is the product contract; session-only storage cannot silently satisfy this gate",
-                "compatibility and failure behavior for legacy, malformed, missing, and stale credentials"
-            ]
-        }));
-    }
-    if auth && has(&["session", "logout", "revoke", "invalid", "expire", "cookie"]) {
-        out.push(serde_json::json!({
-            "responsibility": "central authentication-state termination",
-            "verify_against": "all logout, denial, expiry, revocation, and malformed-credential paths",
-            "decision": "one idempotent lifecycle component or evidence that existing paths are already centralized",
-            "required_surface_categories": ["termination_and_logout", "request_pipeline", "authentication_entry_and_refresh", "machine_and_browser_consumers"],
-            "required_contract_evidence": [
-                "every server entry point that can reject or terminate authentication",
-                "credential, principal, session, and client-state cleanup performed by each path",
-                "idempotent behavior for repeated, concurrent, missing, malformed, and already-expired credentials",
-                "observable API, asynchronous, and browser responses after termination"
-            ]
-        }));
-        out.push(serde_json::json!({
-            "responsibility": "authenticated response cache policy",
-            "verify_against": "existing global filters, response helpers, middleware, and page base classes",
-            "decision": "central policy or explicit per-surface behavior",
-            "required_surface_categories": ["request_pipeline", "machine_and_browser_consumers", "client_delivery_and_hosts"],
-            "required_contract_evidence": [
-                "the shared server location that applies cache headers to authenticated responses",
-                "coverage of pages, APIs, asynchronous calls, redirects, errors, and static delivery exceptions",
-                "browser history and back-navigation behavior after logout, expiry, or revocation"
-            ]
-        }));
-    }
-    if auth && browser {
-        out.push(serde_json::json!({
-            "responsibility": "client authentication lifecycle handler",
-            "verify_against": "asynchronous request wrappers, navigation lifecycle, layouts, bundles, and entry points",
-            "decision": "shared client module plus delivery wiring or evidence that every consumer handles the contract",
-            "required_surface_categories": ["machine_and_browser_consumers", "client_delivery_and_hosts", "authentication_entry_and_refresh"],
-            "required_contract_evidence": [
-                "all client request wrappers and navigation or page lifecycle entry points",
-                "the machine-readable expiry or revocation signal and its redirect/cleanup behavior",
-                "bundle registration, layout, shell, and page hosts that deliver the handler",
-                "deduplication and ordering for simultaneous failures or repeated initialization"
-            ]
-        }));
-    }
-    if auth && persistence {
-        out.push(serde_json::json!({
-            "responsibility": "deployment and recovery contract",
-            "verify_against": "schema rollout ordering, mixed-version behavior, failure mode, rollback, and operator diagnostics",
-            "decision": "documentation/runbook plus executable migration checks or an existing equivalent",
-            "required_surface_categories": ["security_state_persistence", "deployment_and_runtime_prerequisites", "audit_and_observability"],
-            "required_contract_evidence": [
-                "deployment order and prerequisites across schema, application instances, proxy or rewrite rules, modules, and feature flags",
-                "mixed-version and rollback behavior while old and new credentials coexist",
-                "operator-visible startup, migration, decode, validation, and recovery diagnostics"
-            ]
-        }));
-    }
-    out
-}
-
-/// Bind each role-level hypothesis to the concrete boundary evidence retrieved
-/// for this repository. A hypothesis without complete surfaces remains an
-/// explicit planning unknown; prose acknowledgement cannot satisfy the gate.
-fn bind_component_hypothesis_surfaces(
-    hypotheses: Vec<serde_json::Value>,
-    boundary_audit: &serde_json::Value,
-) -> Vec<serde_json::Value> {
-    let categories = boundary_audit["categories"]
-        .as_array()
-        .cloned()
-        .unwrap_or_default();
-    hypotheses
-        .into_iter()
-        .enumerate()
-        .map(|(hypothesis_index, mut hypothesis)| {
-            let responsibility = hypothesis["responsibility"]
-                .as_str()
-                .unwrap_or("component boundary")
-                .to_string();
-            let hypothesis_id = format!(
-                "HYP-{:02}-{}",
-                hypothesis_index + 1,
-                contract_id_fragment(&responsibility)
-            );
-            let requested = hypothesis["required_surface_categories"]
-                .as_array()
-                .cloned()
-                .unwrap_or_default();
-            let evidence_items = hypothesis["required_contract_evidence"]
-                .as_array()
-                .cloned()
-                .unwrap_or_default()
-                .iter()
-                .filter_map(|value| value.as_str())
-                .enumerate()
-                .map(|(evidence_index, requirement)| {
-                    let mut item = serde_json::json!({
-                        "evidence_id": format!("{hypothesis_id}-E{:02}", evidence_index + 1),
-                        "severity": hypothesis_evidence_severity(requirement),
-                        "requirement": requirement,
-                        "required_disposition": [
-                            "SATISFIED_WITH_CONCRETE_SURFACES",
-                            "BLOCKING_UNKNOWN",
-                            "NOT_APPLICABLE_WITH_EVIDENCE"
-                        ]
-                    });
-                    if let Some(guard) = hypothesis_oracle_guard(requirement) {
-                        item.as_object_mut()
-                            .expect("contract evidence is an object")
-                            .insert("oracle_guard".into(), serde_json::json!(guard));
-                    }
-                    item
-                })
-                .collect::<Vec<_>>();
-            let mut surfaces = Vec::new();
-            let mut incomplete = false;
-            for boundary in requested.iter().filter_map(|value| value.as_str()) {
-                if let Some(category) = categories.iter().find(|category| {
-                    category["boundary"].as_str() == Some(boundary)
-                }) {
-                    let status = category["status"].as_str().unwrap_or("unresolved");
-                    incomplete |= status != "evidence_present";
-                    surfaces.push(serde_json::json!({
-                        "boundary": boundary,
-                        "status": status,
-                        "paths": category["paths"],
-                        "paths_total": category["paths_total"],
-                        "retrieved_paths_total": category["retrieved_paths_total"],
-                        "indexed_candidates_total": category["indexed_candidates_total"],
-                        "truncated": category["truncated"],
-                    }));
-                } else {
-                    incomplete = true;
-                    surfaces.push(serde_json::json!({
-                        "boundary": boundary,
-                        "status": "unresolved",
-                        "paths": [],
-                        "paths_total": 0,
-                        "retrieved_paths_total": 0,
-                        "indexed_candidates_total": 0,
-                        "truncated": false,
-                    }));
-                }
-            }
-            if let Some(object) = hypothesis.as_object_mut() {
-                object.insert("hypothesis_id".into(), serde_json::json!(hypothesis_id));
-                object.insert(
-                    "contract_evidence_items".into(),
-                    serde_json::json!(evidence_items),
-                );
-                object.insert("surface_status".into(), serde_json::json!(
-                    if incomplete { "incomplete" } else { "evidence_present" }
-                ));
-                object.insert("concrete_surfaces".into(), serde_json::Value::Array(surfaces));
-                object.insert("verification_gate".into(), serde_json::json!(
-                    "For every required contract item, cite the concrete source paths and behavior. Resolve every missing or partial boundary with additional evidence or an evidence-backed not-applicable decision before implementation planning."
-                ));
-            }
-            hypothesis
-        })
-        .collect()
-}
-
+/// Release-critical contract items come only from configured planning-contract
+/// rules. Engram ships no built-in domain checklist: an organization or
+/// repository supplies dated rules, and this checkpoint turns the hard ones
+/// into a receipt-bound ledger that the feature contract must disposition.
 fn change_set_contract_checkpoint(
-    obligations: &[serde_json::Value],
-    hypotheses: &[serde_json::Value],
-    boundary_audit: &serde_json::Value,
     configured_rules: &[PlanningContractRuleMatch],
 ) -> serde_json::Value {
-    let all_obligation_items = obligations
-        .iter()
-        .flat_map(|obligation| {
-            let obligation_name = obligation["obligation"]
-                .as_str()
-                .unwrap_or("cross-cutting behavior")
-                .to_string();
-            obligation["contract_items"]
-                .as_array()
-                .cloned()
-                .unwrap_or_default()
-                .into_iter()
-                .map(move |item| (obligation_name.clone(), item))
-        })
-        .collect::<Vec<_>>();
-    let all_hypothesis_items = hypotheses
-        .iter()
-        .flat_map(|hypothesis| {
-            let responsibility = hypothesis["responsibility"]
-                .as_str()
-                .unwrap_or("component boundary")
-                .to_string();
-            hypothesis["contract_evidence_items"]
-                .as_array()
-                .cloned()
-                .unwrap_or_default()
-                .into_iter()
-                .map(move |item| (responsibility.clone(), item))
-        })
-        .collect::<Vec<_>>();
-    let is_hard = |item: &serde_json::Value| {
-        item["severity"].as_str() == Some("release_blocking_if_applicable")
-            || item.get("oracle_guard").and_then(|value| value.as_str()).is_some()
-    };
-    let hard_obligation_items = all_obligation_items.iter()
-        .filter(|(_, item)| is_hard(item))
-        .collect::<Vec<_>>();
-    let hard_hypothesis_items = all_hypothesis_items.iter()
-        .filter(|(_, item)| is_hard(item))
-        .collect::<Vec<_>>();
-    let hard_configured_rules = configured_rules.iter()
+    let hard_rules = configured_rules.iter()
         .filter(|rule| rule.severity == "release_blocking_if_applicable" || rule.oracle_guard.is_some())
         .collect::<Vec<_>>();
-    let obligation_check_ids = hard_obligation_items.iter()
-        .filter_map(|(_, item)| item["check_id"].as_str().map(str::to_string))
-        .collect::<Vec<_>>();
-    let hypothesis_evidence_ids = hard_hypothesis_items.iter()
-        .filter_map(|(_, item)| item["evidence_id"].as_str().map(str::to_string))
-        .collect::<Vec<_>>();
-    let configured_rule_ids = hard_configured_rules.iter()
+    let configured_rule_ids = hard_rules.iter()
         .map(|rule| rule.id.clone())
         .collect::<Vec<_>>();
-    let mut hard_items = hard_obligation_items.iter().map(|(group, item)| serde_json::json!({
-        "id": item["check_id"],
-        "kind": "obligation",
-        "group": group,
-        "severity": item["severity"],
-        "requirement": item["requirement"],
-        "oracle_guard": item.get("oracle_guard").cloned().unwrap_or(serde_json::Value::Null),
-    })).chain(hard_hypothesis_items.iter().map(|(group, item)| serde_json::json!({
-        "id": item["evidence_id"],
-        "kind": "hypothesis_evidence",
-        "group": group,
-        "severity": item["severity"],
-        "requirement": item["requirement"],
-        "oracle_guard": item.get("oracle_guard").cloned().unwrap_or(serde_json::Value::Null),
-    }))).chain(hard_configured_rules.iter().map(|rule| serde_json::json!({
+    let hard_items = hard_rules.iter().map(|rule| serde_json::json!({
         "id": rule.id,
         "kind": "configured_rule",
         "group": rule.title,
@@ -8663,54 +7600,16 @@ fn change_set_contract_checkpoint(
         "source": rule.source,
         "introduced_at": rule.introduced_at,
         "provenance": rule.provenance,
-    }))).collect::<Vec<_>>();
-    let unresolved_boundaries = boundary_audit["unresolved"]
-        .as_array()
-        .cloned()
-        .unwrap_or_default();
-    let boundary_items = unresolved_boundaries
-        .iter()
-        .enumerate()
-        .map(|(index, boundary)| {
-            let label = boundary
-                .as_str()
-                .or_else(|| boundary["boundary"].as_str())
-                .unwrap_or("unresolved component boundary");
-            serde_json::json!({
-                "id": format!("BND-{:03}", index + 1),
-                "kind": "unresolved_boundary",
-                "group": label,
-                "severity": "release_blocking_if_applicable",
-                "requirement": format!("Resolve the {label} boundary with concrete source evidence or an evidence-backed not-applicable decision."),
-                "oracle_guard": serde_json::Value::Null,
-            })
-        })
-        .collect::<Vec<_>>();
-    let boundary_ids = boundary_items
-        .iter()
-        .filter_map(|item| item["id"].as_str().map(str::to_string))
-        .collect::<Vec<_>>();
-    hard_items.extend(boundary_items);
-    let ordered_ids = obligation_check_ids
-        .iter()
-        .chain(hypothesis_evidence_ids.iter())
-        .chain(configured_rule_ids.iter())
-        .chain(boundary_ids.iter())
-        .cloned()
-        .collect::<Vec<_>>();
-    let canonical = ordered_ids
+    })).collect::<Vec<_>>();
+    let canonical = configured_rule_ids
         .iter()
         .map(|id| format!("{id}\n"))
         .collect::<String>();
     use sha2::{Digest, Sha256};
     let checkpoint_digest = format!("{:x}", Sha256::digest(canonical.as_bytes()));
     let receipt_line = format!(
-        "`get_change_set contract checkpoint: sha256:{checkpoint_digest} obligation_checks={} hypothesis_evidence={} configured_rules={} unresolved_boundaries={} total={}`",
-        obligation_check_ids.len(),
-        hypothesis_evidence_ids.len(),
+        "`get_change_set contract checkpoint: sha256:{checkpoint_digest} configured_rules={}`",
         configured_rule_ids.len(),
-        boundary_ids.len(),
-        ordered_ids.len(),
     );
     let ledger_header = "| Contract ID | Severity | Requirement | Disposition (SATISFIED_WITH_SOURCE_OR_APPROVED_DECISION / BLOCKING_UNKNOWN / NOT_APPLICABLE_WITH_EVIDENCE) | Evidence | Scenario IDs or question | Oracle guard (PASS / NOT_APPLICABLE_WITH_EVIDENCE) |\n|---|---|---|---|---|---|---|";
     let ledger_rows = hard_items.iter().filter_map(|item| {
@@ -8730,95 +7629,23 @@ fn change_set_contract_checkpoint(
         "instruction": "Copy this scaffold verbatim, then replace every MISSING disposition and oracle-guard result and fill evidence plus scenario/question mapping. Do not alter ID order or the receipt."
     });
     serde_json::json!({
-        "status": "REQUIRES_EXPLICIT_DISPOSITIONS",
+        "status": if hard_items.is_empty() { "NO_CONFIGURED_HARD_RULES" } else { "REQUIRES_EXPLICIT_DISPOSITIONS" },
         "receipt": {
             "receipt_id": format!("sha256:{checkpoint_digest}"),
-            "obligation_checks": obligation_check_ids.len(),
-            "hypothesis_evidence": hypothesis_evidence_ids.len(),
             "configured_rules": configured_rule_ids.len(),
-            "unresolved_boundaries": boundary_ids.len(),
-            "total": ordered_ids.len(),
             "algorithm": "SHA-256 over ordered contract ID LF records"
         },
-        "obligation_check_ids": obligation_check_ids,
-        "hypothesis_evidence_ids": hypothesis_evidence_ids,
         "configured_rule_ids": configured_rule_ids,
-        "boundary_ids": boundary_ids,
         "hard_items": hard_items,
         "workflow_scaffold": workflow_scaffold,
-        "all_items_total": all_obligation_items.len() + all_hypothesis_items.len() + configured_rules.len(),
-        "advisory_items_total": all_obligation_items.len() + all_hypothesis_items.len() + configured_rules.len()
-            - hard_obligation_items.len() - hard_hypothesis_items.len() - hard_configured_rules.len(),
-        "unresolved_boundaries": unresolved_boundaries,
+        "advisory_rules_total": configured_rules.len() - hard_rules.len(),
         "allowed_dispositions": [
             "SATISFIED_WITH_SOURCE_OR_APPROVED_DECISION",
             "BLOCKING_UNKNOWN",
             "NOT_APPLICABLE_WITH_EVIDENCE"
         ],
-        "instruction": "Copy every hard_items ID into the feature contract with one allowed disposition and concrete citations. The checkpoint fails on a missing hard ID, an unresolved boundary, or an expected scenario outcome that contradicts an oracle_guard. Product decisions require an approved human answer; the agent may not satisfy them from a hypothesis or implementation preference.",
-        "advisory_instruction": "The full obligation and hypothesis arrays remain available for investigation. Promote an applicable advisory item into the contract when source evidence shows it can change accepted behavior; do not copy every advisory item mechanically."
+        "instruction": "Copy every hard_items ID into the feature contract with one allowed disposition and concrete citations. The checkpoint fails on a missing hard ID or an expected scenario outcome that contradicts an oracle_guard. Product decisions require an approved human answer. Items come only from configured planning-contract rules; when none are configured there is nothing to disposition."
     })
-}
-
-/// Avoid repeating each requirement in both its legacy source array and its
-/// contract item. Hard items live once in `contract_checkpoint.hard_items`;
-/// these compact groups retain only advisory items plus the context needed to
-/// decide whether an advisory item should be promoted. Full forensic detail
-/// remains available through `detail=full`.
-fn compact_contract_advisories(
-    obligations: &[serde_json::Value],
-    hypotheses: &[serde_json::Value],
-    hard_items: &[serde_json::Value],
-) -> (Vec<serde_json::Value>, Vec<serde_json::Value>) {
-    let hard_ids = hard_items.iter()
-        .filter_map(|item| item["id"].as_str())
-        .collect::<HashSet<_>>();
-    let compact_obligations = obligations.iter().cloned().map(|mut obligation| {
-        if let Some(object) = obligation.as_object_mut() {
-            object.remove("checks");
-            object.remove("contract_gate");
-            let advisory = object.remove("contract_items")
-                .and_then(|value| value.as_array().cloned())
-                .unwrap_or_default()
-                .into_iter()
-                .filter(|item| item["check_id"].as_str().is_none_or(|id| !hard_ids.contains(id)))
-                .collect::<Vec<_>>();
-            if !advisory.is_empty() {
-                object.insert("advisory_contract_items".into(), serde_json::json!(advisory));
-            }
-            object.insert(
-                "evidence_layout".into(),
-                serde_json::json!("release-critical items are in contract_checkpoint.hard_items; this group contains advisory items only"),
-            );
-        }
-        obligation
-    }).collect();
-    let compact_hypotheses = hypotheses.iter().cloned().map(|mut hypothesis| {
-        if let Some(object) = hypothesis.as_object_mut() {
-            object.remove("required_contract_evidence");
-            object.remove("concrete_surfaces");
-            object.remove("verification_gate");
-            let advisory = object.remove("contract_evidence_items")
-                .and_then(|value| value.as_array().cloned())
-                .unwrap_or_default()
-                .into_iter()
-                .filter(|item| item["evidence_id"].as_str().is_none_or(|id| !hard_ids.contains(id)))
-                .collect::<Vec<_>>();
-            if !advisory.is_empty() {
-                object.insert("advisory_contract_evidence".into(), serde_json::json!(advisory));
-            }
-            object.insert(
-                "surface_evidence_ref".into(),
-                serde_json::json!("boundary_audit.categories (join on required_surface_categories)"),
-            );
-            object.insert(
-                "evidence_layout".into(),
-                serde_json::json!("release-critical items are in contract_checkpoint.hard_items; this group contains advisory items only"),
-            );
-        }
-        hypothesis
-    }).collect();
-    (compact_obligations, compact_hypotheses)
 }
 
 /// Replace repeated per-row guidance with stable references. The dictionary is
@@ -8870,308 +7697,6 @@ fn compact_row_guidance(groups: &mut [&mut Vec<serde_json::Value>]) -> serde_jso
     serde_json::json!({
         "entries": entries,
         "instruction": "Resolve every *_ref on a row through this dictionary before classifying the row. References compress repeated text only; they do not weaken or replace the guidance."
-    })
-}
-
-fn boundary_index_candidate(path: &str) -> bool {
-    let normalized = path.replace('\\', "/").to_ascii_lowercase();
-    if ["diff:", "history:", "pr:"].iter().any(|prefix| normalized.starts_with(prefix)) {
-        return false;
-    }
-    let segments = normalized.split('/').collect::<Vec<_>>();
-    if segments.iter().any(|segment| matches!(
-        *segment,
-        "bin" | "obj" | "node_modules" | "bower_components" | "packages" | "vendor"
-            | "dist" | "coverage" | ".git" | ".vs"
-    )) {
-        return false;
-    }
-    if normalized.ends_with(".min.js")
-        || normalized.ends_with(".min.css")
-        || normalized.ends_with(".map")
-        || normalized.ends_with(".refresh")
-    {
-        return false;
-    }
-    [
-        ".vb", ".cs", ".fs", ".js", ".ts", ".aspx", ".ascx", ".master", ".vbhtml",
-        ".cshtml", ".config", ".json", ".yaml", ".yml", ".sql", ".sqlproj", ".dbml",
-        ".edmx", ".asax", ".ashx", ".asmx", ".svc",
-    ]
-    .iter()
-    .any(|extension| normalized.ends_with(extension))
-}
-
-fn boundary_index_relevant(path: &str, auth_applicable: bool, scope_applicable: bool) -> bool {
-    let normalized = path.replace('\\', "/").to_ascii_lowercase();
-    let name = normalized.rsplit('/').next().unwrap_or(&normalized);
-    let depth = normalized.matches('/').count();
-    let infrastructure = ((name == "global.asax"
-        || name == "global.asax.vb"
-        || name == "global.asax.cs"
-        || name == "web.config")
-        && depth <= 2)
-        || ["startup", "middleware", "routeconfig", "bundleconfig", "appsettings"]
-            .iter()
-            .any(|term| name.contains(term));
-    let strong_auth_name = [
-        "auth", "session", "login", "logout", "signin", "signout", "permission",
-        "security", "credential", "token", "oauth", "saml", "mfa", "membership",
-        "principal", "identity", "lockout", "useraccess", "tenantaccess",
-    ]
-    .iter()
-    .any(|term| name.contains(term));
-    let weak_auth_name = ["user", "role", "tenant", "access", "account"]
-        .iter()
-        .any(|term| name.contains(term));
-    let boundary_role_name = [
-        "controller", "service", "provider", "middleware", "filter", "manager",
-        "repository", "store", "command", "handler", "config", "startup", "client",
-        "policy", "gate",
-    ]
-    .iter()
-    .any(|term| name.contains(term));
-    let auth = auth_applicable && (strong_auth_name || (weak_auth_name && boundary_role_name));
-    let scope = scope_applicable && [
-        "owner", "scope", "tenant", "customer", "account", "project", "organization",
-        "parent", "child", "inherit", "override", "fallback", "copy", "clone", "move",
-        "reassign", "transfer", "import",
-    ]
-    .iter()
-    .any(|term| normalized.contains(term));
-    infrastructure || auth || scope
-}
-
-/// Show whether the current evidence set spans lifecycle boundaries implied by
-/// authentication/session or scoped-ownership changes. This is a bounded audit
-/// of retrieved evidence, not a claim that the repository has no additional
-/// entry points. Empty categories become explicit search work.
-fn change_set_boundary_audit(
-    story: &str,
-    rows: &[ChangeSetRow],
-    asset_dependencies: &[AssetGraphFile],
-    caller_dependencies: &[CallerGraphFile],
-    indexed_paths: &[String],
-) -> serde_json::Value {
-    let lower = story.to_ascii_lowercase();
-    let auth_applicable = [
-        "authenticat", "authoriz", "session", "login", "logout", "cookie", "token",
-        "credential", "password", "permission", "role", "impersonat", "tenant access",
-    ].iter().any(|term| lower.contains(term));
-    let scope_applicable = [
-        " scoped", "scope ", "scope-", "owned by", "owner", "belongs to", "belong to",
-        "inherit", "override", "fallback", "parent", "child", "subproject", "sub-project",
-        "per tenant", "per customer", "per account", "per project", "per organization",
-        "tenant-specific", "customer-specific", "account-specific", "project-specific",
-        "organization-specific",
-    ].iter().any(|term| lower.contains(term));
-    if !auth_applicable && !scope_applicable {
-        return serde_json::json!({
-            "status": "not_applicable",
-            "categories": [],
-            "instruction": "No authentication, session, or scoped-ownership boundary vocabulary was detected in the story."
-        });
-    }
-
-    let retrieved_paths = rows.iter()
-        .filter(|row| !row.omitted)
-        .map(|row| row.path.clone())
-        .chain(asset_dependencies.iter().map(|row| row.path.clone()))
-        .chain(caller_dependencies.iter().map(|row| row.path.clone()))
-        .collect::<BTreeSet<_>>();
-    let retrieved_path_keys = retrieved_paths.iter()
-        .map(|path| path.replace('\\', "/").to_ascii_lowercase())
-        .collect::<BTreeSet<_>>();
-    let mut all_paths = retrieved_paths.iter().cloned()
-        .chain(indexed_paths.iter().filter(|path| {
-            boundary_index_candidate(path)
-                && boundary_index_relevant(path, auth_applicable, scope_applicable)
-        }).cloned())
-        .collect::<Vec<_>>();
-    all_paths.sort_by_key(|path| {
-        let key = path.replace('\\', "/").to_ascii_lowercase();
-        (!retrieved_path_keys.contains(&key), key)
-    });
-    all_paths.dedup_by(|left, right| {
-        left.replace('\\', "/").eq_ignore_ascii_case(&right.replace('\\', "/"))
-    });
-
-    let mut categories: BTreeMap<&'static str, BTreeSet<String>> = BTreeMap::new();
-    let mut category_totals: BTreeMap<&'static str, usize> = BTreeMap::new();
-    let mut category_retrieved_totals: BTreeMap<&'static str, usize> = BTreeMap::new();
-    for path in &all_paths {
-        let normalized = path.replace('\\', "/").to_ascii_lowercase();
-        let name = normalized.rsplit('/').next().unwrap_or(&normalized);
-        let role = change_set_mechanism_role(path);
-        let retrieved = retrieved_path_keys.contains(&normalized);
-        let mut add = |categories: &mut BTreeMap<&'static str, BTreeSet<String>>, key, path: &String| {
-            *category_totals.entry(key).or_default() += 1;
-            if retrieved {
-                *category_retrieved_totals.entry(key).or_default() += 1;
-            }
-            let stored = categories.entry(key).or_default();
-            if stored.len() < BOUNDARY_CANDIDATE_STORE_CAP {
-                stored.insert(path.clone());
-            }
-        };
-        if matches!(role, "application request pipeline" | "request pipeline and principal propagation")
-            || ["global.asax", "startup", "middleware", "module", "pipeline"]
-                .iter().any(|term| name.contains(term))
-        {
-            add(&mut categories, "request_pipeline", path);
-        }
-        if role == "authentication or authorization gate"
-            || ["authorize", "authorization", "authfilter", "permission"]
-                .iter().any(|term| name.contains(term))
-        {
-            add(&mut categories, "authorization_gates", path);
-        }
-        if ["login", "signin", "authenticate", "oauth", "saml", "mfa", "refresh", "callback"]
-            .iter().any(|term| name.contains(term))
-        {
-            add(&mut categories, "authentication_entry_and_refresh", path);
-        }
-        if ["logout", "signout", "termination", "cleanup", "revoke"]
-            .iter().any(|term| name.contains(term))
-        {
-            add(&mut categories, "termination_and_logout", path);
-        }
-        if ["password", "membership", "account", "user", "role", "permission", "tenant", "access"]
-            .iter().any(|term| name.contains(term))
-        {
-            add(&mut categories, "credential_and_authorization_mutations", path);
-        }
-        if role == "browser or client behavior"
-            || caller_dependencies.iter().any(|row| row.path.eq_ignore_ascii_case(path))
-        {
-            add(&mut categories, "machine_and_browser_consumers", path);
-        }
-        if matches!(role, "asset registration and delivery" | "rendered user-interface host")
-            || asset_dependencies.iter().any(|row| row.path.eq_ignore_ascii_case(path))
-        {
-            add(&mut categories, "client_delivery_and_hosts", path);
-        }
-        if role == "persistence schema or data operation"
-            || [".sql", ".sqlproj", ".dbml", ".edmx"]
-                .iter().any(|suffix| normalized.ends_with(suffix))
-        {
-            add(&mut categories, "security_state_persistence", path);
-        }
-        if role == "audit and operational logging" {
-            add(&mut categories, "audit_and_observability", path);
-        }
-        if normalized.ends_with(".config")
-            || normalized.ends_with(".yaml")
-            || normalized.ends_with(".yml")
-            || normalized.contains("migration")
-            || normalized.contains("deploy")
-        {
-            add(&mut categories, "deployment_and_runtime_prerequisites", path);
-        }
-        if scope_applicable {
-            if role == "persistence schema or data operation"
-                || [".sql", ".dbml", ".edmx"]
-                    .iter().any(|suffix| normalized.ends_with(suffix))
-            {
-                add(&mut categories, "scope_owner_persistence", path);
-            }
-            if matches!(role, "service boundary" | "endpoint controller" | "persistence schema or data operation") {
-                add(&mut categories, "scope_resolution_and_writes", path);
-            }
-            if matches!(role, "endpoint controller" | "rendered user-interface host" | "browser or client behavior") {
-                add(&mut categories, "scope_consumers", path);
-            }
-            if ["copy", "clone", "move", "reassign", "transfer", "import"]
-                .iter().any(|term| normalized.contains(term))
-            {
-                add(&mut categories, "scope_copy_move_import", path);
-            }
-            if role == "audit and operational logging"
-                || ["audit", "history", "log"]
-                    .iter().any(|term| name.contains(term))
-            {
-                add(&mut categories, "scope_audit_and_observability", path);
-            }
-        }
-    }
-
-    let mut definitions = Vec::new();
-    if auth_applicable {
-        definitions.extend([
-            ("request_pipeline", "request pipeline, middleware, modules, and session acquisition"),
-            ("authorization_gates", "authorization filters and permission gates"),
-            ("authentication_entry_and_refresh", "login, SSO, token issue, callback, MFA, and refresh paths"),
-            ("termination_and_logout", "logout, revocation, expiry, and cleanup paths"),
-            ("credential_and_authorization_mutations", "password, account, role, permission, and tenant write paths"),
-            ("machine_and_browser_consumers", "API, asynchronous, and browser consumers of the response contract"),
-            ("client_delivery_and_hosts", "client assets, bundle registries, layouts, shells, and page hosts"),
-            ("security_state_persistence", "schema, migration, generated model, and state data operations"),
-            ("audit_and_observability", "security audit and failure diagnostics"),
-            ("deployment_and_runtime_prerequisites", "configuration, deployment order, modules, rewrites, and feature prerequisites"),
-        ]);
-    }
-    if scope_applicable {
-        definitions.extend([
-            ("scope_owner_persistence", "owner keys, hierarchy relations, uniqueness constraints, and effective-value persistence"),
-            ("scope_resolution_and_writes", "authoritative resolution, create, update, delete, fallback, and concurrency services"),
-            ("scope_consumers", "UI, API, asynchronous, report, import, and other consumers of owned or effective values"),
-            ("scope_copy_move_import", "copy, clone, import, transfer, move, and reassignment paths across source and destination scopes"),
-            ("scope_audit_and_observability", "owner change, override, fallback, copy, move, and denial audit or diagnostics"),
-        ]);
-    }
-    let category_values = definitions.iter().map(|(key, purpose)| {
-        let paths = categories.get(key).cloned().unwrap_or_default();
-        let total = category_totals.get(key).copied().unwrap_or_default();
-        let retrieved_total = category_retrieved_totals.get(key).copied().unwrap_or_default();
-        let mut ordered_paths = paths.into_iter().collect::<Vec<_>>();
-        ordered_paths.sort_by_key(|path| (
-            !retrieved_path_keys.contains(&path.replace('\\', "/").to_ascii_lowercase()),
-            path.to_ascii_lowercase(),
-        ));
-        let status = if total == 0 {
-            "unresolved"
-        } else if retrieved_total == 0 {
-            "candidate_only"
-        } else if total > 20 || retrieved_total < total {
-            "partial"
-        } else {
-            "evidence_present"
-        };
-        serde_json::json!({
-            "boundary": key,
-            "purpose": purpose,
-            "status": status,
-            "paths": ordered_paths.into_iter().take(20).collect::<Vec<_>>(),
-            "paths_total": total,
-            "retrieved_paths_total": retrieved_total,
-            "indexed_candidates_total": total.saturating_sub(retrieved_total),
-            "truncated": total > 20,
-        })
-    }).collect::<Vec<_>>();
-    let unresolved = category_values.iter()
-        .filter(|category| category["status"] != "evidence_present")
-        .filter_map(|category| category["boundary"].as_str())
-        .collect::<Vec<_>>();
-    let coverage_stops = category_values.iter()
-        .filter(|category| category["status"].as_str()
-            .is_some_and(|status| status == "partial" || status == "candidate_only"))
-        .map(|category| serde_json::json!({
-            "boundary": category["boundary"],
-            "paths_shown": category["paths"].as_array().map_or(0, Vec::len),
-            "paths_total": category["paths_total"],
-            "retrieved_paths_total": category["retrieved_paths_total"],
-            "indexed_candidates_total": category["indexed_candidates_total"],
-            "reason": "indexed lifecycle candidates remain uninspected or candidate paths were truncated; displayed evidence cannot establish complete boundary coverage"
-        }))
-        .collect::<Vec<_>>();
-    let complete = unresolved.is_empty() && coverage_stops.is_empty();
-
-    serde_json::json!({
-        "status": if complete { "covered_by_retrieved_evidence" } else { "incomplete" },
-        "categories": category_values,
-        "unresolved": unresolved,
-        "coverage_stops": coverage_stops,
-        "instruction": "For every category, reconcile literal search with graph, state, history, the indexed path inventory, and current source. Paths already retrieved appear before index-only candidates. An index-only candidate is a search lead, not source evidence: inspect it or record an evidence-backed exclusion. Evidence present is a starting set, not proof of completeness. The unresolved list includes empty, candidate-only, and partial categories: an empty category needs an evidence-backed not-applicable decision or additional paths; candidate-only and partial categories need source inspection, omitted paths, or an independent exhaustive inventory before the feature contract is complete. Treat leaf consumers and test-only paths as regression evidence unless behavior originates there; prefer their shared host, registry, middleware, policy, or service as the implementation surface. Resolve conventions such as logging independently from local precedents in each architectural layer. For ownership changes, explicitly inspect copy, move or reassignment even when the initial story names only create or read behavior."
     })
 }
 
@@ -9395,7 +7920,6 @@ pub(crate) fn change_set_rows(
         // ahead of rows that merely carry more signals.
         a.2.cmp(&b.2)
             .then(b.1.contains("name").cmp(&a.1.contains("name")))
-            .then(b.1.contains("vtop3").cmp(&a.1.contains("vtop3")))
             .then(change_set_strength(b.1).cmp(&change_set_strength(a.1)))
             .then(a.3.cmp(&b.3))
             .then(depth(a.0).cmp(&depth(b.0)))
@@ -9418,39 +7942,11 @@ pub(crate) fn change_set_rows(
     for &i in &heads {
         primary.push(all[i]);
     }
-    let mut ordinary_primary = primary
-        .iter()
-        .filter(|item| {
-            !item.1.contains("required_family") && !item.1.contains("entrypoint_family")
-        })
-        .count();
-    let mut required_family_primary = primary
-        .iter()
-        .filter(|item| item.1.contains("required_family"))
-        .count();
-    let mut boundary_family_primary = primary
-        .iter()
-        .filter(|item| item.1.contains("entrypoint_family"))
-        .count();
     for (i, it) in all.into_iter().enumerate() {
         if heads.contains(&i) {
             continue;
         }
-        let has_primary_slot = if it.1.contains("required_family") {
-            required_family_primary < CHANGE_SET_REQUIRED_FAMILY_EXTRA_CAP
-        } else if it.1.contains("entrypoint_family") {
-            boundary_family_primary < CHANGE_SET_BOUNDARY_FAMILY_EXTRA_CAP
-        } else {
-            ordinary_primary < CHANGE_SET_PRIMARY_CAP
-        };
-        if it.2 <= CHANGE_SET_PRIMARY_MAX_TIER && has_primary_slot {
-            if it.1.contains("required_family") {
-                required_family_primary += 1;
-            } else if it.1.contains("entrypoint_family") {
-                boundary_family_primary += 1;
-            } else {
-                ordinary_primary += 1;
-            }
+        if it.2 <= CHANGE_SET_PRIMARY_MAX_TIER && primary.len() < CHANGE_SET_PRIMARY_CAP {
             primary.push(it);
         } else {
             rest.push(it);
@@ -9464,18 +7960,9 @@ pub(crate) fn change_set_rows(
     });
     let signals = |sigs: &BTreeSet<&'static str>| -> Vec<&'static str> {
         sigs.iter()
-            .filter(|s| {
-                !matches!(
-                    **s,
-                    "family"
-                        | "specific"
-                        | "registry_family"
-                        | "required_family"
-                        | "entrypoint_family"
-                )
-            })
+            .filter(|s| !matches!(**s, "family" | "specific"))
             .map(|s| {
-                if matches!(*s, "vtop" | "vtop3") {
+                if *s == "vtop" {
                     "vector"
                 } else {
                     *s
@@ -9510,7 +7997,6 @@ pub(crate) fn change_set_rows(
         }
         let lname = change_set_layer_name(li);
         let exempt = sigs.contains("vtop")
-            || sigs.contains("vtop3")
             || sigs.contains("family")
             || sigs.contains("gloss");
         let mut omitted = false;
@@ -9645,9 +8131,9 @@ pub(crate) struct ChangeSetCoverage {
     /// repeated detect_incomplete_changes passes used to re-scan 200k nodes
     /// each; they now share one snapshot).
     pub node_scans: usize,
-    /// Index-corroborated entity names found in the story: the three recipe
-    /// concepts first, the strongest resolved extra retrieved by default, then
-    /// advisory extras used when `expand_concepts` is set.
+    /// Index-corroborated entity names found in the story (advisory unless
+    /// `expand_concepts` is set): the three recipe concepts first, then the
+    /// resolved extras.
     pub concept_candidates: Vec<String>,
     /// External audit 2026-08-29 P0-3: the gloss-derived concepts that
     /// retrieved by default (a subset of `concept_candidates`).
@@ -9845,15 +8331,10 @@ fn render_change_set_coverage(cov: &ChangeSetCoverage, omitted: usize) -> String
             cov.gloss_concepts.join(", ")
         ));
     }
-    if let Some(candidate) = cov.concept_candidates.get(3) {
+    if cov.concept_candidates.len() > 3 {
         s.push_str(&format!(
-            "- strongest index-corroborated entity retrieved by default: {candidate}\n",
-        ));
-    }
-    if cov.concept_candidates.len() > 4 {
-        s.push_str(&format!(
-            "- additional entity candidates (advisory — expand_concepts=true to retrieve on all): {}\n",
-            cov.concept_candidates[4..].join(", ")
+            "- entity candidates (index-corroborated, advisory — expand_concepts=true to retrieve on them): {}\n",
+            cov.concept_candidates[3..].join(", ")
         ));
     }
     if omitted > 0 {
@@ -9941,30 +8422,6 @@ fn render_change_set(
          explicitly (the highest-scoring plans in live A/Bs stated every \
          decision; silent omissions were the top failure mode):\n",
     );
-    for obligation in change_set_cross_cutting_obligations(story) {
-        let name = obligation["obligation"].as_str().unwrap_or("cross-cutting behavior");
-        let trigger = obligation["trigger"].as_str().unwrap_or("");
-        s.push_str(&format!("- {name}: {trigger}.\n"));
-        if let Some(checks) = obligation["checks"].as_array() {
-            for check in checks.iter().filter_map(|value| value.as_str()) {
-                s.push_str(&format!("  - {check}.\n"));
-            }
-        }
-    }
-    let component_hypotheses = change_set_component_hypotheses(story);
-    if !component_hypotheses.is_empty() {
-        s.push_str("- Component responsibility hypotheses (verify against existing exemplars; do not create files by default):\n");
-        for hypothesis in component_hypotheses {
-            let responsibility = hypothesis["responsibility"].as_str().unwrap_or("component boundary");
-            let verify = hypothesis["verify_against"].as_str().unwrap_or("current source");
-            s.push_str(&format!("  - {responsibility}; verify against {verify}.\n"));
-            if let Some(requirements) = hypothesis["required_contract_evidence"].as_array() {
-                for requirement in requirements.iter().filter_map(|value| value.as_str()) {
-                    s.push_str(&format!("    - Required evidence: {requirement}.\n"));
-                }
-            }
-        }
-    }
     s.push_str(
         "- Every page touched: edit BOTH the .aspx/.ascx markup AND its \
          .aspx.vb/.ascx.vb code-behind (and .designer.vb if present).\n",
@@ -10057,21 +8514,9 @@ fn render_change_set(
     // Round-2 audit P0-3: a ranked PRIMARY set across layers, then
     // layer-grouped companions. Critical files must land in the primary set.
     let n_primary = rows.iter().filter(|r| r.set == "primary").count();
-    let registry_family_extra = prov
-        .values()
-        .filter(|signals| signals.contains("required_family"))
-        .count()
-        .min(CHANGE_SET_REQUIRED_FAMILY_EXTRA_CAP);
-    let boundary_family_extra = prov
-        .values()
-        .filter(|signals| signals.contains("entrypoint_family"))
-        .count()
-        .min(CHANGE_SET_BOUNDARY_FAMILY_EXTRA_CAP);
-    let effective_primary_cap =
-        CHANGE_SET_PRIMARY_CAP + registry_family_extra + boundary_family_extra;
     s.push_str(&format!(
         "## Primary candidates — ranked by evidence ({n_primary} of {} candidates; cap \
-         {effective_primary_cap} = base {CHANGE_SET_PRIMARY_CAP} + {registry_family_extra} corroborated atomic-family rows + {boundary_family_extra} co-located boundary rows)\nCritical files belong HERE. Rank = evidence tier (0 \
+         {CHANGE_SET_PRIMARY_CAP})\nCritical files belong HERE. Rank = evidence tier (0 \
          strongest: a golden signal corroborated by an independent arm), then the number \
          of independent signals; the layer is shown per row. Work the list top-down.\n",
         rows.len()
@@ -10101,7 +8546,7 @@ fn render_change_set(
             change_set_mechanism_role(&r.path),
             rationale,
             change_set_impact_question(&r.path),
-            change_set_exclusion_evidence(&r.path, &r.signals),
+            change_set_exclusion_evidence(&r.signals),
         ));
     }
     s.push_str(
@@ -10147,8 +8592,6 @@ impl Engram {
         req: crate::models::GetChangeSetRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
-        let project = self.ensure_project_record(&req.project_id).await?;
-        let project_root = std::path::PathBuf::from(&project.directory);
         if req.story.trim().is_empty() {
             return Err(McpError::invalid_params("story must not be empty", None));
         }
@@ -10193,6 +8636,10 @@ impl Engram {
             }
         }
         req.story = story_with_work_item_text(&req.story, req.work_item_text.take())?;
+        // Resolve the project only after intake: an ID-targeted story without
+        // its work-item text must block before any retrieval or lookup.
+        let project = self.ensure_project_record(&req.project_id).await?;
+        let project_root = std::path::PathBuf::from(&project.directory);
         let detail = match req.detail.as_deref().unwrap_or("compact") {
             "compact" => "compact",
             "reconciled" => "reconciled",
@@ -10225,20 +8672,7 @@ impl Engram {
         // drive retrieval when the caller opts in (see the request doc).
         let concept_candidates: Vec<String> = {
             let cands = extract_story_concept_candidates(&retrieval_story);
-            let mut resolved = resolve_story_concepts(&cands, &index_paths, 10);
-            // Preserve explicit authorization/authentication cues ahead of
-            // the IDF-ranked tail. Central security words are common by
-            // nature, but dropping them for rare incidental words removes
-            // the exact surface named by the story.
-            let cue_concepts = extract_story_concepts(&retrieval_story);
-            for cue in cue_concepts.iter().skip(3).rev() {
-                if let Some(position) = resolved.iter().position(|item| item == cue) {
-                    resolved.remove(position);
-                }
-                resolved.insert(resolved.len().min(3), cue.clone());
-            }
-            resolved.truncate(10);
-            resolved
+            resolve_story_concepts(&cands, &index_paths, 10)
         };
         // External audit 2026-08-29 P0-3: an explicit gloss retrieves by DEFAULT.
         let gloss_terms = extract_story_gloss_concepts(&retrieval_story);
@@ -10272,16 +8706,6 @@ impl Engram {
             _ if req.expand_concepts => concept_candidates.clone(),
             _ => {
                 let mut base = extract_story_concepts(&retrieval_story);
-                // Add the single strongest low-document-frequency entity that
-                // the index corroborates. This commonly recovers the compact
-                // code noun for a spaced story phrase (`price lists` ->
-                // `pricelists`) without reopening the old all-noun-phrases
-                // fan-out that flooded the weak tier.
-                if let Some(corroborated) = concept_candidates.iter().skip(3).next()
-                    && !base.contains(corroborated)
-                {
-                    base.push(corroborated.clone());
-                }
                 for g in gloss_concepts
                     .iter()
                     .chain(lexicon_concepts.iter().take(LEXICON_CONCEPT_CAP))
@@ -10442,7 +8866,6 @@ impl Engram {
         // Only the checked-out source path is promoted. Rule prose and model
         // inference still require query_business_logic/source verification.
         let business_started = std::time::Instant::now();
-        let mut business_member_anchors = BTreeMap::<String, BTreeSet<String>>::new();
         let business_query = if concepts.is_empty() {
             retrieval_story.clone()
         } else {
@@ -10506,10 +8929,6 @@ impl Engram {
                                 .unwrap_or("unknown member")
                                 .trim_end_matches(".md")
                                 .to_string();
-                            business_member_anchors
-                                .entry(current.clone())
-                                .or_default()
-                                .insert(member.clone());
                             why.entry(current.clone()).or_default().push(format!(
                                 "business-rule match anchors the story to member `{member}` in this checked-out source file; inspect that method and its source-verified rule card before excluding it"
                             ));
@@ -10665,7 +9084,6 @@ impl Engram {
         }))
         .await;
         let mut broad_terms: Vec<String> = Vec::new();
-        let mut footprint_rows: Vec<(String, bool, bool, usize, bool, Vec<String>)> = Vec::new();
         for (c, res) in concepts.iter().zip(footprints) {
             match res {
                 Ok(r) => {
@@ -10674,7 +9092,7 @@ impl Engram {
                         let from_lexicon = lexicon_concepts.contains(c);
                         // Round-2 audit P0-3 (IDF / specificity): a term that
                         // matches BROAD_CONCEPT_MIN_FILES+ files cannot
-                        // discriminate; its hits are labelled `broad` and are
+                        // discriminate — its hits are labelled `broad` and are
                         // never evidence nor vector seeds. The author's explicit
                         // gloss is exempt.
                         let total = footprint_total(&t.text);
@@ -10682,114 +9100,41 @@ impl Engram {
                         if broad {
                             broad_terms.push(format!("'{c}' ({total} files)"));
                         }
-                        let paths = change_set_paths(&t.text)
-                            .into_iter()
-                            .filter(|path| !engram_core::is_vendor_path(path))
-                            .collect::<Vec<_>>();
-                        concept_hits += paths.len();
-                        footprint_rows.push((
-                            c.clone(),
-                            from_gloss,
-                            from_lexicon,
-                            total,
-                            broad,
-                            paths,
-                        ));
+                        for p in change_set_paths(&t.text) {
+                            if !engram_core::is_vendor_path(&p) {
+                                concept_hits += 1;
+                                if broad {
+                                    why.entry(p.clone()).or_default().push(format!(
+                                        "matches '{c}' — too common in this index ({total} \
+                                         files) to discriminate; not counted as evidence"
+                                    ));
+                                    prov.entry(p).or_default().insert("broad");
+                                    continue;
+                                }
+                                if !prov.contains_key(&p) {
+                                    seed_order.push(p.clone());
+                                }
+                                why.entry(p.clone()).or_default().push(if from_gloss {
+                                    format!("matches the story's explicit gloss '{c}'")
+                                } else if from_lexicon {
+                                    format!("matches '{c}' — the project's .resx translation of the story's English term")
+                                } else {
+                                    format!("name/content matches concept '{c}'")
+                                });
+                                let e = prov.entry(p).or_default();
+                                e.insert("concept");
+                                e.insert("specific");
+                                if from_gloss {
+                                    e.insert("gloss");
+                                }
+                                if from_lexicon {
+                                    e.insert("lexicon");
+                                }
+                            }
+                        }
                     }
                 }
                 Err(e) => concept_failures.push(format!("'{c}': {e}")),
-            }
-        }
-        // A translated term can represent a different sense of the same UI
-        // phrase. Require it to agree with a direct story concept, gloss, or
-        // an already established business/entity anchor before it can add a
-        // file. This preserves the repository's bilingual bridge while
-        // preventing one resource translation from opening an unrelated family.
-        let existing_strong_paths = prov.keys().cloned().collect::<HashSet<_>>();
-        let direct_intent_paths = footprint_rows
-            .iter()
-            .filter(|(_, _, from_lexicon, _, broad, _)| !from_lexicon && !broad)
-            .flat_map(|(_, _, _, _, _, paths)| paths.iter().cloned())
-            .collect::<HashSet<_>>();
-        let mut direct_intent_support = HashMap::<String, usize>::new();
-        for (_, _, from_lexicon, _, broad, paths) in &footprint_rows {
-            if *from_lexicon || *broad {
-                continue;
-            }
-            for path in paths {
-                *direct_intent_support.entry(path.clone()).or_default() += 1;
-            }
-        }
-        let mut unanchored_translation_paths = 0usize;
-        let mut unanchored_direct_paths = 0usize;
-        for (c, from_gloss, from_lexicon, total, broad, paths) in footprint_rows {
-            for p in paths {
-                let translated_registry_candidate = broad
-                    && from_lexicon
-                    && is_additive_registry_path(&p);
-                if broad && !translated_registry_candidate {
-                    why.entry(p.clone()).or_default().push(format!(
-                        "matches '{c}'; too common in this index ({total} \
-                         files) to discriminate; not counted as evidence"
-                    ));
-                    continue;
-                }
-                if from_lexicon
-                    && !from_gloss
-                    && !translated_registry_candidate
-                    && !direct_intent_paths.contains(&p)
-                    && !existing_strong_paths.contains(&p)
-                {
-                    unanchored_translation_paths += 1;
-                    continue;
-                }
-                let normalized_name = p
-                    .rsplit(|character| character == '/' || character == '\\')
-                    .next()
-                    .unwrap_or(&p)
-                    .chars()
-                    .filter(|character| character.is_alphanumeric())
-                    .flat_map(char::to_lowercase)
-                    .collect::<String>();
-                let normalized_concept = c
-                    .chars()
-                    .filter(|character| character.is_alphanumeric())
-                    .flat_map(char::to_lowercase)
-                    .collect::<String>();
-                let name_anchored = normalized_concept.len() >= 5
-                    && normalized_name.contains(&normalized_concept);
-                if !from_gloss
-                    && !from_lexicon
-                    && direct_intent_support.get(&p).copied().unwrap_or_default() < 2
-                    && !name_anchored
-                    && !existing_strong_paths.contains(&p)
-                {
-                    unanchored_direct_paths += 1;
-                    continue;
-                }
-                if !prov.contains_key(&p) {
-                    seed_order.push(p.clone());
-                }
-                why.entry(p.clone()).or_default().push(if from_gloss {
-                    format!("matches the story's explicit gloss '{c}'")
-                } else if translated_registry_candidate {
-                    format!("the project's .resx translation '{c}' occurs in this additive registry; classify the whole locale family, but do not treat translation alone as proof that it changes")
-                } else if from_lexicon {
-                    format!("matches '{c}'; the project's .resx translation of the story's English term, corroborated by another intent signal")
-                } else {
-                    format!("name/content matches concept '{c}'")
-                });
-                let evidence = prov.entry(p).or_default();
-                evidence.insert("concept");
-                if !broad {
-                    evidence.insert("specific");
-                }
-                if from_gloss {
-                    evidence.insert("gloss");
-                }
-                if from_lexicon {
-                    evidence.insert("lexicon");
-                }
             }
         }
         cov.concept = if concept_failures.is_empty() {
@@ -10800,25 +9145,11 @@ impl Engram {
                 t_concept.elapsed().as_millis(),
             )
         };
-        let mut concept_notes = Vec::new();
         if !broad_terms.is_empty() {
-            concept_notes.push(format!(
+            cov.concept.note = format!(
                 "broad terms not counted as evidence: {}",
                 broad_terms.join(", ")
-            ));
-        }
-        if unanchored_translation_paths > 0 {
-            concept_notes.push(format!(
-                "{unanchored_translation_paths} translation-only file matches were not counted as evidence because no direct intent, gloss, business-rule, or entity signal corroborated them"
-            ));
-        }
-        if unanchored_direct_paths > 0 {
-            concept_notes.push(format!(
-                "{unanchored_direct_paths} single-concept content matches were not counted as evidence because they neither matched the file name nor agreed with another intent, business-rule, or entity signal"
-            ));
-        }
-        if !concept_notes.is_empty() {
-            cov.concept.note = concept_notes.join("; ");
+            );
         }
 
         // History arm — commit-message search surfaces the files of past similar
@@ -11075,7 +9406,6 @@ impl Engram {
             // render tail cap (bounded → never floods). Ranks 13+ stay plain
             // "vector" (normal tail behaviour, so no regression where the layer
             // had room for them).
-            let mut semantic_leads = 0usize;
             for (i, p) in change_set_paths(&t.text)
                 .into_iter()
                 .filter(|p| !engram_core::is_vendor_path(p))
@@ -11085,21 +9415,9 @@ impl Engram {
                 why.entry(p.clone())
                     .or_default()
                     .push(format!("semantic match to the story (rank {})", i + 1));
-                let declaration_file = p.to_lowercase().ends_with(".d.ts");
-                let is_lead = !declaration_file && semantic_leads < 3;
-                if is_lead {
-                    semantic_leads += 1;
-                }
-                prov.entry(p).or_default().insert(if is_lead {
-                    // The three strongest semantic matches may lead their
-                    // layer when lexical/history evidence is sparse. They
-                    // remain below corroborated tier-0 evidence.
-                    "vtop3"
-                } else if i < 12 {
-                    "vtop"
-                } else {
-                    "vector"
-                });
+                prov.entry(p)
+                    .or_default()
+                    .insert(if i < 12 { "vtop" } else { "vector" });
             }
             cov.vector = ArmCoverage::complete(n, t_vec.elapsed().as_millis());
         }
@@ -11138,31 +9456,19 @@ impl Engram {
         // External audit 2026-08-29 P0-3 (≤ 5 s): the pass costs per anchor (live
         // 1.9 s unbounded) — seed it with the strongest presentation anchors only.
         const PRESENTATION_ANCHOR_CAP: usize = 20;
-        let mut pres_ranked: Vec<(bool, u8, usize, String)> = prov
+        let mut pres_ranked: Vec<(usize, String)> = prov
             .iter()
             .filter(|(p, _)| {
                 let pl = p.to_lowercase();
                 PRESENTATION.iter().any(|e| pl.ends_with(e))
             })
-            .map(|(p, sigs)| {
-                (
-                    sigs.contains("vtop3"),
-                    change_set_tier(sigs),
-                    change_set_strength(sigs),
-                    p.clone(),
-                )
-            })
+            .map(|(p, sigs)| (sigs.len(), p.clone()))
             .collect();
-        pres_ranked.sort_by(|a, b| {
-            b.0.cmp(&a.0)
-                .then(a.1.cmp(&b.1))
-                .then(b.2.cmp(&a.2))
-                .then_with(|| a.3.cmp(&b.3))
-        });
+        pres_ranked.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
         let pres_anchors: Vec<String> = pres_ranked
             .into_iter()
             .take(PRESENTATION_ANCHOR_CAP)
-            .map(|(_, _, _, p)| p)
+            .map(|(_, p)| p)
             .collect();
         cov.presentation_anchors = pres_anchors.len();
         if !pres_anchors.is_empty() {
@@ -11298,39 +9604,12 @@ impl Engram {
                                 // seeded family is never shown half-complete.
                                 let mut fs = sigs.clone();
                                 fs.insert("family");
-                                fs.insert("required_family");
                                 why.entry(f.clone())
                                     .or_default()
                                     .push(format!("localized .resx sibling of {p} (atomic set)"));
                                 fam.push((f.clone(), fs));
                             }
                         }
-                    }
-                }
-                // The same additive registry may be represented in several
-                // layers: a seed/post-deploy script, a typed settings store,
-                // and a localized resource family. Join only a distinctive
-                // normalized subject. This recovers the complete mechanism
-                // while avoiding broad `text`/`label` families and unrelated
-                // registries that merely share a directory or file type.
-                if let Some(subject) = additive_registry_subject(&ps) {
-                    let registry_family = additive_registry_family_candidates(&ps, &index);
-                    if !registry_family.is_empty() {
-                        let mut fs = sigs.clone();
-                        fs.insert("family");
-                        fs.insert("registry_family");
-                        fs.insert("required_family");
-                        fam.push((p.clone(), fs));
-                    }
-                    for f in registry_family {
-                        let mut fs = sigs.clone();
-                        fs.insert("family");
-                        fs.insert("registry_family");
-                        fs.insert("required_family");
-                        why.entry(f.clone()).or_default().push(format!(
-                            "additive registry representation of {p} (subject `{subject}`)"
-                        ));
-                        fam.push((f, fs));
                     }
                 }
                 // TypeScript source <-> its committed compiled JS bundle. The
@@ -11343,20 +9622,6 @@ impl Engram {
                             .or_default()
                             .push(format!("compiled bundle / source pair of {p}"));
                         fam.push((c, sigs.clone()));
-                    }
-                }
-                // A high-confidence semantic script hit can be the only clue
-                // for a sparse story. Keep its exact page/bundle stem family
-                // together even when those files live outside the source
-                // directory and have no usable co-change edge.
-                if sigs.contains("vtop3") {
-                    for c in semantic_presentation_family_candidates(&ps, &index) {
-                        let mut fs = sigs.clone();
-                        fs.insert("family");
-                        why.entry(c.clone())
-                            .or_default()
-                            .push(format!("presentation stem-family companion of {p}"));
-                        fam.push((c, fs));
                     }
                 }
                 // Interface <-> implementation (.NET IService convention).
@@ -11439,18 +9704,6 @@ impl Engram {
                     fam.push((f, BTreeSet::from(["family"])));
                 }
             }
-            for (candidate, anchors) in authorization_entrypoint_family_candidates(
-                &retrieval_story,
-                &prov,
-                &index,
-                CHANGE_SET_BOUNDARY_FAMILY_EXTRA_CAP,
-            ) {
-                why.entry(candidate.clone()).or_default().push(format!(
-                    "co-located WebForms authorization entry-point candidate; directory already contains strong anchors {}",
-                    anchors.join(", ")
-                ));
-                fam.push((candidate, BTreeSet::from(["entrypoint_family"])));
-            }
             cov.family = ArmCoverage::complete(fam.len(), 0);
             for (k, v) in fam {
                 prov.entry(k).or_default().extend(v);
@@ -11479,7 +9732,6 @@ impl Engram {
                         || signals.contains("history")
                         || signals.contains("name")
                         || signals.contains("gloss")
-                        || signals.contains("vtop3")
                         || change_set_strength(signals) >= 2;
                     asset || (markup && direct_story_evidence)
                 })
@@ -11530,14 +9782,12 @@ impl Engram {
                 .iter()
                 .filter(|(_, signals)| {
                     signals.contains("entity")
-                        || signals.contains("business")
                         || (signals.contains("concept")
                             && !signals.contains("lexicon")
                             && !signals.contains("broad"))
                         || signals.contains("history")
                         || signals.contains("name")
                         || signals.contains("gloss")
-                        || signals.contains("vtop3")
                 })
                 .filter(|(path, _)| {
                     let lower = path.to_ascii_lowercase();
@@ -11592,16 +9842,8 @@ impl Engram {
                 .collect();
             let caller_graph = self.state.graph.clone();
             let caller_pid = req.project_id.clone();
-            let preferred_caller_symbols = business_member_anchors.clone();
-            let caller_intent_terms = concepts.clone();
             let caller_expansion = tokio::task::spawn_blocking(move || {
-                expand_direct_caller_graph(
-                    &caller_graph,
-                    &caller_pid,
-                    &caller_anchor_paths,
-                    &preferred_caller_symbols,
-                    &caller_intent_terms,
-                )
+                expand_direct_caller_graph(&caller_graph, &caller_pid, &caller_anchor_paths)
             })
             .await
             .unwrap_or_default();
@@ -12398,7 +10640,7 @@ impl Engram {
                         "mechanism_role": change_set_mechanism_role(&r.path),
                         "evidence_class": change_set_evidence_class(&r.signals),
                         "impact_question": change_set_impact_question(&r.path),
-                        "exclusion_evidence_required": change_set_exclusion_evidence(&r.path, &r.signals),
+                        "exclusion_evidence_required": change_set_exclusion_evidence(&r.signals),
                         "path_kind": if r.signals.contains(&"disk") { "existing_unindexed" } else { "existing" },
                         "indexed": !r.signals.contains(&"disk"),
                         "layer": r.layer,
@@ -12525,29 +10767,7 @@ impl Engram {
                     "provenance": rule.provenance,
                 }))
                 .collect::<Vec<_>>();
-            let cross_cutting_obligations =
-                change_set_cross_cutting_obligations(req.story.trim());
-            let boundary_audit = change_set_boundary_audit(
-                req.story.trim(),
-                &rows,
-                &asset_dependencies,
-                &caller_dependencies,
-                &index_paths,
-            );
-            let component_hypotheses = bind_component_hypothesis_surfaces(
-                change_set_component_hypotheses(req.story.trim()),
-                &boundary_audit,
-            );
-            let contract_checkpoint = change_set_contract_checkpoint(
-                &cross_cutting_obligations,
-                &component_hypotheses,
-                &boundary_audit,
-                &configured_contract_rules,
-            );
-            let hard_items = contract_checkpoint["hard_items"]
-                .as_array()
-                .cloned()
-                .unwrap_or_default();
+            let contract_checkpoint = change_set_contract_checkpoint(&configured_contract_rules);
             let hard_configured_rule_ids = contract_checkpoint["configured_rule_ids"]
                 .as_array()
                 .cloned()
@@ -12563,15 +10783,6 @@ impl Engram {
                         .is_none_or(|id| !hard_configured_rule_ids.contains(id)))
                     .cloned()
                     .collect::<Vec<_>>()
-            };
-            let (output_obligations, output_hypotheses) = if full_detail {
-                (cross_cutting_obligations.clone(), component_hypotheses.clone())
-            } else {
-                compact_contract_advisories(
-                    &cross_cutting_obligations,
-                    &component_hypotheses,
-                    &hard_items,
-                )
             };
             let row_guidance = if full_detail {
                 serde_json::Value::Null
@@ -12615,8 +10826,6 @@ impl Engram {
                 "caller_dependencies": caller_dependencies_json,
                 "reconciliation": reconciliation,
                 "permission_gates": permission_gates_json,
-                "cross_cutting_obligations": output_obligations,
-                "component_hypotheses": output_hypotheses,
                 "configured_contract_rules": {
                     "rules": output_configured_contract_rules,
                     "rules_total": configured_contract_rules_json.len(),
@@ -12626,7 +10835,6 @@ impl Engram {
                     "project_path": ".engram/planning-contract-rules.yaml",
                     "instruction": "Rules are hot-loaded on every call. Repository rules override organization rules by stable id; historical requests exclude undated and future rules. In compact and reconciled views, hard rules live once in contract_checkpoint.hard_items and this rules array contains the remaining advisory rules."
                 },
-                "boundary_audit": boundary_audit,
                 "work_item_evidence_risk": work_item_evidence_risk,
                 "project_policy_sources": project_policy_sources,
                 "applicable_repository_rules": {
@@ -13519,7 +11727,7 @@ impl Engram {
             raw.sort_by(|a, b| b.2.cmp(&a.2).then(a.1.cmp(&b.1)));
             let hub_degree = std::env::var("ENGRAM_HUB_DEGREE").ok().and_then(|v| v.parse::<usize>().ok()).unwrap_or(800);
             let mut seen_partners = HashSet::new();
-            let mut scored_partners = Vec::new();
+            let mut partners = Vec::new();
             for (edited, partner, weight, historical) in raw {
                 if !seen_partners.insert(partner.to_lowercase()) { continue; }
                 let degree = match graph.neighbors(&pid, EdgeKind::TemporalCoupling, &format!("file:{historical}"), 2001) {
@@ -13529,57 +11737,7 @@ impl Engram {
                     },
                     Err(error) => { coverage.note(format!("hub-degree lookup for {historical} failed: {error}; candidate retained")); None },
                 };
-                let is_hub = degree.is_some_and(|value| value >= hub_degree);
-                let additive_registry = is_additive_registry_path(&partner);
-                if !retain_temporal_hub(&partner, weight, degree, hub_degree) {
-                    continue;
-                }
-                // Raw co-change count rewards files touched by large bulk commits.
-                // Weight squared over the partner's temporal degree is a bounded
-                // lift proxy: repeated, specific pairing outranks a ubiquitous hub.
-                // Additive registries may survive the hub cutoff because their first
-                // reference is commonly created by the proposed change itself.
-                let normalized_score = cochange_specificity_score(weight, degree.unwrap_or(1));
-                scored_partners.push((
-                    normalized_score,
-                    is_hub && additive_registry,
-                    edited,
-                    partner,
-                    weight,
-                ));
-            }
-            // A pure specificity sort can discard the strongest raw
-            // registry signal when ubiquitous seed/resource files have high
-            // graph degree. Reserve the two strongest raw registry hubs, then
-            // use the normalized score for every remaining comparison. The
-            // later exact-file review still decides relevance.
-            let registry_by_raw = scored_partners
-                .iter()
-                .filter(|candidate| candidate.1)
-                .map(|candidate| (candidate.3.clone(), candidate.4))
-                .collect::<Vec<_>>();
-            let reserved_registry_hubs = strongest_registry_hub_paths(&registry_by_raw, 2);
-            scored_partners.sort_by(|left, right| {
-                let left_reserved = reserved_registry_hubs.contains(&left.3.to_ascii_lowercase());
-                let right_reserved = reserved_registry_hubs.contains(&right.3.to_ascii_lowercase());
-                right_reserved.cmp(&left_reserved)
-                    .then_with(|| right.0.cmp(&left.0))
-                    .then_with(|| right.4.cmp(&left.4))
-                    .then_with(|| left.3.cmp(&right.3))
-            });
-            let mut retained_registry_hubs = 0usize;
-            let mut partners = Vec::new();
-            for (_, registry_hub, edited, partner, weight) in scored_partners {
-                if registry_hub {
-                    if retained_registry_hubs >= 4 {
-                        continue;
-                    }
-                    retained_registry_hubs += 1;
-                    coverage.note(format!(
-                        "retained additive-registry hub {partner} because repeated co-change ({weight}) can represent a first-reference seed, setting, resource, or catalog addition"
-                    ));
-                }
-                partners.push((edited, partner, weight));
+                if degree.is_none_or(|degree| degree < hub_degree) { partners.push((edited, partner, weight)); }
             }
             coverage.cap(&mut partners, max_partners, "co-change candidate display");
 
@@ -14104,14 +12262,14 @@ impl Engram {
     }
 }
 
-/// Work-item id from a story: "#847", "Bug 847", "US 1234", "AB#847", "DMO-847".
+/// Work-item id from a story: "#847", "Bug 847", "US 1234", "AB#847".
 /// Only leading work-item markers or a standalone hash ID identify intake.
 /// Incidental issue references, CSS colors and numbered headings are prose.
 pub(crate) fn extract_work_item_id(story: &str) -> Option<u64> {
     use std::sync::LazyLock;
     static RE: LazyLock<regex::Regex> = LazyLock::new(|| {
         regex::Regex::new(
-            r"(?i)^\s*(?:(?:(?:fix|resolve|resolves)\s+)?(?:bug|us|user story|story|item|task|ab)\s*#?\s*|dmo-)(\d{1,10})\b",
+            r"(?i)^\s*(?:(?:(?:fix|resolve|resolves)\s+)?(?:bug|us|user story|story|item|task|ab)\s*#?\s*)(\d{1,10})\b",
         )
         .expect("valid regex")
     });
@@ -14165,10 +12323,17 @@ fn validate_contract_checkpoint(
         McpError::invalid_params("contract_checkpoint.hard_items must be an array", None)
     })?;
     if hard_items.is_empty() {
-        return Err(McpError::invalid_params(
-            "contract_checkpoint.hard_items must not be empty",
-            None,
-        ));
+        return Ok(serde_json::json!({
+            "status": "PASS",
+            "implementation_may_begin": true,
+            "receipt_id": checkpoint["receipt"]["receipt_id"],
+            "hard_items_expected": 0,
+            "hard_items_present": 0,
+            "blocking_unknown_ids": [],
+            "failures": [],
+            "dispositions": {},
+            "instruction": "No release-critical configured planning rule matched this change; there is nothing to disposition."
+        }));
     }
     if contract.trim().is_empty() {
         return Err(McpError::invalid_params(
@@ -15013,15 +13178,15 @@ mod work_item_tests {
 
     #[test]
     fn concept_view_drops_leading_work_item_classification_badges() {
-        let cleaned = story_for_concepts("+[Feature] Subproject scoped price lists");
-        assert_eq!(cleaned, "Subproject scoped price lists");
+        let cleaned = story_for_concepts("+[Feature] Department scoped tariff tables");
+        assert_eq!(cleaned, "Department scoped tariff tables");
         assert_eq!(
             super::extract_story_concepts(&cleaned),
-            vec!["subproject", "scoped", "price"]
+            vec!["department", "scoped", "tariff"]
         );
 
-        let prioritized = story_for_concepts("[P2 Feature] Copy price lists between accounts");
-        assert_eq!(prioritized, "Copy price lists between accounts");
+        let prioritized = story_for_concepts("[P2 Feature] Copy tariff tables between accounts");
+        assert_eq!(prioritized, "Copy tariff tables between accounts");
         assert!(!super::extract_story_concepts(&prioritized).contains(&"feature".to_string()));
     }
 
@@ -15218,10 +13383,6 @@ mod work_item_tests {
         assert_eq!(extract_work_item_id("US 1234 as a user I want"), Some(1234));
         assert_eq!(extract_work_item_id("AB#847 regression"), Some(847));
         assert_eq!(extract_work_item_id("#55"), Some(55));
-        assert_eq!(extract_work_item_id("DMO-847 Fix assignment"), Some(847));
-        assert_eq!(extract_work_item_id("dmo-7 Fix assignment"), Some(7));
-        assert_eq!(extract_work_item_id("DMO-12345678 Fix assignment"), Some(12345678));
-        assert_eq!(extract_work_item_id("prefixDMO-847"), None);
         assert_eq!(extract_work_item_id("supports 7 languages"), None);
         assert_eq!(extract_work_item_id("no ids here"), None);
     }
@@ -15267,7 +13428,7 @@ mod work_item_tests {
 
     #[test]
     fn id_targeted_intake_blocks_missing_or_blank_evidence() {
-        for story in ["DMO-847 Fix assignment", "Bug #847", "AB#847"] {
+        for story in ["AB#847 Fix assignment", "Bug #847", "AB#847"] {
             for text in [None, Some(String::new()), Some(" \n ".into())] {
                 let error = story_with_work_item_text(story, text).unwrap_err();
                 assert!(error.message.contains("INCOMPLETE_INTAKE"));
@@ -15347,6 +13508,19 @@ mod work_item_tests {
     }
 
     #[test]
+    fn feature_contract_checkpoint_with_no_hard_items_has_nothing_to_disposition() {
+        let checkpoint = serde_json::json!({
+            "receipt": {"receipt_id": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
+            "hard_items": [],
+            "workflow_scaffold": {"markdown": "`get_change_set contract checkpoint: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 configured_rules=0`"}
+        });
+        let result = validate_contract_checkpoint(&checkpoint, "", "").unwrap();
+        assert_eq!(result["status"], "PASS");
+        assert_eq!(result["implementation_may_begin"], true);
+        assert_eq!(result["hard_items_expected"], 0);
+    }
+
+    #[test]
     fn explicit_offline_item_text_and_free_text_planning_remain_available() {
         let evidence = "Description: cannot assign\nReproduction: select another tenant\nAcceptance criteria: deny access";
         let merged = story_with_work_item_text("DMO-847", Some(evidence.into())).unwrap();
@@ -15387,7 +13561,7 @@ mod dossier_obligation_tests {
 - `Site/App_Code/ata/code/huvud.vb` (21 co-changes)\n\
 - `Site/App_GlobalResources/label.resx` family\n\
 ## History/log tables\n\
-accessor: Site/App_Code/installationsobjekt/code/io-iom-log.vb\n\
+accessor: Site/App_Code/bokningsobjekt/code/io-iom-log.vb\n\
 ## Notes\n\
 prose without paths; duplicate Site/App_Code/ata/code/HUVUD.VB ignored\n";
         let obs = extract_dossier_obligations(dossier);
@@ -15397,7 +13571,7 @@ prose without paths; duplicate Site/App_Code/ata/code/HUVUD.VB ignored\n";
             vec![
                 "Site/App_Code/ata/code/huvud.vb",
                 "Site/App_GlobalResources/label.resx",
-                "Site/App_Code/installationsobjekt/code/io-iom-log.vb",
+                "Site/App_Code/bokningsobjekt/code/io-iom-log.vb",
             ]
         );
         assert_eq!(obs[0].0, "Co-change partners");
@@ -15906,13 +14080,13 @@ mod agent_integration_tests {
     fn workflow_rules_tell_the_agent_how_to_recover_a_stale_project_id() {
         // The id is baked in at generation time; a reindex under a new id
         // (2026-07-19 data_dir reset) left every generated call failing.
-        let rules = render_workflow_rules("pid-1", "C:/repo/ociusx");
+        let rules = render_workflow_rules("pid-1", "C:/repo/pilotapp");
         assert!(
             rules.contains("list_projects"),
             "no recovery path named:\n{rules}"
         );
         assert!(
-            rules.contains("C:/repo/ociusx"),
+            rules.contains("C:/repo/pilotapp"),
             "recovery must key on the indexed directory so the agent can match it:\n{rules}"
         );
     }
@@ -16004,28 +14178,6 @@ mod change_set_rows_tests {
     }
 
     #[test]
-    fn strongest_semantic_matches_can_lead_a_sparse_story_layer() {
-        let prov = BTreeMap::from([
-            (
-                "modules/dashboard/target.ts".to_string(),
-                BTreeSet::from(["vtop3"]),
-            ),
-            (
-                "modules/unrelated/history.vb".to_string(),
-                BTreeSet::from(["cochange"]),
-            ),
-        ]);
-        let (rows, _) = change_set_rows(&prov);
-        let target = rows
-            .iter()
-            .find(|row| row.path.ends_with("target.ts"))
-            .unwrap();
-        assert_eq!(target.tier, 0);
-        assert_eq!(target.set, "primary");
-        assert_eq!(target.signals, vec!["vector"]);
-    }
-
-    #[test]
     fn corpus_path_aliases_merge_onto_current_repository_identity() {
         let current = "Site/App_GlobalResources/Text.en.resx";
         let mut prov = BTreeMap::from([
@@ -16057,6 +14209,31 @@ mod change_set_rows_tests {
         assert!(
             historical.is_empty(),
             "a safely canonicalized current file must not retain the historical label"
+        );
+    }
+
+    #[test]
+    fn corpus_path_suffix_aliases_merge_only_when_unique() {
+        let mut prov = BTreeMap::from([
+            ("shared/helpers.vb".to_string(), BTreeSet::from(["history"])),
+            ("reports/summary.vb".to_string(), BTreeSet::from(["history"])),
+        ]);
+        let mut why = BTreeMap::new();
+        let mut historical = BTreeSet::new();
+        canonicalize_change_set_evidence(
+            &mut prov,
+            &mut why,
+            &mut historical,
+            [
+                "web/shared/helpers.vb".to_string(),
+                "Web/Reports/Summary.vb".to_string(),
+                "legacy/reports/summary.vb".to_string(),
+            ],
+        );
+        assert!(prov.contains_key("web/shared/helpers.vb"), "{prov:?}");
+        assert!(
+            prov.contains_key("reports/summary.vb"),
+            "an ambiguous suffix must not merge: {prov:?}"
         );
     }
 
@@ -16134,256 +14311,6 @@ mod change_set_rows_tests {
         assert_eq!(change_set_mechanism_role("src/security_audit.vb"), "audit and operational logging");
         assert_eq!(change_set_mechanism_role("App_Start/BundleConfig.cs"), "asset registration and delivery");
         assert_eq!(change_set_mechanism_role("Views/Site.master"), "rendered user-interface host");
-        assert_eq!(change_set_mechanism_role("Resources/policy.en.resx"), "additive localized resource registry");
-        assert_eq!(change_set_mechanism_role("Database/Scripts/Post/defaults.sql"), "additive deployment or seed registry");
-        assert_eq!(change_set_mechanism_role("src/SystemSettingsStore.cs"), "configuration and default registry");
-    }
-
-    #[test]
-    fn additive_registries_survive_bounded_hub_filter_and_require_positive_exclusion() {
-        assert!(retain_temporal_hub(
-            "Database/Scripts/Post/settings.sql",
-            20,
-            Some(1_200),
-            800,
-        ));
-        assert!(!retain_temporal_hub(
-            "src/CommonHelpers.cs",
-            20,
-            Some(1_200),
-            800,
-        ));
-        assert!(!retain_temporal_hub(
-            "Resources/labels.resx",
-            4,
-            Some(1_200),
-            800,
-        ));
-        assert!(
-            change_set_exclusion_evidence("Resources/labels.resx", &["cochange"])
-                .contains("absence of a current reference is not exclusion evidence")
-        );
-        assert!(
-            change_set_exclusion_evidence("Database/Scripts/Post/statuses.sql", &["cochange"])
-                .contains("different domain")
-        );
-        assert!(cochange_specificity_score(20, 100) > cochange_specificity_score(20, 1_000));
-    }
-
-    #[test]
-    fn additive_registry_subject_joins_cross_layer_representations_conservatively() {
-        for path in [
-            "Database/Scripts/Post/ss_accountsettings.sql",
-            "src/AccountSettingStore.vb",
-            "Resources/accountsettings.en.resx",
-        ] {
-            assert_eq!(additive_registry_subject(path).as_deref(), Some("accountsetting"));
-        }
-        assert_eq!(additive_registry_subject("Resources/text.en.resx"), None);
-        assert_eq!(additive_registry_subject("Resources/labels.resx"), None);
-        assert_eq!(additive_registry_subject("src/UnrelatedService.vb"), None);
-
-        let index = vec![
-            "Resources/accountsettings.en.resx".to_string(),
-            "src/UnrelatedService.vb".to_string(),
-            "src/AccountSettingStore.vb".to_string(),
-            "Database/Scripts/Post/ss_accountsettings.sql".to_string(),
-        ];
-        assert_eq!(
-            additive_registry_family_candidates(
-                "Database/Scripts/Post/ss_accountsettings.sql",
-                &index,
-            ),
-            vec![
-                "Resources/accountsettings.en.resx".to_string(),
-                "src/AccountSettingStore.vb".to_string(),
-            ]
-        );
-    }
-
-    #[test]
-    fn corroborated_cross_layer_registry_family_is_primary_tier() {
-        assert_eq!(
-            change_set_tier(&BTreeSet::from([
-                "cochange",
-                "family",
-                "registry_family",
-                "required_family",
-            ])),
-            0
-        );
-        assert_eq!(
-            change_set_tier(&BTreeSet::from([
-                "family",
-                "registry_family",
-                "required_family",
-            ])),
-            4
-        );
-    }
-
-    #[test]
-    fn corroborated_registry_family_extends_cap_without_evicting_base_candidates() {
-        let mut prov = BTreeMap::new();
-        for index in 0..CHANGE_SET_PRIMARY_CAP {
-            prov.insert(
-                format!("src/ordinary-{index:02}.vb"),
-                BTreeSet::from(["history"]),
-            );
-        }
-        for index in 0..3 {
-            prov.insert(
-                format!("resources/policy-{index}.resx"),
-                BTreeSet::from([
-                    "cochange",
-                    "family",
-                    "registry_family",
-                    "required_family",
-                ]),
-            );
-        }
-        let (rows, _) = change_set_rows(&prov);
-        assert_eq!(rows.iter().filter(|row| row.set == "primary").count(), 43);
-        assert!(rows.iter().all(|row| !row.omitted));
-    }
-
-    #[test]
-    fn raw_registry_reservation_is_bounded_and_deterministic() {
-        let selected = strongest_registry_hub_paths(
-            &[
-                ("z/low.sql".into(), 10),
-                ("b/high.sql".into(), 85),
-                ("a/high.sql".into(), 85),
-            ],
-            2,
-        );
-        assert_eq!(selected, HashSet::from(["a/high.sql".into(), "b/high.sql".into()]));
-    }
-
-    #[test]
-    fn authorization_entrypoint_family_requires_two_strong_colocated_anchors() {
-        let prov = BTreeMap::from([
-            (
-                "pages/users/list.aspx.vb".to_string(),
-                BTreeSet::from(["business"]),
-            ),
-            (
-                "pages/users/edit.aspx.vb".to_string(),
-                BTreeSet::from(["history"]),
-            ),
-        ]);
-        let index = vec![
-            "pages/users/list.aspx.vb".to_string(),
-            "pages/users/edit.aspx.vb".to_string(),
-            "pages/users/company.aspx.vb".to_string(),
-            "pages/projects/edit.aspx.vb".to_string(),
-        ];
-        let candidates = authorization_entrypoint_family_candidates(
-            "Restrict access with a custom permission",
-            &prov,
-            &index,
-            8,
-        );
-        assert_eq!(candidates.len(), 1);
-        assert_eq!(candidates[0].0, "pages/users/company.aspx.vb");
-        assert_eq!(candidates[0].1.len(), 2);
-        assert!(authorization_entrypoint_family_candidates(
-            "Change the page heading",
-            &prov,
-            &index,
-            8,
-        )
-        .is_empty());
-
-        let one_anchor = BTreeMap::from([prov.into_iter().next().unwrap()]);
-        assert!(authorization_entrypoint_family_candidates(
-            "Restrict access with a custom permission",
-            &one_anchor,
-            &index,
-            8,
-        )
-        .is_empty());
-    }
-
-    #[test]
-    fn boundary_family_has_its_own_bounded_primary_budget() {
-        let mut prov = BTreeMap::new();
-        for index in 0..CHANGE_SET_PRIMARY_CAP {
-            prov.insert(
-                format!("src/ordinary-{index:02}.vb"),
-                BTreeSet::from(["history"]),
-            );
-        }
-        for index in 0..3 {
-            prov.insert(
-                format!("pages/users/peer-{index}.aspx.vb"),
-                BTreeSet::from(["entrypoint_family"]),
-            );
-        }
-        let (rows, _) = change_set_rows(&prov);
-        assert_eq!(rows.iter().filter(|row| row.set == "primary").count(), 43);
-        assert!(rows.iter().all(|row| !row.omitted));
-    }
-
-    #[test]
-    fn auth_state_changes_emit_cross_cutting_planning_obligations() {
-        let obligations = change_set_cross_cutting_obligations(
-            "Revalidate authenticated sessions after role, password, or tenant access changes",
-        );
-        let rendered = serde_json::to_string(&obligations).unwrap();
-        for expected in [
-            "authorization mutation boundaries",
-            "authentication boundary consistency",
-            "complete authentication-state termination",
-            "security decision observability",
-            "client delivery and navigation lifecycle",
-            "session acquisition and concurrency",
-            "security stamp",
-            "password change, reset, recovery",
-            "explicit Authorization header",
-            "logout and cleanup callable",
-            "local ReturnUrl",
-        ] {
-            assert!(rendered.contains(expected), "missing {expected}: {rendered}");
-        }
-        assert!(!rendered.contains("OciusX"));
-    }
-
-    #[test]
-    fn reconciled_contract_payload_stores_each_item_once() {
-        let obligations = vec![serde_json::json!({
-            "obligation": "lifecycle",
-            "checks": ["hard requirement", "advisory requirement"],
-            "contract_gate": "duplicate instruction",
-            "contract_items": [
-                {"check_id": "OBL-01-X-C01", "requirement": "hard requirement"},
-                {"check_id": "OBL-01-X-C02", "requirement": "advisory requirement"}
-            ]
-        })];
-        let hypotheses = vec![serde_json::json!({
-            "responsibility": "state owner",
-            "required_surface_categories": ["request_pipeline"],
-            "required_contract_evidence": ["hard evidence", "advisory evidence"],
-            "contract_evidence_items": [
-                {"evidence_id": "HYP-01-X-E01", "requirement": "hard evidence"},
-                {"evidence_id": "HYP-01-X-E02", "requirement": "advisory evidence"}
-            ],
-            "concrete_surfaces": [{"boundary": "request_pipeline", "paths": ["src/App.cs"]}],
-            "verification_gate": "duplicate instruction"
-        })];
-        let hard = vec![
-            serde_json::json!({"id": "OBL-01-X-C01"}),
-            serde_json::json!({"id": "HYP-01-X-E01"}),
-        ];
-        let (compact_obligations, compact_hypotheses) =
-            compact_contract_advisories(&obligations, &hypotheses, &hard);
-        let rendered = serde_json::to_string(&(compact_obligations, compact_hypotheses)).unwrap();
-        assert!(!rendered.contains("hard requirement"));
-        assert!(!rendered.contains("hard evidence"));
-        assert!(rendered.contains("advisory requirement"));
-        assert!(rendered.contains("advisory evidence"));
-        assert!(!rendered.contains("src/App.cs"));
-        assert!(rendered.contains("boundary_audit.categories"));
     }
 
     #[test]
@@ -16416,42 +14343,13 @@ mod change_set_rows_tests {
     }
 
     #[test]
-    fn pure_permission_change_emits_policy_rollout_without_authentication_lifecycle_noise() {
-        let obligations = change_set_cross_cutting_obligations(
-            "Add a custom permission to restrict access to user management",
-        );
-        let rendered = serde_json::to_string(&obligations).unwrap();
-        for expected in [
-            "authorization policy and default rollout",
-            "tenant-configurable",
-            "explicit deny and allow precedence",
-            "who may view, grant, revoke",
-            "hiding a control is not authorization",
-            "security decision observability",
-        ] {
-            assert!(rendered.contains(expected), "missing {expected}: {rendered}");
-        }
-        assert!(!rendered.contains("complete authentication-state termination"));
-        assert!(!rendered.contains("client delivery and navigation lifecycle"));
-
-        let hypotheses = change_set_component_hypotheses(
-            "Add a custom permission to restrict access to user management",
-        );
-        let rendered = serde_json::to_string(&hypotheses).unwrap();
-        assert!(rendered.contains("authorization policy, administration, and default rollout"));
-        assert!(rendered.contains("accessor, resource-family, seed, deployment"));
-        assert!(rendered.contains("self-lockout and recovery"));
-        assert!(!rendered.contains("OciusX"));
-    }
-
-    #[test]
     fn change_set_rows_explain_evidence_strength_and_causal_check() {
         let direct = vec!["business", "cochange"];
         assert_eq!(
             change_set_evidence_class(&direct),
             "corroborated_behavioral_candidate"
         );
-        assert!(change_set_exclusion_evidence("src/account.vb", &direct).contains("source evidence"));
+        assert!(change_set_exclusion_evidence(&direct).contains("source evidence"));
         assert!(
             change_set_impact_question("src/AuthMiddleware.vb")
                 .contains("framework principals")
@@ -16463,394 +14361,62 @@ mod change_set_rows_tests {
     }
 
     #[test]
-    fn auth_boundary_audit_exposes_present_and_missing_lifecycle_surfaces() {
-        let rows = vec![ChangeSetRow {
-            path: "src/Global.asax.vb".into(),
-            layer: "Server",
-            layer_index: 0,
-            tier: 0,
-            signals: vec!["business"],
-            omitted: false,
-            set: "primary",
-            rank: 1,
-        }];
-        let audit = change_set_boundary_audit(
-            "Revalidate authenticated sessions after permission changes",
-            &rows,
-            &[],
-            &[],
-            &[],
-        );
-        assert_eq!(audit["status"], "incomplete");
-        let pipeline = audit["categories"].as_array().unwrap().iter()
-            .find(|category| category["boundary"] == "request_pipeline")
-            .unwrap();
-        assert_eq!(pipeline["status"], "evidence_present");
-        assert!(pipeline["paths"].as_array().unwrap().iter()
-            .any(|path| path == "src/Global.asax.vb"));
-        assert!(audit["unresolved"].as_array().unwrap().iter()
-            .any(|boundary| boundary == "security_state_persistence"));
-    }
-
-    #[test]
-    fn auth_boundary_audit_never_claims_complete_coverage_for_truncated_paths() {
-        let rows = (0..21)
-            .map(|index| ChangeSetRow {
-                path: format!("src/security-{index}.config"),
-                layer: "Config",
-                layer_index: 0,
-                tier: 0,
-                signals: vec!["business"],
-                omitted: false,
-                set: "primary",
-                rank: index + 1,
-            })
-            .collect::<Vec<_>>();
-        let audit = change_set_boundary_audit(
-            "Revalidate authenticated sessions after permission changes",
-            &rows,
-            &[],
-            &[],
-            &[],
-        );
-        let deployment = audit["categories"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .find(|category| category["boundary"] == "deployment_and_runtime_prerequisites")
-            .unwrap();
-        assert_eq!(deployment["status"], "partial");
-        assert_eq!(deployment["paths_total"], 21);
-        assert_eq!(deployment["paths"].as_array().unwrap().len(), 20);
-        assert_eq!(audit["status"], "incomplete");
-        assert!(audit["unresolved"].as_array().unwrap().iter().any(|boundary| {
-            boundary == "deployment_and_runtime_prerequisites"
-        }));
-        assert!(audit["coverage_stops"].as_array().unwrap().iter().any(|stop| {
-            stop["boundary"] == "deployment_and_runtime_prerequisites"
-                && stop["paths_total"] == 21
-        }));
-    }
-
-    #[test]
-    fn auth_boundary_audit_exposes_unretrieved_index_candidates() {
-        let rows = vec![ChangeSetRow {
-            path: "src/AuthMiddleware.cs".into(),
-            layer: "Server",
-            layer_index: 0,
-            tier: 0,
-            signals: vec!["business"],
-            omitted: false,
-            set: "primary",
-            rank: 1,
-        }];
-        let indexed = vec![
-            "src/AuthMiddleware.cs".into(),
-            "src/LoginController.cs".into(),
-            "web/login.js".into(),
-        ];
-        let audit = change_set_boundary_audit(
-            "Revalidate authenticated sessions",
-            &rows,
-            &[],
-            &[],
-            &indexed,
-        );
-        let entry = audit["categories"].as_array().unwrap().iter()
-            .find(|category| category["boundary"] == "authentication_entry_and_refresh")
-            .unwrap();
-        assert_eq!(entry["status"], "candidate_only");
-        assert_eq!(entry["retrieved_paths_total"], 0);
-        assert_eq!(entry["indexed_candidates_total"], 2);
-        assert!(entry["paths"].as_array().unwrap().iter()
-            .any(|path| path == "src/LoginController.cs"));
-    }
-
-    #[test]
-    fn boundary_index_candidates_exclude_build_and_vendor_noise() {
-        for path in [
-            "Bin/Compiler.exe.refresh",
-            "obj/Auth.g.cs",
-            "node_modules/library/login.js",
-            "web/login.min.js",
-            "web/login.css",
-            "diff:abc123:src/LoginController.vb",
-        ] {
-            assert!(!boundary_index_candidate(path), "accepted noisy path {path}");
-        }
-        for path in [
-            "src/LoginController.vb",
-            "web/login.ts",
-            "Site/Web.config",
-            "db/security.sql",
-            "Site/AuthHandler.ashx",
-        ] {
-            assert!(boundary_index_candidate(path), "rejected source path {path}");
-        }
-        assert!(boundary_index_relevant("src/LoginController.vb", true, false));
-        assert!(boundary_index_relevant("src/Startup.vb", true, false));
-        assert!(boundary_index_relevant("src/OwnerResolver.cs", false, true));
-        assert!(!boundary_index_relevant("db/invoice.sql", true, false));
-        assert!(!boundary_index_relevant("pages/report.aspx", true, false));
-        assert!(!boundary_index_relevant("src/users/InvoiceService.cs", true, false));
-        assert!(!boundary_index_relevant("azure-pipelines-build.yml", true, false));
-    }
-
-    #[test]
-    fn scoped_ownership_story_emits_full_lifecycle_and_unresolved_boundaries() {
-        let rows = vec![
-            ChangeSetRow {
-                path: "src/PricingService.cs".into(),
-                layer: "Server",
-                layer_index: 0,
-                tier: 0,
-                signals: vec!["business"],
-                omitted: false,
-                set: "primary",
-                rank: 1,
-            },
-            ChangeSetRow {
-                path: "db/effective-prices.sql".into(),
-                layer: "Data",
-                layer_index: 0,
-                tier: 0,
-                signals: vec!["concept"],
-                omitted: false,
-                set: "primary",
-                rank: 2,
-            },
-        ];
-        let story = "+[Feature] Account-scoped price lists with parent fallback";
-        let obligations = change_set_cross_cutting_obligations(story);
-        let rendered = serde_json::to_string(&obligations).unwrap();
-        for expected in [
-            "scoped ownership and resolution lifecycle",
-            "collection or independently per item",
-            "reassignment or moving between scopes",
-            "copy and clone flows",
-            "UI pages, API versions, imports, background work, reports",
-        ] {
-            assert!(rendered.contains(expected), "missing {expected}: {rendered}");
-        }
-
-        let audit = change_set_boundary_audit(story, &rows, &[], &[], &[]);
-        assert_eq!(audit["status"], "incomplete");
-        assert!(audit["categories"].as_array().unwrap().iter().any(|category| {
-            category["boundary"] == "scope_owner_persistence"
-                && category["status"] == "evidence_present"
-        }));
-        assert!(audit["unresolved"].as_array().unwrap().iter().any(|boundary| {
-            boundary == "scope_copy_move_import"
-        }));
-
-        let hypotheses = bind_component_hypothesis_surfaces(
-            change_set_component_hypotheses(story),
-            &audit,
-        );
-        let scoped = hypotheses.iter().find(|hypothesis| {
-            hypothesis["responsibility"] == "scoped ownership resolver and lifecycle policy"
-        }).expect("scope hypothesis");
-        assert_eq!(scoped["surface_status"], "incomplete");
-        assert!(scoped["concrete_surfaces"].as_array().unwrap().iter().any(|surface| {
-            surface["boundary"] == "scope_copy_move_import"
-                && surface["status"] == "unresolved"
-        }));
-    }
-
-    #[test]
-    fn unrelated_data_change_does_not_invent_auth_obligations() {
-        let obligations = change_set_cross_cutting_obligations(
-            "Add a nullable database column and migration for report titles",
-        );
-        let rendered = serde_json::to_string(&obligations).unwrap();
-        assert!(rendered.contains("persistence contract coherence"));
-        assert!(!rendered.contains("authentication boundary consistency"));
-    }
-
-    #[test]
-    fn session_revalidation_proposes_roles_without_repository_specific_paths() {
-        let story = "Persist a versioned authentication snapshot and revalidate browser sessions after authorization changes";
-        let hypotheses = change_set_component_hypotheses(story);
-        let rendered = serde_json::to_string(&hypotheses).unwrap();
-        for expected in [
-            "current authorization state reader and atomic version store",
-            "immutable credential snapshot codec and comparison policy",
-            "central authentication-state termination",
-            "authenticated response cache policy",
-            "client authentication lifecycle handler",
-            "deployment and recovery contract",
-        ] {
-            assert!(rendered.contains(expected), "missing {expected}: {rendered}");
-        }
-        for expected in [
-            "mutation-time advance or detection-time atomic compare-and-advance",
-            "account, tenant, credential, device, and acting session",
-            "same-device continuity",
-            "protected credential fields, ticket user-data, token claims, or cookie payload",
-            "fresh-issue bootstrap rules",
-            "baseline reconstructible from the protected credential",
-            "session-only storage cannot silently satisfy this gate",
-        ] {
-            assert!(rendered.contains(expected), "missing {expected}: {rendered}");
-        }
-
-        let obligation_values = change_set_cross_cutting_obligations(story);
-        let obligations = serde_json::to_string(&obligation_values).unwrap();
-        for expected in [
-            "preserve each credential scheme's established state model",
-            "blocking product question",
-            "request-class by credential-scheme matrix",
-            "authentication-pipeline principal map",
-            "user-controlled gate selector",
-            "access widening",
-            "tenant-local",
-            "physical-directory/default-document",
-            "local precedents in each architectural layer",
-        ] {
-            assert!(
-                obligations.contains(expected),
-                "missing {expected}: {obligations}"
-            );
-        }
-        assert!(!rendered.contains("Site/"));
-        assert!(!rendered.contains("OciusX"));
-        assert!(!obligations.contains("OciusX"));
-
-        let bound_hypotheses = bind_component_hypothesis_surfaces(
-            change_set_component_hypotheses(story),
-            &serde_json::json!({"categories": [], "unresolved": ["request_pipeline"]}),
-        );
-        let configured_rules = vec![PlanningContractRuleMatch {
-            id: "RULE-generic-probe".into(),
-            title: "Configured release rule".into(),
-            requirement: "prove the configured release behavior".into(),
-            severity: "release_blocking_if_applicable".into(),
-            oracle_guard: Some("the scenario must exercise the configured behavior".into()),
+    fn contract_checkpoint_contains_only_hard_configured_rules() {
+        let rule = |id: &str, severity: &str, guard: Option<&str>| PlanningContractRuleMatch {
+            id: id.into(),
+            title: format!("{id} title"),
+            requirement: format!("prove {id}"),
+            severity: severity.into(),
+            oracle_guard: guard.map(str::to_string),
             source: "project".into(),
             introduced_at: Some("2020-01-01".into()),
             provenance: Some("test fixture".into()),
-        }];
-        let checkpoint = change_set_contract_checkpoint(
-            &obligation_values,
-            &bound_hypotheses,
-            &serde_json::json!({"unresolved": ["request_pipeline"]}),
-            &configured_rules,
-        );
+        };
+        let rules = vec![
+            rule("RULE-hard", "release_blocking_if_applicable", None),
+            rule("RULE-guarded", "required_if_applicable", Some("exercise the guarded behavior")),
+            rule("RULE-advisory", "required_if_applicable", None),
+        ];
+        let checkpoint = change_set_contract_checkpoint(&rules);
         assert_eq!(checkpoint["status"], "REQUIRES_EXPLICIT_DISPOSITIONS");
-        assert!(checkpoint["receipt"]["receipt_id"]
-            .as_str()
-            .unwrap()
-            .starts_with("sha256:"));
         assert_eq!(
-            checkpoint["receipt"]["total"].as_u64().unwrap(),
-            checkpoint["obligation_check_ids"].as_array().unwrap().len() as u64
-                + checkpoint["hypothesis_evidence_ids"].as_array().unwrap().len() as u64
-                + checkpoint["configured_rule_ids"].as_array().unwrap().len() as u64
-                + checkpoint["boundary_ids"].as_array().unwrap().len() as u64
+            checkpoint["configured_rule_ids"],
+            serde_json::json!(["RULE-hard", "RULE-guarded"])
         );
-        assert!(checkpoint["advisory_items_total"].as_u64().unwrap() > 0);
-        assert_eq!(
-            checkpoint["hard_items"].as_array().unwrap().len(),
-            checkpoint["receipt"]["total"].as_u64().unwrap() as usize,
-        );
-        assert_eq!(
-            checkpoint["workflow_scaffold"]["markdown"]
-                .as_str()
-                .unwrap()
-                .lines()
-                .filter(|line| {
-                    line.starts_with("| OBL-")
-                        || line.starts_with("| HYP-")
-                        || line.starts_with("| RULE-")
-                        || line.starts_with("| BND-")
-                })
-                .count(),
-            checkpoint["receipt"]["total"].as_u64().unwrap() as usize,
-        );
-        let scaffold = checkpoint["workflow_scaffold"]["markdown"]
-            .as_str()
-            .unwrap();
-        assert!(scaffold.contains("configured_rules=1 unresolved_boundaries=1 total="));
-        assert!(scaffold.contains("| Contract ID | Severity | Requirement |"));
-        let hard_items = serde_json::to_string(&checkpoint["hard_items"]).unwrap();
-        for release_risk in [
-            "same-device continuity",
-            "process or session loss",
-            "mixed-version behavior",
-            "tenant-local denial",
-        ] {
-            assert!(
-                hard_items.contains(release_risk),
-                "release-critical risk was buried in advisory evidence: {release_risk}"
-            );
-        }
-        assert!(checkpoint["obligation_check_ids"].as_array().unwrap().iter()
-            .all(|id| id.as_str().unwrap().starts_with("OBL-")));
-        assert!(checkpoint["hypothesis_evidence_ids"].as_array().unwrap().iter()
-            .all(|id| id.as_str().unwrap().starts_with("HYP-")));
-        assert_eq!(checkpoint["configured_rule_ids"][0], "RULE-generic-probe");
-        assert_eq!(checkpoint["boundary_ids"][0], "BND-001");
-        assert!(obligation_values.iter().flat_map(|obligation| {
-            obligation["contract_items"].as_array().unwrap().iter()
-        }).any(|item| item["oracle_guard"].as_str().is_some_and(|guard| {
-            guard.contains("must not assert creation of browser credentials")
-        })));
+        assert_eq!(checkpoint["advisory_rules_total"], 1);
+        let markdown = checkpoint["workflow_scaffold"]["markdown"].as_str().unwrap();
+        let receipt = checkpoint["receipt"]["receipt_id"].as_str().unwrap();
+        assert!(markdown.lines().next().unwrap().contains(receipt));
+        assert_eq!(markdown.lines().filter(|line| line.starts_with("| RULE-")).count(), 2);
+
+        let empty = change_set_contract_checkpoint(&[]);
+        assert_eq!(empty["status"], "NO_CONFIGURED_HARD_RULES");
+        assert!(empty["hard_items"].as_array().unwrap().is_empty());
     }
 
     #[test]
-    fn component_hypotheses_bind_required_contracts_to_concrete_surfaces() {
-        let audit = serde_json::json!({
-            "categories": [
-                {
-                    "boundary": "authentication_entry_and_refresh",
-                    "status": "evidence_present",
-                    "paths": ["src/Login.cs"],
-                    "paths_total": 1,
-                    "truncated": false
-                },
-                {
-                    "boundary": "request_pipeline",
-                    "status": "evidence_present",
-                    "paths": ["src/AuthMiddleware.cs"],
-                    "paths_total": 1,
-                    "truncated": false
-                },
-                {
-                    "boundary": "security_state_persistence",
-                    "status": "partial",
-                    "paths": ["db/001-auth.sql"],
-                    "paths_total": 24,
-                    "truncated": true
-                }
-            ]
-        });
-        let hypotheses = bind_component_hypothesis_surfaces(
-            change_set_component_hypotheses(
-                "Persist a versioned authentication snapshot and revalidate sessions",
-            ),
-            &audit,
-        );
-        let snapshot = hypotheses.iter().find(|hypothesis| {
-            hypothesis["responsibility"]
-                == "immutable credential snapshot codec and comparison policy"
-        }).unwrap();
-        assert_eq!(snapshot["surface_status"], "incomplete");
-        assert!(snapshot["required_contract_evidence"].as_array().unwrap().iter()
-            .any(|item| item.as_str().unwrap().contains("protected credential fields")));
-        let surfaces = snapshot["concrete_surfaces"].as_array().unwrap();
-        assert!(surfaces.iter().any(|surface| {
-            surface["boundary"] == "authentication_entry_and_refresh"
-                && surface["paths"][0] == "src/Login.cs"
-        }));
-        assert!(surfaces.iter().any(|surface| {
-            surface["boundary"] == "security_state_persistence"
-                && surface["status"] == "partial"
-                && surface["paths_total"] == 24
-        }));
-        assert!(surfaces.iter().any(|surface| {
-            surface["boundary"] == "machine_and_browser_consumers"
-                && surface["status"] == "unresolved"
-        }));
+    fn contract_checkpoint_scaffold_round_trips_through_the_validator() {
+        let rules = vec![PlanningContractRuleMatch {
+            id: "RULE-hard".into(),
+            title: "Hard rule".into(),
+            requirement: "prove the configured behavior".into(),
+            severity: "release_blocking_if_applicable".into(),
+            oracle_guard: None,
+            source: "project".into(),
+            introduced_at: None,
+            provenance: None,
+        }];
+        let checkpoint = change_set_contract_checkpoint(&rules);
+        let contract = checkpoint["workflow_scaffold"]["markdown"]
+            .as_str()
+            .unwrap()
+            .replace(
+                "| MISSING | | | MISSING |",
+                "| SATISFIED_WITH_SOURCE_OR_APPROVED_DECISION | src/Rule.cs:3 | SC-RULE-01 | NOT_APPLICABLE_WITH_EVIDENCE |",
+            );
+        let result =
+            validate_contract_checkpoint(&checkpoint, &contract, "| SC-RULE-01 | scenario |").unwrap();
+        assert_eq!(result["status"], "PASS", "{result}");
     }
 
     #[test]
@@ -16933,14 +14499,14 @@ mod story_concept_resolution_tests {
     //! appended when the index corroborates them.
     use super::*;
 
-    const STORY: &str = "As an admin I want to set a main reporting category (huvudredovisningskategori) \
+    const STORY: &str = "As an admin I want to set a main reporting category (huvudkostnadskategori) \
                          on a production code list category so that time reports roll up to it";
 
     #[test]
     fn candidates_include_parenthesized_domain_terms_and_noun_phrases() {
         let c = extract_story_concept_candidates(STORY);
         assert!(
-            c.iter().any(|x| x == "huvudredovisningskategori"),
+            c.iter().any(|x| x == "huvudkostnadskategori"),
             "a parenthesized gloss is the author naming the domain entity: {c:?}"
         );
         assert!(
@@ -16959,16 +14525,16 @@ mod story_concept_resolution_tests {
     #[test]
     fn resolution_keeps_only_index_corroborated_candidates_and_splits_compounds() {
         let index = vec![
-            "Site/App_Code/redovisning/code/redovisningskategorier.vb".to_string(),
+            "Site/App_Code/leverans/code/kostnadskategorier.vb".to_string(),
             "Site/modules/dashboard/pages/admin/production/productioncodelistcategory.aspx.vb"
                 .to_string(),
-            "db-ociusx.sql/dbo/Tables/rk_redovisningskategorier.sql".to_string(),
+            "db-app.sql/dbo/Tables/kk_kostnadskategorier.sql".to_string(),
         ];
         let cands = vec![
             "main".to_string(),
             "reporting".to_string(),
             "category".to_string(),
-            "huvudredovisningskategori".to_string(),
+            "huvudkostnadskategori".to_string(),
             "reporting category".to_string(),
             "code list category".to_string(),
             "unicorn".to_string(),
@@ -16977,7 +14543,7 @@ mod story_concept_resolution_tests {
         // The first three are never dropped (no regression on the recipe).
         assert_eq!(&resolved[..3], &["main", "reporting", "category"]);
         assert!(
-            resolved.iter().any(|x| x == "redovisningskategori"),
+            resolved.iter().any(|x| x == "kostnadskategori"),
             "the Swedish compound must resolve to the indexed stem (suffix split): {resolved:?}"
         );
         assert!(
@@ -17026,28 +14592,23 @@ mod story_concept_resolution_tests {
 
     #[test]
     fn code_shaped_story_entities_resolve_without_prose_noise() {
-        let story = "Update SessionGeneration in aspnet_Membership through ResetPassword while ordinary users continue";
+        let story =
+            "Update TokenEpoch in app_Accounts through ResetPassword while ordinary users continue";
         let entities = extract_story_code_entities(story);
         assert_eq!(
             entities,
-            vec!["SessionGeneration", "aspnet_Membership", "ResetPassword"]
+            vec!["TokenEpoch", "app_Accounts", "ResetPassword"]
         );
+        assert!(code_entity_file_matches("app_Accounts", "app_Accounts"));
         assert!(code_entity_file_matches(
-            "aspnet_Membership",
-            "aspnet_Membership"
+            "LicenseSeatRevoked",
+            "LicenseSeat"
         ));
-        assert!(code_entity_file_matches(
-            "TenantAccessRevoked",
-            "TenantAccess"
-        ));
-        assert!(!code_entity_file_matches(
-            "aspnet_Membership",
-            "Membership"
-        ));
+        assert!(!code_entity_file_matches("app_Accounts", "Accounts"));
         assert!(code_entity_file_matches("SAML", "SAMLService"));
         assert!(code_entity_matches(
             "ResetPassword",
-            "_us.SetPwdManager.ResetPassword"
+            "_ac.CredentialManager.ResetPassword"
         ));
         assert!(!code_entity_matches("ordinary", "Coordinator"));
         assert!(code_entity_path_eligible("src/AuthenticationService.vb"));
@@ -17094,14 +14655,14 @@ mod change_set_tier_tests {
 
     #[test]
     fn family_metadata_never_self_corroborates_a_lexicon_match() {
-        let translated_family = ["concept", "lexicon", "family", "required_family"];
+        let translated_family = ["concept", "lexicon", "family"];
         assert_eq!(t(&translated_family), 3);
         assert_eq!(
             change_set_strength(&translated_family.into_iter().collect()),
             2,
             "concept and lexicon are evidence labels; family bookkeeping adds no strength"
         );
-        assert_eq!(t(&["concept", "lexicon", "required_family", "history"]), 0);
+        assert_eq!(t(&["concept", "lexicon", "family", "history"]), 0);
     }
 }
 
@@ -17172,7 +14733,7 @@ mod footprint_literal_tests {
     //! Row-4 audit A2: the footprint runs a LITERAL (substring, case-
     //! insensitive) pass over the indexed chunk text, because the tokenized
     //! index cannot see a stem inside an identifier
-    //! (`rk_redovisningskategorier`). Its caps and status are reported.
+    //! (`kk_kostnadskategorier`). Its caps and status are reported.
     use super::*;
 
     #[test]

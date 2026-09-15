@@ -154,10 +154,10 @@ fn inline(v: &mut Value, defs: &Map<String, Value>, depth: usize) {
 pub const CORE_TOOLS: &[&str] = &[
     // 6 natural-language understanding + identity
     "ask_codebase",
+    "resolve_id",
     // 1 story-to-change scope
     "plan_user_story",
     "get_change_set",
-    "validate_feature_contract",
     // 4 exact entity / consumer discovery
     "get_concept_footprint",
     "find_symbol_references",
@@ -193,6 +193,7 @@ pub const CORE_TOOLS: &[&str] = &[
     "get_index_freshness",
     "grep_project",
     "search_memory",
+    "produce_claude_md",
     "list_advanced_tools",
 ];
 
