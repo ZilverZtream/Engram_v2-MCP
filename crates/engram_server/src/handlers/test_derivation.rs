@@ -408,8 +408,23 @@ pub(super) fn intent_risk_axes(intent: Option<&str>) -> Vec<(String, String)> {
             "supplied change intent reads or rewrites XML-family content: test UTF-8 with and without BOM, UTF-16 LE/BE, non-ASCII text, declarations and namespace attributes. Preserve or deliberately normalize encoding according to the contract, and verify bytes can be reparsed after every mutation/error path".into(),
         ));
     }
+    let authorization_policy = [
+        "authorization", "permission", "role", "privilege", "access control", "restrict access",
+    ]
+    .iter()
+    .any(|term| lower.contains(term));
+    if authorization_policy {
+        axes.push((
+            "Authorization default and explicit-override matrix".into(),
+            "supplied change intent adds or changes an authorization policy: test the no-override default in every supported configuration, explicit deny precedence, explicit allow or write grant, unsupported roles, privileged exemptions, tenant isolation, existing-subject rollout and cache refresh. Treat fixed, feature-controlled and tenant-configurable defaults as competing contract choices until approved; bind the chosen default to its accessor, resource family, seed or migration and deployment order".into(),
+        ));
+        axes.push((
+            "Permission administration and enforcement consistency".into(),
+            "supplied change intent adds or changes an authorization policy: test who can discover, grant, revoke and change it for self and peers, including self-lockout and recovery. Reconcile hidden navigation or controls with server enforcement on direct page, postback, API, asynchronous, import and background entry points; hiding a control is not authorization. Verify grant/revoke audit behavior and keep unsupported surfaces as explicit scope decisions".into(),
+        ));
+    }
     let authentication_lifecycle = [
-        "authentication", "authorization", "login", "logout", "sign in", "sign out",
+        "authentication", "login", "logout", "sign in", "sign out",
         "credential", "password", "security stamp", "auth token", "forms ticket",
         "session revocation", "session invalidation",
     ]
@@ -2231,6 +2246,30 @@ End Function
         assert!(joined.contains("multiple server instances") && joined.contains("per-process"), "{joined}");
         assert!(joined.contains("default-document") && joined.contains("recursive session locking"), "{joined}");
         assert!(joined.contains("401/403") && joined.contains("cache/history"), "{joined}");
+    }
+
+    #[test]
+    fn permission_intent_axes_cover_defaults_overrides_administration_and_surfaces() {
+        let axes = intent_risk_axes(Some(
+            "Add a custom permission to restrict access to user management",
+        ));
+        let joined = axes
+            .iter()
+            .map(|(axis, evidence)| format!("{axis}: {evidence}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        for expected in [
+            "Authorization default and explicit-override matrix",
+            "Permission administration and enforcement consistency",
+            "tenant-configurable defaults",
+            "explicit deny precedence",
+            "explicit allow or write grant",
+            "self-lockout and recovery",
+            "hiding a control is not authorization",
+        ] {
+            assert!(joined.contains(expected), "missing {expected}: {joined}");
+        }
+        assert!(!joined.contains("Credential freshness and replay timeline"), "{joined}");
     }
 
     #[test]
