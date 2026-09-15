@@ -152,11 +152,19 @@ def value_text(value: Any) -> str:
 
 def evidence_candidates(evidence: dict[str, Any], matrix_text: str) -> list[Candidate]:
     candidates: list[Candidate] = []
+    for item in evidence.get("contract_checkpoint", {}).get("hard_items", []):
+        candidates.append(Candidate(
+            id=str(item.get("id")),
+            kind=f"hard_{item.get('kind', 'contract')}",
+            text=value_text(item),
+        ))
     for obligation in evidence.get("cross_cutting_obligations", []):
         prefix = " ".join(value_text(obligation.get(key, "")) for key in (
             "obligation", "trigger", "candidate_mechanism_roles"
         ))
-        for item in obligation.get("contract_items", []):
+        items = list(obligation.get("contract_items", []))
+        items.extend(obligation.get("advisory_contract_items", []))
+        for item in items:
             candidates.append(Candidate(
                 id=str(item.get("check_id")), kind="obligation",
                 text=prefix + " " + value_text(item),
@@ -165,13 +173,26 @@ def evidence_candidates(evidence: dict[str, Any], matrix_text: str) -> list[Cand
         prefix = " ".join(value_text(hypothesis.get(key, "")) for key in (
             "responsibility", "verify_against", "decision", "required_surface_categories", "concrete_surfaces"
         ))
-        for item in hypothesis.get("contract_evidence_items", []):
+        items = list(hypothesis.get("contract_evidence_items", []))
+        items.extend(hypothesis.get("advisory_contract_evidence", []))
+        for item in items:
             candidates.append(Candidate(
                 id=str(item.get("evidence_id")), kind="hypothesis",
                 text=prefix + " " + value_text(item),
             ))
+    guidance = {
+        str(entry.get("id")): entry
+        for entry in evidence.get("row_guidance", {}).get("entries", [])
+    }
     for family, kind in (("files", "primary"), ("asset_dependencies", "asset"), ("caller_dependencies", "caller")):
         for row in evidence.get(family, []):
+            row = dict(row)
+            for field in (
+                "mechanism_role", "evidence_class", "impact_question", "exclusion_evidence_required"
+            ):
+                reference = row.pop(f"{field}_ref", None)
+                if reference in guidance:
+                    row[field] = guidance[reference].get("text", "")
             row_id = str(row.get("row_id") or f"{kind}:{row.get('path', '')}")
             candidates.append(Candidate(id=row_id, kind=kind, text=value_text(row)))
 
@@ -188,6 +209,20 @@ def evidence_candidates(evidence: dict[str, Any], matrix_text: str) -> list[Cand
         if candidate.id and candidate.id not in unique:
             unique[candidate.id] = candidate
     return list(unique.values())
+
+
+def packet_metrics(candidates: list[Candidate], signals: list[Signal]) -> dict[str, Any]:
+    combined = "\n".join(candidate.text for candidate in candidates)
+    covered = [signal.id for signal in signals if signal_covered(signal, combined)]
+    total = sum(signal.weight for signal in signals)
+    hit = sum(signal.weight for signal in signals if signal.id in covered)
+    return {
+        "items": len(candidates),
+        "chars": sum(len(candidate.text) for candidate in candidates),
+        "weighted_signal_recall": round(hit / total, 4) if total else None,
+        "covered_signal_ids": covered,
+        "missed_signal_ids": [signal.id for signal in signals if signal.id not in covered],
+    }
 
 
 def candidate_masks(candidates: list[Candidate], signals: list[Signal]) -> list[tuple[int, ...]]:
@@ -331,6 +366,10 @@ def main() -> int:
         budgets = sorted({int(value) for value in args.budgets.split(",") if value.strip()})
         report["packet_optimizer"] = {
             "candidate_count": len(candidates),
+            "hard_packet": packet_metrics(
+                [candidate for candidate in candidates if candidate.kind.startswith("hard_")],
+                signals,
+            ),
             "iterations_per_budget": args.iterations,
             "budgets": optimize_packets(candidates, signals, budgets, args.iterations, args.seed),
         }

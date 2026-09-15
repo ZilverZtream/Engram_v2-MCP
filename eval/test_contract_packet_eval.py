@@ -60,11 +60,17 @@ class ContractPacketEvalTests(unittest.TestCase):
 
     def test_evidence_candidates_are_unique_and_matrix_items_are_split(self):
         evidence = {
+            "contract_checkpoint": {"hard_items": [
+                {"id": "OBL-HARD", "kind": "obligation", "requirement": "hard"}
+            ]},
             "cross_cutting_obligations": [{
                 "obligation": "mutation",
-                "contract_items": [{"check_id": "OBL-01", "requirement": "advance"}],
+                "advisory_contract_items": [{"check_id": "OBL-01", "requirement": "advance"}],
             }],
-            "files": [{"row_id": "P001", "path": "A.vb"}],
+            "row_guidance": {"entries": [
+                {"id": "G001", "field": "impact_question", "text": "resolved guidance"}
+            ]},
+            "files": [{"row_id": "P001", "path": "A.vb", "impact_question_ref": "G001"}],
         }
         matrix = (
             "- **TM-INTENT-01** first\n  - outcome A\n"
@@ -72,7 +78,27 @@ class ContractPacketEvalTests(unittest.TestCase):
             "Historical knowledge cutoff: 2020-01-01\n"
         )
         candidates = subject.evidence_candidates(evidence, matrix)
-        self.assertEqual({item.id for item in candidates}, {"OBL-01", "P001", "TM-INTENT-01", "TM-INTENT-02"})
+        self.assertEqual(
+            {item.id for item in candidates},
+            {"OBL-HARD", "OBL-01", "P001", "TM-INTENT-01", "TM-INTENT-02"},
+        )
+        primary = next(item for item in candidates if item.id == "P001")
+        self.assertIn("resolved guidance", primary.text)
+        hard = next(item for item in candidates if item.id == "OBL-HARD")
+        self.assertEqual(hard.kind, "hard_obligation")
+
+    def test_packet_metrics_scores_combined_multi_item_evidence(self):
+        signals = subject.compile_signals([{
+            "id": "combined",
+            "weight": 3,
+            "groups": [["password"], ["restore"]],
+        }])
+        result = subject.packet_metrics([
+            subject.Candidate("A", "hard_obligation", "password change"),
+            subject.Candidate("B", "hard_hypothesis", "restore after failure"),
+        ], signals)
+        self.assertEqual(result["weighted_signal_recall"], 1.0)
+        self.assertEqual(result["items"], 2)
 
 
 if __name__ == "__main__":
