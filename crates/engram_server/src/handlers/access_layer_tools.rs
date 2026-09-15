@@ -1728,9 +1728,9 @@ fn compute_edit_safety(
     };
     let callers_unknown = completeness.callers.is_missing();
     let has_session_writes = !method_info.session_keys_written.is_empty();
-    let has_triggers = blast_radius
-        .map(|b| !b.seam_candidates.is_empty())
-        .unwrap_or(false);
+    // Blast-radius seam candidates are not read here. They are migration-
+    // boundary hints, and every method has an incoming containment edge with
+    // no outgoing one, so every method is a candidate: no trigger evidence.
     let has_on_error = method_info
         .effects
         .iter()
@@ -1782,9 +1782,6 @@ fn compute_edit_safety(
                 complexity
             ));
         }
-        if has_triggers {
-            reasons.push("Seam candidates present — downstream triggers may fire".to_string());
-        }
         pre_checklist.push("Write characterization tests before modifying".to_string());
         pre_checklist.push("Identify all callers including dynamic invocations".to_string());
         post_checklist.push("Run full regression suite".to_string());
@@ -1795,7 +1792,6 @@ fn compute_edit_safety(
     else if br_score > 20.0
         || caller_count > 3
         || has_session_writes
-        || has_triggers
         || complexity > 15
         || (has_no_bound_callers && !framework_entry_point)
     {
@@ -1810,9 +1806,6 @@ fn compute_edit_safety(
         }
         if has_session_writes {
             reasons.push("Writes session state — changes affect other pages".to_string());
-        }
-        if has_triggers {
-            reasons.push("Seam candidates present — downstream triggers may fire".to_string());
         }
         if complexity > 15 {
             reasons.push(format!("Complexity {} — moderate", complexity));
@@ -6335,6 +6328,70 @@ mod edit_safety_tests {
         assert_eq!(v["completeness"]["session_writes"]["status"], "truncated");
         assert_eq!(v["completeness"]["session_writes"]["cap"], 200);
         assert_eq!(v["completeness"]["callers"]["status"], "complete");
+    }
+
+    fn blast_with_seams(seams: usize) -> crate::services::blast_radius_service::BlastRadiusReport {
+        use crate::services::blast_radius_service::{
+            BlastRadiusReport, ComplexityBreakdown, CountCoverage, RiskBand, SeamCandidate,
+            UncertaintyBreakdown,
+        };
+        BlastRadiusReport {
+            target: "sym:function:Site/App_Code/x.vb:cls.M:1".into(),
+            target_type: "function".into(),
+            migration_risk: 1,
+            risk_band: RiskBand::Low,
+            complexity_breakdown: ComplexityBreakdown {
+                handles_clause_score: 0.0,
+                sql_concat_score: 0.0,
+                pagerank_score: 0.0,
+                state_coupling_score: 0.0,
+                gis_coupling_score: 0.0,
+                polymorphism_score: 0.0,
+                script_injection_score: 0.0,
+                dependency_density_score: 0.0,
+            },
+            uncertainty_breakdown: UncertaintyBreakdown {
+                dynamic_ui_uncertainty_score: 0.0,
+                late_binding_uncertainty_score: 0.0,
+                dynamic_sql_uncertainty_score: 0.0,
+            },
+            seam_candidates: (0..seams)
+                .map(|i| SeamCandidate {
+                    node_id: format!("sym:function:n{i}"),
+                    node_type: "function".into(),
+                    reason: "Edge kind boundary: 2 incoming kinds vs 1 outgoing kinds differ"
+                        .into(),
+                    edge_kinds_crossing: vec!["contains".into()],
+                })
+                .collect(),
+            guidance: vec![],
+            total_incoming: 2,
+            total_outgoing: 1,
+            total_downstream: 3,
+            causal_dependents: 1,
+            historical_companions: 0,
+            possible_dependents: 0,
+            unresolved_endpoints: 0,
+            internal_edges: 0,
+            top_causal_dependents: vec![],
+            coverage: CountCoverage::default(),
+        }
+    }
+
+    /// Seam candidates are migration-boundary hints. Every method has an
+    /// incoming containment edge and no outgoing one, so every method is a
+    /// candidate; reading them as "downstream triggers" made every edit
+    /// YELLOW. A low-risk method stays green.
+    #[test]
+    fn seam_candidates_do_not_raise_the_edit_verdict() {
+        let blast = blast_with_seams(1);
+        let r = compute_edit_safety(&info(1, 3, 0), Some(&blast), &complete());
+        assert_eq!(r.verdict, "green", "{r:?}");
+        assert!(
+            !r.reasons.iter().any(|s| s.contains("Seam")),
+            "{:?}",
+            r.reasons
+        );
     }
 }
 
