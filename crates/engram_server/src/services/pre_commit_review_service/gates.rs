@@ -2768,10 +2768,25 @@ pub(crate) fn query_overlap(content: &str, query: &str) -> (usize, usize, Vec<St
     let words: Vec<&str> = query.split_whitespace().collect();
     let matched: Vec<String> = words
         .iter()
-        .filter(|w| contains_word(&lc, w))
+        .filter(|w| contains_word(&lc, &w.to_lowercase()))
         .map(|s| s.to_string())
         .collect();
     (matched.len(), words.len(), matched)
+}
+
+/// Matched query terms below which an overlap is incidental vocabulary.
+pub(crate) const MIN_MATCHED_TERMS: usize = 4;
+
+/// Similarity of proposed code to a stored anti-pattern: the share of the
+/// code's query terms found in the anti-pattern's content. Hybrid hit scores
+/// are rank-fusion values and cannot serve as a similarity. A query of four
+/// or more terms needs four matches; a shorter one must match every term.
+pub(crate) fn code_similarity(content: &str, query: &str) -> f32 {
+    let (matched, total, _) = query_overlap(content, query);
+    if total == 0 || matched < total.min(MIN_MATCHED_TERMS) {
+        return 0.0;
+    }
+    matched as f32 / total as f32
 }
 
 /// Split an identifier into lowercase words on case boundaries and
@@ -4182,6 +4197,14 @@ mod tests {
         assert_eq!(t, 5);
         assert_eq!(m, 4, "matched: {words:?}");
         assert!(!words.contains(&"billing".to_string()));
+    }
+
+    #[test]
+    fn query_overlap_matches_identifiers_whatever_their_case() {
+        // Queries built from code keep identifier case while the content is
+        // compared lowercased, so `SubmitOrder` could never match.
+        let (m, t, _) = query_overlap("Call SubmitOrder(id) when ready", "SubmitOrder ready");
+        assert_eq!((m, t), (2, 2));
     }
 
     #[test]
