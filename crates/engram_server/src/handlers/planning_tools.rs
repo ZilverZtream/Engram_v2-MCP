@@ -7540,11 +7540,47 @@ pub(crate) fn change_set_layer_name(i: usize) -> &'static str {
 /// A deliberately coarse, repository-agnostic role inferred from the artifact
 /// name. It explains why a surfaced path may matter without claiming that the
 /// file must be edited or inventing domain behavior.
+fn is_additive_registry_path(path: &str) -> bool {
+    let lower = path.replace('\\', "/").to_ascii_lowercase();
+    let name = lower.rsplit('/').next().unwrap_or(&lower);
+    lower.ends_with(".resx")
+        || lower.contains("/scripts/post/")
+        || lower.contains("/migrations/")
+        || lower.contains("/seeds/")
+        || name.contains("settingstore")
+        || name.contains("settingsstore")
+        || name.contains("registry")
+        || name.contains("catalog")
+}
+
+fn cochange_specificity_score(weight: u32, partner_degree: usize) -> u128 {
+    (weight as u128)
+        .saturating_mul(weight as u128)
+        .saturating_mul(1_000_000)
+        / partner_degree.max(1) as u128
+}
+
+fn retain_temporal_hub(path: &str, weight: u32, degree: Option<usize>, hub_degree: usize) -> bool {
+    !degree.is_some_and(|value| value >= hub_degree)
+        || (is_additive_registry_path(path) && weight >= 10)
+}
+
 fn change_set_mechanism_role(path: &str) -> &'static str {
     let lower = path.replace('\\', "/").to_ascii_lowercase();
     let name = lower.rsplit('/').next().unwrap_or(&lower);
     if name.contains("bundleconfig") || name.contains("webpack") || name.contains("vite.config") {
         "asset registration and delivery"
+    } else if lower.ends_with(".resx") {
+        "additive localized resource registry"
+    } else if lower.contains("/scripts/post/")
+        || lower.contains("/migrations/")
+        || lower.contains("/seeds/")
+    {
+        "additive deployment or seed registry"
+    } else if name.contains("settingstore") || name.contains("settingsstore") {
+        "configuration and default registry"
+    } else if name.contains("registry") || name.contains("catalog") {
+        "additive code registry or catalog"
     } else if name.contains("global.asax") || name.contains("startup") || name == "program.cs" {
         "application request pipeline"
     } else if name.contains("middleware") {
@@ -7597,6 +7633,14 @@ fn change_set_impact_question(path: &str) -> &'static str {
     match change_set_mechanism_role(path) {
         "asset registration and delivery" =>
             "Does this registry deliver any changed or newly required client behavior to the affected surface?",
+        "additive localized resource registry" =>
+            "Does the story add or rename a user-visible label, setting description, enum value, permission, or status whose complete locale family must gain a new entry?",
+        "additive deployment or seed registry" =>
+            "Does the story add a setting, default, permission, status, route, or persisted catalog entry that must be created idempotently for existing deployments?",
+        "configuration and default registry" =>
+            "Does the story need a configurable default, feature switch, tenant policy, or cached setting accessor rather than one fixed behavior for every deployment?",
+        "additive code registry or catalog" =>
+            "Does the story introduce a new named item whose first reference is expected to be added to this registry or catalog by the change itself?",
         "application request pipeline" =>
             "Does this pipeline stage acquire state, select a principal, classify the request, or rewrite the response affected by the story?",
         "request pipeline and principal propagation" =>
@@ -7624,7 +7668,10 @@ fn change_set_impact_question(path: &str) -> &'static str {
     }
 }
 
-fn change_set_exclusion_evidence(signals: &[&str]) -> &'static str {
+fn change_set_exclusion_evidence(path: &str, signals: &[&str]) -> &'static str {
+    if is_additive_registry_path(path) {
+        return "absence of a current reference is not exclusion evidence for an additive registry; decide whether the story adds a default, label, setting, permission, status, route, seed, or catalog entry, inspect analogous additions, and exclude only when the contract rejects that mechanism";
+    }
     match change_set_evidence_class(signals) {
         "corroborated_behavioral_candidate" =>
             "inspect the named member or story entity and its historical relationship; exclude only with source evidence that the changed behavior cannot reach this file",
@@ -7682,10 +7729,15 @@ fn ranked_change_set_reasons(
 fn change_set_cross_cutting_obligations(story: &str) -> Vec<serde_json::Value> {
     let lower = story.to_ascii_lowercase();
     let contains_any = |terms: &[&str]| terms.iter().any(|term| lower.contains(term));
-    let auth = contains_any(&[
-        "authenticat", "authoriz", "session", "login", "logout", "cookie", "token",
-        "credential", "password", "permission", "role", "impersonat", "tenant access",
+    let authentication_lifecycle = contains_any(&[
+        "authenticat", "session", "login", "logout", "cookie", "token", "credential",
+        "password", "impersonat", "security stamp", "forms ticket", "revalidat",
     ]);
+    let authorization_policy = contains_any(&[
+        "authoriz", "permission", "role", "privilege", "access control", "restrict access",
+        "tenant access",
+    ]);
+    let auth = authentication_lifecycle || authorization_policy;
     let mutation = contains_any(&[
         "change", "update", "disable", "inactive", "lock", "reset", "revoke", "remove",
         "assign", "switch", "expire",
@@ -7722,7 +7774,7 @@ fn change_set_cross_cutting_obligations(story: &str) -> Vec<serde_json::Value> {
             "candidate_mechanism_roles": ["mutation command handlers", "session or token lifecycle", "audit and operational logging"]
         }));
     }
-    if auth {
+    if authentication_lifecycle {
         out.push(serde_json::json!({
             "obligation": "authentication boundary consistency",
             "trigger": "the story changes authentication, authorization, or session behavior",
@@ -7747,6 +7799,22 @@ fn change_set_cross_cutting_obligations(story: &str) -> Vec<serde_json::Value> {
             ],
             "candidate_mechanism_roles": ["session or token lifecycle", "request pipeline and principal propagation", "browser or client behavior", "rendered user-interface host"]
         }));
+    }
+    if authorization_policy {
+        out.push(serde_json::json!({
+            "obligation": "authorization policy and default rollout",
+            "trigger": "the story adds or changes a role, permission, privilege, access restriction, or tenant authorization policy",
+            "checks": [
+                "define eligible identities, privileged exemptions, explicit deny and allow precedence, and behavior when no per-subject override exists",
+                "decide whether the default is fixed, tenant-configurable, feature-controlled, or migrated for existing subjects; inspect the repository's setting accessor, resource-family, seed, and deployment conventions",
+                "define who may view, grant, revoke, or change the policy for themselves and peers, including recovery from self-lockout and last-administrator cases",
+                "reconcile navigation visibility with server-side enforcement at every page, API, asynchronous, import, and background entry point; hiding a control is not authorization",
+                "test default on and off, explicit deny, explicit allow, unsupported roles, privileged exemptions, cache refresh, tenant isolation, and grant/revoke audit behavior"
+            ],
+            "candidate_mechanism_roles": ["authentication or authorization gate", "configuration and default registry", "additive deployment or seed registry", "additive localized resource registry", "audit and operational logging"]
+        }));
+    }
+    if auth {
         out.push(serde_json::json!({
             "obligation": "security decision observability",
             "trigger": "access can be granted, denied, revoked, or revalidated",
@@ -7783,7 +7851,7 @@ fn change_set_cross_cutting_obligations(story: &str) -> Vec<serde_json::Value> {
             "candidate_mechanism_roles": ["authentication or authorization gate", "error and response contract", "request pipeline and principal propagation", "browser or client behavior"]
         }));
     }
-    if browser || auth {
+    if browser || authentication_lifecycle {
         out.push(serde_json::json!({
             "obligation": "client delivery and navigation lifecycle",
             "trigger": "the behavior is observable in a browser or changes interactive authentication state",
@@ -7824,6 +7892,10 @@ fn change_set_component_hypotheses(story: &str) -> Vec<serde_json::Value> {
         "authenticat", "authoriz", "session", "login", "logout", "cookie", "token",
         "credential", "password", "permission", "role", "tenant access",
     ]);
+    let authorization_policy = has(&[
+        "authoriz", "permission", "role", "privilege", "access control", "restrict access",
+        "tenant access",
+    ]);
     let mutable_state = has(&[
         "revalidat", "revoke", "disable", "change", "update", "generation", "version",
         "current account", "current authorization",
@@ -7836,6 +7908,21 @@ fn change_set_component_hypotheses(story: &str) -> Vec<serde_json::Value> {
         "database", "persist", "table", "column", "schema", "generation", "version",
     ]);
     let mut out = Vec::new();
+    if authorization_policy {
+        out.push(serde_json::json!({
+            "responsibility": "authorization policy, administration, and default rollout",
+            "verify_against": "existing permission catalogs, policy predicates, setting/default mechanisms, enforcement surfaces, and grant/revoke workflows",
+            "decision": "one authoritative policy with an explicit fixed or configurable default, or evidence that an existing policy already supplies the complete contract",
+            "required_surface_categories": ["authorization_gates", "security_state_persistence", "deployment_and_runtime_prerequisites", "machine_and_browser_consumers", "audit_and_observability"],
+            "required_contract_evidence": [
+                "eligible roles and identities, privileged exemptions, explicit deny and allow precedence, and the no-override default",
+                "who may view, grant, revoke, or change the policy for themselves and peers, including self-lockout and recovery",
+                "whether the default is fixed, tenant-configurable, feature-controlled, or migrated for existing subjects, with the repository's accessor, resource-family, seed, deployment, and rollback conventions",
+                "every server enforcement and presentation surface, including pages, APIs, asynchronous calls, imports, background work, direct navigation, and hidden controls",
+                "persistence scope, cache invalidation or refresh, tenant isolation, and grant, revoke, and denial observability"
+            ]
+        }));
+    }
     if auth && mutable_state {
         out.push(serde_json::json!({
             "responsibility": "current authorization state reader and atomic version store",
@@ -8997,7 +9084,7 @@ fn render_change_set(
             change_set_mechanism_role(&r.path),
             rationale,
             change_set_impact_question(&r.path),
-            change_set_exclusion_evidence(&r.signals),
+            change_set_exclusion_evidence(&r.path, &r.signals),
         ));
     }
     s.push_str(
@@ -11140,7 +11227,7 @@ impl Engram {
                         "mechanism_role": change_set_mechanism_role(&r.path),
                         "evidence_class": change_set_evidence_class(&r.signals),
                         "impact_question": change_set_impact_question(&r.path),
-                        "exclusion_evidence_required": change_set_exclusion_evidence(&r.signals),
+                        "exclusion_evidence_required": change_set_exclusion_evidence(&r.path, &r.signals),
                         "path_kind": if r.signals.contains(&"disk") { "existing_unindexed" } else { "existing" },
                         "indexed": !r.signals.contains(&"disk"),
                         "layer": r.layer,
@@ -12185,7 +12272,7 @@ impl Engram {
             raw.sort_by(|a, b| b.2.cmp(&a.2).then(a.1.cmp(&b.1)));
             let hub_degree = std::env::var("ENGRAM_HUB_DEGREE").ok().and_then(|v| v.parse::<usize>().ok()).unwrap_or(800);
             let mut seen_partners = HashSet::new();
-            let mut partners = Vec::new();
+            let mut scored_partners = Vec::new();
             for (edited, partner, weight, historical) in raw {
                 if !seen_partners.insert(partner.to_lowercase()) { continue; }
                 let degree = match graph.neighbors(&pid, EdgeKind::TemporalCoupling, &format!("file:{historical}"), 2001) {
@@ -12195,7 +12282,43 @@ impl Engram {
                     },
                     Err(error) => { coverage.note(format!("hub-degree lookup for {historical} failed: {error}; candidate retained")); None },
                 };
-                if degree.is_none_or(|degree| degree < hub_degree) { partners.push((edited, partner, weight)); }
+                let is_hub = degree.is_some_and(|value| value >= hub_degree);
+                let additive_registry = is_additive_registry_path(&partner);
+                if !retain_temporal_hub(&partner, weight, degree, hub_degree) {
+                    continue;
+                }
+                // Raw co-change count rewards files touched by large bulk commits.
+                // Weight squared over the partner's temporal degree is a bounded
+                // lift proxy: repeated, specific pairing outranks a ubiquitous hub.
+                // Additive registries may survive the hub cutoff because their first
+                // reference is commonly created by the proposed change itself.
+                let normalized_score = cochange_specificity_score(weight, degree.unwrap_or(1));
+                scored_partners.push((
+                    normalized_score,
+                    is_hub && additive_registry,
+                    edited,
+                    partner,
+                    weight,
+                ));
+            }
+            scored_partners.sort_by(|left, right| {
+                right.0.cmp(&left.0)
+                    .then_with(|| right.4.cmp(&left.4))
+                    .then_with(|| left.3.cmp(&right.3))
+            });
+            let mut retained_registry_hubs = 0usize;
+            let mut partners = Vec::new();
+            for (_, registry_hub, edited, partner, weight) in scored_partners {
+                if registry_hub {
+                    if retained_registry_hubs >= 4 {
+                        continue;
+                    }
+                    retained_registry_hubs += 1;
+                    coverage.note(format!(
+                        "retained additive-registry hub {partner} because repeated co-change ({weight}) can represent a first-reference seed, setting, resource, or catalog addition"
+                    ));
+                }
+                partners.push((edited, partner, weight));
             }
             coverage.cap(&mut partners, max_partners, "co-change candidate display");
 
@@ -14386,6 +14509,36 @@ mod change_set_rows_tests {
         assert_eq!(change_set_mechanism_role("src/security_audit.vb"), "audit and operational logging");
         assert_eq!(change_set_mechanism_role("App_Start/BundleConfig.cs"), "asset registration and delivery");
         assert_eq!(change_set_mechanism_role("Views/Site.master"), "rendered user-interface host");
+        assert_eq!(change_set_mechanism_role("Resources/policy.en.resx"), "additive localized resource registry");
+        assert_eq!(change_set_mechanism_role("Database/Scripts/Post/defaults.sql"), "additive deployment or seed registry");
+        assert_eq!(change_set_mechanism_role("src/SystemSettingsStore.cs"), "configuration and default registry");
+    }
+
+    #[test]
+    fn additive_registries_survive_bounded_hub_filter_and_require_positive_exclusion() {
+        assert!(retain_temporal_hub(
+            "Database/Scripts/Post/settings.sql",
+            20,
+            Some(1_200),
+            800,
+        ));
+        assert!(!retain_temporal_hub(
+            "src/CommonHelpers.cs",
+            20,
+            Some(1_200),
+            800,
+        ));
+        assert!(!retain_temporal_hub(
+            "Resources/labels.resx",
+            4,
+            Some(1_200),
+            800,
+        ));
+        assert!(
+            change_set_exclusion_evidence("Resources/labels.resx", &["cochange"])
+                .contains("absence of a current reference is not exclusion evidence")
+        );
+        assert!(cochange_specificity_score(20, 100) > cochange_specificity_score(20, 1_000));
     }
 
     #[test]
@@ -14413,13 +14566,42 @@ mod change_set_rows_tests {
     }
 
     #[test]
+    fn pure_permission_change_emits_policy_rollout_without_authentication_lifecycle_noise() {
+        let obligations = change_set_cross_cutting_obligations(
+            "Add a custom permission to restrict access to user management",
+        );
+        let rendered = serde_json::to_string(&obligations).unwrap();
+        for expected in [
+            "authorization policy and default rollout",
+            "tenant-configurable",
+            "explicit deny and allow precedence",
+            "who may view, grant, revoke",
+            "hiding a control is not authorization",
+            "security decision observability",
+        ] {
+            assert!(rendered.contains(expected), "missing {expected}: {rendered}");
+        }
+        assert!(!rendered.contains("complete authentication-state termination"));
+        assert!(!rendered.contains("client delivery and navigation lifecycle"));
+
+        let hypotheses = change_set_component_hypotheses(
+            "Add a custom permission to restrict access to user management",
+        );
+        let rendered = serde_json::to_string(&hypotheses).unwrap();
+        assert!(rendered.contains("authorization policy, administration, and default rollout"));
+        assert!(rendered.contains("accessor, resource-family, seed, deployment"));
+        assert!(rendered.contains("self-lockout and recovery"));
+        assert!(!rendered.contains("OciusX"));
+    }
+
+    #[test]
     fn change_set_rows_explain_evidence_strength_and_causal_check() {
         let direct = vec!["business", "cochange"];
         assert_eq!(
             change_set_evidence_class(&direct),
             "corroborated_behavioral_candidate"
         );
-        assert!(change_set_exclusion_evidence(&direct).contains("source evidence"));
+        assert!(change_set_exclusion_evidence("src/account.vb", &direct).contains("source evidence"));
         assert!(
             change_set_impact_question("src/AuthMiddleware.vb")
                 .contains("framework principals")
