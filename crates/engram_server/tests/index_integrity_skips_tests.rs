@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used)]
 //! External audit round 2 (docs/audits/10, P0-2) — follow-up from the live r35
-//! run: the path-set check found 5 "missing" paths on OciusX that were REAL —
+//! run: the path-set check found 5 "missing" paths on the pilot corpus that were REAL —
 //! Latin-1 source files skipped at ingest as "Invalid UTF-8 encoding" (they got
 //! a graph File node from the fingerprint, no Tantivy/LanceDB document, and
 //! none of their content was searchable) — and the tolerance (max(3, 1 %))

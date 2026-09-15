@@ -89,7 +89,7 @@ pub struct GuidanceItem {
 
 /// Honest coverage of the counts in a report. Every edge fetch in this
 /// service is capped (500 outgoing per kind, 1000 incoming, 1000 touching per
-/// contained symbol); on an OciusX-sized graph those caps are HIT (resource
+/// contained symbol); on a pilot-corpus-sized graph those caps are HIT (resource
 /// files report exactly 1000/500, a designer file ~9.6k). Presenting a capped
 /// count as exact turned a lower bound into a "fact" that agents then trusted
 /// as a risk oracle. This struct says which counts are lower bounds.

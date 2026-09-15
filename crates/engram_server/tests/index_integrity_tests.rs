@@ -2,7 +2,7 @@
 //! External audit 2026-08-29 P0-2: `project_health` initialized its answer
 //! with "Health: OK" and turned provider failures into zeros; `get_index_freshness`
 //! checked timestamps and modified files but never whether the ACTIVE
-//! generation actually holds the corpus — so OciusX reported "Health: OK,
+//! generation actually holds the corpus — so the pilot corpus reported "Health: OK,
 //! index is current and the watcher is active" while 95 % of its code chunks
 //! were gone. Both tools must measure generation completeness: code chunks in
 //! the published generation against the files the project tracks.

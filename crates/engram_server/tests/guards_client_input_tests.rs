@@ -25,14 +25,14 @@ const SRC: &str = "Public Class api\n\
     Public Function RoleOnly(qry As Query) As String\n\
         If Not _us.UserAccess.CheckRead(_us.UserAccessObject.vs_karta_io_objekt) Then Return s\n\
         Dim pr_id = GetDictionaryIntegerValue(qry.params, \"pr_id\")\n\
-        Return _io.installationsobjektprojekt.GetAllByCheckingTotalProject(pr_id, db)\n\
+        Return _io.bokningsobjektprojekt.GetAllByCheckingTotalProject(pr_id, db)\n\
     End Function\n\
 \n\
     Public Function ObjectGuarded(qry As Query) As String\n\
         If Not _us.UserAccess.CheckRead(_us.UserAccessObject.vs_karta_io_objekt) Then Return s\n\
         Dim pr_id = qry.params(\"pr_id\")\n\
         If Not _us.accessctrl.check_pr_id(pr_id) Then Return s\n\
-        Return _io.installationsobjektprojekt.GetAllByCheckingTotalProject(pr_id, db)\n\
+        Return _io.bokningsobjektprojekt.GetAllByCheckingTotalProject(pr_id, db)\n\
     End Function\n\
 \n\
     Public Function NoInput() As String\n\
@@ -44,7 +44,7 @@ const SRC: &str = "Public Class api\n\
         If Not _us.UserAccess.CheckWrite(_us.UserAccessObject.vs_karta_io_objekt) Then Return s\n\
         Dim projectID = GetDictionaryIntegerValue(qry.data, \"pr_id\")\n\
         Dim ids = GetDictionaryStringValue(qry.data, \"markerIDs\")\n\
-        Return _io.installationsobjektprojekt.DeleteInBulk(projectID, ids, db)\n\
+        Return _io.bokningsobjektprojekt.DeleteInBulk(projectID, ids, db)\n\
     End Function\n\
 End Class\n";
 
@@ -167,7 +167,7 @@ async fn a_client_scope_key_read_without_an_object_guard_is_role_only() {
         "{no_input}"
     );
     assert!(no_input["role_only"] == false, "{no_input}");
-    // Live (OciusX 2026-08-29): the four bulk endpoints read the POST body
+    // Live (pilot corpus 2026-08-29): the four bulk endpoints read the POST body
     // — `GetDictionaryIntegerValue(qry.data, "pr_id")` — and were reported
     // with no client reads at all.
     let bulk = find("BulkPost");

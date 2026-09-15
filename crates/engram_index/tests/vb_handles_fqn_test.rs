@@ -194,10 +194,10 @@ fn enrichment_extracts_linq_to_sql_table_access() {
 Namespace MyApp
     Public Class OrderDal
         Public Sub LoadAndSave()
-            Dim db As New iFaltDataContext()
-            Dim q = From o In db.fiberjobb Where o.Id > 0 Select o
+            Dim db As New iCoreDataContext()
+            Dim q = From o In db.arbetsorder Where o.Id > 0 Select o
             Dim s = From x In db.ss_systemsettings Select x
-            db.fiberjobb.InsertOnSubmit(Nothing)
+            db.arbetsorder.InsertOnSubmit(Nothing)
             db.SubmitChanges()
             Dim noise = other.Whatever
         End Sub
@@ -224,13 +224,13 @@ End Namespace
     enrich(source, &mut symbols, &mut edges);
 
     let qt: Vec<&ExtractedEdge> = edges.iter().filter(|e| e.kind == "queries_table").collect();
-    let fiberjobb = qt
+    let arbetsorder = qt
         .iter()
-        .find(|e| e.target_name == "fiberjobb")
-        .expect("fiberjobb access expected");
-    assert_eq!(fiberjobb.source_name, "LoadAndSave");
+        .find(|e| e.target_name == "arbetsorder")
+        .expect("arbetsorder access expected");
+    assert_eq!(arbetsorder.source_name, "LoadAndSave");
     assert_eq!(
-        fiberjobb
+        arbetsorder
             .metadata
             .as_ref()
             .unwrap()

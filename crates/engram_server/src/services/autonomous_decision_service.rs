@@ -283,7 +283,7 @@ pub fn evaluate_gates(input: &AdpInput) -> AdpDecision {
         if input.blast_radius_risk.is_some() {
             // The blast-radius score is an UNCALIBRATED 1-hop heuristic (capped
             // counts, no change semantics, no transitive propagation). Until
-            // OciusX calibration shows the scalar predicts real failures it may
+            // pilot-corpus calibration shows the scalar predicts real failures it may
             // block an automatic Allow and demand more evidence — it must
             // NEVER independently produce a hard Deny. A hard deny needs a
             // calibrated causal result or a separate deterministic policy

@@ -2372,7 +2372,7 @@ impl Engram {
     /// External audit 2026-08-29 P0-2: does the PUBLISHED generation actually
     /// hold the corpus? Code chunks live in the `memory` namespace, one or
     /// more per indexed file; a generation with fewer chunks than half the
-    /// tracked files has lost its corpus (OciusX: 105 chunks for 2,274 files
+    /// tracked files has lost its corpus (pilot corpus: 105 chunks for 2,274 files
     /// while health said OK). Cheap: two counts.
     pub(crate) async fn generation_completeness(
         &self,

@@ -1,6 +1,6 @@
 //! Row-4 audit (docs/audits/04-concept-and-consumer-discovery.md) slice 4.
 //!
-//! Live repro on OciusX (2026-08-28): `grep_project personalliggare`
+//! Live repro on the pilot corpus (2026-08-28): `grep_project personalliggare`
 //! (case-insensitive) returned 151 chunks / 46 files and reported
 //! `complete`, yet `Site/App_Code/api-json/api-broker.vb` — whose only
 //! occurrence is the comment `' PERSONALLIGGARE` — was missing; the same
@@ -31,7 +31,7 @@ const FILES: &[(&str, &str)] = &[
     ),
     (
         "Site/modules/logs.aspx.vb",
-        "Partial Class logs\n    e.Result = _io.InstallationsObjektProjektPropertiesLog.GetBySearch(a)\nEnd Class\n",
+        "Partial Class logs\n    e.Result = _io.BokningsObjektProjektPropertiesLog.GetBySearch(a)\nEnd Class\n",
     ),
     (
         "Site/App_Code/unrelated.vb",
@@ -146,7 +146,7 @@ async fn case_insensitive_literal_reaches_every_case_variant_on_the_term_index_t
     let r = grep(
         &engine,
         &root,
-        &query("installationsobjekt", Some(false)),
+        &query("bokningsobjekt", Some(false)),
         || Ok(stats.clone()),
     )
     .unwrap();

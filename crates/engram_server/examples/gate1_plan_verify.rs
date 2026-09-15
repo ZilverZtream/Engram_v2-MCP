@@ -1,7 +1,7 @@
 //! Gate 1 for the doc-17 verify slice (pre-registered, falsifiable).
 //!
 //! Runs `verify_plan` against each Phase-G LOSING arm's ACTUAL proposed file
-//! list on the real OciusX graph, and reports whether the verifier's findings
+//! list on the real pilot-corpus graph, and reports whether the verifier's findings
 //! intersect the judge-named defect for that story. The pass bar was fixed
 //! before this ran: the primary defect flagged in >= 8/15 stories with <= 5
 //! findings per plan.

@@ -990,7 +990,7 @@ impl HybridSearchEngine {
                             // External audit 2026-08-29 P0-1: "latest only" used to mean
                             // "everything that is NOT the published generation" — which
                             // also deleted the generation an incremental update was still
-                            // building by copy-forward (OciusX collapsed to 56 chunks).
+                            // building by copy-forward (the pilot corpus collapsed to 56 chunks).
                             // Stale is OLDER than the published generation; newer
                             // generations belong to an update in flight and are kept.
                             if active_generation == 0 {
@@ -2117,7 +2117,7 @@ impl HybridSearchEngine {
                             });
 
                         // Round-2 audit P0-2 follow-up: a Latin-1 comment must not
-                        // eject a whole source file from the corpus (live: 4 OciusX
+                        // eject a whole source file from the corpus (live: 4 pilot-corpus
                         // files were fingerprinted — a graph File node — yet absent
                         // from every search store). Decode lossily and say so.
                         let text = match String::from_utf8(bytes) {
@@ -2855,7 +2855,7 @@ impl HybridSearchEngine {
             // `NgramTokenizer::new(3, 3, false)` with no lowercasing, so a
             // lower-case pattern's exact trigrams never occur in a chunk
             // whose only occurrence is `PERSONALLIGGARE` or
-            // `InstallationsObjekt…` (live miss, OciusX 2026-08-28). Every
+            // `BokningsObjekt…` (live miss, pilot corpus 2026-08-28). Every
             // trigram becomes a Should-set of its case variants, Must
             // across trigrams; the caller verifies each candidate chunk,
             // so a superset of candidates is correct and complete.

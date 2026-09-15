@@ -1,8 +1,8 @@
 #![allow(clippy::unwrap_used)]
-//! External audit 2026-08-29 row 6 — the OciusX golden baseline (35 questions)
+//! External audit 2026-08-29 row 6 — the pilot-corpus golden baseline (35 questions)
 //! exposed two status-engine defects:
-//! 1. "Which Redis cluster caches the redovisningskategori list?" was ANSWERED
-//!    from the real term (a graph relation on `redovisningskategori`) while the
+//! 1. "Which Redis cluster caches the kostnadskategori list?" was ANSWERED
+//!    from the real term (a graph relation on `kostnadskategori`) while the
 //!    question's premise — Redis, cluster — has no evidence at all. A named term
 //!    of the question that no evidence mentions makes the answer unsupported,
 //!    and the report must say which term.
@@ -68,7 +68,7 @@ fn re(kind: EntityKind, canonical: &str, node_id: &str) -> ResolvedEntity {
 
 #[test]
 fn a_named_term_without_any_evidence_makes_the_answer_unsupported() {
-    let q = "Which Redis cluster caches the redovisningskategori list?";
+    let q = "Which Redis cluster caches the kostnadskategori list?";
     // What the live engine had: a resolved-entity graph relation on the real
     // term plus source code mentioning it — and nothing about Redis.
     let evidence = vec![
@@ -76,15 +76,15 @@ fn a_named_term_without_any_evidence_makes_the_answer_unsupported() {
             "ev_1",
             EvidenceKind::GraphRelation,
             "usage",
-            "Site/App_Code/redovisning/code/redovisningskategorier.vb",
-            "redovisningskategorier.GetByProjectId <- api-redovisning.GetCategories",
+            "Site/App_Code/leverans/code/kostnadskategorier.vb",
+            "kostnadskategorier.GetByProjectId <- api-leverans.GetCategories",
         ),
         ev(
             "ev_2",
             EvidenceKind::SourceCode,
             "code",
-            "Site/App_Code/redovisning/code/redovisningskategorier.vb",
-            "Public Class redovisningskategorier ... list of categories",
+            "Site/App_Code/leverans/code/kostnadskategorier.vb",
+            "Public Class kostnadskategorier ... list of categories",
         ),
     ];
     assert_eq!(
@@ -139,11 +139,11 @@ fn named_terms_present_in_the_evidence_keep_the_answer() {
 
 #[test]
 fn the_same_symbol_under_two_node_kinds_is_not_ambiguous() {
-    let q = "What depends on the rk_redovisningskategorier table?";
+    let q = "What depends on the kk_kostnadskategorier table?";
     let mut plan = plan_query(q);
     if plan.entities.is_empty() {
         plan.entities.push(EntityMention {
-            text: "rk_redovisningskategorier".into(),
+            text: "kk_kostnadskategorier".into(),
             guessed_kind: EntityKind::Table,
             resolved: vec![],
         });
@@ -152,13 +152,13 @@ fn the_same_symbol_under_two_node_kinds_is_not_ambiguous() {
         e.resolved = vec![
             re(
                 EntityKind::Table,
-                "rk_redovisningskategorier",
-                "table:rk_redovisningskategorier",
+                "kk_kostnadskategorier",
+                "table:kk_kostnadskategorier",
             ),
             re(
                 EntityKind::File,
-                "rk_redovisningskategorier",
-                "file:db-x.sql/dbo/Tables/rk_redovisningskategorier.sql",
+                "kk_kostnadskategorier",
+                "file:db-x.sql/dbo/Tables/kk_kostnadskategorier.sql",
             ),
         ];
     }
@@ -166,8 +166,8 @@ fn the_same_symbol_under_two_node_kinds_is_not_ambiguous() {
         "ev_1",
         EvidenceKind::GraphRelation,
         "impact",
-        "db-x.sql/dbo/Tables/rk_redovisningskategorier.sql",
-        "rk_redovisningskategorier <- redovisningskategorier.GetByProjectId (queries_table)",
+        "db-x.sql/dbo/Tables/kk_kostnadskategorier.sql",
+        "kk_kostnadskategorier <- kostnadskategorier.GetByProjectId (queries_table)",
     )];
     let s = assess_status(
         &plan,

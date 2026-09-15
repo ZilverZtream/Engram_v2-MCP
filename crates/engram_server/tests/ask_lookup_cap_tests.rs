@@ -167,7 +167,7 @@ fn an_unresolved_junk_mention_does_not_flip_the_cooccurrence_switch() {
     // co-occurrence mode engaged, and prose chunks containing the junk word
     // took the direct-evidence boost — exact_2/exact_5 regressed.
     let ents = vec![
-        entity("Redovisningskategorier"),
+        entity("Kostnadskategorier"),
         EntityMention {
             text: "data-access".into(),
             guessed_kind: EntityKind::File,
@@ -175,7 +175,7 @@ fn an_unresolved_junk_mention_does_not_flip_the_cooccurrence_switch() {
         },
     ];
     let terms = ranking::cooccurrence_terms(&ents);
-    assert_eq!(terms, vec!["redovisningskategorier".to_string()]);
+    assert_eq!(terms, vec!["kostnadskategorier".to_string()]);
 }
 
 #[test]
@@ -1177,16 +1177,16 @@ fn a_junk_unresolved_mention_does_not_block_the_small_cap() {
 
 #[test]
 fn a_long_lowercase_file_stem_word_is_minted_as_a_mention() {
-    // Live r58 (ox_exact_2 shape): "redovisningskategorier" IS a file stem in
+    // Live r58 (ox_exact_2 shape): "kostnadskategorier" IS a file stem in
     // the corpus, but only hyphenated lowercase tokens were minted — the
     // question's one real entity never reached the resolver.
     let ments = engram_server::services::ask_engine::planner::extract_entities(
-        "Which file defines the redovisningskategorier data-access class?",
+        "Which file defines the kostnadskategorier data-access class?",
     );
     assert!(
         ments
             .iter()
-            .any(|m| m.text.eq_ignore_ascii_case("redovisningskategorier")),
+            .any(|m| m.text.eq_ignore_ascii_case("kostnadskategorier")),
         "the long domain word must be minted; got {:?}",
         ments.iter().map(|m| m.text.as_str()).collect::<Vec<_>>()
     );

@@ -2,7 +2,7 @@
 //! External audit 2026-08-29 row 1 (owner decision 10:58). Live finding: an
 //! English-only story ("…the reporting of quantities…") produced concepts
 //! `project, manager, reporting` and no Swedish term, while the code (and
-//! the project's own .resx) say `Mängdredovisning`. With the resx lexicon
+//! the project's own .resx) say `Mängdleverans`. With the resx lexicon
 //! the Swedish implementation file renders BY DEFAULT with the `lexicon`
 //! signal, and coverage names the translation.
 
@@ -31,7 +31,7 @@ async fn build() -> (tempfile::TempDir, Engram, String) {
     let root = tmp.path().join("proj");
     for d in [
         "Site/App_GlobalResources",
-        "Site/App_Code/redovisning/code",
+        "Site/App_Code/leverans/code",
         "Site/App_Code/noise",
     ] {
         std::fs::create_dir_all(root.join(d)).unwrap();
@@ -39,7 +39,7 @@ async fn build() -> (tempfile::TempDir, Engram, String) {
     std::fs::write(
         root.join("Site/App_GlobalResources/text.resx"),
         resx(&[
-            ("Registration_of_quantities", "Mängdredovisning"),
+            ("Registration_of_quantities", "Mängdleverans"),
             ("Registration_of_CAW", "ÄTA-registrering"),
             ("Fiber_installation_plan", "Fiberinstallationsplan"),
             ("Save", "Spara"),
@@ -57,12 +57,12 @@ async fn build() -> (tempfile::TempDir, Engram, String) {
     )
     .unwrap();
     std::fs::write(
-        root.join("Site/App_Code/redovisning/code/mangdredovisning.vb"),
-        "Public Class mangdredovisning\n    ' Mängdredovisning per fiberinstallationsplan\n    Public Function GetByPlan(plan_id As Integer) As Object\n        Return (From m In db.rk_mangdredovisning Where m.plan_id = plan_id).ToList()\n    End Function\nEnd Class\n",
+        root.join("Site/App_Code/leverans/code/mangdleverans.vb"),
+        "Public Class mangdleverans\n    ' Mängdleverans per fiberinstallationsplan\n    Public Function GetByPlan(plan_id As Integer) As Object\n        Return (From m In db.rk_mangdleverans Where m.plan_id = plan_id).ToList()\n    End Function\nEnd Class\n",
     )
     .unwrap();
     std::fs::write(
-        root.join("Site/App_Code/redovisning/code/ata_registrering.vb"),
+        root.join("Site/App_Code/leverans/code/ata_registrering.vb"),
         "Public Class ata_registrering\n    ' ÄTA-registrering (change requests) per plan\n    Public Function ListForPlan(plan_id As Integer) As Object\n        Return db.rk_ata.Where(Function(a) a.plan_id = plan_id).ToList()\n    End Function\nEnd Class\n",
     )
     .unwrap();
@@ -130,15 +130,15 @@ async fn an_english_story_reaches_the_swedish_implementation_through_the_resx_le
     assert!(
         concepts
             .iter()
-            .any(|c| c.starts_with("mangdredovisning") || c.starts_with("mängdredovisning")),
+            .any(|c| c.starts_with("mangdleverans") || c.starts_with("mängdleverans")),
         "the lexicon term is a DEFAULT concept, got {concepts:?}"
     );
 
     let files = paths(&v, "files");
     let omissions = paths(&v, "omissions");
     for must in [
-        "redovisning/code/mangdredovisning.vb",
-        "redovisning/code/ata_registrering.vb",
+        "leverans/code/mangdleverans.vb",
+        "leverans/code/ata_registrering.vb",
     ] {
         assert!(
             files.iter().any(|p| p.contains(must)),
@@ -154,7 +154,7 @@ async fn an_english_story_reaches_the_swedish_implementation_through_the_resx_le
                 .as_str()
                 .unwrap_or("")
                 .to_lowercase()
-                .contains("mangdredovisning.vb")
+                .contains("mangdleverans.vb")
         })
         .unwrap();
     let sig = f.to_string();

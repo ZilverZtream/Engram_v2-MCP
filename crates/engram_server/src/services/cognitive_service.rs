@@ -265,7 +265,7 @@ async fn analyze_file_style_inner(
     // Merge policy:
     //
     // The deterministic mimicry + static-VB pass produces CONCRETE,
-    // verifiable rules ("Optional db As iFaltDataContext = Nothing
+    // verifiable rules ("Optional db As iCoreDataContext = Nothing
     // appears in 14 methods"). The LLM pass produces NARRATIVE context
     // ("the file is a shared-helpers module; team prefers explicit
     // disposal via Using").
@@ -3373,8 +3373,8 @@ Module sharedfunc
         Return name.Trim()
     End Function
 
-    Public Function GetUser(id As Integer, Optional db As iFaltDataContext = Nothing) As Object
-        Using ctx = If(db, New iFaltDataContext())
+    Public Function GetUser(id As Integer, Optional db As iCoreDataContext = Nothing) As Object
+        Using ctx = If(db, New iCoreDataContext())
             Dim row = ctx.Users.FirstOrDefault(Function(u) u.Id = id)
             If row Is Nothing Then
                 Return Nothing
@@ -3383,8 +3383,8 @@ Module sharedfunc
         End Using
     End Function
 
-    Public Function SaveUser(user As Object, Optional db As iFaltDataContext = Nothing) As Boolean
-        Using ctx = If(db, New iFaltDataContext())
+    Public Function SaveUser(user As Object, Optional db As iCoreDataContext = Nothing) As Boolean
+        Using ctx = If(db, New iCoreDataContext())
             Try
                 ctx.SubmitChanges()
                 Return True
@@ -3424,7 +3424,7 @@ End Module
             "method naming convention must be detected (PascalCase), got: {joined}"
         );
         assert!(
-            joined.contains("Optional") && joined.contains("iFaltDataContext"),
+            joined.contains("Optional") && joined.contains("iCoreDataContext"),
             "optional-context-injection pattern must be called out"
         );
         assert!(
@@ -4113,14 +4113,14 @@ interface IAddress { street: string; city: string; }
     // T-SQL-flavored sample with prefixed names, UPPER keywords, dbo. schema,
     // BEGIN TRY, CREATE OR ALTER, @params.
     const SQL_SAMPLE: &str = r#"
-CREATE OR ALTER PROCEDURE [dbo].[fj_GetFiberjobb]
+CREATE OR ALTER PROCEDURE [dbo].[ao_GetArbetsorder]
     @jobbId INT,
     @userId INT
 AS
 BEGIN
     BEGIN TRY
         SELECT f.*, u.Name
-        FROM [dbo].[fj_fiberjobb] f
+        FROM [dbo].[ao_arbetsorder] f
         INNER JOIN [dbo].[aspnet_Users] u ON u.UserId = f.OwnerId
         WHERE f.Id = @jobbId AND f.OwnerId = @userId;
     END TRY
@@ -4130,13 +4130,13 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE [dbo].[fj_SaveFiberjobb]
+CREATE OR ALTER PROCEDURE [dbo].[ao_SaveArbetsorder]
     @jobbId INT,
     @data NVARCHAR(MAX)
 AS
 BEGIN
     BEGIN TRANSACTION
-        UPDATE [dbo].[fj_fiberjobb] SET Data = @data WHERE Id = @jobbId;
+        UPDATE [dbo].[ao_arbetsorder] SET Data = @data WHERE Id = @jobbId;
     COMMIT
 END
 GO
@@ -4147,7 +4147,7 @@ CREATE VIEW [dbo].[pr_profile_active] AS SELECT * FROM [dbo].[pr_profile];
 
     #[test]
     fn sql_static_analyzer_detects_prefix_and_tsql_patterns() {
-        let bullets = static_analyze_file_style(SQL_SAMPLE, "fj_procs.sql");
+        let bullets = static_analyze_file_style(SQL_SAMPLE, "ao_procs.sql");
         assert!(
             bullets.len() >= 5,
             "expected ≥5 SQL bullets, got {}: {bullets:#?}",
@@ -4155,8 +4155,8 @@ CREATE VIEW [dbo].[pr_profile_active] AS SELECT * FROM [dbo].[pr_profile];
         );
         let joined = bullets.join(" | ");
         assert!(
-            joined.contains("Prefix namespaces") && joined.contains("fj_"),
-            "prefix-namespace rollup must surface `fj_`, got: {joined}"
+            joined.contains("Prefix namespaces") && joined.contains("ao_"),
+            "prefix-namespace rollup must surface `ao_`, got: {joined}"
         );
         assert!(
             joined.contains("UPPERCASE") || joined.contains("Keyword casing"),

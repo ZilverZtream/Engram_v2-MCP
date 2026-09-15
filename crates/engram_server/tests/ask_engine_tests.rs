@@ -992,7 +992,7 @@ fn ranking_tie_break_is_deterministic() {
 // ─── Live-eval fix: honest abstention on weak coincidental matches ───────────
 #[test]
 fn weak_single_term_match_abstains_not_partial() {
-    // The OciusX eval showed nonsense questions returning partial: loose FTS
+    // The pilot-corpus eval showed nonsense questions returning partial: loose FTS
     // finds a coincidental keyword on a big codebase. A multi-term question
     // whose only evidence covers ONE query term must abstain (unsupported).
     let q = "what is the flux capacitor calibration policy";
@@ -1054,7 +1054,7 @@ fn multi_term_match_is_supported_and_answered() {
 #[test]
 fn a_lone_concept_match_is_not_adequate_support() {
     // Single-stem concept match (a "…Policy" node) must NOT support a nonsense
-    // multi-term question — the OciusX eval's second abstain bug.
+    // multi-term question — the pilot-corpus eval's second abstain bug.
     let q = "what is the flux capacitor calibration policy";
     let mut ev = vec![mk_ev(
         "ev_1",
@@ -1095,7 +1095,7 @@ fn resolved_entity_graph_relation_is_adequate_support() {
 #[test]
 fn compound_terms_across_different_hits_are_adequate() {
     // "authentication" in one file + "changed" in another: the evidence SET
-    // covers both distinctive terms, so it must NOT falsely abstain (the OciusX
+    // covers both distinctive terms, so it must NOT falsely abstain (the pilot-corpus
     // compound_1/bug_1 finding where per-hit coverage wrongly returned unsupported).
     let q = "how does authentication work and what would break if we changed it";
     let ev = vec![
@@ -1130,7 +1130,7 @@ fn compound_terms_across_different_hits_are_adequate() {
 
 #[test]
 fn unsupported_and_stale_guidance_recommends_grep_fallback() {
-    // The OciusX finding: a stale/empty index made agents report "cannot
+    // The pilot-corpus finding: a stale/empty index made agents report "cannot
     // determine" instead of grepping the working tree. The tool's own guidance
     // must push the grep fallback so agents without a prompt fix still recover.
     use engram_server::services::ask_engine::report::next_best;

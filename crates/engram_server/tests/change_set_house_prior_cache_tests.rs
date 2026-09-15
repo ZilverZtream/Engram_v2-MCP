@@ -12,16 +12,16 @@ use engram_server::tools::Engram;
 use rmcp::handler::server::tool::Parameters;
 use serde_json::{Value, json};
 
-const STORY: &str = "As an admin I want to set a main reporting category (huvudredovisningskategori) for each production code list category";
+const STORY: &str = "As an admin I want to set a main reporting category (huvudkostnadskategori) for each production code list category";
 
 async fn build() -> (tempfile::TempDir, AppState, Engram, String) {
     let tmp = tempfile::TempDir::new().unwrap();
     let root = tmp.path().join("proj");
-    std::fs::create_dir_all(root.join("Site/App_Code/redovisning/code")).unwrap();
+    std::fs::create_dir_all(root.join("Site/App_Code/leverans/code")).unwrap();
     std::fs::create_dir_all(root.join("Site/modules/pages")).unwrap();
     std::fs::write(
-        root.join("Site/App_Code/redovisning/code/redovisningskategorier.vb"),
-        "Public Class redovisningskategorier\n    Public Function GetByProjectId(pr_id As Integer) As Object\n        Return Nothing\n    End Function\nEnd Class\n",
+        root.join("Site/App_Code/leverans/code/kostnadskategorier.vb"),
+        "Public Class kostnadskategorier\n    Public Function GetByProjectId(pr_id As Integer) As Object\n        Return Nothing\n    End Function\nEnd Class\n",
     )
     .unwrap();
     for i in 0..30 {

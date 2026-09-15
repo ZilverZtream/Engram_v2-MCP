@@ -21,8 +21,8 @@ const FILE: &str = "Site/App_Code/rv/categories.vb";
 fn vb_body(n: usize) -> String {
     let mut s = String::from(
         "Public Class categories\n\
-         \x20   Public Function GetById(id As Integer, Optional db As iFaltDataContext = Nothing) As category\n\
-         \x20       If db Is Nothing Then db = New iFaltDataContext()\n\
+         \x20   Public Function GetById(id As Integer, Optional db As iCoreDataContext = Nothing) As category\n\
+         \x20       If db Is Nothing Then db = New iCoreDataContext()\n\
          \x20       Using cmd As New SqlCommand()\n\
          \x20           Try\n\
          \x20               Return db.rk_categories.FirstOrDefault(Function(c) c.id = id)\n\
@@ -191,7 +191,7 @@ async fn a_missing_git_history_is_a_reported_failure_not_silence() {
     assert!(r.basis.vb_analyser_ran, "{:?}", r.basis);
 }
 
-/// Live finding (OciusX, 2026-08-29): the style-guide cache is keyed by
+/// Live finding (pilot corpus, 2026-08-29): the style-guide cache is keyed by
 /// file + HEAD oid only, so a binary with a NEW output format kept serving
 /// the previous binary's cached text ("Confidence: 1.00") as current. The
 /// key must carry the output-format version.
