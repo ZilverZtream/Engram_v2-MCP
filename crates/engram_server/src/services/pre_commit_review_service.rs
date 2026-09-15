@@ -2487,6 +2487,10 @@ pub async fn run_pre_commit_review_with(
         Err(error) => Err(error.into()),
     };
     let search_index_note = match completeness {
+        // Files on disk that are not indexed yet (typically ones this diff
+        // adds) leave the indexed evidence intact; the review coverage names
+        // changed files the index has not seen.
+        Ok(c) if c.only_unindexed() => None,
         Ok(c) if !c.complete => Some(format!(
             "search index generation {} is INCOMPLETE ({} of {} eligible paths missing, cross-store mismatch {}) — searched evidence is unreliable",
             c.generation, c.missing, c.expected_paths, c.cross_store_mismatch
