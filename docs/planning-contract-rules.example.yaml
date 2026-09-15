@@ -1,0 +1,29 @@
+# Copy to <data_dir>/rules/planning-contract-rules.yaml for organization rules
+# or <repository>/.engram/planning-contract-rules.yaml for repository rules.
+# Repository rules replace organization rules with the same id. Files are read
+# on every get_change_set call, so edits need no rebuild or daemon restart.
+version: 1
+introduced_at: 2026-01-15
+provenance: "Architecture handbook revision 12"
+rules:
+  - id: distributed-state-recovery
+    title: Distributed state recovery
+    requirement: >-
+      Define behavior after transient process state is lost and prove that a
+      second application instance reaches the same authoritative result.
+    severity: release_blocking_if_applicable
+    story_any: [session, cache, token, lease]
+    path_any: [web.config, appsettings, startup, middleware]
+    oracle_guard: >-
+      Frozen scenarios must exercise a second process or instance and loss of
+      transient state; process-local success is not durable evidence.
+
+  - id: mutation-observability
+    title: Mutation observability
+    requirement: >-
+      Cite the repository's existing audit convention and record the actor,
+      subject, old state, new state, and failure behavior when those facts are
+      available.
+    severity: required_if_applicable
+    story_any: [change, update, revoke, disable, delete]
+    story_none: [purely visual]
