@@ -2,9 +2,6 @@
 # or <repository>/.engram/planning-contract-rules.yaml for repository rules.
 # Repository rules replace organization rules with the same id. Files are read
 # on every get_change_set call, so edits need no rebuild or daemon restart.
-# Validate and score a pack before a paid replay with:
-# python eval/planning_rule_eval.py --pack <rules.yaml> --story-file <story.txt>
-#   --evidence <saved-get-change-set.json> --fixture <held-out-fixture.json>
 version: 1
 introduced_at: 2026-01-15
 provenance: "Architecture handbook revision 12"
