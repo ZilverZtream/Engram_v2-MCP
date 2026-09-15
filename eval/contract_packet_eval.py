@@ -32,6 +32,7 @@ class Signal:
     weight: float
     groups: tuple[tuple[re.Pattern[str], ...], ...]
     artifact_scopes: tuple[str, ...]
+    lead_paths: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -114,6 +115,7 @@ def compile_signals(raw: Iterable[dict[str, Any]]) -> list[Signal]:
             weight=float(item.get("weight", 1.0)),
             groups=groups,
             artifact_scopes=tuple(str(scope) for scope in item.get("artifact_scopes", [])),
+            lead_paths=tuple(str(path) for path in item.get("lead_paths", [])),
         ))
     return signals
 
@@ -413,6 +415,7 @@ def candidate_masks(candidates: list[Candidate], signals: list[Signal]) -> list[
 def signal_diagnostics(candidates: list[Candidate], signals: list[Signal]) -> list[dict[str, Any]]:
     """Explain evidence gaps without asking an agent to rediscover them."""
     masks = candidate_masks(candidates, signals)
+    combined = "\n".join(candidate.text for candidate in candidates)
     diagnostics: list[dict[str, Any]] = []
     for signal_index, signal in enumerate(signals):
         available_mask = 0
@@ -435,6 +438,9 @@ def signal_diagnostics(candidates: list[Candidate], signals: list[Signal]) -> li
             "available_groups": available_mask.bit_count(),
             "required_groups": len(signal.groups),
             "missing_groups": missing_groups,
+            "discovery_leads_found": [
+                path for path in signal.lead_paths if path_mentioned(combined, path)
+            ],
         })
     return diagnostics
 

@@ -19,7 +19,7 @@
     {"id":"tenant-local-vs-global","weight":3,"groups":[["tenant.local|tenant scope|other tenants"],["global revocation|account-wide|global scope"]]},
     {"id":"generation-restore-replay","weight":3,"groups":[["generation|monotonic authority|security stamp"],["restore|restoring"],["replay"]]},
     {"id":"password-continuity-partial-failure","weight":3,"groups":[["password change|password reset|password rotation"],["same.device|initiating device|acting credential"],["partial failure|synchroni[sz].*fails|reissu.*fails"]]},
-    {"id":"stateless-login-bootstrap","weight":3,"groups":[["/api/v2/login"],["stateless|sessionless"],["fresh.*credential|fresh.*issue|issue time|issue age"],["ticket.*user.data|protected ticket|credential.*payload"]]},
+    {"id":"stateless-login-bootstrap","weight":3,"lead_paths":["LoginController.vb","Login-In.vb"],"groups":[["/api/v2/login"],["stateless|sessionless"],["fresh.*credential|fresh.*issue|issue time|issue age"],["ticket.*user.data|protected ticket|credential.*payload"]]},
     {"id":"logout-lifecycle","weight":2,"groups":[["logout"],["idempotent|already.revoked|stale.*credential"],["cookie.*expir|Session\\.Abandon|termination"]]},
     {"id":"revocation-audit","weight":2,"groups":[["audit|systemlogg"],["revocation|forced sign.out|denial"],["actor|subject|reason"]]},
     {"id":"impersonation-actor-subject","weight":2,"groups":[["impersonat"],["actor"],["subject|target"]]},
