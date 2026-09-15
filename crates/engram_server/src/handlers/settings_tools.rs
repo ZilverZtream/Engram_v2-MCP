@@ -732,8 +732,31 @@ impl Engram {
 
         let mut out = format!("# Test matrix — {} requested file(s)\n", req.files.len());
         out.push_str("Evidence scope: indexed settings, permission and state references plus bounded runtime-risk triggers from source-verified snapshots. Test discovery: not_run. Test execution: not_run. These are proposed cases, not verified outcomes.\n");
+        let intent_checkpoint_ids = (1..=intent_axes.len())
+            .map(|index| format!("TM-INTENT-{index:02}"))
+            .collect::<Vec<_>>();
+        let intent_checkpoint_canonical = intent_checkpoint_ids
+            .iter()
+            .map(|id| format!("{id}\n"))
+            .collect::<String>();
+        use sha2::{Digest, Sha256};
+        let intent_checkpoint_digest = format!(
+            "{:x}",
+            Sha256::digest(intent_checkpoint_canonical.as_bytes())
+        );
+        out.push_str(&format!(
+            "derive_test_matrix contract checkpoint: sha256:{intent_checkpoint_digest} items={}\n",
+            intent_checkpoint_ids.len()
+        ));
         if !intent_axes.is_empty() {
             out.push_str("Caller-supplied change intent was provided. Its risk axes are labelled separately and establish neither current source behavior nor human approval.\n");
+            out.push_str("\n## CONTRACT CHECKPOINT — planned-behavior dispositions required\nEvery TM-INTENT item below must appear in the feature contract with SATISFIED_WITH_SOURCE_OR_APPROVED_DECISION, BLOCKING_UNKNOWN, or NOT_APPLICABLE_WITH_EVIDENCE and concrete citations. A scenario may freeze one expected outcome only after source or an approved human answer establishes it. If an item describes competing behavior or a blocking choice, keep the alternatives in the scenario and do not let the plan or implementation choose the oracle.\n");
+            for (index, (axis, evidence)) in intent_axes.iter().enumerate() {
+                out.push_str(&format!(
+                    "- **TM-INTENT-{:02}** [REQUIRED] {axis}\n  - Requirement: {evidence}\n  - Disposition: MISSING — contract checkpoint remains incomplete\n",
+                    index + 1
+                ));
+            }
         }
         if configured_risk_count > 0 {
             out.push_str(&format!("Configured risk packs: {configured_risk_count} validated rule(s) loaded at call time; repository rules override organization rules by stable id.\n"));
