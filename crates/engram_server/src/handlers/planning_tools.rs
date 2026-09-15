@@ -8861,19 +8861,33 @@ fn boundary_index_candidate(path: &str) -> bool {
 fn boundary_index_relevant(path: &str, auth_applicable: bool, scope_applicable: bool) -> bool {
     let normalized = path.replace('\\', "/").to_ascii_lowercase();
     let name = normalized.rsplit('/').next().unwrap_or(&normalized);
-    let infrastructure = [
-        "global.asax", "startup", "middleware", "module", "pipeline", "web.config",
-        "appsettings", "bundleconfig", "routeconfig",
+    let depth = normalized.matches('/').count();
+    let infrastructure = ((name == "global.asax"
+        || name == "global.asax.vb"
+        || name == "global.asax.cs"
+        || name == "web.config")
+        && depth <= 2)
+        || ["startup", "middleware", "routeconfig", "bundleconfig", "appsettings"]
+            .iter()
+            .any(|term| name.contains(term));
+    let strong_auth_name = [
+        "auth", "session", "login", "logout", "signin", "signout", "permission",
+        "security", "credential", "token", "oauth", "saml", "mfa", "membership",
+        "principal", "identity", "lockout", "useraccess", "tenantaccess",
     ]
     .iter()
     .any(|term| name.contains(term));
-    let auth = auth_applicable && [
-        "auth", "session", "login", "logout", "signin", "signout", "user", "role",
-        "permission", "tenant", "access", "security", "credential", "token", "oauth",
-        "saml", "mfa", "membership", "account", "principal", "identity", "lockout",
+    let weak_auth_name = ["user", "role", "tenant", "access", "account"]
+        .iter()
+        .any(|term| name.contains(term));
+    let boundary_role_name = [
+        "controller", "service", "provider", "middleware", "filter", "manager",
+        "repository", "store", "command", "handler", "config", "startup", "client",
+        "policy", "gate",
     ]
     .iter()
-    .any(|term| normalized.contains(term));
+    .any(|term| name.contains(term));
+    let auth = auth_applicable && (strong_auth_name || (weak_auth_name && boundary_role_name));
     let scope = scope_applicable && [
         "owner", "scope", "tenant", "customer", "account", "project", "organization",
         "parent", "child", "inherit", "override", "fallback", "copy", "clone", "move",
@@ -16207,6 +16221,8 @@ mod change_set_rows_tests {
         assert!(boundary_index_relevant("src/OwnerResolver.cs", false, true));
         assert!(!boundary_index_relevant("db/invoice.sql", true, false));
         assert!(!boundary_index_relevant("pages/report.aspx", true, false));
+        assert!(!boundary_index_relevant("src/users/InvoiceService.cs", true, false));
+        assert!(!boundary_index_relevant("azure-pipelines-build.yml", true, false));
     }
 
     #[test]
