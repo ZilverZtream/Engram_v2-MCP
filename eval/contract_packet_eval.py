@@ -45,6 +45,31 @@ def read_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8-sig"))
 
 
+def read_supplements(paths: list[Path]) -> list[Candidate]:
+    candidates: list[Candidate] = []
+    seen: set[str] = set()
+    for path in paths:
+        value = read_json(path)
+        if not isinstance(value, dict) or value.get("version") != 1:
+            raise ValueError(f"supplement {path} version must be 1")
+        rows = value.get("candidates")
+        if not isinstance(rows, list):
+            raise ValueError(f"supplement {path} candidates must be a list")
+        for index, row in enumerate(rows, 1):
+            if not isinstance(row, dict):
+                raise ValueError(f"supplement {path} candidate {index} must be an object")
+            candidate_id = str(row.get("id", "")).strip()
+            kind = str(row.get("kind", "supplement")).strip()
+            text = str(row.get("text", "")).strip()
+            if not candidate_id or not kind or not text:
+                raise ValueError(f"supplement {path} candidate {index} has blank id, kind, or text")
+            if candidate_id in seen:
+                raise ValueError(f"supplements repeat candidate id {candidate_id}")
+            seen.add(candidate_id)
+            candidates.append(Candidate(candidate_id, kind, text))
+    return candidates
+
+
 def compile_signals(raw: Iterable[dict[str, Any]]) -> list[Signal]:
     signals: list[Signal] = []
     seen: set[str] = set()
@@ -264,6 +289,8 @@ def compare_evidence_payloads(
 
 def evidence_candidates(evidence: dict[str, Any], matrix_text: str) -> list[Candidate]:
     candidates: list[Candidate] = []
+    if str(evidence.get("story", "")).strip():
+        candidates.append(Candidate(id="STORY", kind="approved_story", text=str(evidence["story"])))
     for item in evidence.get("contract_checkpoint", {}).get("hard_items", []):
         candidates.append(Candidate(
             id=str(item.get("id")),
@@ -296,6 +323,23 @@ def evidence_candidates(evidence: dict[str, Any], matrix_text: str) -> list[Cand
         for row in hydrated_rows(evidence, family):
             row_id = str(row.get("row_id") or f"{kind}:{row.get('path', '')}")
             candidates.append(Candidate(id=row_id, kind=kind, text=value_text(row)))
+
+    for category in evidence.get("boundary_audit", {}).get("categories", []):
+        boundary = str(category.get("boundary", "")).strip()
+        if boundary:
+            candidates.append(Candidate(
+                id=f"BOUNDARY-{boundary.upper()}", kind="boundary", text=value_text(category)
+            ))
+    for rule in evidence.get("configured_contract_rules", {}).get("rules", []):
+        rule_id = str(rule.get("id", "")).strip()
+        if rule_id:
+            candidates.append(Candidate(id=rule_id, kind="configured_rule", text=value_text(rule)))
+    for rule in evidence.get("applicable_repository_rules", {}).get("rules", []):
+        rule_id = str(rule.get("rule_id") or rule.get("id") or "").strip()
+        if rule_id:
+            candidates.append(Candidate(
+                id=f"REPO-RULE-{rule_id}", kind="repository_rule", text=value_text(rule)
+            ))
 
     matrix_matches = list(re.finditer(
         r"^- \*\*(TM-INTENT-\d+)\*\*.*?(?=^- \*\*TM-INTENT-|^Historical knowledge cutoff:|\Z)",
@@ -563,11 +607,15 @@ def main() -> int:
     parser.add_argument("--artifacts", required=True, type=Path)
     parser.add_argument("--evidence", type=Path)
     parser.add_argument("--baseline-evidence", type=Path)
+    parser.add_argument("--supplement", action="append", type=Path, default=[])
     parser.add_argument("--matrix", type=Path)
     parser.add_argument("--budgets", default="8,12,16,24")
     parser.add_argument("--char-budgets", default="4000,8000,12000,20000")
     parser.add_argument("--iterations", type=int, default=10_000)
     parser.add_argument("--seed", type=int, default=2033)
+    parser.add_argument("--min-predicted-recall", type=float, default=0.9)
+    parser.add_argument("--min-predicted-gain", type=float, default=0.05)
+    parser.add_argument("--require-ready", action="store_true")
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
     started = time.perf_counter()
@@ -591,7 +639,11 @@ def main() -> int:
             report["evidence_comparison"] = compare_evidence_payloads(
                 read_json(args.baseline_evidence), evidence
             )
-        candidates = evidence_candidates(evidence, args.matrix.read_text(encoding="utf-8-sig", errors="replace"))
+        baseline_candidates = evidence_candidates(
+            evidence, args.matrix.read_text(encoding="utf-8-sig", errors="replace")
+        )
+        supplements = read_supplements(args.supplement)
+        candidates = baseline_candidates + supplements
         budgets = sorted({int(value) for value in args.budgets.split(",") if value.strip()})
         char_budgets = sorted({int(value) for value in args.char_budgets.split(",") if value.strip()})
         report["packet_optimizer"] = {
@@ -607,12 +659,49 @@ def main() -> int:
             ),
             "unavailable_signal_diagnostics": signal_diagnostics(candidates, signals),
         }
+        before = packet_metrics(baseline_candidates, signals)
+        after = packet_metrics(candidates, signals)
+        char_results = report["packet_optimizer"]["character_budgets"]
+        best_bounded_recall = max(
+            (result["weighted_signal_recall"] or 0.0 for result in char_results.values()),
+            default=0.0,
+        )
+        before_recall = before["weighted_signal_recall"] or 0.0
+        after_recall = after["weighted_signal_recall"] or 0.0
+        impact = {
+            "supplement_candidates": len(supplements),
+            "before": before,
+            "after": after,
+            "weighted_recall_gain": round(after_recall - before_recall, 4),
+            "newly_covered_signal_ids": sorted(
+                set(after["covered_signal_ids"]) - set(before["covered_signal_ids"])
+            ),
+        }
+        report["supplement_impact"] = impact
+        payload_ready = report.get("evidence_comparison", {}).get(
+            "ready_for_single_agent_validation", not args.baseline_evidence
+        )
+        decision_gates = {
+            "payload_integrity": bool(payload_ready),
+            "bounded_packet_recall": best_bounded_recall >= args.min_predicted_recall,
+            "material_predicted_gain": impact["weighted_recall_gain"] >= args.min_predicted_gain,
+        }
+        report["validation_decision"] = {
+            "ready": all(decision_gates.values()),
+            "gates": decision_gates,
+            "best_bounded_packet_recall": best_bounded_recall,
+            "minimum_predicted_recall": args.min_predicted_recall,
+            "minimum_predicted_gain": args.min_predicted_gain,
+            "instruction": "Run one paid agent validation only when ready is true; batch more production changes otherwise.",
+        }
     report["elapsed_ms"] = round((time.perf_counter() - started) * 1000, 3)
     rendered = json.dumps(report, indent=2, ensure_ascii=False) + "\n"
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(rendered, encoding="utf-8")
     print(rendered, end="")
+    if args.require_ready and not report.get("validation_decision", {}).get("ready", False):
+        return 2
     return 0
 
 

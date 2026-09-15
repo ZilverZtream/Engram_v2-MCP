@@ -60,6 +60,7 @@ class ContractPacketEvalTests(unittest.TestCase):
 
     def test_evidence_candidates_are_unique_and_matrix_items_are_split(self):
         evidence = {
+            "story": "approved behavior",
             "contract_checkpoint": {"hard_items": [
                 {"id": "OBL-HARD", "kind": "obligation", "requirement": "hard"}
             ]},
@@ -71,6 +72,9 @@ class ContractPacketEvalTests(unittest.TestCase):
                 {"id": "G001", "field": "impact_question", "text": "resolved guidance"}
             ]},
             "files": [{"row_id": "P001", "path": "A.vb", "impact_question_ref": "G001"}],
+            "boundary_audit": {"categories": [{"boundary": "request_pipeline", "paths": ["A.vb"]}]},
+            "configured_contract_rules": {"rules": [{"id": "RULE-CFG", "requirement": "configured"}]},
+            "applicable_repository_rules": {"rules": [{"rule_id": "STYLE-1", "requirement": "style"}]},
         }
         matrix = (
             "- **TM-INTENT-01** first\n  - outcome A\n"
@@ -80,7 +84,10 @@ class ContractPacketEvalTests(unittest.TestCase):
         candidates = subject.evidence_candidates(evidence, matrix)
         self.assertEqual(
             {item.id for item in candidates},
-            {"OBL-HARD", "OBL-01", "P001", "TM-INTENT-01", "TM-INTENT-02"},
+            {
+                "STORY", "OBL-HARD", "OBL-01", "P001", "BOUNDARY-REQUEST_PIPELINE",
+                "RULE-CFG", "REPO-RULE-STYLE-1", "TM-INTENT-01", "TM-INTENT-02",
+            },
         )
         primary = next(item for item in candidates if item.id == "P001")
         self.assertIn("resolved guidance", primary.text)
@@ -164,6 +171,22 @@ class ContractPacketEvalTests(unittest.TestCase):
         self.assertEqual(diagnostics[0]["signal_id"], "partial")
         self.assertEqual(diagnostics[0]["available_groups"], 1)
         self.assertEqual(diagnostics[0]["missing_groups"][0]["patterns"], ["rollback|restore"])
+
+    def test_supplements_are_strict_and_measure_material_gain(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            supplement = root / "supplement.json"
+            supplement.write_text(
+                '{"version":1,"candidates":[{"id":"NEW","kind":"obligation","text":"gamma"}]}',
+                encoding="utf-8",
+            )
+            loaded = subject.read_supplements([supplement])
+            self.assertEqual(loaded, [subject.Candidate("NEW", "obligation", "gamma")])
+            supplement.write_text(
+                '{"version":1,"candidates":[{"id":"NEW","text":""}]}', encoding="utf-8"
+            )
+            with self.assertRaisesRegex(ValueError, "blank id, kind, or text"):
+                subject.read_supplements([supplement])
 
 
 if __name__ == "__main__":
