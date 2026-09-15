@@ -8678,6 +8678,119 @@ fn change_set_contract_checkpoint(
     })
 }
 
+/// Avoid repeating each requirement in both its legacy source array and its
+/// contract item. Hard items live once in `contract_checkpoint.hard_items`;
+/// these compact groups retain only advisory items plus the context needed to
+/// decide whether an advisory item should be promoted. Full forensic detail
+/// remains available through `detail=full`.
+fn compact_contract_advisories(
+    obligations: &[serde_json::Value],
+    hypotheses: &[serde_json::Value],
+    hard_items: &[serde_json::Value],
+) -> (Vec<serde_json::Value>, Vec<serde_json::Value>) {
+    let hard_ids = hard_items.iter()
+        .filter_map(|item| item["id"].as_str())
+        .collect::<HashSet<_>>();
+    let compact_obligations = obligations.iter().cloned().map(|mut obligation| {
+        if let Some(object) = obligation.as_object_mut() {
+            object.remove("checks");
+            object.remove("contract_gate");
+            let advisory = object.remove("contract_items")
+                .and_then(|value| value.as_array().cloned())
+                .unwrap_or_default()
+                .into_iter()
+                .filter(|item| item["check_id"].as_str().is_none_or(|id| !hard_ids.contains(id)))
+                .collect::<Vec<_>>();
+            if !advisory.is_empty() {
+                object.insert("advisory_contract_items".into(), serde_json::json!(advisory));
+            }
+            object.insert(
+                "evidence_layout".into(),
+                serde_json::json!("release-critical items are in contract_checkpoint.hard_items; this group contains advisory items only"),
+            );
+        }
+        obligation
+    }).collect();
+    let compact_hypotheses = hypotheses.iter().cloned().map(|mut hypothesis| {
+        if let Some(object) = hypothesis.as_object_mut() {
+            object.remove("required_contract_evidence");
+            object.remove("concrete_surfaces");
+            object.remove("verification_gate");
+            let advisory = object.remove("contract_evidence_items")
+                .and_then(|value| value.as_array().cloned())
+                .unwrap_or_default()
+                .into_iter()
+                .filter(|item| item["evidence_id"].as_str().is_none_or(|id| !hard_ids.contains(id)))
+                .collect::<Vec<_>>();
+            if !advisory.is_empty() {
+                object.insert("advisory_contract_evidence".into(), serde_json::json!(advisory));
+            }
+            object.insert(
+                "surface_evidence_ref".into(),
+                serde_json::json!("boundary_audit.categories (join on required_surface_categories)"),
+            );
+            object.insert(
+                "evidence_layout".into(),
+                serde_json::json!("release-critical items are in contract_checkpoint.hard_items; this group contains advisory items only"),
+            );
+        }
+        hypothesis
+    }).collect();
+    (compact_obligations, compact_hypotheses)
+}
+
+/// Replace repeated per-row guidance with stable references. The dictionary is
+/// lossless and request-local: exact paths, row ids, causal anchors, reasons,
+/// and unique questions remain inline. This primarily removes the same impact
+/// and exclusion paragraph repeated across dozens of rows.
+fn compact_row_guidance(groups: &mut [&mut Vec<serde_json::Value>]) -> serde_json::Value {
+    const FIELDS: [&str; 4] = [
+        "mechanism_role",
+        "evidence_class",
+        "impact_question",
+        "exclusion_evidence_required",
+    ];
+    let mut counts = BTreeMap::<(String, String), usize>::new();
+    for group in groups.iter() {
+        for row in group.iter() {
+            for field in FIELDS {
+                if let Some(value) = row[field].as_str()
+                    && value.len() >= 32
+                {
+                    *counts.entry((field.to_string(), value.to_string())).or_default() += 1;
+                }
+            }
+        }
+    }
+    let references = counts.into_iter()
+        .filter(|(_, count)| *count >= 2)
+        .enumerate()
+        .map(|(index, ((field, value), _))| {
+            ((field, value.clone()), (format!("G{:03}", index + 1), value))
+        })
+        .collect::<BTreeMap<_, _>>();
+    for group in groups.iter_mut() {
+        for row in group.iter_mut() {
+            let Some(object) = row.as_object_mut() else { continue };
+            for field in FIELDS {
+                let Some(value) = object.get(field).and_then(|value| value.as_str()) else { continue };
+                let Some((reference, _)) = references.get(&(field.to_string(), value.to_string())) else { continue };
+                object.remove(field);
+                object.insert(format!("{field}_ref"), serde_json::json!(reference));
+            }
+        }
+    }
+    let entries = references.into_iter().map(|((field, _), (id, text))| serde_json::json!({
+        "id": id,
+        "field": field,
+        "text": text,
+    })).collect::<Vec<_>>();
+    serde_json::json!({
+        "entries": entries,
+        "instruction": "Resolve every *_ref on a row through this dictionary before classifying the row. References compress repeated text only; they do not weaken or replace the guidance."
+    })
+}
+
 /// Show whether the current evidence set spans lifecycle boundaries implied by
 /// authentication/session or scoped-ownership changes. This is a bounded audit
 /// of retrieved evidence, not a claim that the repository has no additional
@@ -12076,7 +12189,7 @@ impl Engram {
                 .enumerate()
                 .map(|(index, row)| (row.path.clone(), format!("P{:03}", index + 1)))
                 .collect::<std::collections::HashMap<_, _>>();
-            let files: Vec<serde_json::Value> = visible_rows
+            let mut files: Vec<serde_json::Value> = visible_rows
                 .iter()
                 .filter(|row| !reconciled_detail || row.set == "primary")
                 .take(file_cap)
@@ -12123,7 +12236,7 @@ impl Engram {
                 .collect();
             let files_shown = files.len();
             let omissions_shown = output_omissions.len();
-            let asset_dependencies_json = asset_dependencies
+            let mut asset_dependencies_json = asset_dependencies
                 .iter()
                 .enumerate()
                 .map(|(index, linked)| {
@@ -12148,7 +12261,7 @@ impl Engram {
                     })
                 })
                 .collect::<Vec<_>>();
-            let caller_dependencies_json = caller_dependencies
+            let mut caller_dependencies_json = caller_dependencies
                 .iter()
                 .enumerate()
                 .map(|(index, linked)| {
@@ -12237,6 +12350,28 @@ impl Engram {
                 &boundary_audit,
                 &configured_contract_rules,
             );
+            let hard_items = contract_checkpoint["hard_items"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default();
+            let (output_obligations, output_hypotheses) = if full_detail {
+                (cross_cutting_obligations.clone(), component_hypotheses.clone())
+            } else {
+                compact_contract_advisories(
+                    &cross_cutting_obligations,
+                    &component_hypotheses,
+                    &hard_items,
+                )
+            };
+            let row_guidance = if full_detail {
+                serde_json::Value::Null
+            } else {
+                compact_row_guidance(&mut [
+                    &mut files,
+                    &mut asset_dependencies_json,
+                    &mut caller_dependencies_json,
+                ])
+            };
             let work_item_evidence_risk = change_set_work_item_evidence_risk(
                 req.story.trim(),
                 req.merged_before.as_deref(),
@@ -12246,6 +12381,7 @@ impl Engram {
                 "story": req.story.trim(),
                 "contract_checkpoint": contract_checkpoint,
                 "concepts": concepts,
+                "row_guidance": row_guidance,
                 "files": files,
                 "coverage": output_coverage,
                 "omissions": output_omissions,
@@ -12269,8 +12405,8 @@ impl Engram {
                 "caller_dependencies": caller_dependencies_json,
                 "reconciliation": reconciliation,
                 "permission_gates": permission_gates_json,
-                "cross_cutting_obligations": cross_cutting_obligations,
-                "component_hypotheses": component_hypotheses,
+                "cross_cutting_obligations": output_obligations,
+                "component_hypotheses": output_hypotheses,
                 "configured_contract_rules": {
                     "rules": configured_contract_rules_json,
                     "notes": configured_contract_rule_notes,
@@ -15675,6 +15811,72 @@ mod change_set_rows_tests {
             assert!(rendered.contains(expected), "missing {expected}: {rendered}");
         }
         assert!(!rendered.contains("OciusX"));
+    }
+
+    #[test]
+    fn reconciled_contract_payload_stores_each_item_once() {
+        let obligations = vec![serde_json::json!({
+            "obligation": "lifecycle",
+            "checks": ["hard requirement", "advisory requirement"],
+            "contract_gate": "duplicate instruction",
+            "contract_items": [
+                {"check_id": "OBL-01-X-C01", "requirement": "hard requirement"},
+                {"check_id": "OBL-01-X-C02", "requirement": "advisory requirement"}
+            ]
+        })];
+        let hypotheses = vec![serde_json::json!({
+            "responsibility": "state owner",
+            "required_surface_categories": ["request_pipeline"],
+            "required_contract_evidence": ["hard evidence", "advisory evidence"],
+            "contract_evidence_items": [
+                {"evidence_id": "HYP-01-X-E01", "requirement": "hard evidence"},
+                {"evidence_id": "HYP-01-X-E02", "requirement": "advisory evidence"}
+            ],
+            "concrete_surfaces": [{"boundary": "request_pipeline", "paths": ["src/App.cs"]}],
+            "verification_gate": "duplicate instruction"
+        })];
+        let hard = vec![
+            serde_json::json!({"id": "OBL-01-X-C01"}),
+            serde_json::json!({"id": "HYP-01-X-E01"}),
+        ];
+        let (compact_obligations, compact_hypotheses) =
+            compact_contract_advisories(&obligations, &hypotheses, &hard);
+        let rendered = serde_json::to_string(&(compact_obligations, compact_hypotheses)).unwrap();
+        assert!(!rendered.contains("hard requirement"));
+        assert!(!rendered.contains("hard evidence"));
+        assert!(rendered.contains("advisory requirement"));
+        assert!(rendered.contains("advisory evidence"));
+        assert!(!rendered.contains("src/App.cs"));
+        assert!(rendered.contains("boundary_audit.categories"));
+    }
+
+    #[test]
+    fn reconciled_rows_dictionary_encode_only_repeated_guidance() {
+        let repeated = "inspect the same concrete source behavior before excluding this row";
+        let mut primary = vec![
+            serde_json::json!({"row_id": "P001", "impact_question": repeated, "path": "A.cs"}),
+            serde_json::json!({"row_id": "P002", "impact_question": repeated, "path": "B.cs"}),
+        ];
+        let mut assets = vec![serde_json::json!({
+            "row_id": "A001",
+            "impact_question": "this unique question remains inline because it occurs once",
+            "path": "bundle.js"
+        })];
+        let mut callers = Vec::new();
+        let dictionary = compact_row_guidance(&mut [
+            &mut primary,
+            &mut assets,
+            &mut callers,
+        ]);
+        assert_eq!(primary[0]["impact_question_ref"], "G001");
+        assert_eq!(primary[1]["impact_question_ref"], "G001");
+        assert!(primary[0].get("impact_question").is_none());
+        assert_eq!(
+            assets[0]["impact_question"],
+            "this unique question remains inline because it occurs once"
+        );
+        assert_eq!(dictionary["entries"].as_array().unwrap().len(), 1);
+        assert_eq!(dictionary["entries"][0]["text"], repeated);
     }
 
     #[test]
