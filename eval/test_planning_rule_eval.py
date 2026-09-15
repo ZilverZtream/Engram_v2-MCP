@@ -82,10 +82,15 @@ rules:
             excluded_path, _ = subject.evaluate_packs(
                 [("test", pack)], "session expiry", ["Site/API/Auth/fixtures/User.vb"], None
             )
+            mixed_paths, _ = subject.evaluate_packs(
+                [("test", pack)], "session expiry",
+                ["Site/API/Auth.vb", "Site/API/Auth/fixtures/User.vb"], None
+            )
             self.assertEqual(len(hit), 1)
             self.assertFalse(story_miss)
             self.assertFalse(path_miss)
             self.assertFalse(excluded_path)
+            self.assertEqual(len(mixed_paths), 1)
 
     def test_invalid_calendar_date_and_unknown_field_are_rejected(self):
         with tempfile.TemporaryDirectory() as folder:

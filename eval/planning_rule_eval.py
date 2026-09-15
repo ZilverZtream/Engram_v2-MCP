@@ -150,13 +150,15 @@ def load_pack(path: Path, source: str) -> list[Rule]:
 def matches(rule: Rule, story: str, paths: list[str]) -> bool:
     story = story.casefold()
     paths = [path.replace("\\", "/").casefold() for path in paths]
+    eligible_paths = [
+        path for path in paths if all(term not in path for term in rule.path_none)
+    ]
     return (
         all(term in story for term in rule.story_all)
         and (not rule.story_any or any(term in story for term in rule.story_any))
         and all(term not in story for term in rule.story_none)
-        and all(any(term in path for path in paths) for term in rule.path_all)
-        and (not rule.path_any or any(term in path for term in rule.path_any for path in paths))
-        and all(all(term not in path for path in paths) for term in rule.path_none)
+        and all(any(term in path for path in eligible_paths) for term in rule.path_all)
+        and (not rule.path_any or any(term in path for term in rule.path_any for path in eligible_paths))
     )
 
 
