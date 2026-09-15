@@ -832,6 +832,26 @@ fn diff_to_patch_text(diff: &git2::Diff<'_>) -> anyhow::Result<String> {
     Ok(text)
 }
 
+/// Working-tree paths with staged, unstaged or untracked changes (ignored files
+/// excluded), sorted. An empty review names these so that "no changes in the
+/// requested diff" is never read as "nothing to review".
+pub fn working_tree_changes(project_dir: &Path) -> anyhow::Result<Vec<String>> {
+    let repo = git2::Repository::discover(project_dir)?;
+    let mut opts = git2::StatusOptions::new();
+    opts.include_untracked(true)
+        .recurse_untracked_dirs(true)
+        .include_ignored(false);
+    let mut paths: Vec<String> = repo
+        .statuses(Some(&mut opts))?
+        .iter()
+        .filter(|entry| !entry.status().is_ignored())
+        .filter_map(|entry| entry.path().map(|p| p.replace('\\', "/")))
+        .collect();
+    paths.sort();
+    paths.dedup();
+    Ok(paths)
+}
+
 fn git_diff_staged(project_dir: &Path) -> anyhow::Result<String> {
     let repo = git2::Repository::discover(project_dir)?;
     let head_tree = repo.head().ok().and_then(|h| h.peel_to_tree().ok());

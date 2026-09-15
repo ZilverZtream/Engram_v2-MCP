@@ -995,3 +995,62 @@ diff --git a/Gone.vb b/Gone.vb\ndeleted file mode 100644\n--- a/Gone.vb\n+++ /de
         body["coverage"]
     );
 }
+
+/// With the default `staged` source and nothing staged, the review examined
+/// nothing. Unstaged and untracked work in the tree must be named, never
+/// reported as "no changes".
+#[tokio::test]
+async fn an_empty_staged_review_names_the_working_tree_changes_it_did_not_examine() {
+    let (tmp, state) = build_state();
+    let root = tmp.path().join("project");
+    let repo = git2::Repository::init(&root).unwrap();
+    std::fs::write(root.join("Rules.vb"), "Public Class Rules\nEnd Class\n").unwrap();
+    let mut index = repo.index().unwrap();
+    index.add_path(std::path::Path::new("Rules.vb")).unwrap();
+    index.write().unwrap();
+    let tree = repo.find_tree(index.write_tree().unwrap()).unwrap();
+    let sig = git2::Signature::now("Fixture", "fixture@example.invalid").unwrap();
+    repo.commit(Some("HEAD"), &sig, &sig, "base", &tree, &[]).unwrap();
+    std::fs::write(
+        root.join("Rules.vb"),
+        "Public Class Rules\n    Sub A()\n    End Sub\nEnd Class\n",
+    )
+    .unwrap();
+    std::fs::write(root.join("Fresh.vb"), "Public Class Fresh\nEnd Class\n").unwrap();
+    let engram = Engram::new(state);
+
+    let text = engram
+        .handle_pre_commit_review(serde_json::from_value(json!({"project_id": PID})).unwrap())
+        .await
+        .unwrap()
+        .content[0]
+        .as_text()
+        .unwrap()
+        .text
+        .clone();
+    assert!(
+        text.contains("Fresh.vb") && text.contains("Rules.vb"),
+        "unexamined working-tree files must be named: {text}"
+    );
+    assert!(text.contains("diff=\"unstaged\""), "{text}");
+
+    let body: serde_json::Value = serde_json::from_str(
+        &engram
+            .handle_pre_commit_review(
+                serde_json::from_value(json!({"project_id": PID, "output_json": true})).unwrap(),
+            )
+            .await
+            .unwrap()
+            .content[0]
+            .as_text()
+            .unwrap()
+            .text,
+    )
+    .unwrap();
+    assert_eq!(body["verdict"], "NOT_REVIEWED", "{body}");
+    assert_eq!(
+        body["coverage"]["unexamined_files"],
+        json!(["Fresh.vb", "Rules.vb"]),
+        "{body}"
+    );
+}
