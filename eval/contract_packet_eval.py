@@ -70,6 +70,30 @@ def read_supplements(paths: list[Path]) -> list[Candidate]:
     return candidates
 
 
+def supplement_source_bindings(paths: list[Path]) -> list[dict[str, Any]]:
+    """Prove proposed evidence is present in the staged production source."""
+    bindings: list[dict[str, Any]] = []
+    for path in paths:
+        value = read_json(path)
+        for index, row in enumerate(value.get("candidates", []), 1):
+            candidate_id = str(row.get("id", f"candidate-{index}"))
+            raw_source = str(row.get("source_path", "")).strip()
+            needle = str(row.get("source_contains", "")).strip()
+            source = Path(raw_source)
+            if raw_source and not source.is_absolute():
+                source = (path.parent / source).resolve()
+            present = bool(raw_source and needle and source.is_file())
+            if present:
+                present = needle in source.read_text(encoding="utf-8", errors="replace")
+            bindings.append({
+                "candidate_id": candidate_id,
+                "source_path": str(source) if raw_source else None,
+                "source_contains": needle or None,
+                "bound": present,
+            })
+    return bindings
+
+
 def compile_signals(raw: Iterable[dict[str, Any]]) -> list[Signal]:
     signals: list[Signal] = []
     seen: set[str] = set()
@@ -643,6 +667,7 @@ def main() -> int:
             evidence, args.matrix.read_text(encoding="utf-8-sig", errors="replace")
         )
         supplements = read_supplements(args.supplement)
+        supplement_bindings = supplement_source_bindings(args.supplement)
         candidates = baseline_candidates + supplements
         budgets = sorted({int(value) for value in args.budgets.split(",") if value.strip()})
         char_budgets = sorted({int(value) for value in args.char_budgets.split(",") if value.strip()})
@@ -678,6 +703,7 @@ def main() -> int:
             ),
         }
         report["supplement_impact"] = impact
+        report["supplement_source_bindings"] = supplement_bindings
         payload_ready = report.get("evidence_comparison", {}).get(
             "ready_for_single_agent_validation", not args.baseline_evidence
         )
@@ -685,6 +711,9 @@ def main() -> int:
             "payload_integrity": bool(payload_ready),
             "bounded_packet_recall": best_bounded_recall >= args.min_predicted_recall,
             "material_predicted_gain": impact["weighted_recall_gain"] >= args.min_predicted_gain,
+            "supplements_source_bound": all(
+                binding["bound"] for binding in supplement_bindings
+            ),
         }
         report["validation_decision"] = {
             "ready": all(decision_gates.values()),
