@@ -179,6 +179,7 @@ fn grep_request(pid: &str, pattern: &str, freshness: &str) -> engram_server::Gre
         case_sensitive: None,
         multiline: false,
         path_prefix: None,
+        exclude_path_prefixes: Vec::new(),
         language: None,
         context_before: 0,
         context_after: 0,
@@ -681,4 +682,35 @@ async fn grep_advertised_citations_roundtrip_and_disk_only_has_none() {
     let markdown = grep(&engram, request).await;
     assert!(!markdown.contains("citation get_chunk arguments:"));
     assert!(markdown.contains("no indexed doc_id"));
+}
+
+/// `exclude_path_prefixes` removes matches under the named prefixes from the
+/// indexed results AND the working-tree overlay, so bundled output or vendored
+/// copies can be kept out of a grep without enumerating every other folder.
+#[tokio::test]
+async fn exclude_path_prefixes_drop_indexed_and_working_tree_matches() {
+    let (_tmp, engram, pid, root) = setup_with_source(b"pub fn order_helper() {}\n").await;
+    // Created after indexing: one inside the excluded prefix, one outside it.
+    std::fs::write(root.join("src/stable_copy.rs"), "pub fn copied_helper() {}\n").unwrap();
+    std::fs::write(root.join("src/fresh.rs"), "pub fn fresh_helper() {}\n").unwrap();
+    let req: engram_server::GrepProjectRequest = serde_json::from_value(serde_json::json!({
+        "project_id": pid, "pattern": "helper", "freshness": "strict",
+        "exclude_path_prefixes": ["src/stable"], "output_json": true, "max_results": 200
+    }))
+    .unwrap();
+    let json: serde_json::Value = serde_json::from_str(&grep(&engram, req).await).unwrap();
+    let files: std::collections::BTreeSet<String> = json["matches"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|m| m["file_path"].as_str().unwrap().replace('\\', "/"))
+        .collect();
+    assert_eq!(
+        files,
+        ["src/fresh.rs", "src/orders.rs"]
+            .into_iter()
+            .map(String::from)
+            .collect(),
+        "{json}"
+    );
 }

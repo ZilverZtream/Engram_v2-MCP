@@ -87,7 +87,8 @@ fn overlay_working_tree(
         .map(|s| (s.rel_path.replace('\\', "/"), s))
         .collect();
     let eligible = |rel: &str| {
-        q.path_prefix.as_ref().is_none_or(|p| {
+        !q.is_excluded(rel)
+            && q.path_prefix.as_ref().is_none_or(|p| {
             rel.to_ascii_lowercase()
                 .starts_with(&p.replace('\\', "/").to_ascii_lowercase())
         }) && q.language.as_ref().is_none_or(|l| {
@@ -259,6 +260,7 @@ impl Engram {
         let namespace = req.namespace.clone();
         let pattern = req.pattern.clone();
         let path_prefix = req.path_prefix.clone();
+        let exclude_path_prefixes = req.exclude_path_prefixes.clone();
         let language = req.language.clone();
         let regex = req.regex;
         let case_sensitive = req.case_sensitive;
@@ -280,6 +282,7 @@ impl Engram {
                 case_sensitive,
                 multiline,
                 path_prefix,
+                exclude_path_prefixes,
                 language,
                 context_before,
                 context_after,
