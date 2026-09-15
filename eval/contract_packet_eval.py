@@ -237,6 +237,8 @@ def contract_requirements(evidence: dict[str, Any]) -> dict[str, str]:
         items.extend(hypothesis.get("advisory_contract_evidence", []))
         for item in items:
             result[str(item.get("evidence_id"))] = str(item.get("requirement", ""))
+    for rule in evidence.get("configured_contract_rules", {}).get("rules", []):
+        result[str(rule.get("id"))] = str(rule.get("requirement", ""))
     return {key: value for key, value in result.items() if key and key != "None"}
 
 
