@@ -8198,6 +8198,7 @@ fn obligation_check_severity(check: &str) -> &'static str {
         "authentication-pipeline principal map",
         "user-controlled gate selector",
         "access widening",
+        "tenant-local",
     ]
     .iter()
     .any(|term| lower.contains(term))
@@ -8228,6 +8229,8 @@ fn obligation_oracle_guard(check: &str) -> Option<&'static str> {
         Some("Each user-controlled header, query, path, cookie, route, or session-state branch that changes validation must have a negative scenario proving it cannot preserve revoked or stale authority.")
     } else if lower.contains("access widening") {
         Some("A scenario may widen access relative to the verified pre-change behavior only when it cites an explicit approved human decision.")
+    } else if lower.contains("tenant-local") {
+        Some("Every denial and revocation scenario must assert its exact invalidation scope. A tenant-local denial must preserve credentials and sessions outside that tenant unless an explicit approved decision broadens the scope.")
     } else {
         None
     }
@@ -16700,6 +16703,7 @@ mod change_set_rows_tests {
             "authentication-pipeline principal map",
             "user-controlled gate selector",
             "access widening",
+            "tenant-local",
             "physical-directory/default-document",
             "local precedents in each architectural layer",
         ] {
@@ -16773,6 +16777,7 @@ mod change_set_rows_tests {
             "same-device continuity",
             "process or session loss",
             "mixed-version behavior",
+            "tenant-local denial",
         ] {
             assert!(
                 hard_items.contains(release_risk),
