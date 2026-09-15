@@ -14286,13 +14286,24 @@ fn validate_contract_checkpoint(
             }
         }
         if disposition == "BLOCKING_UNKNOWN" {
-            let question = scenario_or_question.trim();
-            if !question.starts_with('Q') || !question.chars().any(|character| character.is_ascii_digit()) {
+            let question_ids = scenario_or_question
+                .split(|character: char| !character.is_ascii_alphanumeric())
+                .filter(|token| {
+                    token.starts_with('Q')
+                        && token.len() > 1
+                        && token[1..].chars().all(|character| character.is_ascii_digit())
+                })
+                .collect::<Vec<_>>();
+            if question_ids.is_empty() {
                 failures.push(format!("{id}: blocking item must map to a numbered human question"));
-            } else if contract.matches(question).count() < 2 {
-                failures.push(format!(
-                    "{id}: human question {question} must also appear in the contract question table"
-                ));
+            } else {
+                for question_id in question_ids {
+                    if contract.matches(question_id).count() < 2 {
+                        failures.push(format!(
+                            "{id}: human question {question_id} must also appear in the contract question table"
+                        ));
+                    }
+                }
             }
         }
         if item["oracle_guard"].as_str().is_some()
@@ -15315,7 +15326,7 @@ mod work_item_tests {
         let checkpoint = feature_contract_checkpoint_fixture();
         let receipt = checkpoint["workflow_scaffold"]["markdown"].as_str().unwrap();
         let blocked = format!(
-            "{receipt}\n| OBL-auth-C01 | release | auth | BLOCKING_UNKNOWN | Story is silent | Q1 | PASS |\n| BND-001 | release | pipeline | NOT_APPLICABLE_WITH_EVIDENCE | src/Worker.cs:9 | SC-NA-01 | NOT_APPLICABLE_WITH_EVIDENCE |\n\n| # | Question | Kind |\n|---|---|---|\n| Q1 | Should credentials survive restart? | BLOCKING |"
+            "{receipt}\n| OBL-auth-C01 | release | auth | BLOCKING_UNKNOWN | Story is silent | Q1, Q2; EDGE-25 | PASS |\n| BND-001 | release | pipeline | NOT_APPLICABLE_WITH_EVIDENCE | src/Worker.cs:9 | SC-NA-01 | NOT_APPLICABLE_WITH_EVIDENCE |\n\n| # | Question | Kind |\n|---|---|---|\n| Q1 | Should credentials survive restart? | BLOCKING |\n| Q2 | Must a second instance accept the credential? | BLOCKING |"
         );
         let result = validate_contract_checkpoint(&checkpoint, &blocked, "No executable scenario while Q1 is blocked.").unwrap();
         assert_eq!(result["status"], "BLOCKED_BY_HUMAN_DECISION");
