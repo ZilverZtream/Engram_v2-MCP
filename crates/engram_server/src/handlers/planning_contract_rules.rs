@@ -43,7 +43,11 @@ struct ConfiguredPlanningRule {
     #[serde(default)]
     story_none: Vec<String>,
     #[serde(default)]
+    path_all: Vec<String>,
+    #[serde(default)]
     path_any: Vec<String>,
+    #[serde(default)]
+    path_none: Vec<String>,
     #[serde(default)]
     oracle_guard: Option<String>,
     #[serde(default)]
@@ -83,12 +87,22 @@ fn valid_date(value: &str) -> bool {
             .iter()
             .enumerate()
             .all(|(index, byte)| index == 4 || index == 7 || byte.is_ascii_digit())
-        && value[5..7]
-            .parse::<u8>()
-            .is_ok_and(|month| (1..=12).contains(&month))
-        && value[8..10]
-            .parse::<u8>()
-            .is_ok_and(|day| (1..=31).contains(&day))
+        && value[5..7].parse::<u8>().ok().zip(value[8..10].parse::<u8>().ok())
+            .is_some_and(|(month, day)| {
+                let year = value[..4].parse::<u16>().unwrap_or_default();
+                if year == 0 {
+                    return false;
+                }
+                let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+                let maximum = match month {
+                    1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+                    4 | 6 | 9 | 11 => 30,
+                    2 if leap => 29,
+                    2 => 28,
+                    _ => return false,
+                };
+                (1..=maximum).contains(&day)
+            })
 }
 
 fn normalize_rule(
@@ -125,7 +139,9 @@ fn normalize_rule(
         &rule.story_all,
         &rule.story_any,
         &rule.story_none,
+        &rule.path_all,
         &rule.path_any,
+        &rule.path_none,
     ];
     if selectors.iter().any(|values| values.len() > 32)
         || selectors
@@ -138,7 +154,11 @@ fn normalize_rule(
             rule.id
         ));
     }
-    if rule.story_all.is_empty() && rule.story_any.is_empty() && rule.path_any.is_empty() {
+    if rule.story_all.is_empty()
+        && rule.story_any.is_empty()
+        && rule.path_all.is_empty()
+        && rule.path_any.is_empty()
+    {
         return Err(format!(
             "planning rule {} needs a positive predicate",
             rule.id
@@ -176,7 +196,9 @@ fn normalize_rule(
         &mut rule.story_all,
         &mut rule.story_any,
         &mut rule.story_none,
+        &mut rule.path_all,
         &mut rule.path_any,
+        &mut rule.path_none,
     ] {
         for value in values.iter_mut() {
             *value = value.trim().replace('\\', "/").to_ascii_lowercase();
@@ -270,6 +292,9 @@ fn matches(rule: &ConfiguredPlanningRule, story: &str, paths: &[String]) -> bool
         .iter()
         .map(|path| path.replace('\\', "/").to_ascii_lowercase())
         .collect::<Vec<_>>();
+    let eligible_paths = lower_paths.iter()
+        .filter(|path| rule.path_none.iter().all(|term| !path.contains(term)))
+        .collect::<Vec<_>>();
     rule.story_all.iter().all(|term| lower_story.contains(term))
         && (rule.story_any.is_empty()
             || rule.story_any.iter().any(|term| lower_story.contains(term)))
@@ -277,11 +302,14 @@ fn matches(rule: &ConfiguredPlanningRule, story: &str, paths: &[String]) -> bool
             .story_none
             .iter()
             .all(|term| !lower_story.contains(term))
+        && rule.path_all.iter().all(|term| {
+            eligible_paths.iter().any(|path| path.contains(term))
+        })
         && (rule.path_any.is_empty()
             || rule
                 .path_any
                 .iter()
-                .any(|term| lower_paths.iter().any(|path| path.contains(term))))
+                .any(|term| eligible_paths.iter().any(|path| path.contains(term))))
 }
 
 /// Load and match both rule packs for one planning call. Project rules replace
@@ -472,7 +500,9 @@ rules:
             story_all: vec!["session".into()],
             story_any: vec![],
             story_none: vec!["public".into()],
+            path_all: vec![],
             path_any: vec!["api/".into()],
+            path_none: vec![],
             oracle_guard: None,
             introduced_at: None,
             provenance: None,
@@ -493,5 +523,21 @@ rules:
             "session expiry",
             &["Site/Page.aspx".into()]
         ));
+        let mut with_exclusion = rule.clone();
+        with_exclusion.path_none = vec!["fixtures/".into()];
+        assert!(matches(
+            &with_exclusion,
+            "session expiry",
+            &["Site/API/Auth.vb".into(), "fixtures/API/Auth.vb".into()]
+        ));
+    }
+
+    #[test]
+    fn dates_are_real_calendar_dates() {
+        assert!(valid_date("2024-02-29"));
+        assert!(!valid_date("2023-02-29"));
+        assert!(!valid_date("2026-09-31"));
+        assert!(!valid_date("2026-13-01"));
+        assert!(!valid_date("0000-01-01"));
     }
 }
