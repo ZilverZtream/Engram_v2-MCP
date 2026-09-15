@@ -2516,6 +2516,14 @@ pub(crate) async fn generation_completeness_for(
         })
         .cloned()
         .collect();
+    let unindexed: Vec<&String> = missing
+        .iter()
+        .filter(|f| {
+            !tantivy.contains(*f)
+                && !graph_paths.contains(*f)
+                && (!vectors_checked || !vectors.contains(*f))
+        })
+        .collect();
     let extra = tantivy.iter().filter(|f| !expected.contains(*f)).count();
     let vector_extra = if vectors_checked {
         vectors.iter().filter(|f| !expected.contains(*f)).count()
@@ -2543,6 +2551,8 @@ pub(crate) async fn generation_completeness_for(
         graph_paths: graph_paths.len(),
         missing: missing.len(),
         missing_sample: missing.iter().take(10).cloned().collect(),
+        unindexed: unindexed.len(),
+        unindexed_sample: unindexed.iter().take(10).map(|p| p.to_string()).collect(),
         extra,
         cross_store_mismatch,
         tolerance,
@@ -2599,6 +2609,13 @@ pub(crate) fn completeness_line(c: &GenerationCompleteness) -> String {
         if c.complete {
             format!(
                 "complete (missing 0, mismatch 0; skipped by rule: {}{})",
+                c.skipped_by_rule,
+                skip_reasons(c)
+            )
+        } else if c.only_unindexed() {
+            format!(
+                "STALE ({} path(s) on disk are not indexed yet; the stores agree with each other; skipped by rule: {}{})",
+                c.unindexed,
                 c.skipped_by_rule,
                 skip_reasons(c)
             )
@@ -2726,6 +2743,12 @@ impl Engram {
                 "Health: DEGRADED — a store provider failed during the completeness check (see failures)"
                     .to_string()
             }
+            Ok(c) if c.only_unindexed() => format!(
+                "Health: STALE — {} eligible path(s) on disk are not in active generation {} (sample: {}); every store agrees on the indexed paths. Run update_project to index them.",
+                c.unindexed,
+                c.generation,
+                c.unindexed_sample.join(", ")
+            ),
             Ok(c) if !c.complete => format!(
                 "Health: CORRUPT — active generation {} is INCOMPLETE ({} of {} eligible paths missing from the searchable stores, cross-store mismatch {}); searchable evidence is unreliable until repair_project(scope=\"full\", wipe_and_reindex=false) rebuilds this project ID",
                 c.generation, c.missing, c.expected_paths, c.cross_store_mismatch
@@ -2977,6 +3000,7 @@ impl Engram {
                 false
             }
         };
+        let unindexed_only = matches!(&completeness, Ok(c) if c.only_unindexed());
         let advice = if source_binding_invalid {
             "source revision binding FAILED — do not trust indexed source; restore the expected clean Git worktree and run update_project"
         } else if source_binding_unknown {
@@ -2987,6 +3011,8 @@ impl Engram {
             "run update_project — source-index migration automatically re-extracts old files while retaining this project ID and knowledge corpora"
         } else if completeness_unknown {
             "freshness unknown — generation completeness could not be verified; restore index access and retry"
+        } else if unindexed_only {
+            "index is stale — eligible files on disk are not indexed yet; run update_project (or enable watch_project for auto-updates)"
         } else if incomplete {
             "active generation is INCOMPLETE — the searchable corpus is missing; run repair_project(scope=\"full\", wipe_and_reindex=false) to rebuild this project ID and preserve knowledge"
         } else if rec.reindex_required_since_ms.is_some() {
@@ -4592,6 +4618,11 @@ pub(crate) struct GenerationCompleteness {
     /// Eligible paths absent from Tantivy or (when vectors exist) from LanceDB.
     pub missing: usize,
     pub missing_sample: Vec<String>,
+    /// Missing paths absent from EVERY store: on disk but never indexed,
+    /// typically created after the last index. The stores agree with each
+    /// other, and update_project indexes them.
+    pub unindexed: usize,
+    pub unindexed_sample: Vec<String>,
     /// Paths in Tantivy that are no longer eligible (stale).
     pub extra: usize,
     /// Paths present in one search store and absent in the other.
@@ -4614,6 +4645,19 @@ pub(crate) struct GenerationCompleteness {
     pub store_errors: Vec<String>,
     pub degraded: bool,
     pub complete: bool,
+}
+
+impl GenerationCompleteness {
+    /// Incomplete only because files on disk are not indexed yet: no
+    /// provider error, no cross-store mismatch, and every missing path is
+    /// absent from every store. That is a stale index, not a corrupt one.
+    pub(crate) fn only_unindexed(&self) -> bool {
+        !self.complete
+            && !self.degraded
+            && self.cross_store_mismatch == 0
+            && self.missing > 0
+            && self.missing == self.unindexed
+    }
 }
 
 /// Doc-11 P1a (external audit round 2, P0-1 tail): the post-publication
