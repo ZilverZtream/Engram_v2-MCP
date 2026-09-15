@@ -2,6 +2,9 @@
 # or <repository>/.engram/planning-contract-rules.yaml for repository rules.
 # Repository rules replace organization rules with the same id. Files are read
 # on every get_change_set call, so edits need no rebuild or daemon restart.
+# Validate and score a pack before a paid replay with:
+# python eval/planning_rule_eval.py --pack <rules.yaml> --story-file <story.txt>
+#   --evidence <saved-get-change-set.json> --fixture <held-out-fixture.json>
 version: 1
 introduced_at: 2026-01-15
 provenance: "Architecture handbook revision 12"
@@ -14,6 +17,7 @@ rules:
     severity: release_blocking_if_applicable
     story_any: [session, cache, token, lease]
     path_any: [web.config, appsettings, startup, middleware]
+    path_none: [testdata/, fixtures/]
     oracle_guard: >-
       Frozen scenarios must exercise a second process or instance and loss of
       transient state; process-local success is not durable evidence.
@@ -27,3 +31,6 @@ rules:
     severity: required_if_applicable
     story_any: [change, update, revoke, disable, delete]
     story_none: [purely visual]
+
+  # path_none removes matching paths before evaluation. path_all then requires
+  # every term in at least one remaining path; path_any requires one term.

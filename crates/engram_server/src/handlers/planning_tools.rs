@@ -33,6 +33,7 @@ use std::path::PathBuf;
 const PROJECT_POLICY_SOURCE_CAP: usize = 8;
 const PROJECT_POLICY_SOURCE_CHAR_CAP: usize = 10_000;
 const PROJECT_POLICY_TOTAL_CHAR_CAP: usize = 24_000;
+const BOUNDARY_CANDIDATE_STORE_CAP: usize = 64;
 
 fn is_project_policy_path(path: &str) -> bool {
     let normalized = path.replace('\\', "/");
@@ -8058,6 +8059,8 @@ fn change_set_cross_cutting_obligations(story: &str) -> Vec<serde_json::Value> {
                 "decide credential precedence when more than one scheme is present, including an explicit Authorization header alongside a session or browser cookie",
                 "preserve each credential scheme's established state model and side effects; a stateless scheme must not start browser or server-session authentication state unless an explicit accepted requirement says it should",
                 "define fresh-credential bootstrap separately from later revalidation, including proof strength, issue time or age, audience, tenant scope, and the exact protected ticket, token, claim, or cookie payload used",
+                "bind any server-session or cached security baseline to the current request principal identity and define fail-closed behavior for a missing owner, owner mismatch, principal mismatch, or username change",
+                "name and verify every concrete stateless login or token-issue route; do not infer its bootstrap payload or session behavior from a different credential entry point",
                 "when repository and product evidence do not settle a scheme's statefulness or bootstrap behavior, record the alternatives as a blocking product question instead of choosing an expected result in the test matrix"
             ],
             "candidate_mechanism_roles": ["application request pipeline", "request pipeline and principal propagation", "authentication or authorization gate", "error and response contract"]
@@ -8084,6 +8087,8 @@ fn change_set_cross_cutting_obligations(story: &str) -> Vec<serde_json::Value> {
                 "decide whether the default is fixed, tenant-configurable, feature-controlled, or migrated for existing subjects; inspect the repository's setting accessor, resource-family, seed, and deployment conventions",
                 "define who may view, grant, revoke, or change the policy for themselves and peers, including recovery from self-lockout and last-administrator cases",
                 "reconcile navigation visibility with server-side enforcement at every page, API, asynchronous, import, and background entry point; hiding a control is not authorization",
+                "identify tenant sync events and other account, role, or permission synchronization paths; define the observable behavior while propagation is delayed, stale, skipped, retried, or permanently failed",
+                "preserve the established user-facing message, status, and redirect contract for each tenant decision or scope-selection flag, including disabled, missing, and inaccessible targets",
                 "test default on and off, explicit deny, explicit allow, unsupported roles, privileged exemptions, cache refresh, tenant isolation, and grant/revoke audit behavior"
             ],
             "candidate_mechanism_roles": ["authentication or authorization gate", "configuration and default registry", "additive deployment or seed registry", "additive localized resource registry", "audit and operational logging"]
@@ -8184,6 +8189,8 @@ fn obligation_check_severity(check: &str) -> &'static str {
         "partial failure",
         "session lock",
         "re-entry",
+        "identity mismatch",
+        "principal mismatch",
     ]
     .iter()
     .any(|term| lower.contains(term))
@@ -8206,6 +8213,8 @@ fn obligation_oracle_guard(check: &str) -> Option<&'static str> {
         Some("A logging symbol is valid only for the architectural layer whose local source precedent is cited; do not propagate one layer's wrapper into another.")
     } else if lower.contains("session lock") || lower.contains("re-entry") {
         Some("The scenario set must exercise bounded completion and session allocation for the concrete affected entry-point and routing classes before this check can be satisfied.")
+    } else if lower.contains("identity mismatch") || lower.contains("principal mismatch") {
+        Some("Frozen scenarios must bind the cached or session owner to the current request principal and prove fail-closed behavior after session reuse, identity replacement, or principal mismatch.")
     } else {
         None
     }
@@ -8520,6 +8529,8 @@ fn bind_component_hypothesis_surfaces(
                         "status": status,
                         "paths": category["paths"],
                         "paths_total": category["paths_total"],
+                        "retrieved_paths_total": category["retrieved_paths_total"],
+                        "indexed_candidates_total": category["indexed_candidates_total"],
                         "truncated": category["truncated"],
                     }));
                 } else {
@@ -8529,6 +8540,8 @@ fn bind_component_hypothesis_surfaces(
                         "status": "unresolved",
                         "paths": [],
                         "paths_total": 0,
+                        "retrieved_paths_total": 0,
+                        "indexed_candidates_total": 0,
                         "truncated": false,
                     }));
                 }
@@ -8672,9 +8685,6 @@ fn change_set_contract_checkpoint(
     );
     let workflow_scaffold = serde_json::json!({
         "status": "INTENTIONALLY_INCOMPLETE_UNTIL_AGENT_SUPPLIES_DISPOSITIONS_AND_EVIDENCE",
-        "receipt_line": receipt_line,
-        "ledger_header": ledger_header,
-        "ledger_rows": ledger_rows,
         "markdown": scaffold_markdown,
         "instruction": "Copy this scaffold verbatim, then replace every MISSING disposition and oracle-guard result and fill evidence plus scenario/question mapping. Do not alter ID order or the receipt."
     });
@@ -8819,6 +8829,61 @@ fn compact_row_guidance(groups: &mut [&mut Vec<serde_json::Value>]) -> serde_jso
     })
 }
 
+fn boundary_index_candidate(path: &str) -> bool {
+    let normalized = path.replace('\\', "/").to_ascii_lowercase();
+    if ["diff:", "history:", "pr:"].iter().any(|prefix| normalized.starts_with(prefix)) {
+        return false;
+    }
+    let segments = normalized.split('/').collect::<Vec<_>>();
+    if segments.iter().any(|segment| matches!(
+        *segment,
+        "bin" | "obj" | "node_modules" | "bower_components" | "packages" | "vendor"
+            | "dist" | "coverage" | ".git" | ".vs"
+    )) {
+        return false;
+    }
+    if normalized.ends_with(".min.js")
+        || normalized.ends_with(".min.css")
+        || normalized.ends_with(".map")
+        || normalized.ends_with(".refresh")
+    {
+        return false;
+    }
+    [
+        ".vb", ".cs", ".fs", ".js", ".ts", ".aspx", ".ascx", ".master", ".vbhtml",
+        ".cshtml", ".config", ".json", ".yaml", ".yml", ".sql", ".sqlproj", ".dbml",
+        ".edmx", ".asax", ".ashx", ".asmx", ".svc",
+    ]
+    .iter()
+    .any(|extension| normalized.ends_with(extension))
+}
+
+fn boundary_index_relevant(path: &str, auth_applicable: bool, scope_applicable: bool) -> bool {
+    let normalized = path.replace('\\', "/").to_ascii_lowercase();
+    let name = normalized.rsplit('/').next().unwrap_or(&normalized);
+    let infrastructure = [
+        "global.asax", "startup", "middleware", "module", "pipeline", "web.config",
+        "appsettings", "bundleconfig", "routeconfig",
+    ]
+    .iter()
+    .any(|term| name.contains(term));
+    let auth = auth_applicable && [
+        "auth", "session", "login", "logout", "signin", "signout", "user", "role",
+        "permission", "tenant", "access", "security", "credential", "token", "oauth",
+        "saml", "mfa", "membership", "account", "principal", "identity", "lockout",
+    ]
+    .iter()
+    .any(|term| normalized.contains(term));
+    let scope = scope_applicable && [
+        "owner", "scope", "tenant", "customer", "account", "project", "organization",
+        "parent", "child", "inherit", "override", "fallback", "copy", "clone", "move",
+        "reassign", "transfer", "import",
+    ]
+    .iter()
+    .any(|term| normalized.contains(term));
+    infrastructure || auth || scope
+}
+
 /// Show whether the current evidence set spans lifecycle boundaries implied by
 /// authentication/session or scoped-ownership changes. This is a bounded audit
 /// of retrieved evidence, not a claim that the repository has no additional
@@ -8828,6 +8893,7 @@ fn change_set_boundary_audit(
     rows: &[ChangeSetRow],
     asset_dependencies: &[AssetGraphFile],
     caller_dependencies: &[CallerGraphFile],
+    indexed_paths: &[String],
 ) -> serde_json::Value {
     let lower = story.to_ascii_lowercase();
     let auth_applicable = [
@@ -8849,22 +8915,46 @@ fn change_set_boundary_audit(
         });
     }
 
-    let mut all_paths = rows.iter()
+    let retrieved_paths = rows.iter()
         .filter(|row| !row.omitted)
         .map(|row| row.path.clone())
         .chain(asset_dependencies.iter().map(|row| row.path.clone()))
         .chain(caller_dependencies.iter().map(|row| row.path.clone()))
+        .collect::<BTreeSet<_>>();
+    let retrieved_path_keys = retrieved_paths.iter()
+        .map(|path| path.replace('\\', "/").to_ascii_lowercase())
+        .collect::<BTreeSet<_>>();
+    let mut all_paths = retrieved_paths.iter().cloned()
+        .chain(indexed_paths.iter().filter(|path| {
+            boundary_index_candidate(path)
+                && boundary_index_relevant(path, auth_applicable, scope_applicable)
+        }).cloned())
         .collect::<Vec<_>>();
-    all_paths.sort();
-    all_paths.dedup();
+    all_paths.sort_by_key(|path| {
+        let key = path.replace('\\', "/").to_ascii_lowercase();
+        (!retrieved_path_keys.contains(&key), key)
+    });
+    all_paths.dedup_by(|left, right| {
+        left.replace('\\', "/").eq_ignore_ascii_case(&right.replace('\\', "/"))
+    });
 
     let mut categories: BTreeMap<&'static str, BTreeSet<String>> = BTreeMap::new();
+    let mut category_totals: BTreeMap<&'static str, usize> = BTreeMap::new();
+    let mut category_retrieved_totals: BTreeMap<&'static str, usize> = BTreeMap::new();
     for path in &all_paths {
         let normalized = path.replace('\\', "/").to_ascii_lowercase();
         let name = normalized.rsplit('/').next().unwrap_or(&normalized);
         let role = change_set_mechanism_role(path);
-        let add = |categories: &mut BTreeMap<&'static str, BTreeSet<String>>, key, path: &String| {
-            categories.entry(key).or_default().insert(path.clone());
+        let retrieved = retrieved_path_keys.contains(&normalized);
+        let mut add = |categories: &mut BTreeMap<&'static str, BTreeSet<String>>, key, path: &String| {
+            *category_totals.entry(key).or_default() += 1;
+            if retrieved {
+                *category_retrieved_totals.entry(key).or_default() += 1;
+            }
+            let stored = categories.entry(key).or_default();
+            if stored.len() < BOUNDARY_CANDIDATE_STORE_CAP {
+                stored.insert(path.clone());
+            }
         };
         if matches!(role, "application request pipeline" | "request pipeline and principal propagation")
             || ["global.asax", "startup", "middleware", "module", "pipeline"]
@@ -8973,19 +9063,30 @@ fn change_set_boundary_audit(
     }
     let category_values = definitions.iter().map(|(key, purpose)| {
         let paths = categories.get(key).cloned().unwrap_or_default();
-        let total = paths.len();
+        let total = category_totals.get(key).copied().unwrap_or_default();
+        let retrieved_total = category_retrieved_totals.get(key).copied().unwrap_or_default();
+        let mut ordered_paths = paths.into_iter().collect::<Vec<_>>();
+        ordered_paths.sort_by_key(|path| (
+            !retrieved_path_keys.contains(&path.replace('\\', "/").to_ascii_lowercase()),
+            path.to_ascii_lowercase(),
+        ));
+        let status = if total == 0 {
+            "unresolved"
+        } else if retrieved_total == 0 {
+            "candidate_only"
+        } else if total > 20 || retrieved_total < total {
+            "partial"
+        } else {
+            "evidence_present"
+        };
         serde_json::json!({
             "boundary": key,
             "purpose": purpose,
-            "status": if total == 0 {
-                "unresolved"
-            } else if total > 20 {
-                "partial"
-            } else {
-                "evidence_present"
-            },
-            "paths": paths.into_iter().take(20).collect::<Vec<_>>(),
+            "status": status,
+            "paths": ordered_paths.into_iter().take(20).collect::<Vec<_>>(),
             "paths_total": total,
+            "retrieved_paths_total": retrieved_total,
+            "indexed_candidates_total": total.saturating_sub(retrieved_total),
             "truncated": total > 20,
         })
     }).collect::<Vec<_>>();
@@ -8994,12 +9095,15 @@ fn change_set_boundary_audit(
         .filter_map(|category| category["boundary"].as_str())
         .collect::<Vec<_>>();
     let coverage_stops = category_values.iter()
-        .filter(|category| category["status"] == "partial")
+        .filter(|category| category["status"].as_str()
+            .is_some_and(|status| status == "partial" || status == "candidate_only"))
         .map(|category| serde_json::json!({
             "boundary": category["boundary"],
             "paths_shown": category["paths"].as_array().map_or(0, Vec::len),
             "paths_total": category["paths_total"],
-            "reason": "candidate paths were truncated; displayed evidence cannot establish complete boundary coverage"
+            "retrieved_paths_total": category["retrieved_paths_total"],
+            "indexed_candidates_total": category["indexed_candidates_total"],
+            "reason": "indexed lifecycle candidates remain uninspected or candidate paths were truncated; displayed evidence cannot establish complete boundary coverage"
         }))
         .collect::<Vec<_>>();
     let complete = unresolved.is_empty() && coverage_stops.is_empty();
@@ -9009,7 +9113,7 @@ fn change_set_boundary_audit(
         "categories": category_values,
         "unresolved": unresolved,
         "coverage_stops": coverage_stops,
-        "instruction": "For every category, reconcile literal search with graph, state, history, and current source. Evidence present is a starting set, not proof of completeness. The unresolved list includes both empty and truncated categories: an empty category needs an evidence-backed not-applicable decision or additional paths; a partial category needs the omitted paths or an independent exhaustive inventory before the feature contract is complete. Treat leaf consumers and test-only paths as regression evidence unless behavior originates there; prefer their shared host, registry, middleware, policy, or service as the implementation surface. Resolve conventions such as logging independently from local precedents in each architectural layer. For ownership changes, explicitly inspect copy, move or reassignment even when the initial story names only create or read behavior."
+        "instruction": "For every category, reconcile literal search with graph, state, history, the indexed path inventory, and current source. Paths already retrieved appear before index-only candidates. An index-only candidate is a search lead, not source evidence: inspect it or record an evidence-backed exclusion. Evidence present is a starting set, not proof of completeness. The unresolved list includes empty, candidate-only, and partial categories: an empty category needs an evidence-backed not-applicable decision or additional paths; candidate-only and partial categories need source inspection, omitted paths, or an independent exhaustive inventory before the feature contract is complete. Treat leaf consumers and test-only paths as regression evidence unless behavior originates there; prefer their shared host, registry, middleware, policy, or service as the implementation surface. Resolve conventions such as logging independently from local precedents in each architectural layer. For ownership changes, explicitly inspect copy, move or reassignment even when the initial story names only create or read behavior."
     })
 }
 
@@ -12367,6 +12471,7 @@ impl Engram {
                 &rows,
                 &asset_dependencies,
                 &caller_dependencies,
+                &index_paths,
             );
             let component_hypotheses = bind_component_hypothesis_surfaces(
                 change_set_component_hypotheses(req.story.trim()),
@@ -12382,6 +12487,22 @@ impl Engram {
                 .as_array()
                 .cloned()
                 .unwrap_or_default();
+            let hard_configured_rule_ids = contract_checkpoint["configured_rule_ids"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default()
+                .into_iter()
+                .filter_map(|value| value.as_str().map(str::to_string))
+                .collect::<HashSet<_>>();
+            let output_configured_contract_rules = if full_detail {
+                configured_contract_rules_json.clone()
+            } else {
+                configured_contract_rules_json.iter()
+                    .filter(|rule| rule["id"].as_str()
+                        .is_none_or(|id| !hard_configured_rule_ids.contains(id)))
+                    .cloned()
+                    .collect::<Vec<_>>()
+            };
             let (output_obligations, output_hypotheses) = if full_detail {
                 (cross_cutting_obligations.clone(), component_hypotheses.clone())
             } else {
@@ -12436,11 +12557,13 @@ impl Engram {
                 "cross_cutting_obligations": output_obligations,
                 "component_hypotheses": output_hypotheses,
                 "configured_contract_rules": {
-                    "rules": configured_contract_rules_json,
+                    "rules": output_configured_contract_rules,
+                    "rules_total": configured_contract_rules_json.len(),
+                    "hard_rules_in_checkpoint": hard_configured_rule_ids.len(),
                     "notes": configured_contract_rule_notes,
                     "global_path": "<data_dir>/rules/planning-contract-rules.yaml",
                     "project_path": ".engram/planning-contract-rules.yaml",
-                    "instruction": "Rules are hot-loaded on every call. Repository rules override organization rules by stable id; historical requests exclude undated and future rules."
+                    "instruction": "Rules are hot-loaded on every call. Repository rules override organization rules by stable id; historical requests exclude undated and future rules. In compact and reconciled views, hard rules live once in contract_checkpoint.hard_items and this rules array contains the remaining advisory rules."
                 },
                 "boundary_audit": boundary_audit,
                 "work_item_evidence_risk": work_item_evidence_risk,
@@ -15971,6 +16094,7 @@ mod change_set_rows_tests {
             &rows,
             &[],
             &[],
+            &[],
         );
         assert_eq!(audit["status"], "incomplete");
         let pipeline = audit["categories"].as_array().unwrap().iter()
@@ -16002,6 +16126,7 @@ mod change_set_rows_tests {
             &rows,
             &[],
             &[],
+            &[],
         );
         let deployment = audit["categories"]
             .as_array()
@@ -16020,6 +16145,68 @@ mod change_set_rows_tests {
             stop["boundary"] == "deployment_and_runtime_prerequisites"
                 && stop["paths_total"] == 21
         }));
+    }
+
+    #[test]
+    fn auth_boundary_audit_exposes_unretrieved_index_candidates() {
+        let rows = vec![ChangeSetRow {
+            path: "src/AuthMiddleware.cs".into(),
+            layer: "Server",
+            layer_index: 0,
+            tier: 0,
+            signals: vec!["business"],
+            omitted: false,
+            set: "primary",
+            rank: 1,
+        }];
+        let indexed = vec![
+            "src/AuthMiddleware.cs".into(),
+            "src/LoginController.cs".into(),
+            "web/login.js".into(),
+        ];
+        let audit = change_set_boundary_audit(
+            "Revalidate authenticated sessions",
+            &rows,
+            &[],
+            &[],
+            &indexed,
+        );
+        let entry = audit["categories"].as_array().unwrap().iter()
+            .find(|category| category["boundary"] == "authentication_entry_and_refresh")
+            .unwrap();
+        assert_eq!(entry["status"], "candidate_only");
+        assert_eq!(entry["retrieved_paths_total"], 0);
+        assert_eq!(entry["indexed_candidates_total"], 2);
+        assert!(entry["paths"].as_array().unwrap().iter()
+            .any(|path| path == "src/LoginController.cs"));
+    }
+
+    #[test]
+    fn boundary_index_candidates_exclude_build_and_vendor_noise() {
+        for path in [
+            "Bin/Compiler.exe.refresh",
+            "obj/Auth.g.cs",
+            "node_modules/library/login.js",
+            "web/login.min.js",
+            "web/login.css",
+            "diff:abc123:src/LoginController.vb",
+        ] {
+            assert!(!boundary_index_candidate(path), "accepted noisy path {path}");
+        }
+        for path in [
+            "src/LoginController.vb",
+            "web/login.ts",
+            "Site/Web.config",
+            "db/security.sql",
+            "Site/AuthHandler.ashx",
+        ] {
+            assert!(boundary_index_candidate(path), "rejected source path {path}");
+        }
+        assert!(boundary_index_relevant("src/LoginController.vb", true, false));
+        assert!(boundary_index_relevant("src/Startup.vb", true, false));
+        assert!(boundary_index_relevant("src/OwnerResolver.cs", false, true));
+        assert!(!boundary_index_relevant("db/invoice.sql", true, false));
+        assert!(!boundary_index_relevant("pages/report.aspx", true, false));
     }
 
     #[test]
@@ -16059,7 +16246,7 @@ mod change_set_rows_tests {
             assert!(rendered.contains(expected), "missing {expected}: {rendered}");
         }
 
-        let audit = change_set_boundary_audit(story, &rows, &[], &[]);
+        let audit = change_set_boundary_audit(story, &rows, &[], &[], &[]);
         assert_eq!(audit["status"], "incomplete");
         assert!(audit["categories"].as_array().unwrap().iter().any(|category| {
             category["boundary"] == "scope_owner_persistence"
@@ -16175,17 +16362,19 @@ mod change_set_rows_tests {
             checkpoint["receipt"]["total"].as_u64().unwrap() as usize,
         );
         assert_eq!(
-            checkpoint["workflow_scaffold"]["ledger_rows"].as_array().unwrap().len(),
+            checkpoint["workflow_scaffold"]["markdown"]
+                .as_str()
+                .unwrap()
+                .lines()
+                .filter(|line| line.starts_with("| OBL-") || line.starts_with("| HYP-") || line.starts_with("| RULE-"))
+                .count(),
             checkpoint["receipt"]["total"].as_u64().unwrap() as usize,
         );
-        assert!(checkpoint["workflow_scaffold"]["receipt_line"]
+        let scaffold = checkpoint["workflow_scaffold"]["markdown"]
             .as_str()
-            .unwrap()
-            .contains("configured_rules=1 total="));
-        assert!(checkpoint["workflow_scaffold"]["markdown"]
-            .as_str()
-            .unwrap()
-            .contains("| Contract ID | Severity | Requirement |"));
+            .unwrap();
+        assert!(scaffold.contains("configured_rules=1 total="));
+        assert!(scaffold.contains("| Contract ID | Severity | Requirement |"));
         let hard_items = serde_json::to_string(&checkpoint["hard_items"]).unwrap();
         for release_risk in [
             "same-device continuity",
