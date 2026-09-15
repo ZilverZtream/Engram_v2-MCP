@@ -41,6 +41,7 @@ fn every_core_tool_exists_and_covers_the_ten_capabilities() {
     );
     for must in [
         "get_change_set",
+        "validate_feature_contract",
         "get_method_edit_context",
         "get_page_context",
         "pre_commit_review",

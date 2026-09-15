@@ -18,6 +18,7 @@ use crate::handlers::planning_contract_rules::{
 };
 use crate::models::{
     FindImplementationPatternRequest, FindSimilarChangesRequest, GetConceptFootprintRequest,
+    ValidateFeatureContractRequest,
 };
 use crate::services::full_project_migration_service as full_mig;
 use crate::services::pre_commit_review_service::{path_suffix_match, resolve_partner_to_current};
@@ -8054,9 +8055,12 @@ fn change_set_cross_cutting_obligations(story: &str) -> Vec<serde_json::Value> {
             "checks": [
                 "compare page, API, bearer, basic, MFA, impersonation, and tenant entry paths that exist in this repository",
                 "inventory every concrete boundary entry point: controllers, WebMethods or page methods, handlers, middleware, pipeline events, login and logout routes, and client response consumers",
+                "build an authentication-pipeline principal map for every request class and credential scheme: identify the principal before and after each framework stage, the gate that validates it, and the denial path; if a gate is skipped, prove the principal is anonymous or independently authenticated",
                 "keep framework and thread/request principals synchronized where the stack exposes both",
                 "define denial behavior separately for redirecting pages and machine-readable API or asynchronous requests",
                 "decide credential precedence when more than one scheme is present, including an explicit Authorization header alongside a session or browser cookie",
+                "treat every user-controlled gate selector such as a header, query parameter, path prefix, cookie, route value, or session-presence check as a bypass boundary; add a negative scenario proving it cannot preserve an otherwise-revoked principal",
+                "compare access before and after the change for every request class and role; any access widening or replacement of a deny default requires an explicit approved human decision",
                 "preserve each credential scheme's established state model and side effects; a stateless scheme must not start browser or server-session authentication state unless an explicit accepted requirement says it should",
                 "define fresh-credential bootstrap separately from later revalidation, including proof strength, issue time or age, audience, tenant scope, and the exact protected ticket, token, claim, or cookie payload used",
                 "bind any server-session or cached security baseline to the current request principal identity and define fail-closed behavior for a missing owner, owner mismatch, principal mismatch, or username change",
@@ -8191,6 +8195,9 @@ fn obligation_check_severity(check: &str) -> &'static str {
         "re-entry",
         "identity mismatch",
         "principal mismatch",
+        "authentication-pipeline principal map",
+        "user-controlled gate selector",
+        "access widening",
     ]
     .iter()
     .any(|term| lower.contains(term))
@@ -8215,6 +8222,12 @@ fn obligation_oracle_guard(check: &str) -> Option<&'static str> {
         Some("The scenario set must exercise bounded completion and session allocation for the concrete affected entry-point and routing classes before this check can be satisfied.")
     } else if lower.contains("identity mismatch") || lower.contains("principal mismatch") {
         Some("Frozen scenarios must bind the cached or session owner to the current request principal and prove fail-closed behavior after session reuse, identity replacement, or principal mismatch.")
+    } else if lower.contains("authentication-pipeline principal map") {
+        Some("Every affected request class and credential combination must name the active principal and validation gate; a skipped gate may retain authority only when another cited gate authenticates that principal.")
+    } else if lower.contains("user-controlled gate selector") {
+        Some("Each user-controlled header, query, path, cookie, route, or session-state branch that changes validation must have a negative scenario proving it cannot preserve revoked or stale authority.")
+    } else if lower.contains("access widening") {
+        Some("A scenario may widen access relative to the verified pre-change behavior only when it cites an explicit approved human decision.")
     } else {
         None
     }
@@ -8623,7 +8636,7 @@ fn change_set_contract_checkpoint(
     let configured_rule_ids = hard_configured_rules.iter()
         .map(|rule| rule.id.clone())
         .collect::<Vec<_>>();
-    let hard_items = hard_obligation_items.iter().map(|(group, item)| serde_json::json!({
+    let mut hard_items = hard_obligation_items.iter().map(|(group, item)| serde_json::json!({
         "id": item["check_id"],
         "kind": "obligation",
         "group": group,
@@ -8652,10 +8665,34 @@ fn change_set_contract_checkpoint(
         .as_array()
         .cloned()
         .unwrap_or_default();
+    let boundary_items = unresolved_boundaries
+        .iter()
+        .enumerate()
+        .map(|(index, boundary)| {
+            let label = boundary
+                .as_str()
+                .or_else(|| boundary["boundary"].as_str())
+                .unwrap_or("unresolved component boundary");
+            serde_json::json!({
+                "id": format!("BND-{:03}", index + 1),
+                "kind": "unresolved_boundary",
+                "group": label,
+                "severity": "release_blocking_if_applicable",
+                "requirement": format!("Resolve the {label} boundary with concrete source evidence or an evidence-backed not-applicable decision."),
+                "oracle_guard": serde_json::Value::Null,
+            })
+        })
+        .collect::<Vec<_>>();
+    let boundary_ids = boundary_items
+        .iter()
+        .filter_map(|item| item["id"].as_str().map(str::to_string))
+        .collect::<Vec<_>>();
+    hard_items.extend(boundary_items);
     let ordered_ids = obligation_check_ids
         .iter()
         .chain(hypothesis_evidence_ids.iter())
         .chain(configured_rule_ids.iter())
+        .chain(boundary_ids.iter())
         .cloned()
         .collect::<Vec<_>>();
     let canonical = ordered_ids
@@ -8665,10 +8702,11 @@ fn change_set_contract_checkpoint(
     use sha2::{Digest, Sha256};
     let checkpoint_digest = format!("{:x}", Sha256::digest(canonical.as_bytes()));
     let receipt_line = format!(
-        "`get_change_set contract checkpoint: sha256:{checkpoint_digest} obligation_checks={} hypothesis_evidence={} configured_rules={} total={}`",
+        "`get_change_set contract checkpoint: sha256:{checkpoint_digest} obligation_checks={} hypothesis_evidence={} configured_rules={} unresolved_boundaries={} total={}`",
         obligation_check_ids.len(),
         hypothesis_evidence_ids.len(),
         configured_rule_ids.len(),
+        boundary_ids.len(),
         ordered_ids.len(),
     );
     let ledger_header = "| Contract ID | Severity | Requirement | Disposition (SATISFIED_WITH_SOURCE_OR_APPROVED_DECISION / BLOCKING_UNKNOWN / NOT_APPLICABLE_WITH_EVIDENCE) | Evidence | Scenario IDs or question | Oracle guard (PASS / NOT_APPLICABLE_WITH_EVIDENCE) |\n|---|---|---|---|---|---|---|";
@@ -8695,16 +8733,19 @@ fn change_set_contract_checkpoint(
             "obligation_checks": obligation_check_ids.len(),
             "hypothesis_evidence": hypothesis_evidence_ids.len(),
             "configured_rules": configured_rule_ids.len(),
+            "unresolved_boundaries": boundary_ids.len(),
             "total": ordered_ids.len(),
             "algorithm": "SHA-256 over ordered contract ID LF records"
         },
         "obligation_check_ids": obligation_check_ids,
         "hypothesis_evidence_ids": hypothesis_evidence_ids,
         "configured_rule_ids": configured_rule_ids,
+        "boundary_ids": boundary_ids,
         "hard_items": hard_items,
         "workflow_scaffold": workflow_scaffold,
         "all_items_total": all_obligation_items.len() + all_hypothesis_items.len() + configured_rules.len(),
-        "advisory_items_total": all_obligation_items.len() + all_hypothesis_items.len() + configured_rules.len() - ordered_ids.len(),
+        "advisory_items_total": all_obligation_items.len() + all_hypothesis_items.len() + configured_rules.len()
+            - hard_obligation_items.len() - hard_hypothesis_items.len() - hard_configured_rules.len(),
         "unresolved_boundaries": unresolved_boundaries,
         "allowed_dispositions": [
             "SATISFIED_WITH_SOURCE_OR_APPROVED_DECISION",
@@ -10119,7 +10160,10 @@ impl Engram {
         // holds credentials, the server host does), and refresh_corpora
         // saved the org/project coordinates. An ID-targeted request must
         // have work-item text before retrieval; failure blocks intake below.
-        if req.work_item_text.is_none()
+        if can_auto_fetch_work_item(req.work_item_text.as_deref(), req.merged_before.as_deref())
+            // A merged-work cutoff signals a point-in-time replay. Fetching the
+            // current ADO revision here silently mixes future requirements into
+            // otherwise historical evidence, so require sealed text instead.
             && let Some(wi_id) = extract_work_item_id(&req.story)
             && let Some(pat) = resolve_ado_pat(req.pat_token.take())
         {
@@ -14087,6 +14131,243 @@ fn bounded_planning_excerpt(text: &str, limit: usize, tool: &str) -> String {
     excerpt
 }
 
+fn split_markdown_row(line: &str) -> Vec<String> {
+    let mut cells = Vec::new();
+    let mut current = String::new();
+    let mut escaped = false;
+    for ch in line.trim().trim_matches('|').chars() {
+        if escaped {
+            current.push(ch);
+            escaped = false;
+        } else if ch == '\\' {
+            current.push(ch);
+            escaped = true;
+        } else if ch == '|' {
+            cells.push(current.trim().to_string());
+            current.clear();
+        } else {
+            current.push(ch);
+        }
+    }
+    cells.push(current.trim().to_string());
+    cells
+}
+
+fn validate_contract_checkpoint(
+    checkpoint: &serde_json::Value,
+    contract: &str,
+    scenarios: &str,
+) -> Result<serde_json::Value, McpError> {
+    let hard_items = checkpoint["hard_items"].as_array().ok_or_else(|| {
+        McpError::invalid_params("contract_checkpoint.hard_items must be an array", None)
+    })?;
+    if hard_items.is_empty() {
+        return Err(McpError::invalid_params(
+            "contract_checkpoint.hard_items must not be empty",
+            None,
+        ));
+    }
+    if contract.trim().is_empty() {
+        return Err(McpError::invalid_params(
+            "contract_markdown must not be empty",
+            None,
+        ));
+    }
+    if scenarios.trim().is_empty() {
+        return Err(McpError::invalid_params(
+            "scenarios_markdown must not be empty",
+            None,
+        ));
+    }
+
+    let ids = hard_items
+        .iter()
+        .map(|item| {
+            item["id"]
+                .as_str()
+                .filter(|id| !id.trim().is_empty())
+                .map(str::to_string)
+                .ok_or_else(|| {
+                    McpError::invalid_params("every hard item must have a nonblank string id", None)
+                })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let unique_ids = ids.iter().collect::<HashSet<_>>();
+    if unique_ids.len() != ids.len() {
+        return Err(McpError::invalid_params(
+            "contract_checkpoint.hard_items contains duplicate ids",
+            None,
+        ));
+    }
+    let canonical = ids.iter().map(|id| format!("{id}\n")).collect::<String>();
+    use sha2::{Digest, Sha256};
+    let computed_receipt = format!("sha256:{:x}", Sha256::digest(canonical.as_bytes()));
+    let supplied_receipt = checkpoint["receipt"]["receipt_id"].as_str().unwrap_or("");
+    if supplied_receipt != computed_receipt {
+        return Err(McpError::invalid_params(
+            format!(
+                "contract checkpoint receipt mismatch: supplied {supplied_receipt:?}, computed {computed_receipt}"
+            ),
+            None,
+        ));
+    }
+
+    let allowed = [
+        "SATISFIED_WITH_SOURCE_OR_APPROVED_DECISION",
+        "BLOCKING_UNKNOWN",
+        "NOT_APPLICABLE_WITH_EVIDENCE",
+    ]
+    .into_iter()
+    .collect::<HashSet<_>>();
+    let mut rows: HashMap<String, Vec<Vec<String>>> = HashMap::new();
+    let mut row_order = Vec::new();
+    let id_set = ids.iter().map(String::as_str).collect::<HashSet<_>>();
+    for line in contract.lines().filter(|line| line.trim_start().starts_with('|')) {
+        let cells = split_markdown_row(line);
+        if let Some(id) = cells.first().filter(|id| id_set.contains(id.as_str())) {
+            row_order.push(id.clone());
+            rows.entry(id.clone()).or_default().push(cells);
+        }
+    }
+
+    let mut failures = Vec::new();
+    let mut blockers = Vec::new();
+    let mut dispositions = serde_json::Map::new();
+    for item in hard_items {
+        let id = item["id"].as_str().unwrap_or_default();
+        let Some(matches) = rows.get(id) else {
+            failures.push(format!("{id}: missing ledger row"));
+            continue;
+        };
+        if matches.len() != 1 {
+            failures.push(format!("{id}: expected one ledger row, found {}", matches.len()));
+            continue;
+        }
+        let row = &matches[0];
+        if row.len() < 7 {
+            failures.push(format!("{id}: ledger row has {} columns; expected 7", row.len()));
+            continue;
+        }
+        let disposition = row[3].trim();
+        let evidence = row[4].trim();
+        let scenario_or_question = row[5].trim();
+        let oracle_result = row[6].trim();
+        if row.iter().any(|cell| cell.trim().eq_ignore_ascii_case("MISSING")) {
+            failures.push(format!("{id}: one or more ledger fields are still MISSING"));
+        }
+        if !allowed.contains(disposition) {
+            failures.push(format!("{id}: invalid or missing disposition {disposition:?}"));
+        }
+        if evidence.is_empty() || evidence.eq_ignore_ascii_case("missing") {
+            failures.push(format!("{id}: concrete evidence is missing"));
+        }
+        if scenario_or_question.is_empty() || scenario_or_question.eq_ignore_ascii_case("missing") {
+            failures.push(format!("{id}: scenario or human-question mapping is missing"));
+        }
+        if disposition == "SATISFIED_WITH_SOURCE_OR_APPROVED_DECISION" {
+            let scenario_ids = scenario_or_question
+                .split(|character: char| {
+                    !(character.is_ascii_alphanumeric() || matches!(character, '-' | '_'))
+                })
+                .filter(|token| {
+                    token.contains('-') && token.chars().any(|character| character.is_ascii_digit())
+                })
+                .collect::<Vec<_>>();
+            if scenario_ids.is_empty() {
+                failures.push(format!("{id}: satisfied item has no stable scenario id"));
+            } else {
+                for scenario_id in scenario_ids {
+                    if !scenarios.contains(scenario_id) {
+                        failures.push(format!(
+                            "{id}: mapped scenario {scenario_id} is absent from scenarios_markdown"
+                        ));
+                    }
+                }
+            }
+        }
+        if disposition == "BLOCKING_UNKNOWN" {
+            let question = scenario_or_question.trim();
+            if !question.starts_with('Q') || !question.chars().any(|character| character.is_ascii_digit()) {
+                failures.push(format!("{id}: blocking item must map to a numbered human question"));
+            } else if contract.matches(question).count() < 2 {
+                failures.push(format!(
+                    "{id}: human question {question} must also appear in the contract question table"
+                ));
+            }
+        }
+        if item["oracle_guard"].as_str().is_some()
+            && oracle_result != "PASS"
+            && oracle_result != "NOT_APPLICABLE_WITH_EVIDENCE"
+        {
+            failures.push(format!("{id}: oracle guard must be PASS or NOT_APPLICABLE_WITH_EVIDENCE"));
+        }
+        if disposition == "BLOCKING_UNKNOWN" {
+            blockers.push(id.to_string());
+        }
+        dispositions.insert(id.to_string(), serde_json::json!(disposition));
+    }
+
+    if row_order != ids {
+        failures.push(format!(
+            "ledger row order differs from checkpoint: expected [{}], found [{}]",
+            ids.join(", "),
+            row_order.join(", ")
+        ));
+    }
+
+    let expected_receipt_line = checkpoint["workflow_scaffold"]["markdown"]
+        .as_str()
+        .and_then(|markdown| markdown.lines().next())
+        .filter(|line| line.contains(&computed_receipt));
+    let receipt_present = expected_receipt_line.is_some_and(|line| contract.contains(line));
+    if !receipt_present {
+        failures.push(format!(
+            "exact checkpoint receipt line for {computed_receipt} is absent from contract"
+        ));
+    }
+    let status = if !failures.is_empty() {
+        "FAIL"
+    } else if !blockers.is_empty() {
+        "BLOCKED_BY_HUMAN_DECISION"
+    } else {
+        "PASS"
+    };
+    Ok(serde_json::json!({
+        "status": status,
+        "implementation_may_begin": status == "PASS",
+        "receipt_id": computed_receipt,
+        "hard_items_expected": ids.len(),
+        "hard_items_present": rows.len(),
+        "blocking_unknown_ids": blockers,
+        "failures": failures,
+        "dispositions": dispositions,
+        "instruction": if status == "PASS" {
+            "Checkpoint complete. Preserve this receipt with the frozen feature contract."
+        } else if status == "BLOCKED_BY_HUMAN_DECISION" {
+            "Ask the human the listed blocking questions; the agent may not select its own defaults."
+        } else {
+            "Repair the ledger from get_change_set.workflow_scaffold before planning or implementation."
+        }
+    }))
+}
+
+impl Engram {
+    pub async fn handle_validate_feature_contract(
+        &self,
+        req: ValidateFeatureContractRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let result = validate_contract_checkpoint(
+            &req.contract_checkpoint,
+            &req.contract_markdown,
+            &req.scenarios_markdown,
+        )?;
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result)
+                .map_err(|error| McpError::internal_error(error.to_string(), None))?,
+        )]))
+    }
+}
+
 /// Keep free-text/offline planning available, but never turn a failed
 /// ID-targeted intake into an apparently complete title-only dossier.
 fn story_with_work_item_text(story: &str, text: Option<String>) -> Result<String, McpError> {
@@ -14100,6 +14381,10 @@ fn story_with_work_item_text(story: &str, text: Option<String>) -> Result<String
         ));
     }
     Ok(story.to_string())
+}
+
+fn can_auto_fetch_work_item(work_item_text: Option<&str>, merged_before: Option<&str>) -> bool {
+    work_item_text.is_none() && merged_before.is_none()
 }
 
 fn retrieval_code_ranges(story: &str) -> Vec<std::ops::Range<usize>> {
@@ -14645,9 +14930,11 @@ mod work_item_tests {
     use super::{
         ado_coords_from_remote_url, base64_encode, extract_work_item_id, parse_origin_url,
         pick_pat, story_for_concepts, story_with_work_item_text, strip_html,
+        can_auto_fetch_work_item,
         ac_provenance_from_updates, ac_provenance_label, bounded_planning_excerpt,
         work_item_description,
         linked_item_coverage, linked_item_excerpt,
+        validate_contract_checkpoint,
     };
 
     #[test]
@@ -14973,6 +15260,76 @@ mod work_item_tests {
                 assert!(error.message.contains("#847"));
             }
         }
+    }
+
+    #[test]
+    fn historical_cutoff_disables_live_work_item_fetch() {
+        assert!(can_auto_fetch_work_item(None, None));
+        assert!(!can_auto_fetch_work_item(None, Some("2026-08-01")));
+        assert!(!can_auto_fetch_work_item(Some("sealed revision"), None));
+        assert!(!can_auto_fetch_work_item(
+            Some("sealed revision"),
+            Some("2026-08-01")
+        ));
+    }
+
+    fn feature_contract_checkpoint_fixture() -> serde_json::Value {
+        use sha2::{Digest, Sha256};
+        let ids = ["OBL-auth-C01", "BND-001"];
+        let canonical = ids.iter().map(|id| format!("{id}\n")).collect::<String>();
+        let receipt = format!("sha256:{:x}", Sha256::digest(canonical.as_bytes()));
+        let receipt_line = format!(
+            "`get_change_set contract checkpoint: {receipt} obligation_checks=1 hypothesis_evidence=0 configured_rules=0 unresolved_boundaries=1 total=2`"
+        );
+        serde_json::json!({
+            "receipt": {"receipt_id": receipt},
+            "hard_items": [
+                {"id": ids[0], "oracle_guard": "A stateless credential must not create browser state."},
+                {"id": ids[1], "oracle_guard": null}
+            ],
+            "allowed_dispositions": [
+                "SATISFIED_WITH_SOURCE_OR_APPROVED_DECISION",
+                "BLOCKING_UNKNOWN",
+                "NOT_APPLICABLE_WITH_EVIDENCE"
+            ],
+            "workflow_scaffold": {"markdown": receipt_line}
+        })
+    }
+
+    #[test]
+    fn feature_contract_checkpoint_passes_only_complete_ordered_ledger() {
+        let checkpoint = feature_contract_checkpoint_fixture();
+        let receipt = checkpoint["workflow_scaffold"]["markdown"].as_str().unwrap();
+        let contract = format!(
+            "{receipt}\n\n| Contract ID | Severity | Requirement | Disposition | Evidence | Scenario IDs or question | Oracle guard |\n|---|---|---|---|---|---|---|\n| OBL-auth-C01 | release | auth | SATISFIED_WITH_SOURCE_OR_APPROVED_DECISION | src/Auth.cs:42 | SC-AUTH-01 | PASS |\n| BND-001 | release | pipeline | NOT_APPLICABLE_WITH_EVIDENCE | src/Worker.cs:9 has no request pipeline | SC-NA-01 | NOT_APPLICABLE_WITH_EVIDENCE |"
+        );
+        let scenarios = "| ID | GIVEN | WHEN | THEN |\n|---|---|---|---|\n| SC-AUTH-01 | caller | authenticates | allowed |";
+        let result = validate_contract_checkpoint(&checkpoint, &contract, scenarios).unwrap();
+        assert_eq!(result["status"], "PASS");
+        assert_eq!(result["implementation_may_begin"], true);
+        assert!(result["failures"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn feature_contract_checkpoint_blocks_human_decision_and_rejects_reordering() {
+        let checkpoint = feature_contract_checkpoint_fixture();
+        let receipt = checkpoint["workflow_scaffold"]["markdown"].as_str().unwrap();
+        let blocked = format!(
+            "{receipt}\n| OBL-auth-C01 | release | auth | BLOCKING_UNKNOWN | Story is silent | Q1 | PASS |\n| BND-001 | release | pipeline | NOT_APPLICABLE_WITH_EVIDENCE | src/Worker.cs:9 | SC-NA-01 | NOT_APPLICABLE_WITH_EVIDENCE |\n\n| # | Question | Kind |\n|---|---|---|\n| Q1 | Should credentials survive restart? | BLOCKING |"
+        );
+        let result = validate_contract_checkpoint(&checkpoint, &blocked, "No executable scenario while Q1 is blocked.").unwrap();
+        assert_eq!(result["status"], "BLOCKED_BY_HUMAN_DECISION");
+        assert_eq!(result["implementation_may_begin"], false);
+        assert_eq!(result["blocking_unknown_ids"][0], "OBL-auth-C01");
+
+        let reordered = format!(
+            "{receipt}\n| BND-001 | release | pipeline | NOT_APPLICABLE_WITH_EVIDENCE | src/Worker.cs:9 | SC-NA-01 | NOT_APPLICABLE_WITH_EVIDENCE |\n| OBL-auth-C01 | release | auth | SATISFIED_WITH_SOURCE_OR_APPROVED_DECISION | src/Auth.cs:42 | SC-AUTH-01 | PASS |"
+        );
+        let result = validate_contract_checkpoint(&checkpoint, &reordered, "| SC-AUTH-01 | scenario |").unwrap();
+        assert_eq!(result["status"], "FAIL");
+        assert!(result["failures"].as_array().unwrap().iter().any(|failure| {
+            failure.as_str().unwrap().contains("ledger row order differs")
+        }));
     }
 
     #[test]
@@ -16329,6 +16686,9 @@ mod change_set_rows_tests {
             "preserve each credential scheme's established state model",
             "blocking product question",
             "request-class by credential-scheme matrix",
+            "authentication-pipeline principal map",
+            "user-controlled gate selector",
+            "access widening",
             "physical-directory/default-document",
             "local precedents in each architectural layer",
         ] {
@@ -16371,6 +16731,7 @@ mod change_set_rows_tests {
             checkpoint["obligation_check_ids"].as_array().unwrap().len() as u64
                 + checkpoint["hypothesis_evidence_ids"].as_array().unwrap().len() as u64
                 + checkpoint["configured_rule_ids"].as_array().unwrap().len() as u64
+                + checkpoint["boundary_ids"].as_array().unwrap().len() as u64
         );
         assert!(checkpoint["advisory_items_total"].as_u64().unwrap() > 0);
         assert_eq!(
@@ -16382,14 +16743,19 @@ mod change_set_rows_tests {
                 .as_str()
                 .unwrap()
                 .lines()
-                .filter(|line| line.starts_with("| OBL-") || line.starts_with("| HYP-") || line.starts_with("| RULE-"))
+                .filter(|line| {
+                    line.starts_with("| OBL-")
+                        || line.starts_with("| HYP-")
+                        || line.starts_with("| RULE-")
+                        || line.starts_with("| BND-")
+                })
                 .count(),
             checkpoint["receipt"]["total"].as_u64().unwrap() as usize,
         );
         let scaffold = checkpoint["workflow_scaffold"]["markdown"]
             .as_str()
             .unwrap();
-        assert!(scaffold.contains("configured_rules=1 total="));
+        assert!(scaffold.contains("configured_rules=1 unresolved_boundaries=1 total="));
         assert!(scaffold.contains("| Contract ID | Severity | Requirement |"));
         let hard_items = serde_json::to_string(&checkpoint["hard_items"]).unwrap();
         for release_risk in [
@@ -16407,6 +16773,7 @@ mod change_set_rows_tests {
         assert!(checkpoint["hypothesis_evidence_ids"].as_array().unwrap().iter()
             .all(|id| id.as_str().unwrap().starts_with("HYP-")));
         assert_eq!(checkpoint["configured_rule_ids"][0], "RULE-generic-probe");
+        assert_eq!(checkpoint["boundary_ids"][0], "BND-001");
         assert!(obligation_values.iter().flat_map(|obligation| {
             obligation["contract_items"].as_array().unwrap().iter()
         }).any(|item| item["oracle_guard"].as_str().is_some_and(|guard| {

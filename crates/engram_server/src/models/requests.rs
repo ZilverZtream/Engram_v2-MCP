@@ -606,7 +606,8 @@ pub struct GetChangeSetRequest {
     /// Restrict indexed merged-work exemplars to dates strictly before this
     /// YYYY-MM-DD cutoff. Git history does not establish reviewer approval.
     /// Historical evaluation also requires isolated pre-change source and
-    /// index data; this cutoff alone does not prevent future-source leakage.
+    /// index data. Supplying this cutoff disables automatic live work-item
+    /// fetching; callers must also supply the point-in-time `work_item_text`.
     #[serde(default)]
     pub merged_before: Option<String>,
     /// The user story, verbatim.
@@ -630,7 +631,9 @@ pub struct GetChangeSetRequest {
     pub work_item_text: Option<String>,
     /// Azure DevOps PAT for AUTO-FETCHING the work item when the story
     /// references an id (e.g. "Bug #847") and `work_item_text` is not
-    /// provided. Per-call only â€” never persisted (same stance as
+    /// provided. Auto-fetch is disabled when `merged_before` is set because
+    /// the live work-item revision is not valid point-in-time evidence.
+    /// Per-call only and never persisted (same stance as
     /// refresh_corpora). When omitted, the server falls back to its own
     /// `ADO_PAT` env var, so live agent sessions (which never hold
     /// credentials) still get input parity. Org/project default from the
@@ -660,6 +663,20 @@ pub struct GetChangeSetRequest {
     /// `coverage.concept_candidates`.
     #[serde(default)]
     pub expand_concepts: bool,
+}
+
+/// Validate that an agent transferred every release-critical `get_change_set`
+/// checkpoint item into its feature contract before implementation begins.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ValidateFeatureContractRequest {
+    /// The exact `contract_checkpoint` object returned by `get_change_set`.
+    pub contract_checkpoint: serde_json::Value,
+    /// The completed Markdown ledger copied from `workflow_scaffold.markdown`.
+    pub contract_markdown: String,
+    /// The independently drafted acceptance-scenario Markdown. Scenario IDs
+    /// referenced by satisfied ledger rows must exist in this artifact.
+    pub scenarios_markdown: String,
 }
 
 /// Stage-3 quality gates: ingest a project's accumulated "what to avoid" knowledge

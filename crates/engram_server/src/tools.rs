@@ -437,6 +437,16 @@ impl Engram {
     }
 
     #[tool(
+        description = "Hard gate between get_change_set and planning/implementation. Validates the exact checkpoint receipt and row order; requires exactly one completed ledger row for every release-critical hard_items and unresolved-boundary ID; verifies allowed dispositions, concrete evidence, numbered human questions, scenario mappings, and oracle-guard results. Returns BLOCKED when a product decision is still BLOCKING_UNKNOWN and FAIL on missing, duplicate, reordered, malformed, or unevidenced rows. Pass the exact contract_checkpoint object, completed feature-contract Markdown, and independently drafted acceptance-scenario Markdown."
+    )]
+    pub async fn validate_feature_contract(
+        &self,
+        params: Parameters<ValidateFeatureContractRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_validate_feature_contract(params.0).await
+    }
+
+    #[tool(
         description = "Ingest a project's accumulated 'what to avoid' knowledge into a searchable quality_gate namespace: coding/agent rules, copilot-instructions.md (source_type=copilot|rules), CodeRabbit & SonarQube findings exports (source_type=coderabbit|sonarqube, JSON), or the DevOps recurring-issues board (source_type=board). Run once per source; pre_push_audit then checks changes against them."
     )]
     pub async fn ingest_quality_gates(
