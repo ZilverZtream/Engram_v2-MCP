@@ -883,7 +883,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Score proposed code against revert-derived anti-patterns (hybrid FTS+vector); returns matched rules with the reverting commit hash as evidence. Run before committing risky changes — this is how you avoid re-introducing what was already reverted once. Input: inline code OR project-relative code_file with exact raw code_file_blake3 (4 MiB UTF-8 maximum); file mode returns checked byte count/hash/path. Do not mix inputs; target context must match code_file."
+        description = "Score proposed code against revert-derived anti-patterns (hybrid retrieval; the verdict follows how much of each reverted change the code repeats); returns matched rules with the reverting commit hash as evidence. Run before committing risky changes — this is how you avoid re-introducing what was already reverted once. Input: inline code OR project-relative code_file with exact raw code_file_blake3 (4 MiB UTF-8 maximum); file mode returns checked byte count/hash/path. Do not mix inputs; target context must match code_file."
     )]
     pub async fn immune_check(
         &self,
@@ -1577,7 +1577,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Standalone edit safety check: green/yellow/red verdict for a method from blast radius, exact caller count, session writes, triggers, and complexity (measured from the body), computed from the SAME evidence as get_method_edit_context and reported with per-provider coverage — missing evidence is never green. Use when you only need the verdict."
+        description = "Standalone edit safety check: green/yellow/red verdict for a method from blast radius, exact caller count, session writes, and complexity (measured from the body), computed from the SAME evidence as get_method_edit_context and reported with per-provider coverage — missing evidence is never green. Use when you only need the verdict."
     )]
     pub async fn check_edit_safety(
         &self,
