@@ -6431,7 +6431,16 @@ pub(crate) fn footprint_total(text: &str) -> usize {
 fn change_set_independent(s: &str) -> bool {
     !matches!(
         s,
-        "concept" | "specific" | "lexicon" | "gloss" | "family" | "broad" | "disk"
+        "concept"
+            | "specific"
+            | "lexicon"
+            | "gloss"
+            | "family"
+            | "registry_family"
+            | "required_family"
+            | "entrypoint_family"
+            | "broad"
+            | "disk"
     )
 }
 
@@ -6439,7 +6448,18 @@ fn change_set_independent(s: &str) -> bool {
 /// expansion inherits its partner's signals and a broad term is not evidence.
 fn change_set_strength(sigs: &BTreeSet<&'static str>) -> usize {
     sigs.iter()
-        .filter(|s| !matches!(**s, "family" | "broad" | "disk" | "specific"))
+        .filter(|s| {
+            !matches!(
+                **s,
+                "family"
+                    | "registry_family"
+                    | "required_family"
+                    | "entrypoint_family"
+                    | "broad"
+                    | "disk"
+                    | "specific"
+            )
+        })
         .count()
 }
 
@@ -6882,6 +6902,7 @@ pub(crate) fn expand_asset_bundle_graph(
 const CALLER_GRAPH_ANCHOR_CAP: usize = 64;
 const CALLER_GRAPH_SYMBOLS_PER_ANCHOR_CAP: usize = 24;
 const CALLER_GRAPH_CALLERS_PER_SYMBOL_CAP: usize = 8;
+const CALLER_GRAPH_RESULTS_PER_ANCHOR_CAP: usize = 12;
 const CALLER_GRAPH_RESULT_CAP: usize = 32;
 
 #[derive(Debug, Clone)]
@@ -6908,10 +6929,34 @@ pub(crate) fn expand_direct_caller_graph(
     graph: &engram_graph::GraphStore,
     project_id: &str,
     anchor_paths: &[String],
+    preferred_symbols: &BTreeMap<String, BTreeSet<String>>,
+    intent_terms: &[String],
 ) -> CallerGraphExpansion {
     let mut result = CallerGraphExpansion::default();
     let mut seen_paths = HashSet::new();
+    let mut normalized_intent = intent_terms
+        .iter()
+        .flat_map(|term| concept_stems(term))
+        .map(|term| normalized_code_entity(&term))
+        .filter(|term| term.len() >= 5)
+        .collect::<BTreeSet<_>>();
+    for term in normalized_intent.clone() {
+        for prefix in ["sub", "parent", "child", "top", "total", "root"] {
+            if let Some(base) = term.strip_prefix(prefix)
+                && base.len() >= 5
+            {
+                normalized_intent.insert(base.to_string());
+            }
+        }
+    }
+    let scoped_ownership_intent = intent_terms.iter().any(|term| {
+        let term = term.to_ascii_lowercase();
+        ["scope", "scoped", "owner", "parent", "child", "subproject", "tenant"]
+            .iter()
+            .any(|cue| term.contains(cue))
+    });
     for anchor_path in anchor_paths.iter().take(CALLER_GRAPH_ANCHOR_CAP) {
+        let mut anchor_results = 0usize;
         // Conventional Web API controllers often have no explicit route
         // attribute: FooController is reached through a concrete .../foo URL.
         // Client extractors preserve those URL nodes. Join only an exact final
@@ -6961,8 +7006,12 @@ pub(crate) fn expand_direct_caller_graph(
                         anchor_path: anchor_path.clone(),
                         edge_kind: "api_route_convention".into(),
                     });
+                    anchor_results += 1;
                     if result.files.len() >= CALLER_GRAPH_RESULT_CAP {
                         return result;
+                    }
+                    if anchor_results >= CALLER_GRAPH_RESULTS_PER_ANCHOR_CAP {
+                        break;
                     }
                 }
             }
@@ -6978,12 +7027,45 @@ pub(crate) fn expand_direct_caller_graph(
             .into_iter()
             .filter(|node| node.node_type == "function")
             .collect();
-        callable_nodes.sort_by(|a, b| a.name.cmp(&b.name));
+        let preferred = preferred_symbols
+            .iter()
+            .find(|(path, _)| path.eq_ignore_ascii_case(anchor_path))
+            .map(|(_, symbols)| symbols);
+        let is_preferred = |name: &str| {
+            let normalized = normalized_code_entity(name);
+            preferred.is_some_and(|symbols| {
+                symbols.iter().any(|symbol| {
+                    let symbol = normalized_code_entity(symbol);
+                    normalized == symbol || normalized.ends_with(&symbol)
+                })
+            })
+        };
+        let matches_intent = |name: &str| {
+            let normalized = normalized_code_entity(name);
+            normalized_intent
+                .iter()
+                .any(|term| normalized.contains(term))
+                || (scoped_ownership_intent
+                    && normalized.contains("by")
+                    && normalized.contains("id"))
+        };
+        // Business-rule hits identify a concrete owner method. Put those
+        // methods ahead of the per-file symbol cap so alphabetical order can
+        // never discard their direct consumers before traversal begins.
+        callable_nodes.sort_by(|a, b| {
+            is_preferred(&b.name)
+                .cmp(&is_preferred(&a.name))
+                .then_with(|| matches_intent(&b.name).cmp(&matches_intent(&a.name)))
+                .then_with(|| a.name.cmp(&b.name))
+        });
+        if preferred.is_some() {
+            callable_nodes.retain(|node| is_preferred(&node.name) || matches_intent(&node.name));
+        }
         if callable_nodes.len() > CALLER_GRAPH_SYMBOLS_PER_ANCHOR_CAP {
             result.truncated_anchor_symbols +=
                 callable_nodes.len() - CALLER_GRAPH_SYMBOLS_PER_ANCHOR_CAP;
         }
-        for target in callable_nodes
+        'targets: for target in callable_nodes
             .into_iter()
             .take(CALLER_GRAPH_SYMBOLS_PER_ANCHOR_CAP)
         {
@@ -7022,8 +7104,12 @@ pub(crate) fn expand_direct_caller_graph(
                     anchor_path: anchor_path.clone(),
                     edge_kind: kind.as_str().to_string(),
                 });
+                anchor_results += 1;
                 if result.files.len() >= CALLER_GRAPH_RESULT_CAP {
                     return result;
+                }
+                if anchor_results >= CALLER_GRAPH_RESULTS_PER_ANCHOR_CAP {
+                    break 'targets;
                 }
             }
         }
@@ -7916,8 +8002,31 @@ fn change_set_cross_cutting_obligations(story: &str) -> Vec<serde_json::Value> {
         "asp.net", "aspnet", "forms authentication", "formsauthentication", "owin",
         "global.asax", "webforms", "web forms",
     ]);
+    let scoped_ownership = contains_any(&[
+        " scoped", "scope ", "scope-", "owned by", "owner", "belongs to", "belong to",
+        "inherit", "override", "fallback", "parent", "child", "subproject", "sub-project",
+        "per tenant", "per customer", "per account", "per project", "per organization",
+        "tenant-specific", "customer-specific", "account-specific", "project-specific",
+        "organization-specific",
+    ]);
 
     let mut out = Vec::new();
+    if scoped_ownership {
+        out.push(serde_json::json!({
+            "obligation": "scoped ownership and resolution lifecycle",
+            "trigger": "the story introduces or changes ownership, hierarchy, inheritance, override, fallback, or per-scope behavior",
+            "checks": [
+                "identify the authoritative owner key and scope hierarchy, including the behavior for missing, deleted, disabled, or inaccessible owners",
+                "define create, list, read, update, delete, and uniqueness behavior at each scope; state whether uniqueness is global, per owner, per parent, or per effective value",
+                "define resolution precedence between directly owned, inherited, shared, default, and overridden values, including deterministic tie-breaking and whether resolution happens once per collection or independently per item",
+                "cover reassignment or moving between scopes, including authorization at source and destination, duplicate collisions, dependent records, atomicity, and audit history",
+                "cover copy and clone flows in both directions, including which records are eligible, destination collisions, identity regeneration, and whether inherited records become owned copies",
+                "reconcile the same ownership and effective-value rule across UI pages, API versions, imports, background work, reports, cached readers, and direct SQL views or procedures",
+                "follow the repository's audit and notification conventions and include the old owner, new owner, actor, effective fallback, and affected scope when those facts are available"
+            ],
+            "candidate_mechanism_roles": ["service boundary", "persistence schema or data operation", "endpoint controller", "rendered user-interface host", "audit and operational logging"]
+        }));
+    }
     if auth && mutation {
         out.push(serde_json::json!({
             "obligation": "authorization mutation boundaries",
@@ -8046,6 +8155,13 @@ fn change_set_cross_cutting_obligations(story: &str) -> Vec<serde_json::Value> {
 fn change_set_component_hypotheses(story: &str) -> Vec<serde_json::Value> {
     let lower = story.to_ascii_lowercase();
     let has = |terms: &[&str]| terms.iter().any(|term| lower.contains(term));
+    let scoped_ownership = has(&[
+        " scoped", "scope ", "scope-", "owned by", "owner", "belongs to", "belong to",
+        "inherit", "override", "fallback", "parent", "child", "subproject", "sub-project",
+        "per tenant", "per customer", "per account", "per project", "per organization",
+        "tenant-specific", "customer-specific", "account-specific", "project-specific",
+        "organization-specific",
+    ]);
     let auth = has(&[
         "authenticat", "authoriz", "session", "login", "logout", "cookie", "token",
         "credential", "password", "permission", "role", "tenant access",
@@ -8066,6 +8182,21 @@ fn change_set_component_hypotheses(story: &str) -> Vec<serde_json::Value> {
         "database", "persist", "table", "column", "schema", "generation", "version",
     ]);
     let mut out = Vec::new();
+    if scoped_ownership {
+        out.push(serde_json::json!({
+            "responsibility": "scoped ownership resolver and lifecycle policy",
+            "verify_against": "existing owner keys, hierarchy traversal, effective-value readers, write services, copy or move flows, APIs, reports, SQL projections, and audit conventions",
+            "decision": "reuse one authoritative resolution policy across entry points, extend an established owner-aware service, or cite why separate implementations cannot diverge",
+            "required_surface_categories": ["scope_owner_persistence", "scope_resolution_and_writes", "scope_consumers", "scope_copy_move_import", "scope_audit_and_observability"],
+            "required_contract_evidence": [
+                "the authoritative owner identity, parent hierarchy, and behavior for missing, inactive, deleted, or inaccessible owners",
+                "direct ownership, inheritance, sharing, override, fallback, and deterministic tie-breaking, including collection-level versus per-item resolution",
+                "create, edit, delete, uniqueness, move or reassignment, and copy behavior at both source and destination scopes",
+                "consistent effective behavior across every UI, API version, import, background job, report, cache, and SQL reader",
+                "audit and notification records that preserve actor, old scope, new scope, and effective fallback without making logging failure corrupt the primary operation"
+            ]
+        }));
+    }
     if authorization_policy {
         out.push(serde_json::json!({
             "responsibility": "authorization policy, administration, and default rollout",
@@ -8220,10 +8351,10 @@ fn bind_component_hypothesis_surfaces(
         .collect()
 }
 
-/// Show whether the current evidence set spans the lifecycle boundaries that
-/// commonly participate in an authentication or session change. This is a
-/// bounded audit of retrieved evidence, not a claim that the repository has no
-/// additional entry points. Empty categories become explicit search work.
+/// Show whether the current evidence set spans lifecycle boundaries implied by
+/// authentication/session or scoped-ownership changes. This is a bounded audit
+/// of retrieved evidence, not a claim that the repository has no additional
+/// entry points. Empty categories become explicit search work.
 fn change_set_boundary_audit(
     story: &str,
     rows: &[ChangeSetRow],
@@ -8231,15 +8362,22 @@ fn change_set_boundary_audit(
     caller_dependencies: &[CallerGraphFile],
 ) -> serde_json::Value {
     let lower = story.to_ascii_lowercase();
-    let applicable = [
+    let auth_applicable = [
         "authenticat", "authoriz", "session", "login", "logout", "cookie", "token",
         "credential", "password", "permission", "role", "impersonat", "tenant access",
     ].iter().any(|term| lower.contains(term));
-    if !applicable {
+    let scope_applicable = [
+        " scoped", "scope ", "scope-", "owned by", "owner", "belongs to", "belong to",
+        "inherit", "override", "fallback", "parent", "child", "subproject", "sub-project",
+        "per tenant", "per customer", "per account", "per project", "per organization",
+        "tenant-specific", "customer-specific", "account-specific", "project-specific",
+        "organization-specific",
+    ].iter().any(|term| lower.contains(term));
+    if !auth_applicable && !scope_applicable {
         return serde_json::json!({
             "status": "not_applicable",
             "categories": [],
-            "instruction": "No authentication or session boundary vocabulary was detected in the story."
+            "instruction": "No authentication, session, or scoped-ownership boundary vocabulary was detected in the story."
         });
     }
 
@@ -8314,20 +8452,57 @@ fn change_set_boundary_audit(
         {
             add(&mut categories, "deployment_and_runtime_prerequisites", path);
         }
+        if scope_applicable {
+            if role == "persistence schema or data operation"
+                || [".sql", ".dbml", ".edmx"]
+                    .iter().any(|suffix| normalized.ends_with(suffix))
+            {
+                add(&mut categories, "scope_owner_persistence", path);
+            }
+            if matches!(role, "service boundary" | "endpoint controller" | "persistence schema or data operation") {
+                add(&mut categories, "scope_resolution_and_writes", path);
+            }
+            if matches!(role, "endpoint controller" | "rendered user-interface host" | "browser or client behavior") {
+                add(&mut categories, "scope_consumers", path);
+            }
+            if ["copy", "clone", "move", "reassign", "transfer", "import"]
+                .iter().any(|term| normalized.contains(term))
+            {
+                add(&mut categories, "scope_copy_move_import", path);
+            }
+            if role == "audit and operational logging"
+                || ["audit", "history", "log"]
+                    .iter().any(|term| name.contains(term))
+            {
+                add(&mut categories, "scope_audit_and_observability", path);
+            }
+        }
     }
 
-    let definitions = [
-        ("request_pipeline", "request pipeline, middleware, modules, and session acquisition"),
-        ("authorization_gates", "authorization filters and permission gates"),
-        ("authentication_entry_and_refresh", "login, SSO, token issue, callback, MFA, and refresh paths"),
-        ("termination_and_logout", "logout, revocation, expiry, and cleanup paths"),
-        ("credential_and_authorization_mutations", "password, account, role, permission, and tenant write paths"),
-        ("machine_and_browser_consumers", "API, asynchronous, and browser consumers of the response contract"),
-        ("client_delivery_and_hosts", "client assets, bundle registries, layouts, shells, and page hosts"),
-        ("security_state_persistence", "schema, migration, generated model, and state data operations"),
-        ("audit_and_observability", "security audit and failure diagnostics"),
-        ("deployment_and_runtime_prerequisites", "configuration, deployment order, modules, rewrites, and feature prerequisites"),
-    ];
+    let mut definitions = Vec::new();
+    if auth_applicable {
+        definitions.extend([
+            ("request_pipeline", "request pipeline, middleware, modules, and session acquisition"),
+            ("authorization_gates", "authorization filters and permission gates"),
+            ("authentication_entry_and_refresh", "login, SSO, token issue, callback, MFA, and refresh paths"),
+            ("termination_and_logout", "logout, revocation, expiry, and cleanup paths"),
+            ("credential_and_authorization_mutations", "password, account, role, permission, and tenant write paths"),
+            ("machine_and_browser_consumers", "API, asynchronous, and browser consumers of the response contract"),
+            ("client_delivery_and_hosts", "client assets, bundle registries, layouts, shells, and page hosts"),
+            ("security_state_persistence", "schema, migration, generated model, and state data operations"),
+            ("audit_and_observability", "security audit and failure diagnostics"),
+            ("deployment_and_runtime_prerequisites", "configuration, deployment order, modules, rewrites, and feature prerequisites"),
+        ]);
+    }
+    if scope_applicable {
+        definitions.extend([
+            ("scope_owner_persistence", "owner keys, hierarchy relations, uniqueness constraints, and effective-value persistence"),
+            ("scope_resolution_and_writes", "authoritative resolution, create, update, delete, fallback, and concurrency services"),
+            ("scope_consumers", "UI, API, asynchronous, report, import, and other consumers of owned or effective values"),
+            ("scope_copy_move_import", "copy, clone, import, transfer, move, and reassignment paths across source and destination scopes"),
+            ("scope_audit_and_observability", "owner change, override, fallback, copy, move, and denial audit or diagnostics"),
+        ]);
+    }
     let category_values = definitions.iter().map(|(key, purpose)| {
         let paths = categories.get(key).cloned().unwrap_or_default();
         let total = paths.len();
@@ -8366,7 +8541,7 @@ fn change_set_boundary_audit(
         "categories": category_values,
         "unresolved": unresolved,
         "coverage_stops": coverage_stops,
-        "instruction": "For every category, reconcile literal search with graph, state, history, and current source. Evidence present is a starting set, not proof of completeness. An unresolved category needs an evidence-backed not-applicable decision or additional paths; a partial category needs the omitted paths or an independent exhaustive inventory before the feature contract is complete."
+        "instruction": "For every category, reconcile literal search with graph, state, history, and current source. Evidence present is a starting set, not proof of completeness. An unresolved category needs an evidence-backed not-applicable decision or additional paths; a partial category needs the omitted paths or an independent exhaustive inventory before the feature contract is complete. For ownership changes, explicitly inspect copy, move or reassignment even when the initial story names only create or read behavior."
     })
 }
 
@@ -8840,9 +9015,9 @@ pub(crate) struct ChangeSetCoverage {
     /// repeated detect_incomplete_changes passes used to re-scan 200k nodes
     /// each; they now share one snapshot).
     pub node_scans: usize,
-    /// Index-corroborated entity names found in the story (advisory unless
-    /// `expand_concepts` is set): the three recipe concepts first, then the
-    /// resolved extras.
+    /// Index-corroborated entity names found in the story: the three recipe
+    /// concepts first, the strongest resolved extra retrieved by default, then
+    /// advisory extras used when `expand_concepts` is set.
     pub concept_candidates: Vec<String>,
     /// External audit 2026-08-29 P0-3: the gloss-derived concepts that
     /// retrieved by default (a subset of `concept_candidates`).
@@ -9040,10 +9215,15 @@ fn render_change_set_coverage(cov: &ChangeSetCoverage, omitted: usize) -> String
             cov.gloss_concepts.join(", ")
         ));
     }
-    if cov.concept_candidates.len() > 3 {
+    if let Some(candidate) = cov.concept_candidates.get(3) {
         s.push_str(&format!(
-            "- entity candidates (index-corroborated, advisory — expand_concepts=true to retrieve on them): {}\n",
-            cov.concept_candidates[3..].join(", ")
+            "- strongest index-corroborated entity retrieved by default: {candidate}\n",
+        ));
+    }
+    if cov.concept_candidates.len() > 4 {
+        s.push_str(&format!(
+            "- additional entity candidates (advisory — expand_concepts=true to retrieve on all): {}\n",
+            cov.concept_candidates[4..].join(", ")
         ));
     }
     if omitted > 0 {
@@ -9459,6 +9639,16 @@ impl Engram {
             _ if req.expand_concepts => concept_candidates.clone(),
             _ => {
                 let mut base = extract_story_concepts(&retrieval_story);
+                // Add the single strongest low-document-frequency entity that
+                // the index corroborates. This commonly recovers the compact
+                // code noun for a spaced story phrase (`price lists` ->
+                // `pricelists`) without reopening the old all-noun-phrases
+                // fan-out that flooded the weak tier.
+                if let Some(corroborated) = concept_candidates.iter().skip(3).next()
+                    && !base.contains(corroborated)
+                {
+                    base.push(corroborated.clone());
+                }
                 for g in gloss_concepts
                     .iter()
                     .chain(lexicon_concepts.iter().take(LEXICON_CONCEPT_CAP))
@@ -9619,6 +9809,7 @@ impl Engram {
         // Only the checked-out source path is promoted. Rule prose and model
         // inference still require query_business_logic/source verification.
         let business_started = std::time::Instant::now();
+        let mut business_member_anchors = BTreeMap::<String, BTreeSet<String>>::new();
         let business_query = if concepts.is_empty() {
             retrieval_story.clone()
         } else {
@@ -9682,6 +9873,10 @@ impl Engram {
                                 .unwrap_or("unknown member")
                                 .trim_end_matches(".md")
                                 .to_string();
+                            business_member_anchors
+                                .entry(current.clone())
+                                .or_default()
+                                .insert(member.clone());
                             why.entry(current.clone()).or_default().push(format!(
                                 "business-rule match anchors the story to member `{member}` in this checked-out source file; inspect that method and its source-verified rule card before excluding it"
                             ));
@@ -9837,6 +10032,7 @@ impl Engram {
         }))
         .await;
         let mut broad_terms: Vec<String> = Vec::new();
+        let mut footprint_rows: Vec<(String, bool, bool, usize, bool, Vec<String>)> = Vec::new();
         for (c, res) in concepts.iter().zip(footprints) {
             match res {
                 Ok(r) => {
@@ -9845,7 +10041,7 @@ impl Engram {
                         let from_lexicon = lexicon_concepts.contains(c);
                         // Round-2 audit P0-3 (IDF / specificity): a term that
                         // matches BROAD_CONCEPT_MIN_FILES+ files cannot
-                        // discriminate — its hits are labelled `broad` and are
+                        // discriminate; its hits are labelled `broad` and are
                         // never evidence nor vector seeds. The author's explicit
                         // gloss is exempt.
                         let total = footprint_total(&t.text);
@@ -9853,41 +10049,114 @@ impl Engram {
                         if broad {
                             broad_terms.push(format!("'{c}' ({total} files)"));
                         }
-                        for p in change_set_paths(&t.text) {
-                            if !engram_core::is_vendor_path(&p) {
-                                concept_hits += 1;
-                                if broad {
-                                    why.entry(p.clone()).or_default().push(format!(
-                                        "matches '{c}' — too common in this index ({total} \
-                                         files) to discriminate; not counted as evidence"
-                                    ));
-                                    prov.entry(p).or_default().insert("broad");
-                                    continue;
-                                }
-                                if !prov.contains_key(&p) {
-                                    seed_order.push(p.clone());
-                                }
-                                why.entry(p.clone()).or_default().push(if from_gloss {
-                                    format!("matches the story's explicit gloss '{c}'")
-                                } else if from_lexicon {
-                                    format!("matches '{c}' — the project's .resx translation of the story's English term")
-                                } else {
-                                    format!("name/content matches concept '{c}'")
-                                });
-                                let e = prov.entry(p).or_default();
-                                e.insert("concept");
-                                e.insert("specific");
-                                if from_gloss {
-                                    e.insert("gloss");
-                                }
-                                if from_lexicon {
-                                    e.insert("lexicon");
-                                }
-                            }
-                        }
+                        let paths = change_set_paths(&t.text)
+                            .into_iter()
+                            .filter(|path| !engram_core::is_vendor_path(path))
+                            .collect::<Vec<_>>();
+                        concept_hits += paths.len();
+                        footprint_rows.push((
+                            c.clone(),
+                            from_gloss,
+                            from_lexicon,
+                            total,
+                            broad,
+                            paths,
+                        ));
                     }
                 }
                 Err(e) => concept_failures.push(format!("'{c}': {e}")),
+            }
+        }
+        // A translated term can represent a different sense of the same UI
+        // phrase. Require it to agree with a direct story concept, gloss, or
+        // an already established business/entity anchor before it can add a
+        // file. This preserves the repository's bilingual bridge while
+        // preventing one resource translation from opening an unrelated family.
+        let existing_strong_paths = prov.keys().cloned().collect::<HashSet<_>>();
+        let direct_intent_paths = footprint_rows
+            .iter()
+            .filter(|(_, _, from_lexicon, _, broad, _)| !from_lexicon && !broad)
+            .flat_map(|(_, _, _, _, _, paths)| paths.iter().cloned())
+            .collect::<HashSet<_>>();
+        let mut direct_intent_support = HashMap::<String, usize>::new();
+        for (_, _, from_lexicon, _, broad, paths) in &footprint_rows {
+            if *from_lexicon || *broad {
+                continue;
+            }
+            for path in paths {
+                *direct_intent_support.entry(path.clone()).or_default() += 1;
+            }
+        }
+        let mut unanchored_translation_paths = 0usize;
+        let mut unanchored_direct_paths = 0usize;
+        for (c, from_gloss, from_lexicon, total, broad, paths) in footprint_rows {
+            for p in paths {
+                let translated_registry_candidate = broad
+                    && from_lexicon
+                    && is_additive_registry_path(&p);
+                if broad && !translated_registry_candidate {
+                    why.entry(p.clone()).or_default().push(format!(
+                        "matches '{c}'; too common in this index ({total} \
+                         files) to discriminate; not counted as evidence"
+                    ));
+                    continue;
+                }
+                if from_lexicon
+                    && !from_gloss
+                    && !translated_registry_candidate
+                    && !direct_intent_paths.contains(&p)
+                    && !existing_strong_paths.contains(&p)
+                {
+                    unanchored_translation_paths += 1;
+                    continue;
+                }
+                let normalized_name = p
+                    .rsplit(|character| character == '/' || character == '\\')
+                    .next()
+                    .unwrap_or(&p)
+                    .chars()
+                    .filter(|character| character.is_alphanumeric())
+                    .flat_map(char::to_lowercase)
+                    .collect::<String>();
+                let normalized_concept = c
+                    .chars()
+                    .filter(|character| character.is_alphanumeric())
+                    .flat_map(char::to_lowercase)
+                    .collect::<String>();
+                let name_anchored = normalized_concept.len() >= 5
+                    && normalized_name.contains(&normalized_concept);
+                if !from_gloss
+                    && !from_lexicon
+                    && direct_intent_support.get(&p).copied().unwrap_or_default() < 2
+                    && !name_anchored
+                    && !existing_strong_paths.contains(&p)
+                {
+                    unanchored_direct_paths += 1;
+                    continue;
+                }
+                if !prov.contains_key(&p) {
+                    seed_order.push(p.clone());
+                }
+                why.entry(p.clone()).or_default().push(if from_gloss {
+                    format!("matches the story's explicit gloss '{c}'")
+                } else if translated_registry_candidate {
+                    format!("the project's .resx translation '{c}' occurs in this additive registry; classify the whole locale family, but do not treat translation alone as proof that it changes")
+                } else if from_lexicon {
+                    format!("matches '{c}'; the project's .resx translation of the story's English term, corroborated by another intent signal")
+                } else {
+                    format!("name/content matches concept '{c}'")
+                });
+                let evidence = prov.entry(p).or_default();
+                evidence.insert("concept");
+                if !broad {
+                    evidence.insert("specific");
+                }
+                if from_gloss {
+                    evidence.insert("gloss");
+                }
+                if from_lexicon {
+                    evidence.insert("lexicon");
+                }
             }
         }
         cov.concept = if concept_failures.is_empty() {
@@ -9898,11 +10167,25 @@ impl Engram {
                 t_concept.elapsed().as_millis(),
             )
         };
+        let mut concept_notes = Vec::new();
         if !broad_terms.is_empty() {
-            cov.concept.note = format!(
+            concept_notes.push(format!(
                 "broad terms not counted as evidence: {}",
                 broad_terms.join(", ")
-            );
+            ));
+        }
+        if unanchored_translation_paths > 0 {
+            concept_notes.push(format!(
+                "{unanchored_translation_paths} translation-only file matches were not counted as evidence because no direct intent, gloss, business-rule, or entity signal corroborated them"
+            ));
+        }
+        if unanchored_direct_paths > 0 {
+            concept_notes.push(format!(
+                "{unanchored_direct_paths} single-concept content matches were not counted as evidence because they neither matched the file name nor agreed with another intent, business-rule, or entity signal"
+            ));
+        }
+        if !concept_notes.is_empty() {
+            cov.concept.note = concept_notes.join("; ");
         }
 
         // History arm — commit-message search surfaces the files of past similar
@@ -10614,6 +10897,7 @@ impl Engram {
                 .iter()
                 .filter(|(_, signals)| {
                     signals.contains("entity")
+                        || signals.contains("business")
                         || (signals.contains("concept")
                             && !signals.contains("lexicon")
                             && !signals.contains("broad"))
@@ -10675,8 +10959,16 @@ impl Engram {
                 .collect();
             let caller_graph = self.state.graph.clone();
             let caller_pid = req.project_id.clone();
+            let preferred_caller_symbols = business_member_anchors.clone();
+            let caller_intent_terms = concepts.clone();
             let caller_expansion = tokio::task::spawn_blocking(move || {
-                expand_direct_caller_graph(&caller_graph, &caller_pid, &caller_anchor_paths)
+                expand_direct_caller_graph(
+                    &caller_graph,
+                    &caller_pid,
+                    &caller_anchor_paths,
+                    &preferred_caller_symbols,
+                    &caller_intent_terms,
+                )
             })
             .await
             .unwrap_or_default();
@@ -13266,6 +13558,20 @@ pub(crate) fn story_for_concepts(story: &str) -> String {
         .replace("&quot;", "\"")
         .replace("&amp;", "&")
         .replace("## Work item (full text)", "");
+    // Board and PR titles often start with a classification badge such as
+    // `+[Feature]`, `[P2 Feature]` or `[Bug]`. Those labels describe the work
+    // item rather than its domain, and the three-concept budget is too small
+    // to let one displace the entity named by the title. Restrict stripping to
+    // a leading bracket whose complete contents are recognized workflow or
+    // severity words. An ordinary domain qualifier (`[Customer]`) and prose
+    // such as `Feature flag administration` remain searchable.
+    static LEADING_CLASSIFICATION: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(
+            r"(?ix)^\s*\+?\[\s*(?:(?:p[0-4]|sev(?:erity)?[\s:_-]*[0-4]|feature|request|bug|defect|fix|hotfix|change|improvement|task|chore)\s*[,/|:_-]?\s*)+\]\s*(?:[-:\u{2013}\u{2014}]\s*)?",
+        )
+        .expect("valid leading work-item classification regex")
+    });
+    let s = LEADING_CLASSIFICATION.replace(&s, "");
     // URLs are not domain concepts: a pasted support-ticket link made its
     // hostname/path tokens 2 of the 5 extracted
     // concepts on a live fetch. Drop whole URL tokens.
@@ -13740,6 +14046,32 @@ mod work_item_tests {
         // …while the actual story/work-item content survives verbatim.
         assert!(cleaned.contains("Can't assign resources to tasks in multitenant mode"));
         assert!(cleaned.contains("Bug #847"));
+    }
+
+    #[test]
+    fn concept_view_drops_leading_work_item_classification_badges() {
+        let cleaned = story_for_concepts("+[Feature] Subproject scoped price lists");
+        assert_eq!(cleaned, "Subproject scoped price lists");
+        assert_eq!(
+            super::extract_story_concepts(&cleaned),
+            vec!["subproject", "scoped", "price"]
+        );
+
+        let prioritized = story_for_concepts("[P2 Feature] Copy price lists between accounts");
+        assert_eq!(prioritized, "Copy price lists between accounts");
+        assert!(!super::extract_story_concepts(&prioritized).contains(&"feature".to_string()));
+    }
+
+    #[test]
+    fn concept_view_preserves_domain_qualifiers_and_feature_flag_prose() {
+        assert_eq!(
+            story_for_concepts("[Customer] Feature flag administration"),
+            "[Customer] Feature flag administration"
+        );
+        assert_eq!(
+            story_for_concepts("Feature flag administration"),
+            "Feature flag administration"
+        );
     }
 
     #[test]
@@ -15097,6 +15429,67 @@ mod change_set_rows_tests {
     }
 
     #[test]
+    fn scoped_ownership_story_emits_full_lifecycle_and_unresolved_boundaries() {
+        let rows = vec![
+            ChangeSetRow {
+                path: "src/PricingService.cs".into(),
+                layer: "Server",
+                layer_index: 0,
+                tier: 0,
+                signals: vec!["business"],
+                omitted: false,
+                set: "primary",
+                rank: 1,
+            },
+            ChangeSetRow {
+                path: "db/effective-prices.sql".into(),
+                layer: "Data",
+                layer_index: 0,
+                tier: 0,
+                signals: vec!["concept"],
+                omitted: false,
+                set: "primary",
+                rank: 2,
+            },
+        ];
+        let story = "+[Feature] Account-scoped price lists with parent fallback";
+        let obligations = change_set_cross_cutting_obligations(story);
+        let rendered = serde_json::to_string(&obligations).unwrap();
+        for expected in [
+            "scoped ownership and resolution lifecycle",
+            "collection or independently per item",
+            "reassignment or moving between scopes",
+            "copy and clone flows",
+            "UI pages, API versions, imports, background work, reports",
+        ] {
+            assert!(rendered.contains(expected), "missing {expected}: {rendered}");
+        }
+
+        let audit = change_set_boundary_audit(story, &rows, &[], &[]);
+        assert_eq!(audit["status"], "incomplete");
+        assert!(audit["categories"].as_array().unwrap().iter().any(|category| {
+            category["boundary"] == "scope_owner_persistence"
+                && category["status"] == "evidence_present"
+        }));
+        assert!(audit["unresolved"].as_array().unwrap().iter().any(|boundary| {
+            boundary == "scope_copy_move_import"
+        }));
+
+        let hypotheses = bind_component_hypothesis_surfaces(
+            change_set_component_hypotheses(story),
+            &audit,
+        );
+        let scoped = hypotheses.iter().find(|hypothesis| {
+            hypothesis["responsibility"] == "scoped ownership resolver and lifecycle policy"
+        }).expect("scope hypothesis");
+        assert_eq!(scoped["surface_status"], "incomplete");
+        assert!(scoped["concrete_surfaces"].as_array().unwrap().iter().any(|surface| {
+            surface["boundary"] == "scope_copy_move_import"
+                && surface["status"] == "unresolved"
+        }));
+    }
+
+    #[test]
     fn unrelated_data_change_does_not_invent_auth_obligations() {
         let obligations = change_set_cross_cutting_obligations(
             "Add a nullable database column and migration for report titles",
@@ -15419,6 +15812,18 @@ mod change_set_tier_tests {
             t(&["vector", "graph"])
         );
         assert!(t(&["vector", "graph"]) <= t(&["vector"]));
+    }
+
+    #[test]
+    fn family_metadata_never_self_corroborates_a_lexicon_match() {
+        let translated_family = ["concept", "lexicon", "family", "required_family"];
+        assert_eq!(t(&translated_family), 3);
+        assert_eq!(
+            change_set_strength(&translated_family.into_iter().collect()),
+            2,
+            "concept and lexicon are evidence labels; family bookkeeping adds no strength"
+        );
+        assert_eq!(t(&["concept", "lexicon", "required_family", "history"]), 0);
     }
 }
 
