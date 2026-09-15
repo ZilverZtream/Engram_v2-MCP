@@ -67,6 +67,34 @@ impl Engram {
         let source_before = source_snapshot(&project_dir, &parsed);
 
         if diff_text.trim().is_empty() {
+            // The requested source (default: staged) held nothing. Work that is
+            // unstaged or untracked was not examined; name it instead of
+            // reporting a clean "no changes".
+            let unexamined =
+                crate::services::pre_commit_review_service::working_tree_changes(&project_dir)
+                    .unwrap_or_default();
+            if !unexamined.is_empty() {
+                let hint = format!(
+                    "The requested diff ({}) is empty, but the working tree has {} changed file(s) that were not examined: {}. Rerun with diff=\"unstaged\" to review them.",
+                    req.diff.trim(),
+                    unexamined.len(),
+                    unexamined.iter().take(20).cloned().collect::<Vec<_>>().join(", ")
+                );
+                if req.output_json {
+                    return Ok(CallToolResult::success(vec![Content::text(
+                        serde_json::json!({
+                            "verdict": "NOT_REVIEWED", "findings": [], "gate_status": [],
+                            "summary": { "files_analysed": 0, "gates_run": 0, "total_findings": 0 },
+                            "coverage": {"submitted_files": [], "textual_diff_files": [], "unexamined_files": unexamined, "static_analysis": "not_run", "compilation": "not_run", "test_execution": "not_run"},
+                            "note": hint
+                        })
+                        .to_string(),
+                    )]));
+                }
+                return Ok(CallToolResult::success(vec![Content::text(format!(
+                    "Not reviewed. {hint}"
+                ))]));
+            }
             if req.output_json {
                 return Ok(CallToolResult::success(vec![Content::text(
                     serde_json::json!({
