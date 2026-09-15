@@ -13,6 +13,11 @@
     "intake-summary.md",
     "proposal.md"
   ],
+  "boundary_candidate_expectations": {
+    "required_leads": ["LoginController.vb", "Login-In.vb"],
+    "forbidden_leads": ["Compiler.exe.refresh", "login.min.js"],
+    "max_unretrieved_candidates": 100
+  },
   "signals": [
     {"id":"session-allocation-locking-deadlock","weight":3,"artifact_scopes":["feature-contract.md","scenarios.md"],"groups":[["ASP\\.NET_SessionId|session allocation|session state"],["default.document|physical.directory|extensionless|rewrite"],["deadlock|bounded completion|re-entry|lock twice"]]},
     {"id":"api-async-denial-shape","weight":2,"groups":[["\\b401\\b"],["\\b302\\b|Forms Authentication.*rewrite|SuppressFormsAuthenticationRedirect"],["api\\.asmx|page method|async|ajax"]]},
