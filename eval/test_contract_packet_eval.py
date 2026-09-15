@@ -100,6 +100,71 @@ class ContractPacketEvalTests(unittest.TestCase):
         self.assertEqual(result["weighted_signal_recall"], 1.0)
         self.assertEqual(result["items"], 2)
 
+    def test_payload_comparison_proves_dictionary_compaction_is_lossless(self):
+        receipt = subject.hashlib.sha256(b"P001\0A.vb\n").hexdigest()
+        contract_receipt = subject.hashlib.sha256(b"OBL-01-X-C01\n").hexdigest()
+        baseline = {
+            "files": [{"row_id": "P001", "path": "A.vb", "impact_question": "same guidance text long enough to compact"}],
+            "asset_dependencies": [],
+            "caller_dependencies": [],
+            "reconciliation": {"receipt_id": f"sha256:{receipt}"},
+            "contract_checkpoint": {
+                "receipt": {"receipt_id": f"sha256:{contract_receipt}"},
+                "obligation_check_ids": ["OBL-01-X-C01"],
+                "hypothesis_evidence_ids": [],
+            },
+            "cross_cutting_obligations": [{"contract_items": [
+                {"check_id": "OBL-01-X-C01", "requirement": "preserve behavior"}
+            ]}],
+            "component_hypotheses": [],
+        }
+        candidate = {
+            **baseline,
+            "files": [{"row_id": "P001", "path": "A.vb", "impact_question_ref": "G001"}],
+            "row_guidance": {"entries": [{
+                "id": "G001", "field": "impact_question", "text": "same guidance text long enough to compact"
+            }]},
+            "contract_checkpoint": {
+                **baseline["contract_checkpoint"],
+                "hard_items": [{"id": "OBL-01-X-C01", "requirement": "preserve behavior"}],
+                "advisory_items_total": 0,
+            },
+            "cross_cutting_obligations": [],
+        }
+        result = subject.compare_evidence_payloads(baseline, candidate)
+        self.assertTrue(result["gates"]["all_rows_lossless"])
+        self.assertTrue(result["gates"]["contract_requirements_lossless"])
+        self.assertTrue(result["candidate"]["contract_receipt_valid"])
+
+    def test_hydrated_rows_rejects_missing_or_wrong_dictionary_entries(self):
+        with self.assertRaisesRegex(ValueError, "unresolved impact_question_ref"):
+            subject.hydrated_rows({"files": [{"impact_question_ref": "G404"}]}, "files")
+
+    def test_character_optimizer_respects_payload_budget(self):
+        signals = subject.compile_signals([
+            {"id": "one", "groups": [["alpha"], ["beta"]]},
+            {"id": "two", "groups": [["gamma"]]},
+        ])
+        candidates = [
+            subject.Candidate("A", "row", "alpha"),
+            subject.Candidate("B", "row", "beta"),
+            subject.Candidate("C", "row", "gamma filler"),
+        ]
+        result = subject.optimize_packets_by_chars(candidates, signals, [21], 100, 4)["21"]
+        self.assertLessEqual(result["packet_chars"], 21)
+        self.assertEqual(result["weighted_signal_recall"], 1.0)
+
+    def test_signal_diagnostics_names_only_unavailable_regex_groups(self):
+        signals = subject.compile_signals([{
+            "id": "partial", "weight": 3, "groups": [["password"], ["rollback|restore"]]
+        }])
+        diagnostics = subject.signal_diagnostics(
+            [subject.Candidate("A", "row", "password change")], signals
+        )
+        self.assertEqual(diagnostics[0]["signal_id"], "partial")
+        self.assertEqual(diagnostics[0]["available_groups"], 1)
+        self.assertEqual(diagnostics[0]["missing_groups"][0]["patterns"], ["rollback|restore"])
+
 
 if __name__ == "__main__":
     unittest.main()
