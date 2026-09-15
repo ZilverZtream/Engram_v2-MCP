@@ -3021,7 +3021,7 @@ impl Engram {
                     project_id: req.project_id.clone(),
                     namespace: "antipattern".into(),
                     generation: gen_,
-                    text: q,
+                    text: q.clone(),
                     top_k: req.sanitized_top_k(),
                     fts_mode: fts_mode.into(),
                     include_path_prefixes: None,
@@ -3090,8 +3090,28 @@ impl Engram {
         // least WARN even if similarity scores are low.
         let destructive_hits = detect_destructive_patterns(&code);
 
+        // Hybrid hit scores are reciprocal-rank-fusion values (about
+        // 1/(60+rank)), not similarities, and never reach the thresholds
+        // below. Similarity is the share of this code's terms found in each
+        // anti-pattern's stored content.
+        let mut similarities = Vec::with_capacity(hits.len());
+        for hit in &hits {
+            similarities.push(match ps.search.get_doc_by_pk(&hit.pk) {
+                Ok(Some((_, _, content, _, _))) => crate::services::pre_commit_review_service::gates::code_similarity(&content, &q),
+                Ok(None) => {
+                    evidence_gaps.push(format!("anti-pattern hit {} has no backing document", hit.pk));
+                    0.0
+                }
+                Err(e) => {
+                    evidence_gaps.push(format!("anti-pattern hit {} is unreadable: {e}", hit.pk));
+                    0.0
+                }
+            });
+        }
         let match_count = hits.len();
-        let mut highest_score = 0.0;
+        let highest_score = similarities.iter().copied().fold(0.0f32, f32::max);
+        // Only hits similar enough count toward the match-count escalation.
+        let similar_count = similarities.iter().filter(|s| **s > warn_t / 2.0).count();
         let cap = req.sanitized_top_k();
         let mut out = format!(
             "# Immune Check Result\n\n**Matches Found**: {} shown (cap top_k={}{})\n\n",
@@ -3109,14 +3129,12 @@ impl Engram {
                 "FAILURE: {f} — immune-file escalation could not run\n\n"
             ));
         }
-        for (i, hit) in hits.iter().enumerate() {
-            if hit.score > highest_score {
-                highest_score = hit.score;
-            }
+        for (i, (hit, similarity)) in hits.iter().zip(&similarities).enumerate() {
             out.push_str(&format!(
-                "### {}. {} (score: {:.3})\n\n{}\n\n",
+                "### {}. {} (similarity: {:.2}; rank score {:.3})\n\n{}\n\n",
                 i + 1,
                 hit.path,
+                similarity,
                 hit.score,
                 &antipattern_hit_text(hit.snippet.as_deref(), req.include_content)
             ));
@@ -3139,14 +3157,14 @@ impl Engram {
 
         // Match-count escalation: 3+ matches → WARN (compounding).
         const MATCH_COUNT_WARN_THRESHOLD: usize = 3;
-        let match_count_warn = match_count >= MATCH_COUNT_WARN_THRESHOLD;
+        let match_count_warn = similar_count >= MATCH_COUNT_WARN_THRESHOLD;
         if match_count_warn {
             verdict_rank = verdict_rank.max(1);
         }
 
         // Immune + any signal at all → WARN.
         let immune_any_signal =
-            is_immune_flagged && (match_count > 0 || !destructive_hits.is_empty());
+            is_immune_flagged && (similar_count > 0 || !destructive_hits.is_empty());
         if immune_any_signal {
             verdict_rank = verdict_rank.max(1);
         }
@@ -3154,7 +3172,7 @@ impl Engram {
         // Immune + destructive + a match → BLOCKED. A revert-flagged file
         // with destructive code AND anti-pattern evidence is textbook
         // "do not apply".
-        if is_immune_flagged && !destructive_hits.is_empty() && match_count > 0 {
+        if is_immune_flagged && !destructive_hits.is_empty() && similar_count > 0 {
             verdict_rank = verdict_rank.max(2);
         }
 
@@ -3172,12 +3190,14 @@ impl Engram {
         if is_immune_flagged || match_count_warn || !destructive_hits.is_empty() {
             out.push_str("## Escalation Signals\n\n");
             out.push_str(&format!(
-                "- highest similarity score: {:.3} (warn threshold: {:.3})\n",
+                "- highest similarity (share of this code's terms found in an anti-pattern): {:.2} (warn above {:.2}, block above 0.80)\n",
                 highest_score, warn_t
             ));
             out.push_str(&format!(
-                "- match count: {} (warn threshold: {})\n",
-                match_count, MATCH_COUNT_WARN_THRESHOLD
+                "- similar matches (similarity above {:.2}): {} (warn at {})\n",
+                warn_t / 2.0,
+                similar_count,
+                MATCH_COUNT_WARN_THRESHOLD
             ));
             if is_immune_flagged {
                 out.push_str(&format!(
@@ -3236,7 +3256,7 @@ impl Engram {
                     project_id: req.project_id.clone(),
                     namespace: "antipattern".into(),
                     generation: gen_,
-                    text: q,
+                    text: q.clone(),
                     top_k: req.sanitized_limit(),
                     fts_mode: fts_mode.into(),
                     include_path_prefixes: None,
@@ -3254,13 +3274,22 @@ impl Engram {
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        let highest_score = hits.first().map(|h| h.score).unwrap_or(0.0);
-        // FTS scores (BM25) are much lower than vector scores; use separate thresholds.
-        let (block_t, warn_t) = if req.use_vector {
-            (0.85, 0.65)
-        } else {
-            (0.05, 0.005)
-        };
+        // Hit scores are reciprocal-rank-fusion values in both modes, not
+        // similarities. Similarity is the share of this code's terms found in
+        // each anti-pattern's stored content.
+        let mut unreadable = 0usize;
+        let similarities: Vec<f32> = hits
+            .iter()
+            .map(|h| match ps.search.get_doc_by_pk(&h.pk) {
+                Ok(Some((_, _, content, _, _))) => crate::services::pre_commit_review_service::gates::code_similarity(&content, &q),
+                _ => {
+                    unreadable += 1;
+                    0.0
+                }
+            })
+            .collect();
+        let highest_score = similarities.iter().copied().fold(0.0f32, f32::max);
+        let (block_t, warn_t) = (0.85, 0.65);
         let verdict = if highest_score > block_t {
             "BLOCK"
         } else if highest_score > warn_t {
@@ -3270,13 +3299,21 @@ impl Engram {
         };
 
         let mut out = format!(
-            "verdict: {}\nscore: {:.3}\nindexed_patterns: {}\ncomparison: completed\nnote: Verdict applies only to matches in the queried anti-pattern index; it does not certify code safety.\n\n",
+            "verdict: {}\nsimilarity: {:.2}\nindexed_patterns: {}\ncomparison: completed\nnote: Verdict applies only to matches in the queried anti-pattern index; it does not certify code safety.\n\n",
             verdict, highest_score, ap_count
         );
+        if unreadable > 0 {
+            out.push_str(&format!(
+                "unreadable_matches: {unreadable} (backing document missing or unreadable; their similarity is unknown)\n\n"
+            ));
+        }
         if !hits.is_empty() {
             out.push_str("Matches in anti-pattern index:\n");
-            for h in hits.iter().take(3) {
-                out.push_str(&format!("- {} (score: {:.3})\n", h.path, h.score));
+            for (h, similarity) in hits.iter().zip(&similarities).take(3) {
+                out.push_str(&format!(
+                    "- {} (similarity: {:.2}; rank score {:.3})\n",
+                    h.path, similarity, h.score
+                ));
                 if req.include_content
                     && let Some(ref snippet) = h.snippet
                 {
