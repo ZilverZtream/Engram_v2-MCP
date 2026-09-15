@@ -8151,7 +8151,110 @@ fn change_set_cross_cutting_obligations(story: &str) -> Vec<serde_json::Value> {
             "candidate_mechanism_roles": ["persistence schema or data operation", "configuration and defaults"]
         }));
     }
-    out
+    attach_obligation_contract_items(out)
+}
+
+fn contract_id_fragment(value: &str) -> String {
+    let mut out = String::new();
+    let mut separator = false;
+    for character in value.chars() {
+        if character.is_ascii_alphanumeric() {
+            if separator && !out.is_empty() {
+                out.push('_');
+            }
+            out.push(character.to_ascii_uppercase());
+            separator = false;
+        } else {
+            separator = true;
+        }
+    }
+    out.trim_matches('_').to_string()
+}
+
+fn obligation_check_severity(check: &str) -> &'static str {
+    let lower = check.to_ascii_lowercase();
+    if [
+        "blocking product question",
+        "stateless",
+        "cannot revive",
+        "compare-and-advance",
+        "partial failure",
+        "session lock",
+        "re-entry",
+    ]
+    .iter()
+    .any(|term| lower.contains(term))
+    {
+        "release_blocking_if_applicable"
+    } else {
+        "required_if_applicable"
+    }
+}
+
+fn obligation_oracle_guard(check: &str) -> Option<&'static str> {
+    let lower = check.to_ascii_lowercase();
+    if lower.contains("stateless") {
+        Some("A scenario must not assert creation of browser credentials or server-session state for an established stateless scheme unless an approved requirement explicitly changes that scheme.")
+    } else if lower.contains("blocking product question") {
+        Some("Until a human resolves this decision, scenarios must show the competing outcomes and BLOCKING status; they may not select one outcome as the oracle.")
+    } else if lower.contains("cannot revive") || lower.contains("prevent replay") {
+        Some("The frozen scenarios must include change, stale rejection, restore, and replay rejection; equality with a restored mutable value is not a sufficient oracle.")
+    } else if lower.contains("logging api") {
+        Some("A logging symbol is valid only for the architectural layer whose local source precedent is cited; do not propagate one layer's wrapper into another.")
+    } else if lower.contains("session lock") || lower.contains("re-entry") {
+        Some("The scenario set must exercise bounded completion and session allocation for the concrete affected entry-point and routing classes before this check can be satisfied.")
+    } else {
+        None
+    }
+}
+
+fn attach_obligation_contract_items(
+    mut obligations: Vec<serde_json::Value>,
+) -> Vec<serde_json::Value> {
+    for (obligation_index, obligation) in obligations.iter_mut().enumerate() {
+        let name = obligation["obligation"]
+            .as_str()
+            .unwrap_or("cross-cutting behavior")
+            .to_string();
+        let obligation_id = format!(
+            "OBL-{:02}-{}",
+            obligation_index + 1,
+            contract_id_fragment(&name)
+        );
+        let checks = obligation["checks"].as_array().cloned().unwrap_or_default();
+        let contract_items = checks
+            .iter()
+            .filter_map(|value| value.as_str())
+            .enumerate()
+            .map(|(check_index, requirement)| {
+                let mut item = serde_json::json!({
+                    "check_id": format!("{obligation_id}-C{:02}", check_index + 1),
+                    "severity": obligation_check_severity(requirement),
+                    "requirement": requirement,
+                    "required_disposition": [
+                        "SATISFIED_WITH_SOURCE_OR_APPROVED_DECISION",
+                        "BLOCKING_UNKNOWN",
+                        "NOT_APPLICABLE_WITH_EVIDENCE"
+                    ]
+                });
+                if let Some(guard) = obligation_oracle_guard(requirement) {
+                    item.as_object_mut()
+                        .expect("contract check is an object")
+                        .insert("oracle_guard".into(), serde_json::json!(guard));
+                }
+                item
+            })
+            .collect::<Vec<_>>();
+        if let Some(object) = obligation.as_object_mut() {
+            object.insert("obligation_id".into(), serde_json::json!(obligation_id));
+            object.insert("contract_items".into(), serde_json::json!(contract_items));
+            object.insert(
+                "contract_gate".into(),
+                serde_json::json!("Every contract item requires one allowed disposition and cited evidence. Missing dispositions keep the feature contract incomplete."),
+            );
+        }
+    }
+    obligations
 }
 
 /// Candidate responsibilities for behavior that usually needs a reusable
@@ -8317,11 +8420,38 @@ fn bind_component_hypothesis_surfaces(
         .unwrap_or_default();
     hypotheses
         .into_iter()
-        .map(|mut hypothesis| {
+        .enumerate()
+        .map(|(hypothesis_index, mut hypothesis)| {
+            let responsibility = hypothesis["responsibility"]
+                .as_str()
+                .unwrap_or("component boundary")
+                .to_string();
+            let hypothesis_id = format!(
+                "HYP-{:02}-{}",
+                hypothesis_index + 1,
+                contract_id_fragment(&responsibility)
+            );
             let requested = hypothesis["required_surface_categories"]
                 .as_array()
                 .cloned()
                 .unwrap_or_default();
+            let evidence_items = hypothesis["required_contract_evidence"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default()
+                .iter()
+                .filter_map(|value| value.as_str())
+                .enumerate()
+                .map(|(evidence_index, requirement)| serde_json::json!({
+                    "evidence_id": format!("{hypothesis_id}-E{:02}", evidence_index + 1),
+                    "requirement": requirement,
+                    "required_disposition": [
+                        "SATISFIED_WITH_CONCRETE_SURFACES",
+                        "BLOCKING_UNKNOWN",
+                        "NOT_APPLICABLE_WITH_EVIDENCE"
+                    ]
+                }))
+                .collect::<Vec<_>>();
             let mut surfaces = Vec::new();
             let mut incomplete = false;
             for boundary in requested.iter().filter_map(|value| value.as_str()) {
@@ -8349,6 +8479,11 @@ fn bind_component_hypothesis_surfaces(
                 }
             }
             if let Some(object) = hypothesis.as_object_mut() {
+                object.insert("hypothesis_id".into(), serde_json::json!(hypothesis_id));
+                object.insert(
+                    "contract_evidence_items".into(),
+                    serde_json::json!(evidence_items),
+                );
                 object.insert("surface_status".into(), serde_json::json!(
                     if incomplete { "incomplete" } else { "evidence_present" }
                 ));
@@ -8360,6 +8495,67 @@ fn bind_component_hypothesis_surfaces(
             hypothesis
         })
         .collect()
+}
+
+fn change_set_contract_checkpoint(
+    obligations: &[serde_json::Value],
+    hypotheses: &[serde_json::Value],
+    boundary_audit: &serde_json::Value,
+) -> serde_json::Value {
+    let obligation_check_ids = obligations
+        .iter()
+        .flat_map(|obligation| {
+            obligation["contract_items"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default()
+        })
+        .filter_map(|item| item["check_id"].as_str().map(str::to_string))
+        .collect::<Vec<_>>();
+    let hypothesis_evidence_ids = hypotheses
+        .iter()
+        .flat_map(|hypothesis| {
+            hypothesis["contract_evidence_items"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default()
+        })
+        .filter_map(|item| item["evidence_id"].as_str().map(str::to_string))
+        .collect::<Vec<_>>();
+    let unresolved_boundaries = boundary_audit["unresolved"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let ordered_ids = obligation_check_ids
+        .iter()
+        .chain(hypothesis_evidence_ids.iter())
+        .cloned()
+        .collect::<Vec<_>>();
+    let canonical = ordered_ids
+        .iter()
+        .map(|id| format!("{id}\n"))
+        .collect::<String>();
+    use sha2::{Digest, Sha256};
+    let checkpoint_digest = format!("{:x}", Sha256::digest(canonical.as_bytes()));
+    serde_json::json!({
+        "status": "REQUIRES_EXPLICIT_DISPOSITIONS",
+        "receipt": {
+            "receipt_id": format!("sha256:{checkpoint_digest}"),
+            "obligation_checks": obligation_check_ids.len(),
+            "hypothesis_evidence": hypothesis_evidence_ids.len(),
+            "total": ordered_ids.len(),
+            "algorithm": "SHA-256 over ordered contract ID LF records"
+        },
+        "obligation_check_ids": obligation_check_ids,
+        "hypothesis_evidence_ids": hypothesis_evidence_ids,
+        "unresolved_boundaries": unresolved_boundaries,
+        "allowed_dispositions": [
+            "SATISFIED_WITH_SOURCE_OR_APPROVED_DECISION",
+            "BLOCKING_UNKNOWN",
+            "NOT_APPLICABLE_WITH_EVIDENCE"
+        ],
+        "instruction": "Copy every listed ID into the feature contract with one allowed disposition and concrete citations. The checkpoint fails on a missing ID, an unresolved boundary, or an expected scenario outcome that contradicts an oracle_guard. Product decisions require an approved human answer; the agent may not satisfy them from a hypothesis or implementation preference."
+    })
 }
 
 /// Show whether the current evidence set spans lifecycle boundaries implied by
@@ -11895,6 +12091,11 @@ impl Engram {
                 change_set_component_hypotheses(req.story.trim()),
                 &boundary_audit,
             );
+            let contract_checkpoint = change_set_contract_checkpoint(
+                &cross_cutting_obligations,
+                &component_hypotheses,
+                &boundary_audit,
+            );
             let work_item_evidence_risk = change_set_work_item_evidence_risk(
                 req.story.trim(),
                 req.merged_before.as_deref(),
@@ -11902,6 +12103,7 @@ impl Engram {
             let project_policy_sources = project_policy_sources(&project_root, &index_paths);
             let payload = serde_json::json!({
                 "story": req.story.trim(),
+                "contract_checkpoint": contract_checkpoint,
                 "concepts": concepts,
                 "files": files,
                 "coverage": output_coverage,
@@ -15540,8 +15742,8 @@ mod change_set_rows_tests {
             assert!(rendered.contains(expected), "missing {expected}: {rendered}");
         }
 
-        let obligations = serde_json::to_string(&change_set_cross_cutting_obligations(story))
-            .unwrap();
+        let obligation_values = change_set_cross_cutting_obligations(story);
+        let obligations = serde_json::to_string(&obligation_values).unwrap();
         for expected in [
             "preserve each credential scheme's established state model",
             "blocking product question",
@@ -15557,6 +15759,35 @@ mod change_set_rows_tests {
         assert!(!rendered.contains("Site/"));
         assert!(!rendered.contains("OciusX"));
         assert!(!obligations.contains("OciusX"));
+
+        let bound_hypotheses = bind_component_hypothesis_surfaces(
+            change_set_component_hypotheses(story),
+            &serde_json::json!({"categories": [], "unresolved": ["request_pipeline"]}),
+        );
+        let checkpoint = change_set_contract_checkpoint(
+            &obligation_values,
+            &bound_hypotheses,
+            &serde_json::json!({"unresolved": ["request_pipeline"]}),
+        );
+        assert_eq!(checkpoint["status"], "REQUIRES_EXPLICIT_DISPOSITIONS");
+        assert!(checkpoint["receipt"]["receipt_id"]
+            .as_str()
+            .unwrap()
+            .starts_with("sha256:"));
+        assert_eq!(
+            checkpoint["receipt"]["total"].as_u64().unwrap(),
+            checkpoint["obligation_check_ids"].as_array().unwrap().len() as u64
+                + checkpoint["hypothesis_evidence_ids"].as_array().unwrap().len() as u64
+        );
+        assert!(checkpoint["obligation_check_ids"].as_array().unwrap().iter()
+            .all(|id| id.as_str().unwrap().starts_with("OBL-")));
+        assert!(checkpoint["hypothesis_evidence_ids"].as_array().unwrap().iter()
+            .all(|id| id.as_str().unwrap().starts_with("HYP-")));
+        assert!(obligation_values.iter().flat_map(|obligation| {
+            obligation["contract_items"].as_array().unwrap().iter()
+        }).any(|item| item["oracle_guard"].as_str().is_some_and(|guard| {
+            guard.contains("must not assert creation of browser credentials")
+        })));
     }
 
     #[test]
