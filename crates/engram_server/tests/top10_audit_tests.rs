@@ -962,3 +962,36 @@ async fn sql_validator_checks_exact_bare_and_aliased_columns_without_certifying_
         assert!(out.get("coverage").is_some());
     }
 }
+
+/// Graph-backed gates find nothing in a file the index has never seen, so the
+/// coverage must name it instead of letting silence read as a clean review.
+/// A deleted file needs no index entry.
+#[tokio::test]
+async fn review_coverage_names_changed_files_the_index_has_not_seen() {
+    let (tmp, state) = build_state();
+    std::fs::write(tmp.path().join("project/Known.vb"), "Public Class Known\nEnd Class\n").unwrap();
+    std::fs::write(tmp.path().join("project/Fresh.vb"), "Public Class Fresh\nEnd Class\n").unwrap();
+    let mut known = func("Known.vb", "", "Known.vb");
+    known.node_id = "file:Known.vb".into();
+    known.node_type = "file".into();
+    state.graph.upsert_nodes(PID, &[known]).unwrap();
+    let engram = Engram::new(state);
+    let diff = "diff --git a/Known.vb b/Known.vb\n--- a/Known.vb\n+++ b/Known.vb\n@@ -1,2 +1,2 @@\n-Public Class Known \n+Public Class Known\n End Class\n\
+diff --git a/Fresh.vb b/Fresh.vb\nnew file mode 100644\n--- /dev/null\n+++ b/Fresh.vb\n@@ -0,0 +1,2 @@\n+Public Class Fresh\n+End Class\n\
+diff --git a/Gone.vb b/Gone.vb\ndeleted file mode 100644\n--- a/Gone.vb\n+++ /dev/null\n@@ -1,2 +0,0 @@\n-Public Class Gone\n-End Class\n";
+    let result = engram
+        .handle_pre_commit_review(
+            serde_json::from_value(json!({"project_id":PID,"diff":diff,"output_json":true}))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let body: serde_json::Value =
+        serde_json::from_str(&result.content[0].as_text().unwrap().text).unwrap();
+    assert_eq!(
+        body["coverage"]["unindexed_files"],
+        json!(["Fresh.vb"]),
+        "{}",
+        body["coverage"]
+    );
+}
