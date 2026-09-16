@@ -458,6 +458,28 @@ pub(crate) fn name_tokens(name: &str) -> Vec<String> {
 /// NOT `reorder`), or (b) for multi-word stems, the concatenation of
 /// CONSECUTIVE tokens starting at a token boundary begins with the stem's
 /// compact form (`user role`/`userrole` → `UserRoleProvider`).
+/// How closely `name` matches the concept, for ordering a footprint group
+/// before it is capped: `0` a token IS a stem, `1` a token starts with one,
+/// `2` matched only by concatenating consecutive tokens. Names that do not
+/// match at all never reach a group, so `2` is the floor there.
+pub(crate) fn concept_match_rank(name: &str, stems: &[String]) -> u8 {
+    let tokens = name_tokens(name);
+    let mut best = 2;
+    for s in stems {
+        let s_compact: String = s.chars().filter(|c| c.is_alphanumeric()).collect();
+        if s_compact.is_empty() {
+            continue;
+        }
+        if tokens.iter().any(|t| *t == s_compact) {
+            return 0;
+        }
+        if tokens.iter().any(|t| t.starts_with(&s_compact)) {
+            best = best.min(1);
+        }
+    }
+    best
+}
+
 pub(crate) fn matches_concept(name: &str, stems: &[String]) -> bool {
     let tokens = name_tokens(name);
     if tokens.is_empty() {
@@ -1152,6 +1174,11 @@ impl Engram {
             for list in groups.values_mut() {
                 list.sort();
                 list.dedup();
+                // A group is capped (`max_per_group`), so its ORDER decides what
+                // the caller sees. Alphabetical order gave the slots to whatever
+                // sorted first; rank by how well each name matches the concept,
+                // keeping the sort stable so alphabetical remains the tiebreak.
+                list.sort_by_key(|(name, _, _, _)| concept_match_rank(name, &stems_b));
             }
 
             // Consumers of the anchor tables / state keys: who reads/writes.
