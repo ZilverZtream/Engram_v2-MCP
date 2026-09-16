@@ -125,6 +125,45 @@ pub fn is_vendor_path(rel_path: &str) -> bool {
     false
 }
 
+/// True for files that DECLARE without implementing: TypeScript declaration
+/// files and the `typings/` trees they live in. They are legitimate index
+/// content — an agent may need to read a contract — but they can never be the
+/// place a behaviour is implemented, so discovery tools that answer "where does
+/// this live / what do I imitate" must not spend their budget on them.
+///
+/// Deliberately NOT part of `is_vendor_path`: that function decides what feeds
+/// the code graph, and its contract is conservative on purpose (an app-owned
+/// bundle like `~.js/map.js` stays in the graph, asserted by its own test).
+pub fn is_declaration_path(rel_path: &str) -> bool {
+    let norm = rel_path.replace('\\', "/").to_ascii_lowercase();
+    if norm.ends_with(".d.ts") {
+        return true;
+    }
+    norm.split('/').any(|seg| seg == "typings" || seg == "@types")
+}
+
+#[cfg(test)]
+mod declaration_path_tests {
+    use super::is_declaration_path;
+
+    #[test]
+    fn declaration_files_and_typings_trees_match() {
+        assert!(is_declaration_path("Q/typings/google.maps/index.d.ts"));
+        assert!(is_declaration_path("ts/vendor/globals.d.ts"));
+        assert!(is_declaration_path("web/node_modules/@types/node/fs.ts"));
+        assert!(is_declaration_path(r"Q\typings\jquery\index.d.ts"), "backslashes");
+    }
+
+    #[test]
+    fn implementations_do_not_match() {
+        assert!(!is_declaration_path("ts/taskManagement/ITaskManager.ts"));
+        assert!(!is_declaration_path("App_Code/projektplanering/code/aktivitet.vb"));
+        // An app-owned compiled bundle is generated, but it is not a declaration:
+        // `is_vendor_path` deliberately keeps it in the graph, so this must agree.
+        assert!(!is_declaration_path("modules/map/~.js/map.js"));
+    }
+}
+
 #[cfg(test)]
 mod vendor_path_tests {
     use super::is_vendor_path;
