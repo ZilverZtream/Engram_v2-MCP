@@ -5853,12 +5853,18 @@ impl Engram {
             // is computed from identical facts (body read, complexity
             // estimated, blast attempted, coverage recorded).
             let ev = assemble_edit_evidence(&graph, &project_id, &project_dir, node)?;
-            Ok::<EditSafetyResult, String>(ev.edit_safety)
+            // The callers travel WITH the verdict: they are already resolved
+            // here, and "how many callers" cannot answer the question an edit
+            // actually turns on — WHICH paths reach this method.
+            Ok::<(EditSafetyResult, Vec<CallerLocation>), String>((
+                ev.edit_safety,
+                ev.method_info.called_by,
+            ))
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        let safety = result.map_err(|e| McpError::invalid_params(e, None))?;
+        let (safety, callers) = result.map_err(|e| McpError::invalid_params(e, None))?;
 
         if output_json {
             let json = serde_json::to_string_pretty(&safety)
@@ -5898,12 +5904,23 @@ impl Engram {
             }
         }
 
+        if !callers.is_empty() {
+            const CALLERS_SHOWN: usize = 10;
+            md.push_str("\n### Callers\n\n");
+            for c in callers.iter().take(CALLERS_SHOWN) {
+                md.push_str(&format!("- `{}` ({}:{})\n", c.fqn, c.file_path, c.line));
+            }
+            if callers.len() > CALLERS_SHOWN {
+                md.push_str(&format!("- … and {} more\n", callers.len() - CALLERS_SHOWN));
+            }
+        }
+
         md.push('\n');
         md.push_str(&render_coverage_block(&safety.completeness));
 
         md.push_str(
-            "next: find_symbol_references(<method>) for the caller list; \
-             get_method_edit_context before making the edit.\n",
+            "next: get_method_edit_context before making the edit; \
+             find_symbol_references(<method>) for callers beyond those shown.\n",
         );
         let (banner, footer) = self
             .access_freshness(&req.project_id, &rec.directory, Some(&req.file_path))
