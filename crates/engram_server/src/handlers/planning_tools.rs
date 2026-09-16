@@ -1770,7 +1770,21 @@ impl Engram {
         let mut per_file: BTreeMap<String, (usize, f32, String, u32)> = BTreeMap::new();
         for h in hits.iter().take(PATTERN_LEXICAL_CAP) {
             let path = h.path.as_str().replace('\\', "/");
-            if engram_core::is_vendor_path(&path) {
+            // Nothing here can be imitated as a house pattern: a declaration
+            // file states a contract without implementing it (`PatternKind::
+            // Script` already excluded these — the exclusion belongs to the
+            // tool, not to one kind), and a build-output directory holds
+            // generated artifacts. Live, a vendored library's XML docs under
+            // `Bin/` and a `.d.ts` took exemplar slots 1 and 2 on lexical score
+            // while the tool itself reported "no house pattern can be claimed".
+            // Ranking is untouched: lexical fit still decides among real code.
+            let lower = path.to_ascii_lowercase();
+            let not_implementable = lower.ends_with(".d.ts")
+                || lower.starts_with("bin/")
+                || lower.contains("/bin/")
+                || lower.starts_with("obj/")
+                || lower.contains("/obj/");
+            if engram_core::is_vendor_path(&path) || not_implementable {
                 continue;
             }
             let entry = per_file
