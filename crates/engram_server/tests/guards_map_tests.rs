@@ -580,6 +580,121 @@ async fn a_same_class_helper_declared_in_another_file_is_not_unresolved() {
 }
 
 #[tokio::test]
+async fn same_file_overloads_that_agree_do_not_erase_the_verdict() {
+    // The cross-file path added for partial classes resolves overloads
+    // honestly: candidates that AGREE on carrying a permission check proceed,
+    // and only DISAGREEMENT keeps the verdict unknown. The older same-file
+    // lexical path is harsher — any `matches.len() != 1` is a hard failure — so
+    // two overloads of a check-less helper erase a verdict in one file while
+    // the same pair one file over no longer does. Incoherent, and this is the
+    // largest remaining failure class.
+    let (_tmp, state, dir) = build_state();
+    write_source(
+        &dir,
+        PART_A,
+        &[
+            "Sub Caller()",
+            "    LogThing()",
+            "    Return",
+            "End Sub",
+            "Sub LogThing()",
+            "    Return",
+            "End Sub",
+            "Sub LogThing(reason)",
+            "    Return",
+            "End Sub",
+        ],
+    );
+    let caller = qualified(PART_A, "api.Caller", 1, None);
+    // Two overloads in the SAME file; neither carries a permission check, so
+    // which one binds cannot change the guard answer.
+    let first = qualified(PART_A, "api.LogThing", 5, None);
+    let second = qualified(PART_A, "api.LogThing", 8, None);
+    state
+        .graph
+        .upsert_nodes(PID, &[caller, first, second])
+        .unwrap();
+
+    let text = run(
+        &Engram::new(state),
+        json!({"project_id":PID,"scope":PART_A,"output_json":true}),
+    )
+    .await;
+    let report: Value = serde_json::from_str(&text).unwrap();
+    let caller_verdict = report["functions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|f| f["name"] == "Caller")
+        .map(|f| f["verdict"].as_str().unwrap_or_default().to_string())
+        .unwrap_or_default();
+    assert_eq!(
+        caller_verdict, "unguarded",
+        "overloads that agree on carrying no permission check cannot be missing \
+         guard evidence:\n{text}"
+    );
+}
+
+#[tokio::test]
+async fn same_file_overloads_that_disagree_still_erase_the_verdict() {
+    // The other half, and the reason this cannot simply take the first match:
+    // when one overload guards and the other does not, WHICH one binds decides
+    // the verdict, so `unknown` is the honest answer. The sibling case where
+    // EVERY overload carries a check is equally unsafe to credit and is pinned
+    // by `quoted_helpers_and_ambiguous_overloads_do_not_receive_guard_credit`
+    // in guards_conditional_check_tests.rs: overloads are different functions,
+    // so "they all have checks" is not evidence that the one actually bound
+    // guards every path. Only the all-check-LESS case may be admitted.
+    let (_tmp, state, dir) = build_state();
+    write_source(
+        &dir,
+        PART_A,
+        &[
+            "Sub Caller()",
+            "    LogThing()",
+            "    Return",
+            "End Sub",
+            "Sub LogThing()",
+            "    CheckRead()",
+            "End Sub",
+            "Sub LogThing(reason)",
+            "    Return",
+            "End Sub",
+        ],
+    );
+    let caller = qualified(PART_A, "api.Caller", 1, None);
+    let guarded = qualified(
+        PART_A,
+        "api.LogThing",
+        5,
+        Some(json!({"permission_checks": "CheckRead"})),
+    );
+    let bare = qualified(PART_A, "api.LogThing", 8, None);
+    state
+        .graph
+        .upsert_nodes(PID, &[caller, guarded, bare])
+        .unwrap();
+
+    let text = run(
+        &Engram::new(state),
+        json!({"project_id":PID,"scope":PART_A,"output_json":true}),
+    )
+    .await;
+    let report: Value = serde_json::from_str(&text).unwrap();
+    let caller_verdict = report["functions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|f| f["name"] == "Caller")
+        .map(|f| f["verdict"].as_str().unwrap_or_default().to_string())
+        .unwrap_or_default();
+    assert_eq!(
+        caller_verdict, "unknown",
+        "disagreeing overloads must keep the verdict unknown:\n{text}"
+    );
+}
+
+#[tokio::test]
 async fn a_language_builtin_is_not_an_unresolved_project_helper() {
     // `IsNothing` is a VB language intrinsic, not a project symbol. It resolves
     // to no node, and a bare unresolved name is deliberately treated as a
