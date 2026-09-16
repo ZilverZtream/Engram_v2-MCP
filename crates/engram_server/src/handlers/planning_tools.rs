@@ -3568,7 +3568,14 @@ pub(crate) struct GuardsCoverage {
     pub scope_query: String,
     pub in_scope_functions: usize,
     pub caps: Vec<String>,
+    /// Evidence that COULD have changed a verdict and was unavailable. Only
+    /// these count as incomplete guard evidence.
     pub failures: Vec<String>,
+    /// Reported but verdict-neutral: unresolved call targets that cannot hold
+    /// a permission check (a call through a receiver, an anonymous type). They
+    /// stay visible so nothing is hidden, but they never demote a verdict.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub notes: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default, serde::Serialize)]
@@ -3631,8 +3638,19 @@ fn helper_candidates(
     n: &engram_graph::Node,
     body: Option<&str>,
     file_fns: &HashMap<(String, String), Vec<engram_graph::Node>>,
+    class_fns: &HashMap<(String, String), Vec<engram_graph::Node>>,
     failures: &mut Vec<String>,
+    notes: &mut Vec<String>,
 ) -> Vec<engram_graph::Node> {
+    // A failure is what demotes a verdict, so it has to be attributable to the
+    // function it pins — and the report names a function by its BARE name.
+    let owner = n.name.rsplit('.').next().unwrap_or(&n.name).to_string();
+    // The class this function belongs to, for a bare call to a member declared
+    // in another file of the same (partial) class.
+    let own_class = n
+        .name
+        .rsplit_once('.')
+        .map(|(class, _)| class.to_ascii_lowercase());
     static RE_BARE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
         regex::Regex::new(r"(?:^|[^.\w])([A-Za-z_]\w*)\s*\(").expect("RE_BARE")
     });
@@ -3654,8 +3672,8 @@ fn helper_candidates(
                 if let Some(matches) = file_fns.get(&key) {
                     if matches.len() != 1 {
                         failures.push(format!(
-                            "{}: lexical helper {} is ambiguous; require a resolved graph edge",
-                            n.name, &cap[1]
+                            "{owner}: lexical helper {} is ambiguous; require a resolved graph edge",
+                            &cap[1]
                         ));
                         continue;
                     }
@@ -3671,8 +3689,7 @@ fn helper_candidates(
         Ok(mut neigh) => {
             if neigh.len() > GUARD_HELPER_HOP_CAP {
                 failures.push(format!(
-                    "{}: helper traversal truncated at {GUARD_HELPER_HOP_CAP}",
-                    n.name
+                    "{owner}: helper traversal truncated at {GUARD_HELPER_HOP_CAP}"
                 ));
                 neigh.truncate(GUARD_HELPER_HOP_CAP);
             }
@@ -3685,19 +3702,112 @@ fn helper_candidates(
                         seen.insert(target);
                         out.push(t);
                     }
-                    Ok(None) => failures.push(format!(
-                        "{}: unresolved helper {target}; guard coverage unknown",
-                        n.name
-                    )),
+                    // An unresolved target that cannot be a project symbol is
+                    // reported, but it is NOT missing guard evidence: counting
+                    // it demotes a correct `unguarded` to `unknown` (the
+                    // `incomplete_helpers` rule) on every file that calls a
+                    // library or uses LINQ. Diagnostics go to `notes`; only a
+                    // plausible project helper goes to `failures`.
+                    Ok(None) => {
+                        if target_cannot_hold_a_guard(&target) {
+                            notes.push(format!(
+                                "{owner}: unresolved call {target} cannot hold a guard; not counted as missing guard evidence"
+                            ));
+                        } else if let Some(resolved) =
+                            same_class_candidates(class_fns, own_class.as_deref(), &target)
+                        {
+                            // Overloads are irrelevant to the guard question when
+                            // the candidates AGREE; when they disagree, which one
+                            // binds decides the verdict, so it stays unknown.
+                            let carries = |c: &engram_graph::Node| {
+                                !node_meta_str(c, "permission_checks").is_empty()
+                            };
+                            if resolved.iter().any(&carries) && !resolved.iter().all(&carries) {
+                                failures.push(format!(
+                                    "{owner}: {target} matches {} same-class candidates that disagree on carrying a permission check",
+                                    resolved.len()
+                                ));
+                            } else {
+                                notes.push(format!(
+                                    "{owner}: {target} resolved to {} same-class candidate(s) declared in another file",
+                                    resolved.len()
+                                ));
+                                for candidate in resolved {
+                                    if candidate.node_id != n.node_id
+                                        && seen.insert(candidate.node_id.clone())
+                                    {
+                                        out.push(candidate);
+                                    }
+                                }
+                            }
+                        } else if engram_core::is_language_builtin(&target) {
+                            notes.push(format!(
+                                "{owner}: {target} is a language built-in, not a project helper; not counted as missing guard evidence"
+                            ));
+                        } else {
+                            failures.push(format!(
+                                "{owner}: unresolved helper {target}; guard coverage unknown"
+                            ));
+                        }
+                    }
                     Err(e) => {
-                        failures.push(format!("{}: helper lookup {target} failed: {e}", n.name))
+                        failures.push(format!("{owner}: helper lookup {target} failed: {e}"))
                     }
                 }
             }
         }
-        Err(e) => failures.push(format!("{}: Calls lookup failed: {e}", n.name)),
+        Err(e) => failures.push(format!("{owner}: Calls lookup failed: {e}")),
     }
     out
+}
+
+/// Functions of the SAME class that could satisfy a bare unresolved call.
+///
+/// A class may be declared across several files (VB `Partial Class`, C#
+/// `partial class`). The lexical fallback is keyed by FILE, so a bare call to a
+/// member declared in a sibling file never binds and its name is reported
+/// "unresolved" although the member is indexed — which erases the caller's
+/// verdict. Only a bare name qualifies: a call through a receiver is already
+/// excluded by `target_cannot_hold_a_guard`.
+fn same_class_candidates(
+    class_fns: &HashMap<(String, String), Vec<engram_graph::Node>>,
+    own_class: Option<&str>,
+    target: &str,
+) -> Option<Vec<engram_graph::Node>> {
+    let class = own_class?;
+    let name = target.trim_start_matches("::");
+    let name = name.split('(').next().unwrap_or(name).trim();
+    if name.is_empty() || name.contains('.') {
+        return None;
+    }
+    let hit = class_fns.get(&(class.to_string(), name.to_ascii_lowercase()))?;
+    (!hit.is_empty()).then(|| hit.clone())
+}
+
+/// True when an unresolved `Calls` target CANNOT be a project helper, so its
+/// absence says nothing about guard coverage.
+///
+/// Live (a VB api file): all nine functions came back `unknown` with "helper
+/// evidence is incomplete" because the unresolved targets were
+/// `JsonConvert.SerializeObject`, `permitsList.Select(Function(x) …)`,
+/// `s.SetError`, `permitTypes.Item(…)` and anonymous-type members. None of
+/// those can hold a permission check, yet each one erased the verdict.
+///
+/// Deliberately conservative: a BARE name (`::MissingGuard`) may well be an
+/// in-project helper the index has not resolved, so it still counts as
+/// incomplete evidence. Only shapes that cannot name a project symbol are
+/// excused — a call through a receiver, and an anonymous type.
+pub(crate) fn target_cannot_hold_a_guard(target: &str) -> bool {
+    let t = target.trim_start_matches("::");
+    // `<anonymous type: a As X, b As Y>.member` — a compiler-synthesised type.
+    if t.starts_with('<') {
+        return true;
+    }
+    // A call through a receiver: `local.Member`, `Lib.Call(...)`, including
+    // chained LINQ (`list.Select(...).Distinct().ToArray`). A project helper is
+    // emitted here as a bare name, not as member access on a value.
+    let head = t.split(['(', '.']).next().unwrap_or("");
+    t.contains('.') && !head.is_empty()
 }
 
 /// Client-supplied scope keys read in a function body.
@@ -3705,6 +3815,10 @@ pub(crate) fn client_scope_reads(body: &str) -> Vec<String> {
     static RE_READS: std::sync::LazyLock<Vec<regex::Regex>> = std::sync::LazyLock::new(|| {
         [
             r#"(?i)qry\.(?:params|data)\s*\(\s*"(\w+)"\s*\)"#,
+            // `.Item("k")` / `.ContainsKey("k")` — the ordinary dictionary
+            // accessors. Without them a function that reads several client keys
+            // reports "no client input" at all.
+            r#"(?i)qry\.(?:params|data)\s*\.\s*(?:item|containskey)\s*\(\s*"(\w+)"\s*\)"#,
             r#"(?i)GetDictionary\w*Value\s*\(\s*qry\.(?:params|data)\s*,\s*"(\w+)"\s*\)"#,
             r#"(?i)\bRequest(?:\.QueryString|\.Form|\.Params)?\s*\(\s*"(\w+)"\s*\)"#,
         ]
@@ -4061,6 +4175,17 @@ pub(crate) fn build_guards_report(
         );
         file_fns.entry(key).or_default().push(node.clone());
     }
+    // (class lower, bare lower) → function nodes, for a bare call to a member of
+    // the same class declared in ANOTHER file (partial classes).
+    let mut class_fns: HashMap<(String, String), Vec<engram_graph::Node>> = HashMap::new();
+    for node in all_nodes.iter().filter(|n| n.node_type == "function") {
+        if let Some((class, bare)) = node.name.rsplit_once('.') {
+            class_fns
+                .entry((class.to_ascii_lowercase(), bare.to_ascii_lowercase()))
+                .or_default()
+                .push(node.clone());
+        }
+    }
     for n in &scoped {
         let checks = node_meta_str(n, "permission_checks").to_string();
         let roles = node_meta_str(n, "guard_roles").to_string();
@@ -4119,13 +4244,37 @@ pub(crate) fn build_guards_report(
             own_check_conditional: false,
         };
         let failures_before = cov.failures.len();
-        let mut candidates =
-            helper_candidates(graph, pid, n, body.as_deref(), &file_fns, &mut cov.failures);
+        let mut notes = std::mem::take(&mut cov.notes);
+        let mut candidates = helper_candidates(
+            graph,
+            pid,
+            n,
+            body.as_deref(),
+            &file_fns,
+            &class_fns,
+            &mut cov.failures,
+            &mut notes,
+        );
         candidates.retain(|helper| {
             if node_meta_str(helper, "extraction_fallback") == "true" {
                 cov.failures.push(format!(
-                    "{}: helper {} has fallback extraction",
-                    n.name, helper.name
+                    "{bare}: helper {} has fallback extraction",
+                    helper.name
+                ));
+                return false;
+            }
+            // A helper that carries NO permission check could never have
+            // supplied a guard, so nothing about it — unreadable source, a
+            // conditional call site — is missing GUARD evidence. Live, 81 of 93
+            // failures on one api file were "helper <X> is conditional" for
+            // `_data.records.GetById`, `AppDataContext.New`, `api.JsonResult.New`
+            // and friends, which demoted every correct `unguarded` to `unknown`.
+            // Drop it as a candidate with a note; crediting is unaffected because
+            // every credit path already requires non-empty `permission_checks`.
+            if node_meta_str(helper, "permission_checks").is_empty() {
+                notes.push(format!(
+                    "{bare}: helper {} carries no permission check; not counted as missing guard evidence",
+                    helper.name
                 ));
                 return false;
             }
@@ -4140,7 +4289,7 @@ pub(crate) fn build_guards_report(
             });
             if let Err(error) = check {
                 cov.failures
-                    .push(format!("{}: helper {}: {error}", n.name, helper.name));
+                    .push(format!("{bare}: helper {}: {error}", helper.name));
                 return false;
             }
             let helper_name = helper.name.rsplit('.').next().unwrap_or(&helper.name);
@@ -4166,13 +4315,17 @@ pub(crate) fn build_guards_report(
                 })
             {
                 cov.failures.push(format!(
-                    "{}: helper {} is conditional; all-path coverage unknown",
-                    n.name, helper.name
+                    "{bare}: helper {} is conditional; all-path coverage unknown",
+                    helper.name
                 ));
                 return false;
             }
             true
         });
+        // Written back only after the retain closure is done with it: the
+        // closure records verdict-neutral notes, so `notes` must stay a live
+        // local until then.
+        cov.notes = notes;
         let incomplete_helpers = cov.failures.len() > failures_before;
         let credit = |v: &mut GuardVerdict, t: &engram_graph::Node, why: &str| {
             let tc = node_meta_str(t, "permission_checks");
