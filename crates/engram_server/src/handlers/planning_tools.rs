@@ -7934,6 +7934,12 @@ pub(crate) struct ChangeSetOmission {
     pub path: String,
     pub layer: &'static str,
     pub reason: String,
+    /// The evidence the cut row carried. Without these a caller cannot tell a
+    /// correct cut from a wrong one: live, 89 rows were omitted reporting only
+    /// path/layer/reason, so no ranking change could be evaluated from the
+    /// answer at all.
+    pub tier: u8,
+    pub signals: Vec<&'static str>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -8114,6 +8120,8 @@ pub(crate) fn change_set_rows(
                     reason: format!(
                         "weak-signal tail cap ({CHANGE_SET_TAIL_CAP} per layer) in '{lname}'"
                     ),
+                    tier,
+                    signals: signals(sigs),
                 });
             }
         }
@@ -8677,7 +8685,8 @@ fn render_change_set(
     if !omissions.is_empty() {
         s.push_str(&format!(
             "\n_{} weak-signal candidate(s) omitted by the per-layer tail cap \
-             ({CHANGE_SET_TAIL_CAP}); listed under `omissions` in output_json._\n",
+             ({CHANGE_SET_TAIL_CAP}); listed under `omissions` in output_json, each with the \
+             tier and signals it was cut on so the cut can be checked._\n",
             omissions.len()
         ));
     }
@@ -14376,6 +14385,30 @@ mod change_set_rows_tests {
         assert!(
             rows.iter()
                 .any(|r| r.path.ends_with(".resx") && !r.signals.contains(&"family"))
+        );
+    }
+
+    #[test]
+    fn a_tail_cap_omission_carries_the_evidence_it_was_cut_on() {
+        // Live 1690: 89 rows were omitted by the tail cap, and each omission
+        // reported only path/layer/reason. Nothing in the answer says WHAT
+        // evidence the cut row had, so a caller cannot tell a correct cut from
+        // a wrong one — which is exactly why a ranking change to the companion
+        // order could not be evaluated from the output at all.
+        let mut prov: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
+        for i in 0..20 {
+            prov.insert(
+                format!("site/app_code/weak{i:02}.vb"),
+                BTreeSet::from(["concept"]),
+            );
+        }
+        let (_rows, omissions) = change_set_rows(&prov);
+        assert!(!omissions.is_empty());
+        let cut = &omissions[0];
+        assert!(cut.tier >= 2, "the cut row's tier must travel with it: {cut:?}");
+        assert!(
+            !cut.signals.is_empty(),
+            "the cut row's evidence must travel with it: {cut:?}"
         );
     }
 
