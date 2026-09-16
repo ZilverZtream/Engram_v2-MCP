@@ -7995,8 +7995,15 @@ pub(crate) fn change_set_rows(
         }
     }
     rest.sort_by(|a, b| {
+        // Companions are cut by the per-layer tail cap, so this ORDER decides
+        // which ones survive. Ordering by depth alone dropped the file that
+        // DEFINED the capability a story needed while shallower rows carrying
+        // LESS evidence stayed (live: a filter model at depth 5 was omitted in
+        // favour of unrelated same-layer rows). Rank by the same evidence
+        // strength the primary set is ranked by; depth stays the tiebreak.
         a.3.cmp(&b.3)
             .then(a.2.cmp(&b.2))
+            .then(change_set_strength(b.1).cmp(&change_set_strength(a.1)))
             .then(depth(a.0).cmp(&depth(b.0)))
             .then(a.0.cmp(b.0))
     });
@@ -14314,6 +14321,35 @@ mod change_set_rows_tests {
         assert!(
             rows.iter()
                 .any(|r| r.path.ends_with(".resx") && !r.signals.contains(&"family"))
+        );
+    }
+
+    #[test]
+    fn the_tail_cap_cuts_the_weakest_companion_not_the_deepest() {
+        // Live (story 1690): the file DEFINING the capability the story needed,
+        // `App_Code/integration/code/gis/Layer/GISLayerFilter.vb` at depth 5,
+        // was cut with reason "weak-signal tail cap (18 per layer)" while
+        // shallower rows carrying LESS evidence survived — companions are
+        // ordered by (layer, tier, depth, path), which drops the evidence
+        // strength the primary set is ranked by.
+        let mut prov: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
+        for i in 0..20 {
+            prov.insert(
+                format!("site/app_code/weak{i:02}.vb"),
+                BTreeSet::from(["concept"]),
+            );
+        }
+        // Same layer and same tier (concept without independent corroboration),
+        // but two pieces of evidence instead of one — and a deeper path.
+        prov.insert(
+            "site/app_code/gis/layer/filter/stronger.vb".into(),
+            BTreeSet::from(["concept", "lexicon"]),
+        );
+        let (_rows, omissions) = change_set_rows(&prov);
+        assert_eq!(omissions.len(), 3, "{omissions:?}");
+        assert!(
+            !omissions.iter().any(|o| o.path.ends_with("stronger.vb")),
+            "the cap must cut the WEAKEST companion, not the deepest path: {omissions:?}"
         );
     }
 
