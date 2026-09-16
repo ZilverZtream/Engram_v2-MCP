@@ -142,6 +142,69 @@ pub fn is_declaration_path(rel_path: &str) -> bool {
     norm.split('/').any(|seg| seg == "typings" || seg == "@types")
 }
 
+/// True for a call target naming a LANGUAGE INTRINSIC rather than a symbol a
+/// project could declare: VB's `Information`/`Conversion` functions and the
+/// cast operators. They resolve to no node, so a tool that treats an
+/// unresolved bare name as "a project helper I failed to find" ends up blaming
+/// the language itself for missing evidence.
+///
+/// Consulted ONLY after symbol resolution has already failed. A project that
+/// declares its own `CStr` resolves to a real node and never reaches this
+/// predicate, so the list can never shadow real code.
+pub fn is_language_builtin(name: &str) -> bool {
+    const BUILTINS: [&str; 24] = [
+        "isnothing",
+        "isnumeric",
+        "isdate",
+        "isdbnull",
+        "isarray",
+        "iserror",
+        "ctype",
+        "directcast",
+        "trycast",
+        "gettype",
+        "typeof",
+        "nameof",
+        "cstr",
+        "cint",
+        "clng",
+        "cdbl",
+        "csng",
+        "cdec",
+        "cbool",
+        "cdate",
+        "cobj",
+        "cchar",
+        "cbyte",
+        "iif",
+    ];
+    let bare = name.trim_start_matches("::");
+    let bare = bare.split('(').next().unwrap_or(bare).trim();
+    let bare = bare.rsplit('.').next().unwrap_or(bare);
+    BUILTINS.iter().any(|b| bare.eq_ignore_ascii_case(b))
+}
+
+#[cfg(test)]
+mod language_builtin_tests {
+    use super::is_language_builtin;
+
+    #[test]
+    fn intrinsics_and_casts_match_however_the_target_is_spelled() {
+        assert!(is_language_builtin("::IsNothing"));
+        assert!(is_language_builtin("isnumeric"));
+        assert!(is_language_builtin("CType"));
+        assert!(is_language_builtin("::DirectCast(x, Y)"));
+    }
+
+    #[test]
+    fn project_symbols_do_not_match() {
+        assert!(!is_language_builtin("::LogThing"));
+        assert!(!is_language_builtin("CheckAccess"));
+        // A longer name that merely starts with an intrinsic is a project symbol.
+        assert!(!is_language_builtin("::IsNothingSpecial"));
+    }
+}
+
 #[cfg(test)]
 mod declaration_path_tests {
     use super::is_declaration_path;
