@@ -3670,16 +3670,44 @@ fn helper_candidates(
             for cap in RE_BARE.captures_iter(code) {
                 let key = (file.clone(), cap[1].to_ascii_lowercase());
                 if let Some(matches) = file_fns.get(&key) {
-                    if matches.len() != 1 {
+                    // Drop the function's OWN node before judging ambiguity: an
+                    // overloaded name otherwise makes a function poison its own
+                    // verdict, which says nothing about guards. The graph path
+                    // below excludes self the same way.
+                    let candidates: Vec<&engram_graph::Node> = matches
+                        .iter()
+                        .filter(|t| t.node_id != n.node_id)
+                        .collect();
+                    if candidates.is_empty() {
+                        continue;
+                    }
+                    // Ambiguity is only harmless in ONE direction. If no
+                    // candidate carries a permission check, none of them could
+                    // have supplied a guard whichever binds, so admitting them
+                    // cannot over-credit — that is the case where an overloaded
+                    // check-less helper used to erase a verdict in its own file
+                    // while the same pair one file over no longer did.
+                    //
+                    // If any candidate DOES carry a check, ambiguity stands.
+                    // Overloads are different functions: metadata saying they
+                    // all check is not evidence that the one actually bound
+                    // guards every path, and crediting it would assert a guard
+                    // the tool cannot attribute to a specific callee.
+                    let carries = |t: &&engram_graph::Node| {
+                        !node_meta_str(t, "permission_checks").is_empty()
+                    };
+                    if candidates.len() > 1 && candidates.iter().any(carries) {
                         failures.push(format!(
-                            "{owner}: lexical helper {} is ambiguous; require a resolved graph edge",
-                            &cap[1]
+                            "{owner}: lexical helper {} matches {} overloads carrying permission checks; which one binds is unresolved",
+                            &cap[1],
+                            candidates.len()
                         ));
                         continue;
                     }
-                    let t = &matches[0];
-                    if t.node_id != n.node_id && seen.insert(t.node_id.clone()) {
-                        out.push(t.clone());
+                    for t in candidates {
+                        if seen.insert(t.node_id.clone()) {
+                            out.push(t.clone());
+                        }
                     }
                 }
             }
