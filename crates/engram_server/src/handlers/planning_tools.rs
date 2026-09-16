@@ -1120,7 +1120,7 @@ impl Engram {
         let pid = req.project_id.clone();
         let stems_b = stems.clone();
         type Entry = (String, String, String, u32); // name, node_id, file, line
-        let (groups, consumers, scan_truncated, mut cov) = tokio::task::spawn_blocking(move || {
+        let (groups, collapsed, consumers, scan_truncated, mut cov) = tokio::task::spawn_blocking(move || {
             let mut cov = FootprintCoverage {
                 anchor_cap: ANCHOR_CAP,
                 consumer_cap_per_anchor: CONSUMER_CAP_PER_ANCHOR,
@@ -1151,6 +1151,13 @@ impl Engram {
                 if !matches_concept(&n.name, &stems_b) {
                     continue;
                 }
+                // A declaration states a contract without implementing it, so it
+                // can never be where this concept lives. Live, five `typings/`
+                // classes held slots in a capped group while the function an edit
+                // would touch never appeared.
+                if engram_core::is_declaration_path(n.file_path.as_str()) {
+                    continue;
+                }
                 let group = match n.node_type.as_str() {
                     "db_table" | "db_column" => "data",
                     "stored_proc" | "stored_procedure" | "inline_sql" => "sql",
@@ -1171,7 +1178,8 @@ impl Engram {
                     n.start_line,
                 ));
             }
-            for list in groups.values_mut() {
+            let mut collapsed: BTreeMap<&'static str, usize> = BTreeMap::new();
+            for (key, list) in groups.iter_mut() {
                 list.sort();
                 list.dedup();
                 // A group is capped (`max_per_group`), so its ORDER decides what
@@ -1179,6 +1187,48 @@ impl Engram {
                 // sorted first; rank by how well each name matches the concept,
                 // keeping the sort stable so alphabetical remains the tiebreak.
                 list.sort_by_key(|(name, _, _, _)| concept_match_rank(name, &stems_b));
+                // One NAME occurring in many places — a function and its compiled
+                // copy, an overload set — must not spend the whole budget. Live,
+                // four rows of a single function name took half a group. Keep the
+                // best-ranked few; the rest are counted and reported, not dropped.
+                const PER_NAME: usize = 2;
+                let before = list.len();
+                let mut per_name: HashMap<String, usize> = HashMap::new();
+                list.retain(|(name, _, _, _)| {
+                    let seen = per_name.entry(name.clone()).or_insert(0);
+                    *seen += 1;
+                    *seen <= PER_NAME
+                });
+                // Breadth before depth: the cap decides how much of this group a
+                // caller ever sees, so spend it on the FILES a change has to
+                // reach. Live, "permit area" showed 8 rows of 424 and every one
+                // was a DTO member of one directory (`_` sorts first), while the
+                // file holding the logic got no slot at all. Take the best-ranked
+                // row of each distinct file first, then append the rest in the
+                // order they already had — a reordering, never a drop.
+                // Breadth applies WITHIN a rank band, never across one: a weaker
+                // match in a fresh file must not outrank a stronger match that
+                // happens to share a file with another strong one.
+                let mut ordered: Vec<Entry> = Vec::with_capacity(list.len());
+                for band in 0..=2u8 {
+                    let mut seen_files: HashSet<String> = HashSet::new();
+                    let (mut breadth, mut remainder): (Vec<Entry>, Vec<Entry>) =
+                        (Vec::new(), Vec::new());
+                    for entry in list
+                        .iter()
+                        .filter(|(name, _, _, _)| concept_match_rank(name, &stems_b) == band)
+                    {
+                        if seen_files.insert(entry.2.clone()) {
+                            breadth.push(entry.clone());
+                        } else {
+                            remainder.push(entry.clone());
+                        }
+                    }
+                    breadth.append(&mut remainder);
+                    ordered.append(&mut breadth);
+                }
+                *list = ordered;
+                collapsed.insert(*key, before - list.len());
             }
 
             // Consumers of the anchor tables / state keys: who reads/writes.
@@ -1232,7 +1282,7 @@ impl Engram {
             }
             consumers.sort();
             consumers.dedup();
-            (groups, consumers, scan_truncated, cov)
+            (groups, collapsed, consumers, scan_truncated, cov)
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -1407,6 +1457,11 @@ impl Engram {
             }
             if list.len() > cap {
                 out.push_str(&format!("  ... and {} more\n", list.len() - cap));
+            }
+            if let Some(n) = collapsed.get(key).copied().filter(|n| *n > 0) {
+                out.push_str(&format!(
+                    "  ({n} further occurrence(s) of names already listed, collapsed)\n"
+                ));
             }
         }
 
