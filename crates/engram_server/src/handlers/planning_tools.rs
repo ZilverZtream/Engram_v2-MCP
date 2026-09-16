@@ -12892,6 +12892,21 @@ fn retrieval_without_capture_labels(story: &str) -> String {
     use std::sync::LazyLock;
     static LABELS: LazyLock<regex::Regex> = LazyLock::new(|| {
         regex::Regex::new(concat!(
+            // A work item exported as MARKDOWN rather than composed by this
+            // handler: the entire heading LINE is framing. Requiring the `#`
+            // prefix is what separates scaffolding from prose — it keeps
+            // "Work item 847 must retain descriptions." untouched — and a
+            // heading naming no known label ("## Delivery window rules")
+            // matches nothing here and survives. Without this branch the
+            // `#{1,6}` prefix below is unreachable for heading form: the id
+            // alternative anchors `$` right after the number (so a trailing
+            // "(User Story)" defeats it) and the field labels demand a `:`
+            // (so "## Description" never matches). Live: the header tokens
+            // took two of the three concept slots.
+            r"(?im)^[ \t]*#{1,6}[ \t]+(?:",
+            r"(?:work[ \t]+item|issue|ticket)[ \t]*#?[ \t]*\d+[^\r\n]*|",
+            r"(?:title|description|repro(?:duction)?[ \t]+steps|acceptance[ \t]+criteria)[ \t]*",
+            r")\r?$|",
             r"(?im)^[ \t]*(?:#{1,6}[ \t]+)?(?:",
             r"(?:work[ \t]+item|issue|ticket)[ \t]+#?\d+(?:[ \t]*,[ \t]*(?:original[ \t]+)?revision[ \t]+\d+)?[ \t]*\r?$|",
             r"(?:original[ \t]+)?referenced[ \t]+image:[ \t]*\S+\.(?:png|jpe?g|gif|webp|svg)[ \t]*\r?$|",
@@ -13465,6 +13480,79 @@ mod work_item_tests {
         assert_eq!(
             story_for_concepts("Feature flag administration"),
             "Feature flag administration"
+        );
+    }
+
+    #[test]
+    fn concept_view_drops_markdown_work_item_scaffolding() {
+        // A work item exported as MARKDOWN, rather than composed by this
+        // handler: the id heading carries trailing text and the field headings
+        // carry no colon. The capture-label regex accepts a `#{1,6}` prefix but
+        // then anchors `$` right after the id and requires a `:` after a field
+        // label, so neither shape is reachable and both reach extraction.
+        let story = "# Work item 533 (User Story)\n\n\
+                     Title: Warn when saving an order outside the delivery window\n\n\
+                     ## Description\n\n\
+                     - An order saved outside the delivery window must warn the dispatcher.\n\n\
+                     ## Acceptance criteria\n\nNone recorded.\n";
+        let cleaned = story_for_concepts(story);
+        for scaffolding in ["Work item", "## Description", "Acceptance criteria"] {
+            assert!(!cleaned.contains(scaffolding), "{scaffolding} leaked into {cleaned}");
+        }
+        // The author's own words survive.
+        assert!(cleaned.contains("Warn when saving an order outside the delivery window"));
+        assert!(cleaned.contains("must warn the dispatcher"));
+    }
+
+    #[test]
+    fn markdown_scaffolding_does_not_consume_domain_concept_slots() {
+        // The same property `full_capture_framing_…` asserts for the composed
+        // shape: scaffolding must not change WHICH concepts surface.
+        let plain = "Warn when saving an order outside the delivery window. \
+                     An order saved outside the delivery window must warn the dispatcher.";
+        let scaffolded = format!(
+            "# Work item 533 (User Story)\n\nTitle: {plain}\n\n## Description\n\n{plain}\n\n\
+             ## Acceptance criteria\n\nNone recorded.\n"
+        );
+        assert_eq!(
+            super::extract_story_concepts(&story_for_concepts(&scaffolded)),
+            super::extract_story_concepts(plain),
+            "markdown scaffolding must not displace the story's domain concepts"
+        );
+    }
+
+    #[test]
+    fn scaffolding_stripping_is_not_tied_to_one_exporter_wording() {
+        // Different label vocabulary, id syntax and heading depth: the rule must
+        // key on the SHAPE of work-item framing, not one exporter's spelling.
+        for story in [
+            "### Issue #88 - Bug\n\n#### Repro steps\n\nOrder totals round down.",
+            "## Ticket 4120 (Defect)\n\n## Description\nOrder totals round down.",
+        ] {
+            let cleaned = story_for_concepts(story);
+            for scaffolding in ["Issue #88", "Repro steps", "Ticket 4120", "## Description"] {
+                assert!(!cleaned.contains(scaffolding), "{scaffolding} leaked into {cleaned}");
+            }
+            assert!(cleaned.contains("Order totals round down."), "{cleaned}");
+        }
+    }
+
+    #[test]
+    fn a_heading_that_is_domain_content_is_never_stripped() {
+        // Only a heading whose WHOLE text is a recognized work-item label may go.
+        // `story_for_concepts` always joins on whitespace (see the sibling
+        // tests), so compare CONTENT, not layout: the heading must survive.
+        let story = "## Delivery window rules\n\nAn order outside the window is rejected.";
+        let cleaned = story_for_concepts(story);
+        assert!(cleaned.contains("## Delivery window rules"), "{cleaned}");
+        assert!(
+            cleaned.contains("An order outside the window is rejected."),
+            "{cleaned}"
+        );
+        // And the standing prose invariant still holds (see the sibling test).
+        assert_eq!(
+            story_for_concepts("Work item 847 must retain descriptions."),
+            "Work item 847 must retain descriptions."
         );
     }
 
