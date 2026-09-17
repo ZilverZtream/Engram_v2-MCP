@@ -3111,6 +3111,91 @@ mod tests {
         );
     }
 
+    /// Casing is not cosmetic here: an index can carry `Page.aspx.VB` or
+    /// `Page.ASPX.vb`, and a pairing rule that only recognises the spellings I
+    /// happened to observe would let the very severance it exists to prevent
+    /// through unnoticed on the others — silently, with no failing test.
+    #[test]
+    fn a_code_behind_is_recognised_whatever_its_casing() {
+        for (path, want) in [
+            ("modules/x/page.aspx.vb", Some("modules/x/page.aspx")),
+            ("modules/x/Page.aspx.VB", Some("modules/x/Page.aspx")),
+            ("modules/x/Page.ASPX.vb", Some("modules/x/Page.ASPX")),
+            ("modules/x/Page.Aspx.Vb", Some("modules/x/Page.Aspx")),
+            ("modules/x/ctrl.ascx.vb", Some("modules/x/ctrl.ascx")),
+            ("modules/x/site.master.VB", Some("modules/x/site.master")),
+            // A plain source file is not a code-behind and must not pair.
+            ("app_code/helper.vb", None),
+            ("app_code/helper.designer.vb", None),
+        ] {
+            assert_eq!(markup_of_code_behind(path), want, "for `{path}`");
+        }
+    }
+
+    /// A page is edited as a PAIR. The shipped checklist says so in as many
+    /// words — "edit BOTH the .aspx/.ascx markup AND its .aspx.vb code-behind"
+    /// — yet the per-layer tail cap is a QUOTA that counts rows, not pairs, so
+    /// it happily keeps the markup and cuts the code-behind out from under it.
+    /// Measured on two replayed PRs: 15 of 52 pairs severed (9/31 and 6/15),
+    /// 29% in BOTH, always markup-kept/code-behind-cut, and always clustered on
+    /// the cap boundary. Half a page is worse than neither half: the agent is
+    /// told a page is in scope and handed the file that cannot implement it.
+    ///
+    /// The codebase already has the answer for a different family — a localised
+    /// .resx set is expanded as an "atomic set" — so a markup/code-behind pair
+    /// should be charged to the cap together, not raced against each other.
+    #[test]
+    fn a_delivered_markup_row_never_leaves_its_code_behind_cut() {
+        // Every row is deliberately identical except its path: one signal
+        // (`concept` -> tier 3, strength 1), one directory (equal depth), one
+        // layer. Sorting therefore collapses to the final `path` tiebreak, and
+        // `page.aspx` sorts before `page.aspx.vb` because it is a strict
+        // prefix. 17 fillers put the markup at tail slot 18 (exactly the cap,
+        // kept) and the code-behind at 19 (cut). Nothing can reach the primary
+        // set: tier 3 exceeds CHANGE_SET_PRIMARY_MAX_TIER and `heads` takes
+        // only tier <= 1, so all 19 rows meet the tail loop.
+        let mut prov: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
+        for i in 0..17 {
+            prov.insert(
+                format!("site/app_code/aaa/file{i:02}.vb"),
+                ["concept"].into_iter().collect(),
+            );
+        }
+        let markup = "site/app_code/aaa/page.aspx";
+        let code_behind = "site/app_code/aaa/page.aspx.vb";
+        for p in [markup, code_behind] {
+            prov.insert(p.to_string(), ["concept"].into_iter().collect());
+        }
+
+        let (rows, omissions) = change_set_rows(&prov);
+        let row = |p: &str| {
+            rows.iter()
+                .find(|r| r.path == p)
+                .unwrap_or_else(|| panic!("{p} must be a row"))
+        };
+        let m = row(markup);
+        let cb = row(code_behind);
+
+        // Guard: if the fixture stops delivering the markup it can no longer
+        // demonstrate severance, and the assertion below would pass vacuously.
+        assert!(
+            !m.omitted,
+            "fixture no longer delivers the markup, so it cannot show a severed pair: {m:?}"
+        );
+        assert_eq!(m.set, "companion", "the pair must be weak enough to reach the tail cap: {m:?}");
+
+        assert!(
+            !cb.omitted,
+            "markup `{markup}` was DELIVERED (rank {}) while its code-behind was CUT: {}",
+            m.rank,
+            omissions
+                .iter()
+                .find(|o| o.path == code_behind)
+                .map(|o| o.reason.as_str())
+                .unwrap_or("<no omission recorded>")
+        );
+    }
+
     #[test]
     fn story_word_name_coverage_leads_its_tier() {
         // Round-2 audit P0-3, live r36: the page pair (name+vector, tier 0)
@@ -5536,6 +5621,46 @@ pub(crate) fn extract_story_code_entities(story: &str) -> Vec<String> {
             .collect();
         if (normalized.len() >= 6 || acronym_or_protocol) && seen.insert(normalized) {
             out.push(token.to_string());
+        }
+        // A story that names the exact code path — `A.DoThing->b.c()` — gives the
+        // strongest identity it can, and `entity` is a GOLDEN signal. But the
+        // whole chain survives above as ONE token, and `code_entity_file_matches`
+        // needs exact equality or a compound/acronym PREFIX, so a blob beginning
+        // with the caller's name matches no stem: measured on a replayed PR the
+        // entity arm reported status "complete" with hits 0 while the file the
+        // story named by name sat at tier 4 and was cut.
+        //
+        // So also emit the CONSTITUENTS. Additive: only tokens carrying
+        // call-chain punctuation produce extra entries, so a plain identifier
+        // like `app_Accounts` is unchanged. `_` and camelCase are deliberately
+        // NOT split — those compose a single identifier, and splitting them
+        // would turn `app_Accounts` into the generic `Accounts` that
+        // code_entity_file_matches explicitly refuses.
+        //
+        // A part inherits its parent's structure, so it is exempt from the
+        // `structured` test above; the length floor still applies, which keeps
+        // short receivers and namespaces (`Job`, `db`) out.
+        // `->` is consumed as a UNIT, never as a bare `-`: splitting on the
+        // hyphen alone would shred ordinary hyphenated identifiers, turning
+        // `api-images` into the generic `images` — the same over-generalisation
+        // code_entity_file_matches refuses when it rejects `app_Accounts` ->
+        // `Accounts`. The pinned contract above has no hyphen and cannot catch
+        // that, so it is prevented here rather than relied upon.
+        let chain = token.replace("->", ".");
+        if structured && chain.contains(['.', '(', ')', ':', ',']) {
+            for part in chain.split(['.', '(', ')', ':', ','].as_slice()) {
+                if part.len() < 6 {
+                    continue;
+                }
+                let part_normalized: String = part
+                    .chars()
+                    .filter(|c| c.is_alphanumeric())
+                    .flat_map(char::to_lowercase)
+                    .collect();
+                if part_normalized.len() >= 6 && seen.insert(part_normalized) {
+                    out.push(part.to_string());
+                }
+            }
         }
         if out.len() >= 32 {
             break;
@@ -8306,6 +8431,26 @@ fn change_set_reconciliation_receipt(
     }
 }
 
+/// `foo.aspx.vb` -> `foo.aspx`. A code-behind cannot implement anything without
+/// its markup, and the shipped checklist tells the agent to edit BOTH, so the
+/// pair is ONE editing decision — the same reasoning that already makes a
+/// localised .resx family an atomic set.
+fn markup_of_code_behind(path: &str) -> Option<&str> {
+    // Case-insensitive throughout: an index can carry `Page.aspx.VB` or
+    // `Page.ASPX.vb`, and matching only the two spellings I happened to see
+    // would let the same severance through unnoticed on the others. Both
+    // suffixes are ASCII, so lowercasing preserves byte length and the slice
+    // below stays on a char boundary.
+    let lower = path.to_ascii_lowercase();
+    let markup = &path[..lower.strip_suffix(".vb")?.len()];
+    let m = markup.to_ascii_lowercase();
+    if m.ends_with(".aspx") || m.ends_with(".ascx") || m.ends_with(".master") {
+        Some(markup)
+    } else {
+        None
+    }
+}
+
 /// Ranked rows in render order (layer, tier, depth, path) with the tail-cap
 /// decision applied — the single place both renderers read from.
 pub(crate) fn change_set_rows(
@@ -8403,15 +8548,37 @@ pub(crate) fn change_set_rows(
     }
     let mut tail_layer = usize::MAX;
     let mut tail = 0usize;
+    // Markup already kept in this pass. The cap counts ROWS, not pairs, so
+    // without this it happily delivers a page's markup and cuts the
+    // code-behind out from under it: measured across two replayed PRs, 15 of
+    // 52 markup/code-behind pairs were severed (9 of 31 and 6 of 15 — 29% in
+    // both), always markup-kept/code-behind-cut, always on the cap boundary.
+    // Half a page is worse than neither half: the agent is told the page is in
+    // scope and handed the file that cannot implement it.
+    //
+    // LIMIT, stated because a single pass cannot do better: this rescues the
+    // direction actually observed (markup first). The reverse needs the two
+    // halves to differ in tier/strength, since with equal evidence the `path`
+    // tiebreak always puts `.aspx` ahead of `.aspx.vb` as a strict prefix. It
+    // was 0 of 15 in the measured data, and un-cutting retroactively would
+    // mean restructuring this loop for a case never seen.
+    let mut kept: BTreeSet<String> = BTreeSet::new();
     for (p, sigs, tier, li) in rest {
         if li != tail_layer {
             tail_layer = li;
             tail = 0;
         }
         let lname = change_set_layer_name(li);
+        // A pair costs at most one row over quota, and the rendered output is
+        // separately bounded by CHANGE_SET_ROWS_BUDGET, so admitting the
+        // partner is cheap; dropping a delivered markup to stay exactly at the
+        // quota would destroy evidence the caller already has.
+        let partner_kept = markup_of_code_behind(p)
+            .is_some_and(|m| kept.contains(&m.to_ascii_lowercase()));
         let exempt = sigs.contains("vtop")
             || sigs.contains("family")
-            || sigs.contains("gloss");
+            || sigs.contains("gloss")
+            || partner_kept;
         let mut omitted = false;
         if tier >= 2 && !exempt {
             tail += 1;
@@ -8427,6 +8594,13 @@ pub(crate) fn change_set_rows(
                     signals: signals(sigs),
                 });
             }
+        }
+        if !omitted {
+            // Recorded only AFTER surviving the cap: a row cut here must not
+            // rescue its partner. The lookup above only ever asks about markup
+            // paths, so storing every survivor costs nothing and keeps the
+            // bookkeeping in one place.
+            kept.insert(p.to_ascii_lowercase());
         }
         let r = if omitted {
             0
@@ -15186,6 +15360,58 @@ mod story_concept_resolution_tests {
             resolved.iter().any(|c| c == "session" || c == "sessions"),
             "session entity must remain eligible: {resolved:?}"
         );
+    }
+
+    /// A work item that names the exact code path it means — `A.DoThing->b.c()`
+    /// — is the strongest identity a story can offer, and `entity` is a GOLDEN
+    /// signal. But the whole chain survives tokenization as ONE blob, and
+    /// `code_entity_file_matches` needs exact equality or a compound/acronym
+    /// PREFIX, so a blob beginning with the caller's name matches no stem.
+    /// Measured on a replayed PR: `coverage.entity` reported status "complete"
+    /// with hits 0 — the arm cannot tell that it failed — while the file the
+    /// story named by name sat at tier 4 on a `broad` signal and was cut.
+    ///
+    /// Constituents must therefore be extractable. Splitting is ADDITIVE and
+    /// only touches tokens carrying call-chain punctuation, so the exact-vec
+    /// contract below (`TokenEpoch`, `app_Accounts`, `ResetPassword` — no dots,
+    /// no arrows) is unaffected, and `_`/camelCase are deliberately NOT split.
+    #[test]
+    fn a_story_naming_a_call_chain_yields_its_constituent_identifiers() {
+        let story =
+            "scheduled jobs running every 30 min (Job.UpdateWidgetRollup->widgetrollup.job_refresh())";
+        let e = extract_story_code_entities(story);
+        assert!(
+            e.iter().any(|x| x.eq_ignore_ascii_case("widgetrollup")),
+            "the receiver named in the chain must be extractable (a bare part \
+             inherits its parent's structure and must survive the `structured` \
+             filter): {e:?}"
+        );
+        assert!(
+            e.iter().any(|x| x.eq_ignore_ascii_case("UpdateWidgetRollup")),
+            "the member named in the chain must be extractable: {e:?}"
+        );
+    }
+
+    /// Splitting a call chain must not shred ordinary hyphenated identifiers.
+    /// `->` is consumed as a unit; a bare `-` is NOT a separator, or
+    /// `api-images` would yield the generic `images` — precisely the
+    /// over-generalisation `code_entity_file_matches` refuses when it rejects
+    /// `app_Accounts` -> `Accounts`. The exact-vec contract below contains no
+    /// hyphen and structurally cannot catch this, so it is pinned here.
+    #[test]
+    fn a_hyphenated_identifier_is_never_split_into_generic_fragments() {
+        let e = extract_story_code_entities("the rollup-widgets endpoint returns gadget-summaries");
+        assert!(
+            e.iter().any(|x| x == "rollup-widgets"),
+            "the hyphenated identifier survives whole: {e:?}"
+        );
+        for fragment in ["widgets", "summaries", "gadget"] {
+            assert!(
+                !e.iter().any(|x| x.eq_ignore_ascii_case(fragment)),
+                "`{fragment}` is a generic fragment of a hyphenated identifier and \
+                 must not be emitted as its own entity: {e:?}"
+            );
+        }
     }
 
     #[test]
