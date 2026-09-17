@@ -166,6 +166,18 @@ pub const CHANGE_SET_PRIMARY_MAX_TIER: u8 = 2;
 pub const CHANGE_SET_COMPACT_FILE_CAP: usize = 60;
 pub const CHANGE_SET_COMPACT_OMISSION_CAP: usize = 20;
 pub const CHANGE_SET_COMPACT_DIAGNOSTIC_CAP: usize = 5;
+/// Byte budget for the two candidate-row regions of the rendered change set.
+/// Every section of that dossier is ELEMENT-capped and none was BYTE-capped, so
+/// the product of the caps set the size: measured across five delivered
+/// dossiers the rows ran 33-37 KB, 58-61% of the whole output. A sixth call
+/// rendered 61,924 characters and the caller received "exceeds maximum allowed
+/// tokens" INSTEAD of candidates — a dossier too large to deliver is not a large
+/// dossier, it is no dossier. The bracket from that data (60,484 delivered,
+/// 61,924 refused) leaves ~22-25 KB for the sections appended after these rows,
+/// which are themselves unbounded, so this budget reduces the risk rather than
+/// removing it; bounding the whole output is the remaining work. 30 KB keeps the
+/// complete primary set (measured 25.9 KB) and spends the cut on weak companions.
+pub const CHANGE_SET_ROWS_BUDGET: usize = 30 * 1024;
 /// A concept whose footprint matches this many files is too common to
 /// discriminate (IDF proxy): its hits are `broad`, never evidence.
 pub const BROAD_CONCEPT_MIN_FILES: usize = 40;
@@ -2728,6 +2740,116 @@ mod implementation_pattern_unit_tests {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Synthetic candidates across all five layers and both tier bands: enough
+    /// golden rows to fill the primary cap, and a large weak mass to fill the
+    /// per-layer companion cap. Paths are invented.
+    fn synthetic_prov(
+        per_layer: usize,
+    ) -> (
+        BTreeMap<String, BTreeSet<&'static str>>,
+        BTreeMap<String, Vec<String>>,
+    ) {
+        let exts = [".vb", ".ts", ".resx", ".sql", ".config"];
+        let mut prov: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
+        let mut why: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        for (layer, ext) in exts.iter().enumerate() {
+            for i in 0..per_layer {
+                let path = format!("src/area{layer}/module{i:03}/widget{i:03}{ext}");
+                let mut sigs = BTreeSet::new();
+                if i < 12 {
+                    // golden + corroboration -> tier 0/1, competing for primary
+                    sigs.insert("cochange");
+                    sigs.insert("concept");
+                } else {
+                    // bare concept -> tier 3, the weak mass the tail cap trims
+                    sigs.insert("concept");
+                }
+                // Real rationales are sentences, and they dominate a primary
+                // row's width (~647 bytes measured against ~152 for a bare
+                // one). A fixture with stub rationales cannot reach the size
+                // class where the defect lives.
+                why.insert(
+                    path.clone(),
+                    vec![
+                        format!(
+                            "co-changed with {} other candidate(s) across {} merged commit(s) \
+                             touching this area of the tree; the same pairing recurs across the \
+                             surrounding release window, and the companion files in those commits \
+                             carried matching resource and migration edits, which is the \
+                             corroboration pattern this signal exists to surface; the pairing \
+                             survives when the window is widened, so it is not an artefact of one \
+                             unusually broad commit that touched most of the tree at once",
+                            3 + i % 5,
+                            2 + i % 4
+                        ),
+                        format!(
+                            "concept token matched the file name and {} symbol name(s) declared \
+                             inside it; the match is boundary-aware rather than a raw substring, \
+                             so it is not the reorder/order class of false positive, and the \
+                             symbols carrying it are declared in this file rather than merely \
+                             referenced from it, which is what separates a definition site from \
+                             an incidental consumer of the same vocabulary",
+                            1 + i % 3
+                        ),
+                    ],
+                );
+                prov.insert(path, sigs);
+            }
+        }
+        (prov, why)
+    }
+
+    /// A dossier too large to deliver is not a large dossier — it is NO dossier.
+    /// A live replay asked for a change set and received
+    /// `result (61,924 characters across 434 lines) exceeds maximum allowed
+    /// tokens` instead of candidates. Every section is ELEMENT-capped (primary
+    /// 40, companions 18/layer, assets 48, callers 32) and none is BYTE-capped,
+    /// so the product renders 56-60 KB routinely and tips over past that.
+    /// Bound the variable row sections and say what was cut, the way
+    /// grep_project does.
+    #[test]
+    fn a_change_set_too_large_to_deliver_is_bounded_and_says_how_to_recover() {
+        let (prov, why) = synthetic_prov(40);
+        let (md, _omissions) = render_change_set(
+            "As a user I want widgets to roll up correctly",
+            &["widget".to_string()],
+            &prov,
+            &why,
+            None,
+            None,
+            None,
+            &BTreeSet::new(),
+        );
+
+        // Guard: a fixture that never grows cannot demonstrate the ceiling, and
+        // would be satisfied by luck once a budget exists.
+        assert!(
+            md.len() > 20_000,
+            "fixture did not produce a large dossier ({} bytes)",
+            md.len()
+        );
+        assert!(
+            md.contains("output budget"),
+            "a bounded dossier must SAY it was cut ({} bytes)",
+            md.len()
+        );
+        assert!(
+            md.contains("output_json: true"),
+            "a bounded dossier must name the recovery path ({} bytes)",
+            md.len()
+        );
+        // Bounded must mean bounded: without this, a notice alone would satisfy
+        // the test while the rows still rendered in full. The fixture's
+        // rationales are deliberately wider than a typical real one so the cut
+        // is unambiguous — at realistic width the rows land only a few hundred
+        // bytes past the budget, and this assertion would pass before the fix.
+        assert!(
+            md.len() < 40_000,
+            "rows must stay within budget once cut ({} bytes)",
+            md.len()
+        );
+    }
 
     #[test]
     fn coverage_details_keep_forty_identity_warnings_and_short_summary() {
@@ -8814,6 +8936,12 @@ fn render_change_set(
          of independent signals; the layer is shown per row. Work the list top-down.\n",
         rows.len()
     ));
+    // Primary rows are charged against CHANGE_SET_ROWS_BUDGET first, so when the
+    // budget binds the cut falls on weak-signal companions below and the ranked
+    // set survives whole. Each row is measured BEFORE it is appended, so the
+    // bound holds instead of being overshot by one row's width.
+    let mut rows_bytes = 0usize;
+    let mut primary_shown = 0usize;
     for (row_index, r) in rows.iter().filter(|r| r.set == "primary").enumerate() {
         let hist = if historical.contains(&r.path) {
             "  (historical path — not in the current index)"
@@ -8828,7 +8956,7 @@ fn render_change_set(
                 reasons.join("; ")
             }
         };
-        s.push_str(&format!(
+        let row = format!(
             "P{:03}. `{}`  [rank {}|{}]  — {}; evidence: {}; role: {}; why: {}; impact question: {}; exclusion evidence: {}{hist}\n",
             row_index + 1,
             r.path,
@@ -8840,27 +8968,62 @@ fn render_change_set(
             rationale,
             change_set_impact_question(&r.path),
             change_set_exclusion_evidence(&r.signals),
-        ));
+        );
+        // Always render the top candidate, however wide it is: a change set with
+        // no rows at all would be a worse answer than an over-long one.
+        if primary_shown > 0 && rows_bytes + row.len() > CHANGE_SET_ROWS_BUDGET {
+            break;
+        }
+        rows_bytes += row.len();
+        s.push_str(&row);
+        primary_shown += 1;
     }
     s.push_str(
         "\n## Possible companions (grouped by layer — weak or uncorroborated evidence; \
          verify against the code before trusting)\n",
     );
+    let companion_total = rows
+        .iter()
+        .filter(|r| !r.omitted && r.set == "companion")
+        .count();
     let mut current_layer: Option<usize> = None;
+    let mut companions_shown = 0usize;
     for r in rows.iter().filter(|r| !r.omitted && r.set == "companion") {
-        if current_layer != Some(r.layer_index) {
-            current_layer = Some(r.layer_index);
-            s.push_str(&format!("\n**{}:**\n", r.layer));
-        }
+        let header = if current_layer != Some(r.layer_index) {
+            Some(format!("\n**{}:**\n", r.layer))
+        } else {
+            None
+        };
         let hist = if historical.contains(&r.path) {
             "  (historical path — not in the current index)"
         } else {
             ""
         };
+        let row = format!("- `{}`  [{}]{hist}\n", r.path, r.signals.join("|"));
+        // A layer header is only worth its bytes if a row follows it, so charge
+        // them together and stop before emitting a heading with nothing under it.
+        let cost = row.len() + header.as_ref().map_or(0, |h| h.len());
+        if rows_bytes + cost > CHANGE_SET_ROWS_BUDGET {
+            break;
+        }
+        if let Some(h) = header {
+            current_layer = Some(r.layer_index);
+            s.push_str(&h);
+        }
+        rows_bytes += cost;
+        s.push_str(&row);
+        companions_shown += 1;
+    }
+    let budget_cut = (n_primary - primary_shown) + (companion_total - companions_shown);
+    if budget_cut > 0 {
         s.push_str(&format!(
-            "- `{}`  [{}]{hist}\n",
-            r.path,
-            r.signals.join("|")
+            "\n_… {budget_cut} further candidate row(s) not shown (Markdown output budget \
+             reached at {CHANGE_SET_ROWS_BUDGET} bytes of rows). Repeat the same request with \
+             `output_json: true` AND `detail: \"full\"` to recover every row — `output_json: \
+             true` on its own caps the structured view at {CHANGE_SET_COMPACT_FILE_CAP} files, \
+             so it would drop rows silently here. The cut falls on the weakest evidence first: \
+             primary ranked candidates are rendered before companions. The caps and coverage \
+             warnings above still apply; neither view establishes exhaustive corpus coverage._\n"
         ));
     }
     if !omissions.is_empty() {
