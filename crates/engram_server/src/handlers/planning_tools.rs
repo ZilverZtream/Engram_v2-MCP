@@ -165,6 +165,16 @@ pub const CHANGE_SET_PRIMARY_MAX_TIER: u8 = 2;
 /// the strongest companion leads without flooding an agent's context.
 pub const CHANGE_SET_COMPACT_FILE_CAP: usize = 60;
 pub const CHANGE_SET_COMPACT_OMISSION_CAP: usize = 20;
+/// Occurrences of one ruled construct listed per row. The dossier already runs
+/// large enough to exhaust a response budget, so this is bounded — but the true
+/// total is always reported beside it. A row that truncated silently would claim
+/// a completeness it does not have, which is the failure this feature exists to
+/// remove, not to reproduce.
+pub const CHANGE_SET_CONSTRUCT_SITE_CAP: usize = 8;
+/// Rows whose source is opened to locate ruled construct sites. Each one is a
+/// file read this tool did not previously perform, so the scan is bounded and
+/// the count it stopped at is reported beside the result.
+pub const CHANGE_SET_CONSTRUCT_SCAN_CAP: usize = 24;
 pub const CHANGE_SET_COMPACT_DIAGNOSTIC_CAP: usize = 5;
 /// Byte budget for the two candidate-row regions of the rendered change set.
 /// Every section of that dossier is ELEMENT-capped and none was BYTE-capped, so
@@ -2909,6 +2919,24 @@ mod tests {
             assert!(c.line().contains(&c.diagnostics.entries[0]));
             assert!(!c.diagnostics.details_complete);
         }
+    }
+    #[test]
+    fn an_arm_truncated_after_the_fact_still_reports_what_it_skipped() {
+        // The bounded-expansion arms only learn they truncated AFTER counting their
+        // hits, so they start from `complete` and downgrade in place. The downgrade
+        // must not leave `complete`'s retention claim behind: a reader told
+        // `details_complete: true` with no entries cannot recover WHAT was skipped.
+        let mut arm = ArmCoverage::complete(7, 3);
+        arm.mark_bounded("truncated", "skipped 1 code-shaped identifier(s)".into());
+        assert_eq!(arm.status, "truncated");
+        assert_eq!((arm.hits, arm.ms), (7, 3));
+        assert!(arm.note.contains("skipped 1 code-shaped identifier(s)"));
+        assert!(!arm.diagnostics.details_complete);
+        assert_eq!(arm.diagnostics.omitted_occurrences, None);
+        assert_eq!(
+            arm.diagnostics.entries,
+            vec!["skipped 1 code-shaped identifier(s)".to_string()]
+        );
     }
     #[test]
     fn coverage_json_and_markdown_do_not_concatenate_detail_messages() {
@@ -8275,6 +8303,265 @@ fn change_set_rule_matches_path(file_pattern: &str, target_path: &str) -> bool {
     path.contains(&pattern)
 }
 
+/// Locate every occurrence of a construct that a MATCHED repository rule names,
+/// with the receiver text immediately preceding it.
+///
+/// This LOCATES; it never BINDS. The receiver is reported as lexical text, never
+/// as a resolved declaration: VB receiver/local/field binding cannot be decided
+/// lexically, which is why `business_outcome_dependencies::resolve` refuses
+/// anything but an explicitly global-qualified shared call, and why
+/// `shadowed_receivers_and_local_delegates_never_supply_class_source` pins that
+/// refusal. Guessing here would contradict a tested invariant.
+///
+/// The reason this exists at all: one file can contain several occurrences of a
+/// ruled construct whose verdicts are OPPOSITE (one receiver materialises a
+/// list, another stays a deferred query). A file-level row cannot disposition
+/// them separately, so the agent is told a rule applies without being able to
+/// tell WHERE. Reporting each occurrence restores line-level disposition and
+/// leaves the declaration lookup to the caller, which is one bounded query.
+fn rule_construct_occurrences(source: &str, construct: &str, vb: bool) -> Vec<(u32, String)> {
+    if construct.is_empty() {
+        return Vec::new();
+    }
+    // Mask comments and string literals first: a construct named inside either
+    // is text, not a call site. `executable_lines` preserves newlines, so the
+    // line numbers reported here remain the reader's real line numbers.
+    let masked = crate::services::business_outcome_dependencies::executable_lines(source, vb);
+    let mut sites = Vec::new();
+    for (index, line) in masked.lines().enumerate() {
+        let mut from = 0;
+        while let Some(found) = line[from..].find(construct) {
+            let at = from + found;
+            // The receiver is the identifier ending where the construct begins.
+            let head = &line[..at];
+            let receiver = head
+                .char_indices()
+                .rev()
+                .take_while(|(_, c)| c.is_alphanumeric() || *c == '_')
+                .last()
+                .map(|(start, _)| &head[start..])
+                .unwrap_or_default();
+            if !receiver.is_empty() {
+                sites.push((index as u32 + 1, receiver.to_string()));
+            }
+            from = at + construct.len();
+        }
+    }
+    sites
+}
+
+/// Extract the code constructs a repository rule names in its own prose, so a
+/// rule can be tied to the exact lines it speaks about instead of to a whole
+/// file. Prose may name a construct bare or inside backticks.
+///
+/// A rule that names no construct yields nothing. Staying silent matters more
+/// than guessing here: attaching a rule to lines it does not govern would push
+/// a reader toward the false positive this whole mechanism exists to prevent.
+fn rule_named_constructs(rule_text: &str) -> Vec<String> {
+    let mut found: Vec<String> = Vec::new();
+    for raw in rule_text.split_whitespace() {
+        // Prose punctuation and backticks surround the token; the construct is
+        // what survives trimming them.
+        let token = raw.trim_matches(|c: char| !c.is_alphanumeric() && c != '.' && c != '_');
+        let Some(name) = token.strip_prefix('.') else {
+            continue;
+        };
+        // A member name, not a sentence ending in a full stop and not a bare
+        // dotted word: require a leading capital and nothing but identifier
+        // characters after it, so "failures." and ".net" never qualify.
+        if name.is_empty()
+            || !name.starts_with(|c: char| c.is_ascii_uppercase())
+            || !name.chars().all(|c| c.is_alphanumeric() || c == '_')
+        {
+            continue;
+        }
+        let construct = format!(".{name}");
+        if !found.contains(&construct) {
+            found.push(construct);
+        }
+    }
+    found
+}
+
+/// Tie the rules that already matched a row to the exact lines they govern.
+///
+/// Silence is the default in three cases, each of which would otherwise plant a
+/// line-level claim the evidence does not support: a rule naming no construct,
+/// a construct with no occurrence in this source, and a language whose comment
+/// and literal forms the masker does not understand. That last bound is why
+/// this takes the path: `executable_lines` knows VB and C-style syntax, so
+/// anywhere else a commented-out match would be reported as a live call site.
+fn row_ruled_construct_sites(
+    path: &str,
+    source: &str,
+    rules: &[(String, String)],
+) -> Vec<serde_json::Value> {
+    let lower = path.to_ascii_lowercase();
+    let vb = lower.ends_with(".vb");
+    if !vb && !lower.ends_with(".cs") {
+        return Vec::new();
+    }
+    // The occurrences belong to the CONSTRUCT; the rules are what cite it. Grouping
+    // here rather than emitting one entry per rule is not cosmetic: four repository
+    // rules name `.Contains`, so the per-rule shape repeated an identical occurrence
+    // list four times on every governed row, in a dossier that already exhausted a
+    // token budget. It also scans each construct once instead of once per citing rule.
+    let mut order: Vec<String> = Vec::new();
+    let mut citing: HashMap<String, Vec<String>> = HashMap::new();
+    for (rule_id, rule_text) in rules {
+        for construct in rule_named_constructs(rule_text) {
+            let cites = citing.entry(construct.clone()).or_default();
+            if !cites.iter().any(|seen| seen == rule_id) {
+                cites.push(rule_id.clone());
+            }
+            if !order.iter().any(|seen| seen == &construct) {
+                order.push(construct);
+            }
+        }
+    }
+    let mut sites = Vec::new();
+    for construct in order {
+        let occurrences = rule_construct_occurrences(source, &construct, vb);
+        if occurrences.is_empty() {
+            continue;
+        }
+        // Bound the list, but never let the bound hide the count: a reader seeing
+        // cap-many entries must still be able to tell a file with exactly that many
+        // sites from one with far more.
+        let occurrences_total = occurrences.len();
+        sites.push(serde_json::json!({
+            "construct": construct,
+            "rule_ids": citing.remove(&construct).unwrap_or_default(),
+            "occurrences_total": occurrences_total,
+            "occurrence_cap": CHANGE_SET_CONSTRUCT_SITE_CAP,
+            "occurrences": occurrences
+                .into_iter()
+                .take(CHANGE_SET_CONSTRUCT_SITE_CAP)
+                .map(|(line, receiver)| serde_json::json!({
+                    "line": line,
+                    "receiver": receiver,
+                }))
+                .collect::<Vec<_>>(),
+        }));
+    }
+    sites
+}
+
+/// Decide whether a row's source can still vouch for the line numbers cited
+/// against it, and when it cannot, say which way it failed.
+///
+/// A citation is only true while the bytes on disk are the bytes that were
+/// fingerprinted. Every failure mode below is reported rather than swallowed:
+/// silence would leave a reader unable to tell "no sites here" from "not
+/// checked", which is the same file-versus-line ambiguity this whole feature
+/// exists to remove.
+///
+/// The generation test is not redundant with the hash test. `store.rs` warns
+/// that a consumer must not verify an older active search snapshot against a
+/// newer graph fingerprint while an update is still publishing; a node stamped
+/// ahead of the snapshot these rows came from would judge old rows by new
+/// evidence, so it is refused on its own terms.
+fn row_source_drift(
+    metadata: Option<&serde_json::Value>,
+    node_generation: Option<u64>,
+    snapshot_generation: u64,
+    disk_bytes: Option<&[u8]>,
+) -> Option<&'static str> {
+    let Some(metadata) = metadata else {
+        return Some("indexed source file missing");
+    };
+    // Refused before the fingerprint is even read. A node written by a newer
+    // generation carries a valid hash for a snapshot these rows were not built
+    // from, so comparing hashes first would let it pass as verified.
+    if node_generation.is_some_and(|generation| generation > snapshot_generation) {
+        return Some("not verifiable at this snapshot");
+    }
+    let Some(fingerprint) = metadata.get("file_hash").and_then(|value| value.as_str()) else {
+        return Some("indexed source fingerprint missing");
+    };
+    let Some(bytes) = disk_bytes else {
+        return Some("source unreadable on disk");
+    };
+    if blake3::hash(bytes).to_hex().as_str() != fingerprint {
+        return Some("source fingerprint stale");
+    }
+    None
+}
+
+/// Whether a row's path can name source on disk at all.
+///
+/// Antipattern-corpus rows arrive carrying a GLOB as their path
+/// (`site/app_code/.../**/*.vb`). Those are patterns, not files. Measured on a
+/// live dossier, four such rows passed every other gate - the glob ends `.vb`
+/// and matches a `**/*.vb` rule - so one reported "indexed source file missing"
+/// while the rest spent scan budget real files could have used. Neither is
+/// right: the row never pointed at source, so it owes no drift reason and
+/// deserves no slot.
+///
+/// `?` rides along with `*` because `change_set_rule_matches_path` treats both
+/// as wildcards, and neither is legal in a Windows filename.
+fn row_path_names_a_file(path: &str) -> bool {
+    !path.contains('*') && !path.contains('?')
+}
+
+/// What a single row owes the reader about the constructs its governing rules
+/// name: the located sites, or an explicit statement that they could not be
+/// located and why.
+///
+/// Silence is deliberate when no governing rule names a construct. A drift
+/// marker on a row whose rules were never going to say anything would be noise
+/// dressed as rigour, and it would bury the markers that do mean something.
+fn row_rule_evidence(
+    path: &str,
+    rule_specs: &[(String, String, String)],
+    metadata: Option<&serde_json::Value>,
+    node_generation: Option<u64>,
+    snapshot_generation: u64,
+    disk_bytes: Option<&[u8]>,
+) -> Option<serde_json::Value> {
+    // A row that does not name a file cannot owe evidence about one, and must not
+    // be handed a drift reason it would read as a statement about source.
+    if !row_path_names_a_file(path) {
+        return None;
+    }
+    // Only rules that BOTH cover this path and name a construct can make a
+    // line-level claim about it. Everything else leaves the row silent.
+    let governing: Vec<(String, String)> = rule_specs
+        .iter()
+        .filter(|(_, file_pattern, _)| change_set_rule_matches_path(file_pattern, path))
+        .filter(|(_, _, rule_text)| !rule_named_constructs(rule_text).is_empty())
+        .map(|(rule_id, _, rule_text)| (rule_id.clone(), rule_text.clone()))
+        .collect();
+    if governing.is_empty() {
+        return None;
+    }
+    if let Some(reason) = row_source_drift(
+        metadata,
+        node_generation,
+        snapshot_generation,
+        disk_bytes,
+    ) {
+        return Some(serde_json::json!({
+            "status": "not_checked",
+            "reason": reason,
+        }));
+    }
+    let Ok(source) = std::str::from_utf8(disk_bytes.unwrap_or_default()) else {
+        return Some(serde_json::json!({
+            "status": "not_checked",
+            "reason": "source is not UTF-8",
+        }));
+    };
+    let sites = row_ruled_construct_sites(path, source, &governing);
+    if sites.is_empty() {
+        return None;
+    }
+    Some(serde_json::json!({
+        "status": "verified",
+        "sites": sites,
+    }))
+}
+
 fn applicable_change_set_rules(
     rules: Vec<engram_core::RepoRule>,
     paths: &[String],
@@ -8684,6 +8971,19 @@ impl ArmCoverage {
     }
     fn truncated(hits: usize, ms: u128, note: String) -> Self {
         Self::with_reason("truncated", hits, ms, note)
+    }
+    /// Downgrade an arm that only discovered it was bounded AFTER counting hits.
+    ///
+    /// The bounded-expansion arms cannot use the constructors: they learn about a
+    /// skipped hub or identifier once the traversal is done. Setting `status` and
+    /// `note` in place left the diagnostics built by `complete()` untouched, so the
+    /// arm asserted `details_complete: true` with no entries while its own status
+    /// said it had dropped something — and the identity of what it dropped was
+    /// unrecoverable from the payload. Rebuild through the same path the
+    /// constructors use so the reason stays machine-readable.
+    fn mark_bounded(&mut self, status: &str, reason: String) {
+        let (hits, ms) = (self.hits, self.ms);
+        *self = Self::with_reason(status, hits, ms, reason);
     }
     fn failed(note: String, ms: u128) -> Self {
         Self::with_reason("failed", 0, ms, note)
@@ -9291,6 +9591,10 @@ impl Engram {
         // its work-item text must block before any retrieval or lookup.
         let project = self.ensure_project_record(&req.project_id).await?;
         let project_root = std::path::PathBuf::from(&project.directory);
+        // Pinned HERE, before any retrieval arm runs, so the rows and the
+        // fingerprints used to verify them describe the same snapshot. Read
+        // after the arms it would silently accept a file re-indexed mid-request.
+        let snapshot_generation = self.get_active_generation(&req.project_id).await?;
         let detail = match req.detail.as_deref().unwrap_or("compact") {
             "compact" => "compact",
             "reconciled" => "reconciled",
@@ -9712,9 +10016,11 @@ impl Engram {
                 )
             };
             if entity_hubs > 0 {
-                arm.status = "truncated".into();
-                arm.note = format!(
-                    "skipped {entity_hubs} code-shaped identifier(s) resolving to more than 8 files"
+                arm.mark_bounded(
+                    "truncated",
+                    format!(
+                        "skipped {entity_hubs} code-shaped identifier(s) resolving to more than 8 files"
+                    ),
                 );
             }
             arm
@@ -10420,11 +10726,13 @@ impl Engram {
             if asset_expansion.skipped_hub_anchors > 0
                 || asset_expansion.skipped_hub_bundles > 0
             {
-                cov.asset_graph.status = "truncated".into();
-                cov.asset_graph.note = format!(
-                    "bounded fan-out skipped {} hub anchor traversal(s) and {} oversized bundle traversal(s)",
-                    asset_expansion.skipped_hub_anchors,
-                    asset_expansion.skipped_hub_bundles
+                cov.asset_graph.mark_bounded(
+                    "truncated",
+                    format!(
+                        "bounded fan-out skipped {} hub anchor traversal(s) and {} oversized bundle traversal(s)",
+                        asset_expansion.skipped_hub_anchors,
+                        asset_expansion.skipped_hub_bundles
+                    ),
                 );
             }
 
@@ -10508,16 +10816,19 @@ impl Engram {
                 || caller_expansion.truncated_anchor_symbols > 0
                 || caller_expansion.query_failures > 0
             {
-                cov.caller_graph.status = if caller_expansion.query_failures > 0 {
-                    "incomplete".into()
+                let bounded_status = if caller_expansion.query_failures > 0 {
+                    "incomplete"
                 } else {
-                    "truncated".into()
+                    "truncated"
                 };
-                cov.caller_graph.note = format!(
-                    "bounded traversal skipped {} high-fanout symbol(s), omitted {} anchor symbol(s), and had {} query failure(s)",
-                    caller_expansion.skipped_hub_symbols,
-                    caller_expansion.truncated_anchor_symbols,
-                    caller_expansion.query_failures
+                cov.caller_graph.mark_bounded(
+                    bounded_status,
+                    format!(
+                        "bounded traversal skipped {} high-fanout symbol(s), omitted {} anchor symbol(s), and had {} query failure(s)",
+                        caller_expansion.skipped_hub_symbols,
+                        caller_expansion.truncated_anchor_symbols,
+                        caller_expansion.query_failures
+                    ),
                 );
             }
 
@@ -10566,11 +10877,13 @@ impl Engram {
                 cov.asset_graph.hits = asset_dependencies.len();
                 cov.asset_graph.ms += started.elapsed().as_millis();
                 if expansion.skipped_hub_anchors > 0 || expansion.skipped_hub_bundles > 0 {
-                    cov.asset_graph.status = "truncated".into();
-                    cov.asset_graph.note = format!(
-                        "bounded fan-out skipped {} hub anchor traversal(s) and {} oversized bundle traversal(s), including caller-markup expansion",
-                        expansion.skipped_hub_anchors,
-                        expansion.skipped_hub_bundles
+                    cov.asset_graph.mark_bounded(
+                        "truncated",
+                        format!(
+                            "bounded fan-out skipped {} hub anchor traversal(s) and {} oversized bundle traversal(s), including caller-markup expansion",
+                            expansion.skipped_hub_anchors,
+                            expansion.skipped_hub_bundles
+                        ),
                     );
                 }
             }
@@ -11281,6 +11594,95 @@ impl Engram {
                 .enumerate()
                 .map(|(index, row)| (row.path.clone(), format!("P{:03}", index + 1)))
                 .collect::<std::collections::HashMap<_, _>>();
+            // Repository rules are resolved BEFORE the rows are rendered, so a row
+            // can cite the lines a rule governs. Scope, registry fetch and cutoff
+            // filter are unchanged from where this used to sit; only the position.
+            let mut rule_paths = visible_rows
+                .iter()
+                .map(|row| row.path.clone())
+                .collect::<Vec<_>>();
+            rule_paths.extend(asset_dependencies.iter().map(|row| row.path.clone()));
+            rule_paths.extend(caller_dependencies.iter().map(|row| row.path.clone()));
+            rule_paths.sort();
+            rule_paths.dedup();
+            let registry = self.state.registry.clone();
+            let rule_project = req.project_id.clone();
+            let stored_rules = tokio::task::spawn_blocking(move || {
+                registry.list_repo_rules(&rule_project)
+            })
+            .await
+            .ok()
+            .and_then(Result::ok)
+            .unwrap_or_default();
+            let (applicable_rules, excluded_rules) = applicable_change_set_rules(
+                stored_rules,
+                &rule_paths,
+                req.merged_before.as_deref(),
+            );
+            // Read back from the rendered rules so the row citations and the
+            // rules array can never describe different rule sets.
+            let rule_specs: Vec<(String, String, String)> = applicable_rules
+                .iter()
+                .filter_map(|rule| {
+                    Some((
+                        rule.get("rule_id")?.as_str()?.to_string(),
+                        rule.get("file_pattern")?.as_str()?.to_string(),
+                        rule.get("rule_text")?.as_str()?.to_string(),
+                    ))
+                })
+                .collect();
+            // Every fingerprint in one transaction rather than a lookup per row.
+            // Generation travels with each node, so a file re-indexed after this
+            // request pinned its snapshot is refused by name instead of trusted.
+            let fingerprints: HashMap<String, (Option<serde_json::Value>, u64)> = self
+                .state
+                .graph
+                .list_file_node_metadata_with_generation(&req.project_id)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|(path, metadata, generation)| {
+                    (path.as_str().replace('\\', "/"), (metadata, generation))
+                })
+                .collect();
+            let mut construct_evidence: HashMap<String, serde_json::Value> = HashMap::new();
+            let mut construct_scanned = 0usize;
+            let mut construct_governed_total = 0usize;
+            for row in visible_rows.iter().filter(|row| row.set == "primary") {
+                // Governance is checked BEFORE the file is opened: without this the
+                // scan would read every primary row to discover most were governed
+                // by nothing.
+                // The file test comes FIRST so a glob-shaped row never reaches the
+                // governed count: it would otherwise spend one of the scan slots a
+                // real file could have used, which is how four of them behaved live.
+                let governed = row_path_names_a_file(&row.path)
+                    && rule_specs.iter().any(|(_, file_pattern, rule_text)| {
+                        change_set_rule_matches_path(file_pattern, &row.path)
+                            && !rule_named_constructs(rule_text).is_empty()
+                    });
+                if !governed {
+                    continue;
+                }
+                construct_governed_total += 1;
+                if construct_scanned >= CHANGE_SET_CONSTRUCT_SCAN_CAP {
+                    continue;
+                }
+                construct_scanned += 1;
+                let normalized = row.path.replace('\\', "/");
+                let fingerprint = fingerprints.get(&normalized);
+                let bytes = engram_core::safe_join(&project_root, &row.path)
+                    .ok()
+                    .and_then(|path| std::fs::read(&path).ok());
+                if let Some(evidence) = row_rule_evidence(
+                    &row.path,
+                    &rule_specs,
+                    fingerprint.and_then(|(metadata, _)| metadata.as_ref()),
+                    fingerprint.map(|(_, generation)| *generation),
+                    snapshot_generation,
+                    bytes.as_deref(),
+                ) {
+                    construct_evidence.insert(row.path.clone(), evidence);
+                }
+            }
             let mut files: Vec<serde_json::Value> = visible_rows
                 .iter()
                 .filter(|row| !reconciled_detail || row.set == "primary")
@@ -11307,6 +11709,7 @@ impl Engram {
                         "signals": r.signals,
                         "why": reasons,
                         "historical": historical.contains(&r.path),
+                        "ruled_construct_evidence": construct_evidence.get(&r.path),
                     })
                 })
                 .collect();
@@ -11382,28 +11785,11 @@ impl Engram {
             let reconciliation = change_set_reconciliation_receipt(
                 &rows, &asset_dependencies, &caller_dependencies,
             );
-            let mut rule_paths = visible_rows
-                .iter()
-                .map(|row| row.path.clone())
-                .collect::<Vec<_>>();
-            rule_paths.extend(asset_dependencies.iter().map(|row| row.path.clone()));
-            rule_paths.extend(caller_dependencies.iter().map(|row| row.path.clone()));
-            rule_paths.sort();
-            rule_paths.dedup();
-            let registry = self.state.registry.clone();
-            let rule_project = req.project_id.clone();
-            let stored_rules = tokio::task::spawn_blocking(move || {
-                registry.list_repo_rules(&rule_project)
-            })
-            .await
-            .ok()
-            .and_then(Result::ok)
-            .unwrap_or_default();
-            let (applicable_rules, excluded_rules) = applicable_change_set_rules(
-                stored_rules,
-                &rule_paths,
-                req.merged_before.as_deref(),
-            );
+            // Repository rules were resolved ABOVE the row build so each row could
+            // cite the lines its rules govern. `rule_paths`, `applicable_rules` and
+            // `excluded_rules` are already bound; resolving them again here would
+            // repeat the registry read and leave the payload describing the second
+            // result while the rows cited the first.
             let (configured_contract_rules, configured_contract_rule_notes) =
                 load_matching_planning_rules(
                     &self.state.cfg.data_dir,
@@ -11499,6 +11885,12 @@ impl Engram {
                     "exclusive_cutoff": req.merged_before,
                     "excluded_undated_or_future": excluded_rules,
                     "instruction": "Apply every matching rule during planning and acceptance-test derivation; a rule is evidence of repository convention, not proof that the current source complies."
+                },
+                "ruled_construct_scan": {
+                    "governed_rows_total": construct_governed_total,
+                    "rows_scanned": construct_scanned,
+                    "row_cap": CHANGE_SET_CONSTRUCT_SCAN_CAP,
+                    "instruction": "Rows whose source was opened to locate the constructs their rules name. A row past the cap carries no ruled_construct_evidence: that absence is this cap, not an absence of sites. Each row that was scanned states either its located sites or the reason its source could not be vouched for."
                 },
             });
             return Ok(CallToolResult::success(vec![Content::text(
@@ -15312,6 +15704,353 @@ mod change_set_rows_tests {
         assert_eq!(matched.len(), 1);
         assert_eq!(matched[0]["rule_id"], "old-vb");
         assert_eq!(matched[0]["rule_text"], "rule old-vb");
+    }
+
+    #[test]
+    fn a_ruled_construct_is_located_per_occurrence_not_per_file() {
+        // A matched rule names a construct; the SAME file can hold several
+        // occurrences of it whose verdicts are opposite, because each one has a
+        // different receiver. A row that only says "this rule applies to this
+        // file" cannot disposition them separately, so the reader is told a rule
+        // fires without being able to tell which line it fires on.
+        //
+        // Production change that would make this fail: reporting the construct
+        // once per file, or dropping the receiver text that distinguishes the
+        // occurrences from one another.
+        let source = "\
+Public Class Report
+    Public Shared Function Build() As Integer
+        Dim allowed = Lookup.AllowedIds()
+        Dim first = rows.Where(Function(r) allowed.Contains(r.OwnerId))
+        Dim second = rows.Where(Function(d) batch.Contains(d.ItemId))
+        Return 0
+    End Function
+End Class";
+        let sites = rule_construct_occurrences(source, ".Contains", true);
+        assert_eq!(
+            sites,
+            vec![(4, "allowed".to_string()), (5, "batch".to_string())],
+            "both occurrences must be separately addressable by line and receiver"
+        );
+    }
+
+    #[test]
+    fn rule_prose_yields_only_constructs_it_actually_names() {
+        // Tying a rule to the lines it governs starts with knowing WHICH construct
+        // the rule speaks about. Prose names it bare or inside backticks.
+        //
+        // Production change that would make this fail: returning every dotted word
+        // found in the prose, or inventing a construct for a rule that names none.
+        assert_eq!(
+            rule_named_constructs("Guard large .Contains filters before calling the store"),
+            vec![".Contains".to_string()]
+        );
+        assert_eq!(
+            rule_named_constructs("Check the list is present before `.Contains` runs"),
+            vec![".Contains".to_string()]
+        );
+        // Negative control: a process rule naming no construct must stay silent,
+        // or every row would inherit a line-level claim nothing supports.
+        assert!(
+            rule_named_constructs("Wrap related writes in one transaction and surface failures")
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn construct_sites_are_reported_only_where_a_rule_actually_governs_them() {
+        // The defect this closes: a row says "this rule applies to this file"
+        // while the file holds several occurrences of the ruled construct whose
+        // verdicts differ. The reader cannot tell which line the rule fires on.
+        //
+        // Production change that would make this fail: collapsing the occurrences
+        // to one per file, dropping the receivers that tell them apart, or
+        // reporting sites for a rule or a language that cannot support the claim.
+        let source = "\
+Public Class Report
+    Public Shared Function Build() As Integer
+        Dim first = rows.Where(Function(r) allowed.Contains(r.OwnerId))
+        Dim second = rows.Where(Function(d) batch.Contains(d.ItemId))
+        Return 0
+    End Function
+End Class";
+        let governing = vec![(
+            "r-001".to_string(),
+            "Guard large .Contains filters before calling the store".to_string(),
+        )];
+
+        let sites = row_ruled_construct_sites("src/Report.vb", source, &governing);
+        assert_eq!(sites.len(), 1, "one governing rule, one construct: {sites:?}");
+        assert_eq!(sites[0]["rule_ids"], serde_json::json!(["r-001"]));
+        assert_eq!(sites[0]["construct"], ".Contains");
+        let occurrences = sites[0]["occurrences"].as_array().unwrap();
+        assert_eq!(occurrences.len(), 2, "both sites must stay addressable");
+        assert_eq!(occurrences[0]["line"], 3);
+        assert_eq!(occurrences[0]["receiver"], "allowed");
+        assert_eq!(occurrences[1]["line"], 4);
+        assert_eq!(occurrences[1]["receiver"], "batch");
+
+        // Negative control: a process rule governs no construct, so it must not
+        // attach itself to any line.
+        let process_rule = vec![(
+            "r-002".to_string(),
+            "Wrap related writes in one transaction and surface failures".to_string(),
+        )];
+        assert!(row_ruled_construct_sites("src/Report.vb", source, &process_rule).is_empty());
+
+        // Negative control: a language whose comment and literal forms this
+        // masker does not understand must stay silent rather than risk counting
+        // a commented-out match as a live call site.
+        assert!(row_ruled_construct_sites("src/report.py", source, &governing).is_empty());
+    }
+
+    #[test]
+    fn rules_naming_one_construct_share_a_single_entry() {
+        // Measured live: FOUR repository rules name `.Contains`, and one entry per RULE
+        // repeated the same occurrence list four times on every governed row - 4x the
+        // payload for no added information, in a dossier that already exhausted a token
+        // budget. The occurrences belong to the CONSTRUCT; the rules are what cite it.
+        //
+        // Production change that would make this fail: emitting one entry per rule again,
+        // or dropping the rule ids so a reader cannot tell which rules are in play.
+        let source = "\
+Public Class Report
+    Public Shared Function Build() As Integer
+        Dim first = rows.Where(Function(r) allowed.Contains(r.OwnerId))
+        Dim second = rows.Where(Function(d) batch.Contains(d.ItemId))
+        Return 0
+    End Function
+End Class";
+        // `row_ruled_construct_sites` receives rules whose paths already matched, so the
+        // pairs are (rule_id, rule_text) - the file pattern belongs to `row_rule_evidence`.
+        let two_rules = vec![
+            (
+                "r-001".to_string(),
+                "Guard large .Contains filters before calling the store".to_string(),
+            ),
+            (
+                "r-002".to_string(),
+                "Check the list is present before `.Contains` runs".to_string(),
+            ),
+        ];
+
+        let sites = row_ruled_construct_sites("src/Report.vb", source, &two_rules);
+        assert_eq!(sites.len(), 1, "one construct means one entry: {sites:?}");
+        assert_eq!(sites[0]["construct"], ".Contains");
+        assert_eq!(
+            sites[0]["rule_ids"],
+            serde_json::json!(["r-001", "r-002"]),
+            "both citing rules must remain visible"
+        );
+        assert_eq!(sites[0]["occurrences_total"].as_u64().unwrap(), 2);
+        assert_eq!(sites[0]["occurrences"].as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn a_row_whose_path_is_not_a_file_is_never_scanned() {
+        // Measured on a live dossier: four primary rows carried an antipattern GLOB as
+        // their path (site/app_code/.../**/*.vb). They are not files. One reported
+        // "indexed source file missing" - technically true, practically misleading, since
+        // the row never named source at all - and the rest consumed governed-row budget
+        // before falling past the scan cap, taking slots real files could have used.
+        //
+        // Production change that would make this fail: scanning a glob path, or emitting
+        // a drift reason for a row that never pointed at a file.
+        let source: &[u8] =
+            b"Public Class Report\n    Dim x = rows.Where(Function(r) allowed.Contains(r.Id))\nEnd Class\n";
+        let good =
+            serde_json::json!({ "file_hash": blake3::hash(source).to_hex().to_string() });
+        let governing = vec![(
+            "r-001".to_string(),
+            "**/*.vb".to_string(),
+            "Guard large .Contains filters before calling the store".to_string(),
+        )];
+
+        // POSITIVE CONTROL: an ordinary path with these exact inputs DOES produce
+        // evidence. Without it, the assertion below could pass for the wrong reason.
+        assert!(
+            row_rule_evidence(
+                "src/Report.vb", &governing, Some(&good), Some(7), 7, Some(source)
+            )
+            .is_some(),
+            "control must produce evidence, or this test proves nothing"
+        );
+
+        // A glob matches the rule's file pattern and ends in .vb, so every other gate
+        // lets it through. It is still not a path to source.
+        assert!(
+            row_rule_evidence(
+                "src/**/*.vb", &governing, Some(&good), Some(7), 7, Some(source)
+            )
+            .is_none(),
+            "a glob row must stay silent, not report a drift reason"
+        );
+    }
+
+    #[test]
+    fn a_row_past_the_site_cap_still_reports_how_many_it_actually_found() {
+        // Bounding the list is necessary; hiding that it was bounded is not. A
+        // reader who sees the cap-many entries and no total cannot tell a file
+        // with exactly that many sites from one with far more.
+        //
+        // Production change that would make this fail: dropping the total, or
+        // truncating without declaring the cap that did it.
+        let extra = 4;
+        let mut source = String::from("Public Class Report\n");
+        for index in 0..(CHANGE_SET_CONSTRUCT_SITE_CAP + extra) {
+            source.push_str(&format!(
+                "        Dim v{index} = rows.Where(Function(r) list{index}.Contains(r.Id))\n"
+            ));
+        }
+        source.push_str("End Class\n");
+        let governing = vec![(
+            "r-001".to_string(),
+            "Guard large .Contains filters before calling the store".to_string(),
+        )];
+
+        let sites = row_ruled_construct_sites("src/Report.vb", &source, &governing);
+        assert_eq!(sites.len(), 1, "{sites:?}");
+        let entry = &sites[0];
+        assert_eq!(
+            entry["occurrences"].as_array().unwrap().len(),
+            CHANGE_SET_CONSTRUCT_SITE_CAP,
+            "listed occurrences must stop at the cap"
+        );
+        assert_eq!(
+            entry["occurrences_total"].as_u64().unwrap() as usize,
+            CHANGE_SET_CONSTRUCT_SITE_CAP + extra,
+            "the true total must survive the truncation"
+        );
+        assert_eq!(
+            entry["occurrence_cap"].as_u64().unwrap() as usize,
+            CHANGE_SET_CONSTRUCT_SITE_CAP,
+            "the cap that truncated must be named in the row"
+        );
+    }
+
+    #[test]
+    fn a_row_only_cites_lines_from_source_it_can_still_vouch_for() {
+        // Line citations are true only while the bytes on disk are the bytes that
+        // were fingerprinted. Each way that can fail gets its own answer, because
+        // "not checked" and "nothing found" are different facts to a reader.
+        //
+        // Production change that would make this fail: collapsing these states into
+        // one marker, or letting any of them pass as verified.
+        let bytes: &[u8] = b"Public Class Report\nEnd Class\n";
+        let edited: &[u8] = b"Public Class Report\n' changed\nEnd Class\n";
+        let digest = blake3::hash(bytes).to_hex().to_string();
+        let good = serde_json::json!({ "file_hash": digest });
+
+        // POSITIVE CONTROL: fingerprint matches and the node is not ahead of the
+        // snapshot these rows were built from, so the citations hold.
+        assert_eq!(row_source_drift(Some(&good), Some(7), 7, Some(bytes)), None);
+
+        assert_eq!(
+            row_source_drift(None, None, 7, Some(bytes)),
+            Some("indexed source file missing")
+        );
+
+        let no_hash = serde_json::json!({ "language": "vb" });
+        assert_eq!(
+            row_source_drift(Some(&no_hash), Some(7), 7, Some(bytes)),
+            Some("indexed source fingerprint missing")
+        );
+
+        // Refused on its own terms: a node stamped by a newer generation would
+        // judge these older rows by evidence they were never built from.
+        assert_eq!(
+            row_source_drift(Some(&good), Some(8), 7, Some(bytes)),
+            Some("not verifiable at this snapshot")
+        );
+
+        assert_eq!(
+            row_source_drift(Some(&good), Some(7), 7, Some(edited)),
+            Some("source fingerprint stale")
+        );
+
+        // Indexed, but gone from the working tree: nothing to compare against.
+        assert_eq!(
+            row_source_drift(Some(&good), Some(7), 7, None),
+            Some("source unreadable on disk")
+        );
+    }
+
+    #[test]
+    fn a_row_reports_ruled_construct_evidence_or_says_why_it_cannot() {
+        // A row owes the reader either the located sites or a reason it could not
+        // locate them - but only when a rule that names a construct governs it.
+        // A drift marker on a row whose rules name nothing is noise that buries
+        // the markers that matter.
+        //
+        // Production change that would make this fail: reporting drift for rows no
+        // governing rule speaks about, or letting unverifiable source produce sites.
+        let source: &[u8] = b"Public Class Report\n    Public Shared Function Build() As Integer\n        Dim first = rows.Where(Function(r) allowed.Contains(r.OwnerId))\n        Return 0\n    End Function\nEnd Class\n";
+        let edited: &[u8] = b"Public Class Report\n' changed\nEnd Class\n";
+        let good = serde_json::json!({ "file_hash": blake3::hash(source).to_hex().to_string() });
+
+        let governing = vec![(
+            "r-001".to_string(),
+            "**/*.vb".to_string(),
+            "Guard large .Contains filters before calling the store".to_string(),
+        )];
+        let elsewhere = vec![(
+            "r-002".to_string(),
+            "**/*.ts".to_string(),
+            "Guard large .Contains filters before calling the store".to_string(),
+        )];
+        let no_construct = vec![(
+            "r-003".to_string(),
+            "**/*.vb".to_string(),
+            "Wrap related writes in one transaction and surface failures".to_string(),
+        )];
+
+        let found = row_rule_evidence(
+            "src/Report.vb", &governing, Some(&good), Some(7), 7, Some(source),
+        )
+        .expect("a governing rule over verifiable source must produce evidence");
+        assert_eq!(found["status"], "verified");
+        let sites = found["sites"].as_array().unwrap();
+        assert_eq!(sites[0]["rule_ids"], serde_json::json!(["r-001"]));
+        assert_eq!(sites[0]["construct"], ".Contains");
+        assert_eq!(sites[0]["occurrences"][0]["line"], 3);
+        assert_eq!(sites[0]["occurrences"][0]["receiver"], "allowed");
+
+        let drifted = row_rule_evidence(
+            "src/Report.vb", &governing, Some(&good), Some(7), 7, Some(edited),
+        )
+        .expect("a governing rule over unverifiable source must say so");
+        assert_eq!(drifted["status"], "not_checked");
+        assert_eq!(drifted["reason"], "source fingerprint stale");
+
+        // Negative control: the rule governs other paths, so this row owes nothing
+        // -- not even a drift marker.
+        assert!(
+            row_rule_evidence(
+                "src/Report.vb", &elsewhere, Some(&good), Some(7), 7, Some(edited)
+            )
+            .is_none()
+        );
+
+        // Negative control: a governing rule that names no construct likewise owes
+        // nothing, however stale the source is.
+        assert!(
+            row_rule_evidence(
+                "src/Report.vb", &no_construct, Some(&good), Some(7), 7, Some(edited)
+            )
+            .is_none()
+        );
+
+        // Bytes that match their fingerprint but are not text cannot be scanned;
+        // the decode branch must report rather than silently yield no sites.
+        let bad: &[u8] = &[0xff, 0xfe, 0xfd];
+        let bad_meta =
+            serde_json::json!({ "file_hash": blake3::hash(bad).to_hex().to_string() });
+        let undecodable = row_rule_evidence(
+            "src/Report.vb", &governing, Some(&bad_meta), Some(7), 7, Some(bad),
+        )
+        .expect("undecodable source must be reported, not silently empty");
+        assert_eq!(undecodable["status"], "not_checked");
+        assert_eq!(undecodable["reason"], "source is not UTF-8");
     }
 
     #[test]
