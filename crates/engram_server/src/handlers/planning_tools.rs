@@ -5351,32 +5351,52 @@ fn story_name_term_matches_stem(term: &str, stem: &str) -> bool {
             && stem.contains(&term[..term.len() - 1]))
 }
 
+/// A name term: an acceptable story token reduced to its canonical form, and
+/// REJECTED AGAIN if that form is a stopword. `story_token` screens before
+/// canonicalization, so a stopword whose plural is absent from the list —
+/// `system` is listed, `systems` is not — passed the filter and was then
+/// stripped back to the very word the list rejects. Measured: `systems` in a
+/// story became the term `system`, which matches 80 files by stem.
+fn story_name_term(word: &str) -> Option<String> {
+    let canonical = canonical_story_name_term(&story_token(word)?);
+    (!STORY_STOPWORDS.contains(&canonical.as_str())).then_some(canonical)
+}
+
+/// A markdown heading is document STRUCTURE, never domain prose. Skipping
+/// these is what lets the headline/body split work on an EXPORTED work item:
+/// the split marker used to be the literal `## Work item` this handler emits
+/// itself, but an exported item opens with `# Work item <id>` — ONE hash — so
+/// the marker never matched, `body` came back empty, every token counted as a
+/// headline term, and the singleton filter below was inert. Measured: 9 of 9
+/// replayed stories are the one-hash form.
+fn is_markdown_heading(line: &str) -> bool {
+    line.trim_start()
+        .trim_start_matches('\u{feff}')
+        .trim_start()
+        .starts_with('#')
+}
+
 /// Terms allowed to promote a file through compound filename coverage.
 /// A long work item mentions many incidental nouns once (example names,
 /// negative cases, unrelated linked-item prose). Keep headline terms and
 /// body terms repeated at least twice; a singleton can still reach the file
 /// through exact entities, concepts, history, graph or business rules.
 fn story_name_terms(story: &str) -> BTreeSet<String> {
-    let headline = story.split("## Work item").next().unwrap_or(story);
+    // The headline is the item's own summary: the first line carrying prose.
+    // Everything after it is body, where the repetition rule applies.
+    let mut prose = story.lines().filter(|line| {
+        !is_markdown_heading(line) && !line.trim().is_empty()
+    });
+    let headline = prose.next().unwrap_or_default();
     let headline_terms = headline
         .split(|character: char| !character.is_alphanumeric())
-        .filter_map(story_token)
-        .map(|term| canonical_story_name_term(&term))
+        .filter_map(story_name_term)
         .collect::<BTreeSet<_>>();
-    let body = story
-        .split_once("## Work item")
-        .and_then(|(_, remainder)| remainder.split_once('\n').map(|(_, body)| body))
-        .unwrap_or("");
-    let occurrence_source = if body.is_empty() {
-        headline.to_string()
-    } else {
-        format!("{headline}\n{body}")
-    };
     let mut occurrences = BTreeMap::<String, usize>::new();
-    for term in occurrence_source
-        .split(|character: char| !character.is_alphanumeric())
-        .filter_map(story_token)
-        .map(|term| canonical_story_name_term(&term))
+    for term in std::iter::once(headline)
+        .chain(prose)
+        .flat_map(|line| line.split(|character: char| !character.is_alphanumeric()))
+        .filter_map(story_name_term)
     {
         *occurrences.entry(term).or_default() += 1;
     }
@@ -10559,7 +10579,13 @@ impl Engram {
             // index-local breadth filter prevents common framework vocabulary
             // from promoting an entire file family. This scans the complete
             // non-vendor file index rather than a capped concept footprint.
-            let story_terms = story_name_terms(&req.story);
+            //
+            // Read the SAME stripped view every other arm reads (`retrieval_story`,
+            // bound at the top of this handler): the raw request story still carries
+            // the scaffolding this handler injects around fetched work-item text, and
+            // `work` — from a `# Work item <id>` heading — counted as one of the three
+            // story words that promoted an unrelated import page on a replayed PR.
+            let story_terms = story_name_terms(&retrieval_story);
             if story_terms.len() >= NAME_COVERAGE_MIN {
                 let mut term_file_counts = BTreeMap::<String, usize>::new();
                 for (rp, _) in meta.iter() {
@@ -14894,6 +14920,49 @@ mod change_set_rows_tests {
         assert!(!terms.contains("map"));
         assert!(!terms.contains("feature"));
         assert!(!terms.contains("item"));
+    }
+
+    /// The split marker above is the literal `## Work item` this handler emits
+    /// itself. A work item EXPORTED as markdown opens with `# Work item <id>` —
+    /// ONE hash — so the split never fires, `body` is empty, every token counts
+    /// as a headline term, and the singleton filter this function exists for is
+    /// inert. Measured: 9 of 9 replayed stories are the one-hash form.
+    #[test]
+    fn a_markdown_exported_work_item_still_drops_incidental_singletons() {
+        let terms = story_name_terms(
+            "# Work item 42 (User Story)\n\n\
+             Revalidate user sessions\n\n\
+             ## Description\n\
+             Sessions must be revalidated. A map gadget is an unrelated example.\n\
+             Password reset rotates the password generation.",
+        );
+        // Headline terms and repeated body terms are still evidence.
+        assert!(terms.contains("session"), "{terms:?}");
+        assert!(terms.contains("password"), "{terms:?}");
+        // Named once, deep in the body: not name evidence.
+        assert!(!terms.contains("map"), "{terms:?}");
+        assert!(!terms.contains("gadget"), "{terms:?}");
+        // Markdown scaffolding is structure, never a domain term.
+        assert!(!terms.contains("work"), "{terms:?}");
+        assert!(!terms.contains("item"), "{terms:?}");
+        assert!(!terms.contains("description"), "{terms:?}");
+    }
+
+    /// `system` is a stopword; `systems` is not in the list. Canonicalization
+    /// runs AFTER the stopword filter, so the plural passes the filter and is
+    /// then stripped back to the very word the list rejects. Live: `systems`
+    /// in a story became the term `system`, matching 80 files by stem.
+    #[test]
+    fn a_stopwords_plural_never_re_enters_as_a_name_term() {
+        let terms = story_name_terms(
+            "Export rollup widgets\n\n\
+             ## Description\n\
+             Import them into other systems. Other systems consume the export.",
+        );
+        assert!(!terms.contains("system"), "{terms:?}");
+        // The real domain words are untouched by the fix.
+        assert!(terms.contains("export"), "{terms:?}");
+        assert!(terms.contains("widget"), "{terms:?}");
     }
 
     #[test]
