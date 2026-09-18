@@ -11,6 +11,108 @@ use rmcp::{
     model::{CallToolResult, Content},
 };
 
+#[cfg(test)]
+mod graph_row_attribution_tests {
+    use super::{GraphRowSource, graph_row, no_graph_matches_note};
+
+    /// A row reached by graph expansion and a row seeded by a text hit render
+    /// identically today - both are a bare `- id (score=...)`. The reader
+    /// cannot tell a direct hit from a node three hops out through hop decay.
+    #[test]
+    fn a_row_says_which_path_put_it_there() {
+        let seeded = graph_row("file:src/Sample.cs", 0.42, None, GraphRowSource::TextHit);
+        assert!(
+            seeded.contains("text hit"),
+            "a text-seeded row does not name its source:\n{seeded}"
+        );
+        let expanded = graph_row("sym:fn:Other", 0.02, None, GraphRowSource::GraphExpansion);
+        assert!(
+            expanded.contains("graph expansion"),
+            "an expanded row does not name its source:\n{expanded}"
+        );
+    }
+
+    /// The symbol label must survive the change, and must not be mistaken for
+    /// the attribution: `label` is populated only for symbol nodes, so its
+    /// absence was never a signal about provenance.
+    #[test]
+    fn a_symbol_row_keeps_its_label_and_names_its_source() {
+        let row = graph_row(
+            "sym:fn:DoThing",
+            0.91,
+            Some("function (DoThing)"),
+            GraphRowSource::SymbolMatch,
+        );
+        assert!(row.contains("function (DoThing)"), "label dropped:\n{row}");
+        assert!(
+            row.contains("symbol match"),
+            "symbol row does not name its source:\n{row}"
+        );
+    }
+
+    /// The empty branch is terse where the same tool's sibling fallback gives a
+    /// full recovery caveat. Say what was searched and what came back.
+    #[test]
+    fn an_empty_graph_search_says_what_it_actually_searched() {
+        let note = no_graph_matches_note("DoThing", "memory", 0, 0);
+        assert!(note.contains("DoThing"), "query not named:\n{note}");
+        assert!(note.contains("memory"), "namespace not named:\n{note}");
+        assert!(
+            note.contains("get_index_freshness"),
+            "no recovery hint for a symbol newer than the index:\n{note}"
+        );
+    }
+}
+
+/// Why a node is in a graph-search result set.
+///
+/// Recorded where the score is set, never inferred at render time: a file node
+/// can arrive from a text hit OR from a symbol's parent boost, and the two are
+/// indistinguishable afterwards. Guessing between them would reproduce the
+/// collapse this attribution exists to remove.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum GraphRowSource {
+    TextHit,
+    SymbolMatch,
+    SymbolFileBoost,
+    GraphExpansion,
+}
+
+impl GraphRowSource {
+    fn label(self) -> &'static str {
+        match self {
+            GraphRowSource::TextHit => "text hit",
+            GraphRowSource::SymbolMatch => "symbol match",
+            GraphRowSource::SymbolFileBoost => "file of a symbol match",
+            GraphRowSource::GraphExpansion => "graph expansion",
+        }
+    }
+}
+
+/// One result row. Pure so the claim each row makes about itself can be
+/// asserted without a graph or an index.
+fn graph_row(id: &str, score: f32, label: Option<&str>, source: GraphRowSource) -> String {
+    let via = source.label();
+    match label {
+        Some(lbl) => format!("- {id} [{lbl}] (via {via}, score={score:.3})\n"),
+        None => format!("- {id} (via {via}, score={score:.3})\n"),
+    }
+}
+
+/// What to say when nothing matched. Pure for the same reason.
+///
+/// Scores are only ever empty when BOTH seeds were empty, so the counts below
+/// are the whole story: there was nothing to expand from.
+fn no_graph_matches_note(query: &str, namespace: &str, text_hits: usize, symbols: usize) -> String {
+    format!(
+        "No graph matches for '{query}' in namespace '{namespace}': {text_hits} text hit(s) and \
+         {symbols} symbol match(es), so there was no seed to expand from. hints: check \
+         spelling/casing of the query; confirm the symbol exists with resolve_id or \
+         query_graph_nodes; a symbol in a file added or edited since the last index is invisible \
+         here - get_index_freshness to check."
+    )
+}
+
 /// Render one node as an identity card with follow-up tool hints.
 fn render_node_identity(node: &engram_graph::Node) -> String {
     let mut out = String::with_capacity(256);
@@ -295,14 +397,26 @@ impl Engram {
             .query_nodes(&req.project_id, None, Some(&req.query), None, 30)
             .unwrap_or_default();
 
-        // Build score map: node_id -> (score, label, path_for_content)
-        let mut scores: std::collections::HashMap<String, (f32, Option<String>, Option<String>)> =
-            std::collections::HashMap::with_capacity(max_results * 2);
+        // Build score map: node_id -> (score, label, path_for_content, source).
+        // `source` records WHICH insertion produced the winning score, so a row
+        // can say how it got here instead of leaving the reader to guess.
+        let mut scores: std::collections::HashMap<
+            String,
+            (f32, Option<String>, Option<String>, GraphRowSource),
+        > = std::collections::HashMap::with_capacity(max_results * 2);
 
         // Seed from text search hits (file-level nodes)
         for h in &hits {
             let node_id = format!("file:{}", h.path);
-            scores.insert(node_id, (h.score, None, Some(h.path.as_str().to_string())));
+            scores.insert(
+                node_id,
+                (
+                    h.score,
+                    None,
+                    Some(h.path.as_str().to_string()),
+                    GraphRowSource::TextHit,
+                ),
+            );
         }
 
         // Seed from symbol name matches with a symbol boost
@@ -327,19 +441,29 @@ impl Engram {
             };
             let entry = scores
                 .entry(node.node_id.clone())
-                .or_insert((0.0, None, None));
+                .or_insert((0.0, None, None, GraphRowSource::SymbolMatch));
             if sym_score > entry.0 {
-                *entry = (sym_score, label, file_path.clone());
+                *entry = (
+                    sym_score,
+                    label,
+                    file_path.clone(),
+                    GraphRowSource::SymbolMatch,
+                );
             }
 
-            // Also boost the parent file node
+            // Also boost the parent file node. The source moves only when the
+            // boost actually wins, so a file that was already a text hit keeps
+            // its own attribution when the boost loses.
             if let Some(fp) = &file_path {
                 let file_node_id = format!("file:{}", fp);
-                let file_entry = scores.entry(file_node_id).or_insert((0.0, None, None));
+                let file_entry = scores
+                    .entry(file_node_id)
+                    .or_insert((0.0, None, None, GraphRowSource::SymbolFileBoost));
                 let file_boost = sym_score * 0.8;
                 if file_boost > file_entry.0 {
                     file_entry.0 = file_boost;
                     file_entry.2 = file_path.clone();
+                    file_entry.3 = GraphRowSource::SymbolFileBoost;
                 }
             }
         }
@@ -373,7 +497,7 @@ impl Engram {
         for _hop in 0..hop_depth {
             let seed_nodes: Vec<(String, f32)> = scores
                 .iter()
-                .map(|(k, (s, _, _))| (k.clone(), *s))
+                .map(|(k, (s, _, _, _))| (k.clone(), *s))
                 .collect();
 
             for (node_id, parent_score) in &seed_nodes {
@@ -390,9 +514,12 @@ impl Engram {
                             let weight_factor =
                                 0.5 + (weight.min(10) as f32 * req.symbol_boost * 0.05);
                             let neigh_score = parent_score * weight_factor.min(0.90) * hop_decay;
-                            let entry = scores.entry(neigh_id).or_insert((0.0, None, None));
+                            let entry = scores
+                                .entry(neigh_id)
+                                .or_insert((0.0, None, None, GraphRowSource::GraphExpansion));
                             if neigh_score > entry.0 {
                                 entry.0 = neigh_score;
+                                entry.3 = GraphRowSource::GraphExpansion;
                             }
                         }
                     }
@@ -402,7 +529,12 @@ impl Engram {
 
         if scores.is_empty() {
             return Ok(CallToolResult::success(vec![Content::text(
-                "No graph matches found.",
+                no_graph_matches_note(
+                    &req.query,
+                    &req.namespace,
+                    hits.len(),
+                    symbol_nodes.len(),
+                ),
             )]));
         }
 
@@ -425,12 +557,8 @@ impl Engram {
             hop_depth
         ));
 
-        for (id, (score, label, _path)) in sorted.iter().take(max_results) {
-            if let Some(lbl) = label {
-                out.push_str(&format!("- {} [{}] (score={:.3})\n", id, lbl, score));
-            } else {
-                out.push_str(&format!("- {} (score={:.3})\n", id, score));
-            }
+        for (id, (score, label, _path, source)) in sorted.iter().take(max_results) {
+            out.push_str(&graph_row(id, *score, label.as_deref(), *source));
 
             // Include content preview if requested
             if req.include_content && max_content_chars > 0 {
