@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used)]
 //! External audit 2026-08-29 row 5 — owner decision 15:23: refine the catalog
-//! before the A/B. Live OciusX showed the slice-1 key (container type +
+//! before the A/B. The live pilot corpus showed the slice-1 key (container type +
 //! layout) lumping 6,475 class-less `div`s into one "family" whose exemplar
 //! sat outside the requested region. A family is a container type + its BASE
 //! class set (utility/spacing classes stripped); class-less instances are

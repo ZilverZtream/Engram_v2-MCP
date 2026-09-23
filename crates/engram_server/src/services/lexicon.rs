@@ -3,7 +3,7 @@
 //!
 //! A `.resx` in the default culture (or `*.sv.resx`) paired with its
 //! `*.en.resx` sibling is a deterministic bilingual dictionary the team
-//! itself maintains: `Mängdredovisning` ↔ `Reporting of Quantities`. An
+//! itself maintains: `Mängdleverans` ↔ `Reporting of Quantities`. An
 //! English story that names a domain entity in English can be translated —
 //! longest match over the resource values — into the Swedish terms the code
 //! is written in, without a parenthesized gloss. Working-tree parse, cached
@@ -250,7 +250,7 @@ pub fn translate(story: &str, lex: &Lexicon) -> Vec<LexiconHit> {
     out
 }
 
-/// Identifier-friendly fold of a Swedish term: `Mängdredovisning` → `mangdredovisning`.
+/// Identifier-friendly fold of a Swedish term: `Mängdleverans` → `Mangdleverans`.
 pub fn ascii_fold(s: &str) -> String {
     s.chars()
         .map(|c| match c {

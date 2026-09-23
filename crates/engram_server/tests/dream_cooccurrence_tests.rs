@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used)]
 //! External audit 2026-08-29 — Dream row (owner decision 10:33: fix first,
-//! then ablate). Live OciusX evidence: a 10-hit `search_memory` produced the
+//! then ablate). Live pilot-corpus evidence: a 10-hit `search_memory` produced the
 //! 10 `chunk` nodes and +20 `dependency` edges the recorder writes, but ZERO
 //! `co_occurrence` edges — the dreamer's only input never lands, so every
 //! dream cycle finds no clusters and "succeeds" doing nothing.
@@ -171,7 +171,7 @@ async fn search_preserves_all_canonical_source_file_fields() {
             end_line: 20,
             generation,
             metadata: Some(
-                serde_json::json!({"source_index_version":3,"file_hash":"preserved-fingerprint","mtime_ms":123,"size":42}),
+                serde_json::json!({"source_index_version": engram_index::SOURCE_INDEX_VERSION, "file_hash":"preserved-fingerprint","mtime_ms":123,"size":42}),
             ),
         };
         state.graph.upsert_nodes(PID, &[node.clone()]).unwrap();
@@ -274,6 +274,7 @@ async fn knowledge_learning_keeps_real_source_health_and_freshness_complete() {
         api.get_index_freshness(Parameters(engram_server::GetIndexFreshnessRequest {
             project_id: pid.clone(),
             check_disk: true,
+            expected_git_commit: None,
         }))
         .await
         .unwrap(),
@@ -299,6 +300,7 @@ async fn knowledge_learning_keeps_real_source_health_and_freshness_complete() {
         api.get_index_freshness(Parameters(engram_server::GetIndexFreshnessRequest {
             project_id: pid.clone(),
             check_disk: true,
+            expected_git_commit: None,
         }))
         .await
         .unwrap(),

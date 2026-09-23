@@ -1,4 +1,4 @@
-//! External audit 2026-08-29 P0-3: the reference story names `iFalt.dbml`
+//! External audit 2026-08-29 P0-3: the reference story names `iCore.dbml`
 //! (the LINQ-to-SQL model that changes with every table change) and it never
 //! rendered — live or on the fixture — because `.dbml` is not an indexed
 //! extension for .NET projects, so no retrieval arm can ever return it. The
@@ -24,11 +24,11 @@ fn dotnet_projects_index_the_orm_model_files() {
 #[test]
 fn the_model_files_are_read_as_xml() {
     assert_eq!(
-        engram_core::guess_language(std::path::Path::new("Site/App_Code/iFalt.dbml")),
+        engram_core::guess_language(std::path::Path::new("Site/App_Code/iCore.dbml")),
         "xml"
     );
     assert_eq!(
-        engram_core::guess_language(std::path::Path::new("Models/Ocius.edmx")),
+        engram_core::guess_language(std::path::Path::new("Models/Pilot.edmx")),
         "xml"
     );
 }

@@ -277,6 +277,12 @@ pub struct IngestStats {
     /// parsed rules. Surfaced in the report to localize losses.
     pub raw_with_fix_hunk: usize,
     pub parsed_with_fix_hunk: usize,
+    /// Immutable per-PR decision events made available to find_merged_work and
+    /// get_review_decisions. Re-ingest is idempotent by event id.
+    pub review_decisions_recorded: usize,
+    /// Findings lacking sufficient provenance, or PR groups that could not be
+    /// persisted without violating immutable-event validation.
+    pub review_decisions_skipped: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -301,6 +307,12 @@ pub struct IngestConfig {
     /// hash so the classifier never spends tokens twice on the same
     /// finding. Off by default — deterministic path works fine.
     pub use_llm_for_ambiguous: bool,
+    /// Inclusive historical boundary. PRs above this id never enter parsing,
+    /// clustering, graph storage or promoted rules.
+    pub max_pr_id: Option<u64>,
+    /// Exclusive `YYYY-MM-DD` completion boundary. PRs completed on or after
+    /// this date, plus undated records, never enter parsing or storage.
+    pub completed_before: Option<String>,
 }
 
 impl Default for IngestConfig {
@@ -320,6 +332,8 @@ impl Default for IngestConfig {
             promote_lift_threshold: 0.15,
             force_full_rescan: false,
             use_llm_for_ambiguous: false,
+            max_pr_id: None,
+            completed_before: None,
         }
     }
 }
@@ -367,7 +381,15 @@ pub async fn ingest_code_review_history(
 ) -> anyhow::Result<IngestStats> {
     let start = std::time::Instant::now();
     let mut stats = IngestStats::default();
-    let source_sig = config.source.signature();
+    let source_sig = format!(
+        "{}:max_pr_id={}:completed_before={}",
+        config.source.signature(),
+        config
+            .max_pr_id
+            .map(|id| id.to_string())
+            .unwrap_or_else(|| "latest".into()),
+        config.completed_before.as_deref().unwrap_or("latest")
+    );
 
     // Read incremental state unless the caller forced a full rescan.
     let last_pr_id: Option<u64> = if config.force_full_rescan {
@@ -382,7 +404,12 @@ pub async fn ingest_code_review_history(
     };
 
     // Stage 1: fetch
-    let (raw, skipped) = fetch_raw_comments(&config.source, last_pr_id).await?;
+    let (raw, skipped) = fetch_raw_comments(
+        &config.source,
+        last_pr_id,
+        config.max_pr_id,
+        config.completed_before.as_deref(),
+    ).await?;
     stats.total_raw = raw.len();
     stats.incremental_skipped_prs = skipped;
     stats.raw_with_fix_hunk = raw.iter().filter(|r| r.fix_hunk.is_some()).count();
@@ -415,6 +442,117 @@ pub async fn ingest_code_review_history(
         for r in &mut parsed {
             if let Some(verdict) = classify_ambiguous(state, project_id, r).await {
                 r.llm_resolution = Some(verdict);
+            }
+        }
+    }
+
+    // Preserve individual, disposition-aware review evidence as well as the
+    // clustered anti-pattern corpus. Clusters answer "what usually matters";
+    // per-PR decisions answer "what happened in this exemplar" and prevent an
+    // agent from re-raising accepted exceptions. These are imported claims,
+    // never verified-fix attestations and never automatic suppressions.
+    let mut decisions_by_pr: std::collections::BTreeMap<
+        u64,
+        Vec<crate::handlers::review_decisions::ReviewDecision>,
+    > = std::collections::BTreeMap::new();
+    for rule in &parsed {
+        if !rule.pr_url.starts_with("https://")
+            || rule.pr_author.trim().is_empty()
+            || rule.pr_date.trim().is_empty()
+        {
+            stats.review_decisions_skipped += 1;
+            continue;
+        }
+        use crate::handlers::review_decisions::{DecisionKind, ReviewDecision};
+        let (kind, disposition) = match rule.llm_resolution {
+            Some(LlmResolution::Fixed) => (DecisionKind::ClaimedFix, "llm_classified_fixed"),
+            Some(LlmResolution::Dismissed) => {
+                (DecisionKind::AcceptedException, "llm_classified_dismissed")
+            }
+            Some(LlmResolution::Unknown) => (DecisionKind::Open, "llm_unclassified"),
+            None => match rule.fix_status {
+                ThreadStatus::Fixed => (DecisionKind::ClaimedFix, "fixed"),
+                ThreadStatus::WontFix => (DecisionKind::AcceptedException, "wont_fix"),
+                ThreadStatus::Active => (DecisionKind::Open, "active"),
+                ThreadStatus::Closed => (DecisionKind::Open, "closed_unclassified"),
+                ThreadStatus::Unknown => (DecisionKind::Open, "unknown"),
+            },
+        };
+        let finding_id = if rule.thread_id > 0 {
+            format!("thread:{}", rule.thread_id)
+        } else {
+            format!(
+                "finding:{}",
+                &rule.semantic_hash[..16.min(rule.semantic_hash.len())]
+            )
+        };
+        decisions_by_pr
+            .entry(rule.pr_id)
+            .or_default()
+            .push(ReviewDecision {
+                event_id: format!("review-history:{}", rule.content_hash),
+                finding_id,
+                supersedes: None,
+                kind,
+                source_url: rule.pr_url.clone(),
+                author: rule.pr_author.clone(),
+                recorded_at: rule.pr_date.clone(),
+                rationale: format!(
+                    "Imported review disposition={disposition}; file={}; finding={}",
+                    rule.file_path, rule.rule_text
+                ),
+                verification: None,
+            });
+    }
+    for (pr_id, mut decisions) in decisions_by_pr {
+        let review_id = format!("PR-{pr_id}");
+        let existing = match crate::handlers::review_decisions::read(
+            state,
+            project_id,
+            &review_id,
+        ) {
+            Ok(events) => events,
+            Err(error) => {
+                stats.review_decisions_skipped += decisions.len();
+                tracing::warn!(
+                    project_id,
+                    pr_id,
+                    count = decisions.len(),
+                    "existing review decision evidence was unreadable: {error}"
+                );
+                continue;
+            }
+        };
+        let mut latest_by_finding = std::collections::BTreeMap::new();
+        for event in &existing {
+            latest_by_finding.insert(event.finding_id.clone(), event.event_id.clone());
+        }
+        for decision in &mut decisions {
+            if let Some(old) = existing
+                .iter()
+                .find(|event| event.event_id == decision.event_id)
+            {
+                decision.supersedes = old.supersedes.clone();
+            } else {
+                decision.supersedes = latest_by_finding.get(&decision.finding_id).cloned();
+                latest_by_finding.insert(decision.finding_id.clone(), decision.event_id.clone());
+            }
+        }
+        match crate::handlers::review_decisions::append(
+            state,
+            project_id,
+            &review_id,
+            &decisions,
+        ) {
+            Ok(_) => stats.review_decisions_recorded += decisions.len(),
+            Err(error) => {
+                stats.review_decisions_skipped += decisions.len();
+                tracing::warn!(
+                    project_id,
+                    pr_id,
+                    count = decisions.len(),
+                    "review decision evidence was not persisted: {error}"
+                );
             }
         }
     }
@@ -615,6 +753,16 @@ pub async fn ingest_code_review_history(
                 rule_text: format!("{base_text} — CodeRabbit pattern, {how}"),
                 priority: (c.confidence * 100.0) as i32,
                 updated_at_ms: now_ms(),
+                introduced_at: c
+                    .members
+                    .iter()
+                    .filter_map(|member| member.pr_date.get(..10))
+                    .max()
+                    .map(str::to_string),
+                provenance: Some(format!(
+                    "recurring review cluster {} across {} PRs",
+                    c.cluster_id, pr_span
+                )),
             };
             state.registry.put_repo_rule(project_id, &rule)?;
             stats.repo_rules_promoted += 1;
@@ -663,22 +811,31 @@ fn now_ms() -> u64 {
 async fn fetch_raw_comments(
     source: &IngestSource,
     last_pr_id: Option<u64>,
+    max_pr_id: Option<u64>,
+    completed_before: Option<&str>,
 ) -> anyhow::Result<(Vec<RawReviewComment>, usize)> {
     match source {
-        IngestSource::JsonlFile { path } => read_jsonl(path, last_pr_id),
+        IngestSource::JsonlFile { path } => read_jsonl(path, last_pr_id, max_pr_id, completed_before),
         IngestSource::AzureDevops {
             org,
             project,
             repo,
             pat_token,
             max_prs,
-        } => fetch_azure_devops(org, project, repo, pat_token, *max_prs, last_pr_id).await,
+        } => {
+            fetch_azure_devops(
+                org, project, repo, pat_token, *max_prs, last_pr_id, max_pr_id,
+                completed_before,
+            ).await
+        }
     }
 }
 
 fn read_jsonl(
     path: &Path,
     last_pr_id: Option<u64>,
+    max_pr_id: Option<u64>,
+    completed_before: Option<&str>,
 ) -> anyhow::Result<(Vec<RawReviewComment>, usize)> {
     let bytes = std::fs::read_to_string(path)
         .map_err(|e| anyhow::anyhow!("failed to read jsonl at {}: {e}", path.display()))?;
@@ -701,6 +858,14 @@ fn read_jsonl(
                 continue;
             }
         }
+        if max_pr_id.is_some_and(|maximum| rec.pr_id > maximum) {
+            skipped += 1;
+            continue;
+        }
+        if completed_before.is_some_and(|cutoff| !is_before_completion_cutoff(&rec.pr_date, cutoff)) {
+            skipped += 1;
+            continue;
+        }
         out.push(rec);
     }
     Ok((out, skipped))
@@ -713,6 +878,8 @@ async fn fetch_azure_devops(
     pat_token: &str,
     max_prs: Option<usize>,
     last_pr_id: Option<u64>,
+    max_pr_id: Option<u64>,
+    completed_before: Option<&str>,
 ) -> anyhow::Result<(Vec<RawReviewComment>, usize)> {
     use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
 
@@ -758,7 +925,13 @@ async fn fetch_azure_devops(
             .cloned()
             .unwrap_or_default();
         let n = batch.len();
-        prs_raw.extend(batch);
+        prs_raw.extend(batch.into_iter().filter(|pr| {
+            let id = pr
+                .get("pullRequestId")
+                .and_then(|value| value.as_u64())
+                .unwrap_or(0);
+            id != 0 && max_pr_id.is_none_or(|maximum| id <= maximum)
+        }));
         if n < page_size {
             break;
         }
@@ -812,6 +985,10 @@ async fn fetch_azure_devops(
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
+        if completed_before.is_some_and(|cutoff| !is_before_completion_cutoff(&pr_date, cutoff)) {
+            skipped_incremental += 1;
+            continue;
+        }
         let pr_branch = pr
             .get("sourceRefName")
             .and_then(|v| v.as_str())
@@ -928,6 +1105,10 @@ async fn fetch_azure_devops(
     attach_fix_hunks(&client, &base, &auth, &mut out).await;
 
     Ok((out, skipped_incremental))
+}
+
+fn is_before_completion_cutoff(pr_date: &str, cutoff: &str) -> bool {
+    pr_date.get(..10).is_some_and(|date| date < cutoff)
 }
 
 /// Per-PR map of `changes-API path → [blob objectId in iteration order]`
@@ -2443,7 +2624,7 @@ mod tests {
         // The literal PR1874 fix the probe recovered: nullable-guard change.
         let diff = "@@ -18,7 +18,7 @@ Namespace _api2.svc\n\
                      \n\
-                                     Using db As New iFaltDataContext\n\
+                                     Using db As New iCoreDataContext\n\
                      \n\
                      -                If Query.projectId.HasValue Then\n\
                      +                If Query?.projectId IsNot Nothing Then\n\

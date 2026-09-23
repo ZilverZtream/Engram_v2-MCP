@@ -1854,6 +1854,8 @@ impl Engram {
                                 project: Some(project),
                                 repo: Some(repo),
                                 max_prs: Some(200),
+                                max_pr_id: None,
+                                completed_before: None,
                                 min_fix_rate: 0.5,
                                 token_overlap_threshold: 0.4,
                                 force_full_rescan: false,
@@ -2370,7 +2372,7 @@ impl Engram {
     /// External audit 2026-08-29 P0-2: does the PUBLISHED generation actually
     /// hold the corpus? Code chunks live in the `memory` namespace, one or
     /// more per indexed file; a generation with fewer chunks than half the
-    /// tracked files has lost its corpus (OciusX: 105 chunks for 2,274 files
+    /// tracked files has lost its corpus (pilot corpus: 105 chunks for 2,274 files
     /// while health said OK). Cheap: two counts.
     pub(crate) async fn generation_completeness(
         &self,
@@ -2514,6 +2516,14 @@ pub(crate) async fn generation_completeness_for(
         })
         .cloned()
         .collect();
+    let unindexed: Vec<&String> = missing
+        .iter()
+        .filter(|f| {
+            !tantivy.contains(*f)
+                && !graph_paths.contains(*f)
+                && (!vectors_checked || !vectors.contains(*f))
+        })
+        .collect();
     let extra = tantivy.iter().filter(|f| !expected.contains(*f)).count();
     let vector_extra = if vectors_checked {
         vectors.iter().filter(|f| !expected.contains(*f)).count()
@@ -2541,6 +2551,8 @@ pub(crate) async fn generation_completeness_for(
         graph_paths: graph_paths.len(),
         missing: missing.len(),
         missing_sample: missing.iter().take(10).cloned().collect(),
+        unindexed: unindexed.len(),
+        unindexed_sample: unindexed.iter().take(10).map(|p| p.to_string()).collect(),
         extra,
         cross_store_mismatch,
         tolerance,
@@ -2597,6 +2609,13 @@ pub(crate) fn completeness_line(c: &GenerationCompleteness) -> String {
         if c.complete {
             format!(
                 "complete (missing 0, mismatch 0; skipped by rule: {}{})",
+                c.skipped_by_rule,
+                skip_reasons(c)
+            )
+        } else if c.only_unindexed() {
+            format!(
+                "STALE ({} path(s) on disk are not indexed yet; the stores agree with each other; skipped by rule: {}{})",
+                c.unindexed,
                 c.skipped_by_rule,
                 skip_reasons(c)
             )
@@ -2724,6 +2743,12 @@ impl Engram {
                 "Health: DEGRADED — a store provider failed during the completeness check (see failures)"
                     .to_string()
             }
+            Ok(c) if c.only_unindexed() => format!(
+                "Health: STALE — {} eligible path(s) on disk are not in active generation {} (sample: {}); every store agrees on the indexed paths. Run update_project to index them.",
+                c.unindexed,
+                c.generation,
+                c.unindexed_sample.join(", ")
+            ),
             Ok(c) if !c.complete => format!(
                 "Health: CORRUPT — active generation {} is INCOMPLETE ({} of {} eligible paths missing from the searchable stores, cross-store mismatch {}); searchable evidence is unreliable until repair_project(scope=\"full\", wipe_and_reindex=false) rebuilds this project ID",
                 c.generation, c.missing, c.expected_paths, c.cross_store_mismatch
@@ -2763,6 +2788,17 @@ impl Engram {
             engram_index::SemanticQuality::Off => "off (fts_only)",
         };
         out.push_str(&format!("semantic_search: {semantic}\n"));
+        match ps.search.semantic_quality() {
+            engram_index::SemanticQuality::Semantic => {
+                out.push_str("retrieval_readiness: READY (lexical and semantic providers available)\n");
+            }
+            engram_index::SemanticQuality::DegradedTrigram => {
+                out.push_str("retrieval_readiness: DEGRADED (semantic provider is a trigram projection; meaning-based recall is not fully available)\n");
+            }
+            engram_index::SemanticQuality::Off => {
+                out.push_str("retrieval_readiness: DEGRADED (semantic retrieval is disabled; Health: OK covers source-index integrity only)\n");
+            }
+        }
 
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
@@ -2833,6 +2869,74 @@ impl Engram {
             ));
         }
 
+        // Historical and detached-checkout workflows need a stronger binding
+        // than generation completeness. A complete index can still contain a
+        // dirty worktree at the expected commit.
+        let mut source_binding_invalid = false;
+        let mut source_binding_unknown = false;
+        if let Some(expected) = req.expected_git_commit.as_deref() {
+            let valid = matches!(expected.len(), 40 | 64)
+                && expected.bytes().all(|b| b.is_ascii_hexdigit());
+            if !valid {
+                return Err(McpError::invalid_params(
+                    "expected_git_commit must be a full 40- or 64-character hexadecimal object id",
+                    None,
+                ));
+            }
+            let expected = expected.to_ascii_lowercase();
+            let directory = PathBuf::from(&rec.directory);
+            let check = tokio::task::spawn_blocking(move || {
+                let head = std::process::Command::new("git")
+                    .args(["--no-optional-locks", "-C"])
+                    .arg(&directory)
+                    .args(["rev-parse", "--verify", "HEAD"])
+                    .output()?;
+                if !head.status.success() {
+                    return Ok::<_, std::io::Error>(None);
+                }
+                let status = std::process::Command::new("git")
+                    .args(["--no-optional-locks", "-C"])
+                    .arg(&directory)
+                    .args(["status", "--porcelain=v1", "--untracked-files=no"])
+                    .output()?;
+                if !status.status.success() {
+                    return Ok(None);
+                }
+                Ok(Some((
+                    String::from_utf8_lossy(&head.stdout).trim().to_ascii_lowercase(),
+                    String::from_utf8_lossy(&status.stdout).lines().count(),
+                )))
+            })
+            .await;
+            out.push_str(&format!("expected_git_commit: {expected}\n"));
+            match check {
+                Ok(Ok(Some((head, dirty)))) => {
+                    let matches = head == expected;
+                    source_binding_invalid = !matches || dirty > 0;
+                    out.push_str(&format!("source_git_head: {head}\n"));
+                    out.push_str(&format!(
+                        "source_revision_check: {}\ntracked_worktree_changes: {dirty}\nsource_binding_check: {}\n",
+                        if matches { "match" } else { "MISMATCH" },
+                        if source_binding_invalid { "FAILED" } else { "pass" }
+                    ));
+                }
+                Ok(Ok(None)) => {
+                    source_binding_unknown = true;
+                    out.push_str("source_revision_check: unavailable (directory is not a readable Git worktree)\nsource_binding_check: unknown\n");
+                }
+                Ok(Err(error)) => {
+                    source_binding_unknown = true;
+                    out.push_str(&format!("source_revision_check: unavailable ({error})\nsource_binding_check: unknown\n"));
+                }
+                Err(error) => {
+                    source_binding_unknown = true;
+                    out.push_str(&format!("source_revision_check: unavailable ({error})\nsource_binding_check: unknown\n"));
+                }
+            }
+        } else {
+            out.push_str("source_revision_check: not_requested\nsource_binding_check: not_requested\n");
+        }
+
         // Compare with each indexed file, not the wall-clock end of a job.
         // Restored files can have older timestamps, and deletions have no mtime.
         // This is the incremental indexer's change detector, not proof that all
@@ -2896,12 +3000,19 @@ impl Engram {
                 false
             }
         };
-        let advice = if source_format.is_err() || source_format.as_ref().is_ok_and(|(count, _)| *count == 0) {
+        let unindexed_only = matches!(&completeness, Ok(c) if c.only_unindexed());
+        let advice = if source_binding_invalid {
+            "source revision binding FAILED — do not trust indexed source; restore the expected clean Git worktree and run update_project"
+        } else if source_binding_unknown {
+            "freshness unknown — the requested Git source revision could not be verified"
+        } else if source_format.is_err() || source_format.as_ref().is_ok_and(|(count, _)| *count == 0) {
             "freshness unknown — source-index format could not be verified; restore index access and retry"
         } else if source_format.as_ref().is_ok_and(|(_, paths)| !paths.is_empty()) {
             "run update_project — source-index migration automatically re-extracts old files while retaining this project ID and knowledge corpora"
         } else if completeness_unknown {
             "freshness unknown — generation completeness could not be verified; restore index access and retry"
+        } else if unindexed_only {
+            "index is stale — eligible files on disk are not indexed yet; run update_project (or enable watch_project for auto-updates)"
         } else if incomplete {
             "active generation is INCOMPLETE — the searchable corpus is missing; run repair_project(scope=\"full\", wipe_and_reindex=false) to rebuild this project ID and preserve knowledge"
         } else if rec.reindex_required_since_ms.is_some() {
@@ -4199,6 +4310,14 @@ impl Engram {
         req: AddRepoRuleRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        if req.introduced_at.as_deref().is_some_and(|date| {
+            !crate::handlers::test_derivation::valid_yyyy_mm_dd(date)
+        }) {
+            return Err(McpError::invalid_params(
+                "introduced_at must be YYYY-MM-DD",
+                None,
+            ));
+        }
         let rule_id = req.rule_id.unwrap_or_else(|| Uuid::new_v4().to_string());
         let rule = engram_core::RepoRule {
             rule_id: rule_id.clone(),
@@ -4206,6 +4325,8 @@ impl Engram {
             rule_text: req.rule_text,
             priority: req.priority,
             updated_at_ms: now_ms(),
+            introduced_at: req.introduced_at,
+            provenance: req.provenance,
         };
         self.state
             .registry
@@ -4225,9 +4346,22 @@ impl Engram {
             .registry
             .list_repo_rules(&req.project_id)
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        let mut out = String::new();
+        let mut out = String::from("# Repository rules\n\n");
+        if rules.is_empty() {
+            out.push_str("No repository rules are stored for this project.\n");
+        }
         for r in rules {
-            out.push_str(&format!("- {} | {}\n", r.rule_id, r.file_pattern));
+            let text = r.rule_text.replace(['\r', '\n'], " ");
+            out.push_str(&format!(
+                "- `{}` | files: `{}` | priority: {} | introduced: {} | provenance: {} | updated_at_ms: {}\n  {}\n",
+                r.rule_id,
+                r.file_pattern,
+                r.priority,
+                r.introduced_at.as_deref().unwrap_or("undated"),
+                r.provenance.as_deref().unwrap_or("unspecified"),
+                r.updated_at_ms,
+                text
+            ));
         }
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
@@ -4484,6 +4618,11 @@ pub(crate) struct GenerationCompleteness {
     /// Eligible paths absent from Tantivy or (when vectors exist) from LanceDB.
     pub missing: usize,
     pub missing_sample: Vec<String>,
+    /// Missing paths absent from EVERY store: on disk but never indexed,
+    /// typically created after the last index. The stores agree with each
+    /// other, and update_project indexes them.
+    pub unindexed: usize,
+    pub unindexed_sample: Vec<String>,
     /// Paths in Tantivy that are no longer eligible (stale).
     pub extra: usize,
     /// Paths present in one search store and absent in the other.
@@ -4506,6 +4645,19 @@ pub(crate) struct GenerationCompleteness {
     pub store_errors: Vec<String>,
     pub degraded: bool,
     pub complete: bool,
+}
+
+impl GenerationCompleteness {
+    /// Incomplete only because files on disk are not indexed yet: no
+    /// provider error, no cross-store mismatch, and every missing path is
+    /// absent from every store. That is a stale index, not a corrupt one.
+    pub(crate) fn only_unindexed(&self) -> bool {
+        !self.complete
+            && !self.degraded
+            && self.cross_store_mismatch == 0
+            && self.missing > 0
+            && self.missing == self.unindexed
+    }
 }
 
 /// Doc-11 P1a (external audit round 2, P0-1 tail): the post-publication

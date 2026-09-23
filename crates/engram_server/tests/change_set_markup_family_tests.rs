@@ -1,5 +1,5 @@
 #![allow(clippy::unwrap_used)]
-//! External audit 2026-08-29 P0-3: on OciusX the reference story's page markup
+//! External audit 2026-08-29 P0-3: on the pilot corpus the reference story's page markup
 //! `productioncodelistmaincategory.aspx` never rendered — only its code-behind
 //! (found by the vector arm alone). The family expansion pulled code-behind for
 //! a markup hit but never the markup for a code-behind hit. A WebForms page is
@@ -12,27 +12,27 @@ use engram_server::tools::Engram;
 use rmcp::handler::server::tool::Parameters;
 use serde_json::{Value, json};
 
-const STORY: &str = "As an admin I want to set a main reporting category (huvudredovisningskategori) for each production code list category so that time reports roll up to it";
+const STORY: &str = "As an admin I want to set a main reporting category (huvudkostnadskategori) for each production code list category so that time reports roll up to it";
 
 async fn build() -> (tempfile::TempDir, Engram, String) {
     let tmp = tempfile::TempDir::new().unwrap();
     let root = tmp.path().join("proj");
     for d in [
-        "Site/App_Code/redovisning/code",
+        "Site/App_Code/leverans/code",
         "Site/modules/dashboard/pages/admin/production",
         "Site/App_Code/noise",
     ] {
         std::fs::create_dir_all(root.join(d)).unwrap();
     }
     std::fs::write(
-        root.join("Site/App_Code/redovisning/code/redovisningskategorier.vb"),
-        "Public Class redovisningskategorier\n    Public Function GetByProjectId(pr_id As Integer) As Object\n        Return Nothing\n    End Function\nEnd Class\n",
+        root.join("Site/App_Code/leverans/code/kostnadskategorier.vb"),
+        "Public Class kostnadskategorier\n    Public Function GetByProjectId(pr_id As Integer) As Object\n        Return Nothing\n    End Function\nEnd Class\n",
     )
     .unwrap();
     // The page: the concept lives ONLY in the code-behind; the markup names nothing the story says.
     std::fs::write(
         root.join("Site/modules/dashboard/pages/admin/production/productioncodelistmaincategory.aspx.vb"),
-        "Partial Class productioncodelistmaincategory\n    Inherits System.Web.UI.Page\n    Protected Sub Page_Load(sender As Object, e As EventArgs)\n        Dim cats = redovisningskategorier.GetByProjectId(pr_id)\n        ddlHuvud.DataSource = cats\n    End Sub\nEnd Class\n",
+        "Partial Class productioncodelistmaincategory\n    Inherits System.Web.UI.Page\n    Protected Sub Page_Load(sender As Object, e As EventArgs)\n        Dim cats = kostnadskategorier.GetByProjectId(pr_id)\n        ddlHuvud.DataSource = cats\n    End Sub\nEnd Class\n",
     )
     .unwrap();
     std::fs::write(

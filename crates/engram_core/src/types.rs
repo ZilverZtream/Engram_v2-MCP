@@ -125,6 +125,108 @@ pub fn is_vendor_path(rel_path: &str) -> bool {
     false
 }
 
+/// True for files that DECLARE without implementing: TypeScript declaration
+/// files and the `typings/` trees they live in. They are legitimate index
+/// content — an agent may need to read a contract — but they can never be the
+/// place a behaviour is implemented, so discovery tools that answer "where does
+/// this live / what do I imitate" must not spend their budget on them.
+///
+/// Deliberately NOT part of `is_vendor_path`: that function decides what feeds
+/// the code graph, and its contract is conservative on purpose (an app-owned
+/// bundle like `~.js/map.js` stays in the graph, asserted by its own test).
+pub fn is_declaration_path(rel_path: &str) -> bool {
+    let norm = rel_path.replace('\\', "/").to_ascii_lowercase();
+    if norm.ends_with(".d.ts") {
+        return true;
+    }
+    norm.split('/').any(|seg| seg == "typings" || seg == "@types")
+}
+
+/// True for a call target naming a LANGUAGE INTRINSIC rather than a symbol a
+/// project could declare: VB's `Information`/`Conversion` functions and the
+/// cast operators. They resolve to no node, so a tool that treats an
+/// unresolved bare name as "a project helper I failed to find" ends up blaming
+/// the language itself for missing evidence.
+///
+/// Consulted ONLY after symbol resolution has already failed. A project that
+/// declares its own `CStr` resolves to a real node and never reaches this
+/// predicate, so the list can never shadow real code.
+pub fn is_language_builtin(name: &str) -> bool {
+    const BUILTINS: [&str; 24] = [
+        "isnothing",
+        "isnumeric",
+        "isdate",
+        "isdbnull",
+        "isarray",
+        "iserror",
+        "ctype",
+        "directcast",
+        "trycast",
+        "gettype",
+        "typeof",
+        "nameof",
+        "cstr",
+        "cint",
+        "clng",
+        "cdbl",
+        "csng",
+        "cdec",
+        "cbool",
+        "cdate",
+        "cobj",
+        "cchar",
+        "cbyte",
+        "iif",
+    ];
+    let bare = name.trim_start_matches("::");
+    let bare = bare.split('(').next().unwrap_or(bare).trim();
+    let bare = bare.rsplit('.').next().unwrap_or(bare);
+    BUILTINS.iter().any(|b| bare.eq_ignore_ascii_case(b))
+}
+
+#[cfg(test)]
+mod language_builtin_tests {
+    use super::is_language_builtin;
+
+    #[test]
+    fn intrinsics_and_casts_match_however_the_target_is_spelled() {
+        assert!(is_language_builtin("::IsNothing"));
+        assert!(is_language_builtin("isnumeric"));
+        assert!(is_language_builtin("CType"));
+        assert!(is_language_builtin("::DirectCast(x, Y)"));
+    }
+
+    #[test]
+    fn project_symbols_do_not_match() {
+        assert!(!is_language_builtin("::LogThing"));
+        assert!(!is_language_builtin("CheckAccess"));
+        // A longer name that merely starts with an intrinsic is a project symbol.
+        assert!(!is_language_builtin("::IsNothingSpecial"));
+    }
+}
+
+#[cfg(test)]
+mod declaration_path_tests {
+    use super::is_declaration_path;
+
+    #[test]
+    fn declaration_files_and_typings_trees_match() {
+        assert!(is_declaration_path("Q/typings/google.maps/index.d.ts"));
+        assert!(is_declaration_path("ts/vendor/globals.d.ts"));
+        assert!(is_declaration_path("web/node_modules/@types/node/fs.ts"));
+        assert!(is_declaration_path(r"Q\typings\jquery\index.d.ts"), "backslashes");
+    }
+
+    #[test]
+    fn implementations_do_not_match() {
+        assert!(!is_declaration_path("ts/taskManagement/ITaskManager.ts"));
+        assert!(!is_declaration_path("App_Code/projektplanering/code/aktivitet.vb"));
+        // An app-owned compiled bundle is generated, but it is not a declaration:
+        // `is_vendor_path` deliberately keeps it in the graph, so this must agree.
+        assert!(!is_declaration_path("modules/map/~.js/map.js"));
+    }
+}
+
 #[cfg(test)]
 mod vendor_path_tests {
     use super::is_vendor_path;
@@ -162,7 +264,7 @@ mod vendor_path_tests {
         assert!(!is_vendor_path("Site/modules/map/~.js/map.js"));
         // App-owned dist + a custom jquery plugin stay in the graph.
         assert!(!is_vendor_path("frontend/dist/app.js"));
-        assert!(!is_vendor_path("Scripts/jquery.ociusGrid.js"));
+        assert!(!is_vendor_path("Scripts/jquery.pilotGrid.js"));
         // 'package'/'libs' singular or different segments do not match.
         assert!(!is_vendor_path("src/package/manager.vb"));
     }

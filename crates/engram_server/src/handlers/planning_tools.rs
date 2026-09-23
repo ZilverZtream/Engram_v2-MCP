@@ -13,8 +13,12 @@
 //!   imitate better than they invent.
 
 use crate::handlers::validate_project_id;
+use crate::handlers::planning_contract_rules::{
+    load_matching_planning_rules, PlanningContractRuleMatch,
+};
 use crate::models::{
     FindImplementationPatternRequest, FindSimilarChangesRequest, GetConceptFootprintRequest,
+    ValidateFeatureContractRequest,
 };
 use crate::services::full_project_migration_service as full_mig;
 use crate::services::pre_commit_review_service::{path_suffix_match, resolve_partner_to_current};
@@ -26,6 +30,116 @@ use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, Content};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::PathBuf;
+
+const PROJECT_POLICY_SOURCE_CAP: usize = 8;
+const PROJECT_POLICY_SOURCE_CHAR_CAP: usize = 10_000;
+const PROJECT_POLICY_TOTAL_CHAR_CAP: usize = 24_000;
+
+fn is_project_policy_path(path: &str) -> bool {
+    let normalized = path.replace('\\', "/");
+    let lower = normalized.to_ascii_lowercase();
+    let name = lower.rsplit('/').next().unwrap_or(&lower);
+    matches!(
+        name,
+        "agents.md"
+            | "claude.md"
+            | "contributing.md"
+            | "copilot-instructions.md"
+            | "coding-standards.md"
+            | "code-style.md"
+    ) || name.ends_with(".instructions.md")
+        || ((lower.starts_with(".cursor/rules/") || lower.contains("/.cursor/rules/"))
+            && (name.ends_with(".md") || name.ends_with(".mdc")))
+}
+
+fn project_policy_priority(path: &str) -> (u8, usize, String) {
+    let normalized = path.replace('\\', "/");
+    let lower = normalized.to_ascii_lowercase();
+    let name = lower.rsplit('/').next().unwrap_or(&lower);
+    let class = match name {
+        "agents.md" => 0,
+        "claude.md" => 1,
+        "copilot-instructions.md" => 2,
+        _ if name.ends_with(".instructions.md") => 3,
+        "coding-standards.md" | "code-style.md" => 4,
+        "contributing.md" => 5,
+        _ => 6,
+    };
+    (class, normalized.matches('/').count(), lower)
+}
+
+/// Read human-authored repository instructions from the checked-out source.
+/// These files are first-party evidence and must reach planning even when the
+/// optional quality-gate ingestion job has not run. Content is hash-bound and
+/// bounded so a large instruction tree cannot flood the tool response.
+fn project_policy_sources(
+    project_root: &std::path::Path,
+    indexed_paths: &[String],
+) -> serde_json::Value {
+    let mut candidates = indexed_paths
+        .iter()
+        .filter(|path| is_project_policy_path(path))
+        .map(|path| path.replace('\\', "/"))
+        .collect::<Vec<_>>();
+    for conventional in [
+        "AGENTS.md",
+        "CLAUDE.md",
+        ".github/copilot-instructions.md",
+        "CONTRIBUTING.md",
+        "CODING-STANDARDS.md",
+        "CODE_STYLE.md",
+    ] {
+        if project_root.join(conventional).is_file() {
+            candidates.push(conventional.to_string());
+        }
+    }
+    candidates.sort_by_key(|path| project_policy_priority(path));
+    candidates.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
+    let discovered = candidates.len();
+
+    let mut remaining = PROJECT_POLICY_TOTAL_CHAR_CAP;
+    let mut sources = Vec::new();
+    for relative in candidates.into_iter().take(PROJECT_POLICY_SOURCE_CAP) {
+        if remaining == 0 {
+            break;
+        }
+        let Ok(path) = engram_core::safe_join(project_root, &relative) else {
+            continue;
+        };
+        let Ok(bytes) = std::fs::read(&path) else {
+            continue;
+        };
+        let Ok(text) = String::from_utf8(bytes.clone()) else {
+            continue;
+        };
+        let take = text
+            .chars()
+            .count()
+            .min(PROJECT_POLICY_SOURCE_CHAR_CAP)
+            .min(remaining);
+        let content = text.chars().take(take).collect::<String>();
+        remaining = remaining.saturating_sub(take);
+        sources.push(serde_json::json!({
+            "path": relative,
+            "blake3": blake3::hash(&bytes).to_hex().to_string(),
+            "characters_total": text.chars().count(),
+            "characters_shown": take,
+            "truncated": take < text.chars().count(),
+            "content": content,
+        }));
+    }
+
+    serde_json::json!({
+        "status": if sources.is_empty() { "absent" } else { "present" },
+        "sources": sources,
+        "sources_discovered": discovered,
+        "sources_shown": sources.len(),
+        "source_cap": PROJECT_POLICY_SOURCE_CAP,
+        "character_cap_per_source": PROJECT_POLICY_SOURCE_CHAR_CAP,
+        "character_cap_total": PROJECT_POLICY_TOTAL_CHAR_CAP,
+        "instruction": "Treat these checked-out, hash-bound files as repository policy evidence. Apply the sections relevant to the planned files and record any conflict or ambiguity; do not silently replace them with inferred conventions."
+    })
+}
 
 // ── Pure helpers ─────────────────────────────────────────────────────────────
 
@@ -47,9 +161,41 @@ pub const CHANGE_SET_PRIMARY_CAP: usize = 40;
 /// Rows above this tier are never primary (tier 2 = concept corroborated
 /// by an independent arm).
 pub const CHANGE_SET_PRIMARY_MAX_TIER: u8 = 2;
+/// Default structured view: enough to include the complete primary set plus
+/// the strongest companion leads without flooding an agent's context.
+pub const CHANGE_SET_COMPACT_FILE_CAP: usize = 60;
+pub const CHANGE_SET_COMPACT_OMISSION_CAP: usize = 20;
+/// Occurrences of one ruled construct listed per row. The dossier already runs
+/// large enough to exhaust a response budget, so this is bounded — but the true
+/// total is always reported beside it. A row that truncated silently would claim
+/// a completeness it does not have, which is the failure this feature exists to
+/// remove, not to reproduce.
+pub const CHANGE_SET_CONSTRUCT_SITE_CAP: usize = 8;
+/// Rows whose source is opened to locate ruled construct sites. Each one is a
+/// file read this tool did not previously perform, so the scan is bounded and
+/// the count it stopped at is reported beside the result.
+pub const CHANGE_SET_CONSTRUCT_SCAN_CAP: usize = 24;
+pub const CHANGE_SET_COMPACT_DIAGNOSTIC_CAP: usize = 5;
+/// Byte budget for the two candidate-row regions of the rendered change set.
+/// Every section of that dossier is ELEMENT-capped and none was BYTE-capped, so
+/// the product of the caps set the size: measured across five delivered
+/// dossiers the rows ran 33-37 KB, 58-61% of the whole output. A sixth call
+/// rendered 61,924 characters and the caller received "exceeds maximum allowed
+/// tokens" INSTEAD of candidates — a dossier too large to deliver is not a large
+/// dossier, it is no dossier. The bracket from that data (60,484 delivered,
+/// 61,924 refused) leaves ~22-25 KB for the sections appended after these rows,
+/// which are themselves unbounded, so this budget reduces the risk rather than
+/// removing it; bounding the whole output is the remaining work. 30 KB keeps the
+/// complete primary set (measured 25.9 KB) and spends the cut on weak companions.
+pub const CHANGE_SET_ROWS_BUDGET: usize = 30 * 1024;
 /// A concept whose footprint matches this many files is too common to
 /// discriminate (IDF proxy): its hits are `broad`, never evidence.
 pub const BROAD_CONCEPT_MIN_FILES: usize = 40;
+/// A story word present in this many file names is too common to make a
+/// compound file-name match specific. This is an index-local IDF proxy: a
+/// long work item cannot promote whole framework or generated-file families
+/// merely by repeating words such as access, file, or membership.
+pub const BROAD_NAME_TERM_MIN_FILES: usize = 40;
 /// Story words that must compose a file NAME for the `name` signal.
 pub const NAME_COVERAGE_MIN: usize = 3;
 pub(crate) const ANCHOR_CAP: usize = 50;
@@ -334,6 +480,28 @@ pub(crate) fn name_tokens(name: &str) -> Vec<String> {
 /// NOT `reorder`), or (b) for multi-word stems, the concatenation of
 /// CONSECUTIVE tokens starting at a token boundary begins with the stem's
 /// compact form (`user role`/`userrole` → `UserRoleProvider`).
+/// How closely `name` matches the concept, for ordering a footprint group
+/// before it is capped: `0` a token IS a stem, `1` a token starts with one,
+/// `2` matched only by concatenating consecutive tokens. Names that do not
+/// match at all never reach a group, so `2` is the floor there.
+pub(crate) fn concept_match_rank(name: &str, stems: &[String]) -> u8 {
+    let tokens = name_tokens(name);
+    let mut best = 2;
+    for s in stems {
+        let s_compact: String = s.chars().filter(|c| c.is_alphanumeric()).collect();
+        if s_compact.is_empty() {
+            continue;
+        }
+        if tokens.iter().any(|t| *t == s_compact) {
+            return 0;
+        }
+        if tokens.iter().any(|t| t.starts_with(&s_compact)) {
+            best = best.min(1);
+        }
+    }
+    best
+}
+
 pub(crate) fn matches_concept(name: &str, stems: &[String]) -> bool {
     let tokens = name_tokens(name);
     if tokens.is_empty() {
@@ -487,6 +655,152 @@ pub(crate) fn interface_pair_candidates(ps: &str) -> Vec<String> {
         }
     }
     out
+}
+
+/// Deterministic companions for designer-managed LINQ-to-SQL models. A model
+/// schema, generated source and layout metadata are one regeneration unit. The
+/// caller keeps only paths present in the current index, so this remains a
+/// framework convention rather than a repository-specific guess.
+pub(crate) fn dbml_family_candidates(ps: &str) -> Vec<String> {
+    let lower = ps.to_ascii_lowercase();
+    let suffix = [".dbml.layout", ".dbml", ".designer.vb", ".designer.cs"]
+        .into_iter()
+        .find(|suffix| lower.ends_with(suffix));
+    let Some(suffix) = suffix else {
+        return Vec::new();
+    };
+    let stem = &ps[..ps.len() - suffix.len()];
+    [".dbml", ".dbml.layout", ".designer.vb", ".designer.cs"]
+        .iter()
+        .map(|suffix| format!("{stem}{suffix}"))
+        .filter(|candidate| !candidate.eq_ignore_ascii_case(ps))
+        .collect()
+}
+
+/// Resolve one deterministic project-relative companion against the current
+/// checkout without broadening relevance. This is deliberately a single-file
+/// probe: project/build metadata may be excluded from the source index, but a
+/// file that exists on disk is still part of the deployable regeneration unit.
+fn project_relative_existing_file(
+    project_root: &std::path::Path,
+    relative: &str,
+) -> Option<String> {
+    let normalized = relative.replace('\\', "/");
+    let path = std::path::Path::new(&normalized);
+    if normalized.is_empty()
+        || path.is_absolute()
+        || path.components().any(|component| {
+            matches!(
+                component,
+                std::path::Component::ParentDir
+                    | std::path::Component::RootDir
+                    | std::path::Component::Prefix(_)
+            )
+        })
+    {
+        return None;
+    }
+    // Resolve one component at a time so the result uses the checkout's actual
+    // spelling even on a case-insensitive filesystem. Prefer an exact match if
+    // a case-sensitive checkout deliberately contains two case variants.
+    let mut absolute = project_root.to_path_buf();
+    let mut resolved = std::path::PathBuf::new();
+    for component in path.components() {
+        let std::path::Component::Normal(wanted) = component else {
+            return None;
+        };
+        let mut matches = std::fs::read_dir(&absolute)
+            .ok()?
+            .flatten()
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .eq_ignore_ascii_case(&wanted.to_string_lossy())
+            })
+            .collect::<Vec<_>>();
+        matches.sort_by_key(|entry| entry.file_name());
+        let chosen = matches
+            .iter()
+            .find(|entry| entry.file_name() == wanted)
+            .or_else(|| (matches.len() == 1).then(|| &matches[0]))?;
+        resolved.push(chosen.file_name());
+        absolute = chosen.path();
+    }
+    if !absolute.is_file() {
+        return None;
+    }
+    let boundary = project_root.canonicalize().ok()?;
+    let target = absolute.canonicalize().ok()?;
+    target
+        .starts_with(&boundary)
+        .then(|| resolved.to_string_lossy().replace('\\', "/"))
+}
+
+/// Find the nearest owning SQL project for a current SQL artifact. Only the
+/// artifact's ancestor directories are inspected, and the nearest directory
+/// wins. This recovers build manifests that are intentionally absent from the
+/// code index without scanning or guessing across the repository.
+fn disk_sql_project_candidates(project_root: &std::path::Path, sql_path: &str) -> Vec<String> {
+    let Some(sql_path) = project_relative_existing_file(project_root, sql_path) else {
+        return Vec::new();
+    };
+    if !sql_path.to_ascii_lowercase().ends_with(".sql") {
+        return Vec::new();
+    }
+    let mut directory = std::path::Path::new(&sql_path).parent();
+    while let Some(relative_dir) = directory {
+        let absolute_dir = project_root.join(relative_dir);
+        let mut projects = std::fs::read_dir(&absolute_dir)
+            .ok()
+            .into_iter()
+            .flatten()
+            .flatten()
+            .filter(|entry| entry.file_type().map(|kind| kind.is_file()).unwrap_or(false))
+            .filter(|entry| {
+                entry
+                    .path()
+                    .extension()
+                    .is_some_and(|extension| extension.to_string_lossy().eq_ignore_ascii_case("sqlproj"))
+            })
+            .filter_map(|entry| {
+                entry
+                    .path()
+                    .strip_prefix(project_root)
+                    .ok()
+                    .map(|path| path.to_string_lossy().replace('\\', "/"))
+            })
+            .collect::<Vec<_>>();
+        projects.sort();
+        projects.dedup();
+        if !projects.is_empty() {
+            return projects;
+        }
+        directory = relative_dir.parent();
+    }
+    Vec::new()
+}
+
+/// The closest SQL project above a SQL artifact is its build/deployment
+/// manifest. Return every project at the deepest matching directory (normally
+/// one) and let the caller retain only paths from the current index.
+pub(crate) fn sql_project_candidates(sql_path: &str, index: &[String]) -> Vec<String> {
+    if !sql_path.ends_with(".sql") || sql_path.ends_with(".sqlproj") {
+        return Vec::new();
+    }
+    let mut candidates = index
+        .iter()
+        .filter(|path| path.ends_with(".sqlproj"))
+        .filter_map(|path| {
+            let directory = path.rsplit_once('/').map(|(dir, _)| dir).unwrap_or("");
+            let owns = directory.is_empty() || sql_path.starts_with(&format!("{directory}/"));
+            owns.then_some((directory.matches('/').count(), path.clone()))
+        })
+        .collect::<Vec<_>>();
+    let deepest = candidates.iter().map(|(depth, _)| *depth).max();
+    candidates.retain(|(depth, _)| Some(*depth) == deepest);
+    candidates.sort_by(|a, b| a.1.cmp(&b.1));
+    candidates.into_iter().map(|(_, path)| path).collect()
 }
 
 /// OpenAPI/Swagger contract documents in a (lowercased) file index. The
@@ -828,7 +1142,7 @@ impl Engram {
         let pid = req.project_id.clone();
         let stems_b = stems.clone();
         type Entry = (String, String, String, u32); // name, node_id, file, line
-        let (groups, consumers, scan_truncated, mut cov) = tokio::task::spawn_blocking(move || {
+        let (groups, collapsed, consumers, scan_truncated, mut cov) = tokio::task::spawn_blocking(move || {
             let mut cov = FootprintCoverage {
                 anchor_cap: ANCHOR_CAP,
                 consumer_cap_per_anchor: CONSUMER_CAP_PER_ANCHOR,
@@ -859,6 +1173,13 @@ impl Engram {
                 if !matches_concept(&n.name, &stems_b) {
                     continue;
                 }
+                // A declaration states a contract without implementing it, so it
+                // can never be where this concept lives. Live, five `typings/`
+                // classes held slots in a capped group while the function an edit
+                // would touch never appeared.
+                if engram_core::is_declaration_path(n.file_path.as_str()) {
+                    continue;
+                }
                 let group = match n.node_type.as_str() {
                     "db_table" | "db_column" => "data",
                     "stored_proc" | "stored_procedure" | "inline_sql" => "sql",
@@ -879,9 +1200,57 @@ impl Engram {
                     n.start_line,
                 ));
             }
-            for list in groups.values_mut() {
+            let mut collapsed: BTreeMap<&'static str, usize> = BTreeMap::new();
+            for (key, list) in groups.iter_mut() {
                 list.sort();
                 list.dedup();
+                // A group is capped (`max_per_group`), so its ORDER decides what
+                // the caller sees. Alphabetical order gave the slots to whatever
+                // sorted first; rank by how well each name matches the concept,
+                // keeping the sort stable so alphabetical remains the tiebreak.
+                list.sort_by_key(|(name, _, _, _)| concept_match_rank(name, &stems_b));
+                // One NAME occurring in many places — a function and its compiled
+                // copy, an overload set — must not spend the whole budget. Live,
+                // four rows of a single function name took half a group. Keep the
+                // best-ranked few; the rest are counted and reported, not dropped.
+                const PER_NAME: usize = 2;
+                let before = list.len();
+                let mut per_name: HashMap<String, usize> = HashMap::new();
+                list.retain(|(name, _, _, _)| {
+                    let seen = per_name.entry(name.clone()).or_insert(0);
+                    *seen += 1;
+                    *seen <= PER_NAME
+                });
+                // Breadth before depth: the cap decides how much of this group a
+                // caller ever sees, so spend it on the FILES a change has to
+                // reach. Live, "permit area" showed 8 rows of 424 and every one
+                // was a DTO member of one directory (`_` sorts first), while the
+                // file holding the logic got no slot at all. Take the best-ranked
+                // row of each distinct file first, then append the rest in the
+                // order they already had — a reordering, never a drop.
+                // Breadth applies WITHIN a rank band, never across one: a weaker
+                // match in a fresh file must not outrank a stronger match that
+                // happens to share a file with another strong one.
+                let mut ordered: Vec<Entry> = Vec::with_capacity(list.len());
+                for band in 0..=2u8 {
+                    let mut seen_files: HashSet<String> = HashSet::new();
+                    let (mut breadth, mut remainder): (Vec<Entry>, Vec<Entry>) =
+                        (Vec::new(), Vec::new());
+                    for entry in list
+                        .iter()
+                        .filter(|(name, _, _, _)| concept_match_rank(name, &stems_b) == band)
+                    {
+                        if seen_files.insert(entry.2.clone()) {
+                            breadth.push(entry.clone());
+                        } else {
+                            remainder.push(entry.clone());
+                        }
+                    }
+                    breadth.append(&mut remainder);
+                    ordered.append(&mut breadth);
+                }
+                *list = ordered;
+                collapsed.insert(*key, before - list.len());
             }
 
             // Consumers of the anchor tables / state keys: who reads/writes.
@@ -935,7 +1304,7 @@ impl Engram {
             }
             consumers.sort();
             consumers.dedup();
-            (groups, consumers, scan_truncated, cov)
+            (groups, collapsed, consumers, scan_truncated, cov)
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -984,7 +1353,7 @@ impl Engram {
 
         // Literal pass (row-4 audit A2): substring, case-insensitive, over the
         // indexed chunk text — the tokenized index cannot see the stem inside
-        // `rk_redovisningskategorier`; this can.
+        // `kk_kostnadskategorier`; this can.
         let rec_dir = self
             .ensure_project_record(&req.project_id)
             .await
@@ -1003,6 +1372,7 @@ impl Engram {
                 case_sensitive: Some(false),
                 multiline: false,
                 path_prefix: None,
+                exclude_path_prefixes: Vec::new(),
                 language: None,
                 context_before: 0,
                 context_after: 0,
@@ -1109,6 +1479,11 @@ impl Engram {
             }
             if list.len() > cap {
                 out.push_str(&format!("  ... and {} more\n", list.len() - cap));
+            }
+            if let Some(n) = collapsed.get(key).copied().filter(|n| *n > 0) {
+                out.push_str(&format!(
+                    "  ({n} further occurrence(s) of names already listed, collapsed)\n"
+                ));
             }
         }
 
@@ -1472,7 +1847,21 @@ impl Engram {
         let mut per_file: BTreeMap<String, (usize, f32, String, u32)> = BTreeMap::new();
         for h in hits.iter().take(PATTERN_LEXICAL_CAP) {
             let path = h.path.as_str().replace('\\', "/");
-            if engram_core::is_vendor_path(&path) {
+            // Nothing here can be imitated as a house pattern: a declaration
+            // file states a contract without implementing it (`PatternKind::
+            // Script` already excluded these — the exclusion belongs to the
+            // tool, not to one kind), and a build-output directory holds
+            // generated artifacts. Live, a vendored library's XML docs under
+            // `Bin/` and a `.d.ts` took exemplar slots 1 and 2 on lexical score
+            // while the tool itself reported "no house pattern can be claimed".
+            // Ranking is untouched: lexical fit still decides among real code.
+            let lower = path.to_ascii_lowercase();
+            let not_implementable = lower.ends_with(".d.ts")
+                || lower.starts_with("bin/")
+                || lower.contains("/bin/")
+                || lower.starts_with("obj/")
+                || lower.contains("/obj/");
+            if engram_core::is_vendor_path(&path) || not_implementable {
                 continue;
             }
             let entry = per_file
@@ -2304,7 +2693,7 @@ mod implementation_pattern_unit_tests {
             infer_pattern_kind("admin page with a GridView and a save button"),
             PatternKind::Page
         );
-        // Live miss (OciusX G1, 2026-08-29): "user control" / "dropdown" are
+        // Live miss (pilot corpus G1, 2026-08-29): "user control" / "dropdown" are
         // page-side words too.
         assert_eq!(
             infer_pattern_kind(
@@ -2361,6 +2750,116 @@ mod implementation_pattern_unit_tests {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Synthetic candidates across all five layers and both tier bands: enough
+    /// golden rows to fill the primary cap, and a large weak mass to fill the
+    /// per-layer companion cap. Paths are invented.
+    fn synthetic_prov(
+        per_layer: usize,
+    ) -> (
+        BTreeMap<String, BTreeSet<&'static str>>,
+        BTreeMap<String, Vec<String>>,
+    ) {
+        let exts = [".vb", ".ts", ".resx", ".sql", ".config"];
+        let mut prov: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
+        let mut why: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        for (layer, ext) in exts.iter().enumerate() {
+            for i in 0..per_layer {
+                let path = format!("src/area{layer}/module{i:03}/widget{i:03}{ext}");
+                let mut sigs = BTreeSet::new();
+                if i < 12 {
+                    // golden + corroboration -> tier 0/1, competing for primary
+                    sigs.insert("cochange");
+                    sigs.insert("concept");
+                } else {
+                    // bare concept -> tier 3, the weak mass the tail cap trims
+                    sigs.insert("concept");
+                }
+                // Real rationales are sentences, and they dominate a primary
+                // row's width (~647 bytes measured against ~152 for a bare
+                // one). A fixture with stub rationales cannot reach the size
+                // class where the defect lives.
+                why.insert(
+                    path.clone(),
+                    vec![
+                        format!(
+                            "co-changed with {} other candidate(s) across {} merged commit(s) \
+                             touching this area of the tree; the same pairing recurs across the \
+                             surrounding release window, and the companion files in those commits \
+                             carried matching resource and migration edits, which is the \
+                             corroboration pattern this signal exists to surface; the pairing \
+                             survives when the window is widened, so it is not an artefact of one \
+                             unusually broad commit that touched most of the tree at once",
+                            3 + i % 5,
+                            2 + i % 4
+                        ),
+                        format!(
+                            "concept token matched the file name and {} symbol name(s) declared \
+                             inside it; the match is boundary-aware rather than a raw substring, \
+                             so it is not the reorder/order class of false positive, and the \
+                             symbols carrying it are declared in this file rather than merely \
+                             referenced from it, which is what separates a definition site from \
+                             an incidental consumer of the same vocabulary",
+                            1 + i % 3
+                        ),
+                    ],
+                );
+                prov.insert(path, sigs);
+            }
+        }
+        (prov, why)
+    }
+
+    /// A dossier too large to deliver is not a large dossier — it is NO dossier.
+    /// A live replay asked for a change set and received
+    /// `result (61,924 characters across 434 lines) exceeds maximum allowed
+    /// tokens` instead of candidates. Every section is ELEMENT-capped (primary
+    /// 40, companions 18/layer, assets 48, callers 32) and none is BYTE-capped,
+    /// so the product renders 56-60 KB routinely and tips over past that.
+    /// Bound the variable row sections and say what was cut, the way
+    /// grep_project does.
+    #[test]
+    fn a_change_set_too_large_to_deliver_is_bounded_and_says_how_to_recover() {
+        let (prov, why) = synthetic_prov(40);
+        let (md, _omissions) = render_change_set(
+            "As a user I want widgets to roll up correctly",
+            &["widget".to_string()],
+            &prov,
+            &why,
+            None,
+            None,
+            None,
+            &BTreeSet::new(),
+        );
+
+        // Guard: a fixture that never grows cannot demonstrate the ceiling, and
+        // would be satisfied by luck once a budget exists.
+        assert!(
+            md.len() > 20_000,
+            "fixture did not produce a large dossier ({} bytes)",
+            md.len()
+        );
+        assert!(
+            md.contains("output budget"),
+            "a bounded dossier must SAY it was cut ({} bytes)",
+            md.len()
+        );
+        assert!(
+            md.contains("output_json: true"),
+            "a bounded dossier must name the recovery path ({} bytes)",
+            md.len()
+        );
+        // Bounded must mean bounded: without this, a notice alone would satisfy
+        // the test while the rows still rendered in full. The fixture's
+        // rationales are deliberately wider than a typical real one so the cut
+        // is unambiguous — at realistic width the rows land only a few hundred
+        // bytes past the budget, and this assertion would pass before the fix.
+        assert!(
+            md.len() < 40_000,
+            "rows must stay within budget once cut ({} bytes)",
+            md.len()
+        );
+    }
 
     #[test]
     fn coverage_details_keep_forty_identity_warnings_and_short_summary() {
@@ -2422,6 +2921,24 @@ mod tests {
         }
     }
     #[test]
+    fn an_arm_truncated_after_the_fact_still_reports_what_it_skipped() {
+        // The bounded-expansion arms only learn they truncated AFTER counting their
+        // hits, so they start from `complete` and downgrade in place. The downgrade
+        // must not leave `complete`'s retention claim behind: a reader told
+        // `details_complete: true` with no entries cannot recover WHAT was skipped.
+        let mut arm = ArmCoverage::complete(7, 3);
+        arm.mark_bounded("truncated", "skipped 1 code-shaped identifier(s)".into());
+        assert_eq!(arm.status, "truncated");
+        assert_eq!((arm.hits, arm.ms), (7, 3));
+        assert!(arm.note.contains("skipped 1 code-shaped identifier(s)"));
+        assert!(!arm.diagnostics.details_complete);
+        assert_eq!(arm.diagnostics.omitted_occurrences, None);
+        assert_eq!(
+            arm.diagnostics.entries,
+            vec!["skipped 1 code-shaped identifier(s)".to_string()]
+        );
+    }
+    #[test]
     fn coverage_json_and_markdown_do_not_concatenate_detail_messages() {
         let mut c = ArmCoverage::complete(0, 0);
         let notes = vec!["first warning".into(), "4 additional coverage notes omitted (display cap 40)".into()];
@@ -2479,7 +2996,21 @@ mod tests {
             - `diagnostics/NotAPartner.vb` (40 co-changes with `diagnostics/NotASeed.vb`)\n\
             next: pre_commit_review\n";
         let (paths, notes) = detect_cochange_evidence(report);
-        assert_eq!(paths, vec!["nested/rules.vb", "rules.vb"]);
+        assert_eq!(
+            paths,
+            vec![
+                CochangePartnerEvidence {
+                    path: "nested/rules.vb".into(),
+                    anchor_path: "src/seed.vb".into(),
+                    weight: 25,
+                },
+                CochangePartnerEvidence {
+                    path: "rules.vb".into(),
+                    anchor_path: "src/otherseed.vb".into(),
+                    weight: 15,
+                },
+            ]
+        );
         assert!(notes.iter().any(|note| note.contains("diagnostics/Skipped.vb")));
         let mut coverage = ArmCoverage::complete(paths.len(), 7);
         apply_detect_cochange_coverage(&mut coverage, notes);
@@ -2562,21 +3093,21 @@ mod tests {
 
     #[test]
     fn the_best_row_of_each_layer_leads_the_primary_set() {
-        // Round-2 audit P0-3, live r37: rk_redovisningskategorier.sql — the
+        // Round-2 audit P0-3, live r37: kk_kostnadskategorier.sql — the
         // only Data-layer critical file — ranked 37 behind forty Server rows
         // carrying one more signal. A change set spans layers: the best
         // tier<=1 row of EVERY layer belongs in the head of the primary set.
         let mut prov: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
         for i in 0..45 {
             prov.insert(
-                format!("site/app_code/redovisning/file{i:02}.vb"),
+                format!("site/app_code/leverans/file{i:02}.vb"),
                 ["cochange", "concept", "gloss", "vector"]
                     .into_iter()
                     .collect(),
             );
         }
         prov.insert(
-            "db-x.sql/dbo/tables/rk_redovisningskategorier.sql".into(),
+            "db-x.sql/dbo/tables/kk_kostnadskategorier.sql".into(),
             ["cochange", "concept", "gloss"].into_iter().collect(),
         );
         prov.insert(
@@ -2586,7 +3117,7 @@ mod tests {
         let (rows, _) = change_set_rows(&prov);
         let sql = rows
             .iter()
-            .find(|r| r.path.ends_with("rk_redovisningskategorier.sql"))
+            .find(|r| r.path.ends_with("kk_kostnadskategorier.sql"))
             .unwrap();
         assert_eq!(sql.set, "primary", "{sql:?}");
         assert!(
@@ -2608,6 +3139,91 @@ mod tests {
         );
     }
 
+    /// Casing is not cosmetic here: an index can carry `Page.aspx.VB` or
+    /// `Page.ASPX.vb`, and a pairing rule that only recognises the spellings I
+    /// happened to observe would let the very severance it exists to prevent
+    /// through unnoticed on the others — silently, with no failing test.
+    #[test]
+    fn a_code_behind_is_recognised_whatever_its_casing() {
+        for (path, want) in [
+            ("modules/x/page.aspx.vb", Some("modules/x/page.aspx")),
+            ("modules/x/Page.aspx.VB", Some("modules/x/Page.aspx")),
+            ("modules/x/Page.ASPX.vb", Some("modules/x/Page.ASPX")),
+            ("modules/x/Page.Aspx.Vb", Some("modules/x/Page.Aspx")),
+            ("modules/x/ctrl.ascx.vb", Some("modules/x/ctrl.ascx")),
+            ("modules/x/site.master.VB", Some("modules/x/site.master")),
+            // A plain source file is not a code-behind and must not pair.
+            ("app_code/helper.vb", None),
+            ("app_code/helper.designer.vb", None),
+        ] {
+            assert_eq!(markup_of_code_behind(path), want, "for `{path}`");
+        }
+    }
+
+    /// A page is edited as a PAIR. The shipped checklist says so in as many
+    /// words — "edit BOTH the .aspx/.ascx markup AND its .aspx.vb code-behind"
+    /// — yet the per-layer tail cap is a QUOTA that counts rows, not pairs, so
+    /// it happily keeps the markup and cuts the code-behind out from under it.
+    /// Measured on two replayed PRs: 15 of 52 pairs severed (9/31 and 6/15),
+    /// 29% in BOTH, always markup-kept/code-behind-cut, and always clustered on
+    /// the cap boundary. Half a page is worse than neither half: the agent is
+    /// told a page is in scope and handed the file that cannot implement it.
+    ///
+    /// The codebase already has the answer for a different family — a localised
+    /// .resx set is expanded as an "atomic set" — so a markup/code-behind pair
+    /// should be charged to the cap together, not raced against each other.
+    #[test]
+    fn a_delivered_markup_row_never_leaves_its_code_behind_cut() {
+        // Every row is deliberately identical except its path: one signal
+        // (`concept` -> tier 3, strength 1), one directory (equal depth), one
+        // layer. Sorting therefore collapses to the final `path` tiebreak, and
+        // `page.aspx` sorts before `page.aspx.vb` because it is a strict
+        // prefix. 17 fillers put the markup at tail slot 18 (exactly the cap,
+        // kept) and the code-behind at 19 (cut). Nothing can reach the primary
+        // set: tier 3 exceeds CHANGE_SET_PRIMARY_MAX_TIER and `heads` takes
+        // only tier <= 1, so all 19 rows meet the tail loop.
+        let mut prov: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
+        for i in 0..17 {
+            prov.insert(
+                format!("site/app_code/aaa/file{i:02}.vb"),
+                ["concept"].into_iter().collect(),
+            );
+        }
+        let markup = "site/app_code/aaa/page.aspx";
+        let code_behind = "site/app_code/aaa/page.aspx.vb";
+        for p in [markup, code_behind] {
+            prov.insert(p.to_string(), ["concept"].into_iter().collect());
+        }
+
+        let (rows, omissions) = change_set_rows(&prov);
+        let row = |p: &str| {
+            rows.iter()
+                .find(|r| r.path == p)
+                .unwrap_or_else(|| panic!("{p} must be a row"))
+        };
+        let m = row(markup);
+        let cb = row(code_behind);
+
+        // Guard: if the fixture stops delivering the markup it can no longer
+        // demonstrate severance, and the assertion below would pass vacuously.
+        assert!(
+            !m.omitted,
+            "fixture no longer delivers the markup, so it cannot show a severed pair: {m:?}"
+        );
+        assert_eq!(m.set, "companion", "the pair must be weak enough to reach the tail cap: {m:?}");
+
+        assert!(
+            !cb.omitted,
+            "markup `{markup}` was DELIVERED (rank {}) while its code-behind was CUT: {}",
+            m.rank,
+            omissions
+                .iter()
+                .find(|o| o.path == code_behind)
+                .map(|o| o.reason.as_str())
+                .unwrap_or("<no omission recorded>")
+        );
+    }
+
     #[test]
     fn story_word_name_coverage_leads_its_tier() {
         // Round-2 audit P0-3, live r36: the page pair (name+vector, tier 0)
@@ -2618,7 +3234,7 @@ mod tests {
         let mut prov: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
         for i in 0..45 {
             prov.insert(
-                format!("site/app_code/redovisning/file{i:02}.vb"),
+                format!("site/app_code/leverans/file{i:02}.vb"),
                 ["cochange", "concept", "gloss"].into_iter().collect(),
             );
         }
@@ -2645,14 +3261,14 @@ mod tests {
 
     #[test]
     fn change_set_paths_keeps_orm_model_files() {
-        // External audit 2026-08-29 P0-3: the footprint named `iFalt.dbml` and
+        // External audit 2026-08-29 P0-3: the footprint named `iCore.dbml` and
         // the candidate parser dropped it — the LINQ-to-SQL / EF model files
         // must survive the extension alternation like any code file.
         let v = change_set_paths(
-            "touch Site/App_Code/iFalt.dbml and Models/Ocius.edmx next to Site/x.vb",
+            "touch Site/App_Code/iCore.dbml and Models/Pilot.edmx next to Site/x.vb",
         );
-        assert!(v.contains(&"site/app_code/ifalt.dbml".to_string()), "{v:?}");
-        assert!(v.contains(&"models/ocius.edmx".to_string()), "{v:?}");
+        assert!(v.contains(&"site/app_code/icore.dbml".to_string()), "{v:?}");
+        assert!(v.contains(&"models/pilot.edmx".to_string()), "{v:?}");
         assert!(v.contains(&"site/x.vb".to_string()), "{v:?}");
     }
 
@@ -2688,8 +3304,18 @@ mod tests {
         // deliberately NOT recognized — package.json/tsconfig.json co-change with
         // too much to be useful signal.
         assert_eq!(
-            change_set_paths("- `docs/openapi/ox-fiber.yaml`"),
-            vec!["docs/openapi/ox-fiber.yaml".to_string()]
+            change_set_paths("- `docs/openapi/app-api.yaml`"),
+            vec!["docs/openapi/app-api.yaml".to_string()]
+        );
+        assert_eq!(
+            change_set_paths(
+                "- models/store.dbml.layout\n- database/app.sql.sqlproj\n- models/store.dbml"
+            ),
+            vec![
+                "models/store.dbml.layout".to_string(),
+                "database/app.sql.sqlproj".to_string(),
+                "models/store.dbml".to_string(),
+            ]
         );
     }
 
@@ -2769,7 +3395,7 @@ mod tests {
         // and stole the concept slots, tanking recall. They must be rejected so
         // the real domain tokens surface.
         let c = extract_story_concepts(
-            "acmeorg0375 a778c06a field worker searches the RoQ code list by redovisning category",
+            "acmeorg0375 a778c06a field worker searches the RoQ code list by leverans category",
         );
         assert!(
             !c.contains(&"a778c06a".to_string()),
@@ -2850,6 +3476,74 @@ mod tests {
     }
 
     #[test]
+    fn dbml_family_candidates_keep_designer_schema_and_layout_atomic() {
+        let from_schema = dbml_family_candidates("models/store.dbml");
+        assert!(from_schema.contains(&"models/store.dbml.layout".to_string()));
+        assert!(from_schema.contains(&"models/store.designer.vb".to_string()));
+        assert!(!from_schema.contains(&"models/store.dbml".to_string()));
+
+        let from_designer = dbml_family_candidates("models/store.designer.vb");
+        assert!(from_designer.contains(&"models/store.dbml".to_string()));
+        assert!(from_designer.contains(&"models/store.dbml.layout".to_string()));
+        assert!(dbml_family_candidates("models/store.vb").is_empty());
+
+        let mixed_case = dbml_family_candidates("Models/Store.DBML");
+        assert!(mixed_case.contains(&"Models/Store.dbml.layout".to_string()));
+        assert!(!mixed_case.iter().any(|path| path.eq_ignore_ascii_case("Models/Store.DBML")));
+    }
+
+    #[test]
+    fn sql_project_candidates_choose_the_closest_owning_project() {
+        let index = [
+            "database/root.sqlproj",
+            "database/reporting/reporting.sqlproj",
+            "database/unrelated.sqlproj",
+        ]
+        .into_iter()
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+        assert_eq!(
+            sql_project_candidates("database/reporting/dbo/tables/events.sql", &index),
+            vec!["database/reporting/reporting.sqlproj".to_string()]
+        );
+        assert!(sql_project_candidates("src/events.cs", &index).is_empty());
+    }
+
+    #[test]
+    fn disk_project_artifacts_are_recovered_without_a_source_index_entry() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        std::fs::create_dir_all(root.join("Models")).unwrap();
+        std::fs::create_dir_all(root.join("Database/Reporting/dbo/Tables")).unwrap();
+        std::fs::write(root.join("Models/Store.dbml.layout"), "layout").unwrap();
+        std::fs::write(
+            root.join("Database/Reporting/dbo/Tables/Events.sql"),
+            "create table Events(Id int)",
+        )
+        .unwrap();
+        std::fs::write(root.join("Database/root.sqlproj"), "root").unwrap();
+        std::fs::write(
+            root.join("Database/Reporting/reporting.SQLPROJ"),
+            "nearest",
+        )
+        .unwrap();
+
+        assert_eq!(
+            project_relative_existing_file(root, "Models/Store.dbml.layout"),
+            Some("Models/Store.dbml.layout".to_string())
+        );
+        assert_eq!(
+            project_relative_existing_file(root, "Models/Store.DBML.LAYOUT"),
+            Some("Models/Store.dbml.layout".to_string())
+        );
+        assert_eq!(
+            disk_sql_project_candidates(root, "Database/Reporting/dbo/Tables/Events.sql"),
+            vec!["Database/Reporting/reporting.SQLPROJ".to_string()]
+        );
+        assert!(project_relative_existing_file(root, "../outside.sqlproj").is_none());
+    }
+
+    #[test]
     fn can_helper_names_match_convention_only() {
         use super::is_can_helper_name;
         assert!(is_can_helper_name("CanUserUploadMarkerIcon"));
@@ -2868,8 +3562,8 @@ mod tests {
     fn api_spec_docs_finds_contract_documents() {
         use super::{api_spec_docs, is_api_code_path};
         let index: Vec<String> = [
-            "docs/openapi/ox-fiber.yaml",
-            "docs/openapi/ox-core.yaml",
+            "docs/openapi/app-api.yaml",
+            "docs/openapi/app-core.yaml",
             "app_code/api-v2/controllers/roqentriescontroller.vb",
             "node_modules/swagger-ui/dist/swagger-ui.json", // vendor → excluded
             "docs/readme.md",                               // not a spec
@@ -2883,20 +3577,18 @@ mod tests {
             specs,
             vec![
                 "config/swagger.json".to_string(),
-                "docs/openapi/ox-core.yaml".to_string(),
-                "docs/openapi/ox-fiber.yaml".to_string(),
+                "docs/openapi/app-api.yaml".to_string(),
+                "docs/openapi/app-core.yaml".to_string(),
             ]
         );
         // API-layer detection: api-ish path segment + code extension.
         assert!(is_api_code_path(
             "app_code/api-v2/controllers/roqentriescontroller.vb"
         ));
-        assert!(is_api_code_path(
-            "app_code/installationsobjekt/api-json/x.vb"
-        ));
+        assert!(is_api_code_path("app_code/bokningsobjekt/api-json/x.vb"));
         // Not API code: no api segment, or non-code files.
         assert!(!is_api_code_path("modules/dashboard/pages/map.aspx.vb"));
-        assert!(!is_api_code_path("docs/openapi/ox-fiber.yaml"));
+        assert!(!is_api_code_path("docs/openapi/app-api.yaml"));
         // "apiary-docs-archive" style long segments do not count.
         assert!(!is_api_code_path("apiary-docs-archive/util.vb"));
     }
@@ -3111,7 +3803,14 @@ pub(crate) struct GuardsCoverage {
     pub scope_query: String,
     pub in_scope_functions: usize,
     pub caps: Vec<String>,
+    /// Evidence that COULD have changed a verdict and was unavailable. Only
+    /// these count as incomplete guard evidence.
     pub failures: Vec<String>,
+    /// Reported but verdict-neutral: unresolved call targets that cannot hold
+    /// a permission check (a call through a receiver, an anonymous type). They
+    /// stay visible so nothing is hidden, but they never demote a verdict.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub notes: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default, serde::Serialize)]
@@ -3174,8 +3873,19 @@ fn helper_candidates(
     n: &engram_graph::Node,
     body: Option<&str>,
     file_fns: &HashMap<(String, String), Vec<engram_graph::Node>>,
+    class_fns: &HashMap<(String, String), Vec<engram_graph::Node>>,
     failures: &mut Vec<String>,
+    notes: &mut Vec<String>,
 ) -> Vec<engram_graph::Node> {
+    // A failure is what demotes a verdict, so it has to be attributable to the
+    // function it pins — and the report names a function by its BARE name.
+    let owner = n.name.rsplit('.').next().unwrap_or(&n.name).to_string();
+    // The class this function belongs to, for a bare call to a member declared
+    // in another file of the same (partial) class.
+    let own_class = n
+        .name
+        .rsplit_once('.')
+        .map(|(class, _)| class.to_ascii_lowercase());
     static RE_BARE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
         regex::Regex::new(r"(?:^|[^.\w])([A-Za-z_]\w*)\s*\(").expect("RE_BARE")
     });
@@ -3195,16 +3905,44 @@ fn helper_candidates(
             for cap in RE_BARE.captures_iter(code) {
                 let key = (file.clone(), cap[1].to_ascii_lowercase());
                 if let Some(matches) = file_fns.get(&key) {
-                    if matches.len() != 1 {
+                    // Drop the function's OWN node before judging ambiguity: an
+                    // overloaded name otherwise makes a function poison its own
+                    // verdict, which says nothing about guards. The graph path
+                    // below excludes self the same way.
+                    let candidates: Vec<&engram_graph::Node> = matches
+                        .iter()
+                        .filter(|t| t.node_id != n.node_id)
+                        .collect();
+                    if candidates.is_empty() {
+                        continue;
+                    }
+                    // Ambiguity is only harmless in ONE direction. If no
+                    // candidate carries a permission check, none of them could
+                    // have supplied a guard whichever binds, so admitting them
+                    // cannot over-credit — that is the case where an overloaded
+                    // check-less helper used to erase a verdict in its own file
+                    // while the same pair one file over no longer did.
+                    //
+                    // If any candidate DOES carry a check, ambiguity stands.
+                    // Overloads are different functions: metadata saying they
+                    // all check is not evidence that the one actually bound
+                    // guards every path, and crediting it would assert a guard
+                    // the tool cannot attribute to a specific callee.
+                    let carries = |t: &&engram_graph::Node| {
+                        !node_meta_str(t, "permission_checks").is_empty()
+                    };
+                    if candidates.len() > 1 && candidates.iter().any(carries) {
                         failures.push(format!(
-                            "{}: lexical helper {} is ambiguous; require a resolved graph edge",
-                            n.name, &cap[1]
+                            "{owner}: lexical helper {} matches {} overloads carrying permission checks; which one binds is unresolved",
+                            &cap[1],
+                            candidates.len()
                         ));
                         continue;
                     }
-                    let t = &matches[0];
-                    if t.node_id != n.node_id && seen.insert(t.node_id.clone()) {
-                        out.push(t.clone());
+                    for t in candidates {
+                        if seen.insert(t.node_id.clone()) {
+                            out.push(t.clone());
+                        }
                     }
                 }
             }
@@ -3214,8 +3952,7 @@ fn helper_candidates(
         Ok(mut neigh) => {
             if neigh.len() > GUARD_HELPER_HOP_CAP {
                 failures.push(format!(
-                    "{}: helper traversal truncated at {GUARD_HELPER_HOP_CAP}",
-                    n.name
+                    "{owner}: helper traversal truncated at {GUARD_HELPER_HOP_CAP}"
                 ));
                 neigh.truncate(GUARD_HELPER_HOP_CAP);
             }
@@ -3228,19 +3965,112 @@ fn helper_candidates(
                         seen.insert(target);
                         out.push(t);
                     }
-                    Ok(None) => failures.push(format!(
-                        "{}: unresolved helper {target}; guard coverage unknown",
-                        n.name
-                    )),
+                    // An unresolved target that cannot be a project symbol is
+                    // reported, but it is NOT missing guard evidence: counting
+                    // it demotes a correct `unguarded` to `unknown` (the
+                    // `incomplete_helpers` rule) on every file that calls a
+                    // library or uses LINQ. Diagnostics go to `notes`; only a
+                    // plausible project helper goes to `failures`.
+                    Ok(None) => {
+                        if target_cannot_hold_a_guard(&target) {
+                            notes.push(format!(
+                                "{owner}: unresolved call {target} cannot hold a guard; not counted as missing guard evidence"
+                            ));
+                        } else if let Some(resolved) =
+                            same_class_candidates(class_fns, own_class.as_deref(), &target)
+                        {
+                            // Overloads are irrelevant to the guard question when
+                            // the candidates AGREE; when they disagree, which one
+                            // binds decides the verdict, so it stays unknown.
+                            let carries = |c: &engram_graph::Node| {
+                                !node_meta_str(c, "permission_checks").is_empty()
+                            };
+                            if resolved.iter().any(&carries) && !resolved.iter().all(&carries) {
+                                failures.push(format!(
+                                    "{owner}: {target} matches {} same-class candidates that disagree on carrying a permission check",
+                                    resolved.len()
+                                ));
+                            } else {
+                                notes.push(format!(
+                                    "{owner}: {target} resolved to {} same-class candidate(s) declared in another file",
+                                    resolved.len()
+                                ));
+                                for candidate in resolved {
+                                    if candidate.node_id != n.node_id
+                                        && seen.insert(candidate.node_id.clone())
+                                    {
+                                        out.push(candidate);
+                                    }
+                                }
+                            }
+                        } else if engram_core::is_language_builtin(&target) {
+                            notes.push(format!(
+                                "{owner}: {target} is a language built-in, not a project helper; not counted as missing guard evidence"
+                            ));
+                        } else {
+                            failures.push(format!(
+                                "{owner}: unresolved helper {target}; guard coverage unknown"
+                            ));
+                        }
+                    }
                     Err(e) => {
-                        failures.push(format!("{}: helper lookup {target} failed: {e}", n.name))
+                        failures.push(format!("{owner}: helper lookup {target} failed: {e}"))
                     }
                 }
             }
         }
-        Err(e) => failures.push(format!("{}: Calls lookup failed: {e}", n.name)),
+        Err(e) => failures.push(format!("{owner}: Calls lookup failed: {e}")),
     }
     out
+}
+
+/// Functions of the SAME class that could satisfy a bare unresolved call.
+///
+/// A class may be declared across several files (VB `Partial Class`, C#
+/// `partial class`). The lexical fallback is keyed by FILE, so a bare call to a
+/// member declared in a sibling file never binds and its name is reported
+/// "unresolved" although the member is indexed — which erases the caller's
+/// verdict. Only a bare name qualifies: a call through a receiver is already
+/// excluded by `target_cannot_hold_a_guard`.
+fn same_class_candidates(
+    class_fns: &HashMap<(String, String), Vec<engram_graph::Node>>,
+    own_class: Option<&str>,
+    target: &str,
+) -> Option<Vec<engram_graph::Node>> {
+    let class = own_class?;
+    let name = target.trim_start_matches("::");
+    let name = name.split('(').next().unwrap_or(name).trim();
+    if name.is_empty() || name.contains('.') {
+        return None;
+    }
+    let hit = class_fns.get(&(class.to_string(), name.to_ascii_lowercase()))?;
+    (!hit.is_empty()).then(|| hit.clone())
+}
+
+/// True when an unresolved `Calls` target CANNOT be a project helper, so its
+/// absence says nothing about guard coverage.
+///
+/// Live (a VB api file): all nine functions came back `unknown` with "helper
+/// evidence is incomplete" because the unresolved targets were
+/// `JsonConvert.SerializeObject`, `permitsList.Select(Function(x) …)`,
+/// `s.SetError`, `permitTypes.Item(…)` and anonymous-type members. None of
+/// those can hold a permission check, yet each one erased the verdict.
+///
+/// Deliberately conservative: a BARE name (`::MissingGuard`) may well be an
+/// in-project helper the index has not resolved, so it still counts as
+/// incomplete evidence. Only shapes that cannot name a project symbol are
+/// excused — a call through a receiver, and an anonymous type.
+pub(crate) fn target_cannot_hold_a_guard(target: &str) -> bool {
+    let t = target.trim_start_matches("::");
+    // `<anonymous type: a As X, b As Y>.member` — a compiler-synthesised type.
+    if t.starts_with('<') {
+        return true;
+    }
+    // A call through a receiver: `local.Member`, `Lib.Call(...)`, including
+    // chained LINQ (`list.Select(...).Distinct().ToArray`). A project helper is
+    // emitted here as a bare name, not as member access on a value.
+    let head = t.split(['(', '.']).next().unwrap_or("");
+    t.contains('.') && !head.is_empty()
 }
 
 /// Client-supplied scope keys read in a function body.
@@ -3248,6 +4078,10 @@ pub(crate) fn client_scope_reads(body: &str) -> Vec<String> {
     static RE_READS: std::sync::LazyLock<Vec<regex::Regex>> = std::sync::LazyLock::new(|| {
         [
             r#"(?i)qry\.(?:params|data)\s*\(\s*"(\w+)"\s*\)"#,
+            // `.Item("k")` / `.ContainsKey("k")` — the ordinary dictionary
+            // accessors. Without them a function that reads several client keys
+            // reports "no client input" at all.
+            r#"(?i)qry\.(?:params|data)\s*\.\s*(?:item|containskey)\s*\(\s*"(\w+)"\s*\)"#,
             r#"(?i)GetDictionary\w*Value\s*\(\s*qry\.(?:params|data)\s*,\s*"(\w+)"\s*\)"#,
             r#"(?i)\bRequest(?:\.QueryString|\.Form|\.Params)?\s*\(\s*"(\w+)"\s*\)"#,
         ]
@@ -3604,6 +4438,17 @@ pub(crate) fn build_guards_report(
         );
         file_fns.entry(key).or_default().push(node.clone());
     }
+    // (class lower, bare lower) → function nodes, for a bare call to a member of
+    // the same class declared in ANOTHER file (partial classes).
+    let mut class_fns: HashMap<(String, String), Vec<engram_graph::Node>> = HashMap::new();
+    for node in all_nodes.iter().filter(|n| n.node_type == "function") {
+        if let Some((class, bare)) = node.name.rsplit_once('.') {
+            class_fns
+                .entry((class.to_ascii_lowercase(), bare.to_ascii_lowercase()))
+                .or_default()
+                .push(node.clone());
+        }
+    }
     for n in &scoped {
         let checks = node_meta_str(n, "permission_checks").to_string();
         let roles = node_meta_str(n, "guard_roles").to_string();
@@ -3662,13 +4507,37 @@ pub(crate) fn build_guards_report(
             own_check_conditional: false,
         };
         let failures_before = cov.failures.len();
-        let mut candidates =
-            helper_candidates(graph, pid, n, body.as_deref(), &file_fns, &mut cov.failures);
+        let mut notes = std::mem::take(&mut cov.notes);
+        let mut candidates = helper_candidates(
+            graph,
+            pid,
+            n,
+            body.as_deref(),
+            &file_fns,
+            &class_fns,
+            &mut cov.failures,
+            &mut notes,
+        );
         candidates.retain(|helper| {
             if node_meta_str(helper, "extraction_fallback") == "true" {
                 cov.failures.push(format!(
-                    "{}: helper {} has fallback extraction",
-                    n.name, helper.name
+                    "{bare}: helper {} has fallback extraction",
+                    helper.name
+                ));
+                return false;
+            }
+            // A helper that carries NO permission check could never have
+            // supplied a guard, so nothing about it — unreadable source, a
+            // conditional call site — is missing GUARD evidence. Live, 81 of 93
+            // failures on one api file were "helper <X> is conditional" for
+            // `_data.records.GetById`, `AppDataContext.New`, `api.JsonResult.New`
+            // and friends, which demoted every correct `unguarded` to `unknown`.
+            // Drop it as a candidate with a note; crediting is unaffected because
+            // every credit path already requires non-empty `permission_checks`.
+            if node_meta_str(helper, "permission_checks").is_empty() {
+                notes.push(format!(
+                    "{bare}: helper {} carries no permission check; not counted as missing guard evidence",
+                    helper.name
                 ));
                 return false;
             }
@@ -3683,7 +4552,7 @@ pub(crate) fn build_guards_report(
             });
             if let Err(error) = check {
                 cov.failures
-                    .push(format!("{}: helper {}: {error}", n.name, helper.name));
+                    .push(format!("{bare}: helper {}: {error}", helper.name));
                 return false;
             }
             let helper_name = helper.name.rsplit('.').next().unwrap_or(&helper.name);
@@ -3709,13 +4578,17 @@ pub(crate) fn build_guards_report(
                 })
             {
                 cov.failures.push(format!(
-                    "{}: helper {} is conditional; all-path coverage unknown",
-                    n.name, helper.name
+                    "{bare}: helper {} is conditional; all-path coverage unknown",
+                    helper.name
                 ));
                 return false;
             }
             true
         });
+        // Written back only after the retain closure is done with it: the
+        // closure records verdict-neutral notes, so `notes` must stay a live
+        // local until then.
+        cov.notes = notes;
         let incomplete_helpers = cov.failures.len() > failures_before;
         let credit = |v: &mut GuardVerdict, t: &engram_graph::Node, why: &str| {
             let tc = node_meta_str(t, "permission_checks");
@@ -4290,16 +5163,30 @@ pub(crate) fn story_asks_analytics_over_time(story: &str) -> bool {
         "time to",
         "aging",
         "over time",
-        "history",
-        "audit",
         "trend",
         "duration",
         "elapsed",
-        "performance of",
-        "completion",
+        "completion time",
+        "time until",
+        "how long",
     ]
     .iter()
     .any(|t| s.contains(t))
+        || (["history", "audit", "performance"]
+            .iter()
+            .any(|t| s.contains(t))
+            && [
+                "report",
+                "analytics",
+                "metric",
+                "dashboard",
+                "visualize",
+                "chart",
+                "measure",
+                "show",
+            ]
+            .iter()
+            .any(|t| s.contains(t)))
 }
 
 /// Log/history/audit table-name shape (db_table node names are lowercase).
@@ -4393,6 +5280,11 @@ const STORY_STOPWORDS: &[&str] = &[
     "handle",
     "avoid",
     "prevent",
+    "chore",
+    "improve",
+    "improved",
+    "current",
+    "than",
     // Story-structure / Gherkin labels and HTTP verbs: scaffolding, not
     // domain concepts (they otherwise steal a top-3 slot from real tokens).
     "acceptance",
@@ -4460,14 +5352,98 @@ pub(crate) fn story_token(w: &str) -> Option<String> {
     Some(lower)
 }
 
+/// Canonicalize the light English plural variants that commonly coexist in a
+/// work item. Without this, `role` and `roles` counted as two independent
+/// pieces of evidence for the same file-name fragment.
+fn canonical_story_name_term(term: &str) -> String {
+    if let Some(base) = term.strip_suffix("ies")
+        && base.len() >= 3
+    {
+        return format!("{base}y");
+    }
+    if let Some(base) = term.strip_suffix('s')
+        && base.len() >= 4
+        && !term.ends_with("ss")
+        && !term.ends_with("us")
+        && !term.ends_with("is")
+    {
+        return base.to_string();
+    }
+    term.to_string()
+}
+
+fn story_name_term_matches_stem(term: &str, stem: &str) -> bool {
+    stem.contains(term)
+        || (term.len() > 5
+            && term.ends_with('s')
+            && stem.contains(&term[..term.len() - 1]))
+}
+
+/// A name term: an acceptable story token reduced to its canonical form, and
+/// REJECTED AGAIN if that form is a stopword. `story_token` screens before
+/// canonicalization, so a stopword whose plural is absent from the list —
+/// `system` is listed, `systems` is not — passed the filter and was then
+/// stripped back to the very word the list rejects. Measured: `systems` in a
+/// story became the term `system`, which matches 80 files by stem.
+fn story_name_term(word: &str) -> Option<String> {
+    let canonical = canonical_story_name_term(&story_token(word)?);
+    (!STORY_STOPWORDS.contains(&canonical.as_str())).then_some(canonical)
+}
+
+/// A markdown heading is document STRUCTURE, never domain prose. Skipping
+/// these is what lets the headline/body split work on an EXPORTED work item:
+/// the split marker used to be the literal `## Work item` this handler emits
+/// itself, but an exported item opens with `# Work item <id>` — ONE hash — so
+/// the marker never matched, `body` came back empty, every token counted as a
+/// headline term, and the singleton filter below was inert. Measured: 9 of 9
+/// replayed stories are the one-hash form.
+fn is_markdown_heading(line: &str) -> bool {
+    line.trim_start()
+        .trim_start_matches('\u{feff}')
+        .trim_start()
+        .starts_with('#')
+}
+
+/// Terms allowed to promote a file through compound filename coverage.
+/// A long work item mentions many incidental nouns once (example names,
+/// negative cases, unrelated linked-item prose). Keep headline terms and
+/// body terms repeated at least twice; a singleton can still reach the file
+/// through exact entities, concepts, history, graph or business rules.
+fn story_name_terms(story: &str) -> BTreeSet<String> {
+    // The headline is the item's own summary: the first line carrying prose.
+    // Everything after it is body, where the repetition rule applies.
+    let mut prose = story.lines().filter(|line| {
+        !is_markdown_heading(line) && !line.trim().is_empty()
+    });
+    let headline = prose.next().unwrap_or_default();
+    let headline_terms = headline
+        .split(|character: char| !character.is_alphanumeric())
+        .filter_map(story_name_term)
+        .collect::<BTreeSet<_>>();
+    let mut occurrences = BTreeMap::<String, usize>::new();
+    for term in std::iter::once(headline)
+        .chain(prose)
+        .flat_map(|line| line.split(|character: char| !character.is_alphanumeric()))
+        .filter_map(story_name_term)
+    {
+        *occurrences.entry(term).or_default() += 1;
+    }
+    occurrences
+        .into_iter()
+        .filter_map(|(term, count)| {
+            (count >= 2 || headline_terms.contains(&term)).then_some(term)
+        })
+        .collect()
+}
+
 /// Story concept CANDIDATES (row-1 audit A1). The plain document-order
 /// recipe comes first and is never dropped (it is what the eval validated);
 /// then the author's own domain names: parenthesized glosses ("… category
-/// (huvudredovisningskategori)") and adjacent non-stopword pairs/triples
+/// (huvudkostnadskategori)") and adjacent non-stopword pairs/triples
 /// (noun phrases). [`resolve_story_concepts`] decides which of the extras
 /// survive by asking the index.
 /// External audit 2026-08-29 P0-3: the parenthesized glosses of a story —
-/// "a main reporting category (huvudredovisningskategori)" — are the author
+/// "a main reporting category (huvudkostnadskategori)" — are the author
 /// naming the entity in the code's own language. They are the one class of
 /// candidate that retrieves BY DEFAULT (index-corroborated, compound suffix
 /// split by `resolve_story_concepts`); noun-phrase expansions stay opt-in
@@ -4489,8 +5465,8 @@ pub(crate) fn extract_story_gloss_concepts(story: &str) -> Vec<String> {
 }
 
 /// Which resolved candidates came from a gloss: the gloss itself, its
-/// compacted form, or a compound suffix of it (`huvudredovisningskategori`
-/// → `redovisningskategori`).
+/// compacted form, or a compound suffix of it (`huvudkostnadskategori`
+/// → `kostnadskategori`).
 pub(crate) fn gloss_derived<'a>(glosses: &[String], candidates: &'a [String]) -> Vec<&'a String> {
     candidates
         .iter()
@@ -4521,6 +5497,16 @@ pub(crate) fn extract_story_concept_candidates(story: &str) -> Vec<String> {
         }
     }
 
+    // Keep later entity words available for index resolution. Sparse stories
+    // commonly begin with workflow prose, while the code noun appears later.
+    for word in story.split(|c: char| !c.is_alphanumeric()) {
+        if let Some(token) = story_token(word)
+            && seen.insert(token.clone())
+        {
+            out.push(token);
+        }
+    }
+
     // Noun phrases: runs of acceptable tokens, longest window first.
     let toks: Vec<Option<String>> = story
         .split(|c: char| !c.is_alphanumeric())
@@ -4544,7 +5530,7 @@ pub(crate) fn extract_story_concept_candidates(story: &str) -> Vec<String> {
             }
         }
     }
-    out.truncate(24);
+    out.truncate(120);
     out
 }
 
@@ -4554,8 +5540,8 @@ pub(crate) fn extract_story_concept_candidates(story: &str) -> Vec<String> {
 ///   path;
 /// - a single token >= 5 chars that occurs in some indexed path;
 /// - a long single token (>= 10 chars) that does NOT occur as-is but whose
-///   SUFFIX (>= 8 chars) does — a compound split ("huvudredovisningskategori"
-///   -> "redovisningskategori"), which is how the story's language reaches
+///   SUFFIX (>= 8 chars) does — a compound split ("huvudkostnadskategori"
+///   -> "kostnadskategori"), which is how the story's language reaches
 ///   the code's.
 /// Uncorroborated extras are dropped; with an empty index the result is the
 /// plain recipe.
@@ -4568,45 +5554,221 @@ pub(crate) fn resolve_story_concepts(
         .iter()
         .map(|p| p.replace('\\', "/").to_lowercase())
         .collect();
-    let occurs = |needle: &str| -> bool { paths.iter().any(|p| p.contains(needle)) };
+    let occurrence_count =
+        |needle: &str| -> usize { paths.iter().filter(|p| p.contains(needle)).count() };
     let mut out: Vec<String> = cands.iter().take(3).cloned().collect();
     let mut seen: HashSet<String> = out.iter().cloned().collect();
-    for c in cands.iter().skip(3) {
-        if out.len() >= max {
-            break;
-        }
-        let c = c.to_lowercase();
-        if seen.contains(&c) {
+    let mut corroborated: Vec<(usize, usize, String)> = Vec::new();
+    for (position, candidate) in cands.iter().enumerate().skip(3) {
+        let candidate = candidate.to_lowercase();
+        if seen.contains(&candidate) {
             continue;
         }
-        if c.contains(' ') {
-            let compact: String = c.chars().filter(|ch| !ch.is_whitespace()).collect();
-            if compact.len() >= 6 && occurs(&compact) && seen.insert(c.clone()) {
-                out.push(c);
-            }
-            continue;
-        }
-        if c.len() >= 5 && occurs(&c) {
-            if seen.insert(c.clone()) {
-                out.push(c);
-            }
-            continue;
-        }
-        if c.chars().count() >= 10 {
-            // Compound split: the longest corroborated suffix wins.
-            let chars: Vec<char> = c.chars().collect();
-            for k in 1..=chars.len().saturating_sub(8) {
-                let suffix: String = chars[k..].iter().collect();
-                if occurs(&suffix) {
-                    if seen.insert(suffix.clone()) {
-                        out.push(suffix);
-                    }
+        let resolved = if candidate.contains(' ') {
+            let compact: String = candidate
+                .chars()
+                .filter(|ch| !ch.is_whitespace())
+                .collect();
+            (compact.len() >= 6 && occurrence_count(&compact) > 0).then_some(compact)
+        } else if occurrence_count(&candidate) > 0 {
+            Some(candidate.clone())
+        } else if let Some(stem) = concept_stems(&candidate)
+            .into_iter()
+            .skip(1)
+            .filter(|stem| stem.len() >= 5 && occurrence_count(stem) > 0)
+            .min_by_key(|stem| occurrence_count(stem))
+        {
+            Some(stem)
+        } else if candidate.len() >= 10 {
+            let mut derived = None;
+            // Grammatical variants often differ from code nouns while retaining
+            // a long, discriminating stem: authenticated -> authentication*.
+            for suffix in ["ing", "ed", "ation", "ition", "ment", "es", "s"] {
+                if let Some(stem) = candidate.strip_suffix(suffix)
+                    && stem.len() >= 8
+                    && occurrence_count(stem) > 0
+                {
+                    derived = Some(stem.to_string());
                     break;
                 }
             }
+            if derived.is_none() {
+                // Compound split: the longest corroborated suffix wins.
+                let chars: Vec<char> = candidate.chars().collect();
+                for k in 1..=chars.len().saturating_sub(8) {
+                    let suffix: String = chars[k..].iter().collect();
+                    if occurrence_count(&suffix) > 0 {
+                        derived = Some(suffix);
+                        break;
+                    }
+                }
+            }
+            derived
+        } else {
+            None
+        };
+        if let Some(resolved) = resolved {
+            let count = occurrence_count(&resolved);
+            if count > 0 && !seen.contains(&resolved) {
+                corroborated.push((count, position, resolved));
+            }
+        }
+    }
+    // Low document frequency is the most useful generic discriminator. Keep
+    // document order as a stable tie-breaker.
+    corroborated.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+    for (_, _, resolved) in corroborated {
+        if out.len() >= max {
+            break;
+        }
+        if seen.insert(resolved.clone()) {
+            out.push(resolved);
         }
     }
     out
+}
+
+/// Code-shaped identifiers explicitly written by the story author. These
+/// carry much stronger identity than ordinary prose: `TokenEpoch`,
+/// `app_Accounts` and `ResetPassword` can be resolved directly to a
+/// current file or graph symbol without guessing a repository vocabulary.
+/// Keep this generic by recognizing identifier shape rather than names.
+pub(crate) fn extract_story_code_entities(story: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut seen = HashSet::new();
+    for raw in story.split_whitespace() {
+        let token = raw.trim_matches(|c: char| {
+            !c.is_alphanumeric() && c != '_' && c != '.' && c != '-'
+        });
+        let token = token.trim_matches(|c| c == '.' || c == '-');
+        if token.starts_with("http") {
+            continue;
+        }
+        let chars: Vec<char> = token.chars().collect();
+        let camel = chars.windows(2).any(|pair| {
+            (pair[0].is_lowercase() && pair[1].is_uppercase())
+                || (pair[0].is_alphabetic() && pair[1].is_ascii_digit())
+        });
+        let uppercase = chars.iter().filter(|c| c.is_uppercase()).count();
+        let acronym_or_protocol = (3..=12).contains(&chars.len()) && uppercase >= 2;
+        if token.len() < 6 && !acronym_or_protocol {
+            continue;
+        }
+        let structured = token.contains('_')
+            || token.contains('.')
+            || token.contains('-')
+            || camel
+            || acronym_or_protocol;
+        if !structured {
+            continue;
+        }
+        let normalized: String = token
+            .chars()
+            .filter(|c| c.is_alphanumeric())
+            .flat_map(char::to_lowercase)
+            .collect();
+        if (normalized.len() >= 6 || acronym_or_protocol) && seen.insert(normalized) {
+            out.push(token.to_string());
+        }
+        // A story that names the exact code path — `A.DoThing->b.c()` — gives the
+        // strongest identity it can, and `entity` is a GOLDEN signal. But the
+        // whole chain survives above as ONE token, and `code_entity_file_matches`
+        // needs exact equality or a compound/acronym PREFIX, so a blob beginning
+        // with the caller's name matches no stem: measured on a replayed PR the
+        // entity arm reported status "complete" with hits 0 while the file the
+        // story named by name sat at tier 4 and was cut.
+        //
+        // So also emit the CONSTITUENTS. Additive: only tokens carrying
+        // call-chain punctuation produce extra entries, so a plain identifier
+        // like `app_Accounts` is unchanged. `_` and camelCase are deliberately
+        // NOT split — those compose a single identifier, and splitting them
+        // would turn `app_Accounts` into the generic `Accounts` that
+        // code_entity_file_matches explicitly refuses.
+        //
+        // A part inherits its parent's structure, so it is exempt from the
+        // `structured` test above; the length floor still applies, which keeps
+        // short receivers and namespaces (`Job`, `db`) out.
+        // `->` is consumed as a UNIT, never as a bare `-`: splitting on the
+        // hyphen alone would shred ordinary hyphenated identifiers, turning
+        // `api-images` into the generic `images` — the same over-generalisation
+        // code_entity_file_matches refuses when it rejects `app_Accounts` ->
+        // `Accounts`. The pinned contract above has no hyphen and cannot catch
+        // that, so it is prevented here rather than relied upon.
+        let chain = token.replace("->", ".");
+        if structured && chain.contains(['.', '(', ')', ':', ',']) {
+            for part in chain.split(['.', '(', ')', ':', ','].as_slice()) {
+                if part.len() < 6 {
+                    continue;
+                }
+                let part_normalized: String = part
+                    .chars()
+                    .filter(|c| c.is_alphanumeric())
+                    .flat_map(char::to_lowercase)
+                    .collect();
+                if part_normalized.len() >= 6 && seen.insert(part_normalized) {
+                    out.push(part.to_string());
+                }
+            }
+        }
+        if out.len() >= 32 {
+            break;
+        }
+    }
+    out
+}
+
+fn normalized_code_entity(value: &str) -> String {
+    value
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .flat_map(char::to_lowercase)
+        .collect()
+}
+
+fn code_entity_matches(candidate: &str, indexed_name: &str) -> bool {
+    let candidate = normalized_code_entity(candidate);
+    let indexed = normalized_code_entity(indexed_name);
+    if candidate.len() < 6 || indexed.len() < 6 {
+        return false;
+    }
+    candidate == indexed
+        || candidate.contains(&indexed)
+        || (indexed.len() >= 8 && indexed.contains(&candidate))
+}
+
+fn code_entity_file_matches(candidate: &str, file_stem: &str) -> bool {
+    let candidate_normalized = normalized_code_entity(candidate);
+    let stem_normalized = normalized_code_entity(file_stem);
+    if candidate_normalized == stem_normalized {
+        return true;
+    }
+    // Prefix recovery is for a compound identifier naming a more specific
+    // state/outcome of an existing compound type (`LicenseSeatRevoked` ->
+    // `LicenseSeat`). A generic one-word stem such as `Membership` must not
+    // pull every similarly named file.
+    let stem_parts = split_symmetric_name_tokens(file_stem);
+    let compound_prefix = stem_parts.len() >= 2
+        && stem_normalized.len() >= 8
+        && candidate_normalized.starts_with(&stem_normalized);
+    let acronym_prefix = candidate.chars().filter(|c| c.is_uppercase()).count() >= 2
+        && candidate_normalized.len() >= 3
+        && stem_normalized.starts_with(&candidate_normalized);
+    compound_prefix || acronym_prefix
+}
+
+/// Generated code and workspace manifests can repeat a product/type name but
+/// are not implementations of that entity. They can still enter through
+/// explicit history, build-family, schema, or dependency evidence.
+fn code_entity_path_eligible(path: &str) -> bool {
+    let lower = path.replace('\\', "/").to_ascii_lowercase();
+    !lower.contains(".designer.")
+        && !lower.ends_with(".g.cs")
+        && !lower.ends_with(".g.vb")
+        && ![
+            ".sln", ".slnx", ".csproj", ".vbproj", ".fsproj", ".vcxproj",
+        ]
+        .iter()
+        .any(|suffix| lower.ends_with(suffix))
 }
 
 pub(crate) fn extract_story_concepts(story: &str) -> Vec<String> {
@@ -4860,6 +6022,12 @@ mod guards_settings_tests {
         ));
         assert!(!story_asks_analytics_over_time(
             "Rename the export button on the invoice page"
+        ));
+        assert!(!story_asks_analytics_over_time(
+            "Allow login after MFA completion and write a security audit entry"
+        ));
+        assert!(story_asks_analytics_over_time(
+            "Show an audit history report for each account"
         ));
     }
 
@@ -5281,6 +6449,8 @@ impl Engram {
                             rule_text: text,
                             priority: 2,
                             updated_at_ms: now,
+                            introduced_at: None,
+                            provenance: Some("manually ingested review finding".into()),
                         };
                         let _ = reg.put_repo_rule(&pid, &rule);
                     }
@@ -5343,7 +6513,7 @@ fn change_set_paths(text: &str) -> Vec<String> {
     // The class also admits `~ @ +` (legal in build-output / scoped dirs) so
     // such paths aren't fragmented into slashless pieces the `keep` filter drops.
     let re = regex::Regex::new(
-        r"(?i)[\w./\\~@+-]*\.(?:aspx\.vb|ascx\.vb|asax\.vb|asmx\.vb|ashx\.vb|svc\.vb|master\.vb|aspx\.cs|ascx\.cs|asax\.cs|asmx\.cs|ashx\.cs|svc\.cs|master\.cs|aspx|ascx|asax|ashx|asmx|svc|master|vb|css|cs|ts|tsx|js|jsx|sql|config|vbhtml|cshtml|resx|html|yaml|yml|dbml|edmx)\b",
+        r"(?i)[\w./\\~@+-]*\.(?:aspx\.vb|ascx\.vb|asax\.vb|asmx\.vb|ashx\.vb|svc\.vb|master\.vb|aspx\.cs|ascx\.cs|asax\.cs|asmx\.cs|ashx\.cs|svc\.cs|master\.cs|dbml\.layout|aspx|ascx|asax|ashx|asmx|svc|master|vb|css|cs|ts|tsx|js|jsx|sqlproj|sql|config|vbhtml|cshtml|resx|html|yaml|yml|dbml|edmx)\b",
     )
     .expect("change_set_paths regex");
     let mut seen = HashSet::new();
@@ -5408,7 +6578,14 @@ mod history_path_identity_tests {
 
 /// Consume only explicit temporal partner records from the completeness report.
 /// State readers, wiring candidates, seeds and diagnostic paths are not history evidence.
-fn detect_cochange_evidence(text: &str) -> (Vec<String>, Vec<String>) {
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CochangePartnerEvidence {
+    path: String,
+    anchor_path: String,
+    weight: u32,
+}
+
+fn detect_cochange_evidence(text: &str) -> (Vec<CochangePartnerEvidence>, Vec<String>) {
     let mut in_partners = false;
     let mut in_coverage = false;
     let mut paths = Vec::new();
@@ -5432,12 +6609,25 @@ fn detect_cochange_evidence(text: &str) -> (Vec<String>, Vec<String>) {
         if !in_partners { continue; }
         let Some(record) = line.strip_prefix("- `") else { continue; };
         let Some((path, tail)) = record.split_once('`') else { continue; };
-        let weight = tail.strip_prefix(" (").and_then(|tail| tail.split_once(" co-changes with `")).and_then(|(weight, _)| weight.parse::<u32>().ok());
-        if weight.is_none() { notes.push("Malformed temporal partner record; not used as co-change evidence".into()); continue; }
-        match normalize_edit_files(&[path.to_string()]) {
+        let relation = tail
+            .strip_prefix(" (")
+            .and_then(|tail| tail.split_once(" co-changes with `"))
+            .and_then(|(weight, anchor)| {
+                let weight = weight.parse::<u32>().ok()?;
+                let anchor = anchor.split_once('`')?.0;
+                Some((weight, anchor))
+            });
+        let Some((weight, anchor)) = relation else {
+            notes.push("Malformed temporal partner record; not used as co-change evidence".into());
+            continue;
+        };
+        match normalize_edit_files(&[path.to_string(), anchor.to_string()]) {
             Ok(normalized) => {
                 let path = normalized[0].to_lowercase();
-                if seen.insert(path.clone()) { paths.push(path); }
+                let anchor_path = normalized[1].to_lowercase();
+                if seen.insert(path.clone()) {
+                    paths.push(CochangePartnerEvidence { path, anchor_path, weight });
+                }
             },
             Err(_) => notes.push("Invalid temporal partner path; not used as co-change evidence".into()),
         }
@@ -5765,15 +6955,125 @@ pub(crate) fn footprint_total(text: &str) -> usize {
 /// term. Story-word NAME coverage is independent (it never consults the
 /// footprint).
 fn change_set_independent(s: &str) -> bool {
-    !matches!(s, "concept" | "lexicon" | "gloss" | "family" | "broad")
+    !matches!(
+        s,
+        "concept"
+            | "specific"
+            | "lexicon"
+            | "gloss"
+            | "family"
+            | "broad"
+            | "disk"
+    )
 }
 
 /// How many signals count as EVIDENCE (round-2 audit P0-3): the family
 /// expansion inherits its partner's signals and a broad term is not evidence.
 fn change_set_strength(sigs: &BTreeSet<&'static str>) -> usize {
     sigs.iter()
-        .filter(|s| !matches!(**s, "family" | "broad"))
+        .filter(|s| {
+            !matches!(
+                **s,
+                "family"
+                    | "broad"
+                    | "disk"
+                    | "specific"
+            )
+        })
         .count()
+}
+
+/// Identity used only to merge evidence for the same current source file.
+/// Historical corpora can contain lower-cased or differently rooted spellings
+/// while the active graph carries the repository's real casing; the
+/// canonicalizer resolves those through an exact key or a unique path suffix.
+fn change_set_path_key(path: &str) -> String {
+    path.replace('\\', "/").trim_start_matches('/').to_lowercase()
+}
+
+fn business_logic_source_path(path: &str) -> Option<String> {
+    let normalized = path.replace('\\', "/");
+    let source_and_member = normalized.strip_prefix("__business_logic/")?;
+    let (source, member) = source_and_member.rsplit_once('/')?;
+    if source.is_empty() || !member.to_ascii_lowercase().ends_with(".md") {
+        return None;
+    }
+    Some(source.to_string())
+}
+
+fn path_spelling_quality(path: &str) -> (usize, usize) {
+    (
+        path.chars().filter(|c| c.is_ascii_uppercase()).count(),
+        usize::MAX - path.len(),
+    )
+}
+
+/// Collapse case/prefix aliases onto the active graph's best spelling before
+/// ranking. Otherwise one physical file can consume multiple candidate slots
+/// and split its independent evidence across aliases.
+fn canonicalize_change_set_evidence(
+    prov: &mut BTreeMap<String, BTreeSet<&'static str>>,
+    why: &mut BTreeMap<String, Vec<String>>,
+    historical: &mut BTreeSet<String>,
+    indexed_paths: impl IntoIterator<Item = String>,
+) {
+    let mut canonical: HashMap<String, String> = HashMap::new();
+    for path in indexed_paths {
+        let key = change_set_path_key(&path);
+        canonical
+            .entry(key)
+            .and_modify(|current| {
+                if path_spelling_quality(&path) > path_spelling_quality(current) {
+                    *current = path.clone();
+                }
+            })
+            .or_insert(path);
+    }
+
+    // A corpus path can be rooted differently from the current checkout (for
+    // example before the repository moved its web root). Without an exact key
+    // it resolves to the one indexed path ending with it; an ambiguous suffix
+    // stays unresolved rather than merging unrelated files.
+    let resolve = |path: &str| -> Option<String> {
+        let key = change_set_path_key(path);
+        if let Some(current) = canonical.get(&key) {
+            return Some(current.clone());
+        }
+        let suffix = format!("/{key}");
+        let mut matches = canonical
+            .iter()
+            .filter(|(indexed, _)| indexed.ends_with(&suffix))
+            .map(|(_, current)| current);
+        let first = matches.next()?;
+        matches.next().is_none().then(|| first.clone())
+    };
+
+    let old_prov = std::mem::take(prov);
+    for (path, signals) in old_prov {
+        let target = resolve(&path).unwrap_or(path);
+        prov.entry(target).or_default().extend(signals);
+    }
+
+    let old_why = std::mem::take(why);
+    for (path, reasons) in old_why {
+        let target = resolve(&path).unwrap_or(path);
+        let target_reasons = why.entry(target).or_default();
+        for reason in reasons {
+            if !target_reasons.contains(&reason) {
+                target_reasons.push(reason);
+            }
+        }
+    }
+
+    let old_historical = std::mem::take(historical);
+    for path in old_historical {
+        // If the corpus spelling resolves to a current indexed path, it is no
+        // longer historical. Keeping the canonical current path in this set made
+        // the renderer claim that live files were absent from the index.
+        if resolve(&path).is_none() {
+            historical.insert(path);
+        }
+    }
 }
 
 fn change_set_tier(sigs: &BTreeSet<&'static str>) -> u8 {
@@ -5791,6 +7091,8 @@ fn change_set_tier(sigs: &BTreeSet<&'static str>) -> u8 {
         sigs.contains("lexicon") && sigs.iter().any(|s| change_set_independent(s));
     let golden = sigs.contains("cochange")
         || sigs.contains("history")
+        || sigs.contains("business")
+        || sigs.contains("entity")
         || sigs.contains("gloss")
         || sigs.contains("name")
         || corroborated_lexicon;
@@ -5807,6 +7109,396 @@ fn change_set_tier(sigs: &BTreeSet<&'static str>) -> u8 {
     } else {
         4
     }
+}
+
+const ASSET_GRAPH_ANCHOR_CAP: usize = 32;
+const ASSET_GRAPH_BUNDLES_PER_ANCHOR_CAP: usize = 3;
+const ASSET_GRAPH_FILES_PER_BUNDLE_CAP: usize = 25;
+const ASSET_GRAPH_RESULT_CAP: usize = 48;
+
+#[derive(Debug, Clone)]
+pub(crate) struct AssetGraphFile {
+    pub path: String,
+    pub anchor_path: String,
+    pub bundle_id: Option<String>,
+    pub relation: &'static str,
+}
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct AssetGraphExpansion {
+    pub files: Vec<AssetGraphFile>,
+    pub skipped_hub_anchors: usize,
+    pub skipped_hub_bundles: usize,
+}
+
+fn add_asset_graph_file(
+    graph: &engram_graph::GraphStore,
+    project_id: &str,
+    node_id: &str,
+    anchor_path: &str,
+    bundle_id: Option<&str>,
+    relation: &'static str,
+    seen: &mut HashSet<String>,
+    files: &mut Vec<AssetGraphFile>,
+) {
+    if files.len() >= ASSET_GRAPH_RESULT_CAP {
+        return;
+    }
+    let Ok(Some(node)) = graph.get_node(project_id, node_id) else {
+        return;
+    };
+    if node.node_type == "asset_bundle" {
+        return;
+    }
+    let path = node.file_path.as_str().replace('\\', "/");
+    if path.is_empty() || engram_core::is_vendor_path(&path) || !seen.insert(path.clone()) {
+        return;
+    }
+    files.push(AssetGraphFile {
+        path,
+        anchor_path: anchor_path.to_string(),
+        bundle_id: bundle_id.map(str::to_string),
+        relation,
+    });
+}
+
+/// Expand strong change-set seeds through statically proven asset hosting.
+///
+/// Direction matters. From a script/style member we discover the pages that
+/// render its bundle, but do not pull every sibling asset. From a rendering
+/// page we discover the concrete members it serves. High-fanout bundle
+/// registries and oversized bundles are reported as truncated instead of
+/// flooding the candidate list.
+pub(crate) fn expand_asset_bundle_graph(
+    graph: &engram_graph::GraphStore,
+    project_id: &str,
+    anchor_paths: &[String],
+) -> AssetGraphExpansion {
+    let mut result = AssetGraphExpansion::default();
+    let mut seen = HashSet::new();
+
+    for anchor_path in anchor_paths.iter().take(ASSET_GRAPH_ANCHOR_CAP) {
+        let identities = [format!("file:{anchor_path}"), format!("page:{anchor_path}")];
+        for identity in identities {
+            let incoming = graph
+                .find_incoming_edges(
+                    project_id,
+                    Some(engram_graph::EdgeKind::IncludesFile),
+                    &identity,
+                    ASSET_GRAPH_BUNDLES_PER_ANCHOR_CAP + 2,
+                )
+                .unwrap_or_default();
+            let incoming_bundles: Vec<&str> = incoming
+                .iter()
+                .filter_map(|(source, _)| source.starts_with("bundle:").then_some(source.as_str()))
+                .collect();
+            if incoming_bundles.len() > ASSET_GRAPH_BUNDLES_PER_ANCHOR_CAP {
+                result.skipped_hub_anchors += 1;
+            } else {
+                for (source, _) in incoming {
+                    if source.starts_with("bundle:") {
+                        let hosts = graph
+                            .find_incoming_edges(
+                                project_id,
+                                Some(engram_graph::EdgeKind::IncludesFile),
+                                &source,
+                                ASSET_GRAPH_FILES_PER_BUNDLE_CAP + 1,
+                            )
+                            .unwrap_or_default();
+                        if hosts.len() > ASSET_GRAPH_FILES_PER_BUNDLE_CAP {
+                            result.skipped_hub_bundles += 1;
+                            continue;
+                        }
+                        for (host, _) in hosts {
+                            add_asset_graph_file(
+                                graph,
+                                project_id,
+                                &host,
+                                anchor_path,
+                                Some(&source),
+                                "renders the anchor's asset bundle",
+                                &mut seen,
+                                &mut result.files,
+                            );
+                        }
+                    } else {
+                        add_asset_graph_file(
+                            graph,
+                            project_id,
+                            &source,
+                            anchor_path,
+                            None,
+                            "directly includes the anchor asset",
+                            &mut seen,
+                            &mut result.files,
+                        );
+                    }
+                }
+            }
+
+            let outgoing = graph
+                .neighbors(
+                    project_id,
+                    engram_graph::EdgeKind::IncludesFile,
+                    &identity,
+                    ASSET_GRAPH_FILES_PER_BUNDLE_CAP + ASSET_GRAPH_BUNDLES_PER_ANCHOR_CAP + 1,
+                )
+                .unwrap_or_default();
+            let outgoing_bundles: Vec<&str> = outgoing
+                .iter()
+                .filter_map(|(target, _)| target.starts_with("bundle:").then_some(target.as_str()))
+                .collect();
+            if outgoing_bundles.len() > ASSET_GRAPH_BUNDLES_PER_ANCHOR_CAP {
+                result.skipped_hub_anchors += 1;
+            } else {
+                for (target, _) in outgoing {
+                    if target.starts_with("bundle:") {
+                        let members = graph
+                            .neighbors(
+                                project_id,
+                                engram_graph::EdgeKind::IncludesFile,
+                                &target,
+                                ASSET_GRAPH_FILES_PER_BUNDLE_CAP + 1,
+                            )
+                            .unwrap_or_default();
+                        if members.len() > ASSET_GRAPH_FILES_PER_BUNDLE_CAP {
+                            result.skipped_hub_bundles += 1;
+                        } else {
+                            for (member, _) in members {
+                                add_asset_graph_file(
+                                    graph,
+                                    project_id,
+                                    &member,
+                                    anchor_path,
+                                    Some(&target),
+                                    "is served by the anchor's rendered bundle",
+                                    &mut seen,
+                                    &mut result.files,
+                                );
+                            }
+                        }
+                        let definitions = graph
+                            .find_incoming_edges(
+                                project_id,
+                                Some(engram_graph::EdgeKind::IncludesFile),
+                                &target,
+                                ASSET_GRAPH_FILES_PER_BUNDLE_CAP + 1,
+                            )
+                            .unwrap_or_default();
+                        if definitions.len() > ASSET_GRAPH_FILES_PER_BUNDLE_CAP {
+                            result.skipped_hub_bundles += 1;
+                        } else {
+                            for (definition, _) in definitions {
+                                add_asset_graph_file(
+                                    graph,
+                                    project_id,
+                                    &definition,
+                                    anchor_path,
+                                    Some(&target),
+                                    "defines or renders the anchor's bundle",
+                                    &mut seen,
+                                    &mut result.files,
+                                );
+                            }
+                        }
+                    } else {
+                        add_asset_graph_file(
+                            graph,
+                            project_id,
+                            &target,
+                            anchor_path,
+                            None,
+                            "is directly included by the anchor",
+                            &mut seen,
+                            &mut result.files,
+                        );
+                    }
+                }
+            }
+        }
+    }
+    // A page that renders a relevant bundle and its code-behind are one
+    // runtime surface. IncludesFile edges terminate at the markup file, so
+    // carry the existing code-behind companion explicitly rather than making
+    // the caller infer it from a path convention. The graph lookup confirms
+    // the companion exists; no language or repository name is assumed.
+    let hosting_markup = result.files.clone();
+    for linked in hosting_markup {
+        let lower = linked.path.to_ascii_lowercase();
+        if !(lower.ends_with(".aspx")
+            || lower.ends_with(".ascx")
+            || lower.ends_with(".master"))
+        {
+            continue;
+        }
+        for extension in ["vb", "cs"] {
+            let companion = format!("{}.{}", linked.path, extension);
+            add_asset_graph_file(
+                graph,
+                project_id,
+                &format!("file:{companion}"),
+                &linked.anchor_path,
+                linked.bundle_id.as_deref(),
+                "is code-behind for asset-hosting markup",
+                &mut seen,
+                &mut result.files,
+            );
+        }
+    }
+    result.files.truncate(ASSET_GRAPH_RESULT_CAP);
+    result
+}
+
+const CALLER_GRAPH_ANCHOR_CAP: usize = 64;
+const CALLER_GRAPH_SYMBOLS_PER_ANCHOR_CAP: usize = 24;
+const CALLER_GRAPH_CALLERS_PER_SYMBOL_CAP: usize = 8;
+const CALLER_GRAPH_RESULT_CAP: usize = 32;
+
+#[derive(Debug, Clone)]
+pub(crate) struct CallerGraphFile {
+    pub path: String,
+    pub caller_symbol: String,
+    pub target_symbol: String,
+    pub anchor_path: String,
+    pub edge_kind: String,
+}
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct CallerGraphExpansion {
+    pub files: Vec<CallerGraphFile>,
+    pub skipped_hub_symbols: usize,
+    pub truncated_anchor_symbols: usize,
+    pub query_failures: usize,
+}
+
+/// Find direct source consumers of methods in strong candidate files. Results
+/// are context for inspection/testing, not presumed edits. High-fanout methods
+/// are skipped because framework hooks and generic helpers otherwise dominate.
+pub(crate) fn expand_direct_caller_graph(
+    graph: &engram_graph::GraphStore,
+    project_id: &str,
+    anchor_paths: &[String],
+) -> CallerGraphExpansion {
+    let mut result = CallerGraphExpansion::default();
+    let mut seen_paths = HashSet::new();
+    for anchor_path in anchor_paths.iter().take(CALLER_GRAPH_ANCHOR_CAP) {
+        // Conventional Web API controllers often have no explicit route
+        // attribute: FooController is reached through a concrete .../foo URL.
+        // Client extractors preserve those URL nodes. Join only an exact final
+        // route segment to the controller stem, then return the client file
+        // recorded on that observed route node. This is bounded and requires
+        // both the controller naming convention and a real client call.
+        if let Some(file_name) = anchor_path.rsplit('/').next() {
+            let stem = file_name.split('.').next().unwrap_or(file_name);
+            let stem_lower = stem.to_ascii_lowercase();
+            if let Some(route_term) = stem_lower.strip_suffix("controller")
+                && !route_term.is_empty()
+            {
+                let route_nodes = graph
+                    .query_nodes(
+                        project_id,
+                        Some("route_handler"),
+                        Some(route_term),
+                        None,
+                        CALLER_GRAPH_CALLERS_PER_SYMBOL_CAP,
+                    )
+                    .unwrap_or_default();
+                for route in route_nodes {
+                    let terminal = route
+                        .name
+                        .split(['?', '#'])
+                        .next()
+                        .unwrap_or(&route.name)
+                        .trim_end_matches('/')
+                        .rsplit('/')
+                        .next()
+                        .unwrap_or_default();
+                    if !terminal.eq_ignore_ascii_case(route_term) {
+                        continue;
+                    }
+                    let path = route.file_path.as_str().replace('\\', "/");
+                    if path.is_empty()
+                        || path.eq_ignore_ascii_case(anchor_path)
+                        || engram_core::is_vendor_path(&path)
+                        || !seen_paths.insert(path.clone())
+                    {
+                        continue;
+                    }
+                    result.files.push(CallerGraphFile {
+                        path,
+                        caller_symbol: route.name.clone(),
+                        target_symbol: stem.to_string(),
+                        anchor_path: anchor_path.clone(),
+                        edge_kind: "api_route_convention".into(),
+                    });
+                    if result.files.len() >= CALLER_GRAPH_RESULT_CAP {
+                        return result;
+                    }
+                }
+            }
+        }
+        let nodes = match graph.query_nodes_in_file(project_id, None, anchor_path, 200) {
+            Ok(nodes) => nodes,
+            Err(_) => {
+                result.query_failures += 1;
+                continue;
+            }
+        };
+        let mut callable_nodes: Vec<_> = nodes
+            .into_iter()
+            .filter(|node| node.node_type == "function")
+            .collect();
+        callable_nodes.sort_by(|a, b| a.name.cmp(&b.name));
+        if callable_nodes.len() > CALLER_GRAPH_SYMBOLS_PER_ANCHOR_CAP {
+            result.truncated_anchor_symbols +=
+                callable_nodes.len() - CALLER_GRAPH_SYMBOLS_PER_ANCHOR_CAP;
+        }
+        for target in callable_nodes
+            .into_iter()
+            .take(CALLER_GRAPH_SYMBOLS_PER_ANCHOR_CAP)
+        {
+            let (callers, truncated) = match crate::handlers::incoming_caller_edges_checked(
+                graph,
+                project_id,
+                &target.node_id,
+                CALLER_GRAPH_CALLERS_PER_SYMBOL_CAP,
+            ) {
+                Ok(value) => value,
+                Err(_) => {
+                    result.query_failures += 1;
+                    continue;
+                }
+            };
+            if truncated {
+                result.skipped_hub_symbols += 1;
+                continue;
+            }
+            for (source_id, kind, _) in callers {
+                let Ok(Some(source)) = graph.get_node(project_id, &source_id) else {
+                    continue;
+                };
+                let path = source.file_path.as_str().replace('\\', "/");
+                if path.is_empty()
+                    || path.eq_ignore_ascii_case(anchor_path)
+                    || engram_core::is_vendor_path(&path)
+                    || !seen_paths.insert(path.clone())
+                {
+                    continue;
+                }
+                result.files.push(CallerGraphFile {
+                    path,
+                    caller_symbol: source.name,
+                    target_symbol: target.name.clone(),
+                    anchor_path: anchor_path.clone(),
+                    edge_kind: kind.as_str().to_string(),
+                });
+                if result.files.len() >= CALLER_GRAPH_RESULT_CAP {
+                    return result;
+                }
+            }
+        }
+    }
+    result
 }
 
 /// Split an identifier into lowercase tokens on camelCase, snake_case and
@@ -6215,7 +7907,7 @@ mod symmetric_sibling_tests {
             BTreeSet::from(["cochange", "history", "vtop"]),
         );
         prov.insert(
-            "site/app_code/ifalt.designer.vb".into(),
+            "site/app_code/icore.designer.vb".into(),
             BTreeSet::from(["cochange", "concept"]),
         );
         prov.insert(
@@ -6297,7 +7989,10 @@ pub(crate) const CHANGE_SET_LAYERS: &[(&str, &[&str])] = &[
         &[".ts", ".tsx", ".js", ".jsx"],
     ),
     ("Resources (.resx — translate EVERY language)", &[".resx"]),
-    ("Data (SQL)", &[".sql"]),
+    (
+        "Data (SQL / ORM model)",
+        &[".sql", ".sqlproj", ".dbml", ".dbml.layout", ".edmx"],
+    ),
     (
         "Markup / styles / config",
         &[".html", ".css", ".config", ".vbhtml", ".cshtml"],
@@ -6318,6 +8013,653 @@ pub(crate) fn change_set_layer_name(i: usize) -> &'static str {
     CHANGE_SET_LAYERS.get(i).map(|(n, _)| *n).unwrap_or("Other")
 }
 
+/// A deliberately coarse, repository-agnostic role inferred from the artifact
+/// name. It explains why a surfaced path may matter without claiming that the
+/// file must be edited or inventing domain behavior.
+fn change_set_mechanism_role(path: &str) -> &'static str {
+    let lower = path.replace('\\', "/").to_ascii_lowercase();
+    let name = lower.rsplit('/').next().unwrap_or(&lower);
+    if name.contains("bundleconfig") || name.contains("webpack") || name.contains("vite.config") {
+        "asset registration and delivery"
+    } else if name.contains("global.asax") || name.contains("startup") || name == "program.cs" {
+        "application request pipeline"
+    } else if name.contains("middleware") {
+        "request pipeline and principal propagation"
+    } else if name.contains("authorize") || name.contains("authorization") || name.contains("authfilter") {
+        "authentication or authorization gate"
+    } else if name.contains("controller") {
+        "endpoint controller"
+    } else if name.contains("errorresponse") || name.contains("problem") {
+        "error and response contract"
+    } else if name.contains("audit") || name.contains("log") {
+        "audit and operational logging"
+    } else if name.contains("constant") {
+        "shared protocol or contract constants"
+    } else if lower.ends_with(".sql") || lower.ends_with(".dbml") {
+        "persistence schema or data operation"
+    } else if lower.ends_with(".master") || lower.ends_with(".aspx") || lower.ends_with(".ascx")
+        || lower.ends_with(".cshtml") || lower.ends_with(".vbhtml") {
+        "rendered user-interface host"
+    } else if lower.ends_with(".js") || lower.ends_with(".ts") || lower.ends_with(".tsx") {
+        "browser or client behavior"
+    } else if name.contains("service") {
+        "service boundary"
+    } else {
+        "source implementation or integration point"
+    }
+}
+
+/// State what kind of claim a candidate row carries. This prevents planners
+/// from treating a direct behavioral anchor, a static dependency, and a loose
+/// lexical match as interchangeable entries in one flat list.
+fn change_set_evidence_class(signals: &[&str]) -> &'static str {
+    let has = |signal: &str| signals.contains(&signal);
+    let direct = has("business") || has("entity") || has("name");
+    let historical = has("history") || has("cochange");
+    if direct && historical {
+        "corroborated_behavioral_candidate"
+    } else if direct {
+        "direct_behavioral_candidate"
+    } else if historical {
+        "historical_companion_candidate"
+    } else if has("family") || has("disk") {
+        "structural_companion_candidate"
+    } else {
+        "retrieval_candidate"
+    }
+}
+
+fn change_set_impact_question(path: &str) -> &'static str {
+    match change_set_mechanism_role(path) {
+        "asset registration and delivery" =>
+            "Does this registry deliver any changed or newly required client behavior to the affected surface?",
+        "application request pipeline" =>
+            "Does this pipeline stage acquire state, select a principal, classify the request, or rewrite the response affected by the story?",
+        "request pipeline and principal propagation" =>
+            "Must this middleware keep framework principals, authentication schemes, and response behavior consistent with the changed boundary?",
+        "authentication or authorization gate" =>
+            "Must this gate apply the same rule and denial contract as the changed authentication or authorization path?",
+        "endpoint controller" =>
+            "Can this endpoint enter, leave, refresh, or clean up the lifecycle changed by the story?",
+        "error and response contract" =>
+            "Does the changed behavior require a distinct status, body, redirect, or framework-suppression response here?",
+        "audit and operational logging" =>
+            "Does this component record the changed decision or sit on an error path where logging must preserve the primary outcome?",
+        "shared protocol or contract constants" =>
+            "Does the changed protocol, claim, route, cache, or response contract require a shared constant here?",
+        "persistence schema or data operation" =>
+            "Does the changed behavior require persisted state, a write-side invalidation, an upgrade path, or concurrency protection here?",
+        "rendered user-interface host" =>
+            "Does this host initiate or consume the changed behavior, load its client asset, or need to handle its response and navigation lifecycle?",
+        "browser or client behavior" =>
+            "Does this client call the changed endpoint or handle its status, redirect, cache, or navigation lifecycle?",
+        "service boundary" =>
+            "Does this service implement or reuse the changed rule across another entry path?",
+        _ =>
+            "Does source in this file read, write, call, host, configure, or observe behavior changed by the story?",
+    }
+}
+
+fn change_set_exclusion_evidence(signals: &[&str]) -> &'static str {
+    match change_set_evidence_class(signals) {
+        "corroborated_behavioral_candidate" =>
+            "inspect the named member or story entity and its historical relationship; exclude only with source evidence that the changed behavior cannot reach this file",
+        "direct_behavioral_candidate" =>
+            "inspect the named member or story entity; exclude only with source evidence that its behavior is outside the contract",
+        "historical_companion_candidate" =>
+            "inspect the reported anchor and relevant historical cohort; 'unchanged' is not evidence unless the shared behavior is shown not to apply",
+        "structural_companion_candidate" =>
+            "inspect the static family or delivery edge and prove the affected artifact is not built, hosted, registered, or deployed through this file",
+        _ =>
+            "verify against current source; a lexical or semantic match may be excluded when no behavioral or structural path is found",
+    }
+}
+
+fn change_set_reason_priority(reason: &str) -> u8 {
+    if reason.starts_with("story explicitly names code entity") {
+        0
+    } else if reason.starts_with("business-rule match")
+        || reason.starts_with("historical co-change:")
+        || reason.starts_with("presentation dependency:")
+        || reason.contains("companion of")
+        || reason.contains("pair of")
+    {
+        1
+    } else if reason.starts_with("past commits") || reason.starts_with("co-changed with") {
+        2
+    } else if reason.contains("too common in this index") {
+        9
+    } else {
+        4
+    }
+}
+
+fn ranked_change_set_reasons(
+    why: &BTreeMap<String, Vec<String>>,
+    path: &str,
+    limit: usize,
+) -> Vec<String> {
+    let mut reasons = why.get(path).cloned().unwrap_or_default();
+    reasons.sort_by(|left, right| {
+        change_set_reason_priority(left)
+            .cmp(&change_set_reason_priority(right))
+            .then_with(|| left.cmp(right))
+    });
+    reasons.dedup();
+    reasons.truncate(limit);
+    reasons
+}
+
+/// Release-critical contract items come only from configured planning-contract
+/// rules. Engram ships no built-in domain checklist: an organization or
+/// repository supplies dated rules, and this checkpoint turns the hard ones
+/// into a receipt-bound ledger that the feature contract must disposition.
+fn change_set_contract_checkpoint(
+    configured_rules: &[PlanningContractRuleMatch],
+) -> serde_json::Value {
+    let hard_rules = configured_rules.iter()
+        .filter(|rule| rule.severity == "release_blocking_if_applicable" || rule.oracle_guard.is_some())
+        .collect::<Vec<_>>();
+    let configured_rule_ids = hard_rules.iter()
+        .map(|rule| rule.id.clone())
+        .collect::<Vec<_>>();
+    let hard_items = hard_rules.iter().map(|rule| serde_json::json!({
+        "id": rule.id,
+        "kind": "configured_rule",
+        "group": rule.title,
+        "severity": rule.severity,
+        "requirement": rule.requirement,
+        "oracle_guard": rule.oracle_guard,
+        "source": rule.source,
+        "introduced_at": rule.introduced_at,
+        "provenance": rule.provenance,
+    })).collect::<Vec<_>>();
+    let canonical = configured_rule_ids
+        .iter()
+        .map(|id| format!("{id}\n"))
+        .collect::<String>();
+    use sha2::{Digest, Sha256};
+    let checkpoint_digest = format!("{:x}", Sha256::digest(canonical.as_bytes()));
+    let receipt_line = format!(
+        "`get_change_set contract checkpoint: sha256:{checkpoint_digest} configured_rules={}`",
+        configured_rule_ids.len(),
+    );
+    let ledger_header = "| Contract ID | Severity | Requirement | Disposition (SATISFIED_WITH_SOURCE_OR_APPROVED_DECISION / BLOCKING_UNKNOWN / NOT_APPLICABLE_WITH_EVIDENCE) | Evidence | Scenario IDs or question | Oracle guard (PASS / NOT_APPLICABLE_WITH_EVIDENCE) |\n|---|---|---|---|---|---|---|";
+    let ledger_rows = hard_items.iter().filter_map(|item| {
+        let id = item["id"].as_str()?;
+        let severity = item["severity"].as_str().unwrap_or("release_blocking_if_applicable");
+        Some(format!(
+            "| {id} | {severity} | see `contract_checkpoint.hard_items` entry `{id}` | MISSING | | | MISSING |"
+        ))
+    }).collect::<Vec<_>>();
+    let scaffold_markdown = format!(
+        "{receipt_line}\n\n{ledger_header}\n{}",
+        ledger_rows.join("\n")
+    );
+    let workflow_scaffold = serde_json::json!({
+        "status": "INTENTIONALLY_INCOMPLETE_UNTIL_AGENT_SUPPLIES_DISPOSITIONS_AND_EVIDENCE",
+        "markdown": scaffold_markdown,
+        "instruction": "Copy this scaffold verbatim, then replace every MISSING disposition and oracle-guard result and fill evidence plus scenario/question mapping. Do not alter ID order or the receipt."
+    });
+    serde_json::json!({
+        "status": if hard_items.is_empty() { "NO_CONFIGURED_HARD_RULES" } else { "REQUIRES_EXPLICIT_DISPOSITIONS" },
+        "receipt": {
+            "receipt_id": format!("sha256:{checkpoint_digest}"),
+            "configured_rules": configured_rule_ids.len(),
+            "algorithm": "SHA-256 over ordered contract ID LF records"
+        },
+        "configured_rule_ids": configured_rule_ids,
+        "hard_items": hard_items,
+        "workflow_scaffold": workflow_scaffold,
+        "advisory_rules_total": configured_rules.len() - hard_rules.len(),
+        "allowed_dispositions": [
+            "SATISFIED_WITH_SOURCE_OR_APPROVED_DECISION",
+            "BLOCKING_UNKNOWN",
+            "NOT_APPLICABLE_WITH_EVIDENCE"
+        ],
+        "instruction": "Copy every hard_items ID into the feature contract with one allowed disposition and concrete citations. The checkpoint fails on a missing hard ID or an expected scenario outcome that contradicts an oracle_guard. Product decisions require an approved human answer. Items come only from configured planning-contract rules; when none are configured there is nothing to disposition."
+    })
+}
+
+/// Replace repeated per-row guidance with stable references. The dictionary is
+/// lossless and request-local: exact paths, row ids, causal anchors, reasons,
+/// and unique questions remain inline. This primarily removes the same impact
+/// and exclusion paragraph repeated across dozens of rows.
+fn compact_row_guidance(groups: &mut [&mut Vec<serde_json::Value>]) -> serde_json::Value {
+    const FIELDS: [&str; 4] = [
+        "mechanism_role",
+        "evidence_class",
+        "impact_question",
+        "exclusion_evidence_required",
+    ];
+    let mut counts = BTreeMap::<(String, String), usize>::new();
+    for group in groups.iter() {
+        for row in group.iter() {
+            for field in FIELDS {
+                if let Some(value) = row[field].as_str()
+                    && value.len() >= 32
+                {
+                    *counts.entry((field.to_string(), value.to_string())).or_default() += 1;
+                }
+            }
+        }
+    }
+    let references = counts.into_iter()
+        .filter(|(_, count)| *count >= 2)
+        .enumerate()
+        .map(|(index, ((field, value), _))| {
+            ((field, value.clone()), (format!("G{:03}", index + 1), value))
+        })
+        .collect::<BTreeMap<_, _>>();
+    for group in groups.iter_mut() {
+        for row in group.iter_mut() {
+            let Some(object) = row.as_object_mut() else { continue };
+            for field in FIELDS {
+                let Some(value) = object.get(field).and_then(|value| value.as_str()) else { continue };
+                let Some((reference, _)) = references.get(&(field.to_string(), value.to_string())) else { continue };
+                object.remove(field);
+                object.insert(format!("{field}_ref"), serde_json::json!(reference));
+            }
+        }
+    }
+    let entries = references.into_iter().map(|((field, _), (id, text))| serde_json::json!({
+        "id": id,
+        "field": field,
+        "text": text,
+    })).collect::<Vec<_>>();
+    serde_json::json!({
+        "entries": entries,
+        "instruction": "Resolve every *_ref on a row through this dictionary before classifying the row. References compress repeated text only; they do not weaken or replace the guidance."
+    })
+}
+
+fn change_set_rule_matches_path(file_pattern: &str, target_path: &str) -> bool {
+    if file_pattern.trim().is_empty() {
+        return false;
+    }
+    let pattern = file_pattern.replace('\\', "/").to_ascii_lowercase();
+    let path = target_path.replace('\\', "/").to_ascii_lowercase();
+    if pattern == path {
+        return true;
+    }
+    if pattern.contains('*') || pattern.contains('?') {
+        let mut expression = String::with_capacity(pattern.len() + 8);
+        expression.push('^');
+        for character in pattern.chars() {
+            match character {
+                '*' => expression.push_str(".*"),
+                '?' => expression.push('.'),
+                '.' | '+' | '(' | ')' | '[' | ']' | '{' | '}' | '|' | '^' | '$' | '\\' => {
+                    expression.push('\\');
+                    expression.push(character);
+                }
+                _ => expression.push(character),
+            }
+        }
+        expression.push('$');
+        return regex::Regex::new(&expression)
+            .is_ok_and(|compiled| compiled.is_match(&path));
+    }
+    path.contains(&pattern)
+}
+
+/// Locate every occurrence of a construct that a MATCHED repository rule names,
+/// with the receiver text immediately preceding it.
+///
+/// This LOCATES; it never BINDS. The receiver is reported as lexical text, never
+/// as a resolved declaration: VB receiver/local/field binding cannot be decided
+/// lexically, which is why `business_outcome_dependencies::resolve` refuses
+/// anything but an explicitly global-qualified shared call, and why
+/// `shadowed_receivers_and_local_delegates_never_supply_class_source` pins that
+/// refusal. Guessing here would contradict a tested invariant.
+///
+/// The reason this exists at all: one file can contain several occurrences of a
+/// ruled construct whose verdicts are OPPOSITE (one receiver materialises a
+/// list, another stays a deferred query). A file-level row cannot disposition
+/// them separately, so the agent is told a rule applies without being able to
+/// tell WHERE. Reporting each occurrence restores line-level disposition and
+/// leaves the declaration lookup to the caller, which is one bounded query.
+fn rule_construct_occurrences(source: &str, construct: &str, vb: bool) -> Vec<(u32, String)> {
+    if construct.is_empty() {
+        return Vec::new();
+    }
+    // Mask comments and string literals first: a construct named inside either
+    // is text, not a call site. `executable_lines` preserves newlines, so the
+    // line numbers reported here remain the reader's real line numbers.
+    let masked = crate::services::business_outcome_dependencies::executable_lines(source, vb);
+    let mut sites = Vec::new();
+    for (index, line) in masked.lines().enumerate() {
+        let mut from = 0;
+        while let Some(found) = line[from..].find(construct) {
+            let at = from + found;
+            // The receiver is the identifier ending where the construct begins.
+            let head = &line[..at];
+            let receiver = head
+                .char_indices()
+                .rev()
+                .take_while(|(_, c)| c.is_alphanumeric() || *c == '_')
+                .last()
+                .map(|(start, _)| &head[start..])
+                .unwrap_or_default();
+            if !receiver.is_empty() {
+                sites.push((index as u32 + 1, receiver.to_string()));
+            }
+            from = at + construct.len();
+        }
+    }
+    sites
+}
+
+/// Extract the code constructs a repository rule names in its own prose, so a
+/// rule can be tied to the exact lines it speaks about instead of to a whole
+/// file. Prose may name a construct bare or inside backticks.
+///
+/// A rule that names no construct yields nothing. Staying silent matters more
+/// than guessing here: attaching a rule to lines it does not govern would push
+/// a reader toward the false positive this whole mechanism exists to prevent.
+fn rule_named_constructs(rule_text: &str) -> Vec<String> {
+    let mut found: Vec<String> = Vec::new();
+    for raw in rule_text.split_whitespace() {
+        // Prose punctuation and backticks surround the token; the construct is
+        // what survives trimming them.
+        let token = raw.trim_matches(|c: char| !c.is_alphanumeric() && c != '.' && c != '_');
+        let Some(name) = token.strip_prefix('.') else {
+            continue;
+        };
+        // A member name, not a sentence ending in a full stop and not a bare
+        // dotted word: require a leading capital and nothing but identifier
+        // characters after it, so "failures." and ".net" never qualify.
+        if name.is_empty()
+            || !name.starts_with(|c: char| c.is_ascii_uppercase())
+            || !name.chars().all(|c| c.is_alphanumeric() || c == '_')
+        {
+            continue;
+        }
+        let construct = format!(".{name}");
+        if !found.contains(&construct) {
+            found.push(construct);
+        }
+    }
+    found
+}
+
+/// Tie the rules that already matched a row to the exact lines they govern.
+///
+/// Silence is the default in three cases, each of which would otherwise plant a
+/// line-level claim the evidence does not support: a rule naming no construct,
+/// a construct with no occurrence in this source, and a language whose comment
+/// and literal forms the masker does not understand. That last bound is why
+/// this takes the path: `executable_lines` knows VB and C-style syntax, so
+/// anywhere else a commented-out match would be reported as a live call site.
+fn row_ruled_construct_sites(
+    path: &str,
+    source: &str,
+    rules: &[(String, String)],
+) -> Vec<serde_json::Value> {
+    let lower = path.to_ascii_lowercase();
+    let vb = lower.ends_with(".vb");
+    if !vb && !lower.ends_with(".cs") {
+        return Vec::new();
+    }
+    // The occurrences belong to the CONSTRUCT; the rules are what cite it. Grouping
+    // here rather than emitting one entry per rule is not cosmetic: four repository
+    // rules name `.Contains`, so the per-rule shape repeated an identical occurrence
+    // list four times on every governed row, in a dossier that already exhausted a
+    // token budget. It also scans each construct once instead of once per citing rule.
+    let mut order: Vec<String> = Vec::new();
+    let mut citing: HashMap<String, Vec<String>> = HashMap::new();
+    for (rule_id, rule_text) in rules {
+        for construct in rule_named_constructs(rule_text) {
+            let cites = citing.entry(construct.clone()).or_default();
+            if !cites.iter().any(|seen| seen == rule_id) {
+                cites.push(rule_id.clone());
+            }
+            if !order.iter().any(|seen| seen == &construct) {
+                order.push(construct);
+            }
+        }
+    }
+    let mut sites = Vec::new();
+    for construct in order {
+        let occurrences = rule_construct_occurrences(source, &construct, vb);
+        if occurrences.is_empty() {
+            continue;
+        }
+        // Bound the list, but never let the bound hide the count: a reader seeing
+        // cap-many entries must still be able to tell a file with exactly that many
+        // sites from one with far more.
+        let occurrences_total = occurrences.len();
+        sites.push(serde_json::json!({
+            "construct": construct,
+            "rule_ids": citing.remove(&construct).unwrap_or_default(),
+            "occurrences_total": occurrences_total,
+            "occurrence_cap": CHANGE_SET_CONSTRUCT_SITE_CAP,
+            "occurrences": occurrences
+                .into_iter()
+                .take(CHANGE_SET_CONSTRUCT_SITE_CAP)
+                .map(|(line, receiver)| serde_json::json!({
+                    "line": line,
+                    "receiver": receiver,
+                }))
+                .collect::<Vec<_>>(),
+        }));
+    }
+    sites
+}
+
+/// Decide whether a row's source can still vouch for the line numbers cited
+/// against it, and when it cannot, say which way it failed.
+///
+/// A citation is only true while the bytes on disk are the bytes that were
+/// fingerprinted. Every failure mode below is reported rather than swallowed:
+/// silence would leave a reader unable to tell "no sites here" from "not
+/// checked", which is the same file-versus-line ambiguity this whole feature
+/// exists to remove.
+///
+/// The generation test is not redundant with the hash test. `store.rs` warns
+/// that a consumer must not verify an older active search snapshot against a
+/// newer graph fingerprint while an update is still publishing; a node stamped
+/// ahead of the snapshot these rows came from would judge old rows by new
+/// evidence, so it is refused on its own terms.
+fn row_source_drift(
+    metadata: Option<&serde_json::Value>,
+    node_generation: Option<u64>,
+    snapshot_generation: u64,
+    disk_bytes: Option<&[u8]>,
+) -> Option<&'static str> {
+    let Some(metadata) = metadata else {
+        return Some("indexed source file missing");
+    };
+    // Refused before the fingerprint is even read. A node written by a newer
+    // generation carries a valid hash for a snapshot these rows were not built
+    // from, so comparing hashes first would let it pass as verified.
+    if node_generation.is_some_and(|generation| generation > snapshot_generation) {
+        return Some("not verifiable at this snapshot");
+    }
+    let Some(fingerprint) = metadata.get("file_hash").and_then(|value| value.as_str()) else {
+        return Some("indexed source fingerprint missing");
+    };
+    let Some(bytes) = disk_bytes else {
+        return Some("source unreadable on disk");
+    };
+    if blake3::hash(bytes).to_hex().as_str() != fingerprint {
+        return Some("source fingerprint stale");
+    }
+    None
+}
+
+/// Whether a row's path can name source on disk at all.
+///
+/// Antipattern-corpus rows arrive carrying a GLOB as their path
+/// (`site/app_code/.../**/*.vb`). Those are patterns, not files. Measured on a
+/// live dossier, four such rows passed every other gate - the glob ends `.vb`
+/// and matches a `**/*.vb` rule - so one reported "indexed source file missing"
+/// while the rest spent scan budget real files could have used. Neither is
+/// right: the row never pointed at source, so it owes no drift reason and
+/// deserves no slot.
+///
+/// `?` rides along with `*` because `change_set_rule_matches_path` treats both
+/// as wildcards, and neither is legal in a Windows filename.
+fn row_path_names_a_file(path: &str) -> bool {
+    !path.contains('*') && !path.contains('?')
+}
+
+/// What a single row owes the reader about the constructs its governing rules
+/// name: the located sites, or an explicit statement that they could not be
+/// located and why.
+///
+/// Silence is deliberate when no governing rule names a construct. A drift
+/// marker on a row whose rules were never going to say anything would be noise
+/// dressed as rigour, and it would bury the markers that do mean something.
+fn row_rule_evidence(
+    path: &str,
+    rule_specs: &[(String, String, String)],
+    metadata: Option<&serde_json::Value>,
+    node_generation: Option<u64>,
+    snapshot_generation: u64,
+    disk_bytes: Option<&[u8]>,
+) -> Option<serde_json::Value> {
+    // A row that does not name a file cannot owe evidence about one, and must not
+    // be handed a drift reason it would read as a statement about source.
+    if !row_path_names_a_file(path) {
+        return None;
+    }
+    // Only rules that BOTH cover this path and name a construct can make a
+    // line-level claim about it. Everything else leaves the row silent.
+    let governing: Vec<(String, String)> = rule_specs
+        .iter()
+        .filter(|(_, file_pattern, _)| change_set_rule_matches_path(file_pattern, path))
+        .filter(|(_, _, rule_text)| !rule_named_constructs(rule_text).is_empty())
+        .map(|(rule_id, _, rule_text)| (rule_id.clone(), rule_text.clone()))
+        .collect();
+    if governing.is_empty() {
+        return None;
+    }
+    if let Some(reason) = row_source_drift(
+        metadata,
+        node_generation,
+        snapshot_generation,
+        disk_bytes,
+    ) {
+        return Some(serde_json::json!({
+            "status": "not_checked",
+            "reason": reason,
+        }));
+    }
+    let Ok(source) = std::str::from_utf8(disk_bytes.unwrap_or_default()) else {
+        return Some(serde_json::json!({
+            "status": "not_checked",
+            "reason": "source is not UTF-8",
+        }));
+    };
+    let sites = row_ruled_construct_sites(path, source, &governing);
+    if sites.is_empty() {
+        return None;
+    }
+    Some(serde_json::json!({
+        "status": "verified",
+        "sites": sites,
+    }))
+}
+
+fn applicable_change_set_rules(
+    rules: Vec<engram_core::RepoRule>,
+    paths: &[String],
+    exclusive_cutoff: Option<&str>,
+) -> (Vec<serde_json::Value>, usize) {
+    let mut excluded_undated_or_future = 0usize;
+    let mut applicable = rules
+        .into_iter()
+        .filter(|rule| {
+            if let Some(cutoff) = exclusive_cutoff {
+                let before = rule
+                    .introduced_at
+                    .as_deref()
+                    .is_some_and(|date| date < cutoff);
+                if !before {
+                    excluded_undated_or_future += 1;
+                }
+                before
+            } else {
+                true
+            }
+        })
+        .filter(|rule| {
+            paths
+                .iter()
+                .any(|path| change_set_rule_matches_path(&rule.file_pattern, path))
+        })
+        .collect::<Vec<_>>();
+    applicable.sort_by(|left, right| {
+        right
+            .priority
+            .cmp(&left.priority)
+            .then_with(|| left.rule_id.cmp(&right.rule_id))
+    });
+    let result = applicable
+        .into_iter()
+        .take(32)
+        .map(|rule| {
+            serde_json::json!({
+                "rule_id": rule.rule_id,
+                "file_pattern": rule.file_pattern,
+                "rule_text": rule.rule_text,
+                "priority": rule.priority,
+                "introduced_at": rule.introduced_at,
+                "provenance": rule.provenance,
+            })
+        })
+        .collect();
+    (result, excluded_undated_or_future)
+}
+
+fn change_set_work_item_evidence_risk(
+    story: &str,
+    exclusive_cutoff: Option<&str>,
+) -> serde_json::Value {
+    let lower = story.to_ascii_lowercase();
+    let review_markers = [
+        "summary by coderabbit",
+        "auto-generated comment",
+        "review findings",
+        "addressed in commits",
+        "remediation verification",
+        "must not be reported as a finding",
+        "performed user tests",
+        "pr checklist",
+    ];
+    let matched_markers = review_markers
+        .iter()
+        .filter(|marker| lower.contains(**marker))
+        .copied()
+        .collect::<Vec<_>>();
+    let mut post_cutoff_dates = regex::Regex::new(r"\b\d{4}-\d{2}-\d{2}\b")
+        .ok()
+        .map(|expression| {
+            expression
+                .find_iter(story)
+                .map(|found| found.as_str().to_string())
+                .filter(|date| exclusive_cutoff.is_some_and(|cutoff| date.as_str() >= cutoff))
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    post_cutoff_dates.truncate(20);
+    let risky = !matched_markers.is_empty() || !post_cutoff_dates.is_empty();
+    serde_json::json!({
+        "status": if risky { "review_or_post_cutoff_material_detected" } else { "no_obvious_review_material_detected" },
+        "matched_review_markers": matched_markers,
+        "post_cutoff_dates": post_cutoff_dates,
+        "exclusive_cutoff": exclusive_cutoff,
+        "instruction": if risky {
+            "Do not label affected clauses as pre-implementation evidence. Separate original requirements from later PR summaries, review outcomes, test reports, and remediation notes; score or plan from the uncontaminated portion and record the boundary."
+        } else {
+            "No lexical contamination marker was found; this is not proof that the work item is historically unchanged."
+        }
+    })
+}
+
 /// Per-layer cap on WEAK-signal candidates (tier ≥ 2, not `vtop`/`family`).
 /// The eval sweet spot (45cf172); what it cuts is now REPORTED as omissions.
 pub(crate) const CHANGE_SET_TAIL_CAP: usize = 18;
@@ -6327,6 +8669,12 @@ pub(crate) struct ChangeSetOmission {
     pub path: String,
     pub layer: &'static str,
     pub reason: String,
+    /// The evidence the cut row carried. Without these a caller cannot tell a
+    /// correct cut from a wrong one: live, 89 rows were omitted reporting only
+    /// path/layer/reason, so no ranking change could be evaluated from the
+    /// answer at all.
+    pub tier: u8,
+    pub signals: Vec<&'static str>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -6341,6 +8689,73 @@ pub(crate) struct ChangeSetRow {
     pub set: &'static str,
     /// 1-based render position over the non-omitted rows (0 when omitted).
     pub rank: usize,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct ChangeSetReconciliationReceipt {
+    receipt_id: String,
+    algorithm: &'static str,
+    primary_rows: usize,
+    asset_rows: usize,
+    caller_rows: usize,
+    required_rows: usize,
+}
+
+/// Bind the exact rows shown to a planner into one reproducible receipt. Row
+/// IDs stay short enough to copy into a contract; the digest detects an
+/// omitted, reordered, or substituted row. This binds evidence that must be
+/// classified, not a list of presumed edits.
+fn change_set_reconciliation_receipt(
+    rows: &[ChangeSetRow],
+    asset_dependencies: &[AssetGraphFile],
+    caller_dependencies: &[CallerGraphFile],
+) -> ChangeSetReconciliationReceipt {
+    let primary = rows.iter()
+        .filter(|row| !row.omitted && row.set == "primary")
+        .collect::<Vec<_>>();
+    let mut canonical = String::new();
+    for (index, row) in primary.iter().enumerate() {
+        canonical.push_str(&format!("P{:03}\0{}\n", index + 1, row.path));
+    }
+    for (index, row) in asset_dependencies.iter().enumerate() {
+        canonical.push_str(&format!("A{:03}\0{}\n", index + 1, row.path));
+    }
+    for (index, row) in caller_dependencies.iter().enumerate() {
+        canonical.push_str(&format!("C{:03}\0{}\n", index + 1, row.path));
+    }
+    use sha2::{Digest, Sha256};
+    let digest = format!("{:x}", Sha256::digest(canonical.as_bytes()));
+    let primary_rows = primary.len();
+    let asset_rows = asset_dependencies.len();
+    let caller_rows = caller_dependencies.len();
+    ChangeSetReconciliationReceipt {
+        receipt_id: format!("sha256:{digest}"),
+        algorithm: "SHA-256 over ordered row-id NUL path LF records",
+        primary_rows,
+        asset_rows,
+        caller_rows,
+        required_rows: primary_rows + asset_rows + caller_rows,
+    }
+}
+
+/// `foo.aspx.vb` -> `foo.aspx`. A code-behind cannot implement anything without
+/// its markup, and the shipped checklist tells the agent to edit BOTH, so the
+/// pair is ONE editing decision — the same reasoning that already makes a
+/// localised .resx family an atomic set.
+fn markup_of_code_behind(path: &str) -> Option<&str> {
+    // Case-insensitive throughout: an index can carry `Page.aspx.VB` or
+    // `Page.ASPX.vb`, and matching only the two spellings I happened to see
+    // would let the same severance through unnoticed on the others. Both
+    // suffixes are ASCII, so lowercasing preserves byte length and the slice
+    // below stays on a char boundary.
+    let lower = path.to_ascii_lowercase();
+    let markup = &path[..lower.strip_suffix(".vb")?.len()];
+    let m = markup.to_ascii_lowercase();
+    if m.ends_with(".aspx") || m.ends_with(".ascx") || m.ends_with(".master") {
+        Some(markup)
+    } else {
+        None
+    }
 }
 
 /// Ranked rows in render order (layer, tier, depth, path) with the tail-cap
@@ -6396,15 +8811,30 @@ pub(crate) fn change_set_rows(
         }
     }
     rest.sort_by(|a, b| {
+        // Companions are cut by the per-layer tail cap, so this ORDER decides
+        // which ones survive. Ordering by depth alone dropped the file that
+        // DEFINED the capability a story needed while shallower rows carrying
+        // LESS evidence stayed (live: a filter model at depth 5 was omitted in
+        // favour of unrelated same-layer rows). Rank by the same evidence
+        // strength the primary set is ranked by; depth stays the tiebreak.
         a.3.cmp(&b.3)
             .then(a.2.cmp(&b.2))
+            .then(change_set_strength(b.1).cmp(&change_set_strength(a.1)))
             .then(depth(a.0).cmp(&depth(b.0)))
             .then(a.0.cmp(b.0))
     });
     let signals = |sigs: &BTreeSet<&'static str>| -> Vec<&'static str> {
         sigs.iter()
-            .filter(|s| **s != "family")
-            .map(|s| if *s == "vtop" { "vector" } else { *s })
+            .filter(|s| !matches!(**s, "family" | "specific"))
+            .map(|s| {
+                if *s == "vtop" {
+                    "vector"
+                } else {
+                    *s
+                }
+            })
+            .collect::<BTreeSet<_>>()
+            .into_iter()
             .collect()
     };
     let mut rows = Vec::new();
@@ -6425,13 +8855,37 @@ pub(crate) fn change_set_rows(
     }
     let mut tail_layer = usize::MAX;
     let mut tail = 0usize;
+    // Markup already kept in this pass. The cap counts ROWS, not pairs, so
+    // without this it happily delivers a page's markup and cuts the
+    // code-behind out from under it: measured across two replayed PRs, 15 of
+    // 52 markup/code-behind pairs were severed (9 of 31 and 6 of 15 — 29% in
+    // both), always markup-kept/code-behind-cut, always on the cap boundary.
+    // Half a page is worse than neither half: the agent is told the page is in
+    // scope and handed the file that cannot implement it.
+    //
+    // LIMIT, stated because a single pass cannot do better: this rescues the
+    // direction actually observed (markup first). The reverse needs the two
+    // halves to differ in tier/strength, since with equal evidence the `path`
+    // tiebreak always puts `.aspx` ahead of `.aspx.vb` as a strict prefix. It
+    // was 0 of 15 in the measured data, and un-cutting retroactively would
+    // mean restructuring this loop for a case never seen.
+    let mut kept: BTreeSet<String> = BTreeSet::new();
     for (p, sigs, tier, li) in rest {
         if li != tail_layer {
             tail_layer = li;
             tail = 0;
         }
         let lname = change_set_layer_name(li);
-        let exempt = sigs.contains("vtop") || sigs.contains("family") || sigs.contains("gloss");
+        // A pair costs at most one row over quota, and the rendered output is
+        // separately bounded by CHANGE_SET_ROWS_BUDGET, so admitting the
+        // partner is cheap; dropping a delivered markup to stay exactly at the
+        // quota would destroy evidence the caller already has.
+        let partner_kept = markup_of_code_behind(p)
+            .is_some_and(|m| kept.contains(&m.to_ascii_lowercase()));
+        let exempt = sigs.contains("vtop")
+            || sigs.contains("family")
+            || sigs.contains("gloss")
+            || partner_kept;
         let mut omitted = false;
         if tier >= 2 && !exempt {
             tail += 1;
@@ -6443,8 +8897,17 @@ pub(crate) fn change_set_rows(
                     reason: format!(
                         "weak-signal tail cap ({CHANGE_SET_TAIL_CAP} per layer) in '{lname}'"
                     ),
+                    tier,
+                    signals: signals(sigs),
                 });
             }
+        }
+        if !omitted {
+            // Recorded only AFTER surviving the cap: a row cut here must not
+            // rescue its partner. The lookup above only ever asks about markup
+            // paths, so storing every survivor costs nothing and keeps the
+            // bookkeeping in one place.
+            kept.insert(p.to_ascii_lowercase());
         }
         let r = if omitted {
             0
@@ -6509,6 +8972,19 @@ impl ArmCoverage {
     fn truncated(hits: usize, ms: u128, note: String) -> Self {
         Self::with_reason("truncated", hits, ms, note)
     }
+    /// Downgrade an arm that only discovered it was bounded AFTER counting hits.
+    ///
+    /// The bounded-expansion arms cannot use the constructors: they learn about a
+    /// skipped hub or identifier once the traversal is done. Setting `status` and
+    /// `note` in place left the diagnostics built by `complete()` untouched, so the
+    /// arm asserted `details_complete: true` with no entries while its own status
+    /// said it had dropped something — and the identity of what it dropped was
+    /// unrecoverable from the payload. Rebuild through the same path the
+    /// constructors use so the reason stays machine-readable.
+    fn mark_bounded(&mut self, status: &str, reason: String) {
+        let (hits, ms) = (self.hits, self.ms);
+        *self = Self::with_reason(status, hits, ms, reason);
+    }
     fn failed(note: String, ms: u128) -> Self {
         Self::with_reason("failed", 0, ms, note)
     }
@@ -6536,12 +9012,30 @@ impl ArmCoverage {
 
 #[derive(Debug, Clone, Default, serde::Serialize)]
 pub(crate) struct ChangeSetCoverage {
+    /// Exact code-shaped identifiers from the story resolved against current
+    /// file stems and graph symbols. Unlike free-text concepts these are
+    /// direct author evidence (for example a table, type, method or setting
+    /// name) and do not need a second retrieval arm to be actionable.
+    #[serde(default)]
+    pub entity: ArmCoverage,
+    /// Current source files named by business-logic cards matching the story.
+    /// This is path evidence only; the card's inferred claims remain qualified.
+    #[serde(default)]
+    pub business_logic: ArmCoverage,
     pub concept: ArmCoverage,
     pub history: ArmCoverage,
     pub cochange: ArmCoverage,
     pub vector: ArmCoverage,
     pub kb_bridge: ArmCoverage,
     pub family: ArmCoverage,
+    /// Bounded structural expansion through direct script/style includes and
+    /// ASP.NET Optimization bundle declaration/render relationships.
+    #[serde(default)]
+    pub asset_graph: ArmCoverage,
+    /// Bounded direct callers of methods in strong candidate files. These are
+    /// consumer/test-surface leads and are kept separate from edit ranking.
+    #[serde(default)]
+    pub caller_graph: ArmCoverage,
     /// Full project node scans performed by this call (audit D7: the
     /// repeated detect_incomplete_changes passes used to re-scan 200k nodes
     /// each; they now share one snapshot).
@@ -6712,6 +9206,8 @@ fn render_ui_contract(
 
 fn render_change_set_coverage(cov: &ChangeSetCoverage, omitted: usize) -> String {
     let mut s = String::from("\n## Coverage\n");
+    s.push_str(&format!("- exact entities: {}\n", cov.entity.line()));
+    s.push_str(&format!("- business-rule anchors: {}\n", cov.business_logic.line()));
     s.push_str(&format!("- concept: {}\n", cov.concept.line()));
     s.push_str(&format!("- history: {}\n", cov.history.line()));
     s.push_str(&format!("- co-change: {}\n", cov.cochange.line()));
@@ -6729,6 +9225,8 @@ fn render_change_set_coverage(cov: &ChangeSetCoverage, omitted: usize) -> String
         ));
     }
     s.push_str(&format!("- family: {}\n", cov.family.line()));
+    s.push_str(&format!("- asset graph: {}\n", cov.asset_graph.line()));
+    s.push_str(&format!("- caller graph: {}\n", cov.caller_graph.line()));
     s.push_str(&format!("- node scans: {}\n", cov.node_scans));
     if !cov.lexicon_concepts.is_empty() {
         s.push_str(&format!(
@@ -6760,6 +9258,7 @@ fn render_change_set(
     story: &str,
     concepts: &[String],
     prov: &BTreeMap<String, BTreeSet<&'static str>>,
+    why: &BTreeMap<String, Vec<String>>,
     temporal_section: Option<&str>,
     sibling_section: Option<&str>,
     setting_prior: Option<(usize, usize)>,
@@ -6793,7 +9292,9 @@ fn render_change_set(
         "Ranked by corroboration — git CO-CHANGE / history first (files that \
          historically shipped together with this kind of work), then concept/graph. \
          A starting map, not exhaustive: verify each against the code and add the \
-         files it misses.\n\n",
+         files it misses. Before planning, reconcile every primary candidate and every \
+         dependency row below into one consumer ledger with an explicit include, \
+         conditional or evidence-backed exclude disposition.\n\n",
     );
     // A live A/B showed strong planners SKIP ranked candidates whose signal
     // they don't understand (the source page edit was ranked and still
@@ -6803,8 +9304,9 @@ fn render_change_set(
         "Signal legend — [cochange]: this file SHIPPED TOGETHER with other \
          candidates in past MERGED changes of this kind (strongest evidence; \
          skipping one requires POSITIVE evidence of irrelevance grounded in the code - and a .ts with its committed .js bundle listed together is part of the change until PROVEN otherwise (a live A/B dismissed exactly that pair as bleed-through; it was real)). [history]: past \
-         commits in this story's domain touched it. [concept]: name/content \
-         matches the story's concepts. [semantic]/[graph]: embedding or \
+         commits in this story's domain touched it. [entity]: a code-shaped identifier \
+         written in the story resolved to this current file or symbol. [concept]: name/content \
+         matches the story's concepts. [semantic]: embedding; [graph]: statically extracted include/bundle or \
          dependency-graph association (weakest — verify before trusting).\n\n",
     );
     s.push_str(
@@ -6928,45 +9430,101 @@ fn render_change_set(
          of independent signals; the layer is shown per row. Work the list top-down.\n",
         rows.len()
     ));
-    for r in rows.iter().filter(|r| r.set == "primary") {
+    // Primary rows are charged against CHANGE_SET_ROWS_BUDGET first, so when the
+    // budget binds the cut falls on weak-signal companions below and the ranked
+    // set survives whole. Each row is measured BEFORE it is appended, so the
+    // bound holds instead of being overshot by one row's width.
+    let mut rows_bytes = 0usize;
+    let mut primary_shown = 0usize;
+    for (row_index, r) in rows.iter().filter(|r| r.set == "primary").enumerate() {
         let hist = if historical.contains(&r.path) {
             "  (historical path — not in the current index)"
         } else {
             ""
         };
-        s.push_str(&format!(
-            "{}. `{}`  [{}]  — {}{hist}\n",
-            r.rank,
+        let rationale = {
+            let reasons = ranked_change_set_reasons(why, &r.path, 2);
+            if reasons.is_empty() {
+                "ranked retrieval evidence".into()
+            } else {
+                reasons.join("; ")
+            }
+        };
+        let row = format!(
+            "P{:03}. `{}`  [rank {}|{}]  — {}; evidence: {}; role: {}; why: {}; impact question: {}; exclusion evidence: {}{hist}\n",
+            row_index + 1,
             r.path,
+            r.rank,
             r.signals.join("|"),
-            r.layer
-        ));
+            r.layer,
+            change_set_evidence_class(&r.signals),
+            change_set_mechanism_role(&r.path),
+            rationale,
+            change_set_impact_question(&r.path),
+            change_set_exclusion_evidence(&r.signals),
+        );
+        // Always render the top candidate, however wide it is: a change set with
+        // no rows at all would be a worse answer than an over-long one.
+        if primary_shown > 0 && rows_bytes + row.len() > CHANGE_SET_ROWS_BUDGET {
+            break;
+        }
+        rows_bytes += row.len();
+        s.push_str(&row);
+        primary_shown += 1;
     }
     s.push_str(
         "\n## Possible companions (grouped by layer — weak or uncorroborated evidence; \
          verify against the code before trusting)\n",
     );
+    let companion_total = rows
+        .iter()
+        .filter(|r| !r.omitted && r.set == "companion")
+        .count();
     let mut current_layer: Option<usize> = None;
+    let mut companions_shown = 0usize;
     for r in rows.iter().filter(|r| !r.omitted && r.set == "companion") {
-        if current_layer != Some(r.layer_index) {
-            current_layer = Some(r.layer_index);
-            s.push_str(&format!("\n**{}:**\n", r.layer));
-        }
+        let header = if current_layer != Some(r.layer_index) {
+            Some(format!("\n**{}:**\n", r.layer))
+        } else {
+            None
+        };
         let hist = if historical.contains(&r.path) {
             "  (historical path — not in the current index)"
         } else {
             ""
         };
+        let row = format!("- `{}`  [{}]{hist}\n", r.path, r.signals.join("|"));
+        // A layer header is only worth its bytes if a row follows it, so charge
+        // them together and stop before emitting a heading with nothing under it.
+        let cost = row.len() + header.as_ref().map_or(0, |h| h.len());
+        if rows_bytes + cost > CHANGE_SET_ROWS_BUDGET {
+            break;
+        }
+        if let Some(h) = header {
+            current_layer = Some(r.layer_index);
+            s.push_str(&h);
+        }
+        rows_bytes += cost;
+        s.push_str(&row);
+        companions_shown += 1;
+    }
+    let budget_cut = (n_primary - primary_shown) + (companion_total - companions_shown);
+    if budget_cut > 0 {
         s.push_str(&format!(
-            "- `{}`  [{}]{hist}\n",
-            r.path,
-            r.signals.join("|")
+            "\n_… {budget_cut} further candidate row(s) not shown (Markdown output budget \
+             reached at {CHANGE_SET_ROWS_BUDGET} bytes of rows). Repeat the same request with \
+             `output_json: true` AND `detail: \"full\"` to recover every row — `output_json: \
+             true` on its own caps the structured view at {CHANGE_SET_COMPACT_FILE_CAP} files, \
+             so it would drop rows silently here. The cut falls on the weakest evidence first: \
+             primary ranked candidates are rendered before companions. The caps and coverage \
+             warnings above still apply; neither view establishes exhaustive corpus coverage._\n"
         ));
     }
     if !omissions.is_empty() {
         s.push_str(&format!(
             "\n_{} weak-signal candidate(s) omitted by the per-layer tail cap \
-             ({CHANGE_SET_TAIL_CAP}); listed under `omissions` in output_json._\n",
+             ({CHANGE_SET_TAIL_CAP}); listed under `omissions` in output_json, each with the \
+             tier and signals it was cut on so the cut can be checked._\n",
             omissions.len()
         ));
     }
@@ -6988,6 +9546,11 @@ impl Engram {
         if req.story.trim().is_empty() {
             return Err(McpError::invalid_params("story must not be empty", None));
         }
+        // Resolved up front: a bad revision fails the call, never an arm.
+        let as_of = match req.as_of_rev.as_deref() {
+            Some(rev) => self.reachable_history(&req.project_id, Some(rev)).await?,
+            None => None,
+        };
         // Input parity (arm-B run 3 vs 4: F1 22 -> 71 from this alone):
         // merge the full work-item text into the story at the front door so
         // EVERY downstream consumer — concept extraction, footprint
@@ -6999,7 +9562,10 @@ impl Engram {
         // holds credentials, the server host does), and refresh_corpora
         // saved the org/project coordinates. An ID-targeted request must
         // have work-item text before retrieval; failure blocks intake below.
-        if req.work_item_text.is_none()
+        if can_auto_fetch_work_item(req.work_item_text.as_deref(), req.merged_before.as_deref())
+            // A merged-work cutoff signals a point-in-time replay. Fetching the
+            // current ADO revision here silently mixes future requirements into
+            // otherwise historical evidence, so require sealed text instead.
             && let Some(wi_id) = extract_work_item_id(&req.story)
             && let Some(pat) = resolve_ado_pat(req.pat_token.take())
         {
@@ -7026,6 +9592,27 @@ impl Engram {
             }
         }
         req.story = story_with_work_item_text(&req.story, req.work_item_text.take())?;
+        // Resolve the project only after intake: an ID-targeted story without
+        // its work-item text must block before any retrieval or lookup.
+        let project = self.ensure_project_record(&req.project_id).await?;
+        let project_root = std::path::PathBuf::from(&project.directory);
+        // Pinned HERE, before any retrieval arm runs, so the rows and the
+        // fingerprints used to verify them describe the same snapshot. Read
+        // after the arms it would silently accept a file re-indexed mid-request.
+        let snapshot_generation = self.get_active_generation(&req.project_id).await?;
+        let detail = match req.detail.as_deref().unwrap_or("compact") {
+            "compact" => "compact",
+            "reconciled" => "reconciled",
+            "full" => "full",
+            _ => {
+                return Err(McpError::invalid_params(
+                    "detail must be 'compact', 'reconciled', or 'full'",
+                    None,
+                ));
+            }
+        };
+        let full_detail = detail == "full";
+        let reconciled_detail = detail == "reconciled";
         // One presentation-free view for every retrieval arm. Keep req.story as
         // original evidence for the dossier; metadata URLs are not task intent.
         let retrieval_story = story_for_concepts(&req.story);
@@ -7045,7 +9632,7 @@ impl Engram {
         // drive retrieval when the caller opts in (see the request doc).
         let concept_candidates: Vec<String> = {
             let cands = extract_story_concept_candidates(&retrieval_story);
-            resolve_story_concepts(&cands, &index_paths, 6)
+            resolve_story_concepts(&cands, &index_paths, 10)
         };
         // External audit 2026-08-29 P0-3: an explicit gloss retrieves by DEFAULT.
         let gloss_terms = extract_story_gloss_concepts(&retrieval_story);
@@ -7073,6 +9660,7 @@ impl Engram {
                 None => (Vec::new(), Vec::new()),
             }
         };
+        let has_explicit_concepts = req.concepts.as_ref().is_some_and(|c| !c.is_empty());
         let mut concepts: Vec<String> = match &req.concepts {
             Some(c) if !c.is_empty() => c.iter().take(3).cloned().collect(),
             _ if req.expand_concepts => concept_candidates.clone(),
@@ -7089,6 +9677,23 @@ impl Engram {
                 base
             }
         };
+        if has_explicit_concepts {
+            // Agent hints are useful evidence, but they must not suppress the
+            // server's index-resolved reading of the full story. Merge both,
+            // preserving explicit priority and bounding the retrieval fan-out.
+            for candidate in concept_candidates
+                .iter()
+                .chain(gloss_concepts.iter())
+                .chain(lexicon_concepts.iter().take(LEXICON_CONCEPT_CAP))
+            {
+                if concepts.len() >= 10 {
+                    break;
+                }
+                if !concepts.contains(candidate) {
+                    concepts.push(candidate.clone());
+                }
+            }
+        }
 
         // Row-1 audit: every candidate carries WHY it is here and every arm
         // reports what it delivered (never a silent `if let Ok`).
@@ -7214,6 +9819,218 @@ impl Engram {
         let mut prov: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
         let mut seed_order: Vec<String> = Vec::new(); // concept hits in relevance order
 
+        // Business-rule source anchors. The rule corpus already knows which
+        // current methods implement behavior matching the story; using those
+        // source identities here closes the handoff gap where an agent could
+        // read excellent rules yet receive an unrelated lexical file list.
+        // Only the checked-out source path is promoted. Rule prose and model
+        // inference still require query_business_logic/source verification.
+        let business_started = std::time::Instant::now();
+        let business_query = if concepts.is_empty() {
+            retrieval_story.clone()
+        } else {
+            concepts.join(" ")
+        };
+        match self.ensure_project_runtime(&req.project_id).await {
+            Ok(ps) => {
+                let query = HybridQuery {
+                    project_id: req.project_id.clone(),
+                    namespace: engram_core::namespaces::NAMESPACE_BUSINESS_LOGIC.into(),
+                    generation: 0,
+                    text: business_query,
+                    top_k: 40,
+                    fts_mode: "loose".into(),
+                    include_path_prefixes: None,
+                    exclude_path_prefixes: None,
+                    include_path_suffixes: None,
+                    language_filters: None,
+                    author_filter: None,
+                    date_after: None,
+                    date_before: None,
+                    use_mmr: false,
+                };
+                match ps
+                    .search
+                    .search(&query, None, &tokio_util::sync::CancellationToken::new())
+                    .await
+                {
+                    Ok(hits) => {
+                        let mut current_paths = HashMap::<String, String>::new();
+                        for path in &index_paths {
+                            current_paths
+                                .entry(change_set_path_key(path))
+                                .and_modify(|current| {
+                                    if path_spelling_quality(path) > path_spelling_quality(current) {
+                                        *current = path.clone();
+                                    }
+                                })
+                                .or_insert_with(|| path.clone());
+                        }
+                        let mut seen = HashSet::new();
+                        let mut anchored = 0usize;
+                        for hit in hits {
+                            let Some(source) = business_logic_source_path(hit.path.as_str()) else {
+                                continue;
+                            };
+                            let Some(current) = current_paths.get(&change_set_path_key(&source)) else {
+                                continue;
+                            };
+                            if !seen.insert(current.clone()) {
+                                continue;
+                            }
+                            if !prov.contains_key(current) {
+                                seed_order.push(current.clone());
+                            }
+                            let member = hit.path
+                                .as_str()
+                                .replace('\\', "/")
+                                .rsplit('/')
+                                .next()
+                                .unwrap_or("unknown member")
+                                .trim_end_matches(".md")
+                                .to_string();
+                            why.entry(current.clone()).or_default().push(format!(
+                                "business-rule match anchors the story to member `{member}` in this checked-out source file; inspect that method and its source-verified rule card before excluding it"
+                            ));
+                            prov.entry(current.clone()).or_default().insert("business");
+                            anchored += 1;
+                            if anchored >= 16 {
+                                break;
+                            }
+                        }
+                        cov.business_logic = ArmCoverage::complete(
+                            anchored,
+                            business_started.elapsed().as_millis(),
+                        );
+                        cov.business_logic.note = "source-path anchors only; use query_business_logic for qualified rule claims and current method bodies".into();
+                    }
+                    Err(error) => {
+                        cov.business_logic = ArmCoverage::failed(
+                            format!("business-logic search failed: {error}"),
+                            business_started.elapsed().as_millis(),
+                        );
+                    }
+                }
+            }
+            Err(error) => {
+                cov.business_logic = ArmCoverage::failed(
+                    format!("business-logic runtime unavailable: {error}"),
+                    business_started.elapsed().as_millis(),
+                );
+            }
+        }
+
+        // Exact entity arm. Work items frequently name an existing type,
+        // method, table or setting even when their prose topic is broad. Map
+        // code-shaped identifiers to current file stems and graph symbols
+        // before fuzzy concepts. This is direct story evidence and is bounded.
+        let entity_started = std::time::Instant::now();
+        let entity_candidates = extract_story_code_entities(&retrieval_story);
+        let entity_graph = self.state.graph.clone();
+        let entity_pid = req.project_id.clone();
+        let entity_index = index_paths.clone();
+        let (entity_hits, entity_failures, entity_hubs) = tokio::task::spawn_blocking(move || {
+            let mut hits: Vec<(String, String, &'static str)> = Vec::new();
+            let mut seen = HashSet::new();
+            let mut failures = 0usize;
+            let mut hubs = 0usize;
+            for entity in entity_candidates {
+                let mut file_matches = Vec::new();
+                for path in &entity_index {
+                    let file = path.replace('\\', "/");
+                    if !code_entity_path_eligible(&file) {
+                        continue;
+                    }
+                    let stem = file
+                        .rsplit('/')
+                        .next()
+                        .unwrap_or(file.as_str())
+                        .split('.')
+                        .next()
+                        .unwrap_or("");
+                    if code_entity_file_matches(&entity, stem)
+                        && !engram_core::is_vendor_path(&file)
+                    {
+                        file_matches.push(file);
+                    }
+                }
+                file_matches.sort();
+                file_matches.dedup();
+                if file_matches.len() > 8 {
+                    hubs += 1;
+                } else {
+                    for file in file_matches {
+                        if seen.insert(file.clone()) {
+                            hits.push((file, entity.clone(), "file name"));
+                        }
+                    }
+                }
+                match entity_graph.query_nodes(&entity_pid, None, Some(&entity), None, 24) {
+                    Ok(nodes) => {
+                        let mut matches = nodes
+                            .into_iter()
+                            .filter(|node| code_entity_matches(&entity, &node.name))
+                            .map(|node| node.file_path.as_str().replace('\\', "/"))
+                            .filter(|path| {
+                                !path.is_empty()
+                                    && !engram_core::is_vendor_path(path)
+                                    && code_entity_path_eligible(path)
+                            })
+                            .collect::<Vec<_>>();
+                        matches.sort();
+                        matches.dedup();
+                        if matches.len() > 8 {
+                            hubs += 1;
+                            continue;
+                        }
+                        for path in matches {
+                            if !seen.insert(path.clone()) {
+                                continue;
+                            }
+                            hits.push((path, entity.clone(), "graph symbol"));
+                            if hits.len() >= 64 {
+                                return (hits, failures, hubs);
+                            }
+                        }
+                    }
+                    Err(_) => failures += 1,
+                }
+            }
+            (hits, failures, hubs)
+        })
+        .await
+        .unwrap_or_default();
+        for (path, entity, source) in &entity_hits {
+            if !prov.contains_key(path) {
+                seed_order.push(path.clone());
+            }
+            why.entry(path.clone()).or_default().push(format!(
+                "story explicitly names code entity '{entity}', resolved by {source}"
+            ));
+            prov.entry(path.clone()).or_default().insert("entity");
+        }
+        cov.entity = if entity_failures == 0 && entity_hubs == 0 {
+            ArmCoverage::complete(entity_hits.len(), entity_started.elapsed().as_millis())
+        } else {
+            let mut arm = if entity_failures == 0 {
+                ArmCoverage::complete(entity_hits.len(), entity_started.elapsed().as_millis())
+            } else {
+                ArmCoverage::failed(
+                    format!("{entity_failures} bounded graph entity lookup(s) failed"),
+                    entity_started.elapsed().as_millis(),
+                )
+            };
+            if entity_hubs > 0 {
+                arm.mark_bounded(
+                    "truncated",
+                    format!(
+                        "skipped {entity_hubs} code-shaped identifier(s) resolving to more than 8 files"
+                    ),
+                );
+            }
+            arm
+        };
+
         // Concept arm — typed footprint of each domain concept.
         let t_concept = std::time::Instant::now();
         let mut concept_hits = 0usize;
@@ -7268,6 +10085,7 @@ impl Engram {
                                 });
                                 let e = prov.entry(p).or_default();
                                 e.insert("concept");
+                                e.insert("specific");
                                 if from_gloss {
                                     e.insert("gloss");
                                 }
@@ -7308,7 +10126,14 @@ impl Engram {
                 exclude_paths: None,
                 author_filter: None,
                 date_after: None,
-                date_before: None,
+                // A replay's merged-work cutoff bounds this arm too; left
+                // unbounded it returned the story's own answer commit.
+                date_before: req
+                    .merged_before
+                    .as_deref()
+                    .map(str::trim)
+                    .and_then(crate::handlers::pr_history_tools::ymd_to_epoch_secs),
+                as_of_rev: req.as_of_rev.clone(),
                 limit: 12,
                 fts_mode: crate::models::FtsMode::Loose,
                 use_mmr: false,
@@ -7472,8 +10297,14 @@ impl Engram {
             {
                 Ok(r) => {
                     if let Some(t) = r.content.first().and_then(|x| x.as_text()) {
-                        let (paths, notes) = detect_cochange_evidence(&t.text);
-                        detected_paths.extend(paths);
+                        let (partners, notes) = detect_cochange_evidence(&t.text);
+                        for partner in partners {
+                            why.entry(partner.path.clone()).or_default().push(format!(
+                                "historical co-change: {} indexed change(s) paired this file with anchor `{}`; inspect the shared behavior before excluding it",
+                                partner.weight, partner.anchor_path
+                            ));
+                            detected_paths.push(partner.path);
+                        }
                         detect_notes.extend(notes);
                     } else {
                         detect_notes.push("detect_incomplete_changes returned no text result".into());
@@ -7559,6 +10390,15 @@ impl Engram {
             }
             cov.vector = ArmCoverage::complete(n, t_vec.elapsed().as_millis());
         }
+        if matches!(self.state.cfg.embedding_backend.as_str(), "fts_only" | "") {
+            cov.vector = ArmCoverage::with_reason(
+                "incomplete",
+                0,
+                t_vec.elapsed().as_millis(),
+                "semantic retrieval disabled by embedding_backend=fts_only; lexical evidence remains available but meaning-based recall and confidence are degraded"
+                    .into(),
+            );
+        }
 
         cov.stages
             .insert("vector_done".into(), t_all.elapsed().as_millis());
@@ -7617,16 +10457,17 @@ impl Engram {
                 )
                 .await {
               Ok(r) => if let Some(t) = r.content.first().and_then(|x| x.as_text()) {
-                let (paths, notes) = detect_cochange_evidence(&t.text);
+                let (partners, notes) = detect_cochange_evidence(&t.text);
                 apply_detect_cochange_coverage(&mut cov.cochange, notes);
-                for p in paths {
+                for partner in partners {
+                let p = partner.path;
                 let pl = p.to_lowercase();
                 if PRESENTATION.iter().any(|e| pl.ends_with(e)) && !engram_core::is_vendor_path(&p)
                 {
-                    why.entry(p.clone()).or_default().push(
-                        "presentation-layer co-change partner (bundle / markup / stylesheet)"
-                            .into(),
-                    );
+                    why.entry(p.clone()).or_default().push(format!(
+                        "presentation dependency: {} indexed change(s) paired this bundle, markup, or stylesheet with anchor `{}`",
+                        partner.weight, partner.anchor_path
+                    ));
                     prov.entry(p).or_default().insert("cochange");
                     cov.cochange.hits += 1;
                 }
@@ -7645,6 +10486,8 @@ impl Engram {
         // index: code-behind/designer of a page, and the full .resx language set.
         // Generic framework patterns, not per-repo. Match prefix-insensitively
         // (the "Site/" web-root prefix is stripped on both sides).
+        let mut asset_dependencies: Vec<AssetGraphFile> = Vec::new();
+        let mut caller_dependencies: Vec<CallerGraphFile> = Vec::new();
         if let Ok(meta) = self.state.graph.list_file_node_metadata(&req.project_id) {
             let strip = |p: &str| -> String {
                 let p = p.replace('\\', "/").to_lowercase();
@@ -7652,6 +10495,15 @@ impl Engram {
             };
             let index: Vec<String> = meta.iter().map(|(rp, _)| strip(rp.as_str())).collect();
             let index_set: HashSet<&String> = index.iter().collect();
+            let indexed_by_normalized: HashMap<String, String> = meta
+                .iter()
+                .map(|(path, _)| {
+                    (
+                        strip(path.as_str()),
+                        path.as_str().replace('\\', "/"),
+                    )
+                })
+                .collect();
             let mut fam: Vec<(String, BTreeSet<&'static str>)> = Vec::new();
             for (p, sigs) in &prov {
                 let ps = strip(p);
@@ -7750,6 +10602,64 @@ impl Engram {
                         fam.push((c, sigs.clone()));
                     }
                 }
+                for candidate in dbml_family_candidates(&p.replace('\\', "/")) {
+                    let indexed = indexed_by_normalized.get(&strip(&candidate)).cloned();
+                    let resolved = indexed.map(|path| (path, false)).or_else(|| {
+                        project_relative_existing_file(&project_root, &candidate)
+                            .map(|path| (path, true))
+                    });
+                    if let Some((path, disk_only)) = resolved {
+                        let mut fs = sigs.clone();
+                        fs.insert("family");
+                        if disk_only {
+                            fs.insert("disk");
+                        }
+                        why.entry(path.clone()).or_default().push(format!(
+                            "DBML schema/designer/layout regeneration companion of {p}{}",
+                            if disk_only {
+                                " (exists on disk; excluded from the current source index)"
+                            } else {
+                                ""
+                            }
+                        ));
+                        fam.push((path, fs));
+                    }
+                }
+            }
+            let sql_candidates = prov
+                .keys()
+                .filter(|path| path.to_ascii_lowercase().ends_with(".sql"))
+                .cloned()
+                .collect::<Vec<_>>();
+            for sql in sql_candidates {
+                let mut projects: BTreeMap<String, bool> = BTreeMap::new();
+                for path in sql_project_candidates(&strip(&sql), &index) {
+                    let canonical = indexed_by_normalized
+                        .get(&strip(&path))
+                        .cloned()
+                        .unwrap_or(path);
+                    projects.insert(canonical, false);
+                }
+                for path in disk_sql_project_candidates(&project_root, &sql) {
+                    projects.entry(path).or_insert(true);
+                }
+                for (project, disk_only) in projects {
+                    why.entry(project.clone())
+                        .or_default()
+                        .push(format!(
+                            "closest owning SQL project for {sql}{}",
+                            if disk_only {
+                                " (exists on disk; excluded from the current source index)"
+                            } else {
+                                ""
+                            }
+                        ));
+                    let mut signals = BTreeSet::from(["family"]);
+                    if disk_only {
+                        signals.insert("disk");
+                    }
+                    fam.push((project, signals));
+                }
             }
             // API-spec contract documents: set-level rule — any API-layer
             // code candidate pulls the OpenAPI/Swagger docs that exist in
@@ -7767,18 +10677,255 @@ impl Engram {
             for (k, v) in fam {
                 prov.entry(k).or_default().extend(v);
             }
-            // Round-2 audit P0-3 (compound / name coverage): a file whose NAME
-            // is composed of NAME_COVERAGE_MIN+ of the story's own words is what
-            // a developer opens first (productioncodelistmaincategory.aspx for
-            // "production code list … main … category"); the per-group
-            // footprint cap hid it behind broad terms. Scans the whole file
-            // index — no cap — and never consults the footprint.
-            let story_terms: BTreeSet<String> = req
-                .story
-                .split(|ch: char| !ch.is_alphanumeric())
-                .filter_map(story_token)
+
+            // Cross-artifact asset hosting: strong source candidates can live
+            // in a bundle declared in code and rendered by unrelated markup.
+            // Traverse only statically extracted IncludesFile edges and bound
+            // fan-out before adding exact current file paths.
+            let asset_started = std::time::Instant::now();
+            let mut ranked_asset_anchors: Vec<(u8, usize, String)> = prov
+                .iter()
+                .filter(|(_, signals)| {
+                    !signals.contains("broad") && change_set_strength(signals) > 0
+                })
+                .filter(|(path, signals)| {
+                    let lower = path.to_ascii_lowercase();
+                    let asset = lower.ends_with(".js") || lower.ends_with(".css");
+                    let markup = [
+                        ".aspx", ".ascx", ".master", ".vbhtml", ".cshtml", ".razor", ".html",
+                    ]
+                    .iter()
+                    .any(|suffix| lower.ends_with(suffix));
+                    let direct_story_evidence = signals.contains("concept")
+                        || signals.contains("entity")
+                        || signals.contains("history")
+                        || signals.contains("name")
+                        || signals.contains("gloss")
+                        || change_set_strength(signals) >= 2;
+                    asset || (markup && direct_story_evidence)
+                })
+                .filter_map(|(path, signals)| {
+                    indexed_by_normalized
+                        .get(&strip(path))
+                        .cloned()
+                        .map(|exact| (change_set_tier(signals), change_set_strength(signals), exact))
+                })
                 .collect();
+            ranked_asset_anchors.sort_by(|a, b| {
+                a.0.cmp(&b.0)
+                    .then_with(|| b.1.cmp(&a.1))
+                    .then_with(|| a.2.cmp(&b.2))
+            });
+            ranked_asset_anchors.dedup_by(|a, b| a.2.eq_ignore_ascii_case(&b.2));
+            let anchor_paths: Vec<String> = ranked_asset_anchors
+                .into_iter()
+                .take(ASSET_GRAPH_ANCHOR_CAP)
+                .map(|(_, _, path)| path)
+                .collect();
+            let graph = self.state.graph.clone();
+            let asset_pid = req.project_id.clone();
+            let asset_expansion = tokio::task::spawn_blocking(move || {
+                expand_asset_bundle_graph(&graph, &asset_pid, &anchor_paths)
+            })
+            .await
+            .unwrap_or_default();
+            let asset_hits = asset_expansion.files.len();
+            asset_dependencies = asset_expansion.files;
+            cov.asset_graph = ArmCoverage::complete(
+                asset_hits,
+                asset_started.elapsed().as_millis(),
+            );
+            if asset_expansion.skipped_hub_anchors > 0
+                || asset_expansion.skipped_hub_bundles > 0
+            {
+                cov.asset_graph.mark_bounded(
+                    "truncated",
+                    format!(
+                        "bounded fan-out skipped {} hub anchor traversal(s) and {} oversized bundle traversal(s)",
+                        asset_expansion.skipped_hub_anchors,
+                        asset_expansion.skipped_hub_bundles
+                    ),
+                );
+            }
+
+            let caller_started = std::time::Instant::now();
+            let mut ranked_caller_anchors: Vec<(bool, u8, bool, usize, String)> = prov
+                .iter()
+                .filter(|(_, signals)| {
+                    signals.contains("entity")
+                        || (signals.contains("concept")
+                            && !signals.contains("lexicon")
+                            && !signals.contains("broad"))
+                        || signals.contains("history")
+                        || signals.contains("name")
+                        || signals.contains("gloss")
+                })
+                .filter(|(path, _)| {
+                    let lower = path.to_ascii_lowercase();
+                    lower.ends_with(".vb")
+                        || lower.ends_with(".cs")
+                        || lower.ends_with(".fs")
+                        || lower.ends_with(".java")
+                        || lower.ends_with(".kt")
+                        || lower.ends_with(".ts")
+                        || lower.ends_with(".tsx")
+                        || lower.ends_with(".js")
+                        || lower.ends_with(".jsx")
+                        || lower.ends_with(".py")
+                        || lower.ends_with(".rb")
+                        || lower.ends_with(".go")
+                        || lower.ends_with(".rs")
+                })
+                .filter_map(|(path, signals)| {
+                    indexed_by_normalized
+                        .get(&strip(path))
+                        .cloned()
+                        .map(|exact| {
+                            let stem = exact
+                                .rsplit('/')
+                                .next()
+                                .unwrap_or(&exact)
+                                .split('.')
+                                .next()
+                                .unwrap_or_default();
+                            (
+                                stem.to_ascii_lowercase().ends_with("controller"),
+                                change_set_tier(signals),
+                                signals.contains("specific"),
+                                change_set_strength(signals),
+                                exact,
+                            )
+                        })
+                })
+                .collect();
+            ranked_caller_anchors.sort_by(|a, b| {
+                b.0.cmp(&a.0)
+                    .then_with(|| a.1.cmp(&b.1))
+                    .then_with(|| b.2.cmp(&a.2))
+                    .then_with(|| b.3.cmp(&a.3))
+                    .then_with(|| a.4.cmp(&b.4))
+            });
+            ranked_caller_anchors.dedup_by(|a, b| a.4.eq_ignore_ascii_case(&b.4));
+            let caller_anchor_paths: Vec<String> = ranked_caller_anchors
+                .into_iter()
+                .take(CALLER_GRAPH_ANCHOR_CAP)
+                .map(|(_, _, _, _, path)| path)
+                .collect();
+            let caller_graph = self.state.graph.clone();
+            let caller_pid = req.project_id.clone();
+            let caller_expansion = tokio::task::spawn_blocking(move || {
+                expand_direct_caller_graph(&caller_graph, &caller_pid, &caller_anchor_paths)
+            })
+            .await
+            .unwrap_or_default();
+            let caller_hits = caller_expansion.files.len();
+            caller_dependencies = caller_expansion.files;
+            cov.caller_graph = ArmCoverage::complete(
+                caller_hits,
+                caller_started.elapsed().as_millis(),
+            );
+            if caller_expansion.skipped_hub_symbols > 0
+                || caller_expansion.truncated_anchor_symbols > 0
+                || caller_expansion.query_failures > 0
+            {
+                let bounded_status = if caller_expansion.query_failures > 0 {
+                    "incomplete"
+                } else {
+                    "truncated"
+                };
+                cov.caller_graph.mark_bounded(
+                    bounded_status,
+                    format!(
+                        "bounded traversal skipped {} high-fanout symbol(s), omitted {} anchor symbol(s), and had {} query failure(s)",
+                        caller_expansion.skipped_hub_symbols,
+                        caller_expansion.truncated_anchor_symbols,
+                        caller_expansion.query_failures
+                    ),
+                );
+            }
+
+            // A source caller can be a WebForms code-behind whose markup owns
+            // the actual client bundle. Carry that exact family edge into one
+            // bounded asset traversal so a server method change can expose its
+            // browser consumer and bundle registry. This closes a common
+            // cross-artifact gap without treating either file as a presumed
+            // edit.
+            let mut caller_markup_anchors = caller_dependencies
+                .iter()
+                .filter_map(|linked| {
+                    let normalized = strip(&linked.path);
+                    [".aspx.vb", ".aspx.cs", ".ascx.vb", ".ascx.cs", ".master.vb", ".master.cs"]
+                        .iter()
+                        .find_map(|suffix| {
+                            normalized
+                                .strip_suffix(suffix)
+                                .map(|base| format!("{base}{}", &suffix[..suffix.len() - 3]))
+                        })
+                        .and_then(|markup| indexed_by_normalized.get(&markup).cloned())
+                })
+                .collect::<Vec<_>>();
+            caller_markup_anchors.sort();
+            caller_markup_anchors.dedup();
+            caller_markup_anchors.truncate(12);
+            if !caller_markup_anchors.is_empty() {
+                let graph = self.state.graph.clone();
+                let pid = req.project_id.clone();
+                let started = std::time::Instant::now();
+                let expansion = tokio::task::spawn_blocking(move || {
+                    expand_asset_bundle_graph(&graph, &pid, &caller_markup_anchors)
+                })
+                .await
+                .unwrap_or_default();
+                let mut seen_assets = asset_dependencies
+                    .iter()
+                    .map(|linked| linked.path.to_ascii_lowercase())
+                    .collect::<HashSet<_>>();
+                for linked in expansion.files {
+                    if seen_assets.insert(linked.path.to_ascii_lowercase()) {
+                        asset_dependencies.push(linked);
+                    }
+                }
+                asset_dependencies.truncate(ASSET_GRAPH_RESULT_CAP);
+                cov.asset_graph.hits = asset_dependencies.len();
+                cov.asset_graph.ms += started.elapsed().as_millis();
+                if expansion.skipped_hub_anchors > 0 || expansion.skipped_hub_bundles > 0 {
+                    cov.asset_graph.mark_bounded(
+                        "truncated",
+                        format!(
+                            "bounded fan-out skipped {} hub anchor traversal(s) and {} oversized bundle traversal(s), including caller-markup expansion",
+                            expansion.skipped_hub_anchors,
+                            expansion.skipped_hub_bundles
+                        ),
+                    );
+                }
+            }
+            // Compound/name coverage: a file whose name is composed of
+            // several specific story words is often a useful candidate. The
+            // index-local breadth filter prevents common framework vocabulary
+            // from promoting an entire file family. This scans the complete
+            // non-vendor file index rather than a capped concept footprint.
+            //
+            // Read the SAME stripped view every other arm reads (`retrieval_story`,
+            // bound at the top of this handler): the raw request story still carries
+            // the scaffolding this handler injects around fetched work-item text, and
+            // `work` — from a `# Work item <id>` heading — counted as one of the three
+            // story words that promoted an unrelated import page on a replayed PR.
+            let story_terms = story_name_terms(&retrieval_story);
             if story_terms.len() >= NAME_COVERAGE_MIN {
+                let mut term_file_counts = BTreeMap::<String, usize>::new();
+                for (rp, _) in meta.iter() {
+                    let full = rp.as_str().replace('\\', "/").to_lowercase();
+                    if engram_core::is_vendor_path(&full) {
+                        continue;
+                    }
+                    let fname = full.rsplit('/').next().unwrap_or(full.as_str());
+                    let stem = fname.split('.').next().unwrap_or("");
+                    for term in &story_terms {
+                        if story_name_term_matches_stem(term, stem) {
+                            *term_file_counts.entry(term.clone()).or_default() += 1;
+                        }
+                    }
+                }
                 for (rp, _) in meta.iter() {
                     let full = rp.as_str().replace('\\', "/").to_lowercase();
                     if engram_core::is_vendor_path(&full) {
@@ -7793,10 +10940,9 @@ impl Engram {
                         .iter()
                         .map(String::as_str)
                         .filter(|t| {
-                            stem.contains(t)
-                                || (t.len() > 5
-                                    && t.ends_with('s')
-                                    && stem.contains(&t[..t.len() - 1]))
+                            term_file_counts.get(*t).copied().unwrap_or(0)
+                                < BROAD_NAME_TERM_MIN_FILES
+                                && story_name_term_matches_stem(t, stem)
                         })
                         .collect();
                     if covered.len() >= NAME_COVERAGE_MIN && covered.iter().any(|t| t.len() >= 6) {
@@ -7820,6 +10966,8 @@ impl Engram {
                 .insert("name_done".into(), t_all.elapsed().as_millis());
         } else {
             cov.family = ArmCoverage::failed("file index unavailable".into(), 0);
+            cov.asset_graph = ArmCoverage::failed("file index unavailable".into(), 0);
+            cov.caller_graph = ArmCoverage::failed("file index unavailable".into(), 0);
         }
         cov.stages
             .insert("family_done".into(), t_all.elapsed().as_millis());
@@ -7897,7 +11045,9 @@ impl Engram {
                 let key = match indexed.as_ref() {
                     Some(c) => c.clone(),
                     None => {
-                        historical.insert(p.clone());
+                        if !sigs.contains("disk") {
+                            historical.insert(p.clone());
+                        }
                         p.clone()
                     }
                 };
@@ -8248,12 +11398,32 @@ impl Engram {
             }
         };
 
+        // Imported history can spell the same path differently from the
+        // active graph. Merge those aliases before they compete for ranks.
+        let indexed_paths = self
+            .state
+            .graph
+            .list_file_node_metadata(&req.project_id)
+            .map(|rows| {
+                rows.into_iter()
+                    .map(|(path, _)| path.as_str().replace('\\', "/"))
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        canonicalize_change_set_evidence(
+            &mut prov,
+            &mut why,
+            &mut historical,
+            indexed_paths,
+        );
+
         cov.stages
             .insert("before_render".into(), t_all.elapsed().as_millis());
         let (mut out, omissions) = render_change_set(
             req.story.trim(),
             &concepts,
             &prov,
+            &why,
             temporal_section.as_deref(),
             sibling_section.as_deref(),
             setting_prior,
@@ -8261,6 +11431,49 @@ impl Engram {
         );
         cov.stages
             .insert("render".into(), t_all.elapsed().as_millis());
+        if !asset_dependencies.is_empty() {
+            out.push_str("\n## Asset delivery consumers and dependencies\n\n");
+            out.push_str(
+                "These are exact static include/bundle links. Put every row in the intake consumer ledger with an explicit include, conditional or exclude disposition and evidence. The graph link alone does not imply that the file should be edited, but it may not be silently omitted.\n\n",
+            );
+            for (row_index, linked) in asset_dependencies.iter().enumerate() {
+                let bundle = linked
+                    .bundle_id
+                    .as_deref()
+                    .map(|id| format!(" through `{id}`"))
+                    .unwrap_or_default();
+                out.push_str(&format!(
+                    "- A{:03} `{}` — {}{}; anchor `{}`\n",
+                    row_index + 1, linked.path, linked.relation, bundle, linked.anchor_path
+                ));
+            }
+        }
+        if !caller_dependencies.is_empty() {
+            out.push_str("\n## Direct source consumers\n\n");
+            out.push_str(
+                "These are bounded static caller links. Put every row in the intake consumer ledger with an explicit include, conditional or exclude disposition and evidence. A caller link alone does not imply that the file should be edited, but it may not be silently omitted.\n\n",
+            );
+            for (row_index, linked) in caller_dependencies.iter().enumerate() {
+                out.push_str(&format!(
+                    "- C{:03} `{}` — `{}` {} `{}` from anchor `{}`\n",
+                    row_index + 1,
+                    linked.path,
+                    linked.caller_symbol,
+                    linked.edge_kind,
+                    linked.target_symbol,
+                    linked.anchor_path
+                ));
+            }
+        }
+        let (receipt_rows, _) = change_set_rows(&prov);
+        let reconciliation = change_set_reconciliation_receipt(
+            &receipt_rows, &asset_dependencies, &caller_dependencies,
+        );
+        out.push_str(&format!(
+            "\n## Reconciliation receipt\n\nreceipt_id: `{}`  \nrequired rows: primary={} asset={} caller={} total={}  \nCopy this receipt ID and all P/A/C row IDs into the feature contract. Every row needs INCLUDE, CONDITIONAL, or EXCLUDE plus evidence. The row totals must match this receipt; selecting only rows already judged relevant is not reconciliation.\n\n",
+            reconciliation.receipt_id, reconciliation.primary_rows, reconciliation.asset_rows,
+            reconciliation.caller_rows, reconciliation.required_rows,
+        ));
         // Row 5 (owner 2026-08-29): the UI contract rides with the change set —
         // gated on markup in the top tier, filtered to the families that markup
         // already belongs to. The catalog is cached per generation and the gate
@@ -8381,33 +11594,316 @@ impl Engram {
 
         if req.output_json {
             let (rows, omissions) = change_set_rows(&prov);
-            let files: Vec<serde_json::Value> = rows
+            let visible_rows: Vec<&ChangeSetRow> = rows.iter().filter(|r| !r.omitted).collect();
+            let files_total = visible_rows.len();
+            let file_cap = if full_detail || reconciled_detail {
+                usize::MAX
+            } else {
+                CHANGE_SET_COMPACT_FILE_CAP
+            };
+            let primary_row_ids = rows.iter()
+                .filter(|row| !row.omitted && row.set == "primary")
+                .enumerate()
+                .map(|(index, row)| (row.path.clone(), format!("P{:03}", index + 1)))
+                .collect::<std::collections::HashMap<_, _>>();
+            // Repository rules are resolved BEFORE the rows are rendered, so a row
+            // can cite the lines a rule governs. Scope, registry fetch and cutoff
+            // filter are unchanged from where this used to sit; only the position.
+            let mut rule_paths = visible_rows
                 .iter()
-                .filter(|r| !r.omitted)
+                .map(|row| row.path.clone())
+                .collect::<Vec<_>>();
+            rule_paths.extend(asset_dependencies.iter().map(|row| row.path.clone()));
+            rule_paths.extend(caller_dependencies.iter().map(|row| row.path.clone()));
+            rule_paths.sort();
+            rule_paths.dedup();
+            let registry = self.state.registry.clone();
+            let rule_project = req.project_id.clone();
+            let stored_rules = tokio::task::spawn_blocking(move || {
+                registry.list_repo_rules(&rule_project)
+            })
+            .await
+            .ok()
+            .and_then(Result::ok)
+            .unwrap_or_default();
+            let (applicable_rules, excluded_rules) = applicable_change_set_rules(
+                stored_rules,
+                &rule_paths,
+                req.merged_before.as_deref(),
+            );
+            // Read back from the rendered rules so the row citations and the
+            // rules array can never describe different rule sets.
+            let rule_specs: Vec<(String, String, String)> = applicable_rules
+                .iter()
+                .filter_map(|rule| {
+                    Some((
+                        rule.get("rule_id")?.as_str()?.to_string(),
+                        rule.get("file_pattern")?.as_str()?.to_string(),
+                        rule.get("rule_text")?.as_str()?.to_string(),
+                    ))
+                })
+                .collect();
+            // Every fingerprint in one transaction rather than a lookup per row.
+            // Generation travels with each node, so a file re-indexed after this
+            // request pinned its snapshot is refused by name instead of trusted.
+            let fingerprints: HashMap<String, (Option<serde_json::Value>, u64)> = self
+                .state
+                .graph
+                .list_file_node_metadata_with_generation(&req.project_id)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|(path, metadata, generation)| {
+                    (path.as_str().replace('\\', "/"), (metadata, generation))
+                })
+                .collect();
+            let mut construct_evidence: HashMap<String, serde_json::Value> = HashMap::new();
+            let mut construct_scanned = 0usize;
+            let mut construct_governed_total = 0usize;
+            for row in visible_rows.iter().filter(|row| row.set == "primary") {
+                // Governance is checked BEFORE the file is opened: without this the
+                // scan would read every primary row to discover most were governed
+                // by nothing.
+                // The file test comes FIRST so a glob-shaped row never reaches the
+                // governed count: it would otherwise spend one of the scan slots a
+                // real file could have used, which is how four of them behaved live.
+                let governed = row_path_names_a_file(&row.path)
+                    && rule_specs.iter().any(|(_, file_pattern, rule_text)| {
+                        change_set_rule_matches_path(file_pattern, &row.path)
+                            && !rule_named_constructs(rule_text).is_empty()
+                    });
+                if !governed {
+                    continue;
+                }
+                construct_governed_total += 1;
+                if construct_scanned >= CHANGE_SET_CONSTRUCT_SCAN_CAP {
+                    continue;
+                }
+                construct_scanned += 1;
+                let normalized = row.path.replace('\\', "/");
+                let fingerprint = fingerprints.get(&normalized);
+                let bytes = engram_core::safe_join(&project_root, &row.path)
+                    .ok()
+                    .and_then(|path| std::fs::read(&path).ok());
+                if let Some(evidence) = row_rule_evidence(
+                    &row.path,
+                    &rule_specs,
+                    fingerprint.and_then(|(metadata, _)| metadata.as_ref()),
+                    fingerprint.map(|(_, generation)| *generation),
+                    snapshot_generation,
+                    bytes.as_deref(),
+                ) {
+                    construct_evidence.insert(row.path.clone(), evidence);
+                }
+            }
+            let mut files: Vec<serde_json::Value> = visible_rows
+                .iter()
+                .filter(|row| !reconciled_detail || row.set == "primary")
+                .take(file_cap)
                 .map(|r| {
+                    let reasons = ranked_change_set_reasons(
+                        &why,
+                        &r.path,
+                        if full_detail { usize::MAX } else { 4 },
+                    );
                     serde_json::json!({
+                        "row_id": primary_row_ids.get(&r.path),
                         "path": r.path,
+                        "mechanism_role": change_set_mechanism_role(&r.path),
+                        "evidence_class": change_set_evidence_class(&r.signals),
+                        "impact_question": change_set_impact_question(&r.path),
+                        "exclusion_evidence_required": change_set_exclusion_evidence(&r.signals),
+                        "path_kind": if r.signals.contains(&"disk") { "existing_unindexed" } else { "existing" },
+                        "indexed": !r.signals.contains(&"disk"),
                         "layer": r.layer,
                         "tier": r.tier,
                         "set": r.set,
                         "rank": r.rank,
                         "signals": r.signals,
-                        "why": why.get(&r.path).cloned().unwrap_or_default(),
+                        "why": reasons,
                         "historical": historical.contains(&r.path),
+                        "ruled_construct_evidence": construct_evidence.get(&r.path),
                     })
                 })
                 .collect();
+            let (output_coverage, diagnostic_omissions) = if full_detail {
+                (cov.clone(), BTreeMap::new())
+            } else {
+                compact_change_set_coverage(&cov)
+            };
+            let omissions_total = omissions.len();
+            let output_omissions: Vec<&ChangeSetOmission> = omissions
+                .iter()
+                .take(if full_detail {
+                    usize::MAX
+                } else if reconciled_detail {
+                    0
+                } else {
+                    CHANGE_SET_COMPACT_OMISSION_CAP
+                })
+                .collect();
+            let files_shown = files.len();
+            let omissions_shown = output_omissions.len();
+            let mut asset_dependencies_json = asset_dependencies
+                .iter()
+                .enumerate()
+                .map(|(index, linked)| {
+                    serde_json::json!({
+                        "row_id": format!("A{:03}", index + 1),
+                        "path": linked.path,
+                        "mechanism_role": "asset delivery consumer or host",
+                        "evidence_class": "structural_dependency",
+                        "impact_question": "Does this exact asset, bundle, host, or code-behind edge deliver or consume behavior changed by the story?",
+                        "causal_chain": format!(
+                            "{} --{}{}--> {}",
+                            linked.anchor_path,
+                            linked.relation,
+                            linked.bundle_id.as_deref().map(|id| format!(" via {id}")).unwrap_or_default(),
+                            linked.path,
+                        ),
+                        "exclusion_evidence_required": "inspect the reported static edge and prove the changed artifact is not built, hosted, registered, or deployed through this path",
+                        "relation": linked.relation,
+                        "bundle_id": linked.bundle_id,
+                        "anchor_path": linked.anchor_path,
+                        "disposition": "requires_explicit_classification",
+                    })
+                })
+                .collect::<Vec<_>>();
+            let mut caller_dependencies_json = caller_dependencies
+                .iter()
+                .enumerate()
+                .map(|(index, linked)| {
+                    serde_json::json!({
+                        "row_id": format!("C{:03}", index + 1),
+                        "path": linked.path,
+                        "mechanism_role": "direct source consumer",
+                        "evidence_class": "direct_behavioral_consumer",
+                        "impact_question": format!(
+                            "If `{}` changes its contract, must caller `{}` preserve, translate, or expose that behavior?",
+                            linked.target_symbol, linked.caller_symbol,
+                        ),
+                        "causal_chain": format!(
+                            "{} --{} {}--> {}",
+                            linked.path, linked.edge_kind, linked.target_symbol, linked.anchor_path,
+                        ),
+                        "exclusion_evidence_required": "inspect the caller at the reported edge; 'unchanged' is not evidence unless its observable contract is shown unaffected",
+                        "caller_symbol": linked.caller_symbol,
+                        "target_symbol": linked.target_symbol,
+                        "anchor_path": linked.anchor_path,
+                        "edge_kind": linked.edge_kind,
+                        "disposition": "requires_explicit_classification",
+                    })
+                })
+                .collect::<Vec<_>>();
+            let reconciliation = change_set_reconciliation_receipt(
+                &rows, &asset_dependencies, &caller_dependencies,
+            );
+            // Repository rules were resolved ABOVE the row build so each row could
+            // cite the lines its rules govern. `rule_paths`, `applicable_rules` and
+            // `excluded_rules` are already bound; resolving them again here would
+            // repeat the registry read and leave the payload describing the second
+            // result while the rows cited the first.
+            let (configured_contract_rules, configured_contract_rule_notes) =
+                load_matching_planning_rules(
+                    &self.state.cfg.data_dir,
+                    &project_root,
+                    req.story.trim(),
+                    &rule_paths,
+                    req.merged_before.as_deref(),
+                );
+            let configured_contract_rules_json = configured_contract_rules.iter()
+                .map(|rule| serde_json::json!({
+                    "id": rule.id,
+                    "title": rule.title,
+                    "requirement": rule.requirement,
+                    "severity": rule.severity,
+                    "oracle_guard": rule.oracle_guard,
+                    "source": rule.source,
+                    "introduced_at": rule.introduced_at,
+                    "provenance": rule.provenance,
+                }))
+                .collect::<Vec<_>>();
+            let contract_checkpoint = change_set_contract_checkpoint(&configured_contract_rules);
+            let hard_configured_rule_ids = contract_checkpoint["configured_rule_ids"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default()
+                .into_iter()
+                .filter_map(|value| value.as_str().map(str::to_string))
+                .collect::<HashSet<_>>();
+            let output_configured_contract_rules = if full_detail {
+                configured_contract_rules_json.clone()
+            } else {
+                configured_contract_rules_json.iter()
+                    .filter(|rule| rule["id"].as_str()
+                        .is_none_or(|id| !hard_configured_rule_ids.contains(id)))
+                    .cloned()
+                    .collect::<Vec<_>>()
+            };
+            let row_guidance = if full_detail {
+                serde_json::Value::Null
+            } else {
+                compact_row_guidance(&mut [
+                    &mut files,
+                    &mut asset_dependencies_json,
+                    &mut caller_dependencies_json,
+                ])
+            };
+            let work_item_evidence_risk = change_set_work_item_evidence_risk(
+                req.story.trim(),
+                req.merged_before.as_deref(),
+            );
+            let project_policy_sources = project_policy_sources(&project_root, &index_paths);
             let payload = serde_json::json!({
                 "story": req.story.trim(),
+                "contract_checkpoint": contract_checkpoint,
                 "concepts": concepts,
+                "row_guidance": row_guidance,
                 "files": files,
-                "coverage": cov,
-                "omissions": omissions,
+                "coverage": output_coverage,
+                "omissions": output_omissions,
+                "view": {
+                    "detail": detail,
+                    "files_total": files_total,
+                    "files_shown": files_shown,
+                    "files_omitted_from_view": files_total.saturating_sub(files_shown),
+                    "omissions_total": omissions_total,
+                    "omissions_shown": omissions_shown,
+                    "omissions_omitted_from_view": omissions_total.saturating_sub(omissions_shown),
+                    "diagnostic_entries_omitted_from_view": diagnostic_omissions,
+                    "reconciled_detail_request": { "detail": "reconciled" },
+                    "full_detail_request": { "detail": "full" }
+                },
                 "ui_contract": ui_contract
                     .as_ref()
                     .and_then(|c| serde_json::to_value(c).ok())
                     .unwrap_or(serde_json::Value::Null),
+                "asset_dependencies": asset_dependencies_json,
+                "caller_dependencies": caller_dependencies_json,
+                "reconciliation": reconciliation,
                 "permission_gates": permission_gates_json,
+                "configured_contract_rules": {
+                    "rules": output_configured_contract_rules,
+                    "rules_total": configured_contract_rules_json.len(),
+                    "hard_rules_in_checkpoint": hard_configured_rule_ids.len(),
+                    "notes": configured_contract_rule_notes,
+                    "global_path": "<data_dir>/rules/planning-contract-rules.yaml",
+                    "project_path": ".engram/planning-contract-rules.yaml",
+                    "instruction": "Rules are hot-loaded on every call. Repository rules override organization rules by stable id; historical requests exclude undated and future rules. In compact and reconciled views, hard rules live once in contract_checkpoint.hard_items and this rules array contains the remaining advisory rules."
+                },
+                "work_item_evidence_risk": work_item_evidence_risk,
+                "project_policy_sources": project_policy_sources,
+                "applicable_repository_rules": {
+                    "rules": applicable_rules,
+                    "exclusive_cutoff": req.merged_before,
+                    "excluded_undated_or_future": excluded_rules,
+                    "instruction": "Apply every matching rule during planning and acceptance-test derivation; a rule is evidence of repository convention, not proof that the current source complies."
+                },
+                "ruled_construct_scan": {
+                    "governed_rows_total": construct_governed_total,
+                    "rows_scanned": construct_scanned,
+                    "row_cap": CHANGE_SET_CONSTRUCT_SCAN_CAP,
+                    "instruction": "Rows whose source was opened to locate the constructs their rules name. A row past the cap carries no ruled_construct_evidence: that absence is this cap, not an absence of sites. Each row that was scanned states either its located sites or the reason its source could not be vouched for."
+                },
             });
             return Ok(CallToolResult::success(vec![Content::text(
                 serde_json::to_string_pretty(&payload).unwrap_or_default(),
@@ -8576,7 +12072,12 @@ impl Engram {
             // docs ate the top_k slots, so replay exemplars shifted whenever
             // the corpus gained newer PRs. Keep a modest over-fetch for the
             // dedup/malformed-doc cases.
-            let fetch_k = if req.merged_before.is_some() { 12 } else { 6 };
+            let fetch_k = match (&as_of, req.merged_before.is_some()) {
+                // Unreachable records are dropped below; keep enough to fill.
+                (Some(_), _) => 60,
+                (None, true) => 12,
+                (None, false) => 6,
+            };
             let q = engram_index::HybridQuery {
                 project_id: req.project_id.clone(),
                 namespace: engram_core::namespaces::NAMESPACE_HISTORY.into(),
@@ -8590,7 +12091,7 @@ impl Engram {
                 language_filters: None,
                 author_filter: None,
                 date_after: None,
-                date_before: cutoff_secs.map(|s| s.saturating_sub(1)),
+                date_before: cutoff_secs,
                 use_mmr: false,
             };
             let engine = ps.search.clone();
@@ -8619,6 +12120,9 @@ impl Engram {
             let mut seen_doc_ids: HashSet<&str> = HashSet::new();
             let mut docs: Vec<(usize, usize, String)> = Vec::new(); // (kind overlap, lexical rank, content)
             for (rank, h) in hits.iter().enumerate() {
+                if as_of.as_ref().is_some_and(|r| !r.admits(h.path.as_str())) {
+                    continue;
+                }
                 if !seen_doc_ids.insert(h.doc_id.as_str()) {
                     continue;
                 }
@@ -9243,8 +12747,6 @@ impl Engram {
 
         let (partners, states, unwired, unresolved, mut coverage) = tokio::task::spawn_blocking(move || {
             let mut coverage = EditCompletenessCoverage::default();
-            let edited_set: HashSet<String> = edited.iter().map(|file| edit_path_key(file)).collect();
-            let covered = |file: &str| edited_set.contains(&file.replace('\\', "/").trim_start_matches('/').to_lowercase());
             let real_case: HashMap<String, String> = match graph.list_file_node_metadata(&pid) {
                 Ok(files) => files.into_iter().map(|(file, _)| {
                     let path = file.as_str().replace('\\', "/");
@@ -9253,13 +12755,17 @@ impl Engram {
                 Err(error) => { coverage.note(format!("file inventory lookup failed: {error}")); HashMap::new() },
             };
             let current_files: Vec<String> = real_case.values().cloned().collect();
-            let mut unresolved = Vec::new();
+            let (resolved_edits, unresolved, resolution_notes) =
+                resolve_current_edit_paths(&edited, &current_files);
+            for note in resolution_notes {
+                coverage.note(note);
+            }
+            let edited_set: HashSet<String> = resolved_edits.iter()
+                .flat_map(|(requested, resolved)| [edit_path_key(requested), edit_path_key(resolved)])
+                .collect();
+            let covered = |file: &str| edited_set.contains(&edit_path_key(file));
             let mut raw = Vec::new();
-            for file in &edited {
-                let resolved = real_case.get(&file.to_lowercase()).map(String::as_str).unwrap_or_else(|| {
-                    unresolved.push(file.clone());
-                    file.as_str()
-                });
+            for (file, resolved) in &resolved_edits {
                 let mut neighbors = match graph.neighbors(&pid, EdgeKind::TemporalCoupling, &format!("file:{resolved}"), 501) {
                     Ok(neighbors) => neighbors,
                     Err(error) => { coverage.note(format!("temporal neighbors for {file} failed: {error}")); continue; },
@@ -9507,7 +13013,49 @@ const EDIT_SESSION_META_KEY: &str = "edit_session_v1";
 type EditSessions = std::collections::BTreeMap<String, serde_json::Value>;
 
 fn edit_path_key(path: &str) -> String {
-    path.to_lowercase()
+    path.replace('\\', "/").trim_start_matches('/').to_lowercase()
+}
+
+/// Resolve caller-provided project-relative paths to graph identities. A
+/// unique suffix handles indexes that retain one additional source-root
+/// segment; ambiguous suffixes stay unresolved instead of selecting a file.
+fn resolve_current_edit_paths(
+    edited: &[String],
+    current_files: &[String],
+) -> (Vec<(String, String)>, Vec<String>, Vec<String>) {
+    let exact = current_files
+        .iter()
+        .map(|file| (edit_path_key(file), file.clone()))
+        .collect::<HashMap<_, _>>();
+    let mut resolved = Vec::with_capacity(edited.len());
+    let mut unresolved = Vec::new();
+    let mut notes = Vec::new();
+    for file in edited {
+        if let Some(current) = exact.get(&edit_path_key(file)) {
+            resolved.push((file.clone(), current.clone()));
+            continue;
+        }
+        let matches = current_files
+            .iter()
+            .filter(|current| path_suffix_match(file, current))
+            .take(2)
+            .collect::<Vec<_>>();
+        match matches.as_slice() {
+            [only] => resolved.push((file.clone(), (*only).clone())),
+            [] => {
+                unresolved.push(file.clone());
+                resolved.push((file.clone(), file.clone()));
+            }
+            _ => {
+                notes.push(format!(
+                    "edited path {file} has ambiguous current-file suffix matches; no arbitrary file was selected"
+                ));
+                unresolved.push(file.clone());
+                resolved.push((file.clone(), file.clone()));
+            }
+        }
+    }
+    (resolved, unresolved, notes)
 }
 
 fn normalize_edit_files(files: &[String]) -> Result<Vec<String>, McpError> {
@@ -9783,14 +13331,14 @@ impl Engram {
     }
 }
 
-/// Work-item id from a story: "#847", "Bug 847", "US 1234", "AB#847", "DMO-847".
+/// Work-item id from a story: "#847", "Bug 847", "US 1234", "AB#847".
 /// Only leading work-item markers or a standalone hash ID identify intake.
 /// Incidental issue references, CSS colors and numbered headings are prose.
 pub(crate) fn extract_work_item_id(story: &str) -> Option<u64> {
     use std::sync::LazyLock;
     static RE: LazyLock<regex::Regex> = LazyLock::new(|| {
         regex::Regex::new(
-            r"(?i)^\s*(?:(?:(?:fix|resolve|resolves)\s+)?(?:bug|us|user story|story|item|task|ab)\s*#?\s*|dmo-)(\d{1,10})\b",
+            r"(?i)^\s*(?:(?:(?:fix|resolve|resolves)\s+)?(?:bug|us|user story|story|item|task|ab)\s*#?\s*)(\d{1,10})\b",
         )
         .expect("valid regex")
     });
@@ -9813,6 +13361,261 @@ fn bounded_planning_excerpt(text: &str, limit: usize, tool: &str) -> String {
     excerpt
 }
 
+fn split_markdown_row(line: &str) -> Vec<String> {
+    let mut cells = Vec::new();
+    let mut current = String::new();
+    let mut escaped = false;
+    for ch in line.trim().trim_matches('|').chars() {
+        if escaped {
+            current.push(ch);
+            escaped = false;
+        } else if ch == '\\' {
+            current.push(ch);
+            escaped = true;
+        } else if ch == '|' {
+            cells.push(current.trim().to_string());
+            current.clear();
+        } else {
+            current.push(ch);
+        }
+    }
+    cells.push(current.trim().to_string());
+    cells
+}
+
+fn validate_contract_checkpoint(
+    checkpoint: &serde_json::Value,
+    contract: &str,
+    scenarios: &str,
+) -> Result<serde_json::Value, McpError> {
+    let hard_items = checkpoint["hard_items"].as_array().ok_or_else(|| {
+        McpError::invalid_params("contract_checkpoint.hard_items must be an array", None)
+    })?;
+    if hard_items.is_empty() {
+        return Ok(serde_json::json!({
+            "status": "PASS",
+            "implementation_may_begin": true,
+            "receipt_id": checkpoint["receipt"]["receipt_id"],
+            "hard_items_expected": 0,
+            "hard_items_present": 0,
+            "blocking_unknown_ids": [],
+            "failures": [],
+            "dispositions": {},
+            "instruction": "No release-critical configured planning rule matched this change; there is nothing to disposition."
+        }));
+    }
+    if contract.trim().is_empty() {
+        return Err(McpError::invalid_params(
+            "contract_markdown must not be empty",
+            None,
+        ));
+    }
+    if scenarios.trim().is_empty() {
+        return Err(McpError::invalid_params(
+            "scenarios_markdown must not be empty",
+            None,
+        ));
+    }
+
+    let ids = hard_items
+        .iter()
+        .map(|item| {
+            item["id"]
+                .as_str()
+                .filter(|id| !id.trim().is_empty())
+                .map(str::to_string)
+                .ok_or_else(|| {
+                    McpError::invalid_params("every hard item must have a nonblank string id", None)
+                })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let unique_ids = ids.iter().collect::<HashSet<_>>();
+    if unique_ids.len() != ids.len() {
+        return Err(McpError::invalid_params(
+            "contract_checkpoint.hard_items contains duplicate ids",
+            None,
+        ));
+    }
+    let canonical = ids.iter().map(|id| format!("{id}\n")).collect::<String>();
+    use sha2::{Digest, Sha256};
+    let computed_receipt = format!("sha256:{:x}", Sha256::digest(canonical.as_bytes()));
+    let supplied_receipt = checkpoint["receipt"]["receipt_id"].as_str().unwrap_or("");
+    if supplied_receipt != computed_receipt {
+        return Err(McpError::invalid_params(
+            format!(
+                "contract checkpoint receipt mismatch: supplied {supplied_receipt:?}, computed {computed_receipt}"
+            ),
+            None,
+        ));
+    }
+
+    let allowed = [
+        "SATISFIED_WITH_SOURCE_OR_APPROVED_DECISION",
+        "BLOCKING_UNKNOWN",
+        "NOT_APPLICABLE_WITH_EVIDENCE",
+    ]
+    .into_iter()
+    .collect::<HashSet<_>>();
+    let mut rows: HashMap<String, Vec<Vec<String>>> = HashMap::new();
+    let mut row_order = Vec::new();
+    let id_set = ids.iter().map(String::as_str).collect::<HashSet<_>>();
+    for line in contract.lines().filter(|line| line.trim_start().starts_with('|')) {
+        let cells = split_markdown_row(line);
+        if let Some(id) = cells.first().filter(|id| id_set.contains(id.as_str())) {
+            row_order.push(id.clone());
+            rows.entry(id.clone()).or_default().push(cells);
+        }
+    }
+
+    let mut failures = Vec::new();
+    let mut blockers = Vec::new();
+    let mut dispositions = serde_json::Map::new();
+    for item in hard_items {
+        let id = item["id"].as_str().unwrap_or_default();
+        let Some(matches) = rows.get(id) else {
+            failures.push(format!("{id}: missing ledger row"));
+            continue;
+        };
+        if matches.len() != 1 {
+            failures.push(format!("{id}: expected one ledger row, found {}", matches.len()));
+            continue;
+        }
+        let row = &matches[0];
+        if row.len() < 7 {
+            failures.push(format!("{id}: ledger row has {} columns; expected 7", row.len()));
+            continue;
+        }
+        let disposition = row[3].trim();
+        let evidence = row[4].trim();
+        let scenario_or_question = row[5].trim();
+        let oracle_result = row[6].trim();
+        if row.iter().any(|cell| cell.trim().eq_ignore_ascii_case("MISSING")) {
+            failures.push(format!("{id}: one or more ledger fields are still MISSING"));
+        }
+        if !allowed.contains(disposition) {
+            failures.push(format!("{id}: invalid or missing disposition {disposition:?}"));
+        }
+        if evidence.is_empty() || evidence.eq_ignore_ascii_case("missing") {
+            failures.push(format!("{id}: concrete evidence is missing"));
+        }
+        if scenario_or_question.is_empty() || scenario_or_question.eq_ignore_ascii_case("missing") {
+            failures.push(format!("{id}: scenario or human-question mapping is missing"));
+        }
+        if disposition == "SATISFIED_WITH_SOURCE_OR_APPROVED_DECISION" {
+            let scenario_ids = scenario_or_question
+                .split(|character: char| {
+                    !(character.is_ascii_alphanumeric() || matches!(character, '-' | '_'))
+                })
+                .filter(|token| {
+                    token.contains('-') && token.chars().any(|character| character.is_ascii_digit())
+                })
+                .collect::<Vec<_>>();
+            if scenario_ids.is_empty() {
+                failures.push(format!("{id}: satisfied item has no stable scenario id"));
+            } else {
+                for scenario_id in scenario_ids {
+                    if !scenarios.contains(scenario_id) {
+                        failures.push(format!(
+                            "{id}: mapped scenario {scenario_id} is absent from scenarios_markdown"
+                        ));
+                    }
+                }
+            }
+        }
+        if disposition == "BLOCKING_UNKNOWN" {
+            let question_ids = scenario_or_question
+                .split(|character: char| !character.is_ascii_alphanumeric())
+                .filter(|token| {
+                    token.starts_with('Q')
+                        && token.len() > 1
+                        && token[1..].chars().all(|character| character.is_ascii_digit())
+                })
+                .collect::<Vec<_>>();
+            if question_ids.is_empty() {
+                failures.push(format!("{id}: blocking item must map to a numbered human question"));
+            } else {
+                for question_id in question_ids {
+                    if contract.matches(question_id).count() < 2 {
+                        failures.push(format!(
+                            "{id}: human question {question_id} must also appear in the contract question table"
+                        ));
+                    }
+                }
+            }
+        }
+        if item["oracle_guard"].as_str().is_some()
+            && oracle_result != "PASS"
+            && oracle_result != "NOT_APPLICABLE_WITH_EVIDENCE"
+        {
+            failures.push(format!("{id}: oracle guard must be PASS or NOT_APPLICABLE_WITH_EVIDENCE"));
+        }
+        if disposition == "BLOCKING_UNKNOWN" {
+            blockers.push(id.to_string());
+        }
+        dispositions.insert(id.to_string(), serde_json::json!(disposition));
+    }
+
+    if row_order != ids {
+        failures.push(format!(
+            "ledger row order differs from checkpoint: expected [{}], found [{}]",
+            ids.join(", "),
+            row_order.join(", ")
+        ));
+    }
+
+    let expected_receipt_line = checkpoint["workflow_scaffold"]["markdown"]
+        .as_str()
+        .and_then(|markdown| markdown.lines().next())
+        .filter(|line| line.contains(&computed_receipt));
+    let receipt_present = expected_receipt_line.is_some_and(|line| contract.contains(line));
+    if !receipt_present {
+        failures.push(format!(
+            "exact checkpoint receipt line for {computed_receipt} is absent from contract"
+        ));
+    }
+    let status = if !failures.is_empty() {
+        "FAIL"
+    } else if !blockers.is_empty() {
+        "BLOCKED_BY_HUMAN_DECISION"
+    } else {
+        "PASS"
+    };
+    Ok(serde_json::json!({
+        "status": status,
+        "implementation_may_begin": status == "PASS",
+        "receipt_id": computed_receipt,
+        "hard_items_expected": ids.len(),
+        "hard_items_present": rows.len(),
+        "blocking_unknown_ids": blockers,
+        "failures": failures,
+        "dispositions": dispositions,
+        "instruction": if status == "PASS" {
+            "Checkpoint complete. Preserve this receipt with the frozen feature contract."
+        } else if status == "BLOCKED_BY_HUMAN_DECISION" {
+            "Ask the human the listed blocking questions; the agent may not select its own defaults."
+        } else {
+            "Repair the ledger from get_change_set.workflow_scaffold before planning or implementation."
+        }
+    }))
+}
+
+impl Engram {
+    pub async fn handle_validate_feature_contract(
+        &self,
+        req: ValidateFeatureContractRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let result = validate_contract_checkpoint(
+            &req.contract_checkpoint,
+            &req.contract_markdown,
+            &req.scenarios_markdown,
+        )?;
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result)
+                .map_err(|error| McpError::internal_error(error.to_string(), None))?,
+        )]))
+    }
+}
+
 /// Keep free-text/offline planning available, but never turn a failed
 /// ID-targeted intake into an apparently complete title-only dossier.
 fn story_with_work_item_text(story: &str, text: Option<String>) -> Result<String, McpError> {
@@ -9826,6 +13629,10 @@ fn story_with_work_item_text(story: &str, text: Option<String>) -> Result<String
         ));
     }
     Ok(story.to_string())
+}
+
+fn can_auto_fetch_work_item(work_item_text: Option<&str>, merged_before: Option<&str>) -> bool {
+    work_item_text.is_none() && merged_before.is_none()
 }
 
 fn retrieval_code_ranges(story: &str) -> Vec<std::ops::Range<usize>> {
@@ -9851,12 +13658,58 @@ fn retrieval_code_ranges(story: &str) -> Vec<std::ops::Range<usize>> {
     ranges
 }
 
+fn compact_change_set_coverage(
+    coverage: &ChangeSetCoverage,
+) -> (ChangeSetCoverage, BTreeMap<String, usize>) {
+    let mut compact = coverage.clone();
+    let mut omitted = BTreeMap::new();
+    let mut trim = |name: &str, arm: &mut ArmCoverage| {
+        let total = arm.diagnostics.entries.len();
+        if total > CHANGE_SET_COMPACT_DIAGNOSTIC_CAP {
+            let cut = total - CHANGE_SET_COMPACT_DIAGNOSTIC_CAP;
+            arm.diagnostics
+                .entries
+                .truncate(CHANGE_SET_COMPACT_DIAGNOSTIC_CAP);
+            arm.diagnostics.details_complete = false;
+            arm.note = format!(
+                "{total} diagnostic message occurrences; {} shown and {cut} omitted from the compact response. Use detail=\"full\" for every retained message; upstream omission markers remain a separate coverage limit.",
+                CHANGE_SET_COMPACT_DIAGNOSTIC_CAP
+            );
+            omitted.insert(name.to_string(), cut);
+        }
+    };
+    trim("entity", &mut compact.entity);
+    trim("business_logic", &mut compact.business_logic);
+    trim("concept", &mut compact.concept);
+    trim("history", &mut compact.history);
+    trim("cochange", &mut compact.cochange);
+    trim("vector", &mut compact.vector);
+    trim("kb_bridge", &mut compact.kb_bridge);
+    trim("family", &mut compact.family);
+    (compact, omitted)
+}
+
 /// Strip recognized capture framing, not ordinary uses of words such as "work"
 /// or "description". Field values and the rendered source evidence stay intact.
 fn retrieval_without_capture_labels(story: &str) -> String {
     use std::sync::LazyLock;
     static LABELS: LazyLock<regex::Regex> = LazyLock::new(|| {
         regex::Regex::new(concat!(
+            // A work item exported as MARKDOWN rather than composed by this
+            // handler: the entire heading LINE is framing. Requiring the `#`
+            // prefix is what separates scaffolding from prose — it keeps
+            // "Work item 847 must retain descriptions." untouched — and a
+            // heading naming no known label ("## Delivery window rules")
+            // matches nothing here and survives. Without this branch the
+            // `#{1,6}` prefix below is unreachable for heading form: the id
+            // alternative anchors `$` right after the number (so a trailing
+            // "(User Story)" defeats it) and the field labels demand a `:`
+            // (so "## Description" never matches). Live: the header tokens
+            // took two of the three concept slots.
+            r"(?im)^[ \t]*#{1,6}[ \t]+(?:",
+            r"(?:work[ \t]+item|issue|ticket)[ \t]*#?[ \t]*\d+[^\r\n]*|",
+            r"(?:title|description|repro(?:duction)?[ \t]+steps|acceptance[ \t]+criteria)[ \t]*",
+            r")\r?$|",
             r"(?im)^[ \t]*(?:#{1,6}[ \t]+)?(?:",
             r"(?:work[ \t]+item|issue|ticket)[ \t]+#?\d+(?:[ \t]*,[ \t]*(?:original[ \t]+)?revision[ \t]+\d+)?[ \t]*\r?$|",
             r"(?:original[ \t]+)?referenced[ \t]+image:[ \t]*\S+\.(?:png|jpe?g|gif|webp|svg)[ \t]*\r?$|",
@@ -9915,6 +13768,20 @@ pub(crate) fn story_for_concepts(story: &str) -> String {
         .replace("&quot;", "\"")
         .replace("&amp;", "&")
         .replace("## Work item (full text)", "");
+    // Board and PR titles often start with a classification badge such as
+    // `+[Feature]`, `[P2 Feature]` or `[Bug]`. Those labels describe the work
+    // item rather than its domain, and the three-concept budget is too small
+    // to let one displace the entity named by the title. Restrict stripping to
+    // a leading bracket whose complete contents are recognized workflow or
+    // severity words. An ordinary domain qualifier (`[Customer]`) and prose
+    // such as `Feature flag administration` remain searchable.
+    static LEADING_CLASSIFICATION: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(
+            r"(?ix)^\s*\+?\[\s*(?:(?:p[0-4]|sev(?:erity)?[\s:_-]*[0-4]|feature|request|bug|defect|fix|hotfix|change|improvement|task|chore)\s*[,/|:_-]?\s*)+\]\s*(?:[-:\u{2013}\u{2014}]\s*)?",
+        )
+        .expect("valid leading work-item classification regex")
+    });
+    let s = LEADING_CLASSIFICATION.replace(&s, "");
     // URLs are not domain concepts: a pasted support-ticket link made its
     // hostname/path tokens 2 of the 5 extracted
     // concepts on a live fetch. Drop whole URL tokens.
@@ -10326,9 +14193,11 @@ mod work_item_tests {
     use super::{
         ado_coords_from_remote_url, base64_encode, extract_work_item_id, parse_origin_url,
         pick_pat, story_for_concepts, story_with_work_item_text, strip_html,
+        can_auto_fetch_work_item,
         ac_provenance_from_updates, ac_provenance_label, bounded_planning_excerpt,
         work_item_description,
         linked_item_coverage, linked_item_excerpt,
+        validate_contract_checkpoint,
     };
 
     #[test]
@@ -10389,6 +14258,105 @@ mod work_item_tests {
         // …while the actual story/work-item content survives verbatim.
         assert!(cleaned.contains("Can't assign resources to tasks in multitenant mode"));
         assert!(cleaned.contains("Bug #847"));
+    }
+
+    #[test]
+    fn concept_view_drops_leading_work_item_classification_badges() {
+        let cleaned = story_for_concepts("+[Feature] Department scoped tariff tables");
+        assert_eq!(cleaned, "Department scoped tariff tables");
+        assert_eq!(
+            super::extract_story_concepts(&cleaned),
+            vec!["department", "scoped", "tariff"]
+        );
+
+        let prioritized = story_for_concepts("[P2 Feature] Copy tariff tables between accounts");
+        assert_eq!(prioritized, "Copy tariff tables between accounts");
+        assert!(!super::extract_story_concepts(&prioritized).contains(&"feature".to_string()));
+    }
+
+    #[test]
+    fn concept_view_preserves_domain_qualifiers_and_feature_flag_prose() {
+        assert_eq!(
+            story_for_concepts("[Customer] Feature flag administration"),
+            "[Customer] Feature flag administration"
+        );
+        assert_eq!(
+            story_for_concepts("Feature flag administration"),
+            "Feature flag administration"
+        );
+    }
+
+    #[test]
+    fn concept_view_drops_markdown_work_item_scaffolding() {
+        // A work item exported as MARKDOWN, rather than composed by this
+        // handler: the id heading carries trailing text and the field headings
+        // carry no colon. The capture-label regex accepts a `#{1,6}` prefix but
+        // then anchors `$` right after the id and requires a `:` after a field
+        // label, so neither shape is reachable and both reach extraction.
+        let story = "# Work item 533 (User Story)\n\n\
+                     Title: Warn when saving an order outside the delivery window\n\n\
+                     ## Description\n\n\
+                     - An order saved outside the delivery window must warn the dispatcher.\n\n\
+                     ## Acceptance criteria\n\nNone recorded.\n";
+        let cleaned = story_for_concepts(story);
+        for scaffolding in ["Work item", "## Description", "Acceptance criteria"] {
+            assert!(!cleaned.contains(scaffolding), "{scaffolding} leaked into {cleaned}");
+        }
+        // The author's own words survive.
+        assert!(cleaned.contains("Warn when saving an order outside the delivery window"));
+        assert!(cleaned.contains("must warn the dispatcher"));
+    }
+
+    #[test]
+    fn markdown_scaffolding_does_not_consume_domain_concept_slots() {
+        // The same property `full_capture_framing_…` asserts for the composed
+        // shape: scaffolding must not change WHICH concepts surface.
+        let plain = "Warn when saving an order outside the delivery window. \
+                     An order saved outside the delivery window must warn the dispatcher.";
+        let scaffolded = format!(
+            "# Work item 533 (User Story)\n\nTitle: {plain}\n\n## Description\n\n{plain}\n\n\
+             ## Acceptance criteria\n\nNone recorded.\n"
+        );
+        assert_eq!(
+            super::extract_story_concepts(&story_for_concepts(&scaffolded)),
+            super::extract_story_concepts(plain),
+            "markdown scaffolding must not displace the story's domain concepts"
+        );
+    }
+
+    #[test]
+    fn scaffolding_stripping_is_not_tied_to_one_exporter_wording() {
+        // Different label vocabulary, id syntax and heading depth: the rule must
+        // key on the SHAPE of work-item framing, not one exporter's spelling.
+        for story in [
+            "### Issue #88 - Bug\n\n#### Repro steps\n\nOrder totals round down.",
+            "## Ticket 4120 (Defect)\n\n## Description\nOrder totals round down.",
+        ] {
+            let cleaned = story_for_concepts(story);
+            for scaffolding in ["Issue #88", "Repro steps", "Ticket 4120", "## Description"] {
+                assert!(!cleaned.contains(scaffolding), "{scaffolding} leaked into {cleaned}");
+            }
+            assert!(cleaned.contains("Order totals round down."), "{cleaned}");
+        }
+    }
+
+    #[test]
+    fn a_heading_that_is_domain_content_is_never_stripped() {
+        // Only a heading whose WHOLE text is a recognized work-item label may go.
+        // `story_for_concepts` always joins on whitespace (see the sibling
+        // tests), so compare CONTENT, not layout: the heading must survive.
+        let story = "## Delivery window rules\n\nAn order outside the window is rejected.";
+        let cleaned = story_for_concepts(story);
+        assert!(cleaned.contains("## Delivery window rules"), "{cleaned}");
+        assert!(
+            cleaned.contains("An order outside the window is rejected."),
+            "{cleaned}"
+        );
+        // And the standing prose invariant still holds (see the sibling test).
+        assert_eq!(
+            story_for_concepts("Work item 847 must retain descriptions."),
+            "Work item 847 must retain descriptions."
+        );
     }
 
     #[test]
@@ -10572,10 +14540,6 @@ mod work_item_tests {
         assert_eq!(extract_work_item_id("US 1234 as a user I want"), Some(1234));
         assert_eq!(extract_work_item_id("AB#847 regression"), Some(847));
         assert_eq!(extract_work_item_id("#55"), Some(55));
-        assert_eq!(extract_work_item_id("DMO-847 Fix assignment"), Some(847));
-        assert_eq!(extract_work_item_id("dmo-7 Fix assignment"), Some(7));
-        assert_eq!(extract_work_item_id("DMO-12345678 Fix assignment"), Some(12345678));
-        assert_eq!(extract_work_item_id("prefixDMO-847"), None);
         assert_eq!(extract_work_item_id("supports 7 languages"), None);
         assert_eq!(extract_work_item_id("no ids here"), None);
     }
@@ -10621,13 +14585,96 @@ mod work_item_tests {
 
     #[test]
     fn id_targeted_intake_blocks_missing_or_blank_evidence() {
-        for story in ["DMO-847 Fix assignment", "Bug #847", "AB#847"] {
+        for story in ["AB#847 Fix assignment", "Bug #847", "AB#847"] {
             for text in [None, Some(String::new()), Some(" \n ".into())] {
                 let error = story_with_work_item_text(story, text).unwrap_err();
                 assert!(error.message.contains("INCOMPLETE_INTAKE"));
                 assert!(error.message.contains("#847"));
             }
         }
+    }
+
+    #[test]
+    fn historical_cutoff_disables_live_work_item_fetch() {
+        assert!(can_auto_fetch_work_item(None, None));
+        assert!(!can_auto_fetch_work_item(None, Some("2026-08-01")));
+        assert!(!can_auto_fetch_work_item(Some("sealed revision"), None));
+        assert!(!can_auto_fetch_work_item(
+            Some("sealed revision"),
+            Some("2026-08-01")
+        ));
+    }
+
+    fn feature_contract_checkpoint_fixture() -> serde_json::Value {
+        use sha2::{Digest, Sha256};
+        let ids = ["OBL-auth-C01", "BND-001"];
+        let canonical = ids.iter().map(|id| format!("{id}\n")).collect::<String>();
+        let receipt = format!("sha256:{:x}", Sha256::digest(canonical.as_bytes()));
+        let receipt_line = format!(
+            "`get_change_set contract checkpoint: {receipt} obligation_checks=1 hypothesis_evidence=0 configured_rules=0 unresolved_boundaries=1 total=2`"
+        );
+        serde_json::json!({
+            "receipt": {"receipt_id": receipt},
+            "hard_items": [
+                {"id": ids[0], "oracle_guard": "A stateless credential must not create browser state."},
+                {"id": ids[1], "oracle_guard": null}
+            ],
+            "allowed_dispositions": [
+                "SATISFIED_WITH_SOURCE_OR_APPROVED_DECISION",
+                "BLOCKING_UNKNOWN",
+                "NOT_APPLICABLE_WITH_EVIDENCE"
+            ],
+            "workflow_scaffold": {"markdown": receipt_line}
+        })
+    }
+
+    #[test]
+    fn feature_contract_checkpoint_passes_only_complete_ordered_ledger() {
+        let checkpoint = feature_contract_checkpoint_fixture();
+        let receipt = checkpoint["workflow_scaffold"]["markdown"].as_str().unwrap();
+        let contract = format!(
+            "{receipt}\n\n| Contract ID | Severity | Requirement | Disposition | Evidence | Scenario IDs or question | Oracle guard |\n|---|---|---|---|---|---|---|\n| OBL-auth-C01 | release | auth | SATISFIED_WITH_SOURCE_OR_APPROVED_DECISION | src/Auth.cs:42 | SC-AUTH-01 | PASS |\n| BND-001 | release | pipeline | NOT_APPLICABLE_WITH_EVIDENCE | src/Worker.cs:9 has no request pipeline | SC-NA-01 | NOT_APPLICABLE_WITH_EVIDENCE |"
+        );
+        let scenarios = "| ID | GIVEN | WHEN | THEN |\n|---|---|---|---|\n| SC-AUTH-01 | caller | authenticates | allowed |";
+        let result = validate_contract_checkpoint(&checkpoint, &contract, scenarios).unwrap();
+        assert_eq!(result["status"], "PASS");
+        assert_eq!(result["implementation_may_begin"], true);
+        assert!(result["failures"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn feature_contract_checkpoint_blocks_human_decision_and_rejects_reordering() {
+        let checkpoint = feature_contract_checkpoint_fixture();
+        let receipt = checkpoint["workflow_scaffold"]["markdown"].as_str().unwrap();
+        let blocked = format!(
+            "{receipt}\n| OBL-auth-C01 | release | auth | BLOCKING_UNKNOWN | Story is silent | Q1, Q2; EDGE-25 | PASS |\n| BND-001 | release | pipeline | NOT_APPLICABLE_WITH_EVIDENCE | src/Worker.cs:9 | SC-NA-01 | NOT_APPLICABLE_WITH_EVIDENCE |\n\n| # | Question | Kind |\n|---|---|---|\n| Q1 | Should credentials survive restart? | BLOCKING |\n| Q2 | Must a second instance accept the credential? | BLOCKING |"
+        );
+        let result = validate_contract_checkpoint(&checkpoint, &blocked, "No executable scenario while Q1 is blocked.").unwrap();
+        assert_eq!(result["status"], "BLOCKED_BY_HUMAN_DECISION");
+        assert_eq!(result["implementation_may_begin"], false);
+        assert_eq!(result["blocking_unknown_ids"][0], "OBL-auth-C01");
+
+        let reordered = format!(
+            "{receipt}\n| BND-001 | release | pipeline | NOT_APPLICABLE_WITH_EVIDENCE | src/Worker.cs:9 | SC-NA-01 | NOT_APPLICABLE_WITH_EVIDENCE |\n| OBL-auth-C01 | release | auth | SATISFIED_WITH_SOURCE_OR_APPROVED_DECISION | src/Auth.cs:42 | SC-AUTH-01 | PASS |"
+        );
+        let result = validate_contract_checkpoint(&checkpoint, &reordered, "| SC-AUTH-01 | scenario |").unwrap();
+        assert_eq!(result["status"], "FAIL");
+        assert!(result["failures"].as_array().unwrap().iter().any(|failure| {
+            failure.as_str().unwrap().contains("ledger row order differs")
+        }));
+    }
+
+    #[test]
+    fn feature_contract_checkpoint_with_no_hard_items_has_nothing_to_disposition() {
+        let checkpoint = serde_json::json!({
+            "receipt": {"receipt_id": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
+            "hard_items": [],
+            "workflow_scaffold": {"markdown": "`get_change_set contract checkpoint: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 configured_rules=0`"}
+        });
+        let result = validate_contract_checkpoint(&checkpoint, "", "").unwrap();
+        assert_eq!(result["status"], "PASS");
+        assert_eq!(result["implementation_may_begin"], true);
+        assert_eq!(result["hard_items_expected"], 0);
     }
 
     #[test]
@@ -10671,7 +14718,7 @@ mod dossier_obligation_tests {
 - `Site/App_Code/ata/code/huvud.vb` (21 co-changes)\n\
 - `Site/App_GlobalResources/label.resx` family\n\
 ## History/log tables\n\
-accessor: Site/App_Code/installationsobjekt/code/io-iom-log.vb\n\
+accessor: Site/App_Code/bokningsobjekt/code/io-iom-log.vb\n\
 ## Notes\n\
 prose without paths; duplicate Site/App_Code/ata/code/HUVUD.VB ignored\n";
         let obs = extract_dossier_obligations(dossier);
@@ -10681,7 +14728,7 @@ prose without paths; duplicate Site/App_Code/ata/code/HUVUD.VB ignored\n";
             vec![
                 "Site/App_Code/ata/code/huvud.vb",
                 "Site/App_GlobalResources/label.resx",
-                "Site/App_Code/installationsobjekt/code/io-iom-log.vb",
+                "Site/App_Code/bokningsobjekt/code/io-iom-log.vb",
             ]
         );
         assert_eq!(obs[0].0, "Co-change partners");
@@ -10816,8 +14863,18 @@ impl Engram {
                         .strip_prefix("file:")
                         .unwrap_or(&e.source_id)
                         .to_string();
+                    let library = {
+                        let current = get("library");
+                        if current.is_empty() {
+                            // Compatibility for indexes built before the extractor
+                            // standardized the key as `library`.
+                            get("gis_library")
+                        } else {
+                            current
+                        }
+                    };
                     (
-                        get("gis_library"),
+                        library,
                         get("map_class"),
                         get("modern_equivalent"),
                         file,
@@ -10825,7 +14882,7 @@ impl Engram {
                     )
                 })
                 .collect();
-            // Edges without gis_library metadata are config/layer references
+            // Edges without library metadata are config/layer references
             // (file → gis_config node), not API call sites — the configs and
             // layer sections already cover them.
             let rows: Vec<_> = rows.into_iter().filter(|r| !r.0.is_empty()).collect();
@@ -11180,13 +15237,13 @@ mod agent_integration_tests {
     fn workflow_rules_tell_the_agent_how_to_recover_a_stale_project_id() {
         // The id is baked in at generation time; a reindex under a new id
         // (2026-07-19 data_dir reset) left every generated call failing.
-        let rules = render_workflow_rules("pid-1", "C:/repo/ociusx");
+        let rules = render_workflow_rules("pid-1", "C:/repo/pilotapp");
         assert!(
             rules.contains("list_projects"),
             "no recovery path named:\n{rules}"
         );
         assert!(
-            rules.contains("C:/repo/ociusx"),
+            rules.contains("C:/repo/pilotapp"),
             "recovery must key on the indexed directory so the agent can match it:\n{rules}"
         );
     }
@@ -11229,6 +15286,158 @@ mod change_set_rows_tests {
     use super::*;
 
     #[test]
+    fn business_logic_documents_recover_the_checked_out_source_identity() {
+        assert_eq!(
+            business_logic_source_path(
+                "__business_logic/Site/App_Code/security/Policy.vb/Validate__L42.md"
+            )
+            .as_deref(),
+            Some("Site/App_Code/security/Policy.vb")
+        );
+        assert!(business_logic_source_path("Site/App_Code/security/Policy.vb").is_none());
+    }
+
+    #[test]
+    fn a_business_rule_anchor_is_primary_evidence() {
+        let prov = BTreeMap::from([(
+            "src/security/Policy.cs".to_string(),
+            BTreeSet::from(["business"]),
+        )]);
+        let (rows, _) = change_set_rows(&prov);
+        assert_eq!(rows[0].tier, 1);
+        assert_eq!(rows[0].set, "primary");
+        assert_eq!(rows[0].signals, vec!["business"]);
+    }
+
+    #[test]
+    fn compound_name_evidence_deduplicates_plural_variants() {
+        assert_eq!(canonical_story_name_term("roles"), "role");
+        assert_eq!(canonical_story_name_term("categories"), "category");
+        assert_eq!(canonical_story_name_term("address"), "address");
+        assert_eq!(canonical_story_name_term("status"), "status");
+        assert_eq!(canonical_story_name_term("analysis"), "analysis");
+        assert!(story_name_term_matches_stem("role", "aspnet_roles_basicaccess"));
+    }
+
+    #[test]
+    fn compound_name_evidence_ignores_incidental_singletons_in_long_work_items() {
+        let terms = story_name_terms(
+            "AB#42 Revalidate user sessions\n\n## Work item (full text)\n\
+             Sessions must be revalidated. A map feature item is an unrelated example.\n\
+             Password reset rotates the password generation.",
+        );
+        assert!(terms.contains("session"));
+        assert!(terms.contains("revalidate"));
+        assert!(terms.contains("password"));
+        assert!(!terms.contains("map"));
+        assert!(!terms.contains("feature"));
+        assert!(!terms.contains("item"));
+    }
+
+    /// The split marker above is the literal `## Work item` this handler emits
+    /// itself. A work item EXPORTED as markdown opens with `# Work item <id>` —
+    /// ONE hash — so the split never fires, `body` is empty, every token counts
+    /// as a headline term, and the singleton filter this function exists for is
+    /// inert. Measured: 9 of 9 replayed stories are the one-hash form.
+    #[test]
+    fn a_markdown_exported_work_item_still_drops_incidental_singletons() {
+        let terms = story_name_terms(
+            "# Work item 42 (User Story)\n\n\
+             Revalidate user sessions\n\n\
+             ## Description\n\
+             Sessions must be revalidated. A map gadget is an unrelated example.\n\
+             Password reset rotates the password generation.",
+        );
+        // Headline terms and repeated body terms are still evidence.
+        assert!(terms.contains("session"), "{terms:?}");
+        assert!(terms.contains("password"), "{terms:?}");
+        // Named once, deep in the body: not name evidence.
+        assert!(!terms.contains("map"), "{terms:?}");
+        assert!(!terms.contains("gadget"), "{terms:?}");
+        // Markdown scaffolding is structure, never a domain term.
+        assert!(!terms.contains("work"), "{terms:?}");
+        assert!(!terms.contains("item"), "{terms:?}");
+        assert!(!terms.contains("description"), "{terms:?}");
+    }
+
+    /// `system` is a stopword; `systems` is not in the list. Canonicalization
+    /// runs AFTER the stopword filter, so the plural passes the filter and is
+    /// then stripped back to the very word the list rejects. Live: `systems`
+    /// in a story became the term `system`, matching 80 files by stem.
+    #[test]
+    fn a_stopwords_plural_never_re_enters_as_a_name_term() {
+        let terms = story_name_terms(
+            "Export rollup widgets\n\n\
+             ## Description\n\
+             Import them into other systems. Other systems consume the export.",
+        );
+        assert!(!terms.contains("system"), "{terms:?}");
+        // The real domain words are untouched by the fix.
+        assert!(terms.contains("export"), "{terms:?}");
+        assert!(terms.contains("widget"), "{terms:?}");
+    }
+
+    #[test]
+    fn corpus_path_aliases_merge_onto_current_repository_identity() {
+        let current = "Site/App_GlobalResources/Text.en.resx";
+        let mut prov = BTreeMap::from([
+            (
+                "app_globalresources/text.en.resx".to_string(),
+                BTreeSet::from(["history"]),
+            ),
+            (current.to_string(), BTreeSet::from(["concept"])),
+        ]);
+        let mut why = BTreeMap::from([
+            (
+                "app_globalresources/text.en.resx".to_string(),
+                vec!["history evidence".to_string()],
+            ),
+            (current.to_string(), vec!["concept evidence".to_string()]),
+        ]);
+        let mut historical = BTreeSet::from(["app_globalresources/text.en.resx".to_string()]);
+
+        canonicalize_change_set_evidence(
+            &mut prov,
+            &mut why,
+            &mut historical,
+            [current.to_string()],
+        );
+
+        assert_eq!(prov.len(), 1);
+        assert_eq!(prov[current], BTreeSet::from(["concept", "history"]));
+        assert_eq!(why[current].len(), 2);
+        assert!(
+            historical.is_empty(),
+            "a safely canonicalized current file must not retain the historical label"
+        );
+    }
+
+    #[test]
+    fn corpus_path_suffix_aliases_merge_only_when_unique() {
+        let mut prov = BTreeMap::from([
+            ("shared/helpers.vb".to_string(), BTreeSet::from(["history"])),
+            ("reports/summary.vb".to_string(), BTreeSet::from(["history"])),
+        ]);
+        let mut why = BTreeMap::new();
+        let mut historical = BTreeSet::new();
+        canonicalize_change_set_evidence(
+            &mut prov,
+            &mut why,
+            &mut historical,
+            [
+                "web/shared/helpers.vb".to_string(),
+                "Web/Reports/Summary.vb".to_string(),
+                "legacy/reports/summary.vb".to_string(),
+            ],
+        );
+        assert!(prov.contains_key("web/shared/helpers.vb"), "{prov:?}");
+        assert!(
+            prov.contains_key("reports/summary.vb"),
+            "an ambiguous suffix must not merge: {prov:?}"
+        );
+    }
+
+    #[test]
     fn tail_cap_cuts_are_reported_as_omissions_not_dropped() {
         // 20 weak (concept-only, tier 3) server files + 1 golden co-change
         // file: the cap keeps 18 weak ones, reports 2, never touches golden.
@@ -11265,6 +15474,621 @@ mod change_set_rows_tests {
                 .any(|r| r.path.ends_with(".resx") && !r.signals.contains(&"family"))
         );
     }
+
+    #[test]
+    fn a_tail_cap_omission_carries_the_evidence_it_was_cut_on() {
+        // Live 1690: 89 rows were omitted by the tail cap, and each omission
+        // reported only path/layer/reason. Nothing in the answer says WHAT
+        // evidence the cut row had, so a caller cannot tell a correct cut from
+        // a wrong one — which is exactly why a ranking change to the companion
+        // order could not be evaluated from the output at all.
+        let mut prov: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
+        for i in 0..20 {
+            prov.insert(
+                format!("site/app_code/weak{i:02}.vb"),
+                BTreeSet::from(["concept"]),
+            );
+        }
+        let (_rows, omissions) = change_set_rows(&prov);
+        assert!(!omissions.is_empty());
+        let cut = &omissions[0];
+        assert!(cut.tier >= 2, "the cut row's tier must travel with it: {cut:?}");
+        assert!(
+            !cut.signals.is_empty(),
+            "the cut row's evidence must travel with it: {cut:?}"
+        );
+    }
+
+    #[test]
+    fn the_tail_cap_cuts_the_weakest_companion_not_the_deepest() {
+        // Live (story 1690): the file DEFINING the capability the story needed,
+        // `App_Code/integration/code/gis/Layer/GISLayerFilter.vb` at depth 5,
+        // was cut with reason "weak-signal tail cap (18 per layer)" while
+        // shallower rows carrying LESS evidence survived — companions are
+        // ordered by (layer, tier, depth, path), which drops the evidence
+        // strength the primary set is ranked by.
+        let mut prov: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
+        for i in 0..20 {
+            prov.insert(
+                format!("site/app_code/weak{i:02}.vb"),
+                BTreeSet::from(["concept"]),
+            );
+        }
+        // Same layer and same tier (concept without independent corroboration),
+        // but two pieces of evidence instead of one — and a deeper path.
+        prov.insert(
+            "site/app_code/gis/layer/filter/stronger.vb".into(),
+            BTreeSet::from(["concept", "lexicon"]),
+        );
+        let (_rows, omissions) = change_set_rows(&prov);
+        assert_eq!(omissions.len(), 3, "{omissions:?}");
+        assert!(
+            !omissions.iter().any(|o| o.path.ends_with("stronger.vb")),
+            "the cap must cut the WEAKEST companion, not the deepest path: {omissions:?}"
+        );
+    }
+
+    #[test]
+    fn reconciliation_receipt_binds_every_required_row_and_exact_path() {
+        let prov = BTreeMap::from([
+            ("src/account.vb".to_string(), BTreeSet::from(["entity"])),
+            ("src/login.js".to_string(), BTreeSet::from(["cochange"])),
+        ]);
+        let (rows, _) = change_set_rows(&prov);
+        let assets = vec![AssetGraphFile {
+            path: "Site/master.aspx".into(), anchor_path: "src/login.js".into(),
+            bundle_id: Some("bundle:login".into()), relation: "renders bundle",
+        }];
+        let callers = vec![CallerGraphFile {
+            path: "src/caller.vb".into(), caller_symbol: "Call".into(),
+            target_symbol: "Authorize".into(), anchor_path: "src/account.vb".into(),
+            edge_kind: "calls".into(),
+        }];
+        let receipt = change_set_reconciliation_receipt(&rows, &assets, &callers);
+        assert_eq!((receipt.primary_rows, receipt.asset_rows, receipt.caller_rows), (2, 1, 1));
+        assert_eq!(receipt.required_rows, 4);
+        assert!(receipt.receipt_id.starts_with("sha256:"));
+
+        let mut changed = callers.clone();
+        changed[0].path = "src/other-caller.vb".into();
+        assert_ne!(
+            receipt.receipt_id,
+            change_set_reconciliation_receipt(&rows, &assets, &changed).receipt_id
+        );
+    }
+
+    #[test]
+    fn mechanism_roles_explain_cross_layer_candidates_without_repo_names() {
+        assert_eq!(change_set_mechanism_role("src/AuthMiddleware.vb"), "request pipeline and principal propagation");
+        assert_eq!(change_set_mechanism_role("src/ErrorResponses.cs"), "error and response contract");
+        assert_eq!(change_set_mechanism_role("src/security_audit.vb"), "audit and operational logging");
+        assert_eq!(change_set_mechanism_role("App_Start/BundleConfig.cs"), "asset registration and delivery");
+        assert_eq!(change_set_mechanism_role("Views/Site.master"), "rendered user-interface host");
+    }
+
+    #[test]
+    fn reconciled_rows_dictionary_encode_only_repeated_guidance() {
+        let repeated = "inspect the same concrete source behavior before excluding this row";
+        let mut primary = vec![
+            serde_json::json!({"row_id": "P001", "impact_question": repeated, "path": "A.cs"}),
+            serde_json::json!({"row_id": "P002", "impact_question": repeated, "path": "B.cs"}),
+        ];
+        let mut assets = vec![serde_json::json!({
+            "row_id": "A001",
+            "impact_question": "this unique question remains inline because it occurs once",
+            "path": "bundle.js"
+        })];
+        let mut callers = Vec::new();
+        let dictionary = compact_row_guidance(&mut [
+            &mut primary,
+            &mut assets,
+            &mut callers,
+        ]);
+        assert_eq!(primary[0]["impact_question_ref"], "G001");
+        assert_eq!(primary[1]["impact_question_ref"], "G001");
+        assert!(primary[0].get("impact_question").is_none());
+        assert_eq!(
+            assets[0]["impact_question"],
+            "this unique question remains inline because it occurs once"
+        );
+        assert_eq!(dictionary["entries"].as_array().unwrap().len(), 1);
+        assert_eq!(dictionary["entries"][0]["text"], repeated);
+    }
+
+    #[test]
+    fn change_set_rows_explain_evidence_strength_and_causal_check() {
+        let direct = vec!["business", "cochange"];
+        assert_eq!(
+            change_set_evidence_class(&direct),
+            "corroborated_behavioral_candidate"
+        );
+        assert!(change_set_exclusion_evidence(&direct).contains("source evidence"));
+        assert!(
+            change_set_impact_question("src/AuthMiddleware.vb")
+                .contains("framework principals")
+        );
+        assert!(
+            change_set_impact_question("App_Start/BundleConfig.cs")
+                .contains("registry")
+        );
+    }
+
+    #[test]
+    fn contract_checkpoint_contains_only_hard_configured_rules() {
+        let rule = |id: &str, severity: &str, guard: Option<&str>| PlanningContractRuleMatch {
+            id: id.into(),
+            title: format!("{id} title"),
+            requirement: format!("prove {id}"),
+            severity: severity.into(),
+            oracle_guard: guard.map(str::to_string),
+            source: "project".into(),
+            introduced_at: Some("2020-01-01".into()),
+            provenance: Some("test fixture".into()),
+        };
+        let rules = vec![
+            rule("RULE-hard", "release_blocking_if_applicable", None),
+            rule("RULE-guarded", "required_if_applicable", Some("exercise the guarded behavior")),
+            rule("RULE-advisory", "required_if_applicable", None),
+        ];
+        let checkpoint = change_set_contract_checkpoint(&rules);
+        assert_eq!(checkpoint["status"], "REQUIRES_EXPLICIT_DISPOSITIONS");
+        assert_eq!(
+            checkpoint["configured_rule_ids"],
+            serde_json::json!(["RULE-hard", "RULE-guarded"])
+        );
+        assert_eq!(checkpoint["advisory_rules_total"], 1);
+        let markdown = checkpoint["workflow_scaffold"]["markdown"].as_str().unwrap();
+        let receipt = checkpoint["receipt"]["receipt_id"].as_str().unwrap();
+        assert!(markdown.lines().next().unwrap().contains(receipt));
+        assert_eq!(markdown.lines().filter(|line| line.starts_with("| RULE-")).count(), 2);
+
+        let empty = change_set_contract_checkpoint(&[]);
+        assert_eq!(empty["status"], "NO_CONFIGURED_HARD_RULES");
+        assert!(empty["hard_items"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn contract_checkpoint_scaffold_round_trips_through_the_validator() {
+        let rules = vec![PlanningContractRuleMatch {
+            id: "RULE-hard".into(),
+            title: "Hard rule".into(),
+            requirement: "prove the configured behavior".into(),
+            severity: "release_blocking_if_applicable".into(),
+            oracle_guard: None,
+            source: "project".into(),
+            introduced_at: None,
+            provenance: None,
+        }];
+        let checkpoint = change_set_contract_checkpoint(&rules);
+        let contract = checkpoint["workflow_scaffold"]["markdown"]
+            .as_str()
+            .unwrap()
+            .replace(
+                "| MISSING | | | MISSING |",
+                "| SATISFIED_WITH_SOURCE_OR_APPROVED_DECISION | src/Rule.cs:3 | SC-RULE-01 | NOT_APPLICABLE_WITH_EVIDENCE |",
+            );
+        let result =
+            validate_contract_checkpoint(&checkpoint, &contract, "| SC-RULE-01 | scenario |").unwrap();
+        assert_eq!(result["status"], "PASS", "{result}");
+    }
+
+    #[test]
+    fn edited_paths_resolve_only_unique_source_root_aliases() {
+        let current = vec![
+            "Site/App_Code/Auth/Login.vb".to_string(),
+            "Site/Admin/Login.vb".to_string(),
+            "src/Exact.cs".to_string(),
+        ];
+        let (resolved, unresolved, notes) = resolve_current_edit_paths(
+            &[
+                "App_Code/Auth/Login.vb".to_string(),
+                "src\\Exact.cs".to_string(),
+                "Login.vb".to_string(),
+                "missing.cs".to_string(),
+            ],
+            &current,
+        );
+        assert_eq!(resolved[0].1, "Site/App_Code/Auth/Login.vb");
+        assert_eq!(resolved[1].1, "src/Exact.cs");
+        assert_eq!(resolved[2].1, "Login.vb");
+        assert_eq!(unresolved, vec!["Login.vb", "missing.cs"]);
+        assert_eq!(notes.len(), 1);
+        assert!(notes[0].contains("ambiguous"));
+    }
+
+    #[test]
+    fn applicable_rules_are_path_scoped_and_historical_cutoff_safe() {
+        let rule = |id: &str, pattern: &str, date: Option<&str>, priority: i32| {
+            engram_core::RepoRule {
+                rule_id: id.into(),
+                file_pattern: pattern.into(),
+                rule_text: format!("rule {id}"),
+                priority,
+                updated_at_ms: 1,
+                introduced_at: date.map(str::to_string),
+                provenance: Some("review corpus".into()),
+            }
+        };
+        let rules = vec![
+            rule("old-vb", "**/*.vb", Some("2025-01-01"), 80),
+            rule("future-vb", "**/*.vb", Some("2027-01-01"), 90),
+            rule("undated", "**/*.vb", None, 100),
+            rule("old-js", "**/*.js", Some("2025-01-01"), 70),
+        ];
+        let (matched, excluded) = applicable_change_set_rules(
+            rules,
+            &["src/Login.vb".into()],
+            Some("2026-09-03"),
+        );
+        assert_eq!(excluded, 2);
+        assert_eq!(matched.len(), 1);
+        assert_eq!(matched[0]["rule_id"], "old-vb");
+        assert_eq!(matched[0]["rule_text"], "rule old-vb");
+    }
+
+    #[test]
+    fn a_ruled_construct_is_located_per_occurrence_not_per_file() {
+        // A matched rule names a construct; the SAME file can hold several
+        // occurrences of it whose verdicts are opposite, because each one has a
+        // different receiver. A row that only says "this rule applies to this
+        // file" cannot disposition them separately, so the reader is told a rule
+        // fires without being able to tell which line it fires on.
+        //
+        // Production change that would make this fail: reporting the construct
+        // once per file, or dropping the receiver text that distinguishes the
+        // occurrences from one another.
+        let source = "\
+Public Class Report
+    Public Shared Function Build() As Integer
+        Dim allowed = Lookup.AllowedIds()
+        Dim first = rows.Where(Function(r) allowed.Contains(r.OwnerId))
+        Dim second = rows.Where(Function(d) batch.Contains(d.ItemId))
+        Return 0
+    End Function
+End Class";
+        let sites = rule_construct_occurrences(source, ".Contains", true);
+        assert_eq!(
+            sites,
+            vec![(4, "allowed".to_string()), (5, "batch".to_string())],
+            "both occurrences must be separately addressable by line and receiver"
+        );
+    }
+
+    #[test]
+    fn rule_prose_yields_only_constructs_it_actually_names() {
+        // Tying a rule to the lines it governs starts with knowing WHICH construct
+        // the rule speaks about. Prose names it bare or inside backticks.
+        //
+        // Production change that would make this fail: returning every dotted word
+        // found in the prose, or inventing a construct for a rule that names none.
+        assert_eq!(
+            rule_named_constructs("Guard large .Contains filters before calling the store"),
+            vec![".Contains".to_string()]
+        );
+        assert_eq!(
+            rule_named_constructs("Check the list is present before `.Contains` runs"),
+            vec![".Contains".to_string()]
+        );
+        // Negative control: a process rule naming no construct must stay silent,
+        // or every row would inherit a line-level claim nothing supports.
+        assert!(
+            rule_named_constructs("Wrap related writes in one transaction and surface failures")
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn construct_sites_are_reported_only_where_a_rule_actually_governs_them() {
+        // The defect this closes: a row says "this rule applies to this file"
+        // while the file holds several occurrences of the ruled construct whose
+        // verdicts differ. The reader cannot tell which line the rule fires on.
+        //
+        // Production change that would make this fail: collapsing the occurrences
+        // to one per file, dropping the receivers that tell them apart, or
+        // reporting sites for a rule or a language that cannot support the claim.
+        let source = "\
+Public Class Report
+    Public Shared Function Build() As Integer
+        Dim first = rows.Where(Function(r) allowed.Contains(r.OwnerId))
+        Dim second = rows.Where(Function(d) batch.Contains(d.ItemId))
+        Return 0
+    End Function
+End Class";
+        let governing = vec![(
+            "r-001".to_string(),
+            "Guard large .Contains filters before calling the store".to_string(),
+        )];
+
+        let sites = row_ruled_construct_sites("src/Report.vb", source, &governing);
+        assert_eq!(sites.len(), 1, "one governing rule, one construct: {sites:?}");
+        assert_eq!(sites[0]["rule_ids"], serde_json::json!(["r-001"]));
+        assert_eq!(sites[0]["construct"], ".Contains");
+        let occurrences = sites[0]["occurrences"].as_array().unwrap();
+        assert_eq!(occurrences.len(), 2, "both sites must stay addressable");
+        assert_eq!(occurrences[0]["line"], 3);
+        assert_eq!(occurrences[0]["receiver"], "allowed");
+        assert_eq!(occurrences[1]["line"], 4);
+        assert_eq!(occurrences[1]["receiver"], "batch");
+
+        // Negative control: a process rule governs no construct, so it must not
+        // attach itself to any line.
+        let process_rule = vec![(
+            "r-002".to_string(),
+            "Wrap related writes in one transaction and surface failures".to_string(),
+        )];
+        assert!(row_ruled_construct_sites("src/Report.vb", source, &process_rule).is_empty());
+
+        // Negative control: a language whose comment and literal forms this
+        // masker does not understand must stay silent rather than risk counting
+        // a commented-out match as a live call site.
+        assert!(row_ruled_construct_sites("src/report.py", source, &governing).is_empty());
+    }
+
+    #[test]
+    fn rules_naming_one_construct_share_a_single_entry() {
+        // Measured live: FOUR repository rules name `.Contains`, and one entry per RULE
+        // repeated the same occurrence list four times on every governed row - 4x the
+        // payload for no added information, in a dossier that already exhausted a token
+        // budget. The occurrences belong to the CONSTRUCT; the rules are what cite it.
+        //
+        // Production change that would make this fail: emitting one entry per rule again,
+        // or dropping the rule ids so a reader cannot tell which rules are in play.
+        let source = "\
+Public Class Report
+    Public Shared Function Build() As Integer
+        Dim first = rows.Where(Function(r) allowed.Contains(r.OwnerId))
+        Dim second = rows.Where(Function(d) batch.Contains(d.ItemId))
+        Return 0
+    End Function
+End Class";
+        // `row_ruled_construct_sites` receives rules whose paths already matched, so the
+        // pairs are (rule_id, rule_text) - the file pattern belongs to `row_rule_evidence`.
+        let two_rules = vec![
+            (
+                "r-001".to_string(),
+                "Guard large .Contains filters before calling the store".to_string(),
+            ),
+            (
+                "r-002".to_string(),
+                "Check the list is present before `.Contains` runs".to_string(),
+            ),
+        ];
+
+        let sites = row_ruled_construct_sites("src/Report.vb", source, &two_rules);
+        assert_eq!(sites.len(), 1, "one construct means one entry: {sites:?}");
+        assert_eq!(sites[0]["construct"], ".Contains");
+        assert_eq!(
+            sites[0]["rule_ids"],
+            serde_json::json!(["r-001", "r-002"]),
+            "both citing rules must remain visible"
+        );
+        assert_eq!(sites[0]["occurrences_total"].as_u64().unwrap(), 2);
+        assert_eq!(sites[0]["occurrences"].as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn a_row_whose_path_is_not_a_file_is_never_scanned() {
+        // Measured on a live dossier: four primary rows carried an antipattern GLOB as
+        // their path (site/app_code/.../**/*.vb). They are not files. One reported
+        // "indexed source file missing" - technically true, practically misleading, since
+        // the row never named source at all - and the rest consumed governed-row budget
+        // before falling past the scan cap, taking slots real files could have used.
+        //
+        // Production change that would make this fail: scanning a glob path, or emitting
+        // a drift reason for a row that never pointed at a file.
+        let source: &[u8] =
+            b"Public Class Report\n    Dim x = rows.Where(Function(r) allowed.Contains(r.Id))\nEnd Class\n";
+        let good =
+            serde_json::json!({ "file_hash": blake3::hash(source).to_hex().to_string() });
+        let governing = vec![(
+            "r-001".to_string(),
+            "**/*.vb".to_string(),
+            "Guard large .Contains filters before calling the store".to_string(),
+        )];
+
+        // POSITIVE CONTROL: an ordinary path with these exact inputs DOES produce
+        // evidence. Without it, the assertion below could pass for the wrong reason.
+        assert!(
+            row_rule_evidence(
+                "src/Report.vb", &governing, Some(&good), Some(7), 7, Some(source)
+            )
+            .is_some(),
+            "control must produce evidence, or this test proves nothing"
+        );
+
+        // A glob matches the rule's file pattern and ends in .vb, so every other gate
+        // lets it through. It is still not a path to source.
+        assert!(
+            row_rule_evidence(
+                "src/**/*.vb", &governing, Some(&good), Some(7), 7, Some(source)
+            )
+            .is_none(),
+            "a glob row must stay silent, not report a drift reason"
+        );
+    }
+
+    #[test]
+    fn a_row_past_the_site_cap_still_reports_how_many_it_actually_found() {
+        // Bounding the list is necessary; hiding that it was bounded is not. A
+        // reader who sees the cap-many entries and no total cannot tell a file
+        // with exactly that many sites from one with far more.
+        //
+        // Production change that would make this fail: dropping the total, or
+        // truncating without declaring the cap that did it.
+        let extra = 4;
+        let mut source = String::from("Public Class Report\n");
+        for index in 0..(CHANGE_SET_CONSTRUCT_SITE_CAP + extra) {
+            source.push_str(&format!(
+                "        Dim v{index} = rows.Where(Function(r) list{index}.Contains(r.Id))\n"
+            ));
+        }
+        source.push_str("End Class\n");
+        let governing = vec![(
+            "r-001".to_string(),
+            "Guard large .Contains filters before calling the store".to_string(),
+        )];
+
+        let sites = row_ruled_construct_sites("src/Report.vb", &source, &governing);
+        assert_eq!(sites.len(), 1, "{sites:?}");
+        let entry = &sites[0];
+        assert_eq!(
+            entry["occurrences"].as_array().unwrap().len(),
+            CHANGE_SET_CONSTRUCT_SITE_CAP,
+            "listed occurrences must stop at the cap"
+        );
+        assert_eq!(
+            entry["occurrences_total"].as_u64().unwrap() as usize,
+            CHANGE_SET_CONSTRUCT_SITE_CAP + extra,
+            "the true total must survive the truncation"
+        );
+        assert_eq!(
+            entry["occurrence_cap"].as_u64().unwrap() as usize,
+            CHANGE_SET_CONSTRUCT_SITE_CAP,
+            "the cap that truncated must be named in the row"
+        );
+    }
+
+    #[test]
+    fn a_row_only_cites_lines_from_source_it_can_still_vouch_for() {
+        // Line citations are true only while the bytes on disk are the bytes that
+        // were fingerprinted. Each way that can fail gets its own answer, because
+        // "not checked" and "nothing found" are different facts to a reader.
+        //
+        // Production change that would make this fail: collapsing these states into
+        // one marker, or letting any of them pass as verified.
+        let bytes: &[u8] = b"Public Class Report\nEnd Class\n";
+        let edited: &[u8] = b"Public Class Report\n' changed\nEnd Class\n";
+        let digest = blake3::hash(bytes).to_hex().to_string();
+        let good = serde_json::json!({ "file_hash": digest });
+
+        // POSITIVE CONTROL: fingerprint matches and the node is not ahead of the
+        // snapshot these rows were built from, so the citations hold.
+        assert_eq!(row_source_drift(Some(&good), Some(7), 7, Some(bytes)), None);
+
+        assert_eq!(
+            row_source_drift(None, None, 7, Some(bytes)),
+            Some("indexed source file missing")
+        );
+
+        let no_hash = serde_json::json!({ "language": "vb" });
+        assert_eq!(
+            row_source_drift(Some(&no_hash), Some(7), 7, Some(bytes)),
+            Some("indexed source fingerprint missing")
+        );
+
+        // Refused on its own terms: a node stamped by a newer generation would
+        // judge these older rows by evidence they were never built from.
+        assert_eq!(
+            row_source_drift(Some(&good), Some(8), 7, Some(bytes)),
+            Some("not verifiable at this snapshot")
+        );
+
+        assert_eq!(
+            row_source_drift(Some(&good), Some(7), 7, Some(edited)),
+            Some("source fingerprint stale")
+        );
+
+        // Indexed, but gone from the working tree: nothing to compare against.
+        assert_eq!(
+            row_source_drift(Some(&good), Some(7), 7, None),
+            Some("source unreadable on disk")
+        );
+    }
+
+    #[test]
+    fn a_row_reports_ruled_construct_evidence_or_says_why_it_cannot() {
+        // A row owes the reader either the located sites or a reason it could not
+        // locate them - but only when a rule that names a construct governs it.
+        // A drift marker on a row whose rules name nothing is noise that buries
+        // the markers that matter.
+        //
+        // Production change that would make this fail: reporting drift for rows no
+        // governing rule speaks about, or letting unverifiable source produce sites.
+        let source: &[u8] = b"Public Class Report\n    Public Shared Function Build() As Integer\n        Dim first = rows.Where(Function(r) allowed.Contains(r.OwnerId))\n        Return 0\n    End Function\nEnd Class\n";
+        let edited: &[u8] = b"Public Class Report\n' changed\nEnd Class\n";
+        let good = serde_json::json!({ "file_hash": blake3::hash(source).to_hex().to_string() });
+
+        let governing = vec![(
+            "r-001".to_string(),
+            "**/*.vb".to_string(),
+            "Guard large .Contains filters before calling the store".to_string(),
+        )];
+        let elsewhere = vec![(
+            "r-002".to_string(),
+            "**/*.ts".to_string(),
+            "Guard large .Contains filters before calling the store".to_string(),
+        )];
+        let no_construct = vec![(
+            "r-003".to_string(),
+            "**/*.vb".to_string(),
+            "Wrap related writes in one transaction and surface failures".to_string(),
+        )];
+
+        let found = row_rule_evidence(
+            "src/Report.vb", &governing, Some(&good), Some(7), 7, Some(source),
+        )
+        .expect("a governing rule over verifiable source must produce evidence");
+        assert_eq!(found["status"], "verified");
+        let sites = found["sites"].as_array().unwrap();
+        assert_eq!(sites[0]["rule_ids"], serde_json::json!(["r-001"]));
+        assert_eq!(sites[0]["construct"], ".Contains");
+        assert_eq!(sites[0]["occurrences"][0]["line"], 3);
+        assert_eq!(sites[0]["occurrences"][0]["receiver"], "allowed");
+
+        let drifted = row_rule_evidence(
+            "src/Report.vb", &governing, Some(&good), Some(7), 7, Some(edited),
+        )
+        .expect("a governing rule over unverifiable source must say so");
+        assert_eq!(drifted["status"], "not_checked");
+        assert_eq!(drifted["reason"], "source fingerprint stale");
+
+        // Negative control: the rule governs other paths, so this row owes nothing
+        // -- not even a drift marker.
+        assert!(
+            row_rule_evidence(
+                "src/Report.vb", &elsewhere, Some(&good), Some(7), 7, Some(edited)
+            )
+            .is_none()
+        );
+
+        // Negative control: a governing rule that names no construct likewise owes
+        // nothing, however stale the source is.
+        assert!(
+            row_rule_evidence(
+                "src/Report.vb", &no_construct, Some(&good), Some(7), 7, Some(edited)
+            )
+            .is_none()
+        );
+
+        // Bytes that match their fingerprint but are not text cannot be scanned;
+        // the decode branch must report rather than silently yield no sites.
+        let bad: &[u8] = &[0xff, 0xfe, 0xfd];
+        let bad_meta =
+            serde_json::json!({ "file_hash": blake3::hash(bad).to_hex().to_string() });
+        let undecodable = row_rule_evidence(
+            "src/Report.vb", &governing, Some(&bad_meta), Some(7), 7, Some(bad),
+        )
+        .expect("undecodable source must be reported, not silently empty");
+        assert_eq!(undecodable["status"], "not_checked");
+        assert_eq!(undecodable["reason"], "source is not UTF-8");
+    }
+
+    #[test]
+    fn historical_work_item_review_material_is_explicitly_flagged() {
+        let risk = change_set_work_item_evidence_risk(
+            "Acceptance criteria. <!-- auto-generated comment --> Summary by CodeRabbit. Local remediation verification completed 2026-09-10.",
+            Some("2026-09-03"),
+        );
+        assert_eq!(risk["status"], "review_or_post_cutoff_material_detected");
+        assert!(risk["matched_review_markers"].as_array().unwrap().len() >= 3);
+        assert_eq!(risk["post_cutoff_dates"][0], "2026-09-10");
+
+        let clean = change_set_work_item_evidence_risk(
+            "As a user, I can save a report.",
+            Some("2026-09-03"),
+        );
+        assert_eq!(clean["status"], "no_obvious_review_material_detected");
+    }
 }
 
 #[cfg(test)]
@@ -11275,14 +16099,14 @@ mod story_concept_resolution_tests {
     //! appended when the index corroborates them.
     use super::*;
 
-    const STORY: &str = "As an admin I want to set a main reporting category (huvudredovisningskategori) \
+    const STORY: &str = "As an admin I want to set a main reporting category (huvudkostnadskategori) \
                          on a production code list category so that time reports roll up to it";
 
     #[test]
     fn candidates_include_parenthesized_domain_terms_and_noun_phrases() {
         let c = extract_story_concept_candidates(STORY);
         assert!(
-            c.iter().any(|x| x == "huvudredovisningskategori"),
+            c.iter().any(|x| x == "huvudkostnadskategori"),
             "a parenthesized gloss is the author naming the domain entity: {c:?}"
         );
         assert!(
@@ -11301,16 +16125,16 @@ mod story_concept_resolution_tests {
     #[test]
     fn resolution_keeps_only_index_corroborated_candidates_and_splits_compounds() {
         let index = vec![
-            "Site/App_Code/redovisning/code/redovisningskategorier.vb".to_string(),
+            "Site/App_Code/leverans/code/kostnadskategorier.vb".to_string(),
             "Site/modules/dashboard/pages/admin/production/productioncodelistcategory.aspx.vb"
                 .to_string(),
-            "db-ociusx.sql/dbo/Tables/rk_redovisningskategorier.sql".to_string(),
+            "db-app.sql/dbo/Tables/kk_kostnadskategorier.sql".to_string(),
         ];
         let cands = vec![
             "main".to_string(),
             "reporting".to_string(),
             "category".to_string(),
-            "huvudredovisningskategori".to_string(),
+            "huvudkostnadskategori".to_string(),
             "reporting category".to_string(),
             "code list category".to_string(),
             "unicorn".to_string(),
@@ -11319,7 +16143,7 @@ mod story_concept_resolution_tests {
         // The first three are never dropped (no regression on the recipe).
         assert_eq!(&resolved[..3], &["main", "reporting", "category"]);
         assert!(
-            resolved.iter().any(|x| x == "redovisningskategori"),
+            resolved.iter().any(|x| x == "kostnadskategori"),
             "the Swedish compound must resolve to the indexed stem (suffix split): {resolved:?}"
         );
         assert!(
@@ -11343,6 +16167,107 @@ mod story_concept_resolution_tests {
         let resolved = resolve_story_concepts(&cands, &[], 6);
         assert_eq!(resolved, vec!["main", "reporting", "category"]);
     }
+
+    #[test]
+    fn resolution_uses_later_story_entities_and_long_inflection_stems() {
+        let story = "Improve active user sessions after authorization changes so authenticated accounts are revalidated";
+        let index = vec![
+            "src/security/AuthenticationService.vb".to_string(),
+            "src/security/SessionRepository.vb".to_string(),
+        ];
+        let resolved = resolve_story_concepts(
+            &extract_story_concept_candidates(story),
+            &index,
+            6,
+        );
+        assert!(
+            resolved.iter().any(|c| c == "authenticat"),
+            "authenticated must reach AuthenticationService: {resolved:?}"
+        );
+        assert!(
+            resolved.iter().any(|c| c == "session" || c == "sessions"),
+            "session entity must remain eligible: {resolved:?}"
+        );
+    }
+
+    /// A work item that names the exact code path it means — `A.DoThing->b.c()`
+    /// — is the strongest identity a story can offer, and `entity` is a GOLDEN
+    /// signal. But the whole chain survives tokenization as ONE blob, and
+    /// `code_entity_file_matches` needs exact equality or a compound/acronym
+    /// PREFIX, so a blob beginning with the caller's name matches no stem.
+    /// Measured on a replayed PR: `coverage.entity` reported status "complete"
+    /// with hits 0 — the arm cannot tell that it failed — while the file the
+    /// story named by name sat at tier 4 on a `broad` signal and was cut.
+    ///
+    /// Constituents must therefore be extractable. Splitting is ADDITIVE and
+    /// only touches tokens carrying call-chain punctuation, so the exact-vec
+    /// contract below (`TokenEpoch`, `app_Accounts`, `ResetPassword` — no dots,
+    /// no arrows) is unaffected, and `_`/camelCase are deliberately NOT split.
+    #[test]
+    fn a_story_naming_a_call_chain_yields_its_constituent_identifiers() {
+        let story =
+            "scheduled jobs running every 30 min (Job.UpdateWidgetRollup->widgetrollup.job_refresh())";
+        let e = extract_story_code_entities(story);
+        assert!(
+            e.iter().any(|x| x.eq_ignore_ascii_case("widgetrollup")),
+            "the receiver named in the chain must be extractable (a bare part \
+             inherits its parent's structure and must survive the `structured` \
+             filter): {e:?}"
+        );
+        assert!(
+            e.iter().any(|x| x.eq_ignore_ascii_case("UpdateWidgetRollup")),
+            "the member named in the chain must be extractable: {e:?}"
+        );
+    }
+
+    /// Splitting a call chain must not shred ordinary hyphenated identifiers.
+    /// `->` is consumed as a unit; a bare `-` is NOT a separator, or
+    /// `api-images` would yield the generic `images` — precisely the
+    /// over-generalisation `code_entity_file_matches` refuses when it rejects
+    /// `app_Accounts` -> `Accounts`. The exact-vec contract below contains no
+    /// hyphen and structurally cannot catch this, so it is pinned here.
+    #[test]
+    fn a_hyphenated_identifier_is_never_split_into_generic_fragments() {
+        let e = extract_story_code_entities("the rollup-widgets endpoint returns gadget-summaries");
+        assert!(
+            e.iter().any(|x| x == "rollup-widgets"),
+            "the hyphenated identifier survives whole: {e:?}"
+        );
+        for fragment in ["widgets", "summaries", "gadget"] {
+            assert!(
+                !e.iter().any(|x| x.eq_ignore_ascii_case(fragment)),
+                "`{fragment}` is a generic fragment of a hyphenated identifier and \
+                 must not be emitted as its own entity: {e:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn code_shaped_story_entities_resolve_without_prose_noise() {
+        let story =
+            "Update TokenEpoch in app_Accounts through ResetPassword while ordinary users continue";
+        let entities = extract_story_code_entities(story);
+        assert_eq!(
+            entities,
+            vec!["TokenEpoch", "app_Accounts", "ResetPassword"]
+        );
+        assert!(code_entity_file_matches("app_Accounts", "app_Accounts"));
+        assert!(code_entity_file_matches(
+            "LicenseSeatRevoked",
+            "LicenseSeat"
+        ));
+        assert!(!code_entity_file_matches("app_Accounts", "Accounts"));
+        assert!(code_entity_file_matches("SAML", "SAMLService"));
+        assert!(code_entity_matches(
+            "ResetPassword",
+            "_ac.CredentialManager.ResetPassword"
+        ));
+        assert!(!code_entity_matches("ordinary", "Coordinator"));
+        assert!(code_entity_path_eligible("src/AuthenticationService.vb"));
+        assert!(!code_entity_path_eligible("src/Tenant.designer.vb"));
+        assert!(!code_entity_path_eligible("Product.sln"));
+        assert!(!code_entity_path_eligible("src/App.csproj"));
+    }
 }
 
 #[cfg(test)]
@@ -11358,6 +16283,7 @@ mod change_set_tier_tests {
     #[test]
     fn golden_signals_stay_on_top() {
         assert_eq!(t(&["cochange", "concept"]), 0);
+        assert_eq!(t(&["entity"]), 1);
         assert_eq!(t(&["history"]), 1);
         assert!(t(&["history"]) < t(&["concept", "vector"]));
     }
@@ -11365,6 +16291,11 @@ mod change_set_tier_tests {
     #[test]
     fn concept_plus_weak_beats_concept_alone_which_beats_weak_pairs() {
         assert!(t(&["concept", "vector"]) < t(&["concept"]));
+        assert_eq!(
+            t(&["concept", "disk"]),
+            t(&["concept"]),
+            "disk existence is path provenance, not independent relevance evidence"
+        );
         assert!(
             t(&["concept"]) < t(&["vector", "graph"]),
             "two associative signals must not outrank an entity match: concept={} vector+graph={}",
@@ -11372,6 +16303,18 @@ mod change_set_tier_tests {
             t(&["vector", "graph"])
         );
         assert!(t(&["vector", "graph"]) <= t(&["vector"]));
+    }
+
+    #[test]
+    fn family_metadata_never_self_corroborates_a_lexicon_match() {
+        let translated_family = ["concept", "lexicon", "family"];
+        assert_eq!(t(&translated_family), 3);
+        assert_eq!(
+            change_set_strength(&translated_family.into_iter().collect()),
+            2,
+            "concept and lexicon are evidence labels; family bookkeeping adds no strength"
+        );
+        assert_eq!(t(&["concept", "lexicon", "family", "history"]), 0);
     }
 }
 
@@ -11442,7 +16385,7 @@ mod footprint_literal_tests {
     //! Row-4 audit A2: the footprint runs a LITERAL (substring, case-
     //! insensitive) pass over the indexed chunk text, because the tokenized
     //! index cannot see a stem inside an identifier
-    //! (`rk_redovisningskategorier`). Its caps and status are reported.
+    //! (`kk_kostnadskategorier`). Its caps and status are reported.
     use super::*;
 
     #[test]

@@ -52,19 +52,19 @@ fn make_fixture(root: &Path, count: usize) {
     for i in 0..count {
         let contents = format!(
             "' File {i} — synthetic fixture\n\
-             Public Function GetItem{i}(id As Integer, Optional db As iFaltDataContext = Nothing) As Item\n\
-                 Using ctx = If(db, New iFaltDataContext())\n\
+             Public Function GetItem{i}(id As Integer, Optional db As iCoreDataContext = Nothing) As Item\n\
+                 Using ctx = If(db, New iCoreDataContext())\n\
                      Dim result = (From row In ctx.items Where row.id = id).FirstOrDefault()\n\
                      If result Is Nothing Then Return Nothing\n\
                      ctx.SubmitChanges()\n\
-                     handelselogg.Create(\"Item{i}\", result.id)\n\
+                     aktivitetslogg.Create(\"Item{i}\", result.id)\n\
                      Return result\n\
                  End Using\n\
              End Function\n\
              \n\
-             Public Function UpdateItem{i}(item As Item, Optional db As iFaltDataContext = Nothing) As Boolean\n\
+             Public Function UpdateItem{i}(item As Item, Optional db As iCoreDataContext = Nothing) As Boolean\n\
                  ' LOG_{i}: activity log marker for downstream analysis\n\
-                 Using ctx = If(db, New iFaltDataContext())\n\
+                 Using ctx = If(db, New iCoreDataContext())\n\
                      Dim row = ctx.items.FirstOrDefault(Function(r) r.id = item.id)\n\
                      If row Is Nothing Then Return False\n\
                      row.name = item.name\n\
@@ -189,6 +189,7 @@ async fn grep_term_index_beats_rg_on_ascii_identifier() {
         case_sensitive: None,
         multiline: false,
         path_prefix: None,
+        exclude_path_prefixes: Vec::new(),
         language: None,
         context_before: 0,
         context_after: 0,
@@ -292,6 +293,7 @@ async fn grep_full_scan_still_returns_correct_matches() {
         case_sensitive: Some(true),
         multiline: false,
         path_prefix: None,
+        exclude_path_prefixes: Vec::new(),
         language: None,
         context_before: 0,
         context_after: 0,
@@ -388,6 +390,7 @@ async fn grep_full_benchmark_matrix_beats_rg() {
             case_sensitive: None,
             multiline: *multiline,
             path_prefix: None,
+            exclude_path_prefixes: Vec::new(),
             language: None,
             context_before: 0,
             context_after: 0,
@@ -488,6 +491,7 @@ async fn grep_reports_stale_paths_when_files_change_after_index() {
         case_sensitive: None,
         multiline: false,
         path_prefix: None,
+        exclude_path_prefixes: Vec::new(),
         language: None,
         context_before: 0,
         context_after: 0,

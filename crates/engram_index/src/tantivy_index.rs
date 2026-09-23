@@ -1,7 +1,8 @@
-use std::path::Path;
+use crate::word_tokenizer::{WORDS_TOKENIZER, words_analyzer};
+use std::path::{Path, PathBuf};
 use tantivy::schema::*;
 use tantivy::tokenizer::{NgramTokenizer, TextAnalyzer};
-use tantivy::{Index, Result as TantivyResult};
+use tantivy::{Index, Result as TantivyResult, TantivyDocument};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Fields {
@@ -22,12 +23,17 @@ pub struct Fields {
     pub timestamp: Field,
     pub start_line: Field,
     pub end_line: Field,
+    /// Case-preserving character trigrams: substring grep and regex.
     pub content: Field,
+    /// Words (see `word_tokenizer`): BM25 ranking for literal text queries.
+    /// Not stored — `content` holds the text.
+    pub content_words: Field,
 }
 
 pub fn open_or_create(index_dir: &Path) -> TantivyResult<(Index, Fields)> {
-    std::fs::create_dir_all(index_dir)
-        .map_err(|e| tantivy::TantivyError::IoError(std::sync::Arc::new(e)))?;
+    let io = |e: std::io::Error| tantivy::TantivyError::IoError(std::sync::Arc::new(e));
+    finish_interrupted_migration(index_dir).map_err(io)?;
+    std::fs::create_dir_all(index_dir).map_err(io)?;
 
     let mut schema_builder = Schema::builder();
 
@@ -55,6 +61,14 @@ pub fn open_or_create(index_dir: &Path) -> TantivyResult<(Index, Fields)> {
         .set_indexing_options(text_indexing)
         .set_stored();
     let content = schema_builder.add_text_field("content", text_options);
+    // Added last: an index written before it is migrated, not wiped.
+    let words_indexing = TextFieldIndexing::default()
+        .set_tokenizer(WORDS_TOKENIZER)
+        .set_index_option(IndexRecordOption::WithFreqsAndPositions);
+    let content_words = schema_builder.add_text_field(
+        "content_words",
+        TextOptions::default().set_indexing_options(words_indexing),
+    );
 
     let schema = schema_builder.build();
 
@@ -71,6 +85,8 @@ pub fn open_or_create(index_dir: &Path) -> TantivyResult<(Index, Fields)> {
                     std::fs::remove_dir_all(index_dir)?;
                     std::fs::create_dir_all(index_dir)?;
                     Index::create_in_dir(index_dir, schema)?
+                } else if idx.schema().get_field("content_words").is_err() {
+                    migrate_adding_fields(index_dir, idx, schema)?
                 } else {
                     idx
                 }
@@ -91,9 +107,7 @@ pub fn open_or_create(index_dir: &Path) -> TantivyResult<(Index, Fields)> {
         Index::create_in_dir(index_dir, schema)?
     };
 
-    // Register trigram tokenizer.
-    let trigram = TextAnalyzer::builder(NgramTokenizer::new(3, 3, false)?).build();
-    index.tokenizers().register("trigram", trigram);
+    register_tokenizers(&index)?;
 
     Ok((
         index,
@@ -112,6 +126,104 @@ pub fn open_or_create(index_dir: &Path) -> TantivyResult<(Index, Fields)> {
             start_line,
             end_line,
             content,
+            content_words,
         },
     ))
+}
+
+fn register_tokenizers(index: &Index) -> TantivyResult<()> {
+    let trigram = TextAnalyzer::builder(NgramTokenizer::new(3, 3, false)?).build();
+    index.tokenizers().register("trigram", trigram);
+    index
+        .tokenizers()
+        .register(WORDS_TOKENIZER, words_analyzer());
+    Ok(())
+}
+
+fn sibling(index_dir: &Path, suffix: &str) -> PathBuf {
+    let mut name = index_dir.file_name().unwrap_or_default().to_os_string();
+    name.push(suffix);
+    index_dir.with_file_name(name)
+}
+
+const MIGRATION_COMPLETE: &str = "MIGRATION_COMPLETE";
+
+/// Rebuild an index under `schema` from its stored documents. Every field is
+/// stored except the derived `content_words`, which is re-analysed from
+/// `content`, so no project needs re-indexing and no knowledge-only
+/// namespace (memory bank, merged PRs, history) is lost. The old index stays
+/// in place until the new one holds exactly as many documents.
+fn migrate_adding_fields(index_dir: &Path, old: Index, schema: Schema) -> TantivyResult<Index> {
+    let staging = sibling(index_dir, ".migrating");
+    let backup = sibling(index_dir, ".premigration");
+    if staging.exists() {
+        std::fs::remove_dir_all(&staging)?;
+    }
+    std::fs::create_dir_all(&staging)?;
+    let expected = {
+        let new = Index::create_in_dir(&staging, schema.clone())?;
+        register_tokenizers(&new)?;
+        let content_words = schema.get_field("content_words")?;
+        let old_schema = old.schema();
+        let reader = old.reader()?;
+        let searcher = reader.searcher();
+        let mut writer: tantivy::IndexWriter = new.writer(200_000_000)?;
+        for segment in searcher.segment_readers() {
+            let store = segment.get_store_reader(64)?;
+            for doc in segment.doc_ids_alive() {
+                let named = store.get::<TantivyDocument>(doc)?.to_named_doc(&old_schema);
+                let text = match named.0.get("content").and_then(|values| values.first()) {
+                    Some(OwnedValue::Str(text)) => Some(text.clone()),
+                    _ => None,
+                };
+                let mut migrated = TantivyDocument::convert_named_doc(&schema, named)
+                    .map_err(|e| tantivy::TantivyError::InvalidArgument(e.to_string()))?;
+                if let Some(text) = text {
+                    migrated.add_text(content_words, &text);
+                }
+                writer.add_document(migrated)?;
+            }
+        }
+        writer.commit()?;
+        writer.wait_merging_threads()?;
+        let migrated = new.reader()?.searcher().num_docs();
+        if migrated != searcher.num_docs() {
+            return Err(tantivy::TantivyError::InternalError(format!(
+                "index migration copied {migrated} of {} documents; kept the original",
+                searcher.num_docs()
+            )));
+        }
+        migrated
+    };
+    // Every handle on both directories is closed here; Windows cannot rename
+    // a directory with open memory maps.
+    drop(old);
+    std::fs::write(staging.join(MIGRATION_COMPLETE), expected.to_string())?;
+    std::fs::rename(index_dir, &backup)?;
+    std::fs::rename(&staging, index_dir)?;
+    std::fs::remove_file(index_dir.join(MIGRATION_COMPLETE))?;
+    std::fs::remove_dir_all(&backup)?;
+    Index::open_in_dir(index_dir)
+}
+
+/// Resume a migration a crash interrupted between its directory renames.
+fn finish_interrupted_migration(index_dir: &Path) -> std::io::Result<()> {
+    let staging = sibling(index_dir, ".migrating");
+    let backup = sibling(index_dir, ".premigration");
+    let staged_complete = staging.join(MIGRATION_COMPLETE).exists();
+    if !index_dir.join("meta.json").exists() && backup.exists() {
+        if staged_complete {
+            std::fs::rename(&staging, index_dir)?;
+        } else {
+            std::fs::rename(&backup, index_dir)?;
+        }
+    }
+    let _ = std::fs::remove_file(index_dir.join(MIGRATION_COMPLETE));
+    if backup.exists() && index_dir.join("meta.json").exists() {
+        std::fs::remove_dir_all(&backup)?;
+    }
+    if staging.exists() {
+        std::fs::remove_dir_all(&staging)?;
+    }
+    Ok(())
 }

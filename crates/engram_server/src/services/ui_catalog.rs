@@ -119,7 +119,7 @@ pub fn build_families(
     }
     // Cluster key: what kind of container it is, how it lays out, and its BASE
     // class set. A class-less instance is an orphan, not a family member —
-    // live OciusX otherwise produced one 6,475-instance `div` "family".
+    // the live pilot corpus otherwise produced one 6,475-instance `div` "family".
     let mut clusters: BTreeMap<(String, String, String), Vec<&engram_graph::Node>> =
         BTreeMap::new();
     for n in &nodes {

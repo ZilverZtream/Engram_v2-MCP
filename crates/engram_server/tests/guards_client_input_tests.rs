@@ -25,14 +25,14 @@ const SRC: &str = "Public Class api\n\
     Public Function RoleOnly(qry As Query) As String\n\
         If Not _us.UserAccess.CheckRead(_us.UserAccessObject.vs_karta_io_objekt) Then Return s\n\
         Dim pr_id = GetDictionaryIntegerValue(qry.params, \"pr_id\")\n\
-        Return _io.installationsobjektprojekt.GetAllByCheckingTotalProject(pr_id, db)\n\
+        Return _io.bokningsobjektprojekt.GetAllByCheckingTotalProject(pr_id, db)\n\
     End Function\n\
 \n\
     Public Function ObjectGuarded(qry As Query) As String\n\
         If Not _us.UserAccess.CheckRead(_us.UserAccessObject.vs_karta_io_objekt) Then Return s\n\
         Dim pr_id = qry.params(\"pr_id\")\n\
         If Not _us.accessctrl.check_pr_id(pr_id) Then Return s\n\
-        Return _io.installationsobjektprojekt.GetAllByCheckingTotalProject(pr_id, db)\n\
+        Return _io.bokningsobjektprojekt.GetAllByCheckingTotalProject(pr_id, db)\n\
     End Function\n\
 \n\
     Public Function NoInput() As String\n\
@@ -44,7 +44,7 @@ const SRC: &str = "Public Class api\n\
         If Not _us.UserAccess.CheckWrite(_us.UserAccessObject.vs_karta_io_objekt) Then Return s\n\
         Dim projectID = GetDictionaryIntegerValue(qry.data, \"pr_id\")\n\
         Dim ids = GetDictionaryStringValue(qry.data, \"markerIDs\")\n\
-        Return _io.installationsobjektprojekt.DeleteInBulk(projectID, ids, db)\n\
+        Return _io.bokningsobjektprojekt.DeleteInBulk(projectID, ids, db)\n\
     End Function\n\
 End Class\n";
 
@@ -167,7 +167,7 @@ async fn a_client_scope_key_read_without_an_object_guard_is_role_only() {
         "{no_input}"
     );
     assert!(no_input["role_only"] == false, "{no_input}");
-    // Live (OciusX 2026-08-29): the four bulk endpoints read the POST body
+    // Live (pilot corpus 2026-08-29): the four bulk endpoints read the POST body
     // — `GetDictionaryIntegerValue(qry.data, "pr_id")` — and were reported
     // with no client reads at all.
     let bulk = find("BulkPost");
@@ -292,3 +292,65 @@ async fn immune_check_honours_include_content_and_labels_its_cap() {
         "include_content=true must print the matched content:\n{out}"
     );
 }
+
+/// Hybrid hits carry a reciprocal-rank-fusion score (about 1/(60+rank)): a
+/// rank, not a similarity. The similarity thresholds could never fire, and any
+/// query that retrieved three anti-patterns WARNed on the count alone. The
+/// verdict must follow how much of the reverted code the proposed code holds.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn immune_verdict_follows_code_similarity_not_retrieval_count() {
+    let (_tmp, _state, engram, pid) = build_indexed().await;
+    let request = |code: &str| -> ImmuneCheckRequest {
+        serde_json::from_value(json!({"project_id": pid, "code": code, "top_k": 10})).unwrap()
+    };
+    let out = engram.handle_immune_check(request(UNRELATED)).await.unwrap().content[0]
+        .as_text()
+        .unwrap()
+        .text
+        .clone();
+    assert!(
+        out.contains("### 3."),
+        "the query must retrieve all three anti-patterns for this to test anything:\n{out}"
+    );
+    assert!(
+        out.contains("Final Status: 🟢 CLEAN"),
+        "unrelated code that was only retrieved by rank must be CLEAN:\n{out}"
+    );
+
+    let out = engram.handle_immune_check(request(REINTRODUCED)).await.unwrap().content[0]
+        .as_text()
+        .unwrap()
+        .text
+        .clone();
+    assert!(
+        out.contains("Final Status: 🔴 BLOCKED"),
+        "re-introducing a reverted body must block:\n{out}"
+    );
+}
+
+/// anti_pattern_guard compared the same fused rank score against similarity
+/// thresholds (0.85 / 0.65), so hybrid mode could only ever PASS.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn anti_pattern_guard_verdict_follows_code_similarity() {
+    let (_tmp, _state, engram, pid) = build_indexed().await;
+    let guard = |code: &str| {
+        serde_json::from_value(json!({"project_id": pid, "code": code, "use_vector": true}))
+            .unwrap()
+    };
+    let out = engram.handle_anti_pattern_guard(guard(UNRELATED)).await.unwrap().content[0]
+        .as_text()
+        .unwrap()
+        .text
+        .clone();
+    assert!(out.starts_with("verdict: PASS"), "{out}");
+    let out = engram.handle_anti_pattern_guard(guard(REINTRODUCED)).await.unwrap().content[0]
+        .as_text()
+        .unwrap()
+        .text
+        .clone();
+    assert!(out.starts_with("verdict: BLOCK"), "{out}");
+}
+
+const UNRELATED: &str =
+    "Public Function Add(a As Integer, b As Integer) As Integer\n    Return a + b\nEnd Function";
+const REINTRODUCED: &str = "SECRET_MARKER_0 .Where(Function(x) x.pr_id = Request(\"pr_id\")) delete rows without check_pr_id";

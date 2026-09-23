@@ -113,7 +113,7 @@ pub async fn build_snapshot(
 
 /// Is the evidence a REAL answer, or just coincidental keyword matches? On a
 /// large codebase loose FTS finds *something* for any question, so "evidence is
-/// non-empty" is not enough to claim support (the live OciusX eval showed
+/// non-empty" is not enough to claim support (the live pilot-corpus eval showed
 /// nonsense questions returning partial instead of abstaining). Adequate support
 /// = a graph relation (a resolved-entity structural link), OR — for a
 /// multi-term question — a hit whose text covers ≥2 distinct query terms (a lone
@@ -302,7 +302,7 @@ pub fn has_adequate_support_with(
     use super::evidence::EvidenceKind::GraphRelation;
     // A named premise nobody has evidence for is not supported by evidence
     // for the question's other terms (row 6: "Which Redis cluster caches the
-    // redovisningskategori list?" was answered from the real term alone).
+    // kostnadskategori list?" was answered from the real term alone).
     if !uncovered_named_terms_with(question, evidence, known).is_empty() {
         return false;
     }
@@ -396,7 +396,7 @@ fn is_filler_term(w: &str) -> bool {
 
 /// The one evidence kind that most directly answers a given answer type. Used to
 /// decide Answered vs Partial without penalizing a project that simply doesn't
-/// index docs/business-rules/history (e.g. OciusX is code-only).
+/// index docs/business-rules/history (e.g. the pilot corpus is code-only).
 fn primary_kind(t: super::plan::AnswerType) -> super::evidence::EvidenceKind {
     use super::evidence::EvidenceKind as K;
     use super::plan::AnswerType as A;

@@ -1705,8 +1705,9 @@ mod tests {
             .finish();
 
         tracing::subscriber::with_default(sub, || {
-            let err =
-                anyhow::anyhow!("config error: cannot canonicalize allowed root \"F:\\\\OciusX\"");
+            let err = anyhow::anyhow!(
+                "config error: cannot canonicalize allowed root \"F:\\\\PilotApp\""
+            );
             log_fatal_daemon_error(&err);
         });
 

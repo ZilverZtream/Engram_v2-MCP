@@ -207,6 +207,8 @@ impl Engram {
                         .duration_since(std::time::UNIX_EPOCH)
                         .map(|d| d.as_millis() as u64)
                         .unwrap_or(0),
+                    introduced_at: None,
+                    provenance: Some("quality-gate finding".into()),
                 };
                 if self
                     .state

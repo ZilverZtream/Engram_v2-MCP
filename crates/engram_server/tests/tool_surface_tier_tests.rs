@@ -117,7 +117,7 @@ fn advertise_all_tools_defaults_to_full_for_rust_and_yaml() {
 }
 
 #[tokio::test]
-async fn protocol_discovery_includes_ociusx_agent_dependencies_with_schemas() {
+async fn protocol_discovery_includes_pilotapp_agent_dependencies_with_schemas() {
     use rmcp::ServiceExt;
     let (_tmp, engram) = engram();
     let expected: BTreeSet<String> = engram

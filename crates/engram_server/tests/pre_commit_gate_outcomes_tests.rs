@@ -8,7 +8,7 @@
 use engram_core::config::Config;
 use engram_server::services::pre_commit_review_service::{
     Gate, GateContext, GateStatus, ReviewConfig, ReviewFinding, Verdict, render_json,
-    render_markdown, run_pre_commit_review_with,
+    render_compact_markdown, render_markdown, run_pre_commit_review_with,
 };
 use engram_server::state::AppState;
 
@@ -164,6 +164,30 @@ async fn all_gates_passing_without_findings_is_still_green_and_clean() {
     let md = render_markdown(&findings, files, gates_run, 5, &outcomes);
     assert!(md.contains("passed all gates cleanly"), "{md}");
     assert!(!md.contains("did not run"), "{md}");
+}
+
+#[test]
+fn compact_review_is_bounded_and_retains_actionable_finding_ids() {
+    let findings = (0..200)
+        .map(|index| {
+            ReviewFinding::new(
+                engram_server::services::pre_commit_review_service::Severity::Info,
+                "fixture",
+                format!("src/file-{index}.cs"),
+                format!("Finding {index} {}", "title ".repeat(100)),
+                "detail ".repeat(500),
+                format!("Fix {index} {}", "action ".repeat(100)),
+            )
+        })
+        .collect::<Vec<_>>();
+    let first_id = findings[0].finding_id.clone();
+    let compact = render_compact_markdown(&findings, 200, 19, 5, &[]);
+    assert!(compact.len() <= 20 * 1024, "{} bytes", compact.len());
+    assert!(compact.contains(&first_id));
+    assert!(compact.contains("Fix: Fix 0"));
+    assert!(compact.contains("OMITTED FINDINGS"));
+    assert!(compact.contains("detail_level=\"full\""));
+    assert!(!compact.contains("detail detail"));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

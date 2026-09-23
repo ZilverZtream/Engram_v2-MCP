@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used)]
 //! External audit 2026-08-29 P0-3: the reference story names its domain
 //! entity in a parenthesized gloss — "a main reporting category
-//! (huvudredovisningskategori)" — and get_change_set still extracted
+//! (huvudkostnadskategori)" — and get_change_set still extracted
 //! `main, reporting, category`, cut the API file by the per-layer tail cap,
 //! and never reached the table's .sql or the .dbml that declares it.
 //!
@@ -17,14 +17,14 @@ use engram_server::tools::Engram;
 use rmcp::handler::server::tool::Parameters;
 use serde_json::{Value, json};
 
-const STORY: &str = "As an admin I want to set a main reporting category (huvudredovisningskategori) on a production code list category so that time reports roll up to it";
+const STORY: &str = "As an admin I want to set a main reporting category (huvudkostnadskategori) on a production code list category so that time reports roll up to it";
 
 async fn build() -> (tempfile::TempDir, Engram, String) {
     let tmp = tempfile::TempDir::new().unwrap();
     let root = tmp.path().join("proj");
     for d in [
-        "Site/App_Code/redovisning/code",
-        "Site/App_Code/redovisning/api-json",
+        "Site/App_Code/leverans/code",
+        "Site/App_Code/leverans/api-json",
         "Site/App_Code",
         "db-x.sql/dbo/Tables",
         "Site/App_Code/noise",
@@ -32,23 +32,23 @@ async fn build() -> (tempfile::TempDir, Engram, String) {
         std::fs::create_dir_all(root.join(d)).unwrap();
     }
     std::fs::write(
-        root.join("Site/App_Code/redovisning/code/redovisningskategorier.vb"),
-        "Public Class redovisningskategorier\n    Public Function GetByProjectId(pr_id As Integer) As Object\n        Return (From k In db.rk_redovisningskategorier Where k.pr_id = pr_id).ToList()\n    End Function\nEnd Class\n",
+        root.join("Site/App_Code/leverans/code/kostnadskategorier.vb"),
+        "Public Class kostnadskategorier\n    Public Function GetByProjectId(pr_id As Integer) As Object\n        Return (From k In db.kk_kostnadskategorier Where k.pr_id = pr_id).ToList()\n    End Function\nEnd Class\n",
     )
     .unwrap();
     std::fs::write(
-        root.join("Site/App_Code/redovisning/api-json/api-redovisning.vb"),
-        "Public Class api_redovisning\n    Public Function GetCategories(qry As Object) As String\n        Dim list = _rv.redovisningskategorier.GetByProjectId(1)\n        Return \"ok\"\n    End Function\nEnd Class\n",
+        root.join("Site/App_Code/leverans/api-json/api-leverans.vb"),
+        "Public Class api_leverans\n    Public Function GetCategories(qry As Object) As String\n        Dim list = _rv.kostnadskategorier.GetByProjectId(1)\n        Return \"ok\"\n    End Function\nEnd Class\n",
     )
     .unwrap();
     std::fs::write(
-        root.join("db-x.sql/dbo/Tables/rk_redovisningskategorier.sql"),
-        "CREATE TABLE [dbo].[rk_redovisningskategorier] (\n    [id] INT NOT NULL,\n    [namn] NVARCHAR(200) NULL,\n    [huvudkategori_id] INT NULL\n);\n",
+        root.join("db-x.sql/dbo/Tables/kk_kostnadskategorier.sql"),
+        "CREATE TABLE [dbo].[kk_kostnadskategorier] (\n    [id] INT NOT NULL,\n    [namn] NVARCHAR(200) NULL,\n    [huvudkategori_id] INT NULL\n);\n",
     )
     .unwrap();
     std::fs::write(
-        root.join("Site/App_Code/iFalt.dbml"),
-        "<?xml version=\"1.0\"?>\n<Database Name=\"iFalt\">\n  <Table Name=\"dbo.rk_redovisningskategorier\" Member=\"rk_redovisningskategorier\">\n    <Type Name=\"rk_redovisningskategorier\">\n      <Column Name=\"id\" Type=\"System.Int32\" />\n    </Type>\n  </Table>\n</Database>\n",
+        root.join("Site/App_Code/iCore.dbml"),
+        "<?xml version=\"1.0\"?>\n<Database Name=\"iCore\">\n  <Table Name=\"dbo.kk_kostnadskategorier\" Member=\"kk_kostnadskategorier\">\n    <Type Name=\"kk_kostnadskategorier\">\n      <Column Name=\"id\" Type=\"System.Int32\" />\n    </Type>\n  </Table>\n</Database>\n",
     )
     .unwrap();
     // Enough single-signal "category" noise to fill a layer's tail cap (18).
@@ -118,17 +118,17 @@ async fn an_explicit_gloss_is_a_default_concept_and_its_family_is_rendered() {
         .map(|c| c.as_str().unwrap().to_lowercase())
         .collect();
     assert!(
-        concepts.iter().any(|c| c == "redovisningskategori"),
-        "the gloss `huvudredovisningskategori` must resolve to the index-corroborated concept `redovisningskategori` BY DEFAULT, got {concepts:?}"
+        concepts.iter().any(|c| c == "kostnadskategori"),
+        "the gloss `huvudkostnadskategori` must resolve to the index-corroborated concept `kostnadskategori` BY DEFAULT, got {concepts:?}"
     );
 
     let files = paths(&v, "files");
     let omissions = paths(&v, "omissions");
     for must in [
-        "redovisning/code/redovisningskategorier.vb",
-        "redovisning/api-json/api-redovisning.vb",
-        "rk_redovisningskategorier.sql",
-        "ifalt.dbml",
+        "leverans/code/kostnadskategorier.vb",
+        "leverans/api-json/api-leverans.vb",
+        "kk_kostnadskategorier.sql",
+        "icore.dbml",
     ] {
         assert!(
             files.iter().any(|p| p.contains(must)),

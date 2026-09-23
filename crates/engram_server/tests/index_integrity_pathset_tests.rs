@@ -287,6 +287,34 @@ async fn an_fts_only_project_with_no_vectors_stays_ok() {
     assert!(f.contains("generation_complete: true"), "{f}");
 }
 
+/// A file created after the last index is absent from EVERY store: the stores
+/// agree with each other and update_project picks the file up. That is a stale
+/// index, not a corrupt one; CORRUPT sent agents to a full rebuild for a file
+/// they had just written.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_file_added_after_indexing_is_stale_not_corrupt() {
+    let (tmp, _state, engram, pid, _big, _small) = build().await;
+    std::fs::write(
+        tmp.path().join("proj/Site/App_Code/added.vb"),
+        "Public Class added\n    Public Function Fresh() As String\n        Return \"n\"\n    End Function\nEnd Class\n",
+    )
+    .unwrap();
+
+    let h = health(&engram, &pid).await;
+    assert!(h.starts_with("Health: STALE"), "{h}");
+    assert!(!h.contains("CORRUPT"), "{h}");
+    assert!(h.contains("added.vb") && h.contains("update_project"), "{h}");
+    let f = freshness(&engram, &pid).await;
+    assert!(!f.contains("the searchable corpus is missing"), "{f}");
+    assert!(f.contains("update_project"), "{f}");
+
+    let update: engram_server::UpdateProjectRequest =
+        serde_json::from_value(json!({"project_id": pid})).unwrap();
+    engram.update_project(Parameters(update)).await.unwrap();
+    let h = health(&engram, &pid).await;
+    assert!(h.starts_with("Health: OK"), "{h}");
+}
+
 /// Overwrite every file under `dir` with junk bytes, recursively — the
 /// directory layout survives (connect succeeds) but reads fail.
 fn corrupt_tree(dir: &std::path::Path) {

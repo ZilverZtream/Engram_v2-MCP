@@ -1728,20 +1728,25 @@ fn compute_edit_safety(
     };
     let callers_unknown = completeness.callers.is_missing();
     let has_session_writes = !method_info.session_keys_written.is_empty();
-    let has_triggers = blast_radius
-        .map(|b| !b.seam_candidates.is_empty())
-        .unwrap_or(false);
+    // Blast-radius seam candidates are not read here. They are migration-
+    // boundary hints, and every method has an incoming containment edge with
+    // no outgoing one, so every method is a candidate: no trigger evidence.
     let has_on_error = method_info
         .effects
         .iter()
         .any(|e| e.contains("On_Error_Resume_Next") || e.contains("OnErrorResumeNext"));
     let complexity = method_info.complexity_score;
     let is_web_service = method_info.method_kind == "WebMethod";
-    // "No callers found" is only an orphan when the caller lookup ran to
-    // completion AND no incoming edge was left unresolved (audit D11).
-    let is_orphan = method_info.called_by.is_empty()
+    // A complete static lookup with zero callers is uncertainty, not proof of
+    // high risk. Framework entry points, constructors, reflection, markup and
+    // configuration can all invoke a member without a graph caller edge.
+    let framework_entry_point = matches!(
+        method_info.method_kind.as_str(),
+        "Lifecycle" | "ControlEvent" | "WebMethod"
+    ) || method_info.method_name.eq_ignore_ascii_case("new")
+        || method_info.method_name.eq_ignore_ascii_case("__init__");
+    let has_no_bound_callers = method_info.called_by.is_empty()
         && method_info.handles_clause.is_empty()
-        && method_info.method_kind != "Lifecycle"
         && !callers_unknown
         && completeness.callers_dangling == 0;
 
@@ -1755,7 +1760,6 @@ fn compute_edit_safety(
         || is_web_service
         || has_on_error
         || complexity > 40
-        || is_orphan
     {
         if has_on_error {
             reasons.push("On Error Resume Next makes behavior unknowable".to_string());
@@ -1778,14 +1782,6 @@ fn compute_edit_safety(
                 complexity
             ));
         }
-        if is_orphan {
-            reasons.push(
-                "No bound callers found in the index — unresolved overloads, extraction gaps, reflection or dynamic dispatch may hide consumers".to_string(),
-            );
-        }
-        if has_triggers {
-            reasons.push("Seam candidates present — downstream triggers may fire".to_string());
-        }
         pre_checklist.push("Write characterization tests before modifying".to_string());
         pre_checklist.push("Identify all callers including dynamic invocations".to_string());
         post_checklist.push("Run full regression suite".to_string());
@@ -1796,8 +1792,8 @@ fn compute_edit_safety(
     else if br_score > 20.0
         || caller_count > 3
         || has_session_writes
-        || has_triggers
         || complexity > 15
+        || (has_no_bound_callers && !framework_entry_point)
     {
         if br_score > 20.0 {
             reasons.push(format!(
@@ -1811,11 +1807,15 @@ fn compute_edit_safety(
         if has_session_writes {
             reasons.push("Writes session state — changes affect other pages".to_string());
         }
-        if has_triggers {
-            reasons.push("Seam candidates present — downstream triggers may fire".to_string());
-        }
         if complexity > 15 {
             reasons.push(format!("Complexity {} — moderate", complexity));
+        }
+        if has_no_bound_callers && !framework_entry_point {
+            reasons.push(
+                "No statically bound callers were found — verify framework, markup, configuration, reflection and dynamic entry points before editing"
+                    .to_string(),
+            );
+            pre_checklist.push("Verify non-static entry points before modifying".to_string());
         }
         pre_checklist.push("Review all callers for compatibility".to_string());
         if has_session_writes {
@@ -1827,6 +1827,12 @@ fn compute_edit_safety(
     // ── GREEN: safe ─────────────────────────────────────────────────────
     else {
         reasons.push("Low blast radius, few callers, no complex state".to_string());
+        if has_no_bound_callers && framework_entry_point {
+            reasons.push(
+                "No static caller edge is expected for this framework or constructor entry point; its entry-point classification prevented a false orphan warning"
+                    .to_string(),
+            );
+        }
         "green"
     };
 
@@ -2909,6 +2915,9 @@ pub enum TargetStatus {
     Unspecified,
     /// The exact path is present in the index.
     Exists,
+    /// The file is absent from the index, but exact current bytes are covered
+    /// by both code_file BLAKE3 and a verified external-generator receipt.
+    ReceiptVerified,
     /// change_kind=modify but the exact path is not in the index.
     NotFound,
     /// change_kind=create and the path is absent — expected, not a failure.
@@ -3073,7 +3082,12 @@ pub fn compute_validation_verdict(
     if matches!(coverage.target, TargetStatus::ProviderFailed) {
         return "INSUFFICIENT".to_string();
     }
-    if coverage.change_kind_modify && !matches!(coverage.target, TargetStatus::Exists) {
+    if coverage.change_kind_modify
+        && !matches!(
+            coverage.target,
+            TargetStatus::Exists | TargetStatus::ReceiptVerified
+        )
+    {
         // A modification is verified AGAINST the existing file; without it in
         // the index there is nothing to check the change against.
         return "INSUFFICIENT".to_string();
@@ -3109,6 +3123,9 @@ fn render_validation_report_markdown(report: &ValidationReport) -> String {
     let target_label = match report.coverage.target {
         TargetStatus::Unspecified => "no target file given",
         TargetStatus::Exists => "target file exists in index",
+        TargetStatus::ReceiptVerified => {
+            "target file absent from index; current disk bytes verified by generator receipt"
+        }
         TargetStatus::NotFound => "target file NOT in index",
         TargetStatus::NewTarget => "new file (create) — absence expected",
         TargetStatus::ProviderFailed => "target lookup FAILED (unknown)",
@@ -3593,6 +3610,7 @@ impl Engram {
                         kind: None,
                         top: 2,
                         merged_before: req.merged_before.clone(),
+                        as_of_rev: None,
                     })
                     .await
                 {
@@ -4852,11 +4870,35 @@ impl Engram {
         &self,
         mut req: ValidateGeneratedCodeRequest,
     ) -> Result<CallToolResult, McpError> {
-        let input = crate::utils::candidate_code_input::resolve(self, &req.project_id,
-            req.code.as_deref(), req.code_file.as_deref(), req.code_file_blake3.as_deref(), req.target_file.as_deref()).await?;
+        let input = if req.code_file_sha256.is_some() {
+            if req.code.is_some() || req.code_file_blake3.is_some() {
+                return Err(McpError::invalid_params(
+                    "code_file_sha256 is mutually exclusive with inline code and code_file_blake3",
+                    None,
+                ));
+            }
+            crate::utils::candidate_code_input::resolve_sha256(
+                self,
+                &req.project_id,
+                req.code_file.as_deref(),
+                req.code_file_sha256.as_deref(),
+                req.target_file.as_deref(),
+            ).await?
+        } else {
+            crate::utils::candidate_code_input::resolve(self, &req.project_id,
+                req.code.as_deref(), req.code_file.as_deref(), req.code_file_blake3.as_deref(), req.target_file.as_deref()).await?
+        };
         let output_json = req.output_json;
         if input.evidence.is_some() { req.target_file = input.context.clone(); }
-        let result = self.handle_validate_generated_code_resolved(req, input.code).await;
+        let generator_evidence = crate::utils::generator_receipt::resolve(
+            self,
+            &req.project_id,
+            req.generator_receipt_file.as_deref(),
+            req.generator_receipt_sha256.as_deref(),
+            req.target_file.as_deref(),
+            req.code_file.as_deref(),
+        ).await?;
+        let result = self.handle_validate_generated_code_resolved(req, input.code, generator_evidence).await;
         crate::utils::candidate_code_input::attach(result, input.evidence, output_json)
     }
 
@@ -4864,6 +4906,7 @@ impl Engram {
         &self,
         req: ValidateGeneratedCodeRequest,
         code: String,
+        generator_evidence: Option<crate::utils::generator_receipt::GeneratorReceiptEvidence>,
     ) -> Result<CallToolResult, McpError> {
         let _rec = self.ensure_project_record(&req.project_id).await?;
         let graph = self.state.graph.clone();
@@ -4878,17 +4921,29 @@ impl Engram {
         let change_kind = req.change_kind;
         let output_json = req.output_json;
         let include_migration_advice = req.include_migration_advice;
+        let generator_target_verified = generator_evidence
+            .as_ref()
+            .is_some_and(|evidence| evidence.status != "fail");
 
         let result = tokio::task::spawn_blocking(move || {
             let mut checks: Vec<ValidationCheck> = Vec::new();
             let is_vb = language.starts_with("vb");
+
+            if let Some(evidence) = generator_evidence {
+                checks.push(ValidationCheck::new(
+                    "generator_provenance",
+                    evidence.status,
+                    CoverageClass::Verified,
+                    evidence.details,
+                ));
+            }
 
             // Round-6/8: resolve the target against the index EXACTLY. Change kind
             // is now a typed enum (a typo is rejected at deserialization), so the
             // modify/create semantics can no longer be bypassed by an unknown
             // value.
             let is_create = change_kind == crate::models::ChangeKind::Create;
-            let target_status = match &target_file {
+            let indexed_target_status = match &target_file {
                 None => TargetStatus::Unspecified,
                 Some(tf) => {
                     let norm = tf.replace('\\', "/");
@@ -4929,6 +4984,17 @@ impl Engram {
                         Err(_) => TargetStatus::ProviderFailed,
                     }
                 }
+            };
+            // Generated artifacts can be deliberately absent from an index or
+            // can have appeared after its last generation. Hash-bound code_file
+            // input plus a verified receipt establishes the exact current disk
+            // target without pretending it was present in the index.
+            let target_status = if generator_target_verified
+                && matches!(indexed_target_status, TargetStatus::NotFound)
+            {
+                TargetStatus::ReceiptVerified
+            } else {
+                indexed_target_status
             };
             match target_status {
                 TargetStatus::NotFound => checks.push(ValidationCheck::new(
@@ -5788,12 +5854,18 @@ impl Engram {
             // is computed from identical facts (body read, complexity
             // estimated, blast attempted, coverage recorded).
             let ev = assemble_edit_evidence(&graph, &project_id, &project_dir, node)?;
-            Ok::<EditSafetyResult, String>(ev.edit_safety)
+            // The callers travel WITH the verdict: they are already resolved
+            // here, and "how many callers" cannot answer the question an edit
+            // actually turns on — WHICH paths reach this method.
+            Ok::<(EditSafetyResult, Vec<CallerLocation>), String>((
+                ev.edit_safety,
+                ev.method_info.called_by,
+            ))
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        let safety = result.map_err(|e| McpError::invalid_params(e, None))?;
+        let (safety, callers) = result.map_err(|e| McpError::invalid_params(e, None))?;
 
         if output_json {
             let json = serde_json::to_string_pretty(&safety)
@@ -5833,12 +5905,23 @@ impl Engram {
             }
         }
 
+        if !callers.is_empty() {
+            const CALLERS_SHOWN: usize = 10;
+            md.push_str("\n### Callers\n\n");
+            for c in callers.iter().take(CALLERS_SHOWN) {
+                md.push_str(&format!("- `{}` ({}:{})\n", c.fqn, c.file_path, c.line));
+            }
+            if callers.len() > CALLERS_SHOWN {
+                md.push_str(&format!("- … and {} more\n", callers.len() - CALLERS_SHOWN));
+            }
+        }
+
         md.push('\n');
         md.push_str(&render_coverage_block(&safety.completeness));
 
         md.push_str(
-            "next: find_symbol_references(<method>) for the caller list; \
-             get_method_edit_context before making the edit.\n",
+            "next: get_method_edit_context before making the edit; \
+             find_symbol_references(<method>) for callers beyond those shown.\n",
         );
         let (banner, footer) = self
             .access_freshness(&req.project_id, &rec.directory, Some(&req.file_path))
@@ -6183,6 +6266,34 @@ mod edit_safety_tests {
     }
 
     #[test]
+    fn complete_zero_callers_is_caution_not_high_risk() {
+        let r = compute_edit_safety(&info(0, 3, 0), None, &complete());
+        assert_eq!(r.verdict, "yellow", "{r:?}");
+        assert!(
+            r.reasons
+                .iter()
+                .any(|reason| reason.contains("No statically bound callers")),
+            "{:?}",
+            r.reasons
+        );
+    }
+
+    #[test]
+    fn framework_event_without_graph_callers_is_not_an_orphan() {
+        let mut event = info(0, 3, 0);
+        event.method_kind = "ControlEvent".into();
+        let r = compute_edit_safety(&event, None, &complete());
+        assert_ne!(r.verdict, "red", "{r:?}");
+        assert!(
+            r.reasons
+                .iter()
+                .any(|reason| reason.contains("entry-point classification")),
+            "{:?}",
+            r.reasons
+        );
+    }
+
+    #[test]
     fn capped_callers_render_as_a_lower_bound() {
         let mut c = complete();
         c.callers = ProviderStatus::Truncated {
@@ -6235,6 +6346,70 @@ mod edit_safety_tests {
         assert_eq!(v["completeness"]["session_writes"]["status"], "truncated");
         assert_eq!(v["completeness"]["session_writes"]["cap"], 200);
         assert_eq!(v["completeness"]["callers"]["status"], "complete");
+    }
+
+    fn blast_with_seams(seams: usize) -> crate::services::blast_radius_service::BlastRadiusReport {
+        use crate::services::blast_radius_service::{
+            BlastRadiusReport, ComplexityBreakdown, CountCoverage, RiskBand, SeamCandidate,
+            UncertaintyBreakdown,
+        };
+        BlastRadiusReport {
+            target: "sym:function:Site/App_Code/x.vb:cls.M:1".into(),
+            target_type: "function".into(),
+            migration_risk: 1,
+            risk_band: RiskBand::Low,
+            complexity_breakdown: ComplexityBreakdown {
+                handles_clause_score: 0.0,
+                sql_concat_score: 0.0,
+                pagerank_score: 0.0,
+                state_coupling_score: 0.0,
+                gis_coupling_score: 0.0,
+                polymorphism_score: 0.0,
+                script_injection_score: 0.0,
+                dependency_density_score: 0.0,
+            },
+            uncertainty_breakdown: UncertaintyBreakdown {
+                dynamic_ui_uncertainty_score: 0.0,
+                late_binding_uncertainty_score: 0.0,
+                dynamic_sql_uncertainty_score: 0.0,
+            },
+            seam_candidates: (0..seams)
+                .map(|i| SeamCandidate {
+                    node_id: format!("sym:function:n{i}"),
+                    node_type: "function".into(),
+                    reason: "Edge kind boundary: 2 incoming kinds vs 1 outgoing kinds differ"
+                        .into(),
+                    edge_kinds_crossing: vec!["contains".into()],
+                })
+                .collect(),
+            guidance: vec![],
+            total_incoming: 2,
+            total_outgoing: 1,
+            total_downstream: 3,
+            causal_dependents: 1,
+            historical_companions: 0,
+            possible_dependents: 0,
+            unresolved_endpoints: 0,
+            internal_edges: 0,
+            top_causal_dependents: vec![],
+            coverage: CountCoverage::default(),
+        }
+    }
+
+    /// Seam candidates are migration-boundary hints. Every method has an
+    /// incoming containment edge and no outgoing one, so every method is a
+    /// candidate; reading them as "downstream triggers" made every edit
+    /// YELLOW. A low-risk method stays green.
+    #[test]
+    fn seam_candidates_do_not_raise_the_edit_verdict() {
+        let blast = blast_with_seams(1);
+        let r = compute_edit_safety(&info(1, 3, 0), Some(&blast), &complete());
+        assert_eq!(r.verdict, "green", "{r:?}");
+        assert!(
+            !r.reasons.iter().any(|s| s.contains("Seam")),
+            "{:?}",
+            r.reasons
+        );
     }
 }
 

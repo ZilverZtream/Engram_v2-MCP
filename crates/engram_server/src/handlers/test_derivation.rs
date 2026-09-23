@@ -1,7 +1,850 @@
 //! Source-linked proposed tests from version-checked inferred requirements.
 use super::business_source::SourceAudit;
 use engram_index::{HybridQuery, HybridSearchEngine};
-use std::{collections::HashSet, path::Path};
+use serde::Deserialize;
+use std::{collections::{BTreeMap, BTreeSet, HashSet, VecDeque}, path::Path};
+
+const RISK_PACK_MAX_BYTES: u64 = 256 * 1024;
+const RISK_PACK_MAX_RULES: usize = 128;
+const CANONICAL_SWEEP_MAX_SEEDS: usize = 24;
+const CANONICAL_SWEEP_MAX_FILES: usize = 2_000;
+const CANONICAL_SWEEP_MAX_FILE_BYTES: u64 = 1024 * 1024;
+const CANONICAL_SWEEP_MAX_TOTAL_BYTES: u64 = 16 * 1024 * 1024;
+const CANONICAL_SWEEP_MAX_RESULTS: usize = 40;
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RiskRuleFile {
+    version: u32,
+    /// Default provenance date inherited by rules that omit introduced_at.
+    #[serde(default)]
+    introduced_at: Option<String>,
+    /// Human-readable source (PR, board, handbook revision, etc.).
+    #[serde(default)]
+    provenance: Option<String>,
+    #[serde(default)]
+    rules: Vec<ConfiguredRiskRule>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ConfiguredRiskRule {
+    id: String,
+    title: String,
+    guidance: String,
+    #[serde(default = "default_risk_severity")]
+    severity: String,
+    #[serde(default)]
+    extensions: Vec<String>,
+    #[serde(default)]
+    path_any: Vec<String>,
+    #[serde(default)]
+    all_terms: Vec<String>,
+    #[serde(default)]
+    any_terms: Vec<String>,
+    #[serde(default)]
+    none_terms: Vec<String>,
+    #[serde(default)]
+    introduced_at: Option<String>,
+    #[serde(default)]
+    provenance: Option<String>,
+    #[serde(skip)]
+    source: String,
+}
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct ConfiguredRiskPack {
+    rules: Vec<ConfiguredRiskRule>,
+}
+
+impl ConfiguredRiskPack {
+    pub(crate) fn len(&self) -> usize { self.rules.len() }
+}
+
+fn default_risk_severity() -> String { "warning".into() }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ConfiguredRiskMatch {
+    pub id: String,
+    pub title: String,
+    pub guidance: String,
+    pub severity: String,
+    pub source: String,
+    pub introduced_at: Option<String>,
+    pub provenance: Option<String>,
+}
+
+fn clean_rule_value(value: &str, max: usize) -> bool {
+    !value.trim().is_empty()
+        && value.len() <= max
+        && !value.chars().any(|ch| ch.is_control())
+}
+
+fn normalize_rule(mut rule: ConfiguredRiskRule, source: &str) -> Result<ConfiguredRiskRule, String> {
+    if !clean_rule_value(&rule.id, 64)
+        || !rule.id.chars().all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.'))
+    {
+        return Err("rule id must be 1-64 ASCII letters, digits, dot, dash or underscore".into());
+    }
+    if !clean_rule_value(&rule.title, 160) || !clean_rule_value(&rule.guidance, 1500) {
+        return Err(format!("rule {} title/guidance is blank, too long or contains controls", rule.id));
+    }
+    rule.severity = rule.severity.trim().to_ascii_lowercase();
+    if !matches!(rule.severity.as_str(), "critical" | "warning" | "info" | "style") {
+        return Err(format!("rule {} severity must be critical, warning, info or style", rule.id));
+    }
+    let lists = [&rule.extensions, &rule.path_any, &rule.all_terms, &rule.any_terms, &rule.none_terms];
+    if lists.iter().any(|values| values.len() > 32)
+        || lists.iter().flat_map(|values| values.iter())
+            .any(|value| !clean_rule_value(value, 128))
+    {
+        return Err(format!("rule {} has too many predicates or an invalid predicate", rule.id));
+    }
+    if lists.iter().all(|values| values.is_empty()) {
+        return Err(format!("rule {} has no predicates", rule.id));
+    }
+    rule.id = rule.id.trim().to_string();
+    rule.title = rule.title.trim().to_string();
+    rule.guidance = rule.guidance.trim().to_string();
+    if let Some(date) = rule.introduced_at.as_deref()
+        && !valid_yyyy_mm_dd(date)
+    {
+        return Err(format!("rule {} introduced_at must be YYYY-MM-DD", rule.id));
+    }
+    if rule.provenance.as_deref().is_some_and(|value| !clean_rule_value(value, 300)) {
+        return Err(format!("rule {} provenance is blank, too long or contains controls", rule.id));
+    }
+    rule.extensions = rule.extensions.into_iter()
+        .map(|value| value.trim().trim_start_matches('.').to_ascii_lowercase()).collect();
+    rule.path_any = rule.path_any.into_iter()
+        .map(|value| value.trim().replace('\\', "/").to_ascii_lowercase()).collect();
+    for values in [&mut rule.all_terms, &mut rule.any_terms, &mut rule.none_terms] {
+        for value in values.iter_mut() { *value = value.trim().to_ascii_lowercase(); }
+    }
+    rule.source = source.to_string();
+    Ok(rule)
+}
+
+pub(crate) fn valid_yyyy_mm_dd(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.len() == 10
+        && bytes[4] == b'-' && bytes[7] == b'-'
+        && bytes.iter().enumerate().all(|(index, byte)| {
+            index == 4 || index == 7 || byte.is_ascii_digit()
+        })
+        && value[5..7].parse::<u8>().is_ok_and(|month| (1..=12).contains(&month))
+        && value[8..10].parse::<u8>().is_ok_and(|day| (1..=31).contains(&day))
+}
+
+fn read_risk_rule_file(path: &Path, boundary: &Path, source: &str) -> Result<Vec<ConfiguredRiskRule>, String> {
+    if !path.exists() { return Ok(Vec::new()); }
+    let boundary = boundary.canonicalize().map_err(|error| format!("{source} rule-pack boundary unavailable: {error}"))?;
+    let canonical = path.canonicalize().map_err(|error| format!("{source} rule pack unavailable: {error}"))?;
+    if !canonical.starts_with(&boundary) {
+        return Err(format!("{source} rule pack resolves outside its configured boundary"));
+    }
+    let metadata = std::fs::metadata(&canonical).map_err(|error| format!("{source} rule-pack metadata unavailable: {error}"))?;
+    if !metadata.is_file() || metadata.len() > RISK_PACK_MAX_BYTES {
+        return Err(format!("{source} rule pack must be a file no larger than {RISK_PACK_MAX_BYTES} bytes"));
+    }
+    let bytes = std::fs::read(&canonical).map_err(|error| format!("{source} rule pack cannot be read: {error}"))?;
+    let text = std::str::from_utf8(&bytes).map_err(|_| format!("{source} rule pack must be UTF-8"))?;
+    let parsed: RiskRuleFile = serde_yaml::from_str(text)
+        .map_err(|error| format!("{source} rule pack is invalid YAML/schema: {error}"))?;
+    if parsed.version != 1 { return Err(format!("{source} rule-pack version must be 1")); }
+    if parsed.rules.len() > RISK_PACK_MAX_RULES {
+        return Err(format!("{source} rule pack exceeds {RISK_PACK_MAX_RULES} rules"));
+    }
+    let mut seen = HashSet::new();
+    if parsed.introduced_at.as_deref().is_some_and(|date| !valid_yyyy_mm_dd(date)) {
+        return Err(format!("{source} rule-pack introduced_at must be YYYY-MM-DD"));
+    }
+    if parsed.provenance.as_deref().is_some_and(|value| !clean_rule_value(value, 300)) {
+        return Err(format!("{source} rule-pack provenance is blank, too long or contains controls"));
+    }
+    let default_introduced_at = parsed.introduced_at;
+    let default_provenance = parsed.provenance;
+    parsed.rules.into_iter().map(|mut rule| {
+        if rule.introduced_at.is_none() { rule.introduced_at = default_introduced_at.clone(); }
+        if rule.provenance.is_none() { rule.provenance = default_provenance.clone(); }
+        let rule = normalize_rule(rule, source)?;
+        if !seen.insert(rule.id.clone()) { return Err(format!("{source} rule pack repeats id {}", rule.id)); }
+        Ok(rule)
+    }).collect()
+}
+
+/// Load organization and repository rule packs on every matrix call. Project
+/// rules override global rules by stable id, so policy tuning needs no daemon
+/// rebuild or restart. Both files are size/count bounded and use substring
+/// predicates rather than executable expressions.
+pub(crate) fn load_configured_risk_pack(
+    data_dir: &Path,
+    project_root: &Path,
+) -> (ConfiguredRiskPack, Vec<String>) {
+    load_configured_risk_pack_before(data_dir, project_root, None)
+}
+
+pub(crate) fn load_configured_risk_pack_before(
+    data_dir: &Path,
+    project_root: &Path,
+    knowledge_before: Option<&str>,
+) -> (ConfiguredRiskPack, Vec<String>) {
+    let sources = [
+        (data_dir.join("rules/test-risk-rules.yaml"), data_dir, "global"),
+        (project_root.join(".engram/test-risk-rules.yaml"), project_root, "project"),
+    ];
+    let mut merged = BTreeMap::new();
+    let mut notes = Vec::new();
+    for (path, boundary, source) in sources {
+        match read_risk_rule_file(&path, boundary, source) {
+            Ok(rules) => for rule in rules {
+                if let Some(cutoff) = knowledge_before {
+                    match rule.introduced_at.as_deref() {
+                        Some(date) if date < cutoff => {}
+                        Some(date) => {
+                            notes.push(format!("configured rule {} excluded: introduced_at {date} is not before historical cutoff {cutoff}", rule.id));
+                            continue;
+                        }
+                        None => {
+                            notes.push(format!("configured rule {} excluded: no introduced_at provenance for historical cutoff {cutoff}", rule.id));
+                            continue;
+                        }
+                    }
+                }
+                merged.insert(rule.id.clone(), rule);
+            },
+            Err(error) => notes.push(error),
+        }
+    }
+    (ConfiguredRiskPack { rules: merged.into_values().collect() }, notes)
+}
+
+pub(crate) fn configured_risk_matches(
+    pack: &ConfiguredRiskPack,
+    file: &str,
+    source: &str,
+) -> Vec<ConfiguredRiskMatch> {
+    let lower_file = file.replace('\\', "/").to_ascii_lowercase();
+    let extension = Path::new(file).extension().and_then(|value| value.to_str())
+        .unwrap_or_default().to_ascii_lowercase();
+    let lower_source = source.to_ascii_lowercase();
+    pack.rules.iter().filter(|rule| {
+        (rule.extensions.is_empty() || rule.extensions.iter().any(|value| value == &extension))
+            && (rule.path_any.is_empty() || rule.path_any.iter().any(|value| lower_file.contains(value)))
+            && rule.all_terms.iter().all(|value| lower_source.contains(value))
+            && (rule.any_terms.is_empty() || rule.any_terms.iter().any(|value| lower_source.contains(value)))
+            && rule.none_terms.iter().all(|value| !lower_source.contains(value))
+    }).map(|rule| ConfiguredRiskMatch {
+        id: rule.id.clone(),
+        title: rule.title.clone(),
+        guidance: rule.guidance.clone(),
+        severity: rule.severity.clone(),
+        source: rule.source.clone(),
+        introduced_at: rule.introduced_at.clone(),
+        provenance: rule.provenance.clone(),
+    }).collect()
+}
+
+pub(crate) fn configured_risk_axes(
+    pack: &ConfiguredRiskPack,
+    file: &str,
+    source: &str,
+) -> Vec<(String, String)> {
+    configured_risk_matches(pack, file, source).into_iter().map(|rule| {
+        let provenance = match (rule.introduced_at.as_deref(), rule.provenance.as_deref()) {
+            (Some(date), Some(origin)) => format!("; introduced {date}; provenance {origin}"),
+            (Some(date), None) => format!("; introduced {date}"),
+            (None, Some(origin)) => format!("; provenance {origin}"),
+            (None, None) => "; provenance undated".to_string(),
+        };
+        (
+            rule.title,
+            format!("{file}: configured rule `{}` from {} pack{provenance}: {}", rule.id, rule.source, rule.guidance),
+        )
+    }).collect()
+}
+
+#[derive(Debug, Default)]
+pub(super) struct CanonicalCallSweep {
+    pub attempted: bool,
+    pub residuals: Vec<String>,
+    pub notes: Vec<String>,
+    pub summary: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct CanonicalSite {
+    member: String,
+    file: String,
+    line: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+enum ArgumentSelector {
+    Resolved(u32),
+    Named(String),
+    Ordinal(usize),
+}
+
+#[derive(Clone, Copy)]
+struct CanonicalSweepCaps {
+    files: usize,
+    file_bytes: u64,
+    total_bytes: u64,
+    results: usize,
+    candidates: usize,
+}
+
+const CANONICAL_SWEEP_CAPS: CanonicalSweepCaps = CanonicalSweepCaps {
+    files: CANONICAL_SWEEP_MAX_FILES,
+    file_bytes: CANONICAL_SWEEP_MAX_FILE_BYTES,
+    total_bytes: CANONICAL_SWEEP_MAX_TOTAL_BYTES,
+    results: CANONICAL_SWEEP_MAX_RESULTS,
+    candidates: CANONICAL_SWEEP_MAX_SEEDS,
+};
+
+type InvocationReport = engram_index::vb_extractor::VbInvocationReport;
+type SeedGroups = BTreeMap<(String, ArgumentSelector), BTreeSet<CanonicalSite>>;
+
+/// Find residual VB string arguments at the same lexical callee and argument
+/// identity as a canonical member added by the staged or unstaged diff.
+/// Roslyn syntax is required; there is no lexical fallback.
+pub(super) fn canonical_call_migration_sweep(
+    project_root: &Path,
+    intent: &str,
+    requested_files: &[String],
+    diffs: &[crate::services::pre_commit_review_service::DiffFile],
+) -> CanonicalCallSweep {
+    let mut sweep = canonical_call_migration_sweep_with(
+        project_root,
+        intent,
+        requested_files,
+        diffs,
+        CANONICAL_SWEEP_CAPS,
+        engram_index::vb_extractor::vb_invocations,
+    );
+    const MAX_NOTES: usize = 64;
+    if sweep.notes.len() > MAX_NOTES {
+        let omitted = sweep.notes.len() - MAX_NOTES;
+        sweep.notes.truncate(MAX_NOTES);
+        sweep.notes.push(format!(
+            "canonical-call notes truncated; {omitted} additional incomplete-evidence note(s) omitted"
+        ));
+    }
+    sweep
+}
+
+fn canonical_call_migration_sweep_with<F>(
+    project_root: &Path,
+    intent: &str,
+    requested_files: &[String],
+    diffs: &[crate::services::pre_commit_review_service::DiffFile],
+    caps: CanonicalSweepCaps,
+    mut analyze: F,
+) -> CanonicalCallSweep
+where
+    F: FnMut(&Path, &str) -> Result<InvocationReport, String>,
+{
+    let requested = requested_files
+        .iter()
+        .map(|file| canonical_path_key(file))
+        .collect::<HashSet<_>>();
+    let mut added_by_file: BTreeMap<String, BTreeSet<u32>> = BTreeMap::new();
+    for diff in diffs {
+        let path = diff.path.replace('\\', "/");
+        if requested.contains(&canonical_path_key(&path))
+            && path.to_ascii_lowercase().ends_with(".vb")
+            && !diff.is_binary
+        {
+            added_by_file
+                .entry(path)
+                .or_default()
+                .extend(diff.added_lines.iter().map(|(line, _)| *line as u32));
+        }
+    }
+    if added_by_file.is_empty() {
+        return CanonicalCallSweep::default();
+    }
+
+    let root = match project_root.canonicalize() {
+        Ok(root) => root,
+        Err(error) => {
+            return CanonicalCallSweep {
+                notes: vec![format!("canonical-call project boundary unavailable: {error}")],
+                ..Default::default()
+            };
+        }
+    };
+    let compact_intent = compact_member(intent).to_ascii_lowercase();
+    let mut notes = Vec::new();
+    let mut charged_bytes = 0_u64;
+    let mut cached: BTreeMap<String, (String, InvocationReport)> = BTreeMap::new();
+    let mut groups: SeedGroups = BTreeMap::new();
+    let mut candidate_count = 0_usize;
+    let mut candidates_truncated = false;
+
+    for (relative, added_lines) in &added_by_file {
+        let Some(source) = read_bounded_vb_source(
+            &root,
+            relative,
+            caps.file_bytes,
+            caps.total_bytes.saturating_sub(charged_bytes),
+            &mut charged_bytes,
+            &mut notes,
+        ) else {
+            continue;
+        };
+        let path = root.join(relative);
+        let report = match analyze(&path, &source) {
+            Ok(report) => report,
+            Err(error) => {
+                notes.push(format!(
+                    "canonical-call Roslyn invocation query failed for {relative}: {error}; no lexical fallback was used"
+                ));
+                continue;
+            }
+        };
+        note_incomplete_invocation_report(relative, &report, &mut notes);
+        for invocation in &report.invocations {
+            if invocation.source_index != 0 {
+                continue;
+            }
+            let Some(callee_text) = engram_index::vb_extractor::vb_utf16_span_text(
+                &source,
+                invocation.callee_span_start,
+                invocation.callee_span_length,
+            ) else {
+                notes.push(format!(
+                    "canonical-call Roslyn callee span was invalid for {relative}:{}",
+                    invocation.start_line
+                ));
+                continue;
+            };
+            let callee = normalize_vb_callee(callee_text);
+            for argument in &invocation.arguments {
+                if argument.classification != "member_access"
+                    || argument.source_index != 0
+                    || !line_span_intersects(added_lines, argument.start_line, argument.end_line)
+                {
+                    continue;
+                }
+                let Some(expression) = engram_index::vb_extractor::vb_utf16_span_text(
+                    &source,
+                    argument.span_start,
+                    argument.span_length,
+                ) else {
+                    notes.push(format!(
+                        "canonical-call Roslyn argument span was invalid for {relative}:{}",
+                        argument.start_line
+                    ));
+                    continue;
+                };
+                let member = compact_member(expression);
+                if !member_has_canonical_segment(&member)
+                    && !compact_intent.contains(&member.to_ascii_lowercase())
+                {
+                    continue;
+                }
+                let selector = if let Some(parameter) = argument.parameter_ordinal {
+                    ArgumentSelector::Resolved(parameter)
+                } else if let Some(name) = argument.name.as_deref() {
+                    ArgumentSelector::Named(name.to_ascii_lowercase())
+                } else {
+                    ArgumentSelector::Ordinal(argument.syntax_ordinal as usize)
+                };
+                let site = CanonicalSite {
+                    member,
+                    file: relative.clone(),
+                    line: argument.start_line,
+                };
+                let key = (callee.clone(), selector);
+                if groups.get(&key).is_some_and(|sites| sites.contains(&site)) {
+                    continue;
+                }
+                if candidate_count >= caps.candidates {
+                    candidates_truncated = true;
+                    continue;
+                }
+                groups.entry(key).or_default().insert(site);
+                candidate_count += 1;
+            }
+        }
+        cached.insert(canonical_path_key(relative), (source, report));
+    }
+    if groups.is_empty() {
+        return CanonicalCallSweep {
+            notes,
+            ..Default::default()
+        };
+    }
+
+    let mut result = CanonicalCallSweep {
+        attempted: true,
+        notes,
+        ..Default::default()
+    };
+    if candidates_truncated {
+        result.notes.push(format!(
+            "canonical-call diff candidates truncated at {}; additional Roslyn candidates are unexamined",
+            caps.candidates
+        ));
+    }
+
+    let mut files = engram_index::ingest::iter_files(&root, &["vb"]);
+    for requested_file in requested_files.iter().filter(|file| {
+        file.to_ascii_lowercase().ends_with(".vb")
+    }) {
+        files.push(root.join(requested_file));
+    }
+    files.sort_by_key(|path| canonical_path_key(&path.to_string_lossy()));
+    files.dedup_by(|left, right| {
+        canonical_path_key(&left.to_string_lossy())
+            == canonical_path_key(&right.to_string_lossy())
+    });
+    files.retain(|path| {
+        path.strip_prefix(&root)
+            .ok()
+            .map(|relative| {
+                !canonical_sweep_path_excluded(&relative.to_string_lossy().replace('\\', "/"))
+            })
+            .unwrap_or(false)
+    });
+    files.sort_by_key(|path| {
+        let relative = path
+            .strip_prefix(&root)
+            .ok()
+            .map(|path| canonical_path_key(&path.to_string_lossy()))
+            .unwrap_or_default();
+        (!requested.contains(&relative), relative)
+    });
+    let required_scan = groups
+        .values()
+        .flat_map(|sites| sites.iter().map(|site| canonical_path_key(&site.file)))
+        .collect::<BTreeSet<_>>();
+    let eligible_files = files.len();
+    if eligible_files > caps.files {
+        files.truncate(caps.files);
+        result.notes.push(format!(
+            "canonical-call project scan truncated at {} of {eligible_files} eligible VB files",
+            caps.files
+        ));
+    }
+
+    let mut scanned_files = 0_usize;
+    let mut failed_files = 0_usize;
+    let mut stopped_at_result_cap = false;
+    let mut stopped_at_byte_cap = false;
+    let mut residual_keys = BTreeSet::new();
+    let mut scanned_paths = BTreeSet::new();
+    'files: for path in files {
+        let Ok(relative_path) = path.strip_prefix(&root) else {
+            failed_files += 1;
+            continue;
+        };
+        let relative = relative_path.to_string_lossy().replace('\\', "/");
+        let cache_key = canonical_path_key(&relative);
+        let (source, report, newly_analyzed) = if let Some((source, report)) = cached.remove(&cache_key) {
+            (source, report, false)
+        } else {
+            if charged_bytes >= caps.total_bytes {
+                stopped_at_byte_cap = true;
+                break;
+            }
+            let Some(source) = read_bounded_vb_source(
+                &root,
+                &relative,
+                caps.file_bytes,
+                caps.total_bytes - charged_bytes,
+                &mut charged_bytes,
+                &mut result.notes,
+            ) else {
+                failed_files += 1;
+                continue;
+            };
+            match analyze(&path, &source) {
+                Ok(report) => (source, report, true),
+                Err(error) => {
+                    failed_files += 1;
+                    result.notes.push(format!(
+                        "canonical-call Roslyn invocation query failed for {relative}: {error}; no lexical fallback was used"
+                    ));
+                    continue;
+                }
+            }
+        };
+        scanned_files += 1;
+        scanned_paths.insert(cache_key);
+        if newly_analyzed {
+            note_incomplete_invocation_report(&relative, &report, &mut result.notes);
+        }
+        for invocation in &report.invocations {
+            if invocation.source_index != 0 {
+                continue;
+            }
+            let Some(callee_text) = engram_index::vb_extractor::vb_utf16_span_text(
+                &source,
+                invocation.callee_span_start,
+                invocation.callee_span_length,
+            ) else {
+                result.notes.push(format!(
+                    "canonical-call Roslyn callee span was invalid for {relative}:{}",
+                    invocation.start_line
+                ));
+                continue;
+            };
+            let callee = normalize_vb_callee(callee_text);
+            for ((seed_callee, selector), sites) in &groups {
+                if &callee != seed_callee {
+                    continue;
+                }
+                let argument = match selector {
+                    ArgumentSelector::Resolved(parameter) => invocation
+                        .arguments
+                        .iter()
+                        .find(|argument| argument.parameter_ordinal == Some(*parameter)),
+                    ArgumentSelector::Named(name) => invocation.arguments.iter().find(|argument| {
+                        argument.name.as_deref().is_some_and(|candidate| candidate.eq_ignore_ascii_case(name))
+                    }),
+                    ArgumentSelector::Ordinal(ordinal) => invocation.arguments.iter().find(
+                        |argument| {
+                            argument.name.is_none()
+                                && argument
+                                    .parameter_ordinal
+                                    .unwrap_or(argument.syntax_ordinal)
+                                    as usize
+                                    == *ordinal
+                        },
+                    ),
+                };
+                let Some(argument) = argument else { continue };
+                if argument.classification != "string_literal" || argument.source_index != 0 {
+                    continue;
+                }
+                let Some(expression) = engram_index::vb_extractor::vb_utf16_span_text(
+                    &source,
+                    argument.span_start,
+                    argument.span_length,
+                ) else {
+                    result.notes.push(format!(
+                        "canonical-call Roslyn argument span was invalid for {relative}:{}",
+                        argument.start_line
+                    ));
+                    continue;
+                };
+                let key = (
+                    relative.clone(),
+                    argument.start_line,
+                    seed_callee.clone(),
+                    selector.clone(),
+                    expression.to_string(),
+                );
+                if !residual_keys.insert(key) {
+                    continue;
+                }
+                let canonical_sites = sites
+                    .iter()
+                    .map(|site| format!("`{}` at {}:{}", site.member, site.file, site.line))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                result.residuals.push(format!(
+                    "{relative}:{}: `{}` {} is string literal {}; added-diff candidate(s): {canonical_sites}. Review whether this site is an intentional alias or deferred migration; lexical callee/argument equality does not establish symbol binding or require a change",
+                    argument.start_line,
+                    callee_text,
+                    selector_label(selector),
+                    bounded_literal(expression),
+                ));
+                if result.residuals.len() >= caps.results {
+                    stopped_at_result_cap = true;
+                    break 'files;
+                }
+            }
+        }
+    }
+    if stopped_at_byte_cap {
+        result.notes.push(format!(
+            "canonical-call project scan stopped at the {}-byte total source cap after {scanned_files} file(s); bytes are charged before UTF-8 decoding",
+            caps.total_bytes
+        ));
+    }
+    if stopped_at_result_cap {
+        result.notes.push(format!(
+            "canonical-call residuals truncated at {}; remaining files/invocations are unexamined",
+            caps.results
+        ));
+    }
+    if failed_files > 0 {
+        result.notes.push(format!(
+            "canonical-call scan could not obtain source-bound Roslyn evidence for {failed_files} file(s)"
+        ));
+    }
+    let omitted_requested = required_scan
+        .difference(&scanned_paths)
+        .cloned()
+        .collect::<Vec<_>>();
+    if !omitted_requested.is_empty() {
+        result.notes.push(format!(
+            "canonical-call scan omitted requested seed file(s): {}; same-file residual coverage is incomplete",
+            omitted_requested.join(", ")
+        ));
+    }
+    result.summary = format!(
+        "Bounded Roslyn VB sweep derived {} canonical callee/argument group(s) containing {candidate_count} added-diff candidate(s), and examined {scanned_files} project file(s), {charged_bytes} source byte(s). Per-file cap: {} bytes; total cap: {} bytes; file cap: {}; result cap: {}. Requested seed files are prioritized; any omissions are reported as INCOMPLETE. Callee matching is lexical. Absence outside this scope is not established.",
+        groups.len(), caps.file_bytes, caps.total_bytes, caps.files, caps.results,
+    );
+    result
+}
+
+fn note_incomplete_invocation_report(
+    relative: &str,
+    report: &InvocationReport,
+    notes: &mut Vec<String>,
+) {
+    if report.parse_error_count > 0 || report.parse_status != "complete" {
+        notes.push(format!(
+            "canonical-call Roslyn parsed {relative} with status `{}` and {} syntax error(s)",
+            report.parse_status, report.parse_error_count
+        ));
+    }
+    if report.truncated
+        || report.omitted_invocation_count > 0
+        || report.omitted_argument_count > 0
+    {
+        notes.push(format!(
+            "canonical-call Roslyn invocation evidence was partial for {relative}: {} invocation(s) and {} argument(s) omitted; {}",
+            report.omitted_invocation_count,
+            report.omitted_argument_count,
+            report.notes.join("; ")
+        ));
+    }
+}
+
+fn read_bounded_vb_source(
+    root: &Path,
+    relative: &str,
+    file_cap: u64,
+    remaining: u64,
+    charged_total: &mut u64,
+    notes: &mut Vec<String>,
+) -> Option<String> {
+    if remaining == 0 {
+        notes.push(format!(
+            "canonical-call source budget exhausted before {relative}"
+        ));
+        return None;
+    }
+    let path = root.join(relative);
+    let metadata = match std::fs::symlink_metadata(&path) {
+        Ok(metadata) if metadata.is_file() && !metadata.file_type().is_symlink() => metadata,
+        _ => {
+            notes.push(format!("canonical-call source unavailable or unsafe: {relative}"));
+            return None;
+        }
+    };
+    let canonical = match path.canonicalize() {
+        Ok(path) if path.starts_with(root) => path,
+        _ => {
+            notes.push(format!("canonical-call source escaped project boundary: {relative}"));
+            return None;
+        }
+    };
+    let read_limit = (file_cap + 1).min(remaining);
+    let file = match std::fs::File::open(&canonical) {
+        Ok(file) => file,
+        Err(error) => {
+            notes.push(format!("canonical-call source read failed for {relative}: {error}"));
+            return None;
+        }
+    };
+    use std::io::Read as _;
+    let mut bytes = Vec::new();
+    if let Err(error) = file.take(read_limit).read_to_end(&mut bytes) {
+        notes.push(format!("canonical-call source read failed for {relative}: {error}"));
+        return None;
+    }
+    let charged = bytes.len() as u64;
+    *charged_total = (*charged_total).saturating_add(charged);
+    if metadata.len() > read_limit && read_limit <= file_cap {
+        notes.push(format!(
+            "canonical-call total source cap reached while reading {relative}"
+        ));
+        return None;
+    }
+    if charged > file_cap {
+        notes.push(format!(
+            "canonical-call skipped {relative}: source exceeds the {file_cap}-byte file cap"
+        ));
+        return None;
+    }
+    match String::from_utf8(bytes) {
+        Ok(source) => Some(source),
+        Err(_) => {
+            notes.push(format!(
+                "canonical-call skipped non-UTF-8 source {relative} after charging {charged} byte(s)"
+            ));
+            None
+        }
+    }
+}
+
+fn line_span_intersects(lines: &BTreeSet<u32>, start: u32, end: u32) -> bool {
+    lines.range(start..=end.max(start)).next().is_some()
+}
+
+fn selector_label(selector: &ArgumentSelector) -> String {
+    match selector {
+        ArgumentSelector::Resolved(parameter) => {
+            format!("resolved parameter ordinal {}", parameter + 1)
+        }
+        ArgumentSelector::Named(name) => format!("named argument `{name}`"),
+        ArgumentSelector::Ordinal(ordinal) => format!("argument {}", ordinal + 1),
+    }
+}
+
+fn member_has_canonical_segment(member: &str) -> bool {
+    member.split('.').any(|segment| {
+        let lower = segment.to_ascii_lowercase();
+        ["prefix", "token", "constant", "constants"]
+            .iter()
+            .any(|marker| lower.contains(marker))
+    })
+}
+
+fn canonical_sweep_path_excluded(path: &str) -> bool {
+    let lower = path.replace('\\', "/").to_ascii_lowercase();
+    let components = lower.split('/').collect::<Vec<_>>();
+    components.iter().any(|component| {
+        matches!(
+            *component,
+            ".git" | ".svn" | ".vs" | "bin" | "generated" | "obj" | "target"
+                | "node_modules" | "packages" | "vendor"
+        )
+    }) || lower.contains(".designer.") || lower.ends_with(".g.vb")
+}
+
+fn compact_member(value: &str) -> String {
+    value.chars().filter(|character| !character.is_whitespace()).collect()
+}
+
+fn normalize_vb_callee(callee: &str) -> String {
+    compact_member(callee).to_ascii_lowercase()
+}
+
+fn canonical_path_key(path: &str) -> String {
+    let normalized = path.replace('\\', "/");
+    if cfg!(windows) {
+        normalized.to_ascii_lowercase()
+    } else {
+        normalized
+    }
+}
+
+fn bounded_literal(value: &str) -> String {
+    let mut rendered = value.chars().take(120).collect::<String>();
+    if value.chars().count() > 120 {
+        rendered.push_str("...");
+    }
+    format!("`{}`", rendered.replace('`', "\\`"))
+}
 
 /// Presentation-only correction for historical setting-shaped edges. Only a
 /// source-proven, uniquely declared private nullable field qualifies; a real
@@ -242,21 +1085,63 @@ pub(super) fn axis_source(
     }
 }
 
-/// Resolve only an explicit code-behind directive in the verified markup
-/// snapshot. No filename guessing or transitive helper expansion.
+/// Resolve only an explicit code-behind directive. Markup requests use their
+/// already verified snapshot. Code-behind requests scan a bounded sibling
+/// directory for markup that explicitly declares the exact source path; the
+/// caller must freshness-verify that returned markup before using the inverse
+/// relationship.
 pub(super) fn declared_axis_companion(
     root: &Path,
     file: &str,
     snapshot: &[u8],
-) -> Result<Option<String>, String> {
-    if !matches!(
-        Path::new(file)
-            .extension()
-            .and_then(|e| e.to_str())
-            .map(str::to_ascii_lowercase)
-            .as_deref(),
-        Some("aspx" | "ascx" | "master")
-    ) {
+) -> Result<Option<(String, bool)>, String> {
+    let extension = Path::new(file).extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase);
+    let is_markup = matches!(extension.as_deref(), Some("aspx" | "ascx" | "master"));
+    if !is_markup {
+        // Follow code-behind to markup only when that existing markup
+        // explicitly declares this exact source file. The caller separately
+        // freshness-verifies the markup before rendering its axes/relation.
+        if !matches!(extension.as_deref(), Some("vb" | "cs")) {
+            return Ok(None);
+        }
+        let root = root.canonicalize().map_err(|e| e.to_string())?;
+        let source_file = engram_core::safe_join(&root, file).map_err(|e| e.to_string())?
+            .canonicalize().map_err(|e| format!("code-behind {file} is unavailable: {e}"))?;
+        let Some(parent) = source_file.parent() else { return Ok(None); };
+        let mut candidates = std::fs::read_dir(parent).map_err(|e| e.to_string())?
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .filter(|path| matches!(path.extension().and_then(|value| value.to_str())
+                .map(str::to_ascii_lowercase).as_deref(), Some("aspx" | "ascx" | "master")))
+            .collect::<Vec<_>>();
+        candidates.sort();
+        if candidates.len() > 256 {
+            return Err(format!("code-behind sibling markup scan truncated at 256 of {} files", candidates.len()));
+        }
+        let mut scanned_bytes = 0_u64;
+        for markup_file in candidates {
+            let Ok(markup_file) = markup_file.canonicalize() else { continue; };
+            let Ok(relative) = markup_file.strip_prefix(&root) else { continue; };
+            let Ok(metadata) = std::fs::metadata(&markup_file) else { continue; };
+            if !metadata.is_file() || metadata.len() > 4 * 1024 * 1024 { continue; }
+            scanned_bytes = scanned_bytes.saturating_add(metadata.len());
+            if scanned_bytes > 4 * 1024 * 1024 {
+                return Err("code-behind sibling markup scan exceeded 4 MiB; narrow the requested files".into());
+            }
+            let Ok(markup_bytes) = std::fs::read(&markup_file) else { continue; };
+            let Ok(markup) = std::str::from_utf8(&markup_bytes) else { continue; };
+            let Some(declared) = crate::services::validation_mapping_service::declared_codebehind(markup) else { continue; };
+            let declared = declared.replace('\\', "/");
+            let declared_file = if let Some(relative) = declared.strip_prefix("~/") {
+                super::access_layer_tools::discover_web_application_root(&root, &markup_file).join(relative)
+            } else {
+                markup_file.parent().unwrap_or(&root).join(&declared)
+            };
+            let Ok(declared_file) = declared_file.canonicalize() else { continue; };
+            if declared_file == source_file {
+                return Ok(Some((relative.to_string_lossy().replace('\\', "/"), false)));
+            }
+        }
         return Ok(None);
     }
     let markup = std::str::from_utf8(snapshot).map_err(|_| {
@@ -294,7 +1179,42 @@ pub(super) fn declared_axis_companion(
             "declared code-behind {declared} is not a supported VB/C# source file"
         ));
     }
-    Ok(Some(relative.to_string_lossy().replace('\\', "/")))
+    Ok(Some((relative.to_string_lossy().replace('\\', "/"), true)))
+}
+
+/// Return markup files that directly register the requested user control.
+/// This is a single graph hop over source-extracted `registers_control` edges;
+/// callers still freshness-verify every returned host before using it.
+pub(super) fn registered_control_hosts(
+    graph: &engram_graph::GraphStore,
+    project_id: &str,
+    file: &str,
+) -> Result<(Vec<String>, bool), String> {
+    if !file.to_ascii_lowercase().ends_with(".ascx") {
+        return Ok((Vec::new(), false));
+    }
+    let node_id = format!("file:{}", file.replace('\\', "/"));
+    let incoming = graph.find_incoming_edges_with_kind(
+        project_id,
+        Some(engram_graph::EdgeKind::RegistersControl),
+        &node_id,
+        33,
+    ).map_err(|error| format!("registered-control host lookup failed: {error}"))?;
+    let truncated = incoming.len() > 32;
+    let mut hosts = incoming.into_iter().take(32)
+        .filter_map(|(source, _, _)| {
+            source.strip_prefix("page:").or_else(|| source.strip_prefix("file:"))
+                .map(str::to_string)
+        })
+        .filter(|path| matches!(
+            Path::new(path).extension().and_then(|value| value.to_str())
+                .map(str::to_ascii_lowercase).as_deref(),
+            Some("aspx" | "ascx" | "master")
+        ))
+        .collect::<Vec<_>>();
+    hosts.sort();
+    hosts.dedup();
+    Ok((hosts, truncated))
 }
 
 pub(super) struct RuleCase {
@@ -359,6 +1279,7 @@ pub(super) fn collect(
     generation: u64,
     files: &[String],
     root: &Path,
+    max_cases: usize,
 ) -> Result<(Vec<RuleCase>, Vec<String>), String> {
     let query = HybridQuery {
         project_id: pid.into(),
@@ -476,14 +1397,16 @@ pub(super) fn collect(
                 .collect()
         });
         for rule in &rules {
-            if cases.len() >= 40 {
-                if cases.len() == cases_before_document {
-                    notes.extend(warning_notes());
-                }
-                notes.push(
-                    "proposed case output truncated at 40; narrow the requested files".into(),
-                );
-                return Ok((cases, notes));
+            // Bound each document before global balancing. Business-rule
+            // documents can contain hundreds of lines; eight candidates retain
+            // local variety while preventing one method from monopolizing the
+            // final matrix.
+            if cases.len() - cases_before_document >= 8 {
+                notes.push(format!(
+                    "{}: source-linked case candidates truncated at 8 for document balance",
+                    hit.doc_id
+                ));
+                break;
             }
             let mut requirement: String = rule.chars().take(1000).collect();
             if rule.chars().count() > 1000 {
@@ -536,7 +1459,41 @@ pub(super) fn collect(
             notes.extend(warning_notes());
         }
     }
-    Ok((cases, notes))
+    let candidate_count = cases.len();
+    let mut groups: Vec<(String, VecDeque<RuleCase>)> = Vec::new();
+    for case in cases {
+        if let Some((_, queue)) = groups.iter_mut().find(|(id, _)| id == &case.doc_id) {
+            queue.push_back(case);
+        } else {
+            groups.push((case.doc_id.clone(), VecDeque::from([case])));
+        }
+    }
+    let mut balanced = Vec::with_capacity(candidate_count.min(max_cases));
+    while balanced.len() < max_cases {
+        let mut advanced = false;
+        for (_, queue) in &mut groups {
+            if let Some(case) = queue.pop_front() {
+                balanced.push(case);
+                advanced = true;
+                if balanced.len() == max_cases {
+                    break;
+                }
+            }
+        }
+        if !advanced {
+            break;
+        }
+    }
+    if candidate_count > balanced.len() {
+        notes.push(format!(
+            "source-linked cases sampled round-robin across {} evidence document(s): showing {} of {} candidates (max_source_cases={})",
+            groups.len(),
+            balanced.len(),
+            candidate_count,
+            max_cases
+        ));
+    }
+    Ok((balanced, notes))
 }
 
 #[cfg(test)]
@@ -544,6 +1501,417 @@ mod tests {
     use super::*;
     use engram_core::{Config, ContentHash, RelPath};
     use engram_index::IndexDoc;
+
+    #[test]
+    fn configured_risk_packs_hot_reload_and_project_ids_override_global() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let data = temp.path().join("data");
+        let project = temp.path().join("project");
+        std::fs::create_dir_all(data.join("rules")).unwrap();
+        std::fs::create_dir_all(project.join(".engram")).unwrap();
+        std::fs::write(data.join("rules/test-risk-rules.yaml"), r#"
+version: 1
+rules:
+  - id: team.no-blocking-wait
+    title: Global wait rule
+    guidance: Verify the asynchronous alternative and cancellation behavior.
+    extensions: [vb]
+    any_terms: [".Wait()"]
+  - id: team.no-inline-if
+    title: Single-line conditional convention
+    guidance: Expand the conditional according to the repository convention.
+    extensions: [vb]
+    any_terms: [" Then Return "]
+"#).unwrap();
+        std::fs::write(project.join(".engram/test-risk-rules.yaml"), r#"
+version: 1
+rules:
+  - id: team.no-blocking-wait
+    title: Repository wait rule v1
+    guidance: Use this repository's asynchronous helper and verify cancellation.
+    extensions: [.vb]
+    any_terms: [".Wait()"]
+"#).unwrap();
+
+        let (pack, notes) = load_configured_risk_pack(&data, &project);
+        assert!(notes.is_empty(), "{notes:?}");
+        assert_eq!(pack.len(), 2);
+        let first = configured_risk_axes(&pack, "Site/Worker.vb", "task.Wait()");
+        assert_eq!(first.len(), 1, "{first:?}");
+        assert_eq!(first[0].0, "Repository wait rule v1");
+        assert!(first[0].1.contains("project pack"), "{:?}", first[0]);
+
+        std::fs::write(project.join(".engram/test-risk-rules.yaml"), r#"
+version: 1
+rules:
+  - id: team.no-blocking-wait
+    title: Repository wait rule v2
+    guidance: Reloaded without a daemon restart.
+    extensions: [vb]
+    any_terms: [".Wait()"]
+"#).unwrap();
+        let (reloaded, notes) = load_configured_risk_pack(&data, &project);
+        assert!(notes.is_empty(), "{notes:?}");
+        let second = configured_risk_axes(&reloaded, "Site/Worker.vb", "task.Wait()");
+        assert_eq!(second[0].0, "Repository wait rule v2");
+        assert!(second[0].1.contains("Reloaded without a daemon restart"));
+    }
+
+    #[test]
+    fn invalid_risk_pack_is_reported_and_never_partially_applied() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let data = temp.path().join("data");
+        let project = temp.path().join("project");
+        std::fs::create_dir_all(data.join("rules")).unwrap();
+        std::fs::create_dir_all(&project).unwrap();
+        std::fs::write(data.join("rules/test-risk-rules.yaml"), r#"
+version: 1
+rules:
+  - id: valid-looking-rule
+    title: This must not be partially loaded
+    guidance: Reject the complete pack when any rule is invalid.
+    extensions: [vb]
+    any_terms: ["Execute("]
+  - id: invalid-rule
+    title: Unknown fields are rejected
+    guidance: This pack is invalid.
+    extensions: [vb]
+    any_terms: ["Execute("]
+    executable: powershell.exe
+"#).unwrap();
+
+        let (pack, notes) = load_configured_risk_pack(&data, &project);
+        assert_eq!(pack.len(), 0);
+        assert_eq!(notes.len(), 1, "{notes:?}");
+        assert!(notes[0].contains("invalid YAML/schema"), "{notes:?}");
+        assert!(configured_risk_matches(&pack, "Worker.vb", "Execute(input)").is_empty());
+    }
+
+    #[test]
+    fn historical_cutoff_excludes_newer_and_undated_configured_rules() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let data = temp.path().join("data");
+        let project = temp.path().join("project");
+        std::fs::create_dir_all(data.join("rules")).unwrap();
+        std::fs::create_dir_all(&project).unwrap();
+        std::fs::write(data.join("rules/test-risk-rules.yaml"), r#"
+version: 1
+provenance: review corpus
+rules:
+  - id: before
+    title: Before cutoff
+    guidance: This rule is available to the replay.
+    introduced_at: 2026-01-01
+    any_terms: ["Execute("]
+  - id: after
+    title: After cutoff
+    guidance: This rule must not leak backwards.
+    introduced_at: 2026-09-14
+    any_terms: ["Execute("]
+  - id: undated
+    title: Undated
+    guidance: Undated knowledge is not replay-safe.
+    any_terms: ["Execute("]
+"#).unwrap();
+
+        let (pack, notes) = load_configured_risk_pack_before(
+            &data, &project, Some("2026-09-03"),
+        );
+        assert_eq!(pack.len(), 1);
+        assert_eq!(notes.len(), 2, "{notes:?}");
+        let matched = configured_risk_matches(&pack, "Worker.vb", "Execute(input)");
+        assert_eq!(matched.len(), 1);
+        assert_eq!(matched[0].id, "before");
+        assert_eq!(matched[0].introduced_at.as_deref(), Some("2026-01-01"));
+        assert_eq!(matched[0].provenance.as_deref(), Some("review corpus"));
+    }
+
+    fn added_diff(
+        path: &str,
+        lines: &[(usize, &str)],
+    ) -> crate::services::pre_commit_review_service::DiffFile {
+        crate::services::pre_commit_review_service::DiffFile {
+            path: path.into(),
+            change_type: crate::services::pre_commit_review_service::ChangeType::Modified,
+            added_lines: lines.iter().map(|(n, text)| (*n, (*text).into())).collect(),
+            removed_lines: Vec::new(),
+            added_content: lines.iter().map(|(_, text)| *text).collect::<Vec<_>>().join("\n"),
+            removed_content: String::new(),
+            hunks: Vec::new(),
+            is_binary: false,
+        }
+    }
+
+    fn span(source: &str, text: &str) -> (u32, u32) {
+        let start = source.find(text).unwrap();
+        (start as u32, text.encode_utf16().count() as u32)
+    }
+
+    fn argument(
+        source: &str,
+        text: &str,
+        line: u32,
+        name: Option<&str>,
+        classification: &str,
+        ordinal: u32,
+    ) -> engram_index::vb_extractor::VbInvocationArgument {
+        let (span_start, span_length) = span(source, text);
+        engram_index::vb_extractor::VbInvocationArgument {
+            source_index: 0,
+            span_start,
+            span_length,
+            start_line: line,
+            end_line: line,
+            name: name.map(str::to_string),
+            classification: classification.into(),
+            syntax_ordinal: ordinal,
+            parameter_ordinal: None,
+        }
+    }
+
+    fn resolved_argument(
+        source: &str,
+        text: &str,
+        line: u32,
+        name: Option<&str>,
+        classification: &str,
+        syntax_ordinal: u32,
+        parameter_ordinal: u32,
+    ) -> engram_index::vb_extractor::VbInvocationArgument {
+        let mut argument = argument(
+            source,
+            text,
+            line,
+            name,
+            classification,
+            syntax_ordinal,
+        );
+        argument.parameter_ordinal = Some(parameter_ordinal);
+        argument
+    }
+
+    fn report(
+        source: &str,
+        calls: Vec<(&str, u32, u32, Vec<engram_index::vb_extractor::VbInvocationArgument>)>,
+    ) -> InvocationReport {
+        InvocationReport {
+            version: "vb-invocations-v1".into(),
+            request_id: None,
+            source_sha256: String::new(),
+            source_count: 1,
+            scope: "full_source".into(),
+            parse_status: "complete".into(),
+            parse_error_count: 0,
+            invocations: calls.into_iter().map(|(callee, start_line, end_line, arguments)| {
+                let (callee_span_start, callee_span_length) = span(source, callee);
+                engram_index::vb_extractor::VbInvocation {
+                    source_index: 0,
+                    span_start: callee_span_start,
+                    span_length: callee_span_length,
+                    callee_span_start,
+                    callee_span_length,
+                    start_line,
+                    end_line,
+                    target_method_id: None,
+                    resolution: "lexical".into(),
+                    arguments,
+                }
+            }).collect(),
+            truncated: false,
+            omitted_invocation_count: 0,
+            omitted_argument_count: 0,
+            notes: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn canonical_sweep_no_added_diff_is_silent_and_does_not_query_roslyn() {
+        let temp = tempfile::tempdir().unwrap();
+        let sweep = canonical_call_migration_sweep_with(
+            temp.path(),
+            "",
+            &["Changed.vb".into()],
+            &[],
+            CANONICAL_SWEEP_CAPS,
+            |_, _| panic!("Roslyn must not run without relevant added lines"),
+        );
+        assert!(!sweep.attempted);
+        assert!(sweep.notes.is_empty());
+    }
+
+    #[test]
+    fn canonical_sweep_path_keys_follow_platform_case_semantics() {
+        if cfg!(windows) {
+            assert_eq!(canonical_path_key("Folder/Foo.vb"), canonical_path_key("folder/foo.vb"));
+        } else {
+            assert_ne!(canonical_path_key("Folder/Foo.vb"), canonical_path_key("folder/foo.vb"));
+        }
+    }
+
+    #[test]
+    fn canonical_sweep_scans_requested_file_before_global_file_cap() {
+        let temp = tempfile::tempdir().unwrap();
+        let changed = "AuditTrail.Record(\"same\")\nAuditTrail.Record(EventToken.Widget)\n";
+        std::fs::write(temp.path().join("Changed.vb"), changed).unwrap();
+        std::fs::write(temp.path().join("A-first.vb"), "AuditTrail.Record(\"other\")\n").unwrap();
+        let diff = added_diff("Changed.vb", &[(2, "AuditTrail.Record(EventToken.Widget)")]);
+        let caps = CanonicalSweepCaps { files: 1, ..CANONICAL_SWEEP_CAPS };
+        let sweep = canonical_call_migration_sweep_with(
+            temp.path(),
+            "",
+            &["Changed.vb".into()],
+            &[diff],
+            caps,
+            |_, source| Ok(report(source, vec![
+                ("AuditTrail.Record", 1, 1, vec![argument(source, "\"same\"", 1, None, "string_literal", 0)]),
+                ("AuditTrail.Record", 2, 2, vec![argument(source, "EventToken.Widget", 2, None, "member_access", 0)]),
+            ])),
+        );
+        assert_eq!(sweep.residuals.len(), 1, "{sweep:#?}");
+        assert!(sweep.residuals[0].contains("Changed.vb:1"));
+        assert!(!sweep.notes.iter().any(|note| note.contains("omitted requested seed")));
+    }
+
+    #[test]
+    fn canonical_sweep_named_argument_matches_after_reorder_and_in_changed_file() {
+        let temp = tempfile::tempdir().unwrap();
+        let changed = "AuditTrail.Record(category := \"same\")\nAuditTrail.Record(\n value := 7,\n category := EventPrefix.Widget)\n";
+        let legacy = "AuditTrail.Record(value := 8, category := \"other\")\n";
+        std::fs::write(temp.path().join("Changed.vb"), changed).unwrap();
+        std::fs::write(temp.path().join("Legacy.vb"), legacy).unwrap();
+        let diff = added_diff("Changed.vb", &[(4, " category := EventPrefix.Widget)")]);
+        let sweep = canonical_call_migration_sweep_with(
+            temp.path(),
+            "",
+            &["Changed.vb".into()],
+            &[diff],
+            CANONICAL_SWEEP_CAPS,
+            |_, source| {
+                if source == changed {
+                    Ok(report(source, vec![
+                        ("AuditTrail.Record", 1, 1, vec![argument(source, "\"same\"", 1, Some("category"), "string_literal", 0)]),
+                        ("AuditTrail.Record", 2, 4, vec![
+                            argument(source, "7", 3, Some("value"), "other", 0),
+                            argument(source, "EventPrefix.Widget", 4, Some("category"), "member_access", 1),
+                        ]),
+                    ]))
+                } else {
+                    Ok(report(source, vec![("AuditTrail.Record", 1, 1, vec![
+                        argument(source, "\"other\"", 1, Some("category"), "string_literal", 1),
+                    ])]))
+                }
+            },
+        );
+        assert!(sweep.attempted);
+        assert_eq!(sweep.residuals.len(), 2, "{sweep:#?}");
+        let joined = sweep.residuals.join("\n");
+        assert!(joined.contains("Changed.vb:1"), "{joined}");
+        assert!(joined.contains("Legacy.vb:1"), "{joined}");
+        assert!(joined.contains("named argument `category`"), "{joined}");
+        assert!(joined.contains("EventPrefix.Widget"), "{joined}");
+    }
+
+    #[test]
+    fn canonical_sweep_resolved_parameter_matches_named_and_positional_forms() {
+        let temp = tempfile::tempdir().unwrap();
+        let changed = "AuditTrail.Record(category := EventToken.Widget)\n";
+        let readers = "AuditTrail.Record(\"positional\")\nAuditTrail.Record(category := \"named\")\n";
+        std::fs::write(temp.path().join("Changed.vb"), changed).unwrap();
+        std::fs::write(temp.path().join("Readers.vb"), readers).unwrap();
+        let diff = added_diff("Changed.vb", &[(1, changed.trim_end())]);
+        let sweep = canonical_call_migration_sweep_with(
+            temp.path(),
+            "",
+            &["Changed.vb".into()],
+            &[diff],
+            CANONICAL_SWEEP_CAPS,
+            |_, source| {
+                if source == changed {
+                    Ok(report(source, vec![("AuditTrail.Record", 1, 1, vec![
+                        resolved_argument(
+                            source,
+                            "EventToken.Widget",
+                            1,
+                            Some("category"),
+                            "member_access",
+                            0,
+                            1,
+                        ),
+                    ])]))
+                } else {
+                    Ok(report(source, vec![
+                        ("AuditTrail.Record", 1, 1, vec![resolved_argument(
+                            source, "\"positional\"", 1, None, "string_literal", 0, 1,
+                        )]),
+                        ("AuditTrail.Record", 2, 2, vec![resolved_argument(
+                            source, "\"named\"", 2, Some("category"), "string_literal", 0, 1,
+                        )]),
+                    ]))
+                }
+            },
+        );
+        assert_eq!(sweep.residuals.len(), 2, "{sweep:#?}");
+        assert!(sweep.residuals.iter().all(|item| item.contains("resolved parameter ordinal 2")));
+    }
+
+    #[test]
+    fn canonical_sweep_reports_partial_roslyn_evidence() {
+        let temp = tempfile::tempdir().unwrap();
+        let source = "AuditTrail.Record(EventToken.Widget)\n";
+        std::fs::write(temp.path().join("Changed.vb"), source).unwrap();
+        let diff = added_diff("Changed.vb", &[(1, source.trim_end())]);
+        let sweep = canonical_call_migration_sweep_with(
+            temp.path(),
+            "",
+            &["Changed.vb".into()],
+            &[diff],
+            CANONICAL_SWEEP_CAPS,
+            |_, source| {
+                let mut result = report(source, vec![("AuditTrail.Record", 1, 1, vec![
+                    argument(source, "EventToken.Widget", 1, None, "member_access", 0),
+                ])]);
+                result.parse_status = "syntax_errors".into();
+                result.parse_error_count = 1;
+                result.truncated = true;
+                result.omitted_argument_count = 2;
+                Ok(result)
+            },
+        );
+        assert!(sweep.attempted);
+        assert!(sweep.notes.iter().any(|note| note.contains("1 syntax error")));
+        assert!(sweep.notes.iter().any(|note| note.contains("2 argument(s) omitted")));
+    }
+
+    #[test]
+    fn canonical_sweep_non_utf8_bytes_count_toward_total_cap() {
+        let temp = tempfile::tempdir().unwrap();
+        let changed = "AuditTrail.Record(EventToken.Widget)\n";
+        std::fs::write(temp.path().join("Changed.vb"), changed).unwrap();
+        std::fs::write(temp.path().join("A-invalid.vb"), [0xff, 0xfe]).unwrap();
+        let diff = added_diff("Changed.vb", &[(1, changed.trim_end())]);
+        let caps = CanonicalSweepCaps {
+            total_bytes: changed.len() as u64 + 2,
+            ..CANONICAL_SWEEP_CAPS
+        };
+        let sweep = canonical_call_migration_sweep_with(
+            temp.path(),
+            "",
+            &["Changed.vb".into()],
+            &[diff],
+            caps,
+            |_, source| Ok(report(source, vec![("AuditTrail.Record", 1, 1, vec![
+                argument(source, "EventToken.Widget", 1, None, "member_access", 0),
+            ])])),
+        );
+        assert!(sweep.attempted);
+        assert!(sweep.notes.iter().any(|note| note.contains("non-UTF-8")), "{sweep:#?}");
+        assert!(
+            sweep
+                .summary
+                .contains(&format!("{} source byte(s)", caps.total_bytes)),
+            "{sweep:#?}"
+        );
+    }
 
     #[tokio::test]
     async fn proposed_cases_require_matching_source_hash_and_exact_file_scope() {
@@ -591,7 +1959,8 @@ mod tests {
             .index_docs("test", &docs, &tokio_util::sync::CancellationToken::new())
             .await
             .unwrap();
-        let (cases, notes) = collect(&search, "test", 1, &["Rules.vb".into()], tmp.path()).unwrap();
+        let (cases, notes) =
+            collect(&search, "test", 1, &["Rules.vb".into()], tmp.path(), 40).unwrap();
         assert_eq!(cases.len(), 1);
         assert_eq!(
             cases[0].source_warnings,
@@ -607,7 +1976,8 @@ mod tests {
             source.replace("value < 0", "value > 0"),
         )
         .unwrap();
-        let (cases, notes) = collect(&search, "test", 1, &["Rules.vb".into()], tmp.path()).unwrap();
+        let (cases, notes) =
+            collect(&search, "test", 1, &["Rules.vb".into()], tmp.path(), 40).unwrap();
         assert!(cases.is_empty());
         assert!(notes.iter().any(|note| note.contains("STALE:")));
         assert!(notes

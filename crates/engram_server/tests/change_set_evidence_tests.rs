@@ -148,6 +148,20 @@ async fn json_output_carries_per_file_evidence_and_arm_coverage() {
             f["why"].as_array().is_some_and(|w| !w.is_empty()),
             "every candidate carries a rationale: {f}"
         );
+        assert!(f["evidence_class"].is_string(), "{f}");
+        // Compact views move repeated guidance into row_guidance; a row
+        // carries either the text or a reference that resolves to it.
+        for field in ["impact_question", "exclusion_evidence_required"] {
+            let text = f[field].as_str().map(str::to_string).or_else(|| {
+                let reference = f[format!("{field}_ref")].as_str()?;
+                v["row_guidance"]["entries"]
+                    .as_array()?
+                    .iter()
+                    .find(|entry| entry["id"] == reference)
+                    .and_then(|entry| entry["text"].as_str().map(str::to_string))
+            });
+            assert!(text.is_some_and(|t| !t.is_empty()), "{field} missing: {f}");
+        }
     }
     let coverage = v["coverage"].as_object().expect("coverage object");
     for arm in ["concept", "history", "cochange", "vector"] {
@@ -225,6 +239,106 @@ async fn json_flag_is_rejected_nowhere_and_markdown_stays_default() {
         md.starts_with("# ") || md.contains("Candidate files"),
         "{md}"
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn structured_output_has_compact_reconciled_and_forensic_views() {
+    let (_tmp, state) = build_state();
+    seed(&state);
+    let engram = Engram::new(state);
+
+    let compact = change_set(
+        &engram,
+        json!({"project_id": PID, "story": STORY, "output_json": true}),
+    )
+    .await;
+    assert_eq!(compact["view"]["detail"], "compact");
+    assert!(compact["view"]["files_total"].is_number());
+    assert!(compact["view"]["files_omitted_from_view"].is_number());
+    assert_eq!(compact["view"]["full_detail_request"]["detail"], "full");
+
+    let reconciled = change_set(
+        &engram,
+        json!({
+            "project_id": PID,
+            "story": "Revalidate authenticated browser sessions after role changes",
+            "output_json": true,
+            "detail": "reconciled"
+        }),
+    )
+    .await;
+    assert_eq!(reconciled["view"]["detail"], "reconciled");
+    assert!(reconciled["files"].as_array().unwrap().iter().all(|row| row["set"] == "primary"));
+    // Engram ships no built-in domain checklist: without configured planning
+    // rules, even an authentication-heavy story yields no contract items.
+    assert!(reconciled["contract_checkpoint"]["hard_items"].as_array().unwrap().is_empty());
+    assert!(reconciled["applicable_repository_rules"]["rules"].is_array());
+    assert!(reconciled["project_policy_sources"]["sources"].is_array());
+
+    let full = change_set(
+        &engram,
+        json!({
+            "project_id": PID,
+            "story": STORY,
+            "output_json": true,
+            "detail": "full"
+        }),
+    )
+    .await;
+    assert_eq!(full["view"]["detail"], "full");
+    assert_eq!(full["view"]["files_omitted_from_view"], 0);
+    assert_eq!(full["view"]["omissions_omitted_from_view"], 0);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn structured_output_includes_hash_bound_repository_policy_without_prior_ingestion() {
+    let (tmp, state) = build_state();
+    seed(&state);
+    let policy_dir = tmp.path().join("project").join(".github");
+    std::fs::create_dir_all(&policy_dir).unwrap();
+    std::fs::write(
+        policy_dir.join("copilot-instructions.md"),
+        "# Coding standards\n\n- Document public members.\n- Use multiline conditionals.\n",
+    )
+    .unwrap();
+    let engram = Engram::new(state);
+
+    let result = change_set(
+        &engram,
+        json!({
+            "project_id": PID,
+            "story": STORY,
+            "output_json": true,
+            "detail": "reconciled"
+        }),
+    )
+    .await;
+
+    let policy = &result["project_policy_sources"];
+    assert_eq!(policy["status"], "present", "{policy}");
+    let sources = policy["sources"].as_array().unwrap();
+    assert_eq!(sources.len(), 1, "{policy}");
+    assert_eq!(sources[0]["path"], ".github/copilot-instructions.md");
+    assert!(sources[0]["blake3"].as_str().is_some_and(|hash| hash.len() == 64));
+    assert!(sources[0]["content"].as_str().unwrap().contains("multiline conditionals"));
+    assert_eq!(sources[0]["truncated"], false);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unknown_structured_detail_is_rejected() {
+    let (_tmp, state) = build_state();
+    seed(&state);
+    let engram = Engram::new(state);
+    let req: GetChangeSetRequest = serde_json::from_value(json!({
+        "project_id": PID,
+        "story": STORY,
+        "output_json": true,
+        "detail": "everything"
+    }))
+    .unwrap();
+    let error = engram.handle_get_change_set(req).await.unwrap_err();
+    assert!(error.message.contains("compact"), "{error}");
+    assert!(error.message.contains("full"), "{error}");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -323,7 +437,11 @@ async fn typed_history_keeps_root_and_non_dotnet_paths_without_prose_inference()
         "project_id":PID,"query":"opaqueledgerhint","limit":12,"max_content_chars":0
     })).unwrap()).await.unwrap();
     let text = &history.content[0].as_text().unwrap().text;
-    for path in paths { assert!(text.contains(&format!("path: diff:{hash}:{path}\n")), "{text}"); }
+    // One result per commit; its diffs' exact file identities are listed.
+    assert!(text.contains(&format!("commit: {hash}\n")), "{text}");
+    let files_line = text.lines().find(|l| l.starts_with("files: ")).unwrap_or_else(|| panic!("{text}"));
+    let listed: Vec<&str> = files_line["files: ".len()..].split(", ").collect();
+    for path in paths { assert!(listed.contains(&path), "{path} not in {files_line}"); }
     let result = change_set(&engram, json!({
         "project_id":PID,"story":"opaqueledgerhint","output_json":true
     })).await;

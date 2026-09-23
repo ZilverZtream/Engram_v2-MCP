@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used)]
 //! External audit 2026-08-29 P0-3 (the ≤ 5 s gate). Release-22 checkpoints on
-//! OciusX: the full graph node scan costs 1.75 s on EVERY get_change_set call
+//! the pilot corpus: the full graph node scan costs 1.75 s on EVERY get_change_set call
 //! although the index only changes when a generation is published. The scan
 //! is cached per project generation: a repeat call on an unchanged index
 //! performs no scan, a new generation triggers one.
@@ -12,15 +12,15 @@ use engram_server::tools::Engram;
 use rmcp::handler::server::tool::Parameters;
 use serde_json::{Value, json};
 
-const STORY: &str = "As an admin I want to set a main reporting category (huvudredovisningskategori) for each production code list category";
+const STORY: &str = "As an admin I want to set a main reporting category (huvudkostnadskategori) for each production code list category";
 
 async fn build() -> (tempfile::TempDir, AppState, Engram, String) {
     let tmp = tempfile::TempDir::new().unwrap();
     let root = tmp.path().join("proj");
-    std::fs::create_dir_all(root.join("Site/App_Code/redovisning/code")).unwrap();
+    std::fs::create_dir_all(root.join("Site/App_Code/leverans/code")).unwrap();
     std::fs::write(
-        root.join("Site/App_Code/redovisning/code/redovisningskategorier.vb"),
-        "Public Class redovisningskategorier\n    Public Function GetByProjectId(pr_id As Integer) As Object\n        Return Nothing\n    End Function\nEnd Class\n",
+        root.join("Site/App_Code/leverans/code/kostnadskategorier.vb"),
+        "Public Class kostnadskategorier\n    Public Function GetByProjectId(pr_id As Integer) As Object\n        Return Nothing\n    End Function\nEnd Class\n",
     )
     .unwrap();
     let cfg = Config {

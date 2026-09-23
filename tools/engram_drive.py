@@ -64,7 +64,17 @@ init = rpc(
 send({"jsonrpc": "2.0", "method": "notifications/initialized"})
 
 phase = sys.argv[1] if len(sys.argv) > 1 else "list"
-OCIUSX_DIR = r"C:\Users\Dennis\source\repos\OciusX"
+# The reindex target is machine-local configuration, never source:
+# {"directory": ..., "project_name": ..., "project_type": ...}
+DRIVE_CONFIG = os.environ.get(
+    "ENGRAM_DRIVE_CONFIG",
+    os.path.join(os.path.expanduser("~"), ".config", "engram", "drive.json"),
+)
+
+
+def reindex_target():
+    with open(DRIVE_CONFIG, encoding="utf-8") as fh:
+        return json.load(fh)
 
 if phase == "list":
     print(tool("list_projects", {}))
@@ -78,6 +88,9 @@ elif phase == "tools":
         print(n)
 
 elif phase == "reindex":
+    # Load the target before deleting anything: a missing config must not
+    # leave the old project deleted and nothing reindexed.
+    target = reindex_target()
     old_id = sys.argv[2] if len(sys.argv) > 2 else None
     if old_id:
         print("--- delete old project ---")
@@ -87,9 +100,9 @@ elif phase == "reindex":
         tool(
             "index_project",
             {
-                "directory": OCIUSX_DIR,
-                "project_name": "OciusX",
-                "project_type": "dotnet_webforms_vb",
+                "directory": target["directory"],
+                "project_name": target["project_name"],
+                "project_type": target.get("project_type", "dotnet_webforms_vb"),
                 "wait": True,
                 "dedupe_by_directory": False,
             },
@@ -144,7 +157,7 @@ elif phase == "claudemd":
     )
 
 elif phase == "verify":
-    # One-shot OciusX verification battery: health, counts, GIS, guards,
+    # One-shot verification battery: health, counts, GIS, guards,
     # path probe, cycles, story. Usage: ... verify <project_id>
     pid = sys.argv[2]
     print("=== health ===")

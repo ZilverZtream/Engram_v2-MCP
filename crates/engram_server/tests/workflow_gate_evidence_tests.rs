@@ -185,6 +185,8 @@ async fn immune_empty_corpus_is_insufficient_but_known_rule_still_warns() {
                 rule_text: "Previously reverted data mutation".into(),
                 priority: 1,
                 updated_at_ms: 0,
+                introduced_at: None,
+                provenance: None,
             },
         )
         .unwrap();

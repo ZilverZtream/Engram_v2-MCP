@@ -1133,7 +1133,7 @@ async fn non_utf8_file_is_indexed_lossily_not_skipped() {
     // The corrupt file must appear in skipped_files (no silent data loss).
     // Round-2 audit P0-2 follow-up: a file that is not valid UTF-8 is NOT
     // ejected from the corpus any more — it is decoded lossily and indexed,
-    // and the stats say so (live: four Latin-1 OciusX files were silently
+    // and the stats say so (live: four Latin-1 pilot-corpus files were silently
     // missing from every search store).
     let skipped_paths: Vec<&str> = stats
         .skipped_files

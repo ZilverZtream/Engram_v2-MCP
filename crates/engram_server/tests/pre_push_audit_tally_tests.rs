@@ -3,7 +3,7 @@
 //! never says how many rules it checked, and on a project with NO
 //! ingested quality-gate rules it prints the same "no rules matched" as
 //! on a project where rules exist but none matched — the mandated
-//! pre-push step is a silent no-op on OciusX. The output must carry a
+//! pre-push step is a silent no-op on the pilot corpus. The output must carry a
 //! tally, and an empty namespace must be called INACTIVE.
 
 use engram_core::RelPath;

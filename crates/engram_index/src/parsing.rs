@@ -1479,8 +1479,8 @@ mod sync_contract_tests {
 Some code
     ' NOTE! If the logic for checking vital data on marker change we must update it in 3 places:
     ' 1. _io.import.MarkerImport.GetMarkersToDeleteFromProject()
-    ' 2. _io.installationsobjekt.DeleteImportedMapMarker()
-    ' 3. _integration.gis.vetrofibermap.Feature.EventProcessing.CheckForVitalDataOnMarker()
+    ' 2. _io.bokningsobjekt.DeleteImportedMapMarker()
+    ' 3. _integration.gis.kartmodul.Feature.EventProcessing.CheckForVitalDataOnMarker()
     Dim x = 1
 ";
         let c = detect_sync_contracts(text);

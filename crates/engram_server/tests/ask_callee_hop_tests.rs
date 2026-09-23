@@ -27,23 +27,23 @@ async fn build() -> (tempfile::TempDir, Engram, String) {
     }
     // The API entry point: authorization happens in a callee defined elsewhere.
     std::fs::write(
-        root.join("Site/App_Code/api-json/api-installationsobjektprojekt.vb"),
-        "Public Class api_installationsobjektprojekt\n    Public Function ioUpdateBaseTypeInBulk(qry As Object) As String\n        Dim pr_id As Integer = GetDictionaryIntegerValue(qry, \"pr_id\")\n        If Not installationsobjektprojekt.CanUserBulkUpdate(pr_id) Then Return \"denied\"\n        Return installationsobjektprojekt.UpdateBaseType(qry)\n    End Function\nEnd Class\n",
+        root.join("Site/App_Code/api-json/api-bokningsobjektprojekt.vb"),
+        "Public Class api_bokningsobjektprojekt\n    Public Function ioUpdateBaseTypeInBulk(qry As Object) As String\n        Dim pr_id As Integer = GetDictionaryIntegerValue(qry, \"pr_id\")\n        If Not bokningsobjektprojekt.CanUserBulkUpdate(pr_id) Then Return \"denied\"\n        Return bokningsobjektprojekt.UpdateBaseType(qry)\n    End Function\nEnd Class\n",
     )
     .unwrap();
     std::fs::write(
-        root.join("Site/App_Code/dal/installationsobjektprojekt.vb"),
-        "Public Class installationsobjektprojekt\n    Public Shared Function CanUserBulkUpdate(pr_id As Integer) As Boolean\n        ' the permission check: project membership and the admin role\n        Return Check_pr_id(pr_id) AndAlso IsAdminOrArbetsledare()\n    End Function\n    Public Shared Function UpdateBaseType(qry As Object) As String\n        Return \"ok\"\n    End Function\n    Private Shared Function Check_pr_id(pr_id As Integer) As Boolean\n        Return pr_id > 0\n    End Function\n    Private Shared Function IsAdminOrArbetsledare() As Boolean\n        Return True\n    End Function\nEnd Class\n",
+        root.join("Site/App_Code/dal/bokningsobjektprojekt.vb"),
+        "Public Class bokningsobjektprojekt\n    Public Shared Function CanUserBulkUpdate(pr_id As Integer) As Boolean\n        ' the permission check: project membership and the admin role\n        Return Check_pr_id(pr_id) AndAlso IsAdminOrArbetsledare()\n    End Function\n    Public Shared Function UpdateBaseType(qry As Object) As String\n        Return \"ok\"\n    End Function\n    Private Shared Function Check_pr_id(pr_id As Integer) As Boolean\n        Return pr_id > 0\n    End Function\n    Private Shared Function IsAdminOrArbetsledare() As Boolean\n        Return True\n    End Function\nEnd Class\n",
     )
     .unwrap();
-    // Enough code chunks about "bulk", "update" and "installation objects" to
+    // Enough code chunks about "bulk", "update" and "bokning objects" to
     // fill the evidence cap on their own — without the callee hop the
     // authorization function is never cited.
     for i in 0..30 {
         std::fs::write(
-            root.join(format!("Site/App_Code/noise/bulk_installation_update{i:02}.vb")),
+            root.join(format!("Site/App_Code/noise/bulk_bokning_update{i:02}.vb")),
             format!(
-                "Public Class bulk_installation_update{i:02}\n    ' bulk update of installation objects base type via the API entry point\n    Public Function ApplyBulkUpdate{i}(qry As Object) As String\n        Return \"bulk update installation objects api entry point\"\n    End Function\nEnd Class\n"
+                "Public Class bulk_bokning_update{i:02}\n    ' bulk update of bokning objects base type via the API entry point\n    Public Function ApplyBulkUpdate{i}(qry As Object) As String\n        Return \"bulk update bokning objects api entry point\"\n    End Function\nEnd Class\n"
             ),
         )
         .unwrap();
@@ -114,7 +114,7 @@ async fn the_authorization_callee_one_hop_from_the_entry_point_is_cited() {
     let v = ask(
         &engram,
         &pid,
-        "How does a bulk base-type update on installation objects get authorized, from the API entry point to the permission check?",
+        "How does a bulk base-type update on bokning objects get authorized, from the API entry point to the permission check?",
     )
     .await;
     let b = blob(&v);
@@ -123,7 +123,7 @@ async fn the_authorization_callee_one_hop_from_the_entry_point_is_cited() {
         "the callee that authorizes the update must be cited (one hop from the entry point):\n{b}"
     );
     assert!(
-        b.contains("dal/installationsobjektprojekt.vb"),
+        b.contains("dal/bokningsobjektprojekt.vb"),
         "the callee's defining file is cited:\n{b}"
     );
     let providers = v["providers"].to_string().to_lowercase();
@@ -139,12 +139,12 @@ async fn a_named_file_entity_survives_the_evidence_cap() {
     let v = ask(
         &engram,
         &pid,
-        "How are permission checks done in api-installationsobjektprojekt, and which endpoints read a client-supplied project id?",
+        "How are permission checks done in api-bokningsobjektprojekt, and which endpoints read a client-supplied project id?",
     )
     .await;
     let b = blob(&v);
     assert!(
-        b.contains("api-json/api-installationsobjektprojekt.vb"),
+        b.contains("api-json/api-bokningsobjektprojekt.vb"),
         "the file the question names is cited even when 30 look-alike chunks fill the cap:\n{b}"
     );
 }

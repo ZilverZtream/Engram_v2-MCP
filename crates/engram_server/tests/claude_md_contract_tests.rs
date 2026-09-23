@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used)]
 //! External audit 2026-08-29 — integration regression: the generated
-//! OciusX CLAUDE.md told the agent to call `detect_incomplete_changes(files=[...])`
+//! pilot-corpus CLAUDE.md told the agent to call `detect_incomplete_changes(files=[...])`
 //! while the request accepts only `edited_files` (deny_unknown_fields), so
 //! the instruction fails on first use. The earlier "cannot recur" test
 //! covered the AGENTS.md renderer, not produce_claude_md.

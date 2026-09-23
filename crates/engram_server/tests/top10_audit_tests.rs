@@ -178,6 +178,41 @@ async fn state_trace_reports_independent_caps_and_indexed_only_positions() {
 }
 
 #[tokio::test]
+async fn state_trace_expands_property_mediated_readers() {
+    let (_tmp, state) = build_state();
+    let mut state_node = func("State.vb", "", "Tenant");
+    state_node.node_id = engram_core::NodeId::state("Session", "Tenant").0;
+    state_node.node_type = "global_state".into();
+    let mut accessor = func("Account.vb", "Account", "CurrentTenant");
+    accessor.node_type = "property".into();
+    let caller = func("Global.asax.vb", "App", "AcquireRequestState");
+    state
+        .graph
+        .upsert_nodes(PID, &[state_node.clone(), accessor.clone(), caller.clone()])
+        .unwrap();
+    let mut direct = calls(&accessor.node_id, &state_node.node_id);
+    direct.edge_kind = EdgeKind::ReadsState;
+    state
+        .graph
+        .upsert_edges(PID, &[direct, calls(&caller.node_id, &accessor.node_id)])
+        .unwrap();
+
+    let result = Engram::new(state)
+        .handle_trace_state_usage(
+            serde_json::from_value(
+                json!({"project_id":PID,"state_type":"Session","state_key":"Tenant","limit":20}),
+            )
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    let text = &result.content[0].as_text().unwrap().text;
+    assert!(text.contains("Indirect Readers Through Properties"), "{text}");
+    assert!(text.contains("AcquireRequestState"), "{text}");
+    assert!(text.contains("CurrentTenant"), "{text}");
+}
+
+#[tokio::test]
 async fn setting_accessors_keep_their_qualified_identity() {
     let (_tmp, state) = build_state();
     let nodes: Vec<_> = ["ConfigSettings.A", "ConfigSettings.B"]
@@ -905,8 +940,14 @@ async fn sql_validator_checks_exact_bare_and_aliased_columns_without_certifying_
         ("INSERT INTO Orders (id) VALUES (1)", "PASS"),
         ("INSERT INTO Orders (id) VALUES (1, 2)", "FAIL"),
         ("UPDATE Orders SET id = 1 WHERE missing = 1", "WARN"),
-        ("SELECT [id FROM Orders", "FAIL"),
-        ("this is not SQL", "FAIL"),
+        // A parse failure cannot distinguish invalid SQL from valid T-SQL the
+        // parser does not support, so it is unverified rather than invalid.
+        ("SELECT [id FROM Orders", "INSUFFICIENT"),
+        ("this is not SQL", "INSUFFICIENT"),
+        (
+            "MERGE Orders WITH (HOLDLOCK) AS tgt USING (SELECT 1 AS id) AS src ON tgt.id = src.id WHEN MATCHED THEN UPDATE SET id = 1;",
+            "INSUFFICIENT",
+        ),
     ] {
         let result = engram
             .handle_validate_sql_fragment(
@@ -920,4 +961,96 @@ async fn sql_validator_checks_exact_bare_and_aliased_columns_without_certifying_
         assert_eq!(out["verdict"], verdict, "{sql}: {out}");
         assert!(out.get("coverage").is_some());
     }
+}
+
+/// Graph-backed gates find nothing in a file the index has never seen, so the
+/// coverage must name it instead of letting silence read as a clean review.
+/// A deleted file needs no index entry.
+#[tokio::test]
+async fn review_coverage_names_changed_files_the_index_has_not_seen() {
+    let (tmp, state) = build_state();
+    std::fs::write(tmp.path().join("project/Known.vb"), "Public Class Known\nEnd Class\n").unwrap();
+    std::fs::write(tmp.path().join("project/Fresh.vb"), "Public Class Fresh\nEnd Class\n").unwrap();
+    let mut known = func("Known.vb", "", "Known.vb");
+    known.node_id = "file:Known.vb".into();
+    known.node_type = "file".into();
+    state.graph.upsert_nodes(PID, &[known]).unwrap();
+    let engram = Engram::new(state);
+    let diff = "diff --git a/Known.vb b/Known.vb\n--- a/Known.vb\n+++ b/Known.vb\n@@ -1,2 +1,2 @@\n-Public Class Known \n+Public Class Known\n End Class\n\
+diff --git a/Fresh.vb b/Fresh.vb\nnew file mode 100644\n--- /dev/null\n+++ b/Fresh.vb\n@@ -0,0 +1,2 @@\n+Public Class Fresh\n+End Class\n\
+diff --git a/Gone.vb b/Gone.vb\ndeleted file mode 100644\n--- a/Gone.vb\n+++ /dev/null\n@@ -1,2 +0,0 @@\n-Public Class Gone\n-End Class\n";
+    let result = engram
+        .handle_pre_commit_review(
+            serde_json::from_value(json!({"project_id":PID,"diff":diff,"output_json":true}))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let body: serde_json::Value =
+        serde_json::from_str(&result.content[0].as_text().unwrap().text).unwrap();
+    assert_eq!(
+        body["coverage"]["unindexed_files"],
+        json!(["Fresh.vb"]),
+        "{}",
+        body["coverage"]
+    );
+}
+
+/// With the default `staged` source and nothing staged, the review examined
+/// nothing. Unstaged and untracked work in the tree must be named, never
+/// reported as "no changes".
+#[tokio::test]
+async fn an_empty_staged_review_names_the_working_tree_changes_it_did_not_examine() {
+    let (tmp, state) = build_state();
+    let root = tmp.path().join("project");
+    let repo = git2::Repository::init(&root).unwrap();
+    std::fs::write(root.join("Rules.vb"), "Public Class Rules\nEnd Class\n").unwrap();
+    let mut index = repo.index().unwrap();
+    index.add_path(std::path::Path::new("Rules.vb")).unwrap();
+    index.write().unwrap();
+    let tree = repo.find_tree(index.write_tree().unwrap()).unwrap();
+    let sig = git2::Signature::now("Fixture", "fixture@example.invalid").unwrap();
+    repo.commit(Some("HEAD"), &sig, &sig, "base", &tree, &[]).unwrap();
+    std::fs::write(
+        root.join("Rules.vb"),
+        "Public Class Rules\n    Sub A()\n    End Sub\nEnd Class\n",
+    )
+    .unwrap();
+    std::fs::write(root.join("Fresh.vb"), "Public Class Fresh\nEnd Class\n").unwrap();
+    let engram = Engram::new(state);
+
+    let text = engram
+        .handle_pre_commit_review(serde_json::from_value(json!({"project_id": PID})).unwrap())
+        .await
+        .unwrap()
+        .content[0]
+        .as_text()
+        .unwrap()
+        .text
+        .clone();
+    assert!(
+        text.contains("Fresh.vb") && text.contains("Rules.vb"),
+        "unexamined working-tree files must be named: {text}"
+    );
+    assert!(text.contains("diff=\"unstaged\""), "{text}");
+
+    let body: serde_json::Value = serde_json::from_str(
+        &engram
+            .handle_pre_commit_review(
+                serde_json::from_value(json!({"project_id": PID, "output_json": true})).unwrap(),
+            )
+            .await
+            .unwrap()
+            .content[0]
+            .as_text()
+            .unwrap()
+            .text,
+    )
+    .unwrap();
+    assert_eq!(body["verdict"], "NOT_REVIEWED", "{body}");
+    assert_eq!(
+        body["coverage"]["unexamined_files"],
+        json!(["Fresh.vb", "Rules.vb"]),
+        "{body}"
+    );
 }

@@ -1,5 +1,5 @@
 #![allow(clippy::unwrap_used)]
-//! External audit 2026-08-29 P0-3 (the ≤ 5 s gate): on OciusX the reference
+//! External audit 2026-08-29 P0-3 (the ≤ 5 s gate): on the pilot corpus the reference
 //! story takes 10 s while the timed arms sum to ≈ 3 s — 7 s hide in stages
 //! that report nothing. Coverage must carry the call's wall-clock and
 //! cumulative checkpoints so the missing time is measured, not inferred.
@@ -11,19 +11,19 @@ use engram_server::tools::Engram;
 use rmcp::handler::server::tool::Parameters;
 use serde_json::{Value, json};
 
-const STORY: &str = "As an admin I want to set a main reporting category (huvudredovisningskategori) for each production code list category";
+const STORY: &str = "As an admin I want to set a main reporting category (huvudkostnadskategori) for each production code list category";
 
 async fn build() -> (tempfile::TempDir, Engram, String) {
     let tmp = tempfile::TempDir::new().unwrap();
     let root = tmp.path().join("proj");
-    std::fs::create_dir_all(root.join("Site/App_Code/redovisning/code")).unwrap();
+    std::fs::create_dir_all(root.join("Site/App_Code/leverans/code")).unwrap();
     std::fs::write(
-        root.join("Site/App_Code/redovisning/code/redovisningskategorier.vb"),
-        "Public Class redovisningskategorier\n    Public Function GetByProjectId(pr_id As Integer) As Object\n        Return Nothing\n    End Function\nEnd Class\n",
+        root.join("Site/App_Code/leverans/code/kostnadskategorier.vb"),
+        "Public Class kostnadskategorier\n    Public Function GetByProjectId(pr_id As Integer) As Object\n        Return Nothing\n    End Function\nEnd Class\n",
     )
     .unwrap();
     std::fs::write(
-        root.join("Site/App_Code/redovisning/code/category_helper.vb"),
+        root.join("Site/App_Code/leverans/code/category_helper.vb"),
         "Public Class category_helper\n    Public Function MainReporting() As String\n        Return \"category\"\n    End Function\nEnd Class\n",
     )
     .unwrap();

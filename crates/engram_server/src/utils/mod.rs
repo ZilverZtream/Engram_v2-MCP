@@ -1,6 +1,7 @@
 pub mod candidate_code_input;
 pub mod envelope;
 pub mod files;
+pub mod generator_receipt;
 pub mod text;
 
 pub use files::{

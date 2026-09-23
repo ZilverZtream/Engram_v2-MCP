@@ -6,7 +6,7 @@
 //! as ONE pass that protects what it reserved. (2) "Which table stores
 //! reporting categories" cited the same .vb five times (precision 0.40): at
 //! most two items per file. (3) "how are permission checks done in
-//! api-installationsobjektprojekt" never extracted the lowercase hyphenated
+//! api-bokningsobjektprojekt" never extracted the lowercase hyphenated
 //! file name as an entity, so nothing could reserve it.
 
 use engram_server::services::ask_engine::evidence::{Authority, EvidenceItem, EvidenceKind};
@@ -113,9 +113,9 @@ fn ranking_cites_at_most_two_items_per_file() {
             item(
                 &format!("same{i}"),
                 EvidenceKind::SourceCode,
-                "Site/App_Code/redovisninglista.vb",
+                "Site/App_Code/leveranslista.vb",
                 Some((i * 200 + 1, i * 200 + 40)),
-                "redovisningskategorier lista",
+                "kostnadskategorier lista",
                 0.95,
             )
         })
@@ -126,14 +126,14 @@ fn ranking_cites_at_most_two_items_per_file() {
             EvidenceKind::SourceCode,
             &format!("Site/App_Code/other{i}.vb"),
             Some((1, 30)),
-            "redovisningskategorier",
+            "kostnadskategorier",
             0.6,
         ));
     }
     let chosen = ranking::rank_and_select(items, 10);
     let same = chosen
         .iter()
-        .filter(|e| e.path.as_deref() == Some("Site/App_Code/redovisninglista.vb"))
+        .filter(|e| e.path.as_deref() == Some("Site/App_Code/leveranslista.vb"))
         .count();
     assert!(
         same <= 2,
@@ -145,15 +145,12 @@ fn ranking_cites_at_most_two_items_per_file() {
 #[test]
 fn a_lowercase_hyphenated_file_name_is_an_entity_mention() {
     let plan = planner::plan_query(
-        "How are permission checks done in api-installationsobjektprojekt, and which endpoints read a client-supplied project id?",
+        "How are permission checks done in api-bokningsobjektprojekt, and which endpoints read a client-supplied project id?",
     );
     let m = plan
         .entities
         .iter()
-        .find(|e| {
-            e.text
-                .eq_ignore_ascii_case("api-installationsobjektprojekt")
-        })
+        .find(|e| e.text.eq_ignore_ascii_case("api-bokningsobjektprojekt"))
         .unwrap_or_else(|| {
             panic!(
                 "the hyphenated file name is a mention: {:?}",

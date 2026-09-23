@@ -1,5 +1,5 @@
 #![allow(clippy::unwrap_used)]
-//! External audit 2026-08-29 row 1 / P0-3: on OciusX the English-only story
+//! External audit 2026-08-29 row 1 / P0-3: on the pilot corpus the English-only story
 //! translated into seven Swedish terms and every one of them ran a concept
 //! footprint (~1 s each) — 38 s. The lexicon contributes at most
 //! `LEXICON_CONCEPT_CAP` (4) concept terms, most specific first; coverage
@@ -14,7 +14,7 @@ use serde_json::{Value, json};
 
 const STORY: &str = "As a project manager I want the reporting of quantities, the change requests, the fiber installation plan, the inspection round and the customer invoice to be visible per work team";
 const SV: [&str; 6] = [
-    "mängdredovisning",
+    "mängdleverans",
     "äta-registrering",
     "fiberinstallationsplan",
     "besiktningsrunda",

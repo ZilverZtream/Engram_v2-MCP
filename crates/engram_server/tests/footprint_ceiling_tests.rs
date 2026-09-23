@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used)]
 //! Row-4 audit (docs/audits/04-concept-and-consumer-discovery.md) A11:
 //! `get_concept_footprint` clamps `max_per_group` to ≤ 100, so a
-//! 137-file "Mentioned only in text" section (live, `installationsobjekt`)
+//! 137-file "Mentioned only in text" section (live, `bokningsobjekt`)
 //! can never be listed in full by any caller — the 14 residual G1 misses.
 //! The cap stays reported ("… and N more") but the ceiling must let a
 //! caller ask for the whole list.

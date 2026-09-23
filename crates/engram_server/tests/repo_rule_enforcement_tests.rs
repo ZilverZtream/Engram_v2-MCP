@@ -70,6 +70,8 @@ fn rule(state: &AppState, id: &str, text: &str, priority: i32) {
                 rule_text: text.into(),
                 priority,
                 updated_at_ms: 1,
+                introduced_at: None,
+                provenance: None,
             },
         )
         .unwrap();
@@ -157,6 +159,48 @@ async fn a_forbid_clause_turns_a_repo_rule_into_a_finding() {
             .map(|f| (f.gate, f.title.clone()))
             .collect::<Vec<_>>()
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn yaml_risk_rule_is_enforced_and_hot_reloaded_by_precommit_review() {
+    let (_tmp, state, dir) = build_state();
+    let rule_dir = dir.join(".engram");
+    std::fs::create_dir_all(&rule_dir).unwrap();
+    let path = rule_dir.join("test-risk-rules.yaml");
+    std::fs::write(&path, r#"
+version: 1
+rules:
+  - id: repository.query-shape
+    title: Query construction rule v1
+    guidance: Replace the query construction with the repository-approved data access path.
+    severity: critical
+    extensions: [vb]
+    all_terms: ["SELECT *", " & pr_id"]
+"#).unwrap();
+    let first = review(&state, &dir, SQL_CONCAT_DIFF).await;
+    let hit = first.iter().find(|finding|
+        finding.gate == "repo_rules" && finding.title.contains("Query construction rule v1"))
+        .unwrap_or_else(|| panic!("configured rule must fire: {first:?}"));
+    assert!(matches!(hit.severity, Severity::Critical));
+    assert!(hit.evidence.iter().any(|value| value.contains("repository.query-shape")));
+    assert!(hit.suggestion.contains("repository-approved data access"));
+
+    std::fs::write(&path, r#"
+version: 1
+rules:
+  - id: repository.query-shape
+    title: Query construction rule v2
+    guidance: Reloaded without restarting the review service.
+    severity: warning
+    extensions: [vb]
+    all_terms: ["SELECT *", " & pr_id"]
+"#).unwrap();
+    let second = review(&state, &dir, SQL_CONCAT_DIFF).await;
+    assert!(second.iter().any(|finding|
+        finding.gate == "repo_rules"
+            && finding.title.contains("Query construction rule v2")
+            && matches!(finding.severity, Severity::Warning)));
+    assert!(!second.iter().any(|finding| finding.title.contains("Query construction rule v1")));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

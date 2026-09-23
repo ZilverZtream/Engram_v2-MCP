@@ -35,6 +35,15 @@ pub struct HybridQuery {
     pub use_mmr: bool,
 }
 
+/// A stored document's text and commit metadata.
+#[derive(Debug, Clone)]
+pub struct StoredDoc {
+    pub path: String,
+    pub content: String,
+    pub author: Option<String>,
+    pub timestamp: Option<u64>,
+}
+
 #[derive(Debug, Clone)]
 pub struct HybridHit {
     pub pk: String,
@@ -493,6 +502,7 @@ impl HybridSearchEngine {
                 fields.start_line => d.start_line as u64,
                 fields.end_line => d.end_line as u64,
                 fields.content => d.content.as_str(),
+                fields.content_words => d.content.as_str(),
             );
             writer.add_document(tdoc)?;
             added += 1;
@@ -764,6 +774,7 @@ impl HybridSearchEngine {
                     self.fields.start_line => d.start_line as u64,
                     self.fields.end_line => d.end_line as u64,
                     self.fields.content => d.content.as_str(),
+                    self.fields.content_words => d.content.as_str(),
                 );
                 writer.add_document(tdoc)?;
             }
@@ -990,7 +1001,7 @@ impl HybridSearchEngine {
                             // External audit 2026-08-29 P0-1: "latest only" used to mean
                             // "everything that is NOT the published generation" — which
                             // also deleted the generation an incremental update was still
-                            // building by copy-forward (OciusX collapsed to 56 chunks).
+                            // building by copy-forward (the pilot corpus collapsed to 56 chunks).
                             // Stale is OLDER than the published generation; newer
                             // generations belong to an update in flight and are kept.
                             if active_generation == 0 {
@@ -2117,7 +2128,7 @@ impl HybridSearchEngine {
                             });
 
                         // Round-2 audit P0-2 follow-up: a Latin-1 comment must not
-                        // eject a whole source file from the corpus (live: 4 OciusX
+                        // eject a whole source file from the corpus (live: 4 pilot-corpus
                         // files were fingerprinted — a graph File node — yet absent
                         // from every search store). Decode lossily and say so.
                         let text = match String::from_utf8(bytes) {
@@ -2224,6 +2235,17 @@ impl HybridSearchEngine {
                             local_stats.edges.push((arc_rel.clone(), e));
                         }
 
+                        // ASP.NET Optimization bundles cross code and markup
+                        // artifacts. Definitions live in VB/C# while render
+                        // calls live in WebForms or Razor-family templates.
+                        if !is_vendor && matches!(ext_lower.as_deref(), Some("vb" | "cs")) {
+                            for edge in crate::asset_bundles::extract_bundle_definitions(
+                                &root_buf, &arc_rel, &text,
+                            ) {
+                                local_stats.edges.push((arc_rel.clone(), edge));
+                            }
+                        }
+
                         // Post-processing: extract JS→ASP.NET bridge edges.
                         // Use extension-based gating so `.jsx`/`.tsx` files are included.
                         if is_vendor {
@@ -2260,6 +2282,27 @@ impl HybridSearchEngine {
                         {
                             for edge in crate::webforms::extract_template_script_includes(
                                 &root_buf, &arc_rel, &text,
+                            ) {
+                                local_stats.edges.push((arc_rel.clone(), edge));
+                            }
+                        }
+
+                        if !is_vendor
+                            && (crate::webforms::is_webforms_markup(p)
+                                || matches!(
+                                    ext_lower.as_deref(),
+                                    Some("html" | "htm" | "cshtml" | "vbhtml" | "razor")
+                                ))
+                        {
+                            let source_kind = if crate::webforms::is_webforms_markup(p) {
+                                "page"
+                            } else {
+                                "file"
+                            };
+                            for edge in crate::asset_bundles::extract_bundle_renders(
+                                &arc_rel,
+                                &text,
+                                source_kind,
                             ) {
                                 local_stats.edges.push((arc_rel.clone(), edge));
                             }
@@ -2482,16 +2525,22 @@ impl HybridSearchEngine {
                 parser.set_conjunction_by_default();
                 parser.parse_query(&q.text)?
             }
-            "loose" => {
-                let parser = QueryParser::for_index(&self.tantivy_index, vec![self.fields.content]);
-                parser.parse_query(&escape_tantivy_literal(&q.text))?
-            }
-            "strict" => {
-                let mut parser =
-                    QueryParser::for_index(&self.tantivy_index, vec![self.fields.content]);
-                parser.set_conjunction_by_default();
-                parser.parse_query(&escape_tantivy_literal(&q.text))?
-            }
+            "loose" => literal_word_or_substring_query(
+                &self.tantivy_index,
+                self.fields.content_words,
+                self.fields.content,
+                &q.text,
+                false,
+                SUBSTRING_MATCH_WEIGHT,
+            )?,
+            "strict" => literal_word_or_substring_query(
+                &self.tantivy_index,
+                self.fields.content_words,
+                self.fields.content,
+                &q.text,
+                true,
+                SUBSTRING_MATCH_WEIGHT,
+            )?,
             unknown => {
                 anyhow::bail!(
                     "ENG-AUD-2026-EXH-0003: unknown fts_mode '{}': must be strict, loose, or regex",
@@ -2595,24 +2644,7 @@ impl HybridSearchEngine {
             must_clauses.push((Occur::Must, Box::new(BooleanQuery::new(lang_queries))));
         }
 
-        if let Some(author) = &q.author_filter {
-            must_clauses.push((
-                Occur::Must,
-                Box::new(TermQuery::new(
-                    Term::from_field_text(self.fields.author, author),
-                    IndexRecordOption::Basic,
-                )),
-            ));
-        }
-
-        if q.date_after.is_some() || q.date_before.is_some() {
-            let after = q.date_after.unwrap_or(0);
-            let before = q.date_before.unwrap_or(u64::MAX);
-            let parser = QueryParser::for_index(&self.tantivy_index, vec![self.fields.timestamp]);
-            if let Ok(query) = parser.parse_query(&format!("timestamp:[{} TO {}]", after, before)) {
-                must_clauses.push((Occur::Must, query));
-            }
-        }
+        self.add_author_and_date_filters(q, &mut must_clauses);
 
         let query = BooleanQuery::new(must_clauses);
 
@@ -2738,6 +2770,35 @@ impl HybridSearchEngine {
     /// Case-insensitive searches admit each trigram's case variants; grep
     /// verifies the actual literal/regex in every candidate. With no token,
     /// no content prefilter is safe (project and other filters still apply).
+    /// Author is exact; time is `[date_after, date_before)` — the same bounds
+    /// the vector leg applies, so a cutoff at a commit's own timestamp
+    /// excludes that commit on both legs instead of leaking it through BM25.
+    fn add_author_and_date_filters(
+        &self,
+        q: &HybridQuery,
+        clauses: &mut Vec<(Occur, Box<dyn tantivy::query::Query>)>,
+    ) {
+        use std::ops::Bound;
+        if let Some(author) = &q.author_filter {
+            clauses.push((
+                Occur::Must,
+                Box::new(TermQuery::new(
+                    Term::from_field_text(self.fields.author, author),
+                    IndexRecordOption::Basic,
+                )),
+            ));
+        }
+        if q.date_after.is_some() || q.date_before.is_some() {
+            let lower = q.date_after.map_or(Bound::Unbounded, |after| {
+                Bound::Included(Term::from_field_u64(self.fields.timestamp, after))
+            });
+            let upper = q.date_before.map_or(Bound::Unbounded, |before| {
+                Bound::Excluded(Term::from_field_u64(self.fields.timestamp, before))
+            });
+            clauses.push((Occur::Must, Box::new(tantivy::query::RangeQuery::new(lower, upper))));
+        }
+    }
+
     fn literal_trigram_query(
         &self,
         text: &str,
@@ -2808,22 +2869,28 @@ impl HybridSearchEngine {
                 parser.set_conjunction_by_default();
                 parser.parse_query(&q.text)?
             }
-            "loose" => {
-                let parser = QueryParser::for_index(&self.tantivy_index, vec![self.fields.content]);
-                parser.parse_query(&escape_tantivy_literal(&q.text))?
-            }
-            "strict" => {
-                let mut parser =
-                    QueryParser::for_index(&self.tantivy_index, vec![self.fields.content]);
-                parser.set_conjunction_by_default();
-                parser.parse_query(&escape_tantivy_literal(&q.text))?
-            }
+            "loose" => literal_word_or_substring_query(
+                &self.tantivy_index,
+                self.fields.content_words,
+                self.fields.content,
+                &q.text,
+                false,
+                SUBSTRING_MATCH_WEIGHT,
+            )?,
+            "strict" => literal_word_or_substring_query(
+                &self.tantivy_index,
+                self.fields.content_words,
+                self.fields.content,
+                &q.text,
+                true,
+                SUBSTRING_MATCH_WEIGHT,
+            )?,
             // Case-insensitive literal over the case-PRESERVING trigram
             // index: the content field is tokenised by
             // `NgramTokenizer::new(3, 3, false)` with no lowercasing, so a
             // lower-case pattern's exact trigrams never occur in a chunk
             // whose only occurrence is `PERSONALLIGGARE` or
-            // `InstallationsObjekt…` (live miss, OciusX 2026-08-28). Every
+            // `BokningsObjekt…` (live miss, pilot corpus 2026-08-28). Every
             // trigram becomes a Should-set of its case variants, Must
             // across trigrams; the caller verifies each candidate chunk,
             // so a superset of candidates is correct and complete.
@@ -2903,6 +2970,8 @@ impl HybridSearchEngine {
                 must.push((Occur::Must, Box::new(BooleanQuery::new(suffix_queries))));
             }
         }
+
+        self.add_author_and_date_filters(q, &mut must);
 
         let query = BooleanQuery::new(must);
         let top_docs: Vec<(Score, DocAddress)> =
@@ -3046,6 +3115,68 @@ impl HybridSearchEngine {
             .unwrap_or(0) as u32;
 
         Ok(Some((path, language, content, start_line, end_line)))
+    }
+
+    /// The stored document behind a hit's primary key.
+    pub fn stored_doc_by_pk(&self, pk: &str) -> anyhow::Result<Option<StoredDoc>> {
+        let query = TermQuery::new(
+            Term::from_field_text(self.fields.pk, pk),
+            IndexRecordOption::Basic,
+        );
+        self.first_stored_doc(&query)
+    }
+
+    /// The newest stored document at `path` in a namespace: how a history
+    /// result names a commit's author and message when only its diffs matched.
+    pub fn stored_doc_at_path(
+        &self,
+        project_id: &str,
+        namespace: &str,
+        path: &str,
+    ) -> anyhow::Result<Option<StoredDoc>> {
+        let term = |field, text: &str| -> Box<dyn tantivy::query::Query> {
+            Box::new(TermQuery::new(
+                Term::from_field_text(field, text),
+                IndexRecordOption::Basic,
+            ))
+        };
+        let query = BooleanQuery::new(vec![
+            (Occur::Must, term(self.fields.path, path)),
+            (Occur::Must, term(self.fields.project_id, project_id)),
+            (Occur::Must, term(self.fields.namespace, namespace)),
+        ]);
+        self.first_stored_doc(&query)
+    }
+
+    fn first_stored_doc(
+        &self,
+        query: &dyn tantivy::query::Query,
+    ) -> anyhow::Result<Option<StoredDoc>> {
+        let searcher = self.tantivy_index.reader()?.searcher();
+        let Some((_, addr)) = searcher
+            .search(query, &TopDocs::with_limit(1))?
+            .into_iter()
+            .next()
+        else {
+            return Ok(None);
+        };
+        let doc: tantivy::TantivyDocument = searcher.doc(addr)?;
+        let text = |field| {
+            doc.get_first(field)
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string()
+        };
+        let author = text(self.fields.author);
+        Ok(Some(StoredDoc {
+            path: text(self.fields.path),
+            content: text(self.fields.content),
+            author: (!author.is_empty()).then_some(author),
+            timestamp: doc
+                .get_first(self.fields.timestamp)
+                .and_then(|v| v.as_u64())
+                .filter(|ts| *ts > 0),
+        }))
     }
 
     /// Fill line range + snippet for hits that came from the vector store,
@@ -3683,6 +3814,103 @@ fn count_unescaped_alternations(pat: &str) -> usize {
         }
     }
     count
+}
+
+/// Build a query that matches `text` as literal words: split on whitespace,
+/// each word analysed by `field`'s own tokenizer exactly as a parsed word
+/// would be, joined by `conjunction` (strict) or disjunction (loose).
+///
+/// No query grammar is involved, so no input can be a syntax error. Escaping
+/// into the grammar could not guarantee that: Tantivy rejects a bare `AND`,
+/// `OR`, `NOT` or `IN` and an unescaped backtick, and treats `NOT` in prose as
+/// negation — ordinary user-story text hit all three, and the SyntaxError
+/// aborted the whole hybrid search. Words that yield no tokens (punctuation,
+/// or shorter than the trigram width) are dropped first: left in, they
+/// become empty clauses the parser calls "only excluding terms", and its
+/// lenient repair turns that into match-all.
+pub fn literal_text_query(
+    index: &tantivy::Index,
+    field: tantivy::schema::Field,
+    text: &str,
+    conjunction: bool,
+) -> anyhow::Result<Box<dyn tantivy::query::Query>> {
+    use tantivy::query_grammar::{Delimiter, UserInputAst, UserInputLeaf, UserInputLiteral};
+    let mut analyzer = index.tokenizer_for_field(field)?;
+    let clauses: Vec<_> = text
+        .split_whitespace()
+        .filter(|word| analyzer.token_stream(word).advance())
+        .map(|word| {
+            let literal = UserInputLiteral {
+                field_name: None,
+                phrase: word.to_string(),
+                delimiter: Delimiter::None,
+                slop: 0,
+                prefix: false,
+            };
+            (
+                None,
+                UserInputAst::Leaf(Box::new(UserInputLeaf::Literal(literal))),
+            )
+        })
+        .collect();
+    if clauses.is_empty() {
+        return Ok(Box::new(tantivy::query::EmptyQuery));
+    }
+    let mut parser = QueryParser::for_index(index, vec![field]);
+    if conjunction {
+        parser.set_conjunction_by_default();
+    }
+    Ok(parser.build_query_from_user_input_ast(UserInputAst::Clause(clauses))?)
+}
+
+/// Literal words ranked on the word field, each word also matchable as a
+/// case-sensitive substring through the trigram field. Word-only matching
+/// dropped documents the trigram index always found: `restart` never
+/// reaches `restarted`, nor a table name its LINQ plural. Per word, either
+/// form satisfies it (strict still requires every word); the substring form
+/// scores at `trigram_weight` so whole-word matches rank first.
+/// Score of a word matched only as a substring, relative to a whole-word
+/// match. 0.1 measured best on a real project's history (0.1 / 0.3 / words-only).
+pub const SUBSTRING_MATCH_WEIGHT: f32 = 0.1;
+
+pub fn literal_word_or_substring_query(
+    index: &tantivy::Index,
+    words: tantivy::schema::Field,
+    trigrams: tantivy::schema::Field,
+    text: &str,
+    conjunction: bool,
+    trigram_weight: f32,
+) -> anyhow::Result<Box<dyn tantivy::query::Query>> {
+    let occur = if conjunction {
+        Occur::Must
+    } else {
+        Occur::Should
+    };
+    let mut clauses: Vec<(Occur, Box<dyn tantivy::query::Query>)> = Vec::new();
+    for word in text.split_whitespace() {
+        let mut forms: Vec<(Occur, Box<dyn tantivy::query::Query>)> = Vec::new();
+        let by_word = literal_text_query(index, words, word, false)?;
+        if !by_word.is::<tantivy::query::EmptyQuery>() {
+            forms.push((Occur::Should, by_word));
+        }
+        let by_substring = literal_text_query(index, trigrams, word, false)?;
+        if !by_substring.is::<tantivy::query::EmptyQuery>() {
+            forms.push((
+                Occur::Should,
+                Box::new(tantivy::query::BoostQuery::new(
+                    by_substring,
+                    trigram_weight,
+                )),
+            ));
+        }
+        if !forms.is_empty() {
+            clauses.push((occur, Box::new(BooleanQuery::new(forms))));
+        }
+    }
+    if clauses.is_empty() {
+        return Ok(Box::new(tantivy::query::EmptyQuery));
+    }
+    Ok(Box::new(BooleanQuery::new(clauses)))
 }
 
 pub fn escape_tantivy_literal(s: &str) -> String {

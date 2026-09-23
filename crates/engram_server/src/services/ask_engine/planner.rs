@@ -532,7 +532,7 @@ pub fn extract_entities(q: &str) -> Vec<EntityMention> {
         }
         // dotted path: a.b.c / Resources.text.Key / ImportService.vb
         // Round-2 audit P0-4e: a lowercase hyphenated token of 8+ chars is a
-        // file mention ("api-installationsobjektprojekt"); the resolver maps
+        // file mention ("api-bokningsobjektprojekt"); the resolver maps
         // it to the file by stem.
         if t.len() >= 8
             && t.contains('-')
@@ -545,7 +545,7 @@ pub fn extract_entities(q: &str) -> Vec<EntityMention> {
             continue;
         }
         // Batch 2 (doc 11 grind, live r58): a long bare lowercase token that
-        // is not prose ("redovisningskategorier") is a file-stem CANDIDATE —
+        // is not prose ("kostnadskategorier") is a file-stem CANDIDATE —
         // the resolver's stem matching decides, and an unresolved candidate
         // no longer blocks the lookup cap. >=12 chars keeps ordinary prose
         // out ("frontend", "functions" — the plan-cleanliness guards): long

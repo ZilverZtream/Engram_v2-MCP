@@ -94,7 +94,7 @@ const SRC: &str = "Public Class api\n\
     Public Function Filter(qry As Query) As String\n\
         If Not _us.UserAccess.CheckRead(_us.UserAccessObject.vs_karta_io_objekt) Then Return s\n\
         Dim pr_id = GetDictionaryIntegerValue(qry.params, \"pr_id\")\n\
-        Dim rows = _io.installationsobjektprojekt.GetAllByCheckingTotalProject(pr_id, db)\n\
+        Dim rows = _io.bokningsobjektprojekt.GetAllByCheckingTotalProject(pr_id, db)\n\
         Return \"ok\"\n\
     End Function\n\
 End Class\n";
@@ -275,19 +275,19 @@ async fn ui_event_no_path_message_states_the_searched_depth() {
     );
 }
 
-/// Live finding (OciusX, 2026-08-28, slice 1 deployed): App_Code class
-/// members are indexed with QUALIFIED names (`_io.installationsobjektprojekt.GetAllByCheckingTotalProject`),
+/// Live finding (pilot corpus, 2026-08-28, slice 1 deployed): App_Code class
+/// members are indexed with QUALIFIED names (`_io.bokningsobjektprojekt.GetAllByCheckingTotalProject`),
 /// so a bare-name comparison reported 8 of 10 real calls as UNRESOLVED —
 /// including the one helper the audit's G3 is about.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_call_to_a_qualified_indexed_member_is_resolved() {
     let (_tmp, state, dir) = build_state();
     seed(&state, &dir);
-    let io = "Site/App_Code/io/installationsobjektprojekt.vb";
+    let io = "Site/App_Code/io/bokningsobjektprojekt.vb";
     std::fs::create_dir_all(dir.join("Site/App_Code/io")).unwrap();
     std::fs::write(
         dir.join(io),
-        "Public Class installationsobjektprojekt\n    Public Function GetAllByCheckingTotalProject(pr_id As Integer, db As Ctx) As List\n    End Function\nEnd Class\n",
+        "Public Class bokningsobjektprojekt\n    Public Function GetAllByCheckingTotalProject(pr_id As Integer, db As Ctx) As List\n    End Function\nEnd Class\n",
     )
     .unwrap();
     state
@@ -296,11 +296,11 @@ async fn a_call_to_a_qualified_indexed_member_is_resolved() {
             PID,
             &[Node {
                 node_id: format!(
-                    "sym:function:{io}:_io.installationsobjektprojekt.GetAllByCheckingTotalProject:2"
+                    "sym:function:{io}:_io.bokningsobjektprojekt.GetAllByCheckingTotalProject:2"
                 ),
                 node_type: "function".into(),
-                name: "_io.installationsobjektprojekt.GetAllByCheckingTotalProject".into(),
-                namespace: "installationsobjektprojekt".into(),
+                name: "_io.bokningsobjektprojekt.GetAllByCheckingTotalProject".into(),
+                namespace: "bokningsobjektprojekt".into(),
                 language: "vbnet".into(),
                 file_path: RelPath::new(io),
                 start_line: 2,
@@ -339,7 +339,7 @@ async fn a_call_to_a_qualified_indexed_member_is_resolved() {
     );
 }
 
-/// Live finding #2 (OciusX, 2026-08-29, slice 2 deployed): the ENTRY node
+/// Live finding #2 (pilot corpus, 2026-08-29, slice 2 deployed): the ENTRY node
 /// of an App_Code method is also indexed with a qualified name
 /// (`api.ioGetIdsFilteredByMarkerCheckListItemStatus`), so the entry
 /// filter `name == entry_point` matched nothing — no graph steps, no
@@ -362,10 +362,10 @@ async fn a_qualified_entry_node_still_gets_its_graph_steps_and_follow() {
         metadata: None,
     };
     let helper = Node {
-        node_id: "sym:function:Site/App_Code/io/x.vb:_io.installationsobjektprojekt.GetAllByCheckingTotalProject:2".into(),
+        node_id: "sym:function:Site/App_Code/io/x.vb:_io.bokningsobjektprojekt.GetAllByCheckingTotalProject:2".into(),
         node_type: "function".into(),
-        name: "_io.installationsobjektprojekt.GetAllByCheckingTotalProject".into(),
-        namespace: "installationsobjektprojekt".into(),
+        name: "_io.bokningsobjektprojekt.GetAllByCheckingTotalProject".into(),
+        namespace: "bokningsobjektprojekt".into(),
         language: "vbnet".into(),
         file_path: RelPath::new("Site/App_Code/io/x.vb"),
         start_line: 2,
@@ -384,7 +384,7 @@ async fn a_qualified_entry_node_still_gets_its_graph_steps_and_follow() {
                 edge(&eid, &hid, EdgeKind::Calls),
                 edge(
                     &hid,
-                    "table:iom_installationsobjektmoments",
+                    "table:iom_bokningsobjektmoments",
                     EdgeKind::QueriesTable,
                 ),
             ],
@@ -410,7 +410,7 @@ async fn a_qualified_entry_node_still_gets_its_graph_steps_and_follow() {
     assert!(
         v["tables_touched"]
             .to_string()
-            .contains("iom_installationsobjektmoments"),
+            .contains("iom_bokningsobjektmoments"),
         "{}",
         v["tables_touched"]
     );

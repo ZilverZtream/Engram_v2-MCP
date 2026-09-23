@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used)]
 //! External audit 2026-08-29 P0-3: the first get_change_set after a daemon
-//! restart took 38 s on OciusX — the project runtime opened on the first
+//! restart took 38 s on the pilot corpus — the project runtime opened on the first
 //! user's call. A fresh AppState over an existing data dir has no runtime
 //! cached; the warm-up opens selected registered projects so the first call is
 //! served from a warm daemon.

@@ -78,7 +78,7 @@ fn dotnet_webforms_cs_exts() -> Vec<&'static str> {
         "mjs", "cjs", "html", "htm", "css", "scss", "less", "resx", "cshtml", "vbhtml", "razor",
         // ORM models (LINQ-to-SQL .dbml, Entity Framework .edmx): they change
         // with every table change — external audit 2026-08-29 P0-3, the
-        // reference story's `iFalt.dbml` could never render because these were
+        // reference story's `iCore.dbml` could never render because these were
         // not indexed at all.
         "dbml", "edmx",
         // OpenAPI/Swagger specs + CI pipelines: contract documents that ship
@@ -94,7 +94,7 @@ fn dotnet_webforms_vb_exts() -> Vec<&'static str> {
         "mjs", "cjs", "html", "htm", "css", "scss", "less", "resx", "cshtml", "vbhtml", "razor",
         // ORM models (LINQ-to-SQL .dbml, Entity Framework .edmx): they change
         // with every table change — external audit 2026-08-29 P0-3, the
-        // reference story's `iFalt.dbml` could never render because these were
+        // reference story's `iCore.dbml` could never render because these were
         // not indexed at all.
         "dbml", "edmx",
         // OpenAPI/Swagger specs + CI pipelines: contract documents that ship

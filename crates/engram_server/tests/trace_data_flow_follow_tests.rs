@@ -16,7 +16,7 @@ use serde_json::{Value, json};
 
 const PID: &str = "follow-test";
 const API: &str = "Site/App_Code/api/api-x.vb";
-const IO: &str = "Site/App_Code/io/installationsobjektprojekt.vb";
+const IO: &str = "Site/App_Code/io/bokningsobjektprojekt.vb";
 
 fn build_state() -> (tempfile::TempDir, AppState, std::path::PathBuf) {
     let tmp = tempfile::TempDir::new().unwrap();
@@ -87,14 +87,14 @@ fn edge(src: &str, tgt: &str, kind: EdgeKind) -> Edge {
 
 const API_SRC: &str = "Public Class api\n\
     Public Function Filter(qry As Query) As String\n\
-        Dim rows = _io.installationsobjektprojekt.GetAllByCheckingTotalProject(pr_id, db)\n\
+        Dim rows = _io.bokningsobjektprojekt.GetAllByCheckingTotalProject(pr_id, db)\n\
         Return \"ok\"\n\
     End Function\n\
 End Class\n";
 
-const IO_SRC: &str = "Public Class installationsobjektprojekt\n\
+const IO_SRC: &str = "Public Class bokningsobjektprojekt\n\
     Public Function GetAllByCheckingTotalProject(pr_id As Integer, db As Ctx) As List\n\
-        Return db.iom_installationsobjektmoments.Where(Function(m) m.pr_id = pr_id).ToList()\n\
+        Return db.iom_bokningsobjektmoments.Where(Function(m) m.pr_id = pr_id).ToList()\n\
     End Function\n\
     Public Function Deep2(x As Integer) As Integer\n\
         Return Deep3(x)\n\
@@ -118,13 +118,13 @@ fn seed(state: &AppState, dir: &std::path::Path) {
     let filter = func(API, "api", "Filter", 2);
     let get_all = func(
         IO,
-        "installationsobjektprojekt",
+        "bokningsobjektprojekt",
         "GetAllByCheckingTotalProject",
         2,
     );
-    let d2 = func(IO, "installationsobjektprojekt", "Deep2", 5);
-    let d3 = func(IO, "installationsobjektprojekt", "Deep3", 8);
-    let d4 = func(IO, "installationsobjektprojekt", "Deep4", 11);
+    let d2 = func(IO, "bokningsobjektprojekt", "Deep2", 5);
+    let d3 = func(IO, "bokningsobjektprojekt", "Deep3", 8);
+    let d4 = func(IO, "bokningsobjektprojekt", "Deep4", 11);
     let ids: Vec<String> = [&filter, &get_all, &d2, &d3, &d4]
         .iter()
         .map(|n| n.node_id.clone())
@@ -141,7 +141,7 @@ fn seed(state: &AppState, dir: &std::path::Path) {
                 edge(&ids[0], &ids[1], EdgeKind::Calls),
                 edge(
                     &ids[1],
-                    "table:iom_installationsobjektmoments",
+                    "table:iom_bokningsobjektmoments",
                     EdgeKind::QueriesTable,
                 ),
                 edge(&ids[0], &ids[2], EdgeKind::Calls),
@@ -172,7 +172,7 @@ async fn a_resolved_call_is_followed_to_the_helpers_table_access() {
     .await;
     let tables = v["tables_touched"].to_string();
     assert!(
-        tables.contains("iom_installationsobjektmoments"),
+        tables.contains("iom_bokningsobjektmoments"),
         "the helper's table must be reached at depth 2: {tables}\n{}",
         v["steps"]
     );
@@ -185,7 +185,7 @@ async fn a_resolved_call_is_followed_to_the_helpers_table_access() {
     assert!(
         followed
             .iter()
-            .any(|s| s.to_string().contains("iom_installationsobjektmoments")),
+            .any(|s| s.to_string().contains("iom_bokningsobjektmoments")),
         "a followed step must carry the depth it was reached at:\n{}",
         v["steps"]
     );

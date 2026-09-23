@@ -9,8 +9,8 @@
 //!    cases the keyword filter missed.
 //! 2. **Merge near-duplicates** the keyword clusterer split.
 //! 3. **Rewrite each kept rule in the project's own voice** — using
-//!    vocabulary the agent will actually encounter (`iFaltDataContext`,
-//!    `CanReadViaApi`, `handelselogg.Create`) instead of generic
+//!    vocabulary the agent will actually encounter (`iCoreDataContext`,
+//!    `CanReadViaApi`, `aktivitetslogg.Create`) instead of generic
 //!    phrases like "the project's audit-log helper".
 //! 4. **Rank the result by importance** so the root CLAUDE.md leads
 //!    with the strictest rules.

@@ -13,7 +13,7 @@ use rmcp::model::{CallToolResult, Content};
 use crate::handlers::validate_project_id;
 use crate::models::requests::PreCommitReviewRequest;
 use crate::services::pre_commit_review_service::{
-    ReviewConfig, Severity, render_json, render_markdown, resolve_diff_source,
+    ReviewConfig, Severity, render_compact_markdown, render_json, render_markdown, resolve_diff_source,
     run_pre_commit_review,
 };
 use crate::services::project_service::{ensure_project_record, get_active_generation};
@@ -31,6 +31,12 @@ impl Engram {
                 None,
             )
         })?;
+        if !matches!(req.detail_level.to_ascii_lowercase().as_str(), "compact" | "full") {
+            return Err(McpError::invalid_params(
+                "detail_level must be compact or full",
+                None,
+            ));
+        }
         let gates = crate::services::pre_commit_review_service::all_gates();
         for name in &req.skip_gates {
             if !gates.iter().any(|gate| gate.name() == name) {
@@ -46,7 +52,10 @@ impl Engram {
         let generation = get_active_generation(&self.state, &req.project_id)
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        let project_dir = PathBuf::from(rec.directory.clone());
+        let indexed_project_dir = PathBuf::from(rec.directory.clone());
+        let (project_dir, review_source) =
+            resolve_review_directory(&indexed_project_dir, req.working_directory.as_deref())
+                .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
 
         let start = std::time::Instant::now();
 
@@ -58,6 +67,34 @@ impl Engram {
         let source_before = source_snapshot(&project_dir, &parsed);
 
         if diff_text.trim().is_empty() {
+            // The requested source (default: staged) held nothing. Work that is
+            // unstaged or untracked was not examined; name it instead of
+            // reporting a clean "no changes".
+            let unexamined =
+                crate::services::pre_commit_review_service::working_tree_changes(&project_dir)
+                    .unwrap_or_default();
+            if !unexamined.is_empty() {
+                let hint = format!(
+                    "The requested diff ({}) is empty, but the working tree has {} changed file(s) that were not examined: {}. Rerun with diff=\"unstaged\" to review them.",
+                    req.diff.trim(),
+                    unexamined.len(),
+                    unexamined.iter().take(20).cloned().collect::<Vec<_>>().join(", ")
+                );
+                if req.output_json {
+                    return Ok(CallToolResult::success(vec![Content::text(
+                        serde_json::json!({
+                            "verdict": "NOT_REVIEWED", "findings": [], "gate_status": [],
+                            "summary": { "files_analysed": 0, "gates_run": 0, "total_findings": 0 },
+                            "coverage": {"submitted_files": [], "textual_diff_files": [], "unexamined_files": unexamined, "static_analysis": "not_run", "compilation": "not_run", "test_execution": "not_run"},
+                            "note": hint
+                        })
+                        .to_string(),
+                    )]));
+                }
+                return Ok(CallToolResult::success(vec![Content::text(format!(
+                    "Not reviewed. {hint}"
+                ))]));
+            }
             if req.output_json {
                 return Ok(CallToolResult::success(vec![Content::text(
                     serde_json::json!({
@@ -108,8 +145,14 @@ impl Engram {
             .any(|(_, value)| value.starts_with("unavailable:"));
         let unexamined: Vec<_> = parsed.iter().filter(|f| f.is_binary || f.hunks.is_empty()).map(|f|
             serde_json::json!({"path":f.path,"reason":if f.is_binary {"binary_content_not_inspected"} else {"no_text_hunks; metadata_only"}})).collect();
+        let unindexed =
+            unindexed_changed_files(&self.state, &req.project_id, &rec.project_type, &parsed).await;
+        let unindexed_count = unindexed
+            .as_array()
+            .map_or_else(|| "unknown".to_string(), |files| files.len().to_string());
         let coverage = serde_json::json!({
             "submitted_files":parsed.iter().map(|f| &f.path).collect::<Vec<_>>(),
+            "unindexed_files":unindexed,
             "textual_diff_files":parsed.iter().filter(|f| !f.is_binary && !f.hunks.is_empty()).map(|f| &f.path).collect::<Vec<_>>(),
             "unexamined_files":unexamined,
             "static_analysis":if gates_run == 0 {"not_run"} else {"gate_scoped; not a complete code audit"},
@@ -121,7 +164,10 @@ impl Engram {
             "source_before":source_before,"source_after":source_after,
             "source_scope":"bounded current-file snapshots; supplied diff is not certified to match current files",
             "provider_coverage":"see gate_status; failed, skipped and degraded gates are not passing evidence",
-            "review_decisions":"not_consulted; retrieve get_review_decisions for the relevant review before reconciling findings"
+            "review_decisions":"not_consulted; retrieve get_review_decisions for the relevant review before reconciling findings",
+            "review_source":review_source,
+            "indexed_project_directory":indexed_project_dir,
+            "review_working_directory":project_dir
         });
 
         tracing::info!(
@@ -149,12 +195,26 @@ impl Engram {
             serde_json::to_string_pretty(&payload)
                 .map_err(|e| McpError::internal_error(format!("json render: {e}"), None))?
         } else {
-            let mut report =
-                render_markdown(&findings, files_analysed, gates_run, elapsed_ms, &outcomes);
+            let compact = req.detail_level.eq_ignore_ascii_case("compact");
+            let mut report = if compact {
+                render_compact_markdown(
+                    &findings,
+                    files_analysed,
+                    gates_run,
+                    elapsed_ms,
+                    &outcomes,
+                )
+            } else {
+                render_markdown(&findings, files_analysed, gates_run, elapsed_ms, &outcomes)
+            };
             if changed_during_review || snapshot_unavailable {
                 report = report.replace(
                     "GREEN — no concerns within reported static gate coverage",
                     "YELLOW — source snapshot changed or unavailable",
+                );
+                report = report.replace(
+                    "# Pre-Commit Review - GREEN",
+                    "# Pre-Commit Review - YELLOW",
                 );
             }
             if changed_during_review {
@@ -163,15 +223,112 @@ impl Engram {
                     "SOURCE CHANGED DURING REVIEW: results are not a current-source clearance.\n\n",
                 );
             }
-            report.push_str(&format!(
-                "\n## Coverage evidence\n```json\n{}\n```\n",
-                serde_json::to_string_pretty(&coverage).unwrap_or_default()
-            ));
+            if compact {
+                report.push_str(&format!(
+                    "\nCoverage: submitted_files={}, textual_diff_files={}, unexamined_files={}, unindexed_files={}, changed_during_review={}, compilation=not_run, tests=not_run. Use detail_level=\"full\" or output_json=true for complete coverage evidence.\n",
+                    parsed.len(),
+                    parsed.iter().filter(|f| !f.is_binary && !f.hunks.is_empty()).count(),
+                    unexamined.len(),
+                    unindexed_count,
+                    changed_during_review,
+                ));
+            } else {
+                report.push_str(&format!(
+                    "\n## Coverage evidence\n```json\n{}\n```\n",
+                    serde_json::to_string_pretty(&coverage).unwrap_or_default()
+                ));
+            }
             report
         };
 
         Ok(CallToolResult::success(vec![Content::text(body)]))
     }
+}
+
+/// Changed files the index has never seen, typically files this diff adds.
+/// Graph-backed gates have no symbols for them, so their silence is not a
+/// clean result. Deleted and binary files, and extensions the indexer never
+/// takes, are not listed. An unreadable file index is reported as unknown.
+async fn unindexed_changed_files(
+    state: &crate::state::AppState,
+    project_id: &str,
+    project_type: &str,
+    parsed: &[crate::services::pre_commit_review_service::DiffFile],
+) -> serde_json::Value {
+    use crate::services::pre_commit_review_service::ChangeType;
+    let exts = crate::utils::files::exts_for_project_type(project_type);
+    let candidates: Vec<String> = parsed
+        .iter()
+        .filter(|f| !f.is_binary && !matches!(f.change_type, ChangeType::Deleted))
+        .filter(|f| {
+            std::path::Path::new(&f.path)
+                .extension()
+                .and_then(|e| e.to_str())
+                .is_some_and(|e| exts.iter().any(|x| x.eq_ignore_ascii_case(e)))
+        })
+        .map(|f| f.path.clone())
+        .collect();
+    if candidates.is_empty() {
+        return serde_json::json!([]);
+    }
+    let graph = state.graph.clone();
+    let pid = project_id.to_string();
+    match tokio::task::spawn_blocking(move || graph.list_file_node_metadata(&pid)).await {
+        Ok(Ok(rows)) => {
+            let known: std::collections::HashSet<String> = rows
+                .into_iter()
+                .map(|(path, _)| path.as_str().replace('\\', "/").to_ascii_lowercase())
+                .collect();
+            serde_json::json!(
+                candidates
+                    .into_iter()
+                    .filter(|p| !known.contains(&p.replace('\\', "/").to_ascii_lowercase()))
+                    .collect::<Vec<_>>()
+            )
+        }
+        Ok(Err(e)) => serde_json::json!(format!("unknown: file index unreadable ({e})")),
+        Err(e) => serde_json::json!(format!("unknown: file index lookup failed ({e})")),
+    }
+}
+
+/// Bind Git shortcuts and current-file snapshots to the checkout the agent is
+/// editing. Linked worktrees share a common Git directory; unrelated
+/// repositories are rejected so they cannot borrow another project's rules.
+fn resolve_review_directory(
+    indexed_project_dir: &std::path::Path,
+    requested: Option<&str>,
+) -> anyhow::Result<(PathBuf, &'static str)> {
+    let Some(requested) = requested else {
+        return Ok((indexed_project_dir.to_path_buf(), "indexed_project"));
+    };
+    anyhow::ensure!(
+        !requested.trim().is_empty(),
+        "working_directory cannot be empty"
+    );
+
+    let indexed_repo = git2::Repository::discover(indexed_project_dir)
+        .map_err(|e| anyhow::anyhow!("indexed project is not a readable Git repository: {e}"))?;
+    let requested_repo = git2::Repository::discover(std::path::Path::new(requested))
+        .map_err(|e| anyhow::anyhow!("working_directory is not a readable Git repository: {e}"))?;
+
+    let indexed_common = indexed_repo
+        .commondir()
+        .canonicalize()
+        .map_err(|e| anyhow::anyhow!("cannot resolve indexed repository identity: {e}"))?;
+    let requested_common = requested_repo.commondir().canonicalize().map_err(|e| {
+        anyhow::anyhow!("cannot resolve working-directory repository identity: {e}")
+    })?;
+    anyhow::ensure!(
+        indexed_common == requested_common,
+        "working_directory belongs to a different Git repository than the indexed project"
+    );
+
+    let worktree = requested_repo
+        .workdir()
+        .ok_or_else(|| anyhow::anyhow!("working_directory resolves to a bare Git repository"))?
+        .canonicalize()
+        .map_err(|e| anyhow::anyhow!("cannot resolve working-directory root: {e}"))?;
+    Ok((worktree, "explicit_same_repository_worktree"))
 }
 
 fn head_commit(root: &std::path::Path) -> Option<String> {
@@ -228,4 +385,60 @@ fn source_snapshot(
             (file.path.clone(), value)
         })
         .collect()
+}
+
+#[cfg(test)]
+mod worktree_binding_tests {
+    use super::resolve_review_directory;
+    use crate::services::pre_commit_review_service::resolve_diff_source;
+    use std::path::Path;
+
+    fn repository_with_commit(path: &Path) -> git2::Repository {
+        std::fs::create_dir_all(path).unwrap();
+        let repo = git2::Repository::init(path).unwrap();
+        std::fs::write(path.join("tracked.txt"), "base\n").unwrap();
+        let mut index = repo.index().unwrap();
+        index.add_path(Path::new("tracked.txt")).unwrap();
+        index.write().unwrap();
+        let tree_id = index.write_tree().unwrap();
+        {
+            let tree = repo.find_tree(tree_id).unwrap();
+            let sig = git2::Signature::now("Engram test", "engram@example.invalid").unwrap();
+            repo.commit(Some("HEAD"), &sig, &sig, "base", &tree, &[])
+                .unwrap();
+        }
+        repo
+    }
+
+    #[test]
+    fn explicit_linked_worktree_binds_shortcut_diff_to_edited_checkout() {
+        let temp = tempfile::tempdir().unwrap();
+        let indexed = temp.path().join("indexed");
+        let linked = temp.path().join("linked");
+        let repo = repository_with_commit(&indexed);
+        let worktree = repo.worktree("linked", &linked, None).unwrap();
+        drop(worktree);
+        std::fs::write(linked.join("tracked.txt"), "edited in linked worktree\n").unwrap();
+
+        let (root, source) =
+            resolve_review_directory(&indexed, Some(linked.to_str().unwrap())).unwrap();
+        assert_eq!(root, linked.canonicalize().unwrap());
+        assert_eq!(source, "explicit_same_repository_worktree");
+        let diff = resolve_diff_source(&root, "unstaged").unwrap();
+        assert!(diff.contains("+edited in linked worktree"), "{diff}");
+    }
+
+    #[test]
+    fn unrelated_repository_cannot_borrow_indexed_project_review_context() {
+        let temp = tempfile::tempdir().unwrap();
+        let indexed = temp.path().join("indexed");
+        let unrelated = temp.path().join("unrelated");
+        let _indexed_repo = repository_with_commit(&indexed);
+        let _unrelated_repo = repository_with_commit(&unrelated);
+
+        let error = resolve_review_directory(&indexed, Some(unrelated.to_str().unwrap()))
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("different Git repository"), "{error}");
+    }
 }

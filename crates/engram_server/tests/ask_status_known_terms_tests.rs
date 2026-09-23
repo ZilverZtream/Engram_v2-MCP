@@ -120,20 +120,20 @@ fn a_resolved_entity_is_a_covered_term_even_when_the_evidence_prose_never_spells
 
 #[test]
 fn a_resolved_entity_found_in_the_evidence_anchors_support() {
-    // "Which reports (.rdl) read the rk_redovisningskategorier table?" — the
+    // "Which reports (.rdl) read the kk_kostnadskategorier table?" — the
     // entity resolved (symbol + table, one canonical) and the code hits carry
     // it; the question's other words ("reports") are absent. That is found
     // evidence about the asked entity: partial/answered, not unsupported.
-    let q = "Which reports (.rdl) read the rk_redovisningskategorier table?";
+    let q = "Which reports (.rdl) read the kk_kostnadskategorier table?";
     let evidence = vec![ev(
         "ev_1",
         EvidenceKind::SourceCode,
         "code",
-        "Site/App_Code/iFalt.designer.vb",
+        "Site/App_Code/iCore.designer.vb",
         None,
-        "Private _rk_redovisningskategorier As EntitySet(Of rk_redovisningskategorier)\n Me.SendPropertyChanged(\"lg_lag\")",
+        "Private _kk_kostnadskategorier As EntitySet(Of kk_kostnadskategorier)\n Me.SendPropertyChanged(\"lg_lag\")",
     )];
-    let known = vec!["rk_redovisningskategorier".to_string()];
+    let known = vec!["kk_kostnadskategorier".to_string()];
     assert!(uncovered_named_terms_with(q, &evidence, &known).is_empty());
     assert!(
         has_adequate_support_with(q, &evidence, &known),
@@ -147,16 +147,16 @@ fn a_resolved_entity_found_in_the_evidence_anchors_support() {
 
 #[test]
 fn a_false_premise_stays_unsupported_with_known_terms_present() {
-    let q = "Which Redis cluster caches the redovisningskategori list?";
+    let q = "Which Redis cluster caches the kostnadskategori list?";
     let evidence = vec![ev(
         "ev_1",
         EvidenceKind::GraphRelation,
         "usage",
-        "Site/App_Code/redovisning/code/redovisningskategorier.vb",
-        Some("sym:redovisningskategorier.GetByProjectId"),
-        "redovisningskategorier.GetByProjectId <- api-redovisning.GetCategories",
+        "Site/App_Code/leverans/code/kostnadskategorier.vb",
+        Some("sym:kostnadskategorier.GetByProjectId"),
+        "kostnadskategorier.GetByProjectId <- api-leverans.GetCategories",
     )];
-    let known = vec!["redovisningskategorier".to_string()];
+    let known = vec!["kostnadskategorier".to_string()];
     assert_eq!(
         uncovered_named_terms_with(q, &evidence, &known),
         vec!["Redis".to_string()]

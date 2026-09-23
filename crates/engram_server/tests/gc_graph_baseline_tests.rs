@@ -2,7 +2,7 @@
 //! The hourly GC and the manual `incremental_indexing_gc` purge the GRAPH
 //! against the LAST FULL INDEX generation. Incremental updates write nodes
 //! at generations ABOVE it, so "stale" must mean OLDER than the baseline —
-//! never "different from" it. Live on OciusX (2026-08-28) the `!=` reading
+//! never "different from" it. Live on the pilot corpus (2026-08-28) the `!=` reading
 //! deleted every incrementally re-indexed file's nodes every hour and the
 //! watcher re-added them (`[node_missing]` × 175 files, functions 18,144 →
 //! 9,904 between ticks).

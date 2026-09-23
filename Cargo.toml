@@ -44,6 +44,7 @@ arrow-schema = "57"
 walkdir = "2"
 ignore = "0.4"
 blake3 = "1"
+sha2 = "0.10.9"
 notify = "7"
 
 # MCP
@@ -58,8 +59,8 @@ petgraph = "0.8"
 rustworkx-core = "0.16"
 
 # AST
-# tree-sitter 0.25 accepts ABI 14 (all 0.23.x grammar crates) and ABI 15
-# (arborium-vb 2.16.0, built with tree-sitter CLI 0.25).
+# VB parsing uses the Roslyn sidecar; tree-sitter covers the other languages.
+# tree-sitter 0.25 accepts ABI 14/15 used by the pinned grammar crates.
 tree-sitter = "0.25"
 tree-sitter-rust = "0.23"
 tree-sitter-python = "0.23"
