@@ -2525,17 +2525,21 @@ impl HybridSearchEngine {
                 parser.set_conjunction_by_default();
                 parser.parse_query(&q.text)?
             }
-            "loose" => literal_text_query(
+            "loose" => literal_word_or_substring_query(
                 &self.tantivy_index,
                 self.fields.content_words,
+                self.fields.content,
                 &q.text,
                 false,
+                SUBSTRING_MATCH_WEIGHT,
             )?,
-            "strict" => literal_text_query(
+            "strict" => literal_word_or_substring_query(
                 &self.tantivy_index,
                 self.fields.content_words,
+                self.fields.content,
                 &q.text,
                 true,
+                SUBSTRING_MATCH_WEIGHT,
             )?,
             unknown => {
                 anyhow::bail!(
@@ -2865,17 +2869,21 @@ impl HybridSearchEngine {
                 parser.set_conjunction_by_default();
                 parser.parse_query(&q.text)?
             }
-            "loose" => literal_text_query(
+            "loose" => literal_word_or_substring_query(
                 &self.tantivy_index,
                 self.fields.content_words,
+                self.fields.content,
                 &q.text,
                 false,
+                SUBSTRING_MATCH_WEIGHT,
             )?,
-            "strict" => literal_text_query(
+            "strict" => literal_word_or_substring_query(
                 &self.tantivy_index,
                 self.fields.content_words,
+                self.fields.content,
                 &q.text,
                 true,
+                SUBSTRING_MATCH_WEIGHT,
             )?,
             // Case-insensitive literal over the case-PRESERVING trigram
             // index: the content field is tokenised by
@@ -3853,6 +3861,56 @@ pub fn literal_text_query(
         parser.set_conjunction_by_default();
     }
     Ok(parser.build_query_from_user_input_ast(UserInputAst::Clause(clauses))?)
+}
+
+/// Literal words ranked on the word field, each word also matchable as a
+/// case-sensitive substring through the trigram field. Word-only matching
+/// dropped documents the trigram index always found: `restart` never
+/// reaches `restarted`, nor a table name its LINQ plural. Per word, either
+/// form satisfies it (strict still requires every word); the substring form
+/// scores at `trigram_weight` so whole-word matches rank first.
+/// Score of a word matched only as a substring, relative to a whole-word
+/// match. 0.1 measured best on a real project's history (0.1 / 0.3 / words-only).
+pub const SUBSTRING_MATCH_WEIGHT: f32 = 0.1;
+
+pub fn literal_word_or_substring_query(
+    index: &tantivy::Index,
+    words: tantivy::schema::Field,
+    trigrams: tantivy::schema::Field,
+    text: &str,
+    conjunction: bool,
+    trigram_weight: f32,
+) -> anyhow::Result<Box<dyn tantivy::query::Query>> {
+    let occur = if conjunction {
+        Occur::Must
+    } else {
+        Occur::Should
+    };
+    let mut clauses: Vec<(Occur, Box<dyn tantivy::query::Query>)> = Vec::new();
+    for word in text.split_whitespace() {
+        let mut forms: Vec<(Occur, Box<dyn tantivy::query::Query>)> = Vec::new();
+        let by_word = literal_text_query(index, words, word, false)?;
+        if !by_word.is::<tantivy::query::EmptyQuery>() {
+            forms.push((Occur::Should, by_word));
+        }
+        let by_substring = literal_text_query(index, trigrams, word, false)?;
+        if !by_substring.is::<tantivy::query::EmptyQuery>() {
+            forms.push((
+                Occur::Should,
+                Box::new(tantivy::query::BoostQuery::new(
+                    by_substring,
+                    trigram_weight,
+                )),
+            ));
+        }
+        if !forms.is_empty() {
+            clauses.push((occur, Box::new(BooleanQuery::new(forms))));
+        }
+    }
+    if clauses.is_empty() {
+        return Ok(Box::new(tantivy::query::EmptyQuery));
+    }
+    Ok(Box::new(BooleanQuery::new(clauses)))
 }
 
 pub fn escape_tantivy_literal(s: &str) -> String {
