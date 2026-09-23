@@ -19,6 +19,7 @@ pub mod project_tools;
 pub mod quality_gate_tools;
 pub mod review_tools;
 pub mod review_decisions;
+pub mod review_verdict_tools;
 pub mod search_tools;
 pub mod settings_tools;
 mod sql_binding;

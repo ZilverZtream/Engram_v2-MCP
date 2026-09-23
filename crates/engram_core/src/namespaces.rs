@@ -55,6 +55,8 @@ pub const NAMESPACE_QUALITY_GATE: &str = "quality_gate";
 pub const NAMESPACE_MEMORY_BANK: &str = "memory_bank";
 pub const NAMESPACE_INSIGHTS: &str = "insights";
 pub const NAMESPACE_BUSINESS_LOGIC: &str = "business_logic";
+/// Review findings with the verdict of the people who decide them.
+pub const NAMESPACE_REVIEW_VERDICT: &str = "review_verdict";
 
 /// The curated knowledge namespaces: agent-authored notes and the derived
 /// insight / review corpora — as distinct from `memory` (code) and `history`
@@ -66,6 +68,7 @@ pub const KNOWLEDGE_NAMESPACES: &[&str] = &[
     NAMESPACE_ANTIPATTERN,
     NAMESPACE_WONTFIX,
     NAMESPACE_QUALITY_GATE,
+    NAMESPACE_REVIEW_VERDICT,
 ];
 
 pub const KNOWN_NAMESPACES: &[&str] = &[
@@ -77,6 +80,7 @@ pub const KNOWN_NAMESPACES: &[&str] = &[
     NAMESPACE_MEMORY_BANK,
     NAMESPACE_INSIGHTS,
     NAMESPACE_BUSINESS_LOGIC,
+    NAMESPACE_REVIEW_VERDICT,
 ];
 
 /// Returns the policy for a given namespace name.
@@ -131,6 +135,12 @@ pub fn get_policy(namespace: &str) -> Result<NamespacePolicy> {
             retention: NamespaceRetention::KeepForever,
         }),
         NAMESPACE_BUSINESS_LOGIC => Ok(NamespacePolicy {
+            versioning: NamespaceVersioning::GlobalMutable,
+            retention: NamespaceRetention::KeepForever,
+        }),
+        // Review verdicts describe past decisions keyed by PR thread: stable
+        // ids, upserted on re-ingest, independent of the code generation.
+        NAMESPACE_REVIEW_VERDICT => Ok(NamespacePolicy {
             versioning: NamespaceVersioning::GlobalMutable,
             retention: NamespaceRetention::KeepForever,
         }),

@@ -1709,6 +1709,82 @@ fn default_fts_loose() -> FtsMode {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
+pub struct IngestReviewVerdictsRequest {
+    pub project_id: String,
+    /// Display names whose replies and thumbs-up decide a finding's verdict
+    /// (for example the CTO and their review agent). Required: a verdict is
+    /// never inferred from thread status alone.
+    pub decision_makers: Vec<String>,
+    /// `azure_devops` (default): live fetch of every review thread. `json_file`:
+    /// a JSONL file, one thread per line: {pr_id, pr_title, pr_author,
+    /// pr_date, thread_id, status, file_path, line, comments: [{author, text,
+    /// likes}]}.
+    #[serde(default)]
+    pub source: Option<String>,
+    /// For `json_file`: absolute or project-relative JSONL path.
+    #[serde(default)]
+    pub file_path: Option<String>,
+    /// Azure DevOps PAT for this call only; defaults to the server's ADO_PAT.
+    /// Never logged or stored.
+    #[serde(default)]
+    pub pat_token: Option<String>,
+    /// Azure DevOps organisation; defaults to saved coordinates or the git remote.
+    #[serde(default)]
+    pub org: Option<String>,
+    /// Azure DevOps project; defaults to saved coordinates or the git remote.
+    #[serde(default)]
+    pub project: Option<String>,
+    /// Azure DevOps repository; defaults to the git remote's repository.
+    #[serde(default)]
+    pub repo: Option<String>,
+    /// Inclusive lowest PR id to read, e.g. where the review practice began.
+    #[serde(default)]
+    pub min_pr_id: Option<u64>,
+    /// Inclusive highest PR id to read (leak-free replays).
+    #[serde(default)]
+    pub max_pr_id: Option<u64>,
+    /// Exclusive `YYYY-MM-DD` close-date bound; open PRs are then excluded.
+    #[serde(default)]
+    pub completed_before: Option<String>,
+    /// Newest-first cap on PRs read.
+    #[serde(default)]
+    pub max_prs: Option<usize>,
+    /// The owner's standing on how much a PR author's argued pushback should
+    /// weigh, by display name: "high" or "low". Shown beside that author's
+    /// contested verdicts; never inferred.
+    #[serde(default)]
+    pub author_trust: Option<std::collections::BTreeMap<String, String>>,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GetReviewPrecedentsRequest {
+    pub project_id: String,
+    /// A draft review finding, a topic, or a concern about a file. Matched
+    /// literally (no query syntax) against past findings and their reasoning.
+    pub query: String,
+    /// Prefer precedents on this file (repo-relative path).
+    #[serde(default)]
+    pub file_path: Option<String>,
+    /// Only these verdicts: rejected, deferred, endorsed,
+    /// raised_by_decision_maker, contested_by_author,
+    /// dismissed_without_reason, fixed, open.
+    #[serde(default)]
+    pub verdicts: Option<Vec<String>>,
+    /// Maximum precedents returned (1-30). Default 8.
+    #[serde(default = "default_review_precedents_limit")]
+    pub limit: usize,
+    /// Only reviews of PRs below this id (leak-free replays).
+    #[serde(default)]
+    pub before_pr_id: Option<u64>,
+}
+
+fn default_review_precedents_limit() -> usize {
+    8
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AnalyzeTemporalCouplingsRequest {
     pub project_id: String,
     #[serde(default)]
