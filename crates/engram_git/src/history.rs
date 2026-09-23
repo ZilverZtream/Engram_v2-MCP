@@ -180,13 +180,32 @@ impl GitWalker {
         max: usize,
         policy: MergeCommitPolicy,
         cancel: &tokio_util::sync::CancellationToken,
+        callback: F,
+    ) -> anyhow::Result<usize>
+    where
+        F: FnMut(Oid, usize, usize) -> anyhow::Result<()>,
+    {
+        Self::walk_commits_streaming_from(repo, None, stop_oid, max, policy, cancel, callback)
+    }
+
+    /// `walk_commits_streaming` from an explicit root commit (`None` = HEAD).
+    pub fn walk_commits_streaming_from<F>(
+        repo: &Repository,
+        root: Option<Oid>,
+        stop_oid: Option<Oid>,
+        max: usize,
+        policy: MergeCommitPolicy,
+        cancel: &tokio_util::sync::CancellationToken,
         mut callback: F,
     ) -> anyhow::Result<usize>
     where
         F: FnMut(Oid, usize, usize) -> anyhow::Result<()>,
     {
         let mut revwalk = repo.revwalk()?;
-        revwalk.push_head()?;
+        match root {
+            Some(oid) => revwalk.push(oid)?,
+            None => revwalk.push_head()?,
+        }
         revwalk.set_sorting(Sort::TOPOLOGICAL | Sort::TIME)?;
         if policy == MergeCommitPolicy::FirstParentOnly {
             revwalk.simplify_first_parent()?;

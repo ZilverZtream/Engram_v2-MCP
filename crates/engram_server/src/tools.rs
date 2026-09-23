@@ -685,7 +685,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Search indexed commit messages, diffs and merged-PR records. Use for 'when/why did X change' questions after index_git_history. The query is literal text (story prose is safe; no query syntax); use fts_mode loose for long text. For leak-free replays pass as_of_rev (the story's base commit): only commits in its past are returned. date_before is exclusive, but dates alone admit branch commits dated before their merge."
+        description = "Search indexed commit messages, diffs and merged-PR records; one result per commit (author, date, subject, files it touched). Use for 'when/why did X change' questions and for precedents of a story after index_git_history. The query is literal text ranked by word-level BM25 plus semantic similarity (story prose is safe; no query syntax). By default only published history (the origin default branch) is searched. For leak-free replays pass as_of_rev = the story's base commit; date_before is exclusive, but dates alone admit branch commits dated before their merge."
     )]
     pub async fn search_history(
         &self,

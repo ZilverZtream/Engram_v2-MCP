@@ -44,8 +44,19 @@ fn request(project_id: &str, query: &str) -> engram_server::SearchHistoryRequest
     .unwrap()
 }
 
-#[tokio::test]
-async fn search_history_is_crash_free_and_leak_free_on_story_text() {
+struct Fixture {
+    _tmp: tempfile::TempDir,
+    engram: Engram,
+    project_id: String,
+    repo: git2::Repository,
+    base: git2::Oid,
+    answer: git2::Oid,
+}
+
+/// Two commits touching one story. With `publish_base_first`, an origin
+/// default branch points at `base` before history is indexed, so `answer`
+/// is a local, unpublished commit.
+async fn fixture(publish_base_first: bool) -> Fixture {
     let tmp = tempdir().unwrap();
     let data_dir = tmp.path().join("data");
     let project_dir = tmp.path().join("repo");
@@ -58,6 +69,10 @@ async fn search_history_is_crash_free_and_leak_free_on_story_text() {
         "Photo filter uses a parameter list",
         1_700_000_000,
     );
+    if publish_base_first {
+        repo.reference("refs/remotes/origin/main", base, true, "published")
+            .unwrap();
+    }
     let answer = commit(
         &repo,
         "report.vb",
@@ -106,6 +121,27 @@ async fn search_history_is_crash_free_and_leak_free_on_story_text() {
         .await
         .unwrap();
 
+    Fixture {
+        _tmp: tmp,
+        engram,
+        project_id,
+        repo,
+        base,
+        answer,
+    }
+}
+
+#[tokio::test]
+async fn search_history_is_crash_free_and_leak_free_on_story_text() {
+    // Bind the temp dir: `..` would drop it, and the index with it.
+    let Fixture {
+        _tmp,
+        engram,
+        project_id,
+        base,
+        answer,
+        repo: _repo,
+    } = fixture(false).await;
     // Raw story prose: backticks, NOT/IN/OR, field-like colons, brackets, quotes.
     let story = "[Chore] Photo filter must NOT hit the `parameter` limit IN reports OR maps. Note: \"missing\" photos!";
     let all = text(
@@ -115,34 +151,99 @@ async fn search_history_is_crash_free_and_leak_free_on_story_text() {
             .unwrap(),
     );
     assert!(
-        all.contains(&answer.to_string()),
+        all.contains(&format!("commit: {}", answer)),
         "unfiltered search finds the answer commit: {all}"
     );
-    assert!(all.contains(&base.to_string()), "{all}");
+    assert!(all.contains(&format!("commit: {}", base)), "{all}");
     // Commit identity, subject line and a readable date — not a bare epoch.
     assert!(
         all.contains("message: Photo filter avoids the parameter limit"),
         "{all}"
     );
     assert!(all.contains("date: 2023-11-15"), "{all}");
-    assert!(all.contains("file: report.vb"), "{all}");
+    // One result per commit: its message and diff fold together.
+    assert!(all.contains("files: report.vb"), "{all}");
+    assert_eq!(
+        all.matches(&format!("commit: {answer}")).count(),
+        1,
+        "{all}"
+    );
+    assert!(all.contains("author: Dev"), "{all}");
 
     // date_before at the answer commit's own instant excludes it (exclusive).
     let mut dated = request(&project_id, story);
     dated.date_before = Some(1_700_086_400);
     let dated = text(&engram.search_history(Parameters(dated)).await.unwrap());
-    assert!(!dated.contains(&answer.to_string()), "{dated}");
-    assert!(dated.contains(&base.to_string()), "{dated}");
+    assert!(!dated.contains(&format!("commit: {}", answer)), "{dated}");
+    assert!(dated.contains(&format!("commit: {}", base)), "{dated}");
 
     // as_of_rev keeps only commits reachable from the revision.
     let mut as_of = request(&project_id, story);
     as_of.as_of_rev = Some(base.to_string());
     let as_of = text(&engram.search_history(Parameters(as_of)).await.unwrap());
-    assert!(!as_of.contains(&answer.to_string()), "{as_of}");
-    assert!(as_of.contains(&base.to_string()), "{as_of}");
+    assert!(!as_of.contains(&format!("commit: {}", answer)), "{as_of}");
+    assert!(as_of.contains(&format!("commit: {}", base)), "{as_of}");
 
     // An unresolvable revision is an error, never a silently unfiltered search.
     let mut bad = request(&project_id, story);
     bad.as_of_rev = Some("no-such-branch".into());
     assert!(engram.search_history(Parameters(bad)).await.is_err());
+}
+
+const STORY: &str = "Photo filter parameter limit";
+
+#[tokio::test]
+async fn default_search_is_limited_to_published_history() {
+    let fixture = fixture(false).await;
+    // Indexed from a checkout whose tip was never published: once an origin
+    // default branch exists, the unpublished commit no longer surfaces.
+    fixture
+        .repo
+        .reference("refs/remotes/origin/main", fixture.base, true, "published")
+        .unwrap();
+    let out = text(
+        &fixture
+            .engram
+            .search_history(Parameters(request(&fixture.project_id, STORY)))
+            .await
+            .unwrap(),
+    );
+    assert!(out.contains("published history"), "{out}");
+    assert!(out.contains(&format!("commit: {}", fixture.base)), "{out}");
+    assert!(
+        !out.contains(&format!("commit: {}", fixture.answer)),
+        "{out}"
+    );
+}
+
+#[tokio::test]
+async fn history_indexing_walks_the_published_branch_not_the_checkout() {
+    let fixture = fixture(true).await;
+    // Even asking for the checkout's own tip finds nothing past origin/main:
+    // the unpublished commit was never indexed.
+    let mut req = request(&fixture.project_id, STORY);
+    req.as_of_rev = Some(fixture.answer.to_string());
+    let out = text(
+        &fixture
+            .engram
+            .search_history(Parameters(req))
+            .await
+            .unwrap(),
+    );
+    assert!(out.contains(&format!("commit: {}", fixture.base)), "{out}");
+    assert!(
+        !out.contains(&format!("commit: {}", fixture.answer)),
+        "{out}"
+    );
+}
+
+#[tokio::test]
+async fn find_merged_work_rejects_an_unresolvable_revision() {
+    let fixture = fixture(false).await;
+    let req: engram_server::models::FindMergedWorkRequest =
+        serde_json::from_value(serde_json::json!({
+            "project_id": fixture.project_id, "story": STORY, "as_of_rev": "no-such-branch"
+        }))
+        .unwrap();
+    assert!(fixture.engram.handle_find_merged_work(req).await.is_err());
 }

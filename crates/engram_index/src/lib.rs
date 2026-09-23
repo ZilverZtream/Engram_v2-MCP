@@ -41,6 +41,7 @@ pub mod vector;
 #[cfg(feature = "vector")]
 pub use vector::TableOpenOutcome;
 pub mod webforms;
+pub mod word_tokenizer;
 
 pub use confidence::{
     ConfidenceBand, ConfidenceSignal, ExtractionConfidence, score_control_binding,
@@ -48,7 +49,7 @@ pub use confidence::{
 };
 pub use docstore::{DocRecord, DocStore, FileFingerprint};
 pub use hybrid::{
-    BulkWriterGuard, HybridHit, HybridQuery, HybridSearchEngine, IndexDoc, IngestStats,
+    BulkWriterGuard, HybridHit, HybridQuery, HybridSearchEngine, IndexDoc, IngestStats, StoredDoc,
     SemanticQuality, chunk_id_from_content_hash, chunk_id_from_hash, escape_tantivy_literal, literal_text_query,
     semantic_quality_for_backend,
 };
