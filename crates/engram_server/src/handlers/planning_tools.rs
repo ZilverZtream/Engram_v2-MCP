@@ -10134,6 +10134,8 @@ impl Engram {
                     .map(str::trim)
                     .and_then(crate::handlers::pr_history_tools::ymd_to_epoch_secs),
                 as_of_rev: req.as_of_rev.clone(),
+                mode: Some("text".into()),
+                rerank: None,
                 limit: 12,
                 fts_mode: crate::models::FtsMode::Loose,
                 use_mmr: false,

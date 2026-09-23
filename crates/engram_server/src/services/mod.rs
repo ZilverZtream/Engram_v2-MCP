@@ -11,6 +11,7 @@ pub mod business_reaching_context;
 pub mod business_return_paths;
 pub mod business_rule_diagnostics;
 pub mod characterization_test_service;
+pub mod change_card_service;
 pub mod code_review_ingest_service;
 pub mod cognitive_service;
 pub mod coverage_service;

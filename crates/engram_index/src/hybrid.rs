@@ -3117,6 +3117,25 @@ impl HybridSearchEngine {
         Ok(Some((path, language, content, start_line, end_line)))
     }
 
+    /// Embed texts with the project's configured (cached) embedder, in order.
+    /// For callers that rank their own units, e.g. one card per change.
+    pub async fn embed_texts(&self, texts: &[String]) -> anyhow::Result<Vec<Vec<f32>>> {
+        #[cfg(feature = "vector")]
+        {
+            let mut out = Vec::with_capacity(texts.len());
+            for batch in texts.chunks(32) {
+                let refs: Vec<&str> = batch.iter().map(String::as_str).collect();
+                out.extend(self.embedder.embed_batch(&refs).await?);
+            }
+            Ok(out)
+        }
+        #[cfg(not(feature = "vector"))]
+        {
+            let _ = texts;
+            anyhow::bail!("embeddings are unavailable: built without the vector feature")
+        }
+    }
+
     /// The stored document behind a hit's primary key.
     pub fn stored_doc_by_pk(&self, pk: &str) -> anyhow::Result<Option<StoredDoc>> {
         let query = TermQuery::new(

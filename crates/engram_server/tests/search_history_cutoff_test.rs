@@ -366,6 +366,59 @@ async fn branch_fragments_fold_into_the_merge_that_published_them() {
 }
 
 #[tokio::test]
+async fn precedent_mode_ranks_whole_published_changes_within_the_cutoff() {
+    let fixture = fixture(false).await;
+    let story = "As a project manager I want the photo filter to avoid the SQL parameter limit \
+                 when many markers are missing photos";
+    let mut req = request(&fixture.project_id, story);
+    req.mode = Some("precedent".into());
+    req.as_of_rev = Some(fixture.base.to_string());
+    let out = text(
+        &fixture
+            .engram
+            .search_history(Parameters(req))
+            .await
+            .unwrap(),
+    );
+    assert!(out.starts_with("Precedents:"), "{out}");
+    assert!(out.contains(&format!("commit: {}", fixture.base)), "{out}");
+    assert!(
+        !out.contains(&format!("commit: {}", fixture.answer)),
+        "{out}"
+    );
+    // No OpenRouter LLM in tests: the order is semantic, and the output says so.
+    assert!(out.contains("rerank unavailable"), "{out}");
+
+    // Auto picks precedent mode for story prose and text mode for a short phrase.
+    let auto = text(
+        &fixture
+            .engram
+            .search_history(Parameters(request(&fixture.project_id, story)))
+            .await
+            .unwrap(),
+    );
+    assert!(auto.starts_with("Precedents:"), "{auto}");
+    let short = text(
+        &fixture
+            .engram
+            .search_history(Parameters(request(&fixture.project_id, "parameter limit")))
+            .await
+            .unwrap(),
+    );
+    assert!(short.starts_with("History search results"), "{short}");
+
+    let mut bad = request(&fixture.project_id, story);
+    bad.mode = Some("fuzzy".into());
+    assert!(
+        fixture
+            .engram
+            .search_history(Parameters(bad))
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
 async fn find_merged_work_rejects_an_unresolvable_revision() {
     let fixture = fixture(false).await;
     let req: engram_server::models::FindMergedWorkRequest =

@@ -363,6 +363,79 @@ fn history_doc_identity(path: &str) -> (Option<&str>, Option<&str>) {
     (None, None)
 }
 
+#[derive(Debug, PartialEq, Eq)]
+enum HistoryMode {
+    Precedent,
+    Text,
+}
+
+/// `auto`: story-like prose (8+ words, mostly not code tokens) asks for
+/// precedents; identifiers and short phrases ask a text question.
+fn history_mode(mode: Option<&str>, query: &str) -> Result<HistoryMode, McpError> {
+    match mode.unwrap_or("auto") {
+        "precedent" => Ok(HistoryMode::Precedent),
+        "text" => Ok(HistoryMode::Text),
+        "auto" => {
+            let words: Vec<&str> = query
+                .split_whitespace()
+                .filter(|w| w.chars().any(char::is_alphabetic))
+                .collect();
+            let code_like = words
+                .iter()
+                .filter(|w| {
+                    w.contains(['_', '(', '.', '/', '\\'])
+                        || w.chars().skip(1).any(char::is_uppercase)
+                            && w.chars().any(char::is_lowercase)
+                })
+                .count();
+            Ok(if words.len() >= 8 && code_like * 3 < words.len() {
+                HistoryMode::Precedent
+            } else {
+                HistoryMode::Text
+            })
+        }
+        other => Err(McpError::invalid_params(
+            format!("mode must be auto, precedent or text, got '{other}'"),
+            None,
+        )),
+    }
+}
+
+/// The precedent reranker: the configured OpenRouter provider with the
+/// benchmark-best model, or None when no OpenRouter LLM is configured.
+fn precedent_reranker(
+    cfg: &engram_core::Config,
+) -> Option<(std::sync::Arc<dyn engram_ml::llm_provider::LlmProvider>, &'static str)> {
+    let backend = cfg.llm_provider.as_deref().unwrap_or(cfg.llm_backend.as_str());
+    if backend != "openrouter" {
+        return None;
+    }
+    let key = cfg
+        .llm_openai_api_key
+        .clone()
+        .or_else(|| cfg.openai_api_key.clone())
+        .filter(|k| !k.trim().is_empty())?;
+    let base = cfg
+        .llm_openai_api_base
+        .clone()
+        .or_else(|| cfg.openai_api_base.clone());
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(90))
+        .build()
+        .ok()?;
+    let model = crate::services::change_card_service::DEFAULT_RERANK_MODEL;
+    Some((
+        std::sync::Arc::new(engram_ml::llm_provider::OpenRouterProvider::new(
+            client,
+            key,
+            base,
+            model.to_string(),
+            engram_ml::llm_provider::OpenRouterProvider::default_headers(),
+        )),
+        model,
+    ))
+}
+
 /// One search_history result: a commit (message and diffs folded together)
 /// or a merged-PR record, in the rank order of its best-ranked document.
 struct HistoryGroup {
@@ -1630,6 +1703,139 @@ impl Engram {
             .map_err(|e| McpError::invalid_params(e.to_string(), None))
     }
 
+    /// Precedent mode: whole published changes most like the story, from one
+    /// semantic card per first-parent change, the top candidates reranked by
+    /// an LLM judge. See `services::change_card_service`.
+    async fn handle_precedents(
+        &self,
+        req: SearchHistoryRequest,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::services::change_card_service as cards;
+        validate_project_id(&req.project_id)?;
+        if let Some(rev) = req.as_of_rev.as_deref()
+            && (rev.trim().is_empty() || rev.len() > 256 || rev.chars().any(char::is_control))
+        {
+            return Err(McpError::invalid_params(
+                "as_of_rev must be a nonempty git revision of at most 256 bytes",
+                None,
+            ));
+        }
+        let limit = req.sanitized_limit();
+        let ps = self.ensure_project_runtime(&req.project_id).await?;
+        let dir = PathBuf::from(self.ensure_project_record(&req.project_id).await?.directory);
+        let rev = req.as_of_rev.clone();
+        let git_dir = dir.clone();
+        let (tip, label) = tokio::task::spawn_blocking(move || -> Result<(Oid, String), String> {
+            let repo = GitWalker::open_repo(&git_dir).map_err(|e| e.to_string())?;
+            match rev.as_deref() {
+                Some(rev) => repo
+                    .revparse_single(rev)
+                    .and_then(|o| o.peel_to_commit())
+                    .map(|c| (c.id(), format!("published changes up to {rev}")))
+                    .map_err(|e| format!("as_of_rev '{rev}' does not name a commit: {}", e.message())),
+                None => match GitWalker::approved_history_root(&repo) {
+                    Some(tip) => Ok((tip, "published history (origin default branch)".to_string())),
+                    None => repo
+                        .head()
+                        .and_then(|h| h.peel_to_commit())
+                        .map(|c| (c.id(), "history of the checked-out branch (no origin default branch)".to_string()))
+                        .map_err(|e| e.message().to_string()),
+                },
+            }
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::invalid_params(e, None))?;
+
+        let prefixes = cards::EmbedPrefixes::for_model(self.state.cfg.embedding_model.as_deref());
+        let all = cards::cards_for_line(&dir, tip, &ps.search, prefixes)
+            .await
+            .map_err(|e| McpError::internal_error(format!("change cards: {e}"), None))?;
+        let file_filter = req.file_filter.as_deref().map(|f| f.replace('\\', "/"));
+        let excluded: Vec<String> = req
+            .exclude_paths
+            .clone()
+            .unwrap_or_default()
+            .iter()
+            .map(|p| p.replace('\\', "/"))
+            .collect();
+        let eligible: Vec<_> = all
+            .into_iter()
+            .filter(|c| {
+                req.date_after.is_none_or(|after| c.timestamp >= after)
+                    && req.date_before.is_none_or(|before| c.timestamp < before)
+                    && req.author_filter.as_deref().is_none_or(|a| c.author == a)
+                    && file_filter
+                        .as_deref()
+                        .is_none_or(|f| c.files.iter().any(|p| p.starts_with(f)))
+                    && !c.files.iter().any(|p| excluded.iter().any(|x| p.starts_with(x.as_str())))
+            })
+            .collect();
+        let total = eligible.len();
+        let ranked = cards::semantic_rank(&req.query, &eligible, &ps.search, prefixes)
+            .await
+            .map_err(|e| McpError::internal_error(format!("semantic ranking: {e}"), None))?;
+
+        let pool_len = ranked.len().min(cards::RERANK_POOL);
+        let (order, how) = match (req.rerank.unwrap_or(true), precedent_reranker(&self.state.cfg)) {
+            (false, _) => (ranked, "semantic order (rerank off)".to_string()),
+            (true, None) => (
+                ranked,
+                "semantic order — rerank unavailable: no OpenRouter LLM configured".to_string(),
+            ),
+            (true, Some((llm, model))) => {
+                let pool: Vec<_> = ranked[..pool_len].to_vec();
+                let rest: Vec<_> = ranked[pool_len..].to_vec();
+                match tokio::time::timeout(
+                    std::time::Duration::from_secs(90),
+                    cards::rerank(&req.query, pool, llm.as_ref()),
+                )
+                .await
+                {
+                    Ok(Ok(mut order)) => {
+                        order.extend(rest);
+                        (order, format!("top {pool_len} reranked by {model}"))
+                    }
+                    Ok(Err(e)) => (ranked, format!("semantic order — rerank failed: {e}")),
+                    Err(_) => (ranked, "semantic order — rerank timed out after 90 s".to_string()),
+                }
+            }
+        };
+
+        let mut out = format!(
+            "Precedents: {} of {total} published changes ({label}); ranked by whole-change \
+             semantic cards, {how}. Bulk changes of over {} files are excluded.\n",
+            order.len().min(limit),
+            cards::BULK_FILES,
+        );
+        for (i, card) in order.iter().take(limit).enumerate() {
+            out.push_str(&format!("\n--- #{} ---\ncommit: {}\n", i + 1, card.oid));
+            if !card.author.is_empty() {
+                out.push_str(&format!("author: {}\n", card.author));
+            }
+            out.push_str(&format!(
+                "date: {}\nmessage: {}\n",
+                crate::utils::ymd_utc(card.timestamp.saturating_mul(1000)),
+                card.title
+            ));
+            if !card.files.is_empty() {
+                const SHOWN: usize = 12;
+                let mut files: Vec<String> = card.files.iter().take(SHOWN).cloned().collect();
+                if card.file_count > SHOWN {
+                    files.push(format!("+{} more", card.file_count - SHOWN));
+                }
+                out.push_str(&format!("files: {}\n", files.join(", ")));
+            }
+            if req.max_content_chars > 0 && !card.description.is_empty() {
+                let body: String = card.description.chars().take(req.max_content_chars).collect();
+                out.push_str(&format!("content:\n{}\n", body.trim_end()));
+            }
+        }
+        Ok(CallToolResult::success(vec![Content::text(
+            out.trim_end().to_string(),
+        )]))
+    }
+
     /// Typed history results shared with planning; never recover identities from rendered prose.
     pub(crate) async fn search_history_hits(
         &self,
@@ -1691,6 +1897,9 @@ impl Engram {
         &self,
         mut req: SearchHistoryRequest,
     ) -> Result<CallToolResult, McpError> {
+        if history_mode(req.mode.as_deref(), &req.query)? == HistoryMode::Precedent {
+            return self.handle_precedents(req).await;
+        }
         let content_limit = req.max_content_chars;
         let project_id = req.project_id.clone();
         // Resolved again for its label and publishers: the walk is cached.
