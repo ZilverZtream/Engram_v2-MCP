@@ -2,7 +2,8 @@
 //! words (`content_words`), literal loose and strict, over a copy of a real
 //! project index. Each case is a merged change: the query is its text, the
 //! cutoff is ancestry of its base commit (no leak), and the score is how many
-//! of the files it really changed appear in the top commits retrieved.
+//! of the files it really changed appear among the first 50 files of the
+//! ranked precedent commits (bulk commits of over 150 files skipped).
 //!
 //! Opening the index migrates it if it predates `content_words`, so this also
 //! times the migration on real data. Run against a COPY:
@@ -22,7 +23,17 @@ use tantivy::collector::TopDocs;
 use tantivy::query::{BooleanQuery, Occur, Query, TermQuery};
 use tantivy::schema::{IndexRecordOption, Term, Value};
 
-const TOP_COMMITS: usize = 10;
+/// Files an agent reads from the ranked precedents before stopping.
+const FILE_BUDGET: usize = 50;
+/// Commits touching more files are bulk changes (imports, reformats), not
+/// precedents; ingest_merged_prs drops them for the same reason.
+const MAX_COMMIT_FILES: usize = 150;
+
+#[derive(PartialEq)]
+enum Rank {
+    Best,
+    Sum,
+}
 
 fn git(repo: &str, args: &[&str]) -> anyhow::Result<String> {
     let out = Command::new("git")
@@ -64,14 +75,18 @@ fn main() -> anyhow::Result<()> {
 
     let cases: Vec<serde_json::Value> =
         serde_json::from_str(&std::fs::read_to_string(cases_path)?)?;
+    // (name, field, conjunction, commit score)
     let arms = [
-        ("trigram loose", fields.content, false),
-        ("words   loose", fields.content_words, false),
-        ("trigram strict", fields.content, true),
-        ("words   strict", fields.content_words, true),
+        ("trigram loose", fields.content, false, Rank::Best),
+        ("words   loose", fields.content_words, false, Rank::Best),
+        ("words   sum", fields.content_words, false, Rank::Sum),
+        ("trigram strict", fields.content, true, Rank::Best),
+        ("words   strict", fields.content_words, true, Rank::Best),
     ];
     let mut commit_files: HashMap<String, Vec<String>> = HashMap::new();
     let mut totals = vec![(0.0f64, 0usize, 0usize, 0u128); arms.len()];
+    // Size fairness: distinct files the retrieved commits span, and how many were truly changed.
+    let mut spans = vec![(0usize, 0usize); arms.len()];
     let mut scored = 0usize;
     for case in &cases {
         let base = case["base"].as_str().unwrap_or_default();
@@ -91,7 +106,7 @@ fn main() -> anyhow::Result<()> {
             text.push_str(case["desc"].as_str().unwrap_or_default());
         }
         scored += 1;
-        for (arm, (_, field, conjunction)) in arms.iter().enumerate() {
+        for (arm, (_, field, conjunction, rank)) in arms.iter().enumerate() {
             let t = Instant::now();
             let query = BooleanQuery::new(vec![
                 (
@@ -114,8 +129,10 @@ fn main() -> anyhow::Result<()> {
                 ),
             ]);
             let top = searcher.search(&query, &TopDocs::with_limit(500))?;
-            let mut commits: Vec<String> = Vec::new();
-            for (_, addr) in top {
+            // Per-commit score: its best document, or the sum over all of its
+            // matching documents (measured worse: it favours big commits).
+            let mut scores: Vec<(String, f32)> = Vec::new();
+            for (score, addr) in top {
                 let doc: TantivyDocument = searcher.doc(addr)?;
                 let path = doc
                     .get_first(fields.path)
@@ -124,19 +141,27 @@ fn main() -> anyhow::Result<()> {
                 let oid = path
                     .strip_prefix("commit:")
                     .or_else(|| path.strip_prefix("diff:").and_then(|r| r.split(':').next()));
-                if let Some(oid) = oid
-                    && reachable.contains(oid)
-                    && !commits.iter().any(|c| c == oid)
-                {
-                    commits.push(oid.to_string());
-                    if commits.len() == TOP_COMMITS {
-                        break;
-                    }
+                let Some(oid) = oid.filter(|oid| reachable.contains(oid)) else {
+                    continue;
+                };
+                match scores.iter_mut().find(|(c, _)| c == oid) {
+                    Some(entry) if *rank == Rank::Sum => entry.1 += score,
+                    Some(_) => {}
+                    None => scores.push((oid.to_string(), score)),
                 }
             }
+            scores.sort_by(|a, b| b.1.total_cmp(&a.1));
             let elapsed = t.elapsed().as_millis();
+            // Walk ranked commits, skipping bulk commits, until the files an
+            // agent would read reach the budget: recall per file read, so an
+            // arm cannot win by retrieving bigger commits.
             let mut found: HashSet<String> = HashSet::new();
-            for oid in &commits {
+            let mut read: Vec<String> = Vec::new();
+            let mut used = 0usize;
+            for (oid, _) in &scores {
+                if read.len() >= FILE_BUDGET {
+                    break;
+                }
                 if !commit_files.contains_key(oid) {
                     let files = git(repo, &["show", "--name-only", "--format=", oid])?
                         .lines()
@@ -144,18 +169,30 @@ fn main() -> anyhow::Result<()> {
                         .collect();
                     commit_files.insert(oid.clone(), files);
                 }
-                found.extend(
-                    commit_files[oid]
-                        .iter()
-                        .filter(|f| truth.contains(*f))
-                        .cloned(),
-                );
+                let files = &commit_files[oid];
+                if files.len() > MAX_COMMIT_FILES {
+                    continue;
+                }
+                used += 1;
+                for file in files {
+                    if read.len() >= FILE_BUDGET {
+                        break;
+                    }
+                    if !read.contains(file) {
+                        if truth.contains(file) {
+                            found.insert(file.clone());
+                        }
+                        read.push(file.clone());
+                    }
+                }
             }
             let recall = found.len() as f64 / truth.len().max(1) as f64;
+            spans[arm].0 += read.len();
+            spans[arm].1 += found.len();
             let slot = &mut totals[arm];
             slot.0 += recall;
             slot.1 += usize::from(!found.is_empty());
-            slot.2 += commits.len();
+            slot.2 += used;
             slot.3 += elapsed;
         }
     }
@@ -168,17 +205,21 @@ fn main() -> anyhow::Result<()> {
         }
     );
     println!(
-        "{:<15} {:>10} {:>12} {:>13} {:>8}",
-        "arm", "recall@10", "any-hit@10", "commits/case", "ms/q"
+        "{:<15} {:>10} {:>12} {:>13} {:>8} {:>11} {:>10}",
+        "arm", "recall@50f", "any-hit@50f", "commits/case", "ms/q", "files/case", "precision"
     );
-    for ((name, _, _), (recall, hits, commits, ms)) in arms.iter().zip(&totals) {
+    for (((name, _, _, _), (recall, hits, commits, ms)), (span, hit)) in
+        arms.iter().zip(&totals).zip(&spans)
+    {
         let n = scored.max(1) as f64;
         println!(
-            "{name:<15} {:>10.3} {:>12} {:>13.1} {:>8.1}",
+            "{name:<15} {:>10.3} {:>12} {:>13.1} {:>8.1} {:>11.1} {:>10.3}",
             recall / n,
             format!("{hits}/{scored}"),
             *commits as f64 / n,
-            *ms as f64 / n
+            *ms as f64 / n,
+            *span as f64 / n,
+            *hit as f64 / (*span).max(1) as f64
         );
     }
     Ok(())
