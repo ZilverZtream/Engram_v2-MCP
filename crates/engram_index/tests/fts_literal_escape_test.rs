@@ -7,7 +7,7 @@
 //! the instances: every input builds a query, operator words match as the
 //! prose they are, and all-punctuation input matches nothing (never all).
 
-use engram_index::literal_text_query;
+use engram_index::{SUBSTRING_MATCH_WEIGHT, literal_text_query, literal_word_or_substring_query};
 use tantivy::collector::Count;
 use tantivy::schema::{Field, IndexRecordOption, Schema, TEXT, TextFieldIndexing, TextOptions};
 use tantivy::tokenizer::{NgramTokenizer, TextAnalyzer};
@@ -128,6 +128,68 @@ fn operator_words_match_as_prose_not_as_operators() {
     // strict still means every word; loose still means any word.
     assert_eq!(hits(&index, content, "must fail absent", true), 0);
     assert_eq!(hits(&index, content, "must fail absent", false), 1);
+}
+
+/// Words and trigrams over the same text, as in production.
+fn dual_index() -> (Index, Field, Field) {
+    let mut sb = Schema::builder();
+    let trigram = TextFieldIndexing::default()
+        .set_tokenizer("trigram")
+        .set_index_option(IndexRecordOption::WithFreqsAndPositions);
+    let content = sb.add_text_field(
+        "content",
+        TextOptions::default().set_indexing_options(trigram),
+    );
+    let words = sb.add_text_field("content_words", TEXT);
+    let index = Index::create_in_ram(sb.build());
+    index.tokenizers().register(
+        "trigram",
+        TextAnalyzer::builder(NgramTokenizer::new(3, 3, false).unwrap()).build(),
+    );
+    (index, content, words)
+}
+
+#[test]
+fn a_word_still_matches_as_a_substring_when_no_whole_word_does() {
+    let (index, content, words) = dual_index();
+    let mut writer = index.writer(15_000_000).unwrap();
+    for text in [
+        "The zorblatt registry must be restarted after every deploy.",
+        "db.leveranskategoris.Where(x)",
+    ] {
+        writer
+            .add_document(doc!(content => text, words => text))
+            .unwrap();
+    }
+    writer.commit().unwrap();
+    let searcher = index.reader().unwrap().searcher();
+    let count = |text: &str, conjunction: bool| {
+        let q = literal_word_or_substring_query(
+            &index,
+            words,
+            content,
+            text,
+            conjunction,
+            SUBSTRING_MATCH_WEIGHT,
+        )
+        .unwrap();
+        searcher.search(&q, &Count).unwrap()
+    };
+    // Whole-word matching alone loses both: `restart` is not `restarted`.
+    assert_eq!(
+        searcher
+            .search(
+                &literal_text_query(&index, words, "zorblatt registry restart", true).unwrap(),
+                &Count
+            )
+            .unwrap(),
+        0
+    );
+    assert_eq!(count("zorblatt registry restart", true), 1);
+    assert_eq!(count("leveranskategori", true), 1);
+    // Strict still needs every word, in one form or the other.
+    assert_eq!(count("zorblatt registry absentword", true), 0);
+    assert_eq!(count("must NOT fail", false), 1);
 }
 
 #[test]

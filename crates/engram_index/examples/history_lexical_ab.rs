@@ -13,8 +13,8 @@
 //!
 //! cases.json: [{"pr","base","title","desc","files":[...]}]
 
-use engram_index::literal_text_query;
 use engram_index::tantivy_index::open_or_create;
+use engram_index::{literal_text_query, literal_word_or_substring_query};
 use std::collections::{HashMap, HashSet};
 use std::process::Command;
 use std::time::Instant;
@@ -75,13 +75,45 @@ fn main() -> anyhow::Result<()> {
 
     let cases: Vec<serde_json::Value> =
         serde_json::from_str(&std::fs::read_to_string(cases_path)?)?;
-    // (name, field, conjunction, commit score)
+    // (name, field, conjunction, commit score, substring fallback weight)
     let arms = [
-        ("trigram loose", fields.content, false, Rank::Best),
-        ("words   loose", fields.content_words, false, Rank::Best),
-        ("words   sum", fields.content_words, false, Rank::Sum),
-        ("trigram strict", fields.content, true, Rank::Best),
-        ("words   strict", fields.content_words, true, Rank::Best),
+        ("trigram loose", fields.content, false, Rank::Best, None),
+        (
+            "words   loose",
+            fields.content_words,
+            false,
+            Rank::Best,
+            None,
+        ),
+        (
+            "either.1 loose",
+            fields.content_words,
+            false,
+            Rank::Best,
+            Some(0.1),
+        ),
+        (
+            "either.3 loose",
+            fields.content_words,
+            false,
+            Rank::Best,
+            Some(0.3),
+        ),
+        ("trigram strict", fields.content, true, Rank::Best, None),
+        (
+            "words   strict",
+            fields.content_words,
+            true,
+            Rank::Best,
+            None,
+        ),
+        (
+            "either.1 strict",
+            fields.content_words,
+            true,
+            Rank::Best,
+            Some(0.1),
+        ),
     ];
     let mut commit_files: HashMap<String, Vec<String>> = HashMap::new();
     let mut totals = vec![(0.0f64, 0usize, 0usize, 0u128); arms.len()];
@@ -106,12 +138,22 @@ fn main() -> anyhow::Result<()> {
             text.push_str(case["desc"].as_str().unwrap_or_default());
         }
         scored += 1;
-        for (arm, (_, field, conjunction, rank)) in arms.iter().enumerate() {
+        for (arm, (_, field, conjunction, rank, fallback)) in arms.iter().enumerate() {
             let t = Instant::now();
             let query = BooleanQuery::new(vec![
                 (
                     Occur::Must,
-                    literal_text_query(&index, *field, &text, *conjunction)?,
+                    match fallback {
+                        Some(weight) => literal_word_or_substring_query(
+                            &index,
+                            *field,
+                            fields.content,
+                            &text,
+                            *conjunction,
+                            *weight,
+                        )?,
+                        None => literal_text_query(&index, *field, &text, *conjunction)?,
+                    },
                 ),
                 (
                     Occur::Must,
@@ -208,7 +250,7 @@ fn main() -> anyhow::Result<()> {
         "{:<15} {:>10} {:>12} {:>13} {:>8} {:>11} {:>10}",
         "arm", "recall@50f", "any-hit@50f", "commits/case", "ms/q", "files/case", "precision"
     );
-    for (((name, _, _, _), (recall, hits, commits, ms)), (span, hit)) in
+    for (((name, _, _, _, _), (recall, hits, commits, ms)), (span, hit)) in
         arms.iter().zip(&totals).zip(&spans)
     {
         let n = scored.max(1) as f64;
