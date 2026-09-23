@@ -36,6 +36,11 @@ static RE_VB_QUALIFIED_CALL: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)\b(New\s+)?([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+)\s*\(")
         .expect("valid VB qualified call regex")
 });
+/// `Dim x As [New] Some.Type` / `Using x As ...` inside a method body.
+static RE_VB_LOCAL_DECL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)^(?:Dim|Using)\s+([A-Za-z_]\w*)\s+As\s+(?:New\s+)?([A-Za-z_][\w.]*)")
+        .expect("valid VB local declaration regex")
+});
 /// External audit round 2, item 8: a broker's `Select Case` arm names the API
 /// function it serves — `Case "athDeleteByID"` — and the arm's call is the
 /// route to the implementation.
@@ -181,7 +186,7 @@ static RE_VB_GUARD_ROLE_LITERAL: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"(?i)\b(?:isinrole|isuserinrole)\s*\(\s*"([^"]+)""#)
         .expect("valid VB role literal regex")
 });
-// LINQ-to-SQL / EF context variables: `Dim db As New iFaltDataContext` /
+// LINQ-to-SQL / EF context variables: `Dim db As New iCoreDataContext` /
 // `Using db As New FooDbContext` / `db = New BarDataContext`. The ORM DAL
 // idiom is otherwise completely invisible to SQL-literal extraction.
 static RE_VB_CTX_DECL: LazyLock<Regex> = LazyLock::new(|| {
@@ -267,6 +272,9 @@ struct Sidecar {
 static SIDECAR: OnceLock<Mutex<Option<Sidecar>>> = OnceLock::new();
 
 fn sidecar_binary_path() -> PathBuf {
+    if let Some(path) = std::env::var_os("ENGRAM_VB_SIDECAR_PATH").filter(|value| !value.is_empty()) {
+        return PathBuf::from(path);
+    }
     let exe = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("engram_server"));
     let dir = exe.parent().unwrap_or_else(|| Path::new("."));
     let name = match std::env::consts::OS {
@@ -337,11 +345,64 @@ struct SidecarRequest<'a> {
 #[derive(Debug, Deserialize)]
 struct SidecarResponse {
     #[serde(default)]
+    path: Option<String>,
+    #[serde(default)]
     symbols: Vec<SidecarSymbol>,
     #[serde(default)]
     edges: Vec<SidecarEdge>,
     #[serde(default)]
     error: Option<String>,
+    #[serde(default)]
+    invocation_report: Option<VbInvocationReport>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct VbInvocationReport {
+    pub version: String,
+    pub request_id: Option<String>,
+    pub source_sha256: String,
+    pub source_count: u32,
+    pub scope: String,
+    pub parse_status: String,
+    pub parse_error_count: u32,
+    #[serde(default)]
+    pub invocations: Vec<VbInvocation>,
+    #[serde(default)]
+    pub truncated: bool,
+    #[serde(default)]
+    pub omitted_invocation_count: u32,
+    #[serde(default)]
+    pub omitted_argument_count: u32,
+    #[serde(default)]
+    pub notes: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct VbInvocation {
+    pub source_index: u32,
+    pub span_start: u32,
+    pub span_length: u32,
+    pub callee_span_start: u32,
+    pub callee_span_length: u32,
+    pub start_line: u32,
+    pub end_line: u32,
+    pub target_method_id: Option<String>,
+    pub resolution: String,
+    #[serde(default)]
+    pub arguments: Vec<VbInvocationArgument>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct VbInvocationArgument {
+    pub source_index: u32,
+    pub span_start: u32,
+    pub span_length: u32,
+    pub start_line: u32,
+    pub end_line: u32,
+    pub name: Option<String>,
+    pub classification: String,
+    pub syntax_ordinal: u32,
+    pub parameter_ordinal: Option<u32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1409,6 +1470,9 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
     // real source symbol (matching the FQN-named node minted below) or fall
     // back to the "file" sentinel.
     let mut current_method: Option<String> = None;
+    // Declared types of locals in the enclosing method, so `db.Save(...)` on
+    // `Dim db As New DataLayer()` can be emitted as `DataLayer.Save`.
+    let mut local_types: HashMap<String, String> = HashMap::new();
     // Guard calls per enclosing method: (guard names, role literals).
     let mut method_guards: HashMap<String, (Vec<String>, Vec<String>)> = HashMap::new();
 
@@ -1587,9 +1651,14 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
 
         // Qualified call edges (Foo.Bar(...)) inside method bodies keep the
         // handler → DAL → SQL chain connected when the sidecar is absent.
-        // Targets go out unresolved (target_kind: None → "::name") so the
-        // post-ingest resolver matches them by terminal segment.
+        // Targets go out unresolved (target_kind: None → "::name"). A receiver
+        // that is a local with a declared type is replaced by that type so the
+        // resolver can bind `Type.Member` by qualified suffix; any other
+        // receiver stays as written and remains part of the call's identity.
         if let Some(ref method_fqn) = current_method {
+            if let Some(decl) = RE_VB_LOCAL_DECL.captures(line) {
+                local_types.insert(decl[1].to_ascii_lowercase(), decl[2].to_string());
+            }
             for c in RE_VB_QUALIFIED_CALL.captures_iter(line) {
                 if c.get(1).is_some() {
                     continue; // constructor: New Foo.Bar(...)
@@ -1599,12 +1668,19 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
                 if callee.is_empty() || VB_CALL_HEAD_STOPWORDS.contains(&head.as_str()) {
                     continue;
                 }
+                let typed_callee = match callee.split_once('.') {
+                    Some((receiver, member)) => local_types
+                        .get(&receiver.to_ascii_lowercase())
+                        .map(|declared| format!("{declared}.{member}"))
+                        .unwrap_or_else(|| callee.to_string()),
+                    None => callee.to_string(),
+                };
                 edges.push(ExtractedEdge {
                     source_name: method_fqn.clone(),
                     source_kind: "function".to_string(),
                     source_start_line: line_no,
                     source_language: "vb".to_string(),
-                    target_name: callee.to_string(),
+                    target_name: typed_callee,
                     target_kind: None,
                     target_start_line: None,
                     kind: "calls".to_string(),
@@ -1615,6 +1691,7 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
 
         if lower.starts_with("end sub") || lower.starts_with("end function") {
             current_method = None;
+            local_types.clear();
         }
 
         if lower.starts_with("namespace ") {
@@ -1739,6 +1816,7 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
                     });
                 }
                 current_method = Some(fqn.clone());
+                local_types.clear();
                 if let Some(handles_pos) = lower.find(" handles ") {
                     let handles = &line[handles_pos + 9..];
                     for part in handles.split(',') {
@@ -2051,7 +2129,7 @@ mod tests {
         assert!(re.is_match("_us.accessctrl.Check_pr_id(project_id)"));
         assert!(re.is_match("_us.accessctrl.Check_rv_id(rv_id)"));
         // Still matched via the existing "access" alternative.
-        assert!(re.is_match("check_fiberaccessbyid(x)"));
+        assert!(re.is_match("check_siteaccessbyid(x)"));
         assert!(re.is_match("If IsUserInRole(\"Admin\") Then"));
         // Must NOT match ordinary calls.
         assert!(!re.is_match("Dim n = GetCount(list)"));
@@ -2331,18 +2409,18 @@ End Class";
 #[cfg(test)]
 mod linq_navigation_property_tests {
     //! Row-4 audit A5 (ingestion gap D8): a LINQ range-variable navigation
-    //! chain `ra.rk_redovisningskategorier.pr_id` inside a query clause is a
+    //! chain `la.kk_kostnadskategorier.pr_id` inside a query clause is a
     //! read of that table — the extractor only saw `<ctx>.<Table>` members of
     //! a declared DataContext variable.
     use super::*;
 
-    const SRC: &str = "Public Class redovisningsartiklar\n\
-    Public Shared Function GetAll(projectId As Integer) As List(Of ra_redovisningsartiklar)\n\
-        Using db As New iFaltDataContext()\n\
-            Dim q = From ra In db.ra_redovisningsartiklars\n\
-                    Where ra.rk_redovisningskategorier.pr_id = projectId\n\
-                    Order By ra.rk_redovisningskategorier.rk_ordning, ra.ra_ordning\n\
-                    Select ra\n\
+    const SRC: &str = "Public Class leveransartiklar\n\
+    Public Shared Function GetAll(projectId As Integer) As List(Of la_leveransartiklar)\n\
+        Using db As New iCoreDataContext()\n\
+            Dim q = From la In db.la_leveransartiklars\n\
+                    Where la.kk_kostnadskategorier.pr_id = projectId\n\
+                    Order By la.kk_kostnadskategorier.kk_ordning, la.la_ordning\n\
+                    Select la\n\
             Return q.ToList()\n\
         End Using\n\
     End Function\n\
@@ -2350,7 +2428,7 @@ End Class\n";
 
     fn queries_table_edges(src: &str) -> Vec<ExtractedEdge> {
         let (_symbols, edges) = extract_vb_fallback_for_eval(
-            Path::new("Site/App_Code/redovisning/code/redovisningsartiklar.vb"),
+            Path::new("Site/App_Code/leverans/code/leveransartiklar.vb"),
             src,
         );
         edges
@@ -2373,11 +2451,11 @@ End Class\n";
     fn navigation_property_reads_become_queries_table_edges() {
         let t = targets(SRC);
         assert!(
-            t.iter().any(|x| x == "ra_redovisningsartiklars"),
+            t.iter().any(|x| x == "la_leveransartiklars"),
             "the FROM table (ctx member) must still be an edge: {t:?}"
         );
         assert!(
-            t.iter().any(|x| x == "rk_redovisningskategorier"),
+            t.iter().any(|x| x == "kk_kostnadskategorier"),
             "the navigation-property table must be an edge too: {t:?}"
         );
     }
@@ -2387,10 +2465,7 @@ End Class\n";
         let edges = queries_table_edges(SRC);
         let nav = edges
             .iter()
-            .find(|e| {
-                e.target_name
-                    .eq_ignore_ascii_case("rk_redovisningskategorier")
-            })
+            .find(|e| e.target_name.eq_ignore_ascii_case("kk_kostnadskategorier"))
             .expect("nav edge");
         let meta = nav.metadata.as_ref().expect("metadata");
         assert_eq!(meta.get("orm").map(String::as_str), Some("nav"));
@@ -2442,6 +2517,129 @@ pub fn vb_return_paths(path: &Path, source: &str, start: u32, end: u32) -> Resul
         return Err("return-path response identity mismatch".into());
     }
     Ok(result.clone())
+}
+
+/// Parse the supplied VB source bytes fresh and return bounded Roslyn
+/// invocation syntax. This never falls back to lexical extraction.
+pub fn vb_invocations(path: &Path, source: &str) -> Result<VbInvocationReport, String> {
+    if source.len() > 2_000_000 {
+        return Err("invocation source exceeds the 2,000,000-byte transport cap".into());
+    }
+    let request_id = format!("invocations:{}", blake3::hash(source.as_bytes()).to_hex());
+    let payload = serde_json::json!({
+        "cmd": "invocations",
+        "path": path.display().to_string(),
+        "source": source,
+        "request_id": request_id,
+    })
+    .to_string();
+    let mut guard = get_or_spawn_sidecar()
+        .lock()
+        .map_err(|_| "sidecar mutex poisoned")?;
+    let sidecar = ensure_sidecar(&mut guard)
+        .map_err(|error| format!("invocation sidecar unavailable: {error}"))?;
+    let line = match source_request_via_sidecar(sidecar, path, source, payload) {
+        Ok(line) => line,
+        Err(error) => {
+            let _ = sidecar.child.kill();
+            *guard = None;
+            return Err(format!("invocation transport failed: {error:?}"));
+        }
+    };
+    if line.len() > 512 * 1024 {
+        return Err("invocation response exceeds the 512-KiB response cap".into());
+    }
+    let response: SidecarResponse = serde_json::from_str(&line).map_err(|e| e.to_string())?;
+    if let Some(error) = response.error {
+        return Err(error);
+    }
+    let expected_path = path.display().to_string();
+    if response.path.as_deref() != Some(expected_path.as_str()) {
+        return Err("invocation response path mismatch".into());
+    }
+    let report = response
+        .invocation_report
+        .ok_or("invocation response missing report")?;
+    if report.version != "vb-invocations-v1"
+        || report.request_id.as_deref() != Some(request_id.as_str())
+        || report.scope != "full_source"
+        || report.source_count != 1
+        || !invocation_source_matches(&report, source)
+    {
+        return Err("invocation response source identity mismatch".into());
+    }
+    for invocation in &report.invocations {
+        let invocation_end = invocation
+            .span_start
+            .checked_add(invocation.span_length)
+            .ok_or("invocation span overflow")?;
+        let callee_end = invocation
+            .callee_span_start
+            .checked_add(invocation.callee_span_length)
+            .ok_or("invocation callee span overflow")?;
+        if invocation.source_index != 0
+            || invocation.callee_span_start < invocation.span_start
+            || callee_end > invocation_end
+            || vb_utf16_span_text(
+                source,
+                invocation.callee_span_start,
+                invocation.callee_span_length,
+            )
+            .is_none()
+        {
+            return Err("invocation response contains an invalid callee/source span".into());
+        }
+        for argument in &invocation.arguments {
+            let argument_end = argument
+                .span_start
+                .checked_add(argument.span_length)
+                .ok_or("invocation argument span overflow")?;
+            if argument.source_index != 0
+                || argument.span_start < invocation.span_start
+                || argument_end > invocation_end
+                || vb_utf16_span_text(source, argument.span_start, argument.span_length).is_none()
+            {
+                return Err("invocation response contains an invalid argument/source span".into());
+            }
+        }
+    }
+    Ok(report)
+}
+
+/// Slice a Roslyn UTF-16 span from the exact source whose fingerprint was
+/// verified by [`vb_invocations`]. Returns `None` for malformed boundaries.
+pub fn vb_utf16_span_text(source: &str, start: u32, length: u32) -> Option<&str> {
+    let start = start as usize;
+    let end = start.checked_add(length as usize)?;
+    let mut utf16 = 0_usize;
+    let mut start_byte = None;
+    let mut end_byte = None;
+    for (byte, character) in source.char_indices() {
+        if utf16 == start {
+            start_byte = Some(byte);
+        }
+        if utf16 == end {
+            end_byte = Some(byte);
+            break;
+        }
+        utf16 += character.len_utf16();
+        if (utf16 > start && start_byte.is_none()) || utf16 > end {
+            return None;
+        }
+    }
+    if utf16 == start && start_byte.is_none() {
+        start_byte = Some(source.len());
+    }
+    if utf16 == end && end_byte.is_none() {
+        end_byte = Some(source.len());
+    }
+    source.get(start_byte?..end_byte?)
+}
+
+fn invocation_source_matches(report: &VbInvocationReport, source: &str) -> bool {
+    use sha2::{Digest, Sha256};
+    let expected = format!("{:x}", Sha256::digest(source.as_bytes()));
+    report.source_sha256 == expected
 }
 
 fn return_path_source_matches(result: &serde_json::Value, source: &str) -> bool {

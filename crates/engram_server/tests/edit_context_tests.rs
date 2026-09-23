@@ -210,6 +210,37 @@ async fn capped_callers_report_the_exact_total_not_the_cap() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn check_edit_safety_names_the_callers_it_counted() {
+    // Live (PR 1633 replay): the verdict reported "few callers" and
+    // "callers: complete", then sent the agent to a second tool for the list —
+    // while `assemble_edit_evidence` had already resolved
+    // `MethodInfoResult.called_by` (fqn, file, line) and the handler discarded
+    // it by keeping only `ev.edit_safety`. The deciding question on that bug
+    // was WHICH paths reach the method, which a count cannot answer.
+    let (tmp, state) = build_state();
+    let dir = register_project(&state, &tmp);
+    seed_method(&state, &dir, 1, 3);
+    let engram = Engram::new(state);
+
+    let md = text(
+        &edit_safety(
+            &engram,
+            json!({"project_id": PID, "file_path": "Site/App_Code/svc.vb", "method_name": "M"}),
+        )
+        .await
+        .unwrap(),
+    );
+    assert!(
+        md.contains("callers.vb"),
+        "the caller evidence behind the verdict must be in the answer:\n{md}"
+    );
+    assert!(
+        md.contains("C0"),
+        "callers are named, not merely counted:\n{md}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn dangling_caller_is_counted_and_does_not_make_an_orphan_red() {
     let (tmp, state) = build_state();
     let dir = register_project(&state, &tmp);

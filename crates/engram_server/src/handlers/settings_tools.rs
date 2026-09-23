@@ -367,6 +367,14 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
         let _rec = self.ensure_project_record(&req.project_id).await?;
+        if req.knowledge_before.as_deref()
+            .is_some_and(|date| !super::test_derivation::valid_yyyy_mm_dd(date))
+        {
+            return Err(McpError::invalid_params(
+                "knowledge_before must be YYYY-MM-DD",
+                None,
+            ));
+        }
         if req.files.is_empty()
             || req.files.len() > 100
             || req.files.iter().any(|file| file.trim().is_empty())
@@ -382,16 +390,27 @@ impl Engram {
         let files: Vec<String> = req.files.iter().map(|f| f.replace('\\', "/")).collect();
         let rule_files = files.clone();
         let axis_root = std::path::PathBuf::from(&_rec.directory);
+        let canonical_files = files.clone();
+        let canonical_root = axis_root.clone();
+        let canonical_intent = req.change_intent.clone();
+        let (configured_risk_pack, configured_risk_notes) =
+            super::test_derivation::load_configured_risk_pack_before(
+                &self.state.cfg.data_dir,
+                &axis_root,
+                req.knowledge_before.as_deref(),
+            );
+        let configured_risk_count = configured_risk_pack.len();
 
         type Axis = BTreeMap<String, Vec<String>>; // axis value -> methods
-        let (settings_axis, setting_labels, roles_axis, state_axis, unresolved, coverage_notes, companion_context, member_observations) =
+        let (settings_axis, setting_labels, roles_axis, state_axis, runtime_axes, unresolved, coverage_notes, companion_context, member_observations) =
             tokio::task::spawn_blocking(move || {
                 let mut settings_axis: Axis = BTreeMap::new();
                 let mut setting_labels: BTreeMap<String, String> = BTreeMap::new();
                 let mut roles_axis: Axis = BTreeMap::new();
                 let mut state_axis: Axis = BTreeMap::new();
+                let mut runtime_axes: Axis = BTreeMap::new();
                 let mut unresolved: Vec<String> = Vec::new();
-                let mut coverage_notes = Vec::new();
+                let mut coverage_notes = configured_risk_notes;
                 let mut source_bytes = 0;
                 let mut companion_context = Vec::new();
                 let mut member_observations = std::collections::BTreeSet::new();
@@ -402,11 +421,11 @@ impl Engram {
                     // Folding here can hide distinct files or suppress the
                     // diagnostic for a request that has no indexed identity.
                     if seen.insert(file.clone()) {
-                        pending.push_back((file, true));
+                        pending.push_back((file, true, None::<String>));
                     }
                 }
 
-                while let Some((file, discover_companion)) = pending.pop_front() {
+                while let Some((file, discover_companion, companion_relation)) = pending.pop_front() {
                     let (usable, note, snapshot) = super::test_derivation::axis_source(
                         &graph,
                         &pid,
@@ -420,16 +439,58 @@ impl Engram {
                     if !usable {
                         continue;
                     }
+                    if let Some(relation) = companion_relation {
+                        companion_context.push(relation);
+                    }
                     if discover_companion && let Some(snapshot) = snapshot.as_deref() {
                         match super::test_derivation::declared_axis_companion(&axis_root, &file, snapshot) {
-                            Ok(Some(companion)) => {
-                                companion_context.push(format!("{file} -> {companion}"));
+                            Ok(Some((companion, relation_verified))) => {
+                                let relation = format!("{file} -> {companion}");
+                                if relation_verified {
+                                    companion_context.push(relation.clone());
+                                }
                                 if seen.insert(companion.clone()) {
-                                    pending.push_back((companion, false));
+                                    pending.push_back((companion, false, (!relation_verified).then_some(relation)));
                                 }
                             }
                             Ok(None) => {}
                             Err(error) => coverage_notes.push(format!("{file}: {error}")),
+                        }
+                    }
+                    match super::test_derivation::registered_control_hosts(&graph, &pid, &file) {
+                        Ok((hosts, truncated)) => {
+                            if truncated {
+                                coverage_notes.push(format!(
+                                    "{file}: registered-control hosts truncated at 32"
+                                ));
+                            }
+                            for host in hosts {
+                                if seen.insert(host.clone()) {
+                                    pending.push_back((
+                                        host.clone(),
+                                        true,
+                                        Some(format!("{host} registers {file}")),
+                                    ));
+                                }
+                            }
+                        }
+                        Err(error) => coverage_notes.push(format!("{file}: {error}")),
+                    }
+                    // Configured risk rules match the verified file snapshot, so
+                    // they apply even when the parser emitted no symbols for a
+                    // markup or client-only file.
+                    if let Some(source) = snapshot
+                        .as_deref()
+                        .and_then(|bytes| std::str::from_utf8(bytes).ok())
+                    {
+                        for (axis, evidence) in
+                            super::test_derivation::configured_risk_axes(
+                                &configured_risk_pack,
+                                &file,
+                                source,
+                            )
+                        {
+                            runtime_axes.entry(axis).or_default().push(evidence);
                         }
                     }
                     let mut symbols = match graph.query_nodes_in_file(&pid, None, &file, 2_001) {
@@ -570,7 +631,7 @@ impl Engram {
                         }
                     }
                 }
-                for axis in [&mut settings_axis, &mut roles_axis, &mut state_axis] {
+                for axis in [&mut settings_axis, &mut roles_axis, &mut state_axis, &mut runtime_axes] {
                     for v in axis.values_mut() {
                         v.sort();
                         v.dedup();
@@ -581,6 +642,7 @@ impl Engram {
                     setting_labels,
                     roles_axis,
                     state_axis,
+                    runtime_axes,
                     unresolved,
                     coverage_notes,
                     companion_context,
@@ -590,13 +652,61 @@ impl Engram {
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
+        let canonical_sweep = tokio::task::spawn_blocking(move || {
+            use crate::services::pre_commit_review_service::{
+                parse_unified_diff, resolve_bounded_worktree_diff,
+            };
+            let resolved = resolve_bounded_worktree_diff(
+                &canonical_root,
+                &canonical_files,
+                100,
+                20_000,
+                2 * 1024 * 1024,
+            );
+            let (diffs, diff_notes) = match resolved {
+                Ok(resolved) => (
+                    parse_unified_diff(&resolved.text),
+                    resolved
+                        .notes
+                        .into_iter()
+                        .map(|note| format!("canonical-call {note}"))
+                        .collect::<Vec<_>>(),
+                ),
+                Err(error) => (
+                    Vec::new(),
+                    vec![format!(
+                        "canonical-call bounded Git diff resolution failed: {error}"
+                    )],
+                ),
+            };
+            let mut sweep = super::test_derivation::canonical_call_migration_sweep(
+                &canonical_root,
+                canonical_intent.as_deref().unwrap_or_default(),
+                &canonical_files,
+                &diffs,
+            );
+            sweep.notes.extend(diff_notes);
+            sweep
+        })
+        .await
+        .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+
+        let max_source_cases = req.max_source_cases.clamp(1, 40);
+        let max_coverage_notes = req.max_coverage_notes.clamp(5, 100);
         let (rule_cases, rule_notes) = match self.ensure_project_runtime(&req.project_id).await {
             Ok(runtime) => {
                 let search = runtime.search.clone();
                 let pid = req.project_id.clone();
                 let root = std::path::PathBuf::from(_rec.directory);
                 match tokio::task::spawn_blocking(move || {
-                    super::test_derivation::collect(&search, &pid, gen_, &rule_files, &root)
+                    super::test_derivation::collect(
+                        &search,
+                        &pid,
+                        gen_,
+                        &rule_files,
+                        &root,
+                        max_source_cases,
+                    )
                 })
                 .await
                 {
@@ -614,10 +724,16 @@ impl Engram {
             ),
         };
 
-        let mut out = format!("# Test matrix — {} changed file(s)\n", req.files.len());
-        out.push_str("Evidence scope: indexed settings, permission and state references. Test discovery: not_run. Test execution: not_run. These are proposed cases, not verified outcomes.\n");
+        let mut out = format!("# Test matrix — {} requested file(s)\n", req.files.len());
+        out.push_str("Evidence scope: indexed settings, permission and state references plus configured risk rules matched against source-verified snapshots. Test discovery: not_run. Test execution: not_run. These are proposed cases, not verified outcomes.\n");
+        if configured_risk_count > 0 {
+            out.push_str(&format!("Configured risk packs: {configured_risk_count} validated rule(s) loaded at call time; repository rules override organization rules by stable id.\n"));
+        }
+        if let Some(cutoff) = req.knowledge_before.as_deref() {
+            out.push_str(&format!("Historical knowledge cutoff: configured rules require dated provenance strictly before {cutoff}; undated and newer rules are excluded and reported.\n"));
+        }
         if !companion_context.is_empty() {
-            out.push_str("Direct code-behind context: declarations from source-verified markup. A companion is context, not a changed file; its indexed axes are separately checked below. No transitive helpers are inferred. Business-rule cases remain scoped to the explicitly requested files.\n");
+            out.push_str("Direct UI context: code-behind declarations and one-hop user-control hosts from source-verified markup/graph edges. A companion or host is context, not a changed file; its indexed axes are separately checked below. No transitive helper calls are inferred. Business-rule cases remain scoped to the explicitly requested files.\n");
             for relation in &companion_context {
                 out.push_str(&format!("- {relation}\n"));
             }
@@ -628,8 +744,20 @@ impl Engram {
                 out.push_str(&format!("- {observation}\n"));
             }
         }
-        for note in coverage_notes.iter().chain(rule_notes.iter()) {
+        let matrix_notes = coverage_notes
+            .iter()
+            .chain(rule_notes.iter())
+            .chain(canonical_sweep.notes.iter())
+            .collect::<Vec<_>>();
+        let note_limit = max_coverage_notes;
+        for note in matrix_notes.iter().take(note_limit) {
             out.push_str(&format!("INCOMPLETE: {note}\n"));
+        }
+        if matrix_notes.len() > note_limit {
+            out.push_str(&format!(
+                "INCOMPLETE: {} additional coverage note(s) omitted by max_coverage_notes={note_limit}. Source-linked matrix evidence below retains each included document's get_chunk recovery pointer; narrow files or raise max_coverage_notes for diagnostics.\n",
+                matrix_notes.len() - note_limit
+            ));
         }
         if !unresolved.is_empty() {
             out.push_str(&format!(
@@ -700,6 +828,27 @@ impl Engram {
             None,
             &mut out,
         );
+        render_axis(
+            "Configured risk axis",
+            "Organization or repository risk rules matched these source-verified files. Each case names its rule and pack; they propose tests, not proof of current behavior:",
+            &runtime_axes,
+            None,
+            &mut out,
+        );
+        if canonical_sweep.attempted && !canonical_sweep.summary.is_empty() {
+            out.push_str(&format!(
+                "\n## Canonical-call residual sweep — {}\n{}\n",
+                canonical_sweep.residuals.len(),
+                canonical_sweep.summary,
+            ));
+            if canonical_sweep.residuals.is_empty() {
+                out.push_str("No same-callee plain-string residual was observed within the reported bounded scan. This is not proof that the repository has no aliases, indirect calls, multiline calls, generated sources, non-UTF-8 sources, or sites outside the scan caps.\n");
+            } else {
+                for residual in &canonical_sweep.residuals {
+                    out.push_str(&format!("- {residual}\n"));
+                }
+            }
+        }
 
         out.push_str("\n## Source-linked proposed cases\nExpected outcomes below are inferred business rules whose method hashes match current source; confirm the requirements before implementing the tests.\n");
         render_rule_cases(&mut out, &rule_cases);
@@ -707,9 +856,9 @@ impl Engram {
             out.push_str("No source-verified rule cases available; run analyze_business_logic for the requested files to populate or refresh them.\n");
         }
 
-        if settings_axis.is_empty() && roles_axis.is_empty() && state_axis.is_empty() {
+        if settings_axis.is_empty() && roles_axis.is_empty() && state_axis.is_empty() && runtime_axes.is_empty() {
             out.push_str(
-                "\nNo usable setting/role/state axes were emitted. This does not establish \
+                "\nNo usable setting/role/state/configured-risk axes were emitted. This does not establish \
                  that the change is gate-free; check incomplete evidence above and \
                  helper paths: run get_method_edit_context on the changed \
                  methods and derive_test_matrix on the helper files it names.\n",
@@ -720,7 +869,7 @@ impl Engram {
                  denied access and relevant boundary values. Discovered axes: \
                  {} setting/value references and {} role/guard entries. The graph does \
                  not establish their value types, privilege ordering, or a complete \
-                 Cartesian test matrix; confirm those in the cited methods.\n",
+                 Cartesian or runtime test matrix; confirm those in the cited methods.\n",
                 settings_axis.len(),
                 roles_axis.len()
             ));

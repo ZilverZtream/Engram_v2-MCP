@@ -26,7 +26,7 @@ fn fixture() -> tempfile::TempDir {
     std::fs::write(
         res.join("text.resx"),
         resx(&[
-            ("Registration_of_quantities", "Mängdredovisning"),
+            ("Registration_of_quantities", "Mängdleverans"),
             ("Registration_of_CAW", "ÄTA-registrering"),
             ("Fiber_installation_plan", "Fiberinstallationsplan"),
             ("Save", "Spara"),
@@ -101,7 +101,7 @@ fn translation_is_longest_match_over_the_story() {
     assert_eq!(
         sv,
         vec![
-            "Mängdredovisning",
+            "Mängdleverans",
             "ÄTA-registrering",
             "Fiberinstallationsplan"
         ],
@@ -109,8 +109,8 @@ fn translation_is_longest_match_over_the_story() {
     );
     let terms = concept_terms(&hits);
     assert!(
-        terms.contains(&"mängdredovisning".to_string())
-            && terms.contains(&"mangdredovisning".to_string()),
+        terms.contains(&"mängdleverans".to_string())
+            && terms.contains(&"mangdleverans".to_string()),
         "{terms:?}"
     );
     assert!(
@@ -122,7 +122,7 @@ fn translation_is_longest_match_over_the_story() {
         "each Swedish token >= 5 letters counts: {terms:?}"
     );
     assert!(!terms.iter().any(|t| t == "spara"), "{terms:?}");
-    assert_eq!(ascii_fold("Mängdredovisning"), "Mangdredovisning");
+    assert_eq!(ascii_fold("Mängdleverans"), "Mangdleverans");
     assert!(translate("nothing the lexicon knows", &lex).is_empty());
     let _ = LexiconHit {
         en: "x".into(),

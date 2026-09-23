@@ -12,6 +12,7 @@ use std::time::Duration;
 use engram_core::ids::ContentHash;
 use engram_ml::DreamingEngine;
 use engram_ml::llm_provider::LlmError;
+use futures::{StreamExt, stream};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -1189,6 +1190,20 @@ pub async fn analyze_file_logic_with_context(
     cached_hashes: &HashMap<String, String>,
     context: Option<&super::business_outcome_dependencies::SourceContext<'_>>,
 ) -> (FileBusinessLogic, usize, usize) {
+    analyze_file_logic_with_context_concurrency(
+        dreaming, file_path, content, cached_hashes, context, 1,
+    ).await
+}
+
+/// Analyze one file while bounding concurrent member-level LLM calls. File-level
+/// requests commonly contain many independent methods, so applying the public
+/// concurrency setting only across files made it ineffective for this mode.
+pub async fn analyze_file_logic_with_context_concurrency(
+    dreaming: &DreamingEngine, file_path: &str, content: &str,
+    cached_hashes: &HashMap<String, String>,
+    context: Option<&super::business_outcome_dependencies::SourceContext<'_>>,
+    max_concurrent: usize,
+) -> (FileBusinessLogic, usize, usize) {
     let language = detect_language(file_path, content);
 
     // Extract method names and bodies
@@ -1208,41 +1223,45 @@ pub async fn analyze_file_logic_with_context(
     let mut summary_omitted = 0usize;
     let extracted_count = extracted.len();
 
-    for method in extracted {
-        let name = &method.name;
+    let mut analyzed = stream::iter(extracted.into_iter().enumerate().map(|(source_order, method)| async move {
         let body = method.body;
         let start = method.start_line;
-        let mut evidence = super::business_outcome_dependencies::collect(&body, &method.owner, language, start as u32, file_path, context);
-        evidence.return_paths = super::business_return_paths::collect(file_path, content, &body, start as u32, language).await;
+        let mut evidence = super::business_outcome_dependencies::collect(
+            &body, &method.owner, language, start as u32, file_path, context,
+        );
+        evidence.return_paths = super::business_return_paths::collect(
+            file_path, content, &body, start as u32, language,
+        ).await;
         evidence.fingerprint(&body, MEMBER_PROMPT_VERSION);
         let cache_key = format!(
             "{}|{}.{}|{:?}",
             file_path.replace('\\', "/"),
             method.owner,
-            name,
+            method.name,
             method.overload_line
         );
-
-        // Check cache
-        if let Some(cached_hash) = cached_hashes.get(&cache_key)
-            && *cached_hash == evidence.analysis_fingerprint
+        if cached_hashes.get(&cache_key)
+            .is_some_and(|cached_hash| *cached_hash == evidence.analysis_fingerprint)
         {
+            return (source_order, None);
+        }
+        let mut result = analyze_method_logic_with_evidence(
+            dreaming, file_path, &method.name, &body, &method.owner, language,
+            start as u32, evidence,
+        ).await;
+        result.overload_line = method.overload_line;
+        (source_order, Some((start, body, result)))
+    }))
+    .buffer_unordered(max_concurrent.clamp(1, 16))
+    .collect::<Vec<_>>()
+    .await;
+    analyzed.sort_by_key(|(source_order, _)| *source_order);
+
+    for (_, analysis) in analyzed {
+        let Some((start, body, result)) = analysis else {
             skipped_count += 1;
             continue;
-        }
-
-        let mut result = analyze_method_logic_with_evidence(
-            dreaming,
-            file_path,
-            name,
-            &body,
-            &method.owner,
-            language,
-            start as u32,
-            evidence,
-        )
-        .await;
-        result.overload_line = method.overload_line;
+        };
         if result.parse_diagnostic.is_empty() && !result.purpose.trim().is_empty() && !result.content_hash.is_empty() {
             let reference = format!("{}:{}", result.fqn, start);
             // Whole member slices only: never silently clip a source body.

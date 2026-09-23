@@ -147,7 +147,7 @@ fn as_gate_ctx<'a>(c: &'a Ctx) -> GateContext<'a> {
     // Detect audit function — same logic as the production orchestrator,
     // inlined so tests exercise the gate's fast path.
     let audit_function = [
-        "handelselogg",
+        "aktivitetslogg",
         "AuditLog",
         "audit_log",
         "LogActivity",
@@ -363,13 +363,13 @@ const IMMUNE_HASH: &str = "f7766bb1a1006ffd36432be2ae4fdb89b5291012";
 #[test]
 fn immune_gate_emits_critical_when_destructive_on_immune_file() {
     let diff = "\
-diff --git a/Site/App_Code/dal/fiberjobb.vb b/Site/App_Code/dal/fiberjobb.vb
---- a/Site/App_Code/dal/fiberjobb.vb
-+++ b/Site/App_Code/dal/fiberjobb.vb
+diff --git a/Site/App_Code/dal/arbetsorder.vb b/Site/App_Code/dal/arbetsorder.vb
+--- a/Site/App_Code/dal/arbetsorder.vb
++++ b/Site/App_Code/dal/arbetsorder.vb
 @@ -10,5 +10,6 @@
  Public Sub WipeJobs()
-     Dim db As New iFaltDataContext()
-+    db.Fiberjobb.DeleteAllOnSubmit(db.Fiberjobb)
+     Dim db As New iCoreDataContext()
++    db.Arbetsorder.DeleteAllOnSubmit(db.Arbetsorder)
      db.SubmitChanges()
  End Sub
 ";
@@ -380,10 +380,12 @@ diff --git a/Site/App_Code/dal/fiberjobb.vb b/Site/App_Code/dal/fiberjobb.vb
             "proj-t",
             &RepoRule {
                 rule_id: format!("immune_{IMMUNE_HASH}"),
-                file_pattern: "Site/App_Code/dal/fiberjobb.vb".into(),
+                file_pattern: "Site/App_Code/dal/arbetsorder.vb".into(),
                 rule_text: "Previous revert removed unscoped DeleteAllOnSubmit.".into(),
                 priority: 1,
                 updated_at_ms: 1,
+                introduced_at: None,
+                provenance: None,
             },
         )
         .unwrap();
@@ -417,9 +419,9 @@ diff --git a/Site/App_Code/dal/fiberjobb.vb b/Site/App_Code/dal/fiberjobb.vb
 #[test]
 fn immune_gate_emits_warning_on_modification_without_destructive_pattern() {
     let diff = "\
-diff --git a/Site/App_Code/dal/fiberjobb.vb b/Site/App_Code/dal/fiberjobb.vb
---- a/Site/App_Code/dal/fiberjobb.vb
-+++ b/Site/App_Code/dal/fiberjobb.vb
+diff --git a/Site/App_Code/dal/arbetsorder.vb b/Site/App_Code/dal/arbetsorder.vb
+--- a/Site/App_Code/dal/arbetsorder.vb
++++ b/Site/App_Code/dal/arbetsorder.vb
 @@ -1,1 +1,2 @@
  Module Foo
 +    Public Sub Inspect() End Sub
@@ -431,10 +433,12 @@ diff --git a/Site/App_Code/dal/fiberjobb.vb b/Site/App_Code/dal/fiberjobb.vb
             "proj-t",
             &RepoRule {
                 rule_id: format!("immune_{IMMUNE_HASH}"),
-                file_pattern: "Site/App_Code/dal/fiberjobb.vb".into(),
+                file_pattern: "Site/App_Code/dal/arbetsorder.vb".into(),
                 rule_text: "Previous revert context.".into(),
                 priority: 1,
                 updated_at_ms: 1,
+                introduced_at: None,
+                provenance: None,
             },
         )
         .unwrap();
@@ -650,8 +654,8 @@ diff --git a/Site/App_Code/x.vb b/Site/App_Code/x.vb
         .upsert_nodes(
             "proj-t",
             &[make_fn_node(
-                "fn:handelselogg.Create",
-                "handelselogg.Create",
+                "fn:aktivitetslogg.Create",
+                "aktivitetslogg.Create",
                 "Site/Audit.vb",
             )],
         )

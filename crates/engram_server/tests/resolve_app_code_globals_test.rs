@@ -122,9 +122,9 @@ fn disambiguates_bare_names_by_lexical_owner() {
 
     // Two App_Code functions named "Create" in different lexical owners.
     let node_a = make_app_code_function(
-        "sym:function:Site/App_Code/handelselogg.vb:Create:10",
+        "sym:function:Site/App_Code/aktivitetslogg.vb:Create:10",
         "Create",
-        "Site/App_Code/handelselogg.vb",
+        "Site/App_Code/aktivitetslogg.vb",
         Some("AuditLog.Create"),
     );
     let node_b = make_app_code_function(
@@ -136,12 +136,12 @@ fn disambiguates_bare_names_by_lexical_owner() {
 
     // Source belongs to the same lexical owner as node_a.
     let source_node = Node {
-        node_id: "sym:function:Site/App_Code/handelselogg.vb:DoStuff:50".to_string(),
+        node_id: "sym:function:Site/App_Code/aktivitetslogg.vb:DoStuff:50".to_string(),
         node_type: "function".to_string(),
         name: "AuditLog.DoStuff".to_string(),
         namespace: "memory".to_string(),
         language: "vbnet".to_string(),
-        file_path: RelPath::new("Site/App_Code/handelselogg.vb"),
+        file_path: RelPath::new("Site/App_Code/aktivitetslogg.vb"),
         start_line: 50,
         end_line: 60,
         generation: 1,

@@ -2,7 +2,7 @@
 //! External audit 2026-08-29 row 6 — the last golden miss on release 30:
 //! with every `GetByID` in the candidate list (cycle 11), the qualifier
 //! `projekt` of "GetByID in the projekt DAL" still left TWO candidates,
-//! because it substring-matches `io-installationsobjektprojekt.vb` as well
+//! because it substring-matches `io-bokningsobjektprojekt.vb` as well
 //! as `projekt.vb`. A qualifier that names a candidate's class or file stem
 //! EXACTLY outranks one that merely occurs inside a longer name.
 
@@ -80,8 +80,8 @@ fn an_exact_class_or_file_stem_match_outranks_a_substring_match() {
                     "_gd.projekt.GetByID",
                 ),
                 func(
-                    "Site/App_Code/installationsobjekt/code/io-installationsobjektprojekt.vb",
-                    "_io.installationsobjektprojekt.GetByID",
+                    "Site/App_Code/bokningsobjekt/code/io-bokningsobjektprojekt.vb",
+                    "_io.bokningsobjektprojekt.GetByID",
                 ),
                 func("Site/App_Code/markers/marker.vb", "_markers.marker.GetByID"),
             ],
@@ -124,8 +124,8 @@ fn substring_only_matches_still_narrow_when_nothing_matches_exactly() {
                     "_ata.atalista.GetByID",
                 ),
                 func(
-                    "Site/App_Code/installationsobjekt/code/io-installationsobjektprojekt.vb",
-                    "_io.installationsobjektprojekt.GetByID",
+                    "Site/App_Code/bokningsobjekt/code/io-bokningsobjektprojekt.vb",
+                    "_io.bokningsobjektprojekt.GetByID",
                 ),
                 func("Site/App_Code/markers/marker.vb", "_markers.marker.GetByID"),
             ],
@@ -144,7 +144,7 @@ fn substring_only_matches_still_narrow_when_nothing_matches_exactly() {
         m.resolved[0]
             .canonical
             .to_lowercase()
-            .contains("installationsobjektprojekt")
+            .contains("bokningsobjektprojekt")
     );
 }
 

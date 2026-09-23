@@ -44,6 +44,56 @@ fn format_ambiguous_symbol_error(input: &str, candidates: &[engram_graph::Node])
     )
 }
 
+/// Find the effective application-level Web.config when the indexed project is
+/// a solution/repository root. Prefer the shallowest readable configuration
+/// that declares authentication; otherwise return the shallowest readable one.
+async fn discover_web_config(
+    graph: &engram_graph::GraphStore,
+    project_id: &str,
+    project_dir: &str,
+) -> Result<Option<(String, String)>, McpError> {
+    let mut candidates = graph
+        .list_file_node_metadata(project_id)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(path, _)| path.as_str().replace('\\', "/"))
+        .filter(|path| {
+            path.rsplit('/')
+                .next()
+                .is_some_and(|name| name.eq_ignore_ascii_case("web.config"))
+        })
+        .collect::<Vec<_>>();
+    for root_name in ["Web.config", "web.config"] {
+        if !candidates
+            .iter()
+            .any(|path| path.eq_ignore_ascii_case(root_name))
+        {
+            candidates.push(root_name.to_string());
+        }
+    }
+    candidates.sort_by(|left, right| {
+        left.matches('/')
+            .count()
+            .cmp(&right.matches('/').count())
+            .then_with(|| left.to_ascii_lowercase().cmp(&right.to_ascii_lowercase()))
+    });
+    candidates.dedup_by(|left, right| left.eq_ignore_ascii_case(right));
+
+    let mut readable = Vec::new();
+    for relative in candidates {
+        if let Ok(full) = safe_join(Path::new(project_dir), &relative)
+            && let Ok(content) = tokio::fs::read_to_string(&full).await
+        {
+            readable.push((relative, content));
+        }
+    }
+    let preferred = readable
+        .iter()
+        .position(|(_, content)| content.to_ascii_lowercase().contains("<authentication"))
+        .unwrap_or(0);
+    Ok((!readable.is_empty()).then(|| readable.swap_remove(preferred)))
+}
+
 impl Engram {
     pub async fn handle_suggest_migration_boundaries(
         &self,
@@ -1099,21 +1149,8 @@ impl Engram {
         let classic_asp_files: Vec<(String, String)> = asp_results.into_iter().flatten().collect();
         let report_files: Vec<(String, String)> = report_results.into_iter().flatten().collect();
 
-        let webconfig_path = safe_join(Path::new(&project_dir), "web.config");
-        let webconfig_content = if let Ok(wc) = webconfig_path {
-            tokio::fs::read_to_string(&wc).await.ok()
-        } else {
-            None
-        };
-        let webconfig_content = if webconfig_content.is_none() {
-            if let Ok(alt) = safe_join(Path::new(&project_dir), "Web.config") {
-                tokio::fs::read_to_string(&alt).await.ok()
-            } else {
-                None
-            }
-        } else {
-            webconfig_content
-        };
+        let selected_config = discover_web_config(&graph, &pid, &project_dir).await?;
+        let webconfig_content = selected_config.map(|(_, content)| content);
 
         let global_asax = {
             let ga_path = safe_join(Path::new(&project_dir), "Global.asax");
@@ -1797,21 +1834,12 @@ impl Engram {
         let pid = req.project_id.clone();
         let project_dir = rec.directory.clone();
 
-        let webconfig_path = safe_join(Path::new(&project_dir), "web.config");
-        let webconfig_content = if let Ok(wc) = webconfig_path {
-            tokio::fs::read_to_string(&wc).await.ok()
-        } else {
-            None
-        };
-        let webconfig_content = if webconfig_content.is_none() {
-            if let Ok(alt) = safe_join(Path::new(&project_dir), "Web.config") {
-                tokio::fs::read_to_string(&alt).await.ok()
-            } else {
-                None
-            }
-        } else {
-            webconfig_content
-        };
+        // The repository root is often a solution container rather than the web
+        // application root. Discover indexed Web.config files and prefer the
+        // shallowest readable one that owns an authentication declaration.
+        let selected_config = discover_web_config(&graph, &pid, &project_dir).await?;
+        let webconfig_source = selected_config.as_ref().map(|(path, _)| path.clone());
+        let webconfig_content = selected_config.map(|(_, content)| content);
 
         let code_files = if let Some(ref scope) = req.file_scope {
             let full = safe_join(Path::new(&project_dir), scope)
@@ -1870,6 +1898,9 @@ impl Engram {
         }
 
         let mut out = String::from("# Authentication & Authorization Map\n\n");
+        if let Some(source) = webconfig_source {
+            out.push_str(&format!("**Configuration source**: `{source}`\n"));
+        }
         out.push_str(&format!("**Auth Mode**: {}\n", result.auth_mode));
 
         if !result.recommendations.is_empty() {
@@ -1927,21 +1958,7 @@ impl Engram {
             return Ok(CallToolResult::success(vec![Content::text(json)]));
         }
 
-        let mut out = format!("# Page Lifecycle — {}\n\n", result.file_path);
-
-        if let Some(ref bc) = result.base_class {
-            out.push_str(&format!("**Base class**: `{bc}`\n\n"));
-        }
-
-        if !result.lifecycle_events.is_empty() {
-            out.push_str("## Lifecycle Events\n");
-            for ev in &result.lifecycle_events {
-                out.push_str(&format!("### {}\n", ev.event_name));
-                out.push_str(&format!("- **Modern Equivalent**: {}\n", ev.modern_blazor));
-                out.push('\n');
-            }
-        }
-
+        let out = render_page_lifecycle(&result);
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
@@ -1986,25 +2003,7 @@ impl Engram {
             return Ok(CallToolResult::success(vec![Content::text(json)]));
         }
 
-        let mut out = format!(
-            "# ViewState Dependencies — {}\n\n\
-             **Total state fields**: {} | **Complexity**: {}\n",
-            result.file_path, result.total_state_fields, result.migration_complexity,
-        );
-
-        if !result.modern_state_model.is_empty() {
-            out.push_str("\n## Recommended Modern State Model\n");
-            for field in &result.modern_state_model {
-                out.push_str(&format!("### {}\n", field.field_name));
-                out.push_str(&format!("- **Source**: {}\n", field.source));
-                out.push_str(&format!(
-                    "- **Modern strategy**: {}\n",
-                    field.blazor_declaration
-                ));
-                out.push('\n');
-            }
-        }
-
+        let out = render_viewstate_dependencies(&result);
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
@@ -3506,5 +3505,486 @@ impl Engram {
             "Rust Diagnostics",
         )
         .await
+    }
+}
+
+/// Render the page-lifecycle report. Pure by design: the handler owns retrieval,
+/// this owns presentation, so what the analysis produced can be asserted without
+/// a graph or a project on disk.
+fn render_page_lifecycle(result: &crate::services::lifecycle_service::PageLifecycleMap) -> String {
+    let mut out = format!("# Page Lifecycle — {}\n\n", result.file_path);
+
+    if let Some(ref bc) = result.base_class {
+        out.push_str(&format!("**Base class**: `{bc}`\n\n"));
+    }
+
+    let directives = &result.page_directives;
+    let mut declared: Vec<String> = Vec::new();
+    if let Some(value) = directives.enable_viewstate {
+        declared.push(format!("EnableViewState={value}"));
+    }
+    if let Some(ref value) = directives.enable_session_state {
+        declared.push(format!("EnableSessionState={value}"));
+    }
+    if let Some(value) = directives.enable_event_validation {
+        declared.push(format!("EnableEventValidation={value}"));
+    }
+    if let Some(value) = directives.auto_event_wireup {
+        declared.push(format!("AutoEventWireup={value}"));
+    }
+    if let Some(ref value) = directives.master_page_file {
+        declared.push(format!("MasterPageFile={value}"));
+    }
+    if let Some(ref value) = directives.inherits {
+        declared.push(format!("Inherits={value}"));
+    }
+    if let Some(ref value) = directives.codebehind {
+        declared.push(format!("CodeBehind={value}"));
+    }
+    if !declared.is_empty() {
+        out.push_str(&format!("**Page directives**: {}\n\n", declared.join(" | ")));
+    }
+
+    // An empty report and a discarded report are indistinguishable to a reader,
+    // so say which one this is rather than returning a bare header.
+    if result.lifecycle_events.is_empty()
+        && result.control_events.is_empty()
+        && result.implicit_behaviors.is_empty()
+        && result.migration_notes.is_empty()
+    {
+        out.push_str(
+            "No lifecycle events, control events, implicit behaviours or migration notes were \
+             detected for this page.\n",
+        );
+        return out;
+    }
+
+    if result.lifecycle_events.is_empty() {
+        out.push_str("No lifecycle events were detected in the code-behind.\n\n");
+    } else {
+        out.push_str("## Lifecycle Events\n");
+        for ev in &result.lifecycle_events {
+            out.push_str(&format!(
+                "### {} — `{}` (line {})\n",
+                ev.event_name, ev.handler_name, ev.line_number
+            ));
+            out.push_str(&format!(
+                "- **Branches on IsPostBack**: {}\n",
+                if ev.has_ispostback_branch { "yes" } else { "no" }
+            ));
+            for (label, actions) in [
+                ("First load", &ev.first_load_actions),
+                ("Postback", &ev.postback_actions),
+                ("Always", &ev.always_actions),
+            ] {
+                if !actions.is_empty() {
+                    out.push_str(&format!("- **{label}**: {}\n", actions.join("; ")));
+                }
+            }
+            out.push_str(&format!(
+                "- **Modern equivalent**: Blazor {} | React {} | Angular {}\n",
+                ev.modern_blazor, ev.modern_react, ev.modern_angular
+            ));
+            for note in &ev.migration_notes {
+                out.push_str(&format!("- **Note**: {note}\n"));
+            }
+            out.push('\n');
+        }
+    }
+
+    if !result.control_events.is_empty() {
+        out.push_str("## Control Events\n");
+        for ce in &result.control_events {
+            out.push_str(&format!(
+                "### {} ({}) — {} handled by `{}` (line {})\n",
+                ce.control_id, ce.control_type, ce.event_name, ce.handler_name, ce.line_number
+            ));
+            out.push_str(&format!(
+                "- **Triggers a postback**: {}\n",
+                if ce.is_postback_trigger { "yes" } else { "no" }
+            ));
+            out.push_str(&format!(
+                "- **Modern equivalent**: Blazor {} | React {}\n",
+                ce.modern_blazor, ce.modern_react
+            ));
+            out.push('\n');
+        }
+    }
+
+    if !result.implicit_behaviors.is_empty() {
+        out.push_str("## Implicit Behaviours\n");
+        out.push_str(
+            "Supplied by the framework rather than written in the code-behind, so they \
+             survive no rewrite unless they are reproduced deliberately.\n\n",
+        );
+        for behavior in &result.implicit_behaviors {
+            out.push_str(&format!(
+                "### [{}] {}\n",
+                behavior.severity, behavior.behavior
+            ));
+            out.push_str(&format!("- **Mechanism**: {}\n", behavior.webforms_mechanism));
+            out.push_str(&format!(
+                "- **Modern replacement**: {}\n",
+                behavior.modern_replacement
+            ));
+            out.push('\n');
+        }
+    }
+
+    if !result.migration_notes.is_empty() {
+        out.push_str("## Migration Notes\n");
+        for note in &result.migration_notes {
+            out.push_str(&format!("- {note}\n"));
+        }
+        out.push('\n');
+    }
+
+    out
+}
+
+/// Render the ViewState dependency report. Pure for the same reason as
+/// `render_page_lifecycle`: presentation is where this tool loses content, so it
+/// has to be assertable without a project.
+fn render_viewstate_dependencies(
+    result: &crate::services::viewstate_service::ViewStateDependencyReport,
+) -> String {
+    let mut out = format!(
+        "# ViewState Dependencies — {}\n\n\
+         **Total state fields**: {} | **Complexity**: {}\n",
+        result.file_path, result.total_state_fields, result.migration_complexity,
+    );
+
+    match result.page_level_viewstate {
+        Some(true) => out.push_str("**Page-level ViewState**: enabled\n"),
+        Some(false) => out.push_str("**Page-level ViewState**: disabled\n"),
+        None => out.push_str("**Page-level ViewState**: not declared on the page directive\n"),
+    }
+
+    // A count of zero and an unrendered report read the same way, so say which.
+    if result.explicit_viewstate.is_empty()
+        && result.implicit_viewstate.is_empty()
+        && result.viewstate_disabled_controls.is_empty()
+        && result.modern_state_model.is_empty()
+    {
+        out.push_str(
+            "\nNo ViewState dependencies were found: no explicit state keys, no control state \
+             persisted implicitly, and no controls opting out.\n",
+        );
+        return out;
+    }
+
+    if !result.explicit_viewstate.is_empty() {
+        out.push_str("\n## Explicit State Keys\n");
+        for entry in &result.explicit_viewstate {
+            out.push_str(&format!("### {} ({})\n", entry.key, entry.data_type_guess));
+            out.push_str(&format!("- **Lifecycle**: {}\n", entry.lifecycle));
+            if entry.writers.is_empty() {
+                out.push_str("- **Written by**: no writer found in this file\n");
+            } else {
+                out.push_str(&format!("- **Written by**: {}\n", entry.writers.join(", ")));
+            }
+            if entry.readers.is_empty() {
+                out.push_str("- **Read by**: no reader found in this file\n");
+            } else {
+                out.push_str(&format!("- **Read by**: {}\n", entry.readers.join(", ")));
+            }
+            out.push_str(&format!(
+                "- **Modern replacement**: {}\n\n",
+                entry.modern_replacement
+            ));
+        }
+    }
+
+    if !result.implicit_viewstate.is_empty() {
+        out.push_str("## Implicit Control State\n");
+        out.push_str(
+            "Persisted by the control itself, with nothing in the code-behind to point at.\n\n",
+        );
+        for entry in &result.implicit_viewstate {
+            out.push_str(&format!(
+                "### {} ({})\n",
+                entry.control_id, entry.control_type
+            ));
+            out.push_str(&format!(
+                "- **Properties persisted**: {}\n",
+                entry.properties_persisted.join(", ")
+            ));
+            out.push_str(&format!(
+                "- **Estimated size impact**: {}\n",
+                entry.estimated_size_impact
+            ));
+            out.push_str(&format!(
+                "- **Modern replacement**: {}\n\n",
+                entry.modern_replacement
+            ));
+        }
+    }
+
+    if !result.heaviest_controls.is_empty() {
+        // Only entries whose size impact starts with "High" are collected, so an
+        // unlabelled list would read as "the heaviest few" rather than a filter.
+        out.push_str("## Heaviest Controls (High impact only)\n");
+        for (control_id, control_type, size_impact) in &result.heaviest_controls {
+            out.push_str(&format!(
+                "- {control_id} ({control_type}) — {size_impact}\n"
+            ));
+        }
+        out.push('\n');
+    }
+
+    if !result.viewstate_disabled_controls.is_empty() {
+        out.push_str("## Controls With ViewState Disabled\n");
+        for control in &result.viewstate_disabled_controls {
+            out.push_str(&format!("- {control}\n"));
+        }
+        out.push_str(
+            "\nState for these controls is not restored on postback; anything depending on it \
+             must be rebuilt explicitly.\n\n",
+        );
+    }
+
+    if !result.modern_state_model.is_empty() {
+        out.push_str("## Recommended Modern State Model\n");
+        for field in &result.modern_state_model {
+            out.push_str(&format!("### {}\n", field.field_name));
+            out.push_str(&format!("- **Source**: {}\n", field.source));
+            out.push_str(&format!("- **Blazor**: {}\n", field.blazor_declaration));
+            out.push_str(&format!("- **React**: {}\n", field.react_declaration));
+            out.push_str(&format!("- **Persists across**: {}\n", field.persist_across));
+            out.push('\n');
+        }
+    }
+
+    out
+}
+
+#[cfg(test)]
+mod page_lifecycle_render_tests {
+    use crate::services::lifecycle_service::{
+        ControlEventMapping, ImplicitBehavior, LifecycleEventMapping, PageDirectiveInfo,
+        PageLifecycleMap,
+    };
+
+    fn empty_directives() -> PageDirectiveInfo {
+        PageDirectiveInfo {
+            enable_viewstate: None,
+            enable_session_state: None,
+            enable_event_validation: None,
+            auto_event_wireup: None,
+            master_page_file: None,
+            inherits: None,
+            codebehind: None,
+        }
+    }
+
+    fn map_with_no_lifecycle_events() -> PageLifecycleMap {
+        PageLifecycleMap {
+            file_path: "pages/SamplePage.aspx.vb".into(),
+            base_class: None,
+            lifecycle_events: Vec::new(),
+            control_events: vec![ControlEventMapping {
+                control_id: "SaveButton".into(),
+                control_type: "Button".into(),
+                event_name: "Click".into(),
+                handler_name: "SaveButton_Click".into(),
+                is_postback_trigger: true,
+                modern_blazor: "@onclick".into(),
+                modern_react: "onClick".into(),
+                line_number: 42,
+            }],
+            implicit_behaviors: vec![ImplicitBehavior {
+                behavior: "Control state persists across postbacks automatically".into(),
+                webforms_mechanism: "hidden state field serialization".into(),
+                modern_replacement: "explicit component state".into(),
+                severity: "High".into(),
+            }],
+            page_directives: PageDirectiveInfo {
+                enable_viewstate: Some(true),
+                ..empty_directives()
+            },
+            migration_notes: vec!["Verify the generated markup before removing the handler".into()],
+        }
+    }
+
+    /// The analysis produces control events, implicit behaviours, directives and
+    /// its own notes. A reader of the default output must receive them; dropping
+    /// them renders an empty-looking page that the JSON form shows is not empty.
+    #[test]
+    fn a_page_lifecycle_report_states_every_finding_the_analysis_produced() {
+        let out = super::render_page_lifecycle(&map_with_no_lifecycle_events());
+        assert!(
+            out.contains("Control state persists across postbacks automatically"),
+            "implicit behaviour dropped from the report:\n{out}"
+        );
+        assert!(out.contains("High"), "behaviour severity dropped:\n{out}");
+        assert!(out.contains("SaveButton"), "control event dropped:\n{out}");
+        assert!(
+            out.contains("Verify the generated markup before removing the handler"),
+            "the tool's own migration note dropped:\n{out}"
+        );
+    }
+
+    /// A page really without findings must say so. A bare header cannot be told
+    /// apart from a report whose sections were silently discarded.
+    #[test]
+    fn a_page_with_no_findings_says_so_instead_of_rendering_a_bare_header() {
+        let nothing = PageLifecycleMap {
+            file_path: "pages/SamplePage.aspx.vb".into(),
+            base_class: None,
+            lifecycle_events: Vec::new(),
+            control_events: Vec::new(),
+            implicit_behaviors: Vec::new(),
+            page_directives: empty_directives(),
+            migration_notes: Vec::new(),
+        };
+        let out = super::render_page_lifecycle(&nothing);
+        assert!(
+            out.contains("No lifecycle events"),
+            "an empty analysis rendered a bare header:\n{out}"
+        );
+    }
+
+    /// Guard the rendered lifecycle event itself: the reader needs where it is
+    /// and whether it branches on postback, not only its modern equivalent.
+    #[test]
+    fn a_rendered_lifecycle_event_carries_its_location_and_postback_branching() {
+        let mut map = map_with_no_lifecycle_events();
+        map.lifecycle_events = vec![LifecycleEventMapping {
+            event_name: "Page_Load".into(),
+            handler_name: "Page_Load".into(),
+            has_ispostback_branch: true,
+            first_load_actions: vec!["bind the grid".into()],
+            postback_actions: vec!["read the posted value".into()],
+            always_actions: Vec::new(),
+            modern_blazor: "OnInitializedAsync".into(),
+            modern_react: "useEffect".into(),
+            modern_angular: "ngOnInit".into(),
+            migration_notes: Vec::new(),
+            line_number: 17,
+        }];
+        let out = super::render_page_lifecycle(&map);
+        assert!(out.contains("17"), "event line number dropped:\n{out}");
+        assert!(
+            out.contains("bind the grid"),
+            "first-load actions dropped:\n{out}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod viewstate_render_tests {
+    use crate::services::viewstate_service::{
+        ExplicitViewStateEntry, ImplicitViewStateEntry, StateFieldRecommendation,
+        ViewStateDependencyReport,
+    };
+
+    fn recommendation() -> StateFieldRecommendation {
+        StateFieldRecommendation {
+            field_name: "selectedFilter".into(),
+            source: "explicit state key".into(),
+            blazor_declaration: "private string selectedFilter;".into(),
+            react_declaration: "const [selectedFilter, setSelectedFilter] = useState()".into(),
+            persist_across: "postback only".into(),
+        }
+    }
+
+    fn populated_report() -> ViewStateDependencyReport {
+        ViewStateDependencyReport {
+            file_path: "pages/SamplePage.aspx.vb".into(),
+            explicit_viewstate: vec![ExplicitViewStateEntry {
+                key: "SelectedFilter".into(),
+                data_type_guess: "String".into(),
+                readers: vec!["Page_Load".into()],
+                writers: vec!["SaveButton_Click".into()],
+                lifecycle: "written on click, read on next postback".into(),
+                modern_replacement: "component field".into(),
+            }],
+            implicit_viewstate: vec![ImplicitViewStateEntry {
+                control_id: "ResultsGrid".into(),
+                control_type: "GridView".into(),
+                properties_persisted: vec!["SortExpression".into(), "PageIndex".into()],
+                estimated_size_impact: "High (grows with data rows and columns)".into(),
+                modern_replacement: "explicit sort and page state".into(),
+            }],
+            viewstate_disabled_controls: vec!["StaticBanner".into()],
+            page_level_viewstate: Some(true),
+            heaviest_controls: vec![(
+                "ResultsGrid".into(),
+                "GridView".into(),
+                "High (grows with data rows and columns)".into(),
+            )],
+            total_state_fields: 2,
+            migration_complexity: "medium".into(),
+            modern_state_model: vec![recommendation()],
+        }
+    }
+
+    /// Explicit keys, implicit control state and the controls that opted out are
+    /// the whole point of the analysis. The header's field COUNT is not a
+    /// substitute for naming them.
+    #[test]
+    fn a_viewstate_report_states_every_dependency_the_analysis_found() {
+        let out = super::render_viewstate_dependencies(&populated_report());
+        assert!(
+            out.contains("SelectedFilter"),
+            "explicit ViewState key dropped:\n{out}"
+        );
+        assert!(
+            out.contains("ResultsGrid"),
+            "implicit control state dropped:\n{out}"
+        );
+        assert!(
+            out.contains("StaticBanner"),
+            "ViewState-disabled control dropped:\n{out}"
+        );
+    }
+
+    /// `heaviest_controls` holds only entries whose size impact starts with
+    /// "High". A reader cannot tell a short list from a filtered one unless the
+    /// report says which it is.
+    #[test]
+    fn the_heaviest_controls_list_says_it_is_a_high_impact_subset() {
+        let out = super::render_viewstate_dependencies(&populated_report());
+        assert!(
+            out.contains("High impact"),
+            "heaviest-controls list rendered without saying it is filtered to high impact:\n{out}"
+        );
+    }
+
+    /// A report with nothing in it must say so rather than leaving a header and
+    /// a zero count to be read as either "clean" or "not analysed".
+    #[test]
+    fn a_page_without_viewstate_dependencies_says_so_instead_of_only_a_header() {
+        let empty = ViewStateDependencyReport {
+            file_path: "pages/SamplePage.aspx.vb".into(),
+            explicit_viewstate: Vec::new(),
+            implicit_viewstate: Vec::new(),
+            viewstate_disabled_controls: Vec::new(),
+            page_level_viewstate: None,
+            heaviest_controls: Vec::new(),
+            total_state_fields: 0,
+            migration_complexity: "low".into(),
+            modern_state_model: Vec::new(),
+        };
+        let out = super::render_viewstate_dependencies(&empty);
+        assert!(
+            out.contains("No ViewState dependencies"),
+            "an empty report rendered only a header and a count:\n{out}"
+        );
+    }
+
+    /// The recommendation carries a React form and a persistence scope; a reader
+    /// migrating to React receives neither today.
+    #[test]
+    fn a_recommended_state_field_carries_its_react_form_and_persistence_scope() {
+        let out = super::render_viewstate_dependencies(&populated_report());
+        assert!(
+            out.contains("useState"),
+            "react declaration dropped:\n{out}"
+        );
+        assert!(
+            out.contains("postback only"),
+            "persistence scope dropped:\n{out}"
+        );
     }
 }

@@ -85,6 +85,8 @@ fn seed_rule(state: &AppState, pid: &str, immune: bool, matching: bool) {
                 rule_text: "Review destructive operations after an earlier reverted change.".into(),
                 priority: 50,
                 updated_at_ms: 1,
+                introduced_at: None,
+                provenance: None,
             },
         )
         .unwrap();

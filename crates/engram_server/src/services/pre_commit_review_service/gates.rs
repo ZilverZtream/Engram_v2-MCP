@@ -2768,10 +2768,25 @@ pub(crate) fn query_overlap(content: &str, query: &str) -> (usize, usize, Vec<St
     let words: Vec<&str> = query.split_whitespace().collect();
     let matched: Vec<String> = words
         .iter()
-        .filter(|w| contains_word(&lc, w))
+        .filter(|w| contains_word(&lc, &w.to_lowercase()))
         .map(|s| s.to_string())
         .collect();
     (matched.len(), words.len(), matched)
+}
+
+/// Matched query terms below which an overlap is incidental vocabulary.
+pub(crate) const MIN_MATCHED_TERMS: usize = 4;
+
+/// Similarity of proposed code to a stored anti-pattern: the share of the
+/// code's query terms found in the anti-pattern's content. Hybrid hit scores
+/// are rank-fusion values and cannot serve as a similarity. A query of four
+/// or more terms needs four matches; a shorter one must match every term.
+pub(crate) fn code_similarity(content: &str, query: &str) -> f32 {
+    let (matched, total, _) = query_overlap(content, query);
+    if total == 0 || matched < total.min(MIN_MATCHED_TERMS) {
+        return 0.0;
+    }
+    matched as f32 / total as f32
 }
 
 /// Split an identifier into lowercase words on case boundaries and
@@ -4185,6 +4200,14 @@ mod tests {
     }
 
     #[test]
+    fn query_overlap_matches_identifiers_whatever_their_case() {
+        // Queries built from code keep identifier case while the content is
+        // compared lowercased, so `SubmitOrder` could never match.
+        let (m, t, _) = query_overlap("Call SubmitOrder(id) when ready", "SubmitOrder ready");
+        assert_eq!((m, t), (2, 2));
+    }
+
+    #[test]
     fn split_identifier_words_handles_camel_snake_and_kebab() {
         assert_eq!(
             split_identifier_words("ChangeRequestMarker"),
@@ -4784,18 +4807,49 @@ impl Gate for RepoRuleGate {
     }
 
     fn run(&self, ctx: &GateContext<'_>) -> anyhow::Result<Vec<ReviewFinding>> {
+        let (configured, configured_notes) =
+            crate::handlers::test_derivation::load_configured_risk_pack(
+                &ctx.state.cfg.data_dir,
+                ctx.project_dir,
+            );
+        for note in configured_notes { ctx.degrade(note); }
         let checked: Vec<(&RepoRule, RuleCheck)> = ctx
             .repo_rules
             .iter()
             .filter_map(|r| parse_rule_check(&r.rule_text).map(|c| (r, c)))
             .collect();
-        if checked.is_empty() {
+        if checked.is_empty() && configured.len() == 0 {
             return Ok(Vec::new());
         }
         let mut findings = Vec::new();
         for df in ctx.diff_files {
             if df.is_binary || matches!(df.change_type, ChangeType::Deleted) {
                 continue;
+            }
+            for matched in crate::handlers::test_derivation::configured_risk_matches(
+                &configured,
+                &df.path,
+                &df.added_content,
+            ) {
+                let severity = Severity::from_str(&matched.severity)
+                    .unwrap_or(Severity::Warning);
+                findings.push(
+                    ReviewFinding::new(
+                        severity,
+                        "repo_rules",
+                        df.path.clone(),
+                        format!("Configured risk rule matched: {}", matched.title),
+                        format!(
+                            "Rule `{}` from the {} risk pack matched added code in this file.",
+                            matched.id, matched.source
+                        ),
+                        matched.guidance,
+                    )
+                    .with_evidence(vec![
+                        format!("configured_rule_id = {}", matched.id),
+                        format!("configured_rule_source = {}", matched.source),
+                    ]),
+                );
             }
             for (rule, check) in &checked {
                 if !path_pattern_matches(&rule.file_pattern, &df.path) {

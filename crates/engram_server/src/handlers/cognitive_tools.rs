@@ -1101,6 +1101,7 @@ impl Engram {
                 .map_err(|e| format!("DB error querying readers: {e}"))?;
 
             if readers.len() > limit { out.push_str(&format!("Coverage: readers truncated at {limit}.\n")); }
+            let mut property_readers = Vec::new();
             if !readers.is_empty() {
                 out.push_str("### Readers\n");
                 for (reader_id, weight) in readers.iter().take(limit) {
@@ -1113,12 +1114,63 @@ impl Engram {
                             node.start_line,
                             weight
                         ));
+                        if node.node_type == "property" {
+                            property_readers.push(node);
+                        }
                     } else {
                         out.push_str(&format!("- {} (weight: {}; indexed node unavailable)\n", reader_id, weight));
                     }
                 }
             } else {
                 out.push_str("### Readers\nNo indexed readers found; dynamic access may be absent from the graph.\n");
+            }
+
+            // The direct state edge identifies the property accessor. Follow one
+            // typed Calls hop to expose the actual behavioral consumers as well.
+            let mut indirect = std::collections::BTreeMap::new();
+            let mut indirect_truncated = false;
+            for accessor in &property_readers {
+                let callers = graph
+                    .find_incoming_edges(
+                        &req.project_id,
+                        Some(EdgeKind::Calls),
+                        &accessor.node_id,
+                        limit + 1,
+                    )
+                    .map_err(|e| format!("DB error querying property consumers: {e}"))?;
+                if callers.len() > limit {
+                    indirect_truncated = true;
+                }
+                for (caller_id, weight) in callers.into_iter().take(limit) {
+                    indirect
+                        .entry(caller_id)
+                        .or_insert_with(|| (accessor.name.clone(), weight));
+                }
+            }
+            if !indirect.is_empty() {
+                out.push_str("\n### Indirect Readers Through Properties\n");
+                out.push_str("Coverage: one static Calls hop from each property that directly reads this state; reflection and runtime dispatch remain unverified.\n");
+                for (caller_id, (accessor_name, weight)) in indirect.iter().take(limit) {
+                    if let Some(node) = graph.get_node(&req.project_id, caller_id).map_err(|e| format!("Property consumer lookup failed: {e}"))? {
+                        out.push_str(&format!(
+                            "- {} [{}] in {}:{} -> {} (weight: {})\n",
+                            node.name,
+                            node.node_type,
+                            node.file_path.as_str(),
+                            node.start_line,
+                            accessor_name,
+                            weight
+                        ));
+                    } else {
+                        out.push_str(&format!(
+                            "- {} -> {} (weight: {}; indexed node unavailable)\n",
+                            caller_id, accessor_name, weight
+                        ));
+                    }
+                }
+                if indirect.len() > limit || indirect_truncated {
+                    out.push_str(&format!("Coverage: indirect property readers truncated at {limit}.\n"));
+                }
             }
             out.push_str(
                 "\nnext: writers before readers when changing the shape of this value; \
@@ -2565,12 +2617,13 @@ impl Engram {
                 graph: &self.state.graph, project_id: &p.project_id, root: std::path::Path::new(&project_dir),
             };
             let (file_logic, analyzed, skipped) =
-                crate::services::business_logic_service::analyze_file_logic_with_context(
+                crate::services::business_logic_service::analyze_file_logic_with_context_concurrency(
                     dreaming,
                     file_path,
                     &content,
                     &cached_hashes,
                     Some(&dependency_context),
+                    p.max_concurrent,
                 )
                 .await;
 
@@ -2669,12 +2722,21 @@ impl Engram {
         let ps = self.ensure_project_runtime(&p.project_id).await?;
         let gen_ = self.get_active_generation(&p.project_id).await?;
 
+        let requested_top_k = p.sanitized_top_k();
+        let offset = p.sanitized_offset();
+        // Freshness is a post-retrieval source check. Oversample semantic
+        // candidates so legacy documents cannot occupy every requested slot
+        // before current-source evidence has a chance to rank.
+        let candidate_top_k = requested_top_k
+            .saturating_add(offset)
+            .saturating_mul(10)
+            .min(crate::models::requests::MAX_SEARCH_RESULTS);
         let query = HybridQuery {
             text: p.query.clone(),
             project_id: p.project_id.clone(),
             namespace: "business_logic".to_string(),
             generation: gen_,
-            top_k: p.sanitized_top_k(), // MCP1: clamp to MAX_SEARCH_RESULTS
+            top_k: candidate_top_k,
             fts_mode: "loose".to_string(),
             include_path_prefixes: None,
             exclude_path_prefixes: None,
@@ -2735,7 +2797,15 @@ impl Engram {
         } else { footer };
         let budget = 48 * 1024 - footer.len();
         let mut out = tokio::task::spawn_blocking(move || {
-            super::business_source::render_matches(&project_id, &question, std::path::Path::new(&root), analyses, budget)
+            super::business_source::render_matches_window(
+                &project_id,
+                &question,
+                std::path::Path::new(&root),
+                analyses,
+                budget,
+                offset,
+                requested_top_k,
+            )
         })
         .await
         .map_err(|error| {
@@ -2951,7 +3021,7 @@ impl Engram {
                     project_id: req.project_id.clone(),
                     namespace: "antipattern".into(),
                     generation: gen_,
-                    text: q,
+                    text: q.clone(),
                     top_k: req.sanitized_top_k(),
                     fts_mode: fts_mode.into(),
                     include_path_prefixes: None,
@@ -3020,8 +3090,28 @@ impl Engram {
         // least WARN even if similarity scores are low.
         let destructive_hits = detect_destructive_patterns(&code);
 
+        // Hybrid hit scores are reciprocal-rank-fusion values (about
+        // 1/(60+rank)), not similarities, and never reach the thresholds
+        // below. Similarity is the share of this code's terms found in each
+        // anti-pattern's stored content.
+        let mut similarities = Vec::with_capacity(hits.len());
+        for hit in &hits {
+            similarities.push(match ps.search.get_doc_by_pk(&hit.pk) {
+                Ok(Some((_, _, content, _, _))) => crate::services::pre_commit_review_service::gates::code_similarity(&content, &q),
+                Ok(None) => {
+                    evidence_gaps.push(format!("anti-pattern hit {} has no backing document", hit.pk));
+                    0.0
+                }
+                Err(e) => {
+                    evidence_gaps.push(format!("anti-pattern hit {} is unreadable: {e}", hit.pk));
+                    0.0
+                }
+            });
+        }
         let match_count = hits.len();
-        let mut highest_score = 0.0;
+        let highest_score = similarities.iter().copied().fold(0.0f32, f32::max);
+        // Only hits similar enough count toward the match-count escalation.
+        let similar_count = similarities.iter().filter(|s| **s > warn_t / 2.0).count();
         let cap = req.sanitized_top_k();
         let mut out = format!(
             "# Immune Check Result\n\n**Matches Found**: {} shown (cap top_k={}{})\n\n",
@@ -3039,14 +3129,12 @@ impl Engram {
                 "FAILURE: {f} — immune-file escalation could not run\n\n"
             ));
         }
-        for (i, hit) in hits.iter().enumerate() {
-            if hit.score > highest_score {
-                highest_score = hit.score;
-            }
+        for (i, (hit, similarity)) in hits.iter().zip(&similarities).enumerate() {
             out.push_str(&format!(
-                "### {}. {} (score: {:.3})\n\n{}\n\n",
+                "### {}. {} (similarity: {:.2}; rank score {:.3})\n\n{}\n\n",
                 i + 1,
                 hit.path,
+                similarity,
                 hit.score,
                 &antipattern_hit_text(hit.snippet.as_deref(), req.include_content)
             ));
@@ -3069,14 +3157,14 @@ impl Engram {
 
         // Match-count escalation: 3+ matches → WARN (compounding).
         const MATCH_COUNT_WARN_THRESHOLD: usize = 3;
-        let match_count_warn = match_count >= MATCH_COUNT_WARN_THRESHOLD;
+        let match_count_warn = similar_count >= MATCH_COUNT_WARN_THRESHOLD;
         if match_count_warn {
             verdict_rank = verdict_rank.max(1);
         }
 
         // Immune + any signal at all → WARN.
         let immune_any_signal =
-            is_immune_flagged && (match_count > 0 || !destructive_hits.is_empty());
+            is_immune_flagged && (similar_count > 0 || !destructive_hits.is_empty());
         if immune_any_signal {
             verdict_rank = verdict_rank.max(1);
         }
@@ -3084,7 +3172,7 @@ impl Engram {
         // Immune + destructive + a match → BLOCKED. A revert-flagged file
         // with destructive code AND anti-pattern evidence is textbook
         // "do not apply".
-        if is_immune_flagged && !destructive_hits.is_empty() && match_count > 0 {
+        if is_immune_flagged && !destructive_hits.is_empty() && similar_count > 0 {
             verdict_rank = verdict_rank.max(2);
         }
 
@@ -3102,12 +3190,14 @@ impl Engram {
         if is_immune_flagged || match_count_warn || !destructive_hits.is_empty() {
             out.push_str("## Escalation Signals\n\n");
             out.push_str(&format!(
-                "- highest similarity score: {:.3} (warn threshold: {:.3})\n",
+                "- highest similarity (share of this code's terms found in an anti-pattern): {:.2} (warn above {:.2}, block above 0.80)\n",
                 highest_score, warn_t
             ));
             out.push_str(&format!(
-                "- match count: {} (warn threshold: {})\n",
-                match_count, MATCH_COUNT_WARN_THRESHOLD
+                "- similar matches (similarity above {:.2}): {} (warn at {})\n",
+                warn_t / 2.0,
+                similar_count,
+                MATCH_COUNT_WARN_THRESHOLD
             ));
             if is_immune_flagged {
                 out.push_str(&format!(
@@ -3166,7 +3256,7 @@ impl Engram {
                     project_id: req.project_id.clone(),
                     namespace: "antipattern".into(),
                     generation: gen_,
-                    text: q,
+                    text: q.clone(),
                     top_k: req.sanitized_limit(),
                     fts_mode: fts_mode.into(),
                     include_path_prefixes: None,
@@ -3184,13 +3274,22 @@ impl Engram {
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        let highest_score = hits.first().map(|h| h.score).unwrap_or(0.0);
-        // FTS scores (BM25) are much lower than vector scores; use separate thresholds.
-        let (block_t, warn_t) = if req.use_vector {
-            (0.85, 0.65)
-        } else {
-            (0.05, 0.005)
-        };
+        // Hit scores are reciprocal-rank-fusion values in both modes, not
+        // similarities. Similarity is the share of this code's terms found in
+        // each anti-pattern's stored content.
+        let mut unreadable = 0usize;
+        let similarities: Vec<f32> = hits
+            .iter()
+            .map(|h| match ps.search.get_doc_by_pk(&h.pk) {
+                Ok(Some((_, _, content, _, _))) => crate::services::pre_commit_review_service::gates::code_similarity(&content, &q),
+                _ => {
+                    unreadable += 1;
+                    0.0
+                }
+            })
+            .collect();
+        let highest_score = similarities.iter().copied().fold(0.0f32, f32::max);
+        let (block_t, warn_t) = (0.85, 0.65);
         let verdict = if highest_score > block_t {
             "BLOCK"
         } else if highest_score > warn_t {
@@ -3200,13 +3299,21 @@ impl Engram {
         };
 
         let mut out = format!(
-            "verdict: {}\nscore: {:.3}\nindexed_patterns: {}\ncomparison: completed\nnote: Verdict applies only to matches in the queried anti-pattern index; it does not certify code safety.\n\n",
+            "verdict: {}\nsimilarity: {:.2}\nindexed_patterns: {}\ncomparison: completed\nnote: Verdict applies only to matches in the queried anti-pattern index; it does not certify code safety.\n\n",
             verdict, highest_score, ap_count
         );
+        if unreadable > 0 {
+            out.push_str(&format!(
+                "unreadable_matches: {unreadable} (backing document missing or unreadable; their similarity is unknown)\n\n"
+            ));
+        }
         if !hits.is_empty() {
             out.push_str("Matches in anti-pattern index:\n");
-            for h in hits.iter().take(3) {
-                out.push_str(&format!("- {} (score: {:.3})\n", h.path, h.score));
+            for (h, similarity) in hits.iter().zip(&similarities).take(3) {
+                out.push_str(&format!(
+                    "- {} (similarity: {:.2}; rank score {:.3})\n",
+                    h.path, similarity, h.score
+                ));
                 if req.include_content
                     && let Some(ref snippet) = h.snippet
                 {
@@ -6175,8 +6282,8 @@ mod tests {
     #[test]
     fn immune_rule_matches_exact_path() {
         assert!(immune_rule_matches_path(
-            "Site/App_Code/fiberjobb.vb",
-            "Site/App_Code/fiberjobb.vb"
+            "Site/App_Code/arbetsorder.vb",
+            "Site/App_Code/arbetsorder.vb"
         ));
     }
 
@@ -6185,16 +6292,16 @@ mod tests {
         // The rule might have been stored with Windows backslashes but the
         // target path carries forward slashes (or vice versa).
         assert!(immune_rule_matches_path(
-            "Site\\App_Code\\fiberjobb.vb",
-            "Site/App_Code/fiberjobb.vb"
+            "Site\\App_Code\\arbetsorder.vb",
+            "Site/App_Code/arbetsorder.vb"
         ));
     }
 
     #[test]
     fn immune_rule_matches_path_is_case_insensitive() {
         assert!(immune_rule_matches_path(
-            "site/app_code/fiberjobb.vb",
-            "Site/App_Code/FiberJobb.vb"
+            "site/app_code/arbetsorder.vb",
+            "Site/App_Code/ArbetsOrder.vb"
         ));
     }
 
@@ -6202,26 +6309,26 @@ mod tests {
     fn immune_rule_matches_glob_star() {
         assert!(immune_rule_matches_path(
             "Site/App_Code/*.vb",
-            "Site/App_Code/fiberjobb.vb"
+            "Site/App_Code/arbetsorder.vb"
         ));
         assert!(immune_rule_matches_path(
-            "**/fiberjobb.vb",
-            "Site/App_Code/fiberjobb.vb"
+            "**/arbetsorder.vb",
+            "Site/App_Code/arbetsorder.vb"
         ));
         assert!(!immune_rule_matches_path(
             "Site/App_Code/*.cs",
-            "Site/App_Code/fiberjobb.vb"
+            "Site/App_Code/arbetsorder.vb"
         ));
     }
 
     #[test]
     fn immune_rule_matches_plain_substring_without_globs() {
         // Bare patterns without metacharacters fall back to substring match
-        // so a rule keyed on `fiberjobb.vb` catches the file regardless of
+        // so a rule keyed on `arbetsorder.vb` catches the file regardless of
         // which directory the caller passes.
         assert!(immune_rule_matches_path(
-            "fiberjobb.vb",
-            "Site/App_Code/fiberjobb.vb"
+            "arbetsorder.vb",
+            "Site/App_Code/arbetsorder.vb"
         ));
     }
 
@@ -6235,7 +6342,7 @@ mod tests {
     #[test]
     fn detect_destructive_flags_linq_bulk_delete() {
         let hits = detect_destructive_patterns(
-            "db.fj_fiberjobb.DeleteAllOnSubmit(db.fj_fiberjobb.Where(x => x.active))",
+            "db.ao_arbetsorder.DeleteAllOnSubmit(db.ao_arbetsorder.Where(x => x.active))",
         );
         assert!(hits.iter().any(|h| h == "DeleteAllOnSubmit"));
     }

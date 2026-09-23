@@ -5,8 +5,36 @@ use rmcp::handler::server::tool::Parameters;
 use serde_json::{Value, json};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+/// Return-path facts come only from the Roslyn sidecar; without it the product
+/// correctly reports an UNKNOWN inventory, so this test needs the sidecar.
+fn configure_sidecar() -> bool {
+    static CONFIGURED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *CONFIGURED.get_or_init(|| {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join("tools/vb_roslyn_sidecar/publish_out")
+            .join(if cfg!(windows) {
+                "vb_roslyn_sidecar.exe"
+            } else {
+                "vb_roslyn_sidecar"
+            });
+        if !path.exists() {
+            return false;
+        }
+        unsafe { std::env::set_var("ENGRAM_VB_SIDECAR_PATH", path) };
+        true
+    })
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mock_helper_evidence_is_persisted_and_blocks_unverified_return_oracle() {
+    assert!(
+        configure_sidecar(),
+        "publish tools/vb_roslyn_sidecar (publish_out) before this test"
+    );
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
     let prompts = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));

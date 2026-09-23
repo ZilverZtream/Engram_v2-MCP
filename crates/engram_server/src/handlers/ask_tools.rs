@@ -351,7 +351,18 @@ impl Engram {
         // protected item is never anchored-evicted nor per-path-collapsed
         // (sweep 71: trim-after-reserve evicted the reserved .rdl item;
         // c43d: reserve-after-trim evicted the trim-approved asked file).
-        let protected = ranking::reserve_required(&mut evidence, &raw_pool, &plan, &req.question);
+        // Exempt exhaustive-set items consume no cap slot.
+        let used = evidence
+            .iter()
+            .filter(|e| !(exhaustive_contract && e.provider == "callee_set"))
+            .count();
+        let protected = ranking::reserve_required(
+            &mut evidence,
+            &raw_pool,
+            &plan,
+            &req.question,
+            lcap.saturating_sub(used),
+        );
         // Batch 3: under the lookup cap, one item per file.
         // Batch 4: and each slot must mention the asked entity (fail-safe).
         if lcap < depth.evidence_cap() && !exhaustive_contract {

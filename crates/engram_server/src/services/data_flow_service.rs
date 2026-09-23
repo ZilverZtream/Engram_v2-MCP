@@ -16,12 +16,16 @@ use std::sync::{Arc, LazyLock};
 /// Matches `Protected/Private/Public Sub/Function <name>(...)` in VB.NET or
 /// `protected/private/public void/... <name>(...)` in C#.
 static RE_METHOD_START_CS: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(private|protected|public|internal|static|\s)+[\w<>\[\]]+\s+(\w+)\s*\(")
+    Regex::new(
+        r"(?i)^\s*((?:(?:private|protected|public|internal|static|async|virtual|override|sealed|partial|extern|unsafe|new)\s+)+)(?:[\w<>\[\],?.]+\s+)+(\w+)\s*(?:<[^>]+>)?\s*\(",
+    )
         .expect("RE_METHOD_START_CS")
 });
 
 static RE_METHOD_START_VB: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(Private|Protected|Public|Friend|Shared)\s+(Sub|Function)\s+(\w+)\s*\(")
+    Regex::new(
+        r"(?i)^\s*((?:(?:Private|Protected|Public|Friend|Shared|Async|Overrides|Overloads|MustOverride|NotOverridable|Partial|Static)\s+)*)(Sub|Function)\s+(\w+)\s*\(",
+    )
         .expect("RE_METHOD_START_VB")
 });
 
@@ -55,6 +59,15 @@ static RE_STATE_READ: LazyLock<Regex> = LazyLock::new(|| {
 static RE_STATE_WRITE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"\b(Session|ViewState|Application|Cache)\s*[\(\[]["']?([\w\.]+)["']?[\)\]]\s*="#)
         .expect("RE_STATE_WRITE")
+});
+
+/// A property assignment such as `preferences.GroupByCustomer = true` or
+/// `GroupByCustomer = true` inside the declaring file.
+/// Direct state stores are handled above; this pattern lets the graph prove that
+/// an apparently ordinary property setter writes state internally.
+static RE_PROPERTY_ASSIGNMENT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^\s*((?:[A-Za-z_][A-Za-z0-9_]*\.)*[A-Za-z_][A-Za-z0-9_]*)\s*=")
+        .expect("RE_PROPERTY_ASSIGNMENT")
 });
 
 /// new SqlCommand, new SqlDataAdapter, .Fill(, .ExecuteReader(), .ExecuteNonQuery(), .ExecuteScalar()
@@ -737,6 +750,16 @@ pub fn trace_data_flow(
             "{entry_point}: more than {FOLLOW_EDGE_CAP} edges on the entry node — its own edges are partial"
         ));
     }
+    collect_property_state_writes(
+        graph,
+        project_id,
+        &method_body,
+        file_path,
+        entry_point,
+        &mut steps,
+        &mut state_writes,
+        &mut follow,
+    )?;
     follow_calls(
         graph,
         project_id,
@@ -746,6 +769,8 @@ pub fn trace_data_flow(
         &mut state_reads,
         &mut state_writes,
         &mut follow,
+        file_path,
+        codebehind_content,
     )?;
 
     // ── Step 4: re-sequence all steps ────────────────────────────────────────
@@ -788,12 +813,139 @@ pub fn trace_data_flow(
     })
 }
 
+/// Resolve qualified assignments in the handler to indexed property nodes and
+/// surface state writes performed by their setters. A state write is reported
+/// only when one best property match is available and that exact node owns a
+/// `WritesState` edge. Ambiguous graph matches remain explicit coverage stops.
+fn collect_property_state_writes(
+    graph: &Arc<GraphStore>,
+    project_id: &str,
+    method_body: &str,
+    source_file: &str,
+    entry_point: &str,
+    steps: &mut Vec<DataFlowStep>,
+    state_writes: &mut Vec<StateAccessInfo>,
+    follow: &mut FollowCoverage,
+) -> anyhow::Result<()> {
+    use std::collections::BTreeSet;
+
+    let mut assignments = BTreeSet::new();
+    for line in method_body.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("//") || trimmed.starts_with('\'') {
+            continue;
+        }
+        for capture in RE_PROPERTY_ASSIGNMENT.captures_iter(trimmed) {
+            let Some(whole_match) = capture.get(0) else {
+                continue;
+            };
+            if trimmed[whole_match.end()..].trim_start().starts_with('=') {
+                continue;
+            }
+            assignments.insert(capture[1].to_string());
+        }
+    }
+
+    for assignment in assignments {
+        let terminal = assignment.rsplit('.').next().unwrap_or(&assignment);
+        let is_qualified = assignment.contains('.');
+        let candidates = graph.query_nodes(
+            project_id,
+            Some("property"),
+            Some(terminal),
+            (!is_qualified).then_some(source_file),
+            51,
+        )?;
+        if candidates.is_empty() {
+            continue;
+        }
+
+        let assignment_lower = assignment.to_ascii_lowercase();
+        let mut scored: Vec<(u8, engram_graph::Node)> = candidates
+            .into_iter()
+            .filter_map(|node| {
+                let name = node.name.to_ascii_lowercase();
+                let same_file = node.file_path.as_str().eq_ignore_ascii_case(source_file);
+                let node_terminal = name.rsplit('.').next().unwrap_or(&name);
+                let score = if !is_qualified
+                    && same_file
+                    && node_terminal == assignment_lower
+                {
+                    3
+                } else if name == assignment_lower {
+                    3
+                } else if name.ends_with(&format!(".{assignment_lower}")) {
+                    2
+                } else if name.contains('.') && assignment_lower.ends_with(&format!(".{name}")) {
+                    1
+                } else {
+                    0
+                };
+                (score > 0).then_some((score, node))
+            })
+            .collect();
+        scored.sort_by(|a, b| b.0.cmp(&a.0));
+        let Some((best_score, best_node)) = scored.first() else {
+            continue;
+        };
+        if scored.get(1).is_some_and(|(score, _)| score == best_score) {
+            follow.stops.push(format!(
+                "{assignment}: multiple indexed properties match the assignment; setter state was not attributed"
+            ));
+            continue;
+        }
+
+        let (edges, truncated) = graph.edges_touching_with_coverage(
+            project_id,
+            &best_node.node_id,
+            FOLLOW_EDGE_CAP,
+        )?;
+        if truncated {
+            follow.truncated_nodes += 1;
+            follow.stops.push(format!(
+                "{assignment}: property edge cap {FOLLOW_EDGE_CAP} reached; setter evidence is partial"
+            ));
+        }
+        for edge in edges.into_iter().filter(|edge| {
+            edge.source_id == best_node.node_id && edge.edge_kind == EdgeKind::WritesState
+        }) {
+            let (state_type, key) = parse_state_target(&edge.target_id);
+            if !state_writes
+                .iter()
+                .any(|state| state.key == key && state.state_type == state_type)
+            {
+                state_writes.push(StateAccessInfo {
+                    state_type: state_type.clone(),
+                    key: key.clone(),
+                    direction: "write".into(),
+                    method_context: entry_point.to_string(),
+                });
+            }
+            let mut details = HashMap::new();
+            details.insert("source".into(), "property_setter_graph".into());
+            details.insert("property_node_id".into(), best_node.node_id.clone());
+            steps.push(DataFlowStep {
+                sequence: steps.len() + 1,
+                step_type: "GraphEdge".into(),
+                description: format!(
+                    "Graph: assigning {assignment} invokes a setter that writes {state_type}[\"{key}\"]"
+                ),
+                source: assignment.clone(),
+                target: edge.target_id,
+                details,
+                resolved: Some(true),
+            });
+        }
+    }
+    Ok(())
+}
+
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 /// Infer a human-readable trigger description from the handler name.
 /// Does an indexed function node NAME denote the callee of `expr`?
 /// Page members are indexed bare (`Page_Load`); App_Code class members are
-/// indexed QUALIFIED (`_io.installationsobjektprojekt.GetAllByCheckingTotalProject`),
+/// indexed QUALIFIED (`_io.bokningsobjektprojekt.GetAllByCheckingTotalProject`),
 /// so a bare comparison reported every domain-helper call as unresolved
 /// (live, 2026-08-28). Match the bare name, or a qualified name whose last
 /// segments agree with the expression's `Class.Method` tail.
@@ -878,13 +1030,15 @@ fn extract_method_body_cs(lines: &[&str], method_name: &str) -> String {
     let mut start_line = None;
 
     for (i, line) in lines.iter().enumerate() {
-        // Look for a line that names the method and has a `(`
-        if line.contains(method_name) && line.contains('(') {
-            // Verify it looks like a method declaration via regex
-            if RE_METHOD_START_CS.is_match(line) || line.contains(method_name) {
-                start_line = Some(i);
-                break;
-            }
+        // Require a declaration and an exact declared name. Treating the first
+        // call site as the declaration can splice the caller into the callee.
+        if RE_METHOD_START_CS
+            .captures(line)
+            .and_then(|capture| capture.get(2))
+            .is_some_and(|name| name.as_str().eq_ignore_ascii_case(method_name))
+        {
+            start_line = Some(i);
+            break;
         }
     }
 
@@ -922,9 +1076,10 @@ fn extract_method_body_vb(lines: &[&str], method_name: &str) -> String {
     let mut start_line = None;
 
     for (i, line) in lines.iter().enumerate() {
-        if line.contains(method_name)
-            && line.contains('(')
-            && (RE_METHOD_START_VB.is_match(line) || line.contains(method_name))
+        if RE_METHOD_START_VB
+            .captures(line)
+            .and_then(|capture| capture.get(3))
+            .is_some_and(|name| name.as_str().eq_ignore_ascii_case(method_name))
         {
             start_line = Some(i);
             break;
@@ -1228,6 +1383,8 @@ fn follow_calls(
     state_reads: &mut Vec<StateAccessInfo>,
     state_writes: &mut Vec<StateAccessInfo>,
     follow: &mut FollowCoverage,
+    source_file: &str,
+    source_text: &str,
 ) -> anyhow::Result<()> {
     use std::collections::{HashSet, VecDeque};
     let mut visited: HashSet<String> = entry_ids.iter().cloned().collect();
@@ -1253,6 +1410,22 @@ fn follow_calls(
                 "{name} (depth {depth}): beyond depth cap {FOLLOW_DEPTH_CAP} — not followed"
             ));
             continue;
+        }
+        if let Some(node) = graph.get_node(project_id, &node_id)?
+            && node.file_path.as_str().eq_ignore_ascii_case(source_file)
+        {
+            let method_name = node.name.rsplit('.').next().unwrap_or(&node.name);
+            let body = extract_method_body(source_text, method_name);
+            collect_property_state_writes(
+                graph,
+                project_id,
+                &body,
+                source_file,
+                method_name,
+                steps,
+                state_writes,
+                follow,
+            )?;
         }
         let (edges, truncated) =
             graph.edges_touching_with_coverage(project_id, &node_id, FOLLOW_EDGE_CAP)?;
@@ -1543,6 +1716,21 @@ mod tests {
             file_path: engram_core::RelPath::new(file),
             start_line: 1,
             end_line: 3,
+            generation: 1,
+            metadata: None,
+        }
+    }
+
+    fn make_property_node(id: &str, file: &str, name: &str) -> engram_graph::Node {
+        engram_graph::Node {
+            node_id: id.into(),
+            node_type: "property".into(),
+            name: name.into(),
+            namespace: "test".into(),
+            language: "vbnet".into(),
+            file_path: engram_core::RelPath::new(file),
+            start_line: 1,
+            end_line: 8,
             generation: 1,
             metadata: None,
         }
@@ -1911,6 +2099,168 @@ protected void btnSearch_Click(object sender, EventArgs e)
         assert!(has_graph_step, "expected GraphEdge step");
     }
 
+    #[test]
+    fn property_setter_graph_edge_surfaces_indirect_state_write() {
+        let graph = make_graph();
+        let property_id = "property:Preferences.GroupByCustomer";
+        graph
+            .upsert_nodes(
+                "proj",
+                &[make_property_node(
+                    property_id,
+                    "Preferences.vb",
+                    "Preferences.GroupByCustomer",
+                )],
+            )
+            .expect("upsert property node");
+        graph
+            .upsert_edges(
+                "proj",
+                &[make_edge(
+                    property_id,
+                    "state:Session:GroupByCustomer",
+                    EdgeKind::WritesState,
+                    None,
+                )],
+            )
+            .expect("upsert property state edge");
+
+        let source = r#"
+Protected Sub btnMode_Click(sender As Object, e As EventArgs)
+    Preferences.GroupByCustomer = True
+    Response.Redirect("Dashboard.aspx")
+End Sub
+"#;
+        let trace = trace_data_flow(&graph, "proj", "Dashboard.aspx.vb", "btnMode_Click", source)
+            .expect("trace ok");
+
+        assert!(trace
+            .state_writes
+            .iter()
+            .any(|state| state.state_type == "Session" && state.key == "GroupByCustomer"));
+        assert!(trace.steps.iter().any(|step| {
+            step.details.get("source").map(String::as_str) == Some("property_setter_graph")
+                && step.target == "state:Session:GroupByCustomer"
+        }));
+    }
+
+    #[test]
+    fn same_file_helper_follow_surfaces_bare_property_state_write() {
+        let graph = make_graph();
+        let entry_id = "fn:Dashboard.aspx.vb:btnMode_Click";
+        let helper_id = "fn:Dashboard.aspx.vb:SetGrouping";
+        let property_id = "property:Dashboard.IsGroupingByCustomer";
+        graph
+            .upsert_nodes(
+                "proj",
+                &[
+                    make_fn_node(entry_id, "Dashboard.aspx.vb", "Dashboard.btnMode_Click"),
+                    make_fn_node(helper_id, "Dashboard.aspx.vb", "Dashboard.SetGrouping"),
+                    make_property_node(
+                        property_id,
+                        "Dashboard.aspx.vb",
+                        "Dashboard.IsGroupingByCustomer",
+                    ),
+                ],
+            )
+            .expect("upsert same-file nodes");
+        graph
+            .upsert_edges(
+                "proj",
+                &[
+                    make_edge(entry_id, helper_id, EdgeKind::Calls, None),
+                    make_edge(
+                        property_id,
+                        "state:Session:GroupingMode",
+                        EdgeKind::WritesState,
+                        None,
+                    ),
+                ],
+            )
+            .expect("upsert helper and state edges");
+
+        let source = r#"
+Protected Sub btnMode_Click(sender As Object, e As EventArgs)
+    SetGrouping(True)
+End Sub
+
+Private Sub SetGrouping(value As Boolean)
+    If IsGroupingByCustomer = value Then
+        Return
+    End If
+    IsGroupingByCustomer = value
+End Sub
+"#;
+        let trace = trace_data_flow(&graph, "proj", "Dashboard.aspx.vb", "btnMode_Click", source)
+            .expect("trace ok");
+
+        assert!(trace
+            .state_writes
+            .iter()
+            .any(|state| state.key == "GroupingMode" && state.method_context == "SetGrouping"));
+        assert_eq!(
+            trace
+                .steps
+                .iter()
+                .filter(|step| step.target == "state:Session:GroupingMode")
+                .count(),
+            1,
+            "the comparison in the helper must not be treated as an assignment"
+        );
+    }
+
+    #[test]
+    fn ambiguous_property_assignment_does_not_invent_state_write() {
+        let graph = make_graph();
+        let nodes = [
+            make_property_node(
+                "property:One.Preferences.GroupByCustomer",
+                "One.vb",
+                "One.Preferences.GroupByCustomer",
+            ),
+            make_property_node(
+                "property:Two.Preferences.GroupByCustomer",
+                "Two.vb",
+                "Two.Preferences.GroupByCustomer",
+            ),
+        ];
+        graph.upsert_nodes("proj", &nodes).expect("upsert properties");
+        graph
+            .upsert_edges(
+                "proj",
+                &[
+                    make_edge(
+                        &nodes[0].node_id,
+                        "state:Session:OneGroup",
+                        EdgeKind::WritesState,
+                        None,
+                    ),
+                    make_edge(
+                        &nodes[1].node_id,
+                        "state:Session:TwoGroup",
+                        EdgeKind::WritesState,
+                        None,
+                    ),
+                ],
+            )
+            .expect("upsert property state edges");
+
+        let source = r#"
+Protected Sub btnMode_Click(sender As Object, e As EventArgs)
+    Preferences.GroupByCustomer = True
+End Sub
+"#;
+        let trace = trace_data_flow(&graph, "proj", "Dashboard.aspx.vb", "btnMode_Click", source)
+            .expect("trace ok");
+
+        assert!(trace.state_writes.is_empty());
+        assert!(trace
+            .follow
+            .stops
+            .iter()
+            .any(|stop| stop.contains("multiple indexed properties")));
+    }
+
     // ── Test 8: Output structure / serialization ──────────────────────────────
 
     #[test]
@@ -1962,22 +2312,47 @@ protected void btnLoad_Click(object sender, EventArgs e)
     // ── Additional: trigger inference ─────────────────────────────────────────
 
     #[test]
+    fn method_body_extraction_skips_earlier_call_sites() {
+        let vb = r#"
+Private Sub Caller()
+    LoadData()
+End Sub
+Private Async Function LoadData() As Task
+    Session("Loaded") = True
+End Function
+"#;
+        let cs = r#"
+private void Caller() { LoadData(); }
+private async Task LoadData()
+{
+    Session["Loaded"] = true;
+}
+"#;
+        let vb_body = extract_method_body(vb, "LoadData");
+        let cs_body = extract_method_body(cs, "LoadData");
+        assert!(vb_body.contains("Session(\"Loaded\")"), "{vb_body}");
+        assert!(!vb_body.contains("Caller"), "{vb_body}");
+        assert!(cs_body.contains("Session[\"Loaded\"]"), "{cs_body}");
+        assert!(!cs_body.contains("Caller"), "{cs_body}");
+    }
+
+    #[test]
     fn callee_names_bare_and_qualified() {
         assert!(callee_name_matches("Page_Load", "Page_Load", "Page_Load"));
         assert!(callee_name_matches(
-            "_io.installationsobjektprojekt.GetAllByCheckingTotalProject",
-            "_io.installationsobjektprojekt.GetAllByCheckingTotalProject",
+            "_io.bokningsobjektprojekt.GetAllByCheckingTotalProject",
+            "_io.bokningsobjektprojekt.GetAllByCheckingTotalProject",
             "GetAllByCheckingTotalProject"
         ));
         assert!(callee_name_matches(
-            "installationsobjektprojekt.GetAllByCheckingTotalProject",
-            "_io.installationsobjektprojekt.GetAllByCheckingTotalProject",
+            "bokningsobjektprojekt.GetAllByCheckingTotalProject",
+            "_io.bokningsobjektprojekt.GetAllByCheckingTotalProject",
             "GetAllByCheckingTotalProject"
         ));
         // Same method name on a different class is NOT the callee.
         assert!(!callee_name_matches(
             "_rv.other.GetAllByCheckingTotalProject",
-            "_io.installationsobjektprojekt.GetAllByCheckingTotalProject",
+            "_io.bokningsobjektprojekt.GetAllByCheckingTotalProject",
             "GetAllByCheckingTotalProject"
         ));
         assert!(!callee_name_matches("SetOK", "s.SetError", "SetError"));

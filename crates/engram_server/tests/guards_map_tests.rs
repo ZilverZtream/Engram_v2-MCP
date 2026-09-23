@@ -321,6 +321,98 @@ async fn the_scan_is_bounded_at_the_store_and_its_coverage_reported() {
 }
 
 #[tokio::test]
+async fn a_library_call_that_cannot_hold_a_guard_does_not_erase_the_verdict() {
+    // Live (a VB api file, 9 of 9 functions): every verdict came back `unknown`
+    // with "helper evidence is incomplete; cannot conclude that no guard
+    // exists". The unresolved "helpers" were `JsonConvert.SerializeObject`,
+    // `permitsList.Select(...)`, `s.SetError`, LINQ operators and anonymous
+    // types — call targets that can never be project symbols and can never
+    // hold a permission check. Counting them as missing guard evidence erases
+    // the parity verdict on every file that calls a third-party library.
+    //
+    // An unresolved PROJECT helper must still force `unknown` — that is the
+    // sibling test below, and this fix must not weaken it.
+    let (_tmp, state, dir) = build_state();
+    let source = dir.join(FILE);
+    std::fs::create_dir_all(source.parent().unwrap()).unwrap();
+    std::fs::write(&source, "Sub Plain()\n Dim s = JsonConvert.SerializeObject(x)\nEnd Sub\n")
+        .unwrap();
+    let plain = func(FILE, "Plain", 1, None);
+    state.graph.upsert_nodes(PID, &[plain.clone()]).unwrap();
+    state
+        .graph
+        .upsert_edges(PID, &[calls(&plain.node_id, "::JsonConvert.SerializeObject")])
+        .unwrap();
+
+    let text = run(
+        &Engram::new(state),
+        json!({"project_id":PID,"scope":FILE,"output_json":true}),
+    )
+    .await;
+    let report: Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(
+        report["functions"][0]["verdict"], "unguarded",
+        "a library call cannot hold a guard, so it must not demote the verdict:\n{text}"
+    );
+}
+
+#[tokio::test]
+async fn a_helper_with_no_permission_check_does_not_erase_the_verdict() {
+    // Second half of the same live defect. After library/LINQ targets stopped
+    // counting, 81 of 93 remaining failures on a VB api file read
+    // "helper <X> is conditional; all-path coverage unknown" for helpers like
+    // `_data.records.GetById`, `AppDataContext.New`, `api.JsonResult.New` —
+    // none of which carry a permission check at all.
+    //
+    // The first arm of that test passes the HELPER NAME as the checks, so it
+    // asks "is the call to this helper conditional?". For a helper that could
+    // never supply a guard the answer is irrelevant, yet it counts as missing
+    // guard evidence and demotes a correct `unguarded` to `unknown`.
+    let (_tmp, state, dir) = build_state();
+    let source = dir.join(FILE);
+    std::fs::create_dir_all(source.parent().unwrap()).unwrap();
+    let mut lines = vec![String::new(); 14];
+    lines[0] = "Sub Plain()".into();
+    lines[1] = "    If x Then".into();
+    lines[2] = "        MakeThing()".into(); // conditional call to a check-less helper
+    lines[3] = "    End If".into();
+    lines[4] = "End Sub".into();
+    lines[7] = "Sub MakeThing()".into();
+    lines[8] = "    Return".into();
+    lines[9] = "End Sub".into();
+    std::fs::write(&source, lines.join("\n")).unwrap();
+
+    let plain = func(FILE, "Plain", 1, None);
+    let helper = func(FILE, "MakeThing", 8, None); // no permission_checks
+    state
+        .graph
+        .upsert_nodes(PID, &[plain.clone(), helper.clone()])
+        .unwrap();
+    state
+        .graph
+        .upsert_edges(PID, &[calls(&plain.node_id, &helper.node_id)])
+        .unwrap();
+
+    let text = run(
+        &Engram::new(state),
+        json!({"project_id":PID,"scope":FILE,"output_json":true}),
+    )
+    .await;
+    let report: Value = serde_json::from_str(&text).unwrap();
+    let verdict = report["functions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|f| f["name"] == "Plain")
+        .map(|f| f["verdict"].as_str().unwrap_or_default().to_string())
+        .unwrap_or_default();
+    assert_eq!(
+        verdict, "unguarded",
+        "a helper that carries no permission check cannot be missing guard evidence:\n{text}"
+    );
+}
+
+#[tokio::test]
 async fn unresolved_helpers_and_fallback_checks_are_unknown() {
     let (_tmp, state, _dir) = build_state();
     let caller = func(FILE, "Caller", 1, None);
@@ -414,4 +506,299 @@ async fn helper_and_setting_caps_report_actual_incomplete_coverage() {
     assert!(text.contains("helper traversal truncated at 50"), "{text}");
     assert!(text.contains("settings edges truncated at 20"), "{text}");
     assert_eq!(report["settings_read"].as_array().unwrap().len(), 20);
+}
+
+// ── Live shape: class-qualified names ────────────────────────────────────────
+//
+// Every fixture above names a function BARE (`Wrapped`), but the real index
+// stores a function node's `name` CLASS-QUALIFIED (`api.LogError`) and keeps the
+// bare form only as the trailing segment. Several defects below are invisible
+// under a bare-name fixture because `n.name` and its bare form are identical
+// there — which is why the suite never caught them. These tests build their own
+// nodes so the fixture matches the index.
+
+const PART_A: &str = "Site/App_Code/api/api-part-a.vb";
+const PART_B: &str = "Site/App_Code/api/api-part-b.vb";
+
+fn qualified(path: &str, qualified_name: &str, line: u32, meta: Option<Value>) -> Node {
+    Node {
+        node_id: format!("sym:function:{path}:{qualified_name}:{line}"),
+        node_type: "function".into(),
+        name: qualified_name.into(),
+        namespace: "api".into(),
+        language: "vbnet".into(),
+        file_path: RelPath::new(path),
+        start_line: line,
+        end_line: line + 4,
+        generation: 1,
+        metadata: meta,
+    }
+}
+
+fn write_source(dir: &std::path::Path, path: &str, lines: &[&str]) {
+    let full = dir.join(path);
+    std::fs::create_dir_all(full.parent().unwrap()).unwrap();
+    std::fs::write(full, lines.join("\n")).unwrap();
+}
+
+#[tokio::test]
+async fn a_same_class_helper_declared_in_another_file_is_not_unresolved() {
+    // A class split across files (VB `Partial Class`, C# `partial class`) emits
+    // a BARE `::Name` call edge for a member declared in a sibling file. The
+    // only lexical fallback is keyed by (file, name), so it never binds, and the
+    // unresolved name then erases the caller's verdict — although the helper IS
+    // indexed, one file over, in the same class.
+    let (_tmp, state, dir) = build_state();
+    write_source(
+        &dir,
+        PART_A,
+        &["Sub Caller()", "    LogThing()", "    Return", "End Sub"],
+    );
+    write_source(&dir, PART_B, &["Sub LogThing()", "    Return", "End Sub"]);
+    let caller = qualified(PART_A, "api.Caller", 1, None);
+    let helper = qualified(PART_B, "api.LogThing", 1, None); // carries no permission check
+    state
+        .graph
+        .upsert_nodes(PID, &[caller.clone(), helper])
+        .unwrap();
+    state
+        .graph
+        .upsert_edges(PID, &[calls(&caller.node_id, "::LogThing")])
+        .unwrap();
+
+    let text = run(
+        &Engram::new(state),
+        json!({"project_id":PID,"scope":PART_A,"output_json":true}),
+    )
+    .await;
+    let report: Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(
+        report["functions"][0]["verdict"], "unguarded",
+        "`LogThing` is indexed as `api.LogThing` in the same class one file over, \
+         and carries no permission check, so it cannot be missing guard evidence:\n{text}"
+    );
+}
+
+#[tokio::test]
+async fn same_file_overloads_that_agree_do_not_erase_the_verdict() {
+    // The cross-file path added for partial classes resolves overloads
+    // honestly: candidates that AGREE on carrying a permission check proceed,
+    // and only DISAGREEMENT keeps the verdict unknown. The older same-file
+    // lexical path is harsher — any `matches.len() != 1` is a hard failure — so
+    // two overloads of a check-less helper erase a verdict in one file while
+    // the same pair one file over no longer does. Incoherent, and this is the
+    // largest remaining failure class.
+    let (_tmp, state, dir) = build_state();
+    write_source(
+        &dir,
+        PART_A,
+        &[
+            "Sub Caller()",
+            "    LogThing()",
+            "    Return",
+            "End Sub",
+            "Sub LogThing()",
+            "    Return",
+            "End Sub",
+            "Sub LogThing(reason)",
+            "    Return",
+            "End Sub",
+        ],
+    );
+    let caller = qualified(PART_A, "api.Caller", 1, None);
+    // Two overloads in the SAME file; neither carries a permission check, so
+    // which one binds cannot change the guard answer.
+    let first = qualified(PART_A, "api.LogThing", 5, None);
+    let second = qualified(PART_A, "api.LogThing", 8, None);
+    state
+        .graph
+        .upsert_nodes(PID, &[caller, first, second])
+        .unwrap();
+
+    let text = run(
+        &Engram::new(state),
+        json!({"project_id":PID,"scope":PART_A,"output_json":true}),
+    )
+    .await;
+    let report: Value = serde_json::from_str(&text).unwrap();
+    let caller_verdict = report["functions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|f| f["name"] == "Caller")
+        .map(|f| f["verdict"].as_str().unwrap_or_default().to_string())
+        .unwrap_or_default();
+    assert_eq!(
+        caller_verdict, "unguarded",
+        "overloads that agree on carrying no permission check cannot be missing \
+         guard evidence:\n{text}"
+    );
+}
+
+#[tokio::test]
+async fn same_file_overloads_that_disagree_still_erase_the_verdict() {
+    // The other half, and the reason this cannot simply take the first match:
+    // when one overload guards and the other does not, WHICH one binds decides
+    // the verdict, so `unknown` is the honest answer. The sibling case where
+    // EVERY overload carries a check is equally unsafe to credit and is pinned
+    // by `quoted_helpers_and_ambiguous_overloads_do_not_receive_guard_credit`
+    // in guards_conditional_check_tests.rs: overloads are different functions,
+    // so "they all have checks" is not evidence that the one actually bound
+    // guards every path. Only the all-check-LESS case may be admitted.
+    let (_tmp, state, dir) = build_state();
+    write_source(
+        &dir,
+        PART_A,
+        &[
+            "Sub Caller()",
+            "    LogThing()",
+            "    Return",
+            "End Sub",
+            "Sub LogThing()",
+            "    CheckRead()",
+            "End Sub",
+            "Sub LogThing(reason)",
+            "    Return",
+            "End Sub",
+        ],
+    );
+    let caller = qualified(PART_A, "api.Caller", 1, None);
+    let guarded = qualified(
+        PART_A,
+        "api.LogThing",
+        5,
+        Some(json!({"permission_checks": "CheckRead"})),
+    );
+    let bare = qualified(PART_A, "api.LogThing", 8, None);
+    state
+        .graph
+        .upsert_nodes(PID, &[caller, guarded, bare])
+        .unwrap();
+
+    let text = run(
+        &Engram::new(state),
+        json!({"project_id":PID,"scope":PART_A,"output_json":true}),
+    )
+    .await;
+    let report: Value = serde_json::from_str(&text).unwrap();
+    let caller_verdict = report["functions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|f| f["name"] == "Caller")
+        .map(|f| f["verdict"].as_str().unwrap_or_default().to_string())
+        .unwrap_or_default();
+    assert_eq!(
+        caller_verdict, "unknown",
+        "disagreeing overloads must keep the verdict unknown:\n{text}"
+    );
+}
+
+#[tokio::test]
+async fn a_language_builtin_is_not_an_unresolved_project_helper() {
+    // `IsNothing` is a VB language intrinsic, not a project symbol. It resolves
+    // to no node, and a bare unresolved name is deliberately treated as a
+    // possible project helper — so an intrinsic erases the verdict on every
+    // function that uses one.
+    let (_tmp, state, dir) = build_state();
+    write_source(
+        &dir,
+        PART_A,
+        &[
+            "Sub Caller()",
+            "    If IsNothing(x) Then Return",
+            "    Return",
+            "End Sub",
+        ],
+    );
+    let caller = qualified(PART_A, "api.Caller", 1, None);
+    state.graph.upsert_nodes(PID, &[caller.clone()]).unwrap();
+    state
+        .graph
+        .upsert_edges(PID, &[calls(&caller.node_id, "::IsNothing")])
+        .unwrap();
+
+    let text = run(
+        &Engram::new(state),
+        json!({"project_id":PID,"scope":PART_A,"output_json":true}),
+    )
+    .await;
+    let report: Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(
+        report["functions"][0]["verdict"], "unguarded",
+        "a language intrinsic cannot hold a permission check:\n{text}"
+    );
+}
+
+#[tokio::test]
+async fn client_keys_read_through_a_dictionary_accessor_are_reported() {
+    // `qry.data("k")` is matched, but the `.Item("k")` / `.ContainsKey("k")`
+    // accessor forms — the ordinary way to read a dictionary in VB — are not,
+    // so the tool reports "no client input" for a function that reads one.
+    let (_tmp, state, dir) = build_state();
+    write_source(
+        &dir,
+        PART_A,
+        &[
+            "Sub Caller()",
+            "    If qry.data.ContainsKey(\"record_id\") Then",
+            "        Dim v = qry.data.Item(\"record_id\")",
+            "    End If",
+            "End Sub",
+        ],
+    );
+    let caller = qualified(PART_A, "api.Caller", 1, None);
+    state.graph.upsert_nodes(PID, &[caller]).unwrap();
+
+    let text = run(
+        &Engram::new(state),
+        json!({"project_id":PID,"scope":PART_A,"output_json":true}),
+    )
+    .await;
+    let report: Value = serde_json::from_str(&text).unwrap();
+    assert!(
+        report["functions"][0]["scope_reads"]
+            .to_string()
+            .contains("record_id"),
+        "a client key read through `.Item(...)` is still client input:\n{text}"
+    );
+}
+
+#[tokio::test]
+async fn every_failure_names_the_function_it_belongs_to() {
+    // A failure is what demotes a verdict, but failures are owned by the
+    // CLASS-QUALIFIED name while `functions[].name` is bare, so a consumer
+    // cannot attribute any failure to any function.
+    let (_tmp, state, dir) = build_state();
+    write_source(
+        &dir,
+        PART_A,
+        &["Sub Caller()", "    MissingGuard()", "End Sub"],
+    );
+    let caller = qualified(PART_A, "api.Caller", 1, None);
+    state.graph.upsert_nodes(PID, &[caller.clone()]).unwrap();
+    state
+        .graph
+        .upsert_edges(PID, &[calls(&caller.node_id, "::MissingGuard")])
+        .unwrap();
+
+    let text = run(
+        &Engram::new(state),
+        json!({"project_id":PID,"scope":PART_A,"output_json":true}),
+    )
+    .await;
+    let report: Value = serde_json::from_str(&text).unwrap();
+    let name = report["functions"][0]["name"].as_str().unwrap().to_string();
+    let failures = report["coverage"]["failures"].as_array().unwrap().clone();
+    assert!(
+        !failures.is_empty(),
+        "an unresolved project helper must still be a failure:\n{text}"
+    );
+    for failure in &failures {
+        let line = failure.as_str().unwrap();
+        assert!(
+            line.starts_with(&format!("{name}: ")),
+            "every failure must be attributable to the function it pins (`{name}`): {line}\n{text}"
+        );
+    }
 }

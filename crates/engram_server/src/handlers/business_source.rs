@@ -344,6 +344,7 @@ mod claim_field_guidance_tests {
 }
 
 /// Bounded excerpts retain source status and a retrievable document identity.
+#[cfg(test)]
 pub(super) fn render_matches(
     project_id: &str,
     question: &str,
@@ -351,24 +352,82 @@ pub(super) fn render_matches(
     analyses: Vec<(String, String, f32, String)>,
     budget: usize,
 ) -> String {
+    let result_limit = analyses.len();
+    render_matches_with_limit(project_id, question, root, analyses, budget, result_limit)
+}
+
+#[cfg(test)]
+pub(super) fn render_matches_with_limit(
+    project_id: &str,
+    question: &str,
+    root: &Path,
+    analyses: Vec<(String, String, f32, String)>,
+    budget: usize,
+    result_limit: usize,
+) -> String {
+    render_matches_window(
+        project_id, question, root, analyses, budget, 0, result_limit,
+    )
+}
+
+pub(super) fn render_matches_window(
+    project_id: &str,
+    question: &str,
+    root: &Path,
+    analyses: Vec<(String, String, f32, String)>,
+    budget: usize,
+    offset: usize,
+    result_limit: usize,
+) -> String {
+    const CARD_EXCERPT_BYTES: usize = 4 * 1024;
     let mut audit = SourceAudit::default();
+    let candidates = analyses.len();
+    // Search relevance alone must not put stale or identity-free documents
+    // ahead of evidence that still matches the current source. Preserve the
+    // search engine's order within each evidence class.
+    let mut analyses = analyses
+        .into_iter()
+        .map(|(doc_id, path, score, content)| {
+            let status = audit.describe(&content, root);
+            let rank = if status.starts_with("VERIFIED_METHOD_HASH:") {
+                0
+            } else if status.starts_with("STALE:") {
+                1
+            } else {
+                2
+            };
+            (rank, status, doc_id, path, score, content)
+        })
+        .collect::<Vec<_>>();
+    analyses.sort_by_key(|entry| entry.0);
+    let available_after_offset = analyses.len().saturating_sub(offset);
+    analyses = analyses.into_iter().skip(offset).take(result_limit.max(1)).collect();
     let matched = analyses.len();
+    let source_current = analyses.iter().filter(|entry| entry.0 == 0).count();
+    let stale = analyses.iter().filter(|entry| entry.0 == 1).count();
+    let unverified = matched.saturating_sub(source_current + stale);
     let mut displayed = 0;
     let mut truncated = 0;
     let mut out = format!(
-        "# Business-logic matches for '{}'\nEvidence excerpts, not complete rule inventories. Limits: 8 KiB content per document, 48 KiB total response.\n",
-        utf8_prefix(question, 1024)
+        "# Business-logic matches for '{}'\nEvidence readiness: source_current={source_current}, stale={stale}, unverified={unverified}, matched={matched}, candidates_checked={candidates}, offset={offset}, available_after_offset={available_after_offset}. A matching method hash establishes source currency only; rules remain inferred until domain/test validation.\nCompact evidence cards, not complete rule inventories. Limits: 4 KiB content per card, 48 KiB total response. Use each full_document call for the complete stored analysis.\n",
+        utf8_prefix(question, 1024),
     );
+    if source_current == 0 {
+        out.push_str("USABLE CURRENT-SOURCE EVIDENCE: 0. Do not use these matches as current behavior. Run analyze_business_logic for the exact relevant source files, then query again.\n");
+    } else if source_current < matched {
+        out.push_str("PARTIAL CURRENT-SOURCE EVIDENCE: use only source_current cards; refresh stale/unverified files with analyze_business_logic before relying on them.\n");
+    } else {
+        out.push_str("CURRENT-SOURCE COVERAGE: all retrieved cards match their current method bodies; semantic/domain validation is still required.\n");
+    }
     if question.len() > 1024 {
         out.push_str("Query display truncated at 1024 bytes.\n");
     }
-    for (doc_id, path, score, content) in analyses {
-        let status = audit.describe(&content, root);
+    for (_, status, doc_id, path, score, content) in analyses {
         let mut qualifications = audit.qualifications(&content, root);
         qualifications.extend(claim_review_guidance(project_id, &doc_id, &content));
         let recovery = serde_json::json!({"project_id":project_id,"doc_id":doc_id,"namespace":"business_logic"});
         let presentation = claim_presentation(&content);
-        let excerpt = utf8_prefix(&presentation, 8 * 1024);
+        let excerpt = utf8_prefix(&presentation, CARD_EXCERPT_BYTES);
         let is_truncated = excerpt.len() < presentation.len();
         // Critical qualifications are independent of the bounded raw excerpt.
         let summary = qualifications
@@ -414,7 +473,7 @@ pub(super) fn render_matches(
             );
         }
         if is_truncated {
-            card.push_str("INCOMPLETE: document excerpt truncated at 8 KiB; use full_document for the stored rules.\n");
+            card.push_str("INCOMPLETE: compact card excerpt truncated at 4 KiB; use full_document for the complete stored rules.\n");
         }
         if out.len() + card.len() + 512 > budget {
             break;
@@ -425,7 +484,11 @@ pub(super) fn render_matches(
     }
     out.push_str(&format!("\nDisplay coverage: matched={matched}, displayed={displayed}, omitted={}, truncated_documents={truncated}. Counts apply to retrieved matches, not the entire corpus.\n", matched - displayed));
     if displayed < matched {
-        out.push_str("INCOMPLETE: total response budget reached; narrow the query to recover omitted matches.\n");
+        let continuation = serde_json::json!({"project_id":project_id,"query":question,"top_k":result_limit.max(1),"offset":offset + displayed});
+        out.push_str(&format!("INCOMPLETE: total response budget reached; continue without changing the query using query_business_logic({continuation}).\n"));
+    } else if available_after_offset > matched {
+        let continuation = serde_json::json!({"project_id":project_id,"query":question,"top_k":result_limit.max(1),"offset":offset + matched});
+        out.push_str(&format!("More source-ranked matches are available; continue with query_business_logic({continuation}).\n"));
     }
     out
 }
@@ -801,6 +864,22 @@ mod tests {
     }
 
     #[test]
+    fn business_rule_windows_return_an_exact_continuation() {
+        let tmp = tempfile::tempdir().unwrap();
+        let analyses = (1..=3).map(|index| (
+            format!("doc-{index}"), format!("rule-{index}.md"), 1.0,
+            format!("# Rule {index}\n## Business Rules\n- value {index}"),
+        )).collect();
+        let rendered = render_matches_window(
+            "project", "session policy", tmp.path(), analyses, 48 * 1024, 1, 1,
+        );
+        assert!(rendered.contains("rule-2.md"), "{rendered}");
+        assert!(!rendered.contains("rule-1.md") && !rendered.contains("rule-3.md"));
+        assert!(rendered.contains("\"offset\":2"), "{rendered}");
+        assert!(rendered.contains("More source-ranked matches are available"), "{rendered}");
+    }
+
+    #[test]
     fn verified_property_recovery_covers_both_accessors_and_tracks_moved_lines() {
         let tmp = tempfile::tempdir().unwrap();
         let source = "Class Rules\r\n Public Property Limit As Integer\r\n Get\r\n Return value\r\n End Get\r\n Set(input As Integer)\r\n value = input\r\n End Set\r\n End Property\r\nEnd Class\r\n";
@@ -865,6 +944,72 @@ mod tests {
             );
             assert!(recovery_call(&rendered).is_none());
         }
+    }
+
+    #[test]
+    fn query_readiness_is_explicit_and_current_source_ranks_first() {
+        let tmp = tempfile::tempdir().unwrap();
+        let source = "Class Rules\n Public Function ReadValue() As Integer\n Return 1\n End Function\nEnd Class\n";
+        std::fs::write(tmp.path().join("Rules.vb"), source).unwrap();
+        let current = document(source);
+        let stale = current.replace(
+            current
+                .lines()
+                .find_map(|line| line.strip_prefix("**Analysis method hash**: `"))
+                .unwrap()
+                .trim_end_matches('`'),
+            &"0".repeat(64),
+        );
+        let rendered = render_matches(
+            "project",
+            "ReadValue",
+            tmp.path(),
+            vec![
+                ("legacy".into(), "legacy.md".into(), 1.0, "legacy summary".into()),
+                ("stale".into(), "stale.md".into(), 0.9, stale),
+                ("current".into(), "current.md".into(), 0.8, current),
+            ],
+            48 * 1024,
+        );
+        assert!(rendered.contains(
+            "Evidence readiness: source_current=1, stale=1, unverified=1, matched=3"
+        ));
+        assert!(rendered.contains("PARTIAL CURRENT-SOURCE EVIDENCE"));
+        assert!(
+            rendered.find("## #1 current.md").unwrap()
+                < rendered.find("## #2 stale.md").unwrap()
+        );
+        assert!(
+            rendered.find("## #2 stale.md").unwrap()
+                < rendered.find("## #3 legacy.md").unwrap()
+        );
+
+        let legacy_only = render_matches(
+            "project",
+            "ReadValue",
+            tmp.path(),
+            vec![("legacy".into(), "legacy.md".into(), 1.0, "legacy summary".into())],
+            48 * 1024,
+        );
+        assert!(legacy_only.contains("USABLE CURRENT-SOURCE EVIDENCE: 0"));
+        assert!(legacy_only.contains("Run analyze_business_logic"));
+
+        let selected = render_matches_with_limit(
+            "project",
+            "ReadValue",
+            tmp.path(),
+            vec![
+                ("legacy".into(), "legacy.md".into(), 1.0, "legacy summary".into()),
+                ("current".into(), "current.md".into(), 0.5, document(source)),
+            ],
+            48 * 1024,
+            1,
+        );
+        assert!(selected.contains(
+            "Evidence readiness: source_current=1, stale=0, unverified=0, matched=1, candidates_checked=2"
+        ));
+        assert!(selected.contains("## #1 current.md"));
+        assert!(!selected.contains("## #2 legacy.md"));
     }
 
     #[test]
@@ -1257,7 +1402,7 @@ mod predicate_preview_tests {
             .collect();
         let multi = render_matches("p", "read", tmp.path(), cards, 48 * 1024 - 1024);
         let useful = multi.matches("Returns one in every case.").count();
-        assert!(useful >= 3, "{multi}");
+        assert_eq!(useful, 5, "the compact first page should retain every requested card: {multi}");
         assert!(multi.contains("matched=5"));
         if useful < 5 { assert!(multi.contains("INCOMPLETE: total response budget reached")); }
 

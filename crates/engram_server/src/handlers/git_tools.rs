@@ -35,6 +35,86 @@ fn is_safe_zip_member_path(name: &str) -> bool {
     })
 }
 
+/// Reconcile a current project-relative file path with a pre-move history path.
+///
+/// Repositories sometimes move their entire source tree under a new top-level
+/// directory. Git history then contains temporal edges for both `src/x` and
+/// `Site/src/x`, while callers naturally use the current path. Querying only the
+/// literal node silently loses the older cohort. Limit aliases to a path proven
+/// by the current filesystem so unrelated same-named files are never combined.
+fn temporal_source_aliases(file_path: &str, project_root: &Path) -> Vec<String> {
+    let normalized = file_path
+        .strip_prefix("file:")
+        .unwrap_or(file_path)
+        .replace('\\', "/")
+        .trim_start_matches("./")
+        .to_string();
+    let mut aliases = vec![format!("file:{normalized}")];
+    let relative = Path::new(&normalized);
+    if normalized.is_empty()
+        || relative.is_absolute()
+        || relative.components().any(|c| {
+            matches!(
+                c,
+                std::path::Component::ParentDir
+                    | std::path::Component::RootDir
+                    | std::path::Component::Prefix(_)
+            )
+        })
+    {
+        return aliases;
+    }
+
+    if engram_core::safe_join(project_root, &normalized).is_ok_and(|path| path.is_file()) {
+        if let Some((_, stripped)) = normalized.split_once('/') {
+            if !stripped.is_empty()
+                && engram_core::safe_join(project_root, stripped).is_ok_and(|path| !path.exists())
+            {
+                aliases.push(format!("file:{stripped}"));
+            }
+        }
+    } else if let Ok(entries) = std::fs::read_dir(project_root) {
+        let mut prefixed = entries
+            .flatten()
+            .filter(|entry| entry.file_type().map(|t| t.is_dir()).unwrap_or(false))
+            .filter_map(|entry| {
+                let name = entry.file_name().to_string_lossy().to_string();
+                engram_core::safe_join(&entry.path(), &normalized)
+                    .is_ok_and(|path| path.is_file())
+                    .then(|| format!("file:{name}/{normalized}"))
+            });
+        if let Some(candidate) = prefixed.next()
+            && prefixed.next().is_none()
+        {
+            aliases.push(candidate);
+        }
+    }
+    aliases.sort();
+    aliases.dedup();
+    aliases
+}
+
+fn canonical_temporal_file_id(
+    node_id: &str,
+    project_root: &Path,
+    current_prefix: Option<&str>,
+) -> String {
+    let path = node_id
+        .strip_prefix("file:")
+        .unwrap_or(node_id)
+        .replace('\\', "/");
+    if engram_core::safe_join(project_root, &path).is_ok_and(|file| file.is_file()) {
+        return format!("file:{path}");
+    }
+    if let Some(prefix) = current_prefix {
+        let candidate = format!("{prefix}/{path}");
+        if engram_core::safe_join(project_root, &candidate).is_ok_and(|file| file.is_file()) {
+            return format!("file:{candidate}");
+        }
+    }
+    node_id.to_string()
+}
+
 /// Core blocking logic for zip-snapshot history ingestion.
 /// Shared between the synchronous (wait=true) and background (wait=false) paths.
 ///
@@ -269,6 +349,131 @@ fn zip_history_core(
 }
 
 /// Git-related helper methods on Engram.
+
+/// Commit oid and changed file named by a history document's synthetic path
+/// (`commit:<oid>`, `diff:<oid>:<file>`). Merged-PR records (`pr:<id>`) carry
+/// no oid in their path.
+fn history_doc_identity(path: &str) -> (Option<&str>, Option<&str>) {
+    if let Some(oid) = path.strip_prefix("commit:") {
+        return (Some(oid), None);
+    }
+    if let Some((oid, file)) = path.strip_prefix("diff:").and_then(|rest| rest.split_once(':')) {
+        return (Some(oid), Some(file));
+    }
+    (None, None)
+}
+
+/// One search_history result: a commit (message and diffs folded together)
+/// or a merged-PR record, in the rank order of its best-ranked document.
+struct HistoryGroup {
+    key: String,
+    commit: Option<String>,
+    message_matched: bool,
+    files: Vec<String>,
+    first_pk: String,
+}
+
+/// Everything in the past of one revision: every reachable commit, and the
+/// change-unit id (`PR-<n>` / `commit-<short>`) that `ingest_merged_prs`
+/// derives from each reachable commit's summary.
+pub(crate) struct ReachableHistory {
+    oids: std::collections::HashSet<String>,
+    change_ids: std::collections::HashSet<String>,
+    /// How the cutoff was chosen, for result headers.
+    pub(crate) label: String,
+}
+
+/// Recent walks, keyed by repository and tip: a search walks thousands of
+/// commits otherwise, and the tip rarely moves between calls.
+static REACHABLE_CACHE: std::sync::LazyLock<
+    std::sync::Mutex<Vec<(PathBuf, Oid, std::sync::Arc<ReachableHistory>)>>,
+> = std::sync::LazyLock::new(Default::default);
+
+impl ReachableHistory {
+    /// `rev` given: exactly that revision's past; an unresolvable revision is
+    /// an error. `rev` absent: the published default branch (`origin/HEAD`),
+    /// so commits of branches that were merely checked out while history was
+    /// indexed never surface; `None` when there is no repository or remote
+    /// default branch to anchor on.
+    fn resolve(repo_dir: &Path, rev: Option<&str>) -> anyhow::Result<Option<std::sync::Arc<Self>>> {
+        let repo = match GitWalker::open_repo(repo_dir) {
+            Ok(repo) => repo,
+            Err(_) if rev.is_none() => return Ok(None),
+            Err(e) => return Err(e),
+        };
+        let (tip, label) = match rev {
+            Some(rev) => {
+                let tip = repo
+                    .revparse_single(rev)
+                    .and_then(|object| object.peel_to_commit())
+                    .map_err(|e| {
+                        anyhow::anyhow!("as_of_rev '{rev}' does not name a commit: {}", e.message())
+                    })?
+                    .id();
+                (tip, format!("commits reachable from {rev}"))
+            }
+            None => match GitWalker::approved_history_root(&repo) {
+                Some(tip) => (tip, "published history (origin default branch)".to_string()),
+                None => return Ok(None),
+            },
+        };
+        let cache = REACHABLE_CACHE.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some((_, _, hit)) = cache
+            .iter()
+            .find(|(dir, oid, _)| dir == repo_dir && *oid == tip)
+        {
+            let mut hit = std::sync::Arc::clone(hit);
+            if hit.label != label {
+                hit = std::sync::Arc::new(Self {
+                    oids: hit.oids.clone(),
+                    change_ids: hit.change_ids.clone(),
+                    label,
+                });
+            }
+            return Ok(Some(hit));
+        }
+        drop(cache);
+        let mut walk = repo.revwalk()?;
+        walk.push(tip)?;
+        let mut oids = std::collections::HashSet::new();
+        let mut change_ids = std::collections::HashSet::new();
+        for oid in walk {
+            let oid = oid?;
+            let hex = oid.to_string();
+            let summary = repo.find_commit(oid)?.summary().unwrap_or("").to_string();
+            change_ids.insert(
+                crate::handlers::pr_history_tools::parse_pr_identity(&summary, &hex[..10]).0,
+            );
+            oids.insert(hex);
+        }
+        let walked = std::sync::Arc::new(Self {
+            oids,
+            change_ids,
+            label,
+        });
+        let mut cache = REACHABLE_CACHE.lock().unwrap_or_else(|e| e.into_inner());
+        cache.retain(|(dir, _, _)| dir != repo_dir);
+        cache.push((repo_dir.to_path_buf(), tip, std::sync::Arc::clone(&walked)));
+        if cache.len() > 8 {
+            cache.remove(0);
+        }
+        Ok(Some(walked))
+    }
+
+    /// Fail-closed: a document whose commit cannot be identified is not admitted.
+    pub(crate) fn admits(&self, path: &str) -> bool {
+        match history_doc_identity(path) {
+            (Some(oid), _) => self.oids.contains(oid),
+            _ => self.admits_change(path.strip_prefix("pr:").unwrap_or(path)),
+        }
+    }
+
+    /// A merged-change id (`PR-<n>` / `commit-<short>`) whose commit is reachable.
+    pub(crate) fn admits_change(&self, change_id: &str) -> bool {
+        self.change_ids.contains(change_id)
+    }
+}
+
 impl Engram {
     #[allow(clippy::too_many_arguments)]
     pub(crate) async fn git_update_stream(
@@ -506,6 +711,10 @@ impl Engram {
             let start_backfill = oldest.as_deref().and_then(|s| git2::Oid::from_str(s).ok());
 
             let mut temporal_edges: u64 = 0;
+            // Commits touching more files than this are bulk changes; they
+            // add no co-change weight (see engram_git::temporal::file_pairs).
+            const MAX_COUPLED_FILES: usize = 80;
+            let mut bulk_commits_skipped: u64 = 0;
             let mut reverts: usize = 0;
             let mut history_docs: Vec<engram_index::IndexDoc> = Vec::new();
             let mut history_batch_bytes: usize = 0;
@@ -610,7 +819,10 @@ impl Engram {
                 // ── Temporal coupling ────────────────────────────────
                 let files: Vec<engram_core::RelPath> =
                     changes.iter().map(|c| c.path().clone()).collect();
-                let pairs = engram_git::temporal::file_pairs(&files, 80);
+                let pairs = engram_git::temporal::file_pairs(&files, MAX_COUPLED_FILES);
+                if files.len() > MAX_COUPLED_FILES {
+                    bulk_commits_skipped += 1;
+                }
 
                 for (a, b) in &pairs {
                     let na = format!("file:{}", a);
@@ -789,8 +1001,13 @@ impl Engram {
 
             let forward_processed =
                 if matches!(mode, GitHistoryMode::Forward | GitHistoryMode::Both) {
-                    GitWalker::walk_commits_streaming(
+                    // Index the PUBLISHED default branch, not the checkout:
+                    // an append-only history index otherwise keeps every
+                    // branch that was ever checked out when it ran, and
+                    // squash-merged branch commits then pose as history.
+                    GitWalker::walk_commits_streaming_from(
                         &repo,
+                        GitWalker::approved_history_root(&repo),
                         stop,
                         max_commits,
                         policy,
@@ -911,7 +1128,7 @@ impl Engram {
             };
 
             Ok(format!(
-                "git_update:\ncommits_processed: {}\ntemporal_edges_added: {}\nreverted_commits: {}\nantipattern_docs: {}\nlast_oid: {}\noldest_indexed_oid: {}\nbackfill_complete: {}\ndiagnostic: {}",
+                "git_update:\ncommits_processed: {}\ntemporal_edges_added: {}\nbulk_commits_skipped_for_coupling: {bulk_commits_skipped}\nreverted_commits: {}\nantipattern_docs: {}\nlast_oid: {}\noldest_indexed_oid: {}\nbackfill_complete: {}\ndiagnostic: {}",
                 commits_processed,
                 temporal_edges,
                 reverts,
@@ -1325,6 +1542,30 @@ impl Engram {
         ))]))
     }
 
+    /// The history a search may return: `as_of_rev`'s past when given (an
+    /// unresolvable revision is an invalid-params error, never a silently
+    /// unfiltered search), otherwise the published default branch's past.
+    pub(crate) async fn reachable_history(
+        &self,
+        project_id: &str,
+        as_of_rev: Option<&str>,
+    ) -> Result<Option<std::sync::Arc<ReachableHistory>>, McpError> {
+        if let Some(rev) = as_of_rev
+            && (rev.trim().is_empty() || rev.len() > 256 || rev.chars().any(char::is_control))
+        {
+            return Err(McpError::invalid_params(
+                "as_of_rev must be a nonempty git revision of at most 256 bytes",
+                None,
+            ));
+        }
+        let dir = PathBuf::from(self.ensure_project_record(project_id).await?.directory);
+        let rev = as_of_rev.map(str::to_string);
+        tokio::task::spawn_blocking(move || ReachableHistory::resolve(&dir, rev.as_deref()))
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::invalid_params(e.to_string(), None))
+    }
+
     /// Typed history results shared with planning; never recover identities from rendered prose.
     pub(crate) async fn search_history_hits(
         &self,
@@ -1335,134 +1576,189 @@ impl Engram {
         let gen_ = self.get_active_generation(&req.project_id).await?;
         let limit = req.sanitized_limit();
 
-        // fts_mode is now a validated enum — invalid values are rejected by serde
-        // at the request boundary before this handler runs.
-        let fts_mode = req.fts_mode.as_str().to_owned();
+        let reachable = self
+            .reachable_history(&req.project_id, req.as_of_rev.as_deref())
+            .await?;
 
-        // Map path filters
-        let include_path_prefixes = req.file_filter.map(|f| vec![f]);
-        let exclude_path_prefixes = req.exclude_paths;
-        let project_id = req.project_id;
-        let query = req.query;
-        let author_filter = req.author_filter;
-        let date_after = req.date_after;
-        let date_before = req.date_before;
-        let use_mmr = req.use_mmr;
-
-        let hits = ps
-            .search
-            .search(
-                &HybridQuery {
-                    project_id: project_id.clone(),
-                    namespace: "history".into(),
-                    generation: gen_,
-                    text: query.clone(),
-                    top_k: limit,
-                    fts_mode,
-                    include_path_prefixes,
-                    exclude_path_prefixes,
-                    include_path_suffixes: None,
-                    language_filters: None,
-                    author_filter,
-                    date_after,
-                    date_before,
-                    use_mmr,
-                },
-                None,
-                &tokio_util::sync::CancellationToken::new(),
-            )
-            .await
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let mut query = HybridQuery {
+            project_id: req.project_id,
+            namespace: "history".into(),
+            generation: gen_,
+            text: req.query,
+            top_k: limit,
+            // fts_mode is a validated enum — invalid values are rejected by
+            // serde at the request boundary before this handler runs.
+            fts_mode: req.fts_mode.as_str().to_owned(),
+            include_path_prefixes: req.file_filter.map(|f| vec![f]),
+            exclude_path_prefixes: req.exclude_paths,
+            include_path_suffixes: None,
+            language_filters: None,
+            author_filter: req.author_filter,
+            date_after: req.date_after,
+            date_before: req.date_before,
+            use_mmr: req.use_mmr,
+        };
+        // Reachability is not an index field, so filter after retrieval and
+        // widen the pool until `limit` survive or the corpus is exhausted —
+        // unreachable commits must not eat result slots.
+        const MAX_POOL: usize = 4096;
+        let hits = loop {
+            let mut hits = ps
+                .search
+                .search(&query, None, &tokio_util::sync::CancellationToken::new())
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            let Some(reachable) = &reachable else {
+                break hits;
+            };
+            let exhausted = hits.len() < query.top_k || query.top_k >= MAX_POOL;
+            hits.retain(|h| reachable.admits(h.path.as_str()));
+            if hits.len() >= limit || exhausted {
+                hits.truncate(limit);
+                break hits;
+            }
+            query.top_k = (query.top_k * 4).min(MAX_POOL);
+        };
 
         Ok((ps, gen_, hits))
     }
 
     pub async fn handle_search_history(
         &self,
-        req: SearchHistoryRequest,
+        mut req: SearchHistoryRequest,
     ) -> Result<CallToolResult, McpError> {
         let content_limit = req.max_content_chars;
         let project_id = req.project_id.clone();
+        // Resolved again only for its label: the walk is cached.
+        let scope = self
+            .reachable_history(&req.project_id, req.as_of_rev.as_deref())
+            .await?
+            .map(|reachable| format!("; {}", reachable.label))
+            .unwrap_or_default();
+        // One result per COMMIT: its message and each diff are separate
+        // documents, so draw a wider pool and fold diffs into their commit.
+        let limit = req.sanitized_limit();
+        req.limit = limit
+            .saturating_mul(6)
+            .min(crate::models::MAX_SEARCH_RESULTS);
         let (ps, gen_, hits) = self.search_history_hits(req).await?;
 
-        if hits.is_empty() {
-            return Ok(CallToolResult::success(vec![Content::text(
-                "No history hits found.",
-            )]));
+        let mut groups: Vec<HistoryGroup> = Vec::new();
+        for hit in &hits {
+            let path = hit.path.as_str();
+            let (commit, file) = history_doc_identity(path);
+            let key = commit.unwrap_or(path);
+            let index = match groups.iter().position(|g| g.key == key) {
+                Some(index) => index,
+                None if groups.len() < limit => {
+                    groups.push(HistoryGroup {
+                        key: key.to_string(),
+                        commit: commit.map(str::to_string),
+                        message_matched: false,
+                        files: Vec::new(),
+                        first_pk: hit.pk.clone(),
+                    });
+                    groups.len() - 1
+                }
+                None => continue,
+            };
+            let group = &mut groups[index];
+            match file {
+                Some(file) if !group.files.iter().any(|f| f == file) => {
+                    group.files.push(file.to_string())
+                }
+                Some(_) => {}
+                None => group.message_matched = true,
+            }
+        }
+
+        if groups.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(format!(
+                "No history hits found{scope}."
+            ))]));
         }
 
         let mut out = String::with_capacity(4096);
         out.push_str(&format!(
-            "History search results ({} hits, gen {}):\n",
+            "History search results ({} commits from {} matching documents, gen {gen_}{scope}; \
+             ranked by fused lexical+vector order):\n",
+            groups.len(),
             hits.len(),
-            gen_
         ));
-
-        for (i, h) in hits.iter().enumerate() {
+        for (i, group) in groups.iter().enumerate() {
             out.push_str(&format!("\n--- #{} ---\n", i + 1));
-            out.push_str(&format!("score: {:.3}\n", h.score));
-            out.push_str(&format!("path: {}\n", h.path));
-
-            if let Ok(Some((_, _, content, _, _))) =
-                ps.search
-                    .get_doc_by_doc_id(&project_id, "history", gen_, &h.doc_id)
+            // The commit-message document carries author, date and message
+            // even when only the commit's diffs matched.
+            let stored = match &group.commit {
+                Some(oid) => ps
+                    .search
+                    .stored_doc_at_path(&project_id, "history", &format!("commit:{oid}"))
+                    .ok()
+                    .flatten(),
+                None => ps.search.stored_doc_by_pk(&group.first_pk).ok().flatten(),
+            };
+            match &group.commit {
+                Some(oid) => out.push_str(&format!("commit: {oid}\n")),
+                None => out.push_str(&format!("path: {}\n", group.key)),
+            }
+            let fallback = || ps.search.stored_doc_by_pk(&group.first_pk).ok().flatten();
+            let author = stored
+                .as_ref()
+                .and_then(|d| d.author.clone())
+                .or_else(|| fallback().and_then(|d| d.author));
+            if let Some(author) = author {
+                out.push_str(&format!("author: {author}\n"));
+            }
+            let timestamp = stored
+                .as_ref()
+                .and_then(|d| d.timestamp)
+                .or_else(|| fallback().and_then(|d| d.timestamp));
+            if let Some(ts) = timestamp {
+                out.push_str(&format!(
+                    "date: {}\n",
+                    crate::utils::ymd_utc(ts.saturating_mul(1000))
+                ));
+            }
+            // Commit messages are "Author: …\nDate: <epoch>\n\n<message>";
+            // merged-PR records start with their "# PR-n: title" line.
+            let body = stored.as_ref().map(|d| match d.content.split_once("\n\n") {
+                Some((_, message)) if group.commit.is_some() => message,
+                _ => d.content.as_str(),
+            });
+            if let Some(subject) = body.and_then(|b| {
+                b.lines()
+                    .map(|l| l.trim().trim_start_matches('#').trim())
+                    .find(|l| !l.is_empty())
+            }) {
+                out.push_str(&format!("message: {subject}\n"));
+            }
+            if !group.files.is_empty() {
+                const SHOWN: usize = 12;
+                let mut files = group.files.iter().take(SHOWN).cloned().collect::<Vec<_>>();
+                if group.files.len() > SHOWN {
+                    files.push(format!("+{} more", group.files.len() - SHOWN));
+                }
+                out.push_str(&format!("files: {}\n", files.join(", ")));
+            }
+            let mut matched = Vec::new();
+            if group.message_matched {
+                matched.push("message".to_string());
+            }
+            if !group.files.is_empty() {
+                matched.push(format!("{} diff(s)", group.files.len()));
+            }
+            out.push_str(&format!("matched: {}\n", matched.join(", ")));
+            if content_limit > 0
+                && let Some(body) = body
             {
-                // Extract structured commit metadata from content header
-                let mut commit_hash = None;
-                let mut author = None;
-                let mut date = None;
-                let mut message = None;
-                let mut diff_start = 0;
-
-                for (line_idx, line) in content.lines().enumerate() {
-                    if line.starts_with("commit ") && commit_hash.is_none() {
-                        commit_hash = Some(line.trim_start_matches("commit ").trim());
-                    } else if line.starts_with("Author: ") && author.is_none() {
-                        author = Some(line.trim_start_matches("Author: ").trim());
-                    } else if line.starts_with("Date: ") && date.is_none() {
-                        date = Some(line.trim_start_matches("Date: ").trim());
-                    } else if line.starts_with("    ") && message.is_none() && commit_hash.is_some()
-                    {
-                        message = Some(line.trim());
-                    } else if line.starts_with("diff ") || line.starts_with("---") {
-                        diff_start = content
-                            .lines()
-                            .take(line_idx)
-                            .map(|l| l.len() + 1)
-                            .sum::<usize>();
-                        break;
-                    }
+                out.push_str("content:\n");
+                if body.chars().count() > content_limit {
+                    out.push_str(&body.chars().take(content_limit).collect::<String>());
+                    out.push_str("... (truncated)");
+                } else {
+                    out.push_str(body.trim_end());
                 }
-
-                if let Some(hash) = commit_hash {
-                    out.push_str(&format!("commit: {}\n", hash));
-                }
-                if let Some(auth) = author {
-                    out.push_str(&format!("author: {}\n", auth));
-                }
-                if let Some(d) = date {
-                    out.push_str(&format!("date: {}\n", d));
-                }
-                if let Some(msg) = message {
-                    out.push_str(&format!("message: {}\n", msg));
-                }
-
-                // Show diff content if requested
-                if content_limit > 0 {
-                    let diff_content = if diff_start > 0 && diff_start < content.len() {
-                        &content[diff_start..]
-                    } else {
-                        &content
-                    };
-                    out.push_str("content:\n");
-                    if diff_content.chars().count() > content_limit {
-                        out.push_str(&diff_content.chars().take(content_limit).collect::<String>());
-                        out.push_str("... (truncated)");
-                    } else {
-                        out.push_str(diff_content);
-                    }
-                    out.push('\n');
-                }
+                out.push('\n');
             }
         }
 
@@ -1476,23 +1772,66 @@ impl Engram {
         req: AnalyzeTemporalCouplingsRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
-        self.ensure_project_record(&req.project_id).await?;
+        let project = self.ensure_project_record(&req.project_id).await?;
         let limit = req.sanitized_limit();
         let minimum = req.sanitized_min_frequency() as u32;
+        let mut aliases_used = Vec::new();
         let mut couplings = if let Some(ref file_path) = req.file_path {
             // Focused search
-            let node_id = if file_path.starts_with("file:") {
-                file_path.clone()
-            } else {
-                format!("file:{file_path}")
-            };
-            engram_graph::algorithms::coupling::file_temporal_couplings(
-                &self.state.graph,
-                &req.project_id,
-                &node_id,
-                minimum,
-                limit + 1,
-            )
+            let project_root = Path::new(&project.directory);
+            let aliases = temporal_source_aliases(file_path, project_root);
+            let normalized_request = file_path
+                .strip_prefix("file:")
+                .unwrap_or(file_path)
+                .replace('\\', "/")
+                .trim_start_matches("./")
+                .to_string();
+            let canonical_source = aliases
+                .iter()
+                .find(|alias| {
+                    engram_core::safe_join(project_root, alias.strip_prefix("file:").unwrap_or(alias))
+                        .is_ok_and(|path| path.is_file())
+                })
+                .cloned()
+                .unwrap_or_else(|| format!("file:{normalized_request}"));
+            let canonical_path = canonical_source
+                .strip_prefix("file:")
+                .unwrap_or(&canonical_source);
+            let current_prefix = canonical_path.split_once('/').map(|(first, _)| first);
+            aliases_used = aliases.clone();
+            let per_alias_limit = (limit + 1).saturating_mul(aliases.len().max(1));
+            let mut merged: Vec<engram_graph::algorithms::coupling::Coupling> = Vec::new();
+            for alias in aliases {
+                let found = engram_graph::algorithms::coupling::file_temporal_couplings(
+                    &self.state.graph,
+                    &req.project_id,
+                    &alias,
+                    minimum,
+                    per_alias_limit,
+                )
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                for mut coupling in found {
+                    coupling.file_node_id = canonical_source.clone();
+                    coupling.neighbor_node_id = canonical_temporal_file_id(
+                        &coupling.neighbor_node_id,
+                        project_root,
+                        current_prefix,
+                    );
+                    if let Some(existing) = merged.iter_mut().find(|existing| {
+                        existing
+                            .neighbor_node_id
+                            .eq_ignore_ascii_case(&coupling.neighbor_node_id)
+                    }) {
+                        // Aliased edge identities can overlap. Max retains the strongest
+                        // observed frequency without double-counting the same commits.
+                        existing.weight = existing.weight.max(coupling.weight);
+                    } else {
+                        merged.push(coupling);
+                    }
+                }
+            }
+            merged.sort_by(|a, b| b.weight.cmp(&a.weight));
+            merged
         } else {
             // Global search
             engram_graph::algorithms::coupling::top_project_couplings(
@@ -1500,8 +1839,8 @@ impl Engram {
                 &req.project_id,
                 limit + 1,
             )
-        }
-        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        };
 
         // Both algorithms rank by descending weight before limiting, so this
         // global filter cannot hide a stronger qualifying edge below the cap.
@@ -1521,6 +1860,12 @@ impl Engram {
         let mut out = String::new();
         if let Some(ref fp) = req.file_path {
             out.push_str(&format!("Temporal couplings for {fp}:\n"));
+            if aliases_used.len() > 1 {
+                out.push_str(&format!(
+                    "Path aliases reconciled from current filesystem identity: {}. Duplicate neighbor identities use the maximum observed weight to avoid double-counting.\n",
+                    aliases_used.join(", ")
+                ));
+            }
         } else {
             out.push_str("Top temporal couplings:\n");
         }
@@ -1652,6 +1997,8 @@ impl Engram {
                 rule_text,
                 priority: 10,
                 updated_at_ms: now_ms(),
+                introduced_at: None,
+                provenance: Some("revert-derived rule".into()),
             };
             self.state
                 .registry

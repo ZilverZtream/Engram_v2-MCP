@@ -166,7 +166,7 @@ fn classify_text(text: &str) -> MetaCategory {
     let lower = text.to_ascii_lowercase();
     const TABLE: &[(MetaCategory, &[&str])] = &[
         // Specific call-site patterns go FIRST because their
-        // keywords ("submitchanges", "handelselogg") are distinctive
+        // keywords ("submitchanges", "aktivitetslogg") are distinctive
         // and shouldn't get swallowed by a broader "auth"/"null"
         // keyword match from a later row.
         (
@@ -191,11 +191,11 @@ fn classify_text(text: &str) -> MetaCategory {
             // don't false-match on unrelated logging ("log the
             // request", "log the error") — those aren't audit
             // logging. We match on distinctive phrases ("audit log",
-            // "handelselogg", "activity log") instead of bare "log".
+            // "aktivitetslogg", "activity log") instead of bare "log".
             MetaCategory::AuditLog,
             &[
                 "audit log",
-                "handelselogg",
+                "aktivitetslogg",
                 "activity log",
                 "logactivity",
                 "missing audit",
@@ -722,7 +722,7 @@ mod tests {
             "Apply null-coalescing guard to iok_benamning."
         ));
         assert!(!is_noise_rule(
-            "Call handelselogg.Create after SubmitChanges."
+            "Call aktivitetslogg.Create after SubmitChanges."
         ));
         assert!(!is_noise_rule("Guard against missing DOM element."));
     }
@@ -888,7 +888,7 @@ mod tests {
         // reverted.
         let raw = vec![RawRule {
             rule_id: "immune_deadbeef".into(),
-            file_pattern: "Site/App_Code/dal/fiberjobb.vb".into(),
+            file_pattern: "Site/App_Code/dal/arbetsorder.vb".into(),
             rule_text: "Don't fetch-then-delete; use PK delete in one tx.".into(),
             source: RuleSource::Immune,
             fix_rate: None,
@@ -901,7 +901,7 @@ mod tests {
     #[test]
     fn tighten_immune_text_strips_llm_rationalisation() {
         let raw = "This pattern should be avoided because it attempts to delete a database entity after already fetching it, which can cause race conditions and orphaned data if the record changes between the fetch and delete. Instead, developers should perform the delete as a single atomic operation using the primary key within the same database transaction.";
-        let out = tighten_immune_text(raw, "Site/App_Code/dal/fiberjobb.vb", None);
+        let out = tighten_immune_text(raw, "Site/App_Code/dal/arbetsorder.vb", None);
         assert!(
             out.len() <= 200,
             "immune rule must be capped, got {} chars: {out}",
@@ -912,7 +912,7 @@ mod tests {
             "LLM prefix must be stripped, got: {out}"
         );
         assert!(
-            out.contains("immune: Site/App_Code/dal/fiberjobb.vb"),
+            out.contains("immune: Site/App_Code/dal/arbetsorder.vb"),
             "file pattern must be cited when no revert hash is provided: {out}"
         );
     }

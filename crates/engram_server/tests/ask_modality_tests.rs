@@ -2,12 +2,12 @@
 //! External audit round 2 (docs/audits/10, P0-4): "35/35 does not mean 35
 //! correct answers". Live, "Which resource keys describe the main code
 //! category workflow?" was ANSWERED with ten evidence items and no .resx;
-//! "Which reports (.rdl) read rk_redovisningskategorier?" cited no .rdl;
+//! "Which reports (.rdl) read kk_kostnadskategorier?" cited no .rdl;
 //! "Which table stores reporting categories?" cited no .sql/.dbml. The
 //! question names an evidence MODALITY; retrieval must run a modality arm
 //! and an answer without evidence of the requested modality is at most
 //! Partial, with the gap named. A mention that IS a file stem
-//! ("api-installationsobjektprojekt") must resolve to that file.
+//! ("api-bokningsobjektprojekt") must resolve to that file.
 
 use engram_core::config::Config;
 use engram_server::models::AskCodebaseRequest;
@@ -23,8 +23,8 @@ const RDL: &str = r#"<?xml version="1.0" encoding="utf-8"?>
   <DataSets>
     <DataSet Name="Kategorier">
       <Query>
-        <DataSourceName>iFalt</DataSourceName>
-        <CommandText>SELECT id, namn FROM rk_redovisningskategorier ORDER BY namn</CommandText>
+        <DataSourceName>iCore</DataSourceName>
+        <CommandText>SELECT id, namn FROM kk_kostnadskategorier ORDER BY namn</CommandText>
       </Query>
     </DataSet>
   </DataSets>
@@ -46,20 +46,20 @@ async fn build(with_report: bool) -> (tempfile::TempDir, Engram, String) {
     let tmp = tempfile::TempDir::new().unwrap();
     let root = tmp.path().join("proj");
     for d in [
-        "Site/Reports/redovisning",
+        "Site/Reports/leverans",
         "Site/App_GlobalResources",
         "Site/App_Code/api-json",
-        "Site/App_Code/redovisning",
+        "Site/App_Code/leverans",
         "db-x.sql/dbo/Tables",
     ] {
         std::fs::create_dir_all(root.join(d)).unwrap();
     }
     if with_report {
-        std::fs::write(root.join("Site/Reports/redovisning/redovisning.rdl"), RDL).unwrap();
+        std::fs::write(root.join("Site/Reports/leverans/leverans.rdl"), RDL).unwrap();
     }
     std::fs::write(
-        root.join("db-x.sql/dbo/Tables/rk_redovisningskategorier.sql"),
-        "CREATE TABLE [dbo].[rk_redovisningskategorier] (\n    [id] INT NOT NULL,\n    [namn] NVARCHAR(200) NULL,\n    [huvudkategori_id] INT NULL\n);\n",
+        root.join("db-x.sql/dbo/Tables/kk_kostnadskategorier.sql"),
+        "CREATE TABLE [dbo].[kk_kostnadskategorier] (\n    [id] INT NOT NULL,\n    [namn] NVARCHAR(200) NULL,\n    [huvudkategori_id] INT NULL\n);\n",
     )
     .unwrap();
     std::fs::write(
@@ -75,16 +75,16 @@ async fn build(with_report: bool) -> (tempfile::TempDir, Engram, String) {
     )
     .unwrap();
     std::fs::write(
-        root.join("Site/App_Code/api-json/api-installationsobjektprojekt.vb"),
-        "Public Class api_installationsobjektprojekt\n    Public Function ioUpdateBaseTypeInBulk(qry As Object) As String\n        If Not CanUserBulkUpdate(qry) Then Return \"denied\"\n        Return \"ok\"\n    End Function\n    Private Function CanUserBulkUpdate(qry As Object) As Boolean\n        Return True\n    End Function\nEnd Class\n",
+        root.join("Site/App_Code/api-json/api-bokningsobjektprojekt.vb"),
+        "Public Class api_bokningsobjektprojekt\n    Public Function ioUpdateBaseTypeInBulk(qry As Object) As String\n        If Not CanUserBulkUpdate(qry) Then Return \"denied\"\n        Return \"ok\"\n    End Function\n    Private Function CanUserBulkUpdate(qry As Object) As Boolean\n        Return True\n    End Function\nEnd Class\n",
     )
     .unwrap();
     // Enough code chunks about the same words to fill every top-k on their own.
     for i in 0..25 {
         std::fs::write(
-            root.join(format!("Site/App_Code/redovisning/redovisning{i:02}.vb")),
+            root.join(format!("Site/App_Code/leverans/leverans{i:02}.vb")),
             format!(
-                "Public Class redovisning{i:02}\n    ' reads rk_redovisningskategorier for the main code category workflow (reporting categories)\n    Public Function GetCategories{i}() As Object\n        Return db.rk_redovisningskategorier.Where(Function(k) k.main_code_category = True)\n    End Function\nEnd Class\n"
+                "Public Class leverans{i:02}\n    ' reads kk_kostnadskategorier for the main code category workflow (reporting categories)\n    Public Function GetCategories{i}() As Object\n        Return db.kk_kostnadskategorier.Where(Function(k) k.main_code_category = True)\n    End Function\nEnd Class\n"
             ),
         )
         .unwrap();
@@ -143,7 +143,7 @@ fn paths(v: &Value) -> Vec<String> {
 
 #[test]
 fn the_planner_detects_the_requested_modality_from_the_question() {
-    let p = planner::plan_query("Which reports (.rdl) read the rk_redovisningskategorier table?");
+    let p = planner::plan_query("Which reports (.rdl) read the kk_kostnadskategorier table?");
     assert!(
         p.modalities.contains(&Modality::Report),
         "{:?}",
@@ -152,8 +152,7 @@ fn the_planner_detects_the_requested_modality_from_the_question() {
     assert!(p.modalities.contains(&Modality::Sql), "{:?}", p.modalities);
     let p = planner::plan_query("Which resource keys describe the main code category workflow?");
     assert_eq!(p.modalities, vec![Modality::Resource]);
-    let p =
-        planner::plan_query("Which table stores reporting categories (redovisningskategorier)?");
+    let p = planner::plan_query("Which table stores reporting categories (kostnadskategorier)?");
     assert_eq!(
         p.modalities,
         vec![Modality::Sql],
@@ -171,7 +170,7 @@ async fn a_report_question_cites_report_evidence_even_when_code_dominates() {
     let v = ask(
         &engram,
         &pid,
-        "Which reports (.rdl) read the rk_redovisningskategorier table?",
+        "Which reports (.rdl) read the kk_kostnadskategorier table?",
     )
     .await;
     let ps = paths(&v);
@@ -189,7 +188,7 @@ async fn a_table_question_cites_schema_evidence() {
     let v = ask(
         &engram,
         &pid,
-        "Which table stores reporting categories (redovisningskategorier)?",
+        "Which table stores reporting categories (kostnadskategorier)?",
     )
     .await;
     let ps = paths(&v);
@@ -222,7 +221,7 @@ async fn an_answer_without_the_requested_modality_is_partial_and_names_the_gap()
     let v = ask(
         &engram,
         &pid,
-        "Which reports (.rdl) read the rk_redovisningskategorier table?",
+        "Which reports (.rdl) read the kk_kostnadskategorier table?",
     )
     .await;
     assert_ne!(
@@ -242,13 +241,13 @@ async fn a_file_stem_mention_resolves_to_that_file_and_is_cited() {
     let v = ask(
         &engram,
         &pid,
-        "How are permission checks done in api-installationsobjektprojekt, and which endpoints read a client-supplied project id?",
+        "How are permission checks done in api-bokningsobjektprojekt, and which endpoints read a client-supplied project id?",
     )
     .await;
     let ps = paths(&v);
     assert!(
         ps.iter()
-            .any(|p| p.ends_with("api-installationsobjektprojekt.vb")),
+            .any(|p| p.ends_with("api-bokningsobjektprojekt.vb")),
         "the named file is cited: {ps:?}"
     );
 }

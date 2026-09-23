@@ -15,7 +15,7 @@ use regex::Regex;
 use serde::Serialize;
 use std::sync::{Arc, LazyLock};
 
-// â”€â”€ Page-directive regex â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Page-directive regex ──────────────────────────────────────────────────────
 
 static RE_DIRECTIVE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?is)<%@\s+(?:Page|Control|Master|WebService|WebHandler)\b([^%]*)%>")
@@ -31,7 +31,7 @@ fn extract_dir_attr(tag: &str, attr: &str) -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
-// â”€â”€ SqlDataSource / ObjectDataSource regex â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SqlDataSource / ObjectDataSource regex ────────────────────────────────────
 
 static RE_SQL_DATA_SOURCE: LazyLock<Regex> = LazyLock::new(|| {
     // Use (?:[^>]|"[^"]*"|'[^']*')* to allow > inside quoted attributes (e.g. <%$ ... %>)
@@ -51,7 +51,7 @@ static RE_TABLE_FROM_SQL: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)(?:FROM|JOIN|INTO|UPDATE|TABLE)\s+[\[`]?(\w+)[\]`]?").expect("valid regex")
 });
 
-/// Matches `<%@ Register â€¦ %>` directives in ASPX markup.
+/// Matches `<%@ Register … %>` directives in ASPX markup.
 static RE_REGISTER: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"(?is)<%@\s+Register\b([^%]*)%>"#).expect("valid regex"));
 
@@ -60,7 +60,7 @@ static RE_ATTR_NAME: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"(\w+)\s*="#).expect("valid regex"));
 
 fn extract_aspx_attr(tag: &str, attr: &str) -> String {
-    // Manual case-insensitive attribute extraction â€” avoids compiling a new
+    // Manual case-insensitive attribute extraction — avoids compiling a new
     // Regex on every call since all callers pass plain ASCII identifier names.
     let tag_lower = tag.to_ascii_lowercase();
     let attr_lower = attr.to_ascii_lowercase();
@@ -95,7 +95,7 @@ fn extract_aspx_attr(tag: &str, attr: &str) -> String {
     String::new()
 }
 
-// â”€â”€ Result structs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Result structs ────────────────────────────────────────────────────────────
 
 /// Complete migration context for a single ASPX/ASCX/ASMX/ASHX/Master page.
 #[derive(Debug, Clone, Serialize)]
@@ -106,48 +106,48 @@ pub struct MigrationDossier {
     /// Target migration stack: "blazor", "react", or "angular".
     pub target_stack: String,
 
-    // â”€â”€ Identity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Identity ──────────────────────────────────────────────────────────────
     pub inherits_class: Option<String>,
     pub base_class: Option<String>,
     pub codebehind_file: Option<String>,
     pub master_page: Option<String>,
 
-    // â”€â”€ Dependencies â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Dependencies ──────────────────────────────────────────────────────────
     pub user_controls: Vec<DossierControlRef>,
     pub referenced_files: Vec<String>,
     /// Pages / files that include or depend on THIS file.
     pub referenced_by: Vec<String>,
     pub shared_modules: Vec<String>,
 
-    // â”€â”€ Data layer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Data layer ────────────────────────────────────────────────────────────
     pub data_sources: Vec<DossierDataSource>,
     pub sql_statements: Vec<DossierSqlInfo>,
     pub connection_strings_used: Vec<String>,
     pub tables_touched: Vec<String>,
 
-    // â”€â”€ Sub-service summaries â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Sub-service summaries ─────────────────────────────────────────────────
     pub lifecycle_summary: LifecycleSummary,
     pub viewstate_summary: ViewStateSummary,
     pub ajax_summary: AjaxSummary,
     pub validation_summary: ValidationSummary,
     pub auth_summary: AuthSummary,
 
-    // â”€â”€ Risk & scaffold â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Risk & scaffold ───────────────────────────────────────────────────────
     pub blast_radius_score: u8,
     pub risk_factors: Vec<String>,
     pub scaffold_preview: Option<String>,
 
-    // â”€â”€ Actionable output â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Actionable output ─────────────────────────────────────────────────────
     pub migration_steps: Vec<String>,
     pub estimated_complexity: String,
 
-    // â”€â”€ LLM enhancement (populated only when `use_llm: true` and the
-    // dossier is selected for enhancement via the top-N complexity cap) â”€â”€
+    // ── LLM enhancement (populated only when `use_llm: true` and the
+    // dossier is selected for enhancement via the top-N complexity cap) ──
     //
     // Both are `#[serde(default)]` so older JSON reports still deserialize
     // and so that any `MigrationDossier { .. }` construction that omits
-    // them â€” e.g. in the deterministic per-page loop â€” keeps working.
-    /// 2â€“3 sentence narrative describing what this page does from a
+    // them — e.g. in the deterministic per-page loop — keeps working.
+    /// 2–3 sentence narrative describing what this page does from a
     /// business-workflow perspective. Generated by `DreamingEngine`.
     #[serde(default)]
     pub llm_business_purpose: Option<String>,
@@ -186,14 +186,14 @@ pub struct DossierSqlInfo {
     pub connection_string: String,
 }
 
-// â”€â”€ Summary structs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Summary structs ───────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize)]
 pub struct LifecycleSummary {
     pub lifecycle_event_count: usize,
     pub control_event_count: usize,
     pub has_ispostback_logic: bool,
-    /// Brief labels: "Page_Load (IsPostBack)", "btnSearch_Click", â€¦
+    /// Brief labels: "Page_Load (IsPostBack)", "btnSearch_Click", …
     pub events: Vec<String>,
 }
 
@@ -229,18 +229,18 @@ pub struct AuthSummary {
     pub session_auth_count: usize,
 }
 
-// â”€â”€ Main function â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Main function ─────────────────────────────────────────────────────────────
 
 /// Build a comprehensive migration dossier for a single ASPX-family file.
 ///
 /// # Parameters
-/// * `graph`              â€” shared graph store
-/// * `project_id`         â€” project identifier used for graph lookups
-/// * `file_path`          â€” path to the primary markup file (used as graph node ID)
-/// * `aspx_content`       â€” raw markup content (ASPX / ASCX / Master / â€¦)
-/// * `codebehind_content` â€” code-behind source (C# or VB.NET); empty string if absent
-/// * `web_config_content` â€” optional web.config text for auth analysis
-/// * `target_stack`       â€” "blazor" | "react" | "angular"
+/// * `graph`              — shared graph store
+/// * `project_id`         — project identifier used for graph lookups
+/// * `file_path`          — path to the primary markup file (used as graph node ID)
+/// * `aspx_content`       — raw markup content (ASPX / ASCX / Master / …)
+/// * `codebehind_content` — code-behind source (C# or VB.NET); empty string if absent
+/// * `web_config_content` — optional web.config text for auth analysis
+/// * `target_stack`       — "blazor" | "react" | "angular"
 pub fn build_migration_dossier(
     graph: &Arc<GraphStore>,
     project_id: &str,
@@ -251,15 +251,15 @@ pub fn build_migration_dossier(
     target_stack: &str,
     generation: u64,
 ) -> anyhow::Result<MigrationDossier> {
-    // â”€â”€ 1. Determine page type from extension â”€â”€
+    // ── 1. Determine page type from extension ──
 
     let page_type = detect_page_type(file_path);
 
-    // â”€â”€ 2. Parse page directives â”€â”€
+    // ── 2. Parse page directives ──
 
     let (inherits_class, codebehind_file, master_page) = parse_directives(aspx_content);
 
-    // â”€â”€ 3. Graph lookups â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── 3. Graph lookups ──────────────────────────────────────────────────────
     // We construct a plausible node ID for this file. Typical ID format in
     // the graph is "file:<relative-path>".
 
@@ -270,7 +270,7 @@ pub fn build_migration_dossier(
     let referenced_by = collect_referenced_by(graph, project_id, &file_node_id);
     let shared_modules = collect_shared_modules(graph, project_id, &file_node_id);
 
-    // â”€â”€ 4. Data layer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── 4. Data layer ─────────────────────────────────────────────────────────
 
     let (data_sources, tables_touched_from_ds) =
         extract_data_sources(graph, project_id, &file_node_id, aspx_content);
@@ -285,7 +285,7 @@ pub fn build_migration_dossier(
         }
     }
 
-    // â”€â”€ 5. Sub-service calls â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── 5. Sub-service calls ──────────────────────────────────────────────────
 
     let lifecycle_summary = build_lifecycle_summary(
         graph,
@@ -321,7 +321,7 @@ pub fn build_migration_dossier(
         codebehind_content,
     );
 
-    // â”€â”€ 6. Blast radius / risk score â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── 6. Blast radius / risk score ──────────────────────────────────────────
 
     // Real generation matters here: passing 0 keyed the PageRank centrality
     // cache on a generation that never matches the active one, so the
@@ -345,7 +345,7 @@ pub fn build_migration_dossier(
         &data_sources,
     );
 
-    // â”€â”€ 7. Scaffold preview (best-effort) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── 7. Scaffold preview (best-effort) ─────────────────────────────────────
 
     let scaffold_preview = scaffold_service::generate_scaffold(
         graph,
@@ -358,11 +358,11 @@ pub fn build_migration_dossier(
     .ok()
     .map(|r| r.component_code);
 
-    // â”€â”€ 8. Base class from code-behind â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── 8. Base class from code-behind ────────────────────────────────────────
 
     let base_class = extract_base_class_from_code(codebehind_content);
 
-    // â”€â”€ 9. Migration steps & complexity estimate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── 9. Migration steps & complexity estimate ──────────────────────────────
 
     let migration_steps = build_migration_steps(
         &page_type,
@@ -421,7 +421,7 @@ pub fn build_migration_dossier(
     })
 }
 
-// â”€â”€ Page-type detection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Page-type detection ───────────────────────────────────────────────────────
 
 fn detect_page_type(file_path: &str) -> String {
     let lower = file_path.to_lowercase();
@@ -440,7 +440,7 @@ fn detect_page_type(file_path: &str) -> String {
     }
 }
 
-// â”€â”€ Directive parsing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Directive parsing ─────────────────────────────────────────────────────────
 
 fn parse_directives(content: &str) -> (Option<String>, Option<String>, Option<String>) {
     if let Some(cap) = RE_DIRECTIVE.captures(content) {
@@ -455,7 +455,7 @@ fn parse_directives(content: &str) -> (Option<String>, Option<String>, Option<St
     }
 }
 
-// â”€â”€ Base class extraction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Base class extraction ─────────────────────────────────────────────────────
 
 fn extract_base_class_from_code(content: &str) -> Option<String> {
     // C#: public partial class MyPage : BasePage
@@ -490,7 +490,7 @@ fn extract_base_class_from_code(content: &str) -> Option<String> {
     None
 }
 
-// â”€â”€ Graph-based dependency collection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Graph-based dependency collection ─────────────────────────────────────────
 
 fn collect_user_controls(
     graph: &Arc<GraphStore>,
@@ -632,7 +632,7 @@ fn collect_shared_modules(
         .collect()
 }
 
-// â”€â”€ Data layer extraction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Data layer extraction ─────────────────────────────────────────────────────
 
 fn extract_data_sources(
     graph: &Arc<GraphStore>,
@@ -643,7 +643,7 @@ fn extract_data_sources(
     let mut sources = Vec::new();
     let mut tables: Vec<String> = Vec::new();
 
-    // â”€â”€ SqlDataSource tags â”€â”€
+    // ── SqlDataSource tags ──
     for cap in RE_SQL_DATA_SOURCE.captures_iter(aspx_content) {
         let attrs = &cap[1];
         let select_cmd = extract_aspx_attr(attrs, "SelectCommand");
@@ -694,7 +694,7 @@ fn extract_data_sources(
         }
     }
 
-    // â”€â”€ ObjectDataSource tags â”€â”€
+    // ── ObjectDataSource tags ──
     for cap in RE_OBJ_DATA_SOURCE.captures_iter(aspx_content) {
         let attrs = &cap[1];
         let type_name = extract_aspx_attr(attrs, "TypeName");
@@ -724,7 +724,7 @@ fn extract_data_sources(
         });
     }
 
-    // â”€â”€ AccessDataSource tags â”€â”€
+    // ── AccessDataSource tags ──
     for cap in RE_ACCESS_DATA_SOURCE.captures_iter(aspx_content) {
         let attrs = &cap[1];
         let select_cmd = extract_aspx_attr(attrs, "SelectCommand");
@@ -739,7 +739,7 @@ fn extract_data_sources(
         });
     }
 
-    // â”€â”€ Graph DataBinding edges â”€â”€
+    // ── Graph DataBinding edges ──
     let db_edges = graph
         .neighbors(project_id, EdgeKind::DataBinding, file_node_id, 200)
         .unwrap_or_default();
@@ -790,7 +790,7 @@ fn extract_sql_info(
     let mut conn_strings: Vec<String> = Vec::new();
     let mut tables: Vec<String> = Vec::new();
 
-    // â”€â”€ Graph SqlCalls edges â”€â”€
+    // ── Graph SqlCalls edges ──
     let sql_edges = graph
         .neighbors(project_id, EdgeKind::SqlCalls, file_node_id, 200)
         .unwrap_or_default();
@@ -812,7 +812,7 @@ fn extract_sql_info(
         });
     }
 
-    // â”€â”€ Graph QueriesTable edges â†’ table names â”€â”€
+    // ── Graph QueriesTable edges → table names ──
     let qt_edges = graph
         .neighbors(project_id, EdgeKind::QueriesTable, file_node_id, 200)
         .unwrap_or_default();
@@ -826,7 +826,7 @@ fn extract_sql_info(
         }
     }
 
-    // â”€â”€ Scan code-behind for connection string patterns â”€â”€
+    // ── Scan code-behind for connection string patterns ──
     if !codebehind_content.is_empty() {
         let re_conn = Regex::new(
             r#"(?i)(?:ConfigurationManager\.ConnectionStrings\[["']([^"']+)["']\]|new\s+SqlConnection\s*\(\s*["']([^"']+)["']\s*\))"#
@@ -871,7 +871,7 @@ fn extract_sql_info(
     (stmts, conn_strings, tables)
 }
 
-// â”€â”€ Sub-service summary builders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Sub-service summary builders ──────────────────────────────────────────────
 
 fn build_lifecycle_summary(
     graph: &Arc<GraphStore>,
@@ -1083,7 +1083,7 @@ fn build_auth_summary(
     }
 }
 
-// â”€â”€ Risk factor collection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Risk factor collection ────────────────────────────────────────────────────
 
 fn collect_risk_factors(
     lifecycle: &LifecycleSummary,
@@ -1159,7 +1159,7 @@ fn collect_risk_factors(
     factors
 }
 
-// â”€â”€ Migration step generation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Migration step generation ─────────────────────────────────────────────────
 
 #[allow(clippy::too_many_arguments)]
 fn build_migration_steps(
@@ -1177,14 +1177,14 @@ fn build_migration_steps(
     let mut steps: Vec<String> = Vec::new();
     let mut step = 1usize;
 
-    // Step 1 â€” always: create component/page
+    // Step 1 — always: create component/page
     let component_type = match target_stack {
         "react" => "React component",
         "angular" => "Angular component",
         _ => "Blazor component",
     };
     steps.push(format!(
-        "Step {step}: Create a new {component_type} for `{page_type}` â€” start from the generated scaffold preview above"
+        "Step {step}: Create a new {component_type} for `{page_type}` — start from the generated scaffold preview above"
     ));
     step += 1;
 
@@ -1204,7 +1204,7 @@ fn build_migration_steps(
     // Lifecycle
     if lifecycle.lifecycle_event_count > 0 {
         steps.push(format!(
-            "Step {step}: Migrate {} lifecycle event(s) [{}] â†’ component init/parameter hooks",
+            "Step {step}: Migrate {} lifecycle event(s) [{}] → component init/parameter hooks",
             lifecycle.lifecycle_event_count,
             lifecycle
                 .events
@@ -1214,7 +1214,7 @@ fn build_migration_steps(
                 .collect::<Vec<_>>()
                 .join(", ")
                 + if lifecycle.events.len() > 3 {
-                    ", â€¦"
+                    ", …"
                 } else {
                     ""
                 }
@@ -1223,7 +1223,7 @@ fn build_migration_steps(
     }
     if lifecycle.has_ispostback_logic {
         steps.push(format!(
-            "Step {step}: Separate IsPostBack first-load logic from postback handlers â€” first-load â†’ OnInitializedAsync/useEffect; postbacks â†’ event handlers"
+            "Step {step}: Separate IsPostBack first-load logic from postback handlers — first-load → OnInitializedAsync/useEffect; postbacks → event handlers"
         ));
         step += 1;
     }
@@ -1241,7 +1241,7 @@ fn build_migration_steps(
     if !data_sources.is_empty() || !sql.is_empty() {
         let total_ds = data_sources.len() + sql.len();
         steps.push(format!(
-            "Step {step}: Migrate {total_ds} data source(s) to a repository/service layer â€” inject IMyRepository, replace SqlDataSource declarative bindings with async method calls"
+            "Step {step}: Migrate {total_ds} data source(s) to a repository/service layer — inject IMyRepository, replace SqlDataSource declarative bindings with async method calls"
         ));
         step += 1;
     }
@@ -1293,7 +1293,7 @@ fn build_migration_steps(
                 auth.required_roles.join(", ")
             )
         };
-        steps.push(format!("Step {step}: Migrate auth rules â€” {roles_str}"));
+        steps.push(format!("Step {step}: Migrate auth rules — {roles_str}"));
         step += 1;
     }
     if auth.session_auth_count > 0 {
@@ -1321,7 +1321,7 @@ fn build_migration_steps(
                 })
                 .collect::<Vec<_>>()
                 .join(", ")
-                + if user_controls.len() > 3 { ", â€¦" } else { "" }
+                + if user_controls.len() > 3 { ", …" } else { "" }
         ));
         step += 1;
     }
@@ -1342,7 +1342,7 @@ fn build_migration_steps(
     steps
 }
 
-// â”€â”€ Complexity estimation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Complexity estimation ─────────────────────────────────────────────────────
 
 #[allow(clippy::too_many_arguments)]
 fn estimate_complexity(
@@ -1381,30 +1381,30 @@ fn estimate_complexity(
         "Trivial: no significant migration concerns detected".to_string()
     } else if score <= 10 {
         format!(
-            "Low (score {score}): straightforward migration â€” one component, minimal state, few events"
+            "Low (score {score}): straightforward migration — one component, minimal state, few events"
         )
     } else if score <= 25 {
         format!(
-            "Medium (score {score}): moderate effort â€” address state management, data sources, and lifecycle events"
+            "Medium (score {score}): moderate effort — address state management, data sources, and lifecycle events"
         )
     } else if score <= 45 {
         format!(
-            "High (score {score}): significant effort â€” plan multiple sprints; tackle user controls and AJAX regions first"
+            "High (score {score}): significant effort — plan multiple sprints; tackle user controls and AJAX regions first"
         )
     } else {
         format!(
-            "Critical (score {score}): this page is a high-risk migration candidate â€” consider strangler-fig or phased partial migration"
+            "Critical (score {score}): this page is a high-risk migration candidate — consider strangler-fig or phased partial migration"
         )
     }
 }
 
-// â”€â”€ Format function â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Format function ───────────────────────────────────────────────────────────
 
 /// Render a `MigrationDossier` as a comprehensive Markdown document.
 pub fn format_migration_dossier(d: &MigrationDossier) -> String {
     let mut out = String::with_capacity(8192);
 
-    // â”€â”€ Header â”€â”€
+    // ── Header ──
     out.push_str(&format!("# Migration Dossier: `{}`\n\n", d.file_path));
     out.push_str(&format!(
         "**Page Type:** {} | **Target Stack:** {} | **Complexity:** {}\n\n",
@@ -1413,7 +1413,7 @@ pub fn format_migration_dossier(d: &MigrationDossier) -> String {
         d.estimated_complexity
     ));
 
-    // â”€â”€ Identity â”€â”€
+    // ── Identity ──
     out.push_str("## Identity\n\n");
     if let Some(ref c) = d.inherits_class {
         out.push_str(&format!("- **Inherits:** `{c}`\n"));
@@ -1429,7 +1429,7 @@ pub fn format_migration_dossier(d: &MigrationDossier) -> String {
     }
     out.push('\n');
 
-    // â”€â”€ Dependencies â”€â”€
+    // ── Dependencies ──
     out.push_str("## Dependencies\n\n");
     if !d.user_controls.is_empty() {
         out.push_str("### User Controls\n\n");
@@ -1460,7 +1460,7 @@ pub fn format_migration_dossier(d: &MigrationDossier) -> String {
     }
 
     // Hub pages (shared masters / user controls) are referenced by hundreds
-    // of files â€” uncapped lists turned the dossier into a token bomb.
+    // of files — uncapped lists turned the dossier into a token bomb.
     const DEP_LIST_CAP: usize = 25;
     let capped_list = |title: &str, items: &[String], out: &mut String| {
         if items.is_empty() {
@@ -1471,7 +1471,7 @@ pub fn format_migration_dossier(d: &MigrationDossier) -> String {
             out.push_str(&format!("- `{f}`\n"));
         }
         if items.len() > DEP_LIST_CAP {
-            out.push_str(&format!("- â€¦ and {} more\n", items.len() - DEP_LIST_CAP));
+            out.push_str(&format!("- … and {} more\n", items.len() - DEP_LIST_CAP));
         }
         out.push('\n');
     };
@@ -1479,7 +1479,7 @@ pub fn format_migration_dossier(d: &MigrationDossier) -> String {
     capped_list("Referenced By", &d.referenced_by, &mut out);
     capped_list("Shared Modules / Dependencies", &d.shared_modules, &mut out);
 
-    // â”€â”€ Data layer â”€â”€
+    // ── Data layer ──
     out.push_str("## Data Layer\n\n");
     if !d.data_sources.is_empty() {
         out.push_str("### Data Sources\n\n");
@@ -1520,7 +1520,7 @@ pub fn format_migration_dossier(d: &MigrationDossier) -> String {
         out.push_str("### SQL Statements\n\n");
         for sql in &d.sql_statements {
             out.push_str(&format!(
-                "- `{}` â€” parameterized: {}{}\n",
+                "- `{}` — parameterized: {}{}\n",
                 sql.sql_snippet.chars().take(120).collect::<String>(),
                 sql.parameterized,
                 if !sql.connection_string.is_empty() {
@@ -1533,7 +1533,7 @@ pub fn format_migration_dossier(d: &MigrationDossier) -> String {
         out.push('\n');
     }
 
-    // â”€â”€ Event model â”€â”€
+    // ── Event model ──
     out.push_str("## Event Model (Lifecycle)\n\n");
     out.push_str(&format!(
         "- **Lifecycle events:** {} | **Control events:** {} | **IsPostBack logic:** {}\n",
@@ -1553,7 +1553,7 @@ pub fn format_migration_dossier(d: &MigrationDossier) -> String {
     }
     out.push('\n');
 
-    // â”€â”€ State footprint â”€â”€
+    // ── State footprint ──
     out.push_str("## State Footprint (ViewState)\n\n");
     out.push_str(&format!(
         "- **Explicit keys:** {} | **Implicit controls:** {} | **Total fields:** {}\n",
@@ -1566,7 +1566,7 @@ pub fn format_migration_dossier(d: &MigrationDossier) -> String {
     }
     out.push('\n');
 
-    // â”€â”€ AJAX regions â”€â”€
+    // ── AJAX regions ──
     out.push_str("## AJAX Regions\n\n");
     out.push_str(&format!(
         "- **UpdatePanels:** {} | **Timers:** {} | **ScriptManager:** {} | **Suggested components:** {}\n\n",
@@ -1576,7 +1576,7 @@ pub fn format_migration_dossier(d: &MigrationDossier) -> String {
         d.ajax_summary.suggested_components
     ));
 
-    // â”€â”€ Validation â”€â”€
+    // ── Validation ──
     out.push_str("## Validation\n\n");
     out.push_str(&format!(
         "- **Validators:** {} | **Custom:** {} | **Groups:** {} | **Summary control:** {}\n\n",
@@ -1590,7 +1590,7 @@ pub fn format_migration_dossier(d: &MigrationDossier) -> String {
         }
     ));
 
-    // â”€â”€ Auth context â”€â”€
+    // ── Auth context ──
     out.push_str("## Auth Context\n\n");
     out.push_str(&format!(
         "- **Auth rules present:** {} | **Auth checks:** {} | **Session auth patterns:** {}\n",
@@ -1610,7 +1610,7 @@ pub fn format_migration_dossier(d: &MigrationDossier) -> String {
     }
     out.push('\n');
 
-    // â”€â”€ Risk â”€â”€
+    // ── Risk ──
     out.push_str("## Risk Assessment\n\n");
     out.push_str(&format!(
         "**Blast Radius Score:** {}/10\n\n",
@@ -1624,19 +1624,19 @@ pub fn format_migration_dossier(d: &MigrationDossier) -> String {
         out.push('\n');
     }
 
-    // â”€â”€ Scaffold preview â”€â”€
+    // ── Scaffold preview ──
     if let Some(ref preview) = d.scaffold_preview {
         let truncated: String = preview.chars().take(2000).collect();
         out.push_str("## Scaffold Preview\n\n");
         out.push_str("```\n");
         out.push_str(&truncated);
         if preview.len() > 2000 {
-            out.push_str("\nâ€¦ (truncated â€” full output via generate_migration_scaffold tool)");
+            out.push_str("\n… (truncated — full output via generate_migration_scaffold tool)");
         }
         out.push_str("\n```\n\n");
     }
 
-    // â”€â”€ Migration steps â”€â”€
+    // ── Migration steps ──
     out.push_str("## Migration Steps\n\n");
     for step in &d.migration_steps {
         out.push_str(&format!("- {step}\n"));
@@ -1646,7 +1646,7 @@ pub fn format_migration_dossier(d: &MigrationDossier) -> String {
     out
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
@@ -1662,7 +1662,7 @@ mod tests {
         graph
     }
 
-    // â”€â”€ Test 1: Basic ASPX page with code-behind â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Test 1: Basic ASPX page with code-behind ──────────────────────────────
 
     #[test]
     fn test_basic_aspx_with_codebehind() {
@@ -1705,7 +1705,7 @@ mod tests {
         assert!(!dossier.migration_steps.is_empty());
     }
 
-    // â”€â”€ Test 2: Page with validators and UpdatePanels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Test 2: Page with validators and UpdatePanels ─────────────────────────
 
     #[test]
     fn test_validators_and_update_panels() {
@@ -1765,7 +1765,7 @@ mod tests {
         );
     }
 
-    // â”€â”€ Test 3: Page with lifecycle events â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Test 3: Page with lifecycle events ────────────────────────────────────
 
     #[test]
     fn test_page_with_lifecycle_events() {
@@ -1820,7 +1820,7 @@ mod tests {
         assert!(steps_text.contains("lifecycle") || steps_text.contains("event"));
     }
 
-    // â”€â”€ Test 4: Minimal page â€” no special features â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Test 4: Minimal page — no special features ────────────────────────────
 
     #[test]
     fn test_minimal_page_no_special_features() {
@@ -1850,7 +1850,7 @@ mod tests {
         assert!(!dossier.migration_steps.is_empty());
     }
 
-    // â”€â”€ Test 5: Format output structure â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Test 5: Format output structure ──────────────────────────────────────
 
     #[test]
     fn test_format_output_structure() {
@@ -1933,7 +1933,7 @@ mod tests {
         assert!(formatted.contains("BLAZOR") || formatted.contains("blazor"));
     }
 
-    // â”€â”€ Test 6: Data source extraction from graph â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Test 6: Data source extraction from graph ─────────────────────────────
 
     #[test]
     fn test_data_source_extraction_from_aspx() {
@@ -2013,7 +2013,7 @@ mod tests {
         // Risk factors should mention data sources or SQL
         let _risk_text = dossier.risk_factors.join(" ").to_lowercase();
         // May warn about unparameterized SQL if any was found without @param
-        // (the inline SELECT * has @cid so it is parameterized â€” no unparameterized warning needed)
+        // (the inline SELECT * has @cid so it is parameterized — no unparameterized warning needed)
         // Complexity must be at least Low for a page with data sources
         let complexity = dossier.estimated_complexity.to_lowercase();
         assert!(
@@ -2026,7 +2026,7 @@ mod tests {
         assert!(formatted.contains("SqlDataSource") || formatted.contains("ObjectDataSource"));
     }
 
-    // â”€â”€ detect_page_type â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── detect_page_type ─────────────────────────────────────────────────────
 
     #[test]
     fn test_detect_page_type_aspx() {
@@ -2060,7 +2060,7 @@ mod tests {
         assert_eq!(detect_page_type("web.config"), "unknown");
     }
 
-    // â”€â”€ parse_directives â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── parse_directives ─────────────────────────────────────────────────────
 
     #[test]
     fn test_parse_directives_inherits_and_codebehind() {
@@ -2096,7 +2096,7 @@ mod tests {
         assert!(master.is_none());
     }
 
-    // â”€â”€ extract_base_class_from_code â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── extract_base_class_from_code ─────────────────────────────────────────
 
     #[test]
     fn test_extract_base_class_cs_custom() {
@@ -2119,7 +2119,7 @@ mod tests {
         assert_eq!(base.as_deref(), Some("SecurePage"));
     }
 
-    // â”€â”€ extract_aspx_attr â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── extract_aspx_attr ────────────────────────────────────────────────────
 
     #[test]
     fn test_extract_aspx_attr_basic() {
@@ -2148,7 +2148,7 @@ mod tests {
         assert_eq!(extract_aspx_attr(tag, "NotHere"), "");
     }
 
-    // â”€â”€ collect_risk_factors â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── collect_risk_factors ─────────────────────────────────────────────────
 
     #[test]
     fn test_collect_risk_factors_ispostback() {
@@ -2296,7 +2296,7 @@ mod tests {
         );
     }
 
-    // â”€â”€ estimate_complexity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── estimate_complexity ──────────────────────────────────────────────────
 
     #[test]
     fn test_estimate_complexity_trivial() {

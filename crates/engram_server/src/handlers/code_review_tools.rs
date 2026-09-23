@@ -22,6 +22,16 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
 
+        let completed_before = req.completed_before.as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+        if let Some(value) = completed_before && !is_iso_date(value) {
+            return Err(McpError::invalid_params(
+                format!("completed_before must be YYYY-MM-DD, got `{value}`"),
+                None,
+            ));
+        }
+
         let source = match req.source.as_str() {
             "json_file" => {
                 let Some(fp) = req.file_path.clone() else {
@@ -72,6 +82,8 @@ impl Engram {
             token_overlap_threshold: req.token_overlap_threshold.clamp(0.1, 0.95),
             force_full_rescan: req.force_full_rescan,
             use_llm_for_ambiguous: req.use_llm_for_ambiguous,
+            max_pr_id: req.max_pr_id,
+            completed_before: completed_before.map(str::to_owned),
             // The two auto-promotion knobs — lets callers tune from the
             // default (0.7, 3) without recompiling. Low end is
             // permissive (promote a lot of rules); high end is strict
@@ -117,16 +129,30 @@ impl Engram {
         ));
         if stats.incremental_skipped_prs > 0 {
             out.push_str(&format!(
-                "**Skipped via incremental state**: {} already-seen PRs\n",
+                "**Skipped before parsing**: {} PRs outside the incremental or historical boundary\n",
                 stats.incremental_skipped_prs
             ));
         }
         if let Some(pr) = stats.newest_pr_id {
             out.push_str(&format!("**Newest PR seen**: #{pr}\n"));
         }
+        if let Some(maximum) = req.max_pr_id {
+            out.push_str(&format!(
+                "**Historical boundary**: PR #{maximum} inclusive; later PRs were excluded before parsing and storage\n"
+            ));
+        }
+        if let Some(cutoff) = completed_before {
+            out.push_str(&format!(
+                "**Completion boundary**: before {cutoff} (exclusive); later or undated PRs were excluded before parsing and storage\n"
+            ));
+        }
         out.push_str(&format!(
             "**Fix exemplars**: {} attached to raw comments · {} survived into parsed rules\n",
             stats.raw_with_fix_hunk, stats.parsed_with_fix_hunk
+        ));
+        out.push_str(&format!(
+            "**Review decisions**: {} immutable per-PR events recorded · {} skipped for missing/invalid provenance\n",
+            stats.review_decisions_recorded, stats.review_decisions_skipped
         ));
         out.push_str(&format!("\n_Completed in {}ms._\n", stats.elapsed_ms));
 
@@ -142,4 +168,19 @@ impl Engram {
 
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
+}
+
+fn is_iso_date(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.len() != 10 || bytes[4] != b'-' || bytes[7] != b'-' {
+        return false;
+    }
+    if !bytes.iter().enumerate()
+        .all(|(index, byte)| index == 4 || index == 7 || byte.is_ascii_digit())
+    {
+        return false;
+    }
+    let month = value[5..7].parse::<u8>().unwrap_or(0);
+    let day = value[8..10].parse::<u8>().unwrap_or(0);
+    (1..=12).contains(&month) && (1..=31).contains(&day)
 }

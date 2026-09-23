@@ -1341,27 +1341,22 @@ impl Engram {
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         if hits.is_empty() {
-            return Ok(CallToolResult::success(vec![Content::text(
+            return Ok(CallToolResult::success(vec![Content::text(format!(
                 "No references found (graph and lexical search both empty). \
-                 hints: check spelling/casing of the symbol; try search_memory with \
-                 fts_mode=\"loose\". If the symbol lives in a file added or edited since \
-                 the last index it is invisible here — grep_project or read the working \
-                 tree before concluding it has no references; get_index_freshness to check.",
-            )]));
+                 {LEXICAL_FALLBACK_CAVEAT}"
+            ))]));
         }
 
-        let mut out = String::new();
-        out.push_str(&format!(
-            "No graph symbol found for '{}'; lexical references:\n",
-            req.symbol_name
-        ));
-        for h in hits {
-            out.push_str(&format!(
-                "- {} lines {}-{} (chunk_id={}, score={:.3})\n",
-                h.path, h.start_line, h.end_line, h.chunk_id, h.score
-            ));
-        }
-        let mut text = out.trim().to_string();
+        let rows: Vec<String> = hits
+            .iter()
+            .map(|h| {
+                format!(
+                    "- {} lines {}-{} (chunk_id={}, score={:.3})",
+                    h.path, h.start_line, h.end_line, h.chunk_id, h.score
+                )
+            })
+            .collect();
+        let mut text = lexical_fallback_report(&req.symbol_name, &rows);
         text.push_str(&self.freshness_footer(&req.project_id, gen_).await);
         Ok(CallToolResult::success(vec![Content::text(text)]))
     }
@@ -1479,9 +1474,7 @@ impl Engram {
 
         // 5. Output ranked results
         out.push_str("--- Likely Source Files ---\n");
-        out.push_str(
-            "Ranked by search relevance + stack frame matching + architectural centrality.\n\n",
-        );
+        out.push_str(&ranking_basis_note(frames.len()));
 
         for (i, (h, final_score)) in scored_hits.iter().enumerate().take(8) {
             let centrality_note = if h.centrality > 0.5 {
@@ -1558,6 +1551,111 @@ impl Engram {
         Ok(CallToolResult::success(vec![Content::text(
             out.trim().to_string(),
         )]))
+    }
+}
+
+/// The one-line description of how the "Likely Source Files" list was ranked.
+/// Pure so the claim itself can be asserted without a project, a graph or an
+/// index: what this sentence promises is exactly what the defect was about.
+fn ranking_basis_note(frame_count: usize) -> String {
+    if frame_count == 0 {
+        // No frames means frame_files and frame_functions are both empty, so the
+        // exact-file bonus cannot fire and no row can be marked [STACK MATCH].
+        "Ranked by search relevance and architectural centrality only: no stack frames were \
+         parsed from the input, so nothing could be matched against a frame.\n\n"
+            .to_string()
+    } else {
+        "Ranked by search relevance + stack frame matching + architectural centrality.\n\n"
+            .to_string()
+    }
+}
+
+/// What a lexical fallback owes its reader whether or not it found anything:
+/// casing matters, and a symbol in a file edited since the last index is
+/// invisible to it. Held in ONE place so the two branches cannot drift apart —
+/// the caveat belongs to the fallback, not to the empty case.
+const LEXICAL_FALLBACK_CAVEAT: &str = "hints: check spelling/casing of the symbol; try \
+     search_memory with fts_mode=\"loose\". If the symbol lives in a file added or edited \
+     since the last index it is invisible here — grep_project or read the working tree \
+     before concluding it has no references; get_index_freshness to check.";
+
+/// The lexical-fallback report for a symbol with no graph node. Pure so the
+/// caveat it owes the reader can be asserted without an index.
+fn lexical_fallback_report(symbol_name: &str, rows: &[String]) -> String {
+    let mut out = format!("No graph symbol found for '{symbol_name}'; lexical references:\n");
+    out.push_str(&rows.join("\n"));
+    let mut text = out.trim().to_string();
+    text.push_str("\n\n");
+    text.push_str(LEXICAL_FALLBACK_CAVEAT);
+    text
+}
+
+#[cfg(test)]
+mod lexical_fallback_report_tests {
+    use super::lexical_fallback_report;
+
+    fn one_row() -> Vec<String> {
+        vec!["- src/Sample.cs lines 1-9 (chunk_id=1, score=0.020)".to_string()]
+    }
+
+    /// The empty branch of this same fallback already warns that casing matters
+    /// and that a symbol in a file edited since the last index is invisible
+    /// here. Both are just as true of a low-scoring row, yet today the warning
+    /// is dropped exactly when the reader has something to act on.
+    #[test]
+    fn a_lexical_fallback_carries_its_caveat_even_when_it_found_rows() {
+        let out = lexical_fallback_report("DoThing", &one_row());
+        assert!(
+            out.contains("get_index_freshness"),
+            "the caveat the empty branch gives was dropped once rows existed:\n{out}"
+        );
+    }
+
+    /// Guard against over-correcting: adding the caveat must not cost the rows.
+    /// Passes before the fix; a regression guard, not a watched failure.
+    #[test]
+    fn a_lexical_fallback_still_lists_the_rows_it_found() {
+        let out = lexical_fallback_report("DoThing", &one_row());
+        assert!(out.contains("src/Sample.cs"), "rows dropped:\n{out}");
+        assert!(
+            out.contains("DoThing"),
+            "the symbol that was searched for is no longer named:\n{out}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod stack_ranking_basis_tests {
+    use super::ranking_basis_note;
+
+    /// With nothing parsed out of the traceback, `frame_files` and
+    /// `frame_functions` are both empty, so the +0.3 exact-file bonus can never
+    /// fire and no row can be marked [STACK MATCH]. Ranking is then search
+    /// relevance and centrality alone, and naming stack-frame matching as an
+    /// input describes work that did not happen.
+    #[test]
+    fn a_ranking_without_parsed_frames_does_not_claim_stack_frame_matching() {
+        let note = ranking_basis_note(0);
+        assert!(
+            !note.contains("stack frame matching"),
+            "claimed a ranking input that contributed nothing:\n{note}"
+        );
+        assert!(
+            note.contains("no stack frames"),
+            "did not say why stack-frame matching is absent:\n{note}"
+        );
+    }
+
+    /// Guard against over-correcting: when frames were parsed the claim is true
+    /// and must survive. This one passes before the fix; it is a regression
+    /// guard, not a watched failure.
+    #[test]
+    fn a_ranking_with_parsed_frames_still_reports_stack_frame_matching() {
+        let note = ranking_basis_note(2);
+        assert!(
+            note.contains("stack frame matching"),
+            "dropped a ranking input that really did contribute:\n{note}"
+        );
     }
 }
 

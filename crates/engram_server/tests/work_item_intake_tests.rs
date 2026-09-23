@@ -18,7 +18,7 @@ async fn referenced_work_item_without_coordinates_blocks_before_retrieval() {
     // No registered coordinates or remote exist, so this stays offline even
     // when the test host has ADO_PAT. A retrieval attempt would instead fail
     // with an unknown-project error, which is not the asserted intake result.
-    for story in ["DMO-847 Fix assignment", "Bug #847 Fix assignment"] {
+    for story in ["AB#847 Fix assignment", "Bug #847 Fix assignment"] {
         for item_text in [None, Some(""), Some(" \n ")] {
             let mut request = json!({"project_id":"intake-fixture", "story":story});
             if let Some(text) = item_text {

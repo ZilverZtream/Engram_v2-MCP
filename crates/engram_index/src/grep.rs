@@ -93,11 +93,27 @@ pub struct GrepQuery {
     /// Optional path-prefix filter. Not a full glob yet — any chunk
     /// whose stored path starts with this string is eligible.
     pub path_prefix: Option<String>,
+    /// Skip paths starting with any of these prefixes (forward slashes,
+    /// ASCII case-insensitive), in the index and the working-tree overlay.
+    pub exclude_path_prefixes: Vec<String>,
     pub language: Option<String>,
     pub context_before: usize,
     pub context_after: usize,
     pub max_results: usize,
     pub freshness: FreshnessMode,
+}
+
+impl GrepQuery {
+    /// True when `path` falls under one of `exclude_path_prefixes`.
+    pub fn is_excluded(&self, path: &str) -> bool {
+        if self.exclude_path_prefixes.is_empty() {
+            return false;
+        }
+        let path = path.replace('\\', "/").to_ascii_lowercase();
+        self.exclude_path_prefixes
+            .iter()
+            .any(|p| path.starts_with(&p.replace('\\', "/").to_ascii_lowercase()))
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -555,7 +571,8 @@ fn execute_term_index(
             "literal_ci".into()
         },
         include_path_prefixes: q.path_prefix.as_ref().map(|p| vec![p.clone()]),
-        exclude_path_prefixes: None,
+        exclude_path_prefixes: (!q.exclude_path_prefixes.is_empty())
+            .then(|| q.exclude_path_prefixes.clone()),
         include_path_suffixes: None,
         language_filters: q.language.as_ref().map(|l| vec![l.clone()]),
         author_filter: None,
@@ -585,6 +602,9 @@ fn execute_term_index(
                 .to_lowercase()
                 .starts_with(&pre.to_lowercase())
         {
+            continue;
+        }
+        if q.is_excluded(hit.path.as_str()) {
             continue;
         }
         chunks_scanned += 1;
@@ -650,7 +670,8 @@ fn execute_term_narrowed(
             "literal_ci".into()
         },
         include_path_prefixes: q.path_prefix.as_ref().map(|p| vec![p.clone()]),
-        exclude_path_prefixes: None,
+        exclude_path_prefixes: (!q.exclude_path_prefixes.is_empty())
+            .then(|| q.exclude_path_prefixes.clone()),
         include_path_suffixes: None,
         language_filters: q.language.as_ref().map(|l| vec![l.clone()]),
         author_filter: None,
@@ -683,6 +704,9 @@ fn execute_term_narrowed(
                 .to_lowercase()
                 .starts_with(&pre.to_lowercase())
         {
+            continue;
+        }
+        if q.is_excluded(hit.path.as_str()) {
             continue;
         }
         chunks_scanned += 1;
@@ -791,6 +815,9 @@ fn execute_full_scan(
         if let Some(pre) = q.path_prefix.as_ref()
             && !chunk.path.starts_with(pre)
         {
+            return;
+        }
+        if q.is_excluded(&chunk.path) {
             return;
         }
         if let Some(lang) = q.language.as_ref()
@@ -1147,6 +1174,7 @@ mod tests {
             case_sensitive: None,
             multiline: false,
             path_prefix: None,
+            exclude_path_prefixes: Vec::new(),
             language: None,
             context_before: 0,
             context_after: 0,
@@ -1169,6 +1197,7 @@ mod tests {
             case_sensitive: None,
             multiline: false,
             path_prefix: None,
+            exclude_path_prefixes: Vec::new(),
             language: None,
             context_before: 0,
             context_after: 0,
@@ -1190,6 +1219,7 @@ mod tests {
             case_sensitive: None,
             multiline: false,
             path_prefix: None,
+            exclude_path_prefixes: Vec::new(),
             language: None,
             context_before: 0,
             context_after: 0,

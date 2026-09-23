@@ -3,10 +3,12 @@
 #![cfg_attr(test, allow(clippy::unwrap_used))]
 
 pub mod asp_classic_extractor;
+pub mod asset_bundles;
 /// Source chunk ranges, qualified call binding and source-edge replacement
 /// contract, including parsed member ownership and declaration-specific FQNs. Older
-/// metadata must be re-extracted even with unchanged source.
-pub const SOURCE_INDEX_VERSION: u64 = 6;
+/// metadata must be re-extracted even with unchanged source. Version 7 adds
+/// cross-artifact ASP.NET Optimization bundle/render edges.
+pub const SOURCE_INDEX_VERSION: u64 = 7;
 pub mod chunking;
 pub mod confidence;
 pub mod config_extractor;
@@ -39,6 +41,7 @@ pub mod vector;
 #[cfg(feature = "vector")]
 pub use vector::TableOpenOutcome;
 pub mod webforms;
+pub mod word_tokenizer;
 
 pub use confidence::{
     ConfidenceBand, ConfidenceSignal, ExtractionConfidence, score_control_binding,
@@ -46,8 +49,8 @@ pub use confidence::{
 };
 pub use docstore::{DocRecord, DocStore, FileFingerprint};
 pub use hybrid::{
-    BulkWriterGuard, HybridHit, HybridQuery, HybridSearchEngine, IndexDoc, IngestStats,
-    SemanticQuality, chunk_id_from_content_hash, chunk_id_from_hash, escape_tantivy_literal,
+    BulkWriterGuard, HybridHit, HybridQuery, HybridSearchEngine, IndexDoc, IngestStats, StoredDoc,
+    SemanticQuality, chunk_id_from_content_hash, chunk_id_from_hash, SUBSTRING_MATCH_WEIGHT, escape_tantivy_literal, literal_text_query, literal_word_or_substring_query,
     semantic_quality_for_backend,
 };
 pub use parsing::{ExtractedEdge, ExtractedSymbol, SymbolExtractor};

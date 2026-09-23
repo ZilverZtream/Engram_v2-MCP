@@ -38,7 +38,7 @@
 //!    `suggestion` field. Findings without a fix are not findings — they
 //!    are noise.
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -830,6 +830,26 @@ fn diff_to_patch_text(diff: &git2::Diff<'_>) -> anyhow::Result<String> {
         true
     })?;
     Ok(text)
+}
+
+/// Working-tree paths with staged, unstaged or untracked changes (ignored files
+/// excluded), sorted. An empty review names these so that "no changes in the
+/// requested diff" is never read as "nothing to review".
+pub fn working_tree_changes(project_dir: &Path) -> anyhow::Result<Vec<String>> {
+    let repo = git2::Repository::discover(project_dir)?;
+    let mut opts = git2::StatusOptions::new();
+    opts.include_untracked(true)
+        .recurse_untracked_dirs(true)
+        .include_ignored(false);
+    let mut paths: Vec<String> = repo
+        .statuses(Some(&mut opts))?
+        .iter()
+        .filter(|entry| !entry.status().is_ignored())
+        .filter_map(|entry| entry.path().map(|p| p.replace('\\', "/")))
+        .collect();
+    paths.sort();
+    paths.dedup();
+    Ok(paths)
 }
 
 fn git_diff_staged(project_dir: &Path) -> anyhow::Result<String> {
@@ -1998,6 +2018,118 @@ fn attach_diff_snippets(findings: &mut [ReviewFinding], diff_files: &[DiffFile])
 
 // ─── Rendering ──────────────────────────────────────────────────────────────
 
+fn review_utf8_prefix(value: &str, max_bytes: usize) -> &str {
+    let mut end = value.len().min(max_bytes);
+    while !value.is_char_boundary(end) {
+        end -= 1;
+    }
+    &value[..end]
+}
+
+/// Bounded default view for an agent tool call. The complete renderer remains
+/// available through `detail_level=full`; this view keeps high-priority
+/// findings visible instead of triggering client-side result offloading.
+pub fn render_compact_markdown(
+    findings: &[ReviewFinding],
+    files_analysed: usize,
+    gates_run: usize,
+    elapsed_ms: u128,
+    outcomes: &[GateOutcome],
+) -> String {
+    const BUDGET: usize = 20 * 1024;
+    let verdict = Verdict::with_outcomes(findings, outcomes);
+    let mut counts: BTreeMap<Severity, usize> = BTreeMap::new();
+    for finding in findings {
+        *counts.entry(finding.severity).or_insert(0) += 1;
+    }
+    let missing = outcomes.iter().filter(|outcome| outcome.did_not_run()).count();
+    let degraded = outcomes.iter().filter(|outcome| outcome.is_degraded()).count();
+    let capped = outcomes.iter().filter(|outcome| !outcome.caps.is_empty()).count();
+    let mut out = format!(
+        "# Pre-Commit Review - {}\nFindings: {} total ({} critical, {} warning, {} info, {} style); files={files_analysed}; gates={gates_run}/{}; missing={missing}; degraded={degraded}; capped={capped}; time={elapsed_ms}ms.\nScope: static gates only; compilation and tests were not run.\n",
+        verdict.as_str().to_ascii_uppercase(),
+        findings.len(),
+        counts.get(&Severity::Critical).copied().unwrap_or(0),
+        counts.get(&Severity::Warning).copied().unwrap_or(0),
+        counts.get(&Severity::Info).copied().unwrap_or(0),
+        counts.get(&Severity::Style).copied().unwrap_or(0),
+        gates::all_gates().len(),
+    );
+
+    if missing + degraded + capped > 0 {
+        out.push_str("\n## Incomplete gate evidence\n");
+        for outcome in outcomes.iter().filter(|outcome| {
+            outcome.did_not_run() || outcome.is_degraded() || !outcome.caps.is_empty()
+        }) {
+            let status = match &outcome.status {
+                GateStatus::Failed(reason) => format!("failed: {reason}"),
+                GateStatus::Panicked(reason) => format!("panicked: {reason}"),
+                GateStatus::Skipped(reason) => format!("skipped: {reason}"),
+                GateStatus::Degraded { findings, notes } => {
+                    format!("degraded ({findings} findings): {}", notes.join("; "))
+                }
+                GateStatus::Passed => "passed".into(),
+                GateStatus::Findings(count) => format!("{count} findings"),
+            };
+            let caps = if outcome.caps.is_empty() {
+                String::new()
+            } else {
+                format!("; caps: {}", review_utf8_prefix(&outcome.caps.join("; "), 500))
+            };
+            out.push_str(&format!(
+                "- [{}] {}{}\n",
+                outcome.name,
+                review_utf8_prefix(&status, 500),
+                caps
+            ));
+        }
+    }
+
+    out.push_str("\n## Finding ledger\n");
+    let mut shown = 0usize;
+    for finding in findings {
+        let lines = finding
+            .lines
+            .iter()
+            .take(8)
+            .map(usize::to_string)
+            .collect::<Vec<_>>()
+            .join(",");
+        let location = if lines.is_empty() {
+            String::new()
+        } else {
+            format!(":{lines}")
+        };
+        let mut row = format!(
+            "- [{}][{}][{}] {} - {}{}\n  Fix: {}\n",
+            finding.severity.as_str(),
+            finding.gate,
+            finding.finding_id,
+            review_utf8_prefix(&finding.title, 240),
+            review_utf8_prefix(&finding.file_path, 320),
+            location,
+            review_utf8_prefix(&finding.suggestion, 500),
+        );
+        if let Some(next) = &finding.next_tool {
+            row.push_str(&format!("  Next: {}\n", review_utf8_prefix(next, 320)));
+        }
+        if out.len() + row.len() + 512 > BUDGET {
+            break;
+        }
+        out.push_str(&row);
+        shown += 1;
+    }
+    if shown < findings.len() {
+        out.push_str(&format!(
+            "OMITTED FINDINGS: {} of {} did not fit the compact response. Raise min_severity or inspect one gate at a time.\n",
+            findings.len() - shown,
+            findings.len()
+        ));
+    }
+    out.push_str("\nFor complete explanations, evidence and diff snippets, rerun with detail_level=\"full\". For machine-readable complete data, use output_json=true.\n");
+    out
+}
+
 /// Markdown payload returned from the handler when the caller did not ask
 /// for JSON.
 pub fn render_markdown(
@@ -2375,6 +2507,10 @@ pub async fn run_pre_commit_review_with(
         Err(error) => Err(error.into()),
     };
     let search_index_note = match completeness {
+        // Files on disk that are not indexed yet (typically ones this diff
+        // adds) leave the indexed evidence intact; the review coverage names
+        // changed files the index has not seen.
+        Ok(c) if c.only_unindexed() => None,
         Ok(c) if !c.complete => Some(format!(
             "search index generation {} is INCOMPLETE ({} of {} eligible paths missing, cross-store mismatch {}) — searched evidence is unreliable",
             c.generation, c.missing, c.expected_paths, c.cross_store_mismatch
@@ -2697,22 +2833,171 @@ fn build_files_by_parent(
     by_parent
 }
 
-/// Detect the project's audit-log convention by name. Searches for
-/// function nodes whose names contain common audit identifiers.
-/// Returns the most-specific name (longest match) or `None` when no
-/// convention exists.
+/// Rank an audit-function candidate by the operation named by its final
+/// symbol segment. A type such as `AuditLog` may expose both readers and
+/// writers; selecting the longest matching name used to prefer methods such
+/// as `GetByDateRangeAndOrProjectId` and then recommend that reader as the
+/// project's audit-write API.
+fn audit_candidate_score(name: &str) -> i32 {
+    let terminal = name
+        .rsplit(['.', ':'])
+        .find(|part| !part.is_empty())
+        .unwrap_or(name)
+        .to_ascii_lowercase();
+
+    const READ_PREFIXES: &[&str] = &[
+        "get", "find", "list", "read", "search", "query", "select", "fetch", "load",
+        "describe", "count", "has", "is",
+    ];
+    if READ_PREFIXES.iter().any(|prefix| terminal.starts_with(prefix)) {
+        return -1;
+    }
+
+    const EXACT_WRITERS: &[&str] = &[
+        "audit", "log", "record", "write", "create", "add", "insert", "append", "track",
+    ];
+    if EXACT_WRITERS.contains(&terminal.as_str()) {
+        return 3;
+    }
+
+    const WRITER_PREFIXES: &[&str] = &[
+        "audit", "log", "record", "write", "create", "add", "insert", "append", "track",
+    ];
+    if WRITER_PREFIXES
+        .iter()
+        .any(|prefix| terminal.starts_with(prefix))
+    {
+        return 2;
+    }
+
+    0
+}
+
+/// A requested-path-only HEAD-to-current-worktree diff with explicit render
+/// caps. Staged and unstaged edits share the final worktree coordinates.
+#[derive(Debug)]
+pub struct BoundedWorktreeDiff {
+    pub text: String,
+    pub notes: Vec<String>,
+}
+
+pub fn resolve_bounded_worktree_diff(
+    project_dir: &Path,
+    requested_paths: &[String],
+    max_files: usize,
+    max_lines: usize,
+    max_bytes: usize,
+) -> anyhow::Result<BoundedWorktreeDiff> {
+    anyhow::ensure!(max_files > 0 && max_lines > 0 && max_bytes > 0, "diff caps must be positive");
+    let mut paths = requested_paths
+        .iter()
+        .map(|path| path.trim().replace('\\', "/"))
+        .filter(|path| !path.is_empty() && path.to_ascii_lowercase().ends_with(".vb"))
+        .collect::<Vec<_>>();
+    paths.sort();
+    paths.dedup();
+    if paths.is_empty() {
+        return Ok(BoundedWorktreeDiff { text: String::new(), notes: Vec::new() });
+    }
+    for path in &paths {
+        anyhow::ensure!(!path.contains('\0'), "requested diff path contains a NUL byte");
+        anyhow::ensure!(
+            path.split('/').all(|component| {
+                !component.is_empty() && component != "." && component != ".."
+            }),
+            "requested VB diff path must be normalized and project-relative: {path}"
+        );
+        anyhow::ensure!(
+            std::path::Path::new(path).components().all(|component| {
+                matches!(component, std::path::Component::Normal(_))
+            }),
+            "requested VB diff path must be normalized and project-relative: {path}"
+        );
+    }
+    let repo = git2::Repository::discover(project_dir)?;
+    let workdir = repo.workdir().ok_or_else(|| anyhow::anyhow!("bare repository has no worktree"))?;
+    anyhow::ensure!(
+        workdir.canonicalize()? == project_dir.canonicalize()?,
+        "project root must equal the Git worktree root for bounded diff coordinates"
+    );
+    let mut options = git2::DiffOptions::new();
+    options
+        .include_untracked(true)
+        .recurse_untracked_dirs(true)
+        .show_untracked_content(true)
+        .disable_pathspec_match(true);
+    for path in &paths {
+        options.pathspec(path);
+    }
+    let head_tree = repo.head().ok().and_then(|head| head.peel_to_tree().ok());
+    let diff = repo.diff_tree_to_workdir_with_index(head_tree.as_ref(), Some(&mut options))?;
+    let mut diff_paths = diff
+        .deltas()
+        .filter_map(|delta| delta.new_file().path().or_else(|| delta.old_file().path()))
+        .map(|path| path.to_string_lossy().replace('\\', "/"))
+        .collect::<Vec<_>>();
+    diff_paths.sort();
+    diff_paths.dedup();
+    let omitted_files = diff_paths.len().saturating_sub(max_files);
+    let allowed = diff_paths.into_iter().take(max_files).collect::<BTreeSet<_>>();
+    let mut text = String::new();
+    let mut rendered_lines = 0_usize;
+    let mut truncated = false;
+    diff.print(git2::DiffFormat::Patch, |delta, _hunk, line| {
+        if truncated {
+            return true;
+        }
+        let path = delta
+            .new_file()
+            .path()
+            .or_else(|| delta.old_file().path())
+            .map(|path| path.to_string_lossy().replace('\\', "/"));
+        if path.as_ref().is_none_or(|path| !allowed.contains(path)) {
+            return true;
+        }
+        let prefix = matches!(line.origin(), ' ' | '+' | '-').then_some(line.origin());
+        let content = String::from_utf8_lossy(line.content());
+        let added_bytes = content.len() + usize::from(prefix.is_some());
+        if rendered_lines >= max_lines || text.len().saturating_add(added_bytes) > max_bytes {
+            truncated = true;
+            return true;
+        }
+        if let Some(prefix) = prefix {
+            text.push(prefix);
+        }
+        text.push_str(&content);
+        rendered_lines += 1;
+        true
+    })?;
+    let mut notes = Vec::new();
+    if omitted_files > 0 {
+        notes.push(format!("bounded worktree diff omitted {omitted_files} requested changed file(s) above the {max_files}-file cap"));
+    }
+    if truncated {
+        notes.push(format!("bounded worktree diff stopped at {rendered_lines} rendered line(s), {} byte(s); caps are {max_lines} lines and {max_bytes} bytes", text.len()));
+    }
+    Ok(BoundedWorktreeDiff { text, notes })
+}
+
+/// Detect the project's audit-write convention by name. Searches for
+/// function nodes whose names contain common audit identifiers, rejects
+/// reader-shaped methods, and prefers a direct writer name over a longer
+/// specialized writer. Returns `None` when no writer-shaped convention is
+/// found.
 fn detect_audit_function(
     graph: &GraphStore,
     project_id: &str,
     notes: &mut Vec<ProviderNote>,
 ) -> Option<String> {
     const AUDIT_PATTERNS: &[&str] = &[
-        "handelselogg",
+        "aktivitetslogg",
         "AuditLog",
         "audit_log",
         "LogActivity",
         "AuditTrail",
     ];
+    let mut candidates = Vec::new();
+    let mut seen = HashSet::new();
     for pat in AUDIT_PATTERNS {
         let matches = graph
             .query_nodes(project_id, Some("function"), Some(pat), None, 11)
@@ -2729,15 +3014,24 @@ fn detect_audit_function(
                 format!("audit convention candidate search for {pat} truncated at 10"),
             ));
         }
-        if !matches.is_empty() {
-            return matches
-                .iter()
-                .take(10)
-                .max_by_key(|n| n.name.len())
-                .map(|n| n.name.clone());
+        for candidate in matches.into_iter().take(10) {
+            if seen.insert(candidate.node_id.clone()) {
+                candidates.push(candidate);
+            }
         }
     }
-    None
+    candidates
+        .into_iter()
+        .filter(|candidate| audit_candidate_score(&candidate.name) > 0)
+        .max_by(|a, b| {
+            audit_candidate_score(&a.name)
+                .cmp(&audit_candidate_score(&b.name))
+                // On equal writer strength, the shorter public operation is
+                // generally the canonical API rather than a specialized path.
+                .then_with(|| b.name.len().cmp(&a.name.len()))
+                .then_with(|| b.name.cmp(&a.name))
+        })
+        .map(|candidate| candidate.name)
 }
 
 fn count_commits_best_effort(project_dir: &Path) -> anyhow::Result<u32> {
@@ -2874,6 +3168,52 @@ pub use gates::all_gates;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn audit_candidate_ranking_rejects_readers_and_prefers_canonical_writer() {
+        assert!(audit_candidate_score("aktivitetslogg.GetByDateRangeAndOrProjectId") < 0);
+        assert!(audit_candidate_score("AuditLog.Search") < 0);
+        assert!(
+            audit_candidate_score("AuditLog.Create")
+                > audit_candidate_score("AuditLog.CreateMarkerUpdate")
+        );
+        assert!(audit_candidate_score("AuditTrail.WriteEntry") > 0);
+        assert_eq!(audit_candidate_score("AuditLog.FormatDisplayText"), 0);
+    }
+
+    #[test]
+    fn audit_detection_selects_writer_when_longer_reader_is_present() {
+        let temp = tempfile::tempdir().unwrap();
+        let graph = GraphStore::open(&temp.path().join("graph")).unwrap();
+        let node = |id: &str, name: &str| engram_graph::Node {
+            node_id: id.into(),
+            node_type: "function".into(),
+            name: name.into(),
+            namespace: "test".into(),
+            language: "vbnet".into(),
+            file_path: engram_core::RelPath::new("App_Code/Audit.vb"),
+            start_line: 1,
+            end_line: 20,
+            generation: 1,
+            metadata: None,
+        };
+        graph
+            .upsert_nodes(
+                "project",
+                &[
+                    node("fn:reader", "aktivitetslogg.GetByDateRangeAndOrProjectId"),
+                    node("fn:special", "aktivitetslogg.CreateMarkerUpdate"),
+                    node("fn:writer", "aktivitetslogg.Create"),
+                ],
+            )
+            .unwrap();
+        let mut notes = Vec::new();
+        assert_eq!(
+            detect_audit_function(&graph, "project", &mut notes).as_deref(),
+            Some("aktivitetslogg.Create")
+        );
+        assert!(notes.is_empty());
+    }
 
     #[test]
     fn verdict_green_when_only_style() {
@@ -3084,13 +3424,13 @@ interface IProduct { id: number; }
     fn path_suffix_match_positive_historical_vs_current_spelling() {
         // Pre-restructure spelling matches the post-restructure spelling.
         assert!(path_suffix_match(
-            "App_Code/iFalt.designer.vb",
-            "Site/App_Code/iFalt.designer.vb"
+            "App_Code/iCore.designer.vb",
+            "Site/App_Code/iCore.designer.vb"
         ));
         // Direction shouldn't matter.
         assert!(path_suffix_match(
-            "Site/App_Code/iFalt.designer.vb",
-            "App_Code/iFalt.designer.vb"
+            "Site/App_Code/iCore.designer.vb",
+            "App_Code/iCore.designer.vb"
         ));
         // Exact match is trivially a match.
         assert!(path_suffix_match("a/b/c.vb", "a/b/c.vb"));
@@ -3098,8 +3438,8 @@ interface IProduct { id: number; }
         assert!(path_suffix_match("APP_CODE/X.VB", "app_code/x.vb"));
         // Backslash-normalised.
         assert!(path_suffix_match(
-            "App_Code\\iFalt.designer.vb",
-            "Site/App_Code/iFalt.designer.vb"
+            "App_Code\\iCore.designer.vb",
+            "Site/App_Code/iCore.designer.vb"
         ));
     }
 
@@ -3112,7 +3452,7 @@ interface IProduct { id: number; }
         // Unrelated paths never match.
         assert!(!path_suffix_match(
             "Site/App_Code/Other.vb",
-            "Site/App_Code/iFalt.designer.vb"
+            "Site/App_Code/iCore.designer.vb"
         ));
         // Same filename, different directory family.
         assert!(!path_suffix_match("Scripts/x.vb", "App_Code/x.vb"));
@@ -3172,7 +3512,7 @@ interface IProduct { id: number; }
 
     #[test]
     fn is_generated_filename_matches_known_patterns() {
-        assert!(is_generated_filename("Site/App_Code/iFalt.designer.vb"));
+        assert!(is_generated_filename("Site/App_Code/iCore.designer.vb"));
         assert!(
             is_generated_filename("Foo/Bar.Designer.cs"),
             "case-insensitive"
@@ -3187,7 +3527,7 @@ interface IProduct { id: number; }
 
     #[test]
     fn is_generated_filename_negative_on_normal_files() {
-        assert!(!is_generated_filename("Site/App_Code/iFalt.vb"));
+        assert!(!is_generated_filename("Site/App_Code/iCore.vb"));
         assert!(!is_generated_filename("Site/Default.aspx.vb"));
         assert!(!is_generated_filename("src/handler.ts"));
         assert!(
@@ -3275,7 +3615,7 @@ interface IProduct { id: number; }
                 ReviewFinding::new(
                     Severity::Style,
                     "style",
-                    "Site/App_Code/iFalt.designer.vb",
+                    "Site/App_Code/iCore.designer.vb",
                     "Indentation mismatch — space on tab-indented file",
                     "d",
                     "s",

@@ -344,7 +344,7 @@ pub fn resolve_entities_in_context(
                 // that names a candidate's class or file stem EXACTLY outranks one
                 // that merely occurs inside a longer name — `projekt` is the class
                 // of `_gd.projekt.GetByID` / `projekt.vb` and only a substring of
-                // `installationsobjektprojekt`. Round-8 P0-2: this is now the
+                // `bokningsobjektprojekt`. Round-8 P0-2: this is now the
                 // shared narrow_by_qualifiers, identical to the server-cue path.
                 let narrowed = narrow_by_qualifiers(v.clone(), question, &m.text);
                 m.resolved = if narrowed.len() < v.len() && !narrowed.is_empty() {
@@ -363,7 +363,7 @@ pub fn resolve_entities_in_context(
             }
             Ok(ResolveResult::NotFound) | Err(_) => {
                 // Round-2 audit P0-4: a mention that IS a file stem
-                // ("api-installationsobjektprojekt") resolves to that file so
+                // ("api-bokningsobjektprojekt") resolves to that file so
                 // the definition arm cites it.
                 let stem = m.text.trim().to_lowercase();
                 if stem.len() >= 6 && !stem.contains(' ') {

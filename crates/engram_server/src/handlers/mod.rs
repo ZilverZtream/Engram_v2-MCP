@@ -12,6 +12,7 @@ pub mod graph_tools;
 pub mod grep_tools;
 pub mod migration_tools;
 pub mod page_composition;
+mod planning_contract_rules;
 pub mod planning_tools;
 pub mod pr_history_tools;
 pub mod project_tools;
@@ -23,7 +24,7 @@ pub mod settings_tools;
 mod sql_binding;
 mod sql_scopes;
 pub mod support_kb_tools;
-mod test_derivation;
+pub(crate) mod test_derivation;
 
 pub mod runtime_observation_tools;
 

@@ -83,8 +83,8 @@ fn dedup(items: Vec<EvidenceItem>) -> Vec<EvidenceItem> {
 /// schema / resource question is answered from that modality whenever the
 /// index has it.
 /// The question's own words (>= 5 letters, lowercase): the reserves prefer a
-/// candidate that carries them ("which table stores … redovisningskategorier"
-/// → rk_redovisningskategorier.sql over a higher-relevance stranger).
+/// candidate that carries them ("which table stores … kostnadskategorier"
+/// → kk_kostnadskategorier.sql over a higher-relevance stranger).
 fn question_words(question: &str) -> Vec<String> {
     question
         .to_lowercase()
@@ -226,11 +226,14 @@ pub fn reserve_entity_files(
 /// P0-4f: how many items of a requested modality the reserve keeps.
 pub const MODALITY_SLOTS: usize = 3;
 
+/// `room` is how many more items the evidence cap admits; a reserve evicts
+/// only once that room is used up.
 pub fn reserve_required(
     chosen: &mut Vec<EvidenceItem>,
     raw: &[EvidenceItem],
     plan: &QueryPlan,
     question: &str,
+    room: usize,
 ) -> std::collections::HashSet<String> {
     let files: Vec<String> = plan
         .entities
@@ -244,7 +247,7 @@ pub fn reserve_required(
         .contract
         .required_facets
         .contains(&super::plan::Facet::Definition);
-    reserve_required_with(
+    reserve_required_with_room(
         chosen,
         raw,
         &plan.needed_evidence,
@@ -252,9 +255,12 @@ pub fn reserve_required(
         &files,
         question,
         pin_definition,
+        room,
     )
 }
 
+/// [`reserve_required_with_room`] with no free room: every reserved item
+/// replaces the weakest unprotected one.
 pub fn reserve_required_with(
     chosen: &mut Vec<EvidenceItem>,
     raw: &[EvidenceItem],
@@ -263,6 +269,29 @@ pub fn reserve_required_with(
     entity_files: &[String],
     question: &str,
     pin_definition: bool,
+) -> std::collections::HashSet<String> {
+    reserve_required_with_room(
+        chosen,
+        raw,
+        needed,
+        modalities,
+        entity_files,
+        question,
+        pin_definition,
+        0,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn reserve_required_with_room(
+    chosen: &mut Vec<EvidenceItem>,
+    raw: &[EvidenceItem],
+    needed: &[EvidenceKind],
+    modalities: &[Modality],
+    entity_files: &[String],
+    question: &str,
+    pin_definition: bool,
+    room: usize,
 ) -> std::collections::HashSet<String> {
     let words = question_words(question);
     let mut wanted: Vec<EvidenceItem> = Vec::new();
@@ -377,8 +406,17 @@ pub fn reserve_required_with(
     // (above). Reserving a curated subset of many-valid-callers cannot be done
     // without overfitting to a hand-picked ground-truth set, so it is not done.
     protected.extend(wanted.iter().map(|w| w.evidence_id.clone()));
+    let mut room = room;
     for w in wanted {
         if chosen.iter().any(|e| e.evidence_id == w.evidence_id) {
+            continue;
+        }
+        // A free slot under the cap takes the reserved item without an
+        // eviction; evicting with room to spare dropped a selected caller.
+        if room > 0 {
+            room -= 1;
+            protected.insert(w.evidence_id.clone());
+            chosen.push(w);
             continue;
         }
         // Evict the weakest item that no reserve protects.
@@ -898,5 +936,30 @@ mod ranking_reserve_tests {
             usage_reserved, 0,
             "callers must not be bulk-reserved (no flood); left to relevance ranking, got {usage_reserved}"
         );
+    }
+
+    // A reserve evicts only to make room. With free slots under the cap, a
+    // pinned definition is appended and every selected caller stays; an
+    // eviction with room to spare dropped the second caller of a "what
+    // calls X" question.
+    #[test]
+    fn a_reserve_with_free_slots_evicts_nothing() {
+        let def = mk("ev_def", EvidenceKind::GraphRelation, "definition", "impl.vb", 0.1, "definition");
+        let mut chosen = vec![
+            mk("ev_a", EvidenceKind::GraphRelation, "usage", "broker.vb", 0.65, "graph"),
+            mk("ev_b", EvidenceKind::GraphRelation, "usage", "client.ts", 0.64, "graph"),
+        ];
+        let _ = reserve_required_with_room(
+            &mut chosen,
+            &[def],
+            &[EvidenceKind::GraphRelation],
+            &[],
+            &[],
+            "what calls impl",
+            /* pin_definition */ true,
+            /* room */ 8,
+        );
+        let ids: Vec<&str> = chosen.iter().map(|e| e.evidence_id.as_str()).collect();
+        assert_eq!(ids, ["ev_a", "ev_b", "ev_def"]);
     }
 }

@@ -90,6 +90,29 @@ while (Console.In.ReadLine() is { } line)
         continue;
     }
 
+    if (request.Cmd == "invocations")
+    {
+        try
+        {
+            Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse
+            {
+                Path = request.Path,
+                InvocationReport = InvocationAnalyzer.Analyze(
+                    request.Source ?? string.Empty, request.RequestId)
+            }, AppJsonContext.Default.SidecarResponse));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse
+            {
+                Path = request.Path,
+                Error = ex.Message
+            }, AppJsonContext.Default.SidecarResponse));
+        }
+        Console.Out.Flush();
+        continue;
+    }
+
     if (request.Cmd != "parse")
     {
         Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse { Path = request.Path, Error = $"unknown command {request.Cmd}" }, AppJsonContext.Default.SidecarResponse));
@@ -167,6 +190,9 @@ internal sealed class SidecarResponse
     /// <summary>How many cached trees the `invalidate` command dropped.</summary>
     [JsonPropertyName("return_paths")]
     public ReturnPathReport? ReturnPaths { get; set; }
+
+    [JsonPropertyName("invocation_report")]
+    public InvocationReport? InvocationReport { get; set; }
 
     [JsonPropertyName("invalidated")]
     public int? Invalidated { get; set; }

@@ -50,6 +50,8 @@ fn make_repo_rule(id: &str, pattern: &str) -> RepoRule {
         rule_text: "Do not use global state".to_string(),
         priority: 1,
         updated_at_ms: 1_000_000,
+        introduced_at: None,
+        provenance: None,
     }
 }
 

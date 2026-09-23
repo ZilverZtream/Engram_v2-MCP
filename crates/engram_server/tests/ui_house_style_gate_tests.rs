@@ -50,7 +50,7 @@ fn write(dir: &std::path::Path, rel: &str, content: &str) {
     std::fs::write(p, content).unwrap();
 }
 
-const HEAD: &str = "<%@ Page Language=\"VB\" MasterPageFile=\"~/modules/dashboard/dashboard.master\" AutoEventWireup=\"false\" %>\n<asp:Content ID=\"c\" ContentPlaceHolderID=\"contentBody\" runat=\"server\">\n";
+const HEAD: &str = "<%@ Page Language=\"VB\" MasterPageFile=\"~/modules/dashboard/layout.master\" AutoEventWireup=\"false\" %>\n<asp:Content ID=\"c\" ContentPlaceHolderID=\"contentBody\" runat=\"server\">\n";
 
 /// The territory: two siblings that show messages with `alert alert-info`
 /// Panels, read `Resources.text`, and reuse `<uc:files>`; the page under edit

@@ -67,7 +67,7 @@ fn write(dir: &std::path::Path, rel: &str, content: &str) {
 /// message Panel + Label, `Resources.text.*`), plus a page in another
 /// territory that shares nothing.
 fn seed(dir: &std::path::Path) {
-    let head = "<%@ Page Language=\"VB\" MasterPageFile=\"~/modules/dashboard/dashboard.master\" AutoEventWireup=\"false\" CodeFile=\"{cb}\" Inherits=\"{cls}\" %>\n<asp:Content ID=\"c\" ContentPlaceHolderID=\"contentBody\" runat=\"server\">\n";
+    let head = "<%@ Page Language=\"VB\" MasterPageFile=\"~/modules/dashboard/layout.master\" AutoEventWireup=\"false\" CodeFile=\"{cb}\" Inherits=\"{cls}\" %>\n<asp:Content ID=\"c\" ContentPlaceHolderID=\"contentBody\" runat=\"server\">\n";
     let page = head
         .replace("{cb}", "edit.aspx.vb")
         .replace("{cls}", "admin_edit")

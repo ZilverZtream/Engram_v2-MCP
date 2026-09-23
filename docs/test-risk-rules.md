@@ -1,0 +1,56 @@
+# Hot-reloaded test risk rules
+
+`derive_test_matrix` can add organization and repository-specific test axes without rebuilding or restarting Engram.
+
+Engram reads these files on every call:
+
+1. `<data_dir>/rules/test-risk-rules.yaml` for organization defaults.
+2. `<project>/.engram/test-risk-rules.yaml` for repository policy.
+
+Rules merge by `id`; a repository rule with the same ID replaces the organization rule. Engram does not create either file. Missing packs are valid. Invalid packs are reported as incomplete evidence in the tool response rather than silently ignored.
+
+Engram ships no domain rule packs: checklists are organization or repository policy, written and dated by the team that owns them, in the files above. These packs are data: editing the YAML takes effect on the next tool call without rebuilding or restarting Engram.
+
+```yaml
+version: 1
+introduced_at: 2026-09-14
+provenance: Engineering handbook revision 42
+rules:
+  - id: vb.no-single-line-if
+    title: Repository conditional style
+    guidance: Expand the conditional and exercise both branches.
+    extensions: [vb]
+    any_terms: [" Then Return ", " Then Throw "]
+    none_terms: ["' generated"]
+
+  - id: webforms.deferred-binding
+    title: Repository control binding lifecycle
+    guidance: Prove the property is assigned before Init/Load consumers and after refresh.
+    severity: warning
+    extensions: [aspx, ascx, master]
+    path_any: [controls/]
+    all_terms: ["<%#"]
+    any_terms: [DataBind]
+```
+
+`introduced_at` and `provenance` may be set once on the pack or overridden per rule. The date is
+the first day the rule became available evidence, not the date of the behavior it describes. For
+point-in-time evaluation, pass `knowledge_before: YYYY-MM-DD` to `derive_test_matrix`; Engram then
+excludes every rule introduced on or after that date and every undated rule, and reports those
+exclusions. Omit the cutoff for live work so the newest reviewed rules apply.
+
+All predicates are case-insensitive literal substrings. `extensions`, `path_any`, `all_terms`, `any_terms`, and `none_terms` are optional, but every rule needs at least one predicate. `all_terms` must all occur, at least one `any_terms` value must occur, no `none_terms` value may occur, and at least one `path_any` value must occur. An empty predicate list places no restriction on that dimension. `severity` is optional and defaults to `warning`; allowed values are `critical`, `warning`, `info`, and `style`.
+
+For VB changes, the built-in matrix can also detect an incomplete migration from string literals to a canonical member. It activates only when a requested file's current HEAD-to-worktree diff adds a member argument whose name contains a canonical marker such as `prefix`, `token`, or `constant`, or when the exact member appears in `change_intent`. Engram then uses the Roslyn sidecar to find string literals passed to the same callee and argument identity across the bounded project scan, including multiline and named arguments. Resolved parameter ordinals connect named and positional forms when Roslyn has enough semantic information; otherwise the output states that matching is lexical.
+
+The migration sweep is review evidence rather than an instruction to edit every match. It prioritizes requested files, excludes generated and dependency directories, caps candidate members, source bytes, files, invocations, arguments, results, and response size, and reports every cap or parser failure as `INCOMPLETE`. Diff collection is limited to literal requested paths and combines staged and unstaged changes into final worktree coordinates. Older or unavailable sidecars fail closed without a regex fallback.
+
+The loader accepts version 1, at most 128 rules per pack, at most 32 values per predicate list, and files no larger than 256 KiB. It rejects invalid provenance dates, unknown YAML fields, duplicate IDs inside a pack, control characters, and repository-pack paths that resolve outside the repository. The format deliberately has no regular expressions, scripts, commands, or templating.
+
+Each emitted matrix axis names its stable rule ID and whether it came from the organization or repository pack. The same rule is checked against added diff content by `pre_commit_review`, so repository policy participates before implementation and again before completion. Rules propose tests or review work; they do not certify behavior or execute commands.
+
+Promoted or manually stored repository rules use the same provenance principle. `add_repo_rule`
+accepts optional `introduced_at` and `provenance` fields, and `list_repo_rules` returns the complete
+rule rather than only its ID. `get_change_set` includes rules whose file patterns match its candidate
+cohort. When `merged_before` is set, it excludes undated rules and rules introduced on or after the
+exclusive cutoff so a historical replay cannot learn from later reviews.

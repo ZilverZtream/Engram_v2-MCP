@@ -7,11 +7,13 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use engram_core::config::Config;
+use engram_server::handlers::review_decisions::GetReviewDecisionsRequest;
 use engram_server::services::code_review_ingest_service::{
     IngestConfig, IngestSource, ingest_code_review_history,
 };
 use engram_server::services::project_service::ensure_project_record;
 use engram_server::state::AppState;
+use engram_server::tools::Engram;
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -170,6 +172,85 @@ async fn jsonl_ingest_indexes_clusters_and_separates_wontfix() {
         "3-PR 100% fix-rate cluster must auto-promote"
     );
     assert_eq!(stats.newest_pr_id, Some(4));
+    assert_eq!(stats.review_decisions_recorded, 4);
+    assert_eq!(stats.review_decisions_skipped, 0);
+
+    let snapshot = Engram::new(state.clone())
+        .handle_get_review_decisions(GetReviewDecisionsRequest {
+            project_id: project_id.clone(),
+            review_id: "PR-4".into(),
+        })
+        .await
+        .unwrap();
+    let json: serde_json::Value =
+        serde_json::from_str(&snapshot.content[0].as_text().unwrap().text).unwrap();
+    assert_eq!(json["coverage"], "imported_events_only", "{json}");
+    assert_eq!(
+        json["current"][0]["effective_status"], "accepted_exception",
+        "{json}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn changed_thread_disposition_appends_a_superseding_event() {
+    let (tmp, state) = build_state();
+    let project_id = register_project(&state, &tmp).await;
+    let path = write_fixture_jsonl(
+        &tmp,
+        &[mk_record(
+            8,
+            "wontFix",
+            "/Site/Example.vb",
+            "major",
+            "_Potential issue_ | _Major_\n\n**Keep the caller-owned fallback.**\n\nThe caller owns this behavior and the fallback remains intentional.",
+        )],
+    );
+    ingest_code_review_history(
+        &state,
+        &project_id,
+        IngestConfig {
+            source: IngestSource::JsonlFile { path: path.clone() },
+            force_full_rescan: true,
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+
+    write_fixture_jsonl(
+        &tmp,
+        &[mk_record(
+            8,
+            "fixed",
+            "/Site/Example.vb",
+            "major",
+            "_Potential issue_ | _Major_\n\n**Remove the caller-owned fallback.**\n\nThe fallback caused a defect and was removed.\n\nAddressed in commits 0123456",
+        )],
+    );
+    ingest_code_review_history(
+        &state,
+        &project_id,
+        IngestConfig {
+            source: IngestSource::JsonlFile { path },
+            force_full_rescan: true,
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+
+    let snapshot = Engram::new(state)
+        .handle_get_review_decisions(GetReviewDecisionsRequest {
+            project_id,
+            review_id: "PR-8".into(),
+        })
+        .await
+        .unwrap();
+    let json: serde_json::Value =
+        serde_json::from_str(&snapshot.content[0].as_text().unwrap().text).unwrap();
+    assert_eq!(json["events"].as_array().unwrap().len(), 2, "{json}");
+    assert_eq!(json["current"][0]["effective_status"], "claimed_fix", "{json}");
+    assert!(json["current"][0]["evidence"]["supersedes"].is_string(), "{json}");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -214,6 +295,69 @@ async fn jsonl_ingest_respects_incremental_marker() {
         .unwrap();
     assert!(s2.incremental_skipped_prs >= 1, "PR 1 must be skipped");
     assert_eq!(s2.newest_pr_id, Some(2));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn jsonl_ingest_excludes_reviews_after_historical_pr_boundary() {
+    let (tmp, state) = build_state();
+    let project_id = register_project(&state, &tmp).await;
+    let body = "**Bound archive extraction.** `ZipArchive` readers must reject excessive expanded bytes. ✅ Addressed in commits abc1234";
+    let path = write_fixture_jsonl(
+        &tmp,
+        &[
+            mk_record(100, "fixed", "/src/A.cs", "major", body),
+            mk_record(101, "fixed", "/src/B.cs", "major", body),
+            mk_record(102, "fixed", "/src/C.cs", "major", body),
+        ],
+    );
+
+    let stats = ingest_code_review_history(
+        &state,
+        &project_id,
+        IngestConfig {
+            source: IngestSource::JsonlFile { path },
+            max_pr_id: Some(101),
+            force_full_rescan: true,
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(stats.total_raw, 2, "post-boundary PR must not enter the corpus");
+    assert_eq!(stats.newest_pr_id, Some(101));
+    assert!(stats.incremental_skipped_prs >= 1);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn jsonl_ingest_excludes_reviews_at_or_after_completion_boundary() {
+    let (tmp, state) = build_state();
+    let project_id = register_project(&state, &tmp).await;
+    let body = "**Bound archive extraction.** `ZipArchive` readers must reject excessive expanded bytes. ✅ Addressed in commits abc1234";
+    let mut before = mk_record(200, "fixed", "/src/A.cs", "major", body);
+    before["pr_date"] = serde_json::json!("2026-08-17T23:59:59Z");
+    let mut at_cutoff = mk_record(199, "fixed", "/src/B.cs", "major", body);
+    at_cutoff["pr_date"] = serde_json::json!("2026-08-18T00:00:00Z");
+    let mut after_with_older_id = mk_record(150, "fixed", "/src/C.cs", "major", body);
+    after_with_older_id["pr_date"] = serde_json::json!("2026-09-01T12:00:00Z");
+    let mut undated = mk_record(100, "fixed", "/src/D.cs", "major", body);
+    undated["pr_date"] = serde_json::json!("");
+    let path = write_fixture_jsonl(&tmp, &[before, at_cutoff, after_with_older_id, undated]);
+
+    let stats = ingest_code_review_history(
+        &state,
+        &project_id,
+        IngestConfig {
+            source: IngestSource::JsonlFile { path },
+            completed_before: Some("2026-08-18".into()),
+            force_full_rescan: true,
+            ..Default::default()
+        },
+    ).await.unwrap();
+
+    assert_eq!(stats.total_raw, 1);
+    assert_eq!(stats.newest_pr_id, Some(200));
+    assert_eq!(stats.incremental_skipped_prs, 3);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -268,7 +412,7 @@ async fn suppression_is_scoped_to_wontfix_file_family_not_language() {
 
     let body_fix = "_⚠️ Potential issue_ | _🟠 Major_\n\n\
         **Avoid calling `SubmitChanges()` without audit log.**\n\n\
-        `SubmitChanges()` on `DataContext` must be preceded by `handelselogg.Create()`.\n\n\
+        `SubmitChanges()` on `DataContext` must be preceded by `aktivitetslogg.Create()`.\n\n\
         ✅ Addressed in commits abc1234";
     let body_wontfix = "_⚠️ Potential issue_ | _🟡 Minor_\n\n\
         **Consider null-checking `gQtyManager.validate()`.**\n\n\

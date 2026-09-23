@@ -31,6 +31,10 @@ internal sealed class AstEmitter
     private string? _projectRoot;
     private readonly Dictionary<string, SyntaxTree> _treesByPath =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, List<SourcePropertyInfo>> _sourcePropertiesByName =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    private sealed record SourcePropertyInfo(string Fqn, string ContainingType, string Path);
 
     /// <summary>
     /// Directory names that hold build output, VCS internals or IDE caches.
@@ -114,6 +118,7 @@ internal sealed class AstEmitter
     public void BeginProject(string projectRoot, IReadOnlyList<string>? files = null)
     {
         _treesByPath.Clear();
+        _sourcePropertiesByName.Clear();
         _projectRoot = null;
 
         if (string.IsNullOrWhiteSpace(projectRoot) || !Directory.Exists(projectRoot))
@@ -138,6 +143,7 @@ internal sealed class AstEmitter
                 );
                 trees.Add(tree);
                 _treesByPath[vbPath] = tree;
+                AddSourceProperties(tree);
             }
             catch
             {
@@ -177,6 +183,7 @@ internal sealed class AstEmitter
             {
                 stale.Add(tree);
                 _treesByPath.Remove(path);
+                RemoveSourceProperties(path);
             }
         }
 
@@ -185,6 +192,60 @@ internal sealed class AstEmitter
             _projectCompilation = _projectCompilation.RemoveSyntaxTrees(stale);
         }
         return stale.Count;
+    }
+
+    private void AddSourceProperties(SyntaxTree tree)
+    {
+        foreach (var statement in tree.GetRoot().DescendantNodes().OfType<PropertyStatementSyntax>())
+        {
+            var terminal = statement.Identifier.Text;
+            var namespaces = statement.Ancestors()
+                .OfType<NamespaceBlockSyntax>()
+                .Reverse()
+                .Select(block => block.NamespaceStatement.Name.ToString());
+            var types = statement.Ancestors()
+                .Reverse()
+                .Select(node => node switch
+                {
+                    ClassBlockSyntax block => block.ClassStatement.Identifier.Text,
+                    ModuleBlockSyntax block => block.ModuleStatement.Identifier.Text,
+                    StructureBlockSyntax block => block.StructureStatement.Identifier.Text,
+                    InterfaceBlockSyntax block => block.InterfaceStatement.Identifier.Text,
+                    _ => null
+                })
+                .Where(name => !string.IsNullOrWhiteSpace(name));
+            var ownerParts = namespaces.Concat(types).ToList();
+            if (ownerParts.Count == 0)
+            {
+                continue;
+            }
+            var owner = string.Join('.', ownerParts);
+            var info = new SourcePropertyInfo(
+                $"{owner}.{terminal}",
+                owner,
+                tree.FilePath);
+            if (_sourcePropertiesByName.TryGetValue(terminal, out var existing))
+            {
+                existing.Add(info);
+            }
+            else
+            {
+                _sourcePropertiesByName[terminal] = [info];
+            }
+        }
+    }
+
+    private void RemoveSourceProperties(string path)
+    {
+        foreach (var terminal in _sourcePropertiesByName.Keys.ToList())
+        {
+            _sourcePropertiesByName[terminal].RemoveAll(property =>
+                property.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
+            if (_sourcePropertiesByName[terminal].Count == 0)
+            {
+                _sourcePropertiesByName.Remove(terminal);
+            }
+        }
     }
 
     /// <summary>The root the current compilation was built from, if any.</summary>
@@ -214,11 +275,15 @@ internal sealed class AstEmitter
                 // but don't mutate _projectCompilation — avoids O(N²) rebuilds.
                 tree = VisualBasicSyntaxTree.ParseText(SourceText.From(SourceForParsing(source)), path: path);
                 compilation = _projectCompilation.AddSyntaxTrees(tree);
+                RemoveSourceProperties(path);
+                AddSourceProperties(tree);
             }
             else
             {
                 tree = VisualBasicSyntaxTree.ParseText(SourceText.From(SourceForParsing(source)), path: path);
                 compilation = VisualBasicCompilation.Create("sidecar_single").AddSyntaxTrees(tree);
+                _sourcePropertiesByName.Clear();
+                AddSourceProperties(tree);
             }
 
             var model = compilation.GetSemanticModel(tree);
@@ -321,6 +386,9 @@ internal sealed class AstEmitter
                 case PropertyBlockSyntax p:
                     EmitProperty(p);
                     return;
+                case PropertyStatementSyntax p when p.Parent is not PropertyBlockSyntax:
+                    EmitAutoProperty(p);
+                    return;
                 case FieldDeclarationSyntax f:
                     EmitField(f);
                     return;
@@ -379,7 +447,7 @@ internal sealed class AstEmitter
             metadata["arity_variadic"] = parameters.Any(p => p.Modifiers.Any(m => m.IsKind(SyntaxKind.ParamArrayKeyword))).ToString().ToLowerInvariant();
             if (node is ConstructorBlockSyntax)
                 metadata["constructor"] = "true";
-            if (stmt.Modifiers.Any(m => m.Kind() == SyntaxKind.AsyncKeyword))
+            if (stmt.Modifiers.Any(m => m.IsKind(SyntaxKind.AsyncKeyword)))
                 metadata["async"] = "true";
             if (Lifecycle(name) is { } life)
             {
@@ -597,7 +665,10 @@ internal sealed class AstEmitter
                 // .Controls.Add check (merged from the old separate DescendantNodes loop).
                 if (exprText.EndsWith(".Controls.Add", StringComparison.OrdinalIgnoreCase))
                 {
-                    var controlVar = SanitizeName(inv.ArgumentList?.Arguments.FirstOrDefault()?.ToString());
+                    var controlArgument = inv.ArgumentList?.Arguments.FirstOrDefault();
+                    var controlVar = controlArgument is null
+                        ? string.Empty
+                        : SanitizeName(controlArgument.ToString());
                     if (!string.IsNullOrWhiteSpace(controlVar) &&
                         (dynamicControls.Contains(controlVar) || knownControlNames.Contains(controlVar)))
                     {
@@ -775,6 +846,7 @@ internal sealed class AstEmitter
                 }
             }
 
+            EmitPropertyReferences(collector, fqn, "function", methodStartLine);
             foreach (var member in collector.MemberAccesses)
             {
                 if (!member.ToString().StartsWith("My.", StringComparison.OrdinalIgnoreCase)) continue;
@@ -790,7 +862,6 @@ internal sealed class AstEmitter
                     Kind = "reads_state"
                 });
             }
-
             foreach (var redim in collector.ReDims)
             {
                 edges.Add(new EdgeDto
@@ -835,15 +906,173 @@ internal sealed class AstEmitter
         {
             var name = node.PropertyStatement.Identifier.Text;
             var fqn = ComposeName(name);
+            var propertyStartLine = Line(tree, node);
             symbols.Add(new SymbolDto
             {
                 Name = fqn,
                 Kind = "property",
-                StartLine = Line(tree, node),
+                StartLine = propertyStartLine,
                 EndLine = EndLine(tree, node),
             });
-            if (types.Count > 0) edges.Add(Contains(types.Peek(), fqn, typeStartLines.Peek(), Line(tree, node), "property"));
+            if (types.Count > 0) edges.Add(Contains(types.Peek(), fqn, typeStartLines.Peek(), propertyStartLine, "property"));
+
+            // Property accessor bodies are executable. Previously Walk()
+            // indexed the declaration but silently skipped every call made by
+            // Get/Set, disconnecting a common VB business-logic layer from its
+            // downstream dependencies.
+            var collector = new MethodNodeCollector();
+            collector.Visit(node);
+            foreach (var invocation in collector.Invocations)
+            {
+                var callSiteLine = Line(tree, invocation);
+                var invocationMetadata = ResolveInvocationMetadata(invocation) ?? new Dictionary<string, string>();
+                invocationMetadata["call_site_line"] = callSiteLine.ToString();
+                invocationMetadata["args"] = (invocation.ArgumentList?.Arguments.Count ?? 0).ToString();
+                invocationMetadata["via"] = "property_accessor";
+                edges.Add(new EdgeDto
+                {
+                    SourceName = fqn,
+                    SourceKind = "property",
+                    SourceStartLine = propertyStartLine,
+                    SourceLanguage = "vb",
+                    TargetName = ResolveInvocationName(invocation),
+                    TargetKind = "function",
+                    Kind = "calls",
+                    Metadata = invocationMetadata
+                });
+            }
+
+            EmitPropertyReferences(collector, fqn, "property", propertyStartLine, fqn);
             foreach (var child in node.ChildNodes()) Walk(child);
+        }
+
+        void EmitAutoProperty(PropertyStatementSyntax statement)
+        {
+            var fqn = ComposeName(statement.Identifier.Text);
+            var propertyLine = Line(tree, statement);
+            symbols.Add(new SymbolDto
+            {
+                Name = fqn,
+                Kind = "property",
+                StartLine = propertyLine,
+                EndLine = EndLine(tree, statement),
+            });
+            if (types.Count > 0)
+            {
+                edges.Add(Contains(
+                    types.Peek(),
+                    fqn,
+                    typeStartLines.Peek(),
+                    propertyLine,
+                    "property"));
+            }
+        }
+
+        string? ResolveSourcePropertyName(
+            SyntaxNode reference,
+            string terminal,
+            string receiver)
+        {
+            try
+            {
+                var symbol = model.GetSymbolInfo(reference).Symbol;
+                var property = symbol as IPropertySymbol;
+                if (property is null || !property.Locations.Any(location => location.IsInSource))
+                {
+                    // In incomplete legacy Web Site compilations the receiver
+                    // can be an error type even while the target declaration
+                    // is present in source. Resolve only a unique source
+                    // property, or a unique candidate whose containing type
+                    // matches the lexical receiver. Ambiguity stays omitted.
+                    var candidates = _sourcePropertiesByName.GetValueOrDefault(terminal) ?? [];
+                    if (candidates.Count == 1)
+                    {
+                        return SanitizeName(candidates[0].Fqn);
+                    }
+                    var matches = candidates.Where(candidate =>
+                    {
+                        var containing = candidate.ContainingType;
+                        var typeName = containing.Split('.').Last();
+                        return receiver.Equals(containing, StringComparison.OrdinalIgnoreCase) ||
+                            receiver.EndsWith("." + containing, StringComparison.OrdinalIgnoreCase) ||
+                            receiver.Equals(typeName, StringComparison.OrdinalIgnoreCase) ||
+                            receiver.EndsWith("." + typeName, StringComparison.OrdinalIgnoreCase);
+                    }).ToList();
+                    if (matches.Count != 1)
+                    {
+                        return null;
+                    }
+                    return SanitizeName(matches[0].Fqn);
+                }
+                return SanitizeName(property.ToDisplayString(BareQualifiedNameFormat));
+            }
+            catch
+            {
+                // Malformed/incomplete source must degrade without inventing
+                // a reference. The lexical fallback remains available to the
+                // search layer, explicitly labelled as unverified evidence.
+                return null;
+            }
+        }
+
+        void EmitPropertyReferences(
+            MethodNodeCollector collector,
+            string sourceName,
+            string sourceKind,
+            int sourceStartLine,
+            string? selfProperty = null)
+        {
+            // VB represents qualified type names and ordinary object members
+            // with different syntax node families. Normalize both plus bare
+            // same-type property reads, then deduplicate nested representations.
+            var candidates = new List<(SyntaxNode Node, string Terminal, string Receiver)>();
+            candidates.AddRange(collector.MemberAccesses.Select(member => (
+                (SyntaxNode)member,
+                member.Name?.Identifier.Text ?? string.Empty,
+                member.Expression?.ToString() ?? string.Empty)));
+            candidates.AddRange(collector.QualifiedNames.Select(qualified => (
+                (SyntaxNode)qualified,
+                qualified.Right?.Identifier.Text ?? string.Empty,
+                qualified.Left?.ToString() ?? string.Empty)));
+            candidates.AddRange(collector.IdentifierNames
+                .Where(identifier => identifier.Parent is not MemberAccessExpressionSyntax and not QualifiedNameSyntax)
+                .Select(identifier => ((SyntaxNode)identifier, identifier.Identifier.Text, string.Empty)));
+
+            var emitted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (reference, terminal, receiver) in candidates)
+            {
+                if (string.IsNullOrWhiteSpace(terminal) ||
+                    ResolveSourcePropertyName(reference, terminal, receiver) is not { } target ||
+                    selfProperty?.Equals(target, StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    continue;
+                }
+                var assignment = reference.Ancestors()
+                    .OfType<AssignmentStatementSyntax>()
+                    .FirstOrDefault();
+                var isWrite = assignment is not null && assignment.Left.Span.Contains(reference.Span);
+                var line = Line(tree, reference);
+                var via = isWrite ? "property_set" : "property_get";
+                if (!emitted.Add($"{target}\0{via}\0{line}"))
+                {
+                    continue;
+                }
+                edges.Add(new EdgeDto
+                {
+                    SourceName = sourceName,
+                    SourceKind = sourceKind,
+                    SourceStartLine = sourceStartLine,
+                    SourceLanguage = "vb",
+                    TargetName = target,
+                    TargetKind = "property",
+                    Kind = "calls",
+                    Metadata = new()
+                    {
+                        ["call_site_line"] = line.ToString(),
+                        ["via"] = via
+                    }
+                });
+            }
         }
 
         void EmitField(FieldDeclarationSyntax node)
@@ -1131,6 +1360,8 @@ internal sealed class AstEmitter
         public readonly List<LocalDeclarationStatementSyntax> LocalDeclarations = [];
         public readonly List<WithBlockSyntax> WithBlocks = [];
         public readonly List<MemberAccessExpressionSyntax> MemberAccesses = [];
+        public readonly List<QualifiedNameSyntax> QualifiedNames = [];
+        public readonly List<IdentifierNameSyntax> IdentifierNames = [];
         public readonly List<ReDimStatementSyntax> ReDims = [];
         public readonly List<SyntaxNode> OnErrors = [];
         public readonly List<VariableDeclaratorSyntax> VariableDeclarators = [];
@@ -1162,6 +1393,12 @@ internal sealed class AstEmitter
 
         public override void VisitMemberAccessExpression(MemberAccessExpressionSyntax node)
         { MemberAccesses.Add(node); base.VisitMemberAccessExpression(node); }
+
+        public override void VisitQualifiedName(QualifiedNameSyntax node)
+        { QualifiedNames.Add(node); base.VisitQualifiedName(node); }
+
+        public override void VisitIdentifierName(IdentifierNameSyntax node)
+        { IdentifierNames.Add(node); base.VisitIdentifierName(node); }
 
         public override void VisitVariableDeclarator(VariableDeclaratorSyntax node)
         { VariableDeclarators.Add(node); base.VisitVariableDeclarator(node); }

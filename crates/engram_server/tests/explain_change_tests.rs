@@ -105,6 +105,8 @@ async fn staged_diff_with_immune_file_gets_red_risk_and_addresses_rule() {
                 rule_text: "BaseDeleteByInputQuery lacked multitenant WHERE".into(),
                 priority: 1,
                 updated_at_ms: 1,
+                introduced_at: None,
+                provenance: None,
             },
         )
         .unwrap();
@@ -115,7 +117,7 @@ diff --git a/Site/App_Code/dal/Orders.vb b/Site/App_Code/dal/Orders.vb
 +++ b/Site/App_Code/dal/Orders.vb
 @@ -10,6 +10,8 @@
  Public Sub DeleteOrder(id As Integer)
-     Dim db As New iFaltDataContext()
+     Dim db As New iCoreDataContext()
 +    Dim row = db.Orders.FirstOrDefault(Function(o) o.Id = id)
 +    If row Is Nothing Then Return
      db.SubmitChanges()
