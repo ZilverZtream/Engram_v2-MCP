@@ -1686,6 +1686,18 @@ pub struct SearchHistoryRequest {
     /// no identifiable commit are dropped. Unresolvable revisions are an error.
     #[serde(default)]
     pub as_of_rev: Option<String>,
+    /// `precedent`: "how did we implement this before?" for a story or task —
+    /// ranks whole published changes (one semantic card per first-parent
+    /// change; the top 30 reranked by the configured OpenRouter LLM). `text`:
+    /// commit messages, diffs and merged-PR records — for "when/why did X
+    /// change" and identifiers. `auto` (default): precedent for prose of 8+
+    /// words, text otherwise.
+    #[serde(default)]
+    pub mode: Option<String>,
+    /// Precedent mode: rerank with the configured OpenRouter LLM. Default true;
+    /// without an LLM the semantic order is returned and the output says so.
+    #[serde(default)]
+    pub rerank: Option<bool>,
     /// Maximum results. `top_k` is accepted as an alias, matching the other
     /// search tools.
     #[serde(default = "default_limit_5", alias = "top_k")]
