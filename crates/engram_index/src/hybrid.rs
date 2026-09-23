@@ -3873,6 +3873,9 @@ pub fn literal_text_query(
 /// match. 0.1 measured best on a real project's history (0.1 / 0.3 / words-only).
 pub const SUBSTRING_MATCH_WEIGHT: f32 = 0.1;
 
+/// Shortest word (without surrounding punctuation) also matched as a substring.
+pub const SUBSTRING_MIN_CHARS: usize = 4;
+
 pub fn literal_word_or_substring_query(
     index: &tantivy::Index,
     words: tantivy::schema::Field,
@@ -3893,7 +3896,16 @@ pub fn literal_word_or_substring_query(
         if !by_word.is::<tantivy::query::EmptyQuery>() {
             forms.push((Occur::Should, by_word));
         }
-        let by_substring = literal_text_query(index, trigrams, word, false)?;
+        // The substring form takes the word without surrounding punctuation
+        // (`projekt`, "missing", (1,2)) and only from four characters up: a
+        // short common word's trigrams occur in nearly every document, which
+        // cost a story-length query a second and ranked nothing.
+        let core = word.trim_matches(|c: char| !c.is_alphanumeric());
+        let by_substring = if core.chars().count() >= SUBSTRING_MIN_CHARS {
+            literal_text_query(index, trigrams, core, false)?
+        } else {
+            Box::new(tantivy::query::EmptyQuery)
+        };
         if !by_substring.is::<tantivy::query::EmptyQuery>() {
             forms.push((
                 Occur::Should,

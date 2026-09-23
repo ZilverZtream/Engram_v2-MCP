@@ -371,14 +371,26 @@ struct HistoryGroup {
     message_matched: bool,
     files: Vec<String>,
     first_pk: String,
+    /// Matching commits folded in because this change published them.
+    folded: std::collections::BTreeSet<String>,
+    /// A merged-PR record matched.
+    record_matched: bool,
 }
 
-/// Everything in the past of one revision: every reachable commit, and the
+/// Everything in the past of one revision: every reachable commit, the
 /// change-unit id (`PR-<n>` / `commit-<short>`) that `ingest_merged_prs`
-/// derives from each reachable commit's summary.
+/// derives from each reachable commit's summary, and for every commit the
+/// commit on the revision's first-parent line that published it.
 pub(crate) struct ReachableHistory {
     oids: std::collections::HashSet<String>,
     change_ids: std::collections::HashSet<String>,
+    /// Reachable commit -> the first-parent-line commit that brought it in
+    /// (itself, for commits on that line).
+    publisher: std::collections::HashMap<String, String>,
+    /// Change id of a first-parent-line commit -> that commit.
+    change_publisher: std::collections::HashMap<String, String>,
+    /// Summary line of each first-parent-line commit.
+    summaries: std::collections::HashMap<String, String>,
     /// How the cutoff was chosen, for result headers.
     pub(crate) label: String,
 }
@@ -422,42 +434,94 @@ impl ReachableHistory {
             .iter()
             .find(|(dir, oid, _)| dir == repo_dir && *oid == tip)
         {
-            let mut hit = std::sync::Arc::clone(hit);
-            if hit.label != label {
-                hit = std::sync::Arc::new(Self {
-                    oids: hit.oids.clone(),
-                    change_ids: hit.change_ids.clone(),
-                    label,
-                });
+            let hit = std::sync::Arc::clone(hit);
+            drop(cache);
+            if hit.label == label {
+                return Ok(Some(hit));
             }
-            return Ok(Some(hit));
+            return Ok(Some(std::sync::Arc::new(Self {
+                oids: hit.oids.clone(),
+                change_ids: hit.change_ids.clone(),
+                publisher: hit.publisher.clone(),
+                change_publisher: hit.change_publisher.clone(),
+                summaries: hit.summaries.clone(),
+                label,
+            })));
         }
         drop(cache);
         let mut walk = repo.revwalk()?;
         walk.push(tip)?;
-        let mut oids = std::collections::HashSet::new();
-        let mut change_ids = std::collections::HashSet::new();
+        let mut parents: std::collections::HashMap<Oid, Vec<Oid>> = std::collections::HashMap::new();
+        let mut summary_of: std::collections::HashMap<Oid, String> = std::collections::HashMap::new();
         for oid in walk {
             let oid = oid?;
-            let hex = oid.to_string();
-            let summary = repo.find_commit(oid)?.summary().unwrap_or("").to_string();
-            change_ids.insert(
-                crate::handlers::pr_history_tools::parse_pr_identity(&summary, &hex[..10]).0,
-            );
-            oids.insert(hex);
+            let commit = repo.find_commit(oid)?;
+            parents.insert(oid, commit.parent_ids().collect());
+            summary_of.insert(oid, commit.summary().unwrap_or("").to_string());
         }
+        // The first-parent line, oldest first: each of its commits publishes
+        // whatever reachable commits no older line commit already covered —
+        // for a merge, the branch it merged.
+        let mut line = Vec::new();
+        let mut cursor = Some(tip);
+        while let Some(commit) = cursor {
+            line.push(commit);
+            cursor = parents.get(&commit).and_then(|p| p.first().copied());
+        }
+        line.reverse();
+        let mut published_by: std::collections::HashMap<Oid, Oid> = std::collections::HashMap::new();
+        for &head in &line {
+            let mut stack = vec![head];
+            while let Some(commit) = stack.pop() {
+                if published_by.contains_key(&commit) {
+                    continue;
+                }
+                published_by.insert(commit, head);
+                stack.extend(parents.get(&commit).into_iter().flatten().copied());
+            }
+        }
+        let change_id = |oid: &Oid, summary: &str| {
+            let hex = oid.to_string();
+            crate::handlers::pr_history_tools::parse_pr_identity(summary, &hex[..10]).0
+        };
         let walked = std::sync::Arc::new(Self {
-            oids,
-            change_ids,
+            oids: summary_of.keys().map(Oid::to_string).collect(),
+            change_ids: summary_of.iter().map(|(oid, s)| change_id(oid, s)).collect(),
+            publisher: published_by
+                .iter()
+                .map(|(commit, head)| (commit.to_string(), head.to_string()))
+                .collect(),
+            change_publisher: line
+                .iter()
+                .map(|oid| (change_id(oid, &summary_of[oid]), oid.to_string()))
+                .collect(),
+            summaries: line
+                .iter()
+                .map(|oid| (oid.to_string(), summary_of[oid].clone()))
+                .collect(),
             label,
         });
         let mut cache = REACHABLE_CACHE.lock().unwrap_or_else(|e| e.into_inner());
-        cache.retain(|(dir, _, _)| dir != repo_dir);
         cache.push((repo_dir.to_path_buf(), tip, std::sync::Arc::clone(&walked)));
         if cache.len() > 8 {
             cache.remove(0);
         }
         Ok(Some(walked))
+    }
+
+    /// The first-parent-line commit that published `commit`.
+    pub(crate) fn publisher_of(&self, commit: &str) -> Option<&str> {
+        self.publisher.get(commit).map(String::as_str)
+    }
+
+    /// The first-parent-line commit a merged-change id names.
+    pub(crate) fn publisher_of_change(&self, change_id: &str) -> Option<&str> {
+        self.change_publisher.get(change_id).map(String::as_str)
+    }
+
+    /// Summary line of a first-parent-line commit.
+    pub(crate) fn summary_of(&self, commit: &str) -> Option<&str> {
+        self.summaries.get(commit).map(String::as_str)
     }
 
     /// Fail-closed: a document whose commit cannot be identified is not admitted.
@@ -1629,10 +1693,12 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         let content_limit = req.max_content_chars;
         let project_id = req.project_id.clone();
-        // Resolved again only for its label: the walk is cached.
-        let scope = self
+        // Resolved again for its label and publishers: the walk is cached.
+        let reachable = self
             .reachable_history(&req.project_id, req.as_of_rev.as_deref())
-            .await?
+            .await?;
+        let scope = reachable
+            .as_ref()
             .map(|reachable| format!("; {}", reachable.label))
             .unwrap_or_default();
         // One result per COMMIT: its message and each diff are separate
@@ -1647,28 +1713,44 @@ impl Engram {
         for hit in &hits {
             let path = hit.path.as_str();
             let (commit, file) = history_doc_identity(path);
-            let key = commit.unwrap_or(path);
+            // One result per published change: a branch commit (a "Merge
+            // with master", a pre-squash WIP step) folds into the commit on
+            // the first-parent line that published it, and a merged-PR
+            // record joins its merge commit.
+            let publisher = reachable.as_ref().and_then(|r| match commit {
+                Some(oid) => r.publisher_of(oid),
+                None => path.strip_prefix("pr:").and_then(|id| r.publisher_of_change(id)),
+            });
+            let key = publisher.or(commit).unwrap_or(path);
             let index = match groups.iter().position(|g| g.key == key) {
                 Some(index) => index,
                 None if groups.len() < limit => {
                     groups.push(HistoryGroup {
                         key: key.to_string(),
-                        commit: commit.map(str::to_string),
+                        commit: publisher.or(commit).map(str::to_string),
                         message_matched: false,
                         files: Vec::new(),
                         first_pk: hit.pk.clone(),
+                        folded: std::collections::BTreeSet::new(),
+                        record_matched: false,
                     });
                     groups.len() - 1
                 }
                 None => continue,
             };
             let group = &mut groups[index];
-            match file {
-                Some(file) if !group.files.iter().any(|f| f == file) => {
+            if let Some(oid) = commit
+                && oid != group.key
+            {
+                group.folded.insert(oid.to_string());
+            }
+            match (file, commit) {
+                (Some(file), _) if !group.files.iter().any(|f| f == file) => {
                     group.files.push(file.to_string())
                 }
-                Some(_) => {}
-                None => group.message_matched = true,
+                (Some(_), _) => {}
+                (None, Some(_)) => group.message_matched = true,
+                (None, None) => group.record_matched = true,
             }
         }
 
@@ -1720,11 +1802,19 @@ impl Engram {
                 ));
             }
             // Commit messages are "Author: …\nDate: <epoch>\n\n<message>";
-            // merged-PR records start with their "# PR-n: title" line.
-            let body = stored.as_ref().map(|d| match d.content.split_once("\n\n") {
-                Some((_, message)) if group.commit.is_some() => message,
-                _ => d.content.as_str(),
-            });
+            // merged-PR records start with their "# PR-n: title" line. A
+            // publishing commit with no indexed message still has its summary.
+            let summary = group
+                .commit
+                .as_deref()
+                .and_then(|oid| reachable.as_ref()?.summary_of(oid));
+            let body = stored
+                .as_ref()
+                .map(|d| match d.content.split_once("\n\n") {
+                    Some((_, message)) if group.commit.is_some() => message,
+                    _ => d.content.as_str(),
+                })
+                .or(summary);
             if let Some(subject) = body.and_then(|b| {
                 b.lines()
                     .map(|l| l.trim().trim_start_matches('#').trim())
@@ -1746,6 +1836,15 @@ impl Engram {
             }
             if !group.files.is_empty() {
                 matched.push(format!("{} diff(s)", group.files.len()));
+            }
+            if group.record_matched {
+                matched.push("merged-PR record".to_string());
+            }
+            if !group.folded.is_empty() {
+                matched.push(format!(
+                    "{} branch commit(s) it published",
+                    group.folded.len()
+                ));
             }
             out.push_str(&format!("matched: {}\n", matched.join(", ")));
             if content_limit > 0
