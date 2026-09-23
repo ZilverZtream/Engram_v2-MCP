@@ -10121,7 +10121,14 @@ impl Engram {
                 exclude_paths: None,
                 author_filter: None,
                 date_after: None,
-                date_before: None,
+                // A replay's merged-work cutoff bounds this arm too; left
+                // unbounded it returned the story's own answer commit.
+                date_before: req
+                    .merged_before
+                    .as_deref()
+                    .map(str::trim)
+                    .and_then(crate::handlers::pr_history_tools::ymd_to_epoch_secs),
+                as_of_rev: None,
                 limit: 12,
                 fts_mode: crate::models::FtsMode::Loose,
                 use_mmr: false,
@@ -12074,7 +12081,7 @@ impl Engram {
                 language_filters: None,
                 author_filter: None,
                 date_after: None,
-                date_before: cutoff_secs.map(|s| s.saturating_sub(1)),
+                date_before: cutoff_secs,
                 use_mmr: false,
             };
             let engine = ps.search.clone();

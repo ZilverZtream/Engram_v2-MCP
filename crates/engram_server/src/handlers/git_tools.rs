@@ -349,6 +349,60 @@ fn zip_history_core(
 }
 
 /// Git-related helper methods on Engram.
+
+/// Commit oid and changed file named by a history document's synthetic path
+/// (`commit:<oid>`, `diff:<oid>:<file>`). Merged-PR records (`pr:<id>`) carry
+/// no oid in their path.
+fn history_doc_identity(path: &str) -> (Option<&str>, Option<&str>) {
+    if let Some(oid) = path.strip_prefix("commit:") {
+        return (Some(oid), None);
+    }
+    if let Some((oid, file)) = path.strip_prefix("diff:").and_then(|rest| rest.split_once(':')) {
+        return (Some(oid), Some(file));
+    }
+    (None, None)
+}
+
+/// Everything in the past of one revision: every reachable commit, and the
+/// change-unit id (`PR-<n>` / `commit-<short>`) that `ingest_merged_prs`
+/// derives from each reachable commit's summary.
+struct ReachableHistory {
+    oids: std::collections::HashSet<String>,
+    change_ids: std::collections::HashSet<String>,
+}
+
+impl ReachableHistory {
+    fn walk(repo_dir: &Path, rev: &str) -> anyhow::Result<Self> {
+        let repo = GitWalker::open_repo(repo_dir)?;
+        let tip = repo
+            .revparse_single(rev)
+            .and_then(|object| object.peel_to_commit())
+            .map_err(|e| anyhow::anyhow!("as_of_rev '{rev}' does not name a commit: {}", e.message()))?;
+        let mut walk = repo.revwalk()?;
+        walk.push(tip.id())?;
+        let mut oids = std::collections::HashSet::new();
+        let mut change_ids = std::collections::HashSet::new();
+        for oid in walk {
+            let oid = oid?;
+            let hex = oid.to_string();
+            let summary = repo.find_commit(oid)?.summary().unwrap_or("").to_string();
+            change_ids.insert(
+                crate::handlers::pr_history_tools::parse_pr_identity(&summary, &hex[..10]).0,
+            );
+            oids.insert(hex);
+        }
+        Ok(Self { oids, change_ids })
+    }
+
+    /// Fail-closed: a document whose commit cannot be identified is not admitted.
+    fn admits(&self, path: &str) -> bool {
+        match history_doc_identity(path) {
+            (Some(oid), _) => self.oids.contains(oid),
+            _ => path.strip_prefix("pr:").is_some_and(|id| self.change_ids.contains(id)),
+        }
+    }
+}
+
 impl Engram {
     #[allow(clippy::too_many_arguments)]
     pub(crate) async fn git_update_stream(
@@ -1422,44 +1476,65 @@ impl Engram {
         let gen_ = self.get_active_generation(&req.project_id).await?;
         let limit = req.sanitized_limit();
 
-        // fts_mode is now a validated enum — invalid values are rejected by serde
-        // at the request boundary before this handler runs.
-        let fts_mode = req.fts_mode.as_str().to_owned();
+        let reachable = match req.as_of_rev.as_deref() {
+            None => None,
+            Some(rev) => {
+                if rev.trim().is_empty() || rev.len() > 256 || rev.chars().any(char::is_control) {
+                    return Err(McpError::invalid_params(
+                        "as_of_rev must be a nonempty git revision of at most 256 bytes",
+                        None,
+                    ));
+                }
+                let dir =
+                    PathBuf::from(self.ensure_project_record(&req.project_id).await?.directory);
+                let rev = rev.to_string();
+                let walked =
+                    tokio::task::spawn_blocking(move || ReachableHistory::walk(&dir, &rev))
+                        .await
+                        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                Some(walked.map_err(|e| McpError::invalid_params(e.to_string(), None))?)
+            }
+        };
 
-        // Map path filters
-        let include_path_prefixes = req.file_filter.map(|f| vec![f]);
-        let exclude_path_prefixes = req.exclude_paths;
-        let project_id = req.project_id;
-        let query = req.query;
-        let author_filter = req.author_filter;
-        let date_after = req.date_after;
-        let date_before = req.date_before;
-        let use_mmr = req.use_mmr;
-
-        let hits = ps
-            .search
-            .search(
-                &HybridQuery {
-                    project_id: project_id.clone(),
-                    namespace: "history".into(),
-                    generation: gen_,
-                    text: query.clone(),
-                    top_k: limit,
-                    fts_mode,
-                    include_path_prefixes,
-                    exclude_path_prefixes,
-                    include_path_suffixes: None,
-                    language_filters: None,
-                    author_filter,
-                    date_after,
-                    date_before,
-                    use_mmr,
-                },
-                None,
-                &tokio_util::sync::CancellationToken::new(),
-            )
-            .await
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let mut query = HybridQuery {
+            project_id: req.project_id,
+            namespace: "history".into(),
+            generation: gen_,
+            text: req.query,
+            top_k: limit,
+            // fts_mode is a validated enum — invalid values are rejected by
+            // serde at the request boundary before this handler runs.
+            fts_mode: req.fts_mode.as_str().to_owned(),
+            include_path_prefixes: req.file_filter.map(|f| vec![f]),
+            exclude_path_prefixes: req.exclude_paths,
+            include_path_suffixes: None,
+            language_filters: None,
+            author_filter: req.author_filter,
+            date_after: req.date_after,
+            date_before: req.date_before,
+            use_mmr: req.use_mmr,
+        };
+        // Reachability is not an index field, so filter after retrieval and
+        // widen the pool until `limit` survive or the corpus is exhausted —
+        // unreachable commits must not eat result slots.
+        const MAX_POOL: usize = 4096;
+        let hits = loop {
+            let mut hits = ps
+                .search
+                .search(&query, None, &tokio_util::sync::CancellationToken::new())
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            let Some(reachable) = &reachable else {
+                break hits;
+            };
+            let exhausted = hits.len() < query.top_k || query.top_k >= MAX_POOL;
+            hits.retain(|h| reachable.admits(h.path.as_str()));
+            if hits.len() >= limit || exhausted {
+                hits.truncate(limit);
+                break hits;
+            }
+            query.top_k = (query.top_k * 4).min(MAX_POOL);
+        };
 
         Ok((ps, gen_, hits))
     }
@@ -1470,86 +1545,74 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         let content_limit = req.max_content_chars;
         let project_id = req.project_id.clone();
+        let as_of_rev = req.as_of_rev.clone();
         let (ps, gen_, hits) = self.search_history_hits(req).await?;
+        let scope = as_of_rev
+            .map(|rev| format!(", limited to commits reachable from {rev}"))
+            .unwrap_or_default();
 
         if hits.is_empty() {
-            return Ok(CallToolResult::success(vec![Content::text(
-                "No history hits found.",
-            )]));
+            return Ok(CallToolResult::success(vec![Content::text(format!(
+                "No history hits found{scope}."
+            ))]));
         }
 
         let mut out = String::with_capacity(4096);
         out.push_str(&format!(
-            "History search results ({} hits, gen {}):\n",
+            "History search results ({} hits, gen {}{scope}; ranked by fused lexical+vector order):\n",
             hits.len(),
             gen_
         ));
 
         for (i, h) in hits.iter().enumerate() {
             out.push_str(&format!("\n--- #{} ---\n", i + 1));
-            out.push_str(&format!("score: {:.3}\n", h.score));
             out.push_str(&format!("path: {}\n", h.path));
-
-            if let Ok(Some((_, _, content, _, _))) =
-                ps.search
-                    .get_doc_by_doc_id(&project_id, "history", gen_, &h.doc_id)
+            let (commit, file) = history_doc_identity(h.path.as_str());
+            if let Some(commit) = commit {
+                out.push_str(&format!("commit: {commit}\n"));
+            }
+            if let Some(file) = file {
+                out.push_str(&format!("file: {file}\n"));
+            }
+            let content = ps
+                .search
+                .get_doc_by_doc_id(&project_id, "history", gen_, &h.doc_id)
+                .ok()
+                .flatten()
+                .map(|(_, _, content, _, _)| content);
+            // Commit-message docs are "Author: …\nDate: <epoch>\n\n<message>".
+            let header = content
+                .as_deref()
+                .filter(|_| h.path.as_str().starts_with("commit:"));
+            if let Some(author) =
+                header.and_then(|c| c.lines().take(2).find_map(|l| l.strip_prefix("Author: ")))
             {
-                // Extract structured commit metadata from content header
-                let mut commit_hash = None;
-                let mut author = None;
-                let mut date = None;
-                let mut message = None;
-                let mut diff_start = 0;
-
-                for (line_idx, line) in content.lines().enumerate() {
-                    if line.starts_with("commit ") && commit_hash.is_none() {
-                        commit_hash = Some(line.trim_start_matches("commit ").trim());
-                    } else if line.starts_with("Author: ") && author.is_none() {
-                        author = Some(line.trim_start_matches("Author: ").trim());
-                    } else if line.starts_with("Date: ") && date.is_none() {
-                        date = Some(line.trim_start_matches("Date: ").trim());
-                    } else if line.starts_with("    ") && message.is_none() && commit_hash.is_some()
-                    {
-                        message = Some(line.trim());
-                    } else if line.starts_with("diff ") || line.starts_with("---") {
-                        diff_start = content
-                            .lines()
-                            .take(line_idx)
-                            .map(|l| l.len() + 1)
-                            .sum::<usize>();
-                        break;
-                    }
+                out.push_str(&format!("author: {}\n", author.trim()));
+            }
+            if let Some(ts) = h.timestamp {
+                out.push_str(&format!(
+                    "date: {}\n",
+                    crate::utils::ymd_utc(ts.saturating_mul(1000))
+                ));
+            }
+            let message = header.and_then(|c| c.split_once("\n\n")).map(|(_, m)| m);
+            if let Some(subject) =
+                message.and_then(|m| m.lines().map(str::trim).find(|l| !l.is_empty()))
+            {
+                out.push_str(&format!("message: {subject}\n"));
+            }
+            if content_limit > 0
+                && let Some(content) = content.as_deref()
+            {
+                let body = message.unwrap_or(content);
+                out.push_str("content:\n");
+                if body.chars().count() > content_limit {
+                    out.push_str(&body.chars().take(content_limit).collect::<String>());
+                    out.push_str("... (truncated)");
+                } else {
+                    out.push_str(body);
                 }
-
-                if let Some(hash) = commit_hash {
-                    out.push_str(&format!("commit: {}\n", hash));
-                }
-                if let Some(auth) = author {
-                    out.push_str(&format!("author: {}\n", auth));
-                }
-                if let Some(d) = date {
-                    out.push_str(&format!("date: {}\n", d));
-                }
-                if let Some(msg) = message {
-                    out.push_str(&format!("message: {}\n", msg));
-                }
-
-                // Show diff content if requested
-                if content_limit > 0 {
-                    let diff_content = if diff_start > 0 && diff_start < content.len() {
-                        &content[diff_start..]
-                    } else {
-                        &content
-                    };
-                    out.push_str("content:\n");
-                    if diff_content.chars().count() > content_limit {
-                        out.push_str(&diff_content.chars().take(content_limit).collect::<String>());
-                        out.push_str("... (truncated)");
-                    } else {
-                        out.push_str(diff_content);
-                    }
-                    out.push('\n');
-                }
+                out.push('\n');
             }
         }
 

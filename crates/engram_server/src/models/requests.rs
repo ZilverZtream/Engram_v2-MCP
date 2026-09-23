@@ -12,10 +12,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum FtsMode {
-    /// Exact phrase match (default).
+    /// Every whitespace-separated word must match (default). Text is literal:
+    /// no query syntax. Long prose rarely has every word in one document —
+    /// use `loose` for story text.
     #[default]
     Strict,
-    /// Any token match.
+    /// Any word may match; BM25 ranks documents matching more of them first.
+    /// Text is literal: no query syntax.
     Loose,
     /// Regular-expression match.
     Regex,
@@ -1651,12 +1654,24 @@ pub struct SearchHistoryRequest {
     pub file_filter: Option<String>,
     #[serde(default)]
     pub exclude_paths: Option<Vec<String>>,
+    /// Exact commit author name.
     #[serde(default)]
     pub author_filter: Option<String>,
+    /// Unix seconds, inclusive: keep commits made at or after this instant.
     #[serde(default)]
     pub date_after: Option<u64>,
+    /// Unix seconds, exclusive: keep commits made strictly before this
+    /// instant. Dates alone do not make a replay leak-free — branch commits
+    /// predate the merge that publishes them; use `as_of_rev` for that.
     #[serde(default)]
     pub date_before: Option<u64>,
+    /// Git revision (branch, tag or commit) in the project's repository. Keeps
+    /// only commits reachable from it — the revision itself and its ancestors
+    /// — plus merged-PR records whose merge commit is reachable. This is the
+    /// leak-free cutoff for replays: pass the story's base commit. Results with
+    /// no identifiable commit are dropped. Unresolvable revisions are an error.
+    #[serde(default)]
+    pub as_of_rev: Option<String>,
     /// Maximum results. `top_k` is accepted as an alias, matching the other
     /// search tools.
     #[serde(default = "default_limit_5", alias = "top_k")]

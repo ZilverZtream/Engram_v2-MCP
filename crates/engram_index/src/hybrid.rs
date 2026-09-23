@@ -2515,14 +2515,10 @@ impl HybridSearchEngine {
                 parser.parse_query(&q.text)?
             }
             "loose" => {
-                let parser = QueryParser::for_index(&self.tantivy_index, vec![self.fields.content]);
-                parser.parse_query(&escape_tantivy_literal(&q.text))?
+                literal_text_query(&self.tantivy_index, self.fields.content, &q.text, false)?
             }
             "strict" => {
-                let mut parser =
-                    QueryParser::for_index(&self.tantivy_index, vec![self.fields.content]);
-                parser.set_conjunction_by_default();
-                parser.parse_query(&escape_tantivy_literal(&q.text))?
+                literal_text_query(&self.tantivy_index, self.fields.content, &q.text, true)?
             }
             unknown => {
                 anyhow::bail!(
@@ -2627,24 +2623,7 @@ impl HybridSearchEngine {
             must_clauses.push((Occur::Must, Box::new(BooleanQuery::new(lang_queries))));
         }
 
-        if let Some(author) = &q.author_filter {
-            must_clauses.push((
-                Occur::Must,
-                Box::new(TermQuery::new(
-                    Term::from_field_text(self.fields.author, author),
-                    IndexRecordOption::Basic,
-                )),
-            ));
-        }
-
-        if q.date_after.is_some() || q.date_before.is_some() {
-            let after = q.date_after.unwrap_or(0);
-            let before = q.date_before.unwrap_or(u64::MAX);
-            let parser = QueryParser::for_index(&self.tantivy_index, vec![self.fields.timestamp]);
-            if let Ok(query) = parser.parse_query(&format!("timestamp:[{} TO {}]", after, before)) {
-                must_clauses.push((Occur::Must, query));
-            }
-        }
+        self.add_author_and_date_filters(q, &mut must_clauses);
 
         let query = BooleanQuery::new(must_clauses);
 
@@ -2770,6 +2749,35 @@ impl HybridSearchEngine {
     /// Case-insensitive searches admit each trigram's case variants; grep
     /// verifies the actual literal/regex in every candidate. With no token,
     /// no content prefilter is safe (project and other filters still apply).
+    /// Author is exact; time is `[date_after, date_before)` — the same bounds
+    /// the vector leg applies, so a cutoff at a commit's own timestamp
+    /// excludes that commit on both legs instead of leaking it through BM25.
+    fn add_author_and_date_filters(
+        &self,
+        q: &HybridQuery,
+        clauses: &mut Vec<(Occur, Box<dyn tantivy::query::Query>)>,
+    ) {
+        use std::ops::Bound;
+        if let Some(author) = &q.author_filter {
+            clauses.push((
+                Occur::Must,
+                Box::new(TermQuery::new(
+                    Term::from_field_text(self.fields.author, author),
+                    IndexRecordOption::Basic,
+                )),
+            ));
+        }
+        if q.date_after.is_some() || q.date_before.is_some() {
+            let lower = q.date_after.map_or(Bound::Unbounded, |after| {
+                Bound::Included(Term::from_field_u64(self.fields.timestamp, after))
+            });
+            let upper = q.date_before.map_or(Bound::Unbounded, |before| {
+                Bound::Excluded(Term::from_field_u64(self.fields.timestamp, before))
+            });
+            clauses.push((Occur::Must, Box::new(tantivy::query::RangeQuery::new(lower, upper))));
+        }
+    }
+
     fn literal_trigram_query(
         &self,
         text: &str,
@@ -2841,14 +2849,10 @@ impl HybridSearchEngine {
                 parser.parse_query(&q.text)?
             }
             "loose" => {
-                let parser = QueryParser::for_index(&self.tantivy_index, vec![self.fields.content]);
-                parser.parse_query(&escape_tantivy_literal(&q.text))?
+                literal_text_query(&self.tantivy_index, self.fields.content, &q.text, false)?
             }
             "strict" => {
-                let mut parser =
-                    QueryParser::for_index(&self.tantivy_index, vec![self.fields.content]);
-                parser.set_conjunction_by_default();
-                parser.parse_query(&escape_tantivy_literal(&q.text))?
+                literal_text_query(&self.tantivy_index, self.fields.content, &q.text, true)?
             }
             // Case-insensitive literal over the case-PRESERVING trigram
             // index: the content field is tokenised by
@@ -2935,6 +2939,8 @@ impl HybridSearchEngine {
                 must.push((Occur::Must, Box::new(BooleanQuery::new(suffix_queries))));
             }
         }
+
+        self.add_author_and_date_filters(q, &mut must);
 
         let query = BooleanQuery::new(must);
         let top_docs: Vec<(Score, DocAddress)> =
@@ -3715,6 +3721,53 @@ fn count_unescaped_alternations(pat: &str) -> usize {
         }
     }
     count
+}
+
+/// Build a query that matches `text` as literal words: split on whitespace,
+/// each word analysed by `field`'s own tokenizer exactly as a parsed word
+/// would be, joined by `conjunction` (strict) or disjunction (loose).
+///
+/// No query grammar is involved, so no input can be a syntax error. Escaping
+/// into the grammar could not guarantee that: Tantivy rejects a bare `AND`,
+/// `OR`, `NOT` or `IN` and an unescaped backtick, and treats `NOT` in prose as
+/// negation — ordinary user-story text hit all three, and the SyntaxError
+/// aborted the whole hybrid search. Words that yield no tokens (punctuation,
+/// or shorter than the trigram width) are dropped first: left in, they
+/// become empty clauses the parser calls "only excluding terms", and its
+/// lenient repair turns that into match-all.
+pub fn literal_text_query(
+    index: &tantivy::Index,
+    field: tantivy::schema::Field,
+    text: &str,
+    conjunction: bool,
+) -> anyhow::Result<Box<dyn tantivy::query::Query>> {
+    use tantivy::query_grammar::{Delimiter, UserInputAst, UserInputLeaf, UserInputLiteral};
+    let mut analyzer = index.tokenizer_for_field(field)?;
+    let clauses: Vec<_> = text
+        .split_whitespace()
+        .filter(|word| analyzer.token_stream(word).advance())
+        .map(|word| {
+            let literal = UserInputLiteral {
+                field_name: None,
+                phrase: word.to_string(),
+                delimiter: Delimiter::None,
+                slop: 0,
+                prefix: false,
+            };
+            (
+                None,
+                UserInputAst::Leaf(Box::new(UserInputLeaf::Literal(literal))),
+            )
+        })
+        .collect();
+    if clauses.is_empty() {
+        return Ok(Box::new(tantivy::query::EmptyQuery));
+    }
+    let mut parser = QueryParser::for_index(index, vec![field]);
+    if conjunction {
+        parser.set_conjunction_by_default();
+    }
+    Ok(parser.build_query_from_user_input_ast(UserInputAst::Clause(clauses))?)
 }
 
 pub fn escape_tantivy_literal(s: &str) -> String {
