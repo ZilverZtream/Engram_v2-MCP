@@ -734,14 +734,11 @@ impl Engram {
             language_filters: None,
             author_filter: None,
             date_after: None,
-            // Cutoff INSIDE the query (strictly before the date): post-cutoff
+            // Cutoff INSIDE the query (date_before is exclusive): post-cutoff
             // docs must not eat top_k slots, or the survivors shift whenever
             // the corpus gains newer PRs. The display-time string check below
             // stays as belt-and-braces.
-            date_before: merged_before
-                .as_deref()
-                .and_then(ymd_to_epoch_secs)
-                .map(|s| s.saturating_sub(1)),
+            date_before: merged_before.as_deref().and_then(ymd_to_epoch_secs),
             use_mmr: false,
         };
         let engine = ps.search.clone();
