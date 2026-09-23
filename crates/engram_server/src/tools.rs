@@ -695,6 +695,26 @@ impl Engram {
     }
 
     #[tool(
+        description = "Ingest pull-request review threads as verdicts: for each finding, what the named decision-makers decided (rejected / deferred / endorsed, with their reply quoted) from their replies and thumbs-up, not from thread status. A PR author's decline counts only when it carries a written argument, and each author's record of argued declines is kept. Run once, then incrementally; feeds get_review_precedents."
+    )]
+    pub async fn ingest_review_verdicts(
+        &self,
+        params: Parameters<IngestReviewVerdictsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_ingest_review_verdicts(params.0).await
+    }
+
+    #[tool(
+        description = "Before posting or acting on a review finding: past findings like it and how the team's decision-makers ruled on them — rejected (with the quoted reason, e.g. 'per design'), deferred, or endorsed — plus contested author arguments with that author's record. Use to drop findings already ruled out and to learn the accepted trade-offs of a codebase. Requires ingest_review_verdicts."
+    )]
+    pub async fn get_review_precedents(
+        &self,
+        params: Parameters<GetReviewPrecedentsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_get_review_precedents(params.0).await
+    }
+
+    #[tool(
         description = "Files that historically change together with a target file (co-change strength from git history). Surfaces the coupled partner file you'd otherwise forget to edit."
     )]
     pub async fn analyze_temporal_couplings(

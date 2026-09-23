@@ -1351,7 +1351,7 @@ fn extract_severity_string(body: &str) -> String {
 
 /// Minimal standard-alphabet base64 encoder. Only used for the Azure
 /// DevOps `Basic` auth header — avoids a full `base64` crate dep.
-fn base64_encode(input: &[u8]) -> String {
+pub(crate) fn base64_encode(input: &[u8]) -> String {
     const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut out = String::with_capacity((input.len() + 2) / 3 * 4);
     let mut i = 0usize;
@@ -1379,7 +1379,7 @@ fn base64_encode(input: &[u8]) -> String {
     out
 }
 
-fn url_escape(s: &str) -> String {
+pub(crate) fn url_escape(s: &str) -> String {
     // Extremely small URL-component escaper — azdo org/project/repo
     // names are alphanumeric + `-` / `_` / space in practice. Anything
     // weird just gets percent-encoded.
