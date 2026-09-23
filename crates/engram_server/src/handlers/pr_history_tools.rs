@@ -283,6 +283,15 @@ pub(crate) fn classify_kinds(files: &[String]) -> Vec<String> {
 
 /// Render the searchable per-PR doc. Kept compact: retrieval returns these
 /// verbatim, so every line must earn its tokens.
+/// The change id (`PR-<n>` / `commit-<short>`) a merged-PR record's
+/// `# <id>: <title>` header names.
+fn pr_doc_change_id(content: &str) -> Option<&str> {
+    content
+        .strip_prefix("# ")
+        .and_then(|header| header.split_once(':'))
+        .map(|(id, _)| id)
+}
+
 pub(crate) fn render_pr_doc(
     pr_id: &str,
     title: &str,
@@ -718,6 +727,12 @@ impl Engram {
             .map(str::trim)
             .filter(|k| !k.is_empty())
             .map(str::to_lowercase);
+        // Only an explicit revision filters here: merged-PR records are
+        // ingested from the published default branch already.
+        let reachable = match req.as_of_rev.as_deref() {
+            Some(rev) => self.reachable_history(&req.project_id, Some(rev)).await?,
+            None => None,
+        };
         let q = engram_index::HybridQuery {
             project_id: req.project_id.clone(),
             namespace: engram_core::namespaces::NAMESPACE_HISTORY.into(),
@@ -777,7 +792,9 @@ impl Engram {
                                 content,
                                 selected_kind.as_deref(),
                                 cutoff.as_deref(),
-                            ) && cohort_path_matches(content, &file_paths)
+                            ) && reachable.as_ref().is_none_or(|r| {
+                                pr_doc_change_id(content).is_some_and(|id| r.admits_change(id))
+                            }) && cohort_path_matches(content, &file_paths)
                                 && seen.insert(doc_id.to_string());
                             if eligible {
                                 ranks.insert(

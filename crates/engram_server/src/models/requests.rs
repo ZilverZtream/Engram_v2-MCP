@@ -613,6 +613,13 @@ pub struct GetChangeSetRequest {
     /// fetching; callers must also supply the point-in-time `work_item_text`.
     #[serde(default)]
     pub merged_before: Option<String>,
+    /// Git revision whose past bounds the evidence: only commits reachable
+    /// from it (the revision and its ancestors) and merged-PR records whose
+    /// merge commit is reachable. The leak-free cutoff for replays — dates
+    /// admit branch commits dated before their merge. Pass the story's base
+    /// commit. Unresolvable revisions are an error.
+    #[serde(default)]
+    pub as_of_rev: Option<String>,
     /// The user story, verbatim.
     pub story: String,
     /// Include the `ui_contract` section describing UI families found in
@@ -1120,6 +1127,13 @@ pub struct FindMergedWorkRequest {
     /// Omit to search the full indexed corpus.
     #[serde(default)]
     pub merged_before: Option<String>,
+    /// Git revision whose past bounds the evidence: only commits reachable
+    /// from it (the revision and its ancestors) and merged-PR records whose
+    /// merge commit is reachable. The leak-free cutoff for replays — dates
+    /// admit branch commits dated before their merge. Pass the story's base
+    /// commit. Unresolvable revisions are an error.
+    #[serde(default)]
+    pub as_of_rev: Option<String>,
 }
 
 fn default_find_merged_top() -> usize {
@@ -1676,8 +1690,10 @@ pub struct SearchHistoryRequest {
     /// search tools.
     #[serde(default = "default_limit_5", alias = "top_k")]
     pub limit: usize,
-    /// Full-text search mode: "strict", "loose", "regex". Default: "strict".
-    #[serde(default)]
+    /// Full-text search mode. Default `loose`: story prose rarely has every
+    /// word in one commit, and BM25 already ranks commits matching more of
+    /// them first.
+    #[serde(default = "default_fts_loose")]
     pub fts_mode: FtsMode,
     /// Enable MMR reranking for diversity. Default: false.
     #[serde(default)]
@@ -1685,6 +1701,10 @@ pub struct SearchHistoryRequest {
     /// Max characters per content preview (0 = no content). Default: 800.
     #[serde(default = "default_content_preview_800")]
     pub max_content_chars: usize,
+}
+
+fn default_fts_loose() -> FtsMode {
+    FtsMode::Loose
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]

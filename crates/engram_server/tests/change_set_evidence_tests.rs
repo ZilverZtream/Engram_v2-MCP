@@ -437,7 +437,11 @@ async fn typed_history_keeps_root_and_non_dotnet_paths_without_prose_inference()
         "project_id":PID,"query":"opaqueledgerhint","limit":12,"max_content_chars":0
     })).unwrap()).await.unwrap();
     let text = &history.content[0].as_text().unwrap().text;
-    for path in paths { assert!(text.contains(&format!("path: diff:{hash}:{path}\n")), "{text}"); }
+    // One result per commit; its diffs' exact file identities are listed.
+    assert!(text.contains(&format!("commit: {hash}\n")), "{text}");
+    let files_line = text.lines().find(|l| l.starts_with("files: ")).unwrap_or_else(|| panic!("{text}"));
+    let listed: Vec<&str> = files_line["files: ".len()..].split(", ").collect();
+    for path in paths { assert!(listed.contains(&path), "{path} not in {files_line}"); }
     let result = change_set(&engram, json!({
         "project_id":PID,"story":"opaqueledgerhint","output_json":true
     })).await;

@@ -35,6 +35,15 @@ pub struct HybridQuery {
     pub use_mmr: bool,
 }
 
+/// A stored document's text and commit metadata.
+#[derive(Debug, Clone)]
+pub struct StoredDoc {
+    pub path: String,
+    pub content: String,
+    pub author: Option<String>,
+    pub timestamp: Option<u64>,
+}
+
 #[derive(Debug, Clone)]
 pub struct HybridHit {
     pub pk: String,
@@ -493,6 +502,7 @@ impl HybridSearchEngine {
                 fields.start_line => d.start_line as u64,
                 fields.end_line => d.end_line as u64,
                 fields.content => d.content.as_str(),
+                fields.content_words => d.content.as_str(),
             );
             writer.add_document(tdoc)?;
             added += 1;
@@ -764,6 +774,7 @@ impl HybridSearchEngine {
                     self.fields.start_line => d.start_line as u64,
                     self.fields.end_line => d.end_line as u64,
                     self.fields.content => d.content.as_str(),
+                    self.fields.content_words => d.content.as_str(),
                 );
                 writer.add_document(tdoc)?;
             }
@@ -2514,12 +2525,18 @@ impl HybridSearchEngine {
                 parser.set_conjunction_by_default();
                 parser.parse_query(&q.text)?
             }
-            "loose" => {
-                literal_text_query(&self.tantivy_index, self.fields.content, &q.text, false)?
-            }
-            "strict" => {
-                literal_text_query(&self.tantivy_index, self.fields.content, &q.text, true)?
-            }
+            "loose" => literal_text_query(
+                &self.tantivy_index,
+                self.fields.content_words,
+                &q.text,
+                false,
+            )?,
+            "strict" => literal_text_query(
+                &self.tantivy_index,
+                self.fields.content_words,
+                &q.text,
+                true,
+            )?,
             unknown => {
                 anyhow::bail!(
                     "ENG-AUD-2026-EXH-0003: unknown fts_mode '{}': must be strict, loose, or regex",
@@ -2848,12 +2865,18 @@ impl HybridSearchEngine {
                 parser.set_conjunction_by_default();
                 parser.parse_query(&q.text)?
             }
-            "loose" => {
-                literal_text_query(&self.tantivy_index, self.fields.content, &q.text, false)?
-            }
-            "strict" => {
-                literal_text_query(&self.tantivy_index, self.fields.content, &q.text, true)?
-            }
+            "loose" => literal_text_query(
+                &self.tantivy_index,
+                self.fields.content_words,
+                &q.text,
+                false,
+            )?,
+            "strict" => literal_text_query(
+                &self.tantivy_index,
+                self.fields.content_words,
+                &q.text,
+                true,
+            )?,
             // Case-insensitive literal over the case-PRESERVING trigram
             // index: the content field is tokenised by
             // `NgramTokenizer::new(3, 3, false)` with no lowercasing, so a
@@ -3084,6 +3107,68 @@ impl HybridSearchEngine {
             .unwrap_or(0) as u32;
 
         Ok(Some((path, language, content, start_line, end_line)))
+    }
+
+    /// The stored document behind a hit's primary key.
+    pub fn stored_doc_by_pk(&self, pk: &str) -> anyhow::Result<Option<StoredDoc>> {
+        let query = TermQuery::new(
+            Term::from_field_text(self.fields.pk, pk),
+            IndexRecordOption::Basic,
+        );
+        self.first_stored_doc(&query)
+    }
+
+    /// The newest stored document at `path` in a namespace: how a history
+    /// result names a commit's author and message when only its diffs matched.
+    pub fn stored_doc_at_path(
+        &self,
+        project_id: &str,
+        namespace: &str,
+        path: &str,
+    ) -> anyhow::Result<Option<StoredDoc>> {
+        let term = |field, text: &str| -> Box<dyn tantivy::query::Query> {
+            Box::new(TermQuery::new(
+                Term::from_field_text(field, text),
+                IndexRecordOption::Basic,
+            ))
+        };
+        let query = BooleanQuery::new(vec![
+            (Occur::Must, term(self.fields.path, path)),
+            (Occur::Must, term(self.fields.project_id, project_id)),
+            (Occur::Must, term(self.fields.namespace, namespace)),
+        ]);
+        self.first_stored_doc(&query)
+    }
+
+    fn first_stored_doc(
+        &self,
+        query: &dyn tantivy::query::Query,
+    ) -> anyhow::Result<Option<StoredDoc>> {
+        let searcher = self.tantivy_index.reader()?.searcher();
+        let Some((_, addr)) = searcher
+            .search(query, &TopDocs::with_limit(1))?
+            .into_iter()
+            .next()
+        else {
+            return Ok(None);
+        };
+        let doc: tantivy::TantivyDocument = searcher.doc(addr)?;
+        let text = |field| {
+            doc.get_first(field)
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string()
+        };
+        let author = text(self.fields.author);
+        Ok(Some(StoredDoc {
+            path: text(self.fields.path),
+            content: text(self.fields.content),
+            author: (!author.is_empty()).then_some(author),
+            timestamp: doc
+                .get_first(self.fields.timestamp)
+                .and_then(|v| v.as_u64())
+                .filter(|ts| *ts > 0),
+        }))
     }
 
     /// Fill line range + snippet for hits that came from the vector store,

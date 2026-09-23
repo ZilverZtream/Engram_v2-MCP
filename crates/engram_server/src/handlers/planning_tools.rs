@@ -9546,6 +9546,11 @@ impl Engram {
         if req.story.trim().is_empty() {
             return Err(McpError::invalid_params("story must not be empty", None));
         }
+        // Resolved up front: a bad revision fails the call, never an arm.
+        let as_of = match req.as_of_rev.as_deref() {
+            Some(rev) => self.reachable_history(&req.project_id, Some(rev)).await?,
+            None => None,
+        };
         // Input parity (arm-B run 3 vs 4: F1 22 -> 71 from this alone):
         // merge the full work-item text into the story at the front door so
         // EVERY downstream consumer — concept extraction, footprint
@@ -10128,7 +10133,7 @@ impl Engram {
                     .as_deref()
                     .map(str::trim)
                     .and_then(crate::handlers::pr_history_tools::ymd_to_epoch_secs),
-                as_of_rev: None,
+                as_of_rev: req.as_of_rev.clone(),
                 limit: 12,
                 fts_mode: crate::models::FtsMode::Loose,
                 use_mmr: false,
@@ -12067,7 +12072,12 @@ impl Engram {
             // docs ate the top_k slots, so replay exemplars shifted whenever
             // the corpus gained newer PRs. Keep a modest over-fetch for the
             // dedup/malformed-doc cases.
-            let fetch_k = if req.merged_before.is_some() { 12 } else { 6 };
+            let fetch_k = match (&as_of, req.merged_before.is_some()) {
+                // Unreachable records are dropped below; keep enough to fill.
+                (Some(_), _) => 60,
+                (None, true) => 12,
+                (None, false) => 6,
+            };
             let q = engram_index::HybridQuery {
                 project_id: req.project_id.clone(),
                 namespace: engram_core::namespaces::NAMESPACE_HISTORY.into(),
@@ -12110,6 +12120,9 @@ impl Engram {
             let mut seen_doc_ids: HashSet<&str> = HashSet::new();
             let mut docs: Vec<(usize, usize, String)> = Vec::new(); // (kind overlap, lexical rank, content)
             for (rank, h) in hits.iter().enumerate() {
+                if as_of.as_ref().is_some_and(|r| !r.admits(h.path.as_str())) {
+                    continue;
+                }
                 if !seen_doc_ids.insert(h.doc_id.as_str()) {
                     continue;
                 }

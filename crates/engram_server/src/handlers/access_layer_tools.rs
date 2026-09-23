@@ -3610,6 +3610,7 @@ impl Engram {
                         kind: None,
                         top: 2,
                         merged_before: req.merged_before.clone(),
+                        as_of_rev: None,
                     })
                     .await
                 {
