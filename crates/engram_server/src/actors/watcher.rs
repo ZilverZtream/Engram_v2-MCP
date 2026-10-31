@@ -81,7 +81,7 @@ pub async fn run_watcher(
                 && let Ok(canon) = state.paths.resolve_path(&p.directory)
             {
                 tracing::info!("Watcher: restoring for {} at {}", pid, canon.display());
-                match create_watcher(pid.clone(), tx_notify.clone(), overflow_dirty.clone()) {
+                match create_watcher(pid.clone(), tx_notify.clone(), overflow_dirty.clone(), Some(ProjectWatchFilter::new(canon.clone(), &p.project_type, state.cfg.data_dir.clone()))) {
                     None => {
                         tracing::error!(
                             "Watcher: failed to create watcher for {} at {} — project will not be watched",
@@ -283,7 +283,9 @@ pub async fn run_watcher(
                                 match state.paths.resolve_path(&directory) {
                                     Ok(canon) => {
                                         tracing::info!("Watcher: enabling for {} at {}", project_id, canon.display());
-                                        match create_watcher(project_id.clone(), tx_notify.clone(), overflow_dirty.clone()) {
+                                        let project_type = state.registry.get_project(&project_id).ok().flatten()
+                                            .map(|record| record.project_type).unwrap_or_default();
+                                        match create_watcher(project_id.clone(), tx_notify.clone(), overflow_dirty.clone(), Some(ProjectWatchFilter::new(canon.clone(), &project_type, state.cfg.data_dir.clone()))) {
                                             None => {
                                                 tracing::error!(
                                                     "Watcher: failed to create watcher for {} at {} — project will not be watched",
@@ -481,14 +483,84 @@ fn event_should_arm_update(event: &notify::Event) -> bool {
     event.paths.iter().any(|p| watch_event_is_indexable(p))
 }
 
+/// The watcher uses the project's actual extensions and Git ignore rules before
+/// queueing notifications. Runtime artefacts must not cause an indexing cycle.
+struct ProjectWatchFilter {
+    root: std::path::PathBuf,
+    data_dir: std::path::PathBuf,
+    extensions: HashSet<String>,
+    repository: Option<git2::Repository>,
+}
+
+impl ProjectWatchFilter {
+    fn new(root: std::path::PathBuf, project_type: &str, data_dir: std::path::PathBuf) -> Self {
+        let repository = git2::Repository::discover(&root).ok();
+        let data_dir = std::fs::canonicalize(&data_dir).unwrap_or(data_dir);
+        Self { root, data_dir, repository, extensions: crate::utils::exts_for_project_type(project_type)
+            .into_iter().map(str::to_ascii_lowercase).collect() }
+    }
+
+    fn relative_to(path: &std::path::Path, root: &std::path::Path) -> Option<std::path::PathBuf> {
+        if let Ok(relative) = path.strip_prefix(root) { return Some(relative.to_path_buf()); }
+        #[cfg(windows)] {
+            let normalize = |path: &std::path::Path| {
+                let path = path.to_string_lossy().replace('\\', "/");
+                let path = if let Some(unc) = path.strip_prefix("//?/UNC/") {
+                    format!("//{unc}")
+                } else { path.strip_prefix("//?/").unwrap_or(&path).to_string() };
+                path.trim_end_matches('/').to_string()
+            };
+            let path = normalize(path);
+            let root = normalize(root);
+            if path.eq_ignore_ascii_case(&root) { return Some(std::path::PathBuf::new()); }
+            if path.get(..root.len()).is_some_and(|prefix| prefix.eq_ignore_ascii_case(&root))
+                && path.as_bytes().get(root.len()) == Some(&b'/') {
+                return Some(std::path::PathBuf::from(&path[root.len() + 1..]));
+            }
+        }
+        None
+    }
+
+    fn accepts(&self, event: &notify::Event) -> bool {
+        if !event_should_arm_update(event) { return false; }
+        if event.paths.is_empty() { return true; }
+        event.paths.iter().any(|path| {
+            if !watch_event_is_indexable(path) || Self::relative_to(path, &self.data_dir).is_some() { return false; }
+            let Some(relative) = Self::relative_to(path, &self.root) else { return false; };
+            if path.file_name().is_some_and(|name| name == ".gitignore" || name == ".ignore") { return true; }
+            let unknown_removed_or_renamed = !path.exists() && matches!(event.kind,
+                notify::EventKind::Remove(notify::event::RemoveKind::Any | notify::event::RemoveKind::Other)
+                | notify::EventKind::Modify(notify::event::ModifyKind::Name(_)));
+            let is_directory = path.is_dir() || unknown_removed_or_renamed
+                || matches!(event.kind, notify::EventKind::Remove(notify::event::RemoveKind::Folder));
+            if !is_directory && path.extension().is_some_and(|extension|
+                !self.extensions.contains(&extension.to_string_lossy().to_ascii_lowercase())) {
+                return false;
+            }
+            !self.repository.as_ref().is_some_and(|repository| {
+                // A project may be a subtree of its Git worktree. Git ignore
+                // rules are relative to the worktree, not the indexed subtree.
+                let git_relative = repository.workdir().and_then(|root| Self::relative_to(path, root))
+                    .unwrap_or_else(|| relative.clone());
+                repository.status_should_ignore(&git_relative).unwrap_or(false)
+            })
+        })
+    }
+}
+
 fn create_watcher(
     pid: String,
     tx_notify: mpsc::Sender<(String, notify::Result<notify::Event>)>,
     overflow_dirty: Arc<Mutex<HashSet<String>>>,
+    filter: Option<ProjectWatchFilter>,
 ) -> Option<RecommendedWatcher> {
     let config = Config::default().with_poll_interval(Duration::from_secs(2));
     RecommendedWatcher::new(
-        move |res| {
+        move |res: notify::Result<notify::Event>| {
+            if let Ok(event) = &res {
+                let eligible = filter.as_ref().map_or_else(|| event_should_arm_update(event), |filter| filter.accepts(event));
+                if !eligible { return; }
+            }
             // AUD-2026-INV-0006 / ENG-AUD-2026-EXH-0005: use try_send so the OS
             // notify callback thread is never stalled under a sustained event storm.
             // On channel saturation, mark the project dirty so the ticker loop
@@ -870,7 +942,7 @@ mod tests {
         // create_watcher always succeeds (returns Some) — the notify crate can
         // always construct a watcher object; success does not depend on the path.
         let overflow = std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashSet::new()));
-        let mut watcher_opt = super::create_watcher("test_pid".to_string(), tx, overflow);
+        let mut watcher_opt = super::create_watcher("test_pid".to_string(), tx, overflow, None);
         assert!(
             watcher_opt.is_some(),
             "ENG-AUD-2026-T18-0005: create_watcher must return Some(watcher) for a valid channel"
@@ -1095,4 +1167,65 @@ mod tests {
              got a third item: {item2:?}"
         );
     }
+
+    #[test]
+    fn project_watching_ignores_runtime_churn_but_keeps_source_and_ignore_changes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        git2::Repository::init(root).unwrap();
+        std::fs::write(root.join(".gitignore"), "generated/\n").unwrap();
+        std::fs::create_dir_all(root.join("generated")).unwrap();
+        std::fs::write(root.join("generated/noise.rs"), "generated data").unwrap();
+        let filter = super::ProjectWatchFilter::new(root.to_path_buf(), "rust", root.join("engram-data"));
+        let changed = |relative: &str| notify::Event::new(notify::EventKind::Modify(notify::event::ModifyKind::Any))
+            .add_path(root.join(relative));
+        assert!(!filter.accepts(&changed("generated/noise.rs")), "Git-ignored source-shaped artefacts must not schedule work");
+        assert!(!filter.accepts(&changed("activity.log")), "unindexed logs must not schedule work");
+        assert!(!filter.accepts(&changed("engram-data/cache.rs")), "the index must never watch its own storage");
+        assert!(filter.accepts(&changed("src/main.rs")), "real source edits must remain visible");
+        assert!(filter.accepts(&changed(".gitignore")), "eligibility changes require a fresh scan");
+        let removed = notify::Event::new(notify::EventKind::Remove(notify::event::RemoveKind::File))
+            .add_path(root.join("src/removed.rs"));
+        assert!(filter.accepts(&removed), "a deleted source file still needs removal from the index");
+        let folder = notify::Event::new(notify::EventKind::Remove(notify::event::RemoveKind::Folder))
+            .add_path(root.join("src/version.2"));
+        assert!(filter.accepts(&folder), "deleted directories may have eligible descendants regardless of their suffix");
+        let unknown = notify::Event::new(notify::EventKind::Remove(notify::event::RemoveKind::Any))
+            .add_path(root.join("src/version.2"));
+        assert!(filter.accepts(&unknown), "unknown directory removals cannot be rejected by their suffix");
+        let renamed = notify::Event::new(notify::EventKind::Modify(notify::event::ModifyKind::Name(notify::event::RenameMode::Both)))
+            .add_path(root.join("src/old.rs")).add_path(root.join("generated/old.rs"));
+        assert!(filter.accepts(&renamed), "moving source into ignored output must still remove its old evidence");
+
+    }
+
+
+    #[test]
+    fn subtree_project_obeys_ignore_rules_from_its_git_root() {
+        let temporary = tempfile::tempdir().unwrap();
+        git2::Repository::init(temporary.path()).unwrap();
+        std::fs::write(temporary.path().join(".gitignore"), "app/generated/\n").unwrap();
+        let root = temporary.path().join("app");
+        std::fs::create_dir_all(root.join("generated")).unwrap();
+        std::fs::write(root.join("generated/noise.rs"), "generated source").unwrap();
+        let filter = super::ProjectWatchFilter::new(root.clone(), "rust", temporary.path().join("data"));
+        let event = notify::Event::new(notify::EventKind::Create(notify::event::CreateKind::File))
+            .add_path(root.join("generated/noise.rs"));
+        assert!(!filter.accepts(&event));
+    }
+
+
+    #[test]
+    fn storage_exclusion_uses_the_resolved_directory_not_its_config_spelling() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        std::fs::create_dir_all(root.join("route")).unwrap();
+        std::fs::create_dir_all(root.join("engram-data")).unwrap();
+        let filter = super::ProjectWatchFilter::new(root.to_path_buf(), "rust",
+            root.join("route/../engram-data"));
+        let event = notify::Event::new(notify::EventKind::Modify(notify::event::ModifyKind::Any))
+            .add_path(root.join("engram-data/cache.rs"));
+        assert!(!filter.accepts(&event), "alternate spellings of own storage must not trigger index work");
+    }
+
 }

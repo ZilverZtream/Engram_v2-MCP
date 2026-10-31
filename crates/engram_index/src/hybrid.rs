@@ -1133,116 +1133,73 @@ impl HybridSearchEngine {
             return Ok(());
         }
 
+        use tantivy::query::Query;
+        anyhow::ensure!(!cancel.is_cancelled(), "snapshot copy cancelled");
         let reader = self.tantivy_index.reader()?;
         let searcher = reader.searcher();
-        let mut all_docs: Vec<IndexDoc> = Vec::new();
-
-        for path in unchanged_paths {
-            if cancel.is_cancelled() {
-                break;
-            }
-
-            let pid_term = Term::from_field_text(self.fields.project_id, project_id);
-            let pid_q = TermQuery::new(pid_term, IndexRecordOption::Basic);
-            let ns_term = Term::from_field_text(self.fields.namespace, namespace);
-            let ns_q = TermQuery::new(ns_term, IndexRecordOption::Basic);
-            let path_term = Term::from_field_text(self.fields.path, path.as_str());
-            let path_q = TermQuery::new(path_term, IndexRecordOption::Basic);
-            let gen_term = Term::from_field_u64(self.fields.generation, old_generation);
-            let gen_q = TermQuery::new(gen_term, IndexRecordOption::Basic);
-
-            let query = BooleanQuery::new(vec![
-                (
-                    Occur::Must,
-                    Box::new(pid_q) as Box<dyn tantivy::query::Query>,
-                ),
-                (
-                    Occur::Must,
-                    Box::new(ns_q) as Box<dyn tantivy::query::Query>,
-                ),
-                (
-                    Occur::Must,
-                    Box::new(path_q) as Box<dyn tantivy::query::Query>,
-                ),
-                (
-                    Occur::Must,
-                    Box::new(gen_q) as Box<dyn tantivy::query::Query>,
-                ),
-            ]);
-
-            const PAGE_SIZE: usize = 2000;
-            let mut offset = 0usize;
-            loop {
-                let page: Vec<(Score, DocAddress)> =
-                    searcher.search(&query, &TopDocs::with_limit(PAGE_SIZE).and_offset(offset))?;
-                if page.is_empty() {
-                    break;
+        let wanted = unchanged_paths.iter().map(RelPath::as_str)
+            .collect::<std::collections::HashSet<_>>();
+        let query = BooleanQuery::new(vec![
+            (Occur::Must, Box::new(TermQuery::new(Term::from_field_text(self.fields.project_id, project_id), IndexRecordOption::Basic)) as Box<dyn Query>),
+            (Occur::Must, Box::new(TermQuery::new(Term::from_field_text(self.fields.namespace, namespace), IndexRecordOption::Basic)) as Box<dyn Query>),
+            (Occur::Must, Box::new(TermQuery::new(Term::from_field_u64(self.fields.generation, old_generation), IndexRecordOption::Basic)) as Box<dyn Query>),
+        ]);
+        let weight = query.weight(tantivy::query::EnableScoring::disabled_from_searcher(&searcher))?;
+        let _allocation = self.memory_budget.as_ref().map(|budget| AllocationGuard::try_new(
+            budget, self.tantivy_writer_memory as u64, Subsystem::Tantivy, "snapshot copy writer",
+        )).transpose()?;
+        let mut writer = BulkWriterGuard {
+            writer: Some(self.acquire_writer("snapshot copy", cancel).await?),
+            docs_since_commit: 0,
+        };
+        let mut batch = Vec::with_capacity(512);
+        let mut batch_bytes = 0usize;
+        // Scan the old snapshot once. Per-file queries and per-batch writer
+        // shutdowns made a one-byte source edit repeatedly scan and compact
+        // the complete repository. Keep only one bounded batch in memory.
+        for (segment_ord, segment) in searcher.segment_readers().iter().enumerate() {
+            let mut scorer = weight.scorer(segment, 1.0)?;
+            while scorer.doc() != tantivy::TERMINATED {
+                anyhow::ensure!(!cancel.is_cancelled(), "snapshot copy cancelled");
+                let doc_id = scorer.doc();
+                scorer.advance();
+                if segment.is_deleted(doc_id) { continue; }
+                let doc: tantivy::TantivyDocument = searcher.doc(DocAddress::new(segment_ord as u32, doc_id))?;
+                let get_str = |field| doc.get_first(field).and_then(|value| value.as_str()).unwrap_or("").to_string();
+                let get_u64 = |field| doc.get_first(field).and_then(|value| value.as_u64()).unwrap_or(0);
+                let path = get_str(self.fields.path);
+                if !wanted.contains(path.as_str()) { continue; }
+                let hash = get_str(self.fields.content_hash);
+                let start_line = get_u64(self.fields.start_line) as u32;
+                let end_line = get_u64(self.fields.end_line) as u32;
+                let content = get_str(self.fields.content);
+                batch_bytes = batch_bytes.saturating_add(content.len());
+                let author = get_str(self.fields.author);
+                let timestamp = get_u64(self.fields.timestamp);
+                batch.push(IndexDoc {
+                    generation: new_generation, chunk_id: get_u64(self.fields.chunk_id),
+                    doc_id: DocIdStr::compute(&path, start_line, end_line, &ContentHash(hash.clone())).0,
+                    path: RelPath::new(&path), language: get_str(self.fields.language),
+                    content, namespace: namespace.to_string(),
+                    author: (!author.is_empty()).then_some(author),
+                    timestamp: (timestamp != 0).then_some(timestamp),
+                    start_line, end_line, content_hash: hash,
+                });
+                if batch.len() >= 512 || batch_bytes >= 1024 * 1024 {
+                    Self::write_docs_to_writer(&self.fields, &mut writer, project_id, &batch)?;
+                    self.embed_and_upsert_vectors(project_id, &batch, cancel).await?;
+                    writer.maybe_commit(4096)?;
+                    batch.clear();
+                    batch_bytes = 0;
                 }
-
-                for (_, addr) in page.iter().copied() {
-                    let doc: tantivy::TantivyDocument = searcher.doc(addr)?;
-                    let get_str = |f| {
-                        doc.get_first(f)
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("")
-                            .to_string()
-                    };
-                    let get_u64 = |f| doc.get_first(f).and_then(|v| v.as_u64()).unwrap_or(0);
-
-                    let content_hash = get_str(self.fields.content_hash);
-                    let path_str = get_str(self.fields.path);
-                    let language = get_str(self.fields.language);
-                    let content = get_str(self.fields.content);
-                    let author = get_str(self.fields.author);
-                    let timestamp = get_u64(self.fields.timestamp);
-                    let chunk_id = get_u64(self.fields.chunk_id);
-                    let start_line = get_u64(self.fields.start_line) as u32;
-                    let end_line = get_u64(self.fields.end_line) as u32;
-
-                    // doc_id is location-based so it is stable across generations for same content at same place
-                    let ch = ContentHash(content_hash.clone());
-                    let new_doc_id = DocIdStr::compute(&path_str, start_line, end_line, &ch);
-
-                    all_docs.push(IndexDoc {
-                        generation: new_generation,
-                        chunk_id,
-                        path: RelPath::new(&path_str),
-                        language,
-                        content,
-                        namespace: namespace.to_string(),
-                        author: if author.is_empty() {
-                            None
-                        } else {
-                            Some(author)
-                        },
-                        timestamp: if timestamp == 0 {
-                            None
-                        } else {
-                            Some(timestamp)
-                        },
-                        start_line,
-                        end_line,
-                        doc_id: new_doc_id.0,
-                        content_hash,
-                    });
-                }
-
-                offset = offset.saturating_add(PAGE_SIZE);
-                if page.len() < PAGE_SIZE {
-                    break;
-                }
-            }
-
-            if all_docs.len() >= 512 {
-                self.index_docs(project_id, &all_docs, cancel).await?;
-                all_docs.clear();
             }
         }
-
-        if !all_docs.is_empty() && !cancel.is_cancelled() {
-            self.index_docs(project_id, &all_docs, cancel).await?;
+        anyhow::ensure!(!cancel.is_cancelled(), "snapshot copy cancelled");
+        if !batch.is_empty() {
+            Self::write_docs_to_writer(&self.fields, &mut writer, project_id, &batch)?;
+            self.embed_and_upsert_vectors(project_id, &batch, cancel).await?;
         }
-
+        writer.finish()?;
         Ok(())
     }
 

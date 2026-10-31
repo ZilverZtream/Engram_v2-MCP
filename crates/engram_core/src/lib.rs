@@ -13,6 +13,7 @@ pub mod paths;
 pub mod registry;
 pub mod runtime_evidence;
 pub mod security;
+pub mod storage;
 pub mod types;
 
 pub use benchmark::{

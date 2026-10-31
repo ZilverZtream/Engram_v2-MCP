@@ -119,7 +119,7 @@ impl Registry {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let db = Database::create(path)?;
+        let db = crate::storage::open_database(path, crate::storage::DatabaseCache::Metadata)?;
         let wtx = db.begin_write()?;
         {
             let _ = wtx.open_table(PROJECTS)?;

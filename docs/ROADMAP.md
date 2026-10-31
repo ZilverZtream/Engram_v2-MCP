@@ -2,6 +2,25 @@
 
 Status labels: `implemented`, `partial`, `experimental`, `planned`.
 
+## Near-term priorities (2026-10-31)
+
+Prioritize improvements to the existing planning, retrieval, and review tools.
+Another tool adds little value when applicable guidance is missed or routine
+indexing consumes the machine.
+
+| Priority | Work | Acceptance and limits |
+|---|---|---|
+| 1 | Resource stability (`partial`) | Unchanged refreshes preserve the source generation; ignored/runtime events do not schedule indexing; real edits preserve unrelated search results. The candidate bounds database page caches and streams snapshot copies, but production idle/load measurements and kernel-pool attribution remain outstanding. |
+| 2 | Scoped guidance in planning and review (`implemented`) | Applicable authored instructions reach `get_change_set`, `prepare_implementation_context`, source `get_chunk`, and `pre_commit_review`; exceptions remain intact, omissions are explicit and recoverable, and historical requests exclude live policy. Retrieval does not certify prose compliance. |
+| 3 | Preserve scope when ingesting quality rules (`planned`) | Carry source identity, applicability, and qualifications into rule ingestion so a domain instruction cannot become an unrelated global mandate. |
+| 4 | Instruction freshness and maintenance (`planned`) | Report changed supporting evidence, missing references, and scopes matching no files. Suggest source-bound revisions for human review; current implementation behavior alone does not establish intended policy. |
+| 5 | Task-level outcome evaluation (`planned`) | Compare a small fixed set of implementation and bug-fix scenarios: applicable-rule recall, unrelated guidance, missed exceptions, accepted behavior, response size, latency, and indexing activity. Extend existing QA approval and developer replay workflows rather than duplicate them. |
+
+For source changes, the current snapshot model still copies unchanged chunks.
+Measure that remaining cost before introducing shared immutable generations or
+another storage redesign. Page-cache budgets are per store, not a process RSS
+ceiling. Process logical I/O counters do not measure physical SSD wear.
+
 The matrix below is generated from capability flags and acts as the roadmap baseline for current maturity.
 
 <!-- CAPABILITIES_MATRIX:START -->

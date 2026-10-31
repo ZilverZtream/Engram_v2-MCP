@@ -660,6 +660,21 @@ impl Engram {
         // stop-oid parse silently degraded to a full re-walk: double-
         // counted temporal weights on every refresh after a wipe.
         .filter(|s: &String| !s.trim().is_empty());
+        // A no-change watcher refresh must not create a history writer or
+        // rewrite temporal state when the forward watermark already equals HEAD.
+        if mode == GitHistoryMode::Forward && !force_flag && !index_antipatterns {
+            let root = project_root.clone();
+            let head = tokio::task::spawn_blocking(move || -> anyhow::Result<Option<String>> {
+                let repo = GitWalker::open_repo(&root)?;
+                Ok(GitWalker::approved_history_root(&repo)
+                    .or_else(|| repo.head().ok().and_then(|head| head.target()))
+                    .map(|oid| oid.to_string()))
+            }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?
+                .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+            if last.is_some() && last == head {
+                return Ok("commits=0; git history already current at the approved history root".into());
+            }
+        }
         let oldest = tokio::task::spawn_blocking({
             let pid = pid.clone();
             let reg = self.state.registry.clone();

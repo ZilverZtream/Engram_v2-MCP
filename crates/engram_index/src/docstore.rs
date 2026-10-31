@@ -93,7 +93,7 @@ impl DocStore {
         if let Some(parent) = db_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let db = Database::create(db_path)?;
+        let db = engram_core::storage::open_database(db_path, engram_core::storage::DatabaseCache::Documents)?;
         let wtx = db.begin_write()?;
         {
             let _ = wtx.open_table(DOC_BY_ID)?;

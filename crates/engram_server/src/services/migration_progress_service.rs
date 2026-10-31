@@ -150,7 +150,7 @@ impl MigrationProgressStore {
         if let Some(parent) = db_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let db = Database::create(db_path)?;
+        let db = engram_core::storage::open_database(db_path, engram_core::storage::DatabaseCache::Metadata)?;
         // Eagerly create the table so later read transactions never see "table
         // not found" errors on an empty database.
         let wtx = db.begin_write()?;
