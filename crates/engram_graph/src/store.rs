@@ -4128,18 +4128,37 @@ impl AsBfsEntry for BfsEntryOuter {
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+struct TemporaryGraphStore {
+    // Fields drop in declaration order: close redb before removing its files.
+    store: GraphStore,
+    _directory: tempfile::TempDir,
+}
+
+#[cfg(test)]
+impl TemporaryGraphStore {
+    fn new() -> Self {
+        let directory = tempfile::tempdir().expect("create graph-store test directory");
+        let store = GraphStore::open(&directory.path().join("graph.redb"))
+            .expect("open test graph store");
+        Self { store, _directory: directory }
+    }
+}
+
+#[cfg(test)]
+impl std::ops::Deref for TemporaryGraphStore {
+    type Target = GraphStore;
+
+    fn deref(&self) -> &Self::Target {
+        &self.store
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
-    use std::sync::atomic::{AtomicU64, Ordering};
 
-    fn test_store() -> GraphStore {
-        static NEXT_ID: AtomicU64 = AtomicU64::new(1);
-        let unique = NEXT_ID.fetch_add(1, Ordering::Relaxed);
-        let mut path: PathBuf = std::env::temp_dir();
-        path.push(format!("engram_graph_store_test_{unique}.redb"));
-        let _ = std::fs::remove_file(&path);
-        GraphStore::open(&path).expect("open test graph store")
+    fn test_store() -> TemporaryGraphStore {
+        TemporaryGraphStore::new()
     }
 
     fn test_node(node_id: &str, node_type: &str, name: &str, file_path: &str) -> Node {
@@ -5028,7 +5047,7 @@ mod tests {
         }
     }
 
-    fn ca_setup(edges: &[Edge]) -> GraphStore {
+    fn ca_setup(edges: &[Edge]) -> TemporaryGraphStore {
         let store = test_store();
         let mut ids: Vec<String> = Vec::new();
         for e in edges {
@@ -5304,12 +5323,8 @@ mod purge_baseline_tests {
     use super::*;
     use engram_core::RelPath;
 
-    fn store() -> GraphStore {
-        let tmp = tempfile::TempDir::new().unwrap();
-        let path = tmp.path().join("g.redb");
-        let s = GraphStore::open(&path).expect("open");
-        std::mem::forget(tmp);
-        s
+    fn store() -> TemporaryGraphStore {
+        TemporaryGraphStore::new()
     }
 
     fn node(id: &str, generation: u64) -> Node {
