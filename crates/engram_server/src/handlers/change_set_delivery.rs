@@ -85,6 +85,16 @@ fn save(data_dir: &Path, project_id: &str, body: &str) -> Result<String, McpErro
         .map_err(|_| failure("Cannot create the change-set response cache"))?;
     // Validate again after creation so existing symlink components cannot redirect writes.
     let directory = self::directory(data_dir, project_id)?;
+    // tempfile's Windows persistence calls native APIs with the supplied paths.
+    // Canonical paths carry the extended-length prefix needed beyond MAX_PATH.
+    // Both the temporary file and final filename must use this same directory.
+    let root = std::fs::canonicalize(data_dir)
+        .map_err(|error| failure(format!("Cannot resolve the response cache data root: {error}")))?;
+    let directory = std::fs::canonicalize(directory)
+        .map_err(|error| failure(format!("Cannot resolve the response cache directory: {error}")))?;
+    if !directory.starts_with(root) {
+        return Err(failure("Response cache directory resolves outside its data root"));
+    }
     let id = blake3::hash(body.as_bytes()).to_hex().to_string();
     let target = checked_path(&directory, &id)?;
     let mut temporary = tempfile::NamedTempFile::new_in(&directory)
@@ -114,10 +124,10 @@ fn save(data_dir: &Path, project_id: &str, body: &str) -> Result<String, McpErro
                 .persist(&target)
                 .map_err(|_| failure("Cannot refresh the identical response snapshot"))?;
         }
-        Err(_) => {
-            return Err(failure(
-                "Cannot atomically persist the change-set response snapshot",
-            ));
+        Err(error) => {
+            return Err(failure(format!(
+                "Cannot atomically persist the change-set response snapshot: {}", error.error,
+            )));
         }
     }
     prune(&directory, &target);
@@ -258,6 +268,18 @@ pub(super) fn recover(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn deeply_nested_data_directory_preserves_exact_response_recovery() {
+        let temporary = tempfile::tempdir().unwrap();
+        let mut data = temporary.path().to_path_buf();
+        for _ in 0..6 { data.push("nested-response-data-location-000000000000"); }
+        std::fs::create_dir_all(&data).unwrap();
+        let body = "Preserve the complete source policy and its exceptions.\n".repeat(1_000);
+        let response = super::bounded(&data, "project", body.clone(), true, super::json!({})).unwrap();
+        let value: super::Value = serde_json::from_str(&response).unwrap();
+        let id = value["response_delivery"]["response_id"].as_str().unwrap();
+        assert_eq!(recover_all(&data, "project", id), body);
+    }
     use super::*;
 
     fn manifest() -> Value {
