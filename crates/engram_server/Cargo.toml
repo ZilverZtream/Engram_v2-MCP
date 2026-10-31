@@ -41,6 +41,7 @@ redb.workspace = true
 futures.workspace = true
 async-trait.workspace = true
 fs2.workspace = true
+tempfile = "3"
 # Unified-diff of two ADO blob versions for review fix-exemplar mining.
 similar = "2"
 sqlparser = { version = "0.59", features = ["visitor"] }
@@ -50,6 +51,5 @@ blake3 = "1"
 
 [dev-dependencies]
 rmcp = { workspace = true, features = ["client"] }
-tempfile = "3"
 tokio = { workspace = true, features = ["test-util"] }
 

@@ -197,6 +197,31 @@ without re-reading an entire file:
 | `validate_generated_code` · `validate_sql_fragment` | Pre-commit validation |
 | `find_tests_for_method` · `find_dead_methods` · `check_edit_safety` | Discovery and safety checks |
 
+### Scoped repository instructions
+
+`get_change_set` and `prepare_implementation_context` include applicable
+repository guidance in both JSON and Markdown. `get_chunk` includes it for
+source documents when `inject_rules: true`; exact citation output stays
+unchanged. Discovery reads current root and target-ancestor guidance
+(`AGENTS.md`, `CLAUDE.md`, `INSTRUCTIONS.md`), conventional policy directories,
+and indexed policy paths, so new topic files need no reindex.
+
+Topic selection respects `applyTo`, `paths`, and `globs`, including comma-separated
+patterns and YAML lists. Sources carry BLAKE3 hashes and applicability reasons.
+Documents are included whole or explicitly omitted with a source-read lead;
+exceptions are never silently cut off. Invalid or unsupported scope and discovery
+limits report incomplete coverage. Matching selects documents; it does not prove
+that arbitrary prose rules were enforced. Historical change-set requests withhold
+live guidance and explicitly report that historical policy was not evaluated.
+
+Change-set response text is bounded to 40 KiB. An oversized result returns
+`response_delivery` with mandatory row/checkpoint identities and a copy-ready
+`get_change_set` recovery call using `response_id` and `response_offset`.
+Concatenate the returned `content` pages in byte-offset order and verify their
+BLAKE3 response ID to recover the original JSON or Markdown without rerunning
+planning. These project-scoped snapshots expire after 24 hours and are limited
+to 32 per project; unavailable snapshots require fresh planning and reconciliation.
+
 ### Cognitive features (LLM-optional)
 
 Everything in the sections above runs without an LLM. These extras use

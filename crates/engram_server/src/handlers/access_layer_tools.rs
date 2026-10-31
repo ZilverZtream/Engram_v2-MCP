@@ -438,6 +438,7 @@ pub struct ImplementationContext {
     pub method_info: MethodInfoResult,
     pub method_coverage: MethodInfoCoverage,
     pub coverage_interpretation: String,
+    pub project_policy_sources: crate::services::project_policy::PolicyContext,
     pub method_body: Option<String>,
     pub style_profile: Option<String>,
     pub style_basis: Option<crate::services::cognitive_service::StyleBasis>,
@@ -2704,6 +2705,7 @@ fn render_implementation_context_markdown(ctx: &ImplementationContext) -> String
         ctx.method_info.fqn
     ));
     md.push_str(&format!("{}\n\n", ctx.coverage_interpretation));
+    md.push_str(&ctx.project_policy_sources.render_markdown());
 
     if !ctx.warnings.is_empty() {
         md.push_str("## Warnings (partial evidence)\n\n");
@@ -4808,6 +4810,9 @@ impl Engram {
                 method_info,
                 method_coverage,
                 coverage_interpretation: coverage_interpretation(),
+                project_policy_sources: crate::services::project_policy::resolve(
+                    Path::new(&project_dir), &[file_path.clone()], &[],
+                ),
                 method_body,
                 style_profile: None, // filled in later from async result
                 style_basis: None,

@@ -6,7 +6,7 @@ name: no-vector-ci
 
 on:
   push:
-    branches: [main, Company-adapted]
+    branches: [master, main, Company-adapted]
   pull_request:
 
 env:

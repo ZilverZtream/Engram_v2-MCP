@@ -158,6 +158,7 @@ pub struct IngestStats {
 
 /// Escape SQL LIKE wildcards (`%`, `_`) and single quotes in a string
 /// so it can be safely used in a `LIKE '...' ESCAPE '\'` clause.
+#[cfg(feature = "vector")]
 fn escape_like(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 4);
     for c in s.chars() {
@@ -532,6 +533,8 @@ impl HybridSearchEngine {
         cancel: &CancellationToken,
         _table_override: Option<&str>,
     ) -> anyhow::Result<()> {
+        #[cfg(not(feature = "vector"))]
+        let _ = project_id;
         if docs.is_empty() || cancel.is_cancelled() {
             return Ok(());
         }
@@ -3279,6 +3282,8 @@ impl HybridSearchEngine {
         q: &HybridQuery,
         cancel: &CancellationToken,
     ) -> anyhow::Result<Vec<HybridHit>> {
+        #[cfg(not(feature = "vector"))]
+        let _ = cancel;
         if self.embedding_backend == "fts_only" {
             return Ok(Vec::new());
         }
