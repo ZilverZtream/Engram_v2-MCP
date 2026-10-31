@@ -447,7 +447,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Ingest a project's accumulated 'what to avoid' knowledge into a searchable quality_gate namespace: coding/agent rules, copilot-instructions.md (source_type=copilot|rules), CodeRabbit & SonarQube findings exports (source_type=coderabbit|sonarqube, JSON), or the DevOps recurring-issues board (source_type=board). Run once per source; pre_push_audit then checks changes against them."
+        description = "Ingest reviewed project guidance and findings into quality_gate: authored policy (source_type=copilot|rules), review exports (coderabbit|sonarqube), board, or text. JSON guidelines preserve one path_scope or file_pattern string using existing repository-rule matching; invalid or unsupported scope is rejected before corpus replacement. Markdown retains complete context for applicability review. Sources use project-relative identities. pre_push_audit retrieves candidate guidance; retrieval does not verify compliance."
     )]
     pub async fn ingest_quality_gates(
         &self,
@@ -457,7 +457,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Distill a raw finding corpus (CodeRabbit/SonarQube export, source_type=coderabbit|sonarqube, JSON) into GENERIC, deduplicated project rules and index them into the quality_gate namespace. Unlike ingest_quality_gates (1:1, file/line-scoped), this CLUSTERS thousands of findings and LLM-summarizes each cluster into reusable rules that apply to ANY change ('team keeps shipping un-parameterized SQL' -> 'always parameterize'). This is the team knowledge a user story omits. Needs a configured LLM. Use for findings corpora; use ingest_quality_gates for already-generic sources (copilot-instructions, the board)."
+        description = "Distill raw review findings (source_type=coderabbit|sonarqube|board|text) into reusable advisory quality_gate candidates through bounded LLM batches. Needs a configured LLM. Authored copilot/rules policies are rejected: use ingest_quality_gates to retain their scope, exceptions and source context. Distillation does not establish approval or prove a suggestion applies to every change."
     )]
     pub async fn distill_quality_gates(
         &self,

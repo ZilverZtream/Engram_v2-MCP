@@ -21,6 +21,13 @@ use std::time::Duration;
 
 const QG_NAMESPACE: &str = "quality_gate";
 
+fn quality_source_origin(root: &std::path::Path, source: &std::path::Path) -> Result<String, McpError> {
+    engram_core::RelPath::from_relative(root, source)
+        .filter(|path| !path.as_str().is_empty())
+        .map(|path| path.as_str().to_owned())
+        .ok_or_else(|| McpError::invalid_params("Cannot establish project-relative quality source identity", None))
+}
+
 /// Resolve one input before quality-rule count/search. File identity uses existing BLAKE3 dependency.
 fn resolve_audit_input(req: &crate::models::PrePushAuditRequest, root: &std::path::Path) -> Result<String, McpError> {
     use std::io::Read;
@@ -74,11 +81,7 @@ impl Engram {
             .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
         let content = std::fs::read_to_string(&abs)
             .map_err(|e| McpError::invalid_params(format!("cannot read source: {e}"), None))?;
-        let origin = std::path::Path::new(&req.source_path)
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or(&req.source_path)
-            .to_string();
+        let origin = quality_source_origin(std::path::Path::new(&ps.info.directory), &abs)?;
 
         let rules = parse_quality_source_checked(&content, source, &origin)
             .map_err(|error| McpError::invalid_params(error, None))?;
@@ -87,6 +90,29 @@ impl Engram {
                 "No quality-gate rules parsed from {origin} (source_type={}).",
                 req.source_type
             ))]));
+        }
+        let mut existing = self.state.registry.list_repo_rules(&req.project_id)
+            .map_err(|error| McpError::internal_error(format!("cannot inspect existing repo rules: {error}"), None))?;
+        let provenance = format!("quality-gate source: {origin}");
+        let basename = abs.file_name().and_then(|name| name.to_str()).unwrap_or(&origin);
+        // Older promotions recorded only a basename. Their owning source cannot
+        // be inferred when importing a nested file with the same name.
+        for rule in &rules {
+            let id = format!("qg-{}", rule.id);
+            let legacy = id.replacen(&format!(":{origin}:"), &format!(":{basename}:"), 1);
+            if origin != basename && existing.iter().any(|old| old.rule_id == legacy
+                && old.provenance.as_deref() == Some("quality-gate finding")) {
+                return Err(McpError::invalid_params(format!(
+                    "Cannot establish ownership of legacy basename-only promotion `{legacy}` while importing `{origin}`. Review that repository rule's source before migrating it; clearing the searchable corpus does not resolve ownership. No rules imported."
+                ), None));
+            }
+            if existing.iter().any(|old| old.rule_id == id
+                && old.provenance.as_deref() != Some("quality-gate finding")
+                && old.provenance.as_deref() != Some(provenance.as_str())) {
+                return Err(McpError::invalid_params(format!(
+                    "Promotion ID `{id}` is owned by another repository rule. Review the collision before importing `{origin}`. No rules imported."
+                ), None));
+            }
         }
         // Row-3 audit A7: `clear_existing` was a documented no-op. It purges the
         // project's whole `quality_gate` namespace — only after the new source
@@ -114,13 +140,18 @@ impl Engram {
 
         let mut docs = Vec::with_capacity(rules.len());
         let mut by_sev = std::collections::BTreeMap::<String, usize>::new();
+        let source_hash = blake3::hash(content.as_bytes()).to_hex().to_string();
         for r in &rules {
             *by_sev.entry(r.severity.clone()).or_default() += 1;
             // Index the rule TEXT as content (clean for semantic match to code);
             // path carries the rule's file scope (or the source) so a per-file
             // audit can prefer scoped rules; language carries the category.
             let path = r.path_scope.clone().unwrap_or_else(|| origin.clone());
-            let ch = engram_core::ContentHash::compute(r.text.as_bytes());
+            let indexed_text = format!(
+                "Quality-rule source: {origin}\nSource BLAKE3: {source_hash}\nRepository-rule pattern: {}\n\n{}",
+                r.path_scope.as_deref().unwrap_or("none supplied"), r.text,
+            );
+            let ch = engram_core::ContentHash::compute(indexed_text.as_bytes());
             let doc_id = engram_core::DocIdStr::compute(&path, 0, 0, &ch).0;
             docs.push(engram_index::IndexDoc {
                 generation: active_gen,
@@ -129,7 +160,7 @@ impl Engram {
                 content_hash: ch.0,
                 path: engram_core::RelPath::new(&path),
                 language: r.category.clone(),
-                content: r.text.clone(),
+                content: indexed_text,
                 namespace: QG_NAMESPACE.to_string(),
                 author: Some(r.severity.clone()),
                 timestamp: None,
@@ -157,14 +188,6 @@ impl Engram {
         let contextual = rules.iter().filter(|r| r.text.starts_with(MARKDOWN_CONTEXT_PREFIX)).count();
         let mut promoted = 0usize;
         {
-            let existing: Vec<String> = self
-                .state
-                .registry
-                .list_repo_rules(&req.project_id)
-                .unwrap_or_default()
-                .into_iter()
-                .map(|r| r.rule_text.to_lowercase())
-                .collect();
             let is_mandate = |t: &str| {
                 let l = t.to_lowercase();
                 ["must", "never", "always", "required", "do not", "don't"]
@@ -194,13 +217,18 @@ impl Engram {
                 if promoted >= 20 {
                     break;
                 }
-                let key: String = r.text.to_lowercase().chars().take(80).collect();
-                if existing.iter().any(|e| e.starts_with(&key)) {
+                let rule_id = format!("qg-{}", &r.id);
+                let file_pattern = r.path_scope.clone().unwrap_or_else(|| "**/*".into());
+                // The same owned ID must be refreshed even when its wording is
+                // unchanged: an older global scope must not survive narrowing.
+                if !existing.iter().any(|rule| rule.rule_id == rule_id)
+                    && existing.iter().any(|rule| rule.file_pattern == file_pattern
+                        && rule.rule_text.eq_ignore_ascii_case(&r.text)) {
                     continue;
                 }
                 let rule = engram_core::registry::RepoRule {
-                    rule_id: format!("qg-{}", &r.id),
-                    file_pattern: r.path_scope.clone().unwrap_or_else(|| "**/*".into()),
+                    rule_id,
+                    file_pattern,
                     rule_text: r.text.clone(),
                     priority: 5,
                     updated_at_ms: std::time::SystemTime::now()
@@ -208,16 +236,15 @@ impl Engram {
                         .map(|d| d.as_millis() as u64)
                         .unwrap_or(0),
                     introduced_at: None,
-                    provenance: Some("quality-gate finding".into()),
+                    provenance: Some(provenance.clone()),
                 };
-                if self
-                    .state
-                    .registry
-                    .put_repo_rule(&req.project_id, &rule)
-                    .is_ok()
-                {
-                    promoted += 1;
-                }
+                self.state.registry.put_repo_rule(&req.project_id, &rule)
+                    .map_err(|error| McpError::internal_error(format!(
+                        "Quality records were indexed, but repository-rule promotion failed: {error}. Enforcement may still reflect the previous import; review and retry."
+                    ), None))?;
+                promoted += 1;
+                existing.retain(|previous| previous.rule_id != rule.rule_id);
+                existing.push(rule);
             }
         }
 
@@ -235,7 +262,7 @@ impl Engram {
         };
         Ok(CallToolResult::success(vec![Content::text(format!(
             "{purge_line}Ingested {} quality-gate rules from {origin} (source_type={}, category={}) into the \
-             `{QG_NAMESPACE}` namespace [{sev}]. {promoted} high-severity mandate(s) auto-promoted \
+             `{QG_NAMESPACE}` namespace [{sev}]. {promoted} qualifying mandate(s) auto-promoted \
              to repo rules (gates + rule injection read those). Use pre_push_audit to check a \
              change against them. {contextual} context-required Markdown candidate(s) retained for full-source applicability review; these were not auto-promoted to enforceable repo rules.",
             rules.len(),
@@ -407,14 +434,16 @@ impl Engram {
             .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
         let content = std::fs::read_to_string(&abs)
             .map_err(|e| McpError::invalid_params(format!("cannot read source: {e}"), None))?;
-        let origin = std::path::Path::new(&req.source_path)
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or(&req.source_path)
-            .to_string();
+        let origin = quality_source_origin(std::path::Path::new(&ps.info.directory), &abs)?;
 
         let findings = parse_quality_source_checked(&content, source, &origin)
             .map_err(|error| McpError::invalid_params(error, None))?;
+        if matches!(source, QualitySource::CopilotInstructions | QualitySource::CodingRulesMd) {
+            return Err(McpError::invalid_params(
+                "Authored policies must retain their scope, exceptions and source context. Use ingest_quality_gates for copilot/rules sources; distill_quality_gates generalizes raw review findings. No rules imported.",
+                None,
+            ));
+        }
         if findings.is_empty() {
             return Ok(CallToolResult::success(vec![Content::text(format!(
                 "No findings parsed from {origin} (source_type={}).",
@@ -533,8 +562,8 @@ impl Engram {
         Ok(CallToolResult::success(vec![Content::text(format!(
             "Distilled {n_findings} raw findings from {origin} into {} GENERIC rules \
              ({n_batches} batches, {failed_batches} LLM failures) and indexed them into the \
-             `{QG_NAMESPACE}` namespace [{sev}]. These apply to ANY change (not file/line lookup); \
-             pre_push_audit and the planners can now retrieve them.",
+             `{QG_NAMESPACE}` namespace [{sev}]. These are advisory suggestions; retrieval does not \
+             establish their approval or applicability to a particular change.",
             rules.len(),
         ))]))
     }

@@ -169,3 +169,186 @@ async fn contextual_markdown_remains_retrievable_without_automatic_enforcement()
     let text = &result.content[0].as_text().unwrap().text;
     assert!(text.contains("full_rule: get_chunk") && text.contains("of 1 in the namespace"), "{text}");
 }
+
+const SCOPED_MANDATE: &str =
+    "Never add ScopeProbe tokens to production code. [check: forbid=ScopeProbe]";
+
+async fn ingest_json(engram: &Engram, pid: &str, path: &str, clear: bool) {
+    engram.handle_ingest_quality_gates(serde_json::from_value(json!({
+        "project_id":pid,"source_path":path,"source_type":"rules","clear_existing":clear
+    })).unwrap()).await.unwrap();
+}
+
+async fn scope_probe_is_enforced(state: &AppState, pid: &str, root: &std::path::Path, path: &str) -> bool {
+    use engram_server::services::pre_commit_review_service::{all_gates, run_pre_commit_review_with, ReviewConfig};
+    let file = root.join(path);
+    std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+    std::fs::write(&file, "Public Class Widget\nPublic Sub Save()\nEnd Sub\nEnd Class\n").unwrap();
+    let diff = format!("diff --git a/{path} b/{path}\n--- a/{path}\n+++ b/{path}\n@@ -1,4 +1,5 @@\n Public Class Widget\n Public Sub Save()\n+Dim ScopeProbe As Integer = 1\n End Sub\n End Class\n");
+    let (findings, _, _, _) = run_pre_commit_review_with(
+        state, pid, root, 1, &diff, &ReviewConfig::default(), all_gates(),
+    ).await.unwrap();
+    findings.iter().any(|finding| finding.gate == "repo_rules")
+}
+
+#[tokio::test]
+async fn authored_json_scope_limits_enforcement_to_the_requested_area() {
+    let (tmp, state, engram, pid) = build().await;
+    let root = tmp.path().join("proj");
+    std::fs::write(root.join("area-rules.json"), json!([
+        {"rule":SCOPED_MANDATE,"path_scope":"Site/maps/**"}
+    ]).to_string()).unwrap();
+    ingest_json(&engram, &pid, "area-rules.json", false).await;
+    assert!(scope_probe_is_enforced(&state, &pid, &root, "Site/maps/Widget.vb").await);
+    assert!(!scope_probe_is_enforced(&state, &pid, &root, "Site/billing/Widget.vb").await,
+        "an authored map rule must not become a repository-wide mandate");
+}
+
+#[tokio::test]
+async fn identical_mandates_in_distinct_scopes_both_remain_effective() {
+    let (tmp, state, engram, pid) = build().await;
+    let root = tmp.path().join("proj");
+    for (source, field, scope) in [
+        ("maps.json", "path_scope", "Site/maps/**"),
+        ("billing.json", "file_pattern", "Site/billing/**"),
+    ] {
+        let mut rule = json!({"rule":SCOPED_MANDATE});
+        rule[field] = json!(scope);
+        std::fs::write(root.join(source), json!([rule]).to_string()).unwrap();
+        ingest_json(&engram, &pid, source, false).await;
+    }
+    for path in ["Site/maps/Widget.vb", "Site/billing/Widget.vb"] {
+        assert!(scope_probe_is_enforced(&state, &pid, &root, path).await, "{path}");
+    }
+    assert!(!scope_probe_is_enforced(&state, &pid, &root, "Site/reports/Widget.vb").await);
+}
+
+#[tokio::test]
+async fn narrowing_a_reimported_rule_retires_its_previous_global_enforcement() {
+    let (tmp, state, engram, pid) = build().await;
+    let root = tmp.path().join("proj");
+    let source = root.join("reviewed.json");
+    std::fs::write(&source, json!([{"rule":SCOPED_MANDATE}]).to_string()).unwrap();
+    ingest_json(&engram, &pid, "reviewed.json", false).await;
+    assert!(scope_probe_is_enforced(&state, &pid, &root, "Site/billing/Widget.vb").await);
+    std::fs::write(&source, json!([
+        {"rule":SCOPED_MANDATE,"path_scope":"Site/maps/**"}
+    ]).to_string()).unwrap();
+    ingest_json(&engram, &pid, "reviewed.json", true).await;
+    assert!(scope_probe_is_enforced(&state, &pid, &root, "Site/maps/Widget.vb").await);
+    assert!(!scope_probe_is_enforced(&state, &pid, &root, "Site/billing/Widget.vb").await);
+    assert_eq!(qg_count(&state, &pid), 1);
+}
+
+#[tokio::test]
+async fn invalid_json_scope_never_clears_or_broadens_existing_rules() {
+    let (tmp, state, engram, pid) = build().await;
+    let root = tmp.path().join("proj");
+    std::fs::write(root.join("reviewed.json"), json!([
+        {"rule":SCOPED_MANDATE,"path_scope":"Site/maps/**"}
+    ]).to_string()).unwrap();
+    ingest_json(&engram, &pid, "reviewed.json", false).await;
+    let previous = serde_json::to_value(state.registry.list_repo_rules(&pid).unwrap()).unwrap();
+    let mut invalid = Vec::new();
+    for scope in [json!(null), json!(""), json!([]), json!({"include":"Site/maps/**"}),
+        json!("../**"), json!("Site/{maps,billing}/**"), json!("!Site/maps/**")] {
+        invalid.push(json!([{"rule":SCOPED_MANDATE,"path_scope":scope}]).to_string());
+    }
+    invalid.push(json!([{"rule":SCOPED_MANDATE,"applyTo":"Site/maps/**"}]).to_string());
+    invalid.push(json!([{"rule":SCOPED_MANDATE,"pathScope":"Site/maps/**"}]).to_string());
+    invalid.push(json!([{"rule":SCOPED_MANDATE,"applies_to":"Site/maps/**"}]).to_string());
+    invalid.push(json!([{"rule":SCOPED_MANDATE,"directory":"Site/maps"}]).to_string());
+    invalid.push(json!([{"rule":SCOPED_MANDATE,"path_scope":"Site/maps/**","exclude":["Site/maps/generated/**"]}]).to_string());
+    invalid.push(json!([{"rule":SCOPED_MANDATE,"path_scope":"Site/maps/**","file_pattern":"**/*"}]).to_string());
+    invalid.push(format!("\u{feff}{}", json!([{"rule":SCOPED_MANDATE,"path_scope":null}])));
+    invalid.push(json!({"path_scope":"Site/maps/**","rules":[{"rule":SCOPED_MANDATE}]}).to_string());
+    invalid.push("[{\"rule\":\"Never silently broaden a rule\",".into());
+    // Validate the complete document before importing even its first valid row.
+    invalid.push(json!([{"rule":SCOPED_MANDATE}, {"rule":SCOPED_MANDATE,"path_scope":false}]).to_string());
+    for content in invalid {
+        std::fs::write(root.join("invalid.json"), content).unwrap();
+        let request = serde_json::from_value(json!({
+            "project_id":pid,"source_path":"invalid.json","source_type":"rules","clear_existing":true
+        })).unwrap();
+        assert!(engram.handle_ingest_quality_gates(request).await.is_err());
+        assert_eq!(qg_count(&state, &pid), 1);
+        assert_eq!(serde_json::to_value(state.registry.list_repo_rules(&pid).unwrap()).unwrap(), previous);
+    }
+}
+
+#[tokio::test]
+async fn authored_policy_cannot_be_distilled_into_universal_mandates() {
+    let (tmp, state, engram, pid) = build().await;
+    let root = tmp.path().join("proj");
+    for (source, kind, content) in [
+        ("area.md", "copilot", "---\napplyTo: 'Site/maps/**'\n---\nAlways preserve map state.\nException: read-only previews.\n".into()),
+        ("area.json", "rules", json!([{"rule":SCOPED_MANDATE,"path_scope":"Site/maps/**"}]).to_string()),
+    ] {
+        std::fs::write(root.join(source), content).unwrap();
+        let request = serde_json::from_value(json!({
+            "project_id":pid,"source_path":source,"source_type":kind
+        })).unwrap();
+        let error = engram.handle_distill_quality_gates(request).await.unwrap_err();
+        assert!(error.message.contains("ingest_quality_gates"), "{error}");
+        assert_eq!(qg_count(&state, &pid), 0);
+        assert!(state.registry.list_repo_rules(&pid).unwrap().is_empty());
+    }
+}
+
+#[tokio::test]
+async fn same_named_sources_in_two_directories_keep_independent_scope_and_recovery() {
+    let (tmp, state, engram, pid) = build().await;
+    let root = tmp.path().join("proj");
+    for area in ["maps", "billing"] {
+        let source = format!("policies/{area}/rules.json");
+        std::fs::create_dir_all(root.join(format!("policies/{area}"))).unwrap();
+        std::fs::write(root.join(&source), json!([
+            {"rule":SCOPED_MANDATE,"path_scope":format!("Site/{area}/**")}
+        ]).to_string()).unwrap();
+        ingest_json(&engram, &pid, &source, false).await;
+    }
+    for path in ["Site/maps/Widget.vb", "Site/billing/Widget.vb"] {
+        assert!(scope_probe_is_enforced(&state, &pid, &root, path).await, "{path}");
+    }
+    assert!(!scope_probe_is_enforced(&state, &pid, &root, "Site/reports/Widget.vb").await);
+    let docs = state.get_project_cached(&pid).unwrap().search
+        .list_docs_in_namespace(&pid, "quality_gate").unwrap();
+    assert_eq!(docs.len(), 2);
+    let mut recovered = String::new();
+    for doc in docs {
+        let response = engram.handle_get_chunk(serde_json::from_value(json!({
+            "project_id":pid,"namespace":"quality_gate","doc_id":doc.doc_id
+        })).unwrap()).await.unwrap();
+        recovered.push_str(&response.content[0].as_text().unwrap().text);
+    }
+    for source in ["policies/maps/rules.json", "policies/billing/rules.json"] {
+        assert!(recovered.contains(source), "full-rule recovery must identify {source}");
+    }
+}
+
+#[tokio::test]
+async fn ambiguous_legacy_source_ownership_is_rejected_before_replacing_the_corpus() {
+    let (tmp, state, engram, pid) = build().await;
+    let root = tmp.path().join("proj");
+    std::fs::write(root.join("rules.json"), json!([{"rule":SCOPED_MANDATE}]).to_string()).unwrap();
+    ingest_json(&engram, &pid, "rules.json", false).await;
+    let mut legacy = state.registry.list_repo_rules(&pid).unwrap().remove(0);
+    legacy.provenance = Some("quality-gate finding".into());
+    state.registry.put_repo_rule(&pid, &legacy).unwrap();
+    let before = serde_json::to_value(state.registry.list_repo_rules(&pid).unwrap()).unwrap();
+    let engine = state.get_project_cached(&pid).unwrap().search;
+    let before_docs = engine.list_docs_in_namespace(&pid, "quality_gate").unwrap()
+        .into_iter().map(|doc| doc.doc_id).collect::<Vec<_>>();
+    std::fs::create_dir_all(root.join("policies")).unwrap();
+    std::fs::write(root.join("policies/rules.json"), json!([
+        {"rule":SCOPED_MANDATE,"path_scope":"Site/maps/**"}
+    ]).to_string()).unwrap();
+    let request = serde_json::from_value(json!({
+        "project_id":pid,"source_path":"policies/rules.json","source_type":"rules","clear_existing":true
+    })).unwrap();
+    let error = engram.handle_ingest_quality_gates(request).await.unwrap_err();
+    assert!(error.message.contains(&legacy.rule_id) && error.message.contains("No rules imported"), "{error}");
+    assert_eq!(serde_json::to_value(state.registry.list_repo_rules(&pid).unwrap()).unwrap(), before);
+    assert_eq!(engine.list_docs_in_namespace(&pid, "quality_gate").unwrap()
+        .into_iter().map(|doc| doc.doc_id).collect::<Vec<_>>(), before_docs);
+}

@@ -84,25 +84,9 @@ pub fn parse_quality_source(
 ) -> Vec<QualityRule> {
     match source {
         QualitySource::CopilotInstructions | QualitySource::CodingRulesMd => {
-            // Row-3 audit A7 (live finding): a JSON array of `{rule, …}` objects
-            // (the distilled generic rules) routed here became line-shaped junk
-            // under the markdown parser. JSON content is parsed structurally.
-            let head = content.trim_start();
-            if head.starts_with('[') || head.starts_with('{') {
-                let rules: Vec<QualityRule> = parse_distilled_rules(content, origin)
-                    .into_iter()
-                    .map(|mut r| {
-                        if r.category == "distilled" {
-                            r.category = source.category().to_string();
-                        }
-                        r
-                    })
-                    .collect();
-                if !rules.is_empty() {
-                    return rules;
-                }
-            }
-            parse_markdown_rules(content, source.category(), origin)
+            // Pure callers cannot return diagnostics. Handlers use the checked
+            // entry point so invalid JSON never becomes a Markdown mandate.
+            parse_quality_source_checked(content, source, origin).unwrap_or_default()
         }
         QualitySource::CodeRabbit | QualitySource::SonarQube | QualitySource::DevOpsBoard => {
             parse_findings_json(content, source.category(), origin)
@@ -114,22 +98,36 @@ pub fn parse_quality_source(
 /// Internal presentation marker: contextual candidates are not standalone repo mandates.
 pub const MARKDOWN_CONTEXT_PREFIX: &str = "Candidate for applicability review (not a universal mandate):\n";
 
-/// Checked Markdown ingestion: complete context is required, never silently clipped.
+fn authored_source_is_json(content: &str, origin: &str) -> bool {
+    if origin.rsplit('.').next().is_some_and(|extension| extension.eq_ignore_ascii_case("json")) {
+        return true;
+    }
+    let head = content.trim_start_matches('\u{feff}').trim_start();
+    let rest = head.get(1..).unwrap_or("").trim_start();
+    match head.chars().next() {
+        Some('[') => rest.is_empty() || head.trim() == "[]"
+            || rest.starts_with(['{', '"', '[', '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'])
+            || ["true", "false", "null"].iter().any(|word| rest.starts_with(word)),
+        Some('{') => rest.is_empty() || rest.starts_with('"') || head.trim() == "{}",
+        _ => false,
+    }
+}
+
+/// Validate authored JSON scope and preserve complete Markdown context.
 pub fn parse_quality_source_checked(content: &str, source: QualitySource, origin: &str) -> Result<Vec<QualityRule>, String> {
     if matches!(source, QualitySource::CopilotInstructions | QualitySource::CodingRulesMd) {
-        let head = content.trim_start();
-        if (head.starts_with('[') || head.starts_with('{')) && !parse_distilled_rules(content, origin).is_empty() {
-            return Ok(parse_quality_source(content, source, origin));
+        if authored_source_is_json(content, origin) {
+            let mut rules = parse_distilled_rules_checked(content, origin)?;
+            for rule in &mut rules {
+                if rule.category == "distilled" {
+                    rule.category = source.category().into();
+                }
+            }
+            return Ok(rules);
         }
         return parse_markdown_rules_checked(content, source.category(), origin);
     }
     Ok(parse_quality_source(content, source, origin))
-}
-
-fn parse_markdown_rules(content: &str, category: &str, origin: &str) -> Vec<QualityRule> {
-    // Legacy pure-parser callers cannot return diagnostics. Ingestion uses the
-    // checked entry point and surfaces this failure before clearing any corpus.
-    parse_markdown_rules_checked(content, category, origin).unwrap_or_default()
 }
 
 fn parse_markdown_rules_checked(content: &str, category: &str, origin: &str) -> Result<Vec<QualityRule>, String> {
@@ -422,11 +420,65 @@ pub fn parse_distilled_rules(raw: &str, origin: &str) -> Vec<QualityRule> {
     let Ok(rules) = serde_json::from_str::<Vec<DistilledRule>>(&json) else {
         return Vec::new();
     };
+    // Model annotations are not authored scope. Keep the established finding
+    // distillation contract separate from strict policy ingestion.
+    render_distilled_rules(rules.into_iter().map(|rule| (rule, None)).collect(), origin)
+}
+
+/// Preserve an explicit repository-rule scope, or reject it before ingestion.
+/// These use the existing repository-rule pattern syntax, not applyTo semantics.
+fn json_rule_scope(value: &serde_json::Value) -> Result<Option<String>, String> {
+    for field in value.as_object().into_iter().flat_map(|object| object.keys()) {
+        if !matches!(field.as_str(), "rule" | "why" | "category" | "severity" | "languages"
+            | "evidence_count" | "bad_example" | "good_example" | "path_scope" | "file_pattern") {
+            return Err(format!("Unsupported authored JSON field `{field}`. Use the documented rule fields and one path_scope or file_pattern string, or ingest complete Markdown for applicability review. No rules imported."));
+        }
+    }
+    let fields = ["path_scope", "file_pattern"].into_iter()
+        .filter_map(|field| value.get(field).map(|scope| (field, scope)))
+        .collect::<Vec<_>>();
+    if fields.is_empty() {
+        return Ok(None);
+    }
+    if fields.len() != 1 {
+        return Err("Specify exactly one JSON scope field: path_scope or file_pattern. No rules imported.".into());
+    }
+    let (field, scope) = fields[0];
+    let Some(scope) = scope.as_str() else {
+        return Err(format!("{field} scope must be a nonempty string; null, lists and objects cannot become global rules. No rules imported."));
+    };
+    let scope = scope.trim().replace('\\', "/");
+    if scope.is_empty() || scope.len() > 2048 || scope.starts_with('/')
+        || scope.contains(':') || scope.chars().any(char::is_control)
+        || scope.contains(['[', ']', '{', '}', ',', ';', '!', '|'])
+        || scope.split('/').any(|part| part.is_empty() || part == "." || part == "..")
+    {
+        return Err(format!("Invalid or unsupported {field} scope; use one project-relative repository-rule pattern with optional * or ?. No rules imported."));
+    }
+    Ok(Some(scope))
+}
+
+/// Checked JSON ingestion validates every row and its scope before any writes.
+pub fn parse_distilled_rules_checked(raw: &str, origin: &str) -> Result<Vec<QualityRule>, String> {
+    // Parse the whole authored document: extracting an inner array could discard
+    // a surrounding object's scope or exclusions.
+    let values = serde_json::from_str::<Vec<serde_json::Value>>(raw.trim_start_matches('\u{feff}'))
+        .map_err(|error| format!("Invalid quality-rule JSON: {error}. No rules imported."))?;
+    let rules = values.into_iter().map(|value| {
+        let scope = json_rule_scope(&value)?;
+        let rule = serde_json::from_value::<DistilledRule>(value)
+            .map_err(|error| format!("Invalid quality-rule JSON row: {error}. No rules imported."))?;
+        Ok((rule, scope))
+    }).collect::<Result<Vec<_>, String>>()?;
+    Ok(render_distilled_rules(rules, origin))
+}
+
+fn render_distilled_rules(rules: Vec<(DistilledRule, Option<String>)>, origin: &str) -> Vec<QualityRule> {
     rules
         .into_iter()
-        .filter(|r| !r.rule.trim().is_empty())
+        .filter(|(rule, _)| !rule.rule.trim().is_empty())
         .enumerate()
-        .map(|(i, r)| {
+        .map(|(i, (r, path_scope))| {
             let category = if r.category.trim().is_empty() {
                 "distilled".to_string()
             } else {
@@ -456,7 +508,7 @@ pub fn parse_distilled_rules(raw: &str, origin: &str) -> Vec<QualityRule> {
                 text,
                 category,
                 severity,
-                path_scope: None,
+                path_scope,
                 source: origin.to_string(),
             }
         })
@@ -628,6 +680,28 @@ mod tests {
 #[cfg(test)]
 mod markdown_context_tests {
     use super::*;
+    #[test]
+    fn markdown_badges_toc_and_checkboxes_keep_their_complete_policy_context() {
+        for prefix in ["[![Build](build.svg)](build.html)", "[TOC]", "[ ] Ensure gateway ownership"] {
+            let source = format!("{prefix}\n\nAlways preserve ownership.\n\nException: read-only previews.\n");
+            let rules = parse_quality_source_checked(&source, QualitySource::CodingRulesMd, "rules.md").unwrap();
+            assert!(!rules.is_empty());
+            assert!(rules.iter().all(|rule| rule.text.starts_with(MARKDOWN_CONTEXT_PREFIX)
+                && rule.text.ends_with(&source)));
+        }
+    }
+
+    #[test]
+    fn bom_encoded_json_keeps_authored_scope_but_model_annotations_do_not_supply_it() {
+        let source = "\u{feff}[{\"rule\":\"Always preserve ownership\",\"path_scope\":\"Site/maps/**\"}]";
+        let rules = parse_quality_source_checked(source, QualitySource::CodingRulesMd, "rules.json").unwrap();
+        assert_eq!(rules[0].path_scope.as_deref(), Some("Site/maps/**"));
+        let model = r#"[{"rule":"Always preserve ownership","file":"old.vb","path_scope":"**/*"},{"rule":"Never concatenate SQL","exceptions":["an observed example"]}]"#;
+        let suggestions = parse_distilled_rules(model, "findings.json");
+        assert_eq!(suggestions.len(), 2);
+        assert!(suggestions.iter().all(|rule| rule.path_scope.is_none()));
+    }
+
     #[test]
     fn cross_heading_exception_and_fenced_examples_preserve_context() {
         let source = "# Gateway\nAll writes must use a gateway.\n\n## Exceptions\nA one-off read-only report can query directly.\n\n```vb\n' Always bypass the gateway.\n```\n";

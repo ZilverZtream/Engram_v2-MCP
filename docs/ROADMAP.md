@@ -12,7 +12,7 @@ indexing consumes the machine.
 |---|---|---|
 | 1 | Resource stability (`partial`) | Unchanged refreshes preserve the source generation; ignored/runtime events do not schedule indexing; real edits preserve unrelated search results. The candidate bounds database page caches and streams snapshot copies, but production idle/load measurements and kernel-pool attribution remain outstanding. |
 | 2 | Scoped guidance in planning and review (`implemented`) | Applicable authored instructions reach `get_change_set`, `prepare_implementation_context`, source `get_chunk`, and `pre_commit_review`; exceptions remain intact, omissions are explicit and recoverable, and historical requests exclude live policy. Retrieval does not certify prose compliance. |
-| 3 | Preserve scope when ingesting quality rules (`planned`) | Carry source identity, applicability, and qualifications into rule ingestion so a domain instruction cannot become an unrelated global mandate. |
+| 3 | Preserve scope when ingesting quality rules (`partial`) | Explicit JSON repository-rule patterns are being preserved and validated before mutation; source identity and legacy-collision handling are under behavioral verification. Existing pattern semantics remain unchanged. Full source reconciliation remains outstanding. |
 | 4 | Instruction freshness and maintenance (`planned`) | Report changed supporting evidence, missing references, and scopes matching no files. Suggest source-bound revisions for human review; current implementation behavior alone does not establish intended policy. |
 | 5 | Task-level outcome evaluation (`planned`) | Compare a small fixed set of implementation and bug-fix scenarios: applicable-rule recall, unrelated guidance, missed exceptions, accepted behavior, response size, latency, and indexing activity. Extend existing QA approval and developer replay workflows rather than duplicate them. |
 
@@ -20,6 +20,22 @@ For source changes, the current snapshot model still copies unchanged chunks.
 Measure that remaining cost before introducing shared immutable generations or
 another storage redesign. Page-cache budgets are per store, not a process RSS
 ceiling. Process logical I/O counters do not measure physical SSD wear.
+
+## Audit follow-up ledger
+
+| Finding | Disposition | Evidence / next gate |
+|---|---|---|
+| EG-01: Applicable authored guidance missed by planning/retrieval/review | Fixed in `0a82ea8` | Scoped guidance acceptance tests and isolated MCP verification; prose compliance is still agent-reviewed. |
+| EG-02: Large change sets lose actionable context | Fixed in `0a82ea8` | Bounded manifests retain identities and provide exact hash-bound recovery. |
+| EG-03: Watcher noise and unchanged refreshes rebuild source snapshots | Fixed and deployed in `ebbc03b` | Watcher and generation behavior tests; short live idle sample. Active-edit production measurements remain needed. |
+| EG-04: Repeated copy searches/writer shutdowns and oversized database cache allowances | Fixed and deployed in `ebbc03b` | Streaming snapshot-copy and persistent-store checks. Actual source edits still copy unchanged chunks. |
+| EG-05: Graph test stores retain temporary files | Fixed in `b7f0312` | 80 graph tests passed; contained store run left zero temporary entries. |
+| EG-06: Explicit JSON scope discarded during guideline promotion; source basename collisions | Implemented and reviewed; deployment pending | Reproduced cross-area enforcement; checks cover independent same-named sources, narrowing, invalid-import preservation and ambiguous legacy ownership. Existing pattern semantics and source-row reconciliation limits are documented. |
+| EG-07: Authored policy can enter a prompt that generalizes away qualifications | Implemented and reviewed; deployment pending | Authored-policy distillation is rejected before model execution; direct to context-preserving ingestion. Markdown badges and the raw model-output parsing contract remain supported. |
+| EG-08: Imported guidance can outlive its supporting source | Planned | Detect source drift and disclose stale or unavailable guidance without automatically rewriting policy. |
+| EG-09: Tool tests alone do not establish task-level usefulness | Planned | Small fixed implementation/bug-fix evaluation with accepted behavior, scope/exception coverage, response size and latency. |
+| EG-10: Installed VB sidecar missing, causing fallback | Open packaging investigation | Validate the installation and packaging path, deploy the supported sidecar, and exercise extraction through the installed runtime. |
+| EG-11: Large kernel-pool accumulation | Unresolved attribution | Preserve pool-tag evidence and compare idle/load observations; filesystem scans themselves increase pool usage. Do not claim the external kernel issue is fixed. |
 
 The matrix below is generated from capability flags and acts as the roadmap baseline for current maturity.
 

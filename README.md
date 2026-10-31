@@ -211,6 +211,24 @@ stores. These are page-cache limits, not a hard limit on total process memory.
 
 ### Scoped repository instructions
 
+Reviewed JSON guidelines imported with `ingest_quality_gates` may declare one
+`path_scope` or `file_pattern` string per rule. This preserves the existing
+repository-rule pattern behavior: `*` and `?` match across separators, and bare
+patterns use substring matching. GitHub `applyTo` lists, exclusions, and other
+unsupported scope declarations are rejected rather than converted to global
+mandates. Use complete Markdown policies for applicability review when those
+qualifications cannot be represented by a single repository-rule pattern.
+The JSON array accepts `rule`, `why`, `category`, `severity`, `languages`,
+`evidence_count`, `bad_example`, `good_example`, and one of the two scope fields.
+Unknown fields reject the entire document before any corpus replacement.
+
+Imported records retain their project-relative source and source hash. Reimporting
+the same source row refreshes its promoted scope; this is not complete reconciliation
+of removed or reordered rows. `clear_existing` replaces the searchable corpus,
+not every repository rule. Ambiguous legacy basename-only promotions require
+ownership review before a nested source can be imported. Authored `copilot`/`rules`
+sources use ingestion; distillation is reserved for raw review findings.
+
 `get_change_set` and `prepare_implementation_context` include applicable
 repository guidance in both JSON and Markdown. `get_chunk` includes it for
 source documents when `inject_rules: true`; exact citation output stays
