@@ -75,7 +75,7 @@ pub struct MemorySection {
     pub related_files: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RepoRule {
     pub rule_id: String,
     pub file_pattern: String,
@@ -401,6 +401,43 @@ impl Registry {
         Ok(())
     }
 
+    /// Publish source-managed rules and their receipt together. Every affected
+    /// row is compared with the caller's snapshot so concurrent manual edits
+    /// cannot be overwritten or retired by an import.
+    pub fn publish_repo_rule_source(
+        &self, project_id: &str, expected: &[RepoRule], remove: &[String],
+        upsert: &[RepoRule], receipt_key: &str, expected_receipt: &str, receipt: &str,
+    ) -> anyhow::Result<()> {
+        vk("project_id", project_id)?;
+        vk("key", receipt_key)?;
+        let meta_key = format!("{project_id}\0{receipt_key}");
+        let wtx = self.db.begin_write()?;
+        {
+            let mut meta = wtx.open_table(META)?;
+            anyhow::ensure!(meta.get(meta_key.as_str())?.as_ref().map(|v| v.value())
+                == Some(expected_receipt.as_bytes()), "Source receipt changed during import; retry");
+            let mut table = wtx.open_table(REPO_RULES)?;
+            let affected: std::collections::BTreeSet<&str> = remove.iter().map(String::as_str)
+                .chain(upsert.iter().map(|r| r.rule_id.as_str())).collect();
+            for id in affected {
+                vk("rule_id", id)?;
+                let key = format!("{project_id}\0{id}");
+                let snapshot = expected.iter().find(|r| r.rule_id == id);
+                let stored: Option<RepoRule> = table.get(key.as_str())?
+                    .map(|value| serde_json::from_slice(value.value())).transpose()?;
+                anyhow::ensure!(stored.as_ref() == snapshot,
+                    "Repository rule `{id}` changed during import; no rules published");
+            }
+            for id in remove { table.remove(format!("{project_id}\0{id}").as_str())?; }
+            for rule in upsert {
+                table.insert(format!("{project_id}\0{}", rule.rule_id).as_str(), serde_json::to_vec(rule)?.as_slice())?;
+            }
+            meta.insert(meta_key.as_str(), receipt.as_bytes())?;
+        }
+        wtx.commit()?;
+        Ok(())
+    }
+
     // ---- Watches ----
     pub fn put_watch(&self, project_id: &str, watch: &WatchRecord) -> anyhow::Result<()> {
         vk("project_id", project_id)?;
@@ -611,6 +648,49 @@ impl Registry {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn source_publication_preserves_concurrent_manual_edits_and_commits_nothing_on_conflict() {
+        let dir = tempdir().unwrap();
+        let registry = Registry::open(&dir.path().join("registry.redb")).unwrap();
+        let original = RepoRule { rule_id: "source-row".into(), file_pattern: "Site/**".into(),
+            rule_text: "Original policy".into(), priority: 5, updated_at_ms: 1,
+            introduced_at: None, provenance: Some("source".into()) };
+        registry.put_repo_rule("project", &original).unwrap();
+        registry.set_meta("project", "receipt", "pending").unwrap();
+        let mut manual = original.clone();
+        manual.rule_text = "Manual revision made while import was running".into();
+        registry.put_repo_rule("project", &manual).unwrap();
+        let mut added = original.clone();
+        added.rule_id = "new-row".into();
+        let result = registry.publish_repo_rule_source("project", &[original.clone()],
+            &[original.rule_id.clone()], &[added], "receipt", "pending", "published");
+        assert!(result.is_err());
+        let rules = registry.list_repo_rules("project").unwrap();
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].rule_text, manual.rule_text);
+        assert_eq!(registry.get_meta("project", "receipt").unwrap().as_deref(), Some("pending"));
+    }
+
+    #[test]
+    fn legacy_rule_without_optional_fields_can_be_refreshed() {
+        let dir = tempdir().unwrap();
+        let registry = Registry::open(&dir.path().join("registry.redb")).unwrap();
+        let legacy = br#"{"rule_id":"old-row","file_pattern":"Site/**","rule_text":"Legacy policy","priority":5,"updated_at_ms":1,"provenance":"quality-gate finding"}"#;
+        {
+            let transaction = registry.db.begin_write().unwrap();
+            { transaction.open_table(REPO_RULES).unwrap().insert("project\0old-row", legacy.as_slice()).unwrap(); }
+            transaction.commit().unwrap();
+        }
+        let snapshot = registry.list_repo_rules("project").unwrap();
+        let mut refreshed = snapshot[0].clone();
+        refreshed.file_pattern = "Site/maps/**".into();
+        registry.set_meta("project", "receipt", "pending").unwrap();
+        registry.publish_repo_rule_source("project", &snapshot, &[], &[refreshed],
+            "receipt", "pending", "published").unwrap();
+        assert_eq!(registry.list_repo_rules("project").unwrap()[0].file_pattern, "Site/maps/**");
+        assert_eq!(registry.get_meta("project", "receipt").unwrap().as_deref(), Some("published"));
+    }
 
     #[test]
     fn metadata_compare_exchange_has_one_concurrent_winner() {

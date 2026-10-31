@@ -282,7 +282,12 @@ fn sidecar_binary_path() -> PathBuf {
         "macos" => "vb_roslyn_sidecar-osx-x64",
         _ => "vb_roslyn_sidecar-linux-x64",
     };
-    dir.join(name)
+    let packaged = dir.join("sidecar").join(name);
+    if packaged.is_file() {
+        packaged
+    } else {
+        dir.join(name)
+    }
 }
 
 fn get_or_spawn_sidecar() -> &'static Mutex<Option<Sidecar>> {

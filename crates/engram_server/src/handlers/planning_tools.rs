@@ -11560,15 +11560,25 @@ impl Engram {
             rule_paths.extend(caller_dependencies.iter().map(|row| row.path.clone()));
             rule_paths.sort();
             rule_paths.dedup();
-            let registry = self.state.registry.clone();
+            let rule_state = self.state.clone();
             let rule_project = req.project_id.clone();
-            let stored_rules = tokio::task::spawn_blocking(move || {
-                registry.list_repo_rules(&rule_project)
-            })
-            .await
-            .ok()
-            .and_then(Result::ok)
-            .unwrap_or_default();
+            let historical_rules = req.merged_before.is_some();
+            let freshness_paths = rule_paths.clone();
+            let loaded_rules = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
+                if historical_rules {
+                    // Historical eligibility uses introduced_at below, never the
+                    // current checked-out policy as historical evidence.
+                    Ok((rule_state.registry.list_repo_rules(&rule_project)?, Vec::<String>::new()))
+                } else {
+                    let paths: Vec<&str> = freshness_paths.iter().map(String::as_str).collect();
+                    let effective = crate::services::quality_source::effective_repo_rules(&rule_state, &rule_project, Some(&paths))?;
+                    Ok((effective.rules, effective.notes))
+                }
+            }).await;
+            let (stored_rules, policy_coverage_notes) = match loaded_rules {
+                Ok(Ok(loaded)) => loaded,
+                _ => (Vec::new(), vec!["INCOMPLETE policy coverage: repository-rule lookup failed".into()]),
+            };
             let (applicable_rules, excluded_rules) = applicable_change_set_rules(
                 stored_rules,
                 &rule_paths,
@@ -11826,6 +11836,7 @@ impl Engram {
                 "work_item_evidence_risk": work_item_evidence_risk,
                 "project_policy_sources": project_policy_sources,
                 "applicable_repository_rules": {
+                    "coverage_notes": policy_coverage_notes,
                     "rules": applicable_rules,
                     "exclusive_cutoff": req.merged_before,
                     "excluded_undated_or_future": excluded_rules,
@@ -12883,10 +12894,17 @@ impl Engram {
             out.push_str("\n## Methods with zero indexed callers (review candidates)\nThese indexed methods occur in edited files. Zero indexed callers does not establish that a method is new, dead, or unwired at runtime. Check source callers, dynamic/framework entry points and index freshness before deciding to edit:\n");
             for (name, file, line) in &unwired { out.push_str(&format!("- `{name}` ({file}:{line})\n")); }
         }
-        let reg = self.state.registry.clone();
+        let rule_state = self.state.clone();
         let pid = req.project_id.clone();
-        let rules = match tokio::task::spawn_blocking(move || reg.list_repo_rules(&pid)).await {
-            Ok(Ok(rules)) => rules,
+        let freshness_paths = rule_files.clone();
+        let rules = match tokio::task::spawn_blocking(move || {
+            let paths: Vec<&str> = freshness_paths.iter().map(String::as_str).collect();
+            crate::services::quality_source::effective_repo_rules(&rule_state, &pid, Some(&paths))
+        }).await {
+            Ok(Ok(effective)) => {
+                for note in effective.notes { coverage.note(note); }
+                effective.rules
+            },
             Ok(Err(error)) => { coverage.note(format!("repository rule lookup failed: {error}")); Vec::new() },
             Err(error) => { coverage.note(format!("repository rule task failed: {error}")); Vec::new() },
         };

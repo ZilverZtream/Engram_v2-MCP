@@ -551,24 +551,28 @@ pub async fn inject_repo_rules(
 ) -> String {
     use crate::utils::files::pattern_match;
 
-    let reg = state.registry.clone();
+    let rule_state = state.clone();
     let pid = project_id.to_string();
     let fp = file_path.as_str();
-    let rules = tokio::task::spawn_blocking(move || reg.list_repo_rules(&pid))
-        .await
-        .ok()
-        .and_then(|r| r.ok())
-        .unwrap_or_default();
+    let rule_path = fp.to_owned();
+    let effective = tokio::task::spawn_blocking(move || {
+        crate::services::quality_source::effective_repo_rules(&rule_state, &pid, Some(&[rule_path.as_str()]))
+    }).await;
+    let (rules, notes) = match effective {
+        Ok(Ok(effective)) => (effective.rules, effective.notes),
+        _ => (Vec::new(), vec!["INCOMPLETE policy coverage: repository-rule lookup unavailable".into()]),
+    };
 
     let applicable: Vec<engram_core::RepoRule> = rules
         .into_iter()
         .filter(|r| pattern_match(fp, &r.file_pattern))
         .collect();
-    if applicable.is_empty() {
+    if applicable.is_empty() && notes.is_empty() {
         return content.to_string();
     }
 
     let mut header = String::new();
+    for note in notes { header.push_str(&format!("[Policy coverage]: {note}\n")); }
     for r in applicable {
         header.push_str(&format!("[Repo Constraint]: {}\n", r.rule_text));
     }
