@@ -708,6 +708,8 @@ pub struct IngestQualityGatesRequest {
     /// Project-relative path to the source file to ingest.
     pub source_path: String,
     /// Source kind: copilot | rules | coderabbit | sonarqube | board | text.
+    /// JSON guidelines may declare one path_scope or file_pattern string per rule.
+    /// These use existing repository-rule matching, not applyTo glob semantics.
     pub source_type: String,
     /// When true, EVERY existing rule in the project's `quality_gate` namespace
     /// is purged before this source is ingested (all sources, not just this
@@ -728,7 +730,8 @@ pub struct DistillQualityGatesRequest {
     pub project_id: String,
     /// Project-relative path to the raw findings source (JSON or markdown).
     pub source_path: String,
-    /// Source kind: coderabbit | sonarqube | board | text | copilot | rules.
+    /// Raw finding kind: coderabbit | sonarqube | board | text.
+    /// Authored copilot/rules policies must use ingest_quality_gates to retain context.
     pub source_type: String,
     /// Findings per LLM batch (clamped 10..=200, default 50).
     #[serde(default = "default_distill_batch_size")]
