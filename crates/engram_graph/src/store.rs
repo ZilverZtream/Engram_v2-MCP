@@ -374,7 +374,7 @@ impl GraphStore {
         if let Some(parent) = db_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let db = Database::create(db_path)?;
+        let db = engram_core::storage::open_database(db_path, engram_core::storage::DatabaseCache::Graph)?;
 
         // Drop legacy v1 tables (JSON-serialized, single-key adjacency).
         // Data loss is acceptable — the graph is a derived index rebuilt on

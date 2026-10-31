@@ -46,7 +46,7 @@ async fn test_incremental_no_changes_is_zero() {
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
-    let engram = Engram::new(state);
+    let engram = Engram::new(state.clone());
 
     // 1. Index Project
     let index_req = IndexProjectRequest {
@@ -71,6 +71,10 @@ async fn test_incremental_no_changes_is_zero() {
         .unwrap()
         .trim();
 
+    let before_generation = state.registry.get_meta(project_id, "active_generation").unwrap();
+    let before_documents = state.get_project_cached(project_id).unwrap().search
+        .list_docs_in_namespace(project_id, "memory").unwrap().len();
+
     // 2. Run update_project without any changes
     let update_req = UpdateProjectRequest {
         reindex_paths: Vec::new(),
@@ -91,6 +95,12 @@ async fn test_incremental_no_changes_is_zero() {
         "Should re-index 0 files when nothing changed. Output: \n{}",
         text
     );
+
+    assert_eq!(state.registry.get_meta(project_id, "active_generation").unwrap(), before_generation,
+        "unchanged source must not cause snapshot generation churn");
+    assert_eq!(state.get_project_cached(project_id).unwrap().search
+        .list_docs_in_namespace(project_id, "memory").unwrap().len(), before_documents,
+        "unchanged refresh must not accumulate source documents");
 
     // 3. Assert search still returns hits from file1.rs in the new generation
     let search_req = SearchMemoryRequest {

@@ -197,6 +197,18 @@ without re-reading an entire file:
 | `validate_generated_code` · `validate_sql_fragment` | Pre-commit validation |
 | `find_tests_for_method` · `find_dead_methods` · `check_edit_safety` | Discovery and safety checks |
 
+### Incremental indexing and memory
+
+Unchanged refreshes preserve the current source generation and skip source
+copying, parsing, and graph rebuilding. Git history still refreshes independently.
+Watcher notifications are filtered against project extensions, Git ignore rules,
+and Engram's own storage before queueing work. Actual source changes retain
+complete snapshot semantics; unchanged chunks are copied in one streaming pass
+with a shared writer rather than repeated per-file searches and writer shutdowns.
+Database page caches have explicit per-store limits: 16 MiB for metadata,
+32 MiB per document store, and 128 MiB each for the shared graph and embedding
+stores. These are page-cache limits, not a hard limit on total process memory.
+
 ### Scoped repository instructions
 
 `get_change_set` and `prepare_implementation_context` include applicable

@@ -41,7 +41,9 @@ fn open_cache_db(path: &Path) -> anyhow::Result<Arc<Database>> {
         return Ok(db);
     }
     databases.retain(|_, db| db.strong_count() > 0);
-    let db = Arc::new(Database::create(&key)?);
+    let db = Arc::new(engram_core::storage::open_database(
+        &key, engram_core::storage::DatabaseCache::Embeddings,
+    )?);
     databases.insert(key, Arc::downgrade(&db));
     Ok(db)
 }

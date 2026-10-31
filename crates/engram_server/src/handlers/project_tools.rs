@@ -1490,6 +1490,17 @@ impl Engram {
                     .get_incremental_changes(&project_id_for_job, &dir, &exts)
                     .await?;
                 project_service::include_reindex_paths(&dir, &exts, &reindex_paths, &mut changed)?;
+                if changed.is_empty() && deleted.is_empty() && reindex_paths.is_empty() {
+                    new_gen = old_gen;
+                    let (_, warning) = engram.refresh_unchanged_source(
+                        &project_id_for_job, &ps.info.directory, old_gen,
+                        max_commits, index_antipatterns, &token,
+                    ).await?;
+                    if let Some(warning) = warning {
+                        if let Ok(mut warnings) = enrich_warn_inner.lock() { warnings.push(warning); }
+                    }
+                    return Ok::<(), anyhow::Error>(());
+                }
                 let graph_refresh_paths: std::collections::HashSet<String> = changed.iter()
                     .filter_map(|p| engram_core::RelPath::from_relative(&dir, p))
                     .map(|p| p.as_str().to_string())
@@ -1940,6 +1951,31 @@ impl Engram {
         ))]))
     }
 
+    /// A source snapshot is already complete when no eligible bytes changed.
+    /// Keep requested history enrichment, but do not rebuild or republish source.
+    async fn refresh_unchanged_source(
+        &self, project_id: &str, directory: &str, generation: u64,
+        max_commits: usize, index_antipatterns: bool,
+        cancel: &tokio_util::sync::CancellationToken,
+    ) -> anyhow::Result<(String, Option<String>)> {
+        anyhow::ensure!(!cancel.is_cancelled(), "update cancelled before unchanged-source refresh");
+        let history = self.git_update_stream(
+            project_id, directory, generation, max_commits,
+            crate::models::GitHistoryMode::Forward, index_antipatterns,
+            engram_git::history::MergeCommitPolicy::AllParents,
+            cancel, Box::new(|_, _| {}), false,
+        ).await;
+        anyhow::ensure!(!cancel.is_cancelled(), "update cancelled during unchanged-source refresh");
+        let (status, history, warning) = match history {
+            Ok(summary) => ("done", summary, None),
+            Err(error) => {
+                let warning = format!("git_update_stream failed (enrichment degraded): {}", error.message);
+                ("degraded", warning.clone(), Some(warning))
+            }
+        };
+        Ok((format!("Updated project_id: {project_id}\nstatus: {status}\nsource_update: no_changes_detected\nactive_generation: {generation}\nfiles=0 chunks=0 bytes=0\n{history}\n"), warning))
+    }
+
     pub async fn update_project_impl(
         &self,
         project_id: &str,
@@ -1996,6 +2032,13 @@ impl Engram {
 
         let mut changed = changed;
         project_service::include_reindex_paths(&dir, &exts, reindex_paths, &mut changed)?;
+
+        if changed.is_empty() && deleted.is_empty() && reindex_paths.is_empty() {
+            return self.refresh_unchanged_source(
+                project_id, &ps.info.directory, old_gen, max_commits,
+                index_antipatterns, cancel,
+            ).await.map(|(summary, _)| summary);
+        }
 
         // Resume from a previously interrupted job: narrow the pending-file list
         // so only files not yet processed are re-indexed.
