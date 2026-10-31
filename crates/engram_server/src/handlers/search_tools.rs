@@ -708,6 +708,10 @@ impl Engram {
                 Ok("verified: source content matches indexed fingerprint at read time")
             }).await.map_err(|e| McpError::internal_error(e.to_string(), None))?
                 .map_err(|e| McpError::invalid_params(e.to_string(), None))?
+        } else if req.namespace == "quality_gate" {
+            crate::services::quality_source::SourceVerifier::new(
+                &self.state, &req.project_id, std::path::Path::new(&ps.info.directory),
+            ).document_status(&req.doc_id, &content)
         } else {
             "not applicable: knowledge namespace"
         };

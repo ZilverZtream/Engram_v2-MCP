@@ -2473,11 +2473,15 @@ pub async fn run_pre_commit_review_with(
         .flatten()
         .and_then(|s| s.parse::<u32>().ok())
         .unwrap_or_else(|| count_commits_best_effort(project_dir).unwrap_or(0));
+    let rule_paths: Vec<&str> = changed_paths.iter().map(String::as_str).collect();
     let repo_rules: Arc<Vec<RepoRule>> = Arc::new(
-        state
-            .registry
-            .list_repo_rules(project_id)
-            .unwrap_or_else(|error| {
+        crate::services::quality_source::effective_repo_rules(state, project_id, Some(&rule_paths))
+            .map(|effective| {
+                for note in effective.notes {
+                    provider_notes.push(ProviderNote::new(ProviderScope::RepositoryRules, note));
+                }
+                effective.rules
+            }).unwrap_or_else(|error| {
                 provider_notes.push(ProviderNote::new(
                     ProviderScope::RepositoryRules,
                     format!("repository rules unavailable: {error}"),

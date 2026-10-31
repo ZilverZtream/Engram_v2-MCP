@@ -352,3 +352,167 @@ async fn ambiguous_legacy_source_ownership_is_rejected_before_replacing_the_corp
     assert_eq!(engine.list_docs_in_namespace(&pid, "quality_gate").unwrap()
         .into_iter().map(|doc| doc.doc_id).collect::<Vec<_>>(), before_docs);
 }
+
+#[tokio::test]
+async fn refreshing_authored_source_retires_removed_rows_and_empty_policy() {
+    let (tmp, state, engram, pid) = build().await;
+    let root = tmp.path().join("proj");
+    let other = "Always retain OtherProbe protections in production. [check: forbid=OtherProbe]";
+    let source = root.join("policy.json");
+    std::fs::write(&source, json!([{"rule":other}, {"rule":SCOPED_MANDATE}]).to_string()).unwrap();
+    ingest_json(&engram, &pid, "policy.json", false).await;
+    assert!(scope_probe_is_enforced(&state, &pid, &root, "Site/maps/Widget.vb").await);
+    // Removing row 2 and shifting row 1 must retire the old positional mandate.
+    std::fs::write(&source, json!([{"rule":other}]).to_string()).unwrap();
+    ingest_json(&engram, &pid, "policy.json", false).await;
+    assert!(!scope_probe_is_enforced(&state, &pid, &root, "Site/maps/Widget.vb").await);
+    assert_eq!(qg_count(&state, &pid), 1);
+    assert_eq!(state.registry.list_repo_rules(&pid).unwrap().len(), 1);
+    std::fs::write(&source, "[]").unwrap();
+    ingest_json(&engram, &pid, "policy.json", false).await;
+    assert_eq!(qg_count(&state, &pid), 0);
+    assert!(state.registry.list_repo_rules(&pid).unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn stale_policy_is_withheld_and_coverage_recovers_after_refresh() {
+    use engram_server::services::project_service::inject_repo_rules;
+    let (tmp, state, engram, pid) = build().await;
+    let root = tmp.path().join("proj");
+    let source = root.join("policy.json");
+    let original = json!([{"rule":SCOPED_MANDATE}]).to_string();
+    std::fs::write(&source, &original).unwrap();
+    ingest_json(&engram, &pid, "policy.json", false).await;
+    let path = engram_core::RelPath::new("Site/maps/Widget.vb");
+    let current = inject_repo_rules(&state, &pid, &path, "source body").await;
+    assert!(current.contains("[Repo Constraint]") && !current.contains("INCOMPLETE"), "{current}");
+    let doc = state.get_project_cached(&pid).unwrap().search.list_docs_in_namespace(&pid, "quality_gate").unwrap().remove(0);
+    std::fs::write(&source, "[]").unwrap();
+    assert!(!scope_probe_is_enforced(&state, &pid, &root, path.as_str()).await);
+    let stale = inject_repo_rules(&state, &pid, &path, "source body").await;
+    assert!(stale.contains("INCOMPLETE policy coverage") && stale.contains("stale:"), "{stale}");
+    assert!(!stale.contains("[Repo Constraint]"), "{stale}");
+    let recovered = engram.handle_get_chunk(serde_json::from_value(json!({
+        "project_id":pid, "namespace":"quality_gate", "doc_id":doc.doc_id
+    })).unwrap()).await.unwrap();
+    let recovered = &recovered.content[0].as_text().unwrap().text;
+    assert!(recovered.contains("stale:") && recovered.contains(SCOPED_MANDATE), "stored evidence stays recoverable: {recovered}");
+    std::fs::write(&source, original).unwrap();
+    ingest_json(&engram, &pid, "policy.json", false).await;
+    assert!(scope_probe_is_enforced(&state, &pid, &root, path.as_str()).await);
+    let refreshed = inject_repo_rules(&state, &pid, &path, "source body").await;
+    assert!(!refreshed.contains("INCOMPLETE"), "{refreshed}");
+}
+
+#[tokio::test]
+async fn refreshing_one_source_preserves_another_sources_identical_mandate() {
+    let (tmp, state, engram, pid) = build().await;
+    let root = tmp.path().join("proj");
+    for source in ["first.json", "second.json"] {
+        std::fs::write(root.join(source), json!([{"rule":SCOPED_MANDATE}]).to_string()).unwrap();
+        ingest_json(&engram, &pid, source, false).await;
+    }
+    assert_eq!(state.registry.list_repo_rules(&pid).unwrap().len(), 2);
+    std::fs::write(root.join("first.json"), "[]").unwrap();
+    ingest_json(&engram, &pid, "first.json", false).await;
+    assert_eq!(state.registry.list_repo_rules(&pid).unwrap().len(), 1);
+    assert!(scope_probe_is_enforced(&state, &pid, &root, "Site/maps/Widget.vb").await);
+    assert_eq!(qg_count(&state, &pid), 1);
+}
+
+#[tokio::test]
+async fn a_manual_edit_is_never_deleted_by_a_source_refresh() {
+    let (tmp, state, engram, pid) = build().await;
+    let root = tmp.path().join("proj");
+    std::fs::write(root.join("policy.json"), json!([{"rule":SCOPED_MANDATE}]).to_string()).unwrap();
+    ingest_json(&engram, &pid, "policy.json", false).await;
+    let mut manual = state.registry.list_repo_rules(&pid).unwrap().remove(0);
+    manual.rule_text = "Manual change that must be preserved".into();
+    state.registry.put_repo_rule(&pid, &manual).unwrap();
+    std::fs::write(root.join("policy.json"), "[]").unwrap();
+    let req = serde_json::from_value(json!({"project_id":pid,"source_path":"policy.json","source_type":"rules","clear_existing":true})).unwrap();
+    let error = engram.handle_ingest_quality_gates(req).await.unwrap_err();
+    assert!(error.message.contains("manually changed") && error.message.contains("No rules imported"), "{error}");
+    assert_eq!(qg_count(&state, &pid), 1);
+    assert_eq!(state.registry.list_repo_rules(&pid).unwrap()[0].rule_text, manual.rule_text);
+}
+
+#[tokio::test]
+async fn deleting_a_historical_export_does_not_invalidate_its_evidence() {
+    let (tmp, state, engram, pid) = build().await;
+    ingest(&engram, &pid, "rules_v1.txt", false).await;
+    let doc = state.get_project_cached(&pid).unwrap().search.list_docs_in_namespace(&pid, "quality_gate").unwrap().remove(0);
+    std::fs::remove_file(tmp.path().join("proj/rules_v1.txt")).unwrap();
+    let response = engram.handle_get_chunk(serde_json::from_value(json!({
+        "project_id":pid,"namespace":"quality_gate","doc_id":doc.doc_id
+    })).unwrap()).await.unwrap();
+    let text = &response.content[0].as_text().unwrap().text;
+    assert!(text.contains("historical: published finding evidence"), "{text}");
+}
+
+#[tokio::test]
+async fn reordering_rules_preserves_only_the_latest_source_revision() {
+    let (tmp, state, engram, pid) = build().await;
+    let root = tmp.path().join("proj");
+    let other = "Always retain OtherProbe protections in production. [check: forbid=OtherProbe]";
+    for rules in [json!([{"rule":other}, {"rule":SCOPED_MANDATE}]),
+        json!([{"rule":SCOPED_MANDATE}, {"rule":other}])] {
+        std::fs::write(root.join("policy.json"), rules.to_string()).unwrap();
+        ingest_json(&engram, &pid, "policy.json", false).await;
+        assert_eq!(qg_count(&state, &pid), 2);
+        assert_eq!(state.registry.list_repo_rules(&pid).unwrap().len(), 2);
+        assert!(scope_probe_is_enforced(&state, &pid, &root, "Site/maps/Widget.vb").await);
+    }
+}
+
+#[tokio::test]
+async fn clearing_search_corpus_keeps_valid_registry_rules_and_reports_missing_search_coverage() {
+    use engram_server::services::project_service::inject_repo_rules;
+    let (tmp, state, engram, pid) = build().await;
+    let root = tmp.path().join("proj");
+    for source in ["first.json", "second.json"] {
+        std::fs::write(root.join(source), json!([{"rule":SCOPED_MANDATE}]).to_string()).unwrap();
+        ingest_json(&engram, &pid, source, false).await;
+    }
+    ingest_json(&engram, &pid, "second.json", true).await;
+    assert_eq!(qg_count(&state, &pid), 1);
+    let path = engram_core::RelPath::new("Site/maps/Widget.vb");
+    let output = inject_repo_rules(&state, &pid, &path, "body").await;
+    assert!(output.contains("corpus was cleared") && output.contains("[Repo Constraint]"), "{output}");
+    ingest_json(&engram, &pid, "first.json", false).await;
+    assert_eq!(qg_count(&state, &pid), 2);
+    let output = inject_repo_rules(&state, &pid, &path, "body").await;
+    assert!(!output.contains("INCOMPLETE"), "{output}");
+}
+
+#[tokio::test]
+async fn concurrent_refreshes_leave_one_consistent_published_source() {
+    let (tmp, state, engram, pid) = build().await;
+    let root = tmp.path().join("proj");
+    std::fs::write(root.join("policy.json"), json!([{"rule":SCOPED_MANDATE}]).to_string()).unwrap();
+    let ((), ()) = tokio::join!(ingest_json(&engram, &pid, "policy.json", false),
+        ingest_json(&engram, &pid, "policy.json", false));
+    assert_eq!(qg_count(&state, &pid), 1);
+    assert_eq!(state.registry.list_repo_rules(&pid).unwrap().len(), 1);
+    assert!(scope_probe_is_enforced(&state, &pid, &root, "Site/maps/Widget.vb").await);
+}
+
+#[tokio::test]
+async fn scoped_managed_policy_never_becomes_a_generated_root_mandate() {
+    let (tmp, _state, engram, pid) = build().await;
+    let root = tmp.path().join("proj");
+    std::fs::write(root.join("policy.json"), json!([
+        {"rule":SCOPED_MANDATE,"path_scope":"Site/maps/**"}
+    ]).to_string()).unwrap();
+    ingest_json(&engram, &pid, "policy.json", false).await;
+    // Check both a current scoped source and its stale imported revision.
+    for stale in [false, true] {
+        if stale { std::fs::write(root.join("policy.json"), "[]").unwrap(); }
+        let response = engram.handle_produce_claude_md(serde_json::from_value(json!({
+            "project_id":pid,"write_to_disk":false,"use_llm":false,"generate_agents_md":true
+        })).unwrap()).await.unwrap();
+        let text = response.content[0].as_text().unwrap().text.clone();
+        assert!(!text.contains("ScopeProbe"), "must not create root policy from scoped/stale managed source: {text}");
+        assert!(text.contains("Source-managed policies excluded"), "{text}");
+    }
+}

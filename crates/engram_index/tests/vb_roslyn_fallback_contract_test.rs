@@ -14,5 +14,7 @@ Namespace Example
 End Namespace
 "#;
     let (symbols, _) = extract_vb(Path::new("sample.vb"), source);
-    assert!(symbols.iter().any(|symbol| symbol.name == "Widget"));
+    assert!(symbols.iter().any(|symbol| symbol.kind == "class"
+        && matches!(symbol.name.as_str(), "Widget" | "Example.Widget")),
+        "the declared class must be discoverable with either extractor's documented name qualification");
 }

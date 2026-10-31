@@ -4015,6 +4015,9 @@ impl Engram {
         use crate::services::produce_claude_md_service::rules_pipeline as pipeline;
         let raw_for_pipeline: Vec<pipeline::RawRule> = repo_rules
             .iter()
+            // Managed policies retain their original source/scope. This
+            // generalizing root-guidance pipeline cannot preserve that contract.
+            .filter(|r| !r.provenance.as_deref().is_some_and(|p| p.starts_with(crate::services::quality_source::PROVENANCE)))
             .filter_map(|r| {
                 let source = if r.rule_id.starts_with("immune_") {
                     svc::RuleSource::Immune
@@ -4611,6 +4614,9 @@ impl Engram {
         // sees the noise-filter / meta-clustering impact. Happens
         // regardless of whether we write to disk.
         notes.push(pipeline_summary);
+        if repo_rules.iter().any(|r| r.provenance.as_deref().is_some_and(|p| p.starts_with(crate::services::quality_source::PROVENANCE))) {
+            notes.push("Source-managed policies excluded from generated root mandates: read their original scoped sources through get_change_set/prepare_context; source freshness and scope must be preserved.".into());
+        }
         if req.write_to_disk {
             use engram_core::safe_join;
             let project_dir = std::path::PathBuf::from(&rec.directory);

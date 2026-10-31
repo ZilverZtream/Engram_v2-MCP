@@ -218,7 +218,7 @@ fn detect_destructive(code: &str) -> Vec<String> {
 /// Glob/substring matcher shared with `handle_immune_check`. Kept inline
 /// rather than re-exported so we don't couple the service to the handler
 /// module's private helpers.
-fn path_pattern_matches(file_pattern: &str, target_path: &str) -> bool {
+pub(crate) fn path_pattern_matches(file_pattern: &str, target_path: &str) -> bool {
     if file_pattern.is_empty() {
         return false;
     }

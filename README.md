@@ -222,12 +222,26 @@ The JSON array accepts `rule`, `why`, `category`, `severity`, `languages`,
 `evidence_count`, `bad_example`, `good_example`, and one of the two scope fields.
 Unknown fields reject the entire document before any corpus replacement.
 
-Imported records retain their project-relative source and source hash. Reimporting
-the same source row refreshes its promoted scope; this is not complete reconciliation
-of removed or reordered rows. `clear_existing` replaces the searchable corpus,
-not every repository rule. Ambiguous legacy basename-only promotions require
-ownership review before a nested source can be imported. Authored `copilot`/`rules`
-sources use ingestion; distillation is reserved for raw review findings.
+Imported records retain their project-relative source and source hash (4 MiB
+maximum input). Reimporting authored `copilot`/`rules` policy replaces its
+receipt-owned documents and promotions, including removed or reordered rows and
+an empty JSON array. Historical finding exports append unless `replace_source`
+is true. Exact ownership checks reject manually modified records before mutation.
+Interrupted imports withhold managed mandates until a retry finishes. Rules and
+their publication receipt commit atomically; obsolete search cleanup is retryable.
+
+Review gates, planning and rule injection verify relevant managed policy hashes
+once per request (64 sources, 4 MiB per source, 8 MiB total). Changed, missing or
+unverifiable policy is withheld with incomplete coverage; retained evidence stays
+recoverable and labelled. Historical exports do not need to remain on disk.
+The root-guidance generator excludes managed policies because its generalizing
+pipeline cannot preserve their scope. Distillation remains for review findings.
+
+`clear_existing` replaces the whole searchable corpus, not every registry rule;
+other sources disclose missing searchable coverage until reimported. Legacy
+promotions without receipts are not automatically retired. Ambiguous basename-only
+records require ownership review. Legacy enforcement remains explicitly unverified;
+this does not migrate every previously imported rule or generated instruction file.
 
 `get_change_set` and `prepare_implementation_context` include applicable
 repository guidance in both JSON and Markdown. `get_chunk` includes it for
@@ -333,17 +347,32 @@ indexing path.
 
 ### Prerequisites
 
-- Rust 1.81+ (edition 2024)
+- Stable Rust toolchain, as exercised in CI (edition 2024)
 - On Linux / macOS: `libgit2` and `cmake` development packages
 - Optional: [Ollama](https://ollama.ai) for local LLM / embedding backends
 
 ### Build
 
 ```bash
-git clone https://github.com/your-org/engram-mcp-v2
-cd engram-mcp-v2
+git clone https://github.com/ZilverZtream/Engram_v2-MCP.git Engram-MCP_v2
+cd Engram-MCP_v2
 cargo build --release
 ```
+
+For a Windows x64 release with the VB Roslyn parser, use a stable .NET 9 SDK and:
+
+```powershell
+.\scripts\build_windows_release.ps1
+```
+
+This reuses the checkout's shared Cargo target directory and writes
+`release/engram_server.exe`, the complete self-contained `release/sidecar/`
+directory, and a SHA-256 asset manifest. Deploy the executable and companion
+directory together. The companion includes its .NET runtime; users do not need
+an SDK. `-SidecarOnly` builds the companion for extraction verification.
+`ENGRAM_VB_SIDECAR_PATH` still overrides discovery, and older adjacent sidecar
+executables remain supported. Existing fallback indexes are not automatically
+rebuilt by installing the companion; refresh chosen files explicitly when needed.
 
 The binary lands at `target/release/engram_server`.
 

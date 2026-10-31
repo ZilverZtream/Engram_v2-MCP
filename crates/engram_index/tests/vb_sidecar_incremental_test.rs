@@ -20,6 +20,11 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 
 fn sidecar_path() -> Option<PathBuf> {
+    if let Some(path) = std::env::var_os("ENGRAM_VB_SIDECAR_PATH").filter(|path| !path.is_empty()) {
+        let path = PathBuf::from(path);
+        assert!(path.is_file(), "explicitly requested sidecar is missing: {}", path.display());
+        return Some(path);
+    }
     let p = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()?
         .parent()?

@@ -447,7 +447,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Ingest reviewed project guidance and findings into quality_gate: authored policy (source_type=copilot|rules), review exports (coderabbit|sonarqube), board, or text. JSON guidelines preserve one path_scope or file_pattern string using existing repository-rule matching; invalid or unsupported scope is rejected before corpus replacement. Markdown retains complete context for applicability review. Sources use project-relative identities. pre_push_audit retrieves candidate guidance; retrieval does not verify compliance."
+        description = "Ingest reviewed guidance/findings into quality_gate (4 MiB source limit). Authored copilot/rules policies refresh their receipt-owned documents/promotions, retiring removed rows; historical exports coderabbit/sonarqube/board/text append unless replace_source=true. Manual ownership conflicts reject before mutation. JSON supports one path_scope or file_pattern using existing repository-rule matching; invalid scope rejects the whole import. Markdown retains full context. Managed policy freshness is checked by planning/review/injection; stale rules disclose incomplete coverage. Legacy rules need ownership review. pre_push_audit retrieves evidence, not compliance proof."
     )]
     pub async fn ingest_quality_gates(
         &self,

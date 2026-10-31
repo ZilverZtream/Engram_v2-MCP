@@ -713,10 +713,15 @@ pub struct IngestQualityGatesRequest {
     pub source_type: String,
     /// When true, EVERY existing rule in the project's `quality_gate` namespace
     /// is purged before this source is ingested (all sources, not just this
-    /// file) — the way to replace a corpus. Re-ingesting without it accumulates
-    /// (rules dedup by content).
+    /// file). Registry rules from other sources remain independent; missing
+    /// searchable coverage is disclosed until those sources are imported again.
     #[serde(default)]
     pub clear_existing: bool,
+    /// Retire this source's previously receipt-owned records when refreshing.
+    /// Always enabled for authored copilot/rules policies; defaults false for
+    /// historical finding exports. Never infers ownership of legacy records.
+    #[serde(default)]
+    pub replace_source: bool,
 }
 
 /// Stage-3 distillation: turn a raw finding corpus (CodeRabbit/SonarQube history)

@@ -18,14 +18,27 @@ use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, Content};
 use std::sync::Arc;
 use std::time::Duration;
+use crate::services::quality_source::{self, SourceReceipt};
 
 const QG_NAMESPACE: &str = "quality_gate";
 
 fn quality_source_origin(root: &std::path::Path, source: &std::path::Path) -> Result<String, McpError> {
-    engram_core::RelPath::from_relative(root, source)
+    let root = std::fs::canonicalize(root).map_err(|e| McpError::invalid_params(e.to_string(), None))?;
+    let source = std::fs::canonicalize(source).map_err(|e| McpError::invalid_params(e.to_string(), None))?;
+    engram_core::RelPath::from_relative(&root, &source)
         .filter(|path| !path.as_str().is_empty())
         .map(|path| path.as_str().to_owned())
         .ok_or_else(|| McpError::invalid_params("Cannot establish project-relative quality source identity", None))
+}
+
+fn read_quality_source(path: &std::path::Path) -> anyhow::Result<String> {
+    use std::io::Read;
+    let file = std::fs::File::open(path)?;
+    anyhow::ensure!(file.metadata()?.is_file(), "quality source must be a regular file");
+    let mut bytes = Vec::new();
+    file.take(4 * 1024 * 1024 + 1).read_to_end(&mut bytes)?;
+    anyhow::ensure!(bytes.len() <= 4 * 1024 * 1024, "quality source exceeds 4 MiB import limit");
+    Ok(String::from_utf8(bytes)?)
 }
 
 /// Resolve one input before quality-rule count/search. File identity uses existing BLAKE3 dependency.
@@ -75,24 +88,44 @@ impl Engram {
         })?;
 
         let ps = self.ensure_project_runtime(&req.project_id).await?;
+        let _import_guard = self.state.acquire_project_update_lock(&req.project_id).await;
         let active_gen = self.get_active_generation(&req.project_id).await?;
 
         let abs = safe_join(std::path::Path::new(&ps.info.directory), &req.source_path)
             .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
-        let content = std::fs::read_to_string(&abs)
+        let content = read_quality_source(&abs)
             .map_err(|e| McpError::invalid_params(format!("cannot read source: {e}"), None))?;
         let origin = quality_source_origin(std::path::Path::new(&ps.info.directory), &abs)?;
 
         let rules = parse_quality_source_checked(&content, source, &origin)
             .map_err(|error| McpError::invalid_params(error, None))?;
-        if rules.is_empty() {
+        let receipt_key = quality_source::receipt_key(&origin);
+        let previous_raw = self.state.registry.get_meta(&req.project_id, &receipt_key)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let previous = quality_source::receipt(&self.state, &req.project_id, &origin)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let authored = matches!(source, QualitySource::CopilotInstructions | QualitySource::CodingRulesMd);
+        if previous.as_ref().is_some_and(|r| r.authored != authored) {
+            return Err(McpError::invalid_params("Cannot change a source between authored policy and historical findings; review source ownership first. No rules imported.", None));
+        }
+        let replace = authored || req.replace_source;
+        if rules.is_empty() && previous.is_none() {
             return Ok(CallToolResult::success(vec![Content::text(format!(
                 "No quality-gate rules parsed from {origin} (source_type={}).",
                 req.source_type
             ))]));
         }
-        let mut existing = self.state.registry.list_repo_rules(&req.project_id)
+        let existing = self.state.registry.list_repo_rules(&req.project_id)
             .map_err(|error| McpError::internal_error(format!("cannot inspect existing repo rules: {error}"), None))?;
+        if let Some(previous) = &previous {
+            for owned in &previous.rules {
+                if !existing.iter().any(|current| quality_source::same_rule(owned, current)) {
+                    return Err(McpError::invalid_params(format!(
+                        "Source-owned rule `{}` was manually changed or removed. Resolve ownership before refreshing `{origin}`. No rules imported.", owned.rule_id
+                    ), None));
+                }
+            }
+        }
         let provenance = format!("quality-gate source: {origin}");
         let basename = abs.file_name().and_then(|name| name.to_str()).unwrap_or(&origin);
         // Older promotions recorded only a basename. Their owning source cannot
@@ -114,30 +147,6 @@ impl Engram {
                 ), None));
             }
         }
-        // Row-3 audit A7: `clear_existing` was a documented no-op. It purges the
-        // project's whole `quality_gate` namespace — only after the new source
-        // parsed, so a bad file never wipes a good corpus — and states it.
-        let purged = if req.clear_existing {
-            match ps
-                .search
-                .delete_namespace(&req.project_id, QG_NAMESPACE)
-                .await
-            {
-                Ok(n) => Some(n),
-                Err(e) => {
-                    return Err(McpError::internal_error(
-                        format!(
-                            "clear_existing: purging the `{QG_NAMESPACE}` namespace failed: {e}"
-                        ),
-                        None,
-                    ));
-                }
-            }
-        } else {
-            None
-        };
-        {}
-
         let mut docs = Vec::with_capacity(rules.len());
         let mut by_sev = std::collections::BTreeMap::<String, usize>::new();
         let source_hash = blake3::hash(content.as_bytes()).to_hex().to_string();
@@ -169,12 +178,6 @@ impl Engram {
             });
         }
 
-        let cancel = tokio_util::sync::CancellationToken::new();
-        ps.search
-            .index_docs(&req.project_id, &docs, &cancel)
-            .await
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-
         // BRIDGE: guideline-class mandates also become REGISTRY repo rules —
         // the store the pre-commit gates and get_chunk rule-injection read.
         // Without this, a team guideline (copilot-instructions demanding XML
@@ -187,6 +190,7 @@ impl Engram {
         // are retrieval leads, not independently scoped enforceable constraints.
         let contextual = rules.iter().filter(|r| r.text.starts_with(MARKDOWN_CONTEXT_PREFIX)).count();
         let mut promoted = 0usize;
+        let mut promotions = Vec::new();
         {
             let is_mandate = |t: &str| {
                 let l = t.to_lowercase();
@@ -219,13 +223,8 @@ impl Engram {
                 }
                 let rule_id = format!("qg-{}", &r.id);
                 let file_pattern = r.path_scope.clone().unwrap_or_else(|| "**/*".into());
-                // The same owned ID must be refreshed even when its wording is
-                // unchanged: an older global scope must not survive narrowing.
-                if !existing.iter().any(|rule| rule.rule_id == rule_id)
-                    && existing.iter().any(|rule| rule.file_pattern == file_pattern
-                        && rule.rule_text.eq_ignore_ascii_case(&r.text)) {
-                    continue;
-                }
+                // Separate source-owned IDs avoid cross-source reference counting:
+                // retiring this policy must not disable another area's mandate.
                 let rule = engram_core::registry::RepoRule {
                     rule_id,
                     file_pattern,
@@ -238,15 +237,76 @@ impl Engram {
                     introduced_at: None,
                     provenance: Some(provenance.clone()),
                 };
-                self.state.registry.put_repo_rule(&req.project_id, &rule)
-                    .map_err(|error| McpError::internal_error(format!(
-                        "Quality records were indexed, but repository-rule promotion failed: {error}. Enforcement may still reflect the previous import; review and retry."
-                    ), None))?;
                 promoted += 1;
-                existing.retain(|previous| previous.rule_id != rule.rule_id);
-                existing.push(rule);
+                promotions.push(rule);
             }
         }
+
+        let mut owned_docs = previous.as_ref().map(|r| r.doc_ids.clone()).unwrap_or_default();
+        if let Some(r) = &previous { owned_docs.extend(r.cleanup.iter().cloned()); }
+        owned_docs.extend(docs.iter().map(|d| d.doc_id.clone()));
+        owned_docs.sort(); owned_docs.dedup();
+        let pending = SourceReceipt {
+            origin: origin.clone(), source_hash: source_hash.clone(), authored, pending: true,
+            doc_ids: owned_docs.clone(), rules: previous.as_ref().map(|r| r.rules.clone()).unwrap_or_default(),
+            cleanup: Vec::new(),
+            corpus_revision: self.state.registry.get_meta(&req.project_id, quality_source::CORPUS_REVISION)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?.unwrap_or_default(),
+        };
+        let pending_raw = serde_json::to_string(&pending).map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let saved = self.state.registry.compare_exchange_meta(&req.project_id, &receipt_key, previous_raw.as_deref(), &pending_raw)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        if !saved { return Err(McpError::invalid_request("Source receipt changed; retry import", None)); }
+        // All failures after this point leave an explicit pending receipt. Managed
+        // mandates are withheld until a retry completes publication atomically.
+        let partial = |e: String| McpError::internal_error(format!(
+            "Quality-source refresh incomplete: {e}. Source-managed constraints are withheld; retry this import."
+        ), None);
+        let corpus_revision = if req.clear_existing {
+            let revision = uuid::Uuid::new_v4().to_string();
+            self.state.registry.set_meta(&req.project_id, quality_source::CORPUS_REVISION, &revision)
+                .map_err(|e| partial(e.to_string()))?;
+            revision
+        } else { pending.corpus_revision.clone() };
+        let purged = if req.clear_existing {
+            Some(ps.search.delete_namespace(&req.project_id, QG_NAMESPACE).await.map_err(|e| partial(format!("search corpus clear: {e:#}")))?)
+        } else { None };
+        let cancel = tokio_util::sync::CancellationToken::new();
+        if !docs.is_empty() {
+            ps.search.index_docs(&req.project_id, &docs, &cancel).await.map_err(|e| partial(format!("replacement search indexing: {e:#}")))?;
+        }
+        let reread = read_quality_source(&abs).map_err(|e| partial(e.to_string()))?;
+        if blake3::hash(reread.as_bytes()).to_hex().as_str() != source_hash {
+            return Err(partial("source changed during import; publication aborted".into()));
+        }
+        let current_docs: Vec<String> = if replace || req.clear_existing {
+            docs.iter().map(|d| d.doc_id.clone()).collect()
+        } else { owned_docs.clone() };
+        let obsolete: Vec<String> = owned_docs.into_iter().filter(|id| !current_docs.contains(id)).collect();
+        let mut published_rules = if replace { Vec::new() } else {
+            previous.as_ref().map(|r| r.rules.clone()).unwrap_or_default()
+        };
+        published_rules.retain(|old| !promotions.iter().any(|new| new.rule_id == old.rule_id));
+        published_rules.extend(promotions.iter().cloned());
+        let remove: Vec<String> = if replace {
+            previous.as_ref().map(|r| r.rules.iter().map(|rule| rule.rule_id.clone()).collect()).unwrap_or_default()
+        } else { Vec::new() };
+        let mut published = SourceReceipt { origin: origin.clone(), source_hash, authored, pending: false,
+            doc_ids: current_docs, rules: published_rules, cleanup: obsolete.clone(), corpus_revision };
+        let published_raw = serde_json::to_string(&published).map_err(|e| partial(e.to_string()))?;
+        self.state.registry.publish_repo_rule_source(&req.project_id, &existing, &remove, &promotions,
+            &receipt_key, &pending_raw, &published_raw).map_err(|e| partial(e.to_string()))?;
+        let cleanup_note = match ps.search.delete_documents(&req.project_id, QG_NAMESPACE, &obsolete).await {
+            Ok(()) => {
+                published.cleanup.clear();
+                let clean_raw = serde_json::to_string(&published).map_err(|e| partial(e.to_string()))?;
+                match self.state.registry.compare_exchange_meta(&req.project_id, &receipt_key, Some(&published_raw), &clean_raw) {
+                    Ok(true) => String::new(),
+                    _ => " Cleanup receipt not finalized; retry import to reconcile. ".into(),
+                }
+            },
+            Err(error) => format!(" Obsolete evidence is logically retired; physical cleanup pending: {error}. Retry import. "),
+        };
 
         let sev = by_sev
             .iter()
@@ -264,10 +324,11 @@ impl Engram {
             "{purge_line}Ingested {} quality-gate rules from {origin} (source_type={}, category={}) into the \
              `{QG_NAMESPACE}` namespace [{sev}]. {promoted} qualifying mandate(s) auto-promoted \
              to repo rules (gates + rule injection read those). Use pre_push_audit to check a \
-             change against them. {contextual} context-required Markdown candidate(s) retained for full-source applicability review; these were not auto-promoted to enforceable repo rules.",
+             change against them. Source replacement={replace}; {} obsolete owned document(s) retired.{cleanup_note} {contextual} context-required Markdown candidate(s) retained for full-source applicability review; these were not auto-promoted to enforceable repo rules.",
             rules.len(),
             req.source_type,
-            rules[0].category,
+            rules.first().map(|r| r.category.as_str()).unwrap_or("empty source"),
+            obsolete.len(),
         ))]))
     }
 
@@ -280,7 +341,16 @@ impl Engram {
         validate_project_id(&req.project_id)?;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let code = resolve_audit_input(&req, std::path::Path::new(&ps.info.directory))?;
-        let input_binding = format!("Input: {} bytes, BLAKE3 {} ({}).\n",code.len(),blake3::hash(code.as_bytes()).to_hex(),if req.diff_file.is_some(){"project-relative file"}else{"inline"});
+        let mut input_binding = format!("Input: {} bytes, BLAKE3 {} ({}).\n",code.len(),blake3::hash(code.as_bytes()).to_hex(),if req.diff_file.is_some(){"project-relative file"}else{"inline"});
+        let audit_paths = req.file_path.as_deref().map(|path| [path]);
+        match quality_source::effective_repo_rules(&self.state, &req.project_id, audit_paths.as_ref().map(|paths| paths.as_slice())) {
+            Ok(effective) => for note in effective.notes { input_binding.push_str(&format!("{note}\n")); },
+            Err(error) => input_binding.push_str(&format!("INCOMPLETE policy coverage: {error}\n")),
+        }
+        if self.state.registry.get_meta(&req.project_id, quality_source::CORPUS_REVISION)
+            .ok().flatten().is_some() {
+            input_binding.push_str("Corpus reset: only sources imported after the last clear are searchable; other registry constraints may still be active.\n");
+        }
         let gen_ = self.get_active_generation(&req.project_id).await?;
         let top_k = req.top_k.clamp(1, 50);
         // Row-3 audit A6: the mandated pre-push step must say what it
@@ -376,10 +446,20 @@ impl Engram {
         }
         let mut scoped = Vec::new();
         let mut general = Vec::new();
+        let mut verifier = quality_source::SourceVerifier::new(
+            &self.state, &req.project_id, std::path::Path::new(&ps.info.directory),
+        );
         for h in &hits {
             let p = h.path.as_str().to_ascii_lowercase();
+            let status = match ps.search.get_doc_by_doc_id(&req.project_id, QG_NAMESPACE, gen_, &h.doc_id) {
+                Ok(Some((_, _, content, _, _))) => verifier.document_status(&h.doc_id, &content),
+                _ => "unverified: full source evidence unavailable",
+            };
+            let coverage = if status.starts_with("current:") || status.starts_with("historical:") {
+                "Evidence status"
+            } else { "INCOMPLETE policy coverage; advisory evidence only" };
             let line = format!(
-                "- [{}] Search excerpt (not the full rule): {}\n  full_rule: get_chunk({})",
+                "- [{}] Search excerpt (not the full rule): {}\n  {coverage}: {status}\n  full_rule: get_chunk({})",
                 h.path.as_str(),
                 h.snippet.as_deref().unwrap_or("").trim(),
                 serde_json::json!({"project_id":req.project_id,"doc_id":h.doc_id,"namespace":QG_NAMESPACE})

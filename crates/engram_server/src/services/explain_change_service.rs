@@ -231,10 +231,9 @@ pub async fn explain_change(
     // loads where practical. Blast radius is capped at 20 files.
     let changed_paths: HashSet<String> = diff_files.iter().map(|f| f.path.clone()).collect();
 
-    let repo_rules = state
-        .registry
-        .list_repo_rules(project_id)
-        .unwrap_or_default();
+    let rule_paths: Vec<&str> = changed_paths.iter().map(String::as_str).collect();
+    let policy = crate::services::quality_source::effective_repo_rules(state, project_id, Some(&rule_paths))?;
+    let repo_rules = policy.rules;
     let affected_files = gather_affected_files(
         &state.graph,
         project_id,
@@ -264,7 +263,8 @@ pub async fn explain_change(
     );
 
     // Stage 7: risk badge.
-    let (risk_badge, risk_rationale) = compute_risk(&affected_files, &coupling_notes);
+    let (risk_badge, mut risk_rationale) = compute_risk(&affected_files, &coupling_notes);
+    for note in policy.notes { risk_rationale.push_str(&format!("; {note}")); }
 
     // Stage 8: render narrative.
     let added_total: usize = diff_files.iter().map(|f| f.added_lines.len()).sum();
