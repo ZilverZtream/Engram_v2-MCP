@@ -243,3 +243,55 @@ async fn quote_verification_binds_chunk_and_memory_section_identity() {
     assert!(e.handle_read_memory_bank(serde_json::from_value(json!({"project_id":PID,"section":"quote","citation":citation})).unwrap()).await.unwrap_err().message.contains("citation_hash_mismatch"));
     assert!(e.handle_read_memory_bank(serde_json::from_value(json!({"project_id":PID,"section":"absent","citation":citation})).unwrap()).await.is_err());
 }
+
+
+#[tokio::test]
+async fn live_policy_is_opt_in_for_source_chunks_and_never_changes_exact_citations() {
+    let (temporary, state, engram) = fixture().await;
+    let body = "source body";
+    std::fs::write(temporary.path().join("quote.txt"), body).unwrap();
+    std::fs::write(
+        temporary.path().join("AGENTS.md"),
+        "LIVE_POLICY_MARKER: preserve source behavior.",
+    )
+    .unwrap();
+    let doc_id = seed(&state, body, "memory").await;
+    for inject in [false, true] {
+        let request =
+            serde_json::from_value(json!({"project_id":PID,"doc_id":doc_id,"inject_rules":inject}))
+                .unwrap();
+        let result = engram.handle_get_chunk(request).await.unwrap();
+        let text = &result.content[0].as_text().unwrap().text;
+        assert_eq!(text.contains("LIVE_POLICY_MARKER"), inject, "{text}");
+    }
+    let exact = decoded(
+        engram
+            .handle_get_chunk(
+                serde_json::from_value(json!({
+                    "project_id":PID,"doc_id":doc_id,"citation":{}
+                }))
+                .unwrap(),
+            )
+            .await
+            .unwrap(),
+    );
+    assert_eq!(exact["content"], body);
+    assert!(!exact.to_string().contains("LIVE_POLICY_MARKER"));
+    let knowledge = seed(&state, body, "quality_gate").await;
+    let result = engram
+        .handle_get_chunk(
+            serde_json::from_value(json!({
+                "project_id":PID,"doc_id":knowledge,"namespace":"quality_gate","inject_rules":true
+            }))
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert!(
+        !result.content[0]
+            .as_text()
+            .unwrap()
+            .text
+            .contains("LIVE_POLICY_MARKER")
+    );
+}

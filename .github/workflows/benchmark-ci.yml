@@ -3,7 +3,7 @@ name: benchmark-ci
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [master, main]
 
 env:
   CARGO_TERM_COLOR: always

@@ -40,6 +40,7 @@ pub mod plan_verify;
 pub mod pre_commit_review_service;
 pub mod produce_claude_md_service;
 pub mod project_service;
+pub mod project_policy;
 pub mod review_verdict_service;
 pub mod runtime_observation_service;
 pub mod safety_service;

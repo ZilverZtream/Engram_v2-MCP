@@ -343,3 +343,43 @@ async fn packed_context_overload_retry_selects_exact_declaration() {
         serde_json::from_value(request).unwrap()).await.unwrap_err();
     assert!(error.message.contains("No declaration") && error.message.contains("line 3"));
 }
+
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn implementation_context_includes_the_same_live_scoped_policy_in_both_formats() {
+    let (temporary, _state, engram, pid) = fixture().await;
+    let directory = temporary.path().join("proj/.github/instructions");
+    std::fs::create_dir_all(&directory).unwrap();
+    let file = directory.join("orders.instructions.md");
+    std::fs::write(&file, "---\napplyTo: 'Site/orders.vb'\n---\nORDERS_POLICY: preserve caller-owned access checks.\n").unwrap();
+    // Guidance added after indexing must be found without another index job.
+    let request = prepare_req(&pid, "GetAll");
+    let result = engram
+        .handle_prepare_implementation_context(serde_json::from_value(request.clone()).unwrap())
+        .await
+        .unwrap();
+    let value: serde_json::Value =
+        serde_json::from_str(&result.content[0].as_text().unwrap().text).unwrap();
+    let sources = value["project_policy_sources"]["sources"]
+        .as_array()
+        .unwrap();
+    let policy = sources
+        .iter()
+        .find(|source| source["path"] == ".github/instructions/orders.instructions.md")
+        .unwrap();
+    assert!(
+        policy["content"]
+            .as_str()
+            .unwrap()
+            .contains("ORDERS_POLICY")
+    );
+    let mut markdown_request = request;
+    markdown_request["output_json"] = json!(false);
+    let result = engram
+        .handle_prepare_implementation_context(serde_json::from_value(markdown_request).unwrap())
+        .await
+        .unwrap();
+    let text = &result.content[0].as_text().unwrap().text;
+    assert!(text.contains("ORDERS_POLICY"));
+    assert!(text.contains(policy["blake3"].as_str().unwrap()));
+}

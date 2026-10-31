@@ -606,6 +606,15 @@ pub struct PlanUserStoryRequest {
 #[serde(deny_unknown_fields)]
 pub struct GetChangeSetRequest {
     pub project_id: String,
+    /// Recover a previously captured oversized response without rerunning
+    /// planning. Use the exact project-scoped BLAKE3 response ID returned in
+    /// `response_delivery`; supply an empty `story` for recovery calls.
+    #[serde(default)]
+    pub response_id: Option<String>,
+    /// UTF-8 byte offset for response recovery. Use the exact next offset
+    /// returned by the preceding page; defaults to zero.
+    #[serde(default)]
+    pub response_offset: Option<usize>,
     /// Restrict indexed merged-work exemplars to dates strictly before this
     /// YYYY-MM-DD cutoff. Git history does not establish reviewer approval.
     /// Historical evaluation also requires isolated pre-change source and
@@ -654,8 +663,9 @@ pub struct GetChangeSetRequest {
     /// rationale, per-arm coverage, omissions) instead of markdown. The
     /// default compact detail keeps the highest-ranked candidates and reports
     /// every cut. `reconciled` returns exactly the receipt-bound primary rows
-    /// plus asset/caller dependencies and the contract checkpoint. `full` is the
-    /// unbounded forensic view.
+    /// plus asset/caller dependencies and the contract checkpoint. `full`
+    /// selects all forensic sections. Oversized responses in either format
+    /// return an explicit delivery manifest and exact paged recovery calls.
     /// Default false.
     #[serde(default)]
     pub output_json: bool,
@@ -1294,6 +1304,9 @@ pub struct GetChunkRequest {
     pub doc_id: String,
     #[serde(default = "default_namespace_memory")]
     pub namespace: String,
+    /// Include matching registry rules and live, task-scoped repository
+    /// instruction sources for actual source documents. Citation mode remains
+    /// source-exact and cannot be combined with rule injection.
     #[serde(default)]
     pub inject_rules: bool,
     /// Logical slice type to filter content before returning.

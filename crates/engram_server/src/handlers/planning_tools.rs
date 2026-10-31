@@ -31,117 +31,8 @@ use rmcp::model::{CallToolResult, Content};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::PathBuf;
 
-const PROJECT_POLICY_SOURCE_CAP: usize = 8;
-const PROJECT_POLICY_SOURCE_CHAR_CAP: usize = 10_000;
-const PROJECT_POLICY_TOTAL_CHAR_CAP: usize = 24_000;
-
-fn is_project_policy_path(path: &str) -> bool {
-    let normalized = path.replace('\\', "/");
-    let lower = normalized.to_ascii_lowercase();
-    let name = lower.rsplit('/').next().unwrap_or(&lower);
-    matches!(
-        name,
-        "agents.md"
-            | "claude.md"
-            | "contributing.md"
-            | "copilot-instructions.md"
-            | "coding-standards.md"
-            | "code-style.md"
-    ) || name.ends_with(".instructions.md")
-        || ((lower.starts_with(".cursor/rules/") || lower.contains("/.cursor/rules/"))
-            && (name.ends_with(".md") || name.ends_with(".mdc")))
-}
-
-fn project_policy_priority(path: &str) -> (u8, usize, String) {
-    let normalized = path.replace('\\', "/");
-    let lower = normalized.to_ascii_lowercase();
-    let name = lower.rsplit('/').next().unwrap_or(&lower);
-    let class = match name {
-        "agents.md" => 0,
-        "claude.md" => 1,
-        "copilot-instructions.md" => 2,
-        _ if name.ends_with(".instructions.md") => 3,
-        "coding-standards.md" | "code-style.md" => 4,
-        "contributing.md" => 5,
-        _ => 6,
-    };
-    (class, normalized.matches('/').count(), lower)
-}
-
-/// Read human-authored repository instructions from the checked-out source.
-/// These files are first-party evidence and must reach planning even when the
-/// optional quality-gate ingestion job has not run. Content is hash-bound and
-/// bounded so a large instruction tree cannot flood the tool response.
-fn project_policy_sources(
-    project_root: &std::path::Path,
-    indexed_paths: &[String],
-) -> serde_json::Value {
-    let mut candidates = indexed_paths
-        .iter()
-        .filter(|path| is_project_policy_path(path))
-        .map(|path| path.replace('\\', "/"))
-        .collect::<Vec<_>>();
-    for conventional in [
-        "AGENTS.md",
-        "CLAUDE.md",
-        ".github/copilot-instructions.md",
-        "CONTRIBUTING.md",
-        "CODING-STANDARDS.md",
-        "CODE_STYLE.md",
-    ] {
-        if project_root.join(conventional).is_file() {
-            candidates.push(conventional.to_string());
-        }
-    }
-    candidates.sort_by_key(|path| project_policy_priority(path));
-    candidates.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
-    let discovered = candidates.len();
-
-    let mut remaining = PROJECT_POLICY_TOTAL_CHAR_CAP;
-    let mut sources = Vec::new();
-    for relative in candidates.into_iter().take(PROJECT_POLICY_SOURCE_CAP) {
-        if remaining == 0 {
-            break;
-        }
-        let Ok(path) = engram_core::safe_join(project_root, &relative) else {
-            continue;
-        };
-        let Ok(bytes) = std::fs::read(&path) else {
-            continue;
-        };
-        let Ok(text) = String::from_utf8(bytes.clone()) else {
-            continue;
-        };
-        let take = text
-            .chars()
-            .count()
-            .min(PROJECT_POLICY_SOURCE_CHAR_CAP)
-            .min(remaining);
-        let content = text.chars().take(take).collect::<String>();
-        remaining = remaining.saturating_sub(take);
-        sources.push(serde_json::json!({
-            "path": relative,
-            "blake3": blake3::hash(&bytes).to_hex().to_string(),
-            "characters_total": text.chars().count(),
-            "characters_shown": take,
-            "truncated": take < text.chars().count(),
-            "content": content,
-        }));
-    }
-
-    serde_json::json!({
-        "status": if sources.is_empty() { "absent" } else { "present" },
-        "sources": sources,
-        "sources_discovered": discovered,
-        "sources_shown": sources.len(),
-        "source_cap": PROJECT_POLICY_SOURCE_CAP,
-        "character_cap_per_source": PROJECT_POLICY_SOURCE_CHAR_CAP,
-        "character_cap_total": PROJECT_POLICY_TOTAL_CHAR_CAP,
-        "instruction": "Treat these checked-out, hash-bound files as repository policy evidence. Apply the sections relevant to the planned files and record any conflict or ambiguity; do not silently replace them with inferred conventions."
-    })
-}
-
-// ── Pure helpers ─────────────────────────────────────────────────────────────
+#[path = "change_set_delivery.rs"]
+mod change_set_delivery;
 
 /// Lowercase concept stems used for substring matching: the term itself,
 /// a naive singular (trailing 's' stripped), the clean `ies`->`y` / `es`
@@ -184,8 +75,8 @@ pub const CHANGE_SET_COMPACT_DIAGNOSTIC_CAP: usize = 5;
 /// tokens" INSTEAD of candidates — a dossier too large to deliver is not a large
 /// dossier, it is no dossier. The bracket from that data (60,484 delivered,
 /// 61,924 refused) leaves ~22-25 KB for the sections appended after these rows,
-/// which are themselves unbounded, so this budget reduces the risk rather than
-/// removing it; bounding the whole output is the remaining work. 30 KB keeps the
+/// which can themselves be large. The final delivery layer bounds the complete
+/// response and provides immutable recovery for deferred evidence. 30 KB keeps the
 /// complete primary set (measured 25.9 KB) and spends the cut on weak companions.
 pub const CHANGE_SET_ROWS_BUDGET: usize = 30 * 1024;
 /// A concept whose footprint matches this many files is too common to
@@ -9543,6 +9434,23 @@ impl Engram {
         req: crate::models::GetChangeSetRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        if let Some(response_id) = req.response_id.as_deref() {
+            // Recovery is immutable delivery only: no project runtime, work-item
+            // fetch, indexing, or LLM is needed to recover already captured evidence.
+            let text = change_set_delivery::recover(
+                &self.state.cfg.data_dir,
+                &req.project_id,
+                response_id,
+                req.response_offset.unwrap_or(0),
+            )?;
+            return Ok(CallToolResult::success(vec![Content::text(text)]));
+        }
+        if req.response_offset.is_some() {
+            return Err(McpError::invalid_params(
+                "response_offset requires response_id",
+                None,
+            ));
+        }
         if req.story.trim().is_empty() {
             return Err(McpError::invalid_params("story must not be empty", None));
         }
@@ -11471,6 +11379,39 @@ impl Engram {
         let reconciliation = change_set_reconciliation_receipt(
             &receipt_rows, &asset_dependencies, &caller_dependencies,
         );
+        let mut reconciliation_rows = receipt_rows.iter()
+            .filter(|row| !row.omitted && row.set == "primary")
+            .enumerate()
+            .map(|(index, row)| serde_json::json!({
+                "row_id": format!("P{:03}", index + 1), "path": row.path,
+            }))
+            .collect::<Vec<_>>();
+        reconciliation_rows.extend(asset_dependencies.iter().enumerate().map(|(index, row)| {
+            serde_json::json!({"row_id": format!("A{:03}", index + 1), "path": row.path})
+        }));
+        reconciliation_rows.extend(caller_dependencies.iter().enumerate().map(|(index, row)| {
+            serde_json::json!({"row_id": format!("C{:03}", index + 1), "path": row.path})
+        }));
+        let mut checkpoint_paths = receipt_rows.iter().filter(|row| !row.omitted)
+            .map(|row| row.path.clone()).collect::<Vec<_>>();
+        checkpoint_paths.extend(asset_dependencies.iter().map(|row| row.path.clone()));
+        checkpoint_paths.extend(caller_dependencies.iter().map(|row| row.path.clone()));
+        checkpoint_paths.sort();
+        checkpoint_paths.dedup();
+        let (configured_contract_rules, configured_contract_rule_notes) = load_matching_planning_rules(
+            &self.state.cfg.data_dir, &project_root, req.story.trim(),
+            &checkpoint_paths, req.merged_before.as_deref(),
+        );
+        let contract_checkpoint = change_set_contract_checkpoint(&configured_contract_rules);
+        let policy_paths = reconciliation_rows.iter()
+            .filter_map(|row| row["path"].as_str().map(str::to_string))
+            .chain(prov.keys().cloned())
+            .collect::<Vec<_>>();
+        let project_policy_sources = if req.merged_before.is_some() || req.as_of_rev.is_some() {
+            crate::services::project_policy::PolicyContext::historical_unavailable()
+        } else {
+            crate::services::project_policy::resolve(&project_root, &policy_paths, &index_paths)
+        };
         out.push_str(&format!(
             "\n## Reconciliation receipt\n\nreceipt_id: `{}`  \nrequired rows: primary={} asset={} caller={} total={}  \nCopy this receipt ID and all P/A/C row IDs into the feature contract. Every row needs INCLUDE, CONDITIONAL, or EXCLUDE plus evidence. The row totals must match this receipt; selecting only rows already judged relevant is not reconciliation.\n\n",
             reconciliation.receipt_id, reconciliation.primary_rows, reconciliation.asset_rows,
@@ -11804,14 +11745,6 @@ impl Engram {
             // `excluded_rules` are already bound; resolving them again here would
             // repeat the registry read and leave the payload describing the second
             // result while the rows cited the first.
-            let (configured_contract_rules, configured_contract_rule_notes) =
-                load_matching_planning_rules(
-                    &self.state.cfg.data_dir,
-                    &project_root,
-                    req.story.trim(),
-                    &rule_paths,
-                    req.merged_before.as_deref(),
-                );
             let configured_contract_rules_json = configured_contract_rules.iter()
                 .map(|rule| serde_json::json!({
                     "id": rule.id,
@@ -11824,7 +11757,6 @@ impl Engram {
                     "provenance": rule.provenance,
                 }))
                 .collect::<Vec<_>>();
-            let contract_checkpoint = change_set_contract_checkpoint(&configured_contract_rules);
             let hard_configured_rule_ids = contract_checkpoint["configured_rule_ids"]
                 .as_array()
                 .cloned()
@@ -11854,7 +11786,6 @@ impl Engram {
                 req.story.trim(),
                 req.merged_before.as_deref(),
             );
-            let project_policy_sources = project_policy_sources(&project_root, &index_paths);
             let payload = serde_json::json!({
                 "story": req.story.trim(),
                 "contract_checkpoint": contract_checkpoint,
@@ -11907,9 +11838,27 @@ impl Engram {
                     "instruction": "Rows whose source was opened to locate the constructs their rules name. A row past the cap carries no ruled_construct_evidence: that absence is this cap, not an absence of sites. Each row that was scanned states either its located sites or the reason its source could not be vouched for."
                 },
             });
-            return Ok(CallToolResult::success(vec![Content::text(
-                serde_json::to_string_pretty(&payload).unwrap_or_default(),
-            )]));
+            let manifest = serde_json::json!({
+                "reconciliation": payload["reconciliation"],
+                "reconciliation_rows": reconciliation_rows,
+                "contract_checkpoint": payload["contract_checkpoint"],
+                "contract_checkpoint_identity": {
+                    "receipt_id": payload["contract_checkpoint"]["receipt"]["receipt_id"],
+                    "hard_item_ids": payload["contract_checkpoint"]["hard_items"].as_array()
+                        .into_iter().flatten().map(|item| item["id"].clone()).collect::<Vec<_>>(),
+                },
+                "snapshot_generation": snapshot_generation,
+                "coverage": {"status": "DEFERRED_CONTEXT", "intake_complete": false},
+            });
+            let text = change_set_delivery::bounded(
+                &self.state.cfg.data_dir,
+                &req.project_id,
+                serde_json::to_string_pretty(&payload)
+                    .map_err(|error| McpError::internal_error(error.to_string(), None))?,
+                true,
+                manifest,
+            )?;
+            return Ok(CallToolResult::success(vec![Content::text(text)]));
         }
 
         // Scaffold template: when the story ADDS a new API/structural feature,
@@ -12707,6 +12656,26 @@ impl Engram {
             .await
             .unwrap_or(1);
         out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
+        out.push_str(&project_policy_sources.render_markdown());
+        out.push_str("\n## Feature contract checkpoint\n\nPreserve this checkpoint when calling validate_feature_contract.\n\n```json\n");
+        out.push_str(&serde_json::to_string_pretty(&contract_checkpoint)
+            .map_err(|error| McpError::internal_error(error.to_string(), None))?);
+        out.push_str("\n```\n");
+        let manifest = serde_json::json!({
+            "reconciliation": reconciliation,
+            "reconciliation_rows": reconciliation_rows,
+            "contract_checkpoint": contract_checkpoint,
+            "contract_checkpoint_identity": {
+                "receipt_id": contract_checkpoint["receipt"]["receipt_id"],
+                "hard_item_ids": contract_checkpoint["hard_items"].as_array()
+                    .into_iter().flatten().map(|item| item["id"].clone()).collect::<Vec<_>>(),
+            },
+            "snapshot_generation": snapshot_generation,
+            "coverage": {"status": "DEFERRED_CONTEXT", "intake_complete": false},
+        });
+        let out = change_set_delivery::bounded(
+            &self.state.cfg.data_dir, &req.project_id, out, false, manifest,
+        )?;
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 

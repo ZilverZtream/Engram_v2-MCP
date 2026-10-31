@@ -136,6 +136,12 @@ impl Engram {
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
+        let policy_root = project_dir.clone();
+        let policy_paths = parsed.iter().map(|file| file.path.clone()).collect::<Vec<_>>();
+        let project_policy_sources = tokio::task::spawn_blocking(move || {
+            crate::services::project_policy::resolve(&policy_root, &policy_paths, &[])
+        }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?;
+
         let elapsed_ms = start.elapsed().as_millis();
         let source_after = source_snapshot(&project_dir, &parsed);
         let head_after = head_commit(&project_dir);
@@ -152,6 +158,7 @@ impl Engram {
             .map_or_else(|| "unknown".to_string(), |files| files.len().to_string());
         let coverage = serde_json::json!({
             "submitted_files":parsed.iter().map(|f| &f.path).collect::<Vec<_>>(),
+            "repository_policy":"retrieved for agent review; prose compliance is not mechanically verified",
             "unindexed_files":unindexed,
             "textual_diff_files":parsed.iter().filter(|f| !f.is_binary && !f.hunks.is_empty()).map(|f| &f.path).collect::<Vec<_>>(),
             "unexamined_files":unexamined,
@@ -189,6 +196,8 @@ impl Engram {
             ))
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
             payload["coverage"] = coverage;
+            payload["project_policy_sources"] = serde_json::to_value(&project_policy_sources)
+                .map_err(|error| McpError::internal_error(error.to_string(), None))?;
             if (changed_during_review || snapshot_unavailable) && payload["verdict"] == "green" {
                 payload["verdict"] = "yellow".into();
             }
@@ -238,6 +247,7 @@ impl Engram {
                     serde_json::to_string_pretty(&coverage).unwrap_or_default()
                 ));
             }
+            report.push_str(&project_policy_sources.render_markdown());
             report
         };
 

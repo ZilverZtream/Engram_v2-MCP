@@ -784,6 +784,21 @@ impl Engram {
             path, req.doc_id, req.namespace, lang, start_line, end_line, gen_, display_content
         );
         output.push_str(&format!("\nsource_freshness: {source_status}\n"));
+        // Repository guidance is a separate live-evidence section, never part
+        // of the indexed source body or the exact stored citation payload.
+        if req.inject_rules && req.namespace == "memory" {
+            let policy_root = ps.info.directory.clone();
+            let target = path.as_str().to_string();
+            let policy = tokio::task::spawn_blocking(move || {
+                let root = std::path::Path::new(&policy_root);
+                let is_source = engram_core::safe_join(root, &target)
+                    .is_ok_and(|path| path.is_file());
+                is_source.then(|| crate::services::project_policy::resolve(root, &[target], &[]))
+            }).await.map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            if let Some(policy) = policy.filter(|policy| policy.status != "absent") {
+                output.push_str(&policy.render_markdown());
+            }
+        }
         output.push_str(&confidence_footer);
         output.push_str(&self.freshness_footer(&req.project_id, gen_).await);
 
