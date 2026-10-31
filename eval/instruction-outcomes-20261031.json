@@ -1,0 +1,439 @@
+{
+  "date": "2026-10-31",
+  "runtime_commit": "603a79a",
+  "runtime_sha256": "b762d3d4a10b2b3a722fa90be07ae957c9d72c99f78609b57319e02e4e366bdd",
+  "scope": "Seven synthetic implementation contracts, one fresh candidate per arm/task. This is a workflow smoke evaluation, not a statistical coding-quality or real-project retrieval benchmark.",
+  "guidance_provenance": "Root and scoped policy slices extracted from actual get_change_set responses. First six packets were supplied from the prior candidate and verified byte-identical against the final runtime before accepting results.",
+  "historical_boundary": "Both arms withheld edits before historical evidence. Phase two used an explicitly coordinator-supplied synthetic snapshot, not Engram historical reconstruction.",
+  "recovery_boundary": "The guided candidate requested the exact continuation without editing. The coordinator fetched all actual pages, verified offsets and BLAKE3, then supplied complete guidance. The candidate did not fetch pages itself; qualification was not on the final page.",
+  "summary": {
+    "guided_behavior_passed": 7,
+    "baseline_behavior_passed": 4,
+    "baseline_behavior_failed": 2,
+    "baseline_implementation_withheld_for_missing_evidence": 1,
+    "attempted_unrelated_file_edits": 0
+  },
+  "results": {
+    "baseline": {
+      "rename": {
+        "initial_decision": "edit",
+        "initial_edits": 1,
+        "behavior_passed": false,
+        "failure": "AssertionError: required rejection absent: ('owner', 'owner', '  ')"
+      },
+      "zoom": {
+        "initial_decision": "edit",
+        "initial_edits": 1,
+        "behavior_passed": false,
+        "failure": "AssertionError: zoom UI must require the original view"
+      },
+      "format": {
+        "initial_decision": "edit",
+        "initial_edits": 1,
+        "case": "format",
+        "behavior_passed": true,
+        "unrelated_edits": 0
+      },
+      "render": {
+        "initial_decision": "edit",
+        "initial_edits": 1,
+        "case": "render",
+        "behavior_passed": true,
+        "unrelated_edits": 0
+      },
+      "csv": {
+        "initial_decision": "edit",
+        "initial_edits": 1,
+        "case": "csv",
+        "behavior_passed": true,
+        "unrelated_edits": 0
+      },
+      "history": {
+        "initial_decision": "needs_evidence",
+        "initial_edits": 0,
+        "historical_evidence_withheld_correctly": true,
+        "case": "history",
+        "behavior_passed": true,
+        "unrelated_edits": 0
+      },
+      "recovery": {
+        "initial_decision": "needs_evidence",
+        "initial_edits": 0,
+        "behavior_passed": null,
+        "implementation": "withheld pending evidence"
+      }
+    },
+    "guided": {
+      "rename": {
+        "initial_decision": "edit",
+        "initial_edits": 1,
+        "case": "rename",
+        "behavior_passed": true,
+        "unrelated_edits": 0
+      },
+      "zoom": {
+        "initial_decision": "edit",
+        "initial_edits": 1,
+        "case": "zoom",
+        "behavior_passed": true,
+        "unrelated_edits": 0
+      },
+      "format": {
+        "initial_decision": "edit",
+        "initial_edits": 1,
+        "case": "format",
+        "behavior_passed": true,
+        "unrelated_edits": 0
+      },
+      "render": {
+        "initial_decision": "edit",
+        "initial_edits": 1,
+        "case": "render",
+        "behavior_passed": true,
+        "unrelated_edits": 0
+      },
+      "csv": {
+        "initial_decision": "edit",
+        "initial_edits": 1,
+        "case": "csv",
+        "behavior_passed": true,
+        "unrelated_edits": 0
+      },
+      "history": {
+        "initial_decision": "needs_evidence",
+        "initial_edits": 0,
+        "historical_evidence_withheld_correctly": true,
+        "case": "history",
+        "behavior_passed": true,
+        "unrelated_edits": 0
+      },
+      "recovery": {
+        "initial_decision": "recover",
+        "initial_edits": 0,
+        "requested_recovery_before_editing": true,
+        "case": "recovery",
+        "behavior_passed": true,
+        "unrelated_edits": 0
+      }
+    }
+  },
+  "context_measurements": {
+    "rename": {
+      "latency_seconds": 0.07192220000069938,
+      "indexing_seconds": 0.8114442000005511,
+      "initial_context_seconds": 0.07158770000023651,
+      "recovery_seconds": 0,
+      "initial_response_bytes": 9231,
+      "recovery": null
+    },
+    "zoom": {
+      "latency_seconds": 0.06336779999764985,
+      "indexing_seconds": 0.48024070000246866,
+      "initial_context_seconds": 0.06296169999768608,
+      "recovery_seconds": 0,
+      "initial_response_bytes": 9290,
+      "recovery": null
+    },
+    "format": {
+      "latency_seconds": 0.0664677999993728,
+      "indexing_seconds": 0.4774961000002804,
+      "initial_context_seconds": 0.06611870000051567,
+      "recovery_seconds": 0,
+      "initial_response_bytes": 9332,
+      "recovery": null
+    },
+    "render": {
+      "latency_seconds": 0.06594830000176444,
+      "indexing_seconds": 0.4835227000003215,
+      "initial_context_seconds": 0.06557040000188863,
+      "recovery_seconds": 0,
+      "initial_response_bytes": 9241,
+      "recovery": null
+    },
+    "csv": {
+      "latency_seconds": 0.06718929999988177,
+      "indexing_seconds": 0.4749502999984543,
+      "initial_context_seconds": 0.06681019999814453,
+      "recovery_seconds": 0,
+      "initial_response_bytes": 9260,
+      "recovery": null
+    },
+    "history": {
+      "latency_seconds": 0.06624440000086906,
+      "indexing_seconds": 0.473670300001686,
+      "initial_context_seconds": 0.06585730000006151,
+      "recovery_seconds": 0,
+      "initial_response_bytes": 8654,
+      "recovery": null
+    },
+    "recovery": {
+      "latency_seconds": 0.9124647999997251,
+      "indexing_seconds": 0.4601049000011699,
+      "initial_context_seconds": 0.9096423999981198,
+      "recovery_seconds": 0.0028232000004209112,
+      "initial_response_bytes": 3075,
+      "recovery": {
+        "response_id": "afa703177086c31ade37f4406c552cc649b6e49292ad981e5839c117465afa3a",
+        "verified_blake3": true,
+        "bytes": 94961,
+        "pages": 5,
+        "decisive_guidance_byte_offset": 8797,
+        "decisive_guidance_on_final_page": false
+      }
+    }
+  },
+  "guidance_references_verified": true,
+  "first_six_packet_sha256": {
+    "rename": "f203b811db6dfb8b0eef15aded88ec61118f00a528fa999d7a3ea14b77207e76",
+    "zoom": "8d8ab3dce6c8863c5d6855c862bd37a938a3a90180d3a84ee1c338c2bd273623",
+    "format": "b255140bcc44b807c2395e5fa17fb3063afdb7fb505ab1d0b58b15a1c7e22c11",
+    "render": "2fdff2d369dab70a17a73ea858b4359b66f9b24613e34b9b70661c2defb6ca2a",
+    "csv": "b8e820b37962fe813998ba7f4862347dafe7bfb0e753f768933f679abdb25e37",
+    "history": "6933a687fbfe27670b2867f4b336cb04073bbf61f0cc6bf633b80f1a82363002"
+  },
+  "owned_evaluation_fixture_removed": true,
+  "owned_grading_directories_remaining": 0,
+  "raw_proposals": {
+    "baseline": {
+      "rename": {
+        "decision": "edit",
+        "guidance_used": [],
+        "recovery_request": null,
+        "edits": [
+          {
+            "path": "layers.py",
+            "replacement": "def rename_layer(user, owner, name):\n    if user != owner:\n        raise PermissionError()\n    if not name:\n        raise ValueError()\n    return name.strip()\n"
+          }
+        ]
+      },
+      "zoom": {
+        "decision": "edit",
+        "guidance_used": [],
+        "recovery_request": null,
+        "edits": [
+          {
+            "path": "zoom.py",
+            "replacement": "def save_zoom(user, owner, accessible, original_view, zoom):\n    if not accessible or user != owner:\n        raise PermissionError()\n    return zoom\n\n\ndef can_show_zoom_control(user, owner, accessible, original_view):\n    return bool(accessible and user == owner)\n"
+          }
+        ]
+      },
+      "format": {
+        "decision": "edit",
+        "guidance_used": [],
+        "recovery_request": null,
+        "edits": [
+          {
+            "path": "coordinates.py",
+            "replacement": "CONVERSION_VERSION = 2\n\ndef convert_coordinates(x, y):\n    return [x, y]\n\ndef cached_coordinates(cache, x, y):\n    if cache['version'] == CONVERSION_VERSION:\n        return cache['value']\n    return convert_coordinates(x, y)\n\ndef render_coordinates(x, y):\n    return f'{x}, {y}'\n"
+          }
+        ]
+      },
+      "render": {
+        "decision": "edit",
+        "guidance_used": [],
+        "recovery_request": null,
+        "edits": [
+          {
+            "path": "labels.py",
+            "replacement": "CONVERSION_VERSION = 1\n\ndef convert_coordinates(x, y):\n    return {'x': x, 'y': y}\n\ndef cached_coordinates(cache, x, y):\n    if cache['version'] == CONVERSION_VERSION:\n        return cache['value']\n    return convert_coordinates(x, y)\n\ndef render_label(name):\n    return name + ' (map)'\n"
+          }
+        ]
+      },
+      "csv": {
+        "decision": "edit",
+        "guidance_used": [],
+        "recovery_request": null,
+        "edits": [
+          {
+            "path": "export.py",
+            "replacement": "def export_rows(rows, include_header=False):\n    lines = ['name;value'] if include_header else []\n    lines.extend(';'.join(str(cell) for cell in row) for row in rows)\n    return '\\n'.join(lines)\n"
+          }
+        ]
+      },
+      "history": {
+        "decision": "needs_evidence",
+        "guidance_used": [],
+        "recovery_request": null,
+        "edits": []
+      },
+      "recovery": {
+        "decision": "needs_evidence",
+        "guidance_used": [],
+        "recovery_request": null,
+        "edits": []
+      },
+      "history_followup": {
+        "decision": "edit",
+        "guidance_used": [
+          "Synthetic historical snapshot: round_value must round down using floor, including negative values; snapshot predates the evaluated change."
+        ],
+        "recovery_request": null,
+        "edits": [
+          {
+            "path": "rounding.py",
+            "replacement": "import math\n\n\ndef round_value(value):\n    return math.floor(value)\n"
+          }
+        ]
+      }
+    },
+    "guided": {
+      "rename": {
+        "decision": "edit",
+        "guidance_used": [
+          {
+            "path": "AGENTS.md",
+            "blake3": "5d89b462155d8ebcce1cecd76169ba7fab1043b86c6112a5a17be229ca502f8e"
+          },
+          {
+            "path": ".github/instructions/domain.instructions.md",
+            "blake3": "78f3e9200504625b80e2d7ed01cc6966da56e1b1fe08c5fa5a127fba7242dfab"
+          }
+        ],
+        "recovery_request": null,
+        "edits": [
+          {
+            "path": "layers.py",
+            "replacement": "def rename_layer(user, owner, name):\n    if user != owner:\n        raise PermissionError()\n    if isinstance(name, str):\n        name = name.strip()\n    if not name:\n        raise ValueError()\n    return name\n"
+          }
+        ]
+      },
+      "zoom": {
+        "decision": "edit",
+        "guidance_used": [
+          {
+            "path": "AGENTS.md",
+            "blake3": "5d89b462155d8ebcce1cecd76169ba7fab1043b86c6112a5a17be229ca502f8e"
+          },
+          {
+            "path": ".github/instructions/domain.instructions.md",
+            "blake3": "4ef01a46da1c5057bd38e51b6333ac69192ec0d7c5aad43a4a6139ec785673b0"
+          }
+        ],
+        "recovery_request": null,
+        "edits": [
+          {
+            "path": "zoom.py",
+            "replacement": "def save_zoom(user, owner, accessible, original_view, zoom):\n    if not accessible or user != owner:\n        raise PermissionError()\n    return zoom\n\ndef can_show_zoom_control(user, owner, accessible, original_view):\n    return bool(accessible and user == owner and original_view)\n"
+          }
+        ]
+      },
+      "format": {
+        "decision": "edit",
+        "guidance_used": [
+          {
+            "path": "AGENTS.md",
+            "blake3": "5d89b462155d8ebcce1cecd76169ba7fab1043b86c6112a5a17be229ca502f8e"
+          },
+          {
+            "path": ".github/instructions/domain.instructions.md",
+            "blake3": "7686cf30ba6a2b411697ae8171dbdd31bb0bb457ec3f7e3b28d8656641dc995c"
+          }
+        ],
+        "recovery_request": null,
+        "edits": [
+          {
+            "path": "coordinates.py",
+            "replacement": "CONVERSION_VERSION = 2\n\ndef convert_coordinates(x, y):\n    return [x, y]\n\ndef cached_coordinates(cache, x, y):\n    if cache['version'] == CONVERSION_VERSION:\n        return cache['value']\n    return convert_coordinates(x, y)\n\ndef render_coordinates(x, y):\n    return f'{x}, {y}'\n"
+          }
+        ]
+      },
+      "render": {
+        "decision": "edit",
+        "guidance_used": [
+          {
+            "path": "AGENTS.md",
+            "blake3": "5d89b462155d8ebcce1cecd76169ba7fab1043b86c6112a5a17be229ca502f8e"
+          },
+          {
+            "path": ".github/instructions/domain.instructions.md",
+            "blake3": "f6a0174198b3ab6e191c37dcccf77a5061dfa1e7ca7fc62b1fe7cec69470952e"
+          }
+        ],
+        "recovery_request": null,
+        "edits": [
+          {
+            "path": "labels.py",
+            "replacement": "CONVERSION_VERSION = 1\n\ndef convert_coordinates(x, y):\n    return {'x': x, 'y': y}\n\ndef cached_coordinates(cache, x, y):\n    if cache['version'] == CONVERSION_VERSION:\n        return cache['value']\n    return convert_coordinates(x, y)\n\ndef render_label(name):\n    return name + ' (map)'\n"
+          }
+        ]
+      },
+      "csv": {
+        "decision": "edit",
+        "guidance_used": [
+          {
+            "path": "AGENTS.md",
+            "blake3": "5d89b462155d8ebcce1cecd76169ba7fab1043b86c6112a5a17be229ca502f8e"
+          },
+          {
+            "path": ".github/instructions/domain.instructions.md",
+            "blake3": "d862dcd5ef62181c2f2d7adbde07f03618cf50f07c03c51ac946c53337634e7c"
+          }
+        ],
+        "recovery_request": null,
+        "edits": [
+          {
+            "path": "export.py",
+            "replacement": "def export_rows(rows, include_header=False):\n    lines = ['name;value'] if include_header else []\n    lines.extend(';'.join(str(cell) for cell in row) for row in rows)\n    return '\\n'.join(lines)\n"
+          }
+        ]
+      },
+      "history": {
+        "decision": "needs_evidence",
+        "guidance_used": [],
+        "recovery_request": null,
+        "edits": []
+      },
+      "history_followup": {
+        "decision": "edit",
+        "guidance_used": [
+          {
+            "path": "synthetic://historical-instruction-snapshot",
+            "blake3": "29ab32d9fba0a0cb899f39904cf57e3fb42573a14881ff1378b60e864b2bc57c"
+          }
+        ],
+        "recovery_request": null,
+        "edits": [
+          {
+            "path": "rounding.py",
+            "replacement": "import math\n\n\ndef round_value(value):\n    return math.floor(value)\n"
+          }
+        ]
+      },
+      "recovery": {
+        "decision": "recover",
+        "guidance_used": [],
+        "recovery_request": {
+          "arguments": {
+            "output_json": true,
+            "project_id": "1a5ea0de-dfa8-47b5-880e-89f6f6977ccf",
+            "response_id": "afa703177086c31ade37f4406c552cc649b6e49292ad981e5839c117465afa3a",
+            "response_offset": 0,
+            "story": ""
+          },
+          "tool": "get_change_set"
+        },
+        "edits": []
+      },
+      "recovery_followup": {
+        "decision": "edit",
+        "guidance_used": [
+          {
+            "path": "AGENTS.md",
+            "blake3": "5d89b462155d8ebcce1cecd76169ba7fab1043b86c6112a5a17be229ca502f8e"
+          },
+          {
+            "path": ".github/instructions/domain.instructions.md",
+            "blake3": "fdd69b05bd61bd1b4282913edca2544ab4029bf5b50d6c04ce8289fefdc24b68"
+          }
+        ],
+        "recovery_request": null,
+        "edits": [
+          {
+            "path": "bulk.py",
+            "replacement": "def delete_records(records, caller):\n    return [\n        record for record in records\n        if record[\"active\"] or record[\"owner\"] != caller\n    ]\n"
+          }
+        ]
+      }
+    }
+  }
+}

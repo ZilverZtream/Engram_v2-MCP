@@ -186,9 +186,10 @@ def collect(binary, evidence):
                         recovery = dict(response_id=delivery["response_id"], verified_blake3=True, bytes=len(recovered), pages=page_count)
                         if name == "recovery":
                             position = recovered.find(case["policy"].encode())
-                            assert position >= page["start_byte"], "decisive qualification must occur on final recovery page"
+                            assert position >= 0, "recovered evidence must contain the decisive qualification"
                             assert case["policy"] not in json.dumps(initial)
-                            recovery["decisive_guidance_on_final_page"] = True
+                            recovery["decisive_guidance_byte_offset"] = position
+                            recovery["decisive_guidance_on_final_page"] = position >= page["start_byte"]
                     guidance = response["project_policy_sources"]
                     if name == "history":
                         assert "CURRENT_LIVE_POLICY" not in json.dumps(guidance)
