@@ -470,17 +470,21 @@ pub struct CodebaseOverviewRequest {
     /// page a diverse representative sample. Narrow an area's scope for more.
     #[serde(default)]
     pub offset: usize,
-    /// Files shown, 1..64. Declaration and response limits remain independent.
+    /// Exact-file declaration page offset, 0..128. Use returned next_symbols;
+    /// native/Contains discovery and extraction gaps remain separately bounded.
+    #[serde(default)]
+    pub symbol_offset: usize,
+    /// Files shown, 1..64 (default 8). Declaration and response limits remain independent.
     #[serde(default = "default_codemap_limit")]
     pub limit: usize,
 }
 
-fn default_codemap_limit() -> usize { 24 }
+fn default_codemap_limit() -> usize { 8 }
 
 impl From<ProjectIdRequest> for CodebaseOverviewRequest {
     fn from(request: ProjectIdRequest) -> Self {
         Self { project_id: request.project_id, scope: None, exclude_paths: Vec::new(),
-            include_retained_context: false, offset: 0, limit: default_codemap_limit() }
+            include_retained_context: false, offset: 0, symbol_offset: 0, limit: default_codemap_limit() }
     }
 }
 

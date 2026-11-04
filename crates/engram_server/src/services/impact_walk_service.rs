@@ -169,7 +169,7 @@ impl CompactEvidence<'_> {
         self.node_indices.get(id).map(|index| format!("n{index}"))
     }
 
-    fn recovery(&self, tool: &str, arguments: Value, scope: &str) -> Result<RecoveryDraft> {
+    fn recovery(&self, tool: &str, arguments: Value, scope_ref: &str) -> Result<RecoveryDraft> {
         let key = serde_json::to_string(&json!({"tool":tool,"arguments":arguments}))?;
         if let Some(reference) = self.recovery_refs.get(&key) {
             return Ok(RecoveryDraft {
@@ -182,7 +182,7 @@ impl CompactEvidence<'_> {
             reference: reference.clone(),
             fresh: Some((
                 key,
-                json!({"ref":reference,"tool":tool,"arguments":arguments,"scope":scope}),
+                json!({"ref":reference,"tool":tool,"arguments":arguments,"scope_ref":scope_ref}),
             )),
         })
     }
@@ -190,35 +190,21 @@ impl CompactEvidence<'_> {
     fn range_recovery(&self, file: &str, start: u32, end: u32) -> Result<RecoveryDraft> {
         self.recovery("get_full_method_body", json!({"project_id":self.project,
             "file_path":file,"line_start":start,"line_end":end,"context_lines":0,"output_json":true}),
-            "Current-source range at indexed positions, not complete-file, callsite or value-flow proof. Check the returned source hash and freshness before relying on it.")
+            "range")
     }
 
     fn lookup_recovery(&self, endpoint: &Endpoint<'_>) -> Result<RecoveryDraft> {
-        let (hint_file, hint_name) = canonical_hint(endpoint.id);
+        let (hint_file, _) = canonical_hint(endpoint.id);
         let file = endpoint
             .file
             .or(hint_file)
             .filter(|path| recovery_path(path));
-        let span_known = matches!((endpoint.start,endpoint.end), (Some(start),Some(end)) if start>0 && end>=start);
-        if file.is_some()
-            && (endpoint.id.starts_with("file:")
-                || (endpoint.admission == "selected" && !span_known))
-        {
-            return self.recovery("get_codebase_overview", json!({"project_id":self.project,
-                "scope":file,"limit":1,"offset":0,"include_retained_context":false}),
-                "Scoped selected-source navigation to recover callable ranges; missing graph declarations remain unknown.");
-        }
-        let name = endpoint
-            .name
-            .filter(|name| !name.is_empty() && name.len() <= 2048)
-            .unwrap_or(hint_name);
-        let mut arguments = json!({"project_id":self.project,"symbol_name":name,
-            "max_incoming":64,"max_outgoing_per_kind":8});
+        let mut arguments = json!({"project_id":self.project,"limit":1,"offset":0,
+            "include_retained_context":false});
         if let Some(file) = file {
-            arguments["file_scope"] = json!(file);
+            arguments["scope"] = json!(file);
         }
-        self.recovery("find_symbol_references", arguments,
-            "Best-effort symbol/identity lookup for an unresolved endpoint or narrower branch; live graph results require revision/freshness checks and establish no absence or runtime proof.")
+        self.recovery("get_codebase_overview", arguments, "navigation")
     }
 
     fn commit_recovery(&mut self, draft: RecoveryDraft) {
@@ -302,7 +288,16 @@ impl CompactEvidence<'_> {
     }
 
     fn lookup_boundary(&mut self, endpoint: &Endpoint<'_>) -> Result<Option<String>> {
-        let recovery = self.lookup_recovery(endpoint)?;
+        let recovery = if endpoint.admission == "selected" {
+            self.recovery(
+                "impact_analysis",
+                json!({"project_id":self.project,
+                "symbol_fqn":endpoint.id,"max_depth":1,"limit":8}),
+                "direct",
+            )?
+        } else {
+            self.lookup_recovery(endpoint)?
+        };
         if let Some((_, value)) = &recovery.fresh {
             if !self.charge(&[value])? {
                 return Ok(None);
@@ -342,6 +337,14 @@ fn render(
         "frontier_rows_omitted":walk.coverage.frontier_omitted,"shortest_paths_omitted":total,
         "omitted_from_display":total,"display_truncated":false,"files":[],"nodes":[],"edges":[],
         "shortest_paths":[],"frontier":[],"recoveries":[],"continuation":null,
+        "recovery_scopes":{
+            "range":"Current-source range at indexed positions, not complete-file, method-boundary, callsite or value-flow proof. Verify returned file hash/freshness and project exclusions.",
+            "navigation":"Bounded selected-source CodeMap for the known file, or a project representative when the file is unknown. Best-effort exploration only: no recovered binding, absence or runtime proof.",
+            "direct":"Narrow direct impact for the admitted exact identity. A follow-up uses its own source selection; no complete pagination or atomic replay is promised.",
+            "caller":"Caller declaration-range recovery; no callsite line was recorded.",
+            "within":"Recorded source_line lies inside the caller declaration range; reuse its recovery. Indexed reference position only, not execution or value-flow proof.",
+            "line":"Recorded source_line outside the caller range; recover that current source line. Indexed reference position only, not execution or value-flow proof."
+        },
         "working_tree_checked":false,"exhaustive_codebase":false,"change_breakage_proven":false,
         "display_scope":"limit applies to shortest_paths, not canonical identities or additional verified edges",
         "edge_direction":"source_ref is caller/dependent; target_ref is the reached dependency",
@@ -395,7 +398,7 @@ fn render(
                 value["target_ref"] = json!(reference);
                 if let Some(recovery) = out.lookup_boundary(&current)? {
                     value["continuation"] = json!({"at_ref":reference,"recovery_ref":recovery,
-                        "scope":"Inspect narrower direct bindings/scoped navigation for omitted branches, then rerun impact for exact returned identities. This is not complete pagination or an atomic replay."});
+                        "scope_ref":if current.admission=="selected"{"direct"}else{"navigation"}});
                 }
             }
         }
@@ -436,8 +439,15 @@ fn render(
             .as_str()
             .context("Node recovery missing")?
             .to_owned();
+        let caller_range_known = recovery_path(source.node.file_path.as_str())
+            && source.node.start_line > 0
+            && source.node.end_line >= source.node.start_line;
+        let line_within_caller = caller_range_known
+            && edge
+                .source_line
+                .is_some_and(|line| line >= source.node.start_line && line <= source.node.end_line);
         let recovery = match edge.source_line {
-            Some(line) if recovery_path(source.node.file_path.as_str()) => {
+            Some(line) if !line_within_caller && recovery_path(source.node.file_path.as_str()) => {
                 Some(out.range_recovery(source.node.file_path.as_str(), line, line)?)
             }
             _ => None,
@@ -451,7 +461,7 @@ fn render(
             "edge_source_binding":if edge.edge_generation==source.node.generation{"extraction_generation"}else{"verified_unchanged_caller_origin"},
             "connection_role":if tree_edge(edge){"shortest_predecessor"}else{"additional_verified_connection"},
             "source_line":edge.source_line,"recovery_ref":recovery_ref,
-            "recovery_scope":if edge.source_line.is_some(){"recorded_indexed_reference_line; not runtime/value-flow proof"}else{"caller_declaration_range; callsite_not_recorded"}});
+            "scope_ref":if line_within_caller{"within"}else if recovery.is_some(){"line"}else if edge.source_line.is_some() || !caller_range_known{"navigation"}else{"caller"}});
         let mut staged = vec![&row];
         if let Some((_, value)) = recovery
             .as_ref()

@@ -962,7 +962,9 @@ cancellation of a running watcher update.
 CodeMap supports literal project-relative `scope` and `exclude_paths`, plus
 `offset`/`limit` for file navigation. Start with diverse project representatives,
 follow an area's supplied exploration call, then open a returned source range or
-method context. Directory groups and filename priorities are navigation
+method context. The default preview covers eight files; exact-file responses
+provide `next_symbols` calls with `symbol_offset` for later declarations within
+the bounded discovery sample. Directory groups and filename priorities are navigation
 heuristics; they do not establish runtime architecture. Memory/history context
 requires `include_retained_context: true` and remains separate from current source.
 

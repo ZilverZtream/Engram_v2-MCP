@@ -539,7 +539,11 @@ fn codemap_diversifies_areas_and_its_scoped_recovery_opens_selected_source_witho
                 (path, body)
             })
             .collect();
-        sources.extend([(JOB,"pub fn RunJob() -> i32 { 7 }\n"),(POLICY,POLICY_TEXT),
+        let policy_source=format!("{POLICY_TEXT}{}",(0..24)
+            .map(|number|format!("pub fn AaaExtra{number:02}() -> i32 {{ {number} }}\n"))
+            .collect::<String>());
+        sources.push((POLICY.to_owned(),policy_source.clone()));
+        sources.extend([(JOB,"pub fn RunJob() -> i32 { 7 }\n"),
             (PRIVATE,"pub fn PrivateOnly() -> i32 { 9 }\n"),(FROZEN,"Public Class FrozenOnly\nEnd Class\n"),
             (SCHEMA,"CREATE TABLE UserSettings (Id INT);\n"),
             (SETTINGS,"<configuration><appSettings><add key=\"MapEnabled\" value=\"true\" /></appSettings></configuration>\n")]
@@ -681,6 +685,22 @@ fn codemap_diversifies_areas_and_its_scoped_recovery_opens_selected_source_witho
             .find(|file| file["path"] == POLICY)
             .unwrap();
         assert_eq!(policy["physical_generation"], 1);
+        let file_action=policy["actions"].as_array().unwrap().iter()
+            .find(|action|action["tool"]=="get_codebase_overview").unwrap();
+        let first_page=navigate(&engram,file_action["arguments"].clone()).await;
+        let first_policy=&first_page["files"][0];
+        assert!(first_policy["symbols"].as_array().unwrap().iter()
+            .all(|symbol|symbol["name"]!="ResolveZoom"),
+            "The wanted declaration is intentionally beyond the first file symbol page");
+        let continuation=&first_policy["next_symbols"];
+        assert_eq!(continuation["tool"],"get_codebase_overview");
+        assert_eq!(continuation["arguments"]["scope"],POLICY);
+        assert_eq!(continuation["arguments"]["exclude_paths"],json!(["Site/Q",PRIVATE]));
+        let later_page=navigate(&engram,continuation["arguments"].clone()).await;
+        assert_eq!(later_page["source_generation"],1);
+        let policy=&later_page["files"][0];
+        assert_eq!(policy["path"],POLICY);
+        assert_eq!(policy["physical_generation"],1);
         let symbol = policy["symbols"]
             .as_array()
             .unwrap()
@@ -709,7 +729,7 @@ fn codemap_diversifies_areas_and_its_scoped_recovery_opens_selected_source_witho
         );
         assert_eq!(
             recovered["source_file_hash"],
-            ContentHash::compute(POLICY_TEXT.as_bytes()).0
+            ContentHash::compute(policy_source.as_bytes()).0
         );
     });
 }
