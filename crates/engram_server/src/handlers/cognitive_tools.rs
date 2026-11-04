@@ -1301,7 +1301,8 @@ impl Engram {
         let valid = |path: &str| !path.is_empty() && path.len()<=2048
             && !path.contains(['\\',':','\0','\n','\r'])
             && path.split('/').all(|part| !part.is_empty() && part!="." && part!="..");
-        if !(1..=64).contains(&req.limit) || req.offset>250_000 || req.exclude_paths.len()>16
+        if !(1..=64).contains(&req.limit) || req.offset>250_000 || req.symbol_offset>128
+            || (req.symbol_offset>0 && (req.scope.is_none() || req.offset!=0)) || req.exclude_paths.len()>16
             || req.exclude_paths.iter().map(String::len).sum::<usize>()>4096
             || !req.exclude_paths.iter().all(|path|valid(path))
             || req.scope.as_deref().is_some_and(|scope|!valid(scope)) {
@@ -1321,6 +1322,10 @@ impl Engram {
             let summary=search.selected_source_summary(pid,generation,worker_view)?;
             let paths=membership.navigation_paths(worker_request.scope.as_deref(),&worker_request.exclude_paths,
                 worker_request.offset,worker_request.limit)?;
+            let exact_file=worker_request.scope.as_deref().is_some_and(|scope| paths.files.len()==1
+                && if cfg!(windows){paths.files[0].0.eq_ignore_ascii_case(scope)}else{paths.files[0].0==scope});
+            anyhow::ensure!(worker_request.symbol_offset==0 || exact_file,
+                "symbol_offset requires an exact selected-file scope and offset0");
             let mut rows=Vec::new();
             let mut discovery=Vec::new();
             for batch in paths.files.chunks(8) {
@@ -1338,8 +1343,9 @@ impl Engram {
                     let callable=|kind:&str|matches!(kind,"function"|"method"|"constructor"|"property"|"sub"|"procedure");
                     nodes.sort_by(|a,b|(!callable(&a.node.node_type)).cmp(&(!callable(&b.node.node_type)))
                         .then_with(||a.node.name.cmp(&b.node.name)).then_with(||a.node.node_id.cmp(&b.node.node_id)));
-                    let cap=if worker_request.scope.is_some() && paths.files.len()==1{16}else{3};
-                    let symbols:Vec<_>=nodes.iter().take(cap).map(|item|{
+                    let cap=if exact_file{16}else{1};
+                    let symbol_offset=if exact_file{worker_request.symbol_offset}else{0};
+                    let symbols:Vec<_>=nodes.iter().skip(symbol_offset).take(cap).map(|item|{
                         let node=&item.node;
                         let mut actions=Vec::new();
                         if node.start_line>0 && node.end_line>=node.start_line {
@@ -1348,9 +1354,11 @@ impl Engram {
                                 "line_end":node.end_line.min(node.start_line.saturating_add(119)),
                                 "context_lines":0,"output_json":true}}));
                         }
-                        actions.push(serde_json::json!({"tool":"impact_analysis","arguments":{
-                            "project_id":pid,"symbol_fqn":node.node_id,"max_depth":6,"limit":12}}));
-                        if node.start_line>0 && matches!(node.node_type.as_str(),"function"|"method"|"sub"|"procedure") {
+                        if exact_file {
+                            actions.push(serde_json::json!({"tool":"impact_analysis","arguments":{
+                                "project_id":pid,"symbol_fqn":node.node_id,"max_depth":6,"limit":12}}));
+                        }
+                        if exact_file && node.start_line>0 && matches!(node.node_type.as_str(),"function"|"method"|"sub"|"procedure") {
                             let mut args=serde_json::json!({"project_id":pid,"file_path":path,
                                 "method_name":node.name.rsplit('.').next().unwrap_or(&node.name),"line":node.start_line,
                                 "include_history":false,"include_business_logic":false,"include_full_body":false,"include_caller_bodies":false,
@@ -1362,13 +1370,18 @@ impl Engram {
                         }
                         serde_json::json!({"node_id":node.node_id,"name":node.name,"kind":node.node_type,
                             "start_line":node.start_line,"end_line":node.end_line,"generation":node.generation,
-                            "recovery_scope":"Bounded indexed source range; follow-up checks disk bytes. Not runtime entry-point proof.","actions":actions})
+                            "actions":actions})
                     }).collect();
+                    let next_offset=symbol_offset.saturating_add(symbols.len());
+                    let next_symbols=if exact_file && next_offset<nodes.len() && next_offset<=128 {
+                        serde_json::json!({"tool":"get_codebase_overview","arguments":{"project_id":pid,"scope":path,
+                            "exclude_paths":worker_request.exclude_paths,"offset":0,"limit":1,"symbol_offset":next_offset}})
+                    }else{serde_json::Value::Null};
                     rows.push(serde_json::json!({"path":path,"physical_generation":revision,"area":area,"symbols":symbols,
-                        "symbol_display_limited":nodes.len()>cap,
-                        "declaration_coverage":"Bounded native/Contains discovery; missing or live-newer declarations remain unknown. Scope this file for more.",
+                        "symbol_offset":symbol_offset,"symbol_display_limited":next_offset<nodes.len(),
+                        "declarations_observed":nodes.len(),"next_symbols":next_symbols,
                         "actions":[{"tool":"get_codebase_overview","arguments":{"project_id":pid,"scope":path,
-                            "exclude_paths":worker_request.exclude_paths,"offset":0,"limit":24}}]}));
+                            "exclude_paths":worker_request.exclude_paths,"offset":0,"limit":1}}]}));
                 }
             }
             let retained=if worker_request.include_retained_context {
@@ -1394,7 +1407,9 @@ impl Engram {
                 "File identities belong to one held published source selection, including inherited revisions. Declarations are bounded live-graph observations admitted against that selection.",
                 "No filesystem byte/LOC scan, source-body read, whole-project graph scan, native vector table or model query was performed.",
                 "Default files are diverse representatives. Scope an area and use page offsets for selected files beyond the sample.",
-                "Missing declarations or an empty bounded sample do not prove absence of code, consumers or entry points. Legacy file coverage is unknown."]});
+                "Missing declarations or an empty bounded sample do not prove absence of code, consumers or entry points. Legacy file coverage is unknown.",
+                "Root/area previews show one declaration and only its bounded source-range action. Open the exact file for full actions and next_symbols pages (16 observed declarations/page, offset0..128); discovery/extraction gaps are not complete pagination.",
+                "Ranges are indexed positions capped to120lines; follow-up verifies current bytes, not full methods or runtime entry points. Declaration discovery coverage is reported once above."]});
         let mut areas=Vec::new();
         for (area,count) in &paths.areas {
             areas.push(serde_json::json!({"scope":area,"selected_files":count,"explore":explore(area,0)}));

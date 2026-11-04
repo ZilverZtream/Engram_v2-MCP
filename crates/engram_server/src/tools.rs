@@ -816,7 +816,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Source-navigation CodeMap under one held published selection: diverse area/file representatives, selected callable/type identities and copyable bounded source-range, method-context and impact calls. Use literal scope for progressive file/directory exploration and offset/limit for scoped file pages; exclude_paths is applied before declaration lookup and is preserved in navigation calls. File/chunk proportions have separate denominators. Directory groups and basename priorities are navigation heuristics, not runtime architecture or proven entry points. Retained memory/history is omitted by default; include_retained_context opts into separate unverified context. No source-body, whole-project graph, native vector or model scan."
+        description = "Source-navigation CodeMap under one held published selection: default8 diverse file representatives with one declaration/range action each. Exact file scope exposes method-context/impact calls and next_symbols declaration pages (symbol_offset0..128, existing discovery caps still apply). Use literal scope for progressive file/directory exploration and offset/limit for scoped file pages; exclude_paths is applied before declaration lookup and is preserved in navigation calls. File/chunk proportions have separate denominators. Directory groups and basename priorities are navigation heuristics, not runtime architecture or proven entry points. Retained memory/history is omitted by default; include_retained_context opts into separate unverified context. No source-body, whole-project graph, native vector or model scan."
     )]
     pub async fn get_codebase_overview(
         &self,
