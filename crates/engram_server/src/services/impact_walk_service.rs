@@ -222,12 +222,14 @@ fn summary_section(
             "kind":edge["kind"],"edge_generation":edge["edge_generation"],"source_generation":node["generation"],
             "edge_source_binding":edge.get("edge_source_binding").cloned().unwrap_or(json!("extraction_generation")),
             "source_line":edge["source_line"],
-            "recorded_position_read":action(edge.get("recovery_ref").unwrap_or(&node["recovery_ref"])),
+            "recorded_position_read":if edge["source_position_scope"] == "unattributed_extractor_anchor" {
+                None
+            } else { action(edge.get("recovery_ref").unwrap_or(&node["recovery_ref"])) },
             "source_position_kind":edge.get("source_position_kind").cloned().unwrap_or(json!("not_recorded")),
             "extractor_anchor_line":edge["extractor_anchor_line"],
             "reference_lines":edge.get("reference_lines").cloned().unwrap_or(json!([])),
             "reference_lines_truncated":edge.get("reference_lines_truncated").cloned().unwrap_or(json!(false)),
-            "source_position_scope":if edge["source_line"].is_null(){"not_recorded"}else{"indexed_metadata_only"}
+            "source_position_scope":edge.get("source_position_scope").cloned().unwrap_or(json!("not_recorded"))
         }))})
     };
     let mut arguments = json!({"project_id":project,"max_depth":full["requested_max_depth"],
@@ -615,9 +617,9 @@ fn render(
         "shortest_paths":[],"frontier":[],"recoveries":[],"continuation":null,
         "omitted_defaults":{
             "nodes":{"name_truncated":false,"optional_metadata":null},
-            "edges":{"edge_source_binding":"extraction_generation","connection_role":"shortest_predecessor","source_line":null,"source_position_kind":"not_recorded","extractor_anchor_line":null,"reference_lines":[],"reference_lines_truncated":false},
+            "edges":{"edge_source_binding":"extraction_generation","connection_role":"shortest_predecessor","source_line":null,"source_position_kind":"not_recorded","source_position_scope":"not_recorded","extractor_anchor_line":null,"reference_lines":[],"reference_lines_truncated":false},
             "edge_source_generation":"Read nodes[source_ref].generation; edge_generation remains explicit. A different edge_generation requires the explicit verified_unchanged_caller_origin binding.",
-            "edge_recovery":"Absent recovery_ref means nodes[source_ref].recovery_ref. source_line is the first call/reference sample when available, otherwise a weaker extractor anchor. Inside the caller span it uses that range; outside it has an explicit line recovery. Other reference_lines can be read with explicit file/line bounds. Samples are not exhaustive; truncated means additional positions were omitted or uninspected. Indexed metadata does not prove current binding or execution."
+            "edge_recovery":"Absent recovery_ref means nodes[source_ref].recovery_ref. source_line prefers a recorded call/reference sample, otherwise a weaker extractor anchor. An unattributed_extractor_anchor contradicts the known source span: retain its number but do not assign it to that file; node recovery inspects the source node only. An unverified_file_anchor has no known span and offers a candidate file read, not ownership proof. Other recorded positions use the caller range when covered, otherwise an explicit line recovery. Samples are not exhaustive; truncation means omitted or uninspected positions. Indexed metadata does not prove current binding or execution."
         },
         "recovery_scopes":{
             "range":"Current-source range at indexed positions, not complete-file, method-boundary, callsite or value-flow proof. Verify returned file hash/freshness and project exclusions.",
@@ -726,8 +728,25 @@ fn render(
             && edge
                 .source_line
                 .is_some_and(|line| line >= source.node.start_line && line <= source.node.end_line);
+        // Some stitched UI edges retain the handler's declaration anchor on
+        // the markup control edge. It is evidence, but not a position in the
+        // control's file. Never turn that contradiction into a fabricated read.
+        let weak_anchor = edge.source_position_kind == "extractor_anchor_metadata";
+        let position_scope = if edge.source_line.is_none() {
+            "not_recorded"
+        } else if weak_anchor && caller_range_known && !line_within_caller {
+            "unattributed_extractor_anchor"
+        } else if weak_anchor && !caller_range_known {
+            "unverified_file_anchor"
+        } else {
+            "indexed_metadata_only"
+        };
         let recovery = match edge.source_line {
-            Some(line) if !line_within_caller && recovery_path(source.node.file_path.as_str()) => {
+            Some(line)
+                if !line_within_caller
+                    && position_scope != "unattributed_extractor_anchor"
+                    && recovery_path(source.node.file_path.as_str()) =>
+            {
                 Some(out.range_recovery(source.node.file_path.as_str(), line, line)?)
             }
             _ => None,
@@ -748,6 +767,7 @@ fn render(
         if let Some(line) = edge.source_line {
             row["source_line"] = json!(line);
             row["source_position_kind"] = json!(edge.source_position_kind);
+            row["source_position_scope"] = json!(position_scope);
         }
         if !edge.reference_lines.is_empty() {
             row["reference_lines"] = json!(edge.reference_lines);

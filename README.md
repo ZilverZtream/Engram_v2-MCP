@@ -1004,6 +1004,14 @@ positions. Follow `recorded_position_read` and inspect current source before
 describing a sample as an invocation; the returned hash does not prove compiler
 binding or runtime execution.
 
+When a weaker extractor anchor contradicts the source node's known range,
+`source_position_scope` is `unattributed_extractor_anchor`. Its raw number is
+retained, but `recorded_position_read` is null; use the separate source-node
+inspection instead. Engram does not guess another file for that anchor. Without
+known node bounds, a legacy position remains an `unverified_file_anchor` read
+candidate. Explicit call/reference positions retain their separate inspection
+even outside a declaration range.
+
 For a source file without usable indexed declaration bounds, CodeMap and admitted
 file-impact targets offer a current-file excerpt action. Call
 `get_full_method_body` with `file_path` and no `line_end`; `line_start` defaults to
