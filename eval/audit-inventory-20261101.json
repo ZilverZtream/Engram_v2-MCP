@@ -8423,7 +8423,7 @@
         },
         "remaining": [
           "Recorded invocation location quality: graph line 92 is the declaration; the actual invocation is line 96. The summary labels it as metadata, but extractor accuracy is not fixed.",
-          "SQL file targets with 0..0 ranges lack useful source/invocation recovery; the provider/configuration consumer chain remains unresolved.",
+          "SQL/file targets with unusable bounds now provide bounded current-source recovery (764be02). The provider/configuration consumer chain remains unresolved.",
           "Broader actual task coverage and the regular multi-category CI benchmark remain unfinished."
         ]
       },
@@ -8455,10 +8455,39 @@
           "sha256": "c3ec56a53a2b156284ea29271b69ffaf273462a62946018cedff79ca3164a28d"
         },
         "quality_followup": "The canonical VB caller is already admitted; the malformed orphan identity remains unresolved. The fallback nested-type ownership defect needs correction and extraction-version planning, but the current orphan origin is not proved. No alias or broad reindex was performed."
+      },
+      "bounded_file_source_recovery": {
+        "state": "Deployed and verified on actual OciusX and the installed daemon; broader tool/audit work remains unfinished.",
+        "source_commit": "764be02",
+        "deployed_evidence": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-file-excerpt-deployed-evidence-20261104.json",
+          "sha256": "4cd7d4f49a083f7d0c10768d32bd9721b20ee39d85f650590f73f7cad2e4be48"
+        },
+        "budgets": {
+          "file_read_bytes": 4194304,
+          "complete_lines_per_page": 120,
+          "rendered_tool_text_bytes": 32768
+        },
+        "actual_source_case": {
+          "file": "db-ociusx.sql/dbo/Stored Procedures/aspnet_Membership_UpdateUserInfo.sql",
+          "total_lines": 155,
+          "page_line_counts": [
+            120,
+            35
+          ],
+          "matching_raw_blake3": "f9b5e073f8fbaafc365c37e735c616fc48f529e244f89978933ce31dd3ef00fa",
+          "codemap_and_both_impact_recoveries": "Executed successfully. Source reads remain current-byte observations, not method/index freshness verification."
+        },
+        "fresh_agent": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\file-excerpt-sql-consumer-assessment-20261104.json",
+          "sha256": "a7e98965c9bbb781050bc791afea61a9dd7ace82cbbed82c4907f649c9c340b4"
+        },
+        "remaining": "The full authentication/provider/configuration task remains partial. Precise invocation positions, fallback ownership/legacy orphan lineage and regular multi-category task evaluation remain open.",
+        "next_witness_review": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-invocation-witness-next-review-20261104.json"
       }
     }
   },
-  "last_updated_at": "2026-11-04T21:22:21.092222+00:00",
+  "last_updated_at": "2026-11-04T22:21:34.174161+00:00",
   "current_execution_focus": {
     "at_utc": "2026-11-04T11:12:56.875854+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
@@ -8491,7 +8520,7 @@
       }
     ],
     "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
-    "next_user_visible_deliverable": "Continue core CodeMap/Blast quality: provide bounded, hash-bound executable source recovery for SQL/file targets with unusable 0..0 declaration ranges. Preserve explicit range-versus-method scope and current-byte/freshness limits. Keep precise invocation positions and fallback owner/orphan lineage as open findings; the canonical caller is already admitted, so do not alias or broadly reindex based on its malformed duplicate. The broader audit and regular task benchmark remain unfinished.",
+    "next_user_visible_deliverable": "Improve core Blast Radius invocation evidence: confirm retained call_site_line(s) metadata, then consume it without changing declaration anchors or overload ownership. Distinguish invocation-syntax samples from weaker legacy anchors and preserve all admission/route/coverage limits. This read-side candidate may avoid re-extraction; do not assume a parser change or broad reindex is necessary. Keep fallback nested-type ownership and malformed duplicate lineage separately open. Full provider/configuration workflows, regular task benchmarking and the broader audit remain unfinished.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
