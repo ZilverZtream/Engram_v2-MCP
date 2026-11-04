@@ -462,7 +462,19 @@
         "tests": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\method-safety-public-behavior-20261104.json",
         "results": "24 focused public behaviors PASS:3new managed downstream safety,16existing editcontext,5existing transitive impact. Both APIs share structured same-walk assessment; missing/partial evidence or transitive exposure floors green, preserving existing red. Display caps separated from traversal gaps; confidence and onehop score explicitly advisory.",
         "review": "Independent scoped service/access/test/driver review CLEAR; CodeRabbit not authenticated.",
-        "closure": "PARTIAL: source verified, publication/build/actual OciusX after-output/installation pending. Full31findings/19originalgates remain tracked."
+        "closure": "Verified deployed shared-safety milestone; broader EG09 usefulness and all other unfinished original findings remain active."
+      },
+      "method_safety_runtime_delivery_20261104": {
+        "source_commit": "f0715c956e059e3c0710ebd9c4020ee20c3daf77",
+        "binary_sha256": "f9ed4fd133cedbd7247c19fa6dd7b293e437477bcd3f89b3448e98b335962424",
+        "manifest_sha256": "da076474b3e632b133e08f92efd534d4f2470da5b8501268c4383b7025675c89",
+        "actual_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\method-safety-actual-ociusx-20261104\\acceptance.json",
+        "installed_normal_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\method-safety-installed-normal-acceptance-20261104.json",
+        "admission": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\method-safety-release-gates-admitted-20261104.json",
+        "cleanup": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\method-safety-owned-temp-accounting-20261104.json",
+        "result": "Before: BOTHgreen/.9 from1directcaller. After: BOTHyellow/.5, same3117assessment/33potentialindexeddependents(1direct+32transitive), HTTPwitnesses, missing18/unknown9/nonselected1/depth/unverifiedgaps explicit. Numericconfidence explicitlyuncalibrated, not probability. Normalruntimeequalscandidate.",
+        "limits": "Not proposed-change/runtimebreakage proof, complete codemap, wholeprojectfreshness or closure of original31findings/19gates. Other14projectreadiness and original resource/instruction work remain unfinished.",
+        "retained_previous_pair": "C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-c36f9a5c2ea748e198432c25dff23b8c"
       }
     },
     {
@@ -8248,7 +8260,7 @@
       ]
     }
   },
-  "last_updated_at": "2026-11-04T14:48:21.378804+00:00",
+  "last_updated_at": "2026-11-04T15:09:54.481453+00:00",
   "current_execution_focus": {
     "at_utc": "2026-11-04T11:12:56.875854+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
@@ -8280,8 +8292,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG-09 core-tool usefulness: shared downstream/source coverage in method-edit context and standalone edit safety. Actual installed baseline confirms both currently green0.9 without transitive evidence.",
-    "next_user_visible_deliverable": "Both safety entrypoints expose the same bounded revision-admitted downstream paths and coverage gaps; incomplete evidence cannot yield green. Verify against actual OciusX ClassifyAutomatic before/after, then deploy. Area-instruction drafting remains unfinished and follows this delivery.",
+    "active_original_item": "EG14 actual area-instruction usefulness pilot using OciusX existing map-file-layer guide and blind source oracle, after deployed shared safety milestone. Preserve all unfinished original31findings/19gates.",
+    "next_user_visible_deliverable": "Use installed Engram area_context on actual OciusX source without feeding oracle evidence paths; compare discovered evidence and a grounded proposal with existing authored guidance/exceptions. No authored OciusX policy writes. Fix demonstrated gaps; packet validation alone is not usefulness.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
