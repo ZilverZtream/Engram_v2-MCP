@@ -992,6 +992,18 @@ observations and may repeat an identity; zero unknown observations does not
 resolve missing-node or depth gaps. Source-range reads verify returned current
 bytes, not complete-method boundaries or invocation locations.
 
+Impact witnesses prefer a recorded call/reference position in `source_line` when
+available and preserve the older position separately as `extractor_anchor_line`.
+`source_position_kind` distinguishes `call_reference_syntax_metadata` from the
+weaker `extractor_anchor_metadata`; neither changes the caller's identity or
+declaration bounds. `reference_lines` contains at most eight sorted, distinct
+samples from bounded retained metadata. `reference_lines_truncated` flags
+additional omitted or uninspected positions; false does not establish an
+exhaustive call list. Delegate and property references can also supply these
+positions. Follow `recorded_position_read` and inspect current source before
+describing a sample as an invocation; the returned hash does not prove compiler
+binding or runtime execution.
+
 For a source file without usable indexed declaration bounds, CodeMap and admitted
 file-impact targets offer a current-file excerpt action. Call
 `get_full_method_body` with `file_path` and no `line_end`; `line_start` defaults to

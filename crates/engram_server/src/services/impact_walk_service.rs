@@ -142,7 +142,11 @@ fn immediate_section(value: &Value, include_references: bool) -> Option<String> 
         "\n## First immediate indexed consumer\n\n{} — {}:{}{}\n{}\nOne next evidence read; other consumers and unknown branches follow. No runtime or safe-change proof.\n\n```json\n{}\n```\n",
         display(node["name"].as_str()?, 96),
         display(file, 160),
-        if excerpt {"unavailable".to_owned()}else{node["start_line"].to_string()},
+        if excerpt {
+            "unavailable".to_owned()
+        } else {
+            node["start_line"].to_string()
+        },
         references,
         scope,
         serde_json::to_string(&call).expect("JSON value serialization")
@@ -217,7 +221,12 @@ fn summary_section(
             "source_node_id":node["node_id"],"target_node_id":target.map(|node|&node["node_id"]),
             "kind":edge["kind"],"edge_generation":edge["edge_generation"],"source_generation":node["generation"],
             "edge_source_binding":edge.get("edge_source_binding").cloned().unwrap_or(json!("extraction_generation")),
-            "source_line":edge["source_line"],"recorded_position_read":action(&edge["recovery_ref"]),
+            "source_line":edge["source_line"],
+            "recorded_position_read":action(edge.get("recovery_ref").unwrap_or(&node["recovery_ref"])),
+            "source_position_kind":edge.get("source_position_kind").cloned().unwrap_or(json!("not_recorded")),
+            "extractor_anchor_line":edge["extractor_anchor_line"],
+            "reference_lines":edge.get("reference_lines").cloned().unwrap_or(json!([])),
+            "reference_lines_truncated":edge.get("reference_lines_truncated").cloned().unwrap_or(json!(false)),
             "source_position_scope":if edge["source_line"].is_null(){"not_recorded"}else{"indexed_metadata_only"}
         }))})
     };
@@ -442,8 +451,12 @@ impl CompactEvidence<'_> {
     }
 
     fn file_excerpt_recovery(&self, file: &str) -> Result<RecoveryDraft> {
-        self.recovery("get_full_method_body",json!({"project_id":self.project,
-            "file_path":file,"context_lines":0,"output_json":true}),"file_excerpt")
+        self.recovery(
+            "get_full_method_body",
+            json!({"project_id":self.project,
+            "file_path":file,"context_lines":0,"output_json":true}),
+            "file_excerpt",
+        )
     }
 
     fn lookup_recovery(&self, endpoint: &Endpoint<'_>) -> Result<RecoveryDraft> {
@@ -507,9 +520,12 @@ impl CompactEvidence<'_> {
             {
                 self.range_recovery(file, start, end)?
             }
-            _ if endpoint.admission=="selected" && endpoint.kind==Some("file")
+            _ if endpoint.admission == "selected"
+                && endpoint.kind == Some("file")
                 && endpoint.file.is_some_and(recovery_path) =>
-                self.file_excerpt_recovery(endpoint.file.expect("checked file path"))?,
+            {
+                self.file_excerpt_recovery(endpoint.file.expect("checked file path"))?
+            }
             _ => self.lookup_recovery(endpoint)?,
         };
         let reference = format!("n{}", self.nodes.len());
@@ -599,9 +615,9 @@ fn render(
         "shortest_paths":[],"frontier":[],"recoveries":[],"continuation":null,
         "omitted_defaults":{
             "nodes":{"name_truncated":false,"optional_metadata":null},
-            "edges":{"edge_source_binding":"extraction_generation","connection_role":"shortest_predecessor","source_line":null},
+            "edges":{"edge_source_binding":"extraction_generation","connection_role":"shortest_predecessor","source_line":null,"source_position_kind":"not_recorded","extractor_anchor_line":null,"reference_lines":[],"reference_lines_truncated":false},
             "edge_source_generation":"Read nodes[source_ref].generation; edge_generation remains explicit. A different edge_generation requires the explicit verified_unchanged_caller_origin binding.",
-            "edge_recovery":"Absent recovery_ref means nodes[source_ref].recovery_ref. A recorded source_line inside that caller span is covered by the same range; outside it uses an explicit line recovery. No source_line means callsite not recorded. These are indexed positions, not runtime/value-flow proof."
+            "edge_recovery":"Absent recovery_ref means nodes[source_ref].recovery_ref. source_line is the first call/reference sample when available, otherwise a weaker extractor anchor. Inside the caller span it uses that range; outside it has an explicit line recovery. Other reference_lines can be read with explicit file/line bounds. Samples are not exhaustive; truncated means additional positions were omitted or uninspected. Indexed metadata does not prove current binding or execution."
         },
         "recovery_scopes":{
             "range":"Current-source range at indexed positions, not complete-file, method-boundary, callsite or value-flow proof. Verify returned file hash/freshness and project exclusions.",
@@ -614,7 +630,7 @@ fn render(
         "edge_direction":"source_ref is caller/dependent; target_ref is the reached dependency",
         "limitations":["Selected means indexed node/file revisions and edge extraction/origin admission, not compiler, runtime or proposed-change validation.",
         "Additional verified connections include cross/revisit edges; they do not enumerate every simple path or imply field/value flow.",
-        "Source-line evidence is recorded extractor metadata only. Declaration-range recovery is not a callsite. Current source may have changed; verify recovery hashes/freshness and project exclusions.",
+        "Source positions distinguish call_reference_syntax_metadata from weaker extractor_anchor_metadata. reference_lines contains at most 8 sorted recorded samples, never an exhaustive call list; a sample may be a delegate/property reference rather than a direct invocation. Declaration-range recovery is not a callsite. Current source may have changed; verify recovery hashes/freshness and project exclusions.",
         "Missing, unverified, dynamic and uninspected bindings remain unknown. Work/depth/byte caps may omit evidence; empty output proves no absence."]});
     let mut out = CompactEvidence {
         project,
@@ -731,6 +747,16 @@ fn render(
         }
         if let Some(line) = edge.source_line {
             row["source_line"] = json!(line);
+            row["source_position_kind"] = json!(edge.source_position_kind);
+        }
+        if !edge.reference_lines.is_empty() {
+            row["reference_lines"] = json!(edge.reference_lines);
+        }
+        if let Some(line) = edge.extractor_anchor_line {
+            row["extractor_anchor_line"] = json!(line);
+        }
+        if edge.reference_lines_truncated {
+            row["reference_lines_truncated"] = json!(true);
         }
         if recovery_ref != source_recovery {
             row["recovery_ref"] = json!(recovery_ref);
