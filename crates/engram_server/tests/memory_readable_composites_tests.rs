@@ -94,9 +94,12 @@ async fn overview_surfaces_memory_sections_and_insights() {
 
     let out = text(
         &engram
-            .get_codebase_overview(Parameters(engram_server::ProjectIdRequest {
-                project_id: pid.clone(),
-            }))
+            .get_codebase_overview(Parameters(
+                serde_json::from_value(serde_json::json!({
+                    "project_id":pid,"include_retained_context":true,
+                }))
+                .unwrap(),
+            ))
             .await
             .unwrap(),
     );
@@ -118,9 +121,12 @@ async fn overview_shows_memory_section_even_when_empty() {
     let (_t, _state, engram, pid) = setup().await;
     let out = text(
         &engram
-            .get_codebase_overview(Parameters(engram_server::ProjectIdRequest {
-                project_id: pid.clone(),
-            }))
+            .get_codebase_overview(Parameters(
+                serde_json::from_value(serde_json::json!({
+                    "project_id":pid,"include_retained_context":true,
+                }))
+                .unwrap(),
+            ))
             .await
             .unwrap(),
     );
@@ -230,9 +236,12 @@ async fn overview_surfaces_stale_note_count() {
     state.registry.put_memory_section(&pid, &sec).unwrap();
     let out = text(
         &engram
-            .get_codebase_overview(Parameters(engram_server::ProjectIdRequest {
-                project_id: pid,
-            }))
+            .get_codebase_overview(Parameters(
+                serde_json::from_value(serde_json::json!({
+                    "project_id":pid,"include_retained_context":true,
+                }))
+                .unwrap(),
+            ))
             .await
             .unwrap(),
     );

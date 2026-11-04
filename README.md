@@ -196,9 +196,10 @@ Typed graph across seven concern domains:
 - **Runtime evidence** — `ObservedRuntimeControl`, `ObservedRuntimeSql`
 
 Query by type / name / file. BFS traversal up to 12 hops with edge-kind
-filters. `compute_blast_radius` returns a 1–10 risk score with
-seam-candidate identification; `impact_analysis` estimates what breaks
-if a file or symbol changes; `detect_design_patterns` surfaces
+filters. `compute_blast_radius` returns an advisory 1–10 score alongside
+revision-admitted dependency evidence; `impact_analysis` shows potential
+downstream exposure when a file or symbol changes. Neither simulates the
+proposed edit or proves runtime breakage. `detect_design_patterns` surfaces
 Repository / Factory / Singleton / Observer structures. Runtime-evidence
 edges let you cross-check static extraction against actual observed
 behaviour.
@@ -941,7 +942,7 @@ cancellation of a running watcher update.
 | `get_chunk` | Fetch content for a chunk ID |
 | `graph_search` | Hybrid text + symbol match with edge expansion |
 | `find_symbol_references` | Incoming / outgoing edges for a symbol across all edge kinds |
-| `get_codebase_overview` | Selected source files/chunks, file-type proportions and directory map; separately labelled chunk-language proportions, retained history and full-graph inventory |
+| `get_codebase_overview` | Scoped CodeMap with diverse current file representatives, declaration identities and executable source/context/impact follow-ups; retained context is opt-in |
 | `analyze_error_stack` | Multi-language structured stacktrace parser with frame-boosted search |
 
 </details>
@@ -952,19 +953,31 @@ cancellation of a running watcher update.
 | Tool | Purpose |
 |---|---|
 | `query_graph_nodes` · `find_references` · `traverse_graph` | Core graph operations |
-| `impact_analysis` | Bounded revision-admitted downstream causal paths with per-hop witnesses; separate unverified live-graph context and historical companions |
+| `impact_analysis` | Compact revision-admitted dependency graph, shortest paths, alternate connections and named recovery frontiers; historical companions are separate |
 | `ast_dependency_graph` | BFS with edge-kind filters, up to 12 hops; tree or JSON output |
 | `compute_blast_radius` | Advisory one-hop score plus a separate bounded revision-admitted downstream path walk; no safe-change or complete-impact guarantee |
 | `detect_design_patterns` | Structural pattern detection (Repository, Factory, Singleton…) |
 
 
-Both impact tools lead with revision-admitted causal paths. `max_depth` defaults
+CodeMap supports literal project-relative `scope` and `exclude_paths`, plus
+`offset`/`limit` for file navigation. Start with diverse project representatives,
+follow an area's supplied exploration call, then open a returned source range or
+method context. Directory groups and filename priorities are navigation
+heuristics; they do not establish runtime architecture. Memory/history context
+requires `include_retained_context: true` and remains separate from current source.
+
+Both impact tools return the same revision-admitted dependency graph. `max_depth` defaults
 to six (valid range 1..8); one requests direct callers only. Each displayed path
 retains its intermediate source locations and edge witnesses. Deeper paths are
 shown first under the response budget, with explicit display omissions. A file
 query names the contained declaration where each causal path starts; containment
 itself is not presented as a causal hop. Older live-graph counts and the one-hop
-risk score remain separately labelled advisory evidence.
+risk score remain separately labelled advisory evidence. Schema version 2 stores
+file/node identities once and connects them with local references. Additional
+verified connections preserve alternate routes that shortest paths alone hide.
+Missing or bounded branches have named frontiers and copyable recovery calls;
+identity, edge and path omissions are counted separately. Source-range recovery
+checks current bytes and does not establish a runtime callsite or method boundary.
 
 An unchanged caller can keep an older physical file revision when its callee
 moves. Internally bound caller-origin evidence preserves that relationship across

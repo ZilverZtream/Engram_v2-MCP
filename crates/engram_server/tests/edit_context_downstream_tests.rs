@@ -331,19 +331,31 @@ fn one_direct_caller_still_requires_downstream_review_of_http_and_ui_in_both_edi
         let evidence = &downstream["evidence"];
         assert_eq!(evidence["change_breakage_proven"], false);
         assert_eq!(evidence["working_tree_checked"], false);
-        let rows = evidence["dependents"].as_array().unwrap();
+        let rows = evidence["nodes"].as_array().unwrap();
+        let root = rows
+            .iter()
+            .find(|row| row["node_id"] == id(POLICY, "Policy.ClassifyAutomatic", 2))
+            .unwrap();
         for (path, fqn, line, depth) in [
             (HTTP, "HttpViewport.GetFileLayerViewport", 2, 5),
             (UI, "MapPage.Page_Load", 3, 6),
         ] {
             let wanted = id(path, fqn, line);
             let row = rows.iter().find(|row| row["node_id"] == wanted).unwrap();
+            assert_eq!(row["admission"], "selected");
             assert_eq!(row["depth"], depth);
             assert_eq!(
                 row["generation"], 1,
                 "Unchanged inherited source is valid under the newer selected head"
             );
-            assert_eq!(row["path"][0], id(POLICY, "Policy.ClassifyAutomatic", 2));
+            let witness = evidence["shortest_paths"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|path| path["dependent_ref"] == row["ref"])
+                .unwrap();
+            assert_eq!(witness["node_refs"][0], root["ref"]);
+            assert_eq!(witness["node_refs"].as_array().unwrap().len(), depth + 1);
         }
     });
 }
@@ -469,7 +481,12 @@ fn unverified_missing_and_noncausal_records_do_not_inflate_shared_downstream_cou
             "Partial downstream status must retain reasons instead of pretending a display cap was hit"
         );
         let evidence = &downstream["evidence"];
-        for row in evidence["dependents"].as_array().unwrap() {
+        for row in evidence["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|node| node["admission"] == "selected")
+        {
             assert_ne!(row["node_id"], historical);
             assert_ne!(row["node_id"], id(POLICY, "Policy.ObsoleteCaller", 11));
             assert_ne!(row["node_id"], id(SPATIAL, "Spatial.FutureCaller", 11));

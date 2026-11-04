@@ -2154,6 +2154,58 @@ impl GraphStore {
 
     // ── Insights ─────────────────────────────────────────────────────────────
 
+    /// Optional retained context only: seek standard insight identities without
+    /// scanning other project nodes. Recency is within the bounded prefix
+    /// sample; true means records or metadata could not all be inspected.
+    pub fn insight_title_sample(
+        &self,
+        project_id: &str,
+        limit: usize,
+    ) -> anyhow::Result<(Vec<(String, u64)>, usize, bool)> {
+        use bincode::Options;
+        anyhow::ensure!(limit>0 && limit<=8 && !project_id.is_empty()
+            && project_id.len()<=1024 && !project_id.chars().any(char::is_control),
+            "Invalid retained insight sample bounds");
+        let prefix=format!("{project_id}\0insight:");
+        let tx=self.db.begin_read()?;
+        let table=tx.open_table(NODES)?;
+        let mut observed=0usize;
+        let mut decoded_bytes=0usize;
+        let mut incomplete=false;
+        let mut titles=Vec::new();
+        for row in table.range(prefix.as_str()..)? {
+            let (key,raw)=row?;
+            if !key.value().starts_with(&prefix){break;}
+            if observed==128{incomplete=true;break;}
+            observed+=1;
+            let bytes=raw.value();
+            if key.value().len()>3073 || bytes.len()>64*1024
+                || decoded_bytes.saturating_add(bytes.len())>1024*1024 {
+                incomplete=true;
+                continue;
+            }
+            decoded_bytes+=bytes.len();
+            let node:Node=match bincode::DefaultOptions::new().with_fixint_encoding()
+                .with_limit(64*1024).reject_trailing_bytes().deserialize(bytes) {
+                Ok(node)=>node,
+                Err(_)=>{incomplete=true;continue;},
+            };
+            if node.node_type!="insight" || node.namespace!=engram_core::namespaces::NAMESPACE_INSIGHTS
+                || !node.node_id.starts_with("insight:")
+                || key.value().strip_prefix(project_id).and_then(|tail|tail.strip_prefix('\0'))!=Some(node.node_id.as_str()) {
+                incomplete=true;
+                continue;
+            }
+            let created=node.metadata.as_ref().and_then(|meta|meta.get("created_at_ms"))
+                .and_then(serde_json::Value::as_u64).unwrap_or(0);
+            let title=node.name[..node.name.floor_char_boundary(256)].to_owned();
+            titles.push((title,created));
+            titles.sort_by(|a,b|b.1.cmp(&a.1).then_with(||a.0.cmp(&b.0)));
+            titles.truncate(limit);
+        }
+        Ok((titles,observed,incomplete))
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn create_insight(
         &self,
