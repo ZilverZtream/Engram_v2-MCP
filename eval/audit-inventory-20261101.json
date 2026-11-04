@@ -8419,17 +8419,46 @@
             "sha256": "ce9e91e4fcfdbf269ece26c00e0e1772921bf6394fd54169b9a14c13c6f53fc8"
           },
           "qualification": "The first three CodeMap calls used an initial five-schema harness. Full search discovery was supplied before call four. This was not an unrestricted toolbelt comparison or held-out benchmark.",
-          "next_highest_value": "Reduce exact-file declaration pages while preserving identities, kinds, ranges, coverage, pagination, and an executable source action. Offer richer actions for a selected declaration."
+          "next_highest_value": "Compact declaration pages are delivered in 3a55587. The full lockout-policy investigation remains partial and must be repeated with complete tool discovery before any broad usefulness claim."
         },
         "remaining": [
           "Recorded invocation location quality: graph line 92 is the declaration; the actual invocation is line 96. The summary labels it as metadata, but extractor accuracy is not fixed.",
           "SQL file targets with 0..0 ranges lack useful source/invocation recovery; the provider/configuration consumer chain remains unresolved.",
           "Broader actual task coverage and the regular multi-category CI benchmark remain unfinished."
         ]
+      },
+      "compact_declaration_pages": {
+        "state": "Deployed and verified on OciusX and the installed normal daemon; broader tool quality remains unfinished.",
+        "source_commit": "3a55587",
+        "deployed_evidence": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-codemap-pages-deployed-evidence-20261104.json",
+          "sha256": "7ecbcbe20a768d3ab1e2beee96b21424f3a1376ba96cbb45e252b33ca2be5cf9"
+        },
+        "actual_pages": [
+          {
+            "symbol_offset": 0,
+            "before_bytes": 20378,
+            "after_bytes": 13269,
+            "same16identities_and_ranges": true
+          },
+          {
+            "symbol_offset": 16,
+            "before_bytes": 17646,
+            "after_bytes": 13060,
+            "same16identities_and_ranges": true
+          }
+        ],
+        "combined_reduction_percent": 30.76,
+        "behavior": "Default pages preserve 16 ordered declarations and source reads where indexed bounds are usable. symbol_node_id selects one exact admitted declaration for richer source/context/compact-impact actions. No per-row expansion RPC duplication or name fallback.",
+        "agent_task": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-selected-security-consumer-assessment-20261104.json",
+          "sha256": "c3ec56a53a2b156284ea29271b69ffaf273462a62946018cedff79ca3164a28d"
+        },
+        "quality_followup": "The canonical VB caller is already admitted; the malformed orphan identity remains unresolved. The fallback nested-type ownership defect needs correction and extraction-version planning, but the current orphan origin is not proved. No alias or broad reindex was performed."
       }
     }
   },
-  "last_updated_at": "2026-11-04T20:45:20.914566+00:00",
+  "last_updated_at": "2026-11-04T21:22:21.092222+00:00",
   "current_execution_focus": {
     "at_utc": "2026-11-04T11:12:56.875854+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
@@ -8462,7 +8491,7 @@
       }
     ],
     "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
-    "next_user_visible_deliverable": "Improve CodeMap and Blast Radius for agents: reduce repeated actions on exact-file declaration pages while preserving identities, source reads, coverage, pagination, and richer actions for a selected declaration. Recheck the actual security pages and repeat the task with complete tool discovery. Keep SQL recovery/provider-chain and callsite-position gaps explicitly open.",
+    "next_user_visible_deliverable": "Continue core CodeMap/Blast quality: provide bounded, hash-bound executable source recovery for SQL/file targets with unusable 0..0 declaration ranges. Preserve explicit range-versus-method scope and current-byte/freshness limits. Keep precise invocation positions and fallback owner/orphan lineage as open findings; the canonical caller is already admitted, so do not alias or broadly reindex based on its malformed duplicate. The broader audit and regular task benchmark remain unfinished.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
