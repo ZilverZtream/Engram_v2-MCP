@@ -118,6 +118,7 @@ fn immediate_section(value: &Value, include_references: bool) -> Option<String> 
         clipped
     };
     let call = json!({"tool":recovery["tool"],"arguments":recovery["arguments"]});
+    let excerpt = recovery["scope_ref"] == "file_excerpt";
     let references = if include_references {
         format!(
             " (node {}; edge {}; recovery {}).",
@@ -125,11 +126,15 @@ fn immediate_section(value: &Value, include_references: bool) -> Option<String> 
             edge["ref"].as_str()?,
             recovery["ref"].as_str()?
         )
+    } else if excerpt {
+        " (declaration range unavailable).".into()
     } else {
         format!("–{}.", node["end_line"])
     };
     let scope = if recovery["scope_ref"] == "range" {
         "Read the indexed declaration range from the current file. The action has not run; inspect its returned hash and verification. Complete-method boundaries and invocation location are unverified."
+    } else if excerpt {
+        "Read a bounded current-file excerpt. Compare its returned hash and pagination metadata; method boundaries, indexed freshness and invocation location are unverified."
     } else {
         "Navigate declarations under a fresh source selection. This action does not read or verify the consumer body."
     };
@@ -137,7 +142,7 @@ fn immediate_section(value: &Value, include_references: bool) -> Option<String> 
         "\n## First immediate indexed consumer\n\n{} — {}:{}{}\n{}\nOne next evidence read; other consumers and unknown branches follow. No runtime or safe-change proof.\n\n```json\n{}\n```\n",
         display(node["name"].as_str()?, 96),
         display(file, 160),
-        node["start_line"],
+        if excerpt {"unavailable".to_owned()}else{node["start_line"].to_string()},
         references,
         scope,
         serde_json::to_string(&call).expect("JSON value serialization")
@@ -205,8 +210,9 @@ fn summary_section(
         "file_path":node["file_ref"].as_str().and_then(|reference| files.get(reference)),
         "start_line":node["start_line"],"end_line":node["end_line"],"generation":node["generation"],
         "admission":node["admission"],"source_read":action(&node["recovery_ref"]),
-        "source_read_scope":recovery.map(|row|if row["scope_ref"] == "range" {
-            "explicit_source_range" } else { "selected_source_navigation" }),
+        "source_read_scope":recovery.map(|row|match row["scope_ref"].as_str() {
+            Some("range")=>"explicit_source_range",Some("file_excerpt")=>"current_file_excerpt",
+            _=>"selected_source_navigation"}),
         "sample_connection_to_target":connection.map(|edge|json!({
             "source_node_id":node["node_id"],"target_node_id":target.map(|node|&node["node_id"]),
             "kind":edge["kind"],"edge_generation":edge["edge_generation"],"source_generation":node["generation"],
@@ -435,6 +441,11 @@ impl CompactEvidence<'_> {
             "range")
     }
 
+    fn file_excerpt_recovery(&self, file: &str) -> Result<RecoveryDraft> {
+        self.recovery("get_full_method_body",json!({"project_id":self.project,
+            "file_path":file,"context_lines":0,"output_json":true}),"file_excerpt")
+    }
+
     fn lookup_recovery(&self, endpoint: &Endpoint<'_>) -> Result<RecoveryDraft> {
         let (hint_file, _) = canonical_hint(endpoint.id);
         let file = endpoint
@@ -496,6 +507,9 @@ impl CompactEvidence<'_> {
             {
                 self.range_recovery(file, start, end)?
             }
+            _ if endpoint.admission=="selected" && endpoint.kind==Some("file")
+                && endpoint.file.is_some_and(recovery_path) =>
+                self.file_excerpt_recovery(endpoint.file.expect("checked file path"))?,
             _ => self.lookup_recovery(endpoint)?,
         };
         let reference = format!("n{}", self.nodes.len());
@@ -591,6 +605,7 @@ fn render(
         },
         "recovery_scopes":{
             "range":"Current-source range at indexed positions, not complete-file, method-boundary, callsite or value-flow proof. Verify returned file hash/freshness and project exclusions.",
+            "file_excerpt":"Bounded current-file lines with a complete-file hash. Follow next_page and compare hashes across fresh reads; no indexed freshness, method boundaries or invocation location is verified.",
             "navigation":"Bounded selected-source CodeMap for the known file, or a project representative when the file is unknown. Best-effort exploration only: no recovered binding, absence or runtime proof.",
             "direct":"Narrow direct impact for the admitted exact identity. A follow-up uses its own source selection; no complete pagination or atomic replay is promised.",
         },

@@ -1393,11 +1393,17 @@ impl Engram {
                         serde_json::json!({"tool":"get_codebase_overview","arguments":{"project_id":pid,"scope":path,
                             "exclude_paths":worker_request.exclude_paths,"offset":0,"limit":1,"symbol_offset":next_offset}})
                     }else{serde_json::Value::Null};
+                    let mut file_actions=vec![serde_json::json!({"tool":"get_codebase_overview","arguments":{"project_id":pid,"scope":path,
+                        "exclude_paths":worker_request.exclude_paths,"offset":0,"limit":1}})];
+                    if !symbols.iter().any(|symbol|symbol["actions"].as_array().is_some_and(|actions|
+                        actions.iter().any(|action|action["tool"]=="get_full_method_body"))) {
+                        file_actions.push(serde_json::json!({"tool":"get_full_method_body","arguments":{
+                            "project_id":pid,"file_path":path,"context_lines":0,"output_json":true}}));
+                    }
                     let mut row=serde_json::json!({"path":path,"physical_generation":revision,"area":area,"symbols":symbols,
                         "symbol_offset":symbol_offset,"symbol_display_limited":if selected.is_some(){symbols.len()<nodes.len()}else{next_offset<nodes.len()},
                         "declarations_observed":nodes.len(),"next_symbols":next_symbols,
-                        "actions":[{"tool":"get_codebase_overview","arguments":{"project_id":pid,"scope":path,
-                            "exclude_paths":worker_request.exclude_paths,"offset":0,"limit":1}}]});
+                        "actions":file_actions});
                     if let Some(id)=selected {
                         row["symbol_selection"]=serde_json::json!({"node_id":id,"observed":!symbols.is_empty(),
                             "scope":"exact_identity_in_bounded_admitted_declarations; not observed does not prove absent"});
@@ -1431,6 +1437,8 @@ impl Engram {
                 "Missing declarations or an empty bounded sample do not prove absence of code, consumers or entry points. Legacy file coverage is unknown.",
                 "Root/area previews show one declaration; exact-file pages show16 observed declarations with source-range actions and next_symbols (offset0..128). Set symbol_node_id to a listed identity under the exact-file scope with both offsets0 for that declaration's full actions. Selection is a fresh observation: compare source_generation and coverage; it is not atomic continuation. No match means not observed in the bounded admitted sample, not absent code.",
                 "Ranges are indexed positions capped to120lines; follow-up verifies current bytes, not full methods or runtime entry points. Declaration discovery coverage is reported once above."]});
+        navigation["limitations"].as_array_mut().expect("limitations array").push(serde_json::json!(
+            "If no displayed declaration offers a source range, the file action offers a bounded current-file excerpt. This reads current bytes only when executed; compare page hashes and do not infer method boundaries or indexed freshness."));
         let mut areas=Vec::new();
         for (area,count) in &paths.areas {
             areas.push(serde_json::json!({"scope":area,"selected_files":count,"explore":explore(area,0)}));

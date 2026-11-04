@@ -127,6 +127,142 @@ pub struct MethodBodyResult {
     pub language: String,
     pub caller_bodies: Vec<CallerBody>,
     pub caller_expansion: CallerExpansion,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_excerpt: Option<FileExcerptPage>,
+}
+
+const EXCERPT_FILE_BYTES: u64 = 4 * 1024 * 1024;
+pub const EXCERPT_RESPONSE_BYTES: usize = 32 * 1024;
+const EXCERPT_LINES: usize = 120;
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FileExcerptPage {
+    pub total_lines: u32,
+    pub returned_lines: u32,
+    pub reaches_eof: bool,
+    pub next_page: Option<serde_json::Value>,
+    pub read_limit_bytes: u64,
+    pub response_limit_bytes: usize,
+    pub max_lines: usize,
+    pub page_semantics: &'static str,
+}
+
+fn excerpt_next_page(
+    project: &str,
+    file: &str,
+    start: u32,
+    output_json: bool,
+) -> serde_json::Value {
+    serde_json::json!({"tool":"get_full_method_body","arguments":{
+        "project_id":project,"file_path":file,"line_start":start,"context_lines":0,"output_json":output_json}})
+}
+
+fn current_file_excerpt(
+    graph: &GraphStore,
+    project: &str,
+    directory: &Path,
+    request: &GetFullMethodBodyRequest,
+) -> Result<MethodBodyResult, String> {
+    use std::io::Read;
+    let file = request
+        .file_path
+        .as_deref()
+        .ok_or("A file path is required")?;
+    if file.is_empty() || file.len() > 2048 || file.chars().any(char::is_control) {
+        return Err(
+            "Use a nonempty relative file path up to2048bytes without control characters".into(),
+        );
+    }
+    let start = request.line_start.unwrap_or(1);
+    if start == 0 {
+        return Err("Invalid excerpt start: use1-based source lines".into());
+    }
+    let path = safe_join(directory, file).map_err(|e| format!("Path validation failed: {e}"))?;
+    let handle = std::fs::File::open(&path).map_err(|e| format!("Cannot open source file: {e}"))?;
+    let metadata = handle
+        .metadata()
+        .map_err(|e| format!("Cannot inspect source file: {e}"))?;
+    if !metadata.is_file() {
+        return Err("Source excerpts require a regular file".into());
+    }
+    if metadata.len() > EXCERPT_FILE_BYTES {
+        return Err("Source file exceeds the4MiB excerpt read limit".into());
+    }
+    let mut bytes = Vec::with_capacity(metadata.len() as usize);
+    handle
+        .take(EXCERPT_FILE_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|e| format!("Cannot read source file: {e}"))?;
+    if bytes.len() as u64 > EXCERPT_FILE_BYTES {
+        return Err("Source file exceeds the4MiB excerpt read limit".into());
+    }
+    let hash = blake3::hash(&bytes).to_hex().to_string();
+    let source = String::from_utf8(bytes).map_err(|e| format!("Source is not valid UTF-8: {e}"))?;
+    let total = source.lines().count() as u32;
+    if (total == 0 && start != 1) || (total > 0 && start > total) {
+        return Err(format!(
+            "Invalid excerpt start {start}; file has {total} lines"
+        ));
+    }
+    let mut selected = Vec::new();
+    let mut length = 0usize;
+    for line in source
+        .lines()
+        .skip((start - 1) as usize)
+        .take(EXCERPT_LINES)
+    {
+        let next = length + line.len() + usize::from(!selected.is_empty());
+        if next > EXCERPT_RESPONSE_BYTES {
+            break;
+        }
+        selected.push(line);
+        length = next;
+    }
+    if total > 0 && selected.is_empty() {
+        return Err("The first requested line exceeds the32KiB excerpt response budget; no source was clipped or skipped".into());
+    }
+    let returned = selected.len() as u32;
+    let end = if total == 0 { 0 } else { start + returned - 1 };
+    let (caller_bodies, mut caller_expansion) = expand_caller_bodies(
+        graph,
+        project,
+        directory.to_str().ok_or("Project path is not UTF-8")?,
+        None,
+        request.include_caller_bodies,
+        request.max_callers,
+    );
+    if request.include_caller_bodies {
+        caller_expansion.status = "unsupported_file_excerpt".into();
+        caller_expansion.omission_reason = Some(
+            "A file excerpt does not resolve a unique indexed method for caller expansion.".into(),
+        );
+    }
+    Ok(MethodBodyResult {
+        retrieval_scope: "current_file_excerpt",
+        boundary_guidance: "These are bounded current-file lines, not a resolved method. Surrounding context is omitted. The hash binds the returned lines to the loaded complete-file bytes; it does not verify indexed-generation freshness, method boundaries or invocation locations.",
+        source_verification: "current_file_snapshot_not_index_verified",
+        source_file_hash: hash,
+        fqn: "(file excerpt)".into(),
+        file_path: file.into(),
+        line_start: if total == 0 { 0 } else { start },
+        line_end: end,
+        source_code: selected.join("\n"),
+        surrounding_context: String::new(),
+        language: engram_core::types::guess_language(Path::new(file)).into(),
+        caller_bodies,
+        caller_expansion,
+        file_excerpt: Some(FileExcerptPage {
+            total_lines: total,
+            returned_lines: returned,
+            reaches_eof: end == total,
+            next_page: (end < total)
+                .then(|| excerpt_next_page(project, file, end + 1, request.output_json)),
+            read_limit_bytes: EXCERPT_FILE_BYTES,
+            response_limit_bytes: EXCERPT_RESPONSE_BYTES,
+            max_lines: EXCERPT_LINES,
+            page_semantics: "Each page is a fresh current-file read, not atomic pagination. Compare source_file_hash before combining pages. Complete lines are preserved; an oversized first line fails explicitly.",
+        }),
+    })
 }
 
 /// Execution of optional caller-body expansion, not a claim of consumer coverage.
@@ -2310,6 +2446,26 @@ fn expand_caller_bodies(
 }
 
 fn render_method_body_markdown(result: &MethodBodyResult) -> String {
+    if let Some(page) = &result.file_excerpt {
+        let mut longest = 0usize;
+        let mut run = 0usize;
+        for byte in result.source_code.bytes() {
+            run = if byte == b'`' {run + 1} else {0};
+            longest = longest.max(run);
+        }
+        let fence = "`".repeat(longest.max(2) + 1);
+        let mut md = format!("# Current File Excerpt\n\n{}\n\n**File**: `{}` (lines {}–{}; {} total lines)\n\n**Source verification**: `{}`\n\n**Source file BLAKE3**: `{}`\n\n{}{}\n{}\n{}\n\n{}\n",
+            result.boundary_guidance,result.file_path,result.line_start,result.line_end,page.total_lines,
+            result.source_verification,result.source_file_hash,fence,result.language,result.source_code,fence,page.page_semantics);
+        if let Some(next) = &page.next_page {
+            md.push_str(&format!("\n## Next excerpt\n\n```json\n{}\n```\n",serde_json::to_string_pretty(next).expect("JSON value serialization")));
+        }
+        if result.caller_expansion.requested {
+            md.push_str(&format!("\nCaller expansion: requested; attempted=false; status={}. {}\n",
+                result.caller_expansion.status,result.caller_expansion.omission_reason.as_deref().unwrap_or_default()));
+        }
+        return md;
+    }
     let mut md = String::with_capacity(4_000);
 
     let lang_tag = if result.language.contains("vb") {
@@ -3648,8 +3804,12 @@ impl Engram {
         let file_path = req.file_path.clone();
         let line_start = req.line_start;
         let line_end = req.line_end;
+        let excerpt_request = req.clone();
 
         let result = tokio::task::spawn_blocking(move || {
+            if fqn.is_none() && file_path.is_some() && line_end.is_none() {
+                return current_file_excerpt(&graph,&project_id,Path::new(&project_dir),&excerpt_request);
+            }
             // Determine file_path, line_start, line_end
             let target_node = fqn.as_deref()
                 .map(|query| resolve_unique_function(&graph, &project_id, query))
@@ -3674,7 +3834,7 @@ impl Engram {
                     ("(direct)".to_string(), fp.clone(), start, end, lang)
                 } else {
                     return Err(
-                        "Either `fqn` or (`file_path` + `line_start` + `line_end`) must be provided."
+                        "Provide `fqn`, `file_path` for a bounded current-file excerpt, or `file_path` with both explicit line bounds."
                             .to_string(),
                     );
                 };
@@ -3718,12 +3878,13 @@ impl Engram {
                 language,
                 caller_bodies,
                 caller_expansion,
+                file_excerpt:None,
             })
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        let body_result = result.map_err(|e| McpError::invalid_params(e, None))?;
+        let mut body_result = result.map_err(|e| McpError::invalid_params(e, None))?;
 
         let (banner, footer) = self
             .access_freshness(
@@ -3732,22 +3893,34 @@ impl Engram {
                 Some(body_result.file_path.as_str()),
             )
             .await;
-        if output_json {
-            let json = serde_json::to_string_pretty(&FreshAccessResponse {
-                result: &body_result,
-                freshness: AccessFreshness {
-                    warning: banner,
-                    details: footer,
-                },
-            })
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        loop {
+            let out = if output_json {
+                serde_json::to_string_pretty(&FreshAccessResponse {result:&body_result,
+                    freshness:AccessFreshness {warning:banner.clone(),details:footer.clone()}})
+                    .map_err(|e|McpError::internal_error(e.to_string(),None))?
+            } else {
+                let mut out=banner.clone().unwrap_or_default();
+                out.push_str(&render_method_body_markdown(&body_result));
+                out.push_str(&footer);
+                out
+            };
+            let Some(page)=body_result.file_excerpt.as_mut() else {
+                return Ok(CallToolResult::success(vec![Content::text(out)]));
+            };
+            if out.len()<=EXCERPT_RESPONSE_BYTES {
+                return Ok(CallToolResult::success(vec![Content::text(out)]));
+            }
+            if page.returned_lines<=1 {
+                return Err(McpError::invalid_params("The first requested line and response metadata exceed the32KiB excerpt response budget; no source was clipped or skipped",None));
+            }
+            let cut=body_result.source_code.rfind('\n')
+                .ok_or_else(||McpError::internal_error("Excerpt line metadata is inconsistent",None))?;
+            body_result.source_code.truncate(cut);
+            body_result.line_end-=1;
+            page.returned_lines-=1;
+            page.reaches_eof=false;
+            page.next_page=Some(excerpt_next_page(&req.project_id,&body_result.file_path,body_result.line_end+1,output_json));
         }
-
-        let mut out = banner.unwrap_or_default();
-        out.push_str(&render_method_body_markdown(&body_result));
-        out.push_str(&footer);
-        Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
     // ── 38-3: get_method_edit_context ─────────────────────────────────────

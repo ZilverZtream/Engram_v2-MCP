@@ -992,6 +992,18 @@ observations and may repeat an identity; zero unknown observations does not
 resolve missing-node or depth gaps. Source-range reads verify returned current
 bytes, not complete-method boundaries or invocation locations.
 
+For a source file without usable indexed declaration bounds, CodeMap and admitted
+file-impact targets offer a current-file excerpt action. Call
+`get_full_method_body` with `file_path` and no `line_end`; `line_start` defaults to
+one. This mode reads at most 4 MiB and returns at most 120 complete lines within
+32 KiB of rendered tool text, including JSON escaping and freshness metadata.
+It returns actual bounds, total lines, the complete-file BLAKE3 hash, and a
+copyable `file_excerpt.next_page` action. Pages are fresh reads: compare hashes
+before combining them. An oversized first line fails explicitly. Excerpts omit
+surrounding context and cannot expand callers; they establish neither method
+boundaries nor indexed-generation freshness. Explicit-end ranges and unique-FQN
+method retrieval retain their existing validation.
+
 Both impact tools return the same revision-admitted dependency graph. `max_depth` defaults
 to six (valid range 1..8); one requests direct callers only. Each displayed path
 retains its intermediate source locations and edge witnesses. Deeper paths are
