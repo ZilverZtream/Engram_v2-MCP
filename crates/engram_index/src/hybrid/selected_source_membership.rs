@@ -293,11 +293,21 @@ impl SelectedSourceRevisionLookup {
         }
         let mut ranked: Vec<_> = groups.into_iter().collect();
         ranked.sort_by(|a,b| b.1.0.cmp(&a.1.0).then_with(|| a.0.cmp(b.0)));
-        if ranked.len() > 32 { areas_truncated = true; ranked.truncate(32); }
         let available = if scope.is_none() {
+            // File representatives use the strongest basename lead in each
+            // retained group before area size. The independently count-ranked
+            // area display must not hide a small role-bearing source area.
+            let mut representatives: Vec<_> = ranked.iter().collect();
+            representatives.sort_by(|a,b| {
+                let role = |group: &(&str, (usize, Vec<(&str, u64)>))|
+                    group.1.1.first().map_or(0, |(path,_)| priority(path));
+                role(b).cmp(&role(a))
+                    .then_with(|| b.1.0.cmp(&a.1.0))
+                    .then_with(|| a.0.cmp(b.0))
+            });
             let mut diverse = Vec::new();
             for round in 0..2 {
-                for (area, (_, paths)) in &ranked {
+                for (area, (_, paths)) in &representatives {
                     if let Some((path,generation)) = paths.get(round) { diverse.push((*path,*generation,*area)); }
                 }
             }
@@ -305,6 +315,7 @@ impl SelectedSourceRevisionLookup {
             page.extend(diverse.into_iter().skip(offset).take(limit));
             available
         } else { matching };
+        if ranked.len() > 32 { areas_truncated = true; ranked.truncate(32); }
         let next_offset = (offset + page.len() < available && !page.is_empty()).then_some(offset + page.len());
         Ok(SelectedSourceNavigation {
             matching_files: (!scan_truncated).then_some(matching), inspected_files: inspected,

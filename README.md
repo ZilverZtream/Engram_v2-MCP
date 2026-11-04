@@ -964,7 +964,9 @@ CodeMap supports literal project-relative `scope` and `exclude_paths`, plus
 follow an area's supplied exploration call, then open a returned source range or
 method context. The default preview covers eight files; exact-file responses
 provide `next_symbols` calls with `symbol_offset` for later declarations within
-the bounded discovery sample. Directory groups and filename priorities are navigation
+the bounded discovery sample. Generic role hints rank file representatives before
+area size; the separate area inventory remains ordered by selected-file count.
+Directory groups and filename priorities are navigation
 heuristics; they do not establish runtime architecture. Memory/history context
 requires `include_retained_context: true` and remains separate from current source.
 
@@ -977,6 +979,10 @@ itself is not presented as a causal hop. Older live-graph counts and the one-hop
 risk score remain separately labelled advisory evidence. Schema version 2 stores
 file/node identities once and connects them with local references. Additional
 verified connections preserve alternate routes that shortest paths alone hide.
+An initial inspection section exposes the first observed immediate consumer and
+one executable recovery before the full graph. The graph's `omitted_defaults`
+describes compact optional fields; an edge's source revision comes from its
+source node's physical generation, which can differ from the published HEAD.
 Missing or bounded branches have named frontiers and copyable recovery calls;
 identity, edge and path omissions are counted separately. Source-range recovery
 checks current bytes and does not establish a runtime callsite or method boundary.

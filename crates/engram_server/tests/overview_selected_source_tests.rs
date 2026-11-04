@@ -511,8 +511,14 @@ async fn navigate(engram: &Engram, arguments: Value) -> Value {
 
 #[test]
 fn codemap_diversifies_areas_and_its_scoped_recovery_opens_selected_source_without_prefix_starvation()
- {
-    owned_case(true, |engram, search| async move {
+{
+    for crowded in [false, true] {
+        codemap_navigation_case(crowded);
+    }
+}
+
+fn codemap_navigation_case(crowded: bool) {
+    owned_case(true, move |engram, search| async move {
         const JOB: &str = "src/bbb-jobs/service.rs";
         const POLICY: &str = "src/zzz-map/policy.rs";
         const PRIVATE: &str = "src/zzz-map/private.rs";
@@ -539,6 +545,19 @@ fn codemap_diversifies_areas_and_its_scoped_recovery_opens_selected_source_witho
                 (path, body)
             })
             .collect();
+        // More than the displayed area budget contain ordinary/resource files,
+        // each larger than the later policy and service areas. Initial task
+        // navigation must still offer those useful leads without a larger limit.
+        if crowded {
+            sources.extend((0..40).flat_map(|area| {
+                (0..3).map(move |part| {
+                    (
+                        format!("src/ordinary{area:02}/Part{part:02}.rs"),
+                        format!("pub fn Ordinary{area:02}_{part}() -> i32 {{ {part} }}\n"),
+                    )
+                })
+            }));
+        }
         let policy_source=format!("{POLICY_TEXT}{}",(0..24)
             .map(|number|format!("pub fn AaaExtra{number:02}() -> i32 {{ {number} }}\n"))
             .collect::<String>());
@@ -651,15 +670,22 @@ fn codemap_diversifies_areas_and_its_scoped_recovery_opens_selected_source_witho
         assert_eq!(report["source_generation"], 1);
         assert_eq!(report["working_tree_checked"], false);
         let files = report["files"].as_array().unwrap();
+        if crowded {
+            assert_eq!(files.len(), 8, "Useful leads must fit the default file budget");
+        }
+        assert_eq!(report["coverage"]["scan_truncated"], false);
+        assert_eq!(report["coverage"]["area_sample_truncated"], crowded);
         assert!(
             files
                 .iter()
                 .any(|file| file["path"].as_str().unwrap().starts_with("src/aaa-core/"))
         );
-        for needed in [JOB, POLICY, SCHEMA, SETTINGS] {
+        let needed: &[&str] = if crowded { &[JOB, POLICY, SETTINGS] }
+            else { &[JOB, POLICY, SCHEMA, SETTINGS] };
+        for &needed in needed {
             assert!(
                 files.iter().any(|file| file["path"] == needed),
-                "A large alphabetically early area must not hide another area from initial orientation: {needed}"
+                "Initial orientation must preserve useful leads (crowded={crowded}): {needed}"
             );
         }
         assert!(
@@ -667,20 +693,49 @@ fn codemap_diversifies_areas_and_its_scoped_recovery_opens_selected_source_witho
                 .iter()
                 .all(|file| ![PRIVATE, FROZEN, FUTURE].contains(&file["path"].as_str().unwrap()))
         );
-        let map_area = report["areas"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .find(|area| area["scope"] == "src/zzz-map")
-            .expect("The map area needs copyable drill-down");
-        assert_eq!(map_area["explore"]["tool"], "get_codebase_overview");
-        let scoped = navigate(&engram, map_area["explore"]["arguments"].clone()).await;
-        let scoped_files = scoped["files"].as_array().unwrap();
-        assert!(
-            scoped_files.iter().all(|file| file["path"] == POLICY),
-            "A returned scoped action must preserve exclusions and the same selected source membership"
-        );
-        let policy = scoped_files
+        if crowded {
+            let ordinary_area = report["areas"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|area| area["scope"] == "src/aaa-core")
+                .expect("Ordinary areas must retain copyable drill-down");
+            assert_eq!(ordinary_area["selected_files"], 32);
+            assert_eq!(ordinary_area["explore"]["tool"], "get_codebase_overview");
+            let mut ordinary = navigate(&engram, ordinary_area["explore"]["arguments"].clone()).await;
+            let mut ordinary_paths = std::collections::BTreeSet::new();
+            loop {
+                assert_eq!(ordinary["source_generation"], 1);
+                for file in ordinary["files"].as_array().unwrap() {
+                    let path = file["path"].as_str().unwrap();
+                    assert!(path.starts_with("src/aaa-core/"));
+                    assert!(ordinary_paths.insert(path.to_owned()), "Scoped file pages must not repeat identities");
+                }
+                if ordinary["next_page"].is_null() { break; }
+                assert_eq!(ordinary["next_page"]["arguments"]["exclude_paths"], json!(["Site/Q",PRIVATE]));
+                ordinary = navigate(&engram, ordinary["next_page"]["arguments"].clone()).await;
+            }
+            let expected_ordinary: std::collections::BTreeSet<_> = sources.iter()
+                .filter(|(path,_)|path.starts_with("src/aaa-core/"))
+                .map(|(path,_)|path.clone()).collect();
+            assert_eq!(ordinary_paths, expected_ordinary, "Scoped pagination must recover every selected ordinary file");
+        }
+        let policy_report = if crowded {
+            // The small area can be absent from the count-ranked area display;
+            // its root file representative must itself offer working recovery.
+            report.clone()
+        } else {
+            let map_area = report["areas"]
+                .as_array().unwrap().iter()
+                .find(|area| area["scope"] == "src/zzz-map")
+                .expect("The map area needs copyable drill-down");
+            assert_eq!(map_area["explore"]["tool"], "get_codebase_overview");
+            let scoped = navigate(&engram, map_area["explore"]["arguments"].clone()).await;
+            assert!(scoped["files"].as_array().unwrap().iter().all(|file| file["path"] == POLICY),
+                "A returned scoped action must preserve exclusions and the same selected source membership");
+            scoped
+        };
+        let policy = policy_report["files"].as_array().unwrap()
             .iter()
             .find(|file| file["path"] == POLICY)
             .unwrap();

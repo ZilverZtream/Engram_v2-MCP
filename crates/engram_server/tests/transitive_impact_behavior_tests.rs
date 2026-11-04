@@ -412,6 +412,8 @@ fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_iden
         let mut invalid_origin = edge(bad.clone(), root.clone(), EdgeKind::Calls, 1);
         invalid_origin.metadata = Some(json!({"_engram_source_origin":{
             "version":1,"source_id":bad,"source_generation":0}}));
+        let mut prepared_call = edge(viewport.clone(), cache.clone(), EdgeKind::Calls, 3);
+        prepared_call.metadata = Some(json!({"src_line":"3"}));
         // This case is a diamond, not recursion. Other cases retain genuine
         // source cycles; retire this owned fixture's old recursive bindings.
         fixture
@@ -430,7 +432,7 @@ fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_iden
                     edge(resolve.clone(), root.clone(), EdgeKind::Calls, 2),
                     edge(policy.clone(), resolve.clone(), EdgeKind::Calls, 3),
                     edge(cache.clone(), policy.clone(), EdgeKind::Calls, 3),
-                    edge(viewport.clone(), cache.clone(), EdgeKind::Calls, 3),
+                    prepared_call,
                     edge(viewport.clone(), policy.clone(), EdgeKind::Calls, 3),
                     edge(http.clone(), viewport.clone(), EdgeKind::Calls, 1),
                     edge(
@@ -477,7 +479,53 @@ fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_iden
             .map(|item| item.text.as_str())
             .collect();
         let mut observed_pairs = Vec::new();
-        for report in [impact_packet(&impact_text), impact_packet(&blast_text)] {
+        for public_text in [&impact_text, &blast_text] {
+            let first = &public_text[..public_text.floor_char_boundary(2048)];
+            assert!(
+                first.contains("Resolve — src/policy.rs:2"),
+                "An agent must see the immediate selected caller before the large graph"
+            );
+            let immediate = first
+                .split_once("## First immediate indexed consumer")
+                .unwrap()
+                .1;
+            let call: Value = serde_json::from_str(
+                immediate
+                    .split_once("```json")
+                    .unwrap()
+                    .1
+                    .split_once("```")
+                    .expect("The first2KiB must contain the complete executable next read")
+                    .0,
+            )
+            .unwrap();
+            assert_eq!(call["tool"], "get_full_method_body");
+            assert_eq!(call["arguments"]["file_path"], POLICY);
+            assert_eq!(call["arguments"]["line_start"], 2);
+            assert_eq!(call["arguments"]["line_end"], 2);
+            let next = fixture
+                .engram
+                .handle_get_full_method_body(
+                    serde_json::from_value(call["arguments"].clone()).unwrap(),
+                )
+                .await
+                .unwrap();
+            assert!(!next.is_error.unwrap_or(false));
+            let next: Value =
+                serde_json::from_str(&next.content[0].as_text().unwrap().text).unwrap();
+            assert_eq!(
+                next["source_code"],
+                "pub fn Resolve() -> i32 { ClassifyAutomatic() }"
+            );
+            assert_eq!(
+                next["source_file_hash"],
+                ContentHash::compute(POLICY_BODY.as_bytes()).0
+            );
+            assert_eq!(
+                next["source_verification"],
+                "explicit_range_current_file_snapshot"
+            );
+            let report = impact_packet(public_text);
             assert_eq!(report["source_generation"], 3);
             let nodes = report["nodes"].as_array().unwrap();
             let by_ref: std::collections::BTreeMap<_, _> = nodes
@@ -620,6 +668,26 @@ fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_iden
                 "Shared node references must avoid repeating the same full identity in every path and witness"
             );
             let recovery_ref = viewport_node["recovery_ref"].as_str().unwrap();
+            let prepared_call = report["edges"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|edge| {
+                    by_ref[edge["source_ref"].as_str().unwrap()]["node_id"] == viewport
+                        && by_ref[edge["target_ref"].as_str().unwrap()]["node_id"] == cache
+                })
+                .unwrap();
+            assert_eq!(
+                prepared_call["source_line"], 3,
+                "The recorded source reference line must survive compact rendering"
+            );
+            assert_eq!(
+                prepared_call
+                    .get("recovery_ref")
+                    .unwrap_or(&viewport_node["recovery_ref"]),
+                &viewport_node["recovery_ref"],
+                "A reference inside the caller span uses its executable caller range"
+            );
             let recovery = report["recoveries"]
                 .as_array()
                 .unwrap()
@@ -922,6 +990,15 @@ fn cycles_terminate_and_stale_future_missing_or_unbound_edges_never_claim_curren
                 .to_string()
                 .contains("unverified_edge_source_revision")
         );
+        let unselected_target = impact_target(&fixture, &future, None).await;
+        let unavailable = impact_packet(&unselected_target);
+        assert_eq!(unavailable["status"], "unavailable");
+        assert_eq!(unavailable["target_revision_admitted"], false);
+        assert!(unavailable["selected_dependents_observed"].is_null());
+        assert!(
+            !unselected_target.contains("## First immediate indexed consumer"),
+            "An unpublished target cannot acquire a confirmed-consumer prefix"
+        );
 
         for invalid_depth in [0, 9] {
             let request = json!({"project_id":PID,"symbol_fqn":id(POLICY, "ClassifyAutomatic", 1),
@@ -1043,7 +1120,39 @@ fn moving_the_callee_preserves_an_inherited_call_but_refreshing_away_that_call_r
                 .generation,
             1
         );
-        let after_move = selected_impact(&impact_target(&fixture, &moved_root, None).await);
+        let moved_text = impact_target(&fixture, &moved_root, None).await;
+        let compact = impact_packet(&moved_text);
+        let caller = compact["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|node| node["node_id"] == unchanged_caller)
+            .unwrap();
+        let callee = compact["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|node| node["node_id"] == moved_resolve)
+            .unwrap();
+        let public_remap = compact["edges"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|edge| edge["source_ref"] == caller["ref"] && edge["target_ref"] == callee["ref"])
+            .unwrap();
+        assert_eq!(public_remap["edge_generation"], 3);
+        assert_eq!(
+            public_remap
+                .get("source_generation")
+                .unwrap_or(&caller["generation"]),
+            &json!(1),
+            "Compact edge source revision comes from the inherited caller, never published HEAD3"
+        );
+        assert_eq!(
+            public_remap["edge_source_binding"], "verified_unchanged_caller_origin",
+            "The remapper's physical-caller proof must remain explicit when edge generations differ"
+        );
+        let after_move = selected_impact(&moved_text);
         assert_eq!(after_move["source_generation"], 3);
         let endpoint = id(HTTP, "GetFileLayerViewport", 1);
         assert_eq!(

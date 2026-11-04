@@ -1397,7 +1397,7 @@ impl Engram {
             "coverage":{"managed_source":summary.source_files.is_some(),"matching_files":paths.matching_files,
                 "inspected_file_identities":paths.inspected_files,"scan_truncated":paths.scan_truncated,
                 "area_sample_truncated":paths.areas_truncated,"representative_sample":paths.representative_sample,
-                "representative_priority":"Generic Policy/Service/Controller/Handler basename heuristic, then path; not runtime architecture.",
+                "representative_priority":"Generic Policy, Service/Controller/Handler, Application/Bootstrap/Main basename leads before area size, then path; bounded to retained groups, not runtime architecture.",
                 "declarations":discovery},"areas":[],"files":[],"next_page":null,
             "other_inventories":[{"label":"Database schema/config inventory not scanned by CodeMap","tool":"query_graph_nodes",
                 "arguments":{"project_id":req.project_id,"node_type":"db_table","limit":20}},
