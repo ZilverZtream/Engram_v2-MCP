@@ -860,9 +860,22 @@ fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_iden
             assert_eq!(immediate[0]["node_id"], resolve);
             assert_eq!(immediate[0]["file_path"], POLICY);
             assert_eq!(immediate[0]["admission"], "selected");
+            assert_eq!(immediate[0]["source_read_scope"], "explicit_source_range");
+            let connection = &immediate[0]["sample_connection_to_target"];
+            assert_eq!(connection["source_node_id"], resolve);
+            assert_eq!(connection["target_node_id"], root);
+            assert_eq!(connection["kind"], "calls");
+            assert_eq!(connection["edge_generation"], 2);
+            assert!(connection["source_line"].is_null());
+            assert_eq!(connection["source_position_scope"], "not_recorded",
+                "A caller declaration range must not masquerade as an observed invocation location");
             let call = &immediate[0]["source_read"];
             assert_eq!(call["tool"], "get_full_method_body");
             let prefix = &text[..text.floor_char_boundary(2048)];
+            assert!(!prefix.contains("(node ") && !prefix.contains("; edge ") && !prefix.contains("; recovery "),
+                "A standalone summary cannot require registries available only after graph expansion");
+            assert!(prefix.contains("indexed declaration range") && prefix.contains("boundaries and invocation location are unverified"),
+                "An agent must know the action inspects current source lines without certifying method or callsite boundaries");
             let prefix_call: Value = serde_json::from_str(
                 prefix
                     .split_once("## First immediate indexed consumer")
@@ -915,6 +928,13 @@ fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_iden
                 assert!(branch["recovery"]["arguments"].is_object());
             }
             assert_eq!(summary["frontier_rows_omitted_from_summary"], 0);
+            let missing = frontier.iter().find(|row| row["node_id"] == dangling).unwrap();
+            assert_eq!(missing["lookup_hint"]["file_path"], "src/deleted.rs");
+            assert_eq!(missing["lookup_hint"]["symbol_name"], "DeletedCaller");
+            assert_eq!(missing["admission"], "unresolved",
+                "A parsed declaration hint must never promote a missing endpoint into admitted evidence");
+            assert!(summary["coverage_counter_semantics"]["missing_nodes"].as_str().unwrap().contains("more than once"));
+            assert!(summary["coverage_counter_semantics"]["unknown_nodes"].as_str().unwrap().contains("Zero does not resolve"));
             let expanded = expand_summary_graph(&fixture, &summary, &root, 6).await;
             assert_eq!(expanded["coverage"], graph["coverage"]);
             assert_eq!(
