@@ -12,6 +12,40 @@ use std::{
 
 const RESPONSE_BYTES: usize = 64 * 1024;
 
+/// Apply one already-held source selection to both graph endpoints' physical
+/// node/file revisions. This helper never pins or observes a newer HEAD.
+pub(crate) fn admit_selected_source(
+    membership: &engram_index::hybrid::SelectedSourceRevisionLookup,
+    node: &engram_graph::Node,
+    file: Option<&engram_graph::Node>,
+) -> Result<ImpactAdmission> {
+    if node.namespace != engram_core::namespaces::NAMESPACE_MEMORY
+        || node.file_path.as_str().is_empty()
+    {
+        return Ok(ImpactAdmission::Unknown);
+    }
+    match membership.matches(node.file_path.as_str(), node.generation)? {
+        Some(false) => return Ok(ImpactAdmission::NonSelectedRevision),
+        None => return Ok(ImpactAdmission::Unknown),
+        Some(true) => {}
+    }
+    let Some(file) = file else {
+        return Ok(ImpactAdmission::Unknown);
+    };
+    if file.node_type != "file"
+        || file.file_path != node.file_path
+        || file.namespace != engram_core::namespaces::NAMESPACE_MEMORY
+    {
+        return Ok(ImpactAdmission::Unknown);
+    }
+    Ok(
+        match membership.matches(node.file_path.as_str(), file.generation)? {
+            Some(true) => ImpactAdmission::Selected,
+            Some(false) | None => ImpactAdmission::Unknown,
+        },
+    )
+}
+
 /// Indexed downstream observations for one exact target, never an edit-safety
 /// guarantee. Counts describe the same bounded walk before display clipping.
 /// None means unavailable, whereas Some(0) requires an admitted selected root.
@@ -237,31 +271,7 @@ async fn collect_evidence(
         let admit = |node: &engram_graph::Node,
                      file: Option<&engram_graph::Node>|
          -> Result<ImpactAdmission> {
-            if node.namespace != engram_core::namespaces::NAMESPACE_MEMORY
-                || node.file_path.as_str().is_empty()
-            {
-                return Ok(ImpactAdmission::Unknown);
-            }
-            match membership.matches(node.file_path.as_str(), node.generation)? {
-                Some(false) => return Ok(ImpactAdmission::NonSelectedRevision),
-                None => return Ok(ImpactAdmission::Unknown),
-                Some(true) => {}
-            }
-            let Some(file) = file else {
-                return Ok(ImpactAdmission::Unknown);
-            };
-            if file.node_type != "file"
-                || file.file_path != node.file_path
-                || file.namespace != engram_core::namespaces::NAMESPACE_MEMORY
-            {
-                return Ok(ImpactAdmission::Unknown);
-            }
-            Ok(
-                match membership.matches(node.file_path.as_str(), file.generation)? {
-                    Some(true) => ImpactAdmission::Selected,
-                    Some(false) | None => ImpactAdmission::Unknown,
-                },
-            )
+            admit_selected_source(&membership, node, file)
         };
         let mut walk = graph.bounded_incoming_walk(
             &project,

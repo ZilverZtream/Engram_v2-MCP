@@ -288,6 +288,351 @@ fn remember(
 }
 
 impl GraphStore {
+    /// Impact seeds for exact selected files, with native callable-prefix
+    /// seeks before structural Contains discovery. A bounded legacy scan runs
+    /// only when both produce no seeds. Unlinked noncanonical supplemental
+    /// nodes in a mixed native graph are not exhaustively inventoried.
+    pub fn bounded_file_impact_seeds(
+        &self,
+        project_id: &str,
+        file_paths: &[String],
+        admit: &dyn Fn(&Node, Option<&Node>) -> anyhow::Result<ImpactAdmission>,
+    ) -> anyhow::Result<(Vec<String>, ImpactWalkCoverage)> {
+        anyhow::ensure!(
+            !project_id.is_empty()
+                && project_id.len() <= 1024
+                && !project_id.chars().any(char::is_control),
+            "Invalid callable project identity"
+        );
+        anyhow::ensure!(
+            !file_paths.is_empty() && file_paths.len() <= 8,
+            "Callable discovery requires 1..8 files"
+        );
+        for path in file_paths {
+            anyhow::ensure!(
+                !path.is_empty() && path.len() <= 2048 && !path.chars().any(char::is_control),
+                "Invalid callable file identity"
+            );
+        }
+        let tx = self.db.begin_read()?;
+        let nodes = tx.open_table(NODES)?;
+        let outgoing = tx.open_table(ADJ_OUT)?;
+        let mut coverage = ImpactWalkCoverage::default();
+        let mut budget = Budget {
+            started: Instant::now(),
+            string_bytes: 0,
+            decode_bytes: 0,
+            halted: false,
+        };
+        let mut seeds = std::collections::BTreeSet::new();
+        let mut other_declarations = std::collections::BTreeSet::new();
+        let mut admitted_files = Vec::new();
+        let mut file_origins = Vec::new();
+        let decode = |bytes: &[u8],
+                      budget: &mut Budget,
+                      coverage: &mut ImpactWalkCoverage|
+         -> anyhow::Result<Option<Node>> {
+            if !budget.live(coverage) || !budget.record(bytes.len(), coverage) {
+                return Ok(None);
+            }
+            let node: Node = bincode::DefaultOptions::new()
+                .with_fixint_encoding()
+                .with_limit(MAX_RECORD_BYTES as u64)
+                .reject_trailing_bytes()
+                .deserialize(bytes)?;
+            anyhow::ensure!(
+                node.node_id.len() <= 2048 && !node.node_id.chars().any(char::is_control),
+                "Invalid callable node identity"
+            );
+            Ok(Some(node))
+        };
+        let read = |id: &str,
+                    budget: &mut Budget,
+                    coverage: &mut ImpactWalkCoverage|
+         -> anyhow::Result<Option<Node>> {
+            let key = format!("{project_id}\0{id}");
+            let Some(raw) = nodes.get(key.as_str())? else {
+                coverage.missing_nodes += 1;
+                gap(coverage, "missing_callable_component_node");
+                return Ok(None);
+            };
+            let node = decode(raw.value(), budget, coverage)?;
+            anyhow::ensure!(
+                node.as_ref().is_none_or(|node| node.node_id == id),
+                "Callable node identity disagrees with its key"
+            );
+            Ok(node)
+        };
+        let callable =
+            |kind: &str| matches!(kind, "function" | "method" | "constructor" | "property");
+        let observe = |node: &Node,
+                       file: &Node,
+                       seeds: &mut std::collections::BTreeSet<String>,
+                       other_declarations: &mut std::collections::BTreeSet<String>,
+                       budget: &mut Budget,
+                       coverage: &mut ImpactWalkCoverage|
+         -> anyhow::Result<()> {
+            if node.file_path != file.file_path
+                || seeds.contains(&node.node_id)
+                || other_declarations.contains(&node.node_id)
+            {
+                return Ok(());
+            }
+            coverage.nodes_observed += 1;
+            match admit(node, Some(file))? {
+                ImpactAdmission::NonSelectedRevision => {
+                    coverage.non_selected_nodes += 1;
+                    return Ok(());
+                }
+                ImpactAdmission::Unknown => {
+                    coverage.unknown_nodes += 1;
+                    gap(coverage, "unknown_callable_source_admission");
+                    return Ok(());
+                }
+                ImpactAdmission::Selected => {}
+            }
+            if !budget.live(coverage) {
+                return Ok(());
+            }
+            if !callable(&node.node_type) {
+                if other_declarations.len() == MAX_SEEDS {
+                    gap(coverage, "noncallable_declaration_candidate_limit");
+                } else if budget.retain(node.node_id.len(), coverage) {
+                    other_declarations.insert(node.node_id.clone());
+                }
+                return Ok(());
+            }
+            if seeds.len() == MAX_SEEDS {
+                gap(coverage, "callable_seed_limit");
+                budget.halted = true;
+                return Ok(());
+            }
+            if budget.retain(node.node_id.len(), coverage) {
+                seeds.insert(node.node_id.clone());
+            }
+            Ok(())
+        };
+        'callables: for (file_index, path) in file_paths.iter().enumerate() {
+            if !budget.live(&mut coverage) {
+                break;
+            }
+            let file_id = format!("file:{path}");
+            let Some(file) = read(&file_id, &mut budget, &mut coverage)? else {
+                continue;
+            };
+            if file.node_type != "file"
+                || file.file_path.as_str() != path
+                || admit(&file, Some(&file))? != ImpactAdmission::Selected
+            {
+                coverage.unknown_nodes += 1;
+                gap(&mut coverage, "unadmitted_callable_file");
+                continue;
+            }
+            if !budget.retain(file_id.len(), &mut coverage) {
+                break;
+            }
+            file_origins.push(file_id);
+            admitted_files.push(file_index);
+            // NodeId::symbol and ingest_service's native producers use this
+            // exact kind/file prefix. Fields/classes never consume seed slots.
+            for kind in ["function", "method", "constructor", "property"] {
+                let prefix = format!("{project_id}\0sym:{kind}:{path}:");
+                let mut entries = nodes.range(prefix.as_str()..)?;
+                loop {
+                    if !budget.live(&mut coverage) {
+                        break 'callables;
+                    }
+                    if coverage.raw_rows == MAX_RAW_ROWS {
+                        gap(&mut coverage, "callable_raw_row_limit");
+                        budget.halted = true;
+                        break 'callables;
+                    }
+                    let Some(entry) = entries.next() else {
+                        break;
+                    };
+                    coverage.raw_rows += 1;
+                    let (key, raw) = entry?;
+                    if !key.value().starts_with(&prefix) {
+                        break;
+                    }
+                    if let Some(node) = decode(raw.value(), &mut budget, &mut coverage)? {
+                        anyhow::ensure!(
+                            key.value() == format!("{project_id}\0{}", node.node_id),
+                            "Callable node identity disagrees with its key"
+                        );
+                        observe(
+                            &node,
+                            &file,
+                            &mut seeds,
+                            &mut other_declarations,
+                            &mut budget,
+                            &mut coverage,
+                        )?;
+                    }
+                }
+            }
+        }
+        // No structural class/field work starts until callable seeks for ALL
+        // selected files have had access to the shared work budget.
+        'components: for file_index in admitted_files {
+            if !budget.live(&mut coverage) {
+                break;
+            }
+            let path = &file_paths[file_index];
+            let file_id = format!("file:{path}");
+            let Some(file) = read(&file_id, &mut budget, &mut coverage)? else {
+                continue;
+            };
+            let mut queue = VecDeque::new();
+            let mut expanded = std::collections::BTreeSet::new();
+            if !budget.retain(file_id.len() * 2, &mut coverage) {
+                break;
+            }
+            expanded.insert(file_id.clone());
+            queue.push_back((file_id, 0usize));
+            while let Some((container, depth)) = queue.pop_front() {
+                let prefix = adj_key(project_id, &EdgeKind::Contains, &container);
+                let mut entries = outgoing.range((prefix.as_str(), "")..)?;
+                loop {
+                    if !budget.live(&mut coverage) {
+                        break 'components;
+                    }
+                    if coverage.raw_rows == MAX_RAW_ROWS {
+                        gap(&mut coverage, "callable_raw_row_limit");
+                        budget.halted = true;
+                        break 'components;
+                    }
+                    let Some(entry) = entries.next() else {
+                        break;
+                    };
+                    coverage.raw_rows += 1;
+                    let (key, raw) = entry?;
+                    let (observed, id) = key.value();
+                    if observed != prefix {
+                        break;
+                    }
+                    let _ = decode_adj_value(raw.value())?;
+                    anyhow::ensure!(
+                        id.len() <= 2048 && !id.chars().any(char::is_control),
+                        "Invalid callable component identity"
+                    );
+                    if seeds.contains(id) || expanded.contains(id) {
+                        continue;
+                    }
+                    let Some(node) = read(id, &mut budget, &mut coverage)? else {
+                        continue;
+                    };
+                    if node.file_path.as_str() != path {
+                        continue;
+                    }
+                    observe(
+                        &node,
+                        &file,
+                        &mut seeds,
+                        &mut other_declarations,
+                        &mut budget,
+                        &mut coverage,
+                    )?;
+                    if !matches!(
+                        node.node_type.as_str(),
+                        "class" | "module" | "interface" | "struct" | "namespace"
+                    ) {
+                        continue;
+                    }
+                    if admit(&node, Some(&file))? != ImpactAdmission::Selected {
+                        coverage.unknown_nodes += 1;
+                        gap(&mut coverage, "unadmitted_callable_container");
+                        continue;
+                    }
+                    if depth == MAX_DEPTH {
+                        gap(&mut coverage, "callable_component_depth_limit");
+                        continue;
+                    }
+                    if expanded.len() == MAX_NODES {
+                        gap(&mut coverage, "callable_component_node_limit");
+                        budget.halted = true;
+                        break 'components;
+                    }
+                    if !budget.retain(id.len() * 2, &mut coverage) {
+                        break 'components;
+                    }
+                    expanded.insert(id.to_owned());
+                    queue.push_back((id.to_owned(), depth + 1));
+                }
+            }
+        }
+        if seeds.is_empty() && other_declarations.is_empty() && !budget.halted {
+            gap(
+                &mut coverage,
+                "bounded_legacy_callable_fallback; native membership unavailable",
+            );
+            let prefix = format!("{project_id}\0");
+            let mut entries = nodes.range(prefix.as_str()..)?;
+            loop {
+                if !budget.live(&mut coverage) {
+                    break;
+                }
+                if coverage.raw_rows == MAX_RAW_ROWS {
+                    gap(&mut coverage, "callable_raw_row_limit");
+                    break;
+                }
+                let Some(entry) = entries.next() else {
+                    break;
+                };
+                coverage.raw_rows += 1;
+                let (key, raw) = entry?;
+                if !key.value().starts_with(&prefix) {
+                    break;
+                }
+                let Some(node) = decode(raw.value(), &mut budget, &mut coverage)? else {
+                    continue;
+                };
+                anyhow::ensure!(
+                    key.value() == format!("{project_id}\0{}", node.node_id),
+                    "Legacy callable node identity disagrees with its key"
+                );
+                if node.node_type == "file"
+                    || !file_paths
+                        .iter()
+                        .any(|path| path == node.file_path.as_str())
+                {
+                    continue;
+                }
+                let Some(file) = read(
+                    &format!("file:{}", node.file_path.as_str()),
+                    &mut budget,
+                    &mut coverage,
+                )?
+                else {
+                    continue;
+                };
+                if file.node_type != "file" || file.file_path != node.file_path {
+                    continue;
+                }
+                observe(
+                    &node,
+                    &file,
+                    &mut seeds,
+                    &mut other_declarations,
+                    &mut budget,
+                    &mut coverage,
+                )?;
+            }
+        }
+        // Type/data-only areas still have causal consumers (for example
+        // InheritsFrom and ReadsSetting). They use only slots remaining AFTER
+        // every discovered callable, never an alphabetic class/field prefix.
+        for id in file_origins.into_iter().chain(other_declarations) {
+            if seeds.len() == MAX_SEEDS {
+                gap(&mut coverage, "declaration_seed_limit");
+                break;
+            }
+            seeds.insert(id);
+        }
+        coverage.reasons.sort();
+        Ok((seeds.into_iter().collect(), coverage))
+    }
+
     /// Reverse BFS over the supplied causal-kind policy. Only Selected nodes
     /// expand. Unknown sources are inspection leads; non-selected revisions do
     /// not become current impact. Direct and transitive consumers must use the

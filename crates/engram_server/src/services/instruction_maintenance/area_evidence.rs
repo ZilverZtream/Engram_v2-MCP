@@ -28,6 +28,17 @@ pub struct SelectedFile {
     pub indexed_blake3: Option<String>,
     pub captured_blake3: Option<String>,
     pub source_status: String,
+    pub capture_limit_bytes: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recovery: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct CaptureLimits {
+    pub authored_guidance_file_bytes: usize,
+    pub automatic_code_file_bytes: usize,
+    pub manual_legacy_evidence_file_bytes: usize,
+    pub aggregate_packet_source_bytes: usize,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -38,6 +49,8 @@ pub struct AreaEvidence {
     pub symbols_and_relations: Vec<Value>,
     pub review_evidence: Value,
     pub gaps: Vec<String>,
+    pub discovery_coverage: Value,
+    pub capture_limits: CaptureLimits,
     pub coverage: &'static str,
 }
 
@@ -132,11 +145,65 @@ fn add(
         indexed_blake3: hash.clone(),
         captured_blake3: None,
         source_status: "pending_complete_capture".into(),
+        capture_limit_bytes: FILE_LIMIT,
+        recovery: None,
     });
     if hash.is_some() {
         file.indexed_blake3 = hash;
     }
     file.roles.insert(role.into());
+    file.capture_limit_bytes = if !file.roles.contains("shared_guidance")
+        && !file.roles.contains("authored_instruction")
+        && (file.roles.contains("area_implementation")
+            || file.roles.contains("consumer")
+            || file.roles.contains("consumer_recovery_candidate"))
+        && automatic_code_path(path)
+    {
+        AUTOMATIC_CODE_LIMIT
+    } else {
+        FILE_LIMIT
+    };
+}
+
+pub(super) fn automatic_code_path(path: &str) -> bool {
+    let folded = path.to_ascii_lowercase();
+    if folded.split('/').any(|part| {
+        matches!(
+            part,
+            ".claude" | ".github" | ".agents" | ".cursor" | ".windsurf" | "instructions"
+        )
+    }) {
+        return false;
+    }
+    Path::new(path)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| {
+            matches!(
+                extension.to_ascii_lowercase().as_str(),
+                "rs" | "vb"
+                    | "cs"
+                    | "js"
+                    | "ts"
+                    | "tsx"
+                    | "jsx"
+                    | "aspx"
+                    | "ascx"
+                    | "ashx"
+                    | "asmx"
+                    | "asp"
+                    | "html"
+                    | "htm"
+                    | "sql"
+                    | "css"
+                    | "py"
+                    | "java"
+                    | "go"
+                    | "cpp"
+                    | "c"
+                    | "h"
+            )
+        })
 }
 
 fn indexed_hash(
@@ -163,12 +230,12 @@ fn indexed_hash(
     Ok(None)
 }
 
-fn complete_candidate(root: &Path, path: &str, gaps: &mut Vec<String>) -> bool {
+fn complete_candidate(root: &Path, path: &str, limit: usize, gaps: &mut Vec<String>) -> bool {
     match engram_core::safe_open_read(root, path).and_then(|file| Ok(file.metadata()?)) {
-        Ok(metadata) if metadata.is_file() && metadata.len() <= FILE_LIMIT as u64 => true,
+        Ok(metadata) if metadata.is_file() && metadata.len() <= limit as u64 => true,
         Ok(_) => {
             gaps.push(format!(
-                "Automatic source exceeds 128 KiB: {path}; no complete body captured"
+                "Automatic source exceeds its {limit}-byte capture limit: {path}; no complete body captured"
             ));
             false
         }
@@ -225,7 +292,8 @@ pub async fn assemble(
                 gaps.push(format!("Area file cap: {path}; additional selected-area files were not captured"));
                 break;
             }
-            if !complete_candidate(&root, &path, &mut gaps) { continue; }
+            let limit = if automatic_code_path(&path) { AUTOMATIC_CODE_LIMIT } else { FILE_LIMIT };
+            if !complete_candidate(&root, &path, limit, &mut gaps) { continue; }
             let hash = indexed_hash(&state, &pid, &path, &membership, &mut gaps)?;
             add(&mut files, &path, "area_implementation", hash, &mut gaps);
             area_files.push(path);
@@ -241,42 +309,93 @@ pub async fn assemble(
             if excluded(&policy.path) { continue; }
             add(&mut files, &policy.path, "shared_guidance", None, &mut gaps);
         }
-        let mut anchors = 0usize;
+        let admit = |node: &engram_graph::Node, file: Option<&engram_graph::Node>| {
+            if excluded(node.file_path.as_str()) { return Ok(engram_graph::store::ImpactAdmission::Unknown); }
+            crate::services::impact_walk_service::admit_selected_source(&membership, node, file)
+        };
+        let (seeds, seed_coverage) = if area_files.is_empty() { (Vec::new(), Default::default()) }
+            else { state.graph.bounded_file_impact_seeds(&pid, &area_files, &admit)? };
+        let walk = if seeds.is_empty() { engram_graph::store::IncomingImpactWalk::default() }
+            else { state.graph.bounded_incoming_walk(&pid, &seeds, 1,
+                &crate::services::blast_radius_service::is_causal_dependency, &admit)? };
+        if seed_coverage.truncated || seed_coverage.unknown_nodes > 0 || seed_coverage.non_selected_nodes > 0 {
+            gaps.push(format!("Callable discovery is partial: {}", seed_coverage.reasons.join(", ")));
+        }
+        if walk.coverage.truncated || walk.coverage.unknown_nodes > 0 || walk.coverage.non_selected_nodes > 0 {
+            gaps.push(format!("Consumer traversal is partial: {}", walk.coverage.reasons.join(", ")));
+        }
+        let lookup: BTreeMap<_, _> = walk.nodes.iter().map(|node| (node.node.node_id.as_str(), node)).collect();
+        // Group all observed external files before the independent source-body
+        // budget. Internal callable relationships never consume external slots.
+        let mut consumers: BTreeMap<String, Vec<_>> = BTreeMap::new();
+        for caller in walk.nodes.iter().filter(|node| node.depth == 1
+            && node.admission == engram_graph::store::ImpactAdmission::Selected) {
+            let path = caller.node.file_path.as_str();
+            if excluded(path) || within(path, &selected.scope) { continue; }
+            if path.len() > 512 { gaps.push("A consumer path exceeds maintenance identity limits; source not captured".into()); continue; }
+            consumers.entry(path.to_owned()).or_default().push(caller);
+        }
+        let observed_consumers = consumers.len();
         let mut consumer_paths = BTreeSet::new();
-        for path in &area_files {
-            let mut nodes = state.graph.query_nodes_in_file(&pid, None, path, 17)?;
-            if nodes.len() > 16 { gaps.push(format!("Declaration cap: {path}; more indexed declarations exist")); nodes.truncate(16); }
-            for node in nodes {
-                if node.node_type == "file" || membership.matches(path, node.generation)? != Some(true) { continue; }
-                symbols.push(json!({"path":path,"node_id":node.node_id,"name":node.name,"kind":node.node_type,
-                    "start_line":node.start_line,"end_line":node.end_line,"role":"entry_point_candidate",
-                    "relation":"indexed_declaration; runtime entry-point behavior is not established"}));
-                if anchors == 8 { continue; }
-                anchors += 1;
-                let (callers, capped) = crate::handlers::incoming_caller_edges_checked(&state.graph, &pid, &node.node_id, 8)?;
-                if capped { gaps.push(format!("Consumer cap for {}; not proof of all callers", node.node_id)); }
-                for (caller, kind, _) in callers {
-                    let Some(caller) = state.graph.get_node(&pid, &caller)? else { gaps.push("A caller graph record is unavailable".into()); continue; };
-                    let caller_path = caller.file_path.as_str();
-                    if excluded(caller_path) || membership.matches(caller_path, caller.generation)? != Some(true) { continue; }
-                    if !files.contains_key(caller_path) && consumer_paths.len() == 3 {
-                        gaps.push(format!("Consumer file cap: {caller_path}; not captured")); continue;
-                    }
-                    if !complete_candidate(&root, caller_path, &mut gaps) { continue; }
-                    let hash = indexed_hash(&state, &pid, caller_path, &membership, &mut gaps)?;
-                    add(&mut files, caller_path, "consumer", hash, &mut gaps);
-                    add(&mut files, caller_path, "companion_candidate", None, &mut gaps);
-                    consumer_paths.insert(caller_path.to_owned());
-                    if symbols.len() < 64 {
-                        symbols.push(json!({"path":caller_path,"node_id":caller.node_id,"name":caller.name,"kind":caller.node_type,
-                            "start_line":caller.start_line,"end_line":caller.end_line,"role":"consumer",
-                            "related_to":node.node_id,"relation":format!("indexed_{kind:?}; not execution or accepted policy")}));
-                    }
-                }
+        for (path, callers) in &consumers {
+            let caller = &callers[0].node;
+            let hash = indexed_hash(&state, &pid, path, &membership, &mut gaps)?;
+            let recovery = json!({"tool":"get_full_method_body","arguments":{"project_id":pid,
+                "file_path":path,"line_start":caller.start_line,"line_end":caller.end_line,"context_lines":0,"output_json":true},
+                "indexed_physical_generation":caller.generation,"expected_indexed_file_blake3":hash,
+                "scope":"Indexed line-range recovery lead, not a complete consumer file. Revalidate the whole-file fingerprint before using current positions; this does not widen the proposed instruction scope."});
+            let limit = if automatic_code_path(path) { AUTOMATIC_CODE_LIMIT } else { FILE_LIMIT };
+            let preselected = files.contains_key(path);
+            let captured = (consumer_paths.len() < 3 || preselected)
+                && (files.len() < 16 || preselected)
+                && complete_candidate(&root, path, limit, &mut gaps);
+            if !captured { gaps.push(format!("Known consumer {path} requires separate complete-source recovery (consumer/body budget); not silent absence")); }
+            add(&mut files, path, if captured { "consumer" } else { "consumer_recovery_candidate" }, hash, &mut gaps);
+            if let Some(file) = files.get_mut(path) {
+                file.recovery = Some(recovery.clone());
+                if !captured { file.source_status = "known_indexed_consumer; complete_source_not_captured".into(); }
+            }
+            if captured {
+                add(&mut files, path, "companion_candidate", None, &mut gaps);
+                if !preselected { consumer_paths.insert(path.to_owned()); }
+            }
+            for caller in callers {
+                if symbols.len() == 32 { gaps.push("Consumer relation display cap; additional observed relations are not shown".into()); break; }
+                let Some(target) = caller.predecessor.as_deref().and_then(|id| lookup.get(id)) else { continue; };
+                symbols.push(json!({"path":path,"node_id":caller.node.node_id,"name":caller.node.name,"kind":caller.node.node_type,
+                    "start_line":caller.node.start_line,"end_line":caller.node.end_line,
+                    "role":if captured {"consumer"} else {"consumer_recovery_candidate"},
+                    "related_to":target.node.node_id,"related_to_path":target.node.file_path,
+                    "edge_kind":caller.via_kind.as_ref().map(|kind| kind.as_str()),"edge_generation":caller.edge_generation,
+                    "source_generation":caller.node.generation,"recovery":recovery,
+                    "relation":"indexed_causal_direct_consumer; not execution, runtime entry-point proof or accepted policy"}));
             }
         }
+        // Display and traversal budgets are distinct: all selected callable
+        // seeds were queried even when their declaration is not displayed.
+        let mut anchors: Vec<_> = walk.nodes.iter().filter(|node| node.depth == 0 && node.admission == engram_graph::store::ImpactAdmission::Selected).collect();
+        let callable = |kind: &str| matches!(kind, "function" | "method" | "constructor" | "property");
+        anchors.sort_by(|left, right| (!callable(&left.node.node_type)).cmp(&(!callable(&right.node.node_type)))
+            .then_with(|| left.node.file_path.as_str().cmp(right.node.file_path.as_str()))
+            .then_with(|| left.node.node_id.cmp(&right.node.node_id)));
+        for anchor in anchors {
+            if symbols.len() == 64 { gaps.push("Callable declaration display cap; traversal used all retained callable seeds".into()); break; }
+            symbols.push(json!({"path":anchor.node.file_path,"node_id":anchor.node.node_id,"name":anchor.node.name,
+                "kind":anchor.node.node_type,"start_line":anchor.node.start_line,"end_line":anchor.node.end_line,
+                "role":if matches!(anchor.node.node_type.as_str(), "function" | "method" | "constructor" | "property") {
+                    "callable_declaration_candidate" } else { "indexed_declaration" },
+                "relation":"indexed_declaration; runtime entry-point behavior is not established"}));
+        }
+        let discovery_coverage = json!({"source_generation":generation,"seed_discovery":seed_coverage,
+            "consumer_walk":walk.coverage,"requested_declaration_seeds":seeds.len(),
+            "selected_declaration_seeds":walk.nodes.iter().filter(|node|node.depth==0 && node.admission==engram_graph::store::ImpactAdmission::Selected).count(),
+            "selected_callable_seeds":walk.nodes.iter().filter(|node| node.depth==0 && node.admission==engram_graph::store::ImpactAdmission::Selected
+                && callable(&node.node.node_type)).count(),
+            "observed_external_consumer_files":observed_consumers,
+            "automatic_consumer_file_cap":3,"relation_display_cap":32,"total_symbol_display_cap":64,
+            "membership_scope":"Native canonical callable identities and file/class Contains membership; bounded legacy scan only when native membership yields no selected callables. Mixed unlinked noncanonical supplemental declarations are not exhaustively inventoried."});
         for path in area_files.iter().skip(1) { add(&mut files, path, "house_example_candidate", None, &mut gaps); }
-        let relevant: Vec<_> = files.values().filter(|f| f.roles.contains("area_implementation") || f.roles.contains("consumer"))
+        let relevant: Vec<_> = files.values().filter(|f| f.roles.contains("area_implementation") || f.roles.contains("consumer") || f.roles.contains("consumer_recovery_candidate"))
             .map(|f| f.path.clone()).collect();
         let review = match crate::handlers::review_decisions::discover(&state, &pid, 8, |event|
             relevant.iter().any(|path| event.rationale.contains(path) || event.finding_id.contains(path))) {
@@ -290,16 +409,24 @@ pub async fn assemble(
             }).collect::<Vec<_>>() }),
             Err(error) => { gaps.push(format!("Review evidence unavailable: {error}")); json!({"status":"unavailable"}) }
         };
-        if consumer_paths.is_empty() {
-            gaps.push("No direct consumer source was discovered; this does not prove the area has no consumers or dynamic callers".into());
+        if observed_consumers == 0 {
+            gaps.push("No admitted direct consumer was discovered within the callable/traversal bounds; this does not prove the area has no consumers or dynamic callers".into());
+        }
+        for path in &request.instruction_paths {
+            if let Some(file) = files.get_mut(path) { file.roles.insert("authored_instruction".into()); file.capture_limit_bytes = FILE_LIMIT; }
         }
         let mut enriched = request.clone();
         enriched.area_context = None;
-        enriched.evidence_paths = files.keys().filter(|path| !request.instruction_paths.contains(path)).cloned().collect();
+        enriched.evidence_paths = files.values().filter(|file| !request.instruction_paths.contains(&file.path)
+            && (!file.roles.contains("consumer_recovery_candidate") || file.roles.contains("explicit_evidence")
+                || file.roles.contains("area_implementation") || file.roles.contains("shared_guidance")))
+            .map(|file| file.path.clone()).collect();
         Ok(Assembly { request: enriched, evidence: AreaEvidence {
             scope: selected.scope.clone(), excluded_paths: selected.exclude_paths.clone(), files: files.into_values().collect(),
-            symbols_and_relations: symbols, review_evidence: review, gaps,
-            coverage: "Bounded indexed area discovery and direct caller candidates. Complete current/Git-before files are captured separately. Graph structure and imported review dispositions do not establish purpose, invariants or accepted exceptions; draft/review those against complete evidence. No validation was executed or exhaustive filesystem/consumer/test/policy discovery performed; routing never widens the proposed area scope.",
+            symbols_and_relations: symbols, review_evidence: review, gaps, discovery_coverage,
+            capture_limits: CaptureLimits { authored_guidance_file_bytes:FILE_LIMIT,automatic_code_file_bytes:AUTOMATIC_CODE_LIMIT,
+                manual_legacy_evidence_file_bytes:FILE_LIMIT,aggregate_packet_source_bytes:PACKET_LIMIT },
+            coverage: "Bounded callable-first indexed area discovery and revision-admitted causal direct consumers under one held source selection. Classes/fields are not runtime entry points. Complete current/Git-before files are captured separately; named recovery leads are not complete file evidence. Graph structure and imported review dispositions do not establish purpose, invariants or accepted exceptions; draft/review those against complete evidence. No validation was executed or exhaustive filesystem/consumer/test/policy discovery performed; routing never widens the proposed area scope.",
         }, _source: source })
     }).await.context("Area evidence worker unavailable")?
 }
@@ -334,27 +461,31 @@ pub(super) fn bind(area: &mut AreaEvidence, evidence: &[Evidence], instructions:
                 "current_source_changed_since_indexing"
             }
             (None, Some(_)) => "complete_source; indexed_graph_fingerprint_unavailable",
+            (_, None) if file.roles.contains("consumer_recovery_candidate") => {
+                "known_indexed_consumer; complete_source_not_captured"
+            }
             (_, None) => "current_source_unavailable",
         }
         .into();
     }
-    let verified_symbols: BTreeSet<_> = area
-        .symbols_and_relations
+    let recovery_paths: BTreeSet<_> = area
+        .files
         .iter()
-        .filter(|symbol| {
-            symbol["path"]
-                .as_str()
-                .is_some_and(|p| verified.contains(p))
-        })
-        .filter_map(|symbol| symbol["node_id"].as_str().map(str::to_owned))
+        .filter(|file| file.roles.contains("consumer_recovery_candidate"))
+        .map(|file| file.path.clone())
         .collect();
-    area.symbols_and_relations.retain(|symbol| {
-        symbol["path"]
-            .as_str()
-            .is_some_and(|p| verified.contains(p))
-            && symbol
-                .get("related_to")
-                .and_then(Value::as_str)
-                .is_none_or(|id| verified_symbols.contains(id))
+    area.symbols_and_relations.retain_mut(|symbol| {
+        let Some(path) = symbol["path"].as_str() else { return false; };
+        // A target declaration need not be in the bounded symbol display. Its
+        // independently captured complete file is the fingerprint authority.
+        if symbol.get("related_to_path").and_then(Value::as_str)
+            .is_some_and(|target| !verified.contains(target)) { return false; }
+        if recovery_paths.contains(path) || symbol["role"] == "consumer_recovery_candidate" {
+            symbol["role"] = json!("consumer_recovery_candidate");
+            symbol["relation_status"] = json!("indexed_recovery_lead_only; complete_current_source_not_captured");
+            symbol["relation"] = json!("Indexed consumer recovery lead, not a fingerprint-verified current-source relation or complete file evidence");
+            return true;
+        }
+        verified.contains(path)
     });
 }

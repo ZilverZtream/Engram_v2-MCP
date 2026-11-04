@@ -268,8 +268,8 @@ fn collect_dependency(
     if dependencies.len() >= DEPENDENCY_LIMIT {
         return Some("dependency_budget_omitted");
     }
-    let before = observe(remaining, |r| committed(repo, tree, path, r));
-    let after = observe(remaining, |r| disk(root, path, r));
+    let before = observe(remaining, |r| committed(repo, tree, path, r, FILE_LIMIT));
+    let after = observe(remaining, |r| disk(root, path, r, FILE_LIMIT));
     dependencies.insert(
         path.to_owned(),
         Dependency {
@@ -713,7 +713,7 @@ pub(super) fn capture(
             "Definitions are document/version-local with first-definition precedence; unused definitions and fenced examples add no dependencies. ",
             "Inline-code paths retain project/document-relative candidates and disclose conflicts or unavailable alternatives. ",
             "Source use/definition ranges are end-exclusive UTF-8 bytes into their exact source hash/version. ",
-            "Limits: 16 automatic documents, depth 3 from selected roots with shared nodes, 256 edges, 768KiB complete packet input and 128KiB per snapshot. ",
+            "Limits: 16 automatic documents, depth 3 from selected roots with shared nodes, 256 edges and 768KiB complete packet source input. Guidance, manual evidence and automatic linked snapshots remain 128KiB each; explicitly selected automatic area code may use its declared 256KiB per-file capture limit. ",
             "Undefined explicit labels, HTML/wiki/image references, patterns, URI encodings and heading fragments remain named gaps. ",
             "Symbol observations search only captured code: 1024 declaration candidates total, 256 per file, 256 mentions and four returned matches per mention, with observed counts/omissions. ",
             "Inline identifiers and plain text matching collected names are candidate references, not certified bindings or exhaustive prose discovery. ",
