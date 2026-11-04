@@ -23,7 +23,7 @@ Post-workload five-second idle windows recorded no logical writes and
 0–0.015625 CPU seconds.
 These are local workload observations, not physical SSD-write measurements,
 a whole-machine leak attribution, or proof of real-project productivity.
-The `f8239c8c` runtime and parser-v4 package were installed on 2026-11-04
+The first `f8239c8c` runtime and parser-v4 package were installed on 2026-11-04
 from source published as `d0a6112` on `origin/master`. OciusX was the live
 deployment priority: conversion recovered 199,845 retained vectors, then a
 non-wiping full repair published generation 3117 with 2,302 files and 31,915
@@ -41,6 +41,33 @@ not a sustained leak test, a physical SSD measurement, or a matched benchmark.
 The old 67 GB canonical native store and complete old installation remain
 retained; preservation is not cleanup authority or old-runtime compatibility.
 The earlier measurements below are historical stages of this work.
+
+The current installed `79c320d8` package is published as source `b515a5e`.
+Startup selection now skips unproven projects before opening their optional
+indexes or consuming warm-up slots. Native vector queries use fragment
+read-ahead of one while retaining the SDK's I/O budget, exact filters and
+cosine scoring. Twelve focused behavior checks passed; no full suite was
+repeated for this batch.
+
+One controlled OciusX four-query pair returned identical responses before
+and after this change, preserving all 255 selected raw Registry records,
+known catalogs/routes and the old canonical store's metadata. Primary CPU
+fell from 20.953125 to 12.890625 seconds. Sampled peak private memory fell
+from 894,033,920 to 798,871,552 bytes; after ten seconds of settling it fell
+from 554,307,584 to 94,425,088 bytes. Both peaks still exceed the unchanged
+512 MiB diagnostic threshold. Repeated queries slowed from 1.32–1.41 to
+2.30–2.31 seconds; process logical writes remained 10,661 bytes in each run.
+This records an accepted CPU/memory versus latency tradeoff, not a universal
+performance gain or a hard memory cap.
+
+The installed normal runtime then passed current OciusX lexical/native
+retrieval and exposed all 94 repository rules. Its separate 60-second
+post-query window recorded 96,136 process logical write bytes and 0.484375
+CPU seconds, ending at 381,403,136 private bytes (about 364 MiB). This is a
+short normal-runtime observation, separate from the controlled actorless
+pair. The original configuration is unchanged; both previous installation
+pairs remain retained. Peak-memory optimization, other before-allocation
+coverage and the broader audit remain open.
 
 | Priority | Work | Acceptance and limits |
 |---|---|---|

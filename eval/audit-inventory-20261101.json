@@ -292,7 +292,12 @@
       ],
       "closure_state": "Native and no-vector each passed11 focused +23 public checks. Current EG03 locally verified; release/deployment and full-audit gates remain.",
       "dependencies": [],
-      "current_evidence": "execution_evidence_20261101.eg03_real_actor_behavior_20261102"
+      "current_evidence": "execution_evidence_20261101.eg03_real_actor_behavior_20261102",
+      "latest_runtime_delivery": {
+        "package": "79c320d8/sourceb515a5e; deployed for liveOciusX",
+        "evidence": "execution_evidence_20261101.ociusx_resource_release_and_matched_query_pair_20261104",
+        "limit": "Runtime delivery is complete; existing partial behavior/coverage/usefulness requirements in this finding remain open."
+      }
     },
     {
       "id": "EG-04",
@@ -306,7 +311,12 @@
       "closure_state": "Prior streaming/pagecache changesdeployed. NewPageRankretention39checks+native250resourceimprovement verifiedlocally. Explicit64/32MiB nativeconnectionpolicy20compatibilitychecks+realcachepressure/Weaklifetimes+matchedsmallworkloadcostverifiedlocally; no whole-appplateauclaim. Fullmandatory19releasegates/deployremainopen.",
       "dependencies": [],
       "current_generation_retention_evidence": "execution_evidence_20261101.pagerank_generation_retention_20261102",
-      "current_resource_evidence": "execution_evidence_20261101.pagerank_actual_sustained_resources_20261102"
+      "current_resource_evidence": "execution_evidence_20261101.pagerank_actual_sustained_resources_20261102",
+      "latest_runtime_delivery": {
+        "package": "79c320d8/sourceb515a5e; deployed for liveOciusX",
+        "evidence": "execution_evidence_20261101.ociusx_resource_release_and_matched_query_pair_20261104",
+        "limit": "Runtime delivery is complete; existing partial behavior/coverage/usefulness requirements in this finding remain open."
+      }
     },
     {
       "id": "EG-05",
@@ -385,7 +395,12 @@
         "Preferred broken/missing overrides fail visibly; stale publish assets are controlled and Rust/companion identities recorded together."
       ],
       "closure_state": "Not reverified by this inventory reconciliation",
-      "dependencies": []
+      "dependencies": [],
+      "latest_runtime_delivery": {
+        "package": "79c320d8/sourceb515a5e; deployed for liveOciusX",
+        "evidence": "execution_evidence_20261101.ociusx_resource_release_and_matched_query_pair_20261104",
+        "limit": "Runtime delivery is complete; existing partial behavior/coverage/usefulness requirements in this finding remain open."
+      }
     },
     {
       "id": "EG-11",
@@ -444,7 +459,12 @@
         "S17",
         "S18",
         "S19"
-      ]
+      ],
+      "latest_runtime_delivery": {
+        "package": "79c320d8/sourceb515a5e; deployed for liveOciusX",
+        "evidence": "execution_evidence_20261101.ociusx_resource_release_and_matched_query_pair_20261104",
+        "limit": "Runtime delivery is complete; existing partial behavior/coverage/usefulness requirements in this finding remain open."
+      }
     },
     {
       "id": "EG-14",
@@ -460,7 +480,12 @@
       "closure_state": "Partial generic area creation/provenance now31 publicmaintenance casesPASS including independent-review historical/current case alias and missingODB corrections. Generic usefulness evaluation, full review/release/deployment remain open.",
       "dependencies": [],
       "next_concrete_slice": "Current genericarea workflow implemented and31nativecasesPASS, includingindependent-review corrections. Remaining: representative usefulness/replay, fullreview, release/deployment; OX-specificintegrationrequires explicitscope.",
-      "current_area_draft_evidence": "execution_evidence_20261101.area_draft_progress_20261102"
+      "current_area_draft_evidence": "execution_evidence_20261101.area_draft_progress_20261102",
+      "latest_runtime_delivery": {
+        "package": "79c320d8/sourceb515a5e; deployed for liveOciusX",
+        "evidence": "execution_evidence_20261101.ociusx_resource_release_and_matched_query_pair_20261104",
+        "limit": "Runtime delivery is complete; existing partial behavior/coverage/usefulness requirements in this finding remain open."
+      }
     },
     {
       "id": "EG-15",
@@ -684,7 +709,12 @@
       "current_reference_manifest_evidence": "execution_evidence_20261101.instruction_reference_manifest_progress",
       "current_feature_batch_evidence": "execution_evidence_20261101.breadth_reset_and_instruction_update_20261102",
       "current_reference_syntax_evidence": "execution_evidence_20261101.eg27_commonmark_progress_20261103",
-      "current_code_reference_evidence": "execution_evidence_20261101.eg27_code_reference_progress_20261103"
+      "current_code_reference_evidence": "execution_evidence_20261101.eg27_code_reference_progress_20261103",
+      "latest_runtime_delivery": {
+        "package": "79c320d8/sourceb515a5e; deployed for liveOciusX",
+        "evidence": "execution_evidence_20261101.ociusx_resource_release_and_matched_query_pair_20261104",
+        "limit": "Runtime delivery is complete; existing partial behavior/coverage/usefulness requirements in this finding remain open."
+      }
     },
     {
       "id": "EG-28",
@@ -752,7 +782,12 @@
       "current_maintenance_work_evidence": "execution_evidence_20261101.instruction_maintenance_workflow",
       "current_real_no_change_evidence": "execution_evidence_20261101.eg31_actual_reporting_no_change_20261103",
       "current_real_conflict_evidence": "execution_evidence_20261101.eg31_real_kml_code_policy_conflict_20261103",
-      "current_real_changed_guidance_evidence": "execution_evidence_20261101.eg31_real_marker_historical_change_replay_20261103"
+      "current_real_changed_guidance_evidence": "execution_evidence_20261101.eg31_real_marker_historical_change_replay_20261103",
+      "latest_runtime_delivery": {
+        "package": "79c320d8/sourceb515a5e; deployed for liveOciusX",
+        "evidence": "execution_evidence_20261101.ociusx_resource_release_and_matched_query_pair_20261104",
+        "limit": "Runtime delivery is complete; existing partial behavior/coverage/usefulness requirements in this finding remain open."
+      }
     }
   ],
   "storage_release_gates": [
@@ -7992,7 +8027,140 @@
           "sha256": "ae9bc9e7cf747db5e4042b6a2997f938edbeb1e94de6395418d8952b6b5533a5"
         }
       ]
+    },
+    "ociusx_resource_release_and_matched_query_pair_20261104": {
+      "at_utc": "2026-11-04T10:53:38.575348+00:00",
+      "status": "PUBLISHED_AND_DEPLOYED_OCIUSX_RESOURCE_BATCH; ORIGINAL_AUDIT_OPEN",
+      "source_commit": "b515a5e5cb2385a9703fd02fedb9e63643c2cfa3",
+      "source_remote": "origin/master",
+      "binary_sha256": "79c320d806132405b0660c7ede965e6967310890e9820e9bff2eaa8dce2515b4",
+      "manifest_sha256": "981d0c7250cb4a56006ce67a7eb66caa9dd0dca4c353e60d732fde96808497aa",
+      "changes": [
+        "Skip unproven/legacy/erroring source registrations before optional startup runtime opens and warm-up capacity selection; preserve explicit repair and on-demand access",
+        "Native DatasetScanner fragment read-ahead1 with existing exact query request semantics/defaultIObudget/leases/cancellation; unsupported request shapes use original SDK execution"
+      ],
+      "behavior_verification": {
+        "tests_passed": 12,
+        "targets": [
+          "source_snapshot_reuse_test",
+          "vector_search_score_tests",
+          "warmup_capacity_tests",
+          "warmup_order_tests",
+          "warmup_tests"
+        ],
+        "whole_suite_repeated": false,
+        "initial_fixture_compile_failure_preserved": 101,
+        "actual_source_inputs_unchanged_during_final_tests_and_build": true,
+        "new_owned_test_build_smoke_temporary_resources_removed": true
+      },
+      "matched_actual_ociusx_pair": {
+        "scope": "4actorlessnativequeries,same768Ollamaconfig/sourceHEAD3117,50mssampling/10ssettling. Bothnatural0/readersjoined; all4responseTEXTidentical. Not a sustained/wholemachine/physicalSSD/normalstartup benchmark.",
+        "metrics": {
+          "peak_private_bytes": {
+            "control": 894033920,
+            "candidate": 798871552,
+            "change_percent": -10.644156320153941
+          },
+          "settled_private_bytes": {
+            "control": 554307584,
+            "candidate": 94425088,
+            "change_percent": -82.96521809811644
+          },
+          "cpu_seconds": {
+            "control": 20.953125,
+            "candidate": 12.890625,
+            "change_percent": -38.478747203579424
+          },
+          "logical_read_bytes": {
+            "control": 2724444245,
+            "candidate": 2724466390,
+            "change_percent": 0.0008128263237816569
+          },
+          "logical_write_bytes": {
+            "control": 10661,
+            "candidate": 10661,
+            "change_percent": 0.0
+          }
+        },
+        "latency_seconds": {
+          "control": {
+            "cold-login": 3.2718138999771327,
+            "cold-help": 1.5124008999555372,
+            "warm-login": 1.3155423999996856,
+            "warm-help": 1.4052773999865167
+          },
+          "candidate": {
+            "cold-login": 2.57364299998153,
+            "cold-help": 2.381281400041189,
+            "warm-login": 2.3052556000184268,
+            "warm-help": 2.296156800002791
+          }
+        },
+        "resource_budget_passed": false,
+        "decision": "Accept primaryCPU/settled-memory savings with~0.9-1.0s slower repeated native queries in this pair; retain both512MiBalerts/peak optimizationOPEN"
+      },
+      "normal_installed_observation": {
+        "primary_pid": 83348,
+        "source_generation": 3117,
+        "ociusx_rules_visible": 94,
+        "window_seconds": 60.015137500013225,
+        "logical_write_bytes": 96136,
+        "cpu_seconds": 0.484375,
+        "ending_private_bytes": 381403136,
+        "scope": "Separate shortpostquerynormalruntimewindow; not matched actorless or sustained leak test"
+      },
+      "preservation": {
+        "all255_selected_raw_records_and15_catalog_routes_preserved": true,
+        "canonical78399_metadata_preserved": true,
+        "canonical_content_hash_verified": false,
+        "complete_knowledge_inventory_verified": false,
+        "old_installed_f823_pair": "C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-6477e94806f34b6f909eb78c3625bb7f",
+        "older_original_pair_and3historical_exes": "C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-c2586c4f0eae44c3b39b1e7861a5b24a",
+        "global_config_sha256_unchanged": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+        "maintenance_hold_released_at_utc": "2026-11-04T10:49:34.8206577Z",
+        "other14": "Preserved/pending, not blockers under live-OciusX priority; no full availability/conversion claim",
+        "cleanup_authority": "No prior rejected cleanup/preexisting-copy/canonical deletion retried"
+      },
+      "original_scope_still_open": "31 findings and19original release gates remain individually tracked; scoped19admission is not full closure. S14 broader beforeallocation/S15peakmemory+sustainedrealusage/EG14genericusefulness/EG17actualconsumer/EG24regular eval/EG25matchedOXbenefit remain open. Kernel/SSDincidentattribution remains on hold.",
+      "evidence": [
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-ociusx-warmup-vector-readahead-fixed-fixture-20261104.json",
+          "sha256": "85475b60ee5ad7628ed3b5fa1bf10112d5c0b33bfff1373271a880f66afc5f98"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\shipping-cached-release-build-resource-v3-20261104.json",
+          "sha256": "e2200f23456f5dfd4e666f3fed5290cb56006400d44bf7fd78d935d21a6c6be2"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\ociusx-vector-buffer-matched-comparison-20261104.json",
+          "sha256": "83701b9c78739940f7280cb4d61e177e0d0c4dd5aaecb398898d627f15b67fef"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\ociusx-resource-source-publication-20261104.json",
+          "sha256": "5d02bc26982ed7a06061e372b42292277adb0810bb1af9040d795d39b704205c"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\ociusx-resource-forward-transition-20261104.json",
+          "sha256": "af07e4c7707b7767f9186a6244bc0c0c2e975d8fa7bd5c8959b77307eb7a9487"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\ociusx-resource-release-gates-admitted-20261104.json",
+          "sha256": "3f75992a4b9a58e5192444533258765dcbdcef9ff39f68793b57d57d03d41a64"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\ociusx-resource-installer-upgrade-20261104.json",
+          "sha256": "82e120737f02c218385ba0895875e1f8ac6faa9f156109df08b7d5faa1bf032f"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\installed-resource-package-smoke-20261104.json",
+          "sha256": "33186fcfd0cbda265b4b7fd8f5d58aeef2e1e10824acd609744a33aa60a0f10a"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\installed-resource-normal-ociusx-acceptance-20261104.json",
+          "sha256": "88a476a7572cd968af44492ebd772d24fd798ff51620b6a06d46a0458ef72f81"
+        }
+      ]
     }
   },
-  "last_updated_at": "2026-11-04T09:37:01.722920+00:00"
+  "last_updated_at": "2026-11-04T10:53:38.576492+00:00"
 }
