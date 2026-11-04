@@ -37,6 +37,10 @@ pub struct SelectedSourceSummary {
     pub source_files: Option<usize>,
     pub source_chunks: usize,
     pub chunks_by_language: std::collections::BTreeMap<String, usize>,
+    /// One observation per managed file identity, independent of chunk counts.
+    /// Extension labels are ASCII-case-normalized and bounded to 64 bytes;
+    /// excess distinct labels/long extensions share the `(other)` bucket.
+    pub files_by_extension: std::collections::BTreeMap<String, usize>,
     /// Non-overlapping parent-directory groups, at most three components deep.
     /// At most 4096 groups/256 KiB of group names are observed; 32 are shown.
     /// Truncation means this is a sample, never a claim of global top groups.
@@ -118,11 +122,23 @@ impl HybridSearchEngine {
             *chunks_by_language.entry("unknown".into()).or_insert(0) += source_chunks - classified;
         }
         let mut directories = std::collections::BTreeMap::new();
+        let mut files_by_extension = std::collections::BTreeMap::new();
         let mut directory_bytes = 0usize;
         let mut directory_discovery_capped = false;
         let source_files = match &view._snapshot.selection {
             snapshots::Selection::Files(files) => {
                 for path in files.keys() {
+                    let mut extension = match std::path::Path::new(path).extension().and_then(|value| value.to_str()) {
+                        Some(value) if value.len() <= 64 => format!(".{}", value.to_ascii_lowercase()),
+                        Some(_) => "(other)".into(),
+                        None => "(no extension)".into(),
+                    };
+                    // Reserve one label for all omitted types, preserving the
+                    // exact file denominator even when display detail is capped.
+                    if !files_by_extension.contains_key(&extension) && files_by_extension.len() >= 255 {
+                        extension = "(other)".into();
+                    }
+                    *files_by_extension.entry(extension).or_insert(0usize) += 1;
                     let parent = path.rsplit_once('/').map_or("(root)", |(parent, _)| parent);
                     let end = parent
                         .match_indices('/')
@@ -160,6 +176,7 @@ impl HybridSearchEngine {
             source_files,
             source_chunks,
             chunks_by_language,
+            files_by_extension,
             files_by_directory: ranked.into_iter().collect(),
             directories_truncated,
         })

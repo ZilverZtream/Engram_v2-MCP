@@ -68,6 +68,7 @@ namespace App {
             file_path: None,
             symbol_fqn: Some("App.Utility.Helper".to_string()),
             limit: 10,
+            max_depth: 1,
         }))
         .await
         .unwrap();
@@ -98,6 +99,7 @@ namespace App {
             file_path: Some("Page.aspx.cs".to_string()),
             symbol_fqn: None,
             limit: 10,
+            max_depth: 1,
         }))
         .await
         .unwrap();
@@ -192,6 +194,7 @@ async fn run(engram: &engram_server::Engram, pid: &str, sym: &str) -> String {
             file_path: None,
             symbol_fqn: Some(sym.to_string()),
             limit: 50,
+            max_depth: 1,
         }))
         .await
         .unwrap();
@@ -299,6 +302,7 @@ async fn missing_target_is_not_found_not_empty() {
             file_path: Some("t.vb".into()),
             symbol_fqn: Some("Target".into()),
             limit: 10,
+            max_depth: 1,
         }))
         .await;
     assert!(
@@ -389,6 +393,7 @@ async fn internal_flood_cannot_hide_external_caller() {
             file_path: Some("t.vb".into()),
             symbol_fqn: None,
             limit: 50,
+            max_depth: 1,
         }))
         .await
         .unwrap();

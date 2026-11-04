@@ -4,6 +4,7 @@ pub mod auth_config_service;
 pub mod autonomous_decision_service;
 pub mod benchmark_service;
 pub mod blast_radius_service;
+pub mod impact_walk_service;
 pub mod business_logic_service;
 pub mod business_branch_contexts;
 pub mod business_outcome_dependencies;
