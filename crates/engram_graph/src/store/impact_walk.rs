@@ -110,8 +110,14 @@ pub struct ImpactWitness {
     pub edge_generation: u64,
     pub weight: u32,
     pub depth: usize,
-    /// Recorded extractor reference line, never inferred from a declaration.
+    /// Preferred recorded position; its strength is explicit, never inferred
+    /// from the owning declaration's bounds.
     pub source_line: Option<u32>,
+    pub source_position_kind: &'static str,
+    pub extractor_anchor_line: Option<u32>,
+    /// Bounded, sorted call/reference syntax samples, not every call in the source.
+    pub reference_lines: Vec<u32>,
+    pub reference_lines_truncated: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -262,14 +268,63 @@ fn record_frontier(
     });
 }
 
-fn recorded_source_line(edge: &Edge) -> Option<u32> {
-    let value = edge.metadata.as_ref()?.get("src_line")?;
+fn positive_line(value: &JsonValue) -> Option<u32> {
     let line = match value {
-        JsonValue::String(text) if text.len() <= 10 => text.parse::<u32>().ok(),
+        JsonValue::String(text)
+            if !text.is_empty() && text.len() <= 10 && text.bytes().all(|b| b.is_ascii_digit()) =>
+        {
+            text.parse::<u32>().ok()
+        }
         JsonValue::Number(number) => number.as_u64().and_then(|line| u32::try_from(line).ok()),
         _ => None,
     }?;
     (line > 0).then_some(line)
+}
+
+fn recorded_positions(edge: &Edge) -> (Option<u32>, &'static str, Vec<u32>, bool) {
+    let Some(metadata) = edge.metadata.as_ref().and_then(JsonValue::as_object) else {
+        return (None, "not_recorded", Vec::new(), false);
+    };
+    // Ingestion retains at most 128 positions. Bound inspection of older or
+    // hand-authored records too; never clone arbitrary extractor metadata.
+    let mut lines = std::collections::BTreeSet::new();
+    let mut truncated = false;
+    if edge.edge_kind == EdgeKind::Calls {
+        if let Some(line) = metadata.get("call_site_line").and_then(positive_line) {
+            lines.insert(line);
+        }
+        if let Some(values) = metadata
+            .get("call_site_lines")
+            .and_then(JsonValue::as_array)
+        {
+            truncated = values.len() > 128;
+            lines.extend(values.iter().take(128).filter_map(positive_line));
+        }
+        truncated |= metadata
+            .get("call_site_lines_truncated")
+            .is_some_and(|v| v == true || v.as_str() == Some("true"));
+    }
+    if !lines.is_empty() {
+        truncated |= lines.len() > 8;
+        let lines: Vec<_> = lines.into_iter().take(8).collect();
+        return (
+            lines.first().copied(),
+            "call_reference_syntax_metadata",
+            lines,
+            truncated,
+        );
+    }
+    let anchor = metadata.get("src_line").and_then(positive_line);
+    (
+        anchor,
+        if anchor.is_some() {
+            "extractor_anchor_metadata"
+        } else {
+            "not_recorded"
+        },
+        Vec::new(),
+        truncated,
+    )
 }
 
 // Called only after the retained-byte gate. Never clone arbitrary metadata
@@ -1226,6 +1281,12 @@ impl GraphStore {
                     }
                     output.coverage.max_depth_reached =
                         output.coverage.max_depth_reached.max(depth + 1);
+                    let (
+                        source_line,
+                        source_position_kind,
+                        reference_lines,
+                        reference_lines_truncated,
+                    ) = recorded_positions(&edge);
                     output.witnesses.push(ImpactWitness {
                         source_id: source.to_owned(),
                         target_id: target.clone(),
@@ -1233,7 +1294,15 @@ impl GraphStore {
                         edge_generation: edge.generation,
                         weight: edge.weight,
                         depth: depth + 1,
-                        source_line: recorded_source_line(&edge),
+                        source_line,
+                        source_position_kind,
+                        extractor_anchor_line: edge
+                            .metadata
+                            .as_ref()
+                            .and_then(|m| m.get("src_line"))
+                            .and_then(positive_line),
+                        reference_lines,
+                        reference_lines_truncated,
                     });
                 }
             }
@@ -1341,6 +1410,152 @@ mod tests {
                 ImpactAdmission::NonSelectedRevision
             },
         )
+    }
+
+    #[test]
+    fn persisted_reference_samples_do_not_reassign_owners_or_upgrade_legacy_anchors()
+    -> anyhow::Result<()> {
+        owned_case(|store| {
+            let invalid = serde_json::json!([
+                0,
+                -1,
+                1.5,
+                4294967296u64,
+                "4294967296",
+                "+96",
+                " 96",
+                true,
+                {},
+                null
+            ]);
+            let mut oversized = vec![serde_json::json!(0); 128];
+            oversized.push(serde_json::json!(96));
+            let cases = vec![
+                (
+                    serde_json::json!({"src_line":"92","call_site_line":"96"}),
+                    Some(96),
+                    "call_reference_syntax_metadata",
+                    vec![96],
+                    false,
+                ),
+                (
+                    serde_json::json!({"src_line":92,"call_site_line":101,"call_site_lines":[101,"96",101,0]}),
+                    Some(96),
+                    "call_reference_syntax_metadata",
+                    vec![96, 101],
+                    false,
+                ),
+                (
+                    serde_json::json!({"src_line":92,"call_site_line":"96","via":"addressof"}),
+                    Some(96),
+                    "call_reference_syntax_metadata",
+                    vec![96],
+                    false,
+                ),
+                (
+                    serde_json::json!({"src_line":92,"call_site_lines":(96..=110).rev().collect::<Vec<_>>()}),
+                    Some(96),
+                    "call_reference_syntax_metadata",
+                    (96..=103).collect(),
+                    true,
+                ),
+                (
+                    serde_json::json!({"src_line":92,"call_site_line":96,"call_site_lines_truncated":true}),
+                    Some(96),
+                    "call_reference_syntax_metadata",
+                    vec![96],
+                    true,
+                ),
+                (
+                    serde_json::json!({"src_line":92,"call_site_lines":oversized}),
+                    Some(92),
+                    "extractor_anchor_metadata",
+                    vec![],
+                    true,
+                ),
+                (
+                    serde_json::json!({"src_line":"92","call_site_lines":invalid}),
+                    Some(92),
+                    "extractor_anchor_metadata",
+                    vec![],
+                    false,
+                ),
+                (
+                    serde_json::json!({"src_line":"92"}),
+                    Some(92),
+                    "extractor_anchor_metadata",
+                    vec![],
+                    false,
+                ),
+                (
+                    serde_json::json!({"src_line":0,"call_site_line":false}),
+                    None,
+                    "not_recorded",
+                    vec![],
+                    false,
+                ),
+                (
+                    serde_json::json!({"src_line":4294967296u64,"call_site_lines":"[96]"}),
+                    None,
+                    "not_recorded",
+                    vec![],
+                    false,
+                ),
+                (
+                    serde_json::json!({"src_line":92,"call_site_line":"000000000096"}),
+                    Some(92),
+                    "extractor_anchor_metadata",
+                    vec![],
+                    false,
+                ),
+                (
+                    serde_json::json!({"call_site_line":4294967295u64}),
+                    Some(u32::MAX),
+                    "call_reference_syntax_metadata",
+                    vec![u32::MAX],
+                    false,
+                ),
+                (serde_json::Value::Null, None, "not_recorded", vec![], false),
+            ];
+            let mut nodes = vec![file("policy.vb", 1), node("target", "policy.vb", 1)];
+            let mut edges = Vec::new();
+            for (index, (metadata, ..)) in cases.iter().enumerate() {
+                let mut caller = node(&format!("same-name-overload:{index}:92"), "policy.vb", 1);
+                caller.start_line = 92;
+                caller.end_line = 120;
+                let mut call = edge(&caller.node_id, "target", EdgeKind::Calls, 1);
+                call.metadata = (!metadata.is_null()).then(|| metadata.clone());
+                nodes.push(caller);
+                edges.push(call);
+            }
+            // Attractive position metadata must not authorize a stale edge.
+            let mut stale = edge("stale", "target", EdgeKind::Calls, 2);
+            stale.metadata = Some(serde_json::json!({"call_site_line":96}));
+            nodes.push(node("stale", "policy.vb", 1));
+            edges.push(stale);
+            store.upsert_nodes(PROJECT, &nodes)?;
+            store.upsert_edges(PROJECT, &edges)?;
+            let walk =
+                store.bounded_incoming_walk(PROJECT, &["target".into()], 1, &causal, &|n, f| {
+                    selected(&[("policy.vb", 1)], n, f)
+                })?;
+            assert_eq!(walk.witnesses.len(), cases.len());
+            for (index, (_, line, kind, lines, truncated)) in cases.iter().enumerate() {
+                let id = format!("same-name-overload:{index}:92");
+                let witness = walk.witnesses.iter().find(|w| w.source_id == id).unwrap();
+                assert_eq!(
+                    (witness.source_line, witness.source_position_kind),
+                    (*line, *kind)
+                );
+                assert_eq!(
+                    (&witness.reference_lines, witness.reference_lines_truncated),
+                    (lines, *truncated)
+                );
+                let owner = walk.nodes.iter().find(|n| n.node.node_id == id).unwrap();
+                assert_eq!((owner.node.start_line, owner.node.end_line), (92, 120));
+            }
+            Ok(())
+        })
     }
 
     #[test]

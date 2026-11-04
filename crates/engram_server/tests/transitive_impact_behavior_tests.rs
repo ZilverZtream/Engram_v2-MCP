@@ -456,6 +456,190 @@ fn dependent<'a>(report: &'a Value, node_id: &str) -> &'a Value {
 }
 
 #[test]
+fn agents_can_inspect_recorded_references_without_reassigning_same_named_callers() {
+    owned_case(|fixture| async move {
+        let mut lines = vec!["// padding"; 120];
+        lines[0] = "pub fn ClassifyAutomatic() -> i32 { 1 }";
+        lines[91] = "pub fn Resolve() -> i32 {";
+        lines[95] = "    let first = ClassifyAutomatic();";
+        lines[100] = "    ClassifyAutomatic()";
+        lines[105] = "}";
+        lines[109] = "pub fn Resolve(value: i32) -> i32 {";
+        lines[113] = "    let callback = ClassifyAutomatic;";
+        lines[119] = "}";
+        let body = lines.join("\n") + "\n";
+        let cancel = CancellationToken::new();
+        let baseline = fixture
+            .engram
+            .state
+            .registry
+            .capture_source_head(PID)
+            .unwrap();
+        fixture
+            .search
+            .prepare_source_snapshot(PID, 2, 3, &[RelPath::new(POLICY)], &[], &cancel)
+            .await
+            .unwrap();
+        fixture
+            .search
+            .index_docs(PID, &[source_doc(3, 300, POLICY, &body)], &cancel)
+            .await
+            .unwrap();
+        fixture.search.seal_source_snapshot(PID, 3).unwrap();
+        std::fs::write(fixture.root.join(POLICY), &body).unwrap();
+        let root = id(POLICY, "ClassifyAutomatic", 1);
+        let first = id(POLICY, "Resolve", 92);
+        let second = id(POLICY, "Resolve", 110);
+        let mut first_node = declaration(POLICY, "Resolve", 92, 3);
+        first_node.end_line = 106;
+        let mut second_node = declaration(POLICY, "Resolve", 110, 3);
+        second_node.end_line = 120;
+        fixture
+            .engram
+            .state
+            .graph
+            .upsert_nodes(
+                PID,
+                &[
+                    file_node(POLICY, &body, 3),
+                    declaration(POLICY, "ClassifyAutomatic", 1, 3),
+                    first_node,
+                    second_node,
+                ],
+            )
+            .unwrap();
+        let mut first_edge = edge(first.clone(), root.clone(), EdgeKind::Calls, 3);
+        let mut second_edge = edge(second.clone(), root.clone(), EdgeKind::Calls, 3);
+        fixture
+            .engram
+            .state
+            .graph
+            .upsert_edges(PID, &[first_edge.clone(), second_edge.clone()])
+            .unwrap();
+        assert!(
+            fixture
+                .engram
+                .state
+                .registry
+                .publish_source_head(&baseline, 3)
+                .unwrap()
+        );
+        let before = impact_packet(&impact_target(&fixture, &root, Some(6)).await);
+        first_edge.metadata =
+            Some(json!({"src_line":"92","call_site_line":"96","call_site_lines":[101,96,101]}));
+        second_edge.metadata = Some(json!({"src_line":110,"call_site_line":114,"via":"addressof"}));
+        fixture
+            .engram
+            .state
+            .graph
+            .upsert_edges(PID, &[first_edge, second_edge])
+            .unwrap();
+        for tool in ["impact_analysis", "compute_blast_radius"] {
+            let request = json!({"project_id":PID,"symbol_fqn":root,"max_depth":6});
+            let result = match tool {
+                "impact_analysis" => {
+                    fixture
+                        .engram
+                        .handle_impact_analysis(serde_json::from_value(request).unwrap())
+                        .await
+                }
+                _ => {
+                    fixture
+                        .engram
+                        .handle_compute_blast_radius(serde_json::from_value(request).unwrap())
+                        .await
+                }
+            }
+            .unwrap();
+            assert!(!result.is_error.unwrap_or(false));
+            let text: String = result
+                .content
+                .iter()
+                .filter_map(|c| c.as_text())
+                .map(|c| c.text.as_str())
+                .collect();
+            let graph = impact_packet(&text);
+            assert_eq!(graph["coverage"], before["coverage"]);
+            assert_eq!(
+                graph["nodes"], before["nodes"],
+                "Reference metadata cannot change owner identity, bounds or admission"
+            );
+            assert_eq!(graph["shortest_paths"], before["shortest_paths"]);
+            assert_eq!(
+                graph["edges"].as_array().unwrap().len(),
+                before["edges"].as_array().unwrap().len()
+            );
+            for (id, anchor, positions) in
+                [(&first, 92, json!([96, 101])), (&second, 110, json!([114]))]
+            {
+                let node = graph["nodes"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|n| n["node_id"] == *id)
+                    .unwrap();
+                let witness = graph["edges"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|e| e["source_ref"] == node["ref"])
+                    .unwrap();
+                assert_eq!(witness["source_line"], positions[0]);
+                assert_eq!(witness["extractor_anchor_line"], anchor);
+                assert_eq!(
+                    witness["source_position_kind"],
+                    "call_reference_syntax_metadata"
+                );
+                assert_eq!(witness["reference_lines"], positions);
+            }
+            let summary = impact_packet(&summary_impact(&fixture, tool, &root, 6).await);
+            assert_eq!(summary["coverage"], graph["coverage"]);
+            let consumer = summary["immediate_consumers"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|n| n["node_id"] == first)
+                .unwrap();
+            assert_eq!(consumer["start_line"], 92);
+            let connection = &consumer["sample_connection_to_target"];
+            assert_eq!(connection["source_line"], 96);
+            assert_eq!(connection["extractor_anchor_line"], 92);
+            assert_eq!(connection["reference_lines"], json!([96, 101]));
+            let recovered = fixture
+                .engram
+                .handle_get_full_method_body(
+                    serde_json::from_value(
+                        connection["recorded_position_read"]["arguments"].clone(),
+                    )
+                    .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert!(!recovered.is_error.unwrap_or(false));
+            let recovered: Value =
+                serde_json::from_str(&recovered.content[0].as_text().unwrap().text).unwrap();
+            assert_eq!(
+                recovered["source_file_hash"],
+                ContentHash::compute(body.as_bytes()).0
+            );
+            assert!(
+                recovered["source_code"]
+                    .as_str()
+                    .unwrap()
+                    .contains("let first = ClassifyAutomatic();")
+            );
+            assert!(
+                graph["limitations"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|v| v.as_str().unwrap().contains("delegate/property reference"))
+            );
+        }
+    });
+}
+
+#[test]
 fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_identity_bound_recovery()
  {
     owned_case(|fixture| async move {
@@ -775,6 +959,10 @@ fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_iden
                 "The recorded source reference line must survive compact rendering"
             );
             assert_eq!(
+                prepared_call["source_position_kind"], "extractor_anchor_metadata",
+                "A legacy extractor anchor must not become a recorded invocation by relabeling it"
+            );
+            assert_eq!(
                 prepared_call
                     .get("recovery_ref")
                     .unwrap_or(&viewport_node["recovery_ref"]),
@@ -867,15 +1055,24 @@ fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_iden
             assert_eq!(connection["kind"], "calls");
             assert_eq!(connection["edge_generation"], 2);
             assert!(connection["source_line"].is_null());
-            assert_eq!(connection["source_position_scope"], "not_recorded",
-                "A caller declaration range must not masquerade as an observed invocation location");
+            assert_eq!(
+                connection["source_position_scope"], "not_recorded",
+                "A caller declaration range must not masquerade as an observed invocation location"
+            );
             let call = &immediate[0]["source_read"];
             assert_eq!(call["tool"], "get_full_method_body");
             let prefix = &text[..text.floor_char_boundary(2048)];
-            assert!(!prefix.contains("(node ") && !prefix.contains("; edge ") && !prefix.contains("; recovery "),
-                "A standalone summary cannot require registries available only after graph expansion");
-            assert!(prefix.contains("indexed declaration range") && prefix.contains("boundaries and invocation location are unverified"),
-                "An agent must know the action inspects current source lines without certifying method or callsite boundaries");
+            assert!(
+                !prefix.contains("(node ")
+                    && !prefix.contains("; edge ")
+                    && !prefix.contains("; recovery "),
+                "A standalone summary cannot require registries available only after graph expansion"
+            );
+            assert!(
+                prefix.contains("indexed declaration range")
+                    && prefix.contains("boundaries and invocation location are unverified"),
+                "An agent must know the action inspects current source lines without certifying method or callsite boundaries"
+            );
             let prefix_call: Value = serde_json::from_str(
                 prefix
                     .split_once("## First immediate indexed consumer")
@@ -928,13 +1125,28 @@ fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_iden
                 assert!(branch["recovery"]["arguments"].is_object());
             }
             assert_eq!(summary["frontier_rows_omitted_from_summary"], 0);
-            let missing = frontier.iter().find(|row| row["node_id"] == dangling).unwrap();
+            let missing = frontier
+                .iter()
+                .find(|row| row["node_id"] == dangling)
+                .unwrap();
             assert_eq!(missing["lookup_hint"]["file_path"], "src/deleted.rs");
             assert_eq!(missing["lookup_hint"]["symbol_name"], "DeletedCaller");
-            assert_eq!(missing["admission"], "unresolved",
-                "A parsed declaration hint must never promote a missing endpoint into admitted evidence");
-            assert!(summary["coverage_counter_semantics"]["missing_nodes"].as_str().unwrap().contains("more than once"));
-            assert!(summary["coverage_counter_semantics"]["unknown_nodes"].as_str().unwrap().contains("Zero does not resolve"));
+            assert_eq!(
+                missing["admission"], "unresolved",
+                "A parsed declaration hint must never promote a missing endpoint into admitted evidence"
+            );
+            assert!(
+                summary["coverage_counter_semantics"]["missing_nodes"]
+                    .as_str()
+                    .unwrap()
+                    .contains("more than once")
+            );
+            assert!(
+                summary["coverage_counter_semantics"]["unknown_nodes"]
+                    .as_str()
+                    .unwrap()
+                    .contains("Zero does not resolve")
+            );
             let expanded = expand_summary_graph(&fixture, &summary, &root, 6).await;
             assert_eq!(expanded["coverage"], graph["coverage"]);
             assert_eq!(
