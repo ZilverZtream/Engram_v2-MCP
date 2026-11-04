@@ -964,7 +964,13 @@ CodeMap supports literal project-relative `scope` and `exclude_paths`, plus
 follow an area's supplied exploration call, then open a returned source range or
 method context. The default preview covers eight files; exact-file responses
 provide `next_symbols` calls with `symbol_offset` for later declarations within
-the bounded discovery sample. Generic role hints rank file representatives before
+the bounded discovery sample. Declarations with usable indexed line bounds carry
+one executable source-range read. For richer context and compact impact actions,
+pass the exact listed `node_id`
+as `symbol_node_id`, retain the same exact-file scope and exclusions, and set both
+offsets to zero. This returns only that observed declaration; an unmatched identity
+does not establish absence. Compare generation and coverage across these fresh
+observations. Generic role hints rank file representatives before
 area size; the separate area inventory remains ordered by selected-file count.
 Directory groups and filename priorities are navigation
 heuristics; they do not establish runtime architecture. Memory/history context

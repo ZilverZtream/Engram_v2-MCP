@@ -562,7 +562,7 @@ fn codemap_navigation_case(crowded: bool) {
             .map(|number|format!("pub fn AaaExtra{number:02}() -> i32 {{ {number} }}\n"))
             .collect::<String>());
         sources.push((POLICY.to_owned(),policy_source.clone()));
-        sources.extend([(JOB,"pub fn RunJob() -> i32 { 7 }\n"),
+        sources.extend([(JOB,"pub fn RunJob() -> i32 { 7 }\npub fn ResolveZoom() -> i32 { 7 }\n"),
             (PRIVATE,"pub fn PrivateOnly() -> i32 { 9 }\n"),(FROZEN,"Public Class FrozenOnly\nEnd Class\n"),
             (SCHEMA,"CREATE TABLE UserSettings (Id INT);\n"),
             (SETTINGS,"<configuration><appSettings><add key=\"MapEnabled\" value=\"true\" /></appSettings></configuration>\n")]
@@ -658,6 +658,8 @@ fn codemap_navigation_case(crowded: bool) {
                         FUTURE,
                         2,
                     ),
+                    node(&format!("sym:function:{POLICY}:FutureOnly:1"),
+                        "function", "FutureOnly", POLICY, 2),
                 ],
             )
             .unwrap();
@@ -744,6 +746,12 @@ fn codemap_navigation_case(crowded: bool) {
             .find(|action|action["tool"]=="get_codebase_overview").unwrap();
         let first_page=navigate(&engram,file_action["arguments"].clone()).await;
         let first_policy=&first_page["files"][0];
+        assert_eq!(first_policy["symbols"].as_array().unwrap().len(),16);
+        for symbol in first_policy["symbols"].as_array().unwrap() {
+            let actions=symbol["actions"].as_array().unwrap();
+            assert_eq!(actions.len(),1,"Declaration pages must leave context room for the agent's task instead of repeating richer tool calls");
+            assert_eq!(actions[0]["tool"],"get_full_method_body");
+        }
         assert!(first_policy["symbols"].as_array().unwrap().iter()
             .all(|symbol|symbol["name"]!="ResolveZoom"),
             "The wanted declaration is intentionally beyond the first file symbol page");
@@ -786,5 +794,67 @@ fn codemap_navigation_case(crowded: bool) {
             recovered["source_file_hash"],
             ContentHash::compute(policy_source.as_bytes()).0
         );
+        if !crowded {
+            let wanted_id=format!("sym:function:{POLICY}:ResolveZoom:1");
+            let select=|id:&str|json!({"project_id":PID,"scope":POLICY,
+                "exclude_paths":["Site/Q",PRIVATE],"symbol_node_id":id});
+            let expanded=navigate(&engram,select(&wanted_id)).await;
+            assert_eq!(expanded["source_generation"],1);
+            assert_eq!(expanded["coverage"]["declarations"],later_page["coverage"]["declarations"],
+                "Selecting one action set must retain the same bounded discovery and admission evidence");
+            let file=&expanded["files"][0];
+            assert_eq!(file["declarations_observed"],25);
+            assert_eq!(file["symbol_selection"]["observed"],true);
+            assert_eq!(file["symbols"].as_array().unwrap().len(),1);
+            assert!(file["next_symbols"].is_null(),"Exact identity selection is not another declaration page");
+            let declaration=&file["symbols"][0];
+            assert_eq!(declaration["node_id"],wanted_id);
+            assert_eq!(declaration["start_line"],1);
+            let actions=declaration["actions"].as_array().unwrap();
+            let inspect=actions.iter().find(|a|a["tool"]=="get_method_edit_context").unwrap();
+            let context=engram.handle_get_method_edit_context(serde_json::from_value(inspect["arguments"].clone()).unwrap()).await.unwrap();
+            assert!(!context.is_error.unwrap_or(false));
+            let context:Value=serde_json::from_str(&context.content[0].as_text().unwrap().text).unwrap();
+            assert_eq!(context["method_info"]["file_path"],POLICY,
+                "A same-named declaration in another file must not receive this inspection");
+            assert_eq!(context["method_info"]["line_start"],1);
+            let impact=actions.iter().find(|a|a["tool"]=="impact_analysis").unwrap();
+            assert_eq!(impact["arguments"]["symbol_fqn"],wanted_id);
+            assert_eq!(impact["arguments"]["detail"],"summary");
+            let impact=engram.handle_impact_analysis(serde_json::from_value(impact["arguments"].clone()).unwrap()).await.unwrap();
+            assert!(!impact.is_error.unwrap_or(false));
+            let text=impact.content.iter().filter_map(|c|c.as_text()).map(|c|c.text.as_str()).collect::<String>();
+            assert!(text.len()<=12*1024,"The selected impact action must preserve room for the agent's task while retaining graph expansion");
+            let packet:Value=serde_json::from_str(text.split_once("## Revision-admitted change impact").unwrap().1
+                .split_once("```json").unwrap().1.split_once("```").unwrap().0).unwrap();
+            assert_eq!(packet["target_revision_admitted"],true,
+                "A successful RPC with unavailable evidence does not prove the selected action recovered its admitted target");
+            assert_eq!(packet["target"]["node_id"],wanted_id);
+            assert_eq!(packet["source_generation"],1);
+            assert_eq!(packet["graph_continuation"]["arguments"]["symbol_fqn"],wanted_id);
+            for id in ["ResolveZoom".to_owned(),format!("sym:function:{JOB}:ResolveZoom:2"),
+                format!("sym:function:{PRIVATE}:PrivateOnly:1"),format!("sym:function:{POLICY}:FutureOnly:1"),
+                "sym:function:src/missing.rs:Unknown:1".to_owned()] {
+                let missing=navigate(&engram,select(&id)).await;
+                let file=&missing["files"][0];
+                assert_eq!(file["symbol_selection"]["observed"],false,
+                    "Wrong-file, excluded, future and unknown identities must not fall back to a same-named admitted declaration");
+                assert!(file["symbols"].as_array().unwrap().is_empty());
+                assert!(file["next_symbols"].is_null());
+                assert_eq!(file["declarations_observed"],25);
+            }
+            for arguments in [
+                json!({"project_id":PID,"scope":PRIVATE,"exclude_paths":[PRIVATE],"symbol_node_id":wanted_id}),
+                json!({"project_id":PID,"scope":"src/zzz-map","symbol_node_id":wanted_id}),
+                json!({"project_id":PID,"symbol_node_id":wanted_id}),
+                json!({"project_id":PID,"scope":POLICY,"symbol_node_id":""}),
+                json!({"project_id":PID,"scope":POLICY,"symbol_node_id":"name\n"}),
+                json!({"project_id":PID,"scope":POLICY,"symbol_node_id":"x".repeat(2049)}),
+                json!({"project_id":PID,"scope":POLICY,"symbol_node_id":wanted_id,"symbol_offset":16}),
+                json!({"project_id":PID,"scope":POLICY,"symbol_node_id":wanted_id,"offset":1}),
+            ] {
+                assert!(engram.handle_get_codebase_overview(serde_json::from_value(arguments).unwrap()).await.is_err());
+            }
+        }
     });
 }
