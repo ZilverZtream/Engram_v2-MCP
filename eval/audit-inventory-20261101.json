@@ -597,7 +597,20 @@
         "tests": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\area-consumer-public-behavior-v2-20261104.json",
         "verified": "57focusedpubliccasesPASS/230s;7area+45maintenance+5impact. Sourceunchanged; exactownedJob/handlesclosed/TEMPremoved. Independentproduction/testreviewsCLEAR.",
         "behavior": "Callable-first boundednativeprefix/Containsdeclarationseeding underheldsource; secondarytype/field/filedependencies; samecausal/originadmission; groupedexternalconsumers, currentcompletefingerprintbindingindependentdisplay; scoped256KiBcodeevidence withguidance/manual128 andaggregate768 unchanged; executablemetadata-onlyrecoveries foroversize/cappedinputs; mandatoryevidenceprioritized.",
-        "state": "PARTIAL: sourceverified; publish/build/realOciusXafter-output/deployment/usefulgroundeddraftstillpending. Original31findings/19gatesactive."
+        "state": "Verifiedsource+deployeddiscoverymilestone; remainingEG14draft/runtimeworkflowunfinishedandparkedperexplicitCodeMap/Blastpriority."
+      },
+      "consumer_discovery_runtime_delivery_20261104": {
+        "source_commit": "40a72cb97070cf79448a01c082b5dacd3034ec90",
+        "binary_sha256": "b627daf1ed7d7ba3583f49f5f11ed4c2f8a4468ac54e40abd72765a20f2be92c",
+        "manifest_sha256": "581ef851af7ca2b860d8282ca695e9fb876c70e518353b3853a040058bfc107e",
+        "actual_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\area-consumer-actual-ociusx-acceptance-20261104.json",
+        "installed_normal_packet": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\area-consumer-installed-normal-packet-20261104.json",
+        "core_paired_safety_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-agent-tool-baseline-20261104.json",
+        "cleanup": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\area-consumer-owned-temp-accounting-20261104.json",
+        "result": "Actualsameautomaticrequestwithoutoraclepaths: old0completeforeignconsumers ->3completeB3verifiedsourcesincluding138994Bspatial,2namedrecoveryfiles,all5admittedfileimpactreferencesrepresented. Installednormalpacketbytehash andpacketcontentmatchcandidate. CurrentbothsafetyAPIs agree yellow/.5/33selectednodes.",
+        "verification_failure_retained": "Firstnormalverifier FAIL comparedfullsafety tohistorical livegraphcoverage. Historicalmissing/unknownrowobservations changed; they are not invariant. CurrentpairedAPIs/33selectednodes verified, changedgapcountsreportedwithoutattributingcause. OriginalFAILreceipt retained; normalpacketrecapturebyteidenticaltopinnedfirstreceipt.",
+        "closure": "PARTIAL: discoverydeliveryverified. UserexplicitlystoppedinstructiondraftingtofocusCodeMap+Blast. Data-only12claimdraft semanticallyreviewedbutunsubmitted/unfinished; notcompletionofagentcoretools orentireEG14.",
+        "retained_previous_pair": "C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-88bfa21dda824592befa22ef06eaa58a"
       }
     },
     {
@@ -8275,7 +8288,7 @@
       ]
     }
   },
-  "last_updated_at": "2026-11-04T15:59:46.036602+00:00",
+  "last_updated_at": "2026-11-04T17:05:38.800738+00:00",
   "current_execution_focus": {
     "at_utc": "2026-11-04T11:12:56.875854+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
@@ -8307,8 +8320,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG14 actual area-instruction usefulness pilot using OciusX existing map-file-layer guide and blind source oracle, after deployed shared safety milestone. Preserve all unfinished original31findings/19gates.",
-    "next_user_visible_deliverable": "Use installed Engram area_context on actual OciusX source without feeding oracle evidence paths; compare discovered evidence and a grounded proposal with existing authored guidance/exceptions. No authored OciusX policy writes. Fix demonstrated gaps; packet validation alone is not usefulness.",
+    "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
+    "next_user_visible_deliverable": "Actual agent-consumer walkthroughs of overview and impact outputs on OciusX; compare required follow-up evidence with independent source oracle, then deliver concrete core navigation/witness/recovery improvements. Do not return to instruction collection.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
