@@ -583,6 +583,21 @@
         "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-overview-area-source-applied-20261104.json",
         "closure": "PARTIAL: three new public cases and45maintenance regression cases pass; independent source review passed; actual OX usefulnesspilot and optimized runtime delivery pending",
         "runtime_delivery": "Source d3f7d20/installed0e3298 completepair; generic3new+45existingmaintenance casespassed. Actual OX draft/usefulnesspilot not performed; remains PARTIAL."
+      },
+      "actual_automatic_area_pilot_20261104": {
+        "request": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/area-map-file-layer-automatic-pilot-request-20261104.json",
+        "raw_result": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/area-map-file-layer-automatic-pilot-results-20261104.json",
+        "independent_oracle": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/area-map-file-layer-independent-oracle-20261104.json",
+        "impact_comparator": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/area-map-file-layer-consumer-reference-20261104.json",
+        "observed": "Actual installedf9e automatic requestwithoutoracleevidence_paths captures correctmap-file-layersguide/sharedguidance/fullfingerprintverifiedpolicy, butZEROconsumers. First8probeanchors are3classes+5fields; displayedfunctions neverprobed. Existing revision-admitted fileimpact finds21directdependentnodes across5externalfiles under3117. Spatialconsumer138994B exceeds128KiBcodecapturelimit.",
+        "state": "PARTIAL: boundedsource/capture/recovery correction underway; no usefuldraft or authoredpolicywrite claimed. Area scope remains exactpolicyfile; Site/Q excluded."
+      },
+      "consumer_discovery_implementation_20261104": {
+        "source_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\area-consumer-source-applied-20261104.json",
+        "tests": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\area-consumer-public-behavior-v2-20261104.json",
+        "verified": "57focusedpubliccasesPASS/230s;7area+45maintenance+5impact. Sourceunchanged; exactownedJob/handlesclosed/TEMPremoved. Independentproduction/testreviewsCLEAR.",
+        "behavior": "Callable-first boundednativeprefix/Containsdeclarationseeding underheldsource; secondarytype/field/filedependencies; samecausal/originadmission; groupedexternalconsumers, currentcompletefingerprintbindingindependentdisplay; scoped256KiBcodeevidence withguidance/manual128 andaggregate768 unchanged; executablemetadata-onlyrecoveries foroversize/cappedinputs; mandatoryevidenceprioritized.",
+        "state": "PARTIAL: sourceverified; publish/build/realOciusXafter-output/deployment/usefulgroundeddraftstillpending. Original31findings/19gatesactive."
       }
     },
     {
@@ -8260,7 +8275,7 @@
       ]
     }
   },
-  "last_updated_at": "2026-11-04T15:09:54.481453+00:00",
+  "last_updated_at": "2026-11-04T15:59:46.036602+00:00",
   "current_execution_focus": {
     "at_utc": "2026-11-04T11:12:56.875854+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",

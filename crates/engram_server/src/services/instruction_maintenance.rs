@@ -12,6 +12,7 @@ pub mod area_evidence;
 pub mod manifest;
 
 const FILE_LIMIT: usize = 128 * 1024;
+const AUTOMATIC_CODE_LIMIT: usize = 256 * 1024;
 const PACKET_LIMIT: usize = 768 * 1024;
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -200,9 +201,9 @@ fn paths(input: &[String], limit: usize) -> Result<Vec<String>> {
     Ok(unique.into_iter().collect())
 }
 
-fn snapshot(bytes: Vec<u8>, remaining: &mut usize) -> Result<Snapshot> {
+fn snapshot(bytes: Vec<u8>, remaining: &mut usize, file_limit: usize) -> Result<Snapshot> {
     ensure!(
-        bytes.len() <= FILE_LIMIT && bytes.len() <= *remaining,
+        bytes.len() <= file_limit && bytes.len() <= *remaining,
         "Complete maintenance evidence exceeds byte budget; select a smaller complete dependency set, never truncate guidance"
     );
     *remaining -= bytes.len();
@@ -213,7 +214,12 @@ fn snapshot(bytes: Vec<u8>, remaining: &mut usize) -> Result<Snapshot> {
     })
 }
 
-fn disk(root: &Path, relative: &str, remaining: &mut usize) -> Result<Option<Snapshot>> {
+fn disk(
+    root: &Path,
+    relative: &str,
+    remaining: &mut usize,
+    file_limit: usize,
+) -> Result<Option<Snapshot>> {
     let path = engram_core::safe_join(root, relative)?;
     let before_open = match std::fs::symlink_metadata(&path) {
         Ok(metadata) => metadata,
@@ -232,14 +238,14 @@ fn disk(root: &Path, relative: &str, remaining: &mut usize) -> Result<Option<Sna
         info.is_file(),
         "Maintenance input must be a regular file: {relative}"
     );
-    let limit = FILE_LIMIT.min(*remaining);
+    let limit = file_limit.min(*remaining);
     ensure!(
         info.len() <= limit as u64,
         "Complete maintenance input exceeds byte budget: {relative}"
     );
     let mut bytes = Vec::new();
     file.take(limit as u64 + 1).read_to_end(&mut bytes)?;
-    snapshot(bytes, remaining).map(Some)
+    snapshot(bytes, remaining, file_limit).map(Some)
 }
 
 fn committed(
@@ -247,6 +253,7 @@ fn committed(
     tree: &git2::Tree<'_>,
     path: &str,
     remaining: &mut usize,
+    file_limit: usize,
 ) -> Result<Option<Snapshot>> {
     // Missing entries establish literal Git-path absence. Missing referenced
     // objects establish unavailable history, even when libgit2 reports NotFound.
@@ -278,21 +285,49 @@ fn committed(
     );
     let (bytes, kind) = repo.odb()?.read_header(id)?;
     ensure!(
-        kind == git2::ObjectType::Blob && bytes <= FILE_LIMIT.min(*remaining),
+        kind == git2::ObjectType::Blob && bytes <= file_limit.min(*remaining),
         "Complete committed evidence exceeds byte budget or is not a blob: {path}"
     );
     let blob = repo.find_blob(id)?;
     ensure!(
-        blob.size() <= FILE_LIMIT.min(*remaining),
+        blob.size() <= file_limit.min(*remaining),
         "Complete committed evidence exceeds byte budget: {path}"
     );
-    snapshot(blob.content().to_vec(), remaining).map(Some)
+    snapshot(blob.content().to_vec(), remaining, file_limit).map(Some)
+}
+
+fn capture_limit(area: Option<&area_evidence::AreaEvidence>, path: &str) -> usize {
+    area.and_then(|area| area.files.iter().find(|file| file.path == path))
+        .filter(|file| {
+            file.capture_limit_bytes == AUTOMATIC_CODE_LIMIT
+                && !file.roles.contains("shared_guidance")
+                && !file.roles.contains("authored_instruction")
+                && (file.roles.contains("area_implementation") || file.roles.contains("consumer"))
+                && area_evidence::automatic_code_path(path)
+        })
+        .map_or(FILE_LIMIT, |_| AUTOMATIC_CODE_LIMIT)
+}
+
+fn optional_consumer(area: Option<&area_evidence::AreaEvidence>, path: &str) -> bool {
+    area.is_some_and(|area| {
+        area.files.iter().any(|file| {
+            file.path == path
+                && file.roles.contains("consumer")
+                && !file.roles.contains("explicit_evidence")
+                && !file.roles.contains("area_implementation")
+                && !file.roles.contains("shared_guidance")
+                && !file.roles.contains("authored_instruction")
+        })
+    })
 }
 
 /// Pure request validation: callers can reject malformed observation requests
 /// before starting an update, without reading or writing project files.
 pub fn validate_observation_request(req: &MaintenanceRequest) -> Result<()> {
-    ensure!(req.area_context.is_none(), "Collect area evidence through pre_push_audit");
+    ensure!(
+        req.area_context.is_none(),
+        "Collect area evidence through pre_push_audit"
+    );
     ensure!(
         req.new_instruction_targets.is_empty(),
         "Collect new area drafts through pre_push_audit; this operation observes existing instructions"
@@ -311,21 +346,30 @@ pub fn validate_observation_request(req: &MaintenanceRequest) -> Result<()> {
 }
 
 pub fn capture(root: &Path, project_id: &str, req: &MaintenanceRequest) -> Result<Packet> {
-    ensure!(req.area_context.is_none(), "Indexed area evidence is collected through pre_push_audit");
+    ensure!(
+        req.area_context.is_none(),
+        "Indexed area evidence is collected through pre_push_audit"
+    );
     capture_with_area(root, project_id, req, None)
 }
 
-fn capture_with_area(root: &Path, project_id: &str, req: &MaintenanceRequest,
-    area: Option<&area_evidence::AreaEvidence>) -> Result<Packet> {
+fn capture_with_area(
+    root: &Path,
+    project_id: &str,
+    req: &MaintenanceRequest,
+    area: Option<&area_evidence::AreaEvidence>,
+) -> Result<Packet> {
     let instruction_paths =
         if req.instruction_paths.is_empty() && !req.new_instruction_targets.is_empty() {
             Vec::new()
         } else {
             paths(&req.instruction_paths, 8)?
         };
-    let evidence_paths = if req.evidence_paths.is_empty() && area.is_some() {
+    let mut evidence_paths = if req.evidence_paths.is_empty() && area.is_some() {
         Vec::new()
-    } else { paths(&req.evidence_paths, 16)? };
+    } else {
+        paths(&req.evidence_paths, 16)?
+    };
     let targets = area_draft::validate_targets(
         &req.new_instruction_targets,
         &instruction_paths,
@@ -351,26 +395,59 @@ fn capture_with_area(root: &Path, project_id: &str, req: &MaintenanceRequest,
         .collect::<Result<Vec<_>>>()?;
     let mut instructions = Vec::new();
     for path in instruction_paths {
-        let current = disk(&root, &path, &mut remaining)?
+        let current = disk(&root, &path, &mut remaining, FILE_LIMIT)?
             .with_context(|| format!("Complete authored instruction unavailable: {path}"))?;
+        let before = committed(&repo, &tree, &path, &mut remaining, FILE_LIMIT)?;
         instructions.push(Instruction {
             path,
             current,
-            before: None,
+            before,
         });
     }
+    let mut area_evidence = area.cloned();
+    // Complete authored/shared/explicit area evidence has priority over
+    // optional consumer bodies, regardless of lexical filename order.
+    evidence_paths.sort_by(|left, right| {
+        optional_consumer(area, left)
+            .cmp(&optional_consumer(area, right))
+            .then_with(|| left.cmp(right))
+    });
     let mut evidence = Vec::new();
     for path in evidence_paths {
         // Validate even absent worktree paths before consulting the Git tree.
         engram_core::safe_join(&root, &path)?;
         // Inspect object metadata before explicit body materialization.
         // Native ODB decompression is not a hard process-RSS guarantee.
-        let before = committed(&repo, &tree, &path, &mut remaining)?;
-        let after = disk(&root, &path, &mut remaining)?;
-        ensure!(
-            before.is_some() || after.is_some(),
-            "Evidence path absent both before and after: {path}"
-        );
+        let limit = capture_limit(area_evidence.as_ref(), &path);
+        let optional = optional_consumer(area_evidence.as_ref(), &path);
+        let mut next_remaining = remaining;
+        let captured = (|| -> Result<_> {
+            let before = committed(&repo, &tree, &path, &mut next_remaining, limit)?;
+            let after = disk(&root, &path, &mut next_remaining, limit)?;
+            ensure!(
+                before.is_some() || after.is_some(),
+                "Evidence path absent both before and after: {path}"
+            );
+            Ok((before, after))
+        })();
+        let (before, after) = match captured {
+            Ok(pair) => {
+                remaining = next_remaining;
+                pair
+            }
+            Err(error) if optional => {
+                let area = area_evidence.as_mut().expect("automatic consumer");
+                area.gaps.push(format!("Known consumer {path}: complete before/after capture unavailable ({:.512}); retained only as recovery evidence", format!("{error:#}")));
+                if let Some(file) = area.files.iter_mut().find(|file| file.path == path) {
+                    file.roles.remove("consumer");
+                    file.roles.insert("consumer_recovery_candidate".into());
+                    file.source_status =
+                        "known_indexed_consumer; complete_source_not_captured".into();
+                }
+                continue;
+            }
+            Err(error) => return Err(error),
+        };
         evidence.push(Evidence {
             path,
             before,
@@ -378,12 +455,15 @@ fn capture_with_area(root: &Path, project_id: &str, req: &MaintenanceRequest,
         });
     }
     // Explicit complete inputs take precedence over automatic dependencies.
-    for instruction in &mut instructions {
-        instruction.before = committed(&repo, &tree, &instruction.path, &mut remaining)?;
-    }
-    let shared_roots = area.map(|area| area.files.iter()
-        .filter(|file| file.roles.contains("shared_guidance"))
-        .map(|file| file.path.clone()).collect::<Vec<_>>()).unwrap_or_default();
+    let shared_roots = area
+        .map(|area| {
+            area.files
+                .iter()
+                .filter(|file| file.roles.contains("shared_guidance"))
+                .map(|file| file.path.clone())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
     let instruction_manifest = manifest::capture(
         &root,
         &repo,
@@ -392,11 +472,11 @@ fn capture_with_area(root: &Path, project_id: &str, req: &MaintenanceRequest,
         &instructions,
         &evidence,
         &shared_roots,
-        area.map(|area| area.excluded_paths.as_slice()).unwrap_or_default(),
+        area.map(|area| area.excluded_paths.as_slice())
+            .unwrap_or_default(),
         &mut remaining,
     )?;
     let references = references(&instructions, &instruction_manifest);
-    let mut area_evidence = area.cloned();
     if let Some(area) = &mut area_evidence {
         area_evidence::bind(area, &evidence, &instructions);
     }
@@ -634,12 +714,19 @@ fn validate(packet: &Packet, draft: &MaintenanceDraft) -> Result<Vec<Proposal>> 
 }
 
 pub fn review(root: &Path, project_id: &str, req: &MaintenanceRequest) -> Result<Report> {
-    ensure!(req.area_context.is_none(), "Indexed area evidence is collected through pre_push_audit");
+    ensure!(
+        req.area_context.is_none(),
+        "Indexed area evidence is collected through pre_push_audit"
+    );
     review_with_area(root, project_id, req, None)
 }
 
-pub(crate) fn review_with_area(root: &Path, project_id: &str, req: &MaintenanceRequest,
-    area: Option<&area_evidence::AreaEvidence>) -> Result<Report> {
+pub(crate) fn review_with_area(
+    root: &Path,
+    project_id: &str,
+    req: &MaintenanceRequest,
+    area: Option<&area_evidence::AreaEvidence>,
+) -> Result<Report> {
     let packet = capture_with_area(root, project_id, req, area)?;
     let packet_blake3 = packet_hash(&packet)?;
     let proposals = req
