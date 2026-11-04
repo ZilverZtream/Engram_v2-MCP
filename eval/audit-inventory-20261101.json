@@ -429,7 +429,27 @@
         "evidence": "5finalpersistedgraph+5finalpublictoolcasesPASS inclactualcallee-remap/source-removal/sameactivegenquarantine andfanout30endpointvisibility; earlier2overview+8legacyimpactcasesPASSpreserved. IndependentreviewPASS, allownedJob/TEMPclosed.",
         "actual_before": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\transitive-impact-before-ociusx-20261104.json",
         "actual_before_result": "ClassifyAutomatic returnedonlyResolve as1causaldependent andheuristic1/10Low; noHTTP/downstreampaths. Source3117/1formatmismatchreported, diskchecknotrun.",
-        "closure": "PARTIAL: source verified; push/build/actualOciusXafter/deploymentpending. No fullcoretoolquality or originalauditcompletion."
+        "closure": "PARTIAL overall audit/tool usefulness: this bounded impact/filetypes delivery is now committed,pushed,optimizedbuilt,installed andactualnormalOciusX verified. Other coretools/safety integration, fullsemanticcodemap,heldouttaskbenefit andoriginalfindings remain unfinished.",
+        "runtime_delivery": {
+          "source_commit": "1025363051351c318e42eaf9bdab972895ffd5c5",
+          "binary_sha256": "5f9394c3dd945cdd0b2241dd1e8e0970e572ea5b45e6c7d9d5b1579f9e41366b",
+          "manifest_sha256": "35eff7dc8f692e2a68188fbf189fc0d6ce8e010f3f5f1c1ee9a693c5049c6114",
+          "actual_candidate": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\transitive-impact-actual-ociusx-v2-20261104\\acceptance.json",
+          "installed_normal": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\transitive-impact-installed-normal-acceptance-20261104.json",
+          "actual_result": "Bothpublictools33selectedpotential downstreamnodes,25displaypaths,HTTPworker+Load visibleinsidecompletewitness. BeforeonlyResolve1direct+1/10Low. NewfiletypesVB1016files44%, secondaryVB9348/31915chunks29%.3metadataresponsesexactcontrolparity;no source conversion/mutation submitted.",
+          "limits": "Partialstaticgraph: depth6boundary,18missinggraphobservations,9unknownsource-edge observations,1nonselected source. Theseareobservationsnotuniqueaffectedfiles. Global1formatmismatch/disknotchecked stillreported. ShortstaticpendingResolve pathdoesnotproveexecutedclassification;actualpreparedsourcepathincludesQueryCache. No perfect/proposed-change/runtime/exhaustive safety proof.",
+          "admission": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\transitive-impact-release-gates-admitted-20261104.json",
+          "independent_admission_review": "S13 scopedCLEAR exact64715dc2...; typedoriginproducerdelta explicitlyreviewed; no all19originalclosure/hardmemorybudget/nativecontentcensus/reverseauthority claims.",
+          "installed_pair_backup": "C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-d2efeca88ab0454ab9a5d5fc4eb11b30",
+          "cleanup": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\transitive-impact-owned-temp-accounting-20261104.json"
+        }
+      },
+      "observed_remaining_safety_gap_20261104": {
+        "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\transitive-impact-control-ociusx-v2-20261104\\control.json",
+        "public_tool": "get_method_edit_context exactClassifyAutomaticFQN/include_historyfalse/include_business_logicfalse",
+        "observed": "edit_safety.green confidence0.9; reason Low blast radius,fewcallers,no complexstate;called_byonlyResolve1. Existingcontext/safetyproviderhasnotyetincorporatednew33node downstreamscope.",
+        "next_behavior": "Shared edit-context/standalone safety must disclose downstream exposure and missing/unverified coverage; localone-hop evidence mustnotbe presentedas a comprehensive safe-edit guarantee. Use same heldsource-evidence provider andactualOciusXcase, notanotherbroadaudit.",
+        "input_recovery_note": "Initial request shortmethodname+fullyqualifiedclass_name failed; toolrecovery exactmethodFQN succeeded. Whetherplainclass_name+shortmethod worksnotyettested; do notcallthis aconfirmedresolverbug."
       }
     },
     {
@@ -8247,7 +8267,7 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG-09 core-tool usefulness: implement bounded transitive source-revision-admitted impact in existing tools, plus file-vs-chunk denominator clarity. First real overview fix shipped d3f7d20/0e3298; original full audit remains unfinished.",
+    "active_original_item": "EG-09 core-tool usefulness: integrate downstream/sourcecoverage into shared method-edit context and standalone safety using the actualClassifyAutomatic case. Two reviewedcore deliveries shipped: d3f7d20/0e overview+areaevidence;1025363/5f boundedimpact+filetypes. Broaderoriginalgoal notcomplete.",
     "next_user_visible_deliverable": "A useful selected-area instruction draft/evidence pack through existing Engram workflows for OciusX, grounded in entrypoints/consumers/house examples/accepted exceptions and separate provenance; compare with a real existing area guide, without changing OciusX policy. Complete missing product behavior rather than only revalidating supplied JSON.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
