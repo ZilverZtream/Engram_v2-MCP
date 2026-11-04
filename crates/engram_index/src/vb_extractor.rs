@@ -2,12 +2,13 @@ use crate::parsing::{ExtractedEdge, ExtractedSymbol};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
-use std::sync::mpsc;
-use std::sync::{LazyLock, Mutex, OnceLock};
+use std::sync::{Arc, LazyLock, Mutex, OnceLock};
 use std::time::Duration;
+mod transport;
+mod inventory;
+mod compilation;
+pub use compilation::CompilationPolicy;
 
 // SQL detection for the fallback extractor. The Roslyn sidecar emits richer
 // SQL edges, but when it is unavailable the fallback must still keep the
@@ -256,20 +257,254 @@ const CTX_NON_TABLE_MEMBERS: [&str; 12] = [
     "entry",
 ];
 
+/// Identity of the actually loaded ingestion parser modules. This does not
+/// attest project references, compilation options, or every external input.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct VbLoadedParserIdentity {
+    pub contract: String,
+    pub entry_mvid: String,
+    pub roslyn_core_mvid: String,
+    pub roslyn_vb_mvid: String,
+}
+
+impl VbLoadedParserIdentity {
+    pub fn is_supported(&self) -> bool {
+        let mvid = |value: &str| value.len() == 36
+            && value.bytes().enumerate().all(|(n, byte)| if [8, 13, 18, 23].contains(&n) { byte == b'-' } else { byte.is_ascii_hexdigit() })
+            && value.bytes().any(|byte| byte != b'0' && byte != b'-');
+        self.contract == "vb-ingestion-parser-v4" && mvid(&self.entry_mvid)
+            && mvid(&self.roslyn_core_mvid) && mvid(&self.roslyn_vb_mvid)
+    }
+}
+
+/// Available parser code and effective policy, distinct from the backend a
+/// particular file actually used. No PID/nonce or project-reference claim.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct VbParserContext {
+    pub fallback_contract: u64,
+    pub roslyn: Option<VbLoadedParserIdentity>,
+    pub max_source_bytes: usize,
+    pub request_timeout_secs: u64,
+    pub compilation: CompilationPolicy,
+}
+
+impl VbParserContext {
+    fn from_authority(roslyn: Option<VbLoadedParserIdentity>) -> Self {
+        Self {
+            fallback_contract: crate::SOURCE_INDEX_VERSION, roslyn,
+            max_source_bytes: std::env::var("ENGRAM_VB_SIDECAR_MAX_SOURCE_BYTES").ok()
+                .and_then(|value| value.parse::<usize>().ok()).filter(|value| *value > 0).unwrap_or(2_000_000),
+            request_timeout_secs: std::env::var("ENGRAM_VB_SIDECAR_TIMEOUT_SECS").ok()
+                .and_then(|value| value.parse::<u64>().ok()).filter(|value| *value > 0).unwrap_or(60).min(300),
+            compilation: CompilationPolicy::default(),
+        }
+    }
+    fn is_supported(&self) -> bool {
+        self.fallback_contract == crate::SOURCE_INDEX_VERSION && self.max_source_bytes > 0
+            && (1..=300).contains(&self.request_timeout_secs)
+            && self.compilation.supported()
+            && self.roslyn.as_ref().is_none_or(VbLoadedParserIdentity::is_supported)
+    }
+    /// Borrowed metadata/GUID comparisons avoid deserialization allocations.
+    /// Existing path classification is a separate operation. Reusable
+    /// degraded output remains labelled fallback, never promoted to Roslyn.
+    pub(crate) fn matches_metadata(&self, actual: &serde_json::Value) -> bool {
+        let Some(object) = actual.as_object() else { return false; };
+        let Some(context) = object.get("context").and_then(serde_json::Value::as_object) else { return false; };
+        if !self.is_supported() || context.len() != 5
+            || context.get("fallback_contract").and_then(|v| v.as_u64()) != Some(self.fallback_contract)
+            || context.get("max_source_bytes").and_then(|v| v.as_u64()).and_then(|v| usize::try_from(v).ok()) != Some(self.max_source_bytes)
+            || context.get("request_timeout_secs").and_then(|v| v.as_u64()) != Some(self.request_timeout_secs)
+            || !context.get("compilation").is_some_and(|value| self.compilation.matches_metadata(value)) { return false; }
+        let authority_matches = match &self.roslyn {
+            None => context.get("roslyn").is_some_and(serde_json::Value::is_null),
+            Some(expected) => context.get("roslyn").and_then(serde_json::Value::as_object).is_some_and(|actual| {
+                actual.len() == 4
+                    && actual.get("contract").and_then(|v| v.as_str()) == Some(expected.contract.as_str())
+                    && actual.get("entry_mvid").and_then(|v| v.as_str()) == Some(expected.entry_mvid.as_str())
+                    && actual.get("roslyn_core_mvid").and_then(|v| v.as_str()) == Some(expected.roslyn_core_mvid.as_str())
+                    && actual.get("roslyn_vb_mvid").and_then(|v| v.as_str()) == Some(expected.roslyn_vb_mvid.as_str())
+            }),
+        };
+        authority_matches && match object.get("backend").and_then(|v| v.as_str()) {
+            Some("roslyn") => object.len() == 2 && self.roslyn.is_some(),
+            Some("rust_fallback") => object.len() == 3 && match object.get("reason").and_then(|v| v.as_str()) {
+                Some("unavailable") => self.roslyn.is_none(),
+                Some("source_limit" | "parse_error" | "transport_failure") => self.roslyn.is_some(),
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VbFallbackReason { Unavailable, SourceLimit, ParseError, TransportFailure }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "backend", rename_all = "snake_case", deny_unknown_fields)]
+pub enum VbParserProvenance {
+    Roslyn { context: VbParserContext },
+    RustFallback { context: VbParserContext, reason: VbFallbackReason },
+    UnverifiedRoslyn,
+}
+
+impl VbParserProvenance {
+    fn fallback() -> Self { Self::RustFallback { context: VbParserContext::from_authority(None), reason: VbFallbackReason::Unavailable } }
+    pub fn context(&self) -> Option<&VbParserContext> {
+        match self { Self::Roslyn { context } | Self::RustFallback { context, .. } => Some(context), Self::UnverifiedRoslyn => None }
+    }
+    pub fn is_verified(&self) -> bool {
+        match self {
+            Self::Roslyn { context } => context.is_supported() && context.roslyn.is_some(),
+            Self::RustFallback { context, reason } => context.is_supported()
+                && (context.roslyn.is_none() == matches!(reason, VbFallbackReason::Unavailable)),
+            Self::UnverifiedRoslyn => false,
+        }
+    }
+}
+
+pub fn requires_parser_provenance(path: &str) -> bool {
+    Path::new(path).extension().is_some_and(|extension| extension.eq_ignore_ascii_case("vb"))
+        && !engram_core::is_vendor_path(path)
+}
+
 struct Sidecar {
-    child: Child,
-    stdin: Option<ChildStdin>,
-    stdout: Option<BufReader<ChildStdout>>,
+    incarnation: Arc<()>,
+    binary: PathBuf,
+    transport: transport::Client,
     /// Root the child's shared compilation was built from, if any. Lets an
     /// incremental update skip the O(project) `begin_project` rebuild.
     /// Reset on every respawn, because a fresh child has no compilation.
     project_root: Option<PathBuf>,
+    inventory_signature: Option<blake3::Hash>,
+    cached_policy: Option<CompilationPolicy>,
+    cached_charge: Option<Arc<compilation::CachedCharge>>,
     /// False once a deployed sidecar has told us it does not know the
     /// `invalidate` command, so we stop asking it every update.
     supports_invalidate: bool,
+    identity: Option<VbLoadedParserIdentity>,
+}
+
+impl Sidecar {
+    fn stop(&mut self) -> std::io::Result<()> {
+        self.transport.stop()
+    }
 }
 
 static SIDECAR: OnceLock<Mutex<Option<Sidecar>>> = OnceLock::new();
+static COMPILATION: LazyLock<Arc<tokio::sync::Semaphore>> =
+    LazyLock::new(|| Arc::new(tokio::sync::Semaphore::new(1)));
+
+/// One warmed compilation belongs to one entire ingestion operation. Workers
+/// retain this owner even when their async waiter is cancelled. This fences
+/// project-root/cache ownership, not external references or project options.
+pub(crate) struct VbCompilationLease {
+    _permit: tokio::sync::OwnedSemaphorePermit,
+    _parse_admission: Option<Arc<tokio::sync::OwnedSemaphorePermit>>,
+    root: PathBuf,
+    incarnation: Option<Arc<()>>,
+    context: VbParserContext,
+    _inventory_memory: inventory::PreparationMemory,
+}
+
+fn is_vb_path(path: &Path) -> bool {
+    path.extension().and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("vb"))
+}
+
+pub(crate) async fn prepare_ingestion_batch(root: &Path, files: &[PathBuf],
+    inventory: Option<Arc<Vec<PathBuf>>>,
+    memory_budget: Option<Arc<engram_core::memory::MemoryBudget>>,
+    parse_admission: Option<Arc<tokio::sync::OwnedSemaphorePermit>>,
+    #[cfg(test)] before_prepare: Option<Box<dyn FnOnce() + Send>>)
+    -> anyhow::Result<Option<Arc<VbCompilationLease>>> {
+    if !files.iter().any(|path| is_vb_path(path)) { return Ok(None); }
+    let inventory = inventory.ok_or_else(|| anyhow::anyhow!(
+        "Trusted VB ingestion requires the complete admitted source inventory; use standalone extraction for analysis"))?;
+    let mut inventory_memory = inventory::PreparationMemory::admit(root, files, &inventory,
+        memory_budget.as_deref())?;
+    let vb = files.iter().filter(|path| engram_core::RelPath::from_relative(root, path)
+        .is_some_and(|rel| requires_parser_provenance(rel.as_str())))
+        .map(|path| path.to_string_lossy().into_owned()).collect::<Vec<_>>();
+    if vb.is_empty() { return Ok(None); }
+    let permit = COMPILATION.clone().acquire_owned().await?;
+    let root = root.to_path_buf();
+    tokio::task::spawn_blocking(move || {
+        // The permit moves into actual work before any blocking preparation.
+        // Parse capacity follows the same actual owner, not the async waiter.
+        let parse_admission = parse_admission;
+        #[cfg(test)]
+        if let Some(pause) = before_prepare { pause(); }
+        let input_root = root;
+        let root = std::fs::canonicalize(&input_root)?;
+        inventory_memory.reserve_prepared(&input_root, &root, &inventory, &vb, memory_budget.as_deref())?;
+        let vb = vb.iter().map(|path| -> anyhow::Result<String> {
+            let source = Path::new(path);
+            let relative = source.strip_prefix(&input_root)?;
+            let path = std::fs::canonicalize(source)?;
+            anyhow::ensure!(path == root.join(relative),
+                "VB warmup source changed its admitted path identity: {}", path.display());
+            Ok(path.to_str().ok_or_else(|| anyhow::anyhow!("VB preparation requires UTF-8 source paths"))?.to_owned())
+        }).collect::<anyhow::Result<Vec<_>>>()?;
+        // This is the already-admitted scan inventory. Normalize its lexical
+        // relative keys without restatting every unchanged peer on each edit.
+        // Actual changed sources above still receive canonical containment.
+        let inventory = inventory.iter().map(|path| {
+            let relative = engram_core::RelPath::from_relative(&input_root, path)
+                .ok_or_else(|| anyhow::anyhow!("VB inventory source outside admitted root: {}", path.display()))?;
+            anyhow::ensure!(requires_parser_provenance(relative.as_str()),
+                "VB compilation inventory contains a non-VB source");
+            Ok(relative)
+        }).collect::<anyhow::Result<Vec<_>>>()?;
+        let admitted = inventory.iter().collect::<std::collections::HashSet<_>>();
+        anyhow::ensure!(vb.iter().all(|path| engram_core::RelPath::from_relative(&root, Path::new(path))
+            .is_some_and(|relative| admitted.contains(&relative))),
+            "Changed VB source is absent from its admitted compilation inventory");
+        let mut guard = get_or_spawn_sidecar().lock()
+            .map_err(|error| anyhow::anyhow!("VB compilation coordinator unavailable: {error}"))?;
+        let context = parser_context_locked(&mut guard)?;
+        if context.roslyn.is_some() {
+            refresh_project_admitted(&mut guard, &root, &inventory, &vb, &context,
+                memory_budget.clone().unwrap_or_else(|| compilation::DEFAULT_BUDGET.clone()))?;
+            anyhow::ensure!(guard.as_ref().is_some_and(|s| s.project_root.as_deref() == Some(root.as_path())
+                && s.identity == context.roslyn && s.transport.is_running()),
+                "VB compilation could not be prepared for {}; retry with the matching companion", root.display());
+        }
+        let incarnation = guard.as_ref().map(|s| s.incarnation.clone());
+        Ok(Some(Arc::new(VbCompilationLease { _permit: permit, _parse_admission: parse_admission,
+            root, incarnation, context, _inventory_memory: inventory_memory })))
+    }).await?
+}
+
+/// Observe the cached live IO owner's PID without spawning/restarting a child.
+/// This is operational state only; PIDs never participate in source provenance.
+pub fn cached_parser_process_id() -> anyhow::Result<Option<u32>> {
+    let Some(coordinator) = SIDECAR.get() else { return Ok(None); };
+    let guard = coordinator.try_lock().map_err(|error| anyhow::anyhow!("VB parser observation is busy/unavailable: {error}"))?;
+    Ok(guard.as_ref().filter(|sidecar| sidecar.transport.is_running()).map(|sidecar| sidecar.transport.pid()))
+}
+
+/// Close and join the idle process-global parser. Callers must first quiesce
+/// their source requests; active extraction refuses shutdown rather than being
+/// interrupted. The slot remains locked until exit, and future work may spawn
+/// a new child. Serialized fixtures must not close another client's parser.
+pub fn shutdown_idle_parser() -> anyhow::Result<()> {
+    let _idle = COMPILATION.clone().try_acquire_owned()
+        .map_err(|_| anyhow::anyhow!("Cannot shut down a parser owned by an active ingestion batch"))?;
+    let Some(coordinator) = SIDECAR.get() else {
+        anyhow::ensure!(transport::lifecycle_ready(), "VB process teardown remains unresolved");
+        return Ok(());
+    };
+    let mut guard = coordinator.try_lock().map_err(|error| anyhow::anyhow!("Cannot shut down active/unavailable VB parser: {error}"))?;
+    if let Some(sidecar) = guard.as_mut() { sidecar.stop()?; }
+    *guard = None;
+    anyhow::ensure!(transport::lifecycle_ready(), "VB process teardown remains unresolved");
+    Ok(())
+}
 
 fn sidecar_binary_path() -> PathBuf {
     if let Some(path) = std::env::var_os("ENGRAM_VB_SIDECAR_PATH").filter(|value| !value.is_empty()) {
@@ -295,49 +530,91 @@ fn get_or_spawn_sidecar() -> &'static Mutex<Option<Sidecar>> {
 }
 
 fn ensure_sidecar(guard: &mut Option<Sidecar>) -> std::io::Result<&mut Sidecar> {
+    ensure_sidecar_at(guard, &sidecar_binary_path())
+}
+
+fn ensure_sidecar_at<'a>(guard: &'a mut Option<Sidecar>, sidecar_bin: &Path) -> std::io::Result<&'a mut Sidecar> {
+    if let Some(sidecar) = guard.as_mut() {
+        if !sidecar.transport.is_running() { sidecar.stop()?; *guard = None; }
+    }
     if guard.is_none() {
-        let sidecar_bin = sidecar_binary_path();
-        let mut child = Command::new(sidecar_bin)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()?;
-
-        if let Some(stderr) = child.stderr.take() {
-            std::thread::spawn(move || {
-                let mut reader = BufReader::new(stderr);
-                let mut line = String::new();
-                loop {
-                    line.clear();
-                    match reader.read_line(&mut line) {
-                        Ok(0) => break,
-                        Ok(_) => tracing::warn!(message = line.trim_end(), "vb_sidecar_stderr"),
-                        Err(err) => {
-                            tracing::warn!("vb_sidecar_stderr read failed: {err}");
-                            break;
-                        }
-                    }
-                }
-            });
-        }
-
-        let stdin = child.stdin.take().expect("sidecar stdin should be piped");
-        let stdout = BufReader::new(child.stdout.take().expect("sidecar stdout should be piped"));
-        *guard = Some(Sidecar {
-            child,
-            stdin: Some(stdin),
-            stdout: Some(stdout),
+        let mut sidecar = Sidecar {
+            incarnation: Arc::new(()),
+            binary: sidecar_bin.to_owned(),
+            transport: transport::Client::spawn(sidecar_bin)?,
             project_root: None,
+            inventory_signature: None,
+            cached_policy: None,
+            cached_charge: None,
             supports_invalidate: true,
-        });
+            identity: None,
+        };
+        // The bounded receipt is cached with this child, never inferred from
+        // an executable path, release manifest or report-schema version.
+        let line = source_request_with_limits(&mut sidecar, Path::new("<parser-identity>"), "",
+            "{\"cmd\":\"identity\"}".into(), 4096, Duration::from_secs(5))
+            .map_err(|error| std::io::Error::other(format!("VB identity transport failed: {error:?}")))?;
+        if let Ok(response) = serde_json::from_str::<SidecarResponse>(&line) {
+            if response.error.is_none() {
+                if let Some(identity) = response.parser_identity.filter(VbLoadedParserIdentity::is_supported) {
+                    sidecar.identity = Some(identity);
+                }
+            }
+        }
+        *guard = Some(sidecar);
     }
     Ok(guard.as_mut().expect("sidecar initialized"))
+}
+
+/// Probe once per admission/coverage scan, off the async executor. An absent
+/// child is retried so a newly available parser cannot inherit fallback output.
+pub fn current_parser_provenance() -> anyhow::Result<VbParserProvenance> {
+    let context = current_parser_context()?;
+    Ok(if context.roslyn.is_some() { VbParserProvenance::Roslyn { context } }
+        else { VbParserProvenance::RustFallback { context, reason: VbFallbackReason::Unavailable } })
+}
+
+pub fn current_parser_context() -> anyhow::Result<VbParserContext> {
+    let mut guard = get_or_spawn_sidecar().try_lock().map_err(|error| anyhow::anyhow!(
+        "VB parser authority is busy or unavailable; retry after current extraction finishes: {error}"))?;
+    parser_context_locked(&mut guard)
+}
+
+fn parser_context_locked(guard: &mut Option<Sidecar>) -> anyhow::Result<VbParserContext> {
+    match ensure_sidecar(guard) {
+        Ok(sidecar) => {
+            anyhow::ensure!(sidecar.identity.as_ref().is_some_and(VbLoadedParserIdentity::is_supported),
+                "VB parser identity is unavailable/unsupported. Deploy the matching identity-capable companion before trusted ingestion; running without a companion uses explicitly recorded Rust fallback. Inherited VB extraction cannot be certified against this child");
+            Ok(VbParserContext::from_authority(sidecar.identity.clone()))
+        }
+        Err(error) => {
+            anyhow::ensure!(guard.is_none(), "VB parser startup/teardown is unresolved; fallback cannot be certified");
+            anyhow::ensure!(transport::lifecycle_ready(), "VB previous process/IO teardown is unresolved; parser reuse and replacement are refused");
+            tracing::debug!(error = %error, "VB parser unavailable; current extraction backend is Rust fallback");
+            Ok(VbParserContext::from_authority(None))
+        }
+    }
+}
+
+pub(crate) fn with_parser_publication_fence<T>(expected: &VbParserContext,
+    publish: impl FnOnce() -> anyhow::Result<T>) -> anyhow::Result<T> {
+    let mut coordinator = get_or_spawn_sidecar().try_lock().map_err(|error| anyhow::anyhow!(
+        "VB parser is busy or unavailable before source publication; retry: {error}"))?;
+    let current = parser_context_locked(&mut coordinator)?;
+    anyhow::ensure!(current == *expected,
+        "VB parser code or extraction policy changed after source scan; source publication refused, rescan and retry");
+    // Deliberately keep the same coordinator held through the synchronous CAS.
+    // Never call async work or reenter VB extraction from this closure.
+    publish()
 }
 
 #[derive(Debug)]
 enum SidecarParseError {
     Protocol(anyhow::Error),
+    LocalEncoding(anyhow::Error),
     Sidecar(String),
+    Identity,
+    SourceLimit,
 }
 
 #[derive(Serialize)]
@@ -345,10 +622,23 @@ struct SidecarRequest<'a> {
     cmd: &'a str,
     path: String,
     source: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    project_root: Option<&'a str>,
+    standalone: bool,
 }
 
 #[derive(Debug, Deserialize)]
 struct SidecarResponse {
+    #[serde(default)]
+    compilation_plan: Option<compilation::Plan>,
+    #[serde(default)]
+    compilation_error: bool,
+    #[serde(default)]
+    project_root: Option<String>,
+    #[serde(default)]
+    standalone: bool,
+    #[serde(default)]
+    parser_identity: Option<VbLoadedParserIdentity>,
     #[serde(default)]
     path: Option<String>,
     #[serde(default)]
@@ -440,115 +730,56 @@ fn source_request_via_sidecar(
     source: &str,
     payload: String,
 ) -> Result<String, SidecarParseError> {
-    // WEDGE-2026-06-12: the request write used to be a plain blocking
-    // writeln! into the child's stdin pipe. When the child dies mid-exchange
-    // (and an inherited handle keeps the pipe's read end alive — a classic
-    // Windows hazard), the write blocks FOREVER at 0 CPU while holding the
-    // sidecar mutex, wedging every VB extraction worker behind it. Both
-    // failed pilot-corpus reindexes died exactly here. The write now (a) checks
-    // child liveness first, (b) caps the source size routed through the
-    // sidecar, and (c) runs on a helper thread with the same timeout
-    // discipline as the response read.
-    if let Ok(Some(status)) = sidecar.child.try_wait() {
-        return Err(SidecarParseError::Protocol(anyhow::anyhow!(
-            "sidecar process exited ({status}) before request for {}",
-            path.display()
-        )));
-    }
+    let context = VbParserContext::from_authority(sidecar.identity.clone());
+    if source.len() > context.max_source_bytes { return Err(SidecarParseError::SourceLimit); }
+    source_request_with_limits(sidecar, path, source, payload, 64 * 1024 * 1024, Duration::from_secs(context.request_timeout_secs))
+}
 
-    let max_sidecar_bytes = std::env::var("ENGRAM_VB_SIDECAR_MAX_SOURCE_BYTES")
-        .ok()
-        .and_then(|v| v.parse::<usize>().ok())
-        .filter(|v| *v > 0)
-        .unwrap_or(2_000_000);
-    if source.len() > max_sidecar_bytes {
-        return Err(SidecarParseError::Protocol(anyhow::anyhow!(
-            "source too large for sidecar ({} bytes > {max_sidecar_bytes}) for {} — using fallback",
-            source.len(),
-            path.display()
-        )));
-    }
-
-    let timeout_secs = std::env::var("ENGRAM_VB_SIDECAR_TIMEOUT_SECS")
-        .ok()
-        .and_then(|v| v.parse::<u64>().ok())
-        .filter(|v| *v > 0)
-        .unwrap_or(60);
-
-    let mut stdin = sidecar.stdin.take().ok_or_else(|| {
-        SidecarParseError::Protocol(anyhow::anyhow!(
-            "sidecar stdin missing (previous write timed out)"
-        ))
-    })?;
-    let (wtx, wrx) = mpsc::channel();
-    std::thread::spawn(move || {
-        let res = writeln!(stdin, "{payload}").and_then(|_| stdin.flush());
-        let _ = wtx.send((stdin, res));
-    });
-    match wrx.recv_timeout(Duration::from_secs(timeout_secs)) {
-        Ok((stdin, write_result)) => {
-            sidecar.stdin = Some(stdin);
-            write_result.map_err(|e| SidecarParseError::Protocol(e.into()))?;
-        }
-        Err(mpsc::RecvTimeoutError::Timeout) => {
-            // Writer thread still blocked on the dead pipe: leave stdin
-            // taken; the caller kills the child which unblocks the thread.
-            return Err(SidecarParseError::Protocol(anyhow::anyhow!(
-                "sidecar request write timed out after {timeout_secs}s for {}",
-                path.display()
-            )));
-        }
-        Err(mpsc::RecvTimeoutError::Disconnected) => {
-            return Err(SidecarParseError::Protocol(anyhow::anyhow!(
-                "sidecar request write channel disconnected"
-            )));
-        }
-    }
-    let mut stdout = sidecar
-        .stdout
-        .take()
-        .ok_or_else(|| SidecarParseError::Protocol(anyhow::anyhow!("sidecar stdout missing")))?;
-    let (tx, rx) = mpsc::channel();
-    std::thread::spawn(move || {
-        let mut line = String::new();
-        let read = stdout.read_line(&mut line).map(|_| line);
-        let _ = tx.send((stdout, read));
-    });
-    let (stdout, line) = match rx.recv_timeout(Duration::from_secs(timeout_secs)) {
-        Ok((stdout, read_result)) => (
-            stdout,
-            read_result.map_err(|e| SidecarParseError::Protocol(e.into()))?,
-        ),
-        Err(mpsc::RecvTimeoutError::Timeout) => {
-            return Err(SidecarParseError::Protocol(anyhow::anyhow!(
-                "sidecar parse response timed out after {}s for {}",
-                timeout_secs,
-                path.display()
-            )));
-        }
-        Err(mpsc::RecvTimeoutError::Disconnected) => {
-            return Err(SidecarParseError::Protocol(anyhow::anyhow!(
-                "sidecar parse response channel disconnected"
-            )));
-        }
-    };
-    sidecar.stdout = Some(stdout);
-    Ok(line)
+fn source_request_with_limits(
+    sidecar: &mut Sidecar, path: &Path, _source: &str, payload: String,
+    response_limit: usize, timeout: Duration,
+) -> Result<String, SidecarParseError> {
+    // One async IO owner applies cancellation/deadlines to BOTH pipe directions;
+    // no blocked reader/writer helper can outlive an abandoned request.
+    sidecar.transport.request(payload, response_limit, timeout)
+        .map_err(|error| SidecarParseError::Protocol(anyhow::anyhow!("VB request for {} failed: {error}", path.display())))
 }
 
 fn parse_via_sidecar(
     sidecar: &mut Sidecar,
     path: &Path,
     source: &str,
-) -> Result<(Vec<ExtractedSymbol>, Vec<ExtractedEdge>), SidecarParseError> {
-    let req = SidecarRequest { cmd: "parse", path: path.display().to_string(), source };
-    let payload = serde_json::to_string(&req).map_err(|e| SidecarParseError::Protocol(e.into()))?;
-    let line = source_request_via_sidecar(sidecar, path, source, payload)?;
+    context: &VbParserContext,
+    project_root: Option<&Path>,
+) -> Result<(Vec<ExtractedSymbol>, Vec<ExtractedEdge>, VbParserProvenance), SidecarParseError> {
+    if source.len() > context.max_source_bytes { return Err(SidecarParseError::SourceLimit); }
+    let root_text = project_root.map(|root| root.to_string_lossy());
+    let req = SidecarRequest { cmd: "parse", path: path.display().to_string(), source,
+        project_root: root_text.as_deref(), standalone: project_root.is_none() };
+    let payload = transport::encode_request(&req).map_err(|error| {
+        if error.io_error_kind() == Some(std::io::ErrorKind::InvalidInput) {
+            SidecarParseError::SourceLimit
+        } else {
+            SidecarParseError::LocalEncoding(error.into())
+        }
+    })?;
+    let line = source_request_with_limits(sidecar, path, source, payload, 64 * 1024 * 1024,
+        Duration::from_secs(context.request_timeout_secs))?;
     let response: SidecarResponse =
         serde_json::from_str(&line).map_err(|e| SidecarParseError::Protocol(e.into()))?;
+    if response.compilation_error { return Err(SidecarParseError::Identity); }
     if let Some(error) = response.error {
         return Err(SidecarParseError::Sidecar(error));
     }
+    if sidecar.identity.is_some() && match project_root {
+        Some(root) => response.standalone || response.project_root.as_deref().map(Path::new) != Some(root),
+        None => !response.standalone || response.project_root.is_some(),
+    } { return Err(SidecarParseError::Identity); }
+    let provenance = match (&sidecar.identity, response.parser_identity) {
+        (Some(identity), Some(actual)) if actual == *identity && actual.is_supported() => VbParserProvenance::Roslyn { context: context.clone() },
+        (None, _) => VbParserProvenance::UnverifiedRoslyn,
+        _ => return Err(SidecarParseError::Identity),
+    };
 
     let mut sidecar_edge_kind_counts: HashMap<String, usize> = HashMap::new();
     for edge in &response.edges {
@@ -600,7 +831,7 @@ fn parse_via_sidecar(
         })
         .collect::<Vec<_>>();
 
-    Ok((symbols, edges))
+    Ok((symbols, edges, provenance))
 }
 
 /// Collapse repeated leading segment chains in a dotted name:
@@ -655,40 +886,12 @@ enum Exchange {
 
 /// Send one small command and read its single-line response.
 ///
-/// Only for commands whose request payload is tiny (no source text), so a
-/// blocking write cannot fill the pipe. The dead-child check is the part
-/// that matters — see the WEDGE note on `parse_via_sidecar`.
+/// Control messages use the same bounded cancellable IO owner as source text.
 fn exchange(sidecar: &mut Sidecar, req: &serde_json::Value, label: &str) -> Exchange {
-    if let Ok(Some(status)) = sidecar.child.try_wait() {
-        tracing::warn!("{label}: sidecar already exited ({status})");
-        return Exchange::Failed { kill: false };
-    }
-    let Some(stdin) = sidecar.stdin.as_mut() else {
-        tracing::warn!("{label}: sidecar stdin missing (prior write timed out)");
-        return Exchange::Failed { kill: true };
+    let line = match sidecar.transport.request(req.to_string(), 4096, Duration::from_secs(60)) {
+        Ok(line) => line,
+        Err(error) => { tracing::warn!(error=%error, "{label} transport failed"); return Exchange::Failed { kill: true }; }
     };
-    if let Err(e) = writeln!(stdin, "{}", req) {
-        tracing::warn!("{label} write failed: {e}");
-        return Exchange::Failed { kill: true };
-    }
-    if let Err(e) = stdin.flush() {
-        tracing::warn!("{label} flush failed: {e}");
-        return Exchange::Failed { kill: false };
-    }
-
-    let mut line = String::new();
-    let Some(stdout) = sidecar.stdout.as_mut() else {
-        tracing::warn!("{label} response read failed: sidecar stdout missing");
-        return Exchange::Failed { kill: true };
-    };
-    if let Err(e) = stdout.read_line(&mut line) {
-        tracing::warn!("{label} response read failed: {e}");
-        return Exchange::Failed { kill: false };
-    }
-    if line.trim().is_empty() {
-        tracing::warn!("{label} returned empty response");
-        return Exchange::Failed { kill: true };
-    }
     match serde_json::from_str(&line) {
         Ok(v) => Exchange::Ok(v),
         Err(e) => {
@@ -716,7 +919,7 @@ fn exchange_locked(
         Exchange::Ok(v) => Some(v),
         Exchange::Failed { kill } => {
             if kill && let Some(s) = guard.as_mut() {
-                let _ = s.child.kill();
+                let _ = s.stop();
             }
             *guard = None;
             None
@@ -731,6 +934,10 @@ fn exchange_locked(
 /// on a FULL index — `prepare_project` picks it only when the cheap path
 /// cannot apply.
 pub fn begin_project(project_root: &Path, files: &[String]) {
+    let Ok(_idle) = COMPILATION.clone().try_acquire_owned() else {
+        tracing::warn!("VB begin_project refused while ingestion owns the compilation"); return;
+    };
+    let Ok(project_root) = std::fs::canonicalize(project_root) else { return; };
     let mutex = get_or_spawn_sidecar();
     let mut guard = match mutex.lock() {
         Ok(g) => g,
@@ -739,7 +946,7 @@ pub fn begin_project(project_root: &Path, files: &[String]) {
             return;
         }
     };
-    begin_project_locked(&mut guard, project_root, files);
+    begin_project_locked(&mut guard, &project_root, files);
 }
 
 fn begin_project_locked(
@@ -747,6 +954,11 @@ fn begin_project_locked(
     project_root: &Path,
     files: &[String],
 ) -> bool {
+    if guard.as_ref().is_some_and(|sidecar| sidecar.cached_charge.is_some()) {
+        tracing::warn!("Legacy VB begin_project refused: use admitted ingestion to replace a charged compilation");
+        return false;
+    }
+    if let Some(sidecar) = guard.as_mut() { sidecar.project_root = None; sidecar.inventory_signature = None; }
     // Hand over the exact file list. Left to walk the tree itself the
     // sidecar has no idea which files the indexer actually ingests — it
     // applies no ignore rules and no extension presets. On MiniLangCompiler
@@ -764,12 +976,16 @@ fn begin_project_locked(
     if let Some(err) = parsed.get("error").and_then(|v| v.as_str()) {
         tracing::warn!("begin_project sidecar error: {err}");
         if let Some(s) = guard.as_mut() {
-            let _ = s.child.kill();
+            let _ = s.stop();
         }
         *guard = None;
         return false;
     }
     if let Some(s) = guard.as_mut() {
+        if s.identity.is_some() && parsed.get("project_root").and_then(|v| v.as_str()).map(Path::new) != Some(project_root) {
+            tracing::error!("VB companion did not attest the prepared compilation root");
+            return false;
+        }
         s.project_root = Some(project_root.to_path_buf());
     }
     tracing::info!(
@@ -777,6 +993,136 @@ fn begin_project_locked(
         project_root.display()
     );
     true
+}
+
+/// Trusted ingestion never asks the child to enumerate its own filesystem.
+/// A stable admitted inventory sends only changed paths; a cold child, root
+/// change, or inventory change receives the exact complete list once.
+#[cfg(test)]
+fn refresh_project_locked(guard: &mut Option<Sidecar>, project_root: &Path,
+    inventory: &[engram_core::RelPath], changed: &[String]) -> bool {
+    let context = VbParserContext::from_authority(guard.as_ref().and_then(|sidecar| sidecar.identity.clone()));
+    refresh_project_admitted(guard, project_root, inventory, changed, &context,
+        compilation::DEFAULT_BUDGET.clone()).is_ok()
+}
+
+fn restart_owned_compilation(guard: &mut Option<Sidecar>, expected: &VbParserContext) -> anyhow::Result<()> {
+    let sidecar = guard.as_mut().ok_or_else(|| anyhow::anyhow!("VB child missing before cache eviction"))?;
+    let binary = sidecar.binary.clone();
+    sidecar.stop()?;
+    // Old cache/owner charges are released only after actual join above.
+    *guard = None;
+    let sidecar = ensure_sidecar_at(guard, &binary)?;
+    anyhow::ensure!(sidecar.identity == expected.roslyn && sidecar.transport.is_running(),
+        "VB parser code changed during cache eviction; rescan the source operation");
+    Ok(())
+}
+
+fn refresh_project_admitted(guard: &mut Option<Sidecar>, project_root: &Path,
+    inventory: &[engram_core::RelPath], changed: &[String], context: &VbParserContext,
+    budget: Arc<engram_core::memory::MemoryBudget>) -> anyhow::Result<()> {
+    if guard.as_ref().is_some_and(|sidecar| sidecar.project_root.is_some() && sidecar.cached_charge.is_none()) {
+        // An explicitly legacy warmup has no bounded-cache authority.
+        restart_owned_compilation(guard, context)?;
+    }
+    let mut sorted = inventory.iter().map(|path| path.as_str()).collect::<Vec<_>>();
+    sorted.sort_unstable();
+    sorted.dedup();
+    let mut hash = blake3::Hasher::new();
+    for path in &sorted {
+        hash.update(&(path.len() as u64).to_le_bytes());
+        hash.update(path.as_bytes());
+    }
+    let signature = hash.finalize();
+    struct Inventory<'a> { root: &'a Path, paths: &'a [&'a str] }
+    impl Serialize for Inventory<'_> {
+        fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+            use serde::ser::SerializeSeq;
+            let mut sequence = serializer.serialize_seq(Some(self.paths.len()))?;
+            // Join one path at a time into the bounded encoder. Do not first
+            // duplicate an unbounded complete inventory as absolute strings.
+            for path in self.paths { sequence.serialize_element(&self.root.join(path))?; }
+            sequence.end()
+        }
+    }
+    #[derive(Serialize)]
+    struct Refresh<'a> {
+        cmd: &'static str,
+        project_root: &'a Path,
+        paths: &'a [String],
+        #[serde(skip_serializing_if = "Option::is_none")]
+        files: Option<Inventory<'a>>,
+        compilation_policy: &'a CompilationPolicy,
+    }
+    for attempt in 0..2 {
+        let warm = guard.as_ref().is_some_and(|sidecar| sidecar.project_root.as_deref() == Some(project_root)
+            && sidecar.inventory_signature == Some(signature) && sidecar.cached_policy.as_ref() == Some(&context.compilation)
+            && sidecar.cached_charge.as_ref().is_some_and(|charge| charge.same_budget(&budget)));
+        let request = Refresh { cmd: "plan_refresh", project_root, paths: changed,
+            files: (!warm).then_some(Inventory { root: project_root, paths: &sorted }),
+            compilation_policy: &context.compilation };
+        let payload = transport::encode_request(&request)?;
+        let sidecar = guard.as_mut().ok_or_else(|| anyhow::anyhow!("VB child missing before compilation plan"))?;
+        let line = sidecar.transport.request(payload, 4096, Duration::from_secs(60))?;
+        let response: SidecarResponse = serde_json::from_str(&line)?;
+        if let Some(error) = response.error {
+            sidecar.project_root = None;
+            sidecar.inventory_signature = None;
+            anyhow::bail!("VB compilation planning refused: {error}");
+        }
+        anyhow::ensure!(!response.compilation_error && response.parser_identity.as_ref() == context.roslyn.as_ref(),
+            "VB compilation plan identity mismatch; source publication refused");
+        let plan = response.compilation_plan.ok_or_else(|| anyhow::anyhow!("VB child omitted compilation plan"))?;
+        anyhow::ensure!(plan.full == !warm && plan.tree_count == sorted.len() as u64,
+            "VB compilation plan does not cover the entire admitted inventory");
+        let (retained, scratch_bytes) = plan.charges(&context.compilation)?;
+        let allocation = (|| -> anyhow::Result<_> {
+            let charge = if warm {
+                let charge = sidecar.cached_charge.as_ref().unwrap().clone();
+                charge.ensure(retained, context.compilation.charge(context.compilation.max_total_source_bytes,
+                    context.compilation.max_trees)?)?;
+                charge
+            } else { compilation::CachedCharge::new(budget.clone(), retained)? };
+            let scratch = compilation::CachedCharge::scratch(budget.clone(), scratch_bytes)?;
+            Ok((charge, scratch))
+        })();
+        let (charge, scratch) = match allocation {
+            Ok(allocation) => allocation,
+            Err(_) if attempt == 0 && sidecar.cached_charge.is_some() => {
+                restart_owned_compilation(guard, context)?;
+                continue;
+            }
+            Err(error) => return Err(error),
+        };
+        let mut holds = vec![charge.clone(), scratch.clone()];
+        if let Some(old) = &sidecar.cached_charge { holds.push(old.clone()); }
+        sidecar.transport.retain_compilation_holds(holds);
+        sidecar.project_root = None;
+        sidecar.inventory_signature = None;
+        let payload = transport::encode_request(&serde_json::json!({"cmd":"refresh_project", "plan_id":plan.id}))?;
+        let committed = (|| -> anyhow::Result<()> {
+            let line = sidecar.transport.request(payload, 4096, Duration::from_secs(60))?;
+            let response: SidecarResponse = serde_json::from_str(&line)?;
+            anyhow::ensure!(response.error.is_none() && !response.compilation_error
+                && response.project_root.as_deref().map(Path::new) == Some(project_root)
+                && response.parser_identity.as_ref() == context.roslyn.as_ref(),
+                "VB compilation refresh refused: {}", response.error.as_deref().unwrap_or("invalid receipt"));
+            Ok(())
+        })();
+        if let Err(error) = committed {
+            sidecar.stop()?;
+            *guard = None;
+            return Err(error);
+        }
+        sidecar.cached_charge = Some(charge.clone());
+        sidecar.cached_policy = Some(context.compilation.clone());
+        sidecar.project_root = Some(project_root.to_owned());
+        sidecar.inventory_signature = Some(signature);
+        sidecar.transport.retain_compilation_holds(vec![charge]);
+        drop(scratch);
+        return Ok(());
+    }
+    anyhow::bail!("VB compilation cache admission did not complete")
 }
 
 /// Result of asking the sidecar to drop cached trees.
@@ -812,7 +1158,7 @@ fn invalidate_locked(guard: &mut Option<Sidecar>, paths: &[String]) -> Invalidat
         }
         tracing::warn!("invalidate sidecar error: {err}");
         if let Some(s) = guard.as_mut() {
-            let _ = s.child.kill();
+            let _ = s.stop();
         }
         *guard = None;
         return Invalidate::Failed;
@@ -854,6 +1200,14 @@ fn vb_paths(paths: &[PathBuf]) -> Vec<String> {
 /// minutes. When the child is already warm for this root and the change set
 /// is small, we drop just the stale trees instead — O(changed).
 pub fn prepare_project(project_root: &Path, files: &[PathBuf]) {
+    let vb_files = vb_paths(files);
+    if vb_files.is_empty() { return; }
+    let Ok(_idle) = COMPILATION.clone().try_acquire_owned() else {
+        tracing::warn!("VB prepare_project refused while ingestion owns the compilation"); return;
+    };
+    let Ok(project_root) = std::fs::canonicalize(project_root) else { return; };
+    let Ok(vb_files) = vb_files.iter().map(|path| std::fs::canonicalize(path)
+        .map(|path| path.to_string_lossy().into_owned())).collect::<std::io::Result<Vec<_>>>() else { return; };
     let mutex = get_or_spawn_sidecar();
     let mut guard = match mutex.lock() {
         Ok(g) => g,
@@ -863,15 +1217,22 @@ pub fn prepare_project(project_root: &Path, files: &[PathBuf]) {
         }
     };
 
+    if guard.as_ref().is_some_and(|sidecar| sidecar.cached_charge.is_some()) {
+        tracing::warn!("Legacy VB prepare_project refused: use admitted ingestion to refresh a charged compilation");
+        return;
+    }
+    prepare_project_locked(&mut guard, &project_root, &vb_files);
+}
+
+fn prepare_project_locked(guard: &mut Option<Sidecar>, project_root: &Path, vb_files: &[String]) {
     let warm = guard
         .as_ref()
         .is_some_and(|s| s.project_root.as_deref() == Some(project_root) && s.supports_invalidate);
 
-    let vb_files = vb_paths(files);
     let is_small_batch = vb_files.len() <= incremental_invalidate_max();
 
     if warm && is_small_batch {
-        match invalidate_locked(&mut guard, &vb_files) {
+        match invalidate_locked(guard, vb_files) {
             Invalidate::Done => return,
             // Fall through to the full rebuild.
             Invalidate::Unsupported | Invalidate::Failed => {}
@@ -885,8 +1246,8 @@ pub fn prepare_project(project_root: &Path, files: &[PathBuf]) {
     // against a cold child falls back to the sidecar's own walk — which is
     // pruned of build output and scratch trees, and so is no longer the
     // 73,072-file liability that made it time out.
-    let supplied: &[String] = if is_small_batch { &[] } else { &vb_files };
-    begin_project_locked(&mut guard, project_root, supplied);
+    let supplied: &[String] = if is_small_batch { &[] } else { vb_files };
+    begin_project_locked(guard, project_root, supplied);
 }
 
 /// Drop the sidecar's cached trees for files that no longer exist.
@@ -894,72 +1255,196 @@ pub fn prepare_project(project_root: &Path, files: &[PathBuf]) {
 /// Deletions never reach `prepare_project` (it only sees files to index), so
 /// without this a removed type would keep resolving until the next full
 /// rebuild.
-pub fn forget_files(paths: &[PathBuf]) {
+pub fn forget_files(paths: &[PathBuf]) -> anyhow::Result<()> {
     let vb = vb_paths(paths);
     if vb.is_empty() {
-        return;
+        return Ok(());
     }
+    let _idle = COMPILATION.clone().try_acquire_owned()
+        .map_err(|_| anyhow::anyhow!("VB cache deletion is busy with an active ingestion batch; retry the source update"))?;
     let mutex = get_or_spawn_sidecar();
-    let mut guard = match mutex.lock() {
-        Ok(g) => g,
-        Err(poisoned) => {
-            tracing::error!("VB sidecar mutex poisoned during forget_files: {poisoned}");
-            return;
-        }
-    };
+    let mut guard = mutex.lock().map_err(|error| anyhow::anyhow!("VB cache coordinator unavailable: {error}"))?;
     // Nothing to forget if the child was never warmed for a project.
     if guard
         .as_ref()
         .is_none_or(|s| s.project_root.is_none() || !s.supports_invalidate)
     {
-        return;
+        return Ok(());
     }
-    let _ = invalidate_locked(&mut guard, &vb);
+    // Deleted files cannot themselves be canonicalized. Existing parents give
+    // the same verbatim Windows spelling as warmup/parse. If an entire parent
+    // was deleted, invalidate the remembered warm root so next ingestion must
+    // rebuild instead of retaining trees under an unprovable guessed key.
+    let normalized = vb.iter().map(|path| {
+        let path = Path::new(path);
+        Some(std::fs::canonicalize(path.parent()?).ok()?.join(path.file_name()?).to_string_lossy().into_owned())
+    }).collect::<Option<Vec<_>>>();
+    let Some(normalized) = normalized else {
+        if let Some(sidecar) = guard.as_mut() { sidecar.project_root = None; }
+        return Ok(());
+    };
+    match invalidate_locked(&mut guard, &normalized) {
+        Invalidate::Done | Invalidate::Unsupported => Ok(()),
+        Invalidate::Failed => anyhow::bail!("VB cache deletion failed; retry the source update"),
+    }
 }
 
 pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
-    if source.bytes().all(|b| b.is_ascii_whitespace()) {
-        return (Vec::new(), Vec::new());
-    }
+    let (symbols, edges, _) = extract_vb_with_provenance(path, source);
+    (symbols, edges)
+}
 
+/// The receipt accompanies the actual result, including empty/zero-symbol
+/// source and per-file fallback after a Roslyn parse or transport failure.
+pub fn extract_vb_with_provenance(path: &Path, source: &str)
+    -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>, VbParserProvenance) {
+    let Ok(_idle) = COMPILATION.clone().try_acquire_owned() else {
+        let (symbols, edges) = fallback_extract_vb(path, source);
+        tracing::warn!(path=%path.display(), "Context-free VB extraction refused while ingestion owns the compilation");
+        return (symbols, edges, VbParserProvenance::UnverifiedRoslyn);
+    };
     let mutex = get_or_spawn_sidecar();
     let mut guard = match mutex.lock() {
         Ok(g) => g,
         Err(poisoned) => {
             tracing::error!("VB sidecar mutex poisoned: {poisoned}");
-            return fallback_extract_vb(path, source);
+            let (symbols, edges) = fallback_extract_vb(path, source);
+            return (symbols, edges, VbParserProvenance::UnverifiedRoslyn);
         }
     };
 
-    let sidecar = match ensure_sidecar(&mut guard) {
+    extract_vb_with_client(&mut guard, &sidecar_binary_path(), path, source)
+}
+
+fn extract_vb_with_client(guard: &mut Option<Sidecar>, companion: &Path, path: &Path, source: &str)
+    -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>, VbParserProvenance) {
+    let fallback = || {
+        let (symbols, edges) = fallback_extract_vb(path, source);
+        (symbols, edges, VbParserProvenance::fallback())
+    };
+
+    let sidecar = match ensure_sidecar_at(guard, companion) {
         Ok(s) => s,
         Err(e) => {
             tracing::warn!("failed to spawn sidecar: {e}; using fallback VB extraction");
-            return fallback_extract_vb(path, source);
+            if guard.is_some() || !transport::lifecycle_ready() {
+                let (symbols, edges) = fallback_extract_vb(path, source);
+                return (symbols, edges, VbParserProvenance::UnverifiedRoslyn);
+            }
+            return fallback();
         }
     };
 
-    match parse_via_sidecar(sidecar, path, source) {
-        Ok((mut symbols, mut edges)) => {
+    let context = VbParserContext::from_authority(sidecar.identity.clone());
+    extract_vb_in_context(guard, path, source, context, None)
+}
+
+fn extract_vb_in_context(guard: &mut Option<Sidecar>, path: &Path, source: &str, context: VbParserContext,
+    project_root: Option<&Path>)
+    -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>, VbParserProvenance) {
+    let Some(sidecar) = guard.as_mut() else {
+        let (symbols, edges) = fallback_extract_vb(path, source);
+        return (symbols, edges, VbParserProvenance::UnverifiedRoslyn);
+    };
+    if !context.is_supported() || context.roslyn != sidecar.identity {
+        let (symbols, edges) = fallback_extract_vb(path, source);
+        return (symbols, edges, VbParserProvenance::UnverifiedRoslyn);
+    }
+    match parse_via_sidecar(sidecar, path, source, &context, project_root) {
+        Ok((mut symbols, mut edges, provenance)) => {
             // The Roslyn sidecar gives symbols/calls/SQL — but knows nothing
             // about Engram's settings/guard/hierarchy extraction. Enrich its
             // output with the same line-scan pass the fallback performs, so
             // production (sidecar) and degraded (fallback) modes agree.
             enrich_vb_source(source, &mut symbols, &mut edges);
-            (symbols, edges)
+            if source.bytes().all(|byte| byte.is_ascii_whitespace()) {
+                symbols.clear();
+                edges.clear();
+            }
+            (symbols, edges, provenance)
         }
         Err(SidecarParseError::Sidecar(err)) => {
             tracing::warn!("VB sidecar parse error for {}: {err}", path.display());
-            fallback_extract_vb(path, source)
+            degraded_fallback(path, source, context, VbFallbackReason::ParseError)
         }
         Err(SidecarParseError::Protocol(err)) => {
             tracing::warn!("VB sidecar protocol failure for {}: {err}", path.display());
-            let _ = sidecar.child.kill();
+            let stopped = sidecar.stop();
             *guard = None;
-            fallback_extract_vb(path, source)
+            if stopped.is_err() || !transport::lifecycle_ready() {
+                let (symbols, edges) = fallback_extract_vb(path, source);
+                (symbols, edges, VbParserProvenance::UnverifiedRoslyn)
+            } else { degraded_fallback(path, source, context, VbFallbackReason::TransportFailure) }
+        }
+        Err(SidecarParseError::LocalEncoding(err)) => {
+            // Nothing reached the transport. Keep the healthy child, but do
+            // not allocate another fallback result after a local reservation
+            // failure or certify empty extraction as successful source data.
+            tracing::warn!(path = %path.display(), error = %err,
+                "VB request encoding refused locally; trusted extraction is unavailable");
+            (Vec::new(), Vec::new(), VbParserProvenance::UnverifiedRoslyn)
+        }
+        Err(SidecarParseError::Identity) => {
+            tracing::error!(path = %path.display(), "VB parse identity does not match the loaded parser receipt; trusted ingestion is refused");
+            *guard = None;
+            let (symbols, edges) = fallback_extract_vb(path, source);
+            (symbols, edges, VbParserProvenance::UnverifiedRoslyn)
+        }
+        Err(SidecarParseError::SourceLimit) => {
+            tracing::warn!(path=%path.display(), cap=context.max_source_bytes, "VB source exceeds parser policy; retaining healthy child and recording stable fallback");
+            degraded_fallback(path, source, context, VbFallbackReason::SourceLimit)
         }
     }
 }
+
+fn degraded_fallback(path: &Path, source: &str, context: VbParserContext, reason: VbFallbackReason)
+    -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>, VbParserProvenance) {
+    let (symbols, edges) = fallback_extract_vb(path, source);
+    let provenance = if context.roslyn.is_some() {
+        VbParserProvenance::RustFallback { context, reason }
+    } else { VbParserProvenance::UnverifiedRoslyn };
+    (symbols, edges, provenance)
+}
+
+pub fn extract_vb_for_ingestion(path: &Path, source: &str)
+    -> anyhow::Result<(Vec<ExtractedSymbol>, Vec<ExtractedEdge>, VbParserProvenance)> {
+    let result = extract_vb_with_provenance(path, source);
+    anyhow::ensure!(!matches!(&result.2, VbParserProvenance::Roslyn { .. }),
+        "Standalone Roslyn extraction cannot certify project bindings; use index_files with the complete admitted VB inventory");
+    anyhow::ensure!(result.2.is_verified(),
+        "VB parser identity unavailable or changed during extraction of {}; deploy the matching companion and retry (unverified output was not published)", path.display());
+    Ok(result)
+}
+
+pub(crate) fn extract_vb_in_batch(lease: &VbCompilationLease, path: &Path, source: &str)
+    -> anyhow::Result<(Vec<ExtractedSymbol>, Vec<ExtractedEdge>, VbParserProvenance)> {
+    let mut guard = get_or_spawn_sidecar().lock()
+        .map_err(|error| anyhow::anyhow!("VB compilation coordinator unavailable: {error}"))?;
+    let canonical_path = std::fs::canonicalize(path)?;
+    anyhow::ensure!(canonical_path.starts_with(&lease.root),
+        "VB source lies outside its intended compilation root: {}", path.display());
+    let result = match &lease.incarnation {
+        Some(expected) => {
+            anyhow::ensure!(guard.as_ref().is_some_and(|s| Arc::ptr_eq(expected, &s.incarnation)
+                && s.project_root.as_ref() == Some(&lease.root) && s.transport.is_running()),
+                "VB child/root changed during ingestion; retry the whole source update");
+            extract_vb_in_context(&mut guard, &canonical_path, source, lease.context.clone(), Some(&lease.root))
+        }
+        None => {
+            anyhow::ensure!(guard.is_none() && transport::lifecycle_ready(),
+                "VB parser availability changed during fallback ingestion; retry the whole source update");
+            let (symbols, edges) = fallback_extract_vb(path, source);
+            (symbols, edges, VbParserProvenance::RustFallback {
+                context: lease.context.clone(), reason: VbFallbackReason::Unavailable,
+            })
+        }
+    };
+    anyhow::ensure!(result.2.is_verified(), "VB compilation identity was not verified; retry the whole source update");
+    Ok(result)
+}
+
+#[cfg(test)]
+mod provenance_tests;
 
 /// Test-only re-export: the enrichment pass can't be exercised through
 /// `extract_vb` in tests (no sidecar binary), so integration tests call it
@@ -2063,6 +2548,16 @@ fn fallback_method_metadata(source: &str, start_line: usize) -> HashMap<String, 
     meta
 }
 
+/// Positive declaration candidates from these exact bytes only. Never starts
+/// Roslyn or consults project state. Regex candidates have declaration-line
+/// ranges only; an empty result cannot establish symbol absence or deletion.
+pub fn snapshot_declaration_candidates(source: &str) -> Vec<ExtractedSymbol> {
+    if source.len() > 128 * 1024 {
+        return Vec::new();
+    }
+    fallback_extract_vb(Path::new("captured-snapshot.vb"), source).0
+}
+
 /// Eval/test entry to the degraded-mode extractor: deterministic (no
 /// sidecar dependency), used by the graph-accuracy eval (TODO-49) and
 /// unit tests. Not part of the indexing API.
@@ -2501,7 +2996,7 @@ pub fn vb_return_paths(path: &Path, source: &str, start: u32, end: u32) -> Resul
     let line = match source_request_via_sidecar(sidecar,path,source,payload) {
         Ok(line) => line,
         Err(error) => {
-            let _ = sidecar.child.kill();
+            let _ = sidecar.stop();
             *guard = None;
             return Err(format!("return-path transport failed: {error:?}"));
         }
@@ -2546,7 +3041,7 @@ pub fn vb_invocations(path: &Path, source: &str) -> Result<VbInvocationReport, S
     let line = match source_request_via_sidecar(sidecar, path, source, payload) {
         Ok(line) => line,
         Err(error) => {
-            let _ = sidecar.child.kill();
+            let _ = sidecar.stop();
             *guard = None;
             return Err(format!("invocation transport failed: {error:?}"));
         }

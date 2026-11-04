@@ -6,12 +6,13 @@
 
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
-use std::io::Read;
+use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 
 const MAX_DISCOVERY_ENTRIES: usize = 2_048;
 const MAX_CANDIDATES: usize = 512;
 const MAX_SOURCE_BYTES: u64 = 512 * 1_024;
+const SCOPE_READ_BUFFER: usize = 1_024;
 const POLICY_INSTRUCTION: &str = "Checked-out repository guidance is policy evidence, not proof of implementation compliance. Read each complete source, including exclusions and examples, and resolve conflicts according to its stated authority. Scope matching selects documents only; Engram does not semantically enforce their prose. Omitted or unresolved documents require reading the referenced source before claiming policy coverage.";
 
 #[derive(Debug, Clone, Copy)]
@@ -401,7 +402,7 @@ fn glob_expression(pattern: &str) -> Result<String, String> {
     Ok(expression)
 }
 
-fn compile_scope(pattern: &str) -> Result<regex::Regex, String> {
+pub(crate) fn compile_scope(pattern: &str) -> Result<regex::Regex, String> {
     let normalized = pattern.replace('\\', "/");
     let normalized = normalized.strip_prefix("./").unwrap_or(&normalized);
     if normalized.len() > 2_048
@@ -452,7 +453,7 @@ fn in_directory(target: &str, parent: &str) -> bool {
     }
 }
 
-fn applicability(path: &str, content: &str, targets: &[String]) -> Result<Vec<String>, String> {
+fn has_directory_authority(path: &str, targets: &[String]) -> bool {
     let lower = path.to_ascii_lowercase();
     let name = lower.rsplit('/').next().unwrap_or(&lower);
     let parent = path
@@ -465,11 +466,14 @@ fn applicability(path: &str, content: &str, targets: &[String]) -> Result<Vec<St
         || lower.starts_with(".cursor/rules/");
     // Frontmatter may narrow directory guidance; it cannot grant that file
     // authority over an unrelated subtree.
-    if conventional_name(name)
+    !(conventional_name(name)
         && !centralized
         && !parent.is_empty()
-        && !targets.iter().any(|target| in_directory(target, parent))
-    {
+        && !targets.iter().any(|target| in_directory(target, parent)))
+}
+
+fn applicability(path: &str, content: &str, targets: &[String]) -> Result<Vec<String>, String> {
+    if !has_directory_authority(path, targets) {
         return Ok(Vec::new());
     }
     let metadata = frontmatter(content)?;
@@ -556,18 +560,105 @@ pub fn resolve(root: &Path, target_paths: &[String], indexed_paths: &[String]) -
     resolve_with_budget(root, target_paths, indexed_paths, PolicyBudget::default())
 }
 
+fn read_selected_source(root: &Path, relative: &str, expected_hash: &str) -> anyhow::Result<String> {
+    let file = engram_core::safe_open_read(root, relative)?;
+    anyhow::ensure!(file.metadata()?.is_file(), "source is not a regular file");
+    let mut bytes = Vec::new();
+    file.take(MAX_SOURCE_BYTES + 1).read_to_end(&mut bytes)?;
+    anyhow::ensure!(bytes.len() as u64 <= MAX_SOURCE_BYTES, "source exceeds bounded read limit");
+    anyhow::ensure!(blake3::hash(&bytes).to_hex().as_str() == expected_hash,
+        "source changed after applicability discovery; refresh policy context");
+    Ok(String::from_utf8(bytes)?)
+}
+
 pub fn resolve_with_budget(
     root: &Path,
     target_paths: &[String],
     indexed_paths: &[String],
     budget: PolicyBudget,
 ) -> PolicyContext {
+    resolve_observing_candidate_reads(root, target_paths, indexed_paths, budget, &mut |_: &str, _: usize| {})
+}
+
+/// Observe actual file reads rather than buffer consumption. Production uses
+/// an empty observer; tests can account for real I/O without replacing files.
+struct CandidateReader<'a, F> {
+    file: std::fs::File,
+    relative: &'a str,
+    observe: &'a mut F,
+}
+
+impl<F: FnMut(&str, usize)> Read for CandidateReader<'_, F> {
+    fn read(&mut self, bytes: &mut [u8]) -> std::io::Result<usize> {
+        let read = self.file.read(bytes)?;
+        (self.observe)(self.relative, read);
+        Ok(read)
+    }
+}
+
+/// Applicability uses only the leading frontmatter. Keep the existing source
+/// bound even for an unclosed/very long header, and never parse the body as
+/// metadata. The small buffer bounds incidental body read-ahead for exclusions.
+fn read_scope_prefix(reader: &mut impl BufRead) -> Result<Vec<u8>, String> {
+    let mut prefix = Vec::new();
+    loop {
+        let start = prefix.len();
+        let read = (&mut *reader)
+            .take(MAX_SOURCE_BYTES + 1 - start as u64)
+            .read_until(b'\n', &mut prefix)
+            .map_err(|error| format!("source header read failed; applicability unresolved: {error}"))?;
+        if prefix.len() as u64 > MAX_SOURCE_BYTES {
+            return Err(format!("source header exceeds {MAX_SOURCE_BYTES} byte read limit; applicability unresolved"));
+        }
+        if read == 0 {
+            return Ok(prefix);
+        }
+        let line = std::str::from_utf8(&prefix[start..])
+            .map_err(|_| "source header is not valid UTF-8; applicability unresolved".to_string())?;
+        if start == 0 {
+            if line.trim_start_matches('\u{feff}').lines().next().map(str::trim) != Some("---") {
+                return Ok(prefix);
+            }
+        } else if matches!(line.trim(), "---" | "...") {
+            return Ok(prefix);
+        }
+    }
+}
+
+fn resolve_observing_candidate_reads<F: FnMut(&str, usize)>(
+    root: &Path,
+    target_paths: &[String],
+    indexed_paths: &[String],
+    budget: PolicyBudget,
+    observe: &mut F,
+) -> PolicyContext {
     let mut context = PolicyContext::empty(budget);
+    let mut rejected = 0usize;
     let targets = target_paths
         .iter()
-        .filter_map(|path| normalized_relative(path))
+        .filter_map(|path| {
+            let normalized = normalized_relative(path);
+            if let Some(path) = normalized.filter(|path| engram_core::safe_join(root, path).is_ok())
+            {
+                Some(path)
+            } else {
+                rejected += 1;
+                None
+            }
+        })
+        .collect::<BTreeSet<_>>()
+        .into_iter()
         .collect::<Vec<_>>();
-    let candidates = discover(root, target_paths, indexed_paths, &mut context.notes);
+    if rejected > 0 {
+        context.notes.push(format!("{rejected} requested source path(s) could not be validated within the repository; guidance coverage is incomplete. Verify their repository scope before editing."));
+        if targets.is_empty() {
+            // An explicit but invalid scope must never become a root-wide query.
+            context.status = "incomplete".into();
+            context.coverage = "incomplete".into();
+            return context;
+        }
+    }
+    let candidates = discover(root, &targets, indexed_paths, &mut context.notes);
     context.sources_discovered = candidates.len();
     let mut applicable_sources = BTreeMap::new();
     for relative in candidates {
@@ -578,6 +669,9 @@ pub fn resolve_with_budget(
                 continue;
             }
         };
+        if !has_directory_authority(&relative, &targets) {
+            continue;
+        }
         if !std::fs::symlink_metadata(&full).is_ok_and(|metadata| metadata.is_file()) {
             context.omit(&relative, "source is not an available regular file", None);
             continue;
@@ -593,8 +687,36 @@ pub fn resolve_with_budget(
             context.omit(&relative, "source is not a readable regular file", None);
             continue;
         }
-        let mut bytes = Vec::new();
-        if let Err(error) = file.take(MAX_SOURCE_BYTES + 1).read_to_end(&mut bytes) {
+        let mut reader = BufReader::with_capacity(SCOPE_READ_BUFFER, CandidateReader {
+            file, relative: &relative, observe: &mut *observe,
+        }.take(MAX_SOURCE_BYTES + 1));
+        let mut bytes = match read_scope_prefix(&mut reader) {
+            Ok(prefix) => prefix,
+            Err(reason) => {
+                context.omit(&relative, reason, None);
+                continue;
+            }
+        };
+        let prefix = match std::str::from_utf8(&bytes) {
+            Ok(prefix) => prefix,
+            Err(_) => {
+                context.omit(&relative, "source header is not valid UTF-8; applicability unresolved", None);
+                continue;
+            }
+        };
+        let reasons = match applicability(&relative, prefix, &targets) {
+            Ok(reasons) => reasons,
+            Err(reason) => {
+                // The body was not read, so no whole-document hash is known.
+                context.omit(&relative, reason, None);
+                continue;
+            }
+        };
+        if reasons.is_empty() {
+            continue;
+        }
+        let remaining = MAX_SOURCE_BYTES + 1 - bytes.len() as u64;
+        if let Err(error) = reader.take(remaining).read_to_end(&mut bytes) {
             context.omit(&relative, format!("source read failed: {error}"), None);
             continue;
         }
@@ -620,20 +742,13 @@ pub fn resolve_with_budget(
                 continue;
             }
         };
-        let reasons = match applicability(&relative, &content, &targets) {
-            Ok(reasons) => reasons,
-            Err(reason) => {
-                context.omit(&relative, reason, Some(hash));
-                continue;
-            }
-        };
-        if reasons.is_empty() {
-            continue;
-        }
         let shared = reasons
             .iter()
             .any(|reason| reason.contains("repository guidance"));
         let characters_total = content.chars().count();
+        // Applicability determines shared-first ordering, so qualify every
+        // candidate before selecting. Retain descriptors rather than as much
+        // as 512 * 512 KiB of bodies before applying the small output budget.
         applicable_sources.insert(
             (!shared, relative.clone()),
             PolicySource {
@@ -643,13 +758,13 @@ pub fn resolve_with_budget(
                 characters_shown: characters_total,
                 truncated: false,
                 applicability: reasons,
-                content,
+                content: String::new(),
             },
         );
     }
     context.sources_applicable = applicable_sources.len();
     let mut remaining = budget.max_characters_total;
-    for source in applicable_sources.into_values() {
+    for mut source in applicable_sources.into_values() {
         let reason = if context.sources.len() >= budget.max_sources {
             Some("applicable source count budget exceeded")
         } else if source.characters_total > budget.max_characters_per_source {
@@ -666,8 +781,18 @@ pub fn resolve_with_budget(
         if let Some(reason) = reason {
             context.omit(&source.path, reason, Some(source.blake3));
         } else {
-            remaining -= source.characters_total;
-            context.sources.push(source);
+            // Read only selected complete documents, verifying the exact
+            // bytes whose applicability/hash were discovered above. A live
+            // edit cannot turn stale scope metadata into current policy.
+            match read_selected_source(root, &source.path, &source.blake3) {
+                Ok(content) => {
+                    source.content = content;
+                    remaining -= source.characters_total;
+                    context.sources.push(source);
+                }
+                Err(error) => context.omit(&source.path,
+                    format!("selected source unavailable or changed: {error}"), Some(source.blake3)),
+            }
         }
     }
     context.sources_shown = context.sources.len();
@@ -685,6 +810,21 @@ mod tests {
     use super::*;
 
     #[test]
+    fn selected_policy_cannot_use_stale_applicability_after_a_live_edit() {
+        let temp = tempfile::tempdir().unwrap();
+        let before = "---\napplyTo: 'src/**'\n---\nPreserve accepted exceptions.\n";
+        write(temp.path(), "AGENTS.md", before);
+        let expected = blake3::hash(before.as_bytes()).to_hex().to_string();
+        assert_eq!(read_selected_source(temp.path(), "AGENTS.md", &expected).unwrap(), before);
+        write(temp.path(), "AGENTS.md", "---\napplyTo: 'other/**'\n---\nChanged authority.\n");
+        assert!(read_selected_source(temp.path(), "AGENTS.md", &expected).is_err(),
+            "Changed policy must not be delivered using an old scope and fingerprint");
+        std::fs::remove_file(temp.path().join("AGENTS.md")).unwrap();
+        assert!(read_selected_source(temp.path(), "AGENTS.md", &expected).is_err(),
+            "A disappeared source cannot become a successful empty policy");
+    }
+
+    #[test]
     fn global_topic_scope_applies_even_before_candidate_files_are_known() {
         let temp = tempfile::tempdir().unwrap();
         write(
@@ -697,10 +837,119 @@ mod tests {
         assert_eq!(context.coverage, "complete");
     }
 
+    #[test]
+    fn invalid_source_scope_is_explicit_without_granting_outside_policy_authority() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("repo");
+        write(&root, "AGENTS.md", "ROOT_GUIDANCE");
+        write(&root, "src/INSTRUCTIONS.md", "AREA_GUIDANCE");
+        write(
+            temporary.path(),
+            "AGENTS.md",
+            "OUTSIDE_POLICY_MUST_NOT_APPLY",
+        );
+        let rejected = vec![
+            "../outside.rs".into(),
+            "C:\\outside.rs".into(),
+            format!("../{}", "x".repeat(4_000)),
+        ];
+        let invalid = resolve(&root, &rejected, &[]);
+        assert_eq!(invalid.coverage, "incomplete");
+        assert!(
+            invalid.sources.is_empty(),
+            "Rejected targets cannot become root-wide scope"
+        );
+        assert_eq!(invalid.notes.len(), 1);
+        assert!(
+            invalid.notes[0].len() < 300,
+            "Rejected path text must not inflate the response"
+        );
+        let mut mixed = rejected;
+        mixed.push("src/new.rs".into());
+        let mixed = resolve(&root, &mixed, &[]);
+        assert_eq!(mixed.coverage, "incomplete");
+        assert_eq!(
+            mixed.sources.len(),
+            2,
+            "A valid new file still receives its guidance"
+        );
+        let rendered = mixed.render_markdown();
+        assert!(rendered.contains("ROOT_GUIDANCE") && rendered.contains("AREA_GUIDANCE"));
+        assert!(!rendered.contains("OUTSIDE_POLICY_MUST_NOT_APPLY"));
+    }
+
     fn write(root: &Path, path: &str, text: &str) {
         let file = root.join(path);
         std::fs::create_dir_all(file.parent().unwrap()).unwrap();
         std::fs::write(file, text).unwrap();
+    }
+
+    #[test]
+    fn unrelated_policy_bodies_do_not_consume_body_reads_or_hide_complete_applicable_guidance() {
+        let owned = tempfile::tempdir().unwrap();
+        let root = owned.path();
+        let shared = "Shared authority first. Preserve accepted exceptions, including generated report exclusions.\n";
+        let selected = "---\napplyTo: 'Site/maps/**'\n---\nKeep longitude/latitude order. λ\nAccepted exception: generated reports stay excluded.\n";
+        let large = format!("---\napplyTo: 'Site/maps/**'\n---\n{}\nAccepted exception at the end.\n", "applicable qualification\n".repeat(1_000));
+        write(root, "AGENTS.md", shared);
+        let selected_path = ".github/instructions/a-map.instructions.md";
+        let large_path = ".github/instructions/z-map-large.instructions.md";
+        write(root, selected_path, selected);
+        write(root, large_path, &large);
+
+        let unrelated_paths = (0..24).map(|n| {
+            let path = format!(".github/instructions/b-billing-{n:02}.instructions.md");
+            write(root, &path, "---\napplyTo: 'Site/billing/**'\n---\n");
+            let mut file = std::fs::OpenOptions::new().append(true).open(root.join(&path)).unwrap();
+            use std::io::Write;
+            file.write_all(&vec![b'x'; 256 * 1_024]).unwrap();
+            // An unrelated body is neither parsed nor treated as policy failure.
+            file.write_all(&[0xff]).unwrap();
+            path
+        }).collect::<Vec<_>>();
+        let outside_authority = "Site/billing/AGENTS.md";
+        write(root, outside_authority, &"Billing-only source body.\n".repeat(10_000));
+        let unresolved_path = ".github/instructions/unknown.instructions.md";
+        write(root, unresolved_path, &format!("---\napplyTo: 7\n---\n{}", "unread unknown qualifications\n".repeat(8_000)));
+
+        let mut actual_reads = BTreeMap::<String, usize>::new();
+        let context = resolve_observing_candidate_reads(
+            root, &["Site/maps/new.ts".into()], &[outside_authority.into()],
+            PolicyBudget::default(), &mut |path: &str, bytes: usize| {
+                *actual_reads.entry(path.into()).or_default() += bytes;
+            },
+        );
+        assert_eq!(context.sources.iter().map(|source| source.path.as_str()).collect::<Vec<_>>(),
+            vec!["AGENTS.md", selected_path], "Shared-first selection must survive header filtering");
+        for (source, expected) in context.sources.iter().zip([shared, selected]) {
+            assert_eq!(source.content, expected);
+            assert_eq!(source.blake3, blake3::hash(expected.as_bytes()).to_hex().as_str());
+            assert_eq!(source.characters_total, expected.chars().count());
+            assert_eq!(source.characters_shown, source.characters_total);
+            assert!(!source.truncated);
+        }
+        assert_eq!(context.sources[1].applicability, vec!["scope matches `Site/maps/new.ts`"]);
+        assert_eq!(context.sources_applicable, 3);
+        assert_eq!(context.coverage, "incomplete");
+        assert_eq!(context.omissions.len(), 2);
+        let omitted = context.omissions.iter().find(|source| source.path == large_path).unwrap();
+        assert!(omitted.reason.contains("per-source character budget"));
+        assert_eq!(omitted.blake3.as_deref(), Some(blake3::hash(large.as_bytes()).to_hex().as_str()));
+        let unresolved = context.omissions.iter().find(|source| source.path == unresolved_path).unwrap();
+        assert!(unresolved.reason.contains("applicability unresolved"));
+        assert!(unresolved.blake3.is_none(), "Unread qualifications cannot receive a whole-source hash");
+
+        for path in unrelated_paths.iter().map(String::as_str).chain(std::iter::once(unresolved_path)) {
+            assert!(actual_reads.get(path).copied().unwrap_or(0) <= 4 * 1_024,
+                "Area exclusion/unresolved header read an unnecessary full body: {path}: {actual_reads:?}");
+        }
+        assert_eq!(actual_reads.get(outside_authority).copied().unwrap_or(0), 0,
+            "Directory authority alone excludes unrelated guidance before opening its body");
+        assert_eq!(actual_reads.get(large_path).copied(), Some(large.len()),
+            "Applicable omitted guidance must still receive a complete, truthful hash");
+        assert_eq!(actual_reads.get(selected_path).copied(), Some(selected.len()));
+        drop(context);
+        owned.close().unwrap();
     }
 
     #[test]

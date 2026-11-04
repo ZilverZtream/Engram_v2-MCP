@@ -9,6 +9,8 @@ pub mod asset_bundles;
 /// metadata must be re-extracted even with unchanged source. Version 7 adds
 /// cross-artifact ASP.NET Optimization bundle/render edges.
 pub const SOURCE_INDEX_VERSION: u64 = 7;
+pub mod source_contract;
+pub use source_contract::{SourceExtractionExpectation, SourceExtractionIdentity};
 pub mod chunking;
 pub mod confidence;
 pub mod config_extractor;
@@ -31,6 +33,8 @@ pub mod report_extractor;
 pub mod solution_parser;
 pub mod sp_extractor;
 pub mod sql_parser;
+#[cfg(feature = "vector")]
+mod sql_literals;
 pub mod state_extractor;
 pub mod sync_hazard_detector;
 pub mod tantivy_index;
@@ -49,7 +53,7 @@ pub use confidence::{
 };
 pub use docstore::{DocRecord, DocStore, FileFingerprint};
 pub use hybrid::{
-    BulkWriterGuard, HybridHit, HybridQuery, HybridSearchEngine, IndexDoc, IngestStats, StoredDoc,
+    BulkWriterGuard, HybridHit, HybridQuery, HybridSearchEngine, IndexDoc, IndexMutationGuard, IndexOperationGuard, IngestStats, SourceSnapshotGuard, StoredDoc,
     SemanticQuality, chunk_id_from_content_hash, chunk_id_from_hash, SUBSTRING_MATCH_WEIGHT, escape_tantivy_literal, literal_text_query, literal_word_or_substring_query,
     semantic_quality_for_backend,
 };

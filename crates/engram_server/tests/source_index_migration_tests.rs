@@ -3,6 +3,11 @@ use engram_core::{Config, MemorySection};
 use engram_server::{AppState, Engram};
 use serde_json::json;
 
+#[path = "source_index_migration_tests/extraction_identity.rs"]
+mod extraction_identity;
+#[path = "source_index_migration_tests/vb_parser_identity.rs"]
+mod vb_parser_identity;
+
 #[tokio::test]
 async fn unchanged_legacy_source_is_reextracted_without_losing_project_or_knowledge() {
     let temp = tempfile::tempdir().unwrap();

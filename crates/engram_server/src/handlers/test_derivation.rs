@@ -987,6 +987,8 @@ pub(super) fn axis_source(
     graph: &engram_graph::GraphStore,
     pid: &str,
     root: &Path,
+    source_generation: u64,
+    extraction: Result<&engram_index::SourceExtractionExpectation, &str>,
     file: &str,
     bytes_read: &mut u64,
 ) -> (bool, Option<String>, Option<Vec<u8>>) {
@@ -995,16 +997,15 @@ pub(super) fn axis_source(
         let node = graph
             .get_node(pid, &format!("file:{file}"))
             .map_err(|e| e.to_string())?;
+        if node.as_ref().is_some_and(|node| node.generation > source_generation) {
+            return Err("indexed axes belong to newer, live graph metadata than the selected source generation; retry after publication".into());
+        }
         let metadata = node.and_then(|node| node.metadata);
-        if let Some(version) = metadata
-            .as_ref()
-            .and_then(|meta| meta.get("source_index_version"))
-            .and_then(serde_json::Value::as_u64)
-        {
-            if version < engram_index::SOURCE_INDEX_VERSION {
-                return Err(format!(
-                    "indexed axes use obsolete source format {version}; update_project must re-extract this file before its dependencies can be used"
-                ));
+        if let Some(meta) = metadata.as_ref() {
+            if !extraction.map_err(str::to_owned)?.metadata_is_compatible(meta, file) {
+                return Err(
+                    "indexed axes use unknown or incompatible source extraction settings; update_project must re-extract this file before its dependencies can be used".to_string()
+                );
             }
         }
         Ok(metadata.and_then(|meta| {
@@ -1501,6 +1502,45 @@ mod tests {
     use super::*;
     use engram_core::{Config, ContentHash, RelPath};
     use engram_index::IndexDoc;
+
+    #[test]
+    fn test_axes_withhold_unpublished_graph_metadata_even_when_disk_bytes_match() -> anyhow::Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let root = temporary.path().join("source");
+        std::fs::create_dir_all(&root)?;
+        let bytes = b"pub fn current_disk_body() {}\n";
+        std::fs::write(root.join("source.rs"), bytes)?;
+        let result = (|| -> anyhow::Result<()> {
+            let graph = engram_graph::GraphStore::open(&temporary.path().join("graph.redb"))?;
+            let configured = engram_index::SourceExtractionIdentity::for_chunk_target(600);
+            let node = engram_graph::Node {
+                node_id: "file:source.rs".into(), node_type: "file".into(), name: "source.rs".into(),
+                namespace: "memory".into(), language: "rust".into(), file_path: RelPath::new("source.rs"),
+                start_line: 1, end_line: 1, generation: 2,
+                metadata: Some(serde_json::json!({"source_index_version":engram_index::SOURCE_INDEX_VERSION,
+                    "source_extraction_identity":configured, "file_hash":blake3::hash(bytes).to_hex().to_string()})),
+            };
+            graph.upsert_nodes("owned-axes", &[node.clone()])?;
+            let expected = engram_index::SourceExtractionExpectation::for_paths(600, ["source.rs"])?;
+            let mut read = 0;
+            let (usable, note, snapshot) = axis_source(&graph, "owned-axes", &root, 1,
+                Ok(&expected), "source.rs", &mut read);
+            anyhow::ensure!(!usable && snapshot.is_none() && read == 0);
+            anyhow::ensure!(note.is_some_and(|note| note.contains("newer, live graph metadata")));
+            // After publication the same exact file is valid evidence; no
+            // permanent quarantine or fabricated stale-content error.
+            let (usable, note, snapshot) = axis_source(&graph, "owned-axes", &root, 2,
+                Ok(&expected), "source.rs", &mut read);
+            anyhow::ensure!(usable && note.is_none() && snapshot.as_deref() == Some(bytes.as_slice()));
+            Ok(())
+        })();
+        let cleanup = temporary.close();
+        match (result, cleanup) {
+            (Err(error), Err(cleanup)) => Err(error.context(format!("Fixture cleanup failed: {cleanup}"))),
+            (Err(error), _) => Err(error),
+            (Ok(()), cleanup) => cleanup.map_err(Into::into),
+        }
+    }
 
     #[test]
     fn configured_risk_packs_hot_reload_and_project_ids_override_global() {

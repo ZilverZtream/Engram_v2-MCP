@@ -68,6 +68,7 @@ pub async fn ensure_project_runtime(
     validate_project_id(project_id)?;
 
     if let Some(p) = state.get_project_cached(project_id) {
+        p.search.bind_source_registry(&state.registry)?;
         return Ok(p);
     }
 
@@ -80,6 +81,7 @@ pub async fn ensure_project_runtime(
         .clone();
     let _initializing = runtime_lock.lock().await;
     if let Some(p) = state.get_project_cached(project_id) {
+        p.search.bind_source_registry(&state.registry)?;
         return Ok(p);
     }
 
@@ -111,7 +113,9 @@ pub async fn ensure_project_runtime(
     )
     .await?;
 
+    search.bind_source_registry(&state.registry)?;
     let ps = ProjectState {
+            pagerank_cache: Default::default(),
         info: ProjectInfo {
             project_id: project_id.to_string(),
             project_name: rec.project_name,
@@ -126,16 +130,44 @@ pub async fn ensure_project_runtime(
     Ok(ps)
 }
 
+/// Start a fresh source read, including direct service callers with a cached
+/// injected engine. Binding itself never pins source or retains the Registry.
+pub(crate) fn pin_source_generation(
+    state: &AppState, search: &engram_index::HybridSearchEngine, project_id: &str, generation: u64,
+) -> anyhow::Result<engram_index::SourceSnapshotGuard> {
+    search.bind_source_registry(&state.registry)?;
+    search.pin_source_generation(project_id, generation)
+}
+
 /// Get the current active generation for a project.
 pub async fn get_active_generation(state: &AppState, project_id: &str) -> Result<u64, EngramError> {
+    validate_project_id(project_id)?;
     let reg = state.registry.clone();
     let pid = project_id.to_string();
-    let s = tokio::task::spawn_blocking(move || reg.get_meta(&pid, "active_generation")).await??;
-    let generation = s
-        .and_then(|x| x.parse::<u64>().ok())
-        .filter(|v| *v > 0)
-        .unwrap_or(1);
-    Ok(generation)
+    let (generation, legacy_attested) = tokio::task::spawn_blocking(move || {
+        let generation = reg.source_generation_metadata(&pid)?;
+        let legacy_attested = generation.is_none() && reg.legacy_source_head_attested(&pid)?;
+        Ok::<_, anyhow::Error>((generation, legacy_attested))
+    })
+    .await??;
+    if let Some(generation) = generation {
+        return Ok(generation);
+    }
+    let exists = if let Some(project) = state.get_project_cached(project_id) {
+        project.search.has_managed_source_snapshots(project_id)?
+    } else {
+        let tantivy = state
+            .cfg
+            .data_dir
+            .join("projects")
+            .join(project_id)
+            .join("tantivy");
+        engram_index::HybridSearchEngine::source_snapshot_directory_exists(&tantivy, project_id)?
+    };
+    if exists && !legacy_attested {
+        return Err(EngramError::Internal("Source generation metadata is absent for an existing snapshot store without a legacy absence proof; explicit source recovery is required".into()));
+    }
+    Ok(1)
 }
 
 /// Generate a human-readable indexing report from ingest stats.
@@ -249,6 +281,28 @@ pub(crate) fn meta_has_fingerprint(meta: &Option<serde_json::Value>) -> bool {
         .unwrap_or(false)
 }
 
+/// Basic configured chunk contract only. Full source compatibility additionally
+/// needs SourceExtractionExpectation::metadata_is_compatible with the file path
+/// and actual current VB parser authority, captured once off the async executor.
+pub fn source_metadata_is_compatible(
+    metadata: &serde_json::Value,
+    target_chars_per_chunk: usize,
+) -> bool {
+    let Some(identity) = metadata
+        .get("source_extraction_identity")
+        .and_then(serde_json::Value::as_object)
+    else {
+        return false;
+    };
+    metadata.get("source_index_version").and_then(|value| value.as_u64())
+        == Some(engram_index::SOURCE_INDEX_VERSION)
+        && identity.len() == 2
+        && identity.get("source_index_version").and_then(|value| value.as_u64())
+            == Some(engram_index::SOURCE_INDEX_VERSION)
+        && identity.get("target_chars_per_chunk").and_then(|value| value.as_u64())
+            .and_then(|value| usize::try_from(value).ok()) == Some(target_chars_per_chunk)
+}
+
 /// Compute incremental changes between on-disk files and graph-stored file metadata.
 pub async fn outdated_source_index_paths(
     state: &AppState,
@@ -272,274 +326,446 @@ pub async fn source_index_format_coverage_for_generation(
 ) -> anyhow::Result<(usize, Vec<String>)> {
     let graph = state.graph.clone();
     let pid = project_id.to_string();
+    let target_chars_per_chunk = state.cfg.max_chunks_per_file;
     tokio::task::spawn_blocking(move || {
         let mut paths = std::collections::BTreeMap::<String, (bool, bool)>::new();
-        for (path, metadata, generation) in graph.list_file_node_metadata_with_generation(&pid)? {
-            let current = metadata.as_ref().is_some_and(|m|
-                m.get("source_index_version").and_then(|v| v.as_u64())
-                    == Some(engram_index::SOURCE_INDEX_VERSION));
+        let rows = graph.list_file_node_metadata_with_generation(&pid)?;
+        let expected = engram_index::SourceExtractionExpectation::for_paths(
+            target_chars_per_chunk, rows.iter().map(|(path, _, _)| path.as_str()),
+        )?;
+        for (path, metadata, generation) in rows {
+            let current = metadata.as_ref().is_some_and(|m| {
+                expected.metadata_is_compatible(m, path.as_str())
+            });
             // Legacy shadow file nodes must not hide the canonical file's marker.
             let entry = paths.entry(path.as_str().to_owned()).or_default();
             entry.0 |= current;
             entry.1 |= generation > active_generation;
         }
-        Ok((paths.len(), paths.into_iter().filter_map(|(p, (current, pending))| (!current || pending).then_some(p)).collect()))
-    }).await?
+        Ok((
+            paths.len(),
+            paths
+                .into_iter()
+                .filter_map(|(p, (current, pending))| (!current || pending).then_some(p))
+                .collect(),
+        ))
+    })
+    .await?
 }
 
-/// Changes include files requiring migration to the current source-index contract.
+/// A source writer needs a complete walk, including a valid directory root.
+/// Keep filesystem traversal off the async executor and enforce configured
+/// collection limits before allocating the complete project's path list.
+pub async fn scan_source_files(
+    state: &AppState,
+    root: &Path,
+    exts: &[&str],
+) -> anyhow::Result<Vec<PathBuf>> {
+    let root = root.to_path_buf();
+    let exts = exts.iter().map(|ext| ext.to_string()).collect::<Vec<_>>();
+    let max_files = state.cfg.max_project_files;
+    let max_bytes = state.cfg.max_project_bytes;
+    let source_chunk_target = state.cfg.max_chunks_per_file;
+    let data_dir = state.cfg.data_dir.clone();
+    tokio::task::spawn_blocking(move || {
+        let canonical_root = root.canonicalize()?;
+        let canonical_storage = data_dir.canonicalize()?;
+        anyhow::ensure!(!canonical_root.starts_with(&canonical_storage),
+            "Source root cannot be Engram's runtime storage or a directory inside it");
+        let excluded = canonical_storage.strip_prefix(&canonical_root).ok()
+            .map(|relative| vec![relative.to_path_buf()]).unwrap_or_default();
+        let refs = exts.iter().map(String::as_str).collect::<Vec<_>>();
+        let files = engram_index::ingest::iter_files_checked_excluding(&root, &refs, max_files, max_bytes, &excluded)?;
+        let relative = files.iter().filter_map(|path| engram_core::RelPath::from_relative(&root, path))
+            .map(|path| path.as_str().to_owned()).collect::<Vec<_>>();
+        // Preflight unknown old-protocol parsers before source staging. No
+        // registry flag/revision is written by read-only walks or health calls.
+        engram_index::SourceExtractionExpectation::for_paths(source_chunk_target, relative.iter().map(String::as_str))?;
+        Ok(files)
+    })
+    .await?
+}
+
+/// Read-only change detection. Health requests never persist stat observations.
 pub async fn get_incremental_changes(
     state: &AppState,
     project_id: &str,
     root: &Path,
     exts: &[&str],
 ) -> anyhow::Result<(Vec<PathBuf>, Vec<engram_core::RelPath>)> {
-    let active_generation = get_active_generation(state, project_id).await?;
-    let verify_hashes = state.cfg.verify_unchanged_hashes;
-    // 1. Scan disk
-    let root_clone = root.to_path_buf();
-    let exts_owned: Vec<String> = exts.iter().map(|s| s.to_string()).collect();
-    let disk_files = tokio::task::spawn_blocking(move || {
-        let refs: Vec<&str> = exts_owned.iter().map(|s| s.as_str()).collect();
-        engram_index::ingest::iter_files(&root_clone, &refs)
-    })
-    .await?;
-
-    // 2. Scan DB
-    let graph = state.graph.clone();
-    let pid = project_id.to_string();
-    let db_file_meta =
-        tokio::task::spawn_blocking(move || graph.list_file_node_metadata_with_generation(&pid)).await??;
-
-    // 3. Compare
-    let root_owned = root.to_path_buf();
-    let (changed, deleted) = tokio::task::spawn_blocking(move || {
-        let mut changed = Vec::new();
-        let mut deleted = Vec::new();
-        let mut db_map = std::collections::HashMap::new();
-        // Why-changed samples for the first few files — the one signal
-        // that distinguishes "genuinely edited" from a broken
-        // fingerprint write→read cycle (a file that re-indexes on EVERY
-        // update shows up here as node_missing / meta_none /
-        // stat_mismatch with identical values run after run).
-        let mut change_reasons: Vec<String> = Vec::new();
-
-        let mut unpublished_paths = std::collections::HashSet::new();
-        for (file_path, metadata, generation) in db_file_meta {
-            if generation > active_generation { unpublished_paths.insert(file_path.clone()); }
-            // Duplicate file-typed nodes can exist for one path (legacy
-            // `sym:file:…` parse-status shadows from before the ingest
-            // merge fix). Never let a fingerprint-less entry displace one
-            // that carries `file_hash` — that shadowing is what re-indexed
-            // 987 files on every update.
-            match db_map.entry(file_path) {
-                std::collections::hash_map::Entry::Occupied(mut e) => {
-                    if !meta_has_fingerprint(e.get()) && meta_has_fingerprint(&metadata) {
-                        e.insert(metadata);
-                    }
-                }
-                std::collections::hash_map::Entry::Vacant(v) => {
-                    v.insert(metadata);
-                }
-            }
-        }
-
-        // Hash a file if it is ≤100 MB; returns None for oversized files.
-        let stream_hash = |path: &std::path::Path| -> Option<String> {
-            let meta = std::fs::metadata(path).ok()?;
-            if meta.len() > 100_000_000 {
-                return None; // Too large — caller handles None specially (fix 2.3)
-            }
-            let file = std::fs::File::open(path).ok()?;
-            let mut hasher = blake3::Hasher::new();
-            let mut reader = std::io::BufReader::new(file);
-            std::io::copy(&mut reader, &mut hasher).ok()?;
-            Some(hasher.finalize().to_hex().to_string())
-        };
-
-        for p in disk_files {
-            // Fix 2.4: only keep files that can be expressed as a relative path;
-            // skip those that cannot to avoid storing absolute paths as DB keys.
-            let rel = match engram_core::RelPath::from_relative(&root_owned, &p) {
-                Some(r) => r,
-                None => continue,
-            };
-
-            // Fix 3.3: if the file vanished between the directory scan and now,
-            // treat it as deleted rather than logging it as an empty file.
-            let metadata = match std::fs::metadata(&p) {
-                Ok(m) => m,
-                Err(_) => {
-                    db_map.remove(&rel);
-                    deleted.push(rel);
-                    continue;
-                }
-            };
-
-            let mtime = metadata
-                .modified()
-                .ok()
-                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                .map(|d| d.as_secs())
-                .unwrap_or(0);
-            let size = metadata.len();
-
-            if let Some(db_meta) = db_map.remove(&rel) {
-                let mut is_changed = true;
-                let mut reason = "meta_none".to_string();
-
-                if let Some(meta) = db_meta {
-                    if unpublished_paths.contains(&rel)
-                        || meta.get("source_index_version").and_then(|v| v.as_u64())
-                        != Some(engram_index::SOURCE_INDEX_VERSION)
-                    {
-                        if change_reasons.len() < 10 {
-                            change_reasons.push(format!("{} [source_index_version requires re-extraction]", rel.as_str()));
-                        }
-                        changed.push(p);
-                        continue;
-                    }
-                    let stored_mtime = meta.get("mtime").and_then(|v| v.as_u64()).unwrap_or(0);
-                    let stored_size = meta.get("size").and_then(|v| v.as_u64()).unwrap_or(0);
-                    let stored_hash = meta
-                        .get("file_hash")
-                        .and_then(|v| v.as_str())
-                        .map(|s| s.to_string());
-                    reason = format!(
-                        "stat stored=({stored_mtime},{stored_size}) disk=({mtime},{size}) \
-                         hash_stored={} raw_meta={}",
-                        stored_hash.is_some(),
-                        // Full object, truncated — the KEYS identify which
-                        // writer produced a fingerprint-less metadata blob.
-                        meta.to_string().chars().take(160).collect::<String>()
-                    );
-
-                    if stored_mtime == mtime && stored_size == size {
-                        // P0-6: a matching (mtime, size) pair is the same
-                        // signal git's stat cache trusts. Re-hashing every
-                        // matching file made each watcher tick O(repo bytes);
-                        // hash verification is now opt-in via
-                        // verify_unchanged_hashes in engram_mcp.yaml.
-                        if !verify_hashes && stat_match_is_trustworthy(stored_mtime, stored_size) {
-                            is_changed = false;
-                        } else if let Some(ref sh) = stored_hash {
-                            match stream_hash(&p) {
-                                Some(ref current_hash) if current_hash == sh => {
-                                    is_changed = false;
-                                }
-                                // Fix 2.3: file >100 MB, mtime+size unchanged →
-                                // treat as unchanged to prevent infinite re-index.
-                                None => {
-                                    is_changed = false;
-                                }
-                                _ => {}
-                            }
-                        } else {
-                            is_changed = false;
-                        }
-                    } else if stored_size == size
-                        && let Some(ref sh) = stored_hash
-                        && let Some(ref current_hash) = stream_hash(&p)
-                        && current_hash == sh
-                    {
-                        is_changed = false;
-                    }
-                    // If >100 MB and size same but mtime different, treat as
-                    // changed so it gets re-indexed once.
-                }
-
-                if is_changed {
-                    if change_reasons.len() < 10 {
-                        change_reasons.push(format!("{} [{reason}]", rel.as_str()));
-                    }
-                    changed.push(p);
-                }
-            } else {
-                if change_reasons.len() < 10 {
-                    change_reasons.push(format!("{} [node_missing]", rel.as_str()));
-                }
-                changed.push(p);
-            }
-        }
-
-        for (rel, _metadata) in db_map {
-            deleted.push(rel);
-        }
-
-        if !changed.is_empty() {
-            tracing::info!(
-                changed = changed.len(),
-                deleted = deleted.len(),
-                sample = ?change_reasons,
-                "incremental change scan"
-            );
-        }
-
-        (changed, deleted)
-    })
-    .await?;
-
-    Ok((changed, deleted))
+    let scan = scan_incremental_changes(state, project_id, root, exts, None).await?;
+    Ok((scan.changed, scan.deleted))
 }
 
-/// Scoped repair: repair only a specific subsystem (tantivy_only, vector_only, graph_only).
-/// Used by the integrity service for targeted auto-repair.
+pub(crate) struct SourceChangeScan {
+    pub changed: Vec<PathBuf>,
+    pub deleted: Vec<engram_core::RelPath>,
+    pub extraction: engram_index::SourceExtractionExpectation,
+    pub vb_source_files: std::sync::Arc<Vec<PathBuf>>,
+}
+
+/// Preserve the source walk's admitted VB inventory without another walk or
+/// deriving it from chunk rows (which omit empty/zero-symbol sources).
+pub(crate) fn admitted_vb_source_files(root: &Path, files: &[PathBuf]) -> std::sync::Arc<Vec<PathBuf>> {
+    std::sync::Arc::new(files.iter().filter(|path| engram_core::RelPath::from_relative(root, path)
+        .is_some_and(|rel| engram_index::vb_extractor::requires_parser_provenance(rel.as_str())))
+        .cloned().collect())
+}
+
+/// Full indexing/repair captures one expectation for the complete admitted
+/// file set before staging and carries it to produced-output verification/CAS.
+pub(crate) async fn capture_source_extraction_for_files(
+    state: &AppState, root: &Path, files: &[PathBuf],
+) -> anyhow::Result<engram_index::SourceExtractionExpectation> {
+    let root = root.to_owned();
+    let files = files.to_vec();
+    let target = state.cfg.max_chunks_per_file;
+    tokio::task::spawn_blocking(move || {
+        let paths = files.iter().map(|path| engram_core::RelPath::from_relative(&root, path)
+            .ok_or_else(|| anyhow::anyhow!("Source file outside admitted root: {}", path.display())))
+            .collect::<anyhow::Result<Vec<_>>>()?;
+        engram_index::SourceExtractionExpectation::for_paths(target, paths.iter().map(|path| path.as_str()))
+    }).await?
+}
+
+/// An admitted source update may warm only observations of already-published
+/// file revisions. A failed later update does not certify new source via them.
+pub(crate) async fn get_incremental_changes_for_update(
+    state: &AppState,
+    search: &engram_index::HybridSearchEngine,
+    base: &engram_core::registry::SourceHeadToken,
+    root: &Path,
+    exts: &[&str],
+) -> anyhow::Result<SourceChangeScan> {
+    let admission = search.begin_project_mutation(base.project_id())?;
+    let scoped = search.with_mutation(&admission)?;
+    // Refuse unavailable/unproven source BEFORE no-op/stat-cache observations
+    // and before any legacy physical-path enumeration or staging.
+    anyhow::ensure!(state.registry.source_head_is_current(base)?, "Source head changed before source admission");
+    let source_snapshot = pin_source_generation(state, &scoped, base.project_id(), base.generation())?;
+    let writer = StatRefreshWriter {
+        _source_snapshot: source_snapshot,
+        base: base.clone(), registry: state.registry.clone(), graph: state.graph.clone(),
+        _operation: scoped.begin_operation()?,
+    };
+    scan_incremental_changes(state, base.project_id(), root, exts, Some(writer)).await
+}
+
+struct StatRefreshWriter {
+    _source_snapshot: engram_index::SourceSnapshotGuard,
+    base: engram_core::registry::SourceHeadToken,
+    registry: std::sync::Arc<engram_core::Registry>,
+    graph: std::sync::Arc<engram_graph::GraphStore>,
+    // Last: the blocking worker owns admission through actual cache commits,
+    // including when its requesting future is cancelled.
+    _operation: engram_index::hybrid::IndexOperationGuard,
+}
+
+impl StatRefreshWriter {
+    fn flush(&self, patches: &mut Vec<engram_graph::FileStatPatch>) -> anyhow::Result<()> {
+        anyhow::ensure!(self.registry.source_head_is_current(&self.base)?,
+            "Source head or identity changed during file verification; retry");
+        if !patches.is_empty() {
+            let report = self.graph.patch_verified_file_stats(self.base.project_id(), patches)?;
+            if report.changed + report.missing + report.deferred > 0 {
+                tracing::warn!(project_id = %self.base.project_id(), ?report,
+                    "Some verified file-stat hints were deferred; later updates will reverify them");
+            }
+            patches.clear();
+        }
+        Ok(())
+    }
+}
+
+fn modified_ns(metadata: &std::fs::Metadata) -> Option<u64> {
+    metadata.modified().ok()?.duration_since(std::time::UNIX_EPOCH).ok()
+        .and_then(|d| u64::try_from(d.as_nanos()).ok())
+}
+
+struct VerifiedSourceBytes {
+    hash: String,
+    mtime_ns: Option<u64>,
+    size: u64,
+}
+
+/// Hash a bounded stream from one handle and retain only the stamp actually
+/// observed around those bytes. Unknown/changed observations never warm hints.
+fn verify_source_bytes(path: &Path, initial: &std::fs::Metadata) -> anyhow::Result<Option<VerifiedSourceBytes>> {
+    use std::io::Read;
+    const MAX_VERIFY_BYTES: u64 = 100_000_000;
+    if initial.len() > MAX_VERIFY_BYTES { return Ok(None); }
+    let file = std::fs::File::open(path)
+        .map_err(|e| anyhow::anyhow!("Cannot verify source content {}: {e}", path.display()))?;
+    let opened = file.metadata()?;
+    if !opened.is_file() || opened.len() != initial.len() || modified_ns(&opened) != modified_ns(initial) {
+        return Ok(None);
+    }
+    let mut hasher = blake3::Hasher::new();
+    let mut limited = (&file).take(MAX_VERIFY_BYTES + 1);
+    let read = std::io::copy(&mut limited, &mut hasher)
+        .map_err(|e| anyhow::anyhow!("Cannot verify source content {}: {e}", path.display()))?;
+    let after = file.metadata()?;
+    let path_after = match std::fs::metadata(path) {
+        Ok(meta) => meta,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(e.into()),
+    };
+    let stamp = modified_ns(&opened);
+    if read != opened.len() || read > MAX_VERIFY_BYTES || after.len() != read || path_after.len() != read
+        || modified_ns(&after) != stamp || modified_ns(&path_after) != stamp {
+        return Ok(None);
+    }
+    Ok(Some(VerifiedSourceBytes { hash: hasher.finalize().to_hex().to_string(), mtime_ns: stamp, size: read }))
+}
+
+async fn scan_incremental_changes(
+    state: &AppState,
+    project_id: &str,
+    root: &Path,
+    exts: &[&str],
+    writer: Option<StatRefreshWriter>,
+) -> anyhow::Result<SourceChangeScan> {
+    let active_generation = get_active_generation(state, project_id).await?;
+    let opt_in_hash_verification = state.cfg.verify_unchanged_hashes;
+    let target_chars_per_chunk = state.cfg.max_chunks_per_file;
+    let disk_files = scan_source_files(state, root, exts).await?;
+    let vb_source_files = admitted_vb_source_files(root, &disk_files);
+    let graph = state.graph.clone();
+    let registry = state.registry.clone();
+    let pid = project_id.to_string();
+    let (db_file_meta, (verify_source_identity, identity_epoch)) = tokio::task::spawn_blocking(move || {
+        Ok::<_, anyhow::Error>((graph.list_file_node_metadata_with_generation(&pid)?,
+            registry.source_stat_cache_state(&pid)?))
+    }).await??;
+    let verify_hashes = opt_in_hash_verification || verify_source_identity;
+    let root_owned = root.to_path_buf();
+    tokio::task::spawn_blocking(move || {
+        // Move the owned operation into this worker explicitly; readonly calls
+        // have no writer and perform no persistent mutation.
+        let writer = writer;
+        let expected = engram_index::SourceExtractionExpectation::for_paths(target_chars_per_chunk,
+            disk_files.iter().filter_map(|path| path.strip_prefix(&root_owned).ok()).filter_map(|path| path.to_str()))?;
+        let mut patches = Vec::with_capacity(256);
+        let mut patch_bytes = 0;
+        if let Some(writer) = &writer { writer.flush(&mut patches)?; }
+        let mut changed = Vec::new();
+        let mut deleted = Vec::new();
+        let mut db_map = std::collections::HashMap::<
+            engram_core::RelPath, (Option<serde_json::Value>, u64)>::new();
+        let mut unpublished_paths = std::collections::HashSet::new();
+        for (path, metadata, generation) in db_file_meta {
+            if generation > active_generation { unpublished_paths.insert(path.clone()); }
+            match db_map.entry(path) {
+                std::collections::hash_map::Entry::Occupied(mut entry) => {
+                    if !meta_has_fingerprint(&entry.get().0) && meta_has_fingerprint(&metadata) {
+                        entry.insert((metadata, generation));
+                    }
+                }
+                std::collections::hash_map::Entry::Vacant(entry) => { entry.insert((metadata, generation)); }
+            }
+        }
+        for path in disk_files {
+            let relative = engram_core::RelPath::from_relative(&root_owned, &path)
+                .ok_or_else(|| anyhow::anyhow!("Source file is outside its registered root: {}", path.display()))?;
+            let metadata = match std::fs::metadata(&path) {
+                Ok(metadata) => metadata,
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                    db_map.remove(&relative); deleted.push(relative); continue;
+                }
+                Err(e) => anyhow::bail!("Cannot inspect source file {}: {e}", path.display()),
+            };
+            let size = metadata.len();
+            let stamp = modified_ns(&metadata);
+            let mut is_changed = true;
+            if let Some((Some(meta), generation)) = db_map.remove(&relative) {
+                if generation == 0 || unpublished_paths.contains(&relative)
+                    || !expected.metadata_is_compatible(&meta, relative.as_str()) {
+                    changed.push(path); continue;
+                }
+                let hash = meta.get("file_hash").and_then(|v| v.as_str())
+                    .filter(|hash| hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()));
+                let stored_size = meta.get("size").and_then(|v| v.as_u64());
+                let hint = meta.get("verified_stat_v1")
+                    .and_then(|v| serde_json::from_value::<engram_graph::VerifiedFileStat>(v.clone()).ok())
+                    .filter(|hint| hint.version == 1 && Some(hint.identity_epoch) == identity_epoch
+                        && hint.identity_epoch != 0 && hint.generation == generation
+                        && Some(hint.file_hash.as_str()) == hash && Some(hint.size) == stored_size
+                        && hint.mtime_ns != 0);
+                let raw_stamp = meta.get("mtime_ns").and_then(|v| v.as_u64());
+                let cached_stamp = hint.as_ref().map(|hint| hint.mtime_ns).or(raw_stamp);
+                let stat_matches = stored_size == Some(size) && stamp.is_some() && cached_stamp == stamp;
+                if hash.is_some() && stat_matches && !verify_hashes
+                    && (hint.is_some() || stat_match_is_trustworthy(cached_stamp.unwrap_or(0), size)) {
+                    is_changed = false;
+                } else if stored_size == Some(size) && let Some(hash) = hash
+                    && let Some(verified) = verify_source_bytes(&path, &metadata)?
+                    && verified.hash == hash {
+                    is_changed = false;
+                    if let (Some(writer), Some(mtime_ns)) = (&writer, verified.mtime_ns) {
+                        let observation = engram_graph::VerifiedFileStat {
+                            version: 1, identity_epoch: writer.base.identity_epoch(), generation,
+                            file_hash: verified.hash, mtime_ns, size: verified.size,
+                        };
+                        // Do not rewrite an already-current hint during opt-in
+                        // hash verification or source identity settlement.
+                        if hint.as_ref() != Some(&observation) {
+                            let patch = engram_graph::FileStatPatch { path: relative.clone(), generation,
+                                metadata_digest: engram_graph::file_metadata_digest(&meta)?, stat: observation };
+                            let bytes = serde_json::to_vec(&patch)?.len();
+                            if patches.len() == 256 || patch_bytes + bytes > 512 * 1024 {
+                                writer.flush(&mut patches)?; patch_bytes = 0;
+                            }
+                            if bytes <= 512 * 1024 { patches.push(patch); patch_bytes += bytes; }
+                            else { tracing::warn!(path = %relative.as_str(), "File-stat hint exceeds cache budget; left untrusted"); }
+                        }
+                    }
+                }
+            }
+            if is_changed { changed.push(path); }
+        }
+        engram_index::ingest::validate_source_root(&root_owned)?;
+        for (relative, _) in db_map { deleted.push(relative); }
+        if let Some(writer) = &writer { writer.flush(&mut patches)?; }
+        if !changed.is_empty() || !deleted.is_empty() {
+            tracing::info!(changed = changed.len(), deleted = deleted.len(), "incremental change scan");
+        }
+        Ok::<_, anyhow::Error>(SourceChangeScan { changed, deleted, extraction: expected, vb_source_files })
+    }).await?
+}
+
+/// Scoped repair. The worker owns the project lock and GC registration until
+/// native work AND durable requirement settlement have finished, even if the
+/// requesting tool disconnects.
 pub async fn repair_project_scoped(
     state: &AppState,
     project_id: &str,
     scope: &str,
 ) -> anyhow::Result<String> {
-    let _lock = state.acquire_project_update_lock(project_id).await;
-    let ps = ensure_project_runtime(state, project_id).await?;
-    let generation = get_active_generation(state, project_id).await?;
+    Ok(run_scoped_repair(state, project_id, scope, false)
+        .await?
+        .message)
+}
 
-    match scope {
-        "initialize_vectors" => {
-            let _active = crate::state::ActiveIndexingSlot::acquire(state);
-            let count = ps.search.initialize_vectors(
-                project_id,
-                &tokio_util::sync::CancellationToken::new(),
-            ).await?;
-            Ok(format!("Initialized {count} vectors from stored documents. Text, history, knowledge and active generation were preserved."))
+/// Revalidate an integrity observation under the project update lock. A stale
+/// hourly observation must not start another all-document embedding rebuild.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VectorRepairOutcome {
+    Recovered {
+        vectors: usize,
+        warning_settled: bool,
+    },
+    NoCurrentCountMismatch,
+    Disabled,
+}
+
+struct ScopedRepairReport {
+    message: String,
+    vector_outcome: Option<VectorRepairOutcome>,
+}
+
+pub async fn repair_vectors_if_mismatch(
+    state: &AppState,
+    project_id: &str,
+) -> anyhow::Result<VectorRepairOutcome> {
+    run_scoped_repair(state, project_id, "vector_only", true)
+        .await?
+        .vector_outcome
+        .ok_or_else(|| anyhow::anyhow!("Vector repair returned no disposition"))
+}
+
+async fn run_scoped_repair(
+    state: &AppState,
+    project_id: &str,
+    scope: &str,
+    recheck_vectors: bool,
+) -> anyhow::Result<ScopedRepairReport> {
+    validate_project_id(project_id)?;
+    anyhow::ensure!(
+        matches!(
+            scope,
+            "vector_only" | "initialize_vectors" | "tantivy_only" | "graph_only"
+        ),
+        "Unknown repair scope: {scope}. Valid: tantivy_only, vector_only, graph_only, initialize_vectors"
+    );
+    // Cancellation while waiting starts no worker and holds no GC slot.
+    let lock = state.acquire_project_update_lock(project_id).await;
+    let active = crate::state::ActiveIndexingSlot::acquire(state);
+    let state = state.clone();
+    let project_id = project_id.to_owned();
+    let scope = scope.to_owned();
+    tokio::spawn(async move {
+        let _lock = lock;
+        let _active = active;
+        let ps = ensure_project_runtime(&state, &project_id).await?;
+        let generation = get_active_generation(&state, &project_id).await?;
+        match scope.as_str() {
+            "initialize_vectors" | "vector_only" => {
+                if recheck_vectors {
+                    if matches!(state.cfg.embedding_backend.as_str(), "fts_only" | "") {
+                        return Ok(ScopedRepairReport { message: "Automatic vector recovery skipped: embeddings are disabled.".into(), vector_outcome: Some(VectorRepairOutcome::Disabled) });
+                    }
+                    let search = ps.search.clone();
+                    let project = project_id.clone();
+                    let lexical_count = tokio::task::spawn_blocking(move || search.count_docs(&project)).await?? as u64;
+                    let vector_count = ps.search.count_vectors(&project_id).await? as u64;
+                    if super::integrity_service::build_integrity_mismatches(lexical_count, vector_count, true).is_empty() {
+                        return Ok(ScopedRepairReport { message: "No current vector count mismatch; no documents were re-embedded.".into(), vector_outcome: Some(VectorRepairOutcome::NoCurrentCountMismatch) });
+                    }
+                }
+                let registry = state.registry.clone();
+                let project = project_id.clone();
+                let initialize = scope == "initialize_vectors";
+                let requirement = tokio::task::spawn_blocking(move || {
+                    // Persist before admitted work so provider failure or panic
+                    // cannot leave a missing/incomplete table reported healthy.
+                    registry.begin_reindex_repair(&project, engram_core::registry::ReindexReason::Vector, crate::utils::now_ms())
+                }).await??;
+                anyhow::ensure!(requirement.is_some(), "Project disappeared before vector repair admission; no recovery started");
+                let cancel = tokio_util::sync::CancellationToken::new();
+                // The service worker is owned. Do not drop this future on a
+                // requester cancellation: the engine also owns native tasks.
+                let result = if initialize {
+                    ps.search.initialize_vectors(&project_id, &cancel).await
+                } else {
+                    ps.search.recover_vectors(&project_id, &cancel).await
+                };
+                let count = match result {
+                    Ok(count) => count,
+                    Err(error) => {
+                        let refused = error.downcast_ref::<engram_index::hybrid::VectorInitializationRejection>().is_some();
+                        if refused {
+                            // Busy means no recovery was admitted. In particular,
+                            // do not turn a normal history ingestion's transient
+                            // lexical/vector lag into a permanent warning.
+                            if let Some((token, true)) = requirement {
+                                let registry = state.registry.clone();
+                                tokio::task::spawn_blocking(move || registry.settle_reindex_requirement(&token)).await??;
+                            }
+                        }
+                        return Err(error);
+                    }
+                };
+                let settled = if let Some((token, _)) = requirement {
+                    let registry = state.registry.clone();
+                    tokio::task::spawn_blocking(move || registry.settle_reindex_requirement(&token)).await??
+                } else { true };
+                let verb = if initialize { "Initialized" } else { "Recovered" };
+                let pending = if settled { "" } else { " A newer vector recovery requirement remains pending." };
+                Ok(ScopedRepairReport { message: format!("{verb} {count} vectors from stored documents in every retained namespace. Text, history, knowledge and active generation {generation} were preserved.{pending}"),
+                    vector_outcome: Some(VectorRepairOutcome::Recovered { vectors: count, warning_settled: settled }) })
+            }
+            "tantivy_only" => {
+                ps.search.purge_old_generations(&project_id, generation).await?;
+                Ok(ScopedRepairReport { message: format!("Purged eligible superseded search generations at source generation {generation}."), vector_outcome: None })
+            }
+            "graph_only" => {
+                let graph = state.graph.clone();
+                tokio::task::spawn_blocking(move || graph.delete_project_data(&project_id)).await??;
+                Ok(ScopedRepairReport { message: format!("Graph purged for re-indexing at generation {generation}"), vector_outcome: None })
+            }
+            _ => unreachable!("scope validated before acquiring the project lock"),
         }
-        // `tantivy_only` and `vector_only` both used to write a registry key
-        // ("tantivy_needs_repair" / "vector_needs_repair") that NO code has
-        // ever read, then return Ok — so the integrity checker recorded a
-        // successful repair for work that never happened and re-ran it every
-        // hour forever (live 2026-08-20: three days of hourly vector_orphan
-        // repairs on one project). Both scopes now do the one repair that is
-        // actually available at this level — dropping index entries left
-        // behind by superseded generations — and say what they did.
-        "tantivy_only" | "vector_only" => {
-            tracing::info!(
-                project_id,
-                generation,
-                scope,
-                "Scoped repair: purging superseded generations from the search index"
-            );
-            ps.search
-                .purge_old_generations(project_id, generation)
-                .await?;
-            let remaining = ps.search.count_vectors(project_id).await.unwrap_or(0);
-            Ok(format!(
-                "Purged index entries older than generation {generation}                  ({remaining} vector rows remain). If the mismatch persists, the                  surplus is inside the active generation and needs a rebuild:                  repair_project(project_id, wipe_and_reindex=true)."
-            ))
-        }
-        "graph_only" => {
-            tracing::info!(project_id, generation, "Scoped repair: purging graph data");
-            let graph = state.graph.clone();
-            let pid = project_id.to_string();
-            tokio::task::spawn_blocking(move || graph.delete_project_data(&pid)).await??;
-            Ok(format!(
-                "Graph purged for re-indexing at generation {generation}"
-            ))
-        }
-        _ => {
-            anyhow::bail!(
-                "Unknown repair scope: {scope}. Valid: tantivy_only, vector_only, graph_only, initialize_vectors"
-            )
-        }
-    }
+    }).await.map_err(|error| anyhow::anyhow!("Scoped repair worker did not complete: {error}"))?
 }
 
 /// Inject repo rules for a file path into the content header.
@@ -549,30 +775,38 @@ pub async fn inject_repo_rules(
     file_path: &engram_core::RelPath,
     content: &str,
 ) -> String {
-    use crate::utils::files::pattern_match;
-
     let rule_state = state.clone();
     let pid = project_id.to_string();
     let fp = file_path.as_str();
     let rule_path = fp.to_owned();
     let effective = tokio::task::spawn_blocking(move || {
-        crate::services::quality_source::effective_repo_rules(&rule_state, &pid, Some(&[rule_path.as_str()]))
-    }).await;
+        crate::services::quality_source::effective_repo_rules(
+            &rule_state,
+            &pid,
+            Some(&[rule_path.as_str()]),
+        )
+    })
+    .await;
     let (rules, notes) = match effective {
         Ok(Ok(effective)) => (effective.rules, effective.notes),
-        _ => (Vec::new(), vec!["INCOMPLETE policy coverage: repository-rule lookup unavailable".into()]),
+        _ => (
+            Vec::new(),
+            vec!["INCOMPLETE policy coverage: repository-rule lookup unavailable".into()],
+        ),
     };
 
-    let applicable: Vec<engram_core::RepoRule> = rules
-        .into_iter()
-        .filter(|r| pattern_match(fp, &r.file_pattern))
-        .collect();
+    // effective_repo_rules already applies the shared scope contract. A second,
+    // narrower glob filter used to drop directory/case matches accepted by
+    // planning and review, especially for new files.
+    let applicable = rules;
     if applicable.is_empty() && notes.is_empty() {
         return content.to_string();
     }
 
     let mut header = String::new();
-    for note in notes { header.push_str(&format!("[Policy coverage]: {note}\n")); }
+    for note in notes {
+        header.push_str(&format!("[Policy coverage]: {note}\n"));
+    }
     for r in applicable {
         header.push_str(&format!("[Repo Constraint]: {}\n", r.rule_text));
     }
@@ -624,7 +858,8 @@ mod p0_stat_trust_tests {
 
 /// Select explicit re-extraction only from the same ignore/extension-filtered
 /// source set as normal indexing. Validate the whole request before mutation.
-pub fn include_reindex_paths(
+pub async fn include_reindex_paths(
+    state: &AppState,
     root: &Path,
     exts: &[&str],
     requested: &[String],
@@ -637,7 +872,16 @@ pub fn include_reindex_paths(
         requested.len() <= 100,
         "reindex_paths accepts at most 100 files"
     );
-    let allowed = engram_index::ingest::iter_files(root, exts);
+    let allowed = scan_source_files(state, root, exts).await?;
+    select_reindex_paths(root, &allowed, requested, changed)
+}
+
+fn select_reindex_paths(
+    root: &Path,
+    allowed: &[PathBuf],
+    requested: &[String],
+    changed: &mut Vec<PathBuf>,
+) -> anyhow::Result<()> {
     let mut selected = Vec::new();
     for raw in requested {
         let normalized = raw.replace('\\', "/");
@@ -682,14 +926,14 @@ mod reindex_tests {
         let file = root.path().join("helper.vb");
         std::fs::write(&file, "Class C\nEnd Class").unwrap();
         let mut changed = Vec::new();
-        include_reindex_paths(
+        select_reindex_paths(
             root.path(),
-            &["vb"],
+            &[file.clone()],
             &["helper.vb".into(), "helper.vb".into()],
             &mut changed,
         )
         .unwrap();
-        assert_eq!(changed, vec![file]);
+        assert_eq!(changed, vec![file.clone()]);
         for bad in [
             "../helper.vb",
             "C:/helper.vb",
@@ -699,9 +943,9 @@ mod reindex_tests {
         ] {
             let mut unchanged = Vec::new();
             assert!(
-                include_reindex_paths(
+                select_reindex_paths(
                     root.path(),
-                    &["vb"],
+                    &[file.clone()],
                     &["helper.vb".into(), bad.into()],
                     &mut unchanged
                 )

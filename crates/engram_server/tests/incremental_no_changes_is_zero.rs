@@ -77,6 +77,7 @@ async fn test_incremental_no_changes_is_zero() {
 
     // 2. Run update_project without any changes
     let update_req = UpdateProjectRequest {
+        instruction_maintenance: None,
         reindex_paths: Vec::new(),
         project_id: project_id.to_string(),
         wait: true,
@@ -133,6 +134,7 @@ async fn test_incremental_no_changes_is_zero() {
     ] {
         let res = engram
             .update_project(Parameters(UpdateProjectRequest {
+                instruction_maintenance: None,
                 project_id: project_id.to_string(),
                 reindex_paths: paths,
                 wait: true,

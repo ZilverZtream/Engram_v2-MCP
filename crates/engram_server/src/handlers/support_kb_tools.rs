@@ -153,7 +153,6 @@ impl Engram {
         validate_project_id(&req.project_id)?;
         let rec = self.ensure_project_record(&req.project_id).await?;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
-        let gen_ = self.get_active_generation(&req.project_id).await?;
         let max_features = req.max_features.clamp(1, 200);
 
         // 1. Feature taxonomy from the docs corpus.
@@ -218,6 +217,12 @@ impl Engram {
                     .to_string(),
             )]));
         }
+
+        // Select once for all code queries. Documentation/business-rule
+        // namespaces and filesystem resource files retain their live semantics.
+        let (gen_, _source_view) = self.pin_active_source_generation(&req.project_id, &ps.search).await?;
+        #[cfg(test)]
+        tests::after_source_selection(&req.project_id).await;
 
         // 2. Assemble one card per feature.
         let mut cards: Vec<(String, String)> = Vec::new(); // (slug, markdown)
@@ -505,6 +510,114 @@ impl Engram {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::{Result, ensure};
+    use std::sync::{Arc, LazyLock, Mutex};
+
+    #[derive(Default)]
+    struct SourcePause { entered: tokio::sync::Notify, resume: tokio::sync::Notify }
+    static SOURCE_PAUSES: LazyLock<Mutex<BTreeMap<String, Arc<SourcePause>>>> = LazyLock::new(|| Mutex::new(BTreeMap::new()));
+    pub(super) async fn after_source_selection(pid: &str) {
+        let pause = SOURCE_PAUSES.lock().unwrap_or_else(|error| error.into_inner()).get(pid).cloned();
+        if let Some(pause) = pause { pause.entered.notify_one(); pause.resume.notified().await; }
+    }
+    struct ReleaseSource { pid: String, pause: Arc<SourcePause> }
+    impl Drop for ReleaseSource {
+        fn drop(&mut self) {
+            SOURCE_PAUSES.lock().unwrap_or_else(|error| error.into_inner()).remove(&self.pid);
+            self.pause.resume.notify_one();
+        }
+    }
+
+    #[test]
+    fn support_kb_keeps_one_source_view_across_feature_queries_and_collection() -> Result<()> {
+        let owned = tempfile::tempdir()?;
+        let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build()?;
+        let result = runtime.block_on(async {
+            let mut requests = tokio::task::JoinSet::new();
+            let result = async {
+                let root = owned.path().join("repo");
+                std::fs::create_dir_all(root.join("src"))?;
+                std::fs::create_dir_all(root.join("App_GlobalResources"))?;
+                drop(git2::Repository::init(&root)?);
+                let (state, _) = crate::state::AppState::new(engram_core::Config {
+                    data_dir:owned.path().join("data"),allowed_roots:vec![root.clone()],
+                    embedding_backend:"fts_only".into(),llm_backend:"none".into(),..Default::default()
+                })?;
+                let pid = format!("support-source-{}",uuid::Uuid::new_v4());
+                state.registry.register_source_project(&engram_core::ProjectRecord {
+                    project_id:pid.clone(),project_name:"Support source lifetime".into(),project_type:"general".into(),
+                    directory:root.to_string_lossy().into(),created_at_ms:1,updated_at_ms:1,reindex_required_since_ms:None
+                })?;
+                for feature in ["Alpha","Beta"] {
+                    state.registry.put_memory_section(&pid,&serde_json::from_value(serde_json::json!({
+                        "section_id":format!("docs/{}/index",feature.to_lowercase()),"title":feature,
+                        "content":format!("# {feature}\nAvailable to: Users\n"),"updated_at_ms":1
+                    }))?)?;
+                    std::fs::write(root.join(format!("src/{feature}.cs")),format!("class {feature} {{ string Label = Resources.Text.{feature}; }}\n"))?;
+                }
+                std::fs::write(root.join("App_GlobalResources/Text.resx"),
+                    "<root><data name=\"Alpha\"><value>Alpha exact label</value></data><data name=\"Beta\"><value>Beta exact label</value></data></root>")?;
+                let app = Engram::new(state);
+                let ps = app.ensure_project_runtime(&pid).await?;
+                let cancel = tokio_util::sync::CancellationToken::new();
+                let old = ["Alpha","Beta"].into_iter().enumerate().map(|(i,feature)| {
+                    let content=format!("class {feature} {{ string Label = Resources.Text.{feature}; }}\n");
+                    engram_index::IndexDoc {generation:1,chunk_id:i as u64+1,path:engram_core::RelPath::new(&format!("src/{feature}.cs")),
+                        language:"csharp".into(),content_hash:blake3::hash(content.as_bytes()).to_hex().to_string(),content,
+                        namespace:"memory".into(),author:None,timestamp:None,start_line:1,end_line:1,doc_id:format!("old-{feature}")}
+                }).collect::<Vec<_>>();
+                let paths=old.iter().map(|doc|doc.path.clone()).collect::<Vec<_>>();
+                let base=app.state.registry.capture_source_head(&pid)?;
+                ps.search.prepare_full_source_snapshot(&pid,0,1,&paths,&cancel).await?;
+                ps.search.index_docs(&pid,&old,&cancel).await?;
+                ps.search.seal_source_snapshot(&pid,1)?;
+                ensure!(app.state.registry.publish_source_head(&base,1)?);
+                app.state.graph.upsert_nodes(&pid,&[engram_graph::Node {
+                    node_id:"file:App_GlobalResources/Text.resx".into(),node_type:"file".into(),name:"Text.resx".into(),
+                    namespace:"memory".into(),language:"xml".into(),file_path:engram_core::RelPath::new("App_GlobalResources/Text.resx"),
+                    start_line:1,end_line:1,generation:1,metadata:None
+                }])?;
+                let pause=Arc::new(SourcePause::default());
+                SOURCE_PAUSES.lock().unwrap_or_else(|error|error.into_inner()).insert(pid.clone(),pause.clone());
+                let release=ReleaseSource {pid:pid.clone(),pause:pause.clone()};
+                let server=Engram::new(app.state.clone());let request_pid=pid.clone();
+                requests.spawn(async move {server.handle_produce_support_kb(crate::models::ProduceSupportKbRequest {
+                    project_id:request_pid,write_to_disk:true,max_features:2
+                }).await});
+                tokio::time::timeout(std::time::Duration::from_secs(15),pause.entered.notified()).await?;
+                // Publish a new inventory; source files/resources themselves
+                // remain live. No test-owned old source guard masks the RPC.
+                let base=app.state.registry.capture_source_head(&pid)?;
+                let mut replacement=old[0].clone();replacement.generation=2;replacement.doc_id="new-inventory".into();
+                replacement.path=engram_core::RelPath::new("src/new.cs");replacement.content="unrelated new source".into();
+                replacement.content_hash=blake3::hash(replacement.content.as_bytes()).to_hex().to_string();
+                ps.search.prepare_full_source_snapshot(&pid,1,2,&[replacement.path.clone()],&cancel).await?;
+                ps.search.index_docs(&pid,&[replacement],&cancel).await?;
+                ps.search.seal_source_snapshot(&pid,2)?;
+                ensure!(app.state.registry.publish_source_head(&base,2)?);
+                ps.search.purge_old_generations(&pid,2).await?;
+                let old_pk=format!("{pid}:memory:1:old-Alpha");
+                ensure!(ps.search.get_doc_by_pk(&old_pk)?.is_some(),"Paused support request lost its selected source");
+                drop(release);
+                let response=tokio::time::timeout(std::time::Duration::from_secs(15),requests.join_next()).await?
+                    .ok_or_else(||anyhow::anyhow!("Support request missing"))???;
+                ensure!(response.content[0].as_text().is_some_and(|text|text.text.contains("features: 2")));
+                for feature in ["Alpha","Beta"] {
+                    let card=std::fs::read_to_string(root.join(format!("support-kb/{}.md",feature.to_lowercase())))?;
+                    ensure!(card.contains(&format!("{feature} exact label")),"Feature lost its selected code search: {card}");
+                }
+                ps.search.purge_old_generations(&pid,2).await?;
+                ensure!(ps.search.get_doc_by_pk(&old_pk)?.is_none(),"Completed support request leaked its old view");
+                Ok::<_,anyhow::Error>(())
+            }.await;
+            requests.abort_all();while requests.join_next().await.is_some() {}
+            result
+        });
+        drop(runtime);
+        let cleanup=owned.close();
+        match (result,cleanup) {(Err(error),Err(cleanup))=>Err(error.context(format!("Fixture cleanup also failed: {cleanup}"))),
+            (Err(error),_)=>Err(error),(Ok(()),cleanup)=>cleanup.map_err(Into::into)}
+    }
 
     #[test]
     fn extract_roles_line_handles_docs_form() {

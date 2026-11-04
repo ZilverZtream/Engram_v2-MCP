@@ -2379,6 +2379,9 @@ pub fn render_json(
 
 pub mod gates;
 
+#[cfg(test)]
+mod source_lifetime_tests;
+
 // ─── Service entrypoint ─────────────────────────────────────────────────────
 
 /// Configuration controlling which gates run and how findings are filtered.
@@ -2443,10 +2446,73 @@ pub async fn run_pre_commit_review_with(
     config: &ReviewConfig,
     gate_list: Vec<Box<dyn Gate>>,
 ) -> anyhow::Result<(Vec<ReviewFinding>, usize, usize, Vec<GateOutcome>)> {
+    run_pre_commit_review_selected(state, project_id, project_dir, generation,
+        diff_text, config, gate_list, None).await
+}
+
+/// Review using the caller's already-selected source view. Retired views remain
+/// usable while held; validating this capability must not create a fresh pin.
+pub async fn run_pre_commit_review_with_source_view(
+    state: &AppState,
+    project_id: &str,
+    project_dir: &Path,
+    generation: u64,
+    diff_text: &str,
+    config: &ReviewConfig,
+    source_view: Arc<engram_index::SourceSnapshotGuard>,
+) -> anyhow::Result<(Vec<ReviewFinding>, usize, usize, Vec<GateOutcome>)> {
+    run_pre_commit_review_selected(state, project_id, project_dir, generation,
+        diff_text, config, gates::all_gates(), Some(source_view)).await
+}
+
+#[derive(Clone)]
+struct SelectedReviewSource {
+    _search: Arc<engram_index::HybridSearchEngine>,
+    _view: Arc<engram_index::SourceSnapshotGuard>,
+    revisions: Result<Arc<engram_index::hybrid::SelectedSourceRevisionLookup>, String>,
+}
+
+impl SelectedReviewSource {
+    fn new(search: Arc<engram_index::HybridSearchEngine>, view: Arc<engram_index::SourceSnapshotGuard>,
+        project_id: &str, generation: u64) -> Self {
+        let revisions = search.selected_source_revision_lookup(project_id, generation, view.clone())
+            .map(Arc::new).map_err(|error| format!("{error:#}"));
+        Self { _search: search, _view: view, revisions }
+    }
+}
+
+async fn run_pre_commit_review_selected(
+    state: &AppState,
+    project_id: &str,
+    project_dir: &Path,
+    generation: u64,
+    diff_text: &str,
+    config: &ReviewConfig,
+    gate_list: Vec<Box<dyn Gate>>,
+    source_view: Option<Arc<engram_index::SourceSnapshotGuard>>,
+) -> anyhow::Result<(Vec<ReviewFinding>, usize, usize, Vec<GateOutcome>)> {
     let diff_files = parse_unified_diff(diff_text);
     if diff_files.is_empty() {
         return Ok((Vec::new(), 0, 0, Vec::new()));
     }
+
+    // Direct service callers also own the view across the multi-await source
+    // completeness observation. A caller-supplied capability is checked before
+    // graph work and reused, including after its generation has retired.
+    let source = if let Some(view) = source_view {
+        let search = state.get_project_cached(project_id)
+            .ok_or_else(|| anyhow::anyhow!("Selected review source runtime is unavailable; reload and retry"))?.search;
+        search.validate_source_snapshot_guard(project_id, generation, &view)?;
+        Ok(SelectedReviewSource::new(search, view, project_id, generation))
+    } else {
+        match crate::services::project_service::ensure_project_runtime(state, project_id).await {
+            Ok(project) => crate::services::project_service::pin_source_generation(state, &project.search, project_id, generation)
+                .map(|view| SelectedReviewSource::new(project.search, Arc::new(view), project_id, generation)),
+            Err(error) => Err(error.into()),
+        }
+    };
+    #[cfg(test)]
+    if source.is_ok() { source_lifetime_tests::after_selection(project_id).await; }
 
     // ── Pre-computed shared data (loaded once) ────────────────────────
     //
@@ -2492,9 +2558,11 @@ pub async fn run_pre_commit_review_with(
     let files_by_parent: Arc<HashMap<String, Vec<String>>> = Arc::new(build_files_by_parent(
         &state.graph,
         project_id,
+        generation,
+        source.as_ref().ok(),
         &mut provider_notes,
     ));
-    let audit_function = detect_audit_function(&state.graph, project_id, &mut provider_notes);
+    let audit_function = detect_audit_function(&state.graph, project_id, generation, source.as_ref().ok(), &mut provider_notes);
 
     // External audit 2026-08-29 P0-4: a structurally incomplete index returns
     // no error, so the review checks generation completeness ONCE and every
@@ -2502,13 +2570,11 @@ pub async fn run_pre_commit_review_with(
     // A direct review can be the first call after startup or cache eviction.
     // Open its runtime before checking completeness; no prior search is required.
     // Loading errors remain unknown evidence, never a passing empty index.
-    let completeness = match crate::services::project_service::ensure_project_runtime(
-        state, project_id,
-    ).await {
+    let completeness = match &source {
         Ok(_) => crate::handlers::project_tools::generation_completeness_for(
             state, project_id, generation,
         ).await,
-        Err(error) => Err(error.into()),
+        Err(error) => Err(anyhow::anyhow!("source selection unavailable: {error:#}")),
     };
     let search_index_note = match completeness {
         // Files on disk that are not indexed yet (typically ones this diff
@@ -2539,6 +2605,7 @@ pub async fn run_pre_commit_review_with(
         audit_function: audit_function.clone(),
         search_index_note,
         provider_notes,
+        _source: source.ok(),
     });
 
     // ── Gate dispatch ─────────────────────────────────────────────────
@@ -2589,12 +2656,20 @@ pub async fn run_pre_commit_review_with(
             let started = std::time::Instant::now();
             let ctx = shared.as_borrowed(&state_clone, name);
             let r = gate.run(&ctx);
-            (
+            let result = (
                 r,
                 started.elapsed().as_millis(),
                 ctx.take_degraded(),
                 ctx.take_caps(),
-            )
+            );
+            #[cfg(test)]
+            {
+                let pid = shared.project_id.clone();
+                drop(ctx);
+                drop(shared);
+                source_lifetime_tests::after_blocking_gate(&pid, name);
+            }
+            result
         });
         sync_handles.push((name, handle));
     }
@@ -2738,7 +2813,7 @@ impl ProviderScope {
     fn applies_to(self, gate: &str) -> bool {
         match self {
             Self::RepositoryRules => matches!(gate, "immune" | "repo_rules" | "added_conventions"),
-            Self::FileConventions => matches!(gate, "new_file" | "temporal" | "test_coverage"),
+            Self::FileConventions => matches!(gate, "new_file" | "temporal" | "test_coverage" | "sync_contract" | "co_added_family"),
             Self::AuditConvention => gate == "audit",
             Self::HistoryStats => gate == "temporal",
         }
@@ -2770,6 +2845,9 @@ struct SharedGateData {
     audit_function: Option<String>,
     search_index_note: Option<String>,
     provider_notes: Vec<ProviderNote>,
+    // Each dispatched blocking gate retains this owner even if its review
+    // future is cancelled. Graph/knowledge data remain live observations.
+    _source: Option<SelectedReviewSource>,
 }
 
 impl SharedGateData {
@@ -2802,14 +2880,19 @@ impl SharedGateData {
 
 // ─── Pre-computed data builders ─────────────────────────────────────────────
 
-/// Build a `parent_dir → [file_path]` index for every file node in the
-/// project. Called once per review so Gate 8 (new-file convention)
-/// doesn't hit the graph on every added file.
+/// Build a parent-directory index from source nodes no newer than the selected
+/// source generation. Older inherited nodes remain useful. This live graph
+/// cannot reconstruct deleted or overwritten historical declarations.
 fn build_files_by_parent(
     graph: &GraphStore,
     project_id: &str,
+    generation: u64,
+    source: Option<&SelectedReviewSource>,
     notes: &mut Vec<ProviderNote>,
 ) -> HashMap<String, Vec<String>> {
+    let Some(revisions) = convention_revision_lookup(source, notes, ProviderScope::FileConventions, "file convention") else {
+        return HashMap::new();
+    };
     let nodes = graph
         .query_nodes(project_id, Some("file"), None, None, 50_001)
         .unwrap_or_else(|error| {
@@ -2826,7 +2909,13 @@ fn build_files_by_parent(
         ));
     }
     let mut by_parent: HashMap<String, Vec<String>> = HashMap::new();
-    for n in nodes.into_iter().take(50_000) {
+    let mut coverage = ConventionCoverage::default();
+    for (position, n) in nodes.into_iter().enumerate() {
+        if n.namespace != engram_core::namespaces::NAMESPACE_MEMORY { continue; }
+        if n.generation == 0 { coverage.unverified += 1; continue; }
+        if n.generation > generation { coverage.newer += 1; continue; }
+        if position >= 50_000 { continue; }
+        if !convention_revision_matches(revisions, &n, &mut coverage) { continue; }
         let p = n.file_path.as_str().to_string();
         let parent = match p.rfind('/') {
             Some(i) => p[..i].to_string(),
@@ -2834,7 +2923,53 @@ fn build_files_by_parent(
         };
         by_parent.entry(parent).or_default().push(p);
     }
+    note_withheld_source_conventions(notes, ProviderScope::FileConventions,
+        "file convention", generation, coverage);
     by_parent
+}
+
+#[derive(Default)]
+struct ConventionCoverage { newer: usize, unverified: usize, unselected: usize, unavailable: usize }
+
+fn convention_revision_lookup<'a>(
+    source: Option<&'a SelectedReviewSource>, notes: &mut Vec<ProviderNote>, scope: ProviderScope, label: &str,
+) -> Option<&'a engram_index::hybrid::SelectedSourceRevisionLookup> {
+    match source.map(|source| &source.revisions) {
+        Some(Ok(revisions)) => Some(revisions.as_ref()),
+        unavailable => {
+            let reason = match unavailable { Some(Err(error)) => error.as_str(), _ => "selected source view unavailable" };
+            notes.push(ProviderNote::new(scope, format!("{label} coverage unknown: selected source file revision lookup unavailable ({reason})")));
+            None
+        }
+    }
+}
+
+fn convention_revision_matches(
+    revisions: &engram_index::hybrid::SelectedSourceRevisionLookup,
+    node: &engram_graph::Node,
+    coverage: &mut ConventionCoverage,
+) -> bool {
+    match revisions.matches(node.file_path.as_str(), node.generation) {
+        Ok(Some(true)) => true,
+        Ok(Some(false)) => { coverage.unselected += 1; false }
+        Ok(None) => { coverage.unavailable += 1; false }
+        Err(error) => {
+            tracing::warn!(error = %error, "Selected source file revision membership unavailable during review");
+            coverage.unavailable += 1; false
+        }
+    }
+}
+
+fn note_withheld_source_conventions(
+    notes: &mut Vec<ProviderNote>, scope: ProviderScope, label: &str,
+    generation: u64, coverage: ConventionCoverage,
+) {
+    if coverage.newer + coverage.unverified + coverage.unselected + coverage.unavailable > 0 {
+        let ConventionCoverage { newer, unverified, unselected, unavailable } = coverage;
+        notes.push(ProviderNote::new(scope, format!(
+            "{label} coverage unknown: withheld {newer} newer, {unverified} unverified generation-0, {unselected} unselected file revisions and {unavailable} unavailable/budget-limited source observations for selected source generation {generation}; live graph metadata cannot reconstruct deleted or overwritten historical nodes"
+        )));
+    }
 }
 
 /// Rank an audit-function candidate by the operation named by its final
@@ -2987,12 +3122,16 @@ pub fn resolve_bounded_worktree_diff(
 /// function nodes whose names contain common audit identifiers, rejects
 /// reader-shaped methods, and prefers a direct writer name over a longer
 /// specialized writer. Returns `None` when no writer-shaped convention is
-/// found.
+/// found in the source namespace at or before the selected generation.
+/// Withheld live metadata is unknown coverage, not proof of no convention.
 fn detect_audit_function(
     graph: &GraphStore,
     project_id: &str,
+    generation: u64,
+    source: Option<&SelectedReviewSource>,
     notes: &mut Vec<ProviderNote>,
 ) -> Option<String> {
+    let revisions = convention_revision_lookup(source, notes, ProviderScope::AuditConvention, "audit convention")?;
     const AUDIT_PATTERNS: &[&str] = &[
         "aktivitetslogg",
         "AuditLog",
@@ -3002,6 +3141,7 @@ fn detect_audit_function(
     ];
     let mut candidates = Vec::new();
     let mut seen = HashSet::new();
+    let mut coverage = ConventionCoverage::default();
     for pat in AUDIT_PATTERNS {
         let matches = graph
             .query_nodes(project_id, Some("function"), Some(pat), None, 11)
@@ -3018,12 +3158,19 @@ fn detect_audit_function(
                 format!("audit convention candidate search for {pat} truncated at 10"),
             ));
         }
-        for candidate in matches.into_iter().take(10) {
+        for (position, candidate) in matches.into_iter().enumerate() {
+            if candidate.namespace != engram_core::namespaces::NAMESPACE_MEMORY { continue; }
+            if candidate.generation == 0 { coverage.unverified += 1; continue; }
+            if candidate.generation > generation { coverage.newer += 1; continue; }
+            if position >= 10 { continue; }
+            if !convention_revision_matches(revisions, &candidate, &mut coverage) { continue; }
             if seen.insert(candidate.node_id.clone()) {
                 candidates.push(candidate);
             }
         }
     }
+    note_withheld_source_conventions(notes, ProviderScope::AuditConvention,
+        "audit convention", generation, coverage);
     candidates
         .into_iter()
         .filter(|candidate| audit_candidate_score(&candidate.name) > 0)
@@ -3186,14 +3333,26 @@ mod tests {
     }
 
     #[test]
-    fn audit_detection_selects_writer_when_longer_reader_is_present() {
-        let temp = tempfile::tempdir().unwrap();
-        let graph = GraphStore::open(&temp.path().join("graph")).unwrap();
+    fn audit_detection_selects_writer_when_longer_reader_is_present() -> anyhow::Result<()> {
+        let temp = tempfile::tempdir()?;
+        let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
+        let result = runtime.block_on(async {
+        let graph = GraphStore::open(&temp.path().join("graph"))?;
+        let config = engram_core::Config { data_dir: temp.path().join("data"), embedding_backend: "fts_only".into(), ..Default::default() };
+        let search = Arc::new(engram_index::HybridSearchEngine::new(temp.path().join("lexical"), temp.path().join("vectors"), &config).await?);
+        let content = "Module aktivitetslogg\nPublic Function GetByDateRangeAndOrProjectId() As Integer\nReturn 0\nEnd Function\nPublic Sub CreateMarkerUpdate()\nEnd Sub\nPublic Sub Create()\nEnd Sub\nEnd Module\n";
+        search.index_docs("project", &[engram_index::IndexDoc {
+            generation: 1, chunk_id: 1, path: engram_core::RelPath::new("App_Code/Audit.vb"), language: "vb".into(),
+            content: content.into(), content_hash: blake3::hash(content.as_bytes()).to_hex().to_string(), doc_id: "audit-source".into(),
+            namespace: "memory".into(), author: None, timestamp: None, start_line: 1, end_line: 9,
+        }], &tokio_util::sync::CancellationToken::new()).await?;
+        let view = Arc::new(search.pin_source_generation("project", 1)?);
+        let source = SelectedReviewSource::new(search, view, "project", 1);
         let node = |id: &str, name: &str| engram_graph::Node {
             node_id: id.into(),
             node_type: "function".into(),
             name: name.into(),
-            namespace: "test".into(),
+            namespace: engram_core::namespaces::NAMESPACE_MEMORY.into(),
             language: "vbnet".into(),
             file_path: engram_core::RelPath::new("App_Code/Audit.vb"),
             start_line: 1,
@@ -3210,13 +3369,21 @@ mod tests {
                     node("fn:writer", "aktivitetslogg.Create"),
                 ],
             )
-            .unwrap();
+            ?;
         let mut notes = Vec::new();
-        assert_eq!(
-            detect_audit_function(&graph, "project", &mut notes).as_deref(),
-            Some("aktivitetslogg.Create")
-        );
-        assert!(notes.is_empty());
+        let writer = detect_audit_function(&graph, "project", 1, Some(&source), &mut notes);
+        Ok::<_, anyhow::Error>((writer, notes))
+        });
+        drop(runtime);
+        match (result, temp.close()) {
+            (Ok((writer, notes)), Ok(())) => {
+                assert_eq!(writer.as_deref(), Some("aktivitetslogg.Create"));
+                assert!(notes.is_empty());
+                Ok(())
+            }
+            (Err(error), Err(cleanup)) => Err(error.context(format!("Fixture cleanup also failed: {cleanup}"))),
+            (Err(error), _) => Err(error), (Ok(_), Err(error)) => Err(error.into()),
+        }
     }
 
     #[test]

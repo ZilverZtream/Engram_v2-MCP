@@ -57,6 +57,30 @@ fn pks(prefix: &str, range: std::ops::Range<usize>) -> Vec<String> {
     range.map(|i| format!("proj:{prefix}:1:doc{i}")).collect()
 }
 
+#[tokio::test]
+async fn opening_with_a_different_embedding_dimension_preserves_existing_vectors() {
+    let temporary = tempfile::tempdir().unwrap();
+    let connection = connect(temporary.path()).await.unwrap();
+    let expected = pks("preserved", 0..2);
+    {
+        let (table, _) = open_or_create_table(&connection, "preserved", DIM).await.unwrap();
+        upsert_vectors(&table, vec![make_batch("proj", &expected, "original")]).await.unwrap();
+    }
+    for _ in 0..2 {
+        match open_or_create_table(&connection, "preserved", DIM * 2).await {
+            Ok(_) => panic!("an incompatible store must require explicit recovery"),
+            Err(error) => assert!(error.downcast_ref::<engram_index::vector::VectorSchemaMismatch>().is_some()),
+        }
+    }
+    let (table, outcome) = open_or_create_table(&connection, "preserved", DIM).await.unwrap();
+    assert!(matches!(outcome, engram_index::vector::TableOpenOutcome::Opened));
+    for pk in &expected {
+        assert_eq!(table.count_rows(Some(engram_index::vector::build_pk_filter(std::slice::from_ref(pk)))).await.unwrap(), 1,
+            "dimension mismatch must preserve each previously indexed vector");
+    }
+    assert_eq!(table.count_rows(None).await.unwrap(), expected.len());
+}
+
 /// VEC2: upserting the same N PKs twice must leave exactly N rows, not 2N.
 ///
 /// If `merge_insert` were replaced with a plain `insert`, the second call would

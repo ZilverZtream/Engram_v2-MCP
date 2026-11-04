@@ -6,6 +6,10 @@ Console.InputEncoding = new System.Text.UTF8Encoding(false, true);
 Console.OutputEncoding = new System.Text.UTF8Encoding(false, true);
 
 var emitter = new AstEmitter();
+// These identify the modules this process actually loaded, including the
+// entry assembly containing the extraction passes. Disk deployment inventory
+// cannot identify an already-running child.
+var parserIdentity = ParserIdentity.Create();
 while (Console.In.ReadLine() is { } line)
 {
     if (string.IsNullOrWhiteSpace(line))
@@ -32,6 +36,13 @@ while (Console.In.ReadLine() is { } line)
         continue;
     }
 
+    if (request.Cmd == "identity")
+    {
+        Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse { ParserIdentity = parserIdentity }, AppJsonContext.Default.SidecarResponse));
+        Console.Out.Flush();
+        continue;
+    }
+
     if (request.Cmd == "shutdown")
     {
         Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse(), AppJsonContext.Default.SidecarResponse));
@@ -44,13 +55,42 @@ while (Console.In.ReadLine() is { } line)
         try
         {
             emitter.BeginProject(request.ProjectRoot ?? string.Empty, request.Files);
-            Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse(), AppJsonContext.Default.SidecarResponse));
+            Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse { ProjectRoot = emitter.ProjectRoot }, AppJsonContext.Default.SidecarResponse));
         }
         catch (Exception ex)
         {
             Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse { Error = ex.Message }, AppJsonContext.Default.SidecarResponse));
         }
 
+        Console.Out.Flush();
+        continue;
+    }
+
+    if (request.Cmd == "plan_refresh" || request.Cmd == "refresh_project")
+    {
+        try
+        {
+            CompilationPlanDto? plan = null;
+            if (request.Cmd == "plan_refresh")
+                plan = emitter.PlanRefresh(request.ProjectRoot ?? string.Empty, request.Files, request.Paths ?? [],
+                    request.CompilationPolicy ?? throw new InvalidOperationException("Missing compilation policy"));
+            else
+                emitter.RefreshProject(request.PlanId ?? throw new InvalidOperationException("Missing compilation plan token"));
+            Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse
+            {
+                ProjectRoot = emitter.ProjectRoot,
+                ParserIdentity = parserIdentity,
+                CompilationPlan = plan
+            }, AppJsonContext.Default.SidecarResponse));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse
+            {
+                Error = ex.Message,
+                CompilationError = true
+            }, AppJsonContext.Default.SidecarResponse));
+        }
         Console.Out.Flush();
         continue;
     }
@@ -122,12 +162,42 @@ while (Console.In.ReadLine() is { } line)
 
     try
     {
-        var (symbols, edges) = emitter.Extract(request.Path ?? string.Empty, request.Source ?? string.Empty);
+        // New ingestion callers bind every parse to the warmed root. Omitted
+        // fields retain the legacy protocol. Standalone queries never mutate
+        // the singleton's compilation or property cache.
+        var selected = request.Standalone ? new AstEmitter() : emitter;
+        if (!request.Standalone && request.ProjectRoot is not null &&
+            !string.Equals(selected.ProjectRoot, request.ProjectRoot,
+                OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+        {
+            Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse
+            {
+                Error = "The intended project compilation is not prepared; retry the source batch",
+                CompilationError = true
+            }, AppJsonContext.Default.SidecarResponse));
+            Console.Out.Flush();
+            continue;
+        }
+        if (!request.Standalone && request.ProjectRoot is not null &&
+            !selected.IsPreparedSource(request.Path ?? string.Empty, request.Source ?? string.Empty))
+        {
+            Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse
+            {
+                Error = "Source bytes changed after compilation preparation; retry the source batch",
+                CompilationError = true
+            }, AppJsonContext.Default.SidecarResponse));
+            Console.Out.Flush();
+            continue;
+        }
+        var (symbols, edges) = selected.Extract(request.Path ?? string.Empty, request.Source ?? string.Empty);
         Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse
         {
             Path = request.Path,
             Symbols = symbols,
-            Edges = edges
+            Edges = edges,
+            ParserIdentity = parserIdentity,
+            ProjectRoot = selected.ProjectRoot,
+            Standalone = request.Standalone
         }, AppJsonContext.Default.SidecarResponse));
     }
     catch (Exception ex)
@@ -161,6 +231,15 @@ internal sealed class SidecarRequest
     [JsonPropertyName("project_root")]
     public string? ProjectRoot { get; set; }
 
+    [JsonPropertyName("standalone")]
+    public bool Standalone { get; set; }
+
+    [JsonPropertyName("plan_id")]
+    public ulong? PlanId { get; set; }
+
+    [JsonPropertyName("compilation_policy")]
+    public CompilationPolicyDto? CompilationPolicy { get; set; }
+
     /// <summary>Absolute paths for the `invalidate` command.</summary>
     [JsonPropertyName("paths")]
     public List<string>? Paths { get; set; }
@@ -175,6 +254,19 @@ internal sealed class SidecarRequest
 
 internal sealed class SidecarResponse
 {
+    [JsonPropertyName("compilation_plan")]
+    public CompilationPlanDto? CompilationPlan { get; set; }
+    [JsonPropertyName("project_root")]
+    public string? ProjectRoot { get; set; }
+
+    [JsonPropertyName("standalone")]
+    public bool Standalone { get; set; }
+
+    [JsonPropertyName("compilation_error")]
+    public bool CompilationError { get; set; }
+    [JsonPropertyName("parser_identity")]
+    public ParserIdentity? ParserIdentity { get; set; }
+
     [JsonPropertyName("path")]
     public string? Path { get; set; }
 
@@ -196,6 +288,65 @@ internal sealed class SidecarResponse
 
     [JsonPropertyName("invalidated")]
     public int? Invalidated { get; set; }
+}
+
+internal sealed record CompilationPolicyDto
+{
+    [JsonPropertyName("max_total_source_bytes")]
+    public long MaxTotalSourceBytes { get; init; }
+    [JsonPropertyName("max_file_source_bytes")]
+    public long MaxFileSourceBytes { get; init; }
+    [JsonPropertyName("max_trees")]
+    public long MaxTrees { get; init; }
+    [JsonPropertyName("allocation_multiplier")]
+    public long AllocationMultiplier { get; init; }
+    [JsonPropertyName("tree_overhead_bytes")]
+    public long TreeOverheadBytes { get; init; }
+    public void Validate()
+    {
+        if (MaxTotalSourceBytes <= 0 || MaxTotalSourceBytes > 32 * 1024 * 1024 ||
+            MaxFileSourceBytes <= 0 || MaxFileSourceBytes > 10 * 1024 * 1024 ||
+            MaxTrees <= 0 || MaxTrees > 250_000 || AllocationMultiplier != 32 || TreeOverheadBytes != 8192)
+            throw new InvalidOperationException("Unsupported VB compilation admission policy");
+    }
+}
+
+internal sealed class CompilationPlanDto
+{
+    [JsonPropertyName("id")]
+    public ulong Id { get; set; }
+    [JsonPropertyName("total_source_bytes")]
+    public long TotalSourceBytes { get; set; }
+    [JsonPropertyName("tree_count")]
+    public long TreeCount { get; set; }
+    [JsonPropertyName("changed_source_bytes")]
+    public long ChangedSourceBytes { get; set; }
+    [JsonPropertyName("changed_tree_count")]
+    public long ChangedTreeCount { get; set; }
+    [JsonPropertyName("max_changed_file_bytes")]
+    public long MaxChangedFileBytes { get; set; }
+    [JsonPropertyName("full")]
+    public bool Full { get; set; }
+    [JsonPropertyName("policy")]
+    public CompilationPolicyDto Policy { get; set; } = new();
+}
+
+internal sealed class ParserIdentity
+{
+    [JsonPropertyName("contract")]
+    public string Contract { get; set; } = "vb-ingestion-parser-v4";
+    [JsonPropertyName("entry_mvid")]
+    public string EntryMvid { get; set; } = string.Empty;
+    [JsonPropertyName("roslyn_core_mvid")]
+    public string RoslynCoreMvid { get; set; } = string.Empty;
+    [JsonPropertyName("roslyn_vb_mvid")]
+    public string RoslynVbMvid { get; set; } = string.Empty;
+    public static ParserIdentity Create() => new()
+    {
+        EntryMvid = typeof(AstEmitter).Assembly.ManifestModule.ModuleVersionId.ToString("D"),
+        RoslynCoreMvid = typeof(Microsoft.CodeAnalysis.Compilation).Assembly.ManifestModule.ModuleVersionId.ToString("D"),
+        RoslynVbMvid = typeof(Microsoft.CodeAnalysis.VisualBasic.VisualBasicCompilation).Assembly.ManifestModule.ModuleVersionId.ToString("D"),
+    };
 }
 
 [JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]

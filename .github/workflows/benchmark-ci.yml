@@ -13,6 +13,9 @@ jobs:
   benchmark-quality-gates:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - uses: actions/checkout@v4
@@ -32,40 +35,52 @@ jobs:
             ${{ runner.os }}-cargo-benchmark-
 
       - name: Run benchmark unit tests
-        run: |
-          cargo test -p engram_core --lib benchmark -- --nocapture
-          cargo test -p engram_server --lib autonomous_decision -- --nocapture
-
-      - name: Run ADP corpus replay tests
-        run: cargo test -p engram_server --lib corpus_runner -- --nocapture
-
-      - name: Run WebForms mutation tests
-        run: cargo test -p engram_index --test webforms_mutation_test -- --nocapture
-
-      - name: Run VB/C# parity stress matrix tests
-        run: cargo test -p engram_index --test parity_stress_matrix_test -- --nocapture
-
-      - name: Run reproducibility tests
-        run: cargo test -p engram_server --test reproducibility_test -- --nocapture --test-threads=1
-
-      - name: Generate benchmark report artifact
+        id: benchmark
         run: |
           mkdir -p benchmark-artifacts
-          # Run benchmark tests and capture summary
-          cargo test -p engram_core --lib benchmark 2>&1 | tee benchmark-artifacts/benchmark-core.log
-          cargo test -p engram_server --lib autonomous_decision 2>&1 | tee benchmark-artifacts/adp-tests.log
-          cargo test -p engram_index --test webforms_mutation_test 2>&1 | tee benchmark-artifacts/mutation-tests.log
+          cargo test -p engram_core --lib benchmark -- --nocapture 2>&1 | tee benchmark-artifacts/benchmark-core.log
+          cargo test -p engram_server --lib autonomous_decision -- --nocapture 2>&1 | tee benchmark-artifacts/adp-tests.log
 
-          # Generate summary
-          echo "## Benchmark CI Report" > benchmark-artifacts/summary.md
-          echo "**Build:** ${{ github.sha }}" >> benchmark-artifacts/summary.md
-          echo "**Date:** $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> benchmark-artifacts/summary.md
-          echo "" >> benchmark-artifacts/summary.md
-          echo "### Test Results" >> benchmark-artifacts/summary.md
-          echo "- Benchmark schema tests: PASS" >> benchmark-artifacts/summary.md
-          echo "- ADP replay determinism: PASS" >> benchmark-artifacts/summary.md
-          echo "- WebForms mutation tests: PASS" >> benchmark-artifacts/summary.md
-          echo "- Reproducibility tests: PASS" >> benchmark-artifacts/summary.md
+      - name: Run ADP corpus replay tests
+        id: adp
+        run: |
+          cargo test -p engram_server --lib corpus_runner -- --nocapture 2>&1 | tee benchmark-artifacts/adp-corpus.log
+
+      - name: Run WebForms mutation tests
+        id: webforms
+        run: |
+          cargo test -p engram_index --test webforms_mutation_test -- --nocapture 2>&1 | tee benchmark-artifacts/mutation-tests.log
+
+      - name: Run VB/C# parity stress matrix tests
+        id: parity
+        run: |
+          cargo test -p engram_index --test parity_stress_matrix_test -- --nocapture 2>&1 | tee benchmark-artifacts/parity-tests.log
+
+      - name: Run reproducibility tests
+        id: reproducibility
+        run: |
+          cargo test -p engram_server --test reproducibility_test -- --nocapture --test-threads=1 2>&1 | tee benchmark-artifacts/reproducibility-tests.log
+
+      - name: Generate benchmark report artifact
+        if: always()
+        env:
+          BENCHMARK_OUTCOME: ${{ steps.benchmark.outcome }}
+          ADP_OUTCOME: ${{ steps.adp.outcome }}
+          WEBFORMS_OUTCOME: ${{ steps.webforms.outcome }}
+          PARITY_OUTCOME: ${{ steps.parity.outcome }}
+          REPRODUCIBILITY_OUTCOME: ${{ steps.reproducibility.outcome }}
+        run: |
+          mkdir -p benchmark-artifacts
+          {
+            printf '%s\n' '## Benchmark CI Report' '' "**Build:** $GITHUB_SHA" ''
+            printf '%s\n' '| Check | Outcome |' '| --- | --- |'
+            printf '| Benchmark and decision contracts | %s |\n' "${BENCHMARK_OUTCOME:-not_run}"
+            printf '| ADP corpus replay | %s |\n' "${ADP_OUTCOME:-not_run}"
+            printf '| WebForms mutation | %s |\n' "${WEBFORMS_OUTCOME:-not_run}"
+            printf '| VB/C# parity | %s |\n' "${PARITY_OUTCOME:-not_run}"
+            printf '| Reproducibility | %s |\n' "${REPRODUCIBILITY_OUTCOME:-not_run}"
+            printf '\n%s\n' 'These checks do not establish held-out task quality or real-project productivity.'
+          } > benchmark-artifacts/summary.md
 
       - name: Upload benchmark artifacts
         uses: actions/upload-artifact@v4

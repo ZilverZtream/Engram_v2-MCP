@@ -6,7 +6,7 @@ Rust, that gives any MCP-capable agent (Claude Desktop, Claude Code, Codex,
 your own SDK client) a persistent, evidence-backed picture of a real
 codebase: a typed knowledge graph, full-text and semantic search, git
 temporal intelligence, a revert-derived anti-pattern index, per-file coding
-conventions, a ten-gate pre-commit review, a CLAUDE.md generator, a diff
+conventions, a deterministic pre-commit review, a CLAUDE.md generator, a diff
 narrator, and an Autonomous Decision Protocol for agents that want to edit
 without asking every time.
 
@@ -34,7 +34,7 @@ without asking every time.
 | Touches a high-impact file blindly | `compute_blast_radius` returns a 1–10 score with incoming / outgoing / downstream counts |
 | Re-introduces a reverted pattern | Immune system indexes every reverted diff; `immune_check` scores new code against it |
 | Changes a file but not its coupled partner | Temporal coupling surfaces files that change together in git history |
-| Ships a regression | `pre_commit_review` runs 11 deterministic gates over the staged diff, with secret redaction and CI-stable finding IDs |
+| Ships a regression | `pre_commit_review` runs 19 deterministic gates over the staged diff, with secret redaction and CI-stable finding IDs |
 | Adds a public endpoint that skips the admin check | `guard_parity` gate + `map_guards_and_settings` compare new code against the sibling guards and settings that gate the area |
 | Implements 2 of the 17 places a concept lives | `plan_user_story` → `get_concept_footprint` → `find_similar_changes` map every touchpoint and the companion artifacts changes like this always include |
 | Gets lost in a 5,000-file legacy codebase | `get_codebase_overview`, `generate_migration_blueprint`, `analyze_full_project_migration` |
@@ -55,14 +55,16 @@ exists; the bottom ones are operational surface.
 
 ### Pre-commit review (`pre_commit_review`)
 
-Eleven deterministic gates run over a unified diff (raw text, `staged`,
+Nineteen deterministic gates run over a unified diff (raw text, `staged`,
 `unstaged`, `head`, or a `.patch` path) and emit severity-ranked findings
-with concrete evidence and fix suggestions. No LLM calls. Typical run: under
-two seconds.
+with concrete evidence and fix suggestions. No LLM reranking is used; configured
+embedding search can contact its provider. Runtime depends on diff size and
+available index coverage.
 
 | Gate | What it catches |
 |---|---|
 | `immune` | Modifications to files flagged by prior reverts; CRITICAL when paired with destructive patterns |
+| `repo_rules` | Applicable repository rule evidence and mechanically detectable violations |
 | `blast_radius` | High-impact files where a change ripples outward |
 | `style` | Per-file convention violations (naming, `Using` blocks, `Try/Catch`, `SafeRedirect`, etc.) derived from the file's current code |
 | `temporal` | Strongly-coupled partner files missing from the diff |
@@ -72,6 +74,14 @@ two seconds.
 | `new_file` | New files that break the folder's extension / prefix conventions; ASPX pages without codebehind |
 | `test_coverage` | Non-test files changed without their coupled test file |
 | `secret_leakage` | Hardcoded AWS / GitHub / OpenAI / Anthropic / JWT / connection-string secrets — redacted in output |
+| `guard_parity` | Missing guards compared with relevant sibling code |
+| `unwired` | Added code that appears disconnected from its consumers |
+| `product_intent` | Changes that conflict with retrieved product-intent evidence |
+| `sync_contract` | Synchronization-contract mismatches |
+| `co_added_family` | Missing members of historically co-added file families |
+| `complexity_budget` | Added complexity requiring review |
+| `added_conventions` | Conventions around newly added declarations |
+| `ui_house_style` | Advisory differences from nearby application markup |
 
 Every finding carries a stable ID (for run-to-run tracking in CI), specific
 line numbers, diff-context snippets, evidence lines (graph data, revert
@@ -79,6 +89,55 @@ hashes, coupling weights, convention statistics), an actionable fix
 suggestion, and a `Next` tool recommendation. Output is either rendered
 Markdown with a single 🟢 / 🟡 / 🔴 verdict badge, or a stable JSON payload
 (`output_json: true`) for CI pipelines.
+
+The default review also retrieves bounded prior-review context from changed paths
+and identifiers. JSON includes `prior_review_context`; Markdown presents the same
+evidence separately from findings. Retrieval examines at most 24 indexed candidates
+and returns at most eight items within a 16 KiB compact-JSON context budget. Exact
+file references, basename matches and shared review/thread identifiers describe
+relevance, not an exception's applicability. Indexed discussions may already be
+clipped; missing source URLs, unassociated events and budget omissions are explicit.
+
+Workflow status and LLM dismissal are not accepted policy decisions. Earlier
+`wontFix` patterns no longer reduce anti-pattern finding severity. Existing imported
+events remain intact, and a later explicit decision survives a rescan. Imported
+authors, URLs and external verification declarations are not authenticated; matching
+an attested commit to HEAD does not verify changed worktree code. This context is a
+current observation, not a historical replay; requested cutoff/revision binding
+remains unfinished. Ordinary review also discovers explicitly recorded decisions
+whose current rationale or finding ID mentions a complete changed relative path,
+without requiring an indexed review thread. Discovery inspects at most 64 identity
+records, reads at most 64 KiB per event array and 256 KiB in total, and shares the
+eight-item/16 KiB response limits. Invalid records, exhausted limits and omissions
+are explicit. Older hashed rows contain no recoverable review ID: they remain
+readable by their original ID but cannot be discovered until their unchanged
+events are recorded again with that exact ID. Relevance establishes no authority,
+exception scope or absence of other rulings. Complete recorded events can be
+recovered with `get_review_decisions`. New verdict imports also retain full supplied
+discussion captures: exact original JSONL lines, or canonical complete provider
+thread JSON before system/blank-comment filtering. Search summaries retain hash-bound
+recovery references; `get_review_decisions` with `discussion: {}` lists capture
+references and bounded catalog continuations. A thread/hash selector returns bounded
+UTF-8 pages of a deterministic recovery JSON bundle. Assemble pages and verify
+`recovery_blake3`, then hash the exact `capture_metadata_json` string against the
+selected `capture_blake3`. Decode that metadata and verify `raw_utf8` against its
+`raw_utf8_blake3` and byte length. Small provenance captures reference immutable
+raw bodies by content hash: changing another JSONL line never duplicates an
+unchanged thread body. Old capture/body hashes remain recoverable after reimport
+changes a summary. Continuations bind the recovery-document hash as well.
+This preserves supplied evidence, not authenticated people, accepted scope, original
+HTTP wire bytes, unreturned provider history or an as-of decision. Legacy uncaptured
+summaries cannot reconstruct omitted discussions.
+
+Imports refuse before summary publication beyond 256 KiB per thread, 4 MiB per
+encoded capture batch or 1024 input rows. The project retains at most 4096 total capture-metadata/raw-body objects
+and 128 MiB of logical keys, values and link headers across both tiers, transactionally accounted; no automatic
+deletion or quota increase occurs. Exact duplicate captures consume no additional
+quota; unchanged raw payloads consume no additional body storage when provenance changes. Provider fetches additionally bound HTTP bodies, aggregate bytes, pages and
+elapsed waiting. Captures are stored before indexing; if later indexing fails,
+retained evidence and its quota remain visible through the discussion catalog,
+and publication is reported as unconfirmed rather than rolled back. Input/read
+reservations are logical estimates, not a hard process-memory or RSS ceiling.
 
 ### Immune system (revert-derived anti-patterns)
 
@@ -173,6 +232,24 @@ aren't related by any import or call edge but are consistently changed
 in the same commit — the kind of hidden coupling that turns a one-file
 edit into a four-file regression.
 
+History precedent search reports its actual baseline: semantic, degraded
+trigram, or lexical fallback when vectors are disabled or absent from the build.
+The optional `rerank_timeout_ms` sets the LLM ordering budget (0 skips it;
+default and maximum 90000 ms). It does not bound baseline retrieval. Unavailable,
+failed or timed-out reranking preserves the baseline and historical scope.
+Change-card retention separates document embedding profiles and is limited to
+eight partitions and an estimated 32 MiB; this is not a process memory limit.
+Change-card metadata also survives restart in the existing registry database,
+independently of embedding profiles. It is scoped by repository, commit and
+extraction implementation, with an 8192-row / 32 MiB logical storage budget,
+64 KiB records and bounded batches. Cache hits perform no writes; new records
+use insertion-order eviction. Uncacheable metadata and optional cache failures
+fall back to Git extraction. Every request still traverses the requested
+first-parent line; unavailable ancestors or root trees are reported as errors.
+Cached immutable metadata does not establish that every historical subtree or
+blob remains available for later source recovery. These budgets do not bound
+the complete registry file or process memory.
+
 ### Hybrid search
 
 Full-text (Tantivy) + vector (LanceDB) with Reciprocal Rank Fusion,
@@ -202,12 +279,58 @@ without re-reading an entire file:
 Unchanged refreshes preserve the current source generation and skip source
 copying, parsing, and graph rebuilding. Git history still refreshes independently.
 Watcher notifications are filtered against project extensions, Git ignore rules,
-and Engram's own storage before queueing work. Actual source changes retain
-complete snapshot semantics; unchanged chunks are copied in one streaming pass
-with a shared writer rather than repeated per-file searches and writer shutdowns.
+and Engram's own storage before queueing work. Actual source changes stage a
+complete logical view that references unchanged physical revisions, preserving
+their chunk bodies instead of copying them into every generation. A held source
+snapshot lease protects its referenced revisions during collection. Publication
+checks the exact stored head, a persistent revision and the source directory/type;
+changing a head away and back cannot authorize stale work. Initial registration
+is visible with generation zero until its complete source view is published.
+
+Missing source directories, failed traversal and unreadable ignore rules stop
+updates instead of becoming file deletions. Full and graph repairs complete
+this scan before clearing existing graph data or history markers. Configured
+file and byte limits are checked while collecting source paths. A successful
+scan of an empty source set still permits genuine deletions; the scan observes
+the live filesystem and does not freeze concurrent filesystem changes.
+
+Changing a project's source directory/type invalidates inherited stat-cache
+trust. Matching size and modification time then require content-hash verification
+before reuse. An identical replacement can retain the same generation and physical
+chunks; a conditional identity attestation records the verification. This does
+not establish a hard process-memory cap or complete sustained-workload validation.
 Database page caches have explicit per-store limits: 16 MiB for metadata,
 32 MiB per document store, and 128 MiB each for the shared graph and embedding
-stores. These are page-cache limits, not a hard limit on total process memory.
+stores. Each native vector database connection separately shares a 64 MiB index
+cache and a 32 MiB metadata cache across its tables and readers. These are
+weighted retained-cache budgets; eviction can require additional reads. Active
+queries, held readers, multiple connections and total process memory require
+separate sustained-workload measurements.
+
+`get_memory_budget` reports tracked allocation reservations, which do not include
+all native allocations or process memory. Supply an optional `project_id` to
+inspect an already cached project's source views, reader references, vector
+routes, approximate native cache item count, and ranking work. Inspection does
+not open a project, refresh its cache lifetime, or request native cache
+maintenance. Counts are bounded, non-atomic observations; busy components and
+omitted entries are reported explicitly. Reference counts describe owners, not
+unique requests, and cache item counts do not measure bytes.
+
+`incremental_indexing_gc` preserves selected source revisions and active readers
+while removing stale generations. Its default `compact_vectors=true` also
+combines small native vector fragments and reports the completed fragment
+counts. It then attempts separate history maintenance for verified, owned flat
+vector tables. Active native readers, uncertain backend completion, tags, unknown files,
+unsupported metadata, or inspection limits defer pruning and preserve history.
+Successful pruning reports old versions and bytes removed separately from
+compaction counts. Compaction rewrites live vector data; these operations do not
+establish a memory plateau or a physical SSD write limit. Set
+`compact_vectors=false` to request generation cleanup alone. Native compaction
+uses one worker and 1,024-row scan batches; these settings are not a total memory
+or write-volume limit. Builds without vectors report that compaction was skipped.
+Known default cleanup settings on existing Engram-owned tables migrate during a
+write or compaction so history removal follows these checks. Custom cleanup
+settings are preserved and reported for review.
 
 ### Scoped repository instructions
 
@@ -234,21 +357,232 @@ Review gates, planning and rule injection verify relevant managed policy hashes
 once per request (64 sources, 4 MiB per source, 8 MiB total). Changed, missing or
 unverifiable policy is withheld with incomplete coverage; retained evidence stays
 recoverable and labelled. Historical exports do not need to remain on disk.
-The root-guidance generator excludes managed policies because its generalizing
-pipeline cannot preserve their scope. Distillation remains for review findings.
+The root-guidance generator cites managed policies separately. Accepted manual
+rules retain their complete text, exceptions and exact legacy scope condition in
+`.claude/rules/engram-repository-policy.md`; this conditional catalog does not
+provide native path-filtered loading. Complete original rows, including learned
+evidence, unknown legacy authority and catalog overflow, remain recoverable in
+the response and `.engram/instruction-generation.json`. Delivery distinguishes
+preview, written, unchanged owned output, human conflicts and partial failures.
+Optional `use_llm` ranks existing evidence IDs for review; it cannot rewrite
+authored rules or infer their acceptance. Distillation remains for review findings.
 
 `clear_existing` replaces the whole searchable corpus, not every registry rule;
 other sources disclose missing searchable coverage until reimported. Legacy
 promotions without receipts are not automatically retired. Ambiguous basename-only
 records require ownership review. Legacy enforcement remains explicitly unverified;
 this does not migrate every previously imported rule or generated instruction file.
+Rules with missing or unrecognized provenance retain their enforcement and carry
+an ownership warning. The warning counts the returned rule set; an unfiltered
+count does not mean every rule applies to every change. Explicit manual provenance
+retains its authority regardless of the rule ID.
 
-`get_change_set` and `prepare_implementation_context` include applicable
-repository guidance in both JSON and Markdown. `get_chunk` includes it for
-source documents when `inject_rules: true`; exact citation output stays
-unchanged. Discovery reads current root and target-ancestor guidance
+Source verification accounts for receipt JSON and authored source bytes in one
+8 MiB request budget, with at most 64 origins. Exhausted or unavailable evidence
+is disclosed and managed constraints remain unverified. Inventory uses the same
+verification order as normal consumers; its separate source-fingerprint passes
+are additional bounded observations, not a whole-request I/O or atomicity claim.
+
+For exact legacy-ownership evidence, call `list_repo_rules` with
+`ownership_inventory: true` and, optionally, up to sixteen project-relative
+`source_paths` candidates. The JSON response retains exact raw row text and
+hashes, decoded multiline rules, scope, priorities and dates; it includes every
+source-receipt entry, including malformed and pending claims. Existing manual
+provenance, conflicting claims and unknown ownership remain visible. Candidate
+file names, matching text and file existence do not establish ownership.
+
+The inventory reports current unfiltered registry enforcement separately from
+ownership and captures bounded raw source fingerprints. Its registry snapshot
+hash binds the exact project, existing identity epoch, corpus revision, rows
+and all receipt bytes in one read transaction; source fingerprints remain
+separate filesystem observations. Missing or invalid identity is reported,
+never initialized or repaired by inspection. No native project runtime opens,
+no rule or policy file changes, and no adoption occurs. Raw-inventory or
+response overflow fails explicitly rather than returning a partial inventory.
+Inventory never supplies the ownership decision. To review an explicit adoption,
+use `ingest_quality_gates` with its optional `adoption` request instead of normal
+ingestion. First discover the source's parser entry IDs:
+
+```json
+{
+  "project_id": "PROJECT_ID",
+  "source_path": "policies/rules.json",
+  "source_type": "rules",
+  "adoption": {
+    "mode": "preview",
+    "expected_source_blake3": "64_HEX_SOURCE_HASH",
+    "bindings": [],
+    "decision_ref": "REFERENCE_TO_EXPLICIT_OWNER_REVIEW"
+  }
+}
+```
+
+Discovery returns up to 128 complete normalized entries per page; use
+`source_entry_offset` for the returned next offset. Select explicit mappings:
+
+```json
+"bindings": [{
+  "rule_id": "EXISTING_REGISTRY_ID",
+  "expected_raw_blake3": "64_HEX_RAW_ROW_HASH_FROM_INVENTORY",
+  "source_rule_id": "EXACT_ENTRY_ID_FROM_DISCOVERY",
+  "decision": "adopt_unverified"
+}]
+```
+
+An existing manual rule requires `transfer_manual` instead. A selected preview
+returns exact original row text, complete source projections and a plan hash,
+or a concrete blocking reason. Preview does not create identity or open a native
+runtime. Establish missing identity explicitly before recollecting and reviewing.
+To apply, send the same selected request with `mode: "apply"` and
+`expected_plan_blake3` from that preview. Stale rows, claims, source bytes or
+project identity invalidate approval; Engram does not refresh approval for you.
+
+Apply atomically changes provenance and records the source receipt, parser aliases
+and immutable audit. IDs, text, scope, priority, dates and opaque row fields are
+preserved. It writes no authored files and publishes no search documents; import
+the source separately to provide searchable evidence. Filesystem verification
+is separate from the Registry transaction; postcommit source drift is disclosed.
+Ordinary reimport preserves adopted rows only while their complete reviewed source
+projections match. Changed/missing entries or conflicting resolved IDs stop before
+pending receipts or search writes. For intentional parser-ID changes,
+`ingest_quality_gates` accepts a separate `alias_review` preview/apply request,
+mutually exclusive with adoption and normal ingestion. Rebinding requires an
+unchanged complete policy projection and preserves the exact existing rule row;
+retirement removes only the exactly reviewed owned row and alias. Explicit alias
+swaps are atomic. Apply checks the complete ownership snapshot, records an audit
+and leaves the source receipt pending until normal reimport. Caller `decision_ref`
+is unauthenticated and does not establish policy acceptance. Ownership is never
+inferred from positional IDs, matching words or a deleted source entry.
+
+### Maintaining instructions after code changes
+
+Use the existing `pre_push_audit` tool with `instruction_maintenance` instead of
+its code-retrieval inputs:
+
+```json
+{
+  "project_id": "myapp",
+  "instruction_maintenance": {
+    "instruction_paths": [".github/instructions/area.instructions.md"],
+    "evidence_paths": ["Site/Area/Helper.vb", ".github/instructions/shared.md"],
+    "base_commit": "<full 40-character before commit ID>"
+  }
+}
+```
+
+The response supplies complete current and committed-before instructions,
+committed-before/disk-after evidence, exact hashes and `packet_blake3`.
+`instruction_manifest` follows CommonMark inline and reference-style links
+(`[label][rule]`, `[rule][]` and `[rule]`) into a separate dependency collection.
+Definitions belong to their own document and historical/current version;
+forward definitions work and the first matching definition wins. Unused
+definitions and fenced examples do not create dependencies. Packet version 4
+retains exact end-exclusive UTF-8 byte ranges for link uses and chosen
+definitions, raw scope frontmatter and changed dependencies per instruction.
+Previously collected proposal hashes require recollection. Line-ending-only
+differences are reported separately while raw hashes remain exact. An unchanged
+change list cannot hide incomplete reference coverage. Linked guidance is
+evidence, never an additional edit target or accepted policy. Historical links
+use their requested Git tree. Exact-content deleted/added matches are move
+candidates; duplicate sources or destinations remain ambiguous and missing
+original references remain visible.
+
+Limits are eight instructions, sixteen explicit evidence paths and sixteen
+automatic dependencies, discovery depth three from any selected root with shared
+collected nodes, 256 edges, 128 KiB per snapshot
+and 768 KiB of complete input across both versions. Explicit inputs take
+precedence. Oversized explicit inputs fail; automatic omissions, unavailable
+files and unresolved explicit reference labels are named without truncating
+guidance or treating unread content as proven absence. HTML, wiki and image
+references remain explicit coverage gaps; image assets are not opened as
+guidance. Malformed Markdown and ordinary undefined bracketed prose are not
+interpreted as links. Fragments are unverified; no
+exhaustive repository discovery or code-symbol resolution is claimed.
+
+Inline-code file paths are also reference candidates. The manifest checks
+document-relative and repository-relative paths within the same collection
+budgets. Conflicting existing paths retain both complete bodies and an explicit
+ambiguity; a missing or unreadable alternative cannot silently establish a
+binding. Glob patterns are reported without expanding or scanning directories.
+
+Symbol observations use only the captured code snapshots. They record inline
+identifiers and ordinary text matching collected declaration candidates, with
+source/version hashes, locations, candidate paths and excerpt hashes. A single
+observed candidate is not a certified global binding. Per-instruction comparisons
+distinguish changed excerpts, unchanged observed bytes, ambiguous matches and
+unresolved current references. Excerpt equality does not establish unchanged
+behavior. VB uses source-only regex declaration-line candidates without starting
+Roslyn; body coverage and proof of absence remain unavailable. Candidate location
+changes do not prove a rename. Whole-packet stale checks still cover every
+selected input, separately from the per-instruction impact report.
+
+`project_health` accepts the same optional `instruction_maintenance` input
+without `draft`. Its separate reference observation does not establish policy
+correctness or change the storage-health verdict. Inspection covers only the
+selected instructions and bounded linked dependencies; it runs on request,
+without background scans or authored-file writes.
+
+`update_project` accepts that observation input when `wait=true`. It appends
+the observation after the source-update result, including on a no-op refresh.
+Unavailable or stale instruction evidence does not undo a completed source
+update. The observation is a separate worktree read, not an atomic snapshot of
+the newly indexed source and policy. Submit proposals through `pre_push_audit`.
+
+The drafting agent can resubmit the same request with `draft`, containing
+`expected_packet_blake3` and one `decisions` entry per instruction. Each entry
+has an outcome (`change`, `no_change`, `conflict` or `needs_evidence`), rationale
+and exact before/after citations (`path`, `version`, `blake3`, `quote`; null hash
+and quote cite proven absence). Changes use unique original `old_text` anchors,
+`new_text` and a semantic `reason` in `edits`. Declare accepted exception text in
+`preserved_fragments` and list missing policy intent in `unresolved_decisions`.
+Engram returns the complete proposed file and diff, refusing stale dependencies,
+fabricated citations, ambiguous or overlapping edits and removed declared
+fragments. An unrelated commit does not invalidate unchanged dependencies.
+
+These are mechanical checks. Fragment presence does not prove preservation of
+an exception's meaning, and citations do not prove the proposed interpretation.
+Use the existing independent review and human approval workflow before editing
+authored files. A code change violating valid policy may be an implementation
+defect; it does not authorize weakening the rule. This tool neither applies
+proposals nor adopts legacy ownership. Revalidate the exact packet/proposal
+before any subsequent edit.
+
+For bounded, read-only offline inspection without starting an index or server,
+the same collector is available through `cargo run -p engram_server --locked
+--no-default-features --example instruction_maintenance -- <project-root>
+<project-id> <request.json>`. The JSON file contains the nested maintenance
+request shown above, without the outer `project_id`/`instruction_maintenance`.
+
+New area guidance uses the same workflow. Supply `new_instruction_targets`
+with `instruction_path` (Markdown), `provenance_path` (JSON), and `area_scope`
+(project-relative `applyTo` patterns). Existing and new instruction targets
+together are limited to eight. `instruction_paths` may be empty for a new-only
+draft; complete relevant code and authored/shared guidance belong in
+`evidence_paths`. Both output paths must be absent at the exact base commit and
+on current disk; this operation never recreates a previously authored file.
+
+After collecting the packet, submit `draft.new_area_files`: each declared target
+gets claims with an ID, section, observed/authored/proposed classification, text,
+rationale and exact citations, plus shared-rule citations and unresolved
+decisions. Sections cover purpose, invariants, house examples, companions and
+exceptions. The response contains linked Markdown and provenance proposals,
+creation diffs and a hash binding the pair. Missing evidence is named;
+`needs_policy_review` means only that mechanical checks passed. A verified
+ruling quote or a workflow status establishes no accepted exception. Neither
+proposed file is written, and the existing unique-anchor edit flow is unchanged.
+
+`get_change_set`, `prepare_implementation_context`, and `pre_commit_review`
+include applicable repository guidance in both JSON and Markdown.
+`search_memory` includes live guidance for the source paths returned on its
+current page. Its advertised `full_chunk` call requests `inject_rules: true`;
+its separate `citation_chunk` call recovers exact stored source without injected
+guidance. Instruction edits take effect without refreshing the source index;
+`get_chunk` still checks source freshness before returning editable content.
+Discovery reads current root and target-ancestor guidance
 (`AGENTS.md`, `CLAUDE.md`, `INSTRUCTIONS.md`), conventional policy directories,
 and indexed policy paths, so new topic files need no reindex.
+Planning retains selected concept-source identities directly, including root
+files and paths containing spaces, and reports incomplete discovery separately.
 
 Topic selection respects `applyTo`, `paths`, and `globs`, including comma-separated
 patterns and YAML lists. Sources carry BLAKE3 hashes and applicability reasons.
@@ -257,13 +591,19 @@ exceptions are never silently cut off. Invalid or unsupported scope and discover
 limits report incomplete coverage. Matching selects documents; it does not prove
 that arbitrary prose rules were enforced. Historical change-set requests withhold
 live guidance and explicitly report that historical policy was not evaluated.
+Rejected source target paths also report incomplete coverage, while valid paths
+for new files retain their applicable guidance.
 
 Change-set response text is bounded to 40 KiB. An oversized result returns
 `response_delivery` with mandatory row/checkpoint identities and a copy-ready
 `get_change_set` recovery call using `response_id` and `response_offset`.
+The deferred manifest retains view omission counts and candidate omission totals
+grouped by reason in both output formats.
 Concatenate the returned `content` pages in byte-offset order and verify their
 BLAKE3 response ID to recover the original JSON or Markdown without rerunning
-planning. These project-scoped snapshots expire after 24 hours and are limited
+planning. Recovery preserves the original view's caps; request JSON with
+`detail: "full"` to inspect candidate evidence omitted from a compact or Markdown
+view. These project-scoped snapshots expire after 24 hours and are limited
 to 32 per project; unavailable snapshots require fresh planning and reconciliation.
 
 ### Cognitive features (LLM-optional)
@@ -312,6 +652,48 @@ process. First client spawns the daemon; subsequent clients attach as
 proxies; the daemon lingers past the last disconnect so repeated short
 sessions don't pay the warm-up cost every time. File-based lock,
 race-free session counting, startup retry.
+
+### Exclusive maintenance stdio
+
+For controlled maintenance after normal clients and the shared primary have
+closed, launch `engram_server.exe --maintenance-stdio` over MCP stdio. Maintain
+that exclusion until the maintenance process exits and releases its handles.
+The mode does not attach to or launch a daemon or proxy, and overrides configured
+or environment-enabled multi-client preferences. Combining it with `--daemon`,
+`--daemon-launcher`, `--proxy` or explicit `--multi-client` is rejected before
+application state opens.
+
+Normal configuration, logging and shared-store initialization still apply; this
+is not read-only acquisition. Startup skips orphan-job cleanup, watcher restore,
+warm-up, dreamer, GC, immune and integrity actors. Initialization and project
+listing do not warm registered project search runtimes. Explicit MCP tools keep
+their normal schemas, store writes and requested-job behavior; use synchronous
+requests for controlled work and wait for any explicitly requested jobs before
+closing the session. Selecting this mode does not authorize a repair or establish
+data compatibility, freshness or safe downgrade.
+
+### Upgrading legacy indexes
+
+An older project's numeric source generation alone does not establish that its
+source snapshot is complete. Source tools refuse unproven indexes and request
+an explicit, non-wiping full repair. A project appearing in `list_projects` or
+`project_info` does not establish migration readiness.
+
+Perform conversion with normal clients closed, using exclusive maintenance
+stdio. If an old native vector table has no embedding identity, first call
+`repair_project` with `scope: "vector_only"`. This re-embeds stored documents
+across retained namespaces using the configured provider; it can be substantial
+work. It preserves the published source generation and unknown old canonical
+tables. Then call `repair_project` with `scope: "full"`,
+`wipe_and_reindex: false`, `max_commits: 0`, and `index_antipatterns: false`.
+The full repair publishes current source without starting a Git-history crawl.
+Check source retrieval and retained knowledge before ending maintenance.
+
+Conversion is per project. Converting one project does not convert others;
+unconverted source indexes and vector stores can remain unavailable to the new
+runtime. Do not treat file preservation as proof that their tools are usable.
+Returning to an older executable also requires compatibility evidence for the
+current data state; restoring its executable alone is not a data rollback.
 
 ### Observability and integrity
 
@@ -370,9 +752,23 @@ This reuses the checkout's shared Cargo target directory and writes
 directory, and a SHA-256 asset manifest. Deploy the executable and companion
 directory together. The companion includes its .NET runtime; users do not need
 an SDK. `-SidecarOnly` builds the companion for extraction verification.
-`ENGRAM_VB_SIDECAR_PATH` still overrides discovery, and older adjacent sidecar
-executables remain supported. Existing fallback indexes are not automatically
-rebuilt by installing the companion; refresh chosen files explicitly when needed.
+`ENGRAM_VB_SIDECAR_PATH` overrides discovery, including legacy adjacent executable
+locations. Trusted VB indexing requires a matching companion that attests
+`vb-ingestion-parser-v4`; discovering an older binary does not establish
+compatibility. A present, unsupported companion makes trusted ingestion refuse
+before publishing source output. With no companion, Engram records the Rust
+fallback explicitly. Installing a companion does not certify earlier fallback
+output; extraction-identity changes can require reindexing. Follow the repair or
+reindex requirement reported by Engram.
+
+Trusted VB compilation admits at most 32 MiB of aggregate raw source and 10 MiB
+per file before reading source bodies. These limits are separate from the
+per-request extraction cap: a peer can remain available for compilation bindings
+while its own extraction uses an explicitly recorded source-limit fallback.
+Retained compilation admission estimates 32 times the source bytes plus 8 KiB
+per tree, with separate refresh scratch reservations. These are allocation
+estimates, not a hard Roslyn process-memory limit; the shared memory budget can
+refuse a compilation below the source limits.
 
 The binary lands at `target/release/engram_server`.
 
@@ -391,8 +787,18 @@ advertise_all_tools: true       # default: full tool discovery, including .NET t
 
 Set `advertise_all_tools: false` only for clients requiring the limited core
 tool list. Tools omitted from `tools/list` may be unavailable to client agents;
-`list_advanced_tools` is a catalog, not a substitute for protocol discovery.
+The full profile includes `list_advanced_tools` as a catalog; it is not a
+substitute for protocol discovery.
 Restart the daemon and reconnect clients after changing this setting.
+The 32-tool core includes `list_projects`, `project_info`, `get_chunk` and
+`read_memory_bank` for project discovery and citation recovery. Dedicated blast
+radius queries, general graph-path discovery, inferred coding-style analysis
+and similar-change searches are available in the full profile, alongside
+instruction-file generation and pre-push audits. Core clients can poll and cancel
+their indexing jobs with `get_job_status` and `cancel_job`. Normal review evidence
+can be recovered through Core's advertised `get_review_decisions`, including
+complete retained discussion input and immutable decision events. Core omits the
+optional advanced catalog to keep its 32-tool ceiling.
 
 `validate_generated_code` defaults to checking native code edits. Set
 `include_migration_advice: true` when you also want VB-to-C# translation and
@@ -487,6 +893,15 @@ first, operational surface last. Full parameter reference in
 | `delete_project` | Delete a project and its stored data |
 | `watch_project` · `unwatch_project` | Automatic re-index on filesystem changes |
 
+Watcher filters apply within the selected project root and respect Git ignore
+rules and Engram's runtime-storage boundary. Nested runtime storage is excluded
+from source collection, source budgets, and explicit reindex selection. Source
+roots must lie outside the runtime-storage tree.
+
+`unwatch_project` durably disables all saved watches for the project while
+preserving their configurations. It removes queued work and requests cooperative
+cancellation of a running watcher update.
+
 </details>
 
 <details>
@@ -534,7 +949,7 @@ first, operational surface last. Full parameter reference in
 
 | Tool | Purpose |
 |---|---|
-| `pre_commit_review` | Ten-gate deterministic diff review with verdict badge and CI-stable finding IDs |
+| `pre_commit_review` | Nineteen-gate deterministic diff review with prior-review evidence and CI-stable finding IDs |
 | `immune_check` | Score code against the anti-pattern index (hybrid FTS + vector, configurable thresholds) |
 | `anti_pattern_guard` | Pattern matching with revert-commit extraction and remediation guidance |
 | `autonomous_decision_gate` | 8-gate mandatory pipeline for automated edits; returns `allow` / `deny` / `abstain` |
@@ -625,7 +1040,7 @@ first, operational surface last. Full parameter reference in
 |---|---|
 | `get_metrics` | Server-wide metrics (job latency, queue depth, drift, memory, safety) |
 | `check_integrity` | Cross-store consistency check with optional auto-repair |
-| `get_memory_budget` · `get_checkpoint_status` | Resource and recovery status |
+| `get_memory_budget` · `get_checkpoint_status` | Tracked allocation accounting, optional cached-project retention observations, and recovery status |
 | `benchmark_retrieval` | NDCG@10 / Recall@10 / MRR retrieval quality gate |
 | `get_extraction_confidence` | Signal-weighted extraction confidence scoring |
 | `incremental_indexing_gc` · `dedicated_antipattern_index` | Index hygiene |
@@ -706,7 +1121,7 @@ openai_api_base: https://api.openai.com/v1
 
 # LLM backend for cognitive features (optional — everything except
 # `dream`, `analyze_business_logic`, `suggest_migration_boundaries`,
-# and the optional `use_llm` curation pass on `produce_claude_md`
+# and optional evidence-ID ranking on `produce_claude_md`
 # works without it)
 llm_backend: none                     # "none" | "ollama" | "openai" | "openrouter"
 llm_provider: openrouter

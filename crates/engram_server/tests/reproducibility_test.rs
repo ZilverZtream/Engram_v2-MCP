@@ -372,6 +372,7 @@ namespace GoldenApp {
     // Incremental update
     engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
+            instruction_maintenance: None,
             reindex_paths: Vec::new(),
             project_id: pid.clone(),
             wait: true,

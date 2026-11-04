@@ -63,7 +63,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Incrementally re-index changed files and refresh git intelligence. Cheap when little changed. Use when get_index_freshness reports drift; watch_project automates this."
+        description = "Incrementally re-index changed files and refresh git intelligence. Cheap when little changed. Use when get_index_freshness reports drift; watch_project automates this. Optional instruction_maintenance with wait=true observes selected guidance and linked evidence after the source update. Its separate outcome does not write policy or change a completed source result; submit drafts through pre_push_audit."
     )]
     pub async fn update_project(
         &self,
@@ -120,8 +120,13 @@ impl Engram {
                 format!(", filter `{filter}`")
             }
         );
+        let availability = if self.state.cfg.advertise_all_tools {
+            "active_profile: full\nadvertised_in_active_profile: true\nUse the schemas returned by tools/list. Backend and project-data requirements still apply.\n\n"
+        } else {
+            "active_profile: core\nadvertised_in_active_profile: false\nThis catalog describes registered tools; it does not add callable tools to this client. To use these tools, set advertise_all_tools=true in the server configuration, restart Engram, then reconnect the client to refresh tools/list.\n\n"
+        };
         Ok(CallToolResult::success(vec![Content::text(format!(
-            "{header}{out}"
+            "{header}{availability}{out}"
         ))]))
     }
 
@@ -159,13 +164,13 @@ impl Engram {
     }
 
     #[tool(
-        description = "Index health snapshot: generation, graph node/edge counts, doc/vector counts, and semantic-search tier. Use right after indexing to verify it worked, or when any tool returns surprisingly little."
+        description = "Index health snapshot: generation, graph node/edge counts, doc/vector counts, and semantic-search tier. Optional instruction_maintenance observes bounded selected guidance and linked references against an exact base commit, reporting dependent changes and incomplete coverage separately from index health. No authored guidance or ownership is changed."
     )]
     pub async fn project_health(
         &self,
-        params: Parameters<ProjectIdRequest>,
+        params: Parameters<ProjectHealthRequest>,
     ) -> Result<CallToolResult, McpError> {
-        self.handle_project_health(params.0).await
+        self.handle_project_health_with_instructions(params.0).await
     }
 
     #[tool(
@@ -447,7 +452,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Ingest reviewed guidance/findings into quality_gate (4 MiB source limit). Authored copilot/rules policies refresh their receipt-owned documents/promotions, retiring removed rows; historical exports coderabbit/sonarqube/board/text append unless replace_source=true. Manual ownership conflicts reject before mutation. JSON supports one path_scope or file_pattern using existing repository-rule matching; invalid scope rejects the whole import. Markdown retains full context. Managed policy freshness is checked by planning/review/injection; stale rules disclose incomplete coverage. Legacy rules need ownership review. pre_push_audit retrieves evidence, not compliance proof."
+        description = "Ingest reviewed guidance/findings into quality_gate (4 MiB source limit). Authored copilot/rules policies refresh their receipt-owned documents/promotions, retiring removed rows; historical exports coderabbit/sonarqube/board/text append unless replace_source=true. Manual ownership conflicts reject before mutation. JSON supports one path_scope or file_pattern using existing repository-rule matching; invalid scope rejects the whole import. Markdown retains full context. Managed policy freshness is checked by planning/review/injection; stale rules disclose incomplete coverage. Use adoption to preview/apply source-bound legacy ownership, or alias_review to review unchanged-only alias rebinds and exact owned-row retirement. Apply requires the exact preview token and caller decision reference; a reference does not authenticate human authority. Reviewed alias changes remain pending until normal source reimport completes. pre_push_audit retrieves evidence, not compliance proof."
     )]
     pub async fn ingest_quality_gates(
         &self,
@@ -467,7 +472,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Pre-push audit: given inline code or a project-relative diff_file with exact diff_file_blake3, retrieve the quality-gate rules/findings most relevant to it (from ingest_quality_gates) so an agent can fix known issues BEFORE the first push. Rules scoped to file_path rank first. Returns the rules to verify the change against."
+        description = "Pre-push audit: given inline code or a project-relative diff_file with exact diff_file_blake3, retrieve relevant quality-gate rules/findings. Rules scoped to file_path rank first; retrieval is not compliance proof. Alternatively, instruction_maintenance collects complete selected authored instructions and Git-before/disk-after evidence. A drafting agent submits grounded exact edits or explained no_change/conflict outcomes bound to packet_blake3; Engram rejects stale dependencies, false citations and invalid anchors and returns a proposed diff. Independent semantic review and human approval remain required. Never writes authored policy or guesses legacy ownership."
     )]
     pub async fn pre_push_audit(
         &self,
@@ -499,7 +504,7 @@ impl Engram {
     // ---- Search + chunks ----
 
     #[tool(
-        description = "Hybrid lexical+vector search over indexed code/docs. Hits carry path, line range, doc_id, covering symbols (node_ids), and a 500-char snippet (include_content=true for full bodies). search_scope: 'code' (default) searches code; 'knowledge' searches curated agent memory (memory_bank notes, dreamer insights, business_logic, antipattern/wontfix/quality_gate rules); 'all' searches both, fused by rank and labelled by source — use it to recall what past sessions learned, not just where code lives. Knowledge scopes also fold in USER-LEVEL memory (the reserved __user__ project) so a standing preference recorded once surfaces everywhere, labelled source: user:* (set include_user_memory=false to exclude). Filter by author_filter / date_after / date_before (unix ms). Page with offset. Set semantic=false for exact-identifier lookups. For literal/regex matching prefer grep_project; for full chunk text use get_chunk."
+        description = "Hybrid lexical+vector search over indexed code/docs. Hits carry path, line range, doc_id, covering symbols (node_ids), and a 500-char snippet (include_content=true for full bodies). search_scope: 'code' (default) searches code; 'knowledge' searches curated agent memory (memory_bank notes, dreamer insights, business_logic, antipattern/wontfix/quality_gate rules); 'all' searches both, fused by rank and labelled by source — use it to recall what past sessions learned, not just where code lives. Knowledge scopes also fold in USER-LEVEL memory (the reserved __user__ project) so a standing preference recorded once surfaces everywhere, labelled source: user:* (set include_user_memory=false to exclude). Filter by author_filter / date_after / date_before (unix ms). Page with offset. Set semantic=false for exact-identifier lookups. Source results include applicable live repository instructions with hashes and explicit omissions. Follow full_chunk for source content plus guidance; citation_chunk recovers exact stored content without injected instructions. For literal/regex matching prefer grep_project."
     )]
     pub async fn search_memory(
         &self,
@@ -568,7 +573,7 @@ impl Engram {
         self.handle_list_memory_bank(params.0).await
     }
 
-    #[tool(description = "Read one memory bank section by name (see list_memory_bank). Optional citation returns exact stored UTF-8 content and hash-bound line/byte pages as JSON; 40000-byte selected-content budget (JSON escaping can expand response).")]
+    #[tool(description = "Read one memory bank section by name. Discover sections with search_memory(search_scope=knowledge): memory hits return full_section and citation_section recovery arguments. The full profile also offers list_memory_bank. Optional citation returns exact stored UTF-8 content and hash-bound line/byte pages as JSON; 40000-byte selected-content budget (JSON escaping can expand response).")]
     pub async fn read_memory_bank(
         &self,
         params: Parameters<ReadMemoryBankRequest>,
@@ -604,12 +609,12 @@ impl Engram {
         self.handle_add_repo_rule(params.0).await
     }
 
-    #[tool(description = "List repository rules with their full text, file scope, priority, evidence date, provenance, and stable rule_id.")]
+    #[tool(description = "List repository rules with text, scope, priority, evidence date, provenance and stable rule_id. ownership_inventory=true returns exact raw rows/hashes, all receipt claims including malformed entries, existing project identity, source fingerprints and unfiltered enforcement observations. Optional source_paths supplies explicit candidates; matching names/text never proves ownership. Read-only; no adoption or policy acceptance.")]
     pub async fn list_repo_rules(
         &self,
-        params: Parameters<ProjectIdRequest>,
+        params: Parameters<ListRepoRulesRequest>,
     ) -> Result<CallToolResult, McpError> {
-        self.handle_list_repo_rules(params.0).await
+        self.handle_list_repo_rules_with_ownership(params.0).await
     }
 
     #[tool(description = "Delete a repo rule by rule_id (see list_repo_rules).")]
@@ -685,7 +690,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Search indexed commit messages, diffs and merged-PR records; one result per commit (author, date, subject, files it touched). Use for 'when/why did X change' questions and for precedents of a story after index_git_history. The query is literal text ranked by word-level BM25 plus semantic similarity (story prose is safe; no query syntax). By default only published history (the origin default branch) is searched. For leak-free replays pass as_of_rev = the story's base commit; date_before is exclusive, but dates alone admit branch commits dated before their merge."
+        description = "Search indexed commit messages, diffs and merged-PR records; one result per commit (author, date, subject, files it touched). Use for 'when/why did X change' questions and for precedents of a story after index_git_history. The query is literal text ranked by word-level BM25 plus semantic similarity (story prose is safe; no query syntax). By default only published history (the origin default branch) is searched. For leak-free replays pass as_of_rev = the story's base commit; date_before is exclusive, but dates alone admit branch commits dated before their merge. Precedent mode discloses its semantic, degraded trigram, or lexical fallback baseline. rerank_timeout_ms bounds only optional LLM reranking (0 skips it; default/max 90000); failures preserve baseline order."
     )]
     pub async fn search_history(
         &self,
@@ -695,7 +700,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Ingest pull-request review threads as verdicts: for each finding, what the named decision-makers decided (rejected / deferred / endorsed, with their reply quoted) from their replies and thumbs-up, not from thread status. A PR author's decline counts only when it carries a written argument, and each author's record of argued declines is kept. Run once, then incrementally; feeds get_review_precedents."
+        description = "Import pull-request review threads as advisory verdict evidence; display-name replies, likes and labels do not authenticate authority or establish an exception's scope. Search summaries clip finding/reasoning text; new imports also retain complete hash-addressed supplied discussion captures for get_review_decisions recovery. Legacy uncaptured summaries remain incomplete. Imports refuse beyond 256 KiB/thread, 4 MiB capture batch or 1024 input rows, or the retained project quota (4096 total capture-metadata/raw-body objects/128 MiB); no old evidence is deleted. Configured decision-maker names classify replies and likes; PR-author arguments remain distinct. Feeds get_review_precedents; re-evaluate current code and never automatically suppress findings."
     )]
     pub async fn ingest_review_verdicts(
         &self,
@@ -705,7 +710,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Before posting or acting on a review finding: past findings like it and how the team's decision-makers ruled on them — rejected (with the quoted reason, e.g. 'per design'), deferred, or endorsed — plus contested author arguments with that author's record. Use to drop findings already ruled out and to learn the accepted trade-offs of a codebase. Requires ingest_review_verdicts."
+        description = "Retrieve advisory prior review evidence; imported labels and quotations do not authenticate authority or establish accepted scope, revision applicability, or permission to suppress a current finding. Requires ingest_review_verdicts. Finding and reasoning may be clipped; follow the returned hash-bound get_review_decisions discussion reference for full captured supplied input. Legacy uncaptured records remain incomplete, and provider captures do not certify unreturned remote history. before_pr_id selects older PR IDs only, not as-of decisions; current author/trust aggregates are withheld under that cutoff. Re-evaluate the exact current code and exception conditions."
     )]
     pub async fn get_review_precedents(
         &self,
@@ -817,9 +822,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Generate CLAUDE.md + .claude/rules/*.md (and optional AGENTS.md) from \
-                       the project's indexed graph. Language-agnostic: sections are driven by \
-                       what the graph actually contains. Fully deterministic, no LLM calls."
+        description = "Preview or publish CLAUDE.md, companion guidance and optional AGENTS.md. Preserves original repository-rule identity, scope and exceptions; accepted manual rules use an explicitly conditional catalog, not native path filtering. Returns complete recovery data for overflow, legacy authority questions and partial/conflicted writes. Source-managed policy stays referenced to its source. Optional use_llm ranks evidence IDs only; it cannot rewrite or approve policy. Existing human edits are preserved in tested conflict paths; inspect the publication report before relying on installed companions."
     )]
     pub async fn produce_claude_md(
         &self,
@@ -1039,7 +1042,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Garbage-collect stale index generations (old snapshots). Maintenance; safe to run anytime, frees disk."
+        description = "Collect stale index generations while preserving selected source revisions and active readers. Optional native compaction combines small fragments, then attempts verified history pruning and reports old versions/bytes removed separately. Active native readers, uncertain completion, unsupported metadata or unverified files defer pruning; successful pruning removes old native versions."
     )]
     pub async fn incremental_indexing_gc(
         &self,
@@ -1124,7 +1127,7 @@ impl Engram {
         self.handle_get_checkpoint_status(params.0).await
     }
 
-    #[tool(description = "Memory budget usage per subsystem (OOM-prevention accounting).")]
+    #[tool(description = "Tracked allocation reservations per subsystem, not process private memory or all native allocations. Optional project_id observes an already-cached runtime's snapshot/reader/cache/ranking retention without opening it, refreshing LRU or running cache maintenance; counts are bounded, non-atomic observations.")]
     pub async fn get_memory_budget(
         &self,
         params: Parameters<GetMemoryBudgetRequest>,
@@ -1567,7 +1570,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Append provider-neutral review decisions with immutable provenance: open, accepted_exception, claimed_fix, verified_fix. Verified fixes require external check attestations; Engram does not execute imported commands or suppress findings."
+        description = "Append immutable advisory review-decision evidence; declared authors, accepted_exception labels and external attestations are not authenticated authority. Kinds: open, accepted_exception, claimed_fix, verified_fix. Atomically retain an exact review-ID companion for bounded ordinary-review discovery when current event text mentions a complete changed path. Older hashed rows remain undiscoverable until rerecorded with their original ID. Engram executes no imported checks and suppresses no findings."
     )]
     pub async fn record_review_decisions(
         &self,
@@ -1577,7 +1580,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Read review decision history and current dispositions. External verified-fix attestations are current only at the recorded commit with a clean worktree. Resolved threads alone are not proof of a fix."
+        description = "Recover complete recorded immutable decision events for an exact review_id; imported declarations are advisory and never establish authenticated authority or accepted scope. Default event history is not a complete original discussion. discussion:{} lists retained imported discussion captures; thread_id plus capture_blake3 selects bounded immutable JSON pages, with UTF-8 offset continuation. Verify recovery_blake3 for assembled pages, capture_blake3 for their exact capture_metadata_json string, then the metadata raw_utf8_blake3/length for raw_utf8. Unchanged raw bodies are reused across provenance captures. No imported authors, URLs or accepted scope are authenticated. External verified-fix attestations are current only at the recorded commit with a clean worktree; Engram does not execute or authenticate those checks. Resolved threads alone are not proof of a fix."
     )]
     pub async fn get_review_decisions(
         &self,
@@ -1587,7 +1590,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Find dead methods: functions with zero callers, no Handles clause, and not lifecycle hooks. Candidates for safe removal during migration."
+        description = "Find candidate methods with zero indexed incoming caller/dependency edges after common event/lifecycle exclusions. Inspects up to 10000 matching graph methods and returns a limited subset with coverage. Runtime reachability remains unknown, including private or missing-access methods; dynamic, unresolved and external calls are not ruled out. This does not establish global unreachability or safe removal."
     )]
     pub async fn find_dead_methods(
         &self,
@@ -1609,8 +1612,28 @@ impl Engram {
 
 impl ServerHandler for Engram {
     fn get_info(&self) -> ServerInfo {
+        let core_instructions = "Engram's limited profile advertises 32 tools. Start with \
+            `list_projects` and `project_info` to select the project. Use `search_memory` \
+            or `grep_project` to find indexed code, then pass returned citation arguments \
+            to `get_chunk` for exact stored evidence. Discover stored project memory with \
+            `search_memory(search_scope=knowledge)` and pass the returned citation_section \
+            arguments to `read_memory_bank` for the complete section. \
+            Follow symbols with `resolve_id` and `find_symbol_references`; \
+            use `get_method_edit_context(include_full_body=true)` for complete method \
+            content. Use `check_edit_safety` before edits and `pre_commit_review` on the \
+            diff. Check `get_index_freshness`; index or refresh using `index_project` \
+            and `update_project`. Poll asynchronous work with `get_job_status` and use \
+            `cancel_job` to stop unwanted work. \
+            Some responses refer to specialized tools in the full profile. Only the \
+            tools advertised in this session can be assumed available to this client. \
+            Follow returned review evidence calls with `get_review_decisions` for \
+            exact retained events or discussions; workflow closure is not policy acceptance. \
+            Set `advertise_all_tools=true`, restart Engram and reconnect the client \
+            when full-profile capabilities are required.";
         ServerInfo {
-            instructions: Some(
+            instructions: if !self.state.cfg.advertise_all_tools {
+                Some(core_instructions.to_owned())
+            } else { Some(
                 "Engram gives agents a persistent, indexed memory of a codebase: hybrid \
                  search, a typed code graph, git temporal intelligence, and edit-safety \
                  checks. Typical flow: list_projects (get the project_id) → \
@@ -1623,7 +1646,7 @@ impl ServerHandler for Engram {
                  Tools prefixed [.NET legacy] target ASP.NET WebForms / VB.NET / Classic \
                  ASP migration work and return little on other stacks."
                     .to_string(),
-            ),
+            ) },
             capabilities: ServerCapabilities::builder().enable_tools().build(),
             ..Default::default()
         }

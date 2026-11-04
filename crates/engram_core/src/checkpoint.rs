@@ -118,11 +118,19 @@ impl CheckpointStore {
             std::fs::create_dir_all(parent)?;
         }
         let db = crate::storage::open_database(path, crate::storage::DatabaseCache::Metadata)?;
-        let wtx = db.begin_write()?;
-        {
-            let _ = wtx.open_table(CHECKPOINTS)?;
+        let needs_init = {
+            let rtx = db.begin_read()?;
+            match rtx.open_table(CHECKPOINTS) {
+                Ok(_) => false,
+                Err(redb::TableError::TableDoesNotExist(_)) => true,
+                Err(error) => return Err(error.into()),
+            }
+        };
+        if needs_init {
+            let wtx = db.begin_write()?;
+            { let _ = wtx.open_table(CHECKPOINTS)?; }
+            wtx.commit()?;
         }
-        wtx.commit()?;
         Ok(Self { db: Arc::new(db) })
     }
 
@@ -281,6 +289,53 @@ pub struct VectorResumeState {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn ready_store_reopen_preserves_checkpoint_payload_and_file() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("checkpoints.redb");
+        let checkpoint = Checkpoint {
+            job_id: "job".into(), project_id: "project".into(), phase: JobPhase::Parsing,
+            items_processed: 42, items_total: 100, generation: 3,
+            idempotency_key: "resume-generation-3".into(),
+            resume_state: Some("remaining: source.rs".into()), updated_at_ms: 1234, error: None,
+        };
+        {
+            let store = CheckpointStore::open(&path).unwrap();
+            store.put(&checkpoint).unwrap();
+        }
+        let fingerprint = || {
+            let bytes = std::fs::read(&path).unwrap();
+            (bytes.len(), blake3::hash(&bytes))
+        };
+        let before = fingerprint();
+        for _ in 0..2 {
+            {
+                let store = CheckpointStore::open(&path).unwrap();
+                let loaded = store.get("job").unwrap().unwrap();
+                assert_eq!(serde_json::to_value(&loaded).unwrap(), serde_json::to_value(&checkpoint).unwrap());
+            }
+            assert_eq!(fingerprint(), before, "Reading resumable work must preserve its closed file");
+        }
+    }
+
+    #[test]
+    fn ready_store_reopen_rejects_wrong_checkpoint_table_type() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("checkpoints.redb");
+        let wrong = TableDefinition::<u64, u64>::new("checkpoints");
+        {
+            let db = crate::storage::open_database(&path, crate::storage::DatabaseCache::Metadata).unwrap();
+            let wtx = db.begin_write().unwrap();
+            { wtx.open_table(wrong).unwrap().insert(7, 42).unwrap(); }
+            wtx.commit().unwrap();
+        }
+        let error = CheckpointStore::open(&path).err().expect("Wrong table type must be rejected");
+        assert!(matches!(error.downcast_ref::<redb::TableError>(), Some(redb::TableError::TableTypeMismatch { .. })));
+        let db = crate::storage::open_database(&path, crate::storage::DatabaseCache::Metadata).unwrap();
+        let rtx = db.begin_read().unwrap();
+        assert_eq!(rtx.open_table(wrong).unwrap().get(7).unwrap().unwrap().value(), 42);
+    }
 
     #[test]
     fn checkpoint_round_trip() {

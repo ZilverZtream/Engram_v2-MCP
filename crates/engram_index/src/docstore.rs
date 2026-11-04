@@ -79,6 +79,33 @@ pub struct FileFingerprint {
     pub mtime_ms: u64,
     /// blake3 hex hash of file content.
     pub file_hash: String,
+    /// Native timestamp precision for source stat caching. Legacy records have
+    /// no precise hint and must verify bytes before skipping a file.
+    /// Appended to preserve the legacy binary field order.
+    #[serde(default)]
+    pub mtime_ns: Option<u64>,
+}
+
+fn decode_file_fingerprint(data: &[u8]) -> anyhow::Result<FileFingerprint> {
+    use bincode::Options;
+    let binary = || bincode::DefaultOptions::new().with_fixint_encoding().reject_trailing_bytes();
+    if let Ok(current) = binary().deserialize::<FileFingerprint>(data) {
+        return Ok(current);
+    }
+    #[derive(Deserialize)]
+    struct Legacy {
+        rel_path: String,
+        size: u64,
+        mtime_ms: u64,
+        file_hash: String,
+    }
+    if let Ok(old) = binary().deserialize::<Legacy>(data) {
+        return Ok(FileFingerprint {
+            rel_path: old.rel_path, size: old.size, mtime_ms: old.mtime_ms,
+            file_hash: old.file_hash, mtime_ns: None,
+        });
+    }
+    serde_json::from_slice(data).map_err(Into::into)
 }
 
 // ---- DocStore ----
@@ -315,7 +342,7 @@ impl DocStore {
         let Some(v) = t.get(key.as_str())? else {
             return Ok(None);
         };
-        Ok(Some(de_bincode_or_json(v.value())?))
+        Ok(Some(decode_file_fingerprint(v.value())?))
     }
 
     /// All fingerprints for a project in ONE range scan (TODO-46): the
@@ -330,7 +357,7 @@ impl DocStore {
             if !k.value().starts_with(&prefix) {
                 break;
             }
-            out.push(de_bincode_or_json(v.value())?);
+            out.push(decode_file_fingerprint(v.value())?);
         }
         Ok(out)
     }
@@ -683,6 +710,7 @@ mod tests {
             rel_path: "src/main.rs".to_string(),
             size: 1024,
             mtime_ms: 1_700_000_000_000,
+            mtime_ns: None,
             file_hash: "abc123def456".to_string(),
         };
         store
@@ -697,6 +725,44 @@ mod tests {
         assert_eq!(got.size, 1024);
         assert_eq!(got.mtime_ms, 1_700_000_000_000);
         assert_eq!(got.file_hash, "abc123def456");
+    }
+
+    #[test]
+    fn existing_fingerprint_stores_remain_readable_when_precise_hints_are_added() {
+        let (_dir, store) = open_temp_store();
+        // Existing binary records contain these four positional fields. JSON
+        // was the original on-disk format and remains readable too.
+        let old = ("old.rs".to_owned(), 40_u64, 1_780_000_000_100_u64, "original-hash".to_owned());
+        let binary = bincode::serialize(&old).unwrap();
+        let json = serde_json::to_vec(&serde_json::json!({
+            "rel_path":"json.rs", "size":40, "mtime_ms":old.2, "file_hash":old.3,
+        })).unwrap();
+        let tx = store.db.begin_write().unwrap();
+        {
+            let mut table = tx.open_table(FILE_FINGERPRINT).unwrap();
+            table.insert("project\0old.rs", binary.as_slice()).unwrap();
+            table.insert("project\0json.rs", json.as_slice()).unwrap();
+        }
+        tx.commit().unwrap();
+        let fingerprints = store.list_fingerprints("project").unwrap();
+        assert_eq!(fingerprints.len(), 2);
+        assert!(fingerprints.iter().all(|fp| fp.mtime_ns.is_none() && fp.file_hash == "original-hash"));
+        let mut migrated = store.get_fingerprint("project", "old.rs").unwrap().unwrap();
+        migrated.mtime_ns = Some(1_780_000_000_100_000_100);
+        store.set_fingerprint("project", &migrated).unwrap();
+        let reopened = store.get_fingerprint("project", "old.rs").unwrap().unwrap();
+        assert_eq!(reopened.mtime_ns, migrated.mtime_ns);
+        assert_eq!(reopened.file_hash, "original-hash");
+        // A damaged extension must not silently decode as a coarse legacy row.
+        let mut damaged = binary;
+        damaged.push(2); // Invalid Option discriminant in the appended field.
+        let tx = store.db.begin_write().unwrap();
+        {
+            let mut table = tx.open_table(FILE_FINGERPRINT).unwrap();
+            table.insert("project\0old.rs", damaged.as_slice()).unwrap();
+        }
+        tx.commit().unwrap();
+        assert!(store.get_fingerprint("project", "old.rs").is_err());
     }
 
     // ── 8. get_fingerprint_missing_returns_none ───────────────────────────────
@@ -718,12 +784,14 @@ mod tests {
                 rel_path: "src/a.rs".into(),
                 size: 1,
                 mtime_ms: 10,
+                mtime_ns: None,
                 file_hash: "ha".into(),
             },
             FileFingerprint {
                 rel_path: "src/b.rs".into(),
                 size: 2,
                 mtime_ms: 20,
+                mtime_ns: None,
                 file_hash: "hb".into(),
             },
         ];
@@ -731,6 +799,7 @@ mod tests {
             rel_path: "src/c.rs".into(),
             size: 3,
             mtime_ms: 30,
+            mtime_ns: None,
             file_hash: "hc".into(),
         }];
         store.set_fingerprints("proj1", &fps_a).unwrap();

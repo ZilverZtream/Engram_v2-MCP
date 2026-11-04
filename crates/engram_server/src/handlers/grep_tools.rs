@@ -26,20 +26,22 @@ use crate::tools::Engram;
 ///
 /// A node with no fingerprint metadata yields (0, 0), which
 /// `check_freshness` skips rather than reporting as drift.
-pub(crate) fn indexed_file_stats(
-    graph: &engram_graph::GraphStore,
-    project_id: &str,
-) -> anyhow::Result<Vec<engram_index::grep::IndexedFileStat>> {
-    indexed_file_stats_for_generation(graph, project_id, u64::MAX)
-}
-
-fn indexed_file_stats_for_generation(
+pub(crate) fn indexed_file_stats_for_generation(
     graph: &engram_graph::GraphStore,
     project_id: &str,
     active_generation: u64,
+    source_chunk_target: usize,
 ) -> anyhow::Result<Vec<engram_index::grep::IndexedFileStat>> {
-    Ok(graph
-        .list_file_node_metadata_with_generation(project_id)?
+    let files = graph.list_file_node_metadata_with_generation(project_id)?;
+    let configured = engram_index::SourceExtractionExpectation::for_paths(
+        source_chunk_target, std::iter::empty::<&str>(),
+    )?;
+    let vb_expected = files.iter().any(|(path, _, _)|
+        engram_index::vb_extractor::requires_parser_provenance(path.as_str()))
+        .then(|| engram_index::SourceExtractionExpectation::for_paths(
+            source_chunk_target, files.iter().map(|(path, _, _)| path.as_str()),
+        ));
+    Ok(files
         .into_iter()
         .map(|(rel_path, meta, generation)| {
             let get = |key: &str| {
@@ -52,8 +54,13 @@ fn indexed_file_stats_for_generation(
                 .as_ref()
                 .filter(|m| {
                     generation <= active_generation
-                        && m.get("source_index_version").and_then(|v| v.as_u64())
-                            == Some(engram_index::SOURCE_INDEX_VERSION)
+                        && if engram_index::vb_extractor::requires_parser_provenance(rel_path.as_str()) {
+                            // Unknown VB authority only withholds that cached
+                            // fingerprint. Literal recovery can read live bytes;
+                            // unrelated languages still use their verified stats.
+                            vb_expected.as_ref().is_some_and(|expected| expected.as_ref()
+                                .is_ok_and(|expected| expected.metadata_is_compatible(m, rel_path.as_str())))
+                        } else { configured.metadata_is_compatible(m, rel_path.as_str()) }
                 })
                 .and_then(|m| m.get("file_hash"))
                 .and_then(|v| v.as_str())
@@ -208,10 +215,17 @@ impl Engram {
             .ensure_project_runtime(&req.project_id)
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        let generation = self
-            .get_active_generation(&req.project_id)
-            .await
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        // Capture and protect the published source selection before graph
+        // fingerprint reads, grep and disk overlay. The worker owns a clone
+        // too: dropping an RPC future does not stop spawn_blocking work.
+        let (generation, _source_snapshot) = if req.namespace == "memory" {
+            let (generation, guard) = self
+                .pin_active_source_generation(&req.project_id, &ps.search)
+                .await?;
+            (generation, Some(std::sync::Arc::new(guard)))
+        } else {
+            (self.get_active_generation(&req.project_id).await?, None)
+        };
 
         // Translate the request's freshness string into the engine
         // enum — fail closed on unknown values so typos don't silently
@@ -256,6 +270,7 @@ impl Engram {
         // grep_project no longer opens a redb database at all, which also
         // retires the file-lock contention that made concurrent greps fail.
         let graph = self.state.graph.clone();
+        let source_chunk_target = self.state.cfg.max_chunks_per_file;
         let project_id = req.project_id.clone();
         let namespace = req.namespace.clone();
         let pattern = req.pattern.clone();
@@ -272,7 +287,13 @@ impl Engram {
         let engine = ps.search.clone();
 
         let fingerprint_pid = project_id.clone();
+        let worker_source_snapshot = _source_snapshot.clone();
         let result = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
+            #[cfg(test)]
+            let observation = worker_lifetime_test::observe(&fingerprint_pid);
+            let _source_snapshot = worker_source_snapshot;
+            #[cfg(test)]
+            if let Some(observation) = &observation { observation.pause()?; }
             let gq = engram_index::grep::GrepQuery {
                 project_id,
                 namespace,
@@ -290,7 +311,7 @@ impl Engram {
                 freshness,
             };
             let started = std::time::Instant::now();
-            let stats = indexed_file_stats_for_generation(&graph, &fingerprint_pid, generation)?;
+            let stats = indexed_file_stats_for_generation(&graph, &fingerprint_pid, generation, source_chunk_target)?;
             let mut result =
                 engram_index::grep::grep(&engine, &project_dir, &gq, || Ok(stats.clone()))?;
             if gq.namespace == "memory"
@@ -361,6 +382,110 @@ impl Engram {
             body.push_str(&self.freshness_footer(&req.project_id, generation).await);
         }
         Ok(CallToolResult::success(vec![Content::text(body)]))
+    }
+}
+
+#[cfg(test)]
+mod worker_lifetime_test {
+    use std::sync::{LazyLock, Mutex, mpsc};
+    use std::time::Duration;
+
+    // Test-only synchronization keyed by an isolated project. Completion is
+    // signalled after the worker's lease drops, including error/unwind paths.
+    pub(super) struct Observation {
+        entered: mpsc::Sender<()>,
+        resume: mpsc::Receiver<()>,
+        complete: mpsc::Sender<()>,
+    }
+    impl Observation {
+        pub(super) fn pause(&self) -> anyhow::Result<()> {
+            self.entered.send(())?;
+            self.resume.recv_timeout(Duration::from_secs(30))?;
+            Ok(())
+        }
+    }
+    impl Drop for Observation {
+        fn drop(&mut self) { let _ = self.complete.send(()); }
+    }
+    static OBSERVATIONS: LazyLock<Mutex<std::collections::HashMap<String, Observation>>> =
+        LazyLock::new(|| Mutex::new(std::collections::HashMap::new()));
+    pub(super) fn observe(project: &str) -> Option<Observation> {
+        OBSERVATIONS.lock().unwrap().remove(project)
+    }
+
+    fn document(generation: u64, id: &str, text: &str) -> engram_index::IndexDoc {
+        engram_index::IndexDoc { generation, chunk_id: generation,
+            path: engram_core::RelPath::new("changed.rs"), language: "rust".into(),
+            content: text.into(), namespace: "memory".into(), author: None, timestamp: None,
+            start_line: 1, end_line: 1, doc_id: id.into(),
+            content_hash: engram_core::ContentHash::compute(text.as_bytes()).0 }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn cancelled_grep_worker_keeps_obsolete_rows_until_its_real_reads_finish() -> anyhow::Result<()> {
+        let temp = tempfile::tempdir()?;
+        let root = temp.path().join("repo");
+        std::fs::create_dir_all(&root)?;
+        drop(git2::Repository::init(&root)?);
+        std::fs::write(root.join("changed.rs"), "old_marker")?;
+        let cfg = engram_core::Config { data_dir: temp.path().join("data"),
+            allowed_roots: vec![root.clone()], embedding_backend: "fts_only".into(), ..Default::default() };
+        std::fs::create_dir_all(&cfg.data_dir)?;
+        let (state, _) = crate::state::AppState::new(cfg)?;
+        let project = format!("grep-worker-{}", uuid::Uuid::new_v4());
+        state.registry.put_project(&engram_core::ProjectRecord {
+            project_id: project.clone(), project_name: "Grep lifetime".into(), project_type: "general".into(),
+            directory: root.to_string_lossy().into(), created_at_ms: 1, updated_at_ms: 1,
+            reindex_required_since_ms: None })?;
+        state.registry.set_meta(&project, "active_generation", "1")?;
+        let engram = std::sync::Arc::new(crate::tools::Engram::new(state.clone()));
+        let ps = engram.ensure_project_runtime(&project).await.map_err(|e| anyhow::anyhow!(e.to_string()))?;
+        let cancel = tokio_util::sync::CancellationToken::new();
+        ps.search.index_docs(&project, &[document(1, "old", "old_marker")], &cancel).await?;
+        let (entered_tx, entered_rx) = mpsc::channel();
+        let (resume_tx, resume_rx) = mpsc::channel();
+        let (complete_tx, complete_rx) = mpsc::channel();
+        OBSERVATIONS.lock().unwrap().insert(project.clone(), Observation {
+            entered: entered_tx, resume: resume_rx, complete: complete_tx });
+        let request = serde_json::from_value(serde_json::json!({
+            "project_id":project,"pattern":"old_marker","freshness":"off","output_json":true
+        }))?;
+        let server = engram.clone();
+        let mut rpc = Some(tokio::spawn(async move { server.handle_grep_project(request).await }));
+        // Accumulate failures and always release/join the worker before
+        // asserting, so a failed check cannot strand a thread or its fixture.
+        let observed = async {
+            entered_rx.recv_timeout(Duration::from_secs(10))?;
+            ps.search.prepare_source_snapshot(&project, 1, 2,
+                &[engram_core::RelPath::new("changed.rs")], &[], &cancel).await?;
+            ps.search.index_docs(&project, &[document(2, "new", "new_marker")], &cancel).await?;
+            ps.search.seal_source_snapshot(&project, 2)?;
+            state.registry.set_meta(&project, "active_generation", "2")?;
+            ps.search.purge_old_generations(&project, 2).await?;
+            anyhow::ensure!(ps.search.count_docs(&project)? == 2,
+                "GC collected old rows before the worker read them");
+            let task = rpc.take().unwrap();
+            task.abort();
+            anyhow::ensure!(task.await.is_err(), "RPC was not cancelled");
+            ps.search.purge_old_generations(&project, 2).await?;
+            anyhow::ensure!(ps.search.count_docs(&project)? == 2,
+                "RPC cancellation released a still-running worker's rows");
+            anyhow::Ok(())
+        }.await;
+        if let Some(task) = rpc.take() { task.abort(); let _ = task.await; }
+        let _ = resume_tx.send(());
+        let completed = complete_rx.recv_timeout(Duration::from_secs(30));
+        OBSERVATIONS.lock().unwrap().remove(&project);
+        let collected = ps.search.purge_old_generations(&project, 2).await;
+        let final_count = ps.search.count_docs(&project);
+        drop(ps); drop(engram); drop(state);
+        let closed = temp.close();
+        observed?;
+        completed?;
+        collected?;
+        anyhow::ensure!(final_count? == 1, "Obsolete row was retained after the actual worker ended");
+        closed?;
+        Ok(())
     }
 }
 

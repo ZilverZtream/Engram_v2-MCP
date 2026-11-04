@@ -6,6 +6,10 @@ use std::time::{Duration, Instant};
 use tokio::sync::broadcast::Receiver;
 use tokio::sync::mpsc;
 
+#[cfg(test)]
+#[path = "watcher/behavior_tests.rs"]
+pub(crate) mod behavior_tests;
+
 /// CANCEL1: watcher now accepts a shutdown token, matching the contract of
 /// dreamer/immune/gc so all background actors exit cooperatively on shutdown.
 pub async fn run_watcher(
@@ -97,6 +101,8 @@ pub async fn run_watcher(
                                 canon.display()
                             );
                         } else {
+                            #[cfg(test)]
+                            behavior_tests::ready(&pid, true);
                             watchers.insert(pid, watcher);
                         }
                     }
@@ -131,9 +137,9 @@ pub async fn run_watcher(
                         }
                     };
                     for pid in dirty.drain() {
-                        pending_updates
+                        if watchers.contains_key(&pid) { pending_updates
                             .entry(pid)
-                            .or_insert_with(|| Instant::now() + debounce_duration);
+                            .or_insert_with(|| Instant::now() + debounce_duration); }
                     }
                 } // MutexGuard dropped here, before any .await below
 
@@ -152,7 +158,6 @@ pub async fn run_watcher(
                         tracing::info!("watcher: shutdown detected mid-scan — exiting");
                         return;
                     }
-                    update_cancels.remove(&pid);
                     // CANCEL2: second cancel check immediately before the mutex await so
                     // the shutdown-to-yield distance stays within the ±5-line policy.
                     if shutdown.is_cancelled() {
@@ -179,9 +184,14 @@ pub async fn run_watcher(
                         );
                         continue;
                     }
+                    // Keep the running update's cancellation handle while a
+                    // later event is rescheduled behind it.
+                    update_cancels.remove(&pid);
                     pending_updates.remove(&pid);
 
                     tracing::info!("Watcher: triggering update for project {}", pid);
+                    #[cfg(test)]
+                    behavior_tests::admitted(&pid);
                     let state_clone = state.clone();
                     let in_flight_clone = in_flight.clone();
                     let cancel = tokio_util::sync::CancellationToken::new();
@@ -248,10 +258,14 @@ pub async fn run_watcher(
                         let new_gen = active_gen.saturating_add(1);
                         let max_commits = state_clone.cfg.max_commits_per_watch;
                         let engram = crate::tools::Engram::new(state_clone);
-                        if let Err(e) = engram
+                        #[cfg(test)]
+                        behavior_tests::started(&pid);
+                        let update_result = engram
                             .update_project_impl(&pid, new_gen, max_commits, false, &cancel)
-                            .await
-                        {
+                            .await;
+                        #[cfg(test)]
+                        behavior_tests::finished(&pid, update_result.as_ref().err().map(|error| error.to_string()), cancel.is_cancelled());
+                        if let Err(e) = update_result {
                             let msg = format!("{e:#}");
                             if cancel.is_cancelled() || is_cancellation_error(&msg) {
                                 // A superseded update — or lance-io cancelling its
@@ -273,6 +287,8 @@ pub async fn run_watcher(
                         // _guard drops here, removing the in-flight marker.
                     });
                 }
+                #[cfg(test)]
+                behavior_tests::tick();
             }
             maybe_ev = rx.recv() => {
                 match maybe_ev {
@@ -299,6 +315,8 @@ pub async fn run_watcher(
                                                         project_id, canon.display()
                                                     );
                                                 } else {
+                                                    #[cfg(test)]
+                                                    behavior_tests::ready(&project_id, true);
                                                     watchers.insert(project_id, watcher);
                                                 }
                                             }
@@ -315,6 +333,8 @@ pub async fn run_watcher(
                                 if let Some(token) = update_cancels.remove(&project_id) {
                                     token.cancel();
                                 }
+                                #[cfg(test)]
+                                behavior_tests::ready(&project_id, false);
                             }
                         }
                     }
@@ -326,13 +346,17 @@ pub async fn run_watcher(
                 let Some((pid, res)) = maybe_notify else { continue; };
                 match res {
                     Ok(event) => {
-                        if event_should_arm_update(&event) {
+                        // The callback has already applied project-relative
+                        // filtering. Rechecking its absolute path here would
+                        // reject explicitly watched projects below e.g. target/.
+                        // A removed watcher may still have queued callbacks.
+                        if watchers.contains_key(&pid) {
                             pending_updates.insert(pid, Instant::now() + debounce_duration);
                         } else {
                             tracing::trace!(
                                 project_id = %pid,
                                 paths = ?event.paths,
-                                "Watcher: ignoring event on non-indexable path"
+                                "Watcher: ignoring queued event for an inactive project"
                             );
                         }
                     }
@@ -522,11 +546,11 @@ impl ProjectWatchFilter {
     }
 
     fn accepts(&self, event: &notify::Event) -> bool {
-        if !event_should_arm_update(event) { return false; }
+        if !(event.kind.is_modify() || event.kind.is_create() || event.kind.is_remove()) { return false; }
         if event.paths.is_empty() { return true; }
         event.paths.iter().any(|path| {
-            if !watch_event_is_indexable(path) || Self::relative_to(path, &self.data_dir).is_some() { return false; }
             let Some(relative) = Self::relative_to(path, &self.root) else { return false; };
+            if !watch_event_is_indexable(&relative) || Self::relative_to(path, &self.data_dir).is_some() { return false; }
             if path.file_name().is_some_and(|name| name == ".gitignore" || name == ".ignore") { return true; }
             let unknown_removed_or_renamed = !path.exists() && matches!(event.kind,
                 notify::EventKind::Remove(notify::event::RemoveKind::Any | notify::event::RemoveKind::Other)
@@ -559,6 +583,8 @@ fn create_watcher(
         move |res: notify::Result<notify::Event>| {
             if let Ok(event) = &res {
                 let eligible = filter.as_ref().map_or_else(|| event_should_arm_update(event), |filter| filter.accepts(event));
+                #[cfg(test)]
+                behavior_tests::event(&pid, event, eligible);
                 if !eligible { return; }
             }
             // AUD-2026-INV-0006 / ENG-AUD-2026-EXH-0005: use try_send so the OS

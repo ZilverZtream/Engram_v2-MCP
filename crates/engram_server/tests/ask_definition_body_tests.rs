@@ -109,6 +109,7 @@ async fn the_definition_evidence_carries_the_body_so_a_named_callee_is_covered()
         });
     }
     let ctx = RetrievalCtx {
+        source_view: None,
         insights_enabled: true,
         search: ps.search.clone(),
         graph: state.graph.clone(),

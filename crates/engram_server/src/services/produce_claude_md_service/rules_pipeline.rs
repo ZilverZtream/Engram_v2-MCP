@@ -1,6 +1,11 @@
 //! Rules pipeline for `produce_claude_md` — turns raw repo-rule dumps
 //! into a crisp, curated `<critical_rules>` section.
 //!
+//! Compatibility/advisory helper only. Production policy generation starts
+//! with `instruction_plan::Plan`: this older projection loses original scope
+//! and identity, so its output must not replace authored policy or promote a
+//! review workflow outcome into a new mandate.
+//!
 //! ## Why this exists
 //!
 //! The naive path — `list_repo_rules` → map each row to a `CriticalRule`

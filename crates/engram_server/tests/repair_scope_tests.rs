@@ -31,6 +31,9 @@ async fn setup() -> (tempfile::TempDir, AppState, engram_server::Engram, String)
     let root = tmp.path().join("repo");
     let data_dir = tmp.path().join("data");
     std::fs::create_dir_all(root.join("src")).unwrap();
+    // Fixtures live below the checkout's shared target. Stop Git discovery at
+    // this project so a repair cannot walk the parent Engram repository.
+    drop(git2::Repository::init(&root).unwrap());
     std::fs::write(
         root.join("src/lib.rs"),
         "pub fn alpha() -> u8 { 1 }\npub fn beta() -> u8 { 2 }\n",
@@ -42,7 +45,7 @@ async fn setup() -> (tempfile::TempDir, AppState, engram_server::Engram, String)
         data_dir,
         max_project_files: Some(50),
         max_project_bytes: Some(1024 * 1024),
-        embedding_backend: "fts_only".into(),
+        embedding_backend: if cfg!(feature = "vector") { "local" } else { "fts_only" }.into(),
         max_concurrent_jobs: 2,
         ..Default::default()
     };
@@ -75,6 +78,13 @@ async fn active_generation(state: &AppState, pid: &str) -> u64 {
         .unwrap()
 }
 
+async fn finish_background_jobs(state: &AppState) {
+    let jobs: Vec<_> = state.active_jobs.write().await.drain().map(|(_, handle)| handle).collect();
+    for job in jobs {
+        tokio::time::timeout(std::time::Duration::from_secs(20), job).await.unwrap().unwrap();
+    }
+}
+
 /// A narrow scope must NOT run a full reindex. The generation bump is the
 /// observable difference: a full repair advances it, a scoped purge does not.
 #[tokio::test]
@@ -82,16 +92,22 @@ async fn narrow_scope_does_not_reindex_the_project() {
     let (_tmp, state, engram, pid) = setup().await;
     let before = active_generation(&state, &pid).await;
 
-    engram
+    let result = engram
         .repair_project(Parameters(repair_request(&pid, "vector_only")))
-        .await
-        .expect("scoped repair must succeed");
+        .await;
+    #[cfg(feature = "vector")]
+    result.expect("scoped vector recovery must succeed with an embedding backend");
+    #[cfg(not(feature = "vector"))]
+    assert!(result.is_err(), "a build without vectors must refuse vector recovery");
 
     assert_eq!(
         active_generation(&state, &pid).await,
         before,
         "vector_only must not advance the generation — that is a full reindex"
     );
+    drop(engram);
+    drop(state);
+    _tmp.close().unwrap();
 }
 
 /// The default scope still does the full repair, which does advance the
@@ -105,11 +121,15 @@ async fn full_scope_still_reindexes() {
         .repair_project(Parameters(repair_request(&pid, "full")))
         .await
         .expect("full repair must succeed");
+    finish_background_jobs(&state).await;
 
     assert!(
         active_generation(&state, &pid).await > before,
         "full repair must re-index and advance the generation"
     );
+    drop(engram);
+    drop(state);
+    _tmp.close().unwrap();
 }
 
 /// graph_only must actually rebuild the graph, not just delete it. The
@@ -125,12 +145,16 @@ async fn graph_only_leaves_the_graph_populated() {
         .repair_project(Parameters(repair_request(&pid, "graph_only")))
         .await
         .expect("graph repair must succeed");
+    finish_background_jobs(&state).await;
 
     let after = state.graph.count_nodes(&pid).unwrap();
     assert!(
         after > 0,
         "graph_only must REBUILD the graph, not leave it empty ({before} nodes before, {after} after)"
     );
+    drop(engram);
+    drop(state);
+    _tmp.close().unwrap();
 }
 
 /// An unknown scope must be rejected, not silently upgraded to a full
@@ -156,4 +180,7 @@ async fn unknown_scope_is_rejected() {
         before,
         "a rejected request must not have done any work"
     );
+    drop(engram);
+    drop(state);
+    _tmp.close().unwrap();
 }

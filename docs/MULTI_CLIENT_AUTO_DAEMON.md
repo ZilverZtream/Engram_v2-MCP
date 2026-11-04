@@ -5,6 +5,18 @@
 **Target release:** v0.7 (behind flag) → v0.8 (default on)
 **Related docs:** `ARCHITECTURE.md`, `DATA_MODEL.md`, `GENERATION_MODEL.md`
 
+Windows shared-daemon startup requests `CREATE_BREAKAWAY_FROM_JOB` for the
+launcher and daemon. Console detachment, a process group and an intermediate
+parent do not by themselves isolate the daemon from an MCP host's Windows Job.
+The host must allow breakaway; restrictive/nested Job policies may refuse it.
+An already running independent daemon can still accept those clients.
+
+When `multi_client_daemon: true`, a spawn failure is an explicit error rather
+than an automatic in-process-primary fallback. Explicit
+`multi_client_daemon: false` keeps the existing in-process mode and its host
+lifetime. This does not claim support for every host Job or prove the cause of
+a historical installed daemon exit.
+
 ---
 
 ## 1. Problem statement

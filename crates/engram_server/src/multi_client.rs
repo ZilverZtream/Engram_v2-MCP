@@ -9,7 +9,7 @@
 //! shared DETACHED daemon over local IPC (Windows named pipe / Unix
 //! domain socket). The daemon owns all storage, survives any single
 //! session closing, and idle-exits when the last client disconnects.
-//! Fallback (`multi_client_daemon: false` or daemon spawn failure):
+//! Explicit in-process mode (`multi_client_daemon: false`):
 //! lock election — the winning process becomes an in-process primary
 //! serving both its own stdio and the IPC listener; losers proxy.
 //!
@@ -306,9 +306,9 @@ pub fn resolve_socket_path(cfg: &Config) -> PathBuf {
 /// outlives any individual MCP session, so closing the first Claude Code
 /// window no longer severs every other window's Engram connection.
 ///
-/// Fallback flow (`multi_client_daemon: false`, or the daemon binary
-/// cannot be spawned): the pre-daemon behavior — lock election, winner
-/// becomes an in-process primary, losers proxy to it.
+/// Explicit in-process flow (`multi_client_daemon: false`): lock election,
+/// winner becomes an in-process primary, losers proxy to it. Requested shared
+/// daemon mode refuses spawn failure rather than coupling peers to this client.
 pub async fn dispatch(cfg: Config) -> anyhow::Result<()> {
     let data_dir = cfg.data_dir.clone();
     // `data_dir` must exist before we try to put a lock file in it.
@@ -320,10 +320,11 @@ pub async fn dispatch(cfg: Config) -> anyhow::Result<()> {
         match run_client(&cfg, &metadata_path, &socket_path).await {
             ClientOutcome::Served(result) => return result,
             ClientOutcome::SpawnUnavailable(e) => {
-                tracing::warn!(
-                    "could not spawn detached daemon ({e:#}); \
-                     falling back to in-process primary election"
-                );
+                return Err(anyhow::anyhow!(
+                    "Shared daemon creation failed; refusing an in-process primary tied to this client's lifetime. \
+                     On Windows the host Job must permit process breakaway, or an independent daemon must already be running. \
+                     Explicit multi_client_daemon=false retains in-process mode: {e:#}"
+                ));
             }
         }
     }
@@ -340,8 +341,8 @@ pub async fn dispatch(cfg: Config) -> anyhow::Result<()> {
 enum ClientOutcome {
     /// A session ran (successfully or not) — the process is done.
     Served(anyhow::Result<()>),
-    /// The daemon could not even be spawned — caller should fall back to
-    /// in-process primary election so the user still gets a working server.
+    /// Shared daemon creation failed. Caller must report refusal rather than
+    /// silently making this MCP session the owner of other clients' storage.
     SpawnUnavailable(anyhow::Error),
 }
 
@@ -489,8 +490,9 @@ fn unset_std_handle_inheritance() {
 ///
 /// Windows: spawn a short-lived `--daemon-launcher` intermediary which
 /// spawns the real `--daemon` process DETACHED and exits immediately.
-/// The extra hop breaks the parent chain, so a host-side tree-kill of
-/// this client (taskkill /T) cannot reach the daemon.
+/// Both hops request Job breakaway: detaching a console/process group and
+/// exiting a parent do not remove inherited Windows Job membership. A host
+/// Job must permit breakaway; failure is explicit, with no coupled retry.
 ///
 /// Unix: spawn `--daemon` directly into its own process group; group
 /// signals aimed at the client can't touch it, and it reparents to init
@@ -509,8 +511,9 @@ fn spawn_daemon_detached() -> anyhow::Result<()> {
         use std::os::windows::process::CommandExt as _;
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+        const CREATE_BREAKAWAY_FROM_JOB: u32 = 0x0100_0000;
         cmd.arg("--daemon-launcher");
-        cmd.creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP);
+        cmd.creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB);
     }
     #[cfg(unix)]
     {
@@ -540,7 +543,8 @@ pub fn run_daemon_launcher() -> anyhow::Result<()> {
         use std::os::windows::process::CommandExt as _;
         const DETACHED_PROCESS: u32 = 0x0000_0008;
         const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
-        cmd.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
+        const CREATE_BREAKAWAY_FROM_JOB: u32 = 0x0100_0000;
+        cmd.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB);
     }
     #[cfg(unix)]
     {

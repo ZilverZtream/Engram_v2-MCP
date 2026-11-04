@@ -1,6 +1,6 @@
 use crate::analysis::compute_pagerank;
 use engram_core::RelPath;
-use redb::{Database, ReadableTable, TableDefinition};
+use redb::{Database, ReadableTable, TableDefinition, TableHandle};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
@@ -8,6 +8,14 @@ use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+mod atomic_learning;
+use atomic_learning::{increment_edges_in_tx, upsert_nodes_in_tx};
+
+mod source_stat;
+mod file_metadata_scan;
+mod centrality_cache;
+pub use source_stat::{FileStatPatch, FileStatPatchReport, VerifiedFileStat, file_metadata_digest};
 
 // ─── Table definitions ───────────────────────────────────────────────────────
 // v2 tables use bincode serialization for Node/Edge and composite keys for
@@ -376,16 +384,49 @@ impl GraphStore {
         }
         let db = engram_core::storage::open_database(db_path, engram_core::storage::DatabaseCache::Graph)?;
 
-        // Drop legacy v1 tables (JSON-serialized, single-key adjacency).
-        // Data loss is acceptable — the graph is a derived index rebuilt on
-        // the next project update/indexing run.
-        {
+        let legacy_tables = ["nodes", "edges", "adj_out", "adj_in"];
+        // Opening typed tables validates the current schema. A missing table
+        // permits initialization; other errors must not become a schema repair.
+        let (needs_init, has_legacy) = {
+            let rtx = db.begin_read()?;
+            let mut missing = false;
+            for result in [
+                rtx.open_table(NODES).map(drop),
+                rtx.open_table(EDGES).map(drop),
+                rtx.open_table(ADJ_OUT).map(drop),
+                rtx.open_table(ADJ_IN).map(drop),
+                rtx.open_table(META).map(drop),
+                rtx.open_table(CENTRALITY).map(drop),
+                rtx.open_table(INSIGHT_FINGERPRINTS).map(drop),
+            ] {
+                match result {
+                    Ok(()) => {}
+                    Err(redb::TableError::TableDoesNotExist(_)) => missing = true,
+                    Err(error) => return Err(error.into()),
+                }
+            }
+            let has_legacy = rtx.list_tables()?.any(|table| legacy_tables.contains(&table.name()));
+            (missing, has_legacy)
+        };
+
+        // Drop only obsolete v1 graph tables and preserve the current graph.
+        // The read transaction and its table handles are gone before writing.
+        if needs_init || has_legacy {
             let wtx = db.begin_write()?;
             let mut dropped = Vec::new();
-            for name in ["nodes", "edges", "adj_out", "adj_in"] {
-                if let Ok(true) = wtx.delete_table(TableDefinition::<&str, &[u8]>::new(name)) {
-                    dropped.push(name)
+            for name in legacy_tables {
+                if wtx.delete_table(TableDefinition::<&str, &[u8]>::new(name))? {
+                    dropped.push(name);
                 }
+            }
+            {
+                let _ = wtx.open_table(NODES)?;
+                let _ = wtx.open_table(EDGES)?;
+                let _ = wtx.open_table(ADJ_OUT)?;
+                let _ = wtx.open_table(ADJ_IN)?;
+                let _ = wtx.open_table(META)?;
+                let _ = wtx.open_table(CENTRALITY)?;
+                let _ = wtx.open_table(INSIGHT_FINGERPRINTS)?;
             }
             wtx.commit()?;
             if !dropped.is_empty() {
@@ -396,19 +437,6 @@ impl GraphStore {
                 );
             }
         }
-
-        // Ensure v2 tables exist.
-        let wtx = db.begin_write()?;
-        {
-            let _ = wtx.open_table(NODES)?;
-            let _ = wtx.open_table(EDGES)?;
-            let _ = wtx.open_table(ADJ_OUT)?;
-            let _ = wtx.open_table(ADJ_IN)?;
-            let _ = wtx.open_table(META)?;
-            let _ = wtx.open_table(CENTRALITY)?;
-            let _ = wtx.open_table(INSIGHT_FINGERPRINTS)?;
-        }
-        wtx.commit()?;
 
         Ok(Self { db: Arc::new(db) })
     }
@@ -503,36 +531,7 @@ impl GraphStore {
         }
         validate_key_component("project_id", project_id)?;
         let wtx = self.db.begin_write()?;
-        {
-            let mut nt = wtx.open_table(NODES)?;
-            for n in nodes {
-                validate_key_component("node_id", &n.node_id)?;
-                let key = format!("{project_id}\0{}", n.node_id);
-                // Metadata-preserving upsert: many writers create nodes only
-                // as edge endpoints (dreamer, explain-change) and carry
-                // metadata: None. A last-writer-wins overwrite nulled the
-                // ingest fingerprints (mtime/size/hash) on file nodes, so
-                // change detection re-indexed the same ~1000 files on every
-                // update_project forever. Absent metadata means "no opinion",
-                // not "clear".
-                let val = if n.metadata.is_none() {
-                    let existing_meta = nt
-                        .get(key.as_str())?
-                        .and_then(|g| bincode::deserialize::<Node>(g.value()).ok())
-                        .and_then(|old| old.metadata);
-                    if let Some(meta) = existing_meta {
-                        let mut merged = n.clone();
-                        merged.metadata = Some(meta);
-                        bincode::serialize(&merged)?
-                    } else {
-                        bincode::serialize(n)?
-                    }
-                } else {
-                    bincode::serialize(n)?
-                };
-                nt.insert(key.as_str(), val.as_slice())?;
-            }
-        }
+        upsert_nodes_in_tx(&wtx, project_id, nodes)?;
         wtx.commit()?;
         Ok(())
     }
@@ -557,30 +556,7 @@ impl GraphStore {
 
         let wtx = self.db.begin_write()?;
         {
-            if !nodes.is_empty() {
-                let mut nt = wtx.open_table(NODES)?;
-                for n in nodes {
-                    let key = format!("{project_id}\0{}", n.node_id);
-                    // Same metadata-preserving rule as upsert_nodes: absent
-                    // metadata must not clear an existing record's metadata.
-                    let val = if n.metadata.is_none() {
-                        let existing_meta = nt
-                            .get(key.as_str())?
-                            .and_then(|g| bincode::deserialize::<Node>(g.value()).ok())
-                            .and_then(|old| old.metadata);
-                        if let Some(meta) = existing_meta {
-                            let mut merged = n.clone();
-                            merged.metadata = Some(meta);
-                            bincode::serialize(&merged)?
-                        } else {
-                            bincode::serialize(n)?
-                        }
-                    } else {
-                        bincode::serialize(n)?
-                    };
-                    nt.insert(key.as_str(), val.as_slice())?;
-                }
-            }
+            upsert_nodes_in_tx(&wtx, project_id, nodes)?;
 
             if !edges.is_empty() {
                 let mut et = wtx.open_table(EDGES)?;
@@ -861,59 +837,8 @@ impl GraphStore {
             validate_key_component("source_id", src)?;
             validate_key_component("target_id", tgt)?;
         }
-        let now = now_ms();
         let wtx = self.db.begin_write()?;
-        {
-            let mut et = wtx.open_table(EDGES)?;
-            let mut adj_out_t = wtx.open_table(ADJ_OUT)?;
-            let mut adj_in_t = wtx.open_table(ADJ_IN)?;
-
-            for (kind, source_id, target_id, delta) in increments {
-                let key = edge_key(project_id, kind, source_id, target_id);
-
-                let maybe_edge = {
-                    let existing = et.get(key.as_str())?;
-                    if let Some(v) = existing {
-                        bincode::deserialize::<Edge>(v.value()).ok()
-                    } else {
-                        None
-                    }
-                };
-
-                let final_edge = if let Some(mut e) = maybe_edge {
-                    e.weight = e.weight.saturating_add(*delta);
-                    e.updated_at_ms = now;
-                    e.generation = generation;
-                    e
-                } else {
-                    Edge {
-                        source_id: source_id.clone(),
-                        target_id: target_id.clone(),
-                        namespace: namespace.to_string(),
-                        language: language.to_string(),
-                        edge_kind: kind.clone(),
-                        weight: *delta,
-                        generation,
-                        metadata: None,
-                        updated_at_ms: now,
-                    }
-                };
-
-                let new_weight = final_edge.weight;
-                let bytes = bincode::serialize(&final_edge)?;
-                et.insert(key.as_str(), bytes.as_slice())?;
-
-                let adj_val = encode_adj_value(new_weight, now);
-                let out_prefix = adj_key(project_id, kind, source_id);
-                adj_out_t.insert(
-                    (out_prefix.as_str(), target_id.as_str()),
-                    adj_val.as_slice(),
-                )?;
-
-                let in_prefix = adj_key(project_id, kind, target_id);
-                adj_in_t.insert((in_prefix.as_str(), source_id.as_str()), adj_val.as_slice())?;
-            }
-        }
+        increment_edges_in_tx(&wtx, project_id, namespace, language, generation, increments)?;
         wtx.commit()?;
         Ok(())
     }
@@ -1651,22 +1576,7 @@ impl GraphStore {
         &self,
         project_id: &str,
     ) -> anyhow::Result<Vec<(RelPath, Option<serde_json::Value>)>> {
-        let prefix = format!("{project_id}\0");
-        let rtx = self.db.begin_read()?;
-        let nt = rtx.open_table(NODES)?;
-        let mut out = Vec::new();
-        for r in nt.range(prefix.as_str()..)? {
-            let (k, v) = r?;
-            if !k.value().starts_with(&prefix) {
-                break;
-            }
-            let n: Node = bincode::deserialize(v.value())?;
-            if n.node_type != "file" {
-                continue;
-            }
-            out.push((n.file_path, n.metadata));
-        }
-        Ok(out)
+        file_metadata_scan::scan(self, project_id, |path, metadata, _| (path, metadata))
     }
 
     /// File fingerprints with their graph generation, read in one transaction.
@@ -1676,21 +1586,7 @@ impl GraphStore {
         &self,
         project_id: &str,
     ) -> anyhow::Result<Vec<(RelPath, Option<serde_json::Value>, u64)>> {
-        let prefix = format!("{project_id}\0");
-        let rtx = self.db.begin_read()?;
-        let nt = rtx.open_table(NODES)?;
-        let mut out = Vec::new();
-        for row in nt.range(prefix.as_str()..)? {
-            let (key, value) = row?;
-            if !key.value().starts_with(&prefix) {
-                break;
-            }
-            let node: Node = bincode::deserialize(value.value())?;
-            if node.node_type == "file" {
-                out.push((node.file_path, node.metadata, node.generation));
-            }
-        }
-        Ok(out)
+        file_metadata_scan::scan(self, project_id, |path, metadata, generation| (path, metadata, generation))
     }
 
     pub fn count_nodes(&self, project_id: &str) -> anyhow::Result<usize> {
@@ -2155,44 +2051,7 @@ impl GraphStore {
             return Ok(cached);
         }
         let computed = compute_pagerank(self, project_id, generation)?;
-        if let Err(e) = self.set_cached_centrality(project_id, generation, &computed.pagerank) {
-            tracing::warn!(
-                "centrality cache write failed for {project_id} gen {generation}: {e:#}"
-            );
-        }
         Ok(computed.pagerank)
-    }
-
-    pub fn get_cached_centrality(
-        &self,
-        project_id: &str,
-        generation: u64,
-    ) -> anyhow::Result<Option<HashMap<String, f32>>> {
-        let rtx = self.db.begin_read()?;
-        let ct = rtx.open_table(CENTRALITY)?;
-        let key = format!("{project_id}\0{generation}");
-        let Some(v) = ct.get(key.as_str())? else {
-            return Ok(None);
-        };
-        let map: HashMap<String, f32> = serde_json::from_slice(v.value())?;
-        Ok(Some(map))
-    }
-
-    pub fn set_cached_centrality(
-        &self,
-        project_id: &str,
-        generation: u64,
-        metrics: &HashMap<String, f32>,
-    ) -> anyhow::Result<()> {
-        let wtx = self.db.begin_write()?;
-        {
-            let mut ct = wtx.open_table(CENTRALITY)?;
-            let key = format!("{project_id}\0{generation}");
-            let val = serde_json::to_vec(metrics)?;
-            ct.insert(key.as_str(), val.as_slice())?;
-        }
-        wtx.commit()?;
-        Ok(())
     }
 
     // ── Delete project ───────────────────────────────────────────────────────
@@ -4157,8 +4016,146 @@ impl std::ops::Deref for TemporaryGraphStore {
 mod tests {
     use super::*;
 
+    #[test]
+    fn ready_store_reopen_preserves_graph_payload_and_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("graph.redb");
+        let node = test_node("sentinel", "function", "Authorize", "auth.vb");
+        {
+            let store = GraphStore::open(&path).unwrap();
+            store.upsert_nodes("project", &[node.clone()]).unwrap();
+        }
+        let fingerprint = || {
+            let bytes = std::fs::read(&path).unwrap();
+            (bytes.len(), blake3::hash(&bytes))
+        };
+        let before = fingerprint();
+        for _ in 0..2 {
+            {
+                let store = GraphStore::open(&path).unwrap();
+                let loaded = store.get_node("project", "sentinel").unwrap().unwrap();
+                assert_eq!(serde_json::to_value(loaded).unwrap(), serde_json::to_value(&node).unwrap());
+            }
+            assert_eq!(fingerprint(), before, "Reading a ready graph must preserve its closed file");
+        }
+    }
+
+    #[test]
+    fn ready_store_reopen_initializes_partial_graph_without_losing_nodes() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("graph.redb");
+        let node = test_node("sentinel", "function", "Authorize", "auth.vb");
+        {
+            let db = engram_core::storage::open_database(&path, engram_core::storage::DatabaseCache::Graph).unwrap();
+            let bytes = bincode::serialize(&node).unwrap();
+            let wtx = db.begin_write().unwrap();
+            { wtx.open_table(NODES).unwrap().insert("project\0sentinel", bytes.as_slice()).unwrap(); }
+            wtx.commit().unwrap();
+        }
+        let store = GraphStore::open(&path).unwrap();
+        assert_eq!(store.get_node("project", "sentinel").unwrap().unwrap().name, "Authorize");
+        store.upsert_nodes("project", &[test_node("new", "function", "New", "new.vb")]).unwrap();
+        assert_eq!(store.get_node("project", "new").unwrap().unwrap().name, "New");
+        let rtx = store.db.begin_read().unwrap();
+        assert!(rtx.open_table(ADJ_OUT).unwrap().iter().unwrap().next().is_none());
+    }
+
+    #[test]
+    fn ready_store_reopen_drops_legacy_tables_and_preserves_current_graph() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("graph.redb");
+        {
+            let store = GraphStore::open(&path).unwrap();
+            store.upsert_nodes("project", &[test_node("sentinel", "function", "Authorize", "auth.vb")]).unwrap();
+            let wtx = store.db.begin_write().unwrap();
+            for name in ["nodes", "edges", "adj_out", "adj_in"] {
+                wtx.open_table(TableDefinition::<&str, &[u8]>::new(name)).unwrap()
+                    .insert("old-node", b"obsolete derived graph".as_slice()).unwrap();
+            }
+            wtx.commit().unwrap();
+        }
+        {
+            let store = GraphStore::open(&path).unwrap();
+            assert_eq!(store.get_node("project", "sentinel").unwrap().unwrap().name, "Authorize");
+            let rtx = store.db.begin_read().unwrap();
+            for name in ["nodes", "edges", "adj_out", "adj_in"] {
+                assert!(matches!(rtx.open_table(TableDefinition::<&str, &[u8]>::new(name)),
+                    Err(redb::TableError::TableDoesNotExist(_))), "Legacy table {name} must be retired");
+            }
+        }
+        let fingerprint = || {
+            let bytes = std::fs::read(&path).unwrap();
+            (bytes.len(), blake3::hash(&bytes))
+        };
+        let after_migration = fingerprint();
+        {
+            let store = GraphStore::open(&path).unwrap();
+            assert!(store.get_node("project", "sentinel").unwrap().is_some());
+        }
+        assert_eq!(fingerprint(), after_migration, "Completed legacy cleanup must not repeat writes");
+    }
+
+    #[test]
+    fn ready_store_reopen_rejects_wrong_graph_type_before_legacy_cleanup() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("graph.redb");
+        let wrong = TableDefinition::<u64, u64>::new("adj_in_v2");
+        let legacy = TableDefinition::<&str, &[u8]>::new("nodes");
+        {
+            let db = engram_core::storage::open_database(&path, engram_core::storage::DatabaseCache::Graph).unwrap();
+            let wtx = db.begin_write().unwrap();
+            for table in [NODES, EDGES, META, CENTRALITY, INSIGHT_FINGERPRINTS] {
+                let _ = wtx.open_table(table).unwrap();
+            }
+            { let _ = wtx.open_table(ADJ_OUT).unwrap(); }
+            { wtx.open_table(wrong).unwrap().insert(7, 42).unwrap(); }
+            { wtx.open_table(legacy).unwrap().insert("old", b"preserve on failure".as_slice()).unwrap(); }
+            wtx.commit().unwrap();
+        }
+        let error = GraphStore::open(&path).err().expect("Wrong current table type must be rejected");
+        assert!(matches!(error.downcast_ref::<redb::TableError>(), Some(redb::TableError::TableTypeMismatch { .. })));
+        let db = engram_core::storage::open_database(&path, engram_core::storage::DatabaseCache::Graph).unwrap();
+        let rtx = db.begin_read().unwrap();
+        assert_eq!(rtx.open_table(wrong).unwrap().get(7).unwrap().unwrap().value(), 42);
+        assert_eq!(rtx.open_table(legacy).unwrap().get("old").unwrap().unwrap().value(), b"preserve on failure");
+        assert!(rtx.open_table(NODES).unwrap().iter().unwrap().next().is_none());
+    }
+
     fn test_store() -> TemporaryGraphStore {
         TemporaryGraphStore::new()
+    }
+
+    #[test]
+    fn owned_graph_fixture_removes_its_database_after_completion() {
+        let path;
+        {
+            let store = test_store();
+            path = store._directory.path().to_owned();
+            store.upsert_nodes("project", &[test_node("owned", "function", "Owned", "owned.rs")])
+                .expect("write real graph fixture");
+            assert!(store.get_node("project", "owned").unwrap().is_some());
+            assert!(path.join("graph.redb").is_file());
+            let _read = store.db.begin_read().expect("hold a real read transaction");
+        }
+        assert!(!path.exists(), "Completed graph fixtures must release their files");
+    }
+
+    #[test]
+    fn owned_graph_fixture_removes_its_database_when_a_consumer_panics() {
+        let mut path = None;
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let store = test_store();
+            path = Some(store._directory.path().to_owned());
+            store.upsert_nodes("project", &[test_node("owned", "function", "Owned", "owned.rs")])
+                .expect("write real graph fixture");
+            assert!(store.get_node("project", "owned").unwrap().is_some());
+            assert!(path.as_ref().unwrap().join("graph.redb").is_file());
+            let _read = store.db.begin_read().expect("hold a real read transaction");
+            panic!("Simulated graph-fixture consumer failure");
+        }));
+        assert!(result.is_err(), "The consumer failure must actually unwind");
+        let path = path.expect("The fixture must have existed before failure");
+        assert!(!path.exists(), "Failed graph consumers must release their owned files");
     }
 
     fn test_node(node_id: &str, node_type: &str, name: &str, file_path: &str) -> Node {

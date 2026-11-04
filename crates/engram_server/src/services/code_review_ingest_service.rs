@@ -467,12 +467,12 @@ pub async fn ingest_code_review_history(
         let (kind, disposition) = match rule.llm_resolution {
             Some(LlmResolution::Fixed) => (DecisionKind::ClaimedFix, "llm_classified_fixed"),
             Some(LlmResolution::Dismissed) => {
-                (DecisionKind::AcceptedException, "llm_classified_dismissed")
+                (DecisionKind::Open, "llm_classified_dismissed")
             }
             Some(LlmResolution::Unknown) => (DecisionKind::Open, "llm_unclassified"),
             None => match rule.fix_status {
                 ThreadStatus::Fixed => (DecisionKind::ClaimedFix, "fixed"),
-                ThreadStatus::WontFix => (DecisionKind::AcceptedException, "wont_fix"),
+                ThreadStatus::WontFix => (DecisionKind::Open, "wont_fix"),
                 ThreadStatus::Active => (DecisionKind::Open, "active"),
                 ThreadStatus::Closed => (DecisionKind::Open, "closed_unclassified"),
                 ThreadStatus::Unknown => (DecisionKind::Open, "unknown"),
@@ -533,6 +533,14 @@ pub async fn ingest_code_review_history(
                 .find(|event| event.event_id == decision.event_id)
             {
                 decision.supersedes = old.supersedes.clone();
+                if decision.kind == crate::handlers::review_decisions::DecisionKind::Open
+                    && crate::handlers::review_decisions::workflow_disposition_only(old)
+                {
+                    // Preserve exact old imported events on a rescan. Readers
+                    // expose their workflow-only authority explicitly instead
+                    // of rewriting historical evidence or event identities.
+                    decision.kind = old.kind.clone();
+                }
             } else {
                 decision.supersedes = latest_by_finding.get(&decision.finding_id).cloned();
                 latest_by_finding.insert(decision.finding_id.clone(), decision.event_id.clone());

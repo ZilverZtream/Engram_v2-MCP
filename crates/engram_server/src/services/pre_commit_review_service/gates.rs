@@ -1548,13 +1548,9 @@ impl Gate for AntiPatternGate {
             if relevant.len() < 2 {
                 continue;
             }
-            // Suppression: if the diff matches ≥1 wontfix_patterns doc
-            // (scoped to this file's family) with real term overlap,
-            // dampen by one severity tier. This is the file-scoped
-            // false-positive suppression the team explicitly asked for
-            // via the wontFix threads — we don't discard the finding,
-            // we just downgrade it so it doesn't scream about a
-            // pattern someone already looked at and left alone.
+            // A workflow/LLM disposition is review context, not an accepted
+            // exception for current code. Preserve a relevant match as evidence
+            // without weakening the finding's independently derived severity.
             let mut strong_supp = false;
             for h in supp_hits.iter().take(5) {
                 // Round-2 audit P1-1: a missing/unreadable document degrades
@@ -1568,18 +1564,11 @@ impl Gate for AntiPatternGate {
                     break;
                 }
             }
-            let mut severity = if relevant.iter().any(|(_, ov)| *ov >= 0.5) {
+            let severity = if relevant.iter().any(|(_, ov)| *ov >= 0.5) {
                 Severity::Warning
             } else {
                 Severity::Info
             };
-            if strong_supp {
-                severity = match severity {
-                    Severity::Warning => Severity::Info,
-                    Severity::Info => Severity::Style,
-                    other => other,
-                };
-            }
 
             let mut evidence: Vec<String> = Vec::new();
             for (path, overlap) in &relevant {
@@ -1598,9 +1587,9 @@ impl Gate for AntiPatternGate {
                     "match = `{path}` (term overlap {overlap:.2}){source_label}"
                 ));
             }
-            if !supp_hits.is_empty() {
+            if strong_supp {
                 evidence.push(format!(
-                    "file-scoped suppressions (wontFix): {} match(es) — severity dampened",
+                    "prior workflow-disposition candidates: {} retrieved match(es); acceptance, scope and current revision applicability require review; severity unchanged",
                     supp_hits.len()
                 ));
             }

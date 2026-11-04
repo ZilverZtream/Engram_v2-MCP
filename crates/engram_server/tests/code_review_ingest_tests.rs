@@ -23,6 +23,7 @@ fn build_state() -> (tempfile::TempDir, AppState) {
     let project_dir = tmp.path().join("project");
     std::fs::create_dir_all(&data_dir).unwrap();
     std::fs::create_dir_all(&project_dir).unwrap();
+    drop(git2::Repository::init(&project_dir).unwrap());
     let cfg = Config {
         data_dir,
         allowed_roots: vec![project_dir],
@@ -91,6 +92,50 @@ fn mk_record(pr: u64, status: &str, file: &str, severity: &str, body: &str) -> s
     })
 }
 
+#[tokio::test]
+async fn unavailable_or_malformed_legacy_review_history_cannot_become_verified_or_empty_evidence() {
+    let (temporary, state) = build_state();
+    let pid = register_project(&state, &temporary).await;
+    let engram = Engram::new(state.clone());
+    let key = format!("review_decisions:{}", blake3::hash(b"PR-9").to_hex());
+    let invalid_verified = serde_json::json!({"event_id":"broken-check","finding_id":"thread:9","supersedes":null,
+        "kind":"verified_fix","source_url":"https://example.invalid/review","author":"Fixture",
+        "recorded_at":"2026-01-01","rationale":"No actual verification supplied.","verification":null});
+    let many = serde_json::json!({"event_id":"entry","finding_id":"thread:1","supersedes":null,"kind":"open",
+        "source_url":"https://example.invalid/review","author":"Fixture","recorded_at":"2026-01-01",
+        "rationale":"Imported observation.","verification":null});
+    for (encoded, expected) in [
+        (
+            serde_json::to_string(&vec![invalid_verified]).unwrap(),
+            "verified_fix requires",
+        ),
+        (
+            serde_json::to_string(&vec![many; 501]).unwrap(),
+            "exceeds 500",
+        ),
+        ("x".repeat(1024 * 1024 + 1), "exceeds"),
+    ] {
+        state.registry.set_meta(&pid, &key, &encoded).unwrap();
+        let error = engram
+            .handle_get_review_decisions(GetReviewDecisionsRequest {
+                project_id: pid.clone(),
+                review_id: "PR-9".into(),
+            discussion: None,
+            })
+            .await
+            .unwrap_err();
+        assert!(error.message.contains(expected), "{error:?}");
+        assert_eq!(
+            state.registry.get_meta(&pid, &key).unwrap().unwrap(),
+            encoded
+        );
+        assert!(engram.state.projects.is_empty());
+    }
+    drop(engram);
+    drop(state);
+    temporary.close().unwrap();
+}
+
 // ─── tests ──────────────────────────────────────────────────────────────────
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -148,7 +193,7 @@ async fn jsonl_ingest_indexes_clusters_and_separates_wontfix() {
     let path = write_fixture_jsonl(&tmp, &fixture);
 
     let config = IngestConfig {
-        source: IngestSource::JsonlFile { path },
+        source: IngestSource::JsonlFile { path: path.clone() },
         min_fix_rate: 0.5,
         ..Default::default()
     };
@@ -179,6 +224,7 @@ async fn jsonl_ingest_indexes_clusters_and_separates_wontfix() {
         .handle_get_review_decisions(GetReviewDecisionsRequest {
             project_id: project_id.clone(),
             review_id: "PR-4".into(),
+            discussion: None,
         })
         .await
         .unwrap();
@@ -186,9 +232,110 @@ async fn jsonl_ingest_indexes_clusters_and_separates_wontfix() {
         serde_json::from_str(&snapshot.content[0].as_text().unwrap().text).unwrap();
     assert_eq!(json["coverage"], "imported_events_only", "{json}");
     assert_eq!(
-        json["current"][0]["effective_status"], "accepted_exception",
+        json["current"][0]["effective_status"], "unverified_review_disposition",
         "{json}"
     );
+    assert_eq!(json["current"][0]["evidence"]["kind"], "open");
+    assert_eq!(json["automatic_finding_suppression"], false);
+
+    // Model the exact older importer row. Its raw evidence remains immutable,
+    // while current readers must not turn its workflow status into authority.
+    use engram_server::handlers::review_decisions::{DecisionKind, ReviewDecision};
+    let key = format!("review_decisions:{}", blake3::hash(b"PR-4").to_hex());
+    let mut legacy: Vec<ReviewDecision> =
+        serde_json::from_str(&state.registry.get_meta(&project_id, &key).unwrap().unwrap())
+            .unwrap();
+    legacy[0].kind = DecisionKind::AcceptedException;
+    let legacy_bytes = serde_json::to_string(&legacy).unwrap();
+    state
+        .registry
+        .set_meta(&project_id, &key, &legacy_bytes)
+        .unwrap();
+    let engram = Engram::new(state.clone());
+    let read = || GetReviewDecisionsRequest {
+        project_id: project_id.clone(),
+        review_id: "PR-4".into(),
+            discussion: None,
+    };
+    let response = engram.handle_get_review_decisions(read()).await.unwrap();
+    let legacy_view: serde_json::Value =
+        serde_json::from_str(&response.content[0].as_text().unwrap().text).unwrap();
+    assert_eq!(
+        legacy_view["current"][0]["effective_status"],
+        "unverified_review_disposition"
+    );
+    assert_eq!(
+        legacy_view["events"][0]["kind"], "accepted_exception",
+        "Retain original evidence instead of rewriting history"
+    );
+    assert_eq!(
+        state.registry.get_meta(&project_id, &key).unwrap().unwrap(),
+        legacy_bytes
+    );
+
+    let rescanned = ingest_code_review_history(
+        &state,
+        &project_id,
+        IngestConfig {
+            source: IngestSource::JsonlFile { path: path.clone() },
+            force_full_rescan: true,
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        rescanned.review_decisions_skipped, 0,
+        "Legacy event identity must not cause an immutable-record conflict"
+    );
+    assert_eq!(
+        state.registry.get_meta(&project_id, &key).unwrap().unwrap(),
+        legacy_bytes
+    );
+
+    // An explicit decision is separate evidence. Re-reading the same old
+    // importer record cannot remove or replace that later human declaration.
+    engram.handle_record_review_decisions(serde_json::from_value(serde_json::json!({
+        "project_id":project_id,"review_id":"PR-4","decisions":[{
+            "event_id":"owner-explicit-exception","finding_id":legacy[0].finding_id,
+            "supersedes":legacy[0].event_id,"kind":"accepted_exception",
+            "source_url":"https://example.test/review/owner-decision","author":"Owner",
+            "recorded_at":"2026-11-02T12:00:00Z",
+            "rationale":"Explicit exception only for caller-owned objects; retain all other guards.","verification":null
+        }]
+    })).unwrap()).await.unwrap();
+    ingest_code_review_history(
+        &state,
+        &project_id,
+        IngestConfig {
+            source: IngestSource::JsonlFile { path },
+            force_full_rescan: true,
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+    let response = engram.handle_get_review_decisions(read()).await.unwrap();
+    let explicit: serde_json::Value =
+        serde_json::from_str(&response.content[0].as_text().unwrap().text).unwrap();
+    assert_eq!(
+        explicit["current"][0]["event_id"],
+        "owner-explicit-exception"
+    );
+    assert_eq!(
+        explicit["current"][0]["effective_status"],
+        "accepted_exception"
+    );
+    assert!(
+        explicit["current"][0]["evidence"]["rationale"]
+            .as_str()
+            .unwrap()
+            .contains("retain all other guards")
+    );
+    assert_eq!(explicit["automatic_finding_suppression"], false);
+    drop(engram);
+    drop(state);
+    tmp.close().unwrap();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -243,14 +390,21 @@ async fn changed_thread_disposition_appends_a_superseding_event() {
         .handle_get_review_decisions(GetReviewDecisionsRequest {
             project_id,
             review_id: "PR-8".into(),
+            discussion: None,
         })
         .await
         .unwrap();
     let json: serde_json::Value =
         serde_json::from_str(&snapshot.content[0].as_text().unwrap().text).unwrap();
     assert_eq!(json["events"].as_array().unwrap().len(), 2, "{json}");
-    assert_eq!(json["current"][0]["effective_status"], "claimed_fix", "{json}");
-    assert!(json["current"][0]["evidence"]["supersedes"].is_string(), "{json}");
+    assert_eq!(
+        json["current"][0]["effective_status"], "claimed_fix",
+        "{json}"
+    );
+    assert!(
+        json["current"][0]["evidence"]["supersedes"].is_string(),
+        "{json}"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -324,7 +478,10 @@ async fn jsonl_ingest_excludes_reviews_after_historical_pr_boundary() {
     .await
     .unwrap();
 
-    assert_eq!(stats.total_raw, 2, "post-boundary PR must not enter the corpus");
+    assert_eq!(
+        stats.total_raw, 2,
+        "post-boundary PR must not enter the corpus"
+    );
     assert_eq!(stats.newest_pr_id, Some(101));
     assert!(stats.incremental_skipped_prs >= 1);
 }
@@ -353,7 +510,9 @@ async fn jsonl_ingest_excludes_reviews_at_or_after_completion_boundary() {
             force_full_rescan: true,
             ..Default::default()
         },
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     assert_eq!(stats.total_raw, 1);
     assert_eq!(stats.newest_pr_id, Some(200));

@@ -193,13 +193,13 @@ async fn lexical_search_accepts_all_valid_fts_modes() {
 
 // ── VEC1/X1: fail-closed when vector table is recreated ──────────────────────
 
-/// VEC1/X1: when `open_or_create_table` returns `Recreated` (schema mismatch),
+/// VEC1/X1: when the existing vector table has an incompatible schema,
 /// `index_docs` must return `Err` rather than silently degrading search quality.
 /// The Tantivy write is idempotent, so callers can retry after scheduling a
 /// full project reindex.
 #[cfg(feature = "vector")]
 #[tokio::test]
-async fn index_docs_fails_closed_when_vector_table_recreated() {
+async fn index_docs_fails_closed_when_vector_schema_is_incompatible() {
     let tmp = tempfile::TempDir::new().unwrap();
     let tantivy_dir = tmp.path().join("tantivy");
     let lance_dir = tmp.path().join("lance");
@@ -242,7 +242,7 @@ async fn index_docs_fails_closed_when_vector_table_recreated() {
 
     assert!(
         result.is_err(),
-        "VEC1/X1: index_docs must return Err when vector table was recreated due to schema mismatch; got Ok"
+        "VEC1/X1: index_docs must return Err for an incompatible vector schema; got Ok"
     );
     let msg = result.unwrap_err().to_string();
     assert!(

@@ -224,6 +224,9 @@ async fn setup_with_source(
     let root = tmp.path().join("repo");
     let data_dir = tmp.path().join("data");
     std::fs::create_dir_all(root.join("src")).unwrap();
+    // Isolate history discovery from the checkout that owns TEMP. This
+    // fixture has no commit history and must never index the parent project.
+    drop(git2::Repository::init(&root).unwrap());
     std::fs::write(root.join("src/orders.rs"), source).unwrap();
     std::fs::write(
         root.join("src/stable.rs"),
@@ -253,6 +256,10 @@ async fn setup_with_source(
         }))
         .await
         .unwrap();
+    // Indexing can queue history work even for wait=true. Own its lifetime
+    // before the fixture is returned and eventually drops its databases.
+    let jobs = state.active_jobs.write().await.drain().map(|(_, handle)| handle).collect::<Vec<_>>();
+    for job in jobs { job.await.unwrap(); }
     let pid = state.registry.list_projects().unwrap()[0]
         .project_id
         .clone();

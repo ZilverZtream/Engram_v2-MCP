@@ -33,6 +33,17 @@ fn parse_role() -> ProcessRole {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let maintenance_stdio = std::env::args()
+        .skip(1)
+        .any(|arg| arg == "--maintenance-stdio");
+    if maintenance_stdio {
+        for arg in std::env::args().skip(1) {
+            anyhow::ensure!(
+                !matches!(arg.as_str(), "--daemon" | "--daemon-launcher" | "--proxy" | "--multi-client"),
+                "--maintenance-stdio cannot be combined with {arg}; use one exclusive stdio session"
+            );
+        }
+    }
     let role = parse_role();
 
     // Config first, tracing second: the log-file destination lives in the
@@ -73,6 +84,16 @@ async fn main() -> anyhow::Result<()> {
     // editing config — useful during the v0.7 rollout when the
     // default is still `false`.
     apply_multi_client_overrides(&mut cfg);
+
+    if maintenance_stdio {
+        // Normal shared-store initialization still applies. Only explicit MCP
+        // tools may start project work: no startup cleanup, actors or proxy.
+        cfg.multi_client = false;
+        let (state, events_rx) = AppState::new(cfg)?;
+        drop(events_rx);
+        tracing::info!("exclusive maintenance stdio: startup actors and orphan-job cleanup disabled");
+        return tools::run_stdio(state).await;
+    }
 
     match role {
         ProcessRole::DaemonLauncher => {

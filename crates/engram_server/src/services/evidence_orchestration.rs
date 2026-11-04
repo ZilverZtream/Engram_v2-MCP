@@ -13,6 +13,7 @@ use crate::services::safety_service::{self, PolicyDecision, SafetyEvalRequest};
 use crate::state::AppState;
 use engram_graph::EdgeKind;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 /// Timeout budget for a single live retrieval benchmark in Deep mode.
 /// Kept deliberately short so ADP is not gated behind slow index responses.
@@ -87,6 +88,43 @@ pub async fn gather_evidence(
     require_runtime_evidence: bool,
     generation: u64,
 ) -> Result<AdpInput, anyhow::Error> {
+    // Numeric callers select before any evidence awaits. An existing caller
+    // view must use the context-aware entry point rather than fresh-pin a
+    // generation which may already be retired but still held by that caller.
+    let source_view = if depth == EvidenceDepth::Deep && overrides.retrieval_production_ready.is_none() {
+        let search = state.projects.get(project_id).map(|project| project.search.clone());
+        search.map(|search| crate::services::project_service::pin_source_generation(state, &search, project_id, generation)
+            .map(Arc::new).map_err(|error| anyhow::anyhow!(
+                "Cannot select source generation {generation} for live retrieval evidence; refresh the source head and retry: {error:#}"
+            ))).transpose()?
+    } else { None };
+    gather_evidence_with_source_view(state, project_id, target_files, _proposed_change,
+        risk_profile, depth, overrides, require_runtime_evidence, generation, source_view).await
+}
+
+/// Validate and retain the caller's selected project/generation/engine view.
+/// Its Arc also permits an already-held retired view across wave items.
+#[allow(clippy::too_many_arguments)]
+pub async fn gather_evidence_with_source_view(
+    state: &AppState,
+    project_id: &str,
+    target_files: &[String],
+    _proposed_change: &str,
+    risk_profile: RiskProfile,
+    depth: EvidenceDepth,
+    overrides: &EvidenceOverrides,
+    require_runtime_evidence: bool,
+    generation: u64,
+    source_view: Option<Arc<engram_index::SourceSnapshotGuard>>,
+) -> Result<AdpInput, anyhow::Error> {
+    let retrieval_search = if let Some(view) = source_view.as_ref() {
+        let search = state.projects.get(project_id).map(|project| project.search.clone())
+            .ok_or_else(|| anyhow::anyhow!("Selected ADP source runtime is unavailable; reload the project and retry"))?;
+        search.validate_source_snapshot_guard(project_id, generation, view)?;
+        Some(search)
+    } else { None };
+    #[cfg(test)]
+    if source_view.is_some() { tests::after_source_selection(project_id).await; }
     // ── Phase 1: Parallel evidence gathering ──
     // Run graph impact and blast radius in parallel.
 
@@ -146,7 +184,7 @@ pub async fn gather_evidence(
                     // We only set RetrievalMode::Live when scores were actually gathered;
                     // a timeout or missing project falls back to Skipped so ADP gates
                     // never see fabricated metrics.
-                    run_live_retrieval_benchmark(state, project_id, generation).await
+                    run_live_retrieval_benchmark(state, project_id, generation, source_view.clone(), retrieval_search.clone()).await
                 }
                 EvidenceDepth::Fast => (None, None, None, RetrievalMode::Skipped),
                 EvidenceDepth::Standard => (None, None, None, RetrievalMode::Skipped),
@@ -426,7 +464,8 @@ fn derive_safety_from_graph(
 /// Run the legacy retrieval benchmark set against the live search index.
 ///
 /// Returns `(production_ready, ndcg, recall, RetrievalMode::Live)` on success,
-/// or `(None, None, None, RetrievalMode::Skipped)` on timeout / missing project.
+/// or `(None, None, None, RetrievalMode::Skipped)` on timeout, missing project,
+/// or a search failure that leaves retrieval evidence incomplete.
 ///
 /// The benchmark executes within `LIVE_BENCHMARK_TIMEOUT_MS` so ADP is never
 /// blocked waiting for a slow or unreachable index.
@@ -434,11 +473,17 @@ async fn run_live_retrieval_benchmark(
     state: &AppState,
     project_id: &str,
     generation: u64,
+    source_view: Option<Arc<engram_index::SourceSnapshotGuard>>,
+    search: Option<Arc<engram_index::HybridSearchEngine>>,
 ) -> (Option<bool>, Option<f64>, Option<f64>, RetrievalMode) {
-    // Resolve the project's search engine; bail gracefully if the project is not
-    // loaded (e.g. ADP called before the first index run).
-    let search = match state.projects.get(project_id) {
-        Some(ps) => ps.search.clone(),
+    let Some(source_view) = source_view else {
+        tracing::debug!(project_id, "Deep mode: selected source view unavailable, skipping live benchmark");
+        return (None, None, None, RetrievalMode::Skipped);
+    };
+    // Keep the engine paired with the validated view, even if the runtime
+    // cache changes during earlier graph/safety awaits.
+    let search = match search {
+        Some(search) => search,
         None => {
             tracing::debug!(
                 project_id,
@@ -454,11 +499,13 @@ async fn run_live_retrieval_benchmark(
 
     // Run every query sequentially under a single wall-clock timeout.
     let benchmark_fut = async move {
+        // Timeout disposes this loop owner without changing the existing
+        // search workers' lower-level lease/cancellation handling.
+        let _source_view = source_view;
         let mut total_ndcg = 0.0f64;
         let mut total_recall = 0.0f64;
-        let q_count = queries.len().max(1);
-        // AUD-2026-INV-0005: track infra errors separately from genuine zero-hit results.
-        let mut infra_error_count: usize = 0;
+        let q_count = queries.len();
+        if q_count == 0 { return None; }
 
         for bq in &queries {
             let search_result = search
@@ -491,10 +538,9 @@ async fn run_live_retrieval_benchmark(
                 Err(e) => {
                     tracing::warn!(
                         "AUD-2026-INV-0005: search backend error during live benchmark — \
-                         treating as infra failure, not zero-relevance: {e:#}"
+                         benchmark incomplete; reporting Skipped without relevance scores: {e:#}"
                     );
-                    infra_error_count += 1;
-                    continue; // skip this query's contribution to score
+                    return None;
                 }
             };
 
@@ -505,27 +551,18 @@ async fn run_live_retrieval_benchmark(
                 crate::services::benchmark_service::compute_recall(&actual, &bq.relevant_paths, 10);
         }
 
-        // AUD-2026-INV-0005: use only queries that actually completed to compute averages;
-        // infra-failed queries are excluded so they do not depress relevance scores.
-        let scored_count = (q_count.saturating_sub(infra_error_count)).max(1);
-        let mean_ndcg = total_ndcg / scored_count as f64;
-        let mean_recall = total_recall / scored_count as f64;
+        // Live scores cover the complete suite. A search failure invalidates
+        // the observation, including any successful prefix. Successful queries
+        // with zero hits remain genuine measured relevance scores of zero.
+        let mean_ndcg = total_ndcg / q_count as f64;
+        let mean_recall = total_recall / q_count as f64;
         let (_, _, production_ready) = crate::services::benchmark_service::evaluate_gates(
             mean_ndcg,
             mean_recall,
             cfg.retrieval_min_ndcg,
             cfg.retrieval_min_recall,
         );
-        if infra_error_count > 0 {
-            tracing::warn!(
-                infra_error_count,
-                scored_queries = scored_count,
-                total_queries = q_count,
-                "AUD-2026-INV-0005: live benchmark completed with infra failures — \
-                 scores reflect only queries that reached the search backend"
-            );
-        }
-        (production_ready, mean_ndcg, mean_recall)
+        Some((production_ready, mean_ndcg, mean_recall))
     };
 
     match tokio::time::timeout(
@@ -534,12 +571,13 @@ async fn run_live_retrieval_benchmark(
     )
     .await
     {
-        Ok((production_ready, ndcg, recall)) => (
+        Ok(Some((production_ready, ndcg, recall))) => (
             Some(production_ready),
             Some(ndcg),
             Some(recall),
             RetrievalMode::Live,
         ),
+        Ok(None) => (None, None, None, RetrievalMode::Skipped),
         Err(_elapsed) => {
             tracing::warn!(
                 project_id,
@@ -642,6 +680,10 @@ fn derive_extraction_confidence(
     (Some(score), Some(band))
 }
 
+#[cfg(all(test, feature = "vector"))]
+#[path = "evidence_orchestration/retrieval_failure_tests.rs"]
+mod retrieval_failure_tests;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -651,6 +693,110 @@ mod tests {
     };
     use crate::services::blast_radius_service::RiskBand;
     use crate::services::safety_service::{PolicyDecision, RiskLevel};
+    use std::sync::{LazyLock, Mutex};
+
+    #[derive(Default)]
+    struct SourcePause {entered:tokio::sync::Notify,resume:tokio::sync::Notify}
+    static SOURCE_PAUSES:LazyLock<Mutex<std::collections::BTreeMap<String,Arc<SourcePause>>>>=
+        LazyLock::new(||Mutex::new(std::collections::BTreeMap::new()));
+    pub(super) async fn after_source_selection(pid:&str) {
+        let pause=SOURCE_PAUSES.lock().unwrap_or_else(|error|error.into_inner()).get(pid).cloned();
+        if let Some(pause)=pause {pause.entered.notify_one();pause.resume.notified().await;}
+    }
+    struct ReleaseSource {pid:String,pause:Arc<SourcePause>}
+    impl Drop for ReleaseSource {
+        fn drop(&mut self) {
+            SOURCE_PAUSES.lock().unwrap_or_else(|error|error.into_inner()).remove(&self.pid);
+            self.pause.resume.notify_one();
+        }
+    }
+
+    #[test]
+    fn live_adp_benchmark_keeps_one_selected_view_across_all_queries_and_collection() -> anyhow::Result<()> {
+        let owned=tempfile::tempdir()?;
+        let runtime=tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build()?;
+        let result=runtime.block_on(async {
+            let mut requests=tokio::task::JoinSet::new();
+            let result=async {
+                let root=owned.path().join("repo");std::fs::create_dir_all(&root)?;
+                let (state,_)=AppState::new(engram_core::Config {data_dir:owned.path().join("data"),allowed_roots:vec![root.clone()],
+                    embedding_backend:"fts_only".into(),llm_backend:"none".into(),..Default::default()})?;
+                let pid=format!("adp-source-{}",uuid::Uuid::new_v4());
+                state.registry.register_source_project(&engram_core::ProjectRecord {project_id:pid.clone(),project_name:"ADP source lifetime".into(),
+                    project_type:"general".into(),directory:root.to_string_lossy().into(),created_at_ms:1,updated_at_ms:1,reindex_required_since_ms:None})?;
+                let ps=crate::services::project_service::ensure_project_runtime(&state,&pid).await?;
+                let queries=crate::services::benchmark_service::generate_legacy_benchmark_queries();
+                let docs=queries.iter().enumerate().map(|(i,query)|engram_index::IndexDoc {
+                    generation:1,chunk_id:i as u64+1,path:engram_core::RelPath::new(&query.relevant_paths[0]),language:"text".into(),
+                    content:query.query.clone(),namespace:"memory".into(),author:None,timestamp:None,start_line:1,end_line:1,
+                    doc_id:format!("old-{i}"),content_hash:blake3::hash(query.query.as_bytes()).to_hex().to_string()
+                }).collect::<Vec<_>>();
+                let paths=docs.iter().map(|doc|doc.path.clone()).collect::<Vec<_>>();
+                let cancel=tokio_util::sync::CancellationToken::new();
+                let base=state.registry.capture_source_head(&pid)?;
+                ps.search.prepare_full_source_snapshot(&pid,0,1,&paths,&cancel).await?;
+                ps.search.index_docs(&pid,&docs,&cancel).await?;ps.search.seal_source_snapshot(&pid,1)?;
+                anyhow::ensure!(state.registry.publish_source_head(&base,1)?);
+                // Wrong logical generation, project and physical index root
+                // must all be refused by the actual service before graph work.
+                let selected=Arc::new(ps.search.pin_source_generation(&pid,1)?);
+                let other = format!("{pid}-other");
+                state.registry.register_source_project(&engram_core::ProjectRecord {project_id:other.clone(),project_name:"Other owned source".into(),
+                    project_type:"general".into(),directory:root.to_string_lossy().into(),created_at_ms:1,updated_at_ms:1,reindex_required_since_ms:None})?;
+                ps.search.prepare_full_source_snapshot(&other,0,1,&[],&cancel).await?;
+                ps.search.seal_source_snapshot(&other,1)?;
+                let wrong_project=Arc::new(ps.search.pin_source_generation(&other,1)?);
+                let foreign=engram_index::HybridSearchEngine::new(owned.path().join("foreign/tantivy"),owned.path().join("foreign/vectors"),&state.cfg).await?;
+                let wrong_root=Arc::new(foreign.pin_source_generation(&pid,1)?);
+                for (generation,view) in [(2,selected.clone()),(1,wrong_project.clone()),(1,wrong_root.clone())] {
+                    let refused=gather_evidence_with_source_view(&state,&pid,&[],"",RiskProfile::Low,EvidenceDepth::Deep,
+                        &EvidenceOverrides::default(),false,generation,Some(view)).await;
+                    anyhow::ensure!(refused.as_ref().is_err_and(|error|error.to_string().contains("does not match")),
+                        "A mismatched source capability reached evidence work");
+                }
+                drop(selected);drop(wrong_project);drop(wrong_root);drop(foreign);
+                let overrides=EvidenceOverrides {has_runtime_evidence:Some(false),..Default::default()};
+                let baseline=gather_evidence(&state,&pid,&[],"",RiskProfile::Low,EvidenceDepth::Deep,&overrides,false,1).await?;
+                anyhow::ensure!(baseline.retrieval_mode==RetrievalMode::Live && baseline.retrieval_recall.is_some_and(|recall|recall>0.0));
+                let pause=Arc::new(SourcePause::default());
+                SOURCE_PAUSES.lock().unwrap_or_else(|error|error.into_inner()).insert(pid.clone(),pause.clone());
+                let release=ReleaseSource {pid:pid.clone(),pause:pause.clone()};
+                let request_state=state.clone();let request_pid=pid.clone();
+                requests.spawn(async move {gather_evidence(&request_state,&request_pid,&[],"",RiskProfile::Low,EvidenceDepth::Deep,&overrides,false,1).await});
+                tokio::time::timeout(std::time::Duration::from_secs(15),pause.entered.notified()).await?;
+                let base=state.registry.capture_source_head(&pid)?;
+                let mut replacement=docs[0].clone();replacement.generation=2;replacement.doc_id="new-source".into();
+                replacement.content="replacement has no legacy benchmark vocabulary".into();
+                replacement.content_hash=blake3::hash(replacement.content.as_bytes()).to_hex().to_string();
+                ps.search.prepare_full_source_snapshot(&pid,1,2,&[replacement.path.clone()],&cancel).await?;
+                ps.search.index_docs(&pid,&[replacement],&cancel).await?;ps.search.seal_source_snapshot(&pid,2)?;
+                anyhow::ensure!(state.registry.publish_source_head(&base,2)?);
+                ps.search.purge_old_generations(&pid,2).await?;
+                let old_pk=format!("{pid}:memory:1:old-0");
+                anyhow::ensure!(ps.search.get_doc_by_pk(&old_pk)?.is_some(),"ADP lost source while its request was paused");
+                drop(release);
+                let result=tokio::time::timeout(std::time::Duration::from_secs(15),requests.join_next()).await?
+                    .ok_or_else(||anyhow::anyhow!("ADP evidence task missing"))???;
+                anyhow::ensure!(result.retrieval_mode==RetrievalMode::Live && result.retrieval_ndcg==baseline.retrieval_ndcg
+                    && result.retrieval_recall==baseline.retrieval_recall,"The benchmark mixed source views across queries");
+                ps.search.purge_old_generations(&pid,2).await?;
+                anyhow::ensure!(ps.search.get_doc_by_pk(&old_pk)?.is_none(),"Completed ADP request retained obsolete source");
+                // A numeric fresh caller must not resurrect that retired view;
+                // graph-only depths and explicit retrieval overrides still work.
+                anyhow::ensure!(gather_evidence(&state,&pid,&[],"",RiskProfile::Low,EvidenceDepth::Deep,&EvidenceOverrides::default(),false,1).await.is_err());
+                gather_evidence(&state,&pid,&[],"",RiskProfile::Low,EvidenceDepth::Fast,&EvidenceOverrides::default(),false,1).await?;
+                gather_evidence(&state,&pid,&[],"",RiskProfile::Low,EvidenceDepth::Deep,&EvidenceOverrides {
+                    retrieval_production_ready:Some(true),retrieval_ndcg:Some(1.0),retrieval_recall:Some(1.0),..Default::default()
+                },false,1).await?;
+                Ok::<_,anyhow::Error>(())
+            }.await;
+            requests.abort_all();while requests.join_next().await.is_some() {}
+            result
+        });
+        drop(runtime);
+        match (result,owned.close()) {(Err(error),Err(cleanup))=>Err(error.context(format!("Fixture cleanup also failed: {cleanup}"))),
+            (Err(error),_)=>Err(error),(Ok(()),cleanup)=>cleanup.map_err(Into::into)}
+    }
 
     // ── ENG-AUD-P1-0003: Deep mode must not return Live while providing None metrics ──
 
@@ -913,95 +1059,6 @@ mod tests {
         );
     }
 
-    // ── AUD-2026-INV-0004: runtime evidence derived from stores ──────────────
-
-    // Behavioral test: calling derive_has_runtime_evidence with a project that
-    // has no graph data loaded returns false — not a panic or success.
-    // (Full AppState behavioral test is the tokio::test below.)
-
-    // ── AUD-2026-INV-0005: benchmark all-infra-error arithmetic ──────────────
-
-    /// AUD-2026-INV-0005: Mathematical contract — when all queries fail with
-    /// infra errors, scored_count must be max(0, 1) = 1, and mean_ndcg = 0.0
-    /// (finite, conservative — not a crash or NaN).
-    #[test]
-    fn benchmark_all_infra_errors_yields_zero_ndcg_not_nan() {
-        // Mirrors the production formula in run_live_benchmark.
-        let q_count: usize = 5;
-        let infra_count: usize = 5;
-        let scored_count = q_count.saturating_sub(infra_count).max(1);
-        assert_eq!(
-            scored_count, 1,
-            "AUD-2026-INV-0005: all-infra-error case must yield scored_count=1 \
-             to prevent div-by-zero, got {scored_count}"
-        );
-        let total_ndcg: f64 = 0.0;
-        let mean_ndcg = total_ndcg / scored_count as f64;
-        assert!(
-            mean_ndcg.is_finite(),
-            "AUD-2026-INV-0005: mean_ndcg must be finite when all queries failed"
-        );
-        assert!(
-            (mean_ndcg - 0.0f64).abs() < f64::EPSILON,
-            "AUD-2026-INV-0005: mean_ndcg must be 0.0 when no query scored, got {mean_ndcg}"
-        );
-    }
-
-    /// AUD-2026-INV-0005: Partial infra errors — only failed queries are excluded
-    /// from the denominator, so mean_ndcg reflects only successful queries.
-    #[test]
-    fn benchmark_partial_infra_errors_counts_only_successes() {
-        let q_count: usize = 5;
-        let infra_count: usize = 2;
-        let scored_count = q_count.saturating_sub(infra_count).max(1);
-        assert_eq!(
-            scored_count, 3,
-            "AUD-2026-INV-0005: 3 successful queries should yield scored_count=3, got {scored_count}"
-        );
-        // If each of the 3 successful queries scored NDCG=1.0:
-        let total_ndcg: f64 = 3.0;
-        let mean_ndcg = total_ndcg / scored_count as f64;
-        assert!(
-            (mean_ndcg - 1.0f64).abs() < f64::EPSILON,
-            "AUD-2026-INV-0005: mean_ndcg should be 1.0 when all scored queries are perfect, \
-             got {mean_ndcg}"
-        );
-    }
-
-    // ── AUD-2026-XSYS-bench-gate: benchmark infra errors ↔ gate score ────────
-
-    /// AUD-2026-XSYS-bench-gate: Mathematical contract — when all queries fail
-    /// with infra errors the `scored_count` denominator is `max(q - q, 1) = 1`,
-    /// preventing division by zero.  The resulting `mean_ndcg = 0.0 / 1 = 0.0`
-    /// is a conservative quality score, not a crash.
-    /// AUD-2026-INV-0005 Gate 2.5 Test 9: when all benchmark queries fail with
-    /// infra errors, scored_count saturates at 1 (preventing div-by-zero) and
-    /// mean_ndcg is 0.0 (conservative), not NaN or panic.
-    ///
-    /// This is the behavioral arithmetic test — it mirrors the exact production
-    /// formula and verifies the mathematical invariant directly.
-    #[test]
-    fn benchmark_all_infra_errors_scored_count_saturates_at_one() {
-        let q: usize = 5;
-        let infra: usize = 5;
-        // Production formula: (q_count.saturating_sub(infra_error_count)).max(1)
-        let scored = (q.saturating_sub(infra)).max(1);
-        assert_eq!(
-            scored, 1,
-            "AUD-2026-INV-0005: all-infra-error case must yield scored_count=1 \
-             to prevent division by zero; got {scored}"
-        );
-        let mean_ndcg = 0.0f64 / scored as f64;
-        assert!(
-            mean_ndcg.is_finite(),
-            "AUD-2026-INV-0005: 0.0/1 must be finite, not NaN"
-        );
-        assert!(
-            (mean_ndcg).abs() < f64::EPSILON,
-            "AUD-2026-INV-0005: mean_ndcg must be 0.0 when no query scored"
-        );
-    }
-
     // ── Gate 2.5→3.0 realism: derive_has_runtime_evidence unknown project ────
 
     /// Behavioral failure-injection test: calling `derive_has_runtime_evidence`
@@ -1167,28 +1224,6 @@ mod tests {
             "AUD-2026-INV-0004: verdict must be Abstain when runtime evidence gate \
              fails (boolean-false, no reconciliation); got {:?}",
             decision.verdict,
-        );
-    }
-
-    // ── Test #9b: AUD-2026-INV-0005 partial infra failure ────────────────────
-
-    /// AUD-2026-INV-0005: When some but not all queries fail with infra errors,
-    /// the scored_count must exclude only the infra-failed queries.
-    /// This verifies the scoring is conservative but not excessively so.
-    #[test]
-    fn benchmark_partial_infra_failure_scores_only_successful_queries() {
-        let q_count: usize = 3;
-        // 1 infra failure → 2 successful queries → scored_count = 2
-        let scored_count = (q_count.saturating_sub(1usize)).max(1);
-        assert_eq!(
-            scored_count, 2,
-            "AUD-2026-INV-0005: 1-of-3 infra failure must yield scored_count=2, got {scored_count}"
-        );
-        // 2 perfect queries → mean_ndcg = 2.0 / 2 = 1.0
-        let mean_ndcg = 2.0f64 / scored_count as f64;
-        assert!(
-            (mean_ndcg - 1.0f64).abs() < f64::EPSILON,
-            "AUD-2026-INV-0005: 2 perfect queries give mean_ndcg=1.0, got {mean_ndcg}"
         );
     }
 

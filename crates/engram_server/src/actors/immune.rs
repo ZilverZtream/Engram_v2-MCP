@@ -151,6 +151,7 @@ async fn get_or_open_project(
     .await?;
 
     let ps = crate::state::ProjectState {
+            pagerank_cache: Default::default(),
         info: crate::state::ProjectInfo {
             project_id: project_id.to_string(),
             project_name: rec.project_name.clone(),

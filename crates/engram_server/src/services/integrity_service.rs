@@ -143,6 +143,7 @@ pub async fn check_project_integrity_with_policy(
         .map_err(|e| anyhow::anyhow!("failed to open search engine for {project_id}: {e}"))?;
 
         let ps = crate::state::ProjectState {
+            pagerank_cache: Default::default(),
             info: crate::state::ProjectInfo {
                 project_id: project_id.to_string(),
                 project_name: rec.project_name,
@@ -269,7 +270,14 @@ pub async fn check_project_integrity_with_policy(
         }
     }
 
-    let overall_healthy = compute_overall_healthy(mismatches.len(), &repairs);
+    // Counts alone do not settle known source/vector/history uncertainty.
+    // Re-read after repairs: a newer failure may have arrived during recovery.
+    let registry = state.registry.clone();
+    let project = project_id.to_owned();
+    let recovery_pending = tokio::task::spawn_blocking(move || {
+        registry.get_project(&project).map(|record| record.is_none_or(|record| record.reindex_required_since_ms.is_some()))
+    }).await??;
+    let overall_healthy = compute_overall_healthy(mismatches.len(), &repairs) && !recovery_pending;
 
     Ok(IntegrityCheckResult {
         project_id: project_id.to_string(),
@@ -345,7 +353,7 @@ pub fn build_integrity_mismatches(
                     "Vector store has only {vector_count} entries for {tantivy_count} Tantivy docs \
                      ({shortfall} missing embeddings) — hybrid search recall is degraded; \
                      an absent vector table can be populated with repair_project(scope=initialize_vectors); \
-                     an existing incomplete table requires a rebuild. vector_only only purges old generations"
+                     an existing incomplete table can be recovered with repair_project(scope=vector_only)"
                 ),
                 expected: tantivy_count,
                 actual: vector_count,
@@ -430,30 +438,28 @@ async fn attempt_repair(
             tracing::info!(
                 project_id,
                 mismatch_kind = %mismatch.kind,
-                "Triggering scoped vector repair (purge superseded generations)"
+                "Revalidating vector mismatch before scoped recovery"
             );
-            let repair_result = crate::services::project_service::repair_project_scoped(
-                state,
-                project_id,
-                "vector_only",
-            )
+            let repair_result = crate::services::project_service::repair_vectors_if_mismatch(state, project_id)
             .await;
-            let success = repair_result.is_ok();
-            if success {
-                metrics::metrics().repairs_succeeded.inc();
-            } else {
-                metrics::metrics().repairs_failed.inc();
-            }
-            RepairOutcome {
-                mismatch_kind: mismatch.kind.clone(),
-                action: "vector_generation_purge".into(),
-                success,
-                items_repaired: if success {
-                    mismatch.expected.abs_diff(mismatch.actual)
-                } else {
-                    0
-                },
-            }
+            use crate::services::project_service::VectorRepairOutcome;
+            let (success, items_repaired, action) = match repair_result {
+                Ok(VectorRepairOutcome::Recovered { warning_settled: true, .. }) =>
+                    (true, mismatch.expected.abs_diff(mismatch.actual), "vector_recovery"),
+                Ok(VectorRepairOutcome::Recovered { warning_settled: false, .. }) =>
+                    (false, 0, "vector_recovery_new_requirement_pending"),
+                Ok(VectorRepairOutcome::NoCurrentCountMismatch) => (true, 0, "vector_mismatch_no_longer_present"),
+                Ok(VectorRepairOutcome::Disabled) => (false, 0, "vector_recovery_disabled"),
+                Err(error) => {
+                    tracing::warn!(project_id, mismatch_kind = %mismatch.kind,
+                        "Vector recovery failed: {error:#}");
+                    (false, 0, "vector_recovery_failed")
+                }
+            };
+            if success { metrics::metrics().repairs_succeeded.inc(); }
+            else { metrics::metrics().repairs_failed.inc(); }
+            RepairOutcome { mismatch_kind: mismatch.kind.clone(), action: action.into(), success, items_repaired }
+
         }
         MismatchKind::GraphStaleGeneration => {
             tracing::info!(

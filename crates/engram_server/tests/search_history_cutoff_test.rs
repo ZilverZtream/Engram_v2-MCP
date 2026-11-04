@@ -44,13 +44,36 @@ fn request(project_id: &str, query: &str) -> engram_server::SearchHistoryRequest
     .unwrap()
 }
 
+#[tokio::test]
+async fn invalid_rerank_budget_refuses_before_project_lookup_or_runtime_creation() {
+    let temporary = tempdir().unwrap();
+    let data_dir = temporary.path().join("data");
+    std::fs::create_dir(&data_dir).unwrap();
+    let (state, _) = AppState::new(Config {
+        data_dir: data_dir.clone(), allowed_roots: vec![temporary.path().to_path_buf()],
+        embedding_backend: "fts_only".into(), ..Default::default()
+    }).unwrap();
+    let engram = Engram::new(state);
+    for mode in ["text", "precedent", "auto"] {
+        let mut req = request("unknown-project", "How did we implement the earlier report parameter filtering behavior?");
+        req.mode = Some(mode.into());
+        req.rerank_timeout_ms = Some(90_001);
+        let error = engram.handle_search_history(req).await.unwrap_err();
+        assert!(error.message.contains("rerank_timeout_ms"), "{error:?}");
+        assert!(!data_dir.join("projects/unknown-project").exists());
+    }
+    drop(engram);
+    temporary.close().unwrap();
+}
+
 struct Fixture {
-    _tmp: tempfile::TempDir,
     engram: Engram,
     project_id: String,
     repo: git2::Repository,
     base: git2::Oid,
     answer: git2::Oid,
+    // Rust drops fields in declaration order: close stores/Git before cleanup.
+    _tmp: tempfile::TempDir,
 }
 
 /// Two commits touching one story. With `publish_base_first`, an origin
@@ -381,12 +404,13 @@ async fn precedent_mode_ranks_whole_published_changes_within_the_cutoff() {
             .unwrap(),
     );
     assert!(out.starts_with("Precedents:"), "{out}");
+    assert!(out.contains("lexical fallback (vectors disabled)"), "{out}");
     assert!(out.contains(&format!("commit: {}", fixture.base)), "{out}");
     assert!(
         !out.contains(&format!("commit: {}", fixture.answer)),
         "{out}"
     );
-    // No OpenRouter LLM in tests: the order is semantic, and the output says so.
+    // The fts_only fixture returns an explicitly labelled lexical baseline.
     assert!(out.contains("rerank unavailable"), "{out}");
 
     // Auto picks precedent mode for story prose and text mode for a short phrase.
@@ -416,6 +440,41 @@ async fn precedent_mode_ranks_whole_published_changes_within_the_cutoff() {
             .await
             .is_err()
     );
+}
+
+#[tokio::test]
+async fn lexical_precedents_preserve_scope_filters_empty_matches_and_zero_budget() {
+    let fixture = fixture(false).await;
+    let mut scoped = request(&fixture.project_id, "Photo filter parameter list");
+    scoped.mode = Some("precedent".into());
+    scoped.as_of_rev = Some(fixture.base.to_string());
+    scoped.limit = 1;
+    scoped.rerank_timeout_ms = Some(0);
+    scoped.file_filter = Some("filters.vb".into());
+    scoped.exclude_paths = Some(vec!["unrelated/".into()]);
+    scoped.author_filter = Some("Dev".into());
+    scoped.date_after = Some(1_700_000_000);
+    scoped.date_before = Some(1_700_000_001);
+    let out = text(&fixture.engram.handle_search_history(scoped.clone()).await.unwrap());
+    assert!(out.contains("lexical fallback (vectors disabled)"), "{out}");
+    assert!(out.contains("rerank skipped: zero budget"), "{out}");
+    assert!(out.contains(&format!("commit: {}", fixture.base)), "{out}");
+    assert!(!out.contains(&format!("commit: {}", fixture.answer)), "{out}");
+    let mut variants = Vec::new();
+    let mut req = scoped.clone(); req.author_filter = Some("Someone else".into()); variants.push(req);
+    let mut req = scoped.clone(); req.date_before = Some(1_700_000_000); variants.push(req);
+    let mut req = scoped.clone(); req.date_after = Some(1_700_000_001); variants.push(req);
+    let mut req = scoped.clone(); req.file_filter = Some("report.vb".into()); variants.push(req);
+    let mut req = scoped.clone(); req.exclude_paths = Some(vec!["filters.vb".into()]); variants.push(req);
+    let mut req = scoped.clone(); req.query = "zzzzunmatchedtoken".into(); variants.push(req);
+    for req in variants {
+        let out = text(&fixture.engram.handle_search_history(req).await.unwrap());
+        assert!(out.starts_with("Precedents: 0 "), "{out}");
+        assert!(!out.contains("\ncommit: "), "{out}");
+    }
+    scoped.as_of_rev = Some("no-such-history-revision".into());
+    let error = fixture.engram.handle_search_history(scoped).await.unwrap_err();
+    assert!(error.message.contains("does not name a commit"), "{error:?}");
 }
 
 #[tokio::test]

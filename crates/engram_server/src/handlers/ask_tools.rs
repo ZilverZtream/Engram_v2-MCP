@@ -4,7 +4,7 @@
 //! honest status, and renders a `retrieval_only` report (Markdown and/or JSON).
 //! No LLM in M1 — the calling agent synthesizes, or opts into depth=deep later.
 
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, Content};
@@ -76,7 +76,12 @@ impl Engram {
         }
         let rec = self.ensure_project_record(&req.project_id).await?;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
-        let gen_ = self.get_active_generation(&req.project_id).await?;
+        let generation = self.get_active_generation(&req.project_id).await?;
+        let (gen_, source_selection) = match self.pin_active_source_generation(&req.project_id, &ps.search).await {
+            Ok((generation, view)) => (generation, Ok(Arc::new(view))),
+            Err(error) => (generation, Err(format!("Selected source unavailable; source providers failed: {}", error.message))),
+        };
+        let source_view = source_selection.as_ref().ok().cloned();
 
         let depth = parse_depth(&req.depth);
         let deadline =
@@ -88,7 +93,9 @@ impl Engram {
         let graph = self.state.graph.clone();
         let pid_for_resolve = req.project_id.clone();
         let question_for_resolve = req.question.clone();
+        if let Some(resolver_view) = source_view.clone() {
         plan = tokio::task::spawn_blocking(move || {
+            let _source_view = resolver_view;
             resolver::resolve_entities_in_context(
                 &graph,
                 &pid_for_resolve,
@@ -102,6 +109,7 @@ impl Engram {
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        }
 
         // Retrieve across the intent-specific arms.
         let ctx = RetrievalCtx {
@@ -111,9 +119,10 @@ impl Engram {
             registry: self.state.registry.clone(),
             project_id: req.project_id.clone(),
             generation: gen_,
+            source_view: source_view.clone(),
         };
         let (raw, providers) =
-            retrieval::gather_evidence(&ctx, &plan, &req.question, depth, deadline, cancel).await;
+            retrieval::gather_evidence_selected_source(&ctx, &plan, &req.question, depth, deadline, cancel, source_selection).await;
         // Round-2 audit P0-4c (owner 2026-08-30): one bounded call-graph hop
         // from the files the first pass cited — the answer to "how does X get
         // authorized" is usually one call away from the entry point.
@@ -161,7 +170,7 @@ impl Engram {
                         | crate::services::ask_engine::plan::Intent::Compare
                 )
             });
-            if wants_hop && !seeds.is_empty() {
+            if wants_hop && !seeds.is_empty() && source_view.is_some() {
                 let graph = self.state.graph.clone();
                 let pid = req.project_id.clone();
                 let question = req.question.clone();
@@ -182,7 +191,9 @@ impl Engram {
                     })
                     .map(|e| e.text.replace('\\', "/"))
                     .collect();
+                let hop_view = source_view.clone();
                 let hop = tokio::task::spawn_blocking(move || {
+                    let _source_view = hop_view;
                     // Item 8, cycle 32 (owner-approved): a compound name that
                     // matches a FAMILY of stems seeds the hop from each member
                     // — the io marker infowindow's images route lives two hops
@@ -260,7 +271,7 @@ impl Engram {
         let mut providers = providers;
         let mut answer_members: Vec<crate::services::ask_engine::providers::AnswerMember> =
             Vec::new();
-        if exhaustive_contract {
+        if exhaustive_contract && source_view.is_some() {
             let named: Vec<String> = plan
                 .entities
                 .iter()
@@ -292,7 +303,9 @@ impl Engram {
                             engram_graph::EdgeKind::Calls,
                         ]
                     };
+                let set_view = source_view.clone();
                 let (set, members, cov, proof) = tokio::task::spawn_blocking(move || {
+                    let _source_view = set_view;
                     let mut id = 20_000usize;
                     crate::services::ask_engine::providers::exhaustive_callee_set(
                         &graph,

@@ -18,29 +18,65 @@ pub enum TableOpenOutcome {
     Opened,
     /// Table was newly created (no prior data existed).
     Created,
-    /// Table had incompatible schema and was dropped+recreated — ALL vector data was lost.
-    ///
-    /// `reason` describes why the schema was incompatible (missing pk / dimension mismatch).
-    /// `prior_row_count` is the row count captured immediately before the drop, giving
-    /// operators an observable data-loss metric: `Some(0)` means no vectors existed,
-    /// `Some(n)` means n vectors were lost and a full re-index is required, `None`
-    /// means count_rows failed so actual loss magnitude is unknown (assume non-zero).
-    ///
-    /// The caller MUST trigger a full re-index to restore search quality.
-    Recreated {
-        reason: String,
-        prior_row_count: Option<u64>,
-    },
+}
+
+/// An ordinary write cannot replace an incompatible shared vector store.
+#[derive(Debug, thiserror::Error)]
+#[error("VEC1: vector table '{table_name}' has incompatible schema ({reason}); existing rows={prior_row_count:?}, data preserved. Complete vector recovery is required before source publication.")]
+pub struct VectorSchemaMismatch {
+    pub table_name: String,
+    pub reason: String,
+    pub prior_row_count: Option<u64>,
 }
 
 /// Connect to a local LanceDB database.
+mod auto_cleanup;
+pub(crate) use auto_cleanup::{prepare_managed_write, validate_history_config};
+
 pub async fn connect(db_dir: &Path) -> anyhow::Result<Connection> {
+    // Lance's defaults allow 6 GiB of indexes and 1 GiB of metadata per
+    // connection. Keep one smaller session for this connection's tables and
+    // readers, including redirected vector epochs. These are weighted cache
+    // budgets, not reservations or a bound on queries or process memory.
+    connect_with_cache_limits(db_dir, 64 * 1024 * 1024, 32 * 1024 * 1024).await
+}
+
+/// The engine retains this same session solely for non-maintaining diagnostics.
+/// Its lifetime is identical to the connection/engine, never a global registry.
+pub(crate) async fn connect_observed(db_dir: &Path) -> anyhow::Result<(Connection, Arc<lancedb::Session>)> {
+    connect_with_session_limits(db_dir, 64 * 1024 * 1024, 32 * 1024 * 1024).await
+}
+
+async fn connect_with_cache_limits(
+    db_dir: &Path,
+    index_bytes: usize,
+    metadata_bytes: usize,
+) -> anyhow::Result<Connection> {
+    Ok(connect_with_session_limits(db_dir, index_bytes, metadata_bytes).await?.0)
+}
+
+async fn connect_with_session_limits(
+    db_dir: &Path, index_bytes: usize, metadata_bytes: usize,
+) -> anyhow::Result<(Connection, Arc<lancedb::Session>)> {
     std::fs::create_dir_all(db_dir)?;
+    let session = Arc::new(lancedb::Session::new(
+        index_bytes,
+        metadata_bytes,
+        Arc::new(lancedb::ObjectStoreRegistry::default()),
+    ));
     let db = lancedb::connect(db_dir.to_string_lossy().as_ref())
+        .session(session.clone())
         .execute()
         .await?;
-    Ok(db)
+    Ok((db, session))
 }
+
+#[cfg(test)]
+#[path = "vector/cache_behavior_tests.rs"]
+mod cache_behavior_tests;
+#[cfg(all(test, windows))]
+#[path = "vector/version_cache_measurement.rs"]
+mod version_cache_measurement;
 
 /// The canonical schema for vector rows, parameterised by `dim`.
 /// Includes `pk` as the primary key for true upsert.
@@ -79,23 +115,43 @@ fn stored_vector_dim(tschema: &arrow_schema::Schema) -> Option<usize> {
     }
 }
 
+pub(crate) async fn validate_table_schema(table: &Table, dim: usize) -> anyhow::Result<()> {
+    let schema = table.schema().await?;
+    anyhow::ensure!(schema.fields() == vector_schema(dim).fields(), "VEC1: vector table schema does not match the configured embedding contract");
+    Ok(())
+}
+
+/// Ownership metadata is part of exclusive creation, never retrofitted onto an
+/// unidentified existing table. Arrow batches may omit these table properties.
+pub(crate) async fn create_owned_table(
+    conn: &Connection,
+    name: &str,
+    dim: usize,
+    metadata: std::collections::HashMap<String, String>,
+) -> anyhow::Result<Table> {
+    let schema = Arc::new(vector_schema(dim).as_ref().clone().with_metadata(metadata));
+    let batch = RecordBatch::new_empty(schema.clone());
+    let reader = RecordBatchIterator::new(vec![Ok(batch)], schema);
+    Ok(conn.create_table(name, reader).write_options(auto_cleanup::write_options()).execute().await?)
+}
+
 /// Create an empty table exclusively; never open or replace an existing table.
+#[cfg(test)]
 pub(crate) async fn create_new_table(conn: &Connection, name: &str, dim: usize) -> anyhow::Result<Table> {
     let schema = vector_schema(dim);
     let batch = RecordBatch::new_empty(schema.clone());
     let reader = RecordBatchIterator::new(vec![Ok(batch)], schema);
-    Ok(conn.create_table(name, reader).execute().await?)
+    Ok(conn.create_table(name, reader).write_options(auto_cleanup::write_options()).execute().await?)
 }
 
 /// Open or create a LanceDB table with the given vector `dim`.
 ///
 /// If the existing table has a different vector dimension (e.g. an old 384-dim table
-/// when the embedder now produces 1536-dim vectors), the stale table is dropped and
-/// recreated with the correct schema so inserts do not panic.
+/// when the embedder now produces 1536-dim vectors), return a typed error while
+/// preserving all namespaces. Ordinary writes must not reset data.
 ///
-/// Returns `(table, outcome)` where `outcome` signals whether data was lost
-/// (see [`TableOpenOutcome`]). The caller MUST handle `Recreated` by logging a
-/// prominent warning and triggering a full re-index.
+/// Returns `(table, outcome)` on success, or [`VectorSchemaMismatch`] when an
+/// existing store requires explicit recovery. No incompatible handle is returned.
 pub async fn open_or_create_table(
     conn: &Connection,
     name: &str,
@@ -111,52 +167,38 @@ pub async fn open_or_create_table(
     {
         let table = conn.open_table(name).execute().await?;
         let tschema = table.schema().await?;
-        // Drop and recreate if: pk column is missing OR vector dimension has changed.
-        let needs_recreate =
+        let incompatible =
             tschema.field_with_name("pk").is_err() || stored_vector_dim(&tschema) != Some(dim);
-        if needs_recreate {
+        if incompatible {
             let reason = if tschema.field_with_name("pk").is_err() {
                 "missing pk column".to_string()
             } else {
                 "vector dimension mismatch".to_string()
             };
-            // Capture row count before drop so operators can observe exactly how many
-            // vectors will be lost.  Zero means the table was empty (no-op loss);
-            // non-zero is the target for the subsequent full re-index job.
-            // VEC1-v9q5: if count_rows itself fails, warn rather than silently
-            // returning 0 which would make the drop look like a no-op data-loss event.
-            // VEC1-f41aa9: preserve unknown count as None so callers can distinguish
-            // "zero vectors lost" from "count failed, loss magnitude unknown".
+            // Quantify the affected existing store without destroying it.
             let prior_row_count: Option<u64> = match table.count_rows(None).await {
                 Ok(n) => Some(n as u64),
                 Err(e) => {
                     tracing::warn!(
                         table = name,
                         reason = %reason,
-                        "VEC1: count_rows failed before drop — actual loss magnitude is \
-                         unknown (reported as None); assume non-zero and schedule reindex: {e:#}"
+                        "VEC1: incompatible table row count is unknown; existing data preserved: {e:#}"
                     );
                     None
                 }
             };
-            conn.drop_table(name, &[]).await?;
-            let batch = RecordBatch::new_empty(schema.clone());
-            let reader = RecordBatchIterator::new(vec![Ok(batch)], schema);
-            let new_table = conn.create_table(name, reader).execute().await?;
-            Ok((
-                new_table,
-                TableOpenOutcome::Recreated {
-                    reason,
-                    prior_row_count,
-                },
-            ))
+            Err(VectorSchemaMismatch {
+                table_name: name.to_owned(),
+                reason,
+                prior_row_count,
+            }.into())
         } else {
             Ok((table, TableOpenOutcome::Opened))
         }
     } else {
         let batch = RecordBatch::new_empty(schema.clone());
         let reader = RecordBatchIterator::new(vec![Ok(batch)], schema);
-        let new_table = conn.create_table(name, reader).execute().await?;
+        let new_table = conn.create_table(name, reader).write_options(auto_cleanup::write_options()).execute().await?;
         Ok((new_table, TableOpenOutcome::Created))
     }
 }
@@ -180,6 +222,7 @@ pub async fn upsert_vectors(table: &Table, batches: Vec<RecordBatch>) -> anyhow:
     if batches.is_empty() {
         return Ok(());
     }
+    prepare_managed_write(table).await?;
 
     let schema = batches[0].schema();
     let reader = RecordBatchIterator::new(batches.into_iter().map(Ok), schema);
@@ -196,9 +239,87 @@ pub async fn upsert_vectors(table: &Table, batches: Vec<RecordBatch>) -> anyhow:
 }
 
 pub async fn purge_old_generations(table: &Table, active_generation: u64) -> anyhow::Result<()> {
+    purge_old_generations_with_source_selection(table, active_generation, None).await
+}
+
+pub async fn purge_old_generations_with_source_selection(
+    table: &Table, active_generation: u64, source_selection: Option<&str>,
+) -> anyhow::Result<()> {
+    // The public raw-table API permits independent writers. Keep its existing
+    // delete semantics; only engine-owned serialized mutations may skip a write
+    // after observing that its predicate matches no rows.
+    for filter in generation_purge_filters(active_generation, source_selection) {
+        prepare_managed_write(table).await?;
+        table.delete(&filter).await?;
+    }
+    Ok(())
+}
+
+/// Caller holds the engine's commit lane through observation and deletion.
+pub(crate) async fn purge_old_generations_serialized(
+    conn: &Connection,
+    table_name: &str,
+    active_generation: u64,
+    source_selection: Option<&str>,
+) -> anyhow::Result<()> {
+    for filter in generation_purge_filters(active_generation, source_selection) {
+        delete_rows_if_present(conn, table_name, &filter).await?;
+    }
+    Ok(())
+}
+
+/// A false result must use the latest committed view under the caller's commit
+/// lane. Reopen independently here: a preopened Table can retain an older
+/// Dataset indefinitely, and refreshing a clone would also move its readers.
+/// This does not coordinate arbitrary writers using the public raw Table API.
+pub(crate) async fn delete_rows_if_present(
+    conn: &Connection,
+    table_name: &str,
+    filter: &str,
+) -> anyhow::Result<()> {
+    use futures::TryStreamExt;
+    use lancedb::query::{ExecutableQuery, QueryBase, QueryExecutionOptions, Select};
+
+    let deadline = std::time::Duration::from_secs(30);
+    let matching_table = tokio::time::timeout(deadline, async {
+        // ListingDatabase::open_table constructs a new NativeTable and loads
+        // the current Dataset, while sharing only the bounded session caches.
+        let table = conn.open_table(table_name).execute().await?;
+        let mut options = QueryExecutionOptions::default();
+        options.max_batch_length = 1;
+        options.timeout = Some(deadline);
+        let mut stream = table.query().only_if(filter)
+            .select(Select::Columns(vec!["generation".into()])).limit(1)
+            .execute_with_options(options).await?;
+        while let Some(batch) = stream.try_next().await? {
+            if batch.num_rows() != 0 {
+                return Ok::<_, anyhow::Error>(Some(table));
+            }
+        }
+        Ok(None)
+    }).await.map_err(|_| anyhow::anyhow!(
+        "Native delete preflight timed out after 30 seconds; no delete was started"
+    ))??;
+    if let Some(table) = matching_table {
+        // Do not cancel a started native commit. The engine worker retains the
+        // admission and commit lane until this write actually finishes.
+        prepare_managed_write(&table).await?;
+        table.delete(filter).await?;
+    }
+    Ok(())
+}
+
+fn generation_purge_filters(active_generation: u64, source_selection: Option<&str>) -> Vec<String> {
+    let mut filters = Vec::new();
     for ns in engram_core::KNOWN_NAMESPACES {
         if let Ok(policy) = engram_core::get_policy(ns) {
             let safe_ns = ns.replace('\'', "''");
+            if *ns == "memory" {
+                if let Some(selection) = source_selection {
+                    filters.push(format!("namespace = 'memory' AND generation < {} AND NOT ({selection})", crate::sql_literals::u64_literal(active_generation)));
+                    continue;
+                }
+            }
             match policy.retention {
                 engram_core::NamespaceRetention::KeepLatestOnly => {
                     // External audit round 2 (docs/audits/10) P0-1: "latest only" means
@@ -207,23 +328,23 @@ pub async fn purge_old_generations(table: &Table, active_generation: u64) -> any
                     // Tantivy purge already kept it; the vector purge deleted it.
                     let filter = format!(
                         "namespace = '{}' AND generation < {}",
-                        safe_ns, active_generation
+                        safe_ns, crate::sql_literals::u64_literal(active_generation)
                     );
-                    table.delete(&filter).await?;
+                    filters.push(filter);
                 }
                 engram_core::NamespaceRetention::KeepLastGenerations(n) => {
                     let min_keep = active_generation.saturating_sub(n as u64 - 1);
                     if min_keep > 0 {
                         let filter =
-                            format!("namespace = '{}' AND generation < {}", safe_ns, min_keep);
-                        table.delete(&filter).await?;
+                            format!("namespace = '{}' AND generation < {}", safe_ns, crate::sql_literals::u64_literal(min_keep));
+                        filters.push(filter);
                     }
                 }
                 engram_core::NamespaceRetention::KeepForever => {}
             }
         }
     }
-    Ok(())
+    filters
 }
 
 #[allow(clippy::too_many_arguments)]

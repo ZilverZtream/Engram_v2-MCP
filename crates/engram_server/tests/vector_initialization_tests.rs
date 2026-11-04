@@ -9,6 +9,8 @@ async fn initialize_vectors_scope_preserves_corpora_and_generation() {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("source");
     std::fs::create_dir(&root).unwrap();
+    // Keep the full-source repair's history task inside this empty fixture.
+    drop(git2::Repository::init(&root).unwrap());
     let pid = "vector-init-fixture";
     let data = temp.path().join("data");
     let project = data.join("projects").join(pid);
@@ -127,6 +129,8 @@ async fn initialize_vectors_scope_preserves_corpora_and_generation() {
             .message
             .contains("already exists")
     );
+    assert!(state.registry.get_project(pid).unwrap().unwrap().reindex_required_since_ms.is_none(),
+        "refusing initialization of an existing good table must not create a warning");
     assert_eq!(
         state
             .active_indexing_count
@@ -143,4 +147,38 @@ async fn initialize_vectors_scope_preserves_corpora_and_generation() {
             .unwrap(),
         3
     );
+
+    use engram_core::registry::ReindexReason;
+    state.registry.require_reindex(pid, ReindexReason::Source, 20).unwrap();
+    state.registry.require_reindex(pid, ReindexReason::Vector, 10).unwrap();
+    state.registry.set_reindex_required(pid, 5).unwrap();
+    let repaired = engram.handle_repair_project(serde_json::from_value(json!({
+        "project_id":pid,"scope":"vector_only","wipe_and_reindex":false
+    })).unwrap()).await.unwrap();
+    assert!(repaired.content[0].as_text().unwrap().text.contains("Recovered 3 vectors"));
+    assert!(state.registry.reindex_requirement_token(pid, ReindexReason::Vector).unwrap().is_none());
+    assert!(state.registry.reindex_requirement_token(pid, ReindexReason::Source).unwrap().is_some());
+    assert!(state.registry.reindex_requirement_token(pid, ReindexReason::Unknown).unwrap().is_some());
+    assert_eq!(state.registry.get_meta(pid, "active_generation").unwrap().as_deref(), Some("7"));
+    assert_eq!(state.registry.get_meta(pid, "pr_ingest_watermark").unwrap().as_deref(), Some("preserved-watermark"));
+
+    // A full source repair has a narrower proof than vector/history recovery.
+    // It can settle Source, while preserving a separately recorded Vector
+    // requirement and legacy uncertainty.
+    state.registry.require_reindex(pid, ReindexReason::Vector, 30).unwrap();
+    std::fs::write(root.join("a.rs"), "pub fn live_source() {}\n").unwrap();
+    engram.handle_repair_project(serde_json::from_value(json!({
+        "project_id":pid,"scope":"full","wipe_and_reindex":false
+    })).unwrap()).await.unwrap();
+    let jobs: Vec<_> = state.active_jobs.write().await.drain().map(|(_, handle)| handle).collect();
+    for job in jobs {
+        tokio::time::timeout(std::time::Duration::from_secs(20), job).await.unwrap().unwrap();
+    }
+    assert!(state.registry.reindex_requirement_token(pid, ReindexReason::Source).unwrap().is_none());
+    assert!(state.registry.reindex_requirement_token(pid, ReindexReason::Vector).unwrap().is_some());
+    assert!(state.registry.reindex_requirement_token(pid, ReindexReason::Unknown).unwrap().is_some());
+    assert_eq!(state.registry.get_project(pid).unwrap().unwrap().reindex_required_since_ms, Some(5));
+    drop(engram);
+    drop(state);
+    temp.close().unwrap();
 }

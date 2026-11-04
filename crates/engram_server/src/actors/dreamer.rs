@@ -80,41 +80,11 @@ pub async fn run_dreamer(state: AppState, mut rx: Receiver<AppEvent>, shutdown: 
                                 dirty_projects.insert(project_id.clone());
                             }
                             AppEvent::FullReindexRequired { project_id } => {
-                                tracing::error!(
-                                    project_id = %project_id,
-                                    "VEC1/D1: full reindex required after vector table recreation \
-                                     — semantic search quality degraded until reindex completes"
-                                );
-                                // D1: persist the reindex-required flag so search callers and
-                                // operators can observe the degraded state durably.
-                                let reg = state.registry.clone();
-                                let pid = project_id.clone();
-                                let since_ms = std::time::SystemTime::now()
-                                    .duration_since(std::time::UNIX_EPOCH)
-                                    .unwrap_or_default()
-                                    .as_millis() as u64;
-                                if let Err(e) = tokio::task::spawn_blocking(move || {
-                                    reg.set_reindex_required(&pid, since_ms)
-                                })
-                                .await
-                                {
-                                    tracing::warn!(
-                                        project_id = %project_id,
-                                        "VEC1/D1: failed to persist reindex_required flag: {e:#}"
-                                    );
-                                }
-                                // Trigger a dream pass as partial recovery.
-                                if let Err(e) = dream_once(
-                                    &state,
-                                    &project_id,
-                                    min_edge_weight,
-                                    min_cluster_size,
-                                    max_clusters,
-                                )
-                                .await
-                                {
-                                    tracing::debug!("VEC1/D1 trigger dream error: {e:#}");
-                                }
+                                // The failure emitter is the single durable writer.
+                                // A queued/duplicate event may arrive AFTER successful
+                                // repair and must never resurrect its requirement.
+                                tracing::warn!(project_id = %project_id,
+                                    "Vector recovery requirement was recorded; inspect current project health before repair");
                             }
                         }
                     }
@@ -183,6 +153,7 @@ async fn load_project_runtime(
     )
     .await?;
     let ps = crate::state::ProjectState {
+            pagerank_cache: Default::default(),
         info: crate::state::ProjectInfo {
             project_id: project_id.to_string(),
             project_name: rec.project_name,
@@ -233,6 +204,38 @@ pub async fn record_cooccurrence(
     // Limit per query so we don't explode O(n^2) updates.
     let mut h = hits.to_vec();
     h.truncate(12);
+    let candidates = h.iter().filter_map(|item| {
+        let namespace = item.namespace.as_deref()?;
+        (item.source_project_id.as_deref() == Some(project_id)
+            && !namespace.is_empty() && item.pk.starts_with(&format!("{project_id}:{namespace}:")))
+            .then(|| (item.path.clone(), namespace.to_owned()))
+    }).collect::<Vec<_>>();
+    let graph = state.graph.clone();
+    let pid = project_id.to_owned();
+    let chunk_target = state.cfg.max_chunks_per_file;
+    let canonical_files = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
+        let mut nodes = Vec::new();
+        for (path, namespace) in candidates {
+            if let Some(node) = graph.get_node(&pid, &format!("file:{path}"))?.filter(|node| {
+                node.node_type == "file" && node.file_path == path && node.namespace == namespace
+                    && node.generation <= active_gen && node.metadata.as_ref().is_some_and(|meta| {
+                        meta.get("file_hash").and_then(|v| v.as_str()).is_some()
+                            && crate::services::project_service::source_metadata_is_compatible(meta, chunk_target)
+                    })
+            }) { nodes.push(node); }
+        }
+        // Missing parser authority cannot certify a canonical source anchor.
+        // Keep learning through provenance-labelled search-document nodes.
+        let extraction = engram_index::SourceExtractionExpectation::for_paths(
+            chunk_target, nodes.iter().map(|node| node.file_path.as_str()),
+        );
+        if let Err(error) = &extraction {
+            tracing::debug!(error = %error, "Search learning cannot certify current parser provenance");
+        }
+        Ok(nodes.into_iter().filter(|node| extraction.as_ref().is_ok_and(|expected| {
+            node.metadata.as_ref().is_some_and(|meta| expected.metadata_is_compatible(meta, node.file_path.as_str()))
+        })).map(|node| (node.namespace, node.node_id)).collect::<std::collections::HashSet<_>>())
+    }).await??;
 
     // Learning endpoints are not source inventory. A hit cannot create or rewrite
     // a canonical file fingerprint, namespace, range, or publication generation.
@@ -271,30 +274,9 @@ pub async fn record_cooccurrence(
         });
 
         let canonical_id = format!("file:{}", item.path);
-        let canonical = if let Some((pid, namespace)) = origin {
-            if pid == project_id {
-                state
-                    .graph
-                    .get_node(project_id, &canonical_id)?
-                    .filter(|node| {
-                        node.node_type == "file"
-                            && node.file_path == item.path
-                            && node.namespace == namespace
-                            && node.metadata.as_ref().is_some_and(|meta| {
-                                meta.get("file_hash").and_then(|v| v.as_str()).is_some()
-                                    && meta
-                                        .get("source_index_version")
-                                        .and_then(|v| v.as_u64())
-                                        .is_some()
-                            })
-                    })
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-        let anchor_id = if canonical.is_some() {
+        let canonical = origin.is_some_and(|(pid, namespace)| pid == project_id
+            && canonical_files.contains(&(namespace.to_owned(), canonical_id.clone())));
+        let anchor_id = if canonical {
             canonical_id
         } else {
             let id = format!("search-document:{}", item.pk);
@@ -314,35 +296,24 @@ pub async fn record_cooccurrence(
         };
         dep_pairs.push((EdgeKind::Dependency, anchor_id, chunk_node_id, 1));
     }
-    state.graph.upsert_nodes(project_id, &nodes)?;
-    if !dep_pairs.is_empty() {
-        state.graph.batch_increment_undirected_edges(
-            project_id,
-            engram_core::namespaces::NAMESPACE_MEMORY,
-            "text",
-            active_gen,
-            &dep_pairs,
-        )?;
-    }
-
     // Update co-occurrence weights for all pairs.
-    let mut co_pairs: Vec<(EdgeKind, String, String, u32)> = Vec::new();
+    // Commit the complete event atomically, including its learning endpoints.
+    let mut pairs = dep_pairs;
     for i in 0..h.len() {
         for j in (i + 1)..h.len() {
             let a = format!("pk:{}", h[i].pk);
             let b = format!("pk:{}", h[j].pk);
-            co_pairs.push((EdgeKind::CoOccurrence, a, b, 1));
+            pairs.push((EdgeKind::CoOccurrence, a, b, 1));
         }
     }
-    if !co_pairs.is_empty() {
-        state.graph.batch_increment_undirected_edges(
-            project_id,
-            engram_core::namespaces::NAMESPACE_MEMORY,
-            "text",
-            active_gen,
-            &co_pairs,
-        )?;
-    }
+    state.graph.upsert_nodes_and_increment_undirected_edges(
+        project_id,
+        engram_core::namespaces::NAMESPACE_MEMORY,
+        "text",
+        active_gen,
+        &nodes,
+        &pairs,
+    )?;
 
     Ok(())
 }

@@ -613,11 +613,26 @@ pub struct TestHit {
 
 // ── Phase 38-9 Output Types ──────────────────────────────────────────────────
 
-/// Dead method analysis report.
+/// Bounded graph candidates, never a runtime-unreachability verdict.
 #[derive(Debug, Clone, Serialize)]
 pub struct DeadMethodReport {
     pub dead_methods: Vec<DeadMethodInfo>,
+    /// Matching graph rows returned by this bounded query, not a project census.
     pub total_methods: usize,
+    pub coverage: DeadMethodCoverage,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DeadMethodCoverage {
+    pub scan_limit: usize,
+    pub queried_methods: usize,
+    pub inspected_methods: usize,
+    /// The query reached its cap; additional matching rows may exist.
+    pub query_limit_reached: bool,
+    pub returned_limit: usize,
+    pub partial: bool,
+    pub runtime_reachability: &'static str,
+    pub scope_note: &'static str,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -629,10 +644,8 @@ pub struct DeadMethodInfo {
     pub method_kind: String,
     pub line_count: u32,
     pub access_level: String,
-    /// Non-empty when static analysis alone cannot confirm the method is truly
-    /// unreachable — e.g. public methods that may be invoked via reflection,
-    /// `Type.GetMethod(...).Invoke(...)`, dynamic binding, or callers in
-    /// assemblies not present in this project.  (L-2 fix)
+    /// Runtime reachability is unknown even for private/missing-access methods.
+    /// Public/protected methods also retain the reflection/external-call note.
     pub confidence_note: String,
 }
 
@@ -5679,21 +5692,23 @@ impl Engram {
         let file_filter = req.file_path.clone();
         let limit = req.sanitized_limit();
         let output_json = req.output_json;
+        const SCAN_LIMIT: usize = 10_000;
 
-        let result = tokio::task::spawn_blocking(move || {
+        let result = tokio::task::spawn_blocking(move || -> anyhow::Result<DeadMethodReport> {
             let all_methods = graph
                 .query_nodes(
                     &project_id,
                     Some("function"),
                     None,
                     file_filter.as_deref(),
-                    10000,
-                )
-                .unwrap_or_default();
+                    SCAN_LIMIT,
+                )?;
 
             let mut dead_methods: Vec<DeadMethodInfo> = Vec::new();
+            let mut inspected_methods = 0;
 
             for node in &all_methods {
+                inspected_methods += 1;
                 let effects = meta_csv(node, "effects");
                 let kind = full_mig::classify_method_kind_pub(&node.name, &effects, &node.metadata);
                 let kind_str = kind.to_string(); // cache — avoid multiple to_string() calls
@@ -5714,16 +5729,16 @@ impl Engram {
                 }
 
                 // Check for incoming caller edges (Calls + Dependency)
-                let caller_count =
-                    crate::handlers::incoming_caller_edges(&graph, &project_id, &node.node_id, 1)
-                        .len();
+                let caller_count = crate::handlers::incoming_caller_edges_checked(
+                    &graph, &project_id, &node.node_id, 1,
+                )?.0.len();
 
                 if caller_count == 0 {
                     // L-2 fix: public methods with no static callers may still
                     // be live if called via reflection, dynamic binding, or
                     // from assemblies not included in this project.  Surface a
                     // confidence note so callers don't blindly delete them.
-                    let access = meta_str(node, "access_level");
+                    let access = meta_str(node, "access_level").trim().to_string();
                     let confidence_note = if access.eq_ignore_ascii_case("public")
                         || access.eq_ignore_ascii_case("protected")
                     {
@@ -5731,8 +5746,16 @@ impl Engram {
                          reflection, Type.GetMethod(), dynamic binding, or from \
                          an assembly not present in this project. Verify before removing."
                             .to_string()
+                    } else if access.is_empty() {
+                        "Unknown access level and runtime reachability: access metadata is missing. \
+                         Zero indexed callers does not establish dead code; verify source, dynamic \
+                         invocation and tests before removing."
+                            .to_string()
                     } else {
-                        String::new()
+                        "Unknown runtime reachability: zero indexed callers does not rule out \
+                         reflection or unresolved/dynamic calls, including for private methods. \
+                         Verify source, runtime and tests before removing."
+                            .to_string()
                     };
 
                     dead_methods.push(DeadMethodInfo {
@@ -5756,18 +5779,30 @@ impl Engram {
                 }
             }
 
-            // Sort by line count descending (largest dead methods first)
+            // Rank only the returned subset; this is not a global largest-first scan.
             dead_methods.sort_by(|a, b| b.line_count.cmp(&a.line_count));
 
             Ok(DeadMethodReport {
                 dead_methods,
                 total_methods: all_methods.len(),
+                coverage: DeadMethodCoverage {
+                    scan_limit: SCAN_LIMIT,
+                    queried_methods: all_methods.len(),
+                    inspected_methods,
+                    query_limit_reached: all_methods.len() == SCAN_LIMIT,
+                    returned_limit: limit,
+                    partial: all_methods.len() == SCAN_LIMIT || inspected_methods < all_methods.len(),
+                    runtime_reachability: "unknown",
+                    scope_note: "Live indexed graph observations only; capped query/results and event/lifecycle exclusions do not prove exhaustive runtime, dynamic or external-call coverage.",
+                },
             })
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        let report = result.map_err(|e: String| McpError::invalid_params(e, None))?;
+        let report = result.map_err(|e| McpError::internal_error(
+            format!("Method-candidate graph evidence unavailable: {e:#}"), None,
+        ))?;
 
         if output_json {
             let json = serde_json::to_string_pretty(&report)
@@ -5775,43 +5810,31 @@ impl Engram {
             return Ok(CallToolResult::success(vec![Content::text(json)]));
         }
 
-        let total_dead_lines: u32 = report.dead_methods.iter().map(|m| m.line_count).sum();
+        let total_candidate_lines: u64 = report.dead_methods.iter().map(|m| u64::from(m.line_count)).sum();
 
         let mut md = format!(
-            "# Dead Method Analysis\n\n- **Total methods**: {}\n- **Dead methods**: {} ({:.1}%)\n- **Dead lines**: {}\n\n",
+            "# Zero-indexed-caller candidates\n\n- **Matching graph methods queried**: {} (query limit {})\n- **Methods inspected**: {}\n- **Returned candidates**: {} (result limit {})\n- **Lines in returned candidates**: {}\n\nRuntime reachability is unknown. Zero indexed callers does not establish global unreachability or safe removal; verify source, runtime invocation and tests.\n\nCoverage: {}. {}\n\n",
             report.total_methods,
+            report.coverage.scan_limit,
+            report.coverage.inspected_methods,
             report.dead_methods.len(),
-            if report.total_methods > 0 {
-                report.dead_methods.len() as f64 / report.total_methods as f64 * 100.0
-            } else {
-                0.0
-            },
-            total_dead_lines,
+            report.coverage.returned_limit,
+            total_candidate_lines,
+            if report.coverage.partial { "partial bounded inspection" } else { "queried subset inspected; runtime coverage unknown" },
+            report.coverage.scope_note,
         );
 
         if report.dead_methods.is_empty() {
-            md.push_str("No dead methods found.\n");
+            md.push_str("No candidates found within the inspected graph metadata; runtime reachability remains unknown.\n");
         } else {
-            let low_confidence_count = report
-                .dead_methods
-                .iter()
-                .filter(|m| !m.confidence_note.is_empty())
-                .count();
-            if low_confidence_count > 0 {
-                md.push_str(&format!(
-                    "> ⚠️ **{} of {} results are low-confidence** (public/protected methods — \
-                     may be reflection-invoked). Review `confidence_note` before removing.\n\n",
-                    low_confidence_count,
-                    report.dead_methods.len(),
-                ));
-            }
-            md.push_str("| FQN | File | Lines | Kind | Access | Confidence |\n");
+            md.push_str("| FQN | File | Lines | Kind | Access | Reachability observation |\n");
             md.push_str("|-----|------|-------|------|--------|------------|\n");
             for m in &report.dead_methods {
+                let access = if m.access_level.is_empty() { "unknown" } else { m.access_level.as_str() };
                 let confidence = if m.confidence_note.is_empty() {
-                    "High".to_string()
+                    "Unknown runtime reachability".to_string()
                 } else {
-                    format!("⚠️ Low — {}", m.confidence_note)
+                    format!("Unknown — {}", m.confidence_note)
                 };
                 md.push_str(&format!(
                     "| `{}` | `{}` | {}–{} ({}) | {} | {} | {} |\n",
@@ -5821,7 +5844,7 @@ impl Engram {
                     m.line_end,
                     m.line_count,
                     m.method_kind,
-                    m.access_level,
+                    access,
                     confidence,
                 ));
             }
@@ -5935,6 +5958,106 @@ impl Engram {
         out.push_str(&md);
         out.push_str(&footer);
         Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+}
+
+#[cfg(test)]
+mod dead_method_contract_tests {
+    use super::*;
+    use anyhow::{Result, ensure};
+    use rmcp::handler::server::tool::Parameters;
+
+    fn text(reply: CallToolResult) -> Result<String> {
+        match reply.content.into_iter().next().map(|content| content.raw) {
+            Some(rmcp::model::RawContent::Text(text)) => Ok(text.text),
+            _ => anyhow::bail!("Expected public tool text response"),
+        }
+    }
+
+    #[test]
+    fn public_dead_method_candidates_keep_unknown_reachability_and_report_partial_results() -> Result<()> {
+        let owned = tempfile::tempdir()?;
+        let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build()?;
+        let result: Result<()> = runtime.block_on(async {
+            let root = owned.path().join("repo");
+            std::fs::create_dir(&root)?;
+            let (state, _events) = crate::state::AppState::new(engram_core::Config {
+                data_dir: owned.path().join("data"), allowed_roots: vec![root.clone()],
+                embedding_backend: "fts_only".into(), ..Default::default()
+            })?;
+            let project = "candidate-contract";
+            state.registry.register_source_project(&engram_core::ProjectRecord {
+                project_id: project.into(), project_name: "Owned candidate contract".into(),
+                project_type: "general".into(), directory: root.to_string_lossy().into_owned(),
+                created_at_ms: 1, updated_at_ms: 1, reindex_required_since_ms: None,
+            })?;
+            let node = |id: &str, name: &str, access: Option<&str>| Node {
+                node_id: id.into(), node_type: "function".into(), name: name.into(),
+                namespace: "memory".into(), language: "vbnet".into(),
+                file_path: engram_core::RelPath::new("source.vb"), start_line: 1, end_line: 5,
+                generation: 1, metadata: access.map(|access| serde_json::json!({"access_level":access,"fqn":name})),
+            };
+            state.graph.upsert_nodes(project, &[
+                node("a-missing", "Contract.MissingAccess", None),
+                node("b-private", "Contract.PrivateCandidate", Some("private")),
+                node("c-public", "Contract.PublicCandidate", Some("public")),
+                node("d-called", "Contract.Called", Some("private")),
+                node("e-caller", "Contract.Caller", Some("private")),
+            ])?;
+            // Real stored callers of both indexed kinds remain excluded. The
+            // three other rows have no incoming edges, not proven dead code.
+            state.graph.upsert_edges(project, &[
+                engram_graph::Edge { source_id:"e-caller".into(), target_id:"d-called".into(),
+                    namespace:"memory".into(), language:"vbnet".into(), edge_kind:EdgeKind::Calls,
+                    weight:1, generation:1, metadata:None, updated_at_ms:1 },
+                engram_graph::Edge { source_id:"d-called".into(), target_id:"e-caller".into(),
+                    namespace:"memory".into(), language:"vbnet".into(), edge_kind:EdgeKind::Dependency,
+                    weight:1, generation:1, metadata:None, updated_at_ms:1 },
+            ])?;
+            let engram = Engram::new(state);
+            let request = |limit, output_json| serde_json::from_value::<FindDeadMethodsRequest>(serde_json::json!({
+                "project_id":project,"limit":limit,"output_json":output_json
+            }));
+            let full: serde_json::Value = serde_json::from_str(&text(engram.find_dead_methods(
+                Parameters(request(100, true)?)).await?)?)?;
+            let candidates = full["dead_methods"].as_array().ok_or_else(|| anyhow::anyhow!("Missing candidates"))?;
+            ensure!(candidates.len() == 3 && full["total_methods"] == 5);
+            for (name, access) in [("Contract.MissingAccess", ""), ("Contract.PrivateCandidate", "private"),
+                ("Contract.PublicCandidate", "public")] {
+                let candidate = candidates.iter().find(|candidate| candidate["fqn"] == name)
+                    .ok_or_else(|| anyhow::anyhow!("Expected {name}: {full}"))?;
+                ensure!(candidate["access_level"] == access);
+                let note = candidate["confidence_note"].as_str().unwrap_or_default();
+                ensure!(!note.is_empty() && !note.contains("High"), "Unproven certainty: {candidate}");
+                if access.is_empty() { ensure!(note.contains("metadata is missing")); }
+                if access == "private" { ensure!(note.contains("Unknown runtime reachability")); }
+                if access == "public" { ensure!(note.contains("reflection") && note.contains("assembly")); }
+            }
+            ensure!(full["coverage"]["runtime_reachability"] == "unknown"
+                && full["coverage"]["scan_limit"] == 10_000
+                && full["coverage"]["inspected_methods"] == 5
+                && full["coverage"]["partial"] == false);
+            let limited: serde_json::Value = serde_json::from_str(&text(engram.find_dead_methods(
+                Parameters(request(1, true)?)).await?)?)?;
+            ensure!(limited["dead_methods"].as_array().unwrap().len() == 1
+                && limited["total_methods"] == 5 && limited["coverage"]["returned_limit"] == 1
+                && limited["coverage"]["partial"] == true,
+                "A returned subset was presented as exhaustive: {limited}");
+            let markdown = text(engram.find_dead_methods(Parameters(request(100, false)?)).await?)?;
+            ensure!(markdown.contains("Zero-indexed-caller candidates")
+                && markdown.contains("Runtime reachability is unknown")
+                && markdown.contains("does not establish global unreachability or safe removal")
+                && markdown.contains("access metadata is missing")
+                && !markdown.contains("| High") && !markdown.contains("No dead methods found"), "{markdown}");
+            let limited_markdown = text(engram.find_dead_methods(Parameters(request(1, false)?)).await?)?;
+            ensure!(limited_markdown.contains("partial bounded inspection") && limited_markdown.contains("result limit 1"));
+            Ok(())
+        });
+        drop(runtime);
+        match (result, owned.close()) {
+            (Err(error), Err(cleanup)) => Err(error.context(format!("Fixture cleanup also failed: {cleanup}"))),
+            (Err(error), _) => Err(error), (Ok(()), cleanup) => cleanup.map_err(Into::into),
+        }
     }
 }
 

@@ -33,6 +33,13 @@ internal sealed class AstEmitter
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, List<SourcePropertyInfo>> _sourcePropertiesByName =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, long> _sourceBytesByPath = new(StringComparer.OrdinalIgnoreCase);
+    private CompilationPolicyDto? _trustedPolicy;
+    private RefreshPlan? _pendingPlan;
+    private ulong _cacheEpoch;
+    private ulong _nextPlan;
+    private sealed record RefreshPlan(CompilationPlanDto Receipt, string Root,
+        List<(string Path, long Bytes)> Sources, ulong Epoch);
 
     private sealed record SourcePropertyInfo(string Fqn, string ContainingType, string Path);
 
@@ -117,6 +124,10 @@ internal sealed class AstEmitter
     /// </param>
     public void BeginProject(string projectRoot, IReadOnlyList<string>? files = null)
     {
+        _pendingPlan = null;
+        _cacheEpoch = checked(_cacheEpoch + 1);
+        _sourceBytesByPath.Clear();
+        _trustedPolicy = null;
         _treesByPath.Clear();
         _sourcePropertiesByName.Clear();
         _projectRoot = null;
@@ -126,6 +137,7 @@ internal sealed class AstEmitter
             _projectCompilation = null;
             return;
         }
+        projectRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(projectRoot));
 
         IEnumerable<string> sources = files is { Count: > 0 }
             ? files
@@ -157,6 +169,144 @@ internal sealed class AstEmitter
     }
 
     /// <summary>
+    /// Prepare every changed peer before any trusted parse. A supplied exact
+    /// inventory starts a new compilation; an omitted inventory refreshes the
+    /// existing one. An empty supplied inventory is an empty admitted project,
+    /// never permission to walk the directory. Failure revokes preparation.
+    /// </summary>
+    public CompilationPlanDto PlanRefresh(string projectRoot, IReadOnlyList<string>? files,
+        IReadOnlyList<string> changed, CompilationPolicyDto policy)
+    {
+        _pendingPlan = null;
+        policy.Validate();
+        projectRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(projectRoot));
+        if (!Directory.Exists(projectRoot))
+            throw new InvalidOperationException("The admitted source root does not exist");
+        string CheckedPath(string path)
+        {
+            var full = Path.GetFullPath(path);
+            var relative = Path.GetRelativePath(projectRoot, full);
+            if (Path.IsPathRooted(relative) || relative == ".." ||
+                relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
+                !full.EndsWith(".vb", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("A compilation source is outside the admitted root");
+            return full;
+        }
+        var sameRoot = string.Equals(_projectRoot, projectRoot,
+            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+        if (files is null && (!sameRoot || _projectCompilation is null || _trustedPolicy != policy ||
+            _sourceBytesByPath.Count != _treesByPath.Count))
+            throw new InvalidOperationException("A cold compilation requires its explicit admitted inventory");
+        if ((files ?? changed).Count > policy.MaxTrees)
+            throw new InvalidOperationException("VB compilation tree-count limit exceeded; narrow the admitted project");
+        var refreshPaths = (files ?? changed).Select(CheckedPath).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (files is null && refreshPaths.Any(path => !_treesByPath.ContainsKey(path)))
+            throw new InvalidOperationException("A changed source is absent from the prepared inventory");
+        long total = 0;
+        if (files is null)
+        {
+            foreach (var bytes in _sourceBytesByPath.Values) total = checked(total + bytes);
+            foreach (var path in refreshPaths) total = checked(total - _sourceBytesByPath[path]);
+        }
+        var sources = new List<(string Path, long Bytes)>(refreshPaths.Count);
+        long changedBytes = 0;
+        long maximum = 0;
+        foreach (var path in refreshPaths)
+        {
+            var info = new FileInfo(path);
+            if (!info.Exists || (info.Attributes & FileAttributes.Directory) != 0)
+                throw new IOException("A planned compilation source is unavailable");
+            var bytes = info.Length;
+            if (bytes > policy.MaxFileSourceBytes)
+                throw new InvalidOperationException("VB compilation file exceeds the 10MiB ingestion limit; narrow the admitted project");
+            total = checked(total + bytes);
+            changedBytes = checked(changedBytes + bytes);
+            maximum = Math.Max(maximum, bytes);
+            if (total > policy.MaxTotalSourceBytes)
+                throw new InvalidOperationException("VB compilation aggregate source-byte limit exceeded; narrow the admitted project (request source limits are separate)");
+            sources.Add((path, bytes));
+        }
+        var count = files is null ? _treesByPath.Count : refreshPaths.Count;
+        if (count > policy.MaxTrees || total > policy.MaxTotalSourceBytes)
+            throw new InvalidOperationException("VB compilation source/count limit exceeded; narrow the admitted project");
+        var receipt = new CompilationPlanDto
+        {
+            Id = checked(++_nextPlan), TotalSourceBytes = total, TreeCount = count,
+            ChangedSourceBytes = changedBytes, ChangedTreeCount = refreshPaths.Count,
+            MaxChangedFileBytes = maximum, Full = files is not null, Policy = policy
+        };
+        _pendingPlan = new RefreshPlan(receipt, projectRoot, sources, _cacheEpoch);
+        return receipt;
+    }
+
+    public void RefreshProject(ulong planId)
+    {
+        var plan = _pendingPlan;
+        if (plan is null || plan.Receipt.Id != planId || plan.Epoch != _cacheEpoch)
+            throw new InvalidOperationException("VB compilation plan is stale; replan the admitted source batch");
+        _pendingPlan = null;
+        try
+        {
+            var refreshed = new List<SyntaxTree>(plan.Sources.Count);
+            foreach (var (path, bytes) in plan.Sources)
+            {
+                // The metadata plan is not permission for an unbounded read.
+                // Check the opened handle and one sentinel byte around a
+                // fixed, admitted allocation before any syntax-tree creation.
+                using var input = new FileStream(path, FileMode.Open, FileAccess.Read,
+                    FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.SequentialScan);
+                if (input.Length != bytes) throw new IOException("VB compilation source changed after planning; retry");
+                var buffer = new byte[checked((int)bytes)];
+                input.ReadExactly(buffer);
+                if (input.ReadByte() != -1 || input.Length != bytes)
+                    throw new IOException("VB compilation source grew after planning; retry");
+                var source = System.Text.Encoding.UTF8.GetString(buffer);
+                refreshed.Add(VisualBasicSyntaxTree.ParseText(SourceText.From(SourceForParsing(source)), path: path));
+            }
+            // Build the complete replacement before exposing any changed tree.
+            // B parsed first must already see the new A and its property cache.
+            var next = plan.Receipt.Full
+                ? VisualBasicCompilation.Create("sidecar_project").AddSyntaxTrees(refreshed)
+                : _projectCompilation!.RemoveSyntaxTrees(plan.Sources.Select(source => _treesByPath[source.Path])).AddSyntaxTrees(refreshed);
+            if (plan.Receipt.Full)
+            {
+                _treesByPath.Clear();
+                _sourcePropertiesByName.Clear();
+                _sourceBytesByPath.Clear();
+            }
+            else
+            {
+                foreach (var source in plan.Sources) RemoveSourceProperties(source.Path);
+            }
+            foreach (var tree in refreshed)
+            {
+                _treesByPath[tree.FilePath] = tree;
+                AddSourceProperties(tree);
+            }
+            foreach (var source in plan.Sources) _sourceBytesByPath[source.Path] = source.Bytes;
+            _projectCompilation = next;
+            _projectRoot = plan.Root;
+            _trustedPolicy = plan.Receipt.Policy;
+            _cacheEpoch = checked(_cacheEpoch + 1);
+        }
+        catch
+        {
+            _projectCompilation = null;
+            _projectRoot = null;
+            _treesByPath.Clear();
+            _sourcePropertiesByName.Clear();
+            _sourceBytesByPath.Clear();
+            _trustedPolicy = null;
+            _cacheEpoch = checked(_cacheEpoch + 1);
+            throw;
+        }
+    }
+
+    public bool IsPreparedSource(string path, string source) =>
+        _trustedPolicy is not null && _projectCompilation is not null && _treesByPath.TryGetValue(Path.GetFullPath(path), out var tree) &&
+        tree.GetText().ContentEquals(SourceText.From(SourceForParsing(source)));
+
+    /// <summary>
     /// Drop the cached syntax trees for the given paths, keeping the rest of
     /// the project compilation warm. Used for incremental updates: a changed
     /// file is then re-parsed from the source the caller sends with its next
@@ -167,6 +317,8 @@ internal sealed class AstEmitter
     /// <returns>How many cached trees were actually removed.</returns>
     public int InvalidateFiles(IEnumerable<string> paths)
     {
+        _pendingPlan = null;
+        _cacheEpoch = checked(_cacheEpoch + 1);
         if (_projectCompilation is null)
         {
             return 0;
@@ -183,6 +335,7 @@ internal sealed class AstEmitter
             {
                 stale.Add(tree);
                 _treesByPath.Remove(path);
+                _sourceBytesByPath.Remove(path);
                 RemoveSourceProperties(path);
             }
         }
@@ -260,8 +413,11 @@ internal sealed class AstEmitter
             SyntaxTree tree;
             VisualBasicCompilation compilation;
 
-            if (_projectCompilation is not null && _treesByPath.TryGetValue(path, out var existingTree))
+            var requestedText = SourceText.From(SourceForParsing(source));
+            _treesByPath.TryGetValue(path, out var existingTree);
+            if (_projectCompilation is not null && existingTree is not null && existingTree.GetText().ContentEquals(requestedText))
             {
+                // Only identical request text may reuse a warmed syntax tree.
                 // Reuse the tree and compilation from BeginProject — no re-parse,
                 // no compilation rebuild. This eliminates O(N) ParseText calls and
                 // O(N²) ReplaceSyntaxTree allocations during the extraction loop.
@@ -273,14 +429,17 @@ internal sealed class AstEmitter
                 // File wasn't in the initial project scan (new file, or path
                 // mismatch). Parse it and add to the compilation for this call,
                 // but don't mutate _projectCompilation — avoids O(N²) rebuilds.
-                tree = VisualBasicSyntaxTree.ParseText(SourceText.From(SourceForParsing(source)), path: path);
-                compilation = _projectCompilation.AddSyntaxTrees(tree);
+                tree = VisualBasicSyntaxTree.ParseText(requestedText, path: path);
+                // A same-path changed request must not see the stale tree as a
+                // second definition. Keep the shared baseline immutable.
+                compilation = existingTree is null ? _projectCompilation.AddSyntaxTrees(tree)
+                    : _projectCompilation.ReplaceSyntaxTree(existingTree, tree);
                 RemoveSourceProperties(path);
                 AddSourceProperties(tree);
             }
             else
             {
-                tree = VisualBasicSyntaxTree.ParseText(SourceText.From(SourceForParsing(source)), path: path);
+                tree = VisualBasicSyntaxTree.ParseText(requestedText, path: path);
                 compilation = VisualBasicCompilation.Create("sidecar_single").AddSyntaxTrees(tree);
                 _sourcePropertiesByName.Clear();
                 AddSourceProperties(tree);
