@@ -573,7 +573,9 @@ impl Engram {
         self.handle_list_memory_bank(params.0).await
     }
 
-    #[tool(description = "Read one memory bank section by name. Discover sections with search_memory(search_scope=knowledge): memory hits return full_section and citation_section recovery arguments. The full profile also offers list_memory_bank. Optional citation returns exact stored UTF-8 content and hash-bound line/byte pages as JSON; 40000-byte selected-content budget (JSON escaping can expand response).")]
+    #[tool(
+        description = "Read one memory bank section by name. Discover sections with search_memory(search_scope=knowledge): memory hits return full_section and citation_section recovery arguments. The full profile also offers list_memory_bank. Optional citation returns exact stored UTF-8 content and hash-bound line/byte pages as JSON; 40000-byte selected-content budget (JSON escaping can expand response)."
+    )]
     pub async fn read_memory_bank(
         &self,
         params: Parameters<ReadMemoryBankRequest>,
@@ -609,7 +611,9 @@ impl Engram {
         self.handle_add_repo_rule(params.0).await
     }
 
-    #[tool(description = "List repository rules with text, scope, priority, evidence date, provenance and stable rule_id. ownership_inventory=true returns exact raw rows/hashes, all receipt claims including malformed entries, existing project identity, source fingerprints and unfiltered enforcement observations. Optional source_paths supplies explicit candidates; matching names/text never proves ownership. Read-only; no adoption or policy acceptance.")]
+    #[tool(
+        description = "List repository rules with text, scope, priority, evidence date, provenance and stable rule_id. ownership_inventory=true returns exact raw rows/hashes, all receipt claims including malformed entries, existing project identity, source fingerprints and unfiltered enforcement observations. Optional source_paths supplies explicit candidates; matching names/text never proves ownership. Read-only; no adoption or policy acceptance."
+    )]
     pub async fn list_repo_rules(
         &self,
         params: Parameters<ListRepoRulesRequest>,
@@ -1127,7 +1131,9 @@ impl Engram {
         self.handle_get_checkpoint_status(params.0).await
     }
 
-    #[tool(description = "Tracked allocation reservations per subsystem, not process private memory or all native allocations. Optional project_id observes an already-cached runtime's snapshot/reader/cache/ranking retention without opening it, refreshing LRU or running cache maintenance; counts are bounded, non-atomic observations.")]
+    #[tool(
+        description = "Tracked allocation reservations per subsystem, not process private memory or all native allocations. Optional project_id observes an already-cached runtime's snapshot/reader/cache/ranking retention without opening it, refreshing LRU or running cache maintenance; counts are bounded, non-atomic observations."
+    )]
     pub async fn get_memory_budget(
         &self,
         params: Parameters<GetMemoryBudgetRequest>,
@@ -1510,7 +1516,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Pre-edit context: assembles method info, full body, top callers (identities plus bounded fingerprint-verified lexical source excerpts; include_caller_bodies=true for full source; distinct indexed caller totals are separate from display caps), database footprint, session state flows, VB traps, sync hazards, blast radius, business-rule evidence, historical shipped-file leads (include_history=false to omit; merged_before for a historical cutoff), and the edit-safety verdict. Provider COVERAGE (complete / truncated / failed / not run) describes available evidence, not exhaustive codebase coverage; dangling caller edges make fan-in a lower bound. Same-class overloads are refused until `line` selects one. Use before modifying a method."
+        description = "Pre-edit context: assembles method info, full body, top callers (identities plus bounded fingerprint-verified lexical source excerpts; include_caller_bodies=true for full source; distinct indexed caller totals are separate from display caps), database footprint, session state flows, VB traps, sync hazards, bounded revision-admitted downstream paths, business-rule evidence, historical shipped-file leads (include_history=false to omit; merged_before for a historical cutoff), and the shared edit-safety verdict. Provider COVERAGE (complete / partial / truncated / failed / not run) describes available evidence, not exhaustive codebase coverage. Missing downstream evidence prevents green; static paths do not prove breakage or runtime safety. One-hop scores and confidence are advisory heuristics. Same-class overloads are refused until `line` selects one. Use before modifying a method."
     )]
     pub async fn get_method_edit_context(
         &self,
@@ -1600,7 +1606,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Standalone edit safety check: green/yellow/red verdict for a method from blast radius, exact caller count, session writes, and complexity (measured from the body), computed from the SAME evidence as get_method_edit_context and reported with per-provider coverage — missing evidence is never green. Use when you only need the verdict."
+        description = "Standalone edit safety check: green/yellow/red advisory verdict from bounded revision-admitted downstream paths, one-hop blast radius, exact caller count, session writes, and body complexity, computed from the SAME evidence as get_method_edit_context with per-provider coverage. Missing or incomplete downstream evidence prevents green. Static paths do not prove breakage or runtime safety; confidence is an uncalibrated heuristic. Use when you only need the verdict and its impact evidence."
     )]
     pub async fn check_edit_safety(
         &self,
@@ -1633,8 +1639,9 @@ impl ServerHandler for Engram {
         ServerInfo {
             instructions: if !self.state.cfg.advertise_all_tools {
                 Some(core_instructions.to_owned())
-            } else { Some(
-                "Engram gives agents a persistent, indexed memory of a codebase: hybrid \
+            } else {
+                Some(
+                    "Engram gives agents a persistent, indexed memory of a codebase: hybrid \
                  search, a typed code graph, git temporal intelligence, and edit-safety \
                  checks. Typical flow: list_projects (get the project_id) → \
                  get_codebase_overview (orient) → search_memory or grep_project (find \
@@ -1645,8 +1652,9 @@ impl ServerHandler for Engram {
                  call get_index_freshness; update_project refreshes incrementally. \
                  Tools prefixed [.NET legacy] target ASP.NET WebForms / VB.NET / Classic \
                  ASP migration work and return little on other stacks."
-                    .to_string(),
-            ) },
+                        .to_string(),
+                )
+            },
             capabilities: ServerCapabilities::builder().enable_tools().build(),
             ..Default::default()
         }

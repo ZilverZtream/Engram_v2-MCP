@@ -214,6 +214,9 @@ pub struct EditSafetyResult {
     /// the evidence behind it; missing or capped providers are listed here
     /// and floor the verdict (never green on missing evidence).
     pub completeness: EditContextCompleteness,
+    /// Same structured, source-revision-admitted observation in both edit tools.
+    pub downstream_impact: Option<crate::services::impact_walk_service::ImpactAssessment>,
+    pub evidence_interpretation: &'static str,
 }
 
 /// What one evidence provider actually delivered (row-2 audit). Missing or
@@ -223,6 +226,9 @@ pub struct EditSafetyResult {
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum ProviderStatus {
     Complete,
+    Partial {
+        reasons: Vec<String>,
+    },
     Truncated {
         shown: usize,
         cap: usize,
@@ -245,11 +251,13 @@ impl Default for ProviderStatus {
 }
 
 impl ProviderStatus {
-    /// Failed or never ran — the verdict must not treat the axis as "clean".
+    /// Missing or partial evidence must not be treated as a clean axis.
     pub fn is_missing(&self) -> bool {
         matches!(
             self,
-            ProviderStatus::Failed { .. } | ProviderStatus::NotRun { .. }
+            ProviderStatus::Failed { .. }
+                | ProviderStatus::NotRun { .. }
+                | ProviderStatus::Partial { .. }
         )
     }
 }
@@ -262,6 +270,8 @@ pub struct EditContextCompleteness {
     #[serde(default = "coverage_interpretation")]
     pub coverage_interpretation: String,
     pub blast: ProviderStatus,
+    #[serde(default)]
+    pub downstream: ProviderStatus,
     pub callers: ProviderStatus,
     /// Incoming caller edges whose source node does not exist (dangling).
     /// Quarantined from the caller list; reported so "no callers" is never
@@ -286,6 +296,7 @@ impl Default for EditContextCompleteness {
         Self {
             coverage_interpretation: coverage_interpretation(),
             blast: Default::default(),
+            downstream: Default::default(),
             callers: Default::default(),
             callers_dangling: 0,
             body: Default::default(),
@@ -305,6 +316,7 @@ impl EditContextCompleteness {
         Self {
             coverage_interpretation: coverage_interpretation(),
             blast: ProviderStatus::Complete,
+            downstream: ProviderStatus::Complete,
             callers: ProviderStatus::Complete,
             callers_dangling: 0,
             body: ProviderStatus::Complete,
@@ -384,13 +396,14 @@ pub struct PageContextCompleteness {
     pub ajax: ProviderStatus,
 }
 
-/// Fold two provider statuses: Failed > Truncated > NotRun > Complete.
+/// Fold two provider statuses: Failed > Partial/Truncated > NotRun > Complete.
 fn worse_status(a: ProviderStatus, b: ProviderStatus) -> ProviderStatus {
     fn rank(p: &ProviderStatus) -> u8 {
         match p {
             ProviderStatus::Complete => 0,
             ProviderStatus::NotRun { .. } => 1,
             ProviderStatus::Truncated { .. } => 2,
+            ProviderStatus::Partial { .. } => 2,
             ProviderStatus::Failed { .. } => 3,
         }
     }
@@ -1345,7 +1358,9 @@ fn source_lines(
     if line_start == 0 || line_end < line_start || line_end > total {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
-            format!("Invalid source range {line_start}..{line_end}; file has {total} lines. Use 1-based bounds within the file."),
+            format!(
+                "Invalid source range {line_start}..{line_end}; file has {total} lines. Use 1-based bounds within the file."
+            ),
         ));
     }
 
@@ -1648,6 +1663,7 @@ fn assemble_edit_evidence(
 fn provider_text(p: &ProviderStatus) -> String {
     match p {
         ProviderStatus::Complete => "complete".into(),
+        ProviderStatus::Partial { reasons } => format!("partial evidence; {}", reasons.join("; ")),
         ProviderStatus::Truncated {
             shown,
             cap,
@@ -1666,6 +1682,7 @@ fn render_coverage_block(c: &EditContextCompleteness) -> String {
     let mut md = format!("## Coverage\n\n{}\n\n", c.coverage_interpretation);
     for (name, st) in [
         ("blast radius", &c.blast),
+        ("revision-admitted downstream", &c.downstream),
         ("callers", &c.callers),
         ("body", &c.body),
         ("complexity", &c.complexity),
@@ -1840,7 +1857,7 @@ fn compute_edit_safety(
     }
     // ── GREEN: safe ─────────────────────────────────────────────────────
     else {
-        reasons.push("Low blast radius, few callers, no complex state".to_string());
+        reasons.push("One-hop advisory: low observed score, few resolved direct callers and no complex state detected; downstream evidence is assessed separately".to_string());
         if has_no_bound_callers && framework_entry_point {
             reasons.push(
                 "No static caller edge is expected for this framework or constructor entry point; its entry-point classification prevented a false orphan warning"
@@ -1891,6 +1908,9 @@ fn compute_edit_safety(
             ProviderStatus::NotRun { reason } => {
                 missing.push(format!("{name} not measured ({reason})"))
             }
+            ProviderStatus::Partial { reasons } => {
+                missing.push(format!("{name} partial ({})", reasons.join("; ")))
+            }
             _ => {}
         }
     }
@@ -1934,7 +1954,148 @@ fn compute_edit_safety(
         pre_edit_checklist: pre_checklist,
         post_edit_checklist: post_checklist,
         completeness,
+        downstream_impact: None,
+        evidence_interpretation: "The blast_radius_score/risk_band and confidence are uncalibrated advisory heuristics, not measured probabilities of safe edits or a comprehensive safety assessment. Direct caller lists are live graph observations; caller bodies use current-disk/index checks and are not all validated against the downstream source selection. Downstream paths separately check indexed node/file/edge revisions under their named held generation. Static exposure is not proof of breakage or runtime safety.",
     }
+}
+
+fn apply_downstream_safety(
+    safety: &mut EditSafetyResult,
+    assessment: crate::services::impact_walk_service::ImpactAssessment,
+) {
+    let available =
+        assessment.status == "bounded_indexed_exposure" && assessment.target_revision_admitted;
+    let incomplete = !available
+        || assessment.coverage.truncated
+        || assessment.coverage.missing_nodes > 0
+        || assessment.coverage.unknown_nodes > 0
+        || assessment.coverage.non_selected_nodes > 0
+        || !assessment.coverage.reasons.is_empty();
+    let total = assessment.selected_dependents_observed;
+    let transitive = assessment.transitive_dependents_observed;
+    safety.completeness.downstream = if !available {
+        ProviderStatus::Failed {
+            reason: "Selected target/downstream evidence unavailable; no zero-impact inference"
+                .into(),
+        }
+    } else if incomplete {
+        let mut reasons = assessment.coverage.reasons.clone();
+        if assessment.coverage.missing_nodes > 0 {
+            reasons.push(format!(
+                "{} missing graph node observations",
+                assessment.coverage.missing_nodes
+            ));
+        }
+        if assessment.coverage.unknown_nodes > 0 {
+            reasons.push(format!(
+                "{} unknown admission/binding observations",
+                assessment.coverage.unknown_nodes
+            ));
+        }
+        if assessment.coverage.non_selected_nodes > 0 {
+            reasons.push(format!(
+                "{} non-selected revisions excluded",
+                assessment.coverage.non_selected_nodes
+            ));
+        }
+        if reasons.is_empty() {
+            reasons.push("Traversal reports incomplete coverage".into());
+        }
+        ProviderStatus::Partial { reasons }
+    } else {
+        ProviderStatus::Complete
+    };
+    if available {
+        safety.reasons.push(format!(
+            "Revision-admitted downstream: {} observed potential dependents ({} direct, {} transitive) under source generation {}. Static exposure does not prove a proposed edit breaks them.",
+            total.unwrap_or(0), assessment.direct_dependents_observed.unwrap_or(0),
+            transitive.unwrap_or(0), assessment.source_generation.map_or_else(|| "unknown".into(), |value| value.to_string())
+        ));
+    }
+    if incomplete {
+        safety.reasons.push(format!(
+            "Downstream evidence INCOMPLETE or unavailable; missing/unknown bindings and traversal limits cannot establish low exposure. Coverage reasons: {}.",
+            if assessment.coverage.reasons.is_empty() { "source/target admission unavailable".into() }
+            else { assessment.coverage.reasons.join(", ") }
+        ));
+        if safety.verdict == "green" {
+            safety.verdict = "yellow".into();
+        }
+        safety.confidence = safety.confidence.min(0.5);
+        safety.pre_edit_checklist.push("Resolve downstream evidence gaps and inspect the relevant static paths and dynamic entry points before editing.".into());
+    }
+    if assessment.coverage.non_selected_nodes > 0 {
+        safety.reasons.push(format!("{} non-selected graph revisions were excluded, not counted as current impact; stale branches do not establish complete current coverage.", assessment.coverage.non_selected_nodes));
+    }
+    let review_exposure =
+        transitive.is_some_and(|count| count > 0) || total.is_some_and(|count| count >= 4);
+    if review_exposure {
+        if safety.verdict == "green" {
+            safety.verdict = "yellow".into();
+        }
+        safety.confidence = safety.confidence.min(0.7);
+        safety.reasons.push("Downstream exposure needs compatibility review, including intermediate callers and affected entry points; the one-hop score alone is insufficient.".into());
+        safety.pre_edit_checklist.push("Review the downstream witnesses and plan focused compatibility checks for the affected callers/entry points.".into());
+    }
+    let omitted = assessment.evidence["omitted_from_display"]
+        .as_u64()
+        .unwrap_or(0);
+    if omitted > 0 {
+        safety.reasons.push(format!("{omitted} observed downstream dependents omitted from the bounded display; counts above include them. Display omission alone is not missing traversal evidence."));
+    }
+    safety.downstream_impact = Some(assessment);
+}
+
+fn validate_held_method_revision(
+    graph: &GraphStore,
+    project: &str,
+    node: &Node,
+    membership: Option<&engram_index::hybrid::SelectedSourceRevisionLookup>,
+) -> Result<(), String> {
+    let Some(membership) = membership else {
+        return Ok(());
+    };
+    let selected = membership
+        .matches(node.file_path.as_str(), node.generation)
+        .map_err(|error| format!("Selected method revision unavailable: {error:#}"))?;
+    let file = graph
+        .get_node(project, &format!("file:{}", node.file_path.as_str()))
+        .map_err(|error| format!("Selected method file unavailable: {error:#}"))?;
+    let file_selected = match file {
+        Some(file)
+            if file.node_type == "file"
+                && file.file_path == node.file_path
+                && file.namespace == engram_core::namespaces::NAMESPACE_MEMORY =>
+        {
+            membership
+                .matches(node.file_path.as_str(), file.generation)
+                .map_err(|error| format!("Selected method file revision unavailable: {error:#}"))?
+                == Some(true)
+        }
+        _ => false,
+    };
+    if selected != Some(true)
+        || !file_selected
+        || node.namespace != engram_core::namespaces::NAMESPACE_MEMORY
+    {
+        return Err("Method/file revision changed relative to the held downstream source selection; retry method context before editing".into());
+    }
+    Ok(())
+}
+
+fn render_downstream_safety(safety: &EditSafetyResult) -> String {
+    let mut text = format!(
+        "\n## Downstream Evidence\n\n{}\n",
+        safety.evidence_interpretation
+    );
+    if let Some(assessment) = &safety.downstream_impact {
+        text.push_str("\n```json\n");
+        text.push_str(
+            &serde_json::to_string_pretty(assessment).expect("Structured impact serialization"),
+        );
+        text.push_str("\n```\n");
+    }
+    text
 }
 
 // ── Render Helpers ───────────────────────────────────────────────────────────
@@ -2165,7 +2326,10 @@ fn render_method_body_markdown(result: &MethodBodyResult) -> String {
     }
     md.push_str(result.boundary_guidance);
     md.push_str("\n\n");
-    md.push_str(&format!("**Source verification**: `{}`\n\n**Source file BLAKE3**: `{}`\n\n", result.source_verification, result.source_file_hash));
+    md.push_str(&format!(
+        "**Source verification**: `{}`\n\n**Source file BLAKE3**: `{}`\n\n",
+        result.source_verification, result.source_file_hash
+    ));
     md.push_str(&format!(
         "**File**: `{}` (lines {}–{})\n\n",
         result.file_path, result.line_start, result.line_end
@@ -2295,7 +2459,7 @@ fn render_method_edit_context_markdown(ctx: &MethodEditContextResult) -> String 
 
     // Header with verdict badge
     let badge = match ctx.edit_safety.verdict.as_str() {
-        "green" => "🟢 GREEN",
+        "green" => "🟢 LOWER OBSERVED RISK",
         "yellow" => "🟡 YELLOW",
         "red" => "🔴 RED",
         _ => "⚪ UNKNOWN",
@@ -2443,17 +2607,16 @@ fn render_method_edit_context_markdown(ctx: &MethodEditContextResult) -> String 
     // Edit safety verdict
     md.push_str("## Edit Safety\n\n");
     md.push_str(&format!(
-        "- **Verdict**: {} (confidence {:.0}%)\n",
-        badge,
-        ctx.edit_safety.confidence * 100.0
+        "- **Verdict**: {} (heuristic confidence {:.2}; not a probability of safe edits)\n",
+        badge, ctx.edit_safety.confidence
     ));
     match ctx.blast_radius_score {
         Some(score) => md.push_str(&format!(
-            "- **Blast radius**: {:.0} ({}) — estimate from indexed evidence; incomplete extraction or binding can omit consumers and side effects.\n",
+            "- **One-hop advisory score**: {:.0} ({}) — live-graph heuristic, not source-revision validated or a complete downstream assessment.\n",
             score, ctx.risk_band
         )),
         None => md.push_str(&format!(
-            "- **Blast radius**: UNKNOWN — {}\n",
+            "- **One-hop advisory score**: UNKNOWN — {}\n",
             provider_text(&ctx.edit_safety.completeness.blast)
         )),
     }
@@ -2479,6 +2642,7 @@ fn render_method_edit_context_markdown(ctx: &MethodEditContextResult) -> String 
     }
 
     md.push_str(&render_coverage_block(&ctx.edit_safety.completeness));
+    md.push_str(&render_downstream_safety(&ctx.edit_safety));
 
     if let Some(ref bl) = ctx.business_logic {
         md.push_str("## Business Logic\n\n");
@@ -3256,6 +3420,95 @@ impl Engram {
         (banner, crate::utils::envelope::footer(gen_, last_ms))
     }
 
+    async fn method_downstream_assessment(
+        &self,
+        project: &str,
+        node: &Node,
+    ) -> Result<
+        (
+            crate::services::impact_walk_service::ImpactAssessment,
+            Option<Arc<engram_index::SourceSnapshotGuard>>,
+            Option<engram_index::hybrid::SelectedSourceRevisionLookup>,
+        ),
+        McpError,
+    > {
+        let (assessment, source) = crate::services::impact_walk_service::collect_assessment(
+            &self.state,
+            project,
+            &node.node_id,
+            6,
+            25,
+        )
+        .await;
+        let membership = if assessment.target_revision_admitted {
+            let generation = assessment.source_generation.ok_or_else(|| {
+                McpError::internal_error(
+                    "Admitted downstream target has no source generation",
+                    None,
+                )
+            })?;
+            let source = source.as_ref().ok_or_else(|| {
+                McpError::internal_error("Admitted downstream target has no held source view", None)
+            })?;
+            let runtime = self.state.get_project_cached(project).ok_or_else(|| {
+                McpError::invalid_params(
+                    "Source runtime changed during method selection; retry",
+                    None,
+                )
+            })?;
+            Some(
+                runtime
+                    .search
+                    .selected_source_revision_lookup(project, generation, source.clone())
+                    .map_err(|error| {
+                        McpError::invalid_params(
+                            format!("Held method source unavailable: {error:#}"),
+                            None,
+                        )
+                    })?,
+            )
+        } else {
+            None
+        };
+        Ok((assessment, source, membership))
+    }
+
+    /// Preserve the generation belonging to the returned downstream capability;
+    /// a later HEAD observation must not relabel an earlier static assessment.
+    async fn method_edit_freshness(
+        &self,
+        project_id: &str,
+        project_dir: &str,
+        rel_file: &str,
+        generation: Option<u64>,
+    ) -> (Option<String>, String) {
+        let registry = self.state.registry.clone();
+        let project = project_id.to_owned();
+        let last_ms = tokio::task::spawn_blocking(move || {
+            registry
+                .get_meta(&project, "last_index_completed_ms")
+                .ok()
+                .flatten()
+                .and_then(|value| value.parse::<u64>().ok())
+        })
+        .await
+        .unwrap_or(None);
+        let banner = safe_join(Path::new(project_dir), rel_file)
+            .ok()
+            .and_then(|path| {
+                crate::utils::envelope::stale_file_banner(
+                    rel_file,
+                    crate::utils::envelope::file_mtime_ms(&path),
+                    last_ms,
+                )
+            });
+        let footer = match generation {
+            Some(generation) => crate::utils::envelope::footer(generation, last_ms),
+            None => "\nDownstream source generation unavailable; current-source impact coverage is unknown.\n".into(),
+        };
+        (banner, footer)
+    }
+
     // ── 38-1: get_method_info ─────────────────────────────────────────────
 
     pub async fn handle_get_method_info(
@@ -3516,15 +3769,29 @@ impl Engram {
         let max_callers = req.max_callers;
         let output_json = req.output_json;
 
-        let result = tokio::task::spawn_blocking(move || {
-            let node = select_method_node(
-                &graph,
-                &project_id,
+        let selection_graph = graph.clone();
+        let selection_project = project_id.clone();
+        let node = tokio::task::spawn_blocking(move || {
+            select_method_node(
+                &selection_graph,
+                &selection_project,
                 &file_path,
                 &method_name,
                 class_name.as_deref(),
                 line,
-            )?;
+            )
+        })
+        .await
+        .map_err(|error| McpError::internal_error(error.to_string(), None))?
+        .map_err(|error| McpError::invalid_params(error, None))?;
+        let (downstream, _impact_source_hold, membership) = self
+            .method_downstream_assessment(&req.project_id, &node)
+            .await?;
+        let downstream_generation = downstream.source_generation;
+        let worker_source = _impact_source_hold.clone();
+        let result = tokio::task::spawn_blocking(move || {
+            let _worker_source = worker_source;
+            validate_held_method_revision(&graph, &project_id, &node, membership.as_ref())?;
             let ev = assemble_edit_evidence(&graph, &project_id, &project_dir, node)?;
 
             // Callers: identities always (from the same exact list the
@@ -3573,6 +3840,7 @@ impl Engram {
                 max_callers,
                 &mut excerpt_budget,
             );
+            validate_held_method_revision(&graph, &project_id, &ev.node, membership.as_ref())?;
             Ok::<MethodEditContextResult, String>(MethodEditContextResult {
                 blast_radius_score: ev.blast.as_ref().map(|b| b.migration_risk as f32 * 10.0),
                 risk_band: ev
@@ -3600,6 +3868,7 @@ impl Engram {
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         let mut ctx = result.map_err(|e| McpError::invalid_params(e, None))?;
+        apply_downstream_safety(&mut ctx.edit_safety, downstream);
 
         if req.include_history {
             let query = req
@@ -3658,7 +3927,12 @@ impl Engram {
         }
 
         let (banner, footer) = self
-            .access_freshness(&req.project_id, &rec.directory, Some(&req.file_path))
+            .method_edit_freshness(
+                &req.project_id,
+                &rec.directory,
+                &req.file_path,
+                downstream_generation,
+            )
             .await;
         if output_json {
             let json = serde_json::to_string_pretty(&FreshAccessResponse {
@@ -4901,13 +5175,23 @@ impl Engram {
                 req.code_file.as_deref(),
                 req.code_file_sha256.as_deref(),
                 req.target_file.as_deref(),
-            ).await?
+            )
+            .await?
         } else {
-            crate::utils::candidate_code_input::resolve(self, &req.project_id,
-                req.code.as_deref(), req.code_file.as_deref(), req.code_file_blake3.as_deref(), req.target_file.as_deref()).await?
+            crate::utils::candidate_code_input::resolve(
+                self,
+                &req.project_id,
+                req.code.as_deref(),
+                req.code_file.as_deref(),
+                req.code_file_blake3.as_deref(),
+                req.target_file.as_deref(),
+            )
+            .await?
         };
         let output_json = req.output_json;
-        if input.evidence.is_some() { req.target_file = input.context.clone(); }
+        if input.evidence.is_some() {
+            req.target_file = input.context.clone();
+        }
         let generator_evidence = crate::utils::generator_receipt::resolve(
             self,
             &req.project_id,
@@ -4915,8 +5199,11 @@ impl Engram {
             req.generator_receipt_sha256.as_deref(),
             req.target_file.as_deref(),
             req.code_file.as_deref(),
-        ).await?;
-        let result = self.handle_validate_generated_code_resolved(req, input.code, generator_evidence).await;
+        )
+        .await?;
+        let result = self
+            .handle_validate_generated_code_resolved(req, input.code, generator_evidence)
+            .await;
         crate::utils::candidate_code_input::attach(result, input.evidence, output_json)
     }
 
@@ -5800,9 +6087,12 @@ impl Engram {
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        let report = result.map_err(|e| McpError::internal_error(
-            format!("Method-candidate graph evidence unavailable: {e:#}"), None,
-        ))?;
+        let report = result.map_err(|e| {
+            McpError::internal_error(
+                format!("Method-candidate graph evidence unavailable: {e:#}"),
+                None,
+            )
+        })?;
 
         if output_json {
             let json = serde_json::to_string_pretty(&report)
@@ -5810,7 +6100,11 @@ impl Engram {
             return Ok(CallToolResult::success(vec![Content::text(json)]));
         }
 
-        let total_candidate_lines: u64 = report.dead_methods.iter().map(|m| u64::from(m.line_count)).sum();
+        let total_candidate_lines: u64 = report
+            .dead_methods
+            .iter()
+            .map(|m| u64::from(m.line_count))
+            .sum();
 
         let mut md = format!(
             "# Zero-indexed-caller candidates\n\n- **Matching graph methods queried**: {} (query limit {})\n- **Methods inspected**: {}\n- **Returned candidates**: {} (result limit {})\n- **Lines in returned candidates**: {}\n\nRuntime reachability is unknown. Zero indexed callers does not establish global unreachability or safe removal; verify source, runtime invocation and tests.\n\nCoverage: {}. {}\n\n",
@@ -5820,7 +6114,11 @@ impl Engram {
             report.dead_methods.len(),
             report.coverage.returned_limit,
             total_candidate_lines,
-            if report.coverage.partial { "partial bounded inspection" } else { "queried subset inspected; runtime coverage unknown" },
+            if report.coverage.partial {
+                "partial bounded inspection"
+            } else {
+                "queried subset inspected; runtime coverage unknown"
+            },
             report.coverage.scope_note,
         );
 
@@ -5830,7 +6128,11 @@ impl Engram {
             md.push_str("| FQN | File | Lines | Kind | Access | Reachability observation |\n");
             md.push_str("|-----|------|-------|------|--------|------------|\n");
             for m in &report.dead_methods {
-                let access = if m.access_level.is_empty() { "unknown" } else { m.access_level.as_str() };
+                let access = if m.access_level.is_empty() {
+                    "unknown"
+                } else {
+                    m.access_level.as_str()
+                };
                 let confidence = if m.confidence_note.is_empty() {
                     "Unknown runtime reachability".to_string()
                 } else {
@@ -5869,15 +6171,29 @@ impl Engram {
         let line = req.line;
         let output_json = req.output_json;
 
-        let result = tokio::task::spawn_blocking(move || {
-            let node = select_method_node(
-                &graph,
-                &project_id,
+        let selection_graph = graph.clone();
+        let selection_project = project_id.clone();
+        let node = tokio::task::spawn_blocking(move || {
+            select_method_node(
+                &selection_graph,
+                &selection_project,
                 &file_path,
                 &method_name,
                 class_name.as_deref(),
                 line,
-            )?;
+            )
+        })
+        .await
+        .map_err(|error| McpError::internal_error(error.to_string(), None))?
+        .map_err(|error| McpError::invalid_params(error, None))?;
+        let (downstream, _impact_source_hold, membership) = self
+            .method_downstream_assessment(&req.project_id, &node)
+            .await?;
+        let downstream_generation = downstream.source_generation;
+        let worker_source = _impact_source_hold.clone();
+        let result = tokio::task::spawn_blocking(move || {
+            let _worker_source = worker_source;
+            validate_held_method_revision(&graph, &project_id, &node, membership.as_ref())?;
             // Same evidence assembly as get_method_edit_context: the verdict
             // is computed from identical facts (body read, complexity
             // estimated, blast attempted, coverage recorded).
@@ -5885,6 +6201,7 @@ impl Engram {
             // The callers travel WITH the verdict: they are already resolved
             // here, and "how many callers" cannot answer the question an edit
             // actually turns on — WHICH paths reach this method.
+            validate_held_method_revision(&graph, &project_id, &ev.node, membership.as_ref())?;
             Ok::<(EditSafetyResult, Vec<CallerLocation>), String>((
                 ev.edit_safety,
                 ev.method_info.called_by,
@@ -5893,7 +6210,8 @@ impl Engram {
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        let (safety, callers) = result.map_err(|e| McpError::invalid_params(e, None))?;
+        let (mut safety, callers) = result.map_err(|e| McpError::invalid_params(e, None))?;
+        apply_downstream_safety(&mut safety, downstream);
 
         if output_json {
             let json = serde_json::to_string_pretty(&safety)
@@ -5902,7 +6220,7 @@ impl Engram {
         }
 
         let badge = match safety.verdict.as_str() {
-            "green" => "SAFE TO EDIT",
+            "green" => "LOWER OBSERVED RISK",
             "yellow" => "CAUTION",
             "red" => "HIGH RISK",
             _ => "UNKNOWN",
@@ -5910,9 +6228,8 @@ impl Engram {
 
         let mut md = format!("# Edit Safety: `{}`\n\n", req.method_name);
         md.push_str(&format!(
-            "**Verdict**: {} (confidence {:.0}%)\n\n",
-            badge,
-            safety.confidence * 100.0
+            "**Verdict**: {} (heuristic confidence {:.2}; not a probability of safe edits)\n\n",
+            badge, safety.confidence
         ));
 
         for r in &safety.reasons {
@@ -5946,13 +6263,19 @@ impl Engram {
 
         md.push('\n');
         md.push_str(&render_coverage_block(&safety.completeness));
+        md.push_str(&render_downstream_safety(&safety));
 
         md.push_str(
             "next: get_method_edit_context before making the edit; \
              find_symbol_references(<method>) for callers beyond those shown.\n",
         );
         let (banner, footer) = self
-            .access_freshness(&req.project_id, &rec.directory, Some(&req.file_path))
+            .method_edit_freshness(
+                &req.project_id,
+                &rec.directory,
+                &req.file_path,
+                downstream_generation,
+            )
             .await;
         let mut out = banner.unwrap_or_default();
         out.push_str(&md);
@@ -5975,88 +6298,177 @@ mod dead_method_contract_tests {
     }
 
     #[test]
-    fn public_dead_method_candidates_keep_unknown_reachability_and_report_partial_results() -> Result<()> {
+    fn public_dead_method_candidates_keep_unknown_reachability_and_report_partial_results()
+    -> Result<()> {
         let owned = tempfile::tempdir()?;
-        let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build()?;
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()?;
         let result: Result<()> = runtime.block_on(async {
             let root = owned.path().join("repo");
             std::fs::create_dir(&root)?;
             let (state, _events) = crate::state::AppState::new(engram_core::Config {
-                data_dir: owned.path().join("data"), allowed_roots: vec![root.clone()],
-                embedding_backend: "fts_only".into(), ..Default::default()
+                data_dir: owned.path().join("data"),
+                allowed_roots: vec![root.clone()],
+                embedding_backend: "fts_only".into(),
+                ..Default::default()
             })?;
             let project = "candidate-contract";
-            state.registry.register_source_project(&engram_core::ProjectRecord {
-                project_id: project.into(), project_name: "Owned candidate contract".into(),
-                project_type: "general".into(), directory: root.to_string_lossy().into_owned(),
-                created_at_ms: 1, updated_at_ms: 1, reindex_required_since_ms: None,
-            })?;
+            state
+                .registry
+                .register_source_project(&engram_core::ProjectRecord {
+                    project_id: project.into(),
+                    project_name: "Owned candidate contract".into(),
+                    project_type: "general".into(),
+                    directory: root.to_string_lossy().into_owned(),
+                    created_at_ms: 1,
+                    updated_at_ms: 1,
+                    reindex_required_since_ms: None,
+                })?;
             let node = |id: &str, name: &str, access: Option<&str>| Node {
-                node_id: id.into(), node_type: "function".into(), name: name.into(),
-                namespace: "memory".into(), language: "vbnet".into(),
-                file_path: engram_core::RelPath::new("source.vb"), start_line: 1, end_line: 5,
-                generation: 1, metadata: access.map(|access| serde_json::json!({"access_level":access,"fqn":name})),
+                node_id: id.into(),
+                node_type: "function".into(),
+                name: name.into(),
+                namespace: "memory".into(),
+                language: "vbnet".into(),
+                file_path: engram_core::RelPath::new("source.vb"),
+                start_line: 1,
+                end_line: 5,
+                generation: 1,
+                metadata: access
+                    .map(|access| serde_json::json!({"access_level":access,"fqn":name})),
             };
-            state.graph.upsert_nodes(project, &[
-                node("a-missing", "Contract.MissingAccess", None),
-                node("b-private", "Contract.PrivateCandidate", Some("private")),
-                node("c-public", "Contract.PublicCandidate", Some("public")),
-                node("d-called", "Contract.Called", Some("private")),
-                node("e-caller", "Contract.Caller", Some("private")),
-            ])?;
+            state.graph.upsert_nodes(
+                project,
+                &[
+                    node("a-missing", "Contract.MissingAccess", None),
+                    node("b-private", "Contract.PrivateCandidate", Some("private")),
+                    node("c-public", "Contract.PublicCandidate", Some("public")),
+                    node("d-called", "Contract.Called", Some("private")),
+                    node("e-caller", "Contract.Caller", Some("private")),
+                ],
+            )?;
             // Real stored callers of both indexed kinds remain excluded. The
             // three other rows have no incoming edges, not proven dead code.
-            state.graph.upsert_edges(project, &[
-                engram_graph::Edge { source_id:"e-caller".into(), target_id:"d-called".into(),
-                    namespace:"memory".into(), language:"vbnet".into(), edge_kind:EdgeKind::Calls,
-                    weight:1, generation:1, metadata:None, updated_at_ms:1 },
-                engram_graph::Edge { source_id:"d-called".into(), target_id:"e-caller".into(),
-                    namespace:"memory".into(), language:"vbnet".into(), edge_kind:EdgeKind::Dependency,
-                    weight:1, generation:1, metadata:None, updated_at_ms:1 },
-            ])?;
+            state.graph.upsert_edges(
+                project,
+                &[
+                    engram_graph::Edge {
+                        source_id: "e-caller".into(),
+                        target_id: "d-called".into(),
+                        namespace: "memory".into(),
+                        language: "vbnet".into(),
+                        edge_kind: EdgeKind::Calls,
+                        weight: 1,
+                        generation: 1,
+                        metadata: None,
+                        updated_at_ms: 1,
+                    },
+                    engram_graph::Edge {
+                        source_id: "d-called".into(),
+                        target_id: "e-caller".into(),
+                        namespace: "memory".into(),
+                        language: "vbnet".into(),
+                        edge_kind: EdgeKind::Dependency,
+                        weight: 1,
+                        generation: 1,
+                        metadata: None,
+                        updated_at_ms: 1,
+                    },
+                ],
+            )?;
             let engram = Engram::new(state);
-            let request = |limit, output_json| serde_json::from_value::<FindDeadMethodsRequest>(serde_json::json!({
-                "project_id":project,"limit":limit,"output_json":output_json
-            }));
-            let full: serde_json::Value = serde_json::from_str(&text(engram.find_dead_methods(
-                Parameters(request(100, true)?)).await?)?)?;
-            let candidates = full["dead_methods"].as_array().ok_or_else(|| anyhow::anyhow!("Missing candidates"))?;
+            let request = |limit, output_json| {
+                serde_json::from_value::<FindDeadMethodsRequest>(serde_json::json!({
+                    "project_id":project,"limit":limit,"output_json":output_json
+                }))
+            };
+            let full: serde_json::Value = serde_json::from_str(&text(
+                engram
+                    .find_dead_methods(Parameters(request(100, true)?))
+                    .await?,
+            )?)?;
+            let candidates = full["dead_methods"]
+                .as_array()
+                .ok_or_else(|| anyhow::anyhow!("Missing candidates"))?;
             ensure!(candidates.len() == 3 && full["total_methods"] == 5);
-            for (name, access) in [("Contract.MissingAccess", ""), ("Contract.PrivateCandidate", "private"),
-                ("Contract.PublicCandidate", "public")] {
-                let candidate = candidates.iter().find(|candidate| candidate["fqn"] == name)
+            for (name, access) in [
+                ("Contract.MissingAccess", ""),
+                ("Contract.PrivateCandidate", "private"),
+                ("Contract.PublicCandidate", "public"),
+            ] {
+                let candidate = candidates
+                    .iter()
+                    .find(|candidate| candidate["fqn"] == name)
                     .ok_or_else(|| anyhow::anyhow!("Expected {name}: {full}"))?;
                 ensure!(candidate["access_level"] == access);
                 let note = candidate["confidence_note"].as_str().unwrap_or_default();
-                ensure!(!note.is_empty() && !note.contains("High"), "Unproven certainty: {candidate}");
-                if access.is_empty() { ensure!(note.contains("metadata is missing")); }
-                if access == "private" { ensure!(note.contains("Unknown runtime reachability")); }
-                if access == "public" { ensure!(note.contains("reflection") && note.contains("assembly")); }
+                ensure!(
+                    !note.is_empty() && !note.contains("High"),
+                    "Unproven certainty: {candidate}"
+                );
+                if access.is_empty() {
+                    ensure!(note.contains("metadata is missing"));
+                }
+                if access == "private" {
+                    ensure!(note.contains("Unknown runtime reachability"));
+                }
+                if access == "public" {
+                    ensure!(note.contains("reflection") && note.contains("assembly"));
+                }
             }
-            ensure!(full["coverage"]["runtime_reachability"] == "unknown"
-                && full["coverage"]["scan_limit"] == 10_000
-                && full["coverage"]["inspected_methods"] == 5
-                && full["coverage"]["partial"] == false);
-            let limited: serde_json::Value = serde_json::from_str(&text(engram.find_dead_methods(
-                Parameters(request(1, true)?)).await?)?)?;
-            ensure!(limited["dead_methods"].as_array().unwrap().len() == 1
-                && limited["total_methods"] == 5 && limited["coverage"]["returned_limit"] == 1
-                && limited["coverage"]["partial"] == true,
-                "A returned subset was presented as exhaustive: {limited}");
-            let markdown = text(engram.find_dead_methods(Parameters(request(100, false)?)).await?)?;
-            ensure!(markdown.contains("Zero-indexed-caller candidates")
-                && markdown.contains("Runtime reachability is unknown")
-                && markdown.contains("does not establish global unreachability or safe removal")
-                && markdown.contains("access metadata is missing")
-                && !markdown.contains("| High") && !markdown.contains("No dead methods found"), "{markdown}");
-            let limited_markdown = text(engram.find_dead_methods(Parameters(request(1, false)?)).await?)?;
-            ensure!(limited_markdown.contains("partial bounded inspection") && limited_markdown.contains("result limit 1"));
+            ensure!(
+                full["coverage"]["runtime_reachability"] == "unknown"
+                    && full["coverage"]["scan_limit"] == 10_000
+                    && full["coverage"]["inspected_methods"] == 5
+                    && full["coverage"]["partial"] == false
+            );
+            let limited: serde_json::Value = serde_json::from_str(&text(
+                engram
+                    .find_dead_methods(Parameters(request(1, true)?))
+                    .await?,
+            )?)?;
+            ensure!(
+                limited["dead_methods"].as_array().unwrap().len() == 1
+                    && limited["total_methods"] == 5
+                    && limited["coverage"]["returned_limit"] == 1
+                    && limited["coverage"]["partial"] == true,
+                "A returned subset was presented as exhaustive: {limited}"
+            );
+            let markdown = text(
+                engram
+                    .find_dead_methods(Parameters(request(100, false)?))
+                    .await?,
+            )?;
+            ensure!(
+                markdown.contains("Zero-indexed-caller candidates")
+                    && markdown.contains("Runtime reachability is unknown")
+                    && markdown
+                        .contains("does not establish global unreachability or safe removal")
+                    && markdown.contains("access metadata is missing")
+                    && !markdown.contains("| High")
+                    && !markdown.contains("No dead methods found"),
+                "{markdown}"
+            );
+            let limited_markdown = text(
+                engram
+                    .find_dead_methods(Parameters(request(1, false)?))
+                    .await?,
+            )?;
+            ensure!(
+                limited_markdown.contains("partial bounded inspection")
+                    && limited_markdown.contains("result limit 1")
+            );
             Ok(())
         });
         drop(runtime);
         match (result, owned.close()) {
-            (Err(error), Err(cleanup)) => Err(error.context(format!("Fixture cleanup also failed: {cleanup}"))),
-            (Err(error), _) => Err(error), (Ok(()), cleanup) => cleanup.map_err(Into::into),
+            (Err(error), Err(cleanup)) => {
+                Err(error.context(format!("Fixture cleanup also failed: {cleanup}")))
+            }
+            (Err(error), _) => Err(error),
+            (Ok(()), cleanup) => cleanup.map_err(Into::into),
         }
     }
 }
@@ -6549,7 +6961,13 @@ fn contains_identifier_literal(source: &str, literal: &str) -> bool {
     }
     let identifier_char = |ch: char| ch.is_alphanumeric() || ch == '_' || ch == '$';
     source.match_indices(literal).any(|(start, matched)| {
-        !source[..start].chars().next_back().is_some_and(identifier_char)
-            && !source[start + matched.len()..].chars().next().is_some_and(identifier_char)
+        !source[..start]
+            .chars()
+            .next_back()
+            .is_some_and(identifier_char)
+            && !source[start + matched.len()..]
+                .chars()
+                .next()
+                .is_some_and(identifier_char)
     })
 }

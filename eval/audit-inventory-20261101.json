@@ -393,7 +393,7 @@
         "blast_radius_limit": "23directcausalnodes for FileLayerZoomPolicy, actual source callers found. One-hop-only exposure, no proposedchange analysis or transitiveviewport/UI propagation. Uncalibratedlowrisk1/10 doesnot prove low change risk.",
         "comparison": "Independent agent sourcebaseline eight selected relationships, excludes Site/Q; not exhaustive/runtime proof."
       },
-      "next_concrete_slice": "Implement source-revision-admitted multi-hop impact witnesses in existing impact_analysis/compute_blast_radius and primary file-type share in overview; actual OciusX routeoracle already checked independently. No freshbroadaudit.",
+      "next_concrete_slice": "Integrate deployed revision-admitted downstream impact into both method-edit context and standalone edit safety; reproduce and eliminate the observed ClassifyAutomatic green verdict based solely on one direct caller. Preserve all remaining original findings.",
       "current_implementation_evidence_20261104": {
         "source_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-overview-area-source-applied-20261104.json",
         "tests": "50 focused public behavior cases PASS (2 sourceoverview +3 autoarea +45 existingmaintenance); source immutable during run; exact ownedJob/TEMPclosed",
@@ -450,6 +450,19 @@
         "observed": "edit_safety.green confidence0.9; reason Low blast radius,fewcallers,no complexstate;called_byonlyResolve1. Existingcontext/safetyproviderhasnotyetincorporatednew33node downstreamscope.",
         "next_behavior": "Shared edit-context/standalone safety must disclose downstream exposure and missing/unverified coverage; localone-hop evidence mustnotbe presentedas a comprehensive safe-edit guarantee. Use same heldsource-evidence provider andactualOciusXcase, notanotherbroadaudit.",
         "input_recovery_note": "Initial request shortmethodname+fullyqualifiedclass_name failed; toolrecovery exactmethodFQN succeeded. Whetherplainclass_name+shortmethod worksnotyettested; do notcallthis aconfirmedresolverbug."
+      },
+      "method_safety_baseline_20261104": {
+        "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/method-safety-installed-normal-before-20261104.json",
+        "runtime_sha256": "5f9394c3dd945cdd0b2241dd1e8e0970e572ea5b45e6c7d9d5b1579f9e41366b",
+        "observed": "Actual installed normal public MCP: both check_edit_safety and get_method_edit_context return green/confidence0.9, reason Low blast radius, few callers, no complex state. Existing actual impact evidence observes33potential downstream nodes, includingHTTP/UI, and missing/unverified/depth coverage gaps.",
+        "state": "Implementation underway; no candidate result, deployment or closure claimed."
+      },
+      "method_safety_implementation_20261104": {
+        "source_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\method-safety-source-applied-20261104.json",
+        "tests": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\method-safety-public-behavior-20261104.json",
+        "results": "24 focused public behaviors PASS:3new managed downstream safety,16existing editcontext,5existing transitive impact. Both APIs share structured same-walk assessment; missing/partial evidence or transitive exposure floors green, preserving existing red. Display caps separated from traversal gaps; confidence and onehop score explicitly advisory.",
+        "review": "Independent scoped service/access/test/driver review CLEAR; CodeRabbit not authenticated.",
+        "closure": "PARTIAL: source verified, publication/build/actual OciusX after-output/installation pending. Full31findings/19originalgates remain tracked."
       }
     },
     {
@@ -8235,7 +8248,7 @@
       ]
     }
   },
-  "last_updated_at": "2026-11-04T11:12:56.875886+00:00",
+  "last_updated_at": "2026-11-04T14:48:21.378804+00:00",
   "current_execution_focus": {
     "at_utc": "2026-11-04T11:12:56.875854+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
@@ -8267,8 +8280,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG-09 core-tool usefulness: integrate downstream/sourcecoverage into shared method-edit context and standalone safety using the actualClassifyAutomatic case. Two reviewedcore deliveries shipped: d3f7d20/0e overview+areaevidence;1025363/5f boundedimpact+filetypes. Broaderoriginalgoal notcomplete.",
-    "next_user_visible_deliverable": "A useful selected-area instruction draft/evidence pack through existing Engram workflows for OciusX, grounded in entrypoints/consumers/house examples/accepted exceptions and separate provenance; compare with a real existing area guide, without changing OciusX policy. Complete missing product behavior rather than only revalidating supplied JSON.",
+    "active_original_item": "EG-09 core-tool usefulness: shared downstream/source coverage in method-edit context and standalone edit safety. Actual installed baseline confirms both currently green0.9 without transitive evidence.",
+    "next_user_visible_deliverable": "Both safety entrypoints expose the same bounded revision-admitted downstream paths and coverage gaps; incomplete evidence cannot yield green. Verify against actual OciusX ClassifyAutomatic before/after, then deploy. Area-instruction drafting remains unfinished and follows this delivery.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
