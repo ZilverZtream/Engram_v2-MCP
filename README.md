@@ -978,6 +978,14 @@ this is a fresh observation, not an atomic replay. Summary skips the separate
 history and unverified one-hop advisory workers. Neither view predicts which
 consumers will actually break. Omitting `detail` preserves the existing graph view.
 
+Summary actions label source ranges separately from declaration navigation. A
+sample incoming connection names both endpoints and records the indexed edge
+generation and any recorded source line without requiring the graph registries.
+Missing declarations retain unverified name/file hints. Coverage counters count
+observations and may repeat an identity; zero unknown observations does not
+resolve missing-node or depth gaps. Source-range reads verify returned current
+bytes, not complete-method boundaries or invocation locations.
+
 Both impact tools return the same revision-admitted dependency graph. `max_depth` defaults
 to six (valid range 1..8); one requests direct callers only. Each displayed path
 retains its intermediate source locations and edge witnesses. Deeper paths are

@@ -84,7 +84,7 @@ struct CollectedImpact {
     transitive_dependents: usize,
 }
 
-fn immediate_section(value: &Value) -> Option<String> {
+fn immediate_section(value: &Value, include_references: bool) -> Option<String> {
     if value["status"] != "bounded_indexed_exposure" || value["target_revision_admitted"] == false {
         return None;
     }
@@ -118,14 +118,28 @@ fn immediate_section(value: &Value) -> Option<String> {
         clipped
     };
     let call = json!({"tool":recovery["tool"],"arguments":recovery["arguments"]});
+    let references = if include_references {
+        format!(
+            " (node {}; edge {}; recovery {}).",
+            reference,
+            edge["ref"].as_str()?,
+            recovery["ref"].as_str()?
+        )
+    } else {
+        format!("–{}.", node["end_line"])
+    };
+    let scope = if recovery["scope_ref"] == "range" {
+        "Read the indexed declaration range from the current file. The action has not run; inspect its returned hash and verification. Complete-method boundaries and invocation location are unverified."
+    } else {
+        "Navigate declarations under a fresh source selection. This action does not read or verify the consumer body."
+    };
     let output = format!(
-        "\n## First immediate indexed consumer\n\n{} — {}:{} (node {}; edge {}; recovery {}).\nOne next evidence read; other consumers and unknown branches follow. No runtime or safe-change proof.\n\n```json\n{}\n```\n",
+        "\n## First immediate indexed consumer\n\n{} — {}:{}{}\n{}\nOne next evidence read; other consumers and unknown branches follow. No runtime or safe-change proof.\n\n```json\n{}\n```\n",
         display(node["name"].as_str()?, 96),
         display(file, 160),
         node["start_line"],
-        reference,
-        edge["ref"].as_str()?,
-        recovery["ref"].as_str()?,
+        references,
+        scope,
         serde_json::to_string(&call).expect("JSON value serialization")
     );
     // Long metadata remains in the canonical tables; never truncate executable
@@ -136,7 +150,7 @@ fn immediate_section(value: &Value) -> Option<String> {
 fn section(value: &Value) -> String {
     format!(
         "{}\n## Revision-admitted change impact\n\nIndexed causal paths under the named source selection; not a proposed-change simulation, runtime proof or safe-change verdict.\n\n```json\n{}\n```\n",
-        immediate_section(value).unwrap_or_default(),
+        immediate_section(value, true).unwrap_or_default(),
         serde_json::to_string(value).expect("JSON value serialization")
     )
 }
@@ -181,10 +195,25 @@ fn summary_section(
             .map(|row| json!({"tool":row["tool"],"arguments":row["arguments"]}))
     };
     let describe = |node: &Value| {
+        let recovery = node["recovery_ref"]
+            .as_str()
+            .and_then(|reference| recoveries.get(reference));
+        let connection = full["edges"].as_array().into_iter().flatten().find(|edge| {
+            edge["source_ref"] == node["ref"] && edge["target_ref"] == full["target_ref"]
+        });
         json!({"node_id":node["node_id"],"name":node["name"],
         "file_path":node["file_ref"].as_str().and_then(|reference| files.get(reference)),
         "start_line":node["start_line"],"end_line":node["end_line"],"generation":node["generation"],
-        "admission":node["admission"],"source_read":action(&node["recovery_ref"])})
+        "admission":node["admission"],"source_read":action(&node["recovery_ref"]),
+        "source_read_scope":recovery.map(|row|if row["scope_ref"] == "range" {
+            "explicit_source_range" } else { "selected_source_navigation" }),
+        "sample_connection_to_target":connection.map(|edge|json!({
+            "source_node_id":node["node_id"],"target_node_id":target.map(|node|&node["node_id"]),
+            "kind":edge["kind"],"edge_generation":edge["edge_generation"],"source_generation":node["generation"],
+            "edge_source_binding":edge.get("edge_source_binding").cloned().unwrap_or(json!("extraction_generation")),
+            "source_line":edge["source_line"],"recorded_position_read":action(&edge["recovery_ref"]),
+            "source_position_scope":if edge["source_line"].is_null(){"not_recorded"}else{"indexed_metadata_only"}
+        }))})
     };
     let mut arguments = json!({"project_id":project,"max_depth":full["requested_max_depth"],
         "limit":display_limit.clamp(1,25),"detail":"graph"});
@@ -211,7 +240,12 @@ fn summary_section(
         "target_revision_admitted":admitted,"selected_dependents_observed":full["selected_dependents_observed"],
         "direct_dependents_observed":direct,"transitive_dependents_observed":transitive,
         "verified_connections_returned_in_graph":if admitted {full["edges"].as_array().map(Vec::len)}else{None},
-        "coverage":full["coverage"],"working_tree_checked":false,"exhaustive_codebase":false,
+        "coverage":full["coverage"],
+        "coverage_counter_semantics":{
+            "missing_nodes":"Missing graph-node read observations; the same identity may occur more than once. Not absent source declarations.",
+            "unknown_nodes":"Unknown admission or edge-source observations; identities may repeat. Zero does not resolve missing-node or depth frontiers.",
+            "frontier_depth":"An entry beyond requested_max_depth names an untraversed boundary, not an admitted dependent at that depth."
+        },"working_tree_checked":false,"exhaustive_codebase":false,
         "dependency_scope":full["dependency_scope"],
         "change_breakage_proven":false,"target":null,"target_omitted_from_summary":target.is_some(),
         "immediate_consumers":[],"immediate_consumers_omitted_from_summary":direct,
@@ -273,10 +307,15 @@ fn summary_section(
             .as_str()
             .and_then(|reference| nodes.get(reference))
             .copied();
+        let hint = node.filter(|node|node["name"].is_null()).and_then(|node|node["node_id"].as_str()).and_then(|id| {
+            let (file, symbol) = canonical_hint(id);
+            file.filter(|_|symbol != id).map(|file|json!({"file_path":file,"symbol_name":symbol,
+                "authority":"unverified_identity_hint; navigation may not contain this declaration"}))
+        });
         leads.push(json!({"node_id":node.map(|node|&node["node_id"]),
             "parent_node_id":parent.map(|node|&node["node_id"]),"reason":lead["reason"],
             "kind":lead["kind"],"depth":lead["depth"],"admission":node.map(|node|&node["admission"]),
-            "recovery":action(&lead["recovery_ref"])}));
+            "recovery":action(&lead["recovery_ref"]),"lookup_hint":hint}));
         value["frontier"] = json!(&leads);
         if !fits(&value) {
             leads.pop();
@@ -287,7 +326,7 @@ fn summary_section(
     value["frontier_rows_omitted_from_summary"] = json!(frontier.len() - leads.len());
     format!(
         "{}\n## Revision-admitted change impact\n\nSummary of the same bounded source selection. Expand the graph for all retained identities, connections and paths.\n\n```json\n{}\n```\n",
-        immediate_section(full).unwrap_or_default(),
+        immediate_section(full, false).unwrap_or_default(),
         serde_json::to_string(&value).expect("JSON value serialization")
     )
 }
