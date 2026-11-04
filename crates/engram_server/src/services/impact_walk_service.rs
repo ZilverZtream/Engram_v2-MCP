@@ -11,6 +11,7 @@ use std::{
 };
 
 const RESPONSE_BYTES: usize = 64 * 1024;
+const IMMEDIATE_BYTES: usize = 2 * 1024;
 
 /// Apply one already-held source selection to both graph endpoints' physical
 /// node/file revisions. This helper never pins or observes a newer HEAD.
@@ -82,9 +83,59 @@ struct CollectedImpact {
     transitive_dependents: usize,
 }
 
+fn immediate_section(value: &Value) -> Option<String> {
+    if value["status"] != "bounded_indexed_exposure" || value["target_revision_admitted"] == false {
+        return None;
+    }
+    let node = value["nodes"]
+        .as_array()?
+        .iter()
+        .find(|node| node["admission"] == "selected" && node["depth"] == 1)?;
+    let reference = node["ref"].as_str()?;
+    let edge = value["edges"].as_array()?.iter().find(|edge| {
+        edge["source_ref"] == reference
+            && edge["connection_role"] != "additional_verified_connection"
+    })?;
+    let recovery = value["recoveries"]
+        .as_array()?
+        .iter()
+        .find(|recovery| recovery["ref"] == node["recovery_ref"])?;
+    let file = value["files"]
+        .as_array()?
+        .iter()
+        .find(|file| file["ref"] == node["file_ref"])?["path"]
+        .as_str()?;
+    let display = |text: &str, limit: usize| {
+        let mut clipped: String = text
+            .chars()
+            .take(limit)
+            .map(|c| if c.is_control() { ' ' } else { c })
+            .collect();
+        if text.chars().count() > limit {
+            clipped.push('…');
+        }
+        clipped
+    };
+    let call = json!({"tool":recovery["tool"],"arguments":recovery["arguments"]});
+    let output = format!(
+        "\n## First immediate indexed consumer\n\n{} — {}:{} (node {}; edge {}; recovery {}).\nOne next evidence read; other consumers and unknown branches follow. No runtime or safe-change proof.\n\n```json\n{}\n```\n",
+        display(node["name"].as_str()?, 96),
+        display(file, 160),
+        node["start_line"],
+        reference,
+        edge["ref"].as_str()?,
+        recovery["ref"].as_str()?,
+        serde_json::to_string(&call).expect("JSON value serialization")
+    );
+    // Long metadata remains in the canonical tables; never truncate executable
+    // arguments or let this convenience prefix consume the graph budget.
+    (output.len() <= IMMEDIATE_BYTES).then_some(output)
+}
+
 fn section(value: &Value) -> String {
     format!(
-        "\n## Revision-admitted change impact\n\nIndexed causal paths under the named source selection; not a proposed-change simulation, runtime proof or safe-change verdict.\n\n```json\n{}\n```\n",
+        "{}\n## Revision-admitted change impact\n\nIndexed causal paths under the named source selection; not a proposed-change simulation, runtime proof or safe-change verdict.\n\n```json\n{}\n```\n",
+        immediate_section(value).unwrap_or_default(),
         serde_json::to_string(value).expect("JSON value serialization")
     )
 }
@@ -199,8 +250,7 @@ impl CompactEvidence<'_> {
             .file
             .or(hint_file)
             .filter(|path| recovery_path(path));
-        let mut arguments = json!({"project_id":self.project,"limit":1,"offset":0,
-            "include_retained_context":false});
+        let mut arguments = json!({"project_id":self.project,"limit":1});
         if let Some(file) = file {
             arguments["scope"] = json!(file);
         }
@@ -261,11 +311,16 @@ impl CompactEvidence<'_> {
         let name = endpoint
             .name
             .map(|name| &name[..name.floor_char_boundary(256)]);
-        let row = json!({"ref":reference,"node_id":endpoint.id,"name":name,"kind":endpoint.kind,
-            "name_truncated":endpoint.name.is_some_and(|name|name.len()>256),
+        let mut row = json!({"ref":reference,"node_id":endpoint.id,"name":name,"kind":endpoint.kind,
             "admission":endpoint.admission,"is_seed":endpoint.is_seed,"depth":endpoint.depth,
             "file_ref":file_ref,"start_line":endpoint.start,"end_line":endpoint.end,
             "generation":endpoint.generation,"recovery_ref":recovery.reference});
+        row.as_object_mut()
+            .expect("Node object")
+            .retain(|_, value| !value.is_null());
+        if endpoint.name.is_some_and(|name| name.len() > 256) {
+            row["name_truncated"] = json!(true);
+        }
         let mut staged = vec![&row];
         if let Some(file) = &file_row {
             staged.push(file);
@@ -337,13 +392,16 @@ fn render(
         "frontier_rows_omitted":walk.coverage.frontier_omitted,"shortest_paths_omitted":total,
         "omitted_from_display":total,"display_truncated":false,"files":[],"nodes":[],"edges":[],
         "shortest_paths":[],"frontier":[],"recoveries":[],"continuation":null,
+        "omitted_defaults":{
+            "nodes":{"name_truncated":false,"optional_metadata":null},
+            "edges":{"edge_source_binding":"extraction_generation","connection_role":"shortest_predecessor","source_line":null},
+            "edge_source_generation":"Read nodes[source_ref].generation; edge_generation remains explicit. A different edge_generation requires the explicit verified_unchanged_caller_origin binding.",
+            "edge_recovery":"Absent recovery_ref means nodes[source_ref].recovery_ref. A recorded source_line inside that caller span is covered by the same range; outside it uses an explicit line recovery. No source_line means callsite not recorded. These are indexed positions, not runtime/value-flow proof."
+        },
         "recovery_scopes":{
             "range":"Current-source range at indexed positions, not complete-file, method-boundary, callsite or value-flow proof. Verify returned file hash/freshness and project exclusions.",
             "navigation":"Bounded selected-source CodeMap for the known file, or a project representative when the file is unknown. Best-effort exploration only: no recovered binding, absence or runtime proof.",
             "direct":"Narrow direct impact for the admitted exact identity. A follow-up uses its own source selection; no complete pagination or atomic replay is promised.",
-            "caller":"Caller declaration-range recovery; no callsite line was recorded.",
-            "within":"Recorded source_line lies inside the caller declaration range; reuse its recovery. Indexed reference position only, not execution or value-flow proof.",
-            "line":"Recorded source_line outside the caller range; recover that current source line. Indexed reference position only, not execution or value-flow proof."
         },
         "working_tree_checked":false,"exhaustive_codebase":false,"change_breakage_proven":false,
         "display_scope":"limit applies to shortest_paths, not canonical identities or additional verified edges",
@@ -354,7 +412,7 @@ fn render(
         "Missing, unverified, dynamic and uninspected bindings remain unknown. Work/depth/byte caps may omit evidence; empty output proves no absence."]});
     let mut out = CompactEvidence {
         project,
-        remaining: RESPONSE_BYTES.saturating_sub(section(&value).len() + 1024),
+        remaining: RESPONSE_BYTES.saturating_sub(section(&value).len() + 1024 + IMMEDIATE_BYTES),
         files: Vec::new(),
         file_refs: BTreeMap::new(),
         nodes: Vec::new(),
@@ -452,16 +510,25 @@ fn render(
             }
             _ => None,
         };
-        let recovery_ref = recovery
-            .as_ref()
-            .map_or(source_recovery, |recovery| recovery.reference.clone());
+        let recovery_ref = recovery.as_ref().map_or_else(
+            || source_recovery.clone(),
+            |recovery| recovery.reference.clone(),
+        );
         let reference = format!("e{}", out.edges.len());
-        let row = json!({"ref":reference,"source_ref":source_ref,"target_ref":target_ref,"kind":edge.kind.as_str(),
-            "edge_generation":edge.edge_generation,"source_generation":source.node.generation,
-            "edge_source_binding":if edge.edge_generation==source.node.generation{"extraction_generation"}else{"verified_unchanged_caller_origin"},
-            "connection_role":if tree_edge(edge){"shortest_predecessor"}else{"additional_verified_connection"},
-            "source_line":edge.source_line,"recovery_ref":recovery_ref,
-            "scope_ref":if line_within_caller{"within"}else if recovery.is_some(){"line"}else if edge.source_line.is_some() || !caller_range_known{"navigation"}else{"caller"}});
+        let mut row = json!({"ref":reference,"source_ref":source_ref,"target_ref":target_ref,"kind":edge.kind.as_str(),
+            "edge_generation":edge.edge_generation});
+        if edge.edge_generation != source.node.generation {
+            row["edge_source_binding"] = json!("verified_unchanged_caller_origin");
+        }
+        if !tree_edge(edge) {
+            row["connection_role"] = json!("additional_verified_connection");
+        }
+        if let Some(line) = edge.source_line {
+            row["source_line"] = json!(line);
+        }
+        if recovery_ref != source_recovery {
+            row["recovery_ref"] = json!(recovery_ref);
+        }
         let mut staged = vec![&row];
         if let Some((_, value)) = recovery
             .as_ref()
