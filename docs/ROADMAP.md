@@ -2,9 +2,9 @@
 
 Status labels: `implemented`, `partial`, `experimental`, `planned`.
 
-## Near-term priorities (2026-11-03)
+## Near-term priorities (2026-11-04)
 
-Audit status (2026-11-03): **OPEN**. The earlier goal was marked complete
+Audit status (2026-11-04): **OPEN**. The earlier goal was marked complete
 prematurely. Deployed fixes and the seven synthetic scenario runs are completed work;
 partial, unresolved and deferred findings below remain unfinished audit work.
 Deferral does not mean completion or an approved reduction in scope.
@@ -23,19 +23,35 @@ Post-workload five-second idle windows recorded no logical writes and
 0–0.015625 CPU seconds.
 These are local workload observations, not physical SSD-write measurements,
 a whole-machine leak attribution, or proof of real-project productivity.
-The installed runtime remains unchanged. The earlier measurements below are
-historical stages of this work; release and legacy-data transition remain open.
+The `f8239c8c` runtime and parser-v4 package were installed on 2026-11-04
+from source published as `d0a6112` on `origin/master`. OciusX was the live
+deployment priority: conversion recovered 199,845 retained vectors, then a
+non-wiping full repair published generation 3117 with 2,302 files and 31,915
+source chunks. Installed normal-runtime lexical/native retrieval and all 94
+OciusX repository rules were verified. The other 14 projects are preserved
+and pending conversion; their source-tool availability is not claimed.
+
+The real full repair peaked at 1,249,169,408 private bytes, exceeding its
+768 MiB diagnostic threshold. Cold vector queries peaked at 842,620,928 bytes,
+exceeding their 512 MiB threshold, then settled to 243,388,416 bytes. These
+alerts remain open optimization work. A separate 60-second quiet window in
+the installed normal daemon recorded zero process logical writes and 0.15625
+CPU seconds, ending at 661,082,112 private bytes. This short observation is
+not a sustained leak test, a physical SSD measurement, or a matched benchmark.
+The old 67 GB canonical native store and complete old installation remain
+retained; preservation is not cleanup authority or old-runtime compatibility.
+The earlier measurements below are historical stages of this work.
 
 | Priority | Work | Acceptance and limits |
 |---|---|---|
-| 1 | Resource stability (`partial`) | Deployed cache bounds, watcher filtering and streaming copies. The optimized local candidate completed the bounded 500-edit/ten-collection/restart workload described above. Explicit vector maintenance performs actual compaction, with correctness checks in both builds. Deployment, legacy-data transition and normal real-project observation remain open. Kernel-pool attribution remains unresolved and on hold at the user's direction. |
+| 1 | Resource stability (`partial`) | Immutable source reuse, cache bounds, watcher filtering and explicit vector maintenance are deployed. OciusX conversion and installed normal retrieval passed; the short quiet window above recorded no logical writes. Real full-repair/cold-query memory alerts, broader before-allocation coverage and sustained real-project observation remain open. Other 14 conversions are pending and do not block OciusX. Kernel-pool attribution remains unresolved and on hold at the user's direction. |
 | 2 | Scoped guidance in planning and review (`implemented`) | Applicable authored instructions reach `get_change_set`, `prepare_implementation_context`, source `get_chunk`, and `pre_commit_review`; exceptions remain intact, omissions are explicit and recoverable, and historical requests exclude live policy. Retrieval does not certify prose compliance. |
 | 3 | Preserve scope when ingesting quality rules (`implemented` for receipt-owned imports) | Explicit JSON patterns, relative source identities and source-owned removal/reordering are deployed. Existing matching semantics remain; legacy records require ownership review before migration. |
-| 4 | Instruction freshness and maintenance (`partial`) | Scoped dependencies, historical/current evidence and hash-bound update/area-creation proposals have 45 public cases passing in each build. Real reporting no-change, present KML code/policy conflict and historical marker API change examples passed proposal validation and independent review. The historical change reproduces the accepted guide exactly. Broader relevance, comparative usefulness and deployment remain unfinished. |
+| 4 | Instruction freshness and maintenance (`partial`) | Scoped dependencies, historical/current evidence and hash-bound update/area-creation proposals have 45 public cases passing in each build and are included in the deployed package. Real reporting no-change, present KML code/policy conflict and historical marker API change examples passed proposal validation and independent review. The historical change reproduces the accepted guide exactly. Broader relevance and comparative usefulness remain unfinished. |
 | 5 | Task-level outcome evaluation (`partial`) | Seven synthetic scenarios and eight fresh paired real-source planning/diagnosis runs are recorded. Independent blinded judging found 20/20 criteria in each condition; automatic context reduced evidence IDs from 10 to 6 but increased delivered bytes by 23.1%. This establishes no quality or implementation/QA productivity uplift. Regular verification and broader workflow evidence remain open. |
 
-The installed baseline and the current working tree have different storage
-behavior. The working tree selects immutable file revisions; native desired-
+The historical installed baseline and the current package have different storage
+behavior. The current package selects immutable file revisions; native desired-
 behavior tests cover inherited lexical/vector results, held readers and collection.
 The undeployed `05a58288` candidate completed 250 distinct-file edits and restart
 within the protective workload limits. Against the historical installed control's

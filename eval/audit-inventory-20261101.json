@@ -7901,7 +7901,98 @@
       "installed": "Oldb762 unchanged. No OciusX migration begun. Configholdreleased06:48UTC/originalconfigunchanged; fresh exclusion required before live mutation.",
       "user_priority": "Latest user says OciusX is the only real live project; focus cost/time there. Root explicitly accepted OciusX as deploymentpriority; other14conversions remainunfinished but do notdelayitscutover. Supersedes earlier request to convertall15beforedeploy.",
       "scope": "All31findings/19storagegates remainactive. Codepublication is not whole-audit completion. Kernel/preexistingcleanup holds persist; EG24v4 unmodified/unapplied."
+    },
+    "ociusx_only_migration_and_cutover_20261104": {
+      "at_utc": "2026-11-04T09:37:01.720761+00:00",
+      "status": "DEPLOYED_OCIUSX_ONLY; ORIGINAL_AUDIT_OPEN",
+      "source_commit": "d0a611242802b5f6c62538889a68b231a7d13932",
+      "source_remote": "origin/master",
+      "binary_sha256": "f8239c8c004c4ce8ec34389aa8dc9640022186a8994a563871054dff12a53a3b",
+      "manifest_sha256": "896b6e19a6c162c476c3634ba3faad36e3cdc71f911dfc717190b5826d3e39ac",
+      "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+      "source_head": 3117,
+      "files": 2302,
+      "source_chunks": 31915,
+      "retained_vectors_recovered": 199845,
+      "raw_rules_preserved": 104,
+      "installed_ociusx_rules_visible": 94,
+      "other_projects": {
+        "count": 14,
+        "disposition": "PRESERVED_PENDING, not blockers under explicit live-OciusX priority; source-tool availability unclaimed"
+      },
+      "installation": {
+        "status": "COMPLETE_PAIR_SWAPPED_AND_NORMAL_RUNTIME_VERIFIED",
+        "retained_old_bin": "C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-c2586c4f0eae44c3b39b1e7861a5b24a",
+        "global_configuration_unchanged": true,
+        "maintenance_hold_released_at_utc": "2026-11-04T09:33:17.4337076Z",
+        "normal_primary_pid_at_verification": 84904,
+        "codex_existing_transport": "Transport closed; direct normal-runtime IPC passed, client may require reconnect"
+      },
+      "resource_limits": {
+        "full_private_peak_bytes": 1249169408,
+        "full_threshold_bytes": 805306368,
+        "cold_query_private_peak_bytes": 842620928,
+        "cold_threshold_bytes": 536870912,
+        "thresholds_passed": false,
+        "optimization": "OPEN",
+        "normal_quiet_window_seconds": 60.0117734,
+        "normal_quiet_window_logical_writes": 0,
+        "normal_quiet_window_cpu_seconds": 0.15625,
+        "normal_ending_private_bytes": 661082112,
+        "limits": "Short process-only observation; not a sustained benchmark/physical SSD or kernel attribution"
+      },
+      "release_scope": "19 scoped supported correctness/availability admissions with explicit operational acceptance of measured costs. NOT full original19 gate or31 finding closure. S14 other before-allocation bounds/S15 resource optimization remain open; reverse transition/old-after-new unsupported.",
+      "preservation_limits": {
+        "old_canonical_files": 78399,
+        "old_canonical_bytes": 66995890108,
+        "canonical_metadata_unchanged": true,
+        "canonical_content_hash_verified": false,
+        "complete_knowledge_inventory_verified": false,
+        "canonical_cleanup_authorized": false
+      },
+      "evidence": [
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\ociusx-vector-closed-preservation-proof-20261104.json",
+          "sha256": "e88768072c898202875fea2444d9a6175e2aa4095ba74ab8e0d5b07ac0834e9d"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\ociusx-full-selected-state-comparison-20261104.json",
+          "sha256": "f7f4ee7f6807c6bc48bfbd644b5712c8888cd1091b0294f17de5b88cc17f9cbc"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\ociusx-cold-read-acceptance-20261104.json",
+          "sha256": "fe594cf5eed77b400ce39c80cfd95450a1690770132d88ced3ac027b33b99d09"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\ociusx-final-closed-selected-state-20261104.json",
+          "sha256": "53129404a73c0e43faf93cfe07f91b311ea97b1648ef88f0f76430ae4409f4f5"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\ociusx-forward-transition-receipt-20261104.json",
+          "sha256": "e02085205b6b8d3237d4e4f68ad2c7b426db8f2781e326c26d560f9f727fb506"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\ociusx-final-storage-gates-admitted-20261104.json",
+          "sha256": "aff1f69fe26046448364f9361349bbe6ebc46fa604ff8677d6954ed66ff2ea6c"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\ociusx-actual-installer-upgrade-20261104.json",
+          "sha256": "04d0bed556f9ec04520ae4a02c95d341e91d8925bc06cf081fa727033f0463a8"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\installed-package-smoke-after-ociusx-cutover-20261104.json",
+          "sha256": "ea8abc02f18a0010a2b82148c9fc5f32c5ae896135713d5677bf7f68878a8012"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\installed-normal-ociusx-acceptance-20261104.json",
+          "sha256": "e8b1316b64ca232d4cef078caa1699c69aa823f16ab8a89998d1eb4210f3e623"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\ociusx-maintenance-owned-temp-accounting-20261104.json",
+          "sha256": "ae9bc9e7cf747db5e4042b6a2997f938edbeb1e94de6395418d8952b6b5533a5"
+        }
+      ]
     }
   },
-  "last_updated_at": "2026-11-04T06:50:17.502072+01:00"
+  "last_updated_at": "2026-11-04T09:37:01.722920+00:00"
 }
