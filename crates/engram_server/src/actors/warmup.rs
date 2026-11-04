@@ -20,21 +20,40 @@ pub fn warm_order(mut recs: Vec<engram_core::ProjectRecord>) -> Vec<engram_core:
     recs
 }
 
-/// Prime at most the runtime cache's capacity, selected before any runtime opens
-/// or derived-cache tasks are spawned. Other registered projects remain available
-/// through normal demand loading. Returns successful runtime opens, not a promise
+/// Prime at most the runtime cache's capacity of managed, published projects,
+/// selected before any runtime opens or derived-cache tasks are spawned. This
+/// lightweight Registry check is not a source-readiness proof. Other projects
+/// remain available through normal demand loading. Returns successful runtime opens, not a promise
 /// that concurrent client activity has left every selected runtime cached.
 pub async fn warm_all_projects(state: &AppState) -> usize {
-    let recs = match state.registry.list_projects() {
-        Ok(r) => r,
-        Err(e) => {
-            tracing::warn!("warm-up: list_projects failed: {e}");
+    let registry = state.registry.clone();
+    let selection = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
+        let recs = registry.list_projects()?;
+        let registered = recs.len();
+        let mut selected = Vec::with_capacity(MAX_CACHED_PROJECTS);
+        for rec in warm_order(recs) {
+            if selected.len() == MAX_CACHED_PROJECTS {
+                break;
+            }
+            match registry.source_snapshot_requirement(&rec.project_id) {
+                Ok((head, engram_core::registry::SourceSnapshotRequirement::Managed))
+                    if head > 0 => selected.push(rec),
+                Err(error) => tracing::warn!(project_id = %rec.project_id, %error,
+                    "warm-up: skipping invalid source authority; explicit repair remains available"),
+                Ok((head, requirement)) => tracing::debug!(project_id = %rec.project_id, head, ?requirement,
+                    "warm-up: skipping project without managed published source authority; explicit demand loading/repair remains available"),
+            }
+        }
+        Ok((registered, selected))
+    })
+    .await;
+    let (registered, recs) = match selection {
+        Ok(Ok(selection)) => selection,
+        result => {
+            tracing::warn!(?result, "warm-up: startup selection failed");
             return 0;
         }
     };
-    let registered = recs.len();
-    let mut recs = warm_order(recs);
-    recs.truncate(MAX_CACHED_PROJECTS);
     tracing::info!(
         registered,
         selected = recs.len(),
