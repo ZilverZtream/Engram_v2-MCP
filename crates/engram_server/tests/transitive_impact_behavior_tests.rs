@@ -291,6 +291,99 @@ async fn impact_target(fixture: &Fixture, target: &str, max_depth: Option<usize>
         .collect()
 }
 
+async fn summary_impact(fixture: &Fixture, tool: &str, target: &str, max_depth: usize) -> String {
+    let request = json!({"project_id":PID,"symbol_fqn":target,
+        "max_depth":max_depth,"limit":50,"detail":"summary","include_guidance":false});
+    let result = match tool {
+        "impact_analysis" => {
+            let mut request = request;
+            request.as_object_mut().unwrap().remove("include_guidance");
+            fixture
+                .engram
+                .handle_impact_analysis(serde_json::from_value(request).unwrap())
+                .await
+        }
+        "compute_blast_radius" => {
+            let mut request = request;
+            request.as_object_mut().unwrap().remove("limit");
+            fixture
+                .engram
+                .handle_compute_blast_radius(serde_json::from_value(request).unwrap())
+                .await
+        }
+        _ => panic!("Unexpected public impact tool: {tool}"),
+    }
+    .unwrap();
+    assert!(!result.is_error.unwrap_or(false));
+    let text: String = result
+        .content
+        .iter()
+        .filter_map(|content| content.as_text())
+        .map(|content| content.text.as_str())
+        .collect();
+    assert!(
+        text.len() <= 12 * 1024,
+        "The complete agent summary must fit a12KiB context budget, including navigation and caveats"
+    );
+    text
+}
+
+async fn expand_summary_graph(
+    fixture: &Fixture,
+    summary: &Value,
+    target: &str,
+    depth: usize,
+) -> Value {
+    let continuation = &summary["graph_continuation"];
+    assert_eq!(continuation["tool"], "impact_analysis");
+    let arguments = &continuation["arguments"];
+    assert_eq!(arguments["project_id"], PID);
+    assert_eq!(arguments["symbol_fqn"], target);
+    assert_eq!(arguments["max_depth"], depth);
+    assert_eq!(arguments["detail"], "graph");
+    let result = fixture
+        .engram
+        .handle_impact_analysis(
+            serde_json::from_value(arguments.clone())
+                .expect("The returned continuation must be copyable without repair"),
+        )
+        .await
+        .unwrap();
+    assert!(!result.is_error.unwrap_or(false));
+    let text: String = result
+        .content
+        .iter()
+        .filter_map(|content| content.as_text())
+        .map(|content| content.text.as_str())
+        .collect();
+    impact_packet(&text)
+}
+
+fn graph_connections(report: &Value) -> std::collections::BTreeSet<(String, String)> {
+    let nodes: std::collections::BTreeMap<_, _> = report["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|node| {
+            (
+                node["ref"].as_str().unwrap(),
+                node["node_id"].as_str().unwrap(),
+            )
+        })
+        .collect();
+    report["edges"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|edge| {
+            (
+                nodes[edge["source_ref"].as_str().unwrap()].to_owned(),
+                nodes[edge["target_ref"].as_str().unwrap()].to_owned(),
+            )
+        })
+        .collect()
+}
+
 fn impact_packet(text: &str) -> Value {
     let section = text
         .split_once("## Revision-admitted change impact")
@@ -721,6 +814,129 @@ fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_iden
             observed_pairs[0], observed_pairs[1],
             "Both public impact tools must expose the same admitted causal graph"
         );
+
+        let graph = impact_packet(&impact_text);
+        for tool in ["impact_analysis", "compute_blast_radius"] {
+            let text = summary_impact(&fixture, tool, &root, 6).await;
+            let summary = impact_packet(&text);
+            assert_eq!(summary["detail"], "summary");
+            for field in [
+                "source_generation",
+                "source_layout",
+                "requested_max_depth",
+                "status",
+                "target_revision_admitted",
+                "selected_dependents_observed",
+                "coverage",
+                "working_tree_checked",
+                "exhaustive_codebase",
+                "change_breakage_proven",
+            ] {
+                assert_eq!(
+                    summary[field], graph[field],
+                    "Summary must preserve the admitted evidence and uncertainty for {field}, not perform a smaller walk"
+                );
+            }
+            assert_eq!(summary["target"]["node_id"], root);
+            assert_eq!(summary["target"]["generation"], 2);
+            assert_eq!(
+                summary["verified_connections_returned_in_graph"],
+                graph["edges"].as_array().unwrap().len()
+            );
+            for field in [
+                "node_identities_omitted",
+                "edges_omitted",
+                "shortest_paths_omitted",
+                "frontier_rows_omitted",
+            ] {
+                assert_eq!(
+                    summary["graph_omissions"][field], graph[field],
+                    "A compact summary must retain graph omissions separately from its own display limits"
+                );
+            }
+            let immediate = summary["immediate_consumers"].as_array().unwrap();
+            assert_eq!(immediate.len(), 1);
+            assert_eq!(summary["immediate_consumers_omitted_from_summary"], 0);
+            assert_eq!(immediate[0]["node_id"], resolve);
+            assert_eq!(immediate[0]["file_path"], POLICY);
+            assert_eq!(immediate[0]["admission"], "selected");
+            let call = &immediate[0]["source_read"];
+            assert_eq!(call["tool"], "get_full_method_body");
+            let prefix = &text[..text.floor_char_boundary(2048)];
+            let prefix_call: Value = serde_json::from_str(
+                prefix
+                    .split_once("## First immediate indexed consumer")
+                    .unwrap()
+                    .1
+                    .split_once("```json")
+                    .unwrap()
+                    .1
+                    .split_once("```")
+                    .expect("The first2KiB must retain a complete source read in summary mode")
+                    .0,
+            )
+            .unwrap();
+            assert_eq!(prefix_call, *call);
+            let read = fixture
+                .engram
+                .handle_get_full_method_body(
+                    serde_json::from_value(call["arguments"].clone()).unwrap(),
+                )
+                .await
+                .unwrap();
+            assert!(!read.is_error.unwrap_or(false));
+            let body: Value =
+                serde_json::from_str(&read.content[0].as_text().unwrap().text).unwrap();
+            assert_eq!(
+                body["source_code"],
+                "pub fn Resolve() -> i32 { ClassifyAutomatic() }"
+            );
+            assert_eq!(
+                body["source_file_hash"],
+                ContentHash::compute(POLICY_BODY.as_bytes()).0
+            );
+            assert_eq!(
+                body["source_verification"],
+                "explicit_range_current_file_snapshot"
+            );
+
+            let frontier = summary["frontier"].as_array().unwrap();
+            for unconfirmed in [dangling, bad.as_str()] {
+                let branch = frontier.iter().find(|branch| branch["node_id"] == unconfirmed)
+                    .expect("An agent needs the missing or unverified branch identity, not only a gap count");
+                assert_eq!(branch["parent_node_id"], root);
+                assert_ne!(branch["admission"], "selected");
+                assert!(
+                    branch["reason"]
+                        .as_str()
+                        .is_some_and(|reason| !reason.is_empty())
+                );
+                assert!(branch["recovery"]["tool"].is_string());
+                assert!(branch["recovery"]["arguments"].is_object());
+            }
+            assert_eq!(summary["frontier_rows_omitted_from_summary"], 0);
+            let expanded = expand_summary_graph(&fixture, &summary, &root, 6).await;
+            assert_eq!(expanded["coverage"], graph["coverage"]);
+            assert_eq!(
+                expanded["selected_dependents_observed"],
+                graph["selected_dependents_observed"]
+            );
+            assert_eq!(
+                graph_connections(&expanded),
+                observed_pairs[0],
+                "Expanding either summary must recover the longer prepared route alongside the shortcut"
+            );
+            for identity in [&root, &resolve, &policy, &cache, &viewport, &http] {
+                assert!(
+                    expanded["nodes"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .any(|node| node["node_id"] == identity.as_str()
+                            && node["admission"] == "selected")
+                );
+            }
+        }
     });
 }
 
@@ -824,6 +1040,24 @@ fn public_impact_reaches_the_viewport_endpoint_with_every_real_hop_and_honors_re
                 .contains("depth"),
             "Stopping at a requested depth must disclose the unexamined downstream boundary"
         );
+        for tool in ["impact_analysis", "compute_blast_radius"] {
+            let summary = impact_packet(&summary_impact(&fixture, tool, &chain[0], 1).await);
+            assert_eq!(summary["source_generation"], 2);
+            assert_eq!(summary["requested_max_depth"], 1);
+            assert_eq!(summary["selected_dependents_observed"], 1);
+            assert_eq!(summary["coverage"], direct_only["coverage"]);
+            let boundary = summary["frontier"].as_array().unwrap().iter()
+                .find(|branch| branch["node_id"] == chain[2])
+                .expect("A direct-only summary must name ResolvePolicy beyond the admitted Resolve caller");
+            assert_eq!(boundary["parent_node_id"], chain[1]);
+            assert_eq!(boundary["reason"], "depth_limit");
+            assert_eq!(boundary["depth"], 2);
+            assert!(boundary["recovery"]["tool"].is_string());
+            assert!(boundary["recovery"]["arguments"].is_object());
+            let graph = expand_summary_graph(&fixture, &summary, &chain[0], 1).await;
+            assert_eq!(graph["coverage"], direct_only["coverage"]);
+            assert_eq!(graph["selected_dependents_observed"], 1);
+        }
     });
 }
 
@@ -999,6 +1233,40 @@ fn cycles_terminate_and_stale_future_missing_or_unbound_edges_never_claim_curren
             !unselected_target.contains("## First immediate indexed consumer"),
             "An unpublished target cannot acquire a confirmed-consumer prefix"
         );
+        for tool in ["impact_analysis", "compute_blast_radius"] {
+            for target in [
+                future.as_str(),
+                "sym:function:src/not_indexed.rs:UnknownRoot:1",
+            ] {
+                let text = summary_impact(&fixture, tool, target, 6).await;
+                let summary = impact_packet(&text);
+                assert_eq!(summary["status"], "unavailable");
+                assert_eq!(summary["target_revision_admitted"], false);
+                for field in [
+                    "selected_dependents_observed",
+                    "direct_dependents_observed",
+                    "transitive_dependents_observed",
+                ] {
+                    assert!(
+                        summary[field].is_null(),
+                        "Missing target evidence must remain unknown instead of reporting zero for {field}"
+                    );
+                }
+                assert_eq!(summary["change_breakage_proven"], false);
+                assert_eq!(summary["exhaustive_codebase"], false);
+                assert!(
+                    summary["immediate_consumers"]
+                        .as_array()
+                        .unwrap()
+                        .is_empty()
+                );
+                assert!(!text.contains("## First immediate indexed consumer"));
+                let graph = expand_summary_graph(&fixture, &summary, target, 6).await;
+                assert_eq!(graph["status"], "unavailable");
+                assert_eq!(graph["target_revision_admitted"], false);
+                assert!(graph["selected_dependents_observed"].is_null());
+            }
+        }
 
         for invalid_depth in [0, 9] {
             let request = json!({"project_id":PID,"symbol_fqn":id(POLICY, "ClassifyAutomatic", 1),
@@ -1389,6 +1657,34 @@ fn default_impact_display_retains_the_distant_http_route_when_direct_callers_exc
             assert!(
                 displayed_nodes.contains(step.as_str()),
                 "A displayed distant path needs its independently resolvable intermediate: {step}"
+            );
+        }
+        for tool in ["impact_analysis", "compute_blast_radius"] {
+            let summary = impact_packet(&summary_impact(&fixture, tool, &chain[0], 6).await);
+            assert_eq!(summary["source_generation"], 3);
+            assert_eq!(summary["selected_dependents_observed"], 35);
+            assert_eq!(summary["direct_dependents_observed"], 31);
+            assert_eq!(summary["transitive_dependents_observed"], 4);
+            let shown = summary["immediate_consumers"].as_array().unwrap().len();
+            let omitted = summary["immediate_consumers_omitted_from_summary"]
+                .as_u64()
+                .unwrap();
+            assert!(shown <= 4 && omitted > 0);
+            assert_eq!(
+                shown as u64 + omitted,
+                31,
+                "A compact summary must distinguish its displayed caller sample from all admitted immediate callers"
+            );
+            let expanded = expand_summary_graph(&fixture, &summary, &chain[0], 6).await;
+            assert_eq!(expanded["selected_dependents_observed"], 35);
+            assert_eq!(expanded["coverage"], report["coverage"]);
+            assert!(
+                expanded["nodes"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|node| node["node_id"] == *chain.last().unwrap()
+                        && node["admission"] == "selected")
             );
         }
     });

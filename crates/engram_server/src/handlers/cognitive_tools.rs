@@ -242,10 +242,19 @@ impl Engram {
         if req.file_path.is_some() == req.symbol_fqn.is_some() {
             return Err(McpError::invalid_params("Provide exactly one of file_path or symbol_fqn", None));
         }
-        let (mut result, _source_hold, generation) = crate::services::impact_walk_service::collect(
+        let (mut result, _source_hold, generation) = crate::services::impact_walk_service::collect_with_detail(
             &self.state, &req.project_id, req.file_path.clone(), req.symbol_fqn.clone(),
-            req.max_depth, req.limit,
+            req.max_depth, req.limit, req.detail,
         ).await;
+        if req.detail==crate::models::ImpactDetail::Summary {
+            if let Some(generation)=generation {
+                result.push_str(&self.freshness_footer(&req.project_id,generation).await);
+            }
+            if result.len()>crate::services::impact_walk_service::SUMMARY_BYTES {
+                return Err(McpError::internal_error("Impact summary exceeds response budget",None));
+            }
+            return Ok(CallToolResult::success(vec![Content::text(result)]));
+        }
         result.push_str(&self.historical_impact_observations(
             &req.project_id, req.file_path.clone(), req.symbol_fqn.clone(),
             _source_hold.clone(), generation,
@@ -2898,6 +2907,18 @@ impl Engram {
         }
         if req.file_path.is_some() == req.symbol_fqn.is_some() {
             return Err(McpError::invalid_params("Provide exactly one of file_path or symbol_fqn", None));
+        }
+        if req.detail==crate::models::ImpactDetail::Summary {
+            let (mut out, _source_hold, generation)=crate::services::impact_walk_service::collect_with_detail(
+                &self.state,&req.project_id,req.file_path.clone(),req.symbol_fqn.clone(),req.max_depth,25,req.detail,
+            ).await;
+            if let Some(generation)=generation {
+                out.push_str(&self.freshness_footer(&req.project_id,generation).await);
+            }
+            if out.len()>crate::services::impact_walk_service::SUMMARY_BYTES {
+                return Err(McpError::internal_error("Impact summary exceeds response budget",None));
+            }
+            return Ok(CallToolResult::success(vec![Content::text(out)]));
         }
         let target_id = if let Some(ref fp) = req.file_path {
             let graph = self.state.graph.clone();

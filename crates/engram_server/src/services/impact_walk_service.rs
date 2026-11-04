@@ -12,6 +12,7 @@ use std::{
 
 const RESPONSE_BYTES: usize = 64 * 1024;
 const IMMEDIATE_BYTES: usize = 2 * 1024;
+pub const SUMMARY_BYTES: usize = 12 * 1024;
 
 /// Apply one already-held source selection to both graph endpoints' physical
 /// node/file revisions. This helper never pins or observes a newer HEAD.
@@ -137,6 +138,157 @@ fn section(value: &Value) -> String {
         "{}\n## Revision-admitted change impact\n\nIndexed causal paths under the named source selection; not a proposed-change simulation, runtime proof or safe-change verdict.\n\n```json\n{}\n```\n",
         immediate_section(value).unwrap_or_default(),
         serde_json::to_string(value).expect("JSON value serialization")
+    )
+}
+
+/// Project the already-collected facts. No graph/source/model query is made.
+fn summary_section(
+    full: &Value,
+    project: &str,
+    file_path: Option<&str>,
+    symbol_fqn: Option<&str>,
+    display_limit: usize,
+    direct: Option<usize>,
+    transitive: Option<usize>,
+) -> String {
+    let nodes: HashMap<_, _> = full["nodes"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|node| Some((node["ref"].as_str()?, node)))
+        .collect();
+    let files: HashMap<_, _> = full["files"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|file| Some((file["ref"].as_str()?, &file["path"])))
+        .collect();
+    let recoveries: HashMap<_, _> = full["recoveries"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|action| Some((action["ref"].as_str()?, action)))
+        .collect();
+    let admitted = full["target_revision_admitted"] == true;
+    let target = full["target_ref"]
+        .as_str()
+        .and_then(|reference| nodes.get(reference))
+        .copied();
+    let action = |reference: &Value| {
+        reference
+            .as_str()
+            .and_then(|reference| recoveries.get(reference))
+            .map(|row| json!({"tool":row["tool"],"arguments":row["arguments"]}))
+    };
+    let describe = |node: &Value| {
+        json!({"node_id":node["node_id"],"name":node["name"],
+        "file_path":node["file_ref"].as_str().and_then(|reference| files.get(reference)),
+        "start_line":node["start_line"],"end_line":node["end_line"],"generation":node["generation"],
+        "admission":node["admission"],"source_read":action(&node["recovery_ref"])})
+    };
+    let mut arguments = json!({"project_id":project,"max_depth":full["requested_max_depth"],
+        "limit":display_limit.clamp(1,25),"detail":"graph"});
+    let exact = target.and_then(|node| node["node_id"].as_str());
+    let bounded = |value: &str| {
+        !value.is_empty() && value.len() <= 2048 && !value.chars().any(char::is_control)
+    };
+    let continuation = if let Some(symbol) = exact.or(symbol_fqn).filter(|symbol| bounded(symbol)) {
+        arguments["symbol_fqn"] = json!(symbol);
+        Some(json!({"tool":"impact_analysis","arguments":arguments}))
+    } else if let Some(file) = file_path.filter(|file| bounded(file)) {
+        arguments["file_path"] = json!(file);
+        Some(json!({"tool":"impact_analysis","arguments":arguments}))
+    } else {
+        None
+    };
+    let frontier = full["frontier"]
+        .as_array()
+        .map(Vec::as_slice)
+        .unwrap_or_default();
+    let mut value = json!({"schema_version":2,"detail":"summary",
+        "source_generation":full["source_generation"],"source_layout":full["source_layout"],
+        "requested_max_depth":full["requested_max_depth"],"status":full["status"],
+        "target_revision_admitted":admitted,"selected_dependents_observed":full["selected_dependents_observed"],
+        "direct_dependents_observed":direct,"transitive_dependents_observed":transitive,
+        "verified_connections_returned_in_graph":if admitted {full["edges"].as_array().map(Vec::len)}else{None},
+        "coverage":full["coverage"],"working_tree_checked":false,"exhaustive_codebase":false,
+        "dependency_scope":full["dependency_scope"],
+        "change_breakage_proven":false,"target":null,"target_omitted_from_summary":target.is_some(),
+        "immediate_consumers":[],"immediate_consumers_omitted_from_summary":direct,
+        "frontier":[],"frontier_rows_omitted_from_summary":frontier.len(),
+        "graph_omissions":{"node_identities_omitted":full["node_identities_omitted"],
+            "edges_omitted":full["edges_omitted"],"shortest_paths_omitted":full["shortest_paths_omitted"],
+            "frontier_rows_omitted":full["frontier_rows_omitted"]},
+        "graph_continuation":continuation,
+        "continuation_scope":"Fresh bounded observation, not saved pagination or atomic replay; compare source_generation and coverage before combining results. No valid bounded target means continuation unavailable.",
+        "separate_context":"Historical companions and unverified one-hop advisory not collected in summary; request detail=graph for those separate observations.",
+        "limitations":["Counts are bounded indexed exposure, not numbers of consumers that will break. Omitted rows and uninspected/dynamic bindings remain unknown.",
+            "Source reads bind current file bytes/ranges, not callsites, complete method boundaries, value flow, compiler results or runtime execution."]});
+    if let Some(error) = full.get("error") {
+        value["error"] = error.clone();
+    }
+    // Reserve the existing <=2KiB immediate prefix, section framing and the
+    // public freshness footer. Drop only optional rows, never RPC arguments.
+    let fits = |value: &Value| {
+        serde_json::to_vec(value)
+            .expect("JSON value serialization")
+            .len()
+            <= SUMMARY_BYTES - IMMEDIATE_BYTES - 1024
+    };
+    if let Some(target) = target {
+        value["target"] = describe(target);
+        if fits(&value) {
+            value["target_omitted_from_summary"] = json!(false);
+        } else {
+            value["target"] = Value::Null;
+        }
+    }
+    let mut immediate = Vec::new();
+    if admitted {
+        let mut selected: Vec<_> = nodes
+            .values()
+            .copied()
+            .filter(|node| node["admission"] == "selected" && node["depth"] == 1)
+            .collect();
+        selected.sort_by(|a, b| a["node_id"].as_str().cmp(&b["node_id"].as_str()));
+        for node in selected.into_iter().take(4) {
+            immediate.push(describe(node));
+            value["immediate_consumers"] = json!(&immediate);
+            if !fits(&value) {
+                immediate.pop();
+                value["immediate_consumers"] = json!(&immediate);
+                break;
+            }
+        }
+    }
+    value["immediate_consumers_omitted_from_summary"] =
+        json!(direct.map(|count| count.saturating_sub(immediate.len())));
+    let mut leads = Vec::new();
+    for lead in frontier.iter().take(8) {
+        let node = lead["source_ref"]
+            .as_str()
+            .and_then(|reference| nodes.get(reference))
+            .copied();
+        let parent = lead["target_ref"]
+            .as_str()
+            .and_then(|reference| nodes.get(reference))
+            .copied();
+        leads.push(json!({"node_id":node.map(|node|&node["node_id"]),
+            "parent_node_id":parent.map(|node|&node["node_id"]),"reason":lead["reason"],
+            "kind":lead["kind"],"depth":lead["depth"],"admission":node.map(|node|&node["admission"]),
+            "recovery":action(&lead["recovery_ref"])}));
+        value["frontier"] = json!(&leads);
+        if !fits(&value) {
+            leads.pop();
+            value["frontier"] = json!(&leads);
+            break;
+        }
+    }
+    value["frontier_rows_omitted_from_summary"] = json!(frontier.len() - leads.len());
+    format!(
+        "{}\n## Revision-admitted change impact\n\nSummary of the same bounded source selection. Expand the graph for all retained identities, connections and paths.\n\n```json\n{}\n```\n",
+        immediate_section(full).unwrap_or_default(),
+        serde_json::to_string(&value).expect("JSON value serialization")
     )
 }
 
@@ -827,6 +979,7 @@ async fn collect_evidence(
 
 fn unavailable_value(max_depth: usize, error: &anyhow::Error) -> Value {
     json!({"schema_version":2,"source_generation":null,"requested_max_depth":max_depth,
+        "target_revision_admitted":false,"selected_dependents_observed":null,"working_tree_checked":false,
         "status":"unavailable","coverage":{"truncated":true,"reasons":["source_evidence_unavailable"]},
         "files":[],"nodes":[],"edges":[],"shortest_paths":[],"frontier":[],"recoveries":[],"omitted_from_display":null,
         "error":format!("{error:#}").chars().take(2048).collect::<String>(),
@@ -846,12 +999,33 @@ pub async fn collect(
     max_depth: usize,
     display_limit: usize,
 ) -> (String, Option<Arc<SourceSnapshotGuard>>, Option<u64>) {
+    collect_with_detail(
+        state,
+        project,
+        file_path,
+        symbol_fqn,
+        max_depth,
+        display_limit,
+        crate::models::ImpactDetail::Graph,
+    )
+    .await
+}
+
+pub async fn collect_with_detail(
+    state: &AppState,
+    project: &str,
+    file_path: Option<String>,
+    symbol_fqn: Option<String>,
+    max_depth: usize,
+    display_limit: usize,
+    detail: crate::models::ImpactDetail,
+) -> (String, Option<Arc<SourceSnapshotGuard>>, Option<u64>) {
     let result = collect_evidence(
         state,
         project,
         TargetRequest::Resolve {
-            file_path,
-            symbol_fqn,
+            file_path: file_path.clone(),
+            symbol_fqn: symbol_fqn.clone(),
         },
         max_depth,
         display_limit,
@@ -859,11 +1033,46 @@ pub async fn collect(
     .await;
     match result {
         Ok(collected) => (
-            section(&collected.value),
+            if detail == crate::models::ImpactDetail::Summary {
+                summary_section(
+                    &collected.value,
+                    project,
+                    file_path.as_deref(),
+                    symbol_fqn.as_deref(),
+                    display_limit,
+                    collected
+                        .target_revision_admitted
+                        .then_some(collected.direct_dependents),
+                    collected
+                        .target_revision_admitted
+                        .then_some(collected.transitive_dependents),
+                )
+            } else {
+                section(&collected.value)
+            },
             Some(collected.source),
             Some(collected.generation),
         ),
-        Err(error) => (section(&unavailable_value(max_depth, &error)), None, None),
+        Err(error) => {
+            let value = unavailable_value(max_depth, &error);
+            (
+                if detail == crate::models::ImpactDetail::Summary {
+                    summary_section(
+                        &value,
+                        project,
+                        file_path.as_deref(),
+                        symbol_fqn.as_deref(),
+                        display_limit,
+                        None,
+                        None,
+                    )
+                } else {
+                    section(&value)
+                },
+                None,
+                None,
+            )
+        }
     }
 }
 

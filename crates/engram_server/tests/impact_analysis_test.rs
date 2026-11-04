@@ -73,6 +73,7 @@ namespace App {
             symbol_fqn: Some("App.Utility.Helper".to_string()),
             limit: 10,
             max_depth: 1,
+            detail: Default::default(),
         }))
         .await
         .unwrap();
@@ -128,6 +129,7 @@ namespace App {
             symbol_fqn: None,
             limit: 10,
             max_depth: 1,
+            detail: Default::default(),
         }))
         .await
         .unwrap();
@@ -349,6 +351,7 @@ async fn run(engram: &engram_server::Engram, pid: &str, sym: &str) -> String {
             symbol_fqn: Some(sym.to_string()),
             limit: 50,
             max_depth: 1,
+            detail: Default::default(),
         }))
         .await
         .unwrap();
@@ -465,6 +468,7 @@ async fn missing_target_is_not_found_not_empty() {
             symbol_fqn: Some("Target".into()),
             limit: 10,
             max_depth: 1,
+            detail: Default::default(),
         }))
         .await;
     assert!(
@@ -556,6 +560,7 @@ async fn internal_flood_cannot_hide_external_caller() {
             symbol_fqn: None,
             limit: 50,
             max_depth: 1,
+            detail: Default::default(),
         }))
         .await
         .unwrap();
