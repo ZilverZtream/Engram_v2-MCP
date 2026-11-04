@@ -73,8 +73,9 @@ pub struct Config {
     #[serde(default = "default_max_concurrent_jobs")]
     pub max_concurrent_jobs: usize,
 
-    /// Maximum number of chunks produced per file during indexing.
-    /// Previously hardcoded to 2000. Set in engram_mcp.yaml to override.
+    /// Target characters per source chunk during indexing (legacy setting name).
+    /// Symbol boundaries and context overlap may produce larger chunks; this
+    /// does not limit the number of chunks per file. Default: 2000.
     #[serde(default = "default_max_chunks_per_file")]
     pub max_chunks_per_file: usize,
 

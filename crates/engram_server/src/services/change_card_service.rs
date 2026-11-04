@@ -18,21 +18,112 @@
 //! A card is one first-parent (published) change: its title, description
 //! and non-generated changed files. Cards are built from git, embedded with
 //! the project's configured embedder (nomic's `search_document:` /
-//! `search_query:` prefixes, which that model requires) and cached per
-//! repository by commit, so a moving tip only builds its new changes.
+//! `search_query:` prefixes, which that model requires). Bounded retention is
+//! keyed by repository, commit and document embedding profile; a moving tip
+//! builds only missing changes. Disabled vectors use a lexical baseline.
 
 use engram_ml::llm_provider::{LlmGenerateOptions, LlmProvider};
 use git2::{Oid, Repository};
 use regex::Regex;
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::{Arc, LazyLock, Mutex};
+mod cache;
+mod metadata_cache;
+#[cfg(all(test, feature = "vector"))]
+#[path = "change_card_service/restart_measurement.rs"]
+mod restart_measurement;
 
 /// Reranker used when the configured LLM provider is OpenRouter: measured
 /// best (18/20) on the precedent benchmark, and the cheapest.
 pub const DEFAULT_RERANK_MODEL: &str = "openai/gpt-oss-120b";
 /// How many semantic candidates the reranker sees.
 pub const RERANK_POOL: usize = 30;
+pub const DEFAULT_RERANK_TIMEOUT_MS: u64 = 90_000;
+pub const MAX_RERANK_TIMEOUT_MS: u64 = 90_000;
+
+pub fn checked_rerank_timeout_ms(value: Option<u64>) -> anyhow::Result<u64> {
+    let ms = value.unwrap_or(DEFAULT_RERANK_TIMEOUT_MS);
+    anyhow::ensure!(
+        ms <= MAX_RERANK_TIMEOUT_MS,
+        "rerank_timeout_ms must be between 0 and 90000"
+    );
+    Ok(ms)
+}
+
+#[derive(Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum RerankOutcome {
+    Disabled,
+    ZeroBudget,
+    NoCandidates,
+    Unavailable,
+    Completed { model: String, pool_size: usize },
+    Failed { reason: String },
+    TimedOut { budget_ms: u64 },
+}
+
+pub struct RerankResult {
+    pub ranked: Vec<Arc<ChangeCard>>,
+    pub outcome: RerankOutcome,
+}
+
+/// Only optional LLM ordering is bounded here; baseline retrieval is separate.
+/// Every failure preserves the full baseline, including candidates outside the pool.
+pub async fn rerank_with_budget<F>(
+    story: &str,
+    baseline: Vec<Arc<ChangeCard>>,
+    enabled: bool,
+    timeout_ms: u64,
+    provider: F,
+) -> anyhow::Result<RerankResult>
+where
+    F: FnOnce() -> Option<(Arc<dyn LlmProvider>, String)>,
+{
+    checked_rerank_timeout_ms(Some(timeout_ms))?;
+    let skipped = if !enabled {
+        Some(RerankOutcome::Disabled)
+    } else if timeout_ms == 0 {
+        Some(RerankOutcome::ZeroBudget)
+    } else if baseline.is_empty() {
+        Some(RerankOutcome::NoCandidates)
+    } else {
+        None
+    };
+    if let Some(outcome) = skipped {
+        return Ok(RerankResult {
+            ranked: baseline,
+            outcome,
+        });
+    }
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_millis(timeout_ms);
+    let Some((llm, model)) = provider() else {
+        return Ok(RerankResult {
+            ranked: baseline,
+            outcome: RerankOutcome::Unavailable,
+        });
+    };
+    let pool_size = baseline.len().min(RERANK_POOL);
+    let pool = baseline[..pool_size].to_vec();
+    let outcome = match tokio::time::timeout_at(deadline, rerank(story, pool, llm.as_ref())).await {
+        Ok(Ok(mut reordered)) => {
+            reordered.extend(baseline.into_iter().skip(pool_size));
+            return Ok(RerankResult {
+                ranked: reordered,
+                outcome: RerankOutcome::Completed { model, pool_size },
+            });
+        }
+        Ok(Err(error)) => RerankOutcome::Failed {
+            reason: error.to_string().chars().take(240).collect(),
+        },
+        Err(_) => RerankOutcome::TimedOut {
+            budget_ms: timeout_ms,
+        },
+    };
+    Ok(RerankResult {
+        ranked: baseline,
+        outcome,
+    })
+}
 /// Changes touching more non-generated files are bulk (imports, moves,
 /// reformats), never a precedent.
 pub const BULK_FILES: usize = 150;
@@ -84,7 +175,7 @@ fn first_parent_line(repo: &Repository, tip: Oid) -> anyhow::Result<Vec<Oid>> {
     let mut cursor = Some(repo.find_commit(tip)?);
     while let Some(commit) = cursor {
         line.push(commit.id());
-        cursor = commit.parent(0).ok();
+        cursor = if commit.parent_count() == 0 {None} else {Some(commit.parent(0)?)};
     }
     line.reverse();
     Ok(line)
@@ -107,7 +198,9 @@ fn describe(repo: &Repository, oid: Oid) -> anyhow::Result<ChangeCard> {
         .take(MAX_DESCRIPTION)
         .collect();
     let tree = commit.tree()?;
-    let parent_tree = commit.parent(0).ok().map(|p| p.tree()).transpose()?;
+    let parent_tree = if commit.parent_count() == 0 { None } else {
+        Some(commit.parent(0)?.tree()?)
+    };
     let diff = repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), None)?;
     let mut files: Vec<String> = diff
         .deltas()
@@ -154,9 +247,27 @@ impl EmbedPrefixes {
     }
 }
 
-/// Cards by commit, per repository; built once, extended as the tip moves.
-static CARDS: LazyLock<Mutex<HashMap<PathBuf, HashMap<String, Arc<ChangeCard>>>>> =
-    LazyLock::new(Default::default);
+/// A retention bound, not a whole-request/process memory budget. Large request
+/// results remain usable without retaining an oversized partition globally.
+static CARDS: LazyLock<Mutex<cache::CardCache>> =
+    LazyLock::new(|| Mutex::new(cache::CardCache::new(8, 32 * 1024 * 1024)));
+
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+struct CardBuildStats {
+    git_open_ns: u64,
+    first_parent_walk_ns: u64,
+    describe_ns: u64,
+    described_commits: usize,
+    line_commits: usize,
+    fresh_embedding_texts: usize,
+    estimated_retained_bytes: usize,
+    metadata_cache_lookups: usize,
+    metadata_cache_hits: usize,
+    metadata_cache_writes: usize,
+    metadata_cache_evictions: usize,
+    metadata_cache_skipped: usize,
+    metadata_cache_errors: usize,
+}
 
 /// Cards for every published change on `tip`'s first-parent line, oldest
 /// first, embedding only changes not seen before.
@@ -166,23 +277,64 @@ pub async fn cards_for_line(
     search: &engram_index::HybridSearchEngine,
     prefixes: EmbedPrefixes,
 ) -> anyhow::Result<Vec<Arc<ChangeCard>>> {
-    let dir = repo_dir.to_path_buf();
-    let known: std::collections::HashSet<String> = CARDS
+    Ok(cards_for_line_measured(repo_dir, tip, search, prefixes).await?.0)
+}
+
+/// Application path: reuse the existing Registry handle for bounded derived
+/// metadata. Embedding profiles and vectors stay in their existing caches.
+pub async fn cards_for_line_cached(
+    repo_dir: &Path, tip: Oid, search: &engram_index::HybridSearchEngine,
+    prefixes: EmbedPrefixes, registry: &engram_core::Registry,
+) -> anyhow::Result<Vec<Arc<ChangeCard>>> {
+    Ok(cards_for_line_observed(repo_dir,tip,search,prefixes,Some(registry.clone())).await?.0)
+}
+
+async fn cards_for_line_measured(
+    repo_dir: &Path,
+    tip: Oid,
+    search: &engram_index::HybridSearchEngine,
+    prefixes: EmbedPrefixes,
+) -> anyhow::Result<(Vec<Arc<ChangeCard>>, CardBuildStats)> {
+    cards_for_line_observed(repo_dir,tip,search,prefixes,None).await
+}
+
+async fn cards_for_line_observed(
+    repo_dir: &Path, tip: Oid, search: &engram_index::HybridSearchEngine,
+    prefixes: EmbedPrefixes, registry: Option<engram_core::Registry>,
+) -> anyhow::Result<(Vec<Arc<ChangeCard>>, CardBuildStats)> {
+    // Capability, not cached data, decides whether vectors may participate.
+    // A no-vector build or fts_only project never constructs placeholder cards.
+    if search.semantic_quality() == engram_index::hybrid::SemanticQuality::Off {
+        let root = repo_dir.to_path_buf();
+        return tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
+            let (_, cards, stats) = metadata_cache::read(&root, tip, &Default::default(),registry.as_ref().map(|r|r as &dyn metadata_cache::Store))?;
+            Ok((cards.into_iter().map(Arc::new).collect(), stats))
+        })
+        .await?;
+    }
+    let root = repo_dir.to_path_buf();
+    let dir = tokio::task::spawn_blocking(move || std::fs::canonicalize(root)).await??;
+    let (identity, dimension) = search
+        .document_embedding_identity()
+        .ok_or_else(|| anyhow::anyhow!("document embedding capability is unavailable"))?;
+    let mut profile = blake3::Hasher::new();
+    for part in [identity.as_str(), prefixes.document] {
+        profile.update(&(part.len() as u64).to_le_bytes());
+        profile.update(part.as_bytes());
+    }
+    let key = cache::Key {
+        repository: dir.clone(),
+        profile: profile.finalize().to_hex().to_string(),
+    };
+    // This request owns its cards through Git/provider awaits and eviction.
+    let mut cards = CARDS
         .lock()
         .unwrap_or_else(|e| e.into_inner())
-        .get(&dir)
-        .map(|m| m.keys().cloned().collect())
-        .unwrap_or_default();
+        .snapshot(&key);
+    let known: std::collections::HashSet<String> = cards.keys().cloned().collect();
     let dir_for_git = dir.clone();
-    let (line, fresh) = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
-        let repo = engram_git::history::GitWalker::open_repo(&dir_for_git)?;
-        let line = first_parent_line(&repo, tip)?;
-        let fresh: Vec<ChangeCard> = line
-            .iter()
-            .filter(|oid| !known.contains(&oid.to_string()))
-            .map(|oid| describe(&repo, *oid))
-            .collect::<anyhow::Result<_>>()?;
-        Ok((line, fresh))
+    let (line, fresh, mut stats) = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
+        metadata_cache::read(&dir_for_git, tip, &known,registry.as_ref().map(|r|r as &dyn metadata_cache::Store))
     })
     .await??;
     if !fresh.is_empty() {
@@ -191,25 +343,80 @@ pub async fn cards_for_line(
             .map(|c| format!("{}{}", prefixes.document, c.text()))
             .collect();
         let vectors = search.embed_texts(&texts).await?;
-        let mut cache = CARDS.lock().unwrap_or_else(|e| e.into_inner());
-        let entry = cache.entry(dir.clone()).or_default();
+        stats.fresh_embedding_texts = texts.len();
+        anyhow::ensure!(
+            vectors.len() == fresh.len(),
+            "change card provider returned an incomplete batch"
+        );
+        anyhow::ensure!(
+            vectors
+                .iter()
+                .all(|vector| vector.len() == dimension && vector.iter().all(|v| v.is_finite())),
+            "change card provider returned incompatible vectors"
+        );
         for (mut card, vector) in fresh.into_iter().zip(vectors) {
             card.vector = vector;
-            entry.insert(card.oid.clone(), Arc::new(card));
+            cards.insert(card.oid.clone(), Arc::new(card));
         }
     }
-    let cache = CARDS.lock().unwrap_or_else(|e| e.into_inner());
-    let cards = cache.get(&dir).cloned().unwrap_or_default();
-    Ok(line
-        .iter()
-        .filter_map(|oid| cards.get(&oid.to_string()).cloned())
-        .collect())
+    let result =
+        line.iter()
+            .map(|oid| {
+                cards.get(&oid.to_string()).cloned().ok_or_else(|| {
+                    anyhow::anyhow!("change card missing for requested commit {oid}")
+                })
+            })
+            .collect::<anyhow::Result<Vec<_>>>()?;
+    let mut retained = CARDS.lock().unwrap_or_else(|e| e.into_inner());
+    retained.retain(key.clone(), cards);
+    stats.estimated_retained_bytes = retained.retained_bytes(&key);
+    Ok((result, stats))
 }
 
 fn cosine(a: &[f32], b: &[f32]) -> f32 {
     let dot: f32 = a.iter().zip(b).map(|(x, y)| x * y).sum();
     let norm = |v: &[f32]| v.iter().map(|x| x * x).sum::<f32>().sqrt();
     dot / (norm(a) * norm(b) + 1e-9)
+}
+
+/// Explicit lexical fallback over the already scoped first-parent history.
+/// Unmatched changes are excluded rather than presented as relevant precedents.
+pub fn lexical_rank(story: &str, cards: &[Arc<ChangeCard>]) -> Vec<Arc<ChangeCard>> {
+    let terms: std::collections::BTreeSet<_> = story
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|s| !s.is_empty())
+        .take(256)
+        .map(str::to_lowercase)
+        .collect();
+    let mut scored = Vec::new();
+    for card in cards.iter().filter(|c| c.file_count <= BULK_FILES) {
+        let words = |text: &str| -> std::collections::BTreeSet<String> {
+            text.split(|c: char| !c.is_alphanumeric())
+                .filter(|s| !s.is_empty())
+                .map(str::to_lowercase)
+                .collect()
+        };
+        let title = words(&card.title);
+        let description = words(&card.description);
+        let files = words(&card.files.join(" "));
+        let score = terms
+            .iter()
+            .map(|term| {
+                3 * usize::from(title.contains(term))
+                    + usize::from(description.contains(term))
+                    + 2 * usize::from(files.contains(term))
+            })
+            .sum::<usize>();
+        if score > 0 {
+            scored.push((score, card.clone()));
+        }
+    }
+    scored.sort_by(|a, b| {
+        b.0.cmp(&a.0)
+            .then_with(|| b.1.timestamp.cmp(&a.1.timestamp))
+            .then_with(|| a.1.oid.cmp(&b.1.oid))
+    });
+    scored.into_iter().map(|(_, card)| card).collect()
 }
 
 /// Cards most similar to the story, bulk changes excluded.
@@ -286,16 +493,20 @@ pub async fn rerank(
         .and_then(|v| v.get("best").cloned())
         .and_then(|v| serde_json::from_value::<Vec<usize>>(v).ok())
         .ok_or_else(|| anyhow::anyhow!("rerank answer was not the requested JSON"))?;
+    anyhow::ensure!(picks.len() <= 5, "rerank returned more than five picks");
+    let mut seen = vec![false; pool.len()];
     let mut order: Vec<Arc<ChangeCard>> = Vec::with_capacity(pool.len());
     for pick in picks {
-        if let Some(card) = pick.checked_sub(1).and_then(|i| pool.get(i))
-            && !order.iter().any(|c| c.oid == card.oid)
-        {
-            order.push(Arc::clone(card));
-        }
+        let index = pick
+            .checked_sub(1)
+            .filter(|&i| i < pool.len())
+            .ok_or_else(|| anyhow::anyhow!("rerank returned an out-of-range pick"))?;
+        anyhow::ensure!(!seen[index], "rerank returned a duplicate pick");
+        seen[index] = true;
+        order.push(Arc::clone(&pool[index]));
     }
-    for card in pool {
-        if !order.iter().any(|c| c.oid == card.oid) {
+    for (index, card) in pool.into_iter().enumerate() {
+        if !seen[index] {
             order.push(card);
         }
     }
@@ -305,6 +516,261 @@ pub async fn rerank(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use engram_ml::llm_provider::{LlmError, LlmResponse};
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+
+    #[cfg(feature = "vector")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn cached_history_vectors_follow_each_configuration_during_switching_and_concurrent_requests()
+    -> anyhow::Result<()> {
+        use engram_ml::Embedder;
+        let temporary = tempfile::tempdir()?;
+        let result = async {
+            let root = temporary.path().join("repo");
+            std::fs::create_dir(&root)?;
+            std::fs::write(root.join("helper.rs"), "pub fn authorize_save() {}\n")?;
+            let repo = Repository::init(&root)?;
+            let mut index = repo.index()?;
+            index.add_path(Path::new("helper.rs"))?;
+            let tree = repo.find_tree(index.write_tree()?)?;
+            let signature = git2::Signature::now("Fixture", "fixture@example.invalid")?;
+            let tip = repo.commit(
+                Some("HEAD"),
+                &signature,
+                &signature,
+                "Implement scoped save authorization\n\nKeep authorization before saving.",
+                &tree,
+                &[],
+            )?;
+            let cfg_a = engram_core::Config {
+                data_dir: temporary.path().join("data-a"),
+                embedding_backend: "local".into(),
+                embedding_model: None,
+                ..Default::default()
+            };
+            let cfg_b = engram_core::Config {
+                data_dir: temporary.path().join("data-b"),
+                embedding_model: Some("nomic-fixture".into()),
+                ..cfg_a.clone()
+            };
+            let engine_a = engram_index::HybridSearchEngine::new(
+                temporary.path().join("search-a/tantivy"),
+                temporary.path().join("search-a/lance"),
+                &cfg_a,
+            )
+            .await?;
+            let engine_b = engram_index::HybridSearchEngine::new(
+                temporary.path().join("search-b/tantivy"),
+                temporary.path().join("search-b/lance"),
+                &cfg_b,
+            )
+            .await?;
+            let prefixes_a = EmbedPrefixes::for_model(cfg_a.embedding_model.as_deref());
+            let prefixes_b = EmbedPrefixes::for_model(cfg_b.embedding_model.as_deref());
+            let provider = engram_ml::embed::LocalEmbedder;
+            let mut observed = Vec::new();
+            for (engine, prefixes) in [
+                (&engine_a, prefixes_a),
+                (&engine_b, prefixes_b),
+                (&engine_a, prefixes_a),
+            ] {
+                let cards = cards_for_line(&root, tip, engine, prefixes).await?;
+                anyhow::ensure!(cards.len() == 1 && cards[0].oid == tip.to_string());
+                let expected = provider
+                    .embed(&format!("{}{}", prefixes.document, cards[0].text()))
+                    .await?;
+                anyhow::ensure!(
+                    cards[0].vector == expected,
+                    "history reused another configuration's vectors"
+                );
+                observed.push(cards[0].vector.clone());
+            }
+            anyhow::ensure!(
+                observed[0] != observed[1],
+                "fixture must exercise distinct document inputs"
+            );
+            anyhow::ensure!(observed[0] == observed[2]);
+            let profiles = [
+                "profile0: ",
+                "profile1: ",
+                "profile2: ",
+                "profile3: ",
+                "profile4: ",
+                "profile5: ",
+                "profile6: ",
+                "profile7: ",
+                "profile8: ",
+                "profile9: ",
+            ];
+            let requests = profiles.iter().map(|&document| {
+                cards_for_line(
+                    &root,
+                    tip,
+                    &engine_a,
+                    EmbedPrefixes {
+                        document,
+                        query: "",
+                    },
+                )
+            });
+            let completed = futures::future::join_all(requests).await;
+            for (document, cards) in profiles.into_iter().zip(completed) {
+                let cards = cards?;
+                anyhow::ensure!(cards.len() == 1 && cards[0].oid == tip.to_string());
+                let expected = provider
+                    .embed(&format!("{document}{}", cards[0].text()))
+                    .await?;
+                anyhow::ensure!(
+                    cards[0].vector == expected,
+                    "concurrent requests or cache pressure changed the requested history vectors"
+                );
+            }
+            Ok(())
+        }
+        .await;
+        temporary.close()?;
+        result
+    }
+
+    struct TestLlm {
+        reply: Option<&'static str>,
+        dropped: AtomicBool,
+    }
+
+    #[async_trait::async_trait]
+    impl LlmProvider for TestLlm {
+        fn name(&self) -> &'static str {
+            "budget-test"
+        }
+
+        async fn generate(&self, _: &str, _: LlmGenerateOptions) -> Result<LlmResponse, LlmError> {
+            struct Finish<'a>(&'a AtomicBool);
+            impl Drop for Finish<'_> {
+                fn drop(&mut self) {
+                    self.0.store(true, Ordering::SeqCst);
+                }
+            }
+            let _finish = Finish(&self.dropped);
+            match self.reply {
+                Some("provider-error") => Err(LlmError::Transport {
+                    provider: Some("budget-test".into()),
+                    status_code: None,
+                    retry_exhausted: true,
+                    message: "fixture unavailable".into(),
+                }),
+                Some(text) => Ok(LlmResponse { text: text.into() }),
+                None => std::future::pending().await,
+            }
+        }
+    }
+
+    fn budget_cards(count: usize) -> Vec<Arc<ChangeCard>> {
+        (0..count)
+            .map(|i| card(&format!("{i:040x}"), 1, vec![1.0]))
+            .collect()
+    }
+
+    fn ids(cards: &[Arc<ChangeCard>]) -> Vec<String> {
+        cards.iter().map(|c| c.oid.clone()).collect()
+    }
+
+    #[tokio::test]
+    async fn skipped_or_invalid_budget_never_constructs_provider() {
+        let calls = AtomicUsize::new(0);
+        for (enabled, budget, count, expected) in [
+            (false, 90_000, 2, RerankOutcome::Disabled),
+            (true, 0, 2, RerankOutcome::ZeroBudget),
+            (true, 90_000, 0, RerankOutcome::NoCandidates),
+        ] {
+            let baseline = budget_cards(count);
+            let expected_ids = ids(&baseline);
+            let result = rerank_with_budget("story", baseline, enabled, budget, || {
+                calls.fetch_add(1, Ordering::SeqCst);
+                None
+            })
+            .await
+            .unwrap();
+            assert_eq!(result.outcome, expected);
+            assert_eq!(ids(&result.ranked), expected_ids);
+        }
+        assert!(
+            rerank_with_budget("story", budget_cards(2), true, 90_001, || {
+                calls.fetch_add(1, Ordering::SeqCst);
+                None
+            })
+            .await
+            .is_err()
+        );
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        assert_eq!(checked_rerank_timeout_ms(None).unwrap(), 90_000);
+    }
+
+    #[tokio::test]
+    async fn deadline_retains_baseline_and_drops_pending_provider_future() {
+        let probe = Arc::new(TestLlm {
+            reply: None,
+            dropped: AtomicBool::new(false),
+        });
+        let provider: Arc<dyn LlmProvider> = probe.clone();
+        let baseline = budget_cards(32);
+        let expected = ids(&baseline);
+        let result = rerank_with_budget("story", baseline, true, 10, move || {
+            Some((provider, "fixture-model".into()))
+        })
+        .await
+        .unwrap();
+        assert_eq!(ids(&result.ranked), expected);
+        assert_eq!(result.outcome, RerankOutcome::TimedOut { budget_ms: 10 });
+        assert!(probe.dropped.load(Ordering::SeqCst));
+    }
+
+    #[tokio::test]
+    async fn invalid_picks_keep_baseline_but_valid_partial_order_keeps_tail() {
+        for (reply, succeeds) in [
+            (r#"{"best":[2,1]}"#, true),
+            (r#"{"best":[]}"#, true),
+            (r#"{"best":[1,1]}"#, false),
+            (r#"{"best":[0]}"#, false),
+            (r#"{"best":[31]}"#, false),
+            (r#"{"best":[1.5]}"#, false),
+            (r#"{"best":[1,2,3,4,5,6]}"#, false),
+            ("not JSON", false),
+            ("provider-error", false),
+        ] {
+            let provider: Arc<dyn LlmProvider> = Arc::new(TestLlm {
+                reply: Some(reply),
+                dropped: AtomicBool::new(false),
+            });
+            let baseline = budget_cards(32);
+            let mut expected = ids(&baseline);
+            if reply == r#"{"best":[2,1]}"# {
+                expected.swap(0, 1);
+            }
+            let result = rerank_with_budget("story", baseline, true, 90_000, move || {
+                Some((provider, "fixture-model".into()))
+            })
+            .await
+            .unwrap();
+            assert_eq!(ids(&result.ranked), expected, "reply: {reply}");
+            assert_eq!(
+                matches!(
+                    result.outcome,
+                    RerankOutcome::Completed { pool_size: 30, .. }
+                ),
+                succeeds
+            );
+            if !succeeds {
+                assert!(matches!(result.outcome, RerankOutcome::Failed { .. }));
+            }
+        }
+        let baseline = budget_cards(32);
+        let expected = ids(&baseline);
+        let result = rerank_with_budget("story", baseline, true, 90_000, || None)
+            .await
+            .unwrap();
+        assert_eq!(result.outcome, RerankOutcome::Unavailable);
+        assert_eq!(ids(&result.ranked), expected);
+    }
 
     #[test]
     fn generated_files_are_not_part_of_a_card() {

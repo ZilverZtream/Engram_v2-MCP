@@ -12,6 +12,47 @@ use engram_server::state::{AppState, SearchHitLite};
 
 const PID: &str = "dream-cooccurrence-test";
 
+#[tokio::test]
+async fn overlapping_search_sessions_learn_only_the_pairs_actually_seen_together() {
+    let (_temporary, state) = state();
+    let a = hit("a", "a.rs");
+    let b = hit("b", "b.rs");
+    let c = hit("c", "c.rs");
+    for _ in 0..3 {
+        record_cooccurrence(&state, PID, &[a.clone(), b.clone()])
+            .await
+            .unwrap();
+        record_cooccurrence(&state, PID, &[b.clone(), c.clone()])
+            .await
+            .unwrap();
+    }
+    assert_eq!(
+        state
+            .graph
+            .neighbors(PID, engram_graph::EdgeKind::CoOccurrence, "pk:a", 10)
+            .unwrap(),
+        vec![("pk:b".into(), 3)]
+    );
+    let mut middle = state
+        .graph
+        .neighbors(PID, engram_graph::EdgeKind::CoOccurrence, "pk:b", 10)
+        .unwrap();
+    middle.sort();
+    assert_eq!(middle, vec![("pk:a".into(), 3), ("pk:c".into(), 3)]);
+    assert_eq!(
+        state
+            .graph
+            .neighbors(
+                PID,
+                engram_graph::EdgeKind::Dependency,
+                "search-document:b",
+                10
+            )
+            .unwrap(),
+        vec![("pk:b".into(), 6)]
+    );
+}
+
 fn state() -> (tempfile::TempDir, AppState) {
     let tmp = tempfile::TempDir::new().unwrap();
     let data_dir = tmp.path().join("data");
@@ -161,17 +202,17 @@ async fn search_preserves_all_canonical_source_file_fields() {
     for generation in [6, 8] {
         let (_tmp, state) = state();
         let node = engram_graph::Node {
-            node_id: "file:src/ledger.vb".into(),
+            node_id: "file:src/ledger.rs".into(),
             node_type: "file".into(),
             name: "ledger.vb".into(),
             namespace: "custom_source".into(),
-            language: "vb".into(),
-            file_path: RelPath::new("src/ledger.vb"),
+            language: "rust".into(),
+            file_path: RelPath::new("src/ledger.rs"),
             start_line: 1,
             end_line: 20,
             generation,
             metadata: Some(
-                serde_json::json!({"source_index_version": engram_index::SOURCE_INDEX_VERSION, "file_hash":"preserved-fingerprint","mtime_ms":123,"size":42}),
+                serde_json::json!({"source_index_version": engram_index::SOURCE_INDEX_VERSION, "source_extraction_identity": engram_index::SourceExtractionIdentity::for_chunk_target(state.cfg.max_chunks_per_file), "file_hash":"preserved-fingerprint","mtime_ms":123,"size":42}),
             ),
         };
         state.graph.upsert_nodes(PID, &[node.clone()]).unwrap();
@@ -186,7 +227,7 @@ async fn search_preserves_all_canonical_source_file_fields() {
             PID,
             &[hit(
                 &format!("dream-cooccurrence-test:custom_source:{generation}:source"),
-                "src/ledger.vb",
+                "src/ledger.rs",
             )],
         )
         .await
@@ -203,15 +244,24 @@ async fn search_preserves_all_canonical_source_file_fields() {
                 .neighbors(
                     PID,
                     engram_graph::EdgeKind::Dependency,
-                    "file:src/ledger.vb",
+                    "file:src/ledger.rs",
                     10
                 )
                 .unwrap(),
-            vec![(
-                format!("pk:dream-cooccurrence-test:custom_source:{generation}:source"),
-                1
-            )]
+            if generation <= 7 { vec![(
+                format!("pk:dream-cooccurrence-test:custom_source:{generation}:source"), 1
+            )] } else { vec![] },
+            "A search cannot certify a canonical file from an unpublished generation"
         );
+        if generation > 7 {
+            let anchor = format!("search-document:dream-cooccurrence-test:custom_source:{generation}:source");
+            let learned = state.graph.get_node(PID, &anchor).unwrap().unwrap();
+            assert_eq!(learned.node_type, "search_document");
+            assert!(learned.metadata.as_ref().unwrap().get("file_hash").is_none(),
+                "Unpublished canonical metadata must not become learned source evidence");
+            assert_eq!(state.graph.neighbors(PID, engram_graph::EdgeKind::Dependency, &anchor, 10).unwrap(),
+                vec![(format!("pk:dream-cooccurrence-test:custom_source:{generation}:source"), 1)]);
+        }
         let after_format =
             engram_server::services::project_service::source_index_format_coverage_for_generation(
                 &state, PID, 7,
@@ -309,8 +359,9 @@ async fn knowledge_learning_keeps_real_source_health_and_freshness_complete() {
     assert!(after.contains("disk_check: no_changes_detected"), "{after}");
     assert!(after.contains("source_index_format: current"), "{after}");
     let health = text(
-        api.project_health(Parameters(engram_server::ProjectIdRequest {
+        api.project_health(Parameters(engram_server::models::ProjectHealthRequest {
             project_id: pid,
+            instruction_maintenance: None,
         }))
         .await
         .unwrap(),

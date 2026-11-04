@@ -12,7 +12,7 @@ use std::time::Duration;
 use engram_core::namespaces;
 use engram_core::registry::Registry;
 use engram_graph::GraphStore;
-use engram_index::HybridSearchEngine;
+use engram_index::{HybridSearchEngine, SourceSnapshotGuard};
 use tokio_util::sync::CancellationToken;
 
 use super::evidence::{Authority, EvidenceItem, EvidenceKind};
@@ -50,6 +50,7 @@ pub fn parse_depth(s: &str) -> Depth {
     }
 }
 
+#[derive(Clone)]
 pub struct RetrievalCtx {
     /// Dream ablation switch (external audit 2026-08-29): when false the
     /// dreamer's `insights` arm is not run — and nothing else changes.
@@ -59,10 +60,34 @@ pub struct RetrievalCtx {
     pub registry: Arc<Registry>,
     pub project_id: String,
     pub generation: u64,
+    /// One caller-selected source capability; append-only providers do not use it.
+    pub source_view: Option<Arc<SourceSnapshotGuard>>,
 }
 
 type ArmOut = (String, Vec<EvidenceItem>, providers::ProviderOutcome);
 type ArmFuture = Pin<Box<dyn Future<Output = ArmOut> + Send>>;
+
+
+fn select_source_view(ctx: &RetrievalCtx) -> Result<Arc<SourceSnapshotGuard>, String> {
+    // A provided capability can legitimately refer to a retired selection.
+    // Validate before binding; a wrong context must not change authority.
+    if let Some(view) = &ctx.source_view {
+        ctx.search.validate_source_snapshot_guard(&ctx.project_id, ctx.generation, view)
+            .map_err(|error| format!("Selected source context mismatch: {error:#}"))?;
+    }
+    ctx.search.bind_source_registry(&ctx.registry).map_err(|error| error.to_string())?;
+    match &ctx.source_view {
+        Some(view) => Ok(view.clone()),
+        None => ctx.search.pin_source_generation(&ctx.project_id, ctx.generation)
+            .map(Arc::new).map_err(|error| format!(
+                "Selected source generation unavailable; refresh the source head and retry: {error:#}")),
+    }
+}
+
+fn failed_arm(provider: String, reason: &str) -> ArmFuture {
+    let reason = reason.to_owned();
+    Box::pin(async move { (provider, vec![], providers::ProviderOutcome::failed(reason)) })
+}
 
 #[allow(clippy::too_many_arguments)]
 fn search_arm(
@@ -82,13 +107,14 @@ fn search_arm(
     let registry = ctx.registry.clone();
     let pid = ctx.project_id.clone();
     let gen_ = generation;
+    let source_view = if namespace == namespaces::NAMESPACE_MEMORY {ctx.source_view.clone()} else {None};
     let q = question.to_string();
     Box::pin(async move {
         let fut = async move {
             let mut id = 0usize;
-            let (mut items, mut out) = providers::knowledge_evidence(
+            let (mut items, mut out) = providers::knowledge_evidence_in_view(
                 &search, &pid, gen_, namespace, kind, authority, provider, &q, top_k, &scopes,
-                &cancel, &mut id,
+                &cancel, &mut id, source_view,
             )
             .await;
             if kind == EvidenceKind::BusinessRule && !items.is_empty() {
@@ -162,13 +188,14 @@ fn modality_arm(
     let search = ctx.search.clone();
     let pid = ctx.project_id.clone();
     let gen_ = ctx.generation;
+    let source_view = ctx.source_view.clone();
     let q = question.to_string();
     let provider = format!("modality:{}", modality.id());
     Box::pin(async move {
         let name = provider.clone();
         let fut = async {
             let mut id = 0usize;
-            let (items, out) = providers::modality_evidence(
+            let (items, out) = providers::modality_evidence_in_view(
                 &search,
                 &pid,
                 gen_,
@@ -179,6 +206,7 @@ fn modality_arm(
                 &scopes,
                 &cancel,
                 &mut id,
+                source_view,
             )
             .await;
             (provider.clone(), items, out)
@@ -221,28 +249,41 @@ fn memory_arm(ctx: &RetrievalCtx, question: &str, top_k: usize, deadline: Durati
     })
 }
 
-fn graph_arm<F>(provider: &'static str, deadline: Duration, f: F) -> ArmFuture
+fn graph_arm<F>(
+    _ctx: &RetrievalCtx,
+    provider: &'static str,
+    deadline: Duration,
+    source: &Result<Arc<SourceSnapshotGuard>, String>,
+    f: F,
+) -> ArmFuture
 where
     F: FnOnce() -> (Vec<EvidenceItem>, providers::ProviderOutcome) + Send + 'static,
 {
+    let source = (*source).clone();
+    #[cfg(test)]
+    let worker_key = (Arc::as_ptr(&_ctx.search) as usize, _ctx.project_id.clone());
     Box::pin(async move {
+        let source = match source {
+            Ok(view) => view,
+            Err(error) => return (provider.to_string(), vec![], providers::ProviderOutcome::failed(error)),
+        };
         let fut = async move {
-            match tokio::task::spawn_blocking(f).await {
+            match tokio::task::spawn_blocking(move || {
+                // Declare completion before the actual lease, so the lease is
+                // released before test observation even during unwinding.
+                #[cfg(test)]
+                let _completed = source_lifetime_tests::blocking_source_worker(
+                    worker_key.0, &worker_key.1, provider);
+                let _source_view = source;
+                f()
+            }).await {
                 Ok((items, out)) => (provider.to_string(), items, out),
-                Err(e) => (
-                    provider.to_string(),
-                    vec![],
-                    providers::ProviderOutcome::failed(e.to_string()),
-                ),
+                Err(e) => (provider.to_string(), vec![], providers::ProviderOutcome::failed(e.to_string())),
             }
         };
         match tokio::time::timeout(deadline, fut).await {
             Ok(o) => o,
-            Err(_) => (
-                provider.to_string(),
-                vec![],
-                providers::ProviderOutcome::timed_out(),
-            ),
+            Err(_) => (provider.to_string(), vec![], providers::ProviderOutcome::timed_out()),
         }
     })
 }
@@ -263,6 +304,28 @@ pub async fn gather_evidence(
     deadline: Duration,
     cancel: CancellationToken,
 ) -> (Vec<EvidenceItem>, Vec<ProviderReport>) {
+    let source = select_source_view(ctx);
+    gather_evidence_selected_source(ctx, plan, question, depth, deadline, cancel, source).await
+}
+
+/// The public handler already selected or refused source before its resolver.
+/// Carry that exact outcome; retrying here could mix a different source view
+/// with the handler's earlier decision about source-dependent work.
+pub(crate) async fn gather_evidence_selected_source(
+    ctx: &RetrievalCtx,
+    plan: &QueryPlan,
+    question: &str,
+    depth: Depth,
+    deadline: Duration,
+    cancel: CancellationToken,
+    source: Result<Arc<SourceSnapshotGuard>, String>,
+) -> (Vec<EvidenceItem>, Vec<ProviderReport>) {
+    let source = source.and_then(|view| {
+        ctx.search.validate_source_snapshot_guard(&ctx.project_id, ctx.generation, &view)
+            .map(|()| view).map_err(|error| format!("Selected source context mismatch: {error:#}"))
+    });
+    let selected = RetrievalCtx { source_view: source.as_ref().ok().cloned(), ..(*ctx).clone() };
+    let ctx = &selected;
     let top_k = depth.arm_top_k();
     let intents: HashSet<Intent> = plan.intents.iter().map(|(i, _)| *i).collect();
     let has = |i: Intent| intents.contains(&i);
@@ -311,6 +374,10 @@ pub async fn gather_evidence(
     let mut arms: Vec<ArmFuture> = Vec::new();
     // Round-2 audit P0-4: one filtered arm per requested modality.
     for m in &plan.modalities {
+        if let Err(reason) = &source {
+            arms.push(failed_arm(format!("modality:{}", m.id()), reason));
+            continue;
+        }
         arms.push(modality_arm(
             ctx,
             *m,
@@ -322,6 +389,9 @@ pub async fn gather_evidence(
         ));
     }
     if want_code {
+        if let Err(reason) = &source {
+            arms.push(failed_arm("code".into(), reason));
+        } else {
         arms.push(search_arm(
             ctx,
             namespaces::NAMESPACE_MEMORY,
@@ -335,6 +405,7 @@ pub async fn gather_evidence(
             deadline,
             cancel.clone(),
         ));
+        }
     }
     if want_doc {
         arms.push(search_arm(
@@ -403,7 +474,7 @@ pub async fn gather_evidence(
         for nid in impact_targets {
             let graph = ctx.graph.clone();
             let pid = ctx.project_id.clone();
-            arms.push(graph_arm("impact", deadline, move || {
+            arms.push(graph_arm(ctx, "impact", deadline, &source, move || {
                 let mut id = 0usize;
                 providers::impact_evidence(&graph, &pid, &nid, 50, &mut id)
             }));
@@ -426,7 +497,7 @@ pub async fn gather_evidence(
             .ok()
             .flatten()
             .map(|rec| std::path::PathBuf::from(rec.directory));
-        arms.push(graph_arm("definition", deadline, move || {
+        arms.push(graph_arm(ctx, "definition", deadline, &source, move || {
             let mut id = 0usize;
             providers::definition_evidence(&graph, project_dir.as_deref(), &pid, &nid, &mut id)
         }));
@@ -435,7 +506,7 @@ pub async fn gather_evidence(
         for name in symbol_names {
             let graph = ctx.graph.clone();
             let pid = ctx.project_id.clone();
-            arms.push(graph_arm("usage", deadline, move || {
+            arms.push(graph_arm(ctx, "usage", deadline, &source, move || {
                 let mut id = 0usize;
                 providers::symbol_ref_evidence(&graph, &pid, &name, None, 25, &mut id)
             }));
@@ -445,7 +516,7 @@ pub async fn gather_evidence(
         let graph = ctx.graph.clone();
         let pid = ctx.project_id.clone();
         let concept = question.to_string();
-        arms.push(graph_arm("concept", deadline, move || {
+        arms.push(graph_arm(ctx, "concept", deadline, &source, move || {
             let mut id = 0usize;
             providers::concept_evidence(&graph, &pid, &concept, top_k, &mut id)
         }));
@@ -454,7 +525,7 @@ pub async fn gather_evidence(
         for nid in companion_files {
             let graph = ctx.graph.clone();
             let pid = ctx.project_id.clone();
-            arms.push(graph_arm("companion", deadline, move || {
+            arms.push(graph_arm(ctx, "companion", deadline, &source, move || {
                 let mut id = 0usize;
                 providers::companion_evidence(&graph, &pid, &nid, &mut id)
             }));
@@ -513,3 +584,7 @@ pub async fn gather_evidence(
     }
     (evidence, reports)
 }
+
+#[cfg(test)]
+#[path = "retrieval/source_lifetime_tests.rs"]
+pub(crate) mod source_lifetime_tests;

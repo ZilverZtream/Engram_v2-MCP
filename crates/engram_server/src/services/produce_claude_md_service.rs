@@ -13,6 +13,7 @@
 
 pub mod llm_curation;
 pub mod rules_pipeline;
+pub mod instruction_plan;
 
 use std::fmt::Write;
 
@@ -341,7 +342,23 @@ const HARD_MAX_ROOT_LINES: usize = 300;
 /// critical-rules / danger-zones blocks are always preserved — they're
 /// the point of the file.
 pub fn render_root_claude_md(snapshot: &ProjectSnapshot, max_lines: usize) -> String {
-    let max = max_lines.clamp(20, HARD_MAX_ROOT_LINES);
+    enforce_root_budget(render_root_unbudgeted(snapshot), max_lines.clamp(20, HARD_MAX_ROOT_LINES)).0
+}
+
+/// Render the bounded root and the actual complete overflow artifact together.
+/// A root reference never substitutes for returning its proposed full contents.
+pub fn render_root_and_rule_files(snapshot: &ProjectSnapshot, max_lines: usize) -> anyhow::Result<(String, Vec<RuleFile>)> {
+    let full = render_root_unbudgeted(snapshot);
+    let (root, overflow) = enforce_root_budget(full.clone(), max_lines.clamp(20, HARD_MAX_ROOT_LINES));
+    let mut files = render_rule_files(snapshot)?;
+    if overflow {
+        anyhow::ensure!(full.len() <= 4 * 1024 * 1024, "Complete root guidance exceeds artifact limit; original authored files were not changed");
+        files.push(RuleFile { filename: "engram-root-overflow.md".into(), content: full });
+    }
+    Ok((root, files))
+}
+
+fn render_root_unbudgeted(snapshot: &ProjectSnapshot) -> String {
     let rule_files = planned_rule_file_metadata(snapshot);
 
     let mut out = String::with_capacity(2048);
@@ -476,7 +493,7 @@ pub fn render_root_claude_md(snapshot: &ProjectSnapshot, max_lines: usize) -> St
 
     // Trim tail if over budget. We drop from `<engram>` backwards toward
     // `<conventions>` — critical_rules + danger_zones stay put.
-    enforce_root_budget(out, max)
+    out
 }
 
 /// Pair each language / signal-driven rule file with its glob so the
@@ -504,29 +521,19 @@ fn planned_rule_file_metadata(snapshot: &ProjectSnapshot) -> Vec<(String, String
 
 /// Trim whole sections from the end of the root output until it fits
 /// within `max_lines`, but never drop `<critical_rules>` or the header.
-fn enforce_root_budget(text: String, max_lines: usize) -> String {
-    if text.lines().count() <= max_lines {
-        return text;
-    }
-    // Priority from lowest → highest drop order.
-    let drop_order = ["<engram>", "<conventions>", "<build>"];
-    let mut out = text;
-    for tag in drop_order {
-        if out.lines().count() <= max_lines {
-            return out;
-        }
+fn enforce_root_budget(text: String, max_lines: usize) -> (String, bool) {
+    if text.lines().count() <= max_lines { return (text, false); }
+    let mut out = text.clone();
+    for tag in ["<engram>", "<conventions>", "<build>"] {
+        if out.lines().count() <= max_lines { return (out, false); }
         out = strip_section(&out, tag);
     }
-    // If still over budget, truncate with a clear marker so the caller
-    // sees what happened (should basically never happen at default 60).
-    if out.lines().count() > max_lines {
-        let kept: Vec<&str> = out.lines().take(max_lines - 1).collect();
-        let mut truncated = kept.join("\n");
-        truncated.push('\n');
-        truncated.push_str("<!-- CLAUDE.md truncated: max_root_lines exceeded; see .claude/rules/ for full content -->\n");
-        return truncated;
-    }
-    out
+    if out.lines().count() <= max_lines { return (out, false); }
+    // Never cut through a rule or its exception. The bundle renderer returns
+    // this complete original in an actual companion artifact, not a promise
+    // that omitted text happens to exist in a language file.
+    let heading = text.lines().next().unwrap_or("# Project guidance");
+    (format!("{heading}\n\n<critical_rules>\nComplete guidance exceeds this root line budget. Read the proposed complete `.claude/rules/engram-root-overflow.md` returned by this generation; verify its publication before use. No rule or qualification was partially retained here.\n</critical_rules>\n"), true)
 }
 
 /// Remove the `<tag>`…`</tag>` block (inclusive of the tags + trailing
@@ -571,7 +578,7 @@ fn display_name(raw: &str) -> String {
 
 /// Build every `.claude/rules/*.md` file the snapshot justifies. Keyed by
 /// filename so the handler can iterate + write them to disk in one pass.
-pub fn render_rule_files(snapshot: &ProjectSnapshot) -> Vec<RuleFile> {
+pub fn render_rule_files(snapshot: &ProjectSnapshot) -> anyhow::Result<Vec<RuleFile>> {
     let mut files = Vec::new();
 
     // One conventions file per language that produced bullets. We
@@ -593,6 +600,10 @@ pub fn render_rule_files(snapshot: &ProjectSnapshot) -> Vec<RuleFile> {
         });
         if lang.bullets.is_empty() && ranked.is_empty() {
             continue;
+        }
+        if !is_placeholder_language(&lang.language) {
+            parse_language_scopes(&lang.glob)
+                .map_err(|error| anyhow::anyhow!("Cannot scope {} conventions: {error}", lang.language))?;
         }
         // `render_language_rules_with_cr` returns `None` when the file
         // would be too thin or the language is a placeholder (`unknown`,
@@ -620,6 +631,10 @@ pub fn render_rule_files(snapshot: &ProjectSnapshot) -> Vec<RuleFile> {
             bullets: Vec::new(),
             sample_files: Vec::new(),
         };
+        if !is_placeholder_language(language) {
+            parse_language_scopes(&synthetic_lang.glob)
+                .map_err(|error| anyhow::anyhow!("Cannot scope {language} conventions: {error}"))?;
+        }
         let mut ranked = cr_rules.clone();
         ranked.sort_by(|a, b| {
             b.composite_score
@@ -675,7 +690,60 @@ pub fn render_rule_files(snapshot: &ProjectSnapshot) -> Vec<RuleFile> {
         });
     }
 
-    files
+    Ok(files)
+}
+
+/// LanguageRules uses comma-separated patterns; commas inside brace choices
+/// or bracket expressions belong to their pattern. Raw policy patterns must
+/// instead be passed as an already-typed list, without this language parser.
+fn parse_language_scopes(scope: &str) -> anyhow::Result<Vec<String>> {
+    anyhow::ensure!(scope.len() <= 16 * 1024, "scope exceeds the output limit");
+    anyhow::ensure!(!scope.chars().any(|c| c.is_control()), "scope contains control characters");
+    let mut patterns = Vec::new();
+    let mut braces = 0usize;
+    let mut bracket = false;
+    let mut escaped = false;
+    let mut start = 0;
+    for (offset, character) in scope.char_indices() {
+        if escaped {
+            escaped = false;
+            continue;
+        }
+        match character {
+            '\\' => escaped = true,
+            '[' if !bracket => bracket = true,
+            ']' if bracket => bracket = false,
+            '{' if !bracket => {
+                braces += 1;
+                anyhow::ensure!(braces <= 8, "scope brace nesting exceeds the output limit");
+            }
+            '}' if !bracket => {
+                anyhow::ensure!(braces > 0, "scope has an unmatched closing brace");
+                braces -= 1;
+            }
+            ',' if !bracket && braces == 0 => {
+                let pattern = scope[start..offset].trim();
+                anyhow::ensure!(!pattern.is_empty(), "scope contains an empty pattern");
+                anyhow::ensure!(patterns.len() < 127, "scope has too many patterns");
+                patterns.push(pattern.to_owned());
+                start = offset + 1;
+            }
+            _ => {}
+        }
+    }
+    anyhow::ensure!(!escaped && !bracket && braces == 0, "scope has an unfinished escape, bracket or brace");
+    let last = scope[start..].trim();
+    anyhow::ensure!(!last.is_empty(), "scope contains an empty pattern");
+    patterns.push(last.to_owned());
+    anyhow::ensure!(patterns.len() <= 128, "scope has too many patterns");
+    Ok(patterns)
+}
+
+fn scoped_rule_frontmatter(patterns: &[String]) -> String {
+    // JSON sequences and escaped strings are valid YAML. Serializing values
+    // prevents quotes or backslashes from turning scoped rules into invalid
+    // frontmatter, which Claude would otherwise load without a scope.
+    format!("---\npaths: {}\n---\n\n", serde_json::json!(patterns))
 }
 
 /// Visual marker placed at the start of each critical-rules bullet so
@@ -1015,11 +1083,10 @@ fn render_language_rules_with_cr(
         }
     }
 
-    // CodeRabbit patterns feed two buckets: high-fix-rate patterns
-    // become `## Avoid` (clear anti-patterns reviewers catch
-    // repeatedly); lower-fix-rate patterns land under `## Observed`
-    // as informational references.
-    let mut cr_strong_avoid: Vec<&CodeRabbitRule> = Vec::new();
+    // Review frequency ranks evidence; it never establishes acceptance of a
+    // new policy. Keep useful recurring observations without turning fixed or
+    // rejected workflow outcomes into prohibitions.
+    let mut cr_high_signal: Vec<&CodeRabbitRule> = Vec::new();
     let mut cr_observed: Vec<&CodeRabbitRule> = Vec::new();
     let mut ranked: Vec<&CodeRabbitRule> = cr_rules.iter().collect();
     ranked.sort_by(|a, b| {
@@ -1029,7 +1096,7 @@ fn render_language_rules_with_cr(
     });
     for r in ranked.iter().take(CODERABBIT_PER_LANGUAGE_CAP) {
         if r.fix_rate >= 0.80 && r.pr_count >= 2 {
-            cr_strong_avoid.push(r);
+            cr_high_signal.push(r);
         } else {
             cr_observed.push(r);
         }
@@ -1043,16 +1110,13 @@ fn render_language_rules_with_cr(
     // observations` is a review-note collection, not a convention
     // file. See the ChatGPT review of the pilot corpus's sql/webforms outputs.
     let signal_lines =
-        mandatory.len() + strong.len() + observed.len() + avoid.len() + cr_strong_avoid.len();
+        mandatory.len() + strong.len() + observed.len() + avoid.len() + cr_high_signal.len();
     if signal_lines < MIN_RULE_FILE_LINES {
         return None;
     }
 
-    let mut out = String::with_capacity(1024);
-    let _ = writeln!(out, "---");
-    let _ = writeln!(out, "globs: \"{}\"", lang.glob);
-    let _ = writeln!(out, "---");
-    out.push('\n');
+    let patterns = parse_language_scopes(&lang.glob).ok()?;
+    let mut out = scoped_rule_frontmatter(&patterns);
     let _ = writeln!(out, "# {} conventions", language_display(&lang.language));
     out.push('\n');
 
@@ -1116,64 +1180,33 @@ fn render_language_rules_with_cr(
         out.push('\n');
     }
 
-    // ## Avoid — prohibitions (both detector-flagged + CR high-fix-rate).
-    if !avoid.is_empty() || !cr_strong_avoid.is_empty() {
+    // Static-analysis risk signals remain separate from review outcomes.
+    if !avoid.is_empty() {
         out.push_str("## Avoid\n\n");
-        out.push_str(
-            "Anti-patterns flagged by static analysis and/or reviewers catch \
-             repeatedly. Treat these as prohibitions — the team fixes them nearly \
-             every time they appear.\n\n",
-        );
-        for b in &avoid {
-            let t = b.trim().trim_start_matches(['-', '*', ' ']);
-            let _ = writeln!(out, "- {t}");
-        }
-        for rule in &cr_strong_avoid {
-            let sha = rule
-                .fix_commit
-                .as_deref()
-                .map(|s| format!(", fix {s}"))
-                .unwrap_or_default();
-            let _ = writeln!(
-                out,
-                "- **{text}** — {prs} PR{plural}, {rate:.0}% fix rate{sha}",
-                text = rule.rule_text.trim(),
-                prs = rule.pr_count,
-                plural = if rule.pr_count == 1 { "" } else { "s" },
-                rate = rule.fix_rate * 100.0,
-                sha = sha,
-            );
+        out.push_str("Static-analysis hazards to check on the target code. Preserve authored scope and accepted exceptions.\n\n");
+        for bullet in &avoid {
+            let text = bullet.trim().trim_start_matches(['-', '*', ' ']);
+            let _ = writeln!(out, "- {text}");
         }
         out.push('\n');
     }
-
-    // ## Review observations — lower-confidence CR patterns kept for
-    // context but clearly labelled as advisory.
-    if !cr_observed.is_empty() {
-        out.push_str("## Review observations\n\n");
-        out.push_str(
-            "Lower-confidence patterns from past reviews. Useful as hints; not \
-             enforced consistently enough to be prohibitions.\n\n",
-        );
-        for rule in &cr_observed {
-            let sha = rule
-                .fix_commit
-                .as_deref()
-                .map(|s| format!(", fix {s}"))
-                .unwrap_or_default();
-            let _ = writeln!(
-                out,
-                "- **{text}** — {prs} PR{plural}, {rate:.0}% fix rate{sha}",
-                text = rule.rule_text.trim(),
-                prs = rule.pr_count,
-                plural = if rule.pr_count == 1 { "" } else { "s" },
-                rate = rule.fix_rate * 100.0,
-                sha = sha,
-            );
-        }
-    }
+    render_review_evidence(&mut out, "Recurring review evidence", &cr_high_signal);
+    render_review_evidence(&mut out, "Review observations", &cr_observed);
 
     Some(out)
+}
+
+fn render_review_evidence(out: &mut String, heading: &str, rules: &[&CodeRabbitRule]) {
+    if rules.is_empty() { return; }
+    let _ = writeln!(out, "## {heading}\n");
+    out.push_str("Historical review outcomes are evidence, not an accepted policy decision. A fixed, closed or rejected finding does not authorize a new mandate or override authored rules. These observations are delivered by file type; that is not proof of their original policy scope. Review their source and applicability before proposing changes.\n\n");
+    for rule in rules {
+        let hash = blake3::hash(rule.rule_text.as_bytes()).to_hex();
+        let _ = writeln!(out, "Observation (acceptance not established; text BLAKE3={hash}):");
+        for line in rule.rule_text.split('\n') { let _ = writeln!(out, "> {line}"); }
+        let _ = writeln!(out, "Historical evidence: {} PR(s), {:.0}% fix rate; fix reference: {}.\n",
+            rule.pr_count, rule.fix_rate * 100.0, rule.fix_commit.as_deref().unwrap_or("unavailable"));
+    }
 }
 
 /// Legacy shim: the original renderer returned a plain `String` and
@@ -1639,10 +1672,8 @@ fn render_co_change_pairs(pairs: &[(String, String, u32)]) -> String {
 }
 
 fn render_frontend_notes(warnings: &[String]) -> String {
-    let mut out = String::with_capacity(256);
-    out.push_str("---\n");
-    out.push_str("globs: \"**/*.js,**/*.jsx,**/*.ts,**/*.tsx\"\n");
-    out.push_str("---\n\n");
+    let patterns = ["**/*.js", "**/*.jsx", "**/*.ts", "**/*.tsx"].map(str::to_owned);
+    let mut out = scoped_rule_frontmatter(&patterns);
     out.push_str("# Frontend notes\n\n");
     out.push_str("<instructions>\n");
     for w in warnings {
@@ -1741,10 +1772,9 @@ pub fn render_agents_md(snapshot: &ProjectSnapshot, max_lines: usize) -> String 
         }
     }
 
-    // Cap to max_lines with the same trimming priority as the root.
+    // Keep complete guidance: a line cap cannot discard a rule's exception.
     if out.lines().count() > max_lines {
-        let kept: Vec<&str> = out.lines().take(max_lines).collect();
-        return kept.join("\n") + "\n";
+        out.push_str("\n<!-- Agent-note line budget exceeded: complete rules retained. -->\n");
     }
     out
 }
@@ -2519,6 +2549,24 @@ mod tests {
     }
 
     #[test]
+    fn tight_root_budget_returns_complete_policy_in_actual_companion_without_slicing_exceptions() {
+        let mut snapshot = minimal_snapshot();
+        snapshot.critical_rules = (0..40).map(|i| CriticalRule {
+            text: format!("Rule {i}: preserve this complete instruction.\nException {i}: the authored qualification remains in force."),
+            evidence: None, source: RuleSource::Existing, confidence: RuleConfidence::Strong,
+        }).collect();
+        let (root, files) = render_root_and_rule_files(&snapshot, 20).unwrap();
+        assert!(root.lines().count() <= 20);
+        let full = &files.iter().find(|file| file.filename == "engram-root-overflow.md").unwrap().content;
+        for i in 0..40 {
+            assert!(full.contains(&format!("Rule {i}: preserve this complete instruction.")));
+            assert!(full.contains(&format!("Exception {i}: the authored qualification remains in force.")));
+        }
+        assert!(root.contains("proposed complete"));
+        assert!(full.contains("</critical_rules>"));
+    }
+
+    #[test]
     fn root_rendering_danger_zones_capped_at_five() {
         let mut snap = minimal_snapshot();
         snap.danger_zones = (0..10)
@@ -2570,7 +2618,7 @@ mod tests {
             ],
             ..Default::default()
         };
-        let files = render_rule_files(&snap);
+        let files = render_rule_files(&snap).unwrap();
         let names: Vec<&str> = files.iter().map(|f| f.filename.as_str()).collect();
         assert!(names.contains(&"rust-conventions.md"));
         assert!(names.contains(&"typescript-conventions.md"));
@@ -2581,7 +2629,7 @@ mod tests {
     }
 
     #[test]
-    fn rule_file_uses_globs_frontmatter_not_paths() {
+    fn language_rule_uses_claude_recognized_scope_and_preserves_its_evidence() {
         let lang = LanguageRules {
             language: "vbnet".into(),
             glob: "**/*.vb".into(),
@@ -2598,10 +2646,71 @@ mod tests {
             sample_files: vec!["sharedfunc.vb".into()],
         };
         let md = render_language_rules_with_cr_string(&lang, &[]);
-        assert!(md.contains("globs: \"**/*.vb\""));
-        assert!(!md.contains("paths:"), "must use globs: not paths:");
+        assert_eq!(rule_paths(&md), vec!["**/*.vb"]);
         assert!(md.contains("## Applies to"));
         assert!(md.contains("sharedfunc.vb"));
+    }
+
+    fn rule_paths(content: &str) -> Vec<String> {
+        let frontmatter = content.strip_prefix("---\n").expect("rule needs frontmatter")
+            .split_once("\n---\n").expect("frontmatter must end").0;
+        let value: serde_yaml::Value = serde_yaml::from_str(frontmatter).expect("invalid YAML would load globally in Claude");
+        assert!(value.get("globs").is_none(), "Claude ignores the globs field");
+        value.get("paths").and_then(serde_yaml::Value::as_sequence)
+            .expect("Claude must receive a nonempty path scope")
+            .iter().map(|path| path.as_str().expect("scope patterns must be strings").to_owned()).collect()
+    }
+
+    #[test]
+    fn language_scope_lists_preserve_braces_classes_quotes_and_backslashes() {
+        for (scope, expected) in [
+            ("**/*.ts,**/*.tsx", vec!["**/*.ts", "**/*.tsx"]),
+            ("src/*.{ts,tsx},src/[a,b]/*.js", vec!["src/*.{ts,tsx}", "src/[a,b]/*.js"]),
+            (r#"src/quote" and \slash/**/*.ts"#, vec![r#"src/quote" and \slash/**/*.ts"#]),
+            (r"a\,b,c", vec![r"a\,b", "c"]),
+            (r"a\\,b", vec![r"a\\", "b"]),
+            (r"\{literal,c", vec![r"\{literal", "c"]),
+        ] {
+            let snapshot = ProjectSnapshot {
+                per_language_rules: vec![LanguageRules {
+                    language: "typescript".into(), glob: scope.into(),
+                    bullets: vec!["First convention".into(), "Second convention".into(), "Third convention".into()],
+                    sample_files: vec![],
+                }],
+                ..Default::default()
+            };
+            let files = render_rule_files(&snapshot).unwrap();
+            let file = files.iter().find(|file| file.filename == "typescript-conventions.md").unwrap();
+            assert_eq!(rule_paths(&file.content), expected, "scope changed for {scope:?}");
+        }
+    }
+
+    #[test]
+    fn malformed_language_scopes_fail_before_any_unconditional_rule_is_returned() {
+        for scope in ["", "**/*.ts,", "**/*.ts,,**/*.tsx", "**/*.{ts,tsx", "src/[ab/*.ts", "{[}]", "src/\\", "**/*.ts\npaths: []"] {
+            let snapshot = ProjectSnapshot {
+                per_language_rules: vec![LanguageRules {
+                    language: "typescript".into(), glob: scope.into(),
+                    bullets: vec!["First convention".into(), "Second convention".into(), "Third convention".into()],
+                    sample_files: vec![],
+                }],
+                ..Default::default()
+            };
+            assert!(render_rule_files(&snapshot).is_err(), "unsafe scope accepted: {scope:?}");
+        }
+    }
+
+    #[test]
+    fn frontend_notes_are_scoped_to_frontend_files_and_literal_scope_atoms_are_not_split() {
+        let snapshot = ProjectSnapshot {
+            frontend_warnings: vec!["Preserve the established request error handler".into()],
+            ..Default::default()
+        };
+        let files = render_rule_files(&snapshot).unwrap();
+        let frontend = files.iter().find(|file| file.filename == "frontend-notes.md").unwrap();
+        assert_eq!(rule_paths(&frontend.content), vec!["**/*.js", "**/*.jsx", "**/*.ts", "**/*.tsx"]);
+        let original = "docs/phase,one.md";
+        assert_eq!(rule_paths(&scoped_rule_frontmatter(&[original.into()])), vec![original]);
     }
 
     #[test]
@@ -2889,11 +2998,7 @@ Read docs/internal.md first.
 
     #[test]
     fn language_rule_file_embeds_coderabbit_top_k() {
-        // CR patterns now split across `## Avoid` (high fix-rate,
-        // high PR count — prohibitions) and `## Review observations`
-        // (lower confidence — advisory). All 15 rules in this
-        // fixture pass the 0.80 / 2-PR threshold, so they land in
-        // `## Avoid`; the top-K cap (10) still applies.
+        // Frequency ranks recurring evidence without accepting a new policy.
         let lang = LanguageRules {
             language: "vbnet".into(),
             glob: "**/*.vb".into(),
@@ -2906,7 +3011,7 @@ Read docs/internal.md first.
         };
         let cr_rules: Vec<CodeRabbitRule> = (0..15)
             .map(|i| CodeRabbitRule {
-                rule_text: format!("Rule #{i}"),
+                rule_text: format!("Review observation {i:02} END"),
                 fix_rate: 0.8,
                 pr_count: 3 + i,
                 fix_commit: Some(format!("abc{i:04}")),
@@ -2915,19 +3020,20 @@ Read docs/internal.md first.
             .collect();
         let md = render_language_rules_with_cr_string(&lang, &cr_rules);
         assert!(
-            md.contains("## Avoid"),
-            "Avoid section expected for high-fix-rate CR rules; got:\n{md}"
+            md.contains("## Recurring review evidence"),
+            "Recurring evidence section expected for high-fix-rate observations; got:\n{md}"
         );
-        let bullet_count = md.matches("\n- **Rule #").count();
+        let included_count = cr_rules.iter().filter(|rule| md.contains(&rule.rule_text)).count();
         assert_eq!(
-            bullet_count, 10,
-            "top-K cap must limit rendered CR bullets; got {bullet_count}"
+            included_count, 10,
+            "Only ten distinct observations belong in the generated evidence"
         );
-        assert!(md.contains("Rule #14"), "highest-score rule missing: {md}");
-        assert!(
-            !md.contains("Rule #0 "),
-            "lowest-score rule must have been trimmed: {md}"
-        );
+        assert!(!md.contains("Treat these as prohibitions"));
+        assert!(md.contains("acceptance not established"));
+        for (rank, rule) in cr_rules.iter().enumerate() {
+            assert_eq!(md.contains(&rule.rule_text), rank >= 5,
+                "Keep the ten highest-ranked observations and omit lower-ranked evidence: {}\n{md}", rule.rule_text);
+        }
     }
 
     #[test]
@@ -2955,11 +3061,8 @@ Read docs/internal.md first.
 
     #[test]
     fn coderabbit_only_language_still_gets_a_rule_file() {
-        // A project that has CodeRabbit patterns for C# but no
-        // deterministic style bullets for that language should still
-        // get a csharp-conventions.md file — with the high-fix-rate
-        // pattern surfaced under `## Avoid` so the agent reads it as
-        // a prohibition, not an observation.
+        // A useful review-evidence file may be returned even without style
+        // samples. Its historical confidence does not create accepted policy.
         let mut snap = minimal_snapshot();
         snap.per_language_rules = Vec::new(); // no deterministic rules
         snap.coderabbit_rules_by_language.insert(
@@ -2988,12 +3091,14 @@ Read docs/internal.md first.
                 },
             ],
         );
-        let files = render_rule_files(&snap);
+        let files = render_rule_files(&snap).unwrap();
         let cs_file = files
             .iter()
             .find(|f| f.filename == "csharp-conventions.md")
             .expect("CR-only language must produce a rule file");
-        assert!(cs_file.content.contains("## Avoid"));
+        assert!(cs_file.content.contains("## Recurring review evidence"));
+        assert!(!cs_file.content.contains("## Avoid"));
+        assert!(cs_file.content.contains("not an accepted policy decision"));
         assert!(cs_file.content.contains("ConfigureAwait"));
     }
 

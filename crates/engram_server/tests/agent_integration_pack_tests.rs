@@ -8,6 +8,7 @@ use engram_core::config::Config;
 use engram_server::models::GenerateAgentIntegrationRequest;
 use engram_server::state::AppState;
 use engram_server::tools::Engram;
+use serde_json::json;
 use std::path::PathBuf;
 
 fn build_state() -> (tempfile::TempDir, AppState) {
@@ -107,6 +108,37 @@ async fn write_files_never_clobbers_an_existing_agents_md() {
 }
 
 #[tokio::test]
+async fn existing_workflow_policy_survives_pack_installation() {
+    let (tmp, state) = build_state();
+    let (pid, dir) = register_project(&state, &tmp);
+    let workflow = dir.join(".claude/rules/engram-workflow.md");
+    std::fs::create_dir_all(workflow.parent().unwrap()).unwrap();
+    let human = "# Team workflow\r\nReview production changes with the owner.\r\n";
+    std::fs::write(&workflow, human).unwrap();
+    let engram = Engram::new(state);
+    let out = run(&engram, &pid).await;
+    assert_eq!(std::fs::read(&workflow).unwrap(), human.as_bytes());
+    assert!(out.contains("PRESERVED .claude/rules/engram-workflow.md"));
+    assert!(out.contains("## Proposed .claude/rules/engram-workflow.md"),
+        "a refused write must still give the caller a reviewable proposal");
+}
+
+#[tokio::test]
+async fn human_amendment_to_generated_workflow_survives_refresh() {
+    let (tmp, state) = build_state();
+    let (pid, dir) = register_project(&state, &tmp);
+    let engram = Engram::new(state);
+    run(&engram, &pid).await;
+    let workflow = dir.join(".claude/rules/engram-workflow.md");
+    let mut amended = std::fs::read_to_string(&workflow).unwrap();
+    amended.push_str("\nHuman exception: emergency recovery requires incident review.\n");
+    std::fs::write(&workflow, &amended).unwrap();
+    let out = run(&engram, &pid).await;
+    assert_eq!(std::fs::read_to_string(&workflow).unwrap(), amended);
+    assert!(out.contains("PRESERVED .claude/rules/engram-workflow.md"));
+}
+
+#[tokio::test]
 async fn write_files_emits_mcp_json_snippet_but_never_writes_it() {
     // .mcp.json is repo-committed config and the engram command is a
     // machine-specific absolute path: emit for a human to merge, never write.
@@ -124,4 +156,40 @@ async fn write_files_emits_mcp_json_snippet_but_never_writes_it() {
         out.contains("\"mcpServers\"") && out.contains("\"engram\""),
         "output must carry a mergeable .mcp.json snippet:\n{out}"
     );
+}
+
+#[cfg(windows)]
+#[tokio::test]
+async fn a_publication_filesystem_failure_still_returns_the_complete_integration_proposal() {
+    use std::os::windows::fs::OpenOptionsExt;
+    let (tmp, state) = build_state();
+    let (pid, dir) = register_project(&state,&tmp);
+    // Reads remain possible, but Windows refuses replacement while this
+    // handle withholds delete sharing. This fails the actual write branch.
+    let blocked = dir.join(".claude/rules/engram-workflow.md");
+    std::fs::create_dir_all(blocked.parent().unwrap()).unwrap();
+    let original = "# Previously generated workflow\n";
+    std::fs::write(&blocked,original).unwrap();
+    state.registry.set_meta(&pid,"generated_artifacts:agent-integration",&json!({
+        "version":1,"root":std::fs::canonicalize(&dir).unwrap().to_string_lossy(),"owner":"agent-integration",
+        "files":{".claude/rules/engram-workflow.md":blake3::hash(original.as_bytes()).to_hex().to_string()}
+    }).to_string()).unwrap();
+    let locked = std::fs::OpenOptions::new().read(true).share_mode(1).open(&blocked).unwrap();
+    let hooks = "{\"human_setting\":true}\n";
+    let agents = "# Human instructions\nRetain this rule.\n";
+    std::fs::write(dir.join(".claude/settings.json"),hooks).unwrap();
+    std::fs::write(dir.join("AGENTS.md"),agents).unwrap();
+    let engram = Engram::new(state);
+    let out = run(&engram,&pid).await;
+    assert!(out.contains("PUBLICATION INCOMPLETE"),"{out}");
+    for section in ["## Proposed .claude/rules/engram-workflow.md","## hooks block to merge",
+        "## AGENTS.md section to merge","## .mcp.json entry"] {
+        assert!(out.contains(section),"Missing recoverable proposal {section}: {out}");
+    }
+    assert_eq!(std::fs::read_to_string(&blocked).unwrap(),original);
+    assert_eq!(std::fs::read_to_string(dir.join(".claude/settings.json")).unwrap(),hooks);
+    assert_eq!(std::fs::read_to_string(dir.join("AGENTS.md")).unwrap(),agents);
+    drop(locked);
+    drop(engram);
+    tmp.close().unwrap();
 }

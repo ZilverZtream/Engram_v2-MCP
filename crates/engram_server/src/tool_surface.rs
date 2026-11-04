@@ -14,7 +14,10 @@
 
 use serde_json::{Map, Value};
 
-const MAX_DEPTH: usize = 16;
+// Counted structural JSON levels include properties, arrays and nullable
+// branches, not just referenced Rust types. Complete maintenance drafts need
+// more than16 levels to advertise their citation and edit constraints.
+const MAX_DEPTH: usize = 64;
 
 /// Rewrite one tool input schema into strict-validator-friendly form.
 pub fn sanitize_schema(schema: &Map<String, Value>) -> Map<String, Value> {
@@ -166,35 +169,35 @@ pub const CORE_TOOLS: &[&str] = &[
     "get_page_context",
     // 10 change exposure and edit risk
     "check_edit_safety",
-    "compute_blast_radius",
     "impact_analysis",
     // 3 pre-commit defect prevention
     "pre_commit_review",
-    "pre_push_audit",
     // 8 security, settings, durable laws
     "map_guards_and_settings",
     "immune_check",
     // 5 house implementation pattern + style
     "find_implementation_pattern",
-    "analyze_file_coding_style",
     // 7 causal UI / data tracing
     "trace_ui_event",
     "trace_data_flow",
-    "find_connection_path",
     // 9 "you forgot the other side"
     "detect_incomplete_changes",
-    "find_similar_changes",
     "begin_edit_session",
     "complete_edit_session",
     // essentials: index lifecycle, health, raw search, integration, discovery
     "index_project",
+    "list_projects",
+    "project_info",
     "update_project",
+    "get_job_status",
+    "cancel_job",
     "project_health",
     "get_index_freshness",
     "grep_project",
     "search_memory",
-    "produce_claude_md",
-    "list_advanced_tools",
+    "get_chunk",
+    "read_memory_bank",
+    "get_review_decisions",
 ];
 
 /// The one filter `list_tools` applies. `true` (default) advertises every

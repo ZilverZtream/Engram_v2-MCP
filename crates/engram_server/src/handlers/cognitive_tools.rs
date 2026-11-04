@@ -1476,7 +1476,9 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
-        let gen_ = self.get_active_generation(&req.project_id).await?;
+        let (gen_, _source_snapshot) = self.pin_active_source_generation(&req.project_id, &ps.search).await?;
+        #[cfg(test)]
+        crate::handlers::search_tools::selected_source_tests::after_selection(&req.project_id).await;
 
         let hits = ps
             .search
@@ -3951,7 +3953,7 @@ impl Engram {
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let graph = self.state.graph.clone();
         let pid = req.project_id.clone();
-        let active_gen = self.get_active_generation(&pid).await.unwrap_or(1);
+        let active_gen = self.get_active_generation(&pid).await?;
 
         // PERF: per-section wall-clock so slow regens name their culprit.
         let mut section_clock = std::time::Instant::now();
@@ -4000,121 +4002,29 @@ impl Engram {
         prev_section = "3. Repo rules (immune + anti-pattern) → critical";
         let registry = self.state.registry.clone();
         let pid_clone = pid.clone();
-        let repo_rules = tokio::task::spawn_blocking(move || registry.list_repo_rules(&pid_clone))
-            .await
-            .ok()
-            .and_then(|r| r.ok())
-            .unwrap_or_default();
-        // Feed the raw repo-rule set through the rules pipeline
-        // (noise filter → keyword meta-clustering → rule-text
-        // templating → render-threshold split). Pipeline collapses
-        // 30+ token-level CodeRabbit clusters into ~8 semantic
-        // meta-rules and strips the LLM-rationalisation essays out
-        // of immune rule text. Everything deterministic; no LLM
-        // calls in this path.
-        use crate::services::produce_claude_md_service::rules_pipeline as pipeline;
-        let raw_for_pipeline: Vec<pipeline::RawRule> = repo_rules
-            .iter()
-            // Managed policies retain their original source/scope. This
-            // generalizing root-guidance pipeline cannot preserve that contract.
-            .filter(|r| !r.provenance.as_deref().is_some_and(|p| p.starts_with(crate::services::quality_source::PROVENANCE)))
-            .filter_map(|r| {
-                let source = if r.rule_id.starts_with("immune_") {
-                    svc::RuleSource::Immune
-                } else if r.rule_id.starts_with("cr_") {
-                    svc::RuleSource::CodeRabbit
-                } else {
-                    svc::RuleSource::RepoRule
-                };
-                // Apply immune-rule cleanup at the entry point so
-                // the pipeline sees crisp text instead of
-                // three-paragraph essays. Returns None when the
-                // immune rule is process-hygiene noise — those
-                // entries disappear here.
-                let text = if matches!(source, svc::RuleSource::Immune) {
-                    match pipeline::render_immune_rule_text(
-                        &r.rule_text,
-                        &r.rule_id,
-                        &r.file_pattern,
-                    ) {
-                        Some(t) => t,
-                        None => return None,
-                    }
-                } else {
-                    rule_text_from_repo_rule(r)
-                };
-                // Parse CodeRabbit aggregate stats out of the
-                // rule's priority / rule_text footer. The ingest
-                // writes "… — CodeRabbit pattern, N PRs, M% fix rate"
-                // so we can recover the stats with a small regex.
-                let (fix_rate, pr_count) = if matches!(source, svc::RuleSource::CodeRabbit) {
-                    parse_coderabbit_stats(&r.rule_text)
-                } else {
-                    (None, None)
-                };
-                Some(pipeline::RawRule {
-                    rule_id: r.rule_id.clone(),
-                    file_pattern: r.file_pattern.clone(),
-                    rule_text: text,
-                    source,
-                    fix_rate,
-                    pr_count,
-                })
-            })
-            .collect();
-        let pipeline_output =
-            pipeline::run_pipeline(raw_for_pipeline, pipeline::RenderThreshold::default());
-        let mut critical_rules: Vec<svc::CriticalRule> = pipeline_output.root_rules;
-        let mut pipeline_summary = pipeline_output.summary.clone();
-        let _overflow = pipeline_output.per_language_overflow;
-        // Overflow rules are kept for a future change where
-        // .claude/rules/ files pick them up; right now they're
-        // simply removed from the root's attention budget, which is
-        // the primary fix the user asked for.
-
-        // Optional LLM curation pass. Gated by `req.use_llm`. The
-        // deterministic pipeline is always the floor; the LLM can
-        // only ever make the output better or fall back to the
-        // deterministic result. Never a blocker.
-        if req.use_llm && !critical_rules.is_empty() {
-            use crate::services::produce_claude_md_service::llm_curation as curation;
-            let candidates = curation::prepare_candidates(&critical_rules);
-            let input = curation::CurationInput {
-                project_context: role.clone(),
-                candidates,
-                max_rules: 8,
-            };
-            let before = critical_rules.len();
-            let curated = curation::curate_with_llm(
-                self.state.dreaming.as_ref(),
-                self.state.registry.as_ref(),
-                &pid,
-                input,
-                critical_rules.clone(),
-            )
-            .await;
-            // Only accept the curated set when the LLM actually
-            // returned something different — `curate_with_llm`
-            // returns the deterministic fallback unchanged on any
-            // failure, so a same-length identical list signals
-            // "no curation happened" and we skip the summary note.
-            let curated_changed = curated.len() != before
-                || curated
-                    .iter()
-                    .zip(critical_rules.iter())
-                    .any(|(a, b)| a.text != b.text);
-            if curated_changed {
-                pipeline_summary.push_str(&format!(" → {} after LLM curation", curated.len()));
+        let registry_for_plan = registry.clone();
+        let mut instruction_plan = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
+            let rules = registry.list_repo_rules(&pid_clone)?;
+            let mut plan = svc::instruction_plan::Plan::capture(&pid_clone, rules)?;
+            plan.attach_source_references(&registry);
+            Ok(plan)
+        }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?
+            .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+        // Authored policy bypasses text cleanup, keyword clustering and model
+        // rewriting. Optional curation ranks evidence IDs only, retaining every
+        // original row and disclosing omissions in the recovery ledger.
+        if req.use_llm {
+            let candidates = instruction_plan.curation_candidates();
+            if let Some(ids) = svc::llm_curation::rank_evidence_ids(self.state.dreaming.as_ref(),
+                registry_for_plan.as_ref(), &pid, svc::llm_curation::CurationInput {
+                    project_context: role.clone(), max_rules: candidates.len(), candidates,
+                }).await {
+                instruction_plan.apply_evidence_order(&ids);
+            } else {
+                instruction_plan.curation_note = "LLM ranking unavailable or invalid; original deterministic evidence order retained without changing policy".into();
             }
-            critical_rules = curated;
         }
-
-        critical_rules.sort_by_key(|r| match r.source {
-            svc::RuleSource::Immune => 0,
-            svc::RuleSource::CodeRabbit => 1,
-            svc::RuleSource::RepoRule => 2,
-            svc::RuleSource::Existing => 3,
-        });
+        let mut critical_rules: Vec<svc::CriticalRule> = Vec::new();
 
         // ── 4. Existing CLAUDE.md — merge priority ────────────────────
         let existing_md = if req.merge_existing {
@@ -4568,10 +4478,24 @@ impl Engram {
         );
         section_clock = std::time::Instant::now();
         prev_section = "10. Render";
-        let root_md = svc::render_root_claude_md(&snapshot, req.max_root_lines);
-        let rule_files = svc::render_rule_files(&snapshot);
+        let observed_paths = file_nodes.iter().map(|node| node.file_path.as_str()).collect::<Vec<_>>();
+        instruction_plan.observe_paths(&observed_paths);
+        instruction_plan.render_catalog();
+        instruction_plan.mark_catalog_delivery("preview_returned");
+        // Validate recovery output before any filesystem mutation.
+        let _ = instruction_plan.ledger_json().map_err(|error| McpError::internal_error(error.to_string(), None))?;
+        if req.write_to_disk {
+            instruction_plan.validate_publication_budget().map_err(|error| McpError::internal_error(error.to_string(), None))?;
+        }
+        let notice = instruction_plan.root_notice();
+        let (root_body, mut rule_files) = svc::render_root_and_rule_files(&snapshot, req.max_root_lines)
+            .map_err(|error| McpError::internal_error(format!("Instruction scope could not be preserved: {error}"), None))?;
+        let root_md = format!("{notice}{root_body}");
+        if instruction_plan.has_catalog() {
+            rule_files.push(svc::RuleFile { filename: "engram-repository-policy.md".into(), content: instruction_plan.catalog().into() });
+        }
         let agents_md = if req.generate_agents_md {
-            Some(svc::render_agents_md(&snapshot, req.max_root_lines.max(80)))
+            Some(format!("{notice}{}", svc::render_agents_md(&snapshot, req.max_root_lines.max(80))))
         } else {
             None
         };
@@ -4609,15 +4533,25 @@ impl Engram {
             section_clock.elapsed()
         );
         let mut written: Vec<String> = Vec::new();
+        let mut ledger_delivery = "preview_returned";
         let mut notes: Vec<String> = Vec::new();
         // Always surface the rules-pipeline summary so the caller
         // sees the noise-filter / meta-clustering impact. Happens
         // regardless of whether we write to disk.
-        notes.push(pipeline_summary);
-        if repo_rules.iter().any(|r| r.provenance.as_deref().is_some_and(|p| p.starts_with(crate::services::quality_source::PROVENANCE))) {
-            notes.push("Source-managed policies excluded from generated root mandates: read their original scoped sources through get_change_set/prepare_context; source freshness and scope must be preserved.".into());
-        }
+        notes.push(format!("{} original repository rules retained with identity, authority and scope; catalog uses {} / {} bytes. Overflow, learned evidence and unresolved legacy rows are returned in the complete recovery ledger. No uninstalled path is counted as delivered policy.", instruction_plan.inputs.len(), instruction_plan.catalog_bytes, instruction_plan.catalog_budget_bytes));
+        notes.push(instruction_plan.curation_note.clone());
         if req.write_to_disk {
+            let _guidance_lock = self.state.acquire_project_update_lock(&pid).await;
+            let registry = self.state.registry.clone();
+            let project = pid.clone();
+            let current_rules = tokio::task::spawn_blocking(move || registry.list_repo_rules(&project)).await
+                .map_err(|error| McpError::internal_error(error.to_string(), None))?
+                .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+            instruction_plan.verify_base(&current_rules).map_err(|error| McpError::internal_error(error.to_string(), None))?;
+            let mut automatic_artifacts: Vec<(String, String)> = Vec::new();
+            let mut authorized_preimages = std::collections::BTreeMap::new();
+            let mut dependencies = std::collections::BTreeMap::new();
+            let companion_paths = rule_files.iter().map(|file| format!(".claude/rules/{}", file.filename)).collect::<Vec<_>>();
             use engram_core::safe_join;
             let project_dir = std::path::PathBuf::from(&rec.directory);
             let root_path = safe_join(&project_dir, "CLAUDE.md")
@@ -4636,8 +4570,8 @@ impl Engram {
                     .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
                 crate::utils::files::ensure_git_excluded(&project_dir, "CLAUDE.engram.md");
                 notes.push(
-                    "Existing CLAUDE.md was left UNTOUCHED — engram output was written to \
-                     CLAUDE.engram.md instead. Pass `overwrite_existing: true` to merge or \
+                    "Existing CLAUDE.md was left UNTOUCHED — proposed output targets \
+                     CLAUDE.engram.md subject to ownership verification. Pass `overwrite_existing: true` to merge or \
                      replace it."
                         .into(),
                 );
@@ -4649,18 +4583,24 @@ impl Engram {
                     .map_err(|e| McpError::internal_error(e.to_string(), None))?;
                 let ts = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
-                    .map(|d| d.as_secs())
+                    .map(|d| d.as_nanos())
                     .unwrap_or(0);
                 let backup_name = format!("CLAUDE.md.{ts}.bak");
                 let backup_path = safe_join(&project_dir, &backup_name)
                     .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
                 crate::utils::files::ensure_git_excluded(&project_dir, "CLAUDE.md.*.bak");
-                std::fs::write(&backup_path, &existing)
-                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                {
+                    use std::io::Write as _;
+                    let mut backup = std::fs::OpenOptions::new().write(true).create_new(true).open(&backup_path)
+                        .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+                    backup.write_all(existing.as_bytes()).and_then(|_| backup.sync_all())
+                        .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+                }
                 written.push(backup_name.clone());
                 notes.push(format!(
                     "Existing CLAUDE.md was backed up to `{backup_name}` before any write."
                 ));
+                authorized_preimages.insert("CLAUDE.md".to_owned(), blake3::hash(existing.as_bytes()).to_hex().to_string());
                 let mode = req.merge_mode.as_str();
                 let new_content = match mode {
                     // Full replace — user asked for it; backup still ran.
@@ -4700,57 +4640,14 @@ impl Engram {
                 (root_path.clone(), new_content)
             };
 
-            std::fs::write(&final_path, &final_content)
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            written.push(
-                final_path
-                    .file_name()
-                    .map(|n| n.to_string_lossy().into_owned())
-                    .unwrap_or_else(|| "CLAUDE.md".into()),
-            );
+            let root_relative = final_path.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_else(|| "CLAUDE.md".into());
+            dependencies.insert(root_relative.clone(), companion_paths.clone());
+            automatic_artifacts.push((root_relative, final_content));
 
-            let rules_dir = safe_join(&project_dir, ".claude/rules")
-                .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
-            std::fs::create_dir_all(&rules_dir)
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-
-            // Purge stale rule files from prior runs. We only prune
-            // files that match the generator's naming patterns
-            // (`*-conventions.md`, `danger-zones.md`, `state-and-data.md`,
-            // `co-change-pairs.md`, `frontend-notes.md`) so any
-            // hand-authored files under `.claude/rules/` survive. This
-            // keeps the set of convention files in sync with what the
-            // current run actually produced — e.g. an
-            // `unknown-conventions.md` left over from a pre-filter run
-            // disappears on the next refresh.
-            let current_filenames: std::collections::HashSet<&str> =
-                rule_files.iter().map(|f| f.filename.as_str()).collect();
-            if let Ok(entries) = std::fs::read_dir(&rules_dir) {
-                for entry in entries.flatten() {
-                    let name = entry.file_name().to_string_lossy().to_string();
-                    let is_engram_owned = name.ends_with("-conventions.md")
-                        || matches!(
-                            name.as_str(),
-                            "danger-zones.md"
-                                | "state-and-data.md"
-                                | "co-change-pairs.md"
-                                | "frontend-notes.md"
-                        );
-                    if is_engram_owned && !current_filenames.contains(name.as_str()) {
-                        let _ = std::fs::remove_file(entry.path());
-                        notes.push(format!(
-                            "Removed stale .claude/rules/{name} (not emitted this run)"
-                        ));
-                    }
-                }
-            }
-
+            // Ownership receipts, rather than filenames, govern refresh and
+            // retirement of generated rules. Human files and edits survive.
             for f in &rule_files {
-                let path = safe_join(&project_dir, &format!(".claude/rules/{}", f.filename))
-                    .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
-                std::fs::write(&path, &f.content)
-                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-                written.push(format!(".claude/rules/{}", f.filename));
+                automatic_artifacts.push((format!(".claude/rules/{}", f.filename), f.content.clone()));
             }
             if let Some(ref agents) = agents_md {
                 let path = safe_join(&project_dir, "AGENTS.md")
@@ -4775,14 +4672,20 @@ impl Engram {
                         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
                     let ts = std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
-                        .map(|d| d.as_secs())
+                        .map(|d| d.as_nanos())
                         .unwrap_or(0);
                     let backup_name = format!("AGENTS.md.{ts}.bak");
                     let backup_path = safe_join(&project_dir, &backup_name)
                         .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
-                    std::fs::write(&backup_path, &existing)
-                        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                    {
+                        use std::io::Write as _;
+                        let mut backup = std::fs::OpenOptions::new().write(true).create_new(true).open(&backup_path)
+                            .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+                        backup.write_all(existing.as_bytes()).and_then(|_| backup.sync_all())
+                            .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+                    }
                     written.push(backup_name);
+                    authorized_preimages.insert("AGENTS.md".to_owned(), blake3::hash(existing.as_bytes()).to_hex().to_string());
                     let new_content = if req.merge_existing {
                         svc::splice_engram_section(&existing, agents)
                     } else {
@@ -4790,15 +4693,50 @@ impl Engram {
                     };
                     (path.clone(), new_content)
                 };
-                std::fs::write(&a_path, &a_content)
-                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-                written.push(
-                    a_path
-                        .file_name()
-                        .map(|n| n.to_string_lossy().into_owned())
-                        .unwrap_or_else(|| "AGENTS.md".into()),
-                );
+                let relative = a_path.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_else(|| "AGENTS.md".into());
+                dependencies.insert(relative.clone(), companion_paths.clone());
+                automatic_artifacts.push((relative, a_content));
             }
+            let publication = match crate::services::generated_files::publish_bundle(
+                &self.state.registry, &pid, &project_dir, "produce-claude-md", &automatic_artifacts, &dependencies, &authorized_preimages,
+            ) {
+                Ok(report) => report,
+                Err(error) => match error.downcast::<crate::services::generated_files::PublicationFailure>() {
+                    Ok(failure) => {
+                        notes.push(format!("PARTIAL PUBLICATION: {failure}. Exact completed writes are listed; all proposed content remains returned for recovery."));
+                        failure.report
+                    }
+                    Err(error) => return Err(McpError::internal_error(error.to_string(), None)),
+                }
+            };
+            instruction_plan.mark_catalog_delivery(publication.outcomes.get(svc::instruction_plan::CATALOG_PATH).copied().unwrap_or("not_attempted"));
+            instruction_plan.observed_catalog_blake3 = publication.observed_hashes.get(svc::instruction_plan::CATALOG_PATH).cloned();
+            written.extend(publication.written);
+            notes.extend(publication.notes);
+            // Journal the delivery result as a separate owned artifact. Its
+            // publication does not retire the other generator's owned files.
+            let ledger = instruction_plan.ledger_json().map_err(|error| McpError::internal_error(error.to_string(), None))?;
+            match crate::services::generated_files::publish(&self.state.registry, &pid, &project_dir,
+                "instruction-generation-ledger", &[(svc::instruction_plan::LEDGER_PATH.into(), ledger)]) {
+                Ok(report) => {
+                    ledger_delivery = report.outcomes.get(svc::instruction_plan::LEDGER_PATH).copied().unwrap_or("not_attempted");
+                    written.extend(report.written);
+                    notes.extend(report.notes);
+                }
+                Err(error) => {
+                    ledger_delivery = "publication_failed";
+                    match error.downcast::<crate::services::generated_files::PublicationFailure>() {
+                        Ok(failure) => {
+                            ledger_delivery = failure.report.outcomes.get(svc::instruction_plan::LEDGER_PATH).copied().unwrap_or("not_attempted");
+                            notes.push(format!("Recovery ledger publication stopped ({failure}); complete current ledger is returned below."));
+                            written.extend(failure.report.written);
+                            notes.extend(failure.report.notes);
+                        }
+                        Err(error) => notes.push(format!("Recovery ledger was not fully published ({error}); complete current ledger is returned below.")),
+                    }
+                }
+            }
+
         }
 
         // ── 12. Build response ────────────────────────────────────────
@@ -4831,6 +4769,11 @@ impl Engram {
             let lines = agents.lines().count();
             let _ = writeln!(output, "# AGENTS.md ({lines} lines)\n\n{agents}\n");
         }
+
+        let ledger = instruction_plan.ledger_json().map_err(|error| McpError::internal_error(error.to_string(), None))?;
+        let ledger_hash = blake3::hash(ledger.as_bytes()).to_hex();
+        let _ = writeln!(output, "Recovery ledger delivery: {ledger_delivery}. The hash below describes the exact returned proposal; an older/conflicting disk artifact is not asserted to contain it.\n");
+        let _ = writeln!(output, "# {} (complete original rules and delivery ledger; proposed content BLAKE3={ledger_hash})\n\n```json\n{ledger}\n```\n", svc::instruction_plan::LEDGER_PATH);
 
         Ok(CallToolResult::success(vec![Content::text(output)]))
     }
@@ -4891,6 +4834,7 @@ impl Engram {
         require_runtime_evidence: bool,
         evidence_depth: &str,
         output_json: bool,
+        source_view: Option<std::sync::Arc<engram_index::SourceSnapshotGuard>>,
     ) -> Result<CallToolResult, McpError> {
         use crate::services::autonomous_decision_service::{
             WaveAdpInput, evaluate_wave, format_wave_decision,
@@ -4908,7 +4852,7 @@ impl Engram {
             )
             .map_err(|e| McpError::invalid_params(e, None))?;
 
-            match crate::services::evidence_orchestration::gather_evidence(
+            match crate::services::evidence_orchestration::gather_evidence_with_source_view(
                 &self.state,
                 project_id,
                 std::slice::from_ref(&item.file_path),
@@ -4918,6 +4862,7 @@ impl Engram {
                 &overrides,
                 require_runtime_evidence,
                 generation,
+                source_view.clone(),
             )
             .await
             {
@@ -4967,8 +4912,13 @@ impl Engram {
                 None,
             ));
         }
-        let _ = self.ensure_project_runtime(&req.project_id).await?;
-        let gen_ = self.get_active_generation(&req.project_id).await?;
+        let depth = crate::services::evidence_orchestration::EvidenceDepth::from_str(&req.evidence_depth)
+            .map_err(|error| McpError::invalid_params(error, None))?;
+        let ps = self.ensure_project_runtime(&req.project_id).await?;
+        let (gen_, source_view) = if depth == crate::services::evidence_orchestration::EvidenceDepth::Deep {
+            let (generation, view) = self.pin_active_source_generation(&req.project_id, &ps.search).await?;
+            (generation, Some(std::sync::Arc::new(view)))
+        } else { (self.get_active_generation(&req.project_id).await?, None) };
 
         if let Some(wave_items) = req.wave_items {
             return self
@@ -4980,6 +4930,7 @@ impl Engram {
                     req.require_runtime_evidence,
                     &req.evidence_depth,
                     req.output_json,
+                    source_view,
                 )
                 .await;
         }
@@ -5015,11 +4966,7 @@ impl Engram {
         let risk_profile =
             crate::services::autonomous_decision_service::RiskProfile::from_str(&req.risk_profile)
                 .map_err(|e| McpError::invalid_params(e, None))?;
-        let depth =
-            crate::services::evidence_orchestration::EvidenceDepth::from_str(&req.evidence_depth)
-                .map_err(|e| McpError::invalid_params(e, None))?;
-
-        let adp_input = crate::services::evidence_orchestration::gather_evidence(
+        let adp_input = crate::services::evidence_orchestration::gather_evidence_with_source_view(
             &self.state,
             &req.project_id,
             &req.target_files,
@@ -5029,6 +4976,7 @@ impl Engram {
             &overrides,
             req.require_runtime_evidence,
             gen_,
+            source_view.clone(),
         )
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -5072,7 +5020,14 @@ impl Engram {
         req: GraphCentralityRerankRequest,
     ) -> Result<CallToolResult, McpError> {
         let ps = self.ensure_project_runtime(&req.project_id).await?;
-        let gen_ = self.get_active_generation(&req.project_id).await?;
+        let (gen_, _source_snapshot) = if req.query.is_some() && req.namespace == "memory" {
+            let (generation, guard) = self.pin_active_source_generation(&req.project_id, &ps.search).await?;
+            #[cfg(test)]
+            crate::handlers::search_tools::selected_source_tests::after_selection(&req.project_id).await;
+            (generation, Some(guard))
+        } else {
+            (self.get_active_generation(&req.project_id).await?, None)
+        };
         let top_k = req.sanitized_top_k();
         let samples = req.sanitized_betweenness_samples();
 
@@ -5342,7 +5297,9 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         let pid = req.project_id.clone();
         let ps = self.ensure_project_runtime(&pid).await?;
-        let generation = self.get_active_generation(&pid).await?;
+        let (generation, _source_snapshot) = self.pin_active_source_generation(&pid, &ps.search).await?;
+        #[cfg(test)]
+        crate::handlers::search_tools::selected_source_tests::after_selection(&pid).await;
 
         let queries: Vec<crate::services::benchmark_service::BenchmarkQuery> =
             if let Some(custom) = req.custom_queries {
@@ -5388,7 +5345,9 @@ impl Engram {
                     &tokio_util::sync::CancellationToken::new(),
                 )
                 .await
-                .unwrap_or_default();
+                .map_err(|error| McpError::internal_error(
+                    format!("Retrieval benchmark search failed: {error:#}"), None,
+                ))?;
             let elapsed_ms = start.elapsed().as_millis() as u64;
 
             let actual_paths: Vec<String> =
@@ -5740,47 +5699,6 @@ fn read_readme_blurb(project_dir: &str) -> Option<String> {
 /// Prefers `rule_text` when present; falls back to a descriptive line
 /// derived from the rule id / file pattern.
 /// Parse a CodeRabbit repo-rule's embedded stats footer back into
-/// `(fix_rate, pr_count)`. The ingest writes rules with a tail of the
-/// form `"… — CodeRabbit pattern, <N> PRs, <M>% fix rate"`; the
-/// pipeline needs those numbers to apply its render threshold.
-/// Returns `(None, None)` when the footer is missing or malformed —
-/// the pipeline treats that as zero confidence and routes the rule
-/// to overflow.
-fn parse_coderabbit_stats(rule_text: &str) -> (Option<f32>, Option<usize>) {
-    use std::sync::LazyLock;
-    static STATS_RE: LazyLock<Option<regex::Regex>> =
-        LazyLock::new(|| regex::Regex::new(r"(?i)(\d+)\s*PRs?,\s*(\d+)\s*%\s*fix\s*rate").ok());
-    let Some(re) = STATS_RE.as_ref() else {
-        return (None, None);
-    };
-    let Some(caps) = re.captures(rule_text) else {
-        return (None, None);
-    };
-    let prs = caps.get(1).and_then(|m| m.as_str().parse::<usize>().ok());
-    let fix_rate = caps
-        .get(2)
-        .and_then(|m| m.as_str().parse::<f32>().ok())
-        .map(|pct| pct / 100.0);
-    (fix_rate, prs)
-}
-
-fn rule_text_from_repo_rule(r: &engram_core::registry::RepoRule) -> String {
-    let clean = r.rule_text.trim();
-    if !clean.is_empty() {
-        return clean.to_string();
-    }
-    if r.rule_id.starts_with("immune_") {
-        return format!(
-            "File `{}` is immune-flagged. Run `immune_check` before editing.",
-            r.file_pattern
-        );
-    }
-    format!(
-        "Repo rule `{}` applies to `{}` — review before editing.",
-        r.rule_id, r.file_pattern
-    )
-}
-
 /// Convert a blast-radius complexity breakdown into a short list of
 /// "reasons" phrases for the danger-zones line. Only strong signals
 /// (score ≥ 5.0) are surfaced.

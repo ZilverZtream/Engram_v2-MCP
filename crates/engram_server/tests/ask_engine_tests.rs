@@ -335,6 +335,7 @@ async fn business_evidence_verifies_current_stale_and_legacy_sources_and_keeps_d
         .await
         .unwrap();
     let ctx = RetrievalCtx {
+        source_view: None,
         insights_enabled: false,
         search: ps.search.clone(),
         graph: state.graph.clone(),
@@ -550,6 +551,7 @@ async fn gather_runs_arms_for_intents_and_reports_per_provider() {
     resolve_entities(&state.graph, &pid, &mut plan);
 
     let ctx = RetrievalCtx {
+        source_view: None,
         insights_enabled: true,
         search: ps.search.clone(),
         graph: state.graph.clone(),

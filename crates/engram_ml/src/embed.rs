@@ -10,8 +10,8 @@ pub trait Embedder: Send + Sync {
     /// Stable identity of the embedding space this embedder produces.
     /// Used as a cache key component: two embedders with the same tag MUST
     /// produce interchangeable vectors. Default is dimension-only, which is
-    /// safe for deterministic local embedders; model-backed embedders
-    /// override with the model name.
+    /// safe only for interchangeable deterministic local embedders. Remote
+    /// implementations include their endpoint, model, and processing contract.
     fn model_tag(&self) -> String {
         format!("dim{}", self.dimension())
     }
@@ -360,6 +360,17 @@ impl OllamaEmbedder {
 
 #[async_trait]
 impl Embedder for OllamaEmbedder {
+    fn model_tag(&self) -> String {
+        remote_model_tag(
+            "ollama",
+            &self.url,
+            "/api/embed",
+            &self.model,
+            self.dim,
+            "raw",
+        )
+    }
+
     fn dimension(&self) -> usize {
         self.dim
     }
@@ -708,6 +719,17 @@ impl OpenAIEmbedder {
 
 #[async_trait]
 impl Embedder for OpenAIEmbedder {
+    fn model_tag(&self) -> String {
+        remote_model_tag(
+            "openai",
+            &self.api_base,
+            "/embeddings",
+            &self.model,
+            self.dim,
+            "raw",
+        )
+    }
+
     fn dimension(&self) -> usize {
         self.dim
     }
@@ -1134,12 +1156,61 @@ fn l2_normalize(mut v: Embedding) -> Embedding {
     v
 }
 
+/// Identify the effective request destination, rather than only the advertised
+/// model name: two compatible servers can serve unrelated weights under it.
+/// Hash the descriptor so endpoint credentials/tenant query values never appear
+/// in a cache key or persisted embedding-space identifier. The separately
+/// supplied API key and timeout do not select an embedding space. URL query
+/// parameters are retained conservatively because they can select a deployment.
+fn remote_model_tag(
+    backend: &str,
+    base: &str,
+    suffix: &str,
+    model: &str,
+    dim: usize,
+    normalization: &str,
+) -> String {
+    // Match the HTTP helper's string concatenation before URL parsing. Joining
+    // paths here would describe a different request for bases containing queries.
+    let request_url = format!("{base}{suffix}");
+    let endpoint = match reqwest::Url::parse(&request_url) {
+        Ok(mut url) => {
+            url.set_fragment(None); // Fragments are never sent to the server.
+            url.to_string()
+        }
+        Err(_) => request_url, // Invalid configuration must not alias a valid one.
+    };
+    let dim = dim.to_string();
+    let mut hash = blake3::Hasher::new();
+    for part in [
+        "engram-remote-embedding-v2:clamp-8000-bytes:empty-unit-v1",
+        backend,
+        &endpoint,
+        model,
+        &dim,
+        normalization,
+    ] {
+        hash.update(&(part.len() as u64).to_le_bytes());
+        hash.update(part.as_bytes());
+    }
+    format!("remote-v2:{}", hash.finalize().to_hex())
+}
+
 #[async_trait]
 impl Embedder for RemoteEmbedder {
     fn model_tag(&self) -> String {
         match &self.backend {
-            RemoteBackend::Ollama(o) => format!("ollama:{}:{}", o.model, o.dim),
-            RemoteBackend::OpenAI(o) => format!("openai:{}:{}", o.model, o.dim),
+            RemoteBackend::Ollama(o) => {
+                remote_model_tag("ollama", &o.url, "/api/embed", &o.model, o.dim, "l2-v1")
+            }
+            RemoteBackend::OpenAI(o) => remote_model_tag(
+                "openai",
+                &o.api_base,
+                "/embeddings",
+                &o.model,
+                o.dim,
+                "l2-v1",
+            ),
         }
     }
 

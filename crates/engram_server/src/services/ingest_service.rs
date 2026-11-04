@@ -159,9 +159,12 @@ pub async fn process_ingest_stats(
         if let Some(fp) = fp_map.get(rel_path.as_str()) {
             metadata = Some(serde_json::json!({
                 "mtime": fp.mtime_ms / 1000,
+                "mtime_ns": fp.mtime_ns,
                 "size": fp.size,
                 "file_hash": fp.file_hash,
-                "source_index_version": engram_index::SOURCE_INDEX_VERSION,
+                "source_index_version": stats.source_extraction_identity.map(|identity| identity.source_index_version),
+                "source_extraction_identity": stats.source_extraction_identity,
+                "vb_parser_provenance": stats.vb_parser_provenance.get(rel_path.as_str()),
             }));
         }
 

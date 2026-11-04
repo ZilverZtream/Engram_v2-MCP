@@ -400,6 +400,7 @@ impl Engram {
                 req.knowledge_before.as_deref(),
             );
         let configured_risk_count = configured_risk_pack.len();
+        let source_chunk_target = self.state.cfg.max_chunks_per_file;
 
         type Axis = BTreeMap<String, Vec<String>>; // axis value -> methods
         let (settings_axis, setting_labels, roles_axis, state_axis, runtime_axes, unresolved, coverage_notes, companion_context, member_observations) =
@@ -416,6 +417,12 @@ impl Engram {
                 let mut member_observations = std::collections::BTreeSet::new();
                 let mut seen = std::collections::HashSet::new();
                 let mut pending = std::collections::VecDeque::new();
+                // A discovered code-behind may introduce VB after a markup-only
+                // request. Capture its actual parser once, only when needed.
+                let mut vb_extraction = None;
+                let extraction = engram_index::SourceExtractionExpectation::for_paths(
+                    source_chunk_target, std::iter::empty::<&str>(),
+                ).map_err(|e| e.to_string());
                 for file in files {
                     // Graph file identities preserve case, even on Windows.
                     // Folding here can hide distinct files or suppress the
@@ -426,10 +433,20 @@ impl Engram {
                 }
 
                 while let Some((file, discover_companion, companion_relation)) = pending.pop_front() {
+                    let needs_vb = engram_index::vb_extractor::requires_parser_provenance(&file);
+                    if vb_extraction.is_none() && needs_vb {
+                        vb_extraction = Some(engram_index::SourceExtractionExpectation::for_paths(
+                            source_chunk_target, std::iter::once(file.as_str()),
+                        ).map_err(|e| e.to_string()));
+                    }
+                    let expected = if needs_vb { vb_extraction.as_ref().expect("VB expectation captured") }
+                        else { &extraction };
                     let (usable, note, snapshot) = super::test_derivation::axis_source(
                         &graph,
                         &pid,
                         &axis_root,
+                        gen_,
+                        expected.as_ref().map_err(String::as_str),
                         &file,
                         &mut source_bytes,
                     );

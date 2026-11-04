@@ -32,6 +32,8 @@ uuid.workspace = true
 blake3.workspace = true
 sha2.workspace = true
 regex.workspace = true
+# Parse authored guidance links with document-local CommonMark definitions.
+pulldown-cmark = { version = "0.13", default-features = false }
 git2.workspace = true
 notify.workspace = true
 zip = "2.2"
@@ -52,4 +54,7 @@ blake3 = "1"
 [dev-dependencies]
 rmcp = { workspace = true, features = ["client"] }
 tokio = { workspace = true, features = ["test-util"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }
 

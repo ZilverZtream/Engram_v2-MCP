@@ -182,3 +182,91 @@ async fn precedents_carry_the_decision_makers_ruling_and_reason() {
         "verdict filter: {out}"
     );
 }
+
+/// An eligible old quotation must not borrow later author outcomes or the
+/// current unversioned authority declarations as historical supporting evidence.
+#[test]
+fn precedent_cutoff_preserves_old_quote_without_later_author_authority() -> anyhow::Result<()> {
+    // The runtime owns any blocking indexing workers and is dropped before the
+    // fixture on successful return, early error, and unwinding.
+    let temporary = tempfile::tempdir()?;
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()?;
+    let result = runtime.block_on(async {
+        let root = temporary.path().join("repo");
+        std::fs::create_dir_all(root.join("src"))?;
+        std::fs::write(root.join("src/export.rs"), "pub fn export() {}\n")?;
+        let (state, _events) = AppState::new(Config {
+            data_dir: temporary.path().join("data"),
+            allowed_roots: vec![root.clone()],
+            embedding_backend: "fts_only".into(),
+            ..Default::default()
+        })?;
+        let engram = Engram::new(state);
+        let indexed = text(&engram.handle_index_project(serde_json::from_value(json!({
+            "directory": root, "project_name": "Cutoff authority behavior",
+            "project_type": "rust", "wait": true
+        }))?).await?);
+        let pid = indexed
+            .split("project_id: ")
+            .nth(1)
+            .ok_or_else(|| anyhow::anyhow!("missing project ID: {indexed}"))?
+            .lines()
+            .next()
+            .unwrap()
+            .trim()
+            .to_owned();
+        let records = [(100, "older wire export budget finding"),
+            (200, "FutureFindingMarker wire export budget finding")]
+            .into_iter()
+            .map(|(pr, finding)| json!({
+                "pr_id": pr, "pr_title": "Wire export budget", "pr_author": "Riley Dev",
+                "pr_date": if pr == 100 { "2026-01-01T10:00:00Z" } else { "2026-02-01T10:00:00Z" },
+                "thread_id": 1, "status": "wontFix", "file_path": "/src/export.rs", "line": 1,
+                "comments": [{"author": "ReviewBot", "text": finding},
+                    {"author": "Riley Dev", "text": ARGUMENT}]
+            }))
+            .map(|record| record.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        std::fs::write(root.join("threads.jsonl"), records)?;
+        engram.handle_ingest_review_verdicts(serde_json::from_value(json!({
+            "project_id": pid, "decision_makers": ["CURRENT_CONFIGURED_LEAD"],
+            "source": "json_file", "file_path": "threads.jsonl",
+            "author_trust": {"Riley Dev": "CURRENT_ONLY_TRUST_MARKER"}
+        }))?).await?;
+        let request = |cutoff: Option<u64>| serde_json::from_value(json!({
+            "project_id": pid, "query": "wire export budget", "file_path": "src/export.rs",
+            "before_pr_id": cutoff, "limit": 10
+        }));
+        let historical = text(&engram.handle_get_review_precedents(request(Some(200))?).await?);
+        anyhow::ensure!(historical.contains("PR-100:") && !historical.contains("PR-200:"), "{historical}");
+        anyhow::ensure!(!historical.contains("FutureFindingMarker"), "{historical}");
+        // Preserve the actual old argument and its actor, without converting an
+        // author's argued workflow decline into an accepted policy exception.
+        anyhow::ensure!(historical.contains(ARGUMENT), "{historical}");
+        anyhow::ensure!(historical.contains("Review verdict: contested_by_author by Riley Dev"), "{historical}");
+        anyhow::ensure!(historical.contains("Reasoning (Riley Dev):"), "{historical}");
+        anyhow::ensure!(!historical.contains("Author record:"), "{historical}");
+        anyhow::ensure!(!historical.contains("CURRENT_ONLY_TRUST_MARKER"), "{historical}");
+        anyhow::ensure!(!historical.contains("CURRENT_CONFIGURED_LEAD"), "{historical}");
+        anyhow::ensure!(historical.contains("PR-ID cutoff:") && historical.contains("below 200"), "{historical}");
+        anyhow::ensure!(historical.contains("not an as-of decision or source-date replay"), "{historical}");
+        anyhow::ensure!(historical.contains("accepted scope and revision applicability are not established"), "{historical}");
+        anyhow::ensure!(historical.contains("retain findings; no automatic suppression"), "{historical}");
+        // This control proves the later PR really contributes to the stored
+        // aggregate. Current queries retain that evidence with a current label.
+        let current = text(&engram.handle_get_review_precedents(request(None)?).await?);
+        anyhow::ensure!(current.contains("PR-100:") && current.contains("PR-200:"), "{current}");
+        anyhow::ensure!(current.contains("FutureFindingMarker"), "{current}");
+        anyhow::ensure!(current.contains("Author record: 2 argued declines (2 stood, 0 overturned)"), "{current}");
+        anyhow::ensure!(current.contains("CURRENT_ONLY_TRUST_MARKER") && current.contains("CURRENT_CONFIGURED_LEAD"), "{current}");
+        anyhow::ensure!(current.contains("current imported configuration") && current.contains("current aggregates"), "{current}");
+        Ok::<(), anyhow::Error>(())
+    });
+    drop(runtime);
+    temporary.close()?;
+    result
+}

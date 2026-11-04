@@ -22,23 +22,23 @@ use crate::services::quality_source::{self, SourceReceipt};
 
 const QG_NAMESPACE: &str = "quality_gate";
 
-fn quality_source_origin(root: &std::path::Path, source: &std::path::Path) -> Result<String, McpError> {
-    let root = std::fs::canonicalize(root).map_err(|e| McpError::invalid_params(e.to_string(), None))?;
-    let source = std::fs::canonicalize(source).map_err(|e| McpError::invalid_params(e.to_string(), None))?;
-    engram_core::RelPath::from_relative(&root, &source)
-        .filter(|path| !path.as_str().is_empty())
-        .map(|path| path.as_str().to_owned())
-        .ok_or_else(|| McpError::invalid_params("Cannot establish project-relative quality source identity", None))
+/// The import and lifecycle preflight share precisely the same promotion gate.
+pub(crate) const SOURCE_PROMOTION_LIMIT: usize = 20;
+pub(crate) fn source_promotion_candidate(rule: &QualityRule, source: QualitySource) -> bool {
+    let guideline = matches!(source, QualitySource::CopilotInstructions
+        | QualitySource::CodingRulesMd | QualitySource::DevOpsBoard);
+    let lower = rule.text.to_lowercase();
+    !rule.text.starts_with(MARKDOWN_CONTEXT_PREFIX)
+        && (guideline || rule.severity.eq_ignore_ascii_case("high"))
+        && ["must","never","always","required","do not","don't"].iter().any(|word| lower.contains(word))
+        && rule.text.len() >= 30 && rule.text.len() <= 400
 }
 
-fn read_quality_source(path: &std::path::Path) -> anyhow::Result<String> {
-    use std::io::Read;
-    let file = std::fs::File::open(path)?;
-    anyhow::ensure!(file.metadata()?.is_file(), "quality source must be a regular file");
-    let mut bytes = Vec::new();
-    file.take(4 * 1024 * 1024 + 1).read_to_end(&mut bytes)?;
-    anyhow::ensure!(bytes.len() <= 4 * 1024 * 1024, "quality source exceeds 4 MiB import limit");
-    Ok(String::from_utf8(bytes)?)
+fn quality_source_origin(root: &std::path::Path, source: &std::path::Path) -> Result<String, McpError> {
+    crate::services::legacy_rule_adoption::source_origin(root, source)
+        .map_err(|e| McpError::invalid_params(format!(
+            "Cannot resolve quality-gate source '{}': {e}. No rules imported.", source.display()
+        ), None))
 }
 
 /// Resolve one input before quality-rule count/search. File identity uses existing BLAKE3 dependency.
@@ -87,20 +87,51 @@ impl Engram {
             )
         })?;
 
+        if let Some(review) = &req.alias_review {
+            if req.adoption.is_some() {
+                return Err(McpError::invalid_params("alias_review and adoption are mutually exclusive", None));
+            }
+            let guard = if matches!(review.mode, crate::models::LegacyRuleAdoptionMode::Apply) {
+                Some(self.state.acquire_project_update_lock(&req.project_id).await)
+            } else { None };
+            let state = self.state.clone();
+            let report = tokio::task::spawn_blocking(move || {
+                let _guard = guard;
+                crate::services::legacy_rule_alias_review::execute(&state, &req, source)
+            }).await.map_err(|e| McpError::internal_error(e.to_string(), None))?
+                .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(report)]));
+        }
+
+        if let Some(adoption) = &req.adoption {
+            let guard = if matches!(adoption.mode, crate::models::LegacyRuleAdoptionMode::Apply) {
+                Some(self.state.acquire_project_update_lock(&req.project_id).await)
+            } else { None };
+            let state = self.state.clone();
+            let report = tokio::task::spawn_blocking(move || {
+                let _guard = guard;
+                crate::services::legacy_rule_adoption::execute(&state, &req, source)
+            })
+                .await.map_err(|e| McpError::internal_error(e.to_string(), None))?
+                .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(report)]));
+        }
+
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let _import_guard = self.state.acquire_project_update_lock(&req.project_id).await;
         let active_gen = self.get_active_generation(&req.project_id).await?;
 
         let abs = safe_join(std::path::Path::new(&ps.info.directory), &req.source_path)
             .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
-        let content = read_quality_source(&abs)
+        let root = std::path::Path::new(&ps.info.directory);
+        let origin = quality_source_origin(root, &abs)?;
+        let content = crate::services::legacy_rule_adoption::read_source(root, &origin)
             .map_err(|e| McpError::invalid_params(format!("cannot read source: {e}"), None))?;
-        let origin = quality_source_origin(std::path::Path::new(&ps.info.directory), &abs)?;
 
         let rules = parse_quality_source_checked(&content, source, &origin)
             .map_err(|error| McpError::invalid_params(error, None))?;
         let receipt_key = quality_source::receipt_key(&origin);
-        let previous_raw = self.state.registry.get_meta(&req.project_id, &receipt_key)
+        let previous_raw = self.state.registry.get_meta_bounded(&req.project_id, &receipt_key, 4 * 1024 * 1024)
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         let previous = quality_source::receipt(&self.state, &req.project_id, &origin)
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -119,6 +150,11 @@ impl Engram {
             .map_err(|error| McpError::internal_error(format!("cannot inspect existing repo rules: {error}"), None))?;
         if let Some(previous) = &previous {
             for owned in &previous.rules {
+                if owned.provenance.as_deref() != Some(format!("quality-gate source: {origin}").as_str()) {
+                    return Err(McpError::invalid_params(format!(
+                        "Legacy receipt claim `{}` requires explicit ownership adoption before refreshing `{origin}`. No rules imported.", owned.rule_id
+                    ), None));
+                }
                 if !existing.iter().any(|current| quality_source::same_rule(owned, current)) {
                     return Err(McpError::invalid_params(format!(
                         "Source-owned rule `{}` was manually changed or removed. Resolve ownership before refreshing `{origin}`. No rules imported.", owned.rule_id
@@ -139,14 +175,9 @@ impl Engram {
                     "Cannot establish ownership of legacy basename-only promotion `{legacy}` while importing `{origin}`. Review that repository rule's source before migrating it; clearing the searchable corpus does not resolve ownership. No rules imported."
                 ), None));
             }
-            if existing.iter().any(|old| old.rule_id == id
-                && old.provenance.as_deref() != Some("quality-gate finding")
-                && old.provenance.as_deref() != Some(provenance.as_str())) {
-                return Err(McpError::invalid_params(format!(
-                    "Promotion ID `{id}` is owned by another repository rule. Review the collision before importing `{origin}`. No rules imported."
-                ), None));
-            }
         }
+        let aliases = crate::services::legacy_rule_adoption::resolve_aliases(&rules, previous.as_ref())
+            .map_err(|e| McpError::invalid_params(format!("{e}. No rules imported."), None))?;
         let mut docs = Vec::with_capacity(rules.len());
         let mut by_sev = std::collections::BTreeMap::<String, usize>::new();
         let source_hash = blake3::hash(content.as_bytes()).to_hex().to_string();
@@ -190,42 +221,19 @@ impl Engram {
         // are retrieval leads, not independently scoped enforceable constraints.
         let contextual = rules.iter().filter(|r| r.text.starts_with(MARKDOWN_CONTEXT_PREFIX)).count();
         let mut promoted = 0usize;
-        let mut promotions = Vec::new();
+        let mut promotions: Vec<_> = aliases.values().cloned().collect();
         {
-            let is_mandate = |t: &str| {
-                let l = t.to_lowercase();
-                ["must", "never", "always", "required", "do not", "don't"]
-                    .iter()
-                    .any(|k| l.contains(k))
-            };
-            // Guideline sources (copilot-instructions, coding rules, and
-            // the DevOps recurring-issues/learnings board) are team
-            // mandates by nature — their parsers assign a flat "medium"
-            // severity, so severity only gates the FINDING sources
-            // (coderabbit/sonarqube exports), where it is real. The board
-            // is mandate-heavy ("Make sure all .js are transpiled…",
-            // "Must be tested on a real phone…") and belongs here.
-            let guideline_source = matches!(
-                source,
-                QualitySource::CopilotInstructions
-                    | QualitySource::CodingRulesMd
-                    | QualitySource::DevOpsBoard
-            );
             for r in rules.iter().filter(|r| {
-                !r.text.starts_with(MARKDOWN_CONTEXT_PREFIX)
-                    && (guideline_source || r.severity.eq_ignore_ascii_case("high"))
-                    && is_mandate(&r.text)
-                    && r.text.len() >= 30
-                    && r.text.len() <= 400
+                !aliases.contains_key(&r.id) && source_promotion_candidate(r, source)
             }) {
-                if promoted >= 20 {
+                if promoted >= SOURCE_PROMOTION_LIMIT {
                     break;
                 }
                 let rule_id = format!("qg-{}", &r.id);
                 let file_pattern = r.path_scope.clone().unwrap_or_else(|| "**/*".into());
                 // Separate source-owned IDs avoid cross-source reference counting:
                 // retiring this policy must not disable another area's mandate.
-                let rule = engram_core::registry::RepoRule {
+                let mut rule = engram_core::registry::RepoRule {
                     rule_id,
                     file_pattern,
                     rule_text: r.text.clone(),
@@ -237,8 +245,31 @@ impl Engram {
                     introduced_at: None,
                     provenance: Some(provenance.clone()),
                 };
+                // A no-op source refresh must retain the rule's original dates.
+                if let Some(old) = previous.as_ref().and_then(|p| p.rules.iter().find(|old| old.rule_id == rule.rule_id)) {
+                    rule.introduced_at = old.introduced_at.clone();
+                    let mut unchanged = rule.clone();
+                    unchanged.updated_at_ms = old.updated_at_ms;
+                    if unchanged == *old { rule = unchanged; }
+                }
                 promoted += 1;
                 promotions.push(rule);
+            }
+        }
+
+        let mut resolved_ids = std::collections::BTreeSet::new();
+        for rule in &promotions {
+            if !resolved_ids.insert(&rule.rule_id) {
+                return Err(McpError::invalid_params(format!(
+                    "Resolved promotion ID `{}` collides with another source entry; review alias mappings. No rules imported.", rule.rule_id
+                ), None));
+            }
+            if existing.iter().any(|old| old.rule_id == rule.rule_id)
+                && !previous.as_ref().is_some_and(|p| p.rules.iter().any(|old| old.rule_id == rule.rule_id
+                    && old.provenance.as_deref() == Some(provenance.as_str()))) {
+                return Err(McpError::invalid_params(format!(
+                    "Promotion ID `{}` is owned by another repository rule or has no ownership receipt; explicit adoption is required. No rules imported.", rule.rule_id
+                ), None));
             }
         }
 
@@ -250,10 +281,11 @@ impl Engram {
             origin: origin.clone(), source_hash: source_hash.clone(), authored, pending: true,
             doc_ids: owned_docs.clone(), rules: previous.as_ref().map(|r| r.rules.clone()).unwrap_or_default(),
             cleanup: Vec::new(),
+            legacy_aliases: previous.as_ref().map(|r| r.legacy_aliases.clone()).unwrap_or_default(),
             corpus_revision: self.state.registry.get_meta(&req.project_id, quality_source::CORPUS_REVISION)
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?.unwrap_or_default(),
         };
-        let pending_raw = serde_json::to_string(&pending).map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let pending_raw = pending.encode().map_err(|e| McpError::internal_error(e.to_string(), None))?;
         let saved = self.state.registry.compare_exchange_meta(&req.project_id, &receipt_key, previous_raw.as_deref(), &pending_raw)
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         if !saved { return Err(McpError::invalid_request("Source receipt changed; retry import", None)); }
@@ -275,7 +307,7 @@ impl Engram {
         if !docs.is_empty() {
             ps.search.index_docs(&req.project_id, &docs, &cancel).await.map_err(|e| partial(format!("replacement search indexing: {e:#}")))?;
         }
-        let reread = read_quality_source(&abs).map_err(|e| partial(e.to_string()))?;
+        let reread = crate::services::legacy_rule_adoption::read_source(root, &origin).map_err(|e| partial(e.to_string()))?;
         if blake3::hash(reread.as_bytes()).to_hex().as_str() != source_hash {
             return Err(partial("source changed during import; publication aborted".into()));
         }
@@ -292,14 +324,15 @@ impl Engram {
             previous.as_ref().map(|r| r.rules.iter().map(|rule| rule.rule_id.clone()).collect()).unwrap_or_default()
         } else { Vec::new() };
         let mut published = SourceReceipt { origin: origin.clone(), source_hash, authored, pending: false,
-            doc_ids: current_docs, rules: published_rules, cleanup: obsolete.clone(), corpus_revision };
-        let published_raw = serde_json::to_string(&published).map_err(|e| partial(e.to_string()))?;
+            doc_ids: current_docs, rules: published_rules, cleanup: obsolete.clone(), corpus_revision,
+            legacy_aliases: previous.as_ref().map(|r| r.legacy_aliases.clone()).unwrap_or_default() };
+        let published_raw = published.encode().map_err(|e| partial(e.to_string()))?;
         self.state.registry.publish_repo_rule_source(&req.project_id, &existing, &remove, &promotions,
             &receipt_key, &pending_raw, &published_raw).map_err(|e| partial(e.to_string()))?;
         let cleanup_note = match ps.search.delete_documents(&req.project_id, QG_NAMESPACE, &obsolete).await {
             Ok(()) => {
                 published.cleanup.clear();
-                let clean_raw = serde_json::to_string(&published).map_err(|e| partial(e.to_string()))?;
+                let clean_raw = published.encode().map_err(|e| partial(e.to_string()))?;
                 match self.state.registry.compare_exchange_meta(&req.project_id, &receipt_key, Some(&published_raw), &clean_raw) {
                     Ok(true) => String::new(),
                     _ => " Cleanup receipt not finalized; retry import to reconcile. ".into(),
@@ -339,6 +372,20 @@ impl Engram {
         req: crate::models::PrePushAuditRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        if let Some(maintenance) = req.instruction_maintenance.as_ref() {
+            if !req.code.is_empty() || req.diff_file.is_some() || req.diff_file_blake3.is_some() || req.file_path.is_some() {
+                return Err(McpError::invalid_params("Maintenance and retrieval inputs must not be mixed", None));
+            }
+            let record = self.ensure_project_record(&req.project_id).await?;
+            let project_id = req.project_id.clone();
+            let maintenance = maintenance.clone();
+            let report = tokio::task::spawn_blocking(move || {
+                crate::services::instruction_maintenance::review(std::path::Path::new(&record.directory), &project_id, &maintenance)
+            }).await.map_err(|e| McpError::internal_error(e.to_string(), None))?
+                .map_err(|e| McpError::invalid_params(format!("Instruction maintenance unavailable: {e:#}"), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(serde_json::to_string_pretty(&report)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?)]));
+        }
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let code = resolve_audit_input(&req, std::path::Path::new(&ps.info.directory))?;
         let mut input_binding = format!("Input: {} bytes, BLAKE3 {} ({}).\n",code.len(),blake3::hash(code.as_bytes()).to_hex(),if req.diff_file.is_some(){"project-relative file"}else{"inline"});

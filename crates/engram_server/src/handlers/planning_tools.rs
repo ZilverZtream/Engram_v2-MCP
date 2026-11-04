@@ -31,8 +31,19 @@ use rmcp::model::{CallToolResult, Content};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::PathBuf;
 
+/// Internal consumers retain selected source identities without parsing prose.
+struct FootprintEvidence {
+    text: String,
+    source_paths: Vec<String>,
+    source_paths_complete: bool,
+}
+
 #[path = "change_set_delivery.rs"]
 mod change_set_delivery;
+
+#[cfg(test)]
+#[path = "planning_tools/source_reader_tests.rs"]
+mod source_reader_tests;
 
 /// Lowercase concept stems used for substring matching: the term itself,
 /// a naive singular (trailing 's' stripped), the clean `ies`->`y` / `es`
@@ -1016,6 +1027,14 @@ impl Engram {
         &self,
         req: GetConceptFootprintRequest,
     ) -> Result<CallToolResult, McpError> {
+        let evidence = self.concept_footprint(req).await?;
+        Ok(CallToolResult::success(vec![Content::text(evidence.text)]))
+    }
+
+    async fn concept_footprint(
+        &self,
+        req: GetConceptFootprintRequest,
+    ) -> Result<FootprintEvidence, McpError> {
         validate_project_id(&req.project_id)?;
         if req.concept.trim().len() < 2 {
             return Err(McpError::invalid_params(
@@ -1024,7 +1043,8 @@ impl Engram {
             ));
         }
         let ps = self.ensure_project_runtime(&req.project_id).await?;
-        let gen_ = self.get_active_generation(&req.project_id).await?;
+        let (gen_, source_snapshot) = self.pin_active_source_generation(&req.project_id, &ps.search).await?;
+        let source_snapshot = std::sync::Arc::new(source_snapshot);
         let cap = req.max_per_group.clamp(1, FOOTPRINT_GROUP_CEILING);
         let stems = concept_stems(&req.concept);
 
@@ -1033,7 +1053,7 @@ impl Engram {
         let pid = req.project_id.clone();
         let stems_b = stems.clone();
         type Entry = (String, String, String, u32); // name, node_id, file, line
-        let (groups, collapsed, consumers, scan_truncated, mut cov) = tokio::task::spawn_blocking(move || {
+        let (groups, collapsed, consumers, consumer_paths, consumer_paths_complete, scan_truncated, mut cov) = tokio::task::spawn_blocking(move || {
             let mut cov = FootprintCoverage {
                 anchor_cap: ANCHOR_CAP,
                 consumer_cap_per_anchor: CONSUMER_CAP_PER_ANCHOR,
@@ -1195,7 +1215,25 @@ impl Engram {
             }
             consumers.sort();
             consumers.dedup();
-            (groups, collapsed, consumers, scan_truncated, cov)
+            // Resolve only consumers actually shown, using this existing node
+            // snapshot. No node-id path guessing or additional database scan.
+            let selected_ids = consumers.iter().take(cap * 2)
+                .map(|(_, _, id)| id.as_str()).collect::<HashSet<_>>();
+            let mut unresolved = selected_ids.len();
+            let mut consumer_paths = BTreeSet::new();
+            let mut consumer_paths_complete = true;
+            for node in &nodes {
+                if selected_ids.contains(node.node_id.as_str()) {
+                    unresolved = unresolved.saturating_sub(1);
+                    if node.file_path.as_str().is_empty() {
+                        consumer_paths_complete = false;
+                    } else {
+                        consumer_paths.insert(node.file_path.as_str().to_owned());
+                    }
+                }
+            }
+            consumer_paths_complete &= unresolved == 0;
+            (groups, collapsed, consumers, consumer_paths, consumer_paths_complete, scan_truncated, cov)
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -1218,17 +1256,25 @@ impl Engram {
             date_before: None,
             use_mmr: false,
         };
+        let worker_snapshot = source_snapshot.clone();
         let (lexical_files, lexical_hits, lexical_err): (Vec<String>, usize, Option<String>) =
-            tokio::task::spawn_blocking(move || match engine.lexical_search(&q) {
-                Ok(hits) => {
-                    let n = hits.len();
-                    let mut files: Vec<String> =
-                        hits.iter().map(|h| h.path.as_str().to_string()).collect();
-                    files.sort();
-                    files.dedup();
-                    (files, n, None)
+            tokio::task::spawn_blocking(move || {
+                #[cfg(test)]
+                let observation = source_reader_tests::observe(&q.project_id, "concept_lexical");
+                let _source_snapshot = worker_snapshot;
+                #[cfg(test)]
+                if let Some(observation) = &observation { observation.pause(); }
+                match engine.lexical_search(&q) {
+                    Ok(hits) => {
+                        let n = hits.len();
+                        let mut files: Vec<String> =
+                            hits.iter().map(|h| h.path.as_str().to_string()).collect();
+                        files.sort();
+                        files.dedup();
+                        (files, n, None)
+                    }
+                    Err(e) => (Vec::new(), 0, Some(e.to_string())),
                 }
-                Err(e) => (Vec::new(), 0, Some(e.to_string())),
             })
             .await
             .unwrap_or_else(|e| (Vec::new(), 0, Some(format!("lexical task failed: {e}"))));
@@ -1253,6 +1299,7 @@ impl Engram {
         let (literal_files, literal_matches, literal_err): (Vec<String>, usize, Option<String>) = {
             let engine = ps.search.clone();
             let graph = self.state.graph.clone();
+            let source_chunk_target = self.state.cfg.max_chunks_per_file;
             let pid = req.project_id.clone();
             let gq = engram_index::grep::GrepQuery {
                 project_id: req.project_id.clone(),
@@ -1271,9 +1318,28 @@ impl Engram {
                 freshness: engram_index::grep::FreshnessMode::Off,
             };
             let root = std::path::PathBuf::from(rec_dir);
+            let worker_snapshot = source_snapshot.clone();
             tokio::task::spawn_blocking(move || {
+                #[cfg(test)]
+                let observation = source_reader_tests::observe(&gq.project_id, "concept_literal");
+                let _source_snapshot = worker_snapshot;
+                #[cfg(test)]
+                if let Some(observation) = &observation { observation.pause(); }
+                // FreshnessMode::Off does not invoke grep's lazy fingerprint
+                // callback. Validate extraction compatibility eagerly instead
+                // of reporting complete coverage from an unevaluated guard.
+                let compatible = crate::handlers::grep_tools::indexed_file_stats_for_generation(
+                    &graph, &pid, gen_, source_chunk_target,
+                ).and_then(|stats| {
+                    anyhow::ensure!(stats.iter().all(|stat| stat.file_hash.is_some()),
+                        "source extraction settings or fingerprints are unavailable; run update_project before treating literal coverage as complete");
+                    Ok(())
+                });
+                if let Err(error) = compatible {
+                    return (Vec::new(), 0, Some(error.to_string()));
+                }
                 match engram_index::grep::grep(&engine, &root, &gq, || {
-                    crate::handlers::grep_tools::indexed_file_stats(&graph, &pid)
+                    Ok(Vec::new())
                 }) {
                     Ok(r) => {
                         let n = r.matches.len();
@@ -1316,6 +1382,16 @@ impl Engram {
             footprint_text_only_files(&grouped_files, &lexical_files, &literal_files);
         let lexical_only: Vec<&String> = text_only.iter().collect();
 
+        let mut source_paths = consumer_paths;
+        let mut source_paths_complete = consumer_paths_complete
+            && groups.values().all(|rows| rows.len() <= cap)
+            && collapsed.values().all(|count| *count == 0)
+            && consumers.len() <= cap * 2
+            && lexical_only.len() <= cap
+            && cov.failures.is_empty()
+            && cov.node_scan == "complete" && cov.consumers == "complete"
+            && cov.lexical == "complete" && cov.literal == "complete";
+
         let total: usize = groups.values().map(Vec::len).sum();
         if total == 0 && lexical_only.is_empty() {
             let mut out = format!(
@@ -1329,7 +1405,7 @@ impl Engram {
                 stems.join(", ")
             );
             out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
-            return Ok(CallToolResult::success(vec![Content::text(out)]));
+            return Ok(FootprintEvidence { text: out, source_paths: vec![], source_paths_complete });
         }
 
         let mut out = format!(
@@ -1363,8 +1439,10 @@ impl Engram {
             out.push_str(&format!("\n{title} — {}\n", list.len()));
             for (name, node_id, file, line) in list.iter().take(cap) {
                 if file.is_empty() {
+                    source_paths_complete = false;
                     out.push_str(&format!("- {name} — node_id={node_id}\n"));
                 } else {
+                    source_paths.insert(file.clone());
                     out.push_str(&format!("- {name} — node_id={node_id} ({file}:{line})\n"));
                 }
             }
@@ -1411,6 +1489,7 @@ impl Engram {
                 cov.literal
             ));
             for f in lexical_only.iter().take(cap) {
+                source_paths.insert(f.as_str().to_owned());
                 out.push_str(&format!("- {f}\n"));
             }
             if lexical_only.len() > cap {
@@ -1421,7 +1500,7 @@ impl Engram {
         out.push_str(&render_footprint_coverage(&cov));
         out.push_str(NEXT_STEPS_CONCEPT_FOOTPRINT);
         out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
-        Ok(CallToolResult::success(vec![Content::text(out)]))
+        Ok(FootprintEvidence { text: out, source_paths: source_paths.into_iter().collect(), source_paths_complete })
     }
 
     // ── find_similar_changes ─────────────────────────────────────────────────
@@ -1676,7 +1755,8 @@ impl Engram {
             ));
         }
         let ps = self.ensure_project_runtime(&req.project_id).await?;
-        let gen_ = self.get_active_generation(&req.project_id).await?;
+        let (gen_, source_snapshot) = self.pin_active_source_generation(&req.project_id, &ps.search).await?;
+        let source_snapshot = std::sync::Arc::new(source_snapshot);
         let max_examples = req.max_examples.clamp(1, 10);
         let kind = infer_pattern_kind(&req.pattern_query);
         let mut coverage = PatternCoverage {
@@ -1715,7 +1795,15 @@ impl Engram {
             date_before: None,
             use_mmr: false,
         };
-        let hits = tokio::task::spawn_blocking(move || engine.lexical_search(&q))
+        let worker_snapshot = source_snapshot.clone();
+        let hits = tokio::task::spawn_blocking(move || {
+            #[cfg(test)]
+            let observation = source_reader_tests::observe(&q.project_id, "pattern_lexical");
+            let _source_snapshot = worker_snapshot;
+            #[cfg(test)]
+            if let Some(observation) = &observation { observation.pause(); }
+            engine.lexical_search(&q)
+        })
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?
             .map_err(|e| McpError::internal_error(format!("lexical search failed: {e}"), None))?;
@@ -2712,7 +2800,7 @@ mod tests {
     #[test]
     fn a_change_set_too_large_to_deliver_is_bounded_and_says_how_to_recover() {
         let (prov, why) = synthetic_prov(40);
-        let (md, _omissions) = render_change_set(
+        let (md, _omissions, _view) = render_change_set(
             "As a user I want widgets to roll up correctly",
             &["widget".to_string()],
             &prov,
@@ -6129,57 +6217,50 @@ impl Engram {
 
         let mut out = String::with_capacity(4096);
         if req.write_files {
+            let _guidance_lock = self.state.acquire_project_update_lock(&req.project_id).await;
             let root = std::path::PathBuf::from(&rec.directory);
             let rules_rel = ".claude/rules/engram-workflow.md";
             let hooks_rel = ".claude/settings.json";
-            let rules_path = engram_core::safe_join(&root, rules_rel)
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            if let Some(dir) = rules_path.parent() {
-                std::fs::create_dir_all(dir)
-                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            }
-            std::fs::write(&rules_path, &rules)
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            out.push_str(&format!("wrote: {}\n", rules_path.display()));
+            let publication = match crate::services::generated_files::publish(
+                &self.state.registry, &req.project_id, &root, "agent-integration",
+                &[(rules_rel.into(), rules.clone())],
+            ) {
+                Ok(report) => report,
+                Err(error) => match error.downcast::<crate::services::generated_files::PublicationFailure>() {
+                    Ok(failure) => {
+                        out.push_str(&format!("PUBLICATION INCOMPLETE: {failure}\n"));
+                        failure.report
+                    },
+                    Err(error) => return Err(McpError::internal_error(error.to_string(), None)),
+                },
+            };
+            for relative in publication.written { out.push_str(&format!("wrote: {relative}\n")); }
+            for note in publication.notes { out.push_str(&format!("{note}\n")); }
+            // Return the proposal even when ownership prevents installation.
+            out.push_str(&format!("\n## Proposed {rules_rel}\n```markdown\n{rules}\n```\n"));
 
-            let hooks_path = engram_core::safe_join(&root, hooks_rel)
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            if hooks_path.exists() {
-                // Never clobber an existing settings.json — hooks must be
-                // merged by a human (or the agent) deliberately.
-                out.push_str(&format!(
-                    "SKIPPED {} (exists) — merge the hooks block below manually.\n",
-                    hooks_path.display()
-                ));
-                out.push_str(&format!(
-                    "\n## hooks block to merge\n```json\n{hooks}\n```\n"
-                ));
-            } else {
-                if let Some(dir) = hooks_path.parent() {
-                    std::fs::create_dir_all(dir)
-                        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            let bootstrap = match crate::services::generated_files::publish_create_only(
+                &self.state.registry, &req.project_id, &root, "agent-integration-bootstrap",
+                &[(hooks_rel.into(), hooks.clone()), ("AGENTS.md".into(), agents.clone())],
+            ) {
+                Ok(report) => report,
+                Err(error) => match error.downcast::<crate::services::generated_files::PublicationFailure>() {
+                    Ok(failure) => {
+                        out.push_str(&format!("PUBLICATION INCOMPLETE: {failure}\n"));
+                        failure.report
+                    },
+                    Err(error) => return Err(McpError::internal_error(error.to_string(), None)),
+                },
+            };
+            for relative in bootstrap.written { out.push_str(&format!("wrote: {}\n", root.join(relative).display())); }
+            for relative in [hooks_rel, "AGENTS.md"] {
+                if bootstrap.outcomes.get(relative).copied() != Some("written") {
+                    out.push_str(&format!("SKIPPED {relative} — merge the complete returned proposal manually.\n"));
                 }
-                std::fs::write(&hooks_path, &hooks)
-                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-                out.push_str(&format!("wrote: {}\n", hooks_path.display()));
             }
-
-            let agents_path = engram_core::safe_join(&root, "AGENTS.md")
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            if agents_path.exists() {
-                // AGENTS.md is commonly hand-authored; never clobber it.
-                out.push_str(&format!(
-                    "SKIPPED {} (exists) — add the Engram section below to it manually.\n",
-                    agents_path.display()
-                ));
-                out.push_str(&format!(
-                    "\n## AGENTS.md section to merge\n```markdown\n{agents}\n```\n"
-                ));
-            } else {
-                std::fs::write(&agents_path, &agents)
-                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-                out.push_str(&format!("wrote: {}\n", agents_path.display()));
-            }
+            for note in bootstrap.notes { out.push_str(&format!("{note}\n")); }
+            out.push_str(&format!("\n## hooks block to merge\n```json\n{hooks}\n```\n"));
+            out.push_str(&format!("\n## AGENTS.md section to merge\n```markdown\n{agents}\n```\n"));
         } else {
             out.push_str(&format!(
                 "# Engram agent integration pack (write_files=false — contents below)\n\n\
@@ -6404,7 +6485,7 @@ fn change_set_paths(text: &str) -> Vec<String> {
     // The class also admits `~ @ +` (legal in build-output / scoped dirs) so
     // such paths aren't fragmented into slashless pieces the `keep` filter drops.
     let re = regex::Regex::new(
-        r"(?i)[\w./\\~@+-]*\.(?:aspx\.vb|ascx\.vb|asax\.vb|asmx\.vb|ashx\.vb|svc\.vb|master\.vb|aspx\.cs|ascx\.cs|asax\.cs|asmx\.cs|ashx\.cs|svc\.cs|master\.cs|dbml\.layout|aspx|ascx|asax|ashx|asmx|svc|master|vb|css|cs|ts|tsx|js|jsx|sqlproj|sql|config|vbhtml|cshtml|resx|html|yaml|yml|dbml|edmx)\b",
+        r"(?i)[\w./\\~@+-]*\.(?:aspx\.vb|ascx\.vb|asax\.vb|asmx\.vb|ashx\.vb|svc\.vb|master\.vb|aspx\.cs|ascx\.cs|asax\.cs|asmx\.cs|ashx\.cs|svc\.cs|master\.cs|dbml\.layout|aspx|ascx|asax|ashx|asmx|svc|master|vb|css|cs|ts|tsx|js|jsx|rs|pyi|py|go|java|cpp|cxx|cc|c|hpp|hxx|h|mlinc|ml|sqlproj|sql|config|vbhtml|cshtml|resx|html|yaml|yml|dbml|edmx)\b",
     )
     .expect("change_set_paths regex");
     let mut seen = HashSet::new();
@@ -9154,7 +9235,7 @@ fn render_change_set(
     sibling_section: Option<&str>,
     setting_prior: Option<(usize, usize)>,
     historical: &BTreeSet<String>,
-) -> (String, Vec<ChangeSetOmission>) {
+) -> (String, Vec<ChangeSetOmission>, serde_json::Value) {
     const LAYERS: &[(&str, &[&str])] = &[
         (
             "Server (VB / code-behind / markup)",
@@ -9419,7 +9500,17 @@ fn render_change_set(
             omissions.len()
         ));
     }
-    (s, omissions)
+    let view = serde_json::json!({
+        "detail": "markdown",
+        "files_total": n_primary + companion_total,
+        "files_shown": primary_shown + companions_shown,
+        "files_omitted_from_view": budget_cut,
+        "omissions_total": omissions.len(),
+        "omissions_shown": 0,
+        "omissions_omitted_from_view": omissions.len(),
+        "instruction": "Markdown reports the tail-cap omission count; individual omitted paths and their evidence require output_json=true with detail=full. Recovering a deferred response preserves its original view and caps."
+    });
+    (s, omissions, view)
 }
 
 impl Engram {
@@ -9507,7 +9598,9 @@ impl Engram {
         // Pinned HERE, before any retrieval arm runs, so the rows and the
         // fingerprints used to verify them describe the same snapshot. Read
         // after the arms it would silently accept a file re-indexed mid-request.
-        let snapshot_generation = self.get_active_generation(&req.project_id).await?;
+        let snapshot_runtime = self.ensure_project_runtime(&req.project_id).await?;
+        let (snapshot_generation, _source_snapshot) = self.pin_active_source_generation(
+            &req.project_id, &snapshot_runtime.search).await?;
         let detail = match req.detail.as_deref().unwrap_or("compact") {
             "compact" => "compact",
             "reconciled" => "reconciled",
@@ -9943,10 +10036,11 @@ impl Engram {
         let t_concept = std::time::Instant::now();
         let mut concept_hits = 0usize;
         let mut concept_failures: Vec<String> = Vec::new();
+        let mut concept_limitations = Vec::new();
         // External audit 2026-08-29 P0-3 (≤ 5 s): the per-concept footprints are
         // independent — run them concurrently (live: 3–4 × ~350 ms sequential).
         let footprints = futures::future::join_all(concepts.iter().map(|c| {
-            self.handle_get_concept_footprint(crate::models::GetConceptFootprintRequest {
+            self.concept_footprint(crate::models::GetConceptFootprintRequest {
                 project_id: req.project_id.clone(),
                 concept: c.clone(),
                 max_per_group: 12,
@@ -9956,8 +10050,11 @@ impl Engram {
         let mut broad_terms: Vec<String> = Vec::new();
         for (c, res) in concepts.iter().zip(footprints) {
             match res {
-                Ok(r) => {
-                    if let Some(t) = r.content.first().and_then(|x| x.as_text()) {
+                Ok(footprint) => {
+                    {
+                        if !footprint.source_paths_complete {
+                            concept_limitations.push(format!("'{c}': footprint source coverage is incomplete; display caps, lookup failures or missing source metadata may hide additional paths"));
+                        }
                         let from_gloss = gloss_concepts.contains(c);
                         let from_lexicon = lexicon_concepts.contains(c);
                         // Round-2 audit P0-3 (IDF / specificity): a term that
@@ -9965,12 +10062,12 @@ impl Engram {
                         // discriminate — its hits are labelled `broad` and are
                         // never evidence nor vector seeds. The author's explicit
                         // gloss is exempt.
-                        let total = footprint_total(&t.text);
+                        let total = footprint_total(&footprint.text).max(footprint.source_paths.len());
                         let broad = !from_gloss && total >= BROAD_CONCEPT_MIN_FILES;
                         if broad {
                             broad_terms.push(format!("'{c}' ({total} files)"));
                         }
-                        for p in change_set_paths(&t.text) {
+                        for p in footprint.source_paths {
                             if !engram_core::is_vendor_path(&p) {
                                 concept_hits += 1;
                                 if broad {
@@ -10021,6 +10118,9 @@ impl Engram {
                 broad_terms.join(", ")
             );
         }
+        if !concept_limitations.is_empty() {
+            cov.concept.mark_bounded("incomplete", concept_limitations.join("; "));
+        }
 
         // History arm — commit-message search surfaces the files of past similar
         // changes (the universal co-change signal; carries stories whose real
@@ -10044,6 +10144,7 @@ impl Engram {
                 as_of_rev: req.as_of_rev.clone(),
                 mode: Some("text".into()),
                 rerank: None,
+                rerank_timeout_ms: None,
                 limit: 12,
                 fts_mode: crate::models::FtsMode::Loose,
                 use_mmr: false,
@@ -10111,14 +10212,7 @@ impl Engram {
         // ONE full node scan for every pass of this call (audit D7) — cached per
         // project generation (external audit 2026-08-29 P0-3, ≤ 5 s): a repeat
         // call on an unchanged index performs no scan.
-        let gen_now: u64 = self
-            .state
-            .registry
-            .get_meta(&req.project_id, "active_generation")
-            .ok()
-            .flatten()
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0);
+        let gen_now = snapshot_generation;
         let cached: Option<NodeSnapshot> = self
             .state
             .node_snapshot_cache
@@ -11329,7 +11423,7 @@ impl Engram {
 
         cov.stages
             .insert("before_render".into(), t_all.elapsed().as_millis());
-        let (mut out, omissions) = render_change_set(
+        let (mut out, omissions, markdown_view) = render_change_set(
             req.story.trim(),
             &concepts,
             &prov,
@@ -11341,6 +11435,14 @@ impl Engram {
         );
         cov.stages
             .insert("render".into(), t_all.elapsed().as_millis());
+        let mut omission_reasons = BTreeMap::<String, usize>::new();
+        for omission in &omissions {
+            *omission_reasons.entry(omission.reason.clone()).or_default() += 1;
+        }
+        let omission_summary = serde_json::json!({
+            "candidate_rows_omitted": omissions.len(),
+            "by_reason": omission_reasons,
+        });
         if !asset_dependencies.is_empty() {
             out.push_str("\n## Asset delivery consumers and dependencies\n\n");
             out.push_str(
@@ -11804,6 +11906,7 @@ impl Engram {
                 "files": files,
                 "coverage": output_coverage,
                 "omissions": output_omissions,
+                "omission_summary": omission_summary,
                 "view": {
                     "detail": detail,
                     "files_total": files_total,
@@ -11851,6 +11954,8 @@ impl Engram {
             });
             let manifest = serde_json::json!({
                 "reconciliation": payload["reconciliation"],
+                "view": payload["view"],
+                "omission_summary": payload["omission_summary"],
                 "reconciliation_rows": reconciliation_rows,
                 "contract_checkpoint": payload["contract_checkpoint"],
                 "contract_checkpoint_identity": {
@@ -12662,11 +12767,7 @@ impl Engram {
         // The ranked file set is the single most freshness-sensitive output
         // in the funnel: a stale index proposes the wrong files. This was
         // the only primary funnel tool with no staleness signal.
-        let gen_ = self
-            .get_active_generation(&req.project_id)
-            .await
-            .unwrap_or(1);
-        out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
+        out.push_str(&self.freshness_footer(&req.project_id, snapshot_generation).await);
         out.push_str(&project_policy_sources.render_markdown());
         out.push_str("\n## Feature contract checkpoint\n\nPreserve this checkpoint when calling validate_feature_contract.\n\n```json\n");
         out.push_str(&serde_json::to_string_pretty(&contract_checkpoint)
@@ -12674,6 +12775,8 @@ impl Engram {
         out.push_str("\n```\n");
         let manifest = serde_json::json!({
             "reconciliation": reconciliation,
+            "view": markdown_view,
+            "omission_summary": omission_summary,
             "reconciliation_rows": reconciliation_rows,
             "contract_checkpoint": contract_checkpoint,
             "contract_checkpoint_identity": {

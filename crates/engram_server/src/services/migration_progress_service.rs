@@ -151,13 +151,20 @@ impl MigrationProgressStore {
             std::fs::create_dir_all(parent)?;
         }
         let db = engram_core::storage::open_database(db_path, engram_core::storage::DatabaseCache::Metadata)?;
-        // Eagerly create the table so later read transactions never see "table
-        // not found" errors on an empty database.
-        let wtx = db.begin_write()?;
-        {
-            let _ = wtx.open_table(MIGRATION_STATUS_TABLE)?;
+        // A ready schema needs typed validation, but no initialization commit.
+        let needs_init = {
+            let rtx = db.begin_read()?;
+            match rtx.open_table(MIGRATION_STATUS_TABLE) {
+                Ok(_) => false,
+                Err(redb::TableError::TableDoesNotExist(_)) => true,
+                Err(error) => return Err(error.into()),
+            }
+        };
+        if needs_init {
+            let wtx = db.begin_write()?;
+            { let _ = wtx.open_table(MIGRATION_STATUS_TABLE)?; }
+            wtx.commit()?;
         }
-        wtx.commit()?;
         Ok(Self { db: Arc::new(db) })
     }
 
@@ -524,6 +531,50 @@ fn progress_bar(pct: f64, width: usize) -> String {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn ready_store_reopen_preserves_migration_payload_and_file() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("migration_progress.redb");
+        let expected;
+        {
+            let store = MigrationProgressStore::open(&path).unwrap();
+            store.update_status("project", "Home.aspx", MigrationStatus::Blocked, "Awaiting auth conversion",
+                Some(75), Some("Authorization dependency"), vec!["Auth.vb".into()]).unwrap();
+            expected = serde_json::to_value(store.get_status("project", "Home.aspx").unwrap().unwrap()).unwrap();
+        }
+        let fingerprint = || {
+            let bytes = std::fs::read(&path).unwrap();
+            (bytes.len(), blake3::hash(&bytes))
+        };
+        let before = fingerprint();
+        for _ in 0..2 {
+            {
+                let store = MigrationProgressStore::open(&path).unwrap();
+                let loaded = store.get_status("project", "Home.aspx").unwrap().unwrap();
+                assert_eq!(serde_json::to_value(loaded).unwrap(), expected);
+            }
+            assert_eq!(fingerprint(), before, "Reading migration progress must preserve its closed file");
+        }
+    }
+
+    #[test]
+    fn ready_store_reopen_rejects_wrong_migration_table_type() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("migration_progress.redb");
+        let wrong = TableDefinition::<u64, u64>::new("migration_status");
+        {
+            let db = engram_core::storage::open_database(&path, engram_core::storage::DatabaseCache::Metadata).unwrap();
+            let wtx = db.begin_write().unwrap();
+            { wtx.open_table(wrong).unwrap().insert(7, 42).unwrap(); }
+            wtx.commit().unwrap();
+        }
+        let error = MigrationProgressStore::open(&path).err().expect("Wrong table type must be rejected");
+        assert!(matches!(error.downcast_ref::<redb::TableError>(), Some(redb::TableError::TableTypeMismatch { .. })));
+        let db = engram_core::storage::open_database(&path, engram_core::storage::DatabaseCache::Metadata).unwrap();
+        let rtx = db.begin_read().unwrap();
+        assert_eq!(rtx.open_table(wrong).unwrap().get(7).unwrap().unwrap().value(), 42);
+    }
 
     fn make_store() -> (MigrationProgressStore, tempfile::TempDir) {
         let dir = tempdir().unwrap();

@@ -407,8 +407,10 @@ pub struct RefreshCorporaRequest {
     pub project_id: String,
     /// Optional Azure DevOps PAT. When present (together with the three
     /// ado_* fields), a fourth refresh stage runs: incremental
-    /// code-review-history ingest (anti-pattern clusters + wontFix
-    /// suppressions) continuing from the registry's last_pr_id marker —
+    /// code-review-history ingest (anti-pattern clusters and review-disposition
+    /// evidence). Imported dispositions do not establish accepted exceptions or
+    /// automatically suppress findings. Ingestion continues from the registry's
+    /// last_pr_id marker —
     /// repeat calls only process new PRs. The token is never logged and
     /// never persisted; omitting it skips the stage (the corpora then
     /// rot until the next explicit ingest_code_review_history call).
@@ -428,6 +430,10 @@ pub struct RefreshCorporaRequest {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct UpdateProjectRequest {
+    /// Observe selected instruction references after a synchronous source
+    /// update. Draft proposals belong to pre_push_audit; no policy is written.
+    #[serde(default)]
+    pub instruction_maintenance: Option<crate::services::instruction_maintenance::MaintenanceRequest>,
     /// Re-extract these exact project-relative files even when unchanged.
     /// Files must belong to the normal indexed source set; maximum 100 paths.
     #[serde(default)]
@@ -445,6 +451,31 @@ pub struct UpdateProjectRequest {
 #[serde(deny_unknown_fields)]
 pub struct ProjectIdRequest {
     pub project_id: String,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ListRepoRulesRequest {
+    pub project_id: String,
+    /// Exact raw rows, all receipt claims and current unfiltered enforcement
+    /// observations. Read-only; does not adopt or approve any rule.
+    #[serde(default)]
+    pub ownership_inventory: bool,
+    /// Up to 16 explicit project-relative source candidates to fingerprint.
+    /// File existence, basename and matching text never establish ownership.
+    #[serde(default)]
+    pub source_paths: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ProjectHealthRequest {
+    pub project_id: String,
+    /// Optional bounded instruction-reference observation. Explicit paths and
+    /// an exact base commit are required; no repository-wide crawl is implied.
+    /// Draft proposals belong to pre_push_audit, not this read-only observation.
+    #[serde(default)]
+    pub instruction_maintenance: Option<crate::services::instruction_maintenance::MaintenanceRequest>,
 }
 
 /// P0-5: staleness visibility for agents.
@@ -722,6 +753,88 @@ pub struct IngestQualityGatesRequest {
     /// historical finding exports. Never infers ownership of legacy records.
     #[serde(default)]
     pub replace_source: bool,
+    /// Explicit ownership review instead of ingestion. Preview performs no writes
+    /// or runtime initialization; apply requires the exact preview plan hash.
+    #[serde(default)]
+    pub adoption: Option<LegacyRuleAdoptionRequest>,
+    /// Explicit reviewed lifecycle of existing adopted aliases. Mutually
+    /// exclusive with adoption and ingestion; never accepts changed policy.
+    #[serde(default)]
+    pub alias_review: Option<LegacyRuleAliasReviewRequest>,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum LegacyRuleAdoptionMode { Preview, Apply }
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum LegacyRuleAdoptionDecision { AdoptUnverified, TransferManual }
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LegacyRuleAdoptionBinding {
+    pub rule_id: String,
+    pub expected_raw_blake3: String,
+    /// Exact normalized parser entry ID returned by an adoption discovery preview.
+    pub source_rule_id: String,
+    pub decision: LegacyRuleAdoptionDecision,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LegacyRuleAdoptionRequest {
+    pub mode: LegacyRuleAdoptionMode,
+    pub expected_source_blake3: String,
+    /// Empty only for read-only source-entry discovery (128 entries per page).
+    #[serde(default)]
+    pub bindings: Vec<LegacyRuleAdoptionBinding>,
+    #[serde(default)]
+    pub source_entry_offset: usize,
+    /// Required on apply; must match the complete plan returned by preview.
+    #[serde(default)]
+    pub expected_plan_blake3: Option<String>,
+    /// Reference to the explicit ownership decision; adopting does not accept new policy text.
+    pub decision_ref: String,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
+pub enum LegacyAliasSourceExpectation {
+    Present { blake3: String },
+    /// Only a verified NotFound observation permits retirement of a missing source.
+    Missing,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
+pub enum LegacyAliasDisposition {
+    RebindOnlyUnchanged { source_rule_id: String },
+    Retire,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LegacyAliasReviewBinding {
+    pub rule_id: String,
+    pub expected_raw_blake3: String,
+    /// Optional additional assertion. Preview always derives and returns the
+    /// complete alias fingerprint, bound by the exact apply token and CAS.
+    #[serde(default)]
+    pub expected_alias_blake3: Option<String>,
+    pub disposition: LegacyAliasDisposition,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LegacyRuleAliasReviewRequest {
+    pub mode: LegacyRuleAdoptionMode,
+    pub source: LegacyAliasSourceExpectation,
+    pub bindings: Vec<LegacyAliasReviewBinding>,
+    #[serde(default)]
+    pub expected_plan_blake3: Option<String>,
+    /// Caller-supplied decision reference, not authenticated human authority.
+    pub decision_ref: String,
 }
 
 /// Stage-3 distillation: turn a raw finding corpus (CodeRabbit/SonarQube history)
@@ -760,6 +873,13 @@ fn default_distill_concurrency() -> usize {
 #[serde(deny_unknown_fields)]
 pub struct PrePushAuditRequest {
     pub project_id: String,
+    /// Optional instruction maintenance workflow. Returns complete, bounded
+    /// authored guidance and Git-before/disk-after evidence; an agent submits
+    /// grounded exact edits or no_change/conflict for stale-base/citation checks.
+    /// Review only: never writes authored policy. Do not combine with code,
+    /// diff_file, diff_file_blake3 or file_path retrieval inputs.
+    #[serde(default)]
+    pub instruction_maintenance: Option<crate::services::instruction_maintenance::MaintenanceRequest>,
     /// Proposed code or unified diff. Omit only for hash-bound diff_file input.
     #[serde(default)]
     pub code: String,
@@ -995,16 +1115,17 @@ pub struct WatchProjectRequest {
 pub struct RepairProjectRequest {
     pub project_id: String,
     /// Repair scope: "full" (default), "graph_only", "tantivy_only", "vector_only", "initialize_vectors".
-    /// initialize_vectors synchronously embeds all stored documents into an absent vector table, preserving text/history/knowledge and generation. Requires an embedding backend; refuses existing tables and wipe_and_reindex. May take several minutes. vector_only only purges superseded generations; it does not re-embed.
+    /// With wipe_and_reindex=false, full repair can recover a damaged or missing required source head using fresh staging, while preserving existing readers, history and knowledge. Recovery refuses incomplete storage/identity authority or an exceeded discovery budget.
+    /// initialize_vectors embeds stored documents into an absent vector table; vector_only rebuilds vectors for all retained namespaces. Both preserve stored text/history/knowledge and the source generation, require an embedding backend and may take several minutes. initialize_vectors refuses existing tables and wipe_and_reindex.
     #[serde(default = "default_repair_scope")]
     pub scope: String,
     /// Wipe all data and re-index from scratch. Default: false.
     #[serde(default)]
     pub wipe_and_reindex: bool,
-    /// Max git commits to replay during re-index (for history). Default: 500.
+    /// Max Git commits in the background history follow-up for ordinary full/graph_only repair. Default: 500; 0 skips the follow-up. Damaged-source recovery preserves existing history without replaying it.
     #[serde(default = "default_repair_max_commits")]
     pub max_commits: usize,
-    /// Index antipatterns during repair. Default: true.
+    /// Index antipatterns during the requested Git follow-up. Default: true; no effect when the follow-up is skipped.
     #[serde(default = "default_true")]
     pub index_antipatterns: bool,
 }
@@ -1713,12 +1834,19 @@ pub struct SearchHistoryRequest {
     /// commit messages, diffs and merged-PR records — for "when/why did X
     /// change" and identifiers. `auto` (default): precedent for prose of 8+
     /// words, text otherwise.
+    /// Without vectors, precedent mode uses a disclosed lexical baseline.
+    /// Projection providers are disclosed as degraded trigram ranking.
     #[serde(default)]
     pub mode: Option<String>,
     /// Precedent mode: rerank with the configured OpenRouter LLM. Default true;
     /// without an LLM the semantic order is returned and the output says so.
     #[serde(default)]
     pub rerank: Option<bool>,
+    /// Optional LLM reranking budget, 0..=90000 milliseconds. Zero skips the
+    /// LLM. This does not bound semantic baseline retrieval. Default: 90000.
+    #[serde(default)]
+    #[schemars(range(min = 0, max = 90000))]
+    pub rerank_timeout_ms: Option<u64>,
     /// Maximum results. `top_k` is accepted as an alias, matching the other
     /// search tools.
     #[serde(default = "default_limit_5", alias = "top_k")]
@@ -1749,9 +1877,14 @@ pub struct IngestReviewVerdictsRequest {
     /// never inferred from thread status alone.
     pub decision_makers: Vec<String>,
     /// `azure_devops` (default): live fetch of every review thread. `json_file`:
-    /// a JSONL file, one thread per line: {pr_id, pr_title, pr_author,
+    /// a JSONL file, at most 1024 input rows/4 MiB (256 KiB per thread), one
+    /// thread per line: {pr_id, pr_title, pr_author,
     /// pr_date, thread_id, status, file_path, line, comments: [{author, text,
-    /// likes}]}.
+    /// likes}]}. Complete exact JSONL lines (including unknown fields) or
+    /// canonical full supplied provider thread JSON are retained immutably.
+    /// Recovery uses get_review_decisions discussion selectors; no source
+    /// authenticity, accepted scope or as-of completeness is certified. The
+    /// project quota is 4096 total retained metadata/raw-body objects/128 MiB with no automatic eviction.
     #[serde(default)]
     pub source: Option<String>,
     /// For `json_file`: absolute or project-relative JSONL path.
@@ -1807,7 +1940,9 @@ pub struct GetReviewPrecedentsRequest {
     /// Maximum precedents returned (1-30). Default 8.
     #[serde(default = "default_review_precedents_limit")]
     pub limit: usize,
-    /// Only reviews of PRs below this id (leak-free replays).
+    /// Select indexed threads from PRs below this ID. This is not an as-of
+    /// decision replay: stored verdicts may contain later replies or re-ingestion
+    /// changes. Unversioned current authority and author aggregates are withheld.
     #[serde(default)]
     pub before_pr_id: Option<u64>,
 }
@@ -2022,12 +2157,19 @@ pub struct AstDependencyGraphRequest {
 #[serde(deny_unknown_fields)]
 pub struct IncrementalIndexingGcRequest {
     pub project_id: String,
-    /// Generation to GC up to (exclusive). If omitted: the GRAPH is purged below the
-    /// last full-index generation (incremental generations must never purge the
-    /// graph) and the search index against active_generation.
+    /// Physical generation cutoff (exclusive), at most the published generation.
+    /// The GRAPH cutoff is additionally bounded by the last full index so live
+    /// unchanged nodes survive. If omitted, use the published search generation
+    /// and the last full-index graph baseline.
     #[serde(default)]
     pub target_generation: Option<u64>,
-    /// Also compact LanceDB (reclaim tombstone space). Default: true.
+    /// Combine small native vector fragments, then attempt verified history
+    /// pruning. Default: true. Active native readers or unsupported/uncertain metadata
+    /// defer pruning; completed compaction alone does not reclaim old versions.
+    /// When versions are retired, an optional native cache refresh may discard
+    /// cached metadata/indexes at unchanged limits; its cost/result is reported
+    /// separately and subsequent native queries may need to refill caches.
+    /// SDK-cloned cache handles can remain; refresh is not proof of released memory.
     #[serde(default = "default_true")]
     pub compact_vectors: bool,
 }
@@ -2222,6 +2364,10 @@ impl AnalyzeRevertsRequest {
 }
 
 impl SearchHistoryRequest {
+    pub fn validated_rerank_timeout_ms(&self) -> anyhow::Result<u64> {
+        crate::services::change_card_service::checked_rerank_timeout_ms(self.rerank_timeout_ms)
+    }
+
     pub fn sanitized_limit(&self) -> usize {
         self.limit.clamp(1, MAX_SEARCH_RESULTS)
     }
@@ -2503,6 +2649,10 @@ pub struct GetCheckpointStatusRequest {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetMemoryBudgetRequest {
+    /// Optionally observe an already-cached project runtime. Does not open a
+    /// cold project, refresh its LRU position, or run cache maintenance.
+    #[serde(default)]
+    pub project_id: Option<String>,
     /// Return JSON output instead of human-readable text. Default: false.
     #[serde(default)]
     pub output_json: bool,
@@ -3547,8 +3697,11 @@ fn default_dead_method_limit() -> usize {
     100
 }
 
-/// Find methods with zero callers, no Handles clause, and no lifecycle hooks —
-/// candidates for dead code removal.
+/// Find methods with zero indexed incoming caller/dependency edges after common
+/// event/lifecycle exclusions. The query covers at most 10000 matching graph
+/// methods and returns a limited candidate subset. Runtime reachability remains
+/// unknown; dynamic, unresolved and external calls are not ruled out. These
+/// observations do not establish global unreachability or safe removal.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FindDeadMethodsRequest {
@@ -3556,7 +3709,8 @@ pub struct FindDeadMethodsRequest {
     /// Filter to a specific file path (partial match).
     #[serde(default)]
     pub file_path: Option<String>,
-    /// Maximum results. Default: 100.
+    /// Maximum returned candidates, not an exhaustive project total. Default:
+    /// 100; effective limits and partial inspection are reported in coverage.
     #[serde(default = "default_dead_method_limit")]
     pub limit: usize,
     /// Output as JSON instead of Markdown. Default: false.
@@ -3624,8 +3778,9 @@ pub struct ProduceClaudeMdRequest {
     /// content is never clobbered.
     #[serde(default)]
     pub write_to_disk: bool,
-    /// Maximum lines for the root `CLAUDE.md`. Default: 60 (the
-    /// attention-budget sweet spot). Hard floor: 20. Hard cap: 300.
+    /// Target line budget for the root `CLAUDE.md`, clamped to 20..300.
+    /// Complete policy sections and coverage notices can exceed the target;
+    /// authored exceptions are never cut off to meet a presentation budget.
     #[serde(default = "default_max_root_lines")]
     pub max_root_lines: usize,
     /// Opt in to overwriting an existing `CLAUDE.md` at the project
@@ -3659,21 +3814,11 @@ pub struct ProduceClaudeMdRequest {
     ///   new file contains only engram output.
     #[serde(default = "default_merge_mode")]
     pub merge_mode: String,
-    /// Opt into an LLM curation pass on the critical-rules section.
-    /// When true, the deterministic rules pipeline (noise filter +
-    /// keyword meta-clustering + render thresholds) runs first as
-    /// normal, then its ~8 candidates are handed to the configured
-    /// LLM backend with project context. The LLM drops edge-case
-    /// noise the keyword filter missed, merges near-duplicates the
-    /// clusterer split, and rewrites each surviving rule in
-    /// project-idiomatic voice using vocabulary from the evidence
-    /// (class names, framework helpers, etc).
-    ///
-    /// Results are cached in the registry keyed by
-    /// `blake3(candidates + project_context)` — reruns against the
-    /// same inputs spend zero tokens. On any LLM failure (no
-    /// backend, timeout, parse error) the deterministic baseline
-    /// is used untouched. Default: false.
+    /// Opt into cached LLM ranking of bounded learned/legacy evidence for
+    /// human review. Only validated original IDs are accepted. Authored rule
+    /// text, scope, authority and exceptions are never rewritten; unselected
+    /// and budget-excluded rows remain in the complete recovery ledger.
+    /// On invalid output or provider failure, deterministic ordering remains.
     #[serde(default)]
     pub use_llm: bool,
 }
@@ -3897,7 +4042,9 @@ pub struct PreCommitReviewRequest {
     /// Skip specific gates by name — e.g. `["temporal", "audit"]`. Gate
     /// names: `immune`, `blast_radius`, `style`, `temporal`, `state`,
     /// `audit`, `antipattern`, `new_file`, `test_coverage`,
-    /// `secret_leakage`.
+    /// `secret_leakage`, `repo_rules`, `guard_parity`, `unwired`,
+    /// `product_intent`, `sync_contract`, `co_added_family`,
+    /// `complexity_budget`, `added_conventions`, `ui_house_style`.
     #[serde(default)]
     pub skip_gates: Vec<String>,
     /// Return the structured JSON payload instead of rendered markdown.

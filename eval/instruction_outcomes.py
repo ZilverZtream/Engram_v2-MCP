@@ -10,6 +10,7 @@ Python blake3 is needed only to verify paged delivery in collect.
 import argparse
 import copy
 import contextlib
+import errno
 import hashlib
 import json
 import math
@@ -72,10 +73,18 @@ CASES = {
 
 
 class Client:
-    def __init__(self, binary, config, stderr):
+    def __init__(self, binary, config, stderr, *, creationflags=0, temporary_root=None, owned_processes=None):
         environment = dict(os.environ, ENGRAM_CONFIG_PATH=str(config), ENGRAM_MULTI_CLIENT="false", ENGRAM_LOG_FILE="")
+        if temporary_root is not None:
+            temporary_root = Path(temporary_root).resolve(strict=True)
+            if not temporary_root.is_dir():
+                raise ValueError("temporary_root must be an existing owned directory")
+            environment.update(TEMP=str(temporary_root), TMP=str(temporary_root))
         self.process = subprocess.Popen([str(binary), "--no-multi-client"], stdin=subprocess.PIPE,
-                                        stdout=subprocess.PIPE, stderr=stderr, text=True, encoding="utf-8", env=environment)
+                                        stdout=subprocess.PIPE, stderr=stderr, text=True, encoding="utf-8", env=environment,
+                                        creationflags=creationflags)
+        if owned_processes is not None:
+            owned_processes.append(self.process)
         self.messages = queue.Queue()
         self.counter = 0
         def read():
@@ -113,13 +122,23 @@ class Client:
         return "\n".join(item.get("text", "") for item in result.get("content", []))
 
     def close(self):
-        self.process.stdin.close()
         try:
-            self.process.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            self.process.terminate()
-            self.process.wait(timeout=10)
-        self.process.stdout.close()
+            try:
+                self.process.stdin.close()
+            except OSError as error:
+                # Windows may report EINVAL instead of EPIPE when the child
+                # closes its pipe. Neither may prevent owned-child reaping.
+                if error.errno != errno.EPIPE and not (os.name == "nt" and error.errno == errno.EINVAL):
+                    raise
+        finally:
+            try:
+                try:
+                    self.process.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    self.process.terminate()
+                    self.process.wait(timeout=10)
+            finally:
+                self.process.stdout.close()
 
 
 def collect(binary, evidence):

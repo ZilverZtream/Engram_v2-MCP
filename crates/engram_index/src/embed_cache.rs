@@ -16,6 +16,7 @@ use redb::{Database, TableDefinition};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock, Weak};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 const EMBED_CACHE: TableDefinition<&str, &[u8]> = TableDefinition::new("embed_cache_v1");
 
@@ -42,7 +43,8 @@ fn open_cache_db(path: &Path) -> anyhow::Result<Arc<Database>> {
     }
     databases.retain(|_, db| db.strong_count() > 0);
     let db = Arc::new(engram_core::storage::open_database(
-        &key, engram_core::storage::DatabaseCache::Embeddings,
+        &key,
+        engram_core::storage::DatabaseCache::Embeddings,
     )?);
     databases.insert(key, Arc::downgrade(&db));
     Ok(db)
@@ -106,6 +108,28 @@ pub struct CachedEmbedder {
     db: tokio::sync::OnceCell<Option<Arc<Database>>>,
     cache_path: PathBuf,
     tag: String,
+    counters: CacheCounters,
+}
+
+#[derive(Default)]
+struct CacheCounters {
+    hits: AtomicU64,
+    misses: AtomicU64,
+    provider_delegations: AtomicU64,
+    provider_texts: AtomicU64,
+    write_batches: AtomicU64,
+}
+
+/// Per-wrapper cumulative diagnostics. Delegations count attempted provider
+/// operations, including cancelled or local work; they are not a billing meter.
+/// Snapshots are observational, not a transaction across concurrent requests.
+#[derive(Debug, Clone, Copy, Default, serde::Serialize, serde::Deserialize)]
+pub struct EmbeddingCacheStats {
+    pub hits: u64,
+    pub misses: u64,
+    pub provider_delegations: u64,
+    pub provider_texts: u64,
+    pub write_batches: u64,
 }
 
 impl CachedEmbedder {
@@ -120,6 +144,7 @@ impl CachedEmbedder {
             db: tokio::sync::OnceCell::new_with(Some(Some(db))),
             cache_path: cache_path.to_path_buf(),
             tag,
+            counters: CacheCounters::default(),
         })
     }
 
@@ -132,6 +157,17 @@ impl CachedEmbedder {
             db: tokio::sync::OnceCell::new(),
             cache_path: cache_path.to_path_buf(),
             tag,
+            counters: CacheCounters::default(),
+        }
+    }
+
+    pub fn stats(&self) -> EmbeddingCacheStats {
+        EmbeddingCacheStats {
+            hits: self.counters.hits.load(Ordering::Relaxed),
+            misses: self.counters.misses.load(Ordering::Relaxed),
+            provider_delegations: self.counters.provider_delegations.load(Ordering::Relaxed),
+            provider_texts: self.counters.provider_texts.load(Ordering::Relaxed),
+            write_batches: self.counters.write_batches.load(Ordering::Relaxed),
         }
     }
 
@@ -169,15 +205,15 @@ impl CachedEmbedder {
             .map(|k| {
                 table.get(k.as_str()).ok().flatten().and_then(|v| {
                     let bytes = v.value();
-                    if bytes.len() % 4 != 0 {
+                    let dim = self.inner.dimension();
+                    if dim.checked_mul(4) != Some(bytes.len()) {
                         return None;
                     }
-                    let dim = self.inner.dimension();
                     let vecf: Vec<f32> = bytes
                         .chunks_exact(4)
                         .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
                         .collect();
-                    if vecf.len() == dim { Some(vecf) } else { None }
+                    if vecf.len() == dim && vecf.iter().all(|v| v.is_finite()) { Some(vecf) } else { None }
                 })
             })
             .collect()
@@ -205,6 +241,8 @@ impl CachedEmbedder {
         };
         if let Err(e) = write() {
             tracing::warn!("embed cache write failed (continuing uncached): {e:#}");
+        } else {
+            self.counters.write_batches.fetch_add(1, Ordering::Relaxed);
         }
     }
 }
@@ -215,8 +253,12 @@ impl Embedder for CachedEmbedder {
         self.initialize().await;
         let key = self.key(text);
         if let Some(hit) = self.get_many(std::slice::from_ref(&key)).pop().flatten() {
+            self.counters.hits.fetch_add(1, Ordering::Relaxed);
             return Ok(hit);
         }
+        self.counters.misses.fetch_add(1, Ordering::Relaxed);
+        self.counters.provider_delegations.fetch_add(1, Ordering::Relaxed);
+        self.counters.provider_texts.fetch_add(1, Ordering::Relaxed);
         let v = self.inner.embed(text).await?;
         self.put_many(&[(key, &v)]);
         Ok(v)
@@ -249,11 +291,15 @@ impl Embedder for CachedEmbedder {
             .enumerate()
             .filter_map(|(i, c)| c.is_none().then_some(i))
             .collect();
+        self.counters.hits.fetch_add((texts.len() - miss_idx.len()) as u64, Ordering::Relaxed);
+        self.counters.misses.fetch_add(miss_idx.len() as u64, Ordering::Relaxed);
         if miss_idx.is_empty() {
             return Ok(cached.into_iter().map(|c| c.expect("all hits")).collect());
         }
 
         let miss_texts: Vec<&str> = miss_idx.iter().map(|&i| texts[i]).collect();
+        self.counters.provider_delegations.fetch_add(1, Ordering::Relaxed);
+        self.counters.provider_texts.fetch_add(miss_texts.len() as u64, Ordering::Relaxed);
         let fresh = self
             .inner
             .embed_batch_cancellable(&miss_texts, cancel)
@@ -287,6 +333,190 @@ impl Embedder for CachedEmbedder {
 mod tests {
     use super::*;
     use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[test]
+    fn damaged_persisted_vectors_are_recomputed_and_the_repaired_value_is_reused() -> anyhow::Result<()> {
+        let owned = tempfile::tempdir()?;
+        let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
+        let result = runtime.block_on(async {
+            let provider = provider_response(
+                engram_ml::RemoteEmbedder::openai("fixture", "fixture", "https://offline.invalid/v1", 8)?, 0.25);
+            let cached = CachedEmbedder::new_lazy(provider.clone(), &owned.path().join("cache.redb"));
+            assert_eq!(cached.embed("source").await?, vec![0.25; 8]);
+            let mut damaged: Vec<Vec<u8>> = [f32::NAN, f32::INFINITY].iter()
+                .map(|invalid| [*invalid; 8].iter().flat_map(|value| value.to_le_bytes()).collect()).collect();
+            damaged.push(vec![0; 64 * 1024]);
+            for bytes in damaged {
+                {
+                    let db = cached.db.get().unwrap().as_ref().unwrap();
+                    let tx = db.begin_write()?;
+                    tx.open_table(EMBED_CACHE)?.insert(cached.key("source").as_str(), bytes.as_slice())?;
+                    tx.commit()?;
+                }
+                let before = provider.calls.load(Ordering::SeqCst);
+                assert_eq!(cached.embed("source").await?, vec![0.25; 8]);
+                assert_eq!(provider.calls.load(Ordering::SeqCst), before + 1,
+                    "A damaged persistent cell must be recomputed");
+                assert_eq!(cached.embed("source").await?, vec![0.25; 8]);
+                assert_eq!(provider.calls.load(Ordering::SeqCst), before + 1,
+                    "The repaired persistent value must avoid another provider call");
+            }
+            assert_eq!(cached.stats().hits, 3, "Only valid persisted vectors count as hits");
+            Ok::<_, anyhow::Error>(())
+        });
+        drop(runtime);
+        owned.close()?;
+        result
+    }
+
+    /// Exercise the shared cache with production provider identities while
+    /// keeping provider responses deterministic and avoiding network access.
+    struct ProviderResponse {
+        provider: Box<dyn Embedder>,
+        value: f32,
+        calls: AtomicUsize,
+    }
+
+    #[async_trait::async_trait]
+    impl Embedder for ProviderResponse {
+        async fn embed(&self, _text: &str) -> anyhow::Result<Embedding> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            Ok(vec![self.value; self.dimension()])
+        }
+
+        fn dimension(&self) -> usize {
+            self.provider.dimension()
+        }
+
+        fn model_tag(&self) -> String {
+            self.provider.model_tag()
+        }
+    }
+
+    fn provider_response(provider: impl Embedder + 'static, value: f32) -> Arc<ProviderResponse> {
+        Arc::new(ProviderResponse {
+            provider: Box::new(provider),
+            value,
+            calls: AtomicUsize::new(0),
+        })
+    }
+
+    #[tokio::test]
+    async fn shared_cache_never_substitutes_another_provider_or_embedding_space() {
+        use engram_ml::{OpenAIEmbedder, RemoteEmbedder};
+
+        let root = tempfile::tempdir().unwrap();
+        let cache = root.path().join("providers.redb");
+        let original = provider_response(
+            RemoteEmbedder::openai("shared-name", "key-a", "https://one.invalid/v1", 8).unwrap(),
+            0.1,
+        );
+        let cached = CachedEmbedder::new_lazy(original.clone(), &cache);
+        assert_eq!(
+            cached.embed("same source text").await.unwrap(),
+            vec![0.1; 8]
+        );
+
+        let alternatives: Vec<Box<dyn Embedder>> = vec![
+            Box::new(
+                RemoteEmbedder::openai("shared-name", "key-a", "https://two.invalid/v1", 8)
+                    .unwrap(),
+            ),
+            Box::new(
+                RemoteEmbedder::openai("shared-name", "key-a", "https://one.invalid/other", 8)
+                    .unwrap(),
+            ),
+            Box::new(
+                RemoteEmbedder::openai("shared-name", "key-a", "https://one.invalid:8443/v1", 8)
+                    .unwrap(),
+            ),
+            Box::new(
+                RemoteEmbedder::openai("other-model", "key-a", "https://one.invalid/v1", 8)
+                    .unwrap(),
+            ),
+            Box::new(
+                RemoteEmbedder::openai("shared-name", "key-a", "https://one.invalid/v1", 16)
+                    .unwrap(),
+            ),
+            Box::new(
+                RemoteEmbedder::openai(
+                    "shared-name",
+                    "key-a",
+                    "https://one.invalid/v1?deployment=other",
+                    8,
+                )
+                .unwrap(),
+            ),
+            Box::new(RemoteEmbedder::ollama("shared-name", "https://one.invalid/v1", 8).unwrap()),
+            Box::new(
+                OpenAIEmbedder::new("shared-name", "key-a", "https://one.invalid/v1", 8, 30)
+                    .unwrap(),
+            ),
+        ];
+        for (i, provider) in alternatives.into_iter().enumerate() {
+            let value = (i + 2) as f32;
+            let inner = Arc::new(ProviderResponse {
+                provider,
+                value,
+                calls: AtomicUsize::new(0),
+            });
+            let cached_alternative = CachedEmbedder::new_lazy(inner.clone(), &cache);
+            for _ in 0..2 {
+                assert_eq!(
+                    cached_alternative.embed("same source text").await.unwrap(),
+                    vec![value; inner.dimension()],
+                    "a different embedding space must not reuse another provider's vector",
+                );
+            }
+            assert_eq!(inner.calls.load(Ordering::SeqCst), 1);
+        }
+        assert_eq!(
+            cached.embed("same source text").await.unwrap(),
+            vec![0.1; 8]
+        );
+        assert_eq!(original.calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn credential_rotation_and_equivalent_endpoint_keep_cached_embeddings() {
+        use engram_ml::RemoteEmbedder;
+
+        let root = tempfile::tempdir().unwrap();
+        let cache = root.path().join("rotation.redb");
+        let original = provider_response(
+            RemoteEmbedder::openai("shared-name", "old-key", "https://one.invalid/v1", 8).unwrap(),
+            0.25,
+        );
+        let cached = CachedEmbedder::new_lazy(original.clone(), &cache);
+        assert_eq!(
+            cached.embed("unchanged source").await.unwrap(),
+            vec![0.25; 8]
+        );
+        drop(cached); // Reopen the persisted cache as a replacement client would.
+
+        let rotated = provider_response(
+            RemoteEmbedder::openai_with_timeout(
+                "shared-name",
+                "new-key",
+                "https://ONE.invalid:443/v1/",
+                8,
+                90,
+            )
+            .unwrap(),
+            0.75,
+        );
+        let replacement = CachedEmbedder::new_lazy(rotated.clone(), &cache);
+        assert_eq!(
+            replacement.embed("unchanged source").await.unwrap(),
+            vec![0.25; 8]
+        );
+        assert_eq!(original.calls.load(Ordering::SeqCst), 1);
+        assert_eq!(
+            rotated.calls.load(Ordering::SeqCst),
+            0,
+            "credential rotation must not re-embed unchanged text"
+        );
+    }
 
     struct CountingEmbedder {
         calls: AtomicUsize,

@@ -14,6 +14,42 @@ use tantivy::{DocAddress, Score};
 use tokio_util::sync::CancellationToken;
 
 mod vector_initialization;
+pub use mutation::CoordinationError;
+pub use vector_initialization::VectorInitializationRejection;
+mod commit;
+mod mutation;
+mod parse_work;
+mod vector_compaction;
+mod vector_history;
+pub use vector_history::{NativeHistoryPruneOutcome, NativeSessionRotationOutcome};
+#[cfg(feature = "vector")]
+mod native_store;
+#[cfg(test)]
+mod reader_experiment;
+#[cfg(test)]
+mod selected_source_recovery_tests;
+mod selected_source_membership;
+pub use selected_source_membership::SelectedSourceRevisionLookup;
+#[cfg(all(test, feature = "vector"))]
+mod retention_observation_tests;
+#[cfg(all(test, feature = "vector"))]
+mod native_delete_behavior_tests;
+#[cfg(all(test, feature = "vector"))]
+mod auto_cleanup_tests;
+#[cfg(all(test, feature = "vector"))]
+mod backend_contracts;
+mod snapshots;
+mod source_highwater;
+#[cfg(test)]
+mod source_highwater_tests;
+#[cfg(feature = "vector")]
+mod vector_epochs;
+#[cfg(feature = "vector")]
+mod vector_mutations;
+#[cfg(feature = "vector")]
+mod vector_reads;
+#[cfg(feature = "vector")]
+mod vector_recovery_scan;
 
 #[derive(Debug, Clone)]
 pub struct HybridQuery {
@@ -140,8 +176,53 @@ pub struct SearchDocSummary {
     pub path: String,
 }
 
+/// Keep one source snapshot and its collection protection for a whole operation.
+pub struct SourceSnapshotGuard {
+    _catalog: Arc<snapshots::Catalog>,
+    _snapshot: snapshots::Lease,
+    _project: String,
+    _generation: u64,
+}
+
+impl SourceSnapshotGuard {
+    /// Legacy source cannot authorize snapshot GC before migration.
+    pub fn is_managed(&self) -> bool {
+        matches!(self._snapshot.selection, snapshots::Selection::Files(_))
+    }
+}
+
+/// Protect a complete index mutation against concurrent vector recovery.
+#[must_use]
+#[derive(Clone)]
+pub struct IndexMutationGuard {
+    _permit: Arc<mutation::MutationPermit>,
+    _catalog: Arc<snapshots::Catalog>,
+    project: Option<Arc<str>>,
+}
+
+impl Drop for IndexMutationGuard {
+    fn drop(&mut self) {
+        // A surviving worker clone must not hide a caller's unwind.
+        if std::thread::panicking() {
+            self._catalog.mutations.mark_faulted();
+        }
+    }
+}
+
+/// Keep new mutations from overtaking an in-flight write or publication.
+#[must_use]
+pub struct IndexOperationGuard {
+    _permit: mutation::OperationPermit,
+    _catalog: Arc<snapshots::Catalog>,
+    _admission: Option<IndexMutationGuard>,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct IngestStats {
+    /// Captured with the produced source output, never inferred at publication.
+    pub source_extraction_identity: Option<crate::SourceExtractionIdentity>,
+    /// Actual parser used per VB file, including files with no symbols.
+    pub vb_parser_provenance: std::collections::HashMap<String, crate::vb_extractor::VbParserProvenance>,
     pub files: usize,
     pub chunks: usize,
     pub bytes: u64,
@@ -186,13 +267,25 @@ const WRITER_LOCK_WAIT: std::time::Duration = std::time::Duration::from_secs(60)
 pub struct BulkWriterGuard {
     writer: Option<tantivy::IndexWriter<tantivy::TantivyDocument>>,
     docs_since_commit: usize,
+    lexical_context: commit::LexicalContext,
+    _mutation: IndexMutationGuard,
+    #[cfg(feature = "vector")]
+    vector_preflight: Option<(Arc<vector_epochs::Routes>, Arc<dyn engram_ml::Embedder>)>,
+    #[cfg(feature = "vector")]
+    _bootstrap: Option<tokio::sync::OwnedMutexGuard<()>>,
+    #[cfg(all(test, feature = "vector"))]
+    finalize_pause: Option<Arc<commit::FinalizePause>>,
+    // Last field: the writer, bootstrap and mutation must finish dropping
+    // before the final payload lane lifetime can be released.
+    commit: commit::Guard,
 }
 
 impl BulkWriterGuard {
     /// Commit the current batch. Cheap (no merge wait).
     pub fn commit(&mut self) -> anyhow::Result<()> {
+        self.commit.ensure_active()?;
         if let Some(ref mut w) = self.writer {
-            w.commit()?;
+            self.lexical_context.commit(w)?;
             self.docs_since_commit = 0;
         }
         Ok(())
@@ -200,6 +293,7 @@ impl BulkWriterGuard {
 
     /// Commit if `docs_since_commit >= threshold`.
     pub fn maybe_commit(&mut self, threshold: usize) -> anyhow::Result<()> {
+        self.commit.ensure_active()?;
         if self.docs_since_commit >= threshold {
             self.commit()?;
         }
@@ -209,9 +303,11 @@ impl BulkWriterGuard {
     /// Final shutdown: commit + wait for all merge threads.
     /// This is the expensive call — run it once at the end.
     pub fn finish(mut self) -> anyhow::Result<()> {
-        if let Some(mut w) = self.writer.take() {
-            w.commit()?;
-            w.wait_merging_threads()?;
+        self.commit.ensure_active()?;
+        if let Some(w) = self.writer.take() {
+            let mut context = self.lexical_context.clone();
+            context.operation = "bulk_finish";
+            context.finish(w)?;
         }
         Ok(())
     }
@@ -219,10 +315,18 @@ impl BulkWriterGuard {
 
 impl Drop for BulkWriterGuard {
     fn drop(&mut self) {
-        if let Some(mut w) = self.writer.take() {
+        #[cfg(all(test, feature = "vector"))]
+        if self.writer.is_some() {
+            if let Some(pause) = &self.finalize_pause {
+                pause.wait();
+            }
+        }
+        if let Some(w) = self.writer.take() {
             // Best-effort commit + merge wait on cancel/panic.
-            if w.commit().is_ok() {
-                let _ = w.wait_merging_threads();
+            let mut context = self.lexical_context.clone();
+            context.operation = "bulk_drop";
+            if let Err(error) = context.finish(w) {
+                tracing::warn!("Dropped lexical batch finalization failed: {error:#}");
             }
         }
     }
@@ -239,16 +343,51 @@ pub struct StoredChunk {
     pub content: String,
 }
 
+#[derive(Clone)]
 pub struct HybridSearchEngine {
+    snapshots: Arc<snapshots::Catalog>,
+    // Only explicit, short-lived derived engines carry admission. Never cache
+    // them: retaining this capability deliberately excludes recovery.
+    admission: Option<IndexMutationGuard>,
+    parse_limiter: Option<Arc<tokio::sync::Semaphore>>,
+    // The caller's complete admitted VB inventory, including zero-symbol
+    // sources. Only operation-scoped engines carry this compilation input.
+    vb_source_inventory: Option<Arc<Vec<PathBuf>>>,
+    #[cfg(test)]
+    parse_pause: Option<Arc<parse_work::ParsePause>>,
+    #[cfg(test)]
+    parse_preparation_pause: Option<Arc<parse_work::ParsePause>>,
+    #[cfg(test)]
+    parse_admission_probe: Option<Arc<parse_work::AdmissionProbe>>,
     tantivy_index: tantivy::Index,
     fields: Fields,
     extractor: Arc<crate::parsing::SymbolExtractor>,
     #[cfg(feature = "vector")]
     embedder: Arc<dyn engram_ml::Embedder>,
     #[cfg(feature = "vector")]
+    embedding_cache: Option<Arc<crate::embed_cache::CachedEmbedder>>,
+    #[cfg(feature = "vector")]
     query_embedder: Arc<dyn engram_ml::Embedder>,
     #[cfg(feature = "vector")]
-    lance_conn: lancedb::Connection,
+    native_store: Arc<native_store::Store>,
+    #[cfg(feature = "vector")]
+    vector_routes: Arc<vector_epochs::Routes>,
+    #[cfg(all(test, feature = "vector"))]
+    native_write_pause: Option<Arc<vector_mutations::NativeWritePause>>,
+    #[cfg(all(test, feature = "vector"))]
+    native_read_pause: Option<Arc<vector_reads::NativeReadPause>>,
+    #[cfg(all(test, feature = "vector"))]
+    history_prune_pause: Option<Arc<vector_history::HistoryPrunePause>>,
+    #[cfg(all(test, feature = "vector"))]
+    history_preflight_work_limit: Option<usize>,
+    #[cfg(all(test, feature = "vector"))]
+    commit_waiting: Option<Arc<tokio::sync::Notify>>,
+    #[cfg(all(test, feature = "vector"))]
+    native_commit_completed: Option<Arc<tokio::sync::Notify>>,
+    #[cfg(all(test, feature = "vector"))]
+    bulk_finalize_pause: Option<Arc<commit::FinalizePause>>,
+    #[cfg(all(test, feature = "vector"))]
+    bootstrap_failure: Option<Arc<std::sync::atomic::AtomicU8>>,
     embedding_backend: String,
     _tantivy_dir: PathBuf,
     _lance_dir: PathBuf,
@@ -260,6 +399,114 @@ pub struct HybridSearchEngine {
 }
 
 impl HybridSearchEngine {
+    /// Non-atomic in-memory observations. Does not open a table, pin a snapshot
+    /// or drain native cache tasks; the latter would perturb the measurement.
+    pub fn retention_observation(&self, project: &str) -> serde_json::Value {
+        #[cfg(feature = "vector")]
+        let native = self.native_store.observation();
+        #[cfg(not(feature = "vector"))]
+        let native = serde_json::json!({"status":"not_compiled"});
+        #[cfg(feature = "vector")]
+        let routes = self.vector_routes.retention_observation(project);
+        #[cfg(not(feature = "vector"))]
+        let routes = serde_json::json!({"status":"not_compiled"});
+        serde_json::json!({"source_catalog":self.snapshots.retention_observation(project),
+            "vector_routes":routes,"native_cache":native,
+            "observation":"Independent non-atomic component observations; busy components are unavailable, not zero. No stores opened, readers pinned or cache maintenance performed."})
+    }
+
+    fn lexical_context(&self, operation: &'static str, project: Option<&str>, generation_hint: Option<u64>) -> commit::LexicalContext {
+        commit::LexicalContext { directory: self._tantivy_dir.clone(), project: project.map(Arc::from), generation_hint, operation }
+    }
+    /// Only explicit full-text-only configuration disables vector operations.
+    /// Empty retains the historical default ProjectionEmbedder contract.
+    fn is_lexical_only(&self) -> bool {
+        self.embedding_backend == "fts_only"
+    }
+
+    pub fn begin_operation(&self) -> anyhow::Result<IndexOperationGuard> {
+        let permit = match &self.admission {
+            Some(admission) => self
+                .snapshots
+                .mutations
+                .operation_within(&admission._permit)?,
+            None => self.snapshots.mutations.try_operation()?,
+        };
+        Ok(IndexOperationGuard {
+            _permit: permit,
+            _catalog: self.snapshots.clone(),
+            _admission: self.admission.clone(),
+        })
+    }
+
+    /// Retain until the complete mutation, including source publication, ends.
+    /// The catalog keeps both process exclusion and shared coordination alive.
+    pub fn begin_mutation(&self) -> anyhow::Result<IndexMutationGuard> {
+        if let Some(admission) = &self.admission {
+            self.snapshots
+                .mutations
+                .validate_mutation(&admission._permit)?;
+            return Ok(admission.clone());
+        }
+        Ok(IndexMutationGuard {
+            _permit: Arc::new(self.snapshots.mutations.try_mutation()?),
+            _catalog: self.snapshots.clone(),
+            project: None,
+        })
+    }
+
+    pub fn begin_project_mutation(&self, project: &str) -> anyhow::Result<IndexMutationGuard> {
+        let mut admission = self.begin_mutation()?;
+        anyhow::ensure!(
+            admission
+                .project
+                .as_deref()
+                .is_none_or(|bound| bound == project),
+            "Mutation capability belongs to another project"
+        );
+        admission.project = Some(Arc::from(project));
+        Ok(admission)
+    }
+
+    /// Derive a temporary engine that reuses this exact admitted flow. Backend
+    /// handles are shared; this does not reopen stores or confer write ordering.
+    pub fn with_mutation(&self, admission: &IndexMutationGuard) -> anyhow::Result<Self> {
+        anyhow::ensure!(
+            Arc::ptr_eq(&self.snapshots, &admission._catalog),
+            "Mutation capability belongs to another index root"
+        );
+        self.snapshots
+            .mutations
+            .validate_mutation(&admission._permit)?;
+        if let Some(existing) = &self.admission {
+            anyhow::ensure!(
+                Arc::ptr_eq(&existing._permit, &admission._permit)
+                    && existing
+                        .project
+                        .as_deref()
+                        .is_none_or(|project| admission.project.as_deref() == Some(project)),
+                "Cannot replace an existing mutation scope"
+            );
+        }
+        let mut scoped = self.clone();
+        scoped.admission = Some(admission.clone());
+        Ok(scoped)
+    }
+
+    /// Derive a project-bound admitted view of the same bulk operation.
+    /// Flush payloads with `embed_and_upsert_vectors_with_writer`; this view
+    /// carries admission only and does not bypass ordered write ownership.
+    /// The returned engine owns admission beyond `writer.finish()`. Drop it
+    /// when the flow ends; do not retain it in a cache or long-lived actor.
+    pub fn with_bulk_writer(
+        &self,
+        writer: &BulkWriterGuard,
+        project: &str,
+    ) -> anyhow::Result<Self> {
+        let scoped = self.with_mutation(&writer._mutation)?;
+        let admission = scoped.begin_project_mutation(project)?;
+        scoped.with_mutation(&admission)
+    }
     pub async fn new(
         tantivy_dir: PathBuf,
         lance_dir: PathBuf,
@@ -275,10 +522,19 @@ impl HybridSearchEngine {
         memory_budget: Option<Arc<MemoryBudget>>,
     ) -> anyhow::Result<Self> {
         let embedding_backend = cfg.embedding_backend.clone();
+        // Refuse a foreign source owner before opening either search store or
+        // constructing caches. A held source view retains this admission lock.
+        std::fs::create_dir_all(&tantivy_dir)?;
+        let snapshots = snapshots::Catalog::shared(
+            tantivy_dir.join("source-snapshots"),
+            memory_budget.clone(),
+        )?;
         let (index, fields) = open_or_create(&tantivy_dir)?;
 
         #[cfg(feature = "vector")]
-        let lance_conn = crate::vector::connect(&lance_dir).await?;
+        let (lance_conn, native_session) = crate::vector::connect_observed(&lance_dir).await?;
+        #[cfg(feature = "vector")]
+        let native_store = Arc::new(native_store::Store::new(lance_conn, native_session));
 
         // EMB2: fail-fast if the configured remote embedder cannot be built.
         // Silent fallback to ProjectionEmbedder would degrade semantic search
@@ -290,8 +546,9 @@ impl HybridSearchEngine {
             // same fail-fast builder as openai/remote.
             "openai" | "remote" | "ollama" => build_embedder_for_backend(cfg)?,
             "local" | "candle" => Arc::new(engram_ml::embed::LocalEmbedder),
-            // "fts_only" and empty-string (Config::default()) signal that vector
-            // embeddings are intentionally disabled. Use a no-op stub embedder.
+            // Empty is the historical default projection provider. Its vectors
+            // remain enabled and honestly labelled degraded, not semantic.
+            // Explicit fts_only keeps a typed placeholder but disables vectors.
             // EMB2: any OTHER string is a misconfiguration — fail fast rather than
             // silently degrading to stub behaviour.
             "fts_only" | "" => Arc::new(engram_ml::embed::ProjectionEmbedder::new(
@@ -320,29 +577,62 @@ impl HybridSearchEngine {
         // enough that caching only adds I/O. Cache-open failure falls back to
         // the uncached embedder (warn, never fail engine construction).
         #[cfg(feature = "vector")]
-        let embedder: Arc<dyn engram_ml::Embedder> =
+        let (embedder, embedding_cache): (Arc<dyn engram_ml::Embedder>, _) =
             if matches!(embedding_backend.as_str(), "openai" | "remote" | "ollama")
                 && !cfg.data_dir.as_os_str().is_empty()
             {
                 let cache_path = cfg.data_dir.join("embed_cache.redb");
-                Arc::new(crate::embed_cache::CachedEmbedder::new_lazy(
+                let cached = Arc::new(crate::embed_cache::CachedEmbedder::new_lazy(
                     embedder,
                     &cache_path,
-                ))
+                ));
+                (cached.clone(), Some(cached))
             } else {
-                embedder
+                (embedder, None)
             };
 
+        #[cfg(feature = "vector")]
+        let vector_routes = snapshots.bind_vectors(&lance_dir)?;
         Ok(Self {
+            snapshots,
+            admission: None,
+            parse_limiter: None,
+            vb_source_inventory: None,
+            #[cfg(test)]
+            parse_pause: None,
+            #[cfg(test)]
+            parse_preparation_pause: None,
+            #[cfg(test)]
+            parse_admission_probe: None,
             tantivy_index: index,
             fields,
             extractor: Arc::new(crate::parsing::SymbolExtractor::new()),
             #[cfg(feature = "vector")]
             embedder,
             #[cfg(feature = "vector")]
+            embedding_cache,
+            #[cfg(feature = "vector")]
             query_embedder,
             #[cfg(feature = "vector")]
-            lance_conn,
+            native_store,
+            #[cfg(feature = "vector")]
+            vector_routes,
+            #[cfg(all(test, feature = "vector"))]
+            native_write_pause: None,
+            #[cfg(all(test, feature = "vector"))]
+            native_read_pause: None,
+            #[cfg(all(test, feature = "vector"))]
+            history_prune_pause: None,
+            #[cfg(all(test, feature = "vector"))]
+            history_preflight_work_limit: None,
+            #[cfg(all(test, feature = "vector"))]
+            commit_waiting: None,
+            #[cfg(all(test, feature = "vector"))]
+            native_commit_completed: None,
+            #[cfg(all(test, feature = "vector"))]
+            bulk_finalize_pause: None,
+            #[cfg(all(test, feature = "vector"))]
+            bootstrap_failure: None,
             embedding_backend,
             _tantivy_dir: tantivy_dir,
             _lance_dir: lance_dir,
@@ -356,7 +646,232 @@ impl HybridSearchEngine {
     /// responses so agents know whether "semantic" hits are real embeddings
     /// or the default trigram-projection stub.
     pub fn semantic_quality(&self) -> SemanticQuality {
-        semantic_quality_for_backend(&self.embedding_backend)
+        #[cfg(feature = "vector")]
+        { semantic_quality_for_backend(&self.embedding_backend) }
+        #[cfg(not(feature = "vector"))]
+        { SemanticQuality::Off }
+    }
+
+    /// Attach source-only Registry authority without pinning any view.
+    /// The catalog holds only a Weak reference; reader guards cannot keep the
+    /// Registry database or its process lock alive.
+    pub fn bind_source_registry(&self, registry: &Arc<engram_core::Registry>) -> anyhow::Result<()> {
+        self.snapshots.bind_source_registry(registry)
+    }
+
+    pub fn pin_source_generation(
+        &self,
+        project_id: &str,
+        generation: u64,
+    ) -> anyhow::Result<SourceSnapshotGuard> {
+        Ok(SourceSnapshotGuard {
+            _catalog: self.snapshots.clone(),
+            _snapshot: self.snapshots.pin_fresh(project_id, "memory", generation)?,
+            _project: project_id.to_owned(),
+            _generation: generation,
+        })
+    }
+
+    /// Validate an already-selected capability without creating a fresh pin.
+    /// Retired views remain usable only through the original held guard.
+    pub fn validate_source_snapshot_guard(
+        &self,
+        project_id: &str,
+        generation: u64,
+        view: &SourceSnapshotGuard,
+    ) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            Arc::ptr_eq(&view._catalog, &self.snapshots)
+                && view._project == project_id
+                && view._generation == generation,
+            "Selected source view does not match this project, generation or index root"
+        );
+        Ok(())
+    }
+
+    /// A missing authoritative head cannot be interpreted as legacy generation
+    /// one once a managed source snapshot directory exists.
+    pub fn has_managed_source_snapshots(&self, project_id: &str) -> anyhow::Result<bool> {
+        self.snapshots.managed(project_id, "memory")
+    }
+
+    /// Bounded metadata-only observation for cold projects. Does not open an
+    /// index, acquire a process lock or create a catalog directory.
+    pub fn source_snapshot_directory_exists(
+        tantivy_dir: &Path,
+        project_id: &str,
+    ) -> anyhow::Result<bool> {
+        snapshots::Catalog::new(tantivy_dir.join("source-snapshots"), None)
+            .managed(project_id, "memory")
+    }
+
+    /// Stage a source view by reference, without copying unchanged chunks or
+    /// vectors. Publication remains the caller's final registry operation.
+    pub async fn prepare_source_snapshot(
+        &self,
+        project_id: &str,
+        old_generation: u64,
+        new_generation: u64,
+        changed: &[RelPath],
+        deleted: &[RelPath],
+        cancel: &CancellationToken,
+    ) -> anyhow::Result<()> {
+        let mutation = self.begin_project_mutation(project_id)?;
+        let scoped = self.with_mutation(&mutation)?;
+        let mut commit = scoped.acquire_commit(cancel).await?;
+        anyhow::ensure!(
+            !cancel.is_cancelled(),
+            "source snapshot preparation cancelled"
+        );
+        let previous = scoped.snapshots.pin(project_id, "memory", old_generation)?;
+        let legacy_paths = if matches!(previous.selection, snapshots::Selection::Legacy(_)) {
+            scoped
+                .paths_in_generation(project_id, Some("memory"), old_generation)?
+                .into_iter()
+                .collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        };
+        scoped.snapshots.prepare(
+            project_id,
+            "memory",
+            old_generation,
+            new_generation,
+            &legacy_paths,
+            &changed
+                .iter()
+                .map(|path| path.as_str().to_owned())
+                .collect::<Vec<_>>(),
+            &deleted
+                .iter()
+                .map(|path| path.as_str().to_owned())
+                .collect::<Vec<_>>(),
+        )?;
+        scoped
+            .clear_staged_source_generation(project_id, new_generation, cancel, &mut commit)
+            .await
+    }
+
+    pub async fn prepare_full_source_snapshot(
+        &self,
+        project_id: &str,
+        old_generation: u64,
+        new_generation: u64,
+        paths: &[RelPath],
+        cancel: &CancellationToken,
+    ) -> anyhow::Result<()> {
+        let mutation = self.begin_project_mutation(project_id)?;
+        let scoped = self.with_mutation(&mutation)?;
+        let mut commit = scoped.acquire_commit(cancel).await?;
+        anyhow::ensure!(
+            !cancel.is_cancelled(),
+            "source snapshot preparation cancelled"
+        );
+        scoped.snapshots.prepare_full(
+            project_id,
+            "memory",
+            old_generation,
+            new_generation,
+            &paths
+                .iter()
+                .map(|path| path.as_str().to_owned())
+                .collect::<Vec<_>>(),
+        )?;
+        scoped
+            .clear_staged_source_generation(project_id, new_generation, cancel, &mut commit)
+            .await
+    }
+
+    async fn clear_staged_source_generation(
+        &self,
+        project_id: &str,
+        new_generation: u64,
+        cancel: &CancellationToken,
+        _commit: &mut commit::Guard,
+    ) -> anyhow::Result<()> {
+        // A failed attempt may have left chunks at the same unpublished number.
+        // Clear that exact physical generation, never a selected older revision.
+        #[cfg(feature = "vector")]
+        {
+            let _vector_epoch = self.pin_vector_epoch(project_id)?;
+            self.ensure_managed_vector_table_present(&_vector_epoch)?;
+            let name = _vector_epoch.table.clone();
+            if self
+                .native_store.capture()?.connection
+                .table_names()
+                .execute()
+                .await?
+                .contains(&name)
+            {
+                let table = self.open_vector_epoch_table(&_vector_epoch).await?;
+                self.delete_vector_rows(
+                    _commit,
+                    &table,
+                    format!("namespace = 'memory' AND generation = {}", crate::sql_literals::u64_literal(new_generation)),
+                )
+                .await?;
+            }
+        }
+        let query = BooleanQuery::new(vec![
+            (
+                Occur::Must,
+                Box::new(TermQuery::new(
+                    Term::from_field_text(self.fields.project_id, project_id),
+                    IndexRecordOption::Basic,
+                )) as Box<dyn tantivy::query::Query>,
+            ),
+            (
+                Occur::Must,
+                Box::new(TermQuery::new(
+                    Term::from_field_text(self.fields.namespace, "memory"),
+                    IndexRecordOption::Basic,
+                )),
+            ),
+            (
+                Occur::Must,
+                Box::new(TermQuery::new(
+                    Term::from_field_u64(self.fields.generation, new_generation),
+                    IndexRecordOption::Basic,
+                )),
+            ),
+        ]);
+        let reader = self.tantivy_index.reader()?;
+        if reader
+            .searcher()
+            .search(&query, &tantivy::collector::Count)?
+            != 0
+        {
+            let _allocation = self
+                .memory_budget
+                .as_ref()
+                .map(|budget| {
+                    AllocationGuard::try_new(
+                        budget,
+                        self.tantivy_writer_memory as u64,
+                        Subsystem::Tantivy,
+                        "abandoned source snapshot cleanup",
+                    )
+                })
+                .transpose()?;
+            let mut writer = self
+                .acquire_writer("abandoned source snapshot cleanup", cancel)
+                .await?;
+            writer.delete_query(Box::new(query))?;
+            let lexical_context = self.lexical_context("abandoned_source_cleanup", Some(project_id), Some(new_generation));
+            let lexical_opstamp = lexical_context.commit(&mut writer)?;
+            lexical_context.wait_merges(writer, lexical_opstamp)?;
+        }
+        anyhow::ensure!(
+            !cancel.is_cancelled(),
+            "source snapshot preparation cancelled"
+        );
+        Ok(())
+    }
+
+    pub fn seal_source_snapshot(&self, project_id: &str, generation: u64) -> anyhow::Result<()> {
+        let mutation = self.begin_project_mutation(project_id)?;
+        let scoped = self.with_mutation(&mutation)?;
+        scoped.snapshots.seal(project_id, "memory", generation)
     }
 
     /// Create a long-lived Tantivy writer for bulk indexing.
@@ -364,10 +879,61 @@ impl HybridSearchEngine {
     /// The returned guard commits + waits on drop (cancel-safe).
     /// Call `write_docs_to_writer` to add documents, then `finish()`.
     pub fn create_bulk_writer(&self) -> anyhow::Result<BulkWriterGuard> {
+        let mutation = self.begin_mutation()?;
+        let scoped = self.with_mutation(&mutation)?;
+        let commit = scoped.try_commit()?;
+        #[cfg(feature = "vector")]
+        let bootstrap = if self.is_lexical_only() {
+            Some(self.vector_routes.try_lexical_only()?)
+        } else {
+            None
+        };
         let writer = self.acquire_writer_blocking("bulk writer")?;
         Ok(BulkWriterGuard {
             writer: Some(writer),
             docs_since_commit: 0,
+            lexical_context: self.lexical_context("bulk_periodic_commit", None, None),
+            _mutation: mutation,
+            #[cfg(feature = "vector")]
+            vector_preflight: (!self.is_lexical_only())
+                .then(|| (self.vector_routes.clone(), self.embedder.clone())),
+            #[cfg(feature = "vector")]
+            _bootstrap: bootstrap,
+            #[cfg(all(test, feature = "vector"))]
+            finalize_pause: self.bulk_finalize_pause.clone(),
+            commit,
+        })
+    }
+
+    pub async fn create_bulk_writer_async(
+        &self,
+        project: &str,
+        cancel: &CancellationToken,
+    ) -> anyhow::Result<BulkWriterGuard> {
+        let mutation = self.begin_project_mutation(project)?;
+        let scoped = self.with_mutation(&mutation)?;
+        let commit = scoped.acquire_commit(cancel).await?;
+        #[cfg(feature = "vector")]
+        let bootstrap = if scoped.is_lexical_only() {
+            Some(scoped.vector_routes.lexical_only().await)
+        } else {
+            scoped.vector_write_table(project).await?;
+            None
+        };
+        let writer = scoped.acquire_writer("bulk writer", cancel).await?;
+        Ok(BulkWriterGuard {
+            writer: Some(writer),
+            docs_since_commit: 0,
+            lexical_context: scoped.lexical_context("bulk_periodic_commit", Some(project), None),
+            _mutation: mutation,
+            #[cfg(feature = "vector")]
+            vector_preflight: (!scoped.is_lexical_only())
+                .then(|| (scoped.vector_routes.clone(), scoped.embedder.clone())),
+            #[cfg(feature = "vector")]
+            _bootstrap: bootstrap,
+            #[cfg(all(test, feature = "vector"))]
+            finalize_pause: self.bulk_finalize_pause.clone(),
+            commit,
         })
     }
 
@@ -463,6 +1029,21 @@ impl HybridSearchEngine {
         project_id: &str,
         docs: &[IndexDoc],
     ) -> anyhow::Result<usize> {
+        guard.commit.ensure_active()?;
+        anyhow::ensure!(
+            guard
+                ._mutation
+                .project
+                .as_deref()
+                .is_none_or(|project| project == project_id),
+            "Bulk writer mutation capability belongs to another project"
+        );
+        #[cfg(feature = "vector")]
+        if !docs.is_empty() {
+            if let Some((routes, provider)) = &guard.vector_preflight {
+                routes.validate_bulk_write(project_id, provider)?;
+            }
+        }
         let writer = guard
             .writer
             .as_ref()
@@ -517,30 +1098,75 @@ impl HybridSearchEngine {
     /// This is the vector-only portion of `index_docs`, extracted so bulk
     /// callers can batch vector writes on a different cadence than Tantivy.
     /// Does nothing when the `vector` feature is disabled or backend is `fts_only`.
+    /// While holding a bulk writer, use `embed_and_upsert_vectors_with_writer`
+    /// instead so the batch uses its existing write ownership.
     pub async fn embed_and_upsert_vectors(
         &self,
         project_id: &str,
         docs: &[IndexDoc],
         cancel: &CancellationToken,
     ) -> anyhow::Result<()> {
-        self.embed_and_upsert_vectors_to_table(project_id, docs, cancel, None).await
+        let mutation = self.begin_project_mutation(project_id)?;
+        let scoped = self.with_mutation(&mutation)?;
+        if docs.is_empty() || cancel.is_cancelled() {
+            return Ok(());
+        }
+        let mut commit = scoped.acquire_commit(cancel).await?;
+        scoped
+            .embed_vectors_in_commit(project_id, docs, cancel, None, Some(&mut commit))
+            .await
     }
 
+    /// Flush using the existing writer's unique cross-store ownership.
+    pub async fn embed_and_upsert_vectors_with_writer(
+        &self,
+        writer: &mut BulkWriterGuard,
+        project_id: &str,
+        docs: &[IndexDoc],
+        cancel: &CancellationToken,
+    ) -> anyhow::Result<()> {
+        let scoped = self.with_bulk_writer(writer, project_id)?;
+        writer.commit.validate(&scoped)?;
+        scoped
+            .embed_vectors_in_commit(project_id, docs, cancel, None, Some(&mut writer.commit))
+            .await
+    }
+
+    // Recovery workers already own exclusive admission for their private stage.
+    // Ordinary document/bulk writes use embed_vectors_in_commit with authority.
+    #[cfg(feature = "vector")]
     async fn embed_and_upsert_vectors_to_table(
         &self,
         project_id: &str,
         docs: &[IndexDoc],
         cancel: &CancellationToken,
+        table: Option<&str>,
+    ) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            table.is_some(),
+            "Exclusive vector staging requires an explicit table"
+        );
+        self.embed_vectors_in_commit(project_id, docs, cancel, table, None)
+            .await
+    }
+
+    async fn embed_vectors_in_commit(
+        &self,
+        project_id: &str,
+        docs: &[IndexDoc],
+        cancel: &CancellationToken,
         _table_override: Option<&str>,
+        commit: Option<&mut commit::Guard>,
     ) -> anyhow::Result<()> {
         #[cfg(not(feature = "vector"))]
-        let _ = project_id;
+        let _ = (project_id, commit);
         if docs.is_empty() || cancel.is_cancelled() {
             return Ok(());
         }
 
         #[cfg(feature = "vector")]
-        if self.embedding_backend != "fts_only" {
+        if !self.is_lexical_only() {
+            let mut commit = commit;
             // Namespace homogeneity check
             {
                 let first_ns = &docs[0].namespace;
@@ -557,29 +1183,16 @@ impl HybridSearchEngine {
                 }
             }
 
-            let table_name = _table_override.map(str::to_owned)
-                .unwrap_or_else(|| format!("project_{}", project_id.replace('-', "_")));
-            let (table, open_outcome) = crate::vector::open_or_create_table(
-                &self.lance_conn,
-                &table_name,
-                self.embedder.dimension(),
-            )
-            .await?;
-            if let crate::vector::TableOpenOutcome::Recreated {
-                ref reason,
-                prior_row_count,
-            } = open_outcome
-            {
-                let loss_str = match prior_row_count {
-                    Some(n) => format!("{n} historical vectors were lost"),
-                    None => "historical vector count unknown".to_string(),
-                };
-                anyhow::bail!(
-                    "VEC1: vector table '{table_name}' recreated ({reason}) — {loss_str}. \
-                     Full re-index required for project '{project_id}'."
-                );
-            }
-
+            let table = if let Some(table_name) = _table_override {
+                {
+                    let table = self.native_store.capture()?.connection.open_table(table_name).execute().await?;
+                    crate::vector::validate_table_schema(&table, self.embedder.dimension()).await?;
+                    table
+                }
+            } else {
+                self.vector_write_table(project_id).await?
+            };
+            let retained_allocation = self.reserve_vector_batch(project_id, docs)?;
             let mut pks = Vec::with_capacity(docs.len());
             let mut doc_ids = Vec::with_capacity(docs.len());
             let mut content_hashes = Vec::with_capacity(docs.len());
@@ -629,27 +1242,15 @@ impl HybridSearchEngine {
                     if cancel.is_cancelled() {
                         break;
                     }
-                    // X1-7f9b / X2-embmem: same admission-control protocol as the
-                    // index_docs embed path — per-batch budget headroom check,
-                    // released BEFORE the await so the guard never spans a
-                    // suspension point (a slow remote embedder must not starve
-                    // other allocations for the round-trip duration).
-                    let estimated_embed_bytes = chunk.iter().map(|t| t.len() as u64).sum::<u64>()
-                        + (chunk.len() as u64 * self.embedder.dimension() as u64 * 4);
-                    let _embed_guard = self
-                        .memory_budget
-                        .as_ref()
-                        .map(|budget| {
-                            AllocationGuard::try_new(
-                                budget,
-                                estimated_embed_bytes,
-                                Subsystem::LanceDb,
-                                "embedding batch",
-                            )
-                        })
-                        .transpose()?;
-                    drop(_embed_guard);
                     let batch_vecs = self.embedder.embed_batch_cancellable(chunk, cancel).await?;
+                    anyhow::ensure!(
+                        batch_vecs.len() == chunk.len()
+                            && batch_vecs
+                                .iter()
+                                .all(|vector| vector.len() == self.embedder.dimension()
+                                    && vector.iter().all(|value| value.is_finite())),
+                        "Embedding provider returned invalid count, dimensions or non-finite values; vectors were not written"
+                    );
                     vectors.extend(batch_vecs);
                 }
             }
@@ -671,11 +1272,27 @@ impl HybridSearchEngine {
                     &vectors,
                     self.embedder.dimension(),
                 )?;
-                crate::vector::upsert_vectors(&table, vec![batch])
+                let written = if _table_override.is_some() {
+                    // Recovery already owns an uncancelled native worker and
+                    // exclusive admission. Keep its reservation through I/O.
+                    let _retained_allocation = retained_allocation;
+                    crate::vector::upsert_vectors(&table, vec![batch]).await
+                } else {
+                    let table = table.clone();
+                    self.run_native_vector_mutation_with_commit(
+                        commit.as_deref_mut().ok_or_else(|| {
+                            anyhow::anyhow!("Vector writes require ordered write ownership")
+                        })?,
+                        async move {
+                            let _retained_allocation = retained_allocation;
+                            crate::vector::upsert_vectors(&table, vec![batch]).await
+                        },
+                    )
                     .await
-                    .map_err(|e| {
-                        anyhow::anyhow!("LanceDB vector upsert failed — retry to repair: {e:#}")
-                    })?;
+                };
+                written.map_err(|e| {
+                    anyhow::anyhow!("LanceDB vector upsert failed — retry to repair: {e:#}")
+                })?;
             }
         }
 
@@ -688,6 +1305,18 @@ impl HybridSearchEngine {
         docs: &[IndexDoc],
         cancel: &CancellationToken,
     ) -> anyhow::Result<()> {
+        let mutation = self.begin_project_mutation(project_id)?;
+        let scoped = self.with_mutation(&mutation)?;
+        if docs.is_empty() || cancel.is_cancelled() {
+            return Ok(());
+        }
+        let mut commit = scoped.acquire_commit(cancel).await?;
+        #[cfg(feature = "vector")]
+        let _bootstrap = if scoped.is_lexical_only() {
+            Some(scoped.vector_routes.lexical_only().await)
+        } else {
+            None
+        };
         if docs.is_empty() {
             return Ok(());
         }
@@ -717,15 +1346,21 @@ impl HybridSearchEngine {
             }
         }
 
+        #[cfg(feature = "vector")]
+        if !scoped.is_lexical_only() {
+            // Reject wrong/missing embedding spaces before changing lexical content.
+            scoped.vector_write_table(project_id).await?;
+        }
+
         // 1. Lexical index (Tantivy) — pk-based upsert
         {
-            let _tantivy_guard = self
+            let _tantivy_guard = scoped
                 .memory_budget
                 .as_ref()
                 .map(|budget| {
                     AllocationGuard::try_new(
                         budget,
-                        self.tantivy_writer_memory as u64,
+                        scoped.tantivy_writer_memory as u64,
                         Subsystem::Tantivy,
                         "tantivy index writer",
                     )
@@ -733,7 +1368,7 @@ impl HybridSearchEngine {
                 .transpose()?;
 
             let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> =
-                self.acquire_writer("index_docs", cancel).await?;
+                scoped.acquire_writer("index_docs", cancel).await?;
             for d in docs {
                 if cancel.is_cancelled() {
                     break;
@@ -760,210 +1395,45 @@ impl HybridSearchEngine {
 
                 let pk = build_pk(project_id, &d.namespace, effective_gen, &d.doc_id);
                 // Delete any existing doc with the same pk (true upsert)
-                writer.delete_term(Term::from_field_text(self.fields.pk, &pk));
+                writer.delete_term(Term::from_field_text(scoped.fields.pk, &pk));
 
                 let tdoc = doc!(
-                    self.fields.pk => pk.as_str(),
-                    self.fields.doc_id => d.doc_id.as_str(),
-                    self.fields.content_hash => d.content_hash.as_str(),
-                    self.fields.project_id => project_id,
-                    self.fields.namespace => d.namespace.as_str(),
-                    self.fields.generation => effective_gen,
-                    self.fields.chunk_id => d.chunk_id,
-                    self.fields.path => d.path.as_str(),
-                    self.fields.language => d.language.as_str(),
-                    self.fields.author => d.author.as_deref().unwrap_or(""),
-                    self.fields.timestamp => d.timestamp.unwrap_or(0),
-                    self.fields.start_line => d.start_line as u64,
-                    self.fields.end_line => d.end_line as u64,
-                    self.fields.content => d.content.as_str(),
-                    self.fields.content_words => d.content.as_str(),
+                    scoped.fields.pk => pk.as_str(),
+                    scoped.fields.doc_id => d.doc_id.as_str(),
+                    scoped.fields.content_hash => d.content_hash.as_str(),
+                    scoped.fields.project_id => project_id,
+                    scoped.fields.namespace => d.namespace.as_str(),
+                    scoped.fields.generation => effective_gen,
+                    scoped.fields.chunk_id => d.chunk_id,
+                    scoped.fields.path => d.path.as_str(),
+                    scoped.fields.language => d.language.as_str(),
+                    scoped.fields.author => d.author.as_deref().unwrap_or(""),
+                    scoped.fields.timestamp => d.timestamp.unwrap_or(0),
+                    scoped.fields.start_line => d.start_line as u64,
+                    scoped.fields.end_line => d.end_line as u64,
+                    scoped.fields.content => d.content.as_str(),
+                    scoped.fields.content_words => d.content.as_str(),
                 );
                 writer.add_document(tdoc)?;
             }
-            writer.commit()?;
+            let lexical_context = scoped.lexical_context("index_docs", Some(project_id), docs.first().map(|d| d.generation).filter(|g| docs.iter().all(|d| d.generation == *g)));
+            let lexical_opstamp = lexical_context.commit(&mut writer)?;
             // IMPORTANT: wait for Tantivy merge workers before dropping the writer.
             // Dropping an IndexWriter cancels in-flight/background merges, which can
             // leave thousands of tiny segments across batched indexing runs.
             // This call may block for seconds-to-minutes on large indexes and is
             // expected for correctness/consolidation.
-            writer.wait_merging_threads()?;
+            lexical_context.wait_merges(writer, lexical_opstamp)?;
         }
 
         if cancel.is_cancelled() {
             return Ok(());
         }
 
-        // 2. Vector index (LanceDB) — pk-based upsert
-        #[cfg(feature = "vector")]
-        if self.embedding_backend != "fts_only" {
-            let table_name = format!("project_{}", project_id.replace('-', "_"));
-            let (table, open_outcome) = crate::vector::open_or_create_table(
-                &self.lance_conn,
-                &table_name,
-                self.embedder.dimension(),
-            )
+        // Both ingestion paths share the same routing and embedding contract.
+        scoped
+            .embed_vectors_in_commit(project_id, docs, cancel, None, Some(&mut commit))
             .await?;
-            if let crate::vector::TableOpenOutcome::Recreated {
-                ref reason,
-                prior_row_count,
-            } = open_outcome
-            {
-                // VEC1/X1: fail-closed so the caller knows a full re-index is required.
-                // `prior_row_count` gives operators the data-loss metric: Some(n) = exact
-                // loss, None = count failed so magnitude is unknown (treat as non-zero).
-                // Returning Err here propagates up to the job runner, which must
-                // schedule a full project reindex to repopulate the vector store.
-                // The Tantivy write committed above is idempotent — retrying the
-                // full batch is safe and will repair both stores.
-                let loss_str = match prior_row_count {
-                    Some(n) => format!("{n} historical vectors were lost"),
-                    None => "historical vector count unknown (count_rows failed before drop)"
-                        .to_string(),
-                };
-                anyhow::bail!(
-                    "VEC1: vector table '{table_name}' was recreated due to schema mismatch \
-                     ({reason}) — {loss_str}. A full re-index is required to restore semantic \
-                     search quality. Schedule a reindex job for project '{project_id}' and retry."
-                );
-            }
-
-            let mut pks = Vec::with_capacity(docs.len());
-            let mut doc_ids = Vec::with_capacity(docs.len());
-            let mut content_hashes = Vec::with_capacity(docs.len());
-            let mut chunk_ids = Vec::with_capacity(docs.len());
-            let mut paths = Vec::with_capacity(docs.len());
-            let mut languages = Vec::with_capacity(docs.len());
-            let mut authors = Vec::with_capacity(docs.len());
-            let mut timestamps = Vec::with_capacity(docs.len());
-            let mut effective_gens = Vec::with_capacity(docs.len());
-            let mut vectors = Vec::with_capacity(docs.len());
-
-            // Pre-compute effective generations and collect metadata before embedding.
-            // This allows batch embedding (single API call for all docs).
-            let mut contents_for_embed: Vec<&str> = Vec::with_capacity(docs.len());
-            for d in docs {
-                if cancel.is_cancelled() {
-                    break;
-                }
-
-                let effective_gen = if let Ok(policy) = engram_core::get_policy(&d.namespace) {
-                    if policy.versioning == engram_core::NamespaceVersioning::GlobalMutable {
-                        0
-                    } else {
-                        d.generation
-                    }
-                } else {
-                    // ENG-AUD-2026-S15-001: policy load failed for this namespace.
-                    // Falling back to the provided generation preserves data but may
-                    // silently diverge from the intended retention/versioning policy.
-                    tracing::warn!(
-                        namespace = %d.namespace,
-                        generation = d.generation,
-                        "ENG-AUD-2026-S15-001: get_policy failed for namespace; \
-                         using provided generation as fallback — versioning semantics may drift"
-                    );
-                    d.generation
-                };
-
-                let pk = build_pk(project_id, &d.namespace, effective_gen, &d.doc_id);
-                pks.push(pk);
-                doc_ids.push(d.doc_id.clone());
-                content_hashes.push(d.content_hash.clone());
-                chunk_ids.push(d.chunk_id);
-                paths.push(d.path.as_str().to_string());
-                languages.push(d.language.clone());
-                authors.push(d.author.clone());
-                timestamps.push(d.timestamp);
-                effective_gens.push(effective_gen);
-                contents_for_embed.push(&d.content);
-            }
-
-            // Batch embed: single API call for remote backends (5-10x faster).
-            // For ProjectionEmbedder the default sequential fallback is used.
-            if !cancel.is_cancelled() && !contents_for_embed.is_empty() {
-                // Process in sub-batches of 64 to bound per-request payload size.
-                for chunk in contents_for_embed.chunks(64) {
-                    if cancel.is_cancelled() {
-                        break;
-                    }
-                    let estimated_embed_bytes = chunk.iter().map(|t| t.len() as u64).sum::<u64>()
-                        + (chunk.len() as u64 * self.embedder.dimension() as u64 * 4);
-                    let _embed_guard = self
-                        .memory_budget
-                        .as_ref()
-                        .map(|budget| {
-                            AllocationGuard::try_new(
-                                budget,
-                                estimated_embed_bytes,
-                                Subsystem::LanceDb,
-                                "embedding batch",
-                            )
-                        })
-                        .transpose()?;
-                    // X1-7f9b: release the allocation budget before awaiting the remote
-                    // embed call. Holding AllocationGuard across an async .await ties the
-                    // memory budget to network latency — a slow remote embedder starves all
-                    // other concurrent allocations for the full round-trip duration.
-                    drop(_embed_guard);
-                    // EMB1: use cancellable batch embed so in-flight remote HTTP
-                    // calls can be preempted when the cancellation token fires.
-                    let batch_vecs = self.embedder.embed_batch_cancellable(chunk, cancel).await?;
-                    vectors.extend(batch_vecs);
-                }
-            }
-
-            if !cancel.is_cancelled() && !pks.is_empty() {
-                let estimated_vector_bytes =
-                    vectors.iter().map(|v| (v.len() as u64) * 4).sum::<u64>()
-                        + pks.iter().map(|pk| pk.len() as u64).sum::<u64>();
-                let _vector_guard = self
-                    .memory_budget
-                    .as_ref()
-                    .map(|budget| {
-                        AllocationGuard::try_new(
-                            budget,
-                            estimated_vector_bytes,
-                            Subsystem::LanceDb,
-                            "vector ingestion",
-                        )
-                    })
-                    .transpose()?;
-
-                // Namespace homogeneity is guaranteed by the entry-point check above.
-                let ns = &docs[0].namespace;
-                let batch = crate::vector::create_record_batch_with_gens(
-                    project_id,
-                    ns,
-                    &effective_gens,
-                    &pks,
-                    &doc_ids,
-                    &content_hashes,
-                    &chunk_ids,
-                    &paths,
-                    &languages,
-                    &authors,
-                    &timestamps,
-                    &vectors,
-                    self.embedder.dimension(),
-                )?;
-
-                // Propagate LanceDB errors so the caller knows indexing is
-                // incomplete and can retry.  Tantivy pk-based upserts are
-                // idempotent, so retrying the full batch repairs both stores.
-                // Silently swallowing this error (the previous behaviour) left
-                // Tantivy and LanceDB permanently diverged with no recovery
-                // signal to the caller (C-2 fix).
-                crate::vector::upsert_vectors(&table, vec![batch])
-                    .await
-                    .map_err(|e| {
-                        anyhow::anyhow!(
-                            "LanceDB vector upsert failed; lexical index was committed \
-                         but vector index was not updated — retry to repair: {e:#}"
-                        )
-                    })?;
-            }
-        }
 
         Ok(())
     }
@@ -973,31 +1443,101 @@ impl HybridSearchEngine {
         project_id: &str,
         active_generation: u64,
     ) -> anyhow::Result<()> {
+        self.purge_old_generations_with_cutoff(project_id, active_generation, active_generation)
+            .await
+    }
+
+    /// A conservative physical cutoff must not replace the published logical
+    /// head when retaining inherited revisions. Caller serializes publication.
+    pub async fn purge_old_generations_with_cutoff(
+        &self,
+        project_id: &str,
+        published_generation: u64,
+        active_generation: u64,
+    ) -> anyhow::Result<()> {
+        let mutation = self.begin_project_mutation(project_id)?;
+        let scoped = self.with_mutation(&mutation)?;
+        let write_cancel = CancellationToken::new();
+        let _commit = scoped.acquire_commit(&write_cancel).await?;
+        #[cfg(feature = "vector")]
+        let mut commit = _commit;
+        anyhow::ensure!(
+            active_generation <= published_generation,
+            "garbage collection cutoff cannot exceed the published source generation"
+        );
+        // Logical snapshot retention and physical revision retention differ:
+        // an unchanged file can still be selected from a much older generation.
+        let protected_source = if scoped.snapshots.managed(project_id, "memory")? {
+            Some(
+                scoped
+                    .snapshots
+                    .protect_for_gc(project_id, "memory", published_generation)?,
+            )
+        } else {
+            None
+        };
         // 1. Tantivy purge
         {
             // MEM3-7d30af: acquire AllocationGuard before opening writer so the
             // memory budget is informed of the write-buffer reservation even during
             // purge/GC operations (same as index_docs does for the write path).
-            let _tantivy_guard = self
+            let _tantivy_guard = scoped
                 .memory_budget
                 .as_ref()
                 .map(|budget| {
                     AllocationGuard::try_new(
                         budget,
-                        self.tantivy_writer_memory as u64,
+                        scoped.tantivy_writer_memory as u64,
                         Subsystem::Tantivy,
                         "tantivy purge writer",
                     )
                 })
                 .transpose()?;
-            let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> = self
+            let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> = scoped
                 .acquire_writer("generation purge", &CancellationToken::new())
                 .await?;
 
             for ns in engram_core::KNOWN_NAMESPACES {
                 if let Ok(policy) = engram_core::get_policy(ns) {
-                    let pid_term = Term::from_field_text(self.fields.project_id, project_id);
-                    let ns_term = Term::from_field_text(self.fields.namespace, ns);
+                    let pid_term = Term::from_field_text(scoped.fields.project_id, project_id);
+                    let ns_term = Term::from_field_text(scoped.fields.namespace, ns);
+
+                    if *ns == "memory" {
+                        if let Some(protected) = &protected_source {
+                            if active_generation == 0 {
+                                continue;
+                            }
+                            let selected = BooleanQuery::new(
+                                protected
+                                    .iter()
+                                    .map(|view| (Occur::Should, view.query(&scoped.fields)))
+                                    .collect(),
+                            );
+                            let parser = QueryParser::for_index(
+                                &scoped.tantivy_index,
+                                vec![scoped.fields.generation],
+                            );
+                            let older = parser.parse_query(&format!(
+                                "generation:[* TO {}]",
+                                active_generation - 1
+                            ))?;
+                            let query = BooleanQuery::new(vec![
+                                (
+                                    Occur::Must,
+                                    Box::new(TermQuery::new(pid_term, IndexRecordOption::Basic))
+                                        as Box<dyn tantivy::query::Query>,
+                                ),
+                                (
+                                    Occur::Must,
+                                    Box::new(TermQuery::new(ns_term, IndexRecordOption::Basic)),
+                                ),
+                                (Occur::Must, older),
+                                (Occur::MustNot, Box::new(selected)),
+                            ]);
+                            writer.delete_query(Box::new(query))?;
+                            continue;
+                        }
+                    }
 
                     match policy.retention {
                         engram_core::NamespaceRetention::KeepLatestOnly => {
@@ -1011,8 +1551,8 @@ impl HybridSearchEngine {
                                 continue;
                             }
                             let parser = QueryParser::for_index(
-                                &self.tantivy_index,
-                                vec![self.fields.generation],
+                                &scoped.tantivy_index,
+                                vec![scoped.fields.generation],
                             );
                             let Ok(older) = parser.parse_query(&format!(
                                 "generation:[* TO {}]",
@@ -1037,8 +1577,8 @@ impl HybridSearchEngine {
                             let min_keep = active_generation.saturating_sub(n as u64 - 1);
                             if min_keep > 0 {
                                 let parser = QueryParser::for_index(
-                                    &self.tantivy_index,
-                                    vec![self.fields.generation],
+                                    &scoped.tantivy_index,
+                                    vec![scoped.fields.generation],
                                 );
                                 if let Ok(gen_query) = parser.parse_query(&format!(
                                     "generation:[* TO {}]",
@@ -1069,7 +1609,8 @@ impl HybridSearchEngine {
                     }
                 }
             }
-            writer.commit()?;
+            let lexical_context = scoped.lexical_context("generation_purge", Some(project_id), Some(published_generation));
+            let lexical_opstamp = lexical_context.commit(&mut writer)?;
 
             // Trigger segment merge to reclaim disk space from deleted documents.
             // Without this, deleted docs remain as tombstones in segments indefinitely.
@@ -1077,21 +1618,23 @@ impl HybridSearchEngine {
             // IMPORTANT: consume the writer only after commit/GC side effects are
             // queued so merge threads can run to completion before writer teardown.
             // This may block for seconds-to-minutes on heavily fragmented indexes.
-            writer.wait_merging_threads()?;
+            lexical_context.wait_merges(writer, lexical_opstamp)?;
         }
 
         // 2. LanceDB purge
         #[cfg(feature = "vector")]
         {
-            let table_name = format!("project_{}", project_id.replace('-', "_"));
-            if self
-                .lance_conn
+            let _vector_epoch = scoped.pin_vector_epoch(project_id)?;
+            scoped.ensure_managed_vector_table_present(&_vector_epoch)?;
+            let table_name = _vector_epoch.table.clone();
+            if scoped
+                .native_store.capture()?.connection
                 .table_names()
                 .execute()
                 .await?
                 .contains(&table_name)
             {
-                let table = self.lance_conn.open_table(&table_name).execute().await?;
+                let table = scoped.open_vector_epoch_table(&_vector_epoch).await?;
                 // The Tantivy purge above has already COMMITTED. If the
                 // vector purge fails here the two stores are left skewed —
                 // Tantivy shed its superseded generations and LanceDB kept
@@ -1100,7 +1643,26 @@ impl HybridSearchEngine {
                 // daemon log ("Too many concurrent writers", "Access is
                 // denied"), so name the consequence rather than letting an
                 // hour-later mismatch look like spontaneous corruption.
-                crate::vector::purge_old_generations(&table, active_generation)
+                let source_selection = protected_source.as_ref().map(|views| {
+                    views
+                        .iter()
+                        .map(|view| format!("({})", view.sql()))
+                        .collect::<Vec<_>>()
+                        .join(" OR ")
+                });
+                let native_store = scoped.native_store.clone();
+                scoped
+                    .run_native_vector_mutation_with_commit(&mut commit, async move {
+                        let _source_protection = protected_source;
+                        let native = native_store.capture()?;
+                        crate::vector::purge_old_generations_serialized(
+                            &native.connection,
+                            table.name(),
+                            active_generation,
+                            source_selection.as_deref(),
+                        )
+                        .await
+                    })
                     .await
                     .map_err(|e| {
                         anyhow::anyhow!(
@@ -1129,29 +1691,59 @@ impl HybridSearchEngine {
         unchanged_paths: &[RelPath],
         cancel: &CancellationToken,
     ) -> anyhow::Result<()> {
+        let mutation = self.begin_project_mutation(project_id)?;
+        let scoped = self.with_mutation(&mutation)?;
         if unchanged_paths.is_empty() {
             return Ok(());
         }
 
         use tantivy::query::Query;
         anyhow::ensure!(!cancel.is_cancelled(), "snapshot copy cancelled");
-        let reader = self.tantivy_index.reader()?;
+        let reader = scoped.tantivy_index.reader()?;
         let searcher = reader.searcher();
-        let wanted = unchanged_paths.iter().map(RelPath::as_str)
+        let wanted = unchanged_paths
+            .iter()
+            .map(RelPath::as_str)
             .collect::<std::collections::HashSet<_>>();
         let query = BooleanQuery::new(vec![
-            (Occur::Must, Box::new(TermQuery::new(Term::from_field_text(self.fields.project_id, project_id), IndexRecordOption::Basic)) as Box<dyn Query>),
-            (Occur::Must, Box::new(TermQuery::new(Term::from_field_text(self.fields.namespace, namespace), IndexRecordOption::Basic)) as Box<dyn Query>),
-            (Occur::Must, Box::new(TermQuery::new(Term::from_field_u64(self.fields.generation, old_generation), IndexRecordOption::Basic)) as Box<dyn Query>),
+            (
+                Occur::Must,
+                Box::new(TermQuery::new(
+                    Term::from_field_text(scoped.fields.project_id, project_id),
+                    IndexRecordOption::Basic,
+                )) as Box<dyn Query>,
+            ),
+            (
+                Occur::Must,
+                Box::new(TermQuery::new(
+                    Term::from_field_text(scoped.fields.namespace, namespace),
+                    IndexRecordOption::Basic,
+                )) as Box<dyn Query>,
+            ),
+            (
+                Occur::Must,
+                Box::new(TermQuery::new(
+                    Term::from_field_u64(scoped.fields.generation, old_generation),
+                    IndexRecordOption::Basic,
+                )) as Box<dyn Query>,
+            ),
         ]);
-        let weight = query.weight(tantivy::query::EnableScoring::disabled_from_searcher(&searcher))?;
-        let _allocation = self.memory_budget.as_ref().map(|budget| AllocationGuard::try_new(
-            budget, self.tantivy_writer_memory as u64, Subsystem::Tantivy, "snapshot copy writer",
-        )).transpose()?;
-        let mut writer = BulkWriterGuard {
-            writer: Some(self.acquire_writer("snapshot copy", cancel).await?),
-            docs_since_commit: 0,
-        };
+        let weight = query.weight(tantivy::query::EnableScoring::disabled_from_searcher(
+            &searcher,
+        ))?;
+        let _allocation = scoped
+            .memory_budget
+            .as_ref()
+            .map(|budget| {
+                AllocationGuard::try_new(
+                    budget,
+                    scoped.tantivy_writer_memory as u64,
+                    Subsystem::Tantivy,
+                    "snapshot copy writer",
+                )
+            })
+            .transpose()?;
+        let mut writer = scoped.create_bulk_writer_async(project_id, cancel).await?;
         let mut batch = Vec::with_capacity(512);
         let mut batch_bytes = 0usize;
         // Scan the old snapshot once. Per-file queries and per-batch writer
@@ -1163,31 +1755,63 @@ impl HybridSearchEngine {
                 anyhow::ensure!(!cancel.is_cancelled(), "snapshot copy cancelled");
                 let doc_id = scorer.doc();
                 scorer.advance();
-                if segment.is_deleted(doc_id) { continue; }
-                let doc: tantivy::TantivyDocument = searcher.doc(DocAddress::new(segment_ord as u32, doc_id))?;
-                let get_str = |field| doc.get_first(field).and_then(|value| value.as_str()).unwrap_or("").to_string();
-                let get_u64 = |field| doc.get_first(field).and_then(|value| value.as_u64()).unwrap_or(0);
-                let path = get_str(self.fields.path);
-                if !wanted.contains(path.as_str()) { continue; }
-                let hash = get_str(self.fields.content_hash);
-                let start_line = get_u64(self.fields.start_line) as u32;
-                let end_line = get_u64(self.fields.end_line) as u32;
-                let content = get_str(self.fields.content);
+                if segment.is_deleted(doc_id) {
+                    continue;
+                }
+                let doc: tantivy::TantivyDocument =
+                    searcher.doc(DocAddress::new(segment_ord as u32, doc_id))?;
+                let get_str = |field| {
+                    doc.get_first(field)
+                        .and_then(|value| value.as_str())
+                        .unwrap_or("")
+                        .to_string()
+                };
+                let get_u64 = |field| {
+                    doc.get_first(field)
+                        .and_then(|value| value.as_u64())
+                        .unwrap_or(0)
+                };
+                let path = get_str(scoped.fields.path);
+                if !wanted.contains(path.as_str()) {
+                    continue;
+                }
+                let hash = get_str(scoped.fields.content_hash);
+                let start_line = get_u64(scoped.fields.start_line) as u32;
+                let end_line = get_u64(scoped.fields.end_line) as u32;
+                let content = get_str(scoped.fields.content);
                 batch_bytes = batch_bytes.saturating_add(content.len());
-                let author = get_str(self.fields.author);
-                let timestamp = get_u64(self.fields.timestamp);
+                let author = get_str(scoped.fields.author);
+                let timestamp = get_u64(scoped.fields.timestamp);
                 batch.push(IndexDoc {
-                    generation: new_generation, chunk_id: get_u64(self.fields.chunk_id),
-                    doc_id: DocIdStr::compute(&path, start_line, end_line, &ContentHash(hash.clone())).0,
-                    path: RelPath::new(&path), language: get_str(self.fields.language),
-                    content, namespace: namespace.to_string(),
+                    generation: new_generation,
+                    chunk_id: get_u64(scoped.fields.chunk_id),
+                    doc_id: DocIdStr::compute(
+                        &path,
+                        start_line,
+                        end_line,
+                        &ContentHash(hash.clone()),
+                    )
+                    .0,
+                    path: RelPath::new(&path),
+                    language: get_str(scoped.fields.language),
+                    content,
+                    namespace: namespace.to_string(),
                     author: (!author.is_empty()).then_some(author),
                     timestamp: (timestamp != 0).then_some(timestamp),
-                    start_line, end_line, content_hash: hash,
+                    start_line,
+                    end_line,
+                    content_hash: hash,
                 });
                 if batch.len() >= 512 || batch_bytes >= 1024 * 1024 {
-                    Self::write_docs_to_writer(&self.fields, &mut writer, project_id, &batch)?;
-                    self.embed_and_upsert_vectors(project_id, &batch, cancel).await?;
+                    Self::write_docs_to_writer(&scoped.fields, &mut writer, project_id, &batch)?;
+                    scoped
+                        .embed_and_upsert_vectors_with_writer(
+                            &mut writer,
+                            project_id,
+                            &batch,
+                            cancel,
+                        )
+                        .await?;
                     writer.maybe_commit(4096)?;
                     batch.clear();
                     batch_bytes = 0;
@@ -1196,8 +1820,10 @@ impl HybridSearchEngine {
         }
         anyhow::ensure!(!cancel.is_cancelled(), "snapshot copy cancelled");
         if !batch.is_empty() {
-            Self::write_docs_to_writer(&self.fields, &mut writer, project_id, &batch)?;
-            self.embed_and_upsert_vectors(project_id, &batch, cancel).await?;
+            Self::write_docs_to_writer(&scoped.fields, &mut writer, project_id, &batch)?;
+            scoped
+                .embed_and_upsert_vectors_with_writer(&mut writer, project_id, &batch, cancel)
+                .await?;
         }
         writer.finish()?;
         Ok(())
@@ -1215,24 +1841,30 @@ impl HybridSearchEngine {
         project_id: &str,
         namespace: &str,
     ) -> anyhow::Result<usize> {
+        let mutation = self.begin_project_mutation(project_id)?;
+        let scoped = self.with_mutation(&mutation)?;
+        let write_cancel = CancellationToken::new();
+        let _commit = scoped.acquire_commit(&write_cancel).await?;
+        #[cfg(feature = "vector")]
+        let mut commit = _commit;
         let query = BooleanQuery::new(vec![
             (
                 Occur::Must,
                 Box::new(TermQuery::new(
-                    Term::from_field_text(self.fields.project_id, project_id),
+                    Term::from_field_text(scoped.fields.project_id, project_id),
                     IndexRecordOption::Basic,
                 )),
             ),
             (
                 Occur::Must,
                 Box::new(TermQuery::new(
-                    Term::from_field_text(self.fields.namespace, namespace),
+                    Term::from_field_text(scoped.fields.namespace, namespace),
                     IndexRecordOption::Basic,
                 )),
             ),
         ]);
         let matched = {
-            let reader = self.tantivy_index.reader()?;
+            let reader = scoped.tantivy_index.reader()?;
             let searcher = reader.searcher();
             searcher.search(&query, &tantivy::collector::Count)?
         };
@@ -1242,39 +1874,44 @@ impl HybridSearchEngine {
 
         #[cfg(feature = "vector")]
         {
-            let table_name = format!("project_{}", project_id.replace('-', "_"));
-            if self
-                .lance_conn
+            let _vector_epoch = scoped.pin_vector_epoch(project_id)?;
+            scoped.ensure_managed_vector_table_present(&_vector_epoch)?;
+            let table_name = _vector_epoch.table.clone();
+            if scoped
+                .native_store.capture()?.connection
                 .table_names()
                 .execute()
                 .await?
                 .contains(&table_name)
             {
-                let table = self.lance_conn.open_table(&table_name).execute().await?;
+                let table = scoped.open_vector_epoch_table(&_vector_epoch).await?;
                 let safe_ns = namespace.replace('\'', "''");
-                table.delete(&format!("namespace = '{safe_ns}'")).await?;
+                scoped
+                    .delete_vector_rows(&mut commit, &table, format!("namespace = '{safe_ns}'"))
+                    .await?;
             }
         }
 
         {
-            let _tantivy_guard = self
+            let _tantivy_guard = scoped
                 .memory_budget
                 .as_ref()
                 .map(|budget| {
                     AllocationGuard::try_new(
                         budget,
-                        self.tantivy_writer_memory as u64,
+                        scoped.tantivy_writer_memory as u64,
                         Subsystem::Tantivy,
                         "tantivy delete writer",
                     )
                 })
                 .transpose()?;
-            let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> = self
+            let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> = scoped
                 .acquire_writer("delete_namespace", &CancellationToken::new())
                 .await?;
             writer.delete_query(Box::new(query))?;
-            writer.commit()?;
-            writer.wait_merging_threads()?;
+            let lexical_context = scoped.lexical_context("delete_namespace", Some(project_id), None);
+            let lexical_opstamp = lexical_context.commit(&mut writer)?;
+            lexical_context.wait_merges(writer, lexical_opstamp)?;
         }
         Ok(matched)
     }
@@ -1288,34 +1925,87 @@ impl HybridSearchEngine {
         namespace: &str,
         doc_ids: &[String],
     ) -> anyhow::Result<()> {
-        if doc_ids.is_empty() { return Ok(()); }
+        let mutation = self.begin_project_mutation(project_id)?;
+        let scoped = self.with_mutation(&mutation)?;
+        let write_cancel = CancellationToken::new();
+        let _commit = scoped.acquire_commit(&write_cancel).await?;
+        #[cfg(feature = "vector")]
+        let mut commit = _commit;
+        if doc_ids.is_empty() {
+            return Ok(());
+        }
         #[cfg(feature = "vector")]
         {
-            let table_name = format!("project_{}", project_id.replace('-', "_"));
-            if self.lance_conn.table_names().execute().await?.contains(&table_name) {
-                let table = self.lance_conn.open_table(&table_name).execute().await?;
+            let _vector_epoch = scoped.pin_vector_epoch(project_id)?;
+            scoped.ensure_managed_vector_table_present(&_vector_epoch)?;
+            let table_name = _vector_epoch.table.clone();
+            if scoped
+                .native_store.capture()?.connection
+                .table_names()
+                .execute()
+                .await?
+                .contains(&table_name)
+            {
+                let table = scoped.open_vector_epoch_table(&_vector_epoch).await?;
                 for batch in doc_ids.chunks(200) {
-                    let ids = batch.iter().map(|s| format!("'{}'", s.replace('\'', "''")))
-                        .collect::<Vec<_>>().join(", ");
-                    table.delete(&format!("namespace = '{}' AND doc_id IN ({ids})",
-                        namespace.replace('\'', "''"))).await?;
+                    let ids = batch
+                        .iter()
+                        .map(|s| format!("'{}'", s.replace('\'', "''")))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    scoped
+                        .delete_vector_rows(
+                            &mut commit,
+                            &table,
+                            format!(
+                                "namespace = '{}' AND doc_id IN ({ids})",
+                                namespace.replace('\'', "''")
+                            ),
+                        )
+                        .await?;
                 }
             }
         }
-        let _budget = self.memory_budget.as_ref().map(|budget|
-            AllocationGuard::try_new(budget, self.tantivy_writer_memory as u64,
-                Subsystem::Tantivy, "document cleanup writer")).transpose()?;
-        let mut writer = self.acquire_writer("delete_documents", &CancellationToken::new()).await?;
+        let _budget = scoped
+            .memory_budget
+            .as_ref()
+            .map(|budget| {
+                AllocationGuard::try_new(
+                    budget,
+                    scoped.tantivy_writer_memory as u64,
+                    Subsystem::Tantivy,
+                    "document cleanup writer",
+                )
+            })
+            .transpose()?;
+        let mut writer = scoped
+            .acquire_writer("delete_documents", &CancellationToken::new())
+            .await?;
         for id in doc_ids {
-            let terms = [(self.fields.project_id, project_id),
-                (self.fields.namespace, namespace), (self.fields.doc_id, id.as_str())];
-            let query = BooleanQuery::new(terms.into_iter().map(|(field, value)|
-                (Occur::Must, Box::new(TermQuery::new(Term::from_field_text(field, value),
-                    IndexRecordOption::Basic)) as Box<dyn tantivy::query::Query>)).collect());
+            let terms = [
+                (scoped.fields.project_id, project_id),
+                (scoped.fields.namespace, namespace),
+                (scoped.fields.doc_id, id.as_str()),
+            ];
+            let query = BooleanQuery::new(
+                terms
+                    .into_iter()
+                    .map(|(field, value)| {
+                        (
+                            Occur::Must,
+                            Box::new(TermQuery::new(
+                                Term::from_field_text(field, value),
+                                IndexRecordOption::Basic,
+                            )) as Box<dyn tantivy::query::Query>,
+                        )
+                    })
+                    .collect(),
+            );
             writer.delete_query(Box::new(query))?;
         }
-        writer.commit()?;
-        writer.wait_merging_threads()?;
+        let lexical_context = scoped.lexical_context("delete_documents", Some(project_id), None);
+        let lexical_opstamp = lexical_context.commit(&mut writer)?;
+        lexical_context.wait_merges(writer, lexical_opstamp)?;
         Ok(())
     }
 
@@ -1325,6 +2015,12 @@ impl HybridSearchEngine {
         namespace: &str,
         paths: &[RelPath],
     ) -> anyhow::Result<()> {
+        let mutation = self.begin_project_mutation(project_id)?;
+        let scoped = self.with_mutation(&mutation)?;
+        let write_cancel = CancellationToken::new();
+        let _commit = scoped.acquire_commit(&write_cancel).await?;
+        #[cfg(feature = "vector")]
+        let mut commit = _commit;
         if paths.is_empty() {
             return Ok(());
         }
@@ -1333,15 +2029,17 @@ impl HybridSearchEngine {
         //    failure leaves Tantivy in its pre-delete state (no cross-store divergence).
         #[cfg(feature = "vector")]
         {
-            let table_name = format!("project_{}", project_id.replace('-', "_"));
-            if self
-                .lance_conn
+            let _vector_epoch = scoped.pin_vector_epoch(project_id)?;
+            scoped.ensure_managed_vector_table_present(&_vector_epoch)?;
+            let table_name = _vector_epoch.table.clone();
+            if scoped
+                .native_store.capture()?.connection
                 .table_names()
                 .execute()
                 .await?
                 .contains(&table_name)
             {
-                let table = self.lance_conn.open_table(&table_name).execute().await?;
+                let table = scoped.open_vector_epoch_table(&_vector_epoch).await?;
                 let safe_ns = namespace.replace('\'', "''");
                 // Chunked IN-filters: every `table.delete()` rewrites Lance
                 // fragments, so one delete PER PATH turned a 1,670-doc
@@ -1355,7 +2053,9 @@ impl HybridSearchEngine {
                         .collect::<Vec<_>>()
                         .join(", ");
                     let filter = format!("namespace = '{safe_ns}' AND path IN ({list})");
-                    table.delete(&filter).await?;
+                    scoped
+                        .delete_vector_rows(&mut commit, &table, filter)
+                        .await?;
                 }
             }
         }
@@ -1365,25 +2065,25 @@ impl HybridSearchEngine {
             // MEM3-7d30af: acquire AllocationGuard before opening writer so the
             // memory budget is informed of the write-buffer reservation during
             // delete operations (mirrors index_docs guard pattern).
-            let _tantivy_guard = self
+            let _tantivy_guard = scoped
                 .memory_budget
                 .as_ref()
                 .map(|budget| {
                     AllocationGuard::try_new(
                         budget,
-                        self.tantivy_writer_memory as u64,
+                        scoped.tantivy_writer_memory as u64,
                         Subsystem::Tantivy,
                         "tantivy delete writer",
                     )
                 })
                 .transpose()?;
-            let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> = self
+            let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> = scoped
                 .acquire_writer("delete_files", &CancellationToken::new())
                 .await?;
             for p in paths {
-                let pid_term = Term::from_field_text(self.fields.project_id, project_id);
-                let ns_term = Term::from_field_text(self.fields.namespace, namespace);
-                let path_term = Term::from_field_text(self.fields.path, p.as_str());
+                let pid_term = Term::from_field_text(scoped.fields.project_id, project_id);
+                let ns_term = Term::from_field_text(scoped.fields.namespace, namespace);
+                let path_term = Term::from_field_text(scoped.fields.path, p.as_str());
                 let query = BooleanQuery::new(vec![
                     (
                         Occur::Must,
@@ -1400,12 +2100,13 @@ impl HybridSearchEngine {
                 ]);
                 writer.delete_query(Box::new(query))?;
             }
-            writer.commit()?;
+            let lexical_context = scoped.lexical_context("delete_files", Some(project_id), None);
+            let lexical_opstamp = lexical_context.commit(&mut writer)?;
             // IMPORTANT: wait for Tantivy merge workers before dropping the writer.
             // Dropping an IndexWriter cancels in-flight/background merges, which can
             // leave the index in a highly fragmented segment state over time.
             // This may block for seconds-to-minutes on large indexes and is expected.
-            writer.wait_merging_threads()?;
+            lexical_context.wait_merges(writer, lexical_opstamp)?;
         }
 
         Ok(())
@@ -1481,7 +2182,8 @@ impl HybridSearchEngine {
                 )),
             ),
         ];
-        self.add_generation_filter(namespace, generation, &mut clauses)?;
+        let _snapshot =
+            self.add_generation_filter(project_id, namespace, generation, &mut clauses)?;
         let query = BooleanQuery::new(clauses);
 
         const PAGE_SIZE: usize = 4000;
@@ -1629,7 +2331,7 @@ impl HybridSearchEngine {
     ) -> anyhow::Result<usize> {
         let reader = self.tantivy_index.reader()?;
         let searcher = reader.searcher();
-        let q = BooleanQuery::new(vec![
+        let mut clauses: Vec<(Occur, Box<dyn tantivy::query::Query>)> = vec![
             (
                 Occur::Must,
                 Box::new(TermQuery::new(
@@ -1644,14 +2346,11 @@ impl HybridSearchEngine {
                     IndexRecordOption::Basic,
                 )),
             ),
-            (
-                Occur::Must,
-                Box::new(TermQuery::new(
-                    Term::from_field_u64(self.fields.generation, generation),
-                    IndexRecordOption::Basic,
-                )),
-            ),
-        ]);
+        ];
+        let (selection, _snapshot) =
+            self.exact_generation_selection(project_id, Some(namespace), generation)?;
+        clauses.push((Occur::Must, selection));
+        let q = BooleanQuery::new(clauses);
         Ok(searcher.search(&q, &tantivy::collector::Count)?)
     }
 
@@ -1667,22 +2366,16 @@ impl HybridSearchEngine {
         use tantivy::schema::Value;
         let reader = self.tantivy_index.reader()?;
         let searcher = reader.searcher();
-        let mut clauses: Vec<(Occur, Box<dyn tantivy::query::Query>)> = vec![
-            (
-                Occur::Must,
-                Box::new(TermQuery::new(
-                    Term::from_field_text(self.fields.project_id, project_id),
-                    IndexRecordOption::Basic,
-                )),
-            ),
-            (
-                Occur::Must,
-                Box::new(TermQuery::new(
-                    Term::from_field_u64(self.fields.generation, generation),
-                    IndexRecordOption::Basic,
-                )),
-            ),
-        ];
+        let mut clauses: Vec<(Occur, Box<dyn tantivy::query::Query>)> = vec![(
+            Occur::Must,
+            Box::new(TermQuery::new(
+                Term::from_field_text(self.fields.project_id, project_id),
+                IndexRecordOption::Basic,
+            )),
+        )];
+        let (selection, _snapshot) =
+            self.exact_generation_selection(project_id, namespace, generation)?;
+        clauses.push((Occur::Must, selection));
         if let Some(ns) = namespace {
             clauses.push((
                 Occur::Must,
@@ -1715,43 +2408,51 @@ impl HybridSearchEngine {
         #[cfg(feature = "vector")]
         {
             use lancedb::query::Select;
-            let table_name = format!("project_{}", project_id.replace('-', "_"));
-            if !self
-                .lance_conn
-                .table_names()
-                .execute()
-                .await?
-                .contains(&table_name)
-            {
-                return Ok(Default::default());
-            }
-            let table = self.lance_conn.open_table(&table_name).execute().await?;
+            let _vector_epoch = self.pin_vector_epoch(project_id)?;
+            let (selection, snapshot) = self.exact_generation_sql(project_id, namespace, generation)?;
             let filter = match namespace {
-                Some(ns) => format!(
-                    "namespace = '{}' AND generation = {generation}",
-                    ns.replace('\'', "''")
-                ),
-                None => format!("generation = {generation}"),
+                Some(ns) => format!("namespace = '{}' AND ({selection})", ns.replace('\'', "''")),
+                None => selection,
             };
-            let mut results = table
-                .query()
-                .only_if(filter)
-                .select(Select::Columns(vec!["path".to_string()]))
-                .execute()
-                .await?;
-            let mut out = std::collections::BTreeSet::new();
-            use futures::TryStreamExt;
-            while let Some(batch) = TryStreamExt::try_next(&mut results).await? {
-                let batch: arrow_array::RecordBatch = batch;
-                let path_arr = batch
-                    .column_by_name("path")
-                    .and_then(|c| c.as_any().downcast_ref::<arrow_array::StringArray>())
-                    .ok_or_else(|| anyhow::anyhow!("missing path"))?;
-                for i in 0..batch.num_rows() {
-                    out.insert(path_arr.value(i).to_string());
+            let worker = self.clone();
+            return self.run_native_vector_query(_vector_epoch.clone(), &CancellationToken::new(), async move {
+                let _snapshot = snapshot;
+                worker.ensure_managed_vector_table_present(&_vector_epoch)?;
+                let table_name = _vector_epoch.table.clone();
+                if !worker
+                    .native_store.capture()?.connection
+                    .table_names()
+                    .execute()
+                    .await?
+                    .contains(&table_name)
+                {
+                    return Ok(Default::default());
                 }
-            }
-            Ok(out)
+                let table = worker.open_vector_epoch_table(&_vector_epoch).await?;
+                let mut results = table
+                    .query()
+                    .only_if(filter)
+                    .select(Select::Columns(vec!["path".to_string()]))
+                    .limit(1_000_001)
+                    .execute()
+                    .await?;
+                let mut out = std::collections::BTreeSet::new();
+                let mut rows = 0usize;
+                use futures::TryStreamExt;
+                while let Some(batch) = TryStreamExt::try_next(&mut results).await? {
+                    let batch: arrow_array::RecordBatch = batch;
+                    rows += batch.num_rows();
+                    anyhow::ensure!(rows <= 1_000_000, "Native path inspection exceeds 1000000 rows");
+                    let path_arr = batch
+                        .column_by_name("path")
+                        .and_then(|c| c.as_any().downcast_ref::<arrow_array::StringArray>())
+                        .ok_or_else(|| anyhow::anyhow!("missing path"))?;
+                    for i in 0..batch.num_rows() {
+                        out.insert(path_arr.value(i).to_string());
+                    }
+                }
+                Ok(out)
+            }).await;
         }
         #[cfg(not(feature = "vector"))]
         {
@@ -1768,14 +2469,22 @@ impl HybridSearchEngine {
         namespace: &str,
         paths: &[RelPath],
     ) -> anyhow::Result<()> {
+        let mutation = self.begin_project_mutation(project_id)?;
+        let scoped = self.with_mutation(&mutation)?;
+        let write_cancel = CancellationToken::new();
+        let _commit = scoped.acquire_commit(&write_cancel).await?;
+        #[cfg(feature = "vector")]
+        let mut commit = _commit;
         #[cfg(feature = "vector")]
         {
             if paths.is_empty() {
                 return Ok(());
             }
-            let table_name = format!("project_{}", project_id.replace('-', "_"));
-            if !self
-                .lance_conn
+            let _vector_epoch = scoped.pin_vector_epoch(project_id)?;
+            scoped.ensure_managed_vector_table_present(&_vector_epoch)?;
+            let table_name = _vector_epoch.table.clone();
+            if !scoped
+                .native_store.capture()?.connection
                 .table_names()
                 .execute()
                 .await?
@@ -1783,7 +2492,7 @@ impl HybridSearchEngine {
             {
                 return Ok(());
             }
-            let table = self.lance_conn.open_table(&table_name).execute().await?;
+            let table = scoped.open_vector_epoch_table(&_vector_epoch).await?;
             let safe_ns = namespace.replace('\'', "''");
             for chunk in paths.chunks(200) {
                 let list = chunk
@@ -1792,7 +2501,9 @@ impl HybridSearchEngine {
                     .collect::<Vec<_>>()
                     .join(", ");
                 let filter = format!("namespace = '{safe_ns}' AND path IN ({list})");
-                table.delete(&filter).await?;
+                scoped
+                    .delete_vector_rows(&mut commit, &table, filter)
+                    .await?;
             }
             Ok(())
         }
@@ -1904,20 +2615,25 @@ impl HybridSearchEngine {
     ) -> anyhow::Result<usize> {
         #[cfg(feature = "vector")]
         {
-            let table_name = format!("project_{}", project_id.replace('-', "_"));
-            if !self
-                .lance_conn
-                .table_names()
-                .execute()
-                .await?
-                .contains(&table_name)
-            {
-                return Ok(0);
-            }
-            let table = self.lance_conn.open_table(&table_name).execute().await?;
-            Ok(table
-                .count_rows(Some(format!("generation = {generation}")))
-                .await?)
+            let _vector_epoch = self.pin_vector_epoch(project_id)?;
+            let (selection, snapshot) = self.exact_generation_sql(project_id, None, generation)?;
+            let worker = self.clone();
+            return self.run_native_vector_query(_vector_epoch.clone(), &CancellationToken::new(), async move {
+                let _snapshot = snapshot;
+                worker.ensure_managed_vector_table_present(&_vector_epoch)?;
+                let table_name = _vector_epoch.table.clone();
+                if !worker
+                    .native_store.capture()?.connection
+                    .table_names()
+                    .execute()
+                    .await?
+                    .contains(&table_name)
+                {
+                    return Ok(0);
+                }
+                let table = worker.open_vector_epoch_table(&_vector_epoch).await?;
+                Ok(table.count_rows(Some(selection)).await?)
+            }).await;
         }
         #[cfg(not(feature = "vector"))]
         {
@@ -1929,24 +2645,39 @@ impl HybridSearchEngine {
     pub async fn count_vectors(&self, project_id: &str) -> anyhow::Result<usize> {
         #[cfg(feature = "vector")]
         {
-            let table_name = format!("project_{}", project_id.replace('-', "_"));
-            if !self
-                .lance_conn
-                .table_names()
-                .execute()
-                .await?
-                .contains(&table_name)
-            {
-                return Ok(0);
-            }
-            let table = self.lance_conn.open_table(&table_name).execute().await?;
-            Ok(table.count_rows(None).await?)
+            let _vector_epoch = self.pin_vector_epoch(project_id)?;
+            let worker = self.clone();
+            return self.run_native_vector_query(_vector_epoch.clone(), &CancellationToken::new(), async move {
+                worker.ensure_managed_vector_table_present(&_vector_epoch)?;
+                let table_name = _vector_epoch.table.clone();
+                if !worker
+                    .native_store.capture()?.connection
+                    .table_names()
+                    .execute()
+                    .await?
+                    .contains(&table_name)
+                {
+                    return Ok(0);
+                }
+                let table = worker.open_vector_epoch_table(&_vector_epoch).await?;
+                Ok(table.count_rows(None).await?)
+            }).await;
         }
         #[cfg(not(feature = "vector"))]
         {
             let _ = project_id;
             Ok(0)
         }
+    }
+
+    /// Bind ingestion to the complete VB path inventory admitted by its source
+    /// scan. This does not enumerate disk or change file selection. Without an
+    /// inventory, trusted VB ingestion refuses; standalone analysis remains
+    /// available through the extractor APIs.
+    pub fn with_vb_source_inventory(&self, files: Arc<Vec<PathBuf>>) -> Self {
+        let mut scoped = self.clone();
+        scoped.vb_source_inventory = Some(files);
+        scoped
     }
 
     /// Full reindex of all given files. Used for both `index_project` and
@@ -1966,21 +2697,35 @@ impl HybridSearchEngine {
     where
         F: FnMut(usize, usize) + Send,
     {
+        let parse_admission = self.acquire_parse_permit().await?;
+        // Preparation owns the singleton compilation until every actual parse
+        // worker/result is disposed, including after async request cancellation.
+        let vb_compilation = tokio::select! {
+            biased;
+            _ = cancel.cancelled() => anyhow::bail!("Source indexing cancelled before compilation admission"),
+            lease = crate::vb_extractor::prepare_ingestion_batch(root, &files, self.vb_source_inventory.clone(),
+                self.memory_budget.clone(), parse_admission.clone(),
+                #[cfg(test)] self.parse_preparation_pause.clone().map(|pause|
+                    Box::new(move || pause.wait()) as Box<dyn FnOnce() + Send>)) => lease?,
+        };
+        let mutation = self.begin_project_mutation(project_id)?;
+        let scoped = self.with_mutation(&mutation)?;
+        let mut guard = scoped.create_bulk_writer_async(project_id, cancel).await?;
         use rayon::prelude::*;
 
-        let mut stats = IngestStats::default();
+        let mut stats = IngestStats {
+            source_extraction_identity: Some(crate::SourceExtractionIdentity::for_chunk_target(
+                max_chars_per_chunk,
+            )),
+            ..IngestStats::default()
+        };
         let total_files = files.len();
         stats.files = total_files;
 
-        // Warm (or incrementally refresh) the VB sidecar's shared
-        // compilation. A full index rebuilds it; an incremental update only
-        // drops the trees for the files it is about to re-parse.
-        crate::vb_extractor::prepare_project(root, &files);
-
         // Single Tantivy writer for the entire index_files run.
         // BulkWriterGuard commits + waits on Drop (cancel-safe).
-        let mut guard = self.create_bulk_writer()?;
-        let fields = self.fields();
+
+        let fields = scoped.fields();
 
         let mut batch: Vec<IndexDoc> = Vec::with_capacity(512);
         let mut processed_count = 0;
@@ -1994,7 +2739,7 @@ impl HybridSearchEngine {
                 .iter()
                 .filter_map(|p| std::fs::metadata(p).ok().map(|m| m.len()))
                 .sum::<u64>();
-            let _chunking_guard = self
+            let chunking_guard = scoped
                 .memory_budget
                 .as_ref()
                 .map(|budget| {
@@ -2008,63 +2753,80 @@ impl HybridSearchEngine {
                 .transpose()?;
 
             let chunk_paths = file_chunk.to_vec();
-            let extractor = self.extractor.clone();
+            let extractor = scoped.extractor.clone();
             let root_buf = root.to_path_buf();
             let namespace_str = namespace.to_string();
+            let work = parse_work::ParseWork {
+                reservation: chunking_guard,
+                operation: Some(scoped.begin_operation()?),
+                admission: parse_admission.clone(),
+                vb_compilation: vb_compilation.clone(),
+                #[cfg(test)]
+                pause: scoped.parse_pause.clone(),
+            };
+            #[cfg(test)]
+            let parse_pause = scoped.parse_pause.clone();
 
-            let (chunk_stats, chunk_docs) = tokio::task::spawn_blocking(move || {
-                chunk_paths
+            let parsed = tokio::task::spawn_blocking(move || {
+                // Bind ownership before creating any worker-local buffers.
+                // The returned envelope retains it if the waiter disappears.
+                let work = work;
+                let vb_compilation = work.vb_compilation.as_ref();
+                let (chunk_stats, chunk_docs) = chunk_paths
                     .par_iter()
-                    .map(|p| {
+                    .map(|p| parse_work::contain_extraction_panic(p, || -> anyhow::Result<_> {
                         let mut local_stats = IngestStats::default();
                         let mut local_docs = Vec::new();
                         let rel_path = RelPath::from_relative(&root_buf, p)
                             .unwrap_or_else(|| RelPath::new(&p.to_string_lossy()));
 
-                        let Ok(meta) = std::fs::metadata(p) else {
-                            local_stats
-                                .skipped_files
-                                .push((rel_path, "Could not read metadata".into()));
-                            return (local_stats, local_docs);
-                        };
+                        let meta = std::fs::metadata(p).map_err(|error|
+                            anyhow::anyhow!("Cannot read source metadata {}: {error}", p.display()))?;
                         if meta.len() > ingest::MAX_FILE_SIZE {
                             local_stats
                                 .skipped_files
                                 .push((rel_path, format!("File too large ({} bytes)", meta.len())));
-                            return (local_stats, local_docs);
+                            return Ok((local_stats, local_docs));
                         }
 
-                        if ingest::is_binary(p) {
+                        use std::io::Read;
+                        // Classify from the same open handle used for text.
+                        // The advisory is_binary helper maps read errors to
+                        // true; that must never turn an I/O failure into an
+                        // authoritative "binary file" exclusion.
+                        let mut file = std::fs::File::open(p).map_err(|error|
+                            anyhow::anyhow!("Cannot open source content {}: {error}", p.display()))?;
+                        let mut bytes = Vec::with_capacity(meta.len() as usize + 1);
+                        (&mut file).take(8192).read_to_end(&mut bytes).map_err(|error|
+                            anyhow::anyhow!("Cannot read source content {}: {error}", p.display()))?;
+                        if bytes.contains(&0) {
                             local_stats
                                 .skipped_files
                                 .push((rel_path, "Binary file".into()));
-                            return (local_stats, local_docs);
+                            return Ok((local_stats, local_docs));
                         }
 
-                        let Ok(bytes) = std::fs::read(p) else {
-                            // DS1/D5: log unexpected read failures so operators can see
-                            // them in structured logs, not just in the indexing report.
-                            // Policy: fail-open (skip file, continue job).
-                            tracing::warn!(
-                                path = %p.display(),
-                                "DS1/D5: file read failed during indexing — file skipped (fail-open)"
-                            );
-                            local_stats
-                                .skipped_files
-                                .push((rel_path, "Could not read file content".into()));
-                            return (local_stats, local_docs);
-                        };
+                        // An I/O failure is not a policy skip. Publishing the
+                        // remaining files would turn a transient access failure
+                        // into a durable deletion from the source snapshot.
+                        let remaining = ingest::MAX_FILE_SIZE + 1 - bytes.len() as u64;
+                        file.take(remaining).read_to_end(&mut bytes).map_err(|error|
+                            anyhow::anyhow!("Cannot read source content {}: {error}", p.display()))?;
+                        anyhow::ensure!(bytes.len() as u64 <= ingest::MAX_FILE_SIZE,
+                            "Source file grew beyond the ingestion limit while reading {}; retry the update", p.display());
                         let size = bytes.len() as u64;
                         local_stats.bytes += size;
 
                         let file_hash = blake3::hash(&bytes).to_hex().to_string();
                         // Reuse the metadata we already read (avoids second stat syscall)
-                        let mtime_ms = meta
+                        let modified = meta
                             .modified()
                             .ok()
-                            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                            .map(|d| d.as_millis() as u64)
-                            .unwrap_or(0);
+                            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok());
+                        let mtime_ms = modified
+                            .and_then(|d| u64::try_from(d.as_millis()).ok()).unwrap_or(0);
+                        let mtime_ns = modified
+                            .and_then(|d| u64::try_from(d.as_nanos()).ok());
 
                         // Wrap rel_path in Arc so all symbols/edges/chunks from this file
                         // share one allocation. O(1) clone instead of O(N) string copies.
@@ -2084,6 +2846,7 @@ impl HybridSearchEngine {
                                 rel_path: arc_rel.as_str().to_string(),
                                 size,
                                 mtime_ms,
+                                mtime_ns,
                                 file_hash,
                             });
 
@@ -2123,6 +2886,9 @@ impl HybridSearchEngine {
                         // code (false blast radius, false paths).
                         let is_vendor = engram_core::is_vendor_path(arc_rel.as_str());
 
+                        #[cfg(test)]
+                        if let Some(pause) = &parse_pause { pause.wait(); }
+                        let mut vb_provenance = None;
                         let (syms, edges) = if is_vendor {
                             (Vec::new(), Vec::new())
                         } else if crate::webforms::is_webforms_markup(p) {
@@ -2134,7 +2900,10 @@ impl HybridSearchEngine {
                                 "cs"
                             };
                             let (mut s, mut e) = if base_lang == "vb" {
-                                crate::vb_extractor::extract_vb(p, &text)
+                                let lease = vb_compilation.ok_or_else(|| anyhow::anyhow!("VB compilation lease missing"))?;
+                                let (s, e, provenance) = crate::vb_extractor::extract_vb_in_batch(lease, p, &text)?;
+                                vb_provenance = Some(provenance);
+                                (s, e)
                             } else {
                                 crate::cs_extractor::extract_cs(p, &text)
                             };
@@ -2151,7 +2920,10 @@ impl HybridSearchEngine {
                         } else if ext_lower.as_deref() == Some("sql") {
                             crate::ddl_extractor::extract_ddl(&arc_rel, &text)
                         } else if ext_lower.as_deref() == Some("vb") {
-                            crate::vb_extractor::extract_vb(p, &text)
+                            let lease = vb_compilation.ok_or_else(|| anyhow::anyhow!("VB compilation lease missing"))?;
+                            let (s, e, provenance) = crate::vb_extractor::extract_vb_in_batch(lease, p, &text)?;
+                            vb_provenance = Some(provenance);
+                            (s, e)
                         } else if matches!(ext_lower.as_deref(), Some("ml" | "mlinc")) {
                             // MiniLang. Takes BOTH paths: the absolute one to
                             // stat conformance-golden siblings, the
@@ -2176,6 +2948,12 @@ impl HybridSearchEngine {
                             // died on the first BOM-visible reference).
                             extractor.extract(std::path::Path::new(arc_rel.as_str()), &text)
                         };
+                        if let Some(provenance) = vb_provenance {
+                            if let crate::vb_extractor::VbParserProvenance::RustFallback { reason, .. } = &provenance {
+                                local_stats.warnings.push(format!("{}: VB source used recorded Rust fallback contract {} ({reason:?}); Roslyn semantic binding was not used for this file", arc_rel.as_str(), crate::SOURCE_INDEX_VERSION));
+                            }
+                            local_stats.vb_parser_provenance.insert(arc_rel.as_str().to_owned(), provenance);
+                        }
                         // Language-generic pass: "must update in N places"
                         // comments are machine-readable sync contracts —
                         // extracted here so the review's SyncContractGate can
@@ -2350,15 +3128,16 @@ impl HybridSearchEngine {
                             local_stats.chunks += 1;
                         }
 
-                        (local_stats, local_docs)
-                    })
-                    .reduce(
+                        Ok((local_stats, local_docs))
+                    }))
+                    .try_reduce(
                         || (IngestStats::default(), Vec::new()),
                         |mut a, b| {
                             a.0.chunks += b.0.chunks;
                             a.0.bytes += b.0.bytes;
                             a.0.all_files.extend(b.0.all_files);
                             a.0.fingerprints.extend(b.0.fingerprints);
+                            a.0.vb_parser_provenance.extend(b.0.vb_parser_provenance);
                             a.0.symbols.extend(b.0.symbols);
                             a.0.edges.extend(b.0.edges);
                             a.0.skipped_files.extend(b.0.skipped_files);
@@ -2367,16 +3146,23 @@ impl HybridSearchEngine {
                             }
                             a.0.warnings.extend(b.0.warnings);
                             a.1.extend(b.1);
-                            a
+                            Ok(a)
                         },
-                    )
+                    )?;
+                Ok::<_, anyhow::Error>(parse_work::ParsedBatch { docs: chunk_docs, stats: chunk_stats, _work: work })
             })
-            .await?;
+            .await??;
+
+            // Keep parsed._work in the earlier-declared envelope: destructuring
+            // it into a later guard local would release it before the outputs.
+            let chunk_stats = parsed.stats;
+            let chunk_docs = parsed.docs;
 
             stats.chunks += chunk_stats.chunks;
             stats.bytes += chunk_stats.bytes;
             stats.all_files.extend(chunk_stats.all_files);
             stats.fingerprints.extend(chunk_stats.fingerprints);
+            stats.vb_parser_provenance.extend(chunk_stats.vb_parser_provenance);
             stats.symbols.extend(chunk_stats.symbols);
             stats.edges.extend(chunk_stats.edges);
             stats.skipped_files.extend(chunk_stats.skipped_files);
@@ -2389,7 +3175,8 @@ impl HybridSearchEngine {
             if batch.len() >= 512 {
                 Self::write_docs_to_writer(&fields, &mut guard, project_id, &batch)?;
                 guard.maybe_commit(1000)?;
-                self.embed_and_upsert_vectors(project_id, &batch, cancel)
+                scoped
+                    .embed_and_upsert_vectors_with_writer(&mut guard, project_id, &batch, cancel)
                     .await?;
                 batch.clear();
             }
@@ -2400,7 +3187,8 @@ impl HybridSearchEngine {
 
         if !batch.is_empty() && !cancel.is_cancelled() {
             Self::write_docs_to_writer(&fields, &mut guard, project_id, &batch)?;
-            self.embed_and_upsert_vectors(project_id, &batch, cancel)
+            scoped
+                .embed_and_upsert_vectors_with_writer(&mut guard, project_id, &batch, cancel)
                 .await?;
         }
 
@@ -2527,25 +3315,12 @@ impl HybridSearchEngine {
             ),
         ];
 
-        if let Ok(policy) = engram_core::get_policy(&q.namespace) {
-            match policy.versioning {
-                engram_core::NamespaceVersioning::Snapshot => {
-                    let gen_term = Term::from_field_u64(self.fields.generation, q.generation);
-                    let gen_q = TermQuery::new(gen_term, IndexRecordOption::Basic);
-                    must_clauses.push((Occur::Must, Box::new(gen_q)));
-                }
-                engram_core::NamespaceVersioning::AppendOnly => {
-                    let parser =
-                        QueryParser::for_index(&self.tantivy_index, vec![self.fields.generation]);
-                    if let Ok(query) =
-                        parser.parse_query(&format!("generation:[* TO {}]", q.generation))
-                    {
-                        must_clauses.push((Occur::Must, query));
-                    }
-                }
-                engram_core::NamespaceVersioning::GlobalMutable => {}
-            }
-        }
+        let _snapshot = self.add_generation_filter(
+            &q.project_id,
+            &q.namespace,
+            q.generation,
+            &mut must_clauses,
+        )?;
 
         if let Some(prefixes) = &q.include_path_prefixes {
             let mut prefix_queries: Vec<(Occur, Box<dyn tantivy::query::Query>)> = Vec::new();
@@ -2755,7 +3530,10 @@ impl HybridSearchEngine {
             let upper = q.date_before.map_or(Bound::Unbounded, |before| {
                 Bound::Excluded(Term::from_field_u64(self.fields.timestamp, before))
             });
-            clauses.push((Occur::Must, Box::new(tantivy::query::RangeQuery::new(lower, upper))));
+            clauses.push((
+                Occur::Must,
+                Box::new(tantivy::query::RangeQuery::new(lower, upper)),
+            ));
         }
     }
 
@@ -2781,10 +3559,13 @@ impl HybridSearchEngine {
             Vec::with_capacity(trigrams.len());
         for tri in &trigrams {
             if case_sensitive {
-                must.push((Occur::Must, Box::new(TermQuery::new(
-                    Term::from_field_text(self.fields.content, tri),
-                    IndexRecordOption::Basic,
-                ))));
+                must.push((
+                    Occur::Must,
+                    Box::new(TermQuery::new(
+                        Term::from_field_text(self.fields.content, tri),
+                        IndexRecordOption::Basic,
+                    )),
+                ));
                 continue;
             }
             let should: Vec<(Occur, Box<dyn tantivy::query::Query>)> = case_variants(tri)
@@ -2876,7 +3657,8 @@ impl HybridSearchEngine {
             (Occur::Must, Box::new(pid_q)),
             (Occur::Must, Box::new(ns_q)),
         ];
-        self.add_generation_filter(&q.namespace, q.generation, &mut must)?;
+        let _snapshot =
+            self.add_generation_filter(&q.project_id, &q.namespace, q.generation, &mut must)?;
 
         if let Some(langs) = &q.language_filters {
             let mut lq: Vec<(Occur, Box<dyn tantivy::query::Query>)> = Vec::new();
@@ -3018,6 +3800,51 @@ impl HybridSearchEngine {
         generation: u64,
         doc_id_str: &str,
     ) -> anyhow::Result<Option<(RelPath, String, String, u32, u32)>> {
+        let snapshot = if engram_core::get_policy(namespace)
+            .is_ok_and(|policy| policy.versioning == engram_core::NamespaceVersioning::Snapshot)
+        {
+            Some(self.snapshots.pin(project_id, namespace, generation)?)
+        } else {
+            None
+        };
+        if let Some(view) = snapshot
+            .as_ref()
+            .filter(|view| matches!(view.selection, snapshots::Selection::Files(_)))
+        {
+            let query = BooleanQuery::new(vec![
+                (
+                    Occur::Must,
+                    Box::new(TermQuery::new(
+                        Term::from_field_text(self.fields.project_id, project_id),
+                        IndexRecordOption::Basic,
+                    )) as Box<dyn tantivy::query::Query>,
+                ),
+                (
+                    Occur::Must,
+                    Box::new(TermQuery::new(
+                        Term::from_field_text(self.fields.namespace, namespace),
+                        IndexRecordOption::Basic,
+                    )),
+                ),
+                (
+                    Occur::Must,
+                    Box::new(TermQuery::new(
+                        Term::from_field_text(self.fields.doc_id, doc_id_str),
+                        IndexRecordOption::Basic,
+                    )),
+                ),
+                (Occur::Must, view.query(&self.fields)),
+            ]);
+            let searcher = self.tantivy_index.reader()?.searcher();
+            return searcher
+                .search(&query, &TopDocs::with_limit(1))?
+                .first()
+                .map(|(_, address)| {
+                    let doc: tantivy::TantivyDocument = searcher.doc(*address)?;
+                    Ok(self.document_parts(&doc))
+                })
+                .transpose();
+        }
         let effective_gen = if let Ok(policy) = engram_core::get_policy(namespace) {
             if policy.versioning == engram_core::NamespaceVersioning::GlobalMutable {
                 0
@@ -3029,6 +3856,49 @@ impl HybridSearchEngine {
         };
         let pk = build_pk(project_id, namespace, effective_gen, doc_id_str);
         self.get_doc_by_pk(&pk)
+    }
+
+    /// Recover a selected source hit under the request's existing source lease.
+    /// The physical identity is checked against that exact view; this never
+    /// re-pins a newer head or substitutes another revision of the logical ID.
+    #[allow(clippy::type_complexity)]
+    pub fn recover_selected_source_hit(
+        &self,
+        project_id: &str,
+        view: &SourceSnapshotGuard,
+        hit: &HybridHit,
+    ) -> anyhow::Result<Option<(RelPath, String, String, u32, u32)>> {
+        anyhow::ensure!(Arc::ptr_eq(&view._catalog, &self.snapshots) && view._project == project_id,
+            "Selected source recovery requires the same project and index root lease");
+        let mut parts = hit.pk.splitn(4, ':');
+        anyhow::ensure!(parts.next() == Some(project_id) && parts.next() == Some("memory"),
+            "Selected source physical key belongs to another project or namespace");
+        let physical_generation = parts.next().ok_or_else(|| anyhow::anyhow!("Missing physical generation"))?.parse::<u64>()?;
+        anyhow::ensure!(parts.next() == Some(hit.doc_id.as_str())
+            && build_pk(project_id, "memory", physical_generation, &hit.doc_id) == hit.pk,
+            "Selected source physical key is not canonical for this document");
+        anyhow::ensure!(view._snapshot.contains(hit.path.as_str(), physical_generation),
+            "Selected source revision is outside the held request view");
+        let searcher = self.tantivy_index.reader()?.searcher();
+        let query = TermQuery::new(Term::from_field_text(self.fields.pk, &hit.pk), IndexRecordOption::Basic);
+        let matches = searcher.search(&query, &TopDocs::with_limit(2))?;
+        anyhow::ensure!(matches.len() <= 1, "Ambiguous selected physical source identity");
+        let Some((_, address)) = matches.first() else { return Ok(None); };
+        let doc: tantivy::TantivyDocument = searcher.doc(*address)?;
+        let string = |field| doc.get_first(field).and_then(|v| v.as_str());
+        anyhow::ensure!(string(self.fields.pk) == Some(hit.pk.as_str())
+            && string(self.fields.project_id) == Some(project_id)
+            && string(self.fields.namespace) == Some("memory")
+            && string(self.fields.doc_id) == Some(hit.doc_id.as_str())
+            && string(self.fields.path) == Some(hit.path.as_str())
+            && doc.get_first(self.fields.chunk_id).and_then(|v| v.as_u64()) == Some(hit.chunk_id)
+            && doc.get_first(self.fields.generation).and_then(|v| v.as_u64()) == Some(physical_generation),
+            "Stored source identity differs from the selected physical hit");
+        let recovered = self.document_parts(&doc);
+        anyhow::ensure!((hit.start_line == 0 || recovered.3 == hit.start_line)
+            && (hit.end_line == 0 || recovered.4 == hit.end_line),
+            "Stored source line bounds differ from the selected hit");
+        Ok(Some(recovered))
     }
 
     /// Retrieve a doc by its primary key.
@@ -3050,6 +3920,13 @@ impl HybridSearchEngine {
         let (_, addr) = top_docs[0];
         let doc: tantivy::TantivyDocument = searcher.doc(addr)?;
 
+        Ok(Some(self.document_parts(&doc)))
+    }
+
+    fn document_parts(
+        &self,
+        doc: &tantivy::TantivyDocument,
+    ) -> (RelPath, String, String, u32, u32) {
         let path_str = doc
             .get_first(self.fields.path)
             .and_then(|v| v.as_str())
@@ -3074,11 +3951,38 @@ impl HybridSearchEngine {
             .and_then(|v| v.as_u64())
             .unwrap_or(0) as u32;
 
-        Ok(Some((path, language, content, start_line, end_line)))
+        (path, language, content, start_line, end_line)
     }
 
-    /// Embed texts with the project's configured (cached) embedder, in order.
-    /// For callers that rank their own units, e.g. one card per change.
+    /// Returns an opaque provider identity and actual dimension for document
+    /// caches. Query preprocessing is separate; disabled vectors have no identity.
+    pub fn document_embedding_identity(&self) -> Option<(String, usize)> {
+        #[cfg(feature = "vector")]
+        {
+            if self.semantic_quality() == SemanticQuality::Off { return None; }
+            let tag = self.embedder.model_tag();
+            let dimension = self.embedder.dimension();
+            let mut hash = blake3::Hasher::new();
+            hash.update(b"engram-document-embedding-v1");
+            hash.update(&(tag.len() as u64).to_le_bytes());
+            hash.update(tag.as_bytes());
+            hash.update(&(dimension as u64).to_le_bytes());
+            Some((hash.finalize().to_hex().to_string(), dimension))
+        }
+        #[cfg(not(feature = "vector"))]
+        { None }
+    }
+
+    /// Cumulative observations for this engine's durable document cache, if
+    /// configured. Reading counters does not open the cache or call a provider.
+    pub fn embedding_cache_stats(&self) -> Option<crate::embed_cache::EmbeddingCacheStats> {
+        #[cfg(feature = "vector")]
+        { self.embedding_cache.as_ref().map(|cache| cache.stats()) }
+        #[cfg(not(feature = "vector"))]
+        { None }
+    }
+
+    /// Embed texts with the project's configured document provider, in order.
     pub async fn embed_texts(&self, texts: &[String]) -> anyhow::Result<Vec<Vec<f32>>> {
         #[cfg(feature = "vector")]
         {
@@ -3204,20 +4108,91 @@ impl HybridSearchEngine {
             .filter(|&t| t > 0)
     }
 
+    fn exact_generation_selection(
+        &self,
+        project_id: &str,
+        namespace: Option<&str>,
+        generation: u64,
+    ) -> anyhow::Result<(Box<dyn tantivy::query::Query>, Option<snapshots::Lease>)> {
+        let exact = || {
+            Box::new(TermQuery::new(
+                Term::from_field_u64(self.fields.generation, generation),
+                IndexRecordOption::Basic,
+            )) as Box<dyn tantivy::query::Query>
+        };
+        if namespace.is_some_and(|namespace| namespace != "memory")
+            || (namespace.is_none() && generation == 0)
+        {
+            return Ok((exact(), None));
+        }
+        let snapshot = self.snapshots.pin(project_id, "memory", generation)?;
+        let selected = snapshot.query(&self.fields);
+        let query: Box<dyn tantivy::query::Query> = if namespace.is_some() {
+            selected
+        } else {
+            let memory = || {
+                Box::new(TermQuery::new(
+                    Term::from_field_text(self.fields.namespace, "memory"),
+                    IndexRecordOption::Basic,
+                )) as Box<dyn tantivy::query::Query>
+            };
+            Box::new(BooleanQuery::new(vec![
+                (
+                    Occur::Should,
+                    Box::new(BooleanQuery::new(vec![
+                        (Occur::Must, memory()),
+                        (Occur::Must, selected),
+                    ])),
+                ),
+                (
+                    Occur::Should,
+                    Box::new(BooleanQuery::new(vec![
+                        (Occur::Must, exact()),
+                        (Occur::MustNot, memory()),
+                    ])),
+                ),
+            ]))
+        };
+        Ok((query, Some(snapshot)))
+    }
+
+    #[cfg(feature = "vector")]
+    fn exact_generation_sql(
+        &self,
+        project_id: &str,
+        namespace: Option<&str>,
+        generation: u64,
+    ) -> anyhow::Result<(String, Option<snapshots::Lease>)> {
+        if namespace.is_some_and(|namespace| namespace != "memory")
+            || (namespace.is_none() && generation == 0)
+        {
+            return Ok((format!("generation = {}", crate::sql_literals::u64_literal(generation)), None));
+        }
+        let snapshot = self.snapshots.pin(project_id, "memory", generation)?;
+        let clause = if namespace.is_some() {
+            snapshot.sql().to_owned()
+        } else {
+            format!(
+                "((namespace = 'memory' AND ({})) OR (namespace <> 'memory' AND generation = {}))",
+                snapshot.sql(), crate::sql_literals::u64_literal(generation)
+            )
+        };
+        Ok((clause, Some(snapshot)))
+    }
+
     fn add_generation_filter(
         &self,
+        project_id: &str,
         namespace: &str,
         generation: u64,
         clauses: &mut Vec<(Occur, Box<dyn tantivy::query::Query>)>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<Option<snapshots::Lease>> {
         if let Ok(policy) = engram_core::get_policy(namespace) {
             match policy.versioning {
                 engram_core::NamespaceVersioning::Snapshot => {
-                    let gen_term = Term::from_field_u64(self.fields.generation, generation);
-                    clauses.push((
-                        Occur::Must,
-                        Box::new(TermQuery::new(gen_term, IndexRecordOption::Basic)),
-                    ));
+                    let snapshot = self.snapshots.pin(project_id, namespace, generation)?;
+                    clauses.push((Occur::Must, snapshot.query(&self.fields)));
+                    return Ok(Some(snapshot));
                 }
                 engram_core::NamespaceVersioning::AppendOnly => {
                     let parser =
@@ -3231,7 +4206,7 @@ impl HybridSearchEngine {
                 engram_core::NamespaceVersioning::GlobalMutable => {}
             }
         }
-        Ok(())
+        Ok(None)
     }
 
     pub async fn vector_search(
@@ -3239,16 +4214,81 @@ impl HybridSearchEngine {
         q: &HybridQuery,
         cancel: &CancellationToken,
     ) -> anyhow::Result<Vec<HybridHit>> {
-        #[cfg(not(feature = "vector"))]
-        let _ = cancel;
-        if self.embedding_backend == "fts_only" {
+        if self.is_lexical_only() {
             return Ok(Vec::new());
         }
         #[cfg(feature = "vector")]
         {
-            let table_name = format!("project_{}", q.project_id.replace('-', "_"));
+            let _source = if engram_core::get_policy(&q.namespace)
+                .is_ok_and(|p| p.versioning == engram_core::NamespaceVersioning::Snapshot)
+            {
+                Some(
+                    self.snapshots
+                        .pin(&q.project_id, &q.namespace, q.generation)?,
+                )
+            } else {
+                None
+            };
+            let epoch = self.pin_vector_epoch(&q.project_id)?;
+            self.vector_search_with_epoch(q, cancel, epoch).await
+        }
+        #[cfg(not(feature = "vector"))]
+        {
+            let _ = (q, cancel);
+            Ok(Vec::new())
+        }
+    }
+
+    #[cfg(feature = "vector")]
+    async fn vector_search_with_epoch(
+        &self,
+        q: &HybridQuery,
+        cancel: &CancellationToken,
+        _vector_epoch: Arc<vector_epochs::Epoch>,
+    ) -> anyhow::Result<Vec<HybridHit>> {
+        if self.is_lexical_only() { return Ok(Vec::new()); }
+        anyhow::ensure!(q.top_k <= 10_000, "Native query output exceeds 10000 rows");
+        self.ensure_managed_vector_table_present(&_vector_epoch)?;
+        anyhow::ensure!(_vector_epoch.record.is_some() || self.count_docs(&q.project_id)? == 0,
+            "VEC1: stored documents have no identified vector store; initialize vectors from stored text before searching");
+        let snapshot = if engram_core::get_policy(&q.namespace)
+            .is_ok_and(|policy| policy.versioning == engram_core::NamespaceVersioning::Snapshot)
+        {
+            Some(self.snapshots.pin(&q.project_id, &q.namespace, q.generation)?)
+        } else { None };
+        // Provider failures occur before any Lance operation is started. They
+        // do not leave native reader quiescence unproven or disable pruning.
+        let query_vec = _vector_epoch.query_embedder.as_ref()
+            .ok_or_else(|| anyhow::anyhow!("VEC1: vector embedding identity is unavailable; explicit recovery is required"))?
+            .embed_cancellable(&q.text, cancel).await?;
+        let worker = self.clone();
+        let query = q.clone();
+        self.run_native_vector_query(_vector_epoch.clone(), cancel, async move {
+            worker.vector_search_backend(&query, query_vec, _vector_epoch, snapshot).await
+        }).await
+    }
+
+    #[cfg(feature = "vector")]
+    async fn vector_search_backend(
+        &self,
+        q: &HybridQuery,
+        query_vec: Vec<f32>,
+        _vector_epoch: Arc<vector_epochs::Epoch>,
+        _snapshot: Option<snapshots::Lease>,
+    ) -> anyhow::Result<Vec<HybridHit>> {
+        if self.is_lexical_only() {
+            return Ok(Vec::new());
+        }
+        #[cfg(feature = "vector")]
+        {
+            self.ensure_managed_vector_table_present(&_vector_epoch)?;
+            anyhow::ensure!(
+                _vector_epoch.record.is_some() || self.count_docs(&q.project_id)? == 0,
+                "VEC1: stored documents have no identified vector store; initialize vectors from stored text before searching"
+            );
+            let table_name = _vector_epoch.table.clone();
             if !self
-                .lance_conn
+                .native_store.capture()?.connection
                 .table_names()
                 .execute()
                 .await?
@@ -3256,14 +4296,7 @@ impl HybridSearchEngine {
             {
                 return Ok(Vec::new());
             }
-            let table = self.lance_conn.open_table(&table_name).execute().await?;
-
-            // EMB1-x8q2: use embed_cancellable so in-flight embed can be cooperatively
-            // interrupted if the job or request is cancelled before the remote returns.
-            let query_vec = self
-                .query_embedder
-                .embed_cancellable(&q.text, cancel)
-                .await?;
+            let table = self.open_vector_epoch_table(&_vector_epoch).await?;
 
             // Build the WHERE clause into a single pre-allocated String instead
             // of N separate format!() + Vec<String> + join(). Saves ~10 intermediate
@@ -3277,10 +4310,12 @@ impl HybridSearchEngine {
                 if let Ok(policy) = engram_core::get_policy(&q.namespace) {
                     match policy.versioning {
                         engram_core::NamespaceVersioning::Snapshot => {
-                            let _ = write!(wc, " AND generation = {}", q.generation);
+                            if let Some(snapshot) = &_snapshot {
+                                let _ = write!(wc, " AND ({})", snapshot.sql());
+                            }
                         }
                         engram_core::NamespaceVersioning::AppendOnly => {
-                            let _ = write!(wc, " AND generation <= {}", q.generation);
+                            let _ = write!(wc, " AND generation <= {}", crate::sql_literals::u64_literal(q.generation));
                         }
                         engram_core::NamespaceVersioning::GlobalMutable => {}
                     }
@@ -3345,10 +4380,10 @@ impl HybridSearchEngine {
                 }
 
                 if let Some(after) = q.date_after {
-                    let _ = write!(wc, " AND timestamp >= {}", after);
+                    let _ = write!(wc, " AND timestamp >= {}", crate::sql_literals::u64_literal(after));
                 }
                 if let Some(before) = q.date_before {
-                    let _ = write!(wc, " AND timestamp < {}", before);
+                    let _ = write!(wc, " AND timestamp < {}", crate::sql_literals::u64_literal(before));
                 }
                 wc
             };
@@ -3442,6 +4477,21 @@ impl HybridSearchEngine {
         timeout_ms: u64,
         cancel: &CancellationToken,
     ) -> anyhow::Result<Vec<HybridHit>> {
+        if self.is_lexical_only() {
+            return Ok(Vec::new());
+        }
+        let _snapshot = if engram_core::get_policy(&q.namespace)
+            .is_ok_and(|policy| policy.versioning == engram_core::NamespaceVersioning::Snapshot)
+        {
+            Some(
+                self.snapshots
+                    .pin(&q.project_id, &q.namespace, q.generation)?,
+            )
+        } else {
+            None
+        };
+        #[cfg(feature = "vector")]
+        let vector_epoch = self.pin_vector_epoch(&q.project_id)?;
         let oversample_factor = if q.use_mmr {
             self.mmr_oversampling.max(3)
         } else {
@@ -3453,29 +4503,30 @@ impl HybridSearchEngine {
         q_oversampled.top_k = (q.top_k.saturating_mul(oversample_factor)).min(10_000);
 
         let timeout_dur = std::time::Duration::from_millis(timeout_ms);
-        let mut hits =
-            match tokio::time::timeout(timeout_dur, self.vector_search(&q_oversampled, cancel))
-                .await
-            {
-                Ok(result) => result?,
-                Err(_) => {
-                    // ENG-AUD-2026-S05-0002: return a typed Err rather than
-                    // Ok(Vec::new()) so callers can distinguish "backend timed
-                    // out" (infra failure) from "no matching documents" (correct
-                    // empty result).  Masking as empty silently degrades ADP
-                    // evidence consumers and any retry/circuit-breaker logic.
-                    tracing::warn!(
-                        timeout_ms = timeout_ms,
-                        "vector search timed out after {}ms — returning error (not empty result)",
-                        timeout_ms
-                    );
-                    return Err(anyhow::anyhow!(
-                        "ENG-AUD-2026-S05-0002: vector search infrastructure timeout after \
+        #[cfg(feature = "vector")]
+        let search = self.vector_search_with_epoch(&q_oversampled, cancel, vector_epoch.clone());
+        #[cfg(not(feature = "vector"))]
+        let search = self.vector_search(&q_oversampled, cancel);
+        let mut hits = match tokio::time::timeout(timeout_dur, search).await {
+            Ok(result) => result?,
+            Err(_) => {
+                // ENG-AUD-2026-S05-0002: return a typed Err rather than
+                // Ok(Vec::new()) so callers can distinguish "backend timed
+                // out" (infra failure) from "no matching documents" (correct
+                // empty result).  Masking as empty silently degrades ADP
+                // evidence consumers and any retry/circuit-breaker logic.
+                tracing::warn!(
+                    timeout_ms = timeout_ms,
+                    "vector search timed out after {}ms — returning error (not empty result)",
+                    timeout_ms
+                );
+                return Err(anyhow::anyhow!(
+                    "ENG-AUD-2026-S05-0002: vector search infrastructure timeout after \
                          {timeout_ms}ms; backend may be unavailable — treat as transient failure, \
                          not an empty result set"
-                    ));
-                }
-            };
+                ));
+            }
+        };
 
         #[cfg(feature = "vector")]
         if q.use_mmr && hits.len() > q.top_k {
@@ -3485,7 +4536,12 @@ impl HybridSearchEngine {
             // produces degenerate rankings where all cosine similarities are
             // 0.0, defeating the diversity objective entirely).
             match self
-                .get_vectors_by_chunk_ids(&q.project_id, &chunk_ids)
+                .get_vectors_by_chunk_ids_with_epoch(
+                    &q.project_id,
+                    &chunk_ids,
+                    vector_epoch.clone(),
+                    _snapshot.clone(),
+                )
                 .await
             {
                 Ok(vectors) => {
@@ -3517,9 +4573,64 @@ impl HybridSearchEngine {
     ) -> anyhow::Result<std::collections::HashMap<u64, Vec<f32>>> {
         #[cfg(feature = "vector")]
         {
-            let table_name = format!("project_{}", project_id.replace('-', "_"));
+            self.get_vectors_by_chunk_ids_with_epoch(
+                project_id,
+                chunk_ids,
+                self.pin_vector_epoch(project_id)?,
+                None,
+            )
+            .await
+        }
+        #[cfg(not(feature = "vector"))]
+        {
+            let _ = (project_id, chunk_ids);
+            Ok(std::collections::HashMap::new())
+        }
+    }
+
+    #[cfg(feature = "vector")]
+    async fn get_vectors_by_chunk_ids_with_epoch(
+        &self,
+        project_id: &str,
+        chunk_ids: &[u64],
+        _vector_epoch: Arc<vector_epochs::Epoch>,
+        source: Option<snapshots::Lease>,
+    ) -> anyhow::Result<std::collections::HashMap<u64, Vec<f32>>> {
+        // Hybrid ranking can combine disjoint 10,000-row lexical and vector
+        // candidate sets before selecting its MMR prefix.
+        anyhow::ensure!(chunk_ids.len() <= 20_000, "Native vector lookup exceeds 20000 chunk IDs");
+        anyhow::ensure!(_vector_epoch.record.as_ref().is_none_or(|record| record.project == project_id),
+            "Vector lease belongs to another project");
+        self.ensure_managed_vector_table_present(&_vector_epoch)?;
+        let worker = self.clone();
+        let project = project_id.to_owned();
+        let ids = chunk_ids.to_vec();
+        self.run_native_vector_query(_vector_epoch.clone(), &CancellationToken::new(), async move {
+            let _source = source;
+            worker.get_vectors_by_chunk_ids_backend(&project, &ids, _vector_epoch).await
+        }).await
+    }
+
+    #[cfg(feature = "vector")]
+    async fn get_vectors_by_chunk_ids_backend(
+        &self,
+        project_id: &str,
+        chunk_ids: &[u64],
+        _vector_epoch: Arc<vector_epochs::Epoch>,
+    ) -> anyhow::Result<std::collections::HashMap<u64, Vec<f32>>> {
+        anyhow::ensure!(
+            _vector_epoch
+                .record
+                .as_ref()
+                .is_none_or(|r| r.project == project_id),
+            "Vector lease belongs to another project"
+        );
+        #[cfg(feature = "vector")]
+        {
+            self.ensure_managed_vector_table_present(&_vector_epoch)?;
+            let table_name = _vector_epoch.table.clone();
             if !self
-                .lance_conn
+                .native_store.capture()?.connection
                 .table_names()
                 .execute()
                 .await?
@@ -3527,7 +4638,7 @@ impl HybridSearchEngine {
             {
                 return Ok(std::collections::HashMap::new());
             }
-            let table = self.lance_conn.open_table(&table_name).execute().await?;
+            let table = self.open_vector_epoch_table(&_vector_epoch).await?;
 
             let id_list = chunk_ids
                 .iter()
@@ -3536,11 +4647,16 @@ impl HybridSearchEngine {
                 .join(", ");
             let filter = format!("chunk_id IN ({})", id_list);
 
-            let mut results = table.query().only_if(filter).execute().await?;
+            let mut results = table.query().only_if(filter)
+                .select(lancedb::query::Select::Columns(vec!["chunk_id".into(), "vector".into()]))
+                .limit(1_000_001).execute().await?;
 
             let mut map = std::collections::HashMap::new();
+            let mut rows = 0usize;
             use futures::TryStreamExt;
             while let Some(batch) = TryStreamExt::try_next(&mut results).await? {
+                rows += batch.num_rows();
+                anyhow::ensure!(rows <= 1_000_000, "Native vector lookup exceeds 1000000 rows");
                 let chunk_id_arr = batch
                     .column_by_name("chunk_id")
                     .and_then(|c| c.as_any().downcast_ref::<arrow_array::UInt64Array>())
@@ -3587,10 +4703,25 @@ impl HybridSearchEngine {
         let mut selected: Vec<HybridHit> = Vec::new();
         let mut remaining = candidates;
 
-        if let Some(first) = remaining.first().cloned() {
-            selected.push(first);
-            remaining.remove(0);
-        }
+        selected.push(remaining.remove(0));
+        if selected.len() == top_k || remaining.is_empty() { return selected; }
+
+        // Keep one maximum per candidate rather than recomputing all earlier
+        // pair similarities on every selection. Reserve this bounded buffer
+        // before allocating; memory pressure retains the exact uncached rule.
+        let cache_bytes = remaining.len().checked_mul(std::mem::size_of::<f32>())
+            .and_then(|bytes| u64::try_from(bytes).ok());
+        let (cache_admitted, _similarity_cache_allocation) = if remaining.len() <= 20_000 {
+            match (self.memory_budget.as_ref(), cache_bytes) {
+                (None, Some(_)) => (true, None),
+                (Some(budget), Some(bytes)) => match AllocationGuard::try_new(budget, bytes, Subsystem::Misc, "MMR similarity maxima") {
+                    Ok(guard) => (true, Some(guard)),
+                    Err(_) => (false, None),
+                },
+                _ => (false, None),
+            }
+        } else { (false, None) };
+        let mut max_similarities = cache_admitted.then(|| vec![0.0f32; remaining.len()]);
 
         // Pre-allocate a single fallback zero-vector outside the hot loop
         let zero_vec = vec![0.0f32; self.embedder.dimension()];
@@ -3603,7 +4734,13 @@ impl HybridSearchEngine {
                 let cand_vec = vectors.get(&cand.chunk_id).unwrap_or(&zero_vec);
 
                 let mut max_sim = 0.0f32;
-                for sel in &selected {
+                if let Some(maxima) = max_similarities.as_mut() {
+                    if let Some(sel_vec) = selected.last().and_then(|sel| vectors.get(&sel.chunk_id)) {
+                        let sim = dot_product(cand_vec, sel_vec).clamp(0.0, 1.0);
+                        if sim > maxima[idx] { maxima[idx] = sim; }
+                    }
+                    max_sim = maxima[idx];
+                } else { for sel in &selected {
                     let sel_vec = match vectors.get(&sel.chunk_id) {
                         Some(v) => v,
                         None => continue,
@@ -3617,7 +4754,7 @@ impl HybridSearchEngine {
                     if sim > max_sim {
                         max_sim = sim;
                     }
-                }
+                } }
 
                 // Standard MMR formula: λ * relevance - (1-λ) * max_similarity.
                 // cand.score is the RRF relevance; max_sim is clamped to [0, 1].
@@ -3629,6 +4766,7 @@ impl HybridSearchEngine {
             }
 
             selected.push(remaining.remove(best_idx));
+            if let Some(maxima) = max_similarities.as_mut() { maxima.remove(best_idx); }
         }
 
         selected
@@ -3641,6 +4779,37 @@ impl HybridSearchEngine {
         centrality_boost: Option<&std::collections::HashMap<String, f32>>,
         cancel: &CancellationToken,
     ) -> anyhow::Result<Vec<HybridHit>> {
+        self.search_ranked_prefix(q, centrality_boost, cancel, q.top_k).await
+    }
+
+    /// Return an exact prefix of the complete ranking requested by `q`.
+    /// Candidate retrieval, score fusion, filters and the decision to apply
+    /// MMR retain `q.top_k`. Greedy MMR need only choose the required prefix.
+    /// Callers fusing several namespace rankings still need the full lists.
+    pub async fn search_ranked_prefix(
+        &self,
+        q: &HybridQuery,
+        centrality_boost: Option<&std::collections::HashMap<String, f32>>,
+        cancel: &CancellationToken,
+        output_limit: usize,
+    ) -> anyhow::Result<Vec<HybridHit>> {
+        let output_limit = output_limit.min(q.top_k);
+        let _snapshot = if engram_core::get_policy(&q.namespace)
+            .is_ok_and(|policy| policy.versioning == engram_core::NamespaceVersioning::Snapshot)
+        {
+            Some(
+                self.snapshots
+                    .pin(&q.project_id, &q.namespace, q.generation)?,
+            )
+        } else {
+            None
+        };
+        #[cfg(feature = "vector")]
+        let vector_epoch = if self.is_lexical_only() {
+            None
+        } else {
+            Some(self.pin_vector_epoch(&q.project_id)?)
+        };
         let fetch_k = if q.use_mmr {
             // FTS2: saturating_mul + cap prevents OOM on large top_k × multiplier combos.
             (q.top_k.saturating_mul(self.mmr_oversampling.max(2))).min(10_000)
@@ -3652,6 +4821,15 @@ impl HybridSearchEngine {
         q_modified.top_k = fetch_k;
 
         let lexical = self.lexical_search(&q_modified)?;
+        #[cfg(feature = "vector")]
+        let vector = match &vector_epoch {
+            Some(epoch) => {
+                self.vector_search_with_epoch(&q_modified, cancel, epoch.clone())
+                    .await?
+            }
+            None => Vec::new(),
+        };
+        #[cfg(not(feature = "vector"))]
         let vector = self.vector_search(&q_modified, cancel).await?;
 
         use std::collections::HashMap;
@@ -3739,12 +4917,20 @@ impl HybridSearchEngine {
         });
 
         #[cfg(feature = "vector")]
-        if q.use_mmr && merged.len() > q.top_k {
+        if q.use_mmr && merged.len() > q.top_k && vector_epoch.is_some() {
             let chunk_ids: Vec<u64> = merged.iter().map(|h| h.chunk_id).collect();
             let vectors = self
-                .get_vectors_by_chunk_ids(&q.project_id, &chunk_ids)
+                .get_vectors_by_chunk_ids_with_epoch(
+                    &q.project_id,
+                    &chunk_ids,
+                    vector_epoch
+                        .as_ref()
+                        .expect("MMR requires a vector epoch")
+                        .clone(),
+                    _snapshot.clone(),
+                )
                 .await?;
-            merged = self.mmr_rerank(merged, &vectors, q.top_k, 0.5);
+            merged = self.mmr_rerank(merged, &vectors, output_limit, 0.5);
         } else if merged.len() > q.top_k {
             merged.truncate(q.top_k);
         }
@@ -3753,6 +4939,8 @@ impl HybridSearchEngine {
         if merged.len() > q.top_k {
             merged.truncate(q.top_k);
         }
+
+        merged.truncate(output_limit);
 
         // Vector-sourced hits have no line info; backfill from Tantivy now
         // that the list is final and small.

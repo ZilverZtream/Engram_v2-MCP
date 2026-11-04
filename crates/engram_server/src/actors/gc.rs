@@ -2,6 +2,10 @@ use crate::state::AppState;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
+#[cfg(test)]
+#[path = "gc/source_admission_tests.rs"]
+mod source_admission_tests;
+
 /// CANCEL1: accepts a shutdown token so the GC loop exits cooperatively on process shutdown
 /// rather than being forcibly killed mid-purge (which could leave storage in a partial state).
 ///
@@ -100,6 +104,7 @@ pub enum GcOutcome {
     SkippedIndexing,
     SkippedUpdateInFlight,
     SkippedNoGeneration,
+    SkippedSourceUnavailable,
 }
 
 pub async fn purge_project_old_gens(
@@ -157,6 +162,43 @@ pub async fn purge_project_old_gens(
         return Ok(GcOutcome::SkippedNoGeneration);
     };
 
+    // Old/unproven projects must remain available for explicit repair, not
+    // acquire implicit legacy authority through this scheduler's cold loader.
+    // Read Registry authority before opening any project index/native runtime.
+    let source_requirement = tokio::task::spawn_blocking({
+        let registry = state.registry.clone();
+        let project = project_id.to_owned();
+        move || registry.source_snapshot_requirement(&project)
+    }).await?;
+    match source_requirement {
+        Ok((head, engram_core::registry::SourceSnapshotRequirement::Managed))
+            if head == active_gen => {}
+        result => {
+            tracing::warn!(project_id, ?result,
+                "GC: skipping source/graph collection — managed source authority unavailable; complete an explicit non-wiping full repair");
+            return Ok(GcOutcome::SkippedSourceUnavailable);
+        }
+    }
+    let Some(ps) = load_project_runtime_minimal(state, project_id).await? else {
+        return Ok(GcOutcome::SkippedNoGeneration);
+    };
+    // Preserve this exact admitted source selection through graph mutation,
+    // native/lexical collection and the pending-purge acknowledgement below.
+    let _source_snapshot = match crate::services::project_service::pin_source_generation(
+        state, &ps.search, project_id, active_gen,
+    ) {
+        Ok(view) if view.is_managed() => view,
+        result => {
+            let reason = match result {
+                Ok(_) => "Legacy source requires a full repair before snapshot GC".to_owned(),
+                Err(error) => format!("{error:#}"),
+            };
+            tracing::warn!(project_id, %reason,
+                "GC: skipping source/graph collection — source selection unavailable");
+            return Ok(GcOutcome::SkippedSourceUnavailable);
+        }
+    };
+
     // Purge GraphStore — baselined on the LAST FULL INDEX generation, never
     // the incremental counter. Incremental updates bump active_generation
     // while leaving unchanged files' nodes at older generations (there is
@@ -188,12 +230,10 @@ pub async fn purge_project_old_gens(
         ),
     }
 
-    // Purge Search Index (need to load engine)
-    if let Some(ps) = load_project_runtime_minimal(state, project_id).await? {
-        ps.search
-            .purge_old_generations(project_id, active_gen)
-            .await?;
-    }
+    // Use the same Registry-bound engine and held source selection.
+    ps.search
+        .purge_old_generations(project_id, active_gen)
+        .await?;
     // A purge owed by a failed post-publication purge (`purge_pending`, set by
     // update_project_impl) is settled by this sweep.
     {
@@ -224,6 +264,7 @@ async fn load_project_runtime_minimal(
     project_id: &str,
 ) -> anyhow::Result<Option<crate::state::ProjectState>> {
     if let Some(p) = state.get_project_cached(project_id) {
+        p.search.bind_source_registry(&state.registry)?;
         return Ok(Some(p));
     }
     let reg = state.registry.clone();
@@ -256,7 +297,9 @@ async fn load_project_runtime_minimal(
         Some(state.memory_budget.clone()),
     )
     .await?;
+    search.bind_source_registry(&state.registry)?;
     let ps = crate::state::ProjectState {
+            pagerank_cache: Default::default(),
         info: crate::state::ProjectInfo {
             project_id: project_id.to_string(),
             project_name: rec.project_name,

@@ -400,167 +400,154 @@ pub struct FetchWindow {
     pub max_prs: Option<usize>,
 }
 
-/// Every non-system review thread of the repository's pull requests (open
-/// and completed) inside `window`, with each comment's likes.
+/// Complete captured input is retained separately from its typed searchable
+/// projection. JSONL preserves raw line bytes; providers preserve canonical
+/// full supplied thread JSON before system/blank comment filtering.
+pub struct CapturedReviewThread {
+    pub thread: ReviewThread,
+    pub raw_utf8: String,
+    pub representation: String,
+    pub provenance: serde_json::Value,
+}
+
+struct LimitedJson(Vec<u8>);
+impl std::io::Write for LimitedJson {
+    fn write(&mut self,bytes:&[u8])->std::io::Result<usize> {
+        if self.0.len().checked_add(bytes.len()).is_none_or(|n|n>256*1024) {
+            return Err(std::io::Error::other("provider thread exceeds 256 KiB; no import published"));
+        }
+        self.0.extend_from_slice(bytes);Ok(bytes.len())
+    }
+    fn flush(&mut self)->std::io::Result<()> {Ok(())}
+}
+
+async fn bounded_review_json(
+    client:&reqwest::Client,url:&str,auth:&str,total:&mut usize,requests:&mut usize,deadline:tokio::time::Instant,
+) -> anyhow::Result<serde_json::Value> {
+    *requests=requests.checked_add(1).ok_or_else(||anyhow::anyhow!("provider request count overflow"))?;
+    anyhow::ensure!(*requests<=1056,"review provider request budget exceeded; no import published");
+    let mut response=tokio::time::timeout_at(deadline,client.get(url)
+        .header(reqwest::header::AUTHORIZATION,auth)
+        .header(reqwest::header::ACCEPT,"application/json").send()).await??.error_for_status()?;
+    anyhow::ensure!(response.content_length().is_none_or(|n|n<=1024*1024),
+        "review provider JSON body exceeds 1 MiB; no import published");
+    let mut bytes=Vec::new();
+    while let Some(chunk)=tokio::time::timeout_at(deadline,response.chunk()).await?? {
+        let next=bytes.len().checked_add(chunk.len()).ok_or_else(||anyhow::anyhow!("provider body overflow"))?;
+        let aggregate=total.checked_add(chunk.len()).ok_or_else(||anyhow::anyhow!("provider input overflow"))?;
+        anyhow::ensure!(next<=1024*1024 && aggregate<=8*1024*1024,
+            "review provider body/aggregate byte budget exceeded; no import published");
+        *total=aggregate;
+        bytes.extend_from_slice(&chunk);
+    }
+    Ok(serde_json::from_slice(&bytes)?)
+}
+
+fn provider_string<'a>(value:&'a serde_json::Value,key:&str)->anyhow::Result<&'a str> {
+    let text=value.get(key).and_then(|v|v.as_str()).unwrap_or_default();
+    anyhow::ensure!(text.len()<=4096,"provider identity field exceeds 4096 bytes");Ok(text)
+}
+
+/// Backward-compatible projection API. Managed ingestion uses the capture API
+/// below so complete original comment evidence is not discarded.
 pub async fn fetch_azure_devops_threads(
-    org: &str,
-    project: &str,
-    repo: &str,
-    pat: &str,
-    window: &FetchWindow,
+    org:&str,project:&str,repo:&str,pat:&str,window:&FetchWindow,
 ) -> anyhow::Result<Vec<ReviewThread>> {
-    use reqwest::header::{ACCEPT, AUTHORIZATION};
-    let auth = format!(
-        "Basic {}",
-        crate::services::code_review_ingest_service::base64_encode(format!(":{pat}").as_bytes())
-    );
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(60))
-        .build()?;
-    let esc = crate::services::code_review_ingest_service::url_escape;
-    let base = format!(
-        "https://dev.azure.com/{}/{}/_apis/git/repositories/{}",
-        esc(org),
-        esc(project),
-        esc(repo)
-    );
-    let get = |url: String| {
-        let request = client
-            .get(url)
-            .header(AUTHORIZATION, &auth)
-            .header(ACCEPT, "application/json");
-        async move {
-            anyhow::Ok(
-                request
-                    .send()
-                    .await?
-                    .error_for_status()?
-                    .json::<serde_json::Value>()
-                    .await?,
-            )
-        }
-    };
-    let text = |v: &serde_json::Value, key: &str| {
-        v.get(key)
-            .and_then(|x| x.as_str())
-            .unwrap_or_default()
-            .to_string()
-    };
+    Ok(fetch_azure_devops_thread_captures(org,project,repo,pat,window).await?
+        .into_iter().filter(|capture|!capture.thread.comments.is_empty()).map(|capture|capture.thread).collect())
+}
 
-    let mut prs: Vec<serde_json::Value> = Vec::new();
-    for status in ["completed", "active"] {
-        let mut skip = 0usize;
+pub async fn fetch_azure_devops_thread_captures(
+    org:&str,project:&str,repo:&str,pat:&str,window:&FetchWindow,
+) -> anyhow::Result<Vec<CapturedReviewThread>> {
+    anyhow::ensure!(org.len()<=1024 && project.len()<=1024 && repo.len()<=1024
+        && window.max_prs.is_none_or(|n|n<=1024),"review provider coordinate/PR limit exceeded");
+    let auth=format!("Basic {}",crate::services::code_review_ingest_service::base64_encode(format!(":{pat}").as_bytes()));
+    let client=reqwest::Client::builder().timeout(std::time::Duration::from_secs(30)).build()?;
+    let esc=crate::services::code_review_ingest_service::url_escape;
+    let base=format!("https://dev.azure.com/{}/{}/_apis/git/repositories/{}",esc(org),esc(project),esc(repo));
+    anyhow::ensure!(base.len()<=4096,"review provider URL exceeds source locator budget");
+    fetch_review_captures_at(&client,&base,&auth,window).await
+}
+
+async fn fetch_review_captures_at(client:&reqwest::Client,base:&str,auth:&str,window:&FetchWindow)
+    ->anyhow::Result<Vec<CapturedReviewThread>> {
+    let deadline=tokio::time::Instant::now()+std::time::Duration::from_secs(120);
+    let (mut total,mut requests,mut pages)=(0usize,0usize,0usize);
+    let mut prs=std::collections::BTreeMap::new();
+    for status in ["completed","active"] {
+        let mut skip=0usize;
         loop {
-            let page = get(format!(
-                "{base}/pullrequests?searchCriteria.status={status}&api-version=7.1&$top=100&$skip={skip}"
-            ))
-            .await?;
-            let batch = page
-                .get("value")
-                .and_then(|v| v.as_array())
-                .cloned()
-                .unwrap_or_default();
-            let n = batch.len();
-            prs.extend(batch);
-            if n < 100 {
-                break;
+            pages+=1;anyhow::ensure!(pages<=32,"review provider PR page budget exceeded; no import published");
+            let page=bounded_review_json(&client,&format!("{base}/pullrequests?searchCriteria.status={status}&api-version=7.1&$top=100&$skip={skip}"),
+                &auth,&mut total,&mut requests,deadline).await?;
+            let batch=page.get("value").and_then(|v|v.as_array())
+                .ok_or_else(||anyhow::anyhow!("provider PR page lacks its value array"))?;
+            anyhow::ensure!(batch.len()<=100,"unsupported provider PR page size");
+            for pr in batch {
+                let id=pr.get("pullRequestId").and_then(|v|v.as_u64()).unwrap_or(0);
+                let closed=provider_string(pr,"closedDate")?;
+                if id==0 || window.min_pr_id.is_some_and(|lo|id<lo)
+                    || window.max_pr_id.is_some_and(|hi|id>hi)
+                    || window.completed_before.as_deref().is_some_and(|cut|
+                        closed.get(..10).is_none_or(|date|date>=cut)) {continue;}
+                if prs.contains_key(&id) {continue;}
+                anyhow::ensure!(prs.len()<1024,"review provider exceeds 1024 selected PRs; no import published");
+                let author=pr.get("createdBy").map(|v|provider_string(v,"displayName")).transpose()?.unwrap_or_default();
+                let date=if closed.is_empty(){provider_string(pr,"creationDate")?}else{closed};
+                prs.insert(id,(provider_string(pr,"title")?.to_owned(),author.to_owned(),date.to_owned()));
             }
-            skip += n;
+            if batch.len()<100 {break;}
+            skip=skip.checked_add(batch.len()).ok_or_else(||anyhow::anyhow!("provider PR offset overflow"))?;
         }
     }
-    let id_of = |pr: &serde_json::Value| {
-        pr.get("pullRequestId")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0)
-    };
-    prs.retain(|pr| {
-        let id = id_of(pr);
-        let date = text(pr, "closedDate");
-        id != 0
-            && window.min_pr_id.is_none_or(|lo| id >= lo)
-            && window.max_pr_id.is_none_or(|hi| id <= hi)
-            && window
-                .completed_before
-                .as_deref()
-                .is_none_or(|cutoff| date.len() >= 10 && &date[..10] < cutoff)
-    });
-    prs.sort_by_key(|pr| std::cmp::Reverse(id_of(pr)));
-    prs.dedup_by_key(|pr| id_of(pr));
-    if let Some(cap) = window.max_prs {
-        prs.truncate(cap);
-    }
-
-    let mut threads = Vec::new();
-    for pr in &prs {
-        let pr_id = id_of(pr);
-        let pr_author = pr
-            .get("createdBy")
-            .map(|u| text(u, "displayName"))
-            .unwrap_or_default();
-        let pr_date = Some(text(pr, "closedDate"))
-            .filter(|d| !d.is_empty())
-            .unwrap_or_else(|| text(pr, "creationDate"));
-        let body = match get(format!(
-            "{base}/pullRequests/{pr_id}/threads?api-version=7.1"
-        ))
-        .await
-        {
-            Ok(body) => body,
-            Err(e) => {
-                tracing::warn!(pr = pr_id, "review threads fetch failed: {e}");
-                continue;
+    let mut captured=Vec::new();
+    let mut capture_bytes=0usize;
+    for (pr_id,(title,author,date)) in prs.into_iter().rev().take(window.max_prs.unwrap_or(1024)) {
+        let url=format!("{base}/pullRequests/{pr_id}/threads?api-version=7.1");
+        // A failed PR no longer silently becomes a successful partial import.
+        let body=bounded_review_json(&client,&url,&auth,&mut total,&mut requests,deadline).await?;
+        let values=body.get("value").and_then(|v|v.as_array())
+            .ok_or_else(||anyhow::anyhow!("provider thread response lacks its value array"))?;
+        anyhow::ensure!(values.len()<=1024,"provider exceeds 1024 supplied threads");
+        for original in values {
+            anyhow::ensure!(captured.len()<1024,"review provider exceeds 1024 supplied threads; no import published");
+            let comments=original.get("comments").and_then(|v|v.as_array())
+                .ok_or_else(||anyhow::anyhow!("provider thread lacks comments array"))?;
+            anyhow::ensure!(comments.len()<=1024,"provider thread exceeds 1024 comments");
+            let mut encoded=LimitedJson(Vec::new());
+            serde_json::to_writer(&mut encoded,original)?;
+            let raw_utf8=String::from_utf8(encoded.0)?;
+            capture_bytes=capture_bytes.checked_add(raw_utf8.len()).ok_or_else(||anyhow::anyhow!("provider capture overflow"))?;
+            anyhow::ensure!(capture_bytes<=4*1024*1024,"provider capture batch exceeds 4 MiB; no import published");
+            let mut projected=Vec::new();
+            for comment in comments {
+                let likes=comment.get("usersLiked").and_then(|v|v.as_array());
+                anyhow::ensure!(likes.is_none_or(|v|v.len()<=256),"provider comment exceeds 256 likes");
+                if comment.get("commentType").and_then(|v|v.as_str())==Some("system") {continue;}
+                let text=comment.get("content").and_then(|v|v.as_str()).unwrap_or_default();
+                if text.trim().is_empty() {continue;}
+                projected.push(ReviewComment {author:comment.get("author")
+                    .map(|v|provider_string(v,"displayName")).transpose()?.unwrap_or_default().to_owned(),
+                    text:text.to_owned(),likes:likes.into_iter().flatten()
+                        .map(|v|provider_string(v,"displayName").map(str::to_owned)).collect::<anyhow::Result<_>>()?});
             }
-        };
-        for thread in body
-            .get("value")
-            .and_then(|v| v.as_array())
-            .into_iter()
-            .flatten()
-        {
-            let comments: Vec<ReviewComment> = thread
-                .get("comments")
-                .and_then(|v| v.as_array())
-                .into_iter()
-                .flatten()
-                .filter(|c| c.get("commentType").and_then(|v| v.as_str()) != Some("system"))
-                .map(|c| ReviewComment {
-                    author: c
-                        .get("author")
-                        .map(|a| text(a, "displayName"))
-                        .unwrap_or_default(),
-                    text: text(c, "content"),
-                    likes: c
-                        .get("usersLiked")
-                        .and_then(|v| v.as_array())
-                        .into_iter()
-                        .flatten()
-                        .map(|u| text(u, "displayName"))
-                        .collect(),
-                })
-                .filter(|c| !c.text.trim().is_empty())
-                .collect();
-            if comments.is_empty() {
-                continue;
-            }
-            let context = thread.get("threadContext");
-            threads.push(ReviewThread {
-                pr_id,
-                pr_title: text(pr, "title"),
-                pr_author: pr_author.clone(),
-                pr_date: pr_date.clone(),
-                thread_id: thread.get("id").and_then(|v| v.as_u64()).unwrap_or(0),
-                status: text(thread, "status"),
-                file_path: context.map(|c| text(c, "filePath")).unwrap_or_default(),
-                line: context
-                    .and_then(|c| c.get("rightFileStart"))
-                    .and_then(|p| p.get("line"))
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0) as u32,
-                comments,
-            });
+            let thread_id=original.get("id").and_then(|v|v.as_u64()).unwrap_or(0);
+            let context=original.get("threadContext");
+            let line=context.and_then(|v|v.get("rightFileStart")).and_then(|v|v.get("line")).and_then(|v|v.as_u64()).unwrap_or(0);
+            let thread=ReviewThread {pr_id,pr_title:title.clone(),pr_author:author.clone(),pr_date:date.clone(),thread_id,
+                status:provider_string(original,"status")?.to_owned(),
+                file_path:context.map(|v|provider_string(v,"filePath")).transpose()?.unwrap_or_default().to_owned(),
+                line:u32::try_from(line)?,comments:projected};
+            // Preserve blank/system-only threads too. Their projection is Open;
+            // the complete supplied original remains recoverable without loss.
+            captured.push(CapturedReviewThread {thread,raw_utf8,representation:"canonical_supplied_provider_thread_json".into(),
+                provenance:serde_json::json!({"source_kind":"azure_devops","source_url":url,
+                    "pr_id":pr_id,"pr_title":title,"pr_author":author,"pr_date":date,
+                    "scope":"Complete supplied thread JSON before system/blank-comment projection. Canonical JSON, not original HTTP wire bytes; unreturned provider history, identity authenticity and source-date completeness are not certified. Authentication headers and tokens are not retained."})});
         }
     }
-    Ok(threads)
+    Ok(captured)
 }
 
 #[cfg(test)]
@@ -774,5 +761,80 @@ mod tests {
                 bare: 1
             }
         );
+    }
+}
+
+
+#[cfg(test)]
+mod capture_tests {
+    use super::*;
+    use std::{io::{Read,Write},net::TcpListener,sync::{Arc,atomic::{AtomicBool,AtomicUsize,Ordering}},thread,time::Duration};
+    struct OwnedProvider {stop:Arc<AtomicBool>,oversized:Arc<AtomicBool>,calls:Arc<AtomicUsize>,worker:Option<thread::JoinHandle<()>>,url:String}
+    impl Drop for OwnedProvider {
+        fn drop(&mut self){self.stop.store(true,Ordering::SeqCst);if let Some(worker)=self.worker.take(){let _=worker.join();}}
+    }
+    #[test]
+    fn actual_provider_capture_preserves_system_blank_unknown_fields_and_refuses_oversized_body_before_decode()->anyhow::Result<()> {
+        let original=serde_json::json!({"id":7,"status":"fixed","unknown_thread_field":{"version":9},
+            "threadContext":{"filePath":"/src/export.rs","rightFileStart":{"line":4},"unknown_context":"keep"},
+            "comments":[{"id":1,"commentType":"text","author":{"displayName":"Reviewer","id":"raw-author-id"},
+                "content":"Qualified finding","publishedDate":"2026-01-01T12:00:00Z","unknown_field":"keep"},
+                {"id":2,"commentType":"system","author":{"displayName":"System"},"content":"original system record"},
+                {"id":3,"commentType":"text","author":{"displayName":"Blank author"},"content":"","unknown_blank":"keep"}]});
+        let listener=TcpListener::bind("127.0.0.1:0")?;listener.set_nonblocking(true)?;
+        let address=listener.local_addr()?;
+        let stop=Arc::new(AtomicBool::new(false));let oversized=Arc::new(AtomicBool::new(false));let calls=Arc::new(AtomicUsize::new(0));
+        let (st,ov,cs)=(stop.clone(),oversized.clone(),calls.clone());let thread_value=original.clone();
+        let worker=thread::spawn(move||{
+            while !st.load(Ordering::SeqCst) {
+                match listener.accept() {
+                    Ok((mut socket,_))=>{
+                        let result=(||->anyhow::Result<()> {
+                            // Windows accepts can inherit the listener's nonblocking mode.
+                            // Switch before bounded blocking reads; readiness is not a request boundary.
+                            socket.set_nonblocking(false)?;
+                            socket.set_read_timeout(Some(Duration::from_secs(2)))?;socket.set_write_timeout(Some(Duration::from_secs(2)))?;
+                            let mut request=Vec::new();let mut buffer=[0u8;1024];
+                            while !request.windows(4).any(|v|v==b"\r\n\r\n") {
+                                let n=socket.read(&mut buffer)?;anyhow::ensure!(n>0 && request.len()+n<=8192);request.extend_from_slice(&buffer[..n]);
+                            }
+                            cs.fetch_add(1,Ordering::SeqCst);
+                            if ov.load(Ordering::SeqCst) {
+                                write!(socket,"HTTP/1.1 200 OK\r\nContent-Length: 1048577\r\nConnection: close\r\n\r\n")?;
+                            } else {
+                                let request=std::str::from_utf8(&request)?;
+                                let body=(if request.contains("/pullRequests/100/threads?") {
+                                    serde_json::json!({"value":[thread_value]})
+                                } else if request.contains("searchCriteria.status=completed") {
+                                    serde_json::json!({"value":[{"pullRequestId":100,"title":"Qualified discussion","createdBy":{"displayName":"Author"},"closedDate":"2026-01-01T12:00:00Z"}]})
+                                } else {serde_json::json!({"value":[]})}).to_string();
+                                write!(socket,"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",body.len())?;
+                            }
+                            socket.flush()?;Ok(())
+                        })();let _=result;
+                    }
+                    Err(error) if error.kind()==std::io::ErrorKind::WouldBlock=>thread::sleep(Duration::from_millis(5)),
+                    Err(_)=>break,
+                }
+            }
+        });
+        let provider=OwnedProvider {stop,oversized,calls,worker:Some(worker),url:format!("http://{address}")};
+        let runtime=tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build()?;
+        let result:anyhow::Result<()>=runtime.block_on(async {
+            let client=reqwest::Client::builder().timeout(Duration::from_secs(3)).build()?;
+            let captured=fetch_review_captures_at(&client,&provider.url,"Basic owned-test-token",&FetchWindow::default()).await?;
+            anyhow::ensure!(captured.len()==1 && captured[0].thread.comments.len()==1);
+            anyhow::ensure!(serde_json::from_str::<serde_json::Value>(&captured[0].raw_utf8)?==original);
+            anyhow::ensure!(captured[0].thread.comments[0].text=="Qualified finding");
+            anyhow::ensure!(!captured[0].provenance.to_string().contains("owned-test-token"));
+            anyhow::ensure!(provider.calls.load(Ordering::SeqCst)==3);
+            provider.oversized.store(true,Ordering::SeqCst);
+            let error=fetch_review_captures_at(&client,&provider.url,"Basic owned-test-token",&FetchWindow::default()).await.err()
+                .ok_or_else(||anyhow::anyhow!("oversized declared provider body must be refused"))?;
+            anyhow::ensure!(error.to_string().contains("body exceeds 1 MiB"));
+            anyhow::ensure!(provider.calls.load(Ordering::SeqCst)==4);
+            Ok(())
+        });
+        drop(runtime);drop(provider);result
     }
 }

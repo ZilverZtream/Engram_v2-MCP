@@ -11,6 +11,11 @@ use engram_graph::EdgeKind;
 use engram_index::HybridQuery;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, Content};
+#[cfg(test)]
+pub(crate) mod selected_source_tests;
+#[cfg(test)]
+#[path = "search_tools/lexical_worker_tests.rs"]
+mod lexical_worker_tests;
 
 /// P0-8: inclusive line-range overlap. Zero-valued ranges mean "unknown"
 /// and never overlap anything.
@@ -185,7 +190,16 @@ impl Engram {
             ))]));
         }
         let ps = self.ensure_project_runtime(&req.project_id).await?;
-        let gen_ = self.get_active_generation(&req.project_id).await?;
+        let (gen_, _source_snapshot) = if namespaces.iter().any(|namespace| namespace == "memory") {
+            let (generation, guard) = self.pin_active_source_generation(&req.project_id, &ps.search).await?;
+            (generation, Some(std::sync::Arc::new(guard)))
+        } else {
+            if namespaces.iter().any(|namespace| !engram_core::get_policy(namespace)
+                .is_ok_and(|policy| policy.versioning == engram_core::NamespaceVersioning::GlobalMutable)) {
+                return Err(McpError::invalid_params("Unknown non-source namespace", None));
+            }
+            (0, None)
+        };
 
         // VEC1/D1: check if a full reindex is pending — surface degraded-mode
         // warning so callers know semantic search quality may be reduced.
@@ -202,56 +216,22 @@ impl Engram {
             .unwrap_or(None)
         };
 
-        // 1. Fetch PageRank centrality for boosting (project-wide).
-        //
-        // Fix 5: Running compute_pagerank synchronously on every search request
-        // can block Tokio's thread pool for seconds on large graphs and cause a
-        // denial-of-service cascade. We instead maintain a short-lived in-memory
-        // TTL cache keyed by (project_id, generation).
-        //
-        // Hot path: cache hit → zero I/O, zero blocking.
-        // Cold path: cache miss → current request degrades gracefully (no boost),
-        //   and a background task populates the cache for subsequent searches.
-        const PAGERANK_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(300);
-        let cache_key = format!("{}:{}", req.project_id, gen_);
-
-        let centrality: Option<std::sync::Arc<engram_graph::analysis::CentralityMetrics>> = {
-            if let Some(entry) = self.state.pagerank_cache.get(&cache_key) {
-                if entry.value().0.elapsed() < PAGERANK_CACHE_TTL {
-                    Some(entry.value().1.clone())
-                } else {
-                    // Stale: evict and trigger a background refresh below.
-                    drop(entry);
-                    self.state.pagerank_cache.remove(&cache_key);
-                    None
-                }
-            } else {
-                None
-            }
-        };
-
-        // On cache miss launch a background task so the next search gets the
-        // boost. Guard with `pagerank_inflight` so concurrent misses only ever
-        // spawn one background task per (project_id, generation) key.
-        if centrality.is_none() && self.state.pagerank_inflight.insert(cache_key.clone()) {
-            let graph_bg = self.state.graph.clone();
-            let pid_bg = req.project_id.clone();
-            let gen_bg = gen_;
-            let cache_bg = self.state.pagerank_cache.clone();
-            let inflight_bg = self.state.pagerank_inflight.clone();
-            let key_bg = cache_key;
-            tokio::spawn(async move {
-                if let Ok(Ok(metrics)) = tokio::task::spawn_blocking(move || {
-                    engram_graph::analysis::compute_pagerank(&graph_bg, &pid_bg, gen_bg)
-                })
-                .await
-                {
-                    cache_bg.entry(key_bg.clone()).or_insert_with(|| {
-                        (std::time::Instant::now(), std::sync::Arc::new(metrics))
+        // Optional centrality belongs to this runtime and exact generation.
+        // Superseding an edit drops the old cached map; a request already using
+        // its Arc remains valid. Workers retain admission through actual exit.
+        let centrality = ps.pagerank_cache.get(gen_);
+        if centrality.is_none() {
+            if let Ok(permit) = self.state.pagerank_workers.clone().try_acquire_owned() {
+                if let Some(work) = ps.pagerank_cache.start(gen_, permit) {
+                    let graph = self.state.graph.clone();
+                    let project = req.project_id.clone();
+                    tokio::task::spawn_blocking(move || {
+                        if let Ok(metrics) = engram_graph::analysis::compute_pagerank(&graph, &project, gen_) {
+                            work.complete(metrics);
+                        }
                     });
                 }
-                inflight_bg.remove(&key_bg);
-            });
+            }
         }
 
         // 2. Perform Hybrid Search — with a fast-path for literal
@@ -296,14 +276,35 @@ impl Engram {
             };
             let ns_hits = if req.semantic {
                 ps.search
-                    .search(&q, pagerank, &tokio_util::sync::CancellationToken::new())
+                    .search_ranked_prefix(
+                        &q,
+                        pagerank,
+                        &tokio_util::sync::CancellationToken::new(),
+                        if req.search_scope.eq_ignore_ascii_case("code") && ns == "memory" {
+                            offset.saturating_add(req.sanitized_max_results()).min(per_ns_top_k)
+                        } else {
+                            per_ns_top_k
+                        },
+                    )
                     .await
                     .map_err(|e| McpError::internal_error(e.to_string(), None))?
             } else {
                 // Fast path: pure FTS. No vector embedding, no RRF, no MMR.
                 let engine = ps.search.clone();
                 let q_clone = q.clone();
-                tokio::task::spawn_blocking(move || engine.lexical_search(&q_clone))
+                // A cancelled RPC does not stop a queued blocking read. It
+                // must retain its source before admission to the worker pool.
+                let worker_snapshot = if q.namespace == "memory" { _source_snapshot.clone() } else { None };
+                tokio::task::spawn_blocking(move || {
+                    #[cfg(test)]
+                    let observation = if q_clone.namespace == "memory" {
+                        lexical_worker_tests::observe(&q_clone.project_id)
+                    } else { None };
+                    let _source_snapshot = worker_snapshot;
+                    #[cfg(test)]
+                    if let Some(observation) = &observation { observation.pause(); }
+                    engine.lexical_search(&q_clone)
+                })
                     .await
                     .map_err(|e| McpError::internal_error(e.to_string(), None))?
                     .map_err(|e| McpError::internal_error(e.to_string(), None))?
@@ -424,7 +425,7 @@ impl Engram {
         // VEC1/D1: prepend degraded-mode warning when reindex is pending.
         if let Some(since_ms) = reindex_since_ms {
             out.push_str(&format!(
-                "WARNING: semantic search quality degraded — vector table was recreated at {}ms; full reindex required. Results may be incomplete.\n\n",
+                "WARNING: recovery has been required since {}ms; results may be incomplete. Use get_index_freshness to inspect source, vector and legacy recovery requirements.\n\n",
                 since_ms
             ));
         }
@@ -449,6 +450,23 @@ impl Engram {
             .filter(|(ns, _)| ns == "memory")
             .map(|(_, h)| h.clone())
             .collect();
+        // Code-bearing retrieval must carry the same checked-out guidance as
+        // planning and editing. Resolve once for the returned source paths;
+        // incidental file names in knowledge/history hits confer no scope.
+        let source_policy = if hit_refs.is_empty() {
+            None
+        } else {
+            let root = std::path::PathBuf::from(&ps.info.directory);
+            let paths = hit_refs.iter().map(|hit| hit.path.as_str().to_owned())
+                .collect::<std::collections::BTreeSet<_>>().into_iter().collect::<Vec<_>>();
+            tokio::task::spawn_blocking(move || {
+                Some(crate::services::project_policy::resolve(&root, &paths, &[]))
+            }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?
+        };
+        #[cfg(test)]
+        if req.include_content {
+            selected_source_tests::after_selection(&req.project_id).await;
+        }
         let symbols_by_path = self.symbols_for_hits(&req.project_id, &hit_refs).await;
         for (i, (ns, h)) in hits.iter().enumerate() {
             let (hit_project, hit_namespace) = ns
@@ -456,7 +474,10 @@ impl Engram {
                 .map_or((req.project_id.as_str(), ns.as_str()), |namespace| {
                     (user_pid, namespace)
                 });
-            let recovery = serde_json::json!({"project_id":hit_project,"namespace":hit_namespace,"doc_id":h.doc_id});
+            let mut recovery = serde_json::json!({"project_id":hit_project,"namespace":hit_namespace,"doc_id":h.doc_id});
+            if hit_namespace == "memory" {
+                recovery["inject_rules"] = serde_json::json!(true);
+            }
             out.push_str(&format!(
                 "\n#{}\ndoc_id: {}\nchunk_id: {}\npath: {}\nlines: {}-{}\nscore: {:.3}\n",
                 offset + i + 1,
@@ -477,10 +498,20 @@ impl Engram {
             // in find_symbol_references / compute_blast_radius / resolve_id.
             out.push_str(&format!("full_chunk: get_chunk({recovery})\n"));
             let mut citation_recovery = recovery.clone();
+            citation_recovery.as_object_mut().expect("recovery object").remove("inject_rules");
             citation_recovery["citation"] = serde_json::json!({});
             out.push_str(&format!(
                 "citation_chunk: get_chunk({citation_recovery})\n"
             ));
+            if hit_namespace == engram_core::namespaces::NAMESPACE_MEMORY_BANK
+                && let Some(section) = h.path.as_str().strip_prefix("memory_bank:")
+            {
+                let section_recovery = serde_json::json!({"project_id":hit_project,"section":section});
+                out.push_str(&format!("full_section: read_memory_bank({section_recovery})\n"));
+                let mut section_citation = section_recovery;
+                section_citation["citation"] = serde_json::json!({});
+                out.push_str(&format!("citation_section: read_memory_bank({section_citation})\n"));
+            }
             if ns == "memory"
                 && let Some(syms) = symbols_by_path.get(h.path.as_str())
             {
@@ -504,7 +535,12 @@ impl Engram {
                         .map(|project| project.search)
                 };
                 engine.and_then(|engine| {
-                    engine
+                    if hit_project == req.project_id && hit_namespace == "memory" {
+                        _source_snapshot.as_ref().and_then(|view| {
+                            engine.recover_selected_source_hit(hit_project, view, h).ok().flatten()
+                        })
+                    } else {
+                        engine
                         .get_doc_by_doc_id(
                             hit_project,
                             hit_namespace,
@@ -517,6 +553,7 @@ impl Engram {
                         )
                         .ok()
                         .flatten()
+                    }
                 })
             } else {
                 None
@@ -546,7 +583,10 @@ impl Engram {
             }
         }
 
-        out.push_str("next: use each hit's citation_chunk arguments for exact stored-content identity, raw hash and bounded citation pages; pass each returned continuation as citation with the same project_id/namespace/doc_id until absent. full_chunk remains available for legacy content rendering; resolve_id(<symbol>) to enter the graph; get_concept_footprint(<domain term>) for indexed touchpoints.\n");
+        if let Some(policy) = source_policy.filter(|policy| policy.status != "absent" || policy.coverage != "complete") {
+            out.push_str(&policy.render_markdown());
+        }
+        out.push_str("next: full_chunk supplies source content with applicable live repository guidance; resolve any policy omissions before editing. citation_chunk supplies exact stored-content identity, raw hash and bounded citation pages without injected guidance; pass each returned continuation as citation with the same project_id/namespace/doc_id until absent. resolve_id(<symbol>) to enter the graph; get_concept_footprint(<domain term>) for indexed touchpoints.\n");
         let next_offset = offset + hits.len();
         if next_offset >= crate::models::requests::MAX_SEARCH_RESULTS {
             out.push_str("result_cap_reached: 200; further matches may exist. Narrow the query or scope and restart at offset=0.\n");
@@ -563,7 +603,16 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
-        let gen_ = self.get_active_generation(&req.project_id).await?;
+        let (gen_, _source_snapshot) = if req.namespace == "memory" {
+            let (generation, guard) = self.pin_active_source_generation(&req.project_id, &ps.search).await?;
+            (generation, Some(guard))
+        } else {
+            if !engram_core::get_policy(&req.namespace)
+                .is_ok_and(|policy| policy.versioning == engram_core::NamespaceVersioning::GlobalMutable) {
+                return Err(McpError::invalid_params("Unknown non-source namespace", None));
+            }
+            (0, None)
+        };
         let top_k = req.sanitized_top_k();
         let max_chars = req.sanitized_max_content_chars();
         let timeout_ms = self.state.cfg.vector_search_timeout_ms;
@@ -650,7 +699,16 @@ impl Engram {
     pub async fn handle_get_chunk(&self, req: GetChunkRequest) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
-        let gen_ = self.get_active_generation(&req.project_id).await?;
+        let (gen_, _source_snapshot) = if req.namespace == "memory" {
+            let (generation, guard) = self.pin_active_source_generation(&req.project_id, &ps.search).await?;
+            (generation, Some(guard))
+        } else {
+            if !engram_core::get_policy(&req.namespace)
+                .is_ok_and(|policy| policy.versioning == engram_core::NamespaceVersioning::GlobalMutable) {
+                return Err(McpError::invalid_params("Unknown non-source namespace", None));
+            }
+            (0, None)
+        };
 
         let doc = ps
             .search
@@ -679,6 +737,7 @@ impl Engram {
             let pid = req.project_id.clone();
             let source_path = path.as_str().to_string();
             let stored_content = content.clone();
+            let source_chunk_target = self.state.cfg.max_chunks_per_file;
             tokio::task::spawn_blocking(move || -> anyhow::Result<&'static str> {
                 let node = graph.get_node(&pid, &format!("file:{}", source_path.replace('\\', "/")))?;
                 anyhow::ensure!(node.as_ref().is_none_or(|n| n.generation <= gen_),
@@ -686,9 +745,11 @@ impl Engram {
                 let hash = node.as_ref().and_then(|n| n.metadata.as_ref())
                     .and_then(|m| m.get("file_hash")).and_then(|h| h.as_str());
                 let Some(hash) = hash else { return Ok("unverified: no source fingerprint; source-index format and cached line ranges are unknown — update_project or read source directly"); };
+                let expected = engram_index::SourceExtractionExpectation::for_paths(
+                    source_chunk_target, std::iter::once(source_path.as_str()),
+                )?;
                 anyhow::ensure!(node.as_ref().and_then(|n| n.metadata.as_ref())
-                    .and_then(|m| m.get("source_index_version")).and_then(|v| v.as_u64())
-                    == Some(engram_index::SOURCE_INDEX_VERSION),
+                    .is_some_and(|meta| expected.metadata_is_compatible(meta, &source_path)),
                     "Legacy source chunk withheld: {source_path} requires source-index migration. Run update_project for this project and repeat search, or read the source file directly; cached line ranges are not trustworthy.");
                 let root = std::fs::canonicalize(&rec.directory)?;
                 let full = std::fs::canonicalize(root.join(&source_path))
@@ -817,7 +878,7 @@ impl Engram {
         let max_incoming = req.sanitized_max_incoming();
         let max_outgoing_per_kind = req.sanitized_max_outgoing_per_kind();
         let ps = self.ensure_project_runtime(&req.project_id).await?;
-        let gen_ = self.get_active_generation(&req.project_id).await?;
+        let (gen_, _source_snapshot) = self.pin_active_source_generation(&req.project_id, &ps.search).await?;
         let needle = &req.symbol_name;
 
         let edge_kind_filter: Option<Vec<EdgeKind>> = req
@@ -1386,7 +1447,7 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
-        let gen_ = self.get_active_generation(&req.project_id).await?;
+        let (gen_, _source_snapshot) = self.pin_active_source_generation(&req.project_id, &ps.search).await?;
 
         // 1. Structured parsing of stack frames
         let frames = crate::utils::text::parse_stack_frames(&req.traceback);

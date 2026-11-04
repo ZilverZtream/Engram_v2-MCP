@@ -139,7 +139,7 @@ pub struct GraphImpactMetrics {
 /// Retrieval evaluation mode for the retrieval quality gate (vNext).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RetrievalMode {
-    /// Retrieval gate skipped (fast mode).
+    /// Retrieval benchmark not run or incomplete; no measured scores available.
     Skipped,
     /// Used cached benchmark results (staleness discount applies).
     Cached,
@@ -549,7 +549,7 @@ fn evaluate_retrieval_quality_gate(input: &AdpInput) -> GateResult {
                 passed: false,
                 confidence: 0.0,
                 detail: if is_skipped {
-                    "Retrieval benchmark skipped (fast mode)".into()
+                    "Retrieval benchmark not run or incomplete; quality is unavailable".into()
                 } else {
                     "Retrieval benchmark not run".into()
                 },

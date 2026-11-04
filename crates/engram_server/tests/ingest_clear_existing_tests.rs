@@ -14,8 +14,16 @@ use serde_json::json;
 
 async fn build() -> (tempfile::TempDir, AppState, Engram, String) {
     let tmp = tempfile::TempDir::new().unwrap();
-    let root = tmp.path().join("proj");
+    let (state, engram, pid) = build_at(tmp.path()).await;
+    (tmp, state, engram, pid)
+}
+
+async fn build_at(temporary: &std::path::Path) -> (AppState, Engram, String) {
+    let root = temporary.join("proj");
     std::fs::create_dir_all(root.join("Site")).unwrap();
+    // Keep history discovery inside the owned fixture rather than inheriting
+    // the surrounding checkout when the shared test target lives below it.
+    drop(git2::Repository::init(&root).unwrap());
     std::fs::write(root.join("Site/a.vb"), "Public Class a\nEnd Class\n").unwrap();
     std::fs::write(
         root.join("rules_v1.txt"),
@@ -29,7 +37,7 @@ async fn build() -> (tempfile::TempDir, AppState, Engram, String) {
     .unwrap();
     let cfg = Config {
         allowed_roots: vec![root.clone()],
-        data_dir: tmp.path().join("data"),
+        data_dir: temporary.join("data"),
         max_project_files: Some(20),
         max_project_bytes: Some(512 * 1024),
         embedding_backend: "fts_only".into(),
@@ -51,7 +59,7 @@ async fn build() -> (tempfile::TempDir, AppState, Engram, String) {
     let pid = state.registry.list_projects().unwrap()[0]
         .project_id
         .clone();
-    (tmp, state, engram, pid)
+    (state, engram, pid)
 }
 
 async fn ingest(engram: &Engram, pid: &str, path: &str, clear: bool) -> String {
@@ -152,8 +160,9 @@ async fn checked_markdown_rejection_never_clears_existing_rules() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn contextual_markdown_remains_retrievable_without_automatic_enforcement() {
     let (tmp, state, engram, pid) = build().await;
-    let policy = "Always document gateway APIs.\n\nException: internal prototypes can omit documentation.\n";
-    std::fs::write(tmp.path().join("proj/context.md"), policy).unwrap();
+    let policy = format!("[![Build](build.svg)](build.html)\r\n\r\n# Gateway policy\r\nAlways document gateway APIs.\r\n\r\n{}\r\nException: internal prototypes can omit documentation. Preserve ‘read-only’ previews.\r\n",
+        "Context retained for callers, examples and ownership.\r\n".repeat(80));
+    std::fs::write(tmp.path().join("proj/context.md"), &policy).unwrap();
     let req = serde_json::from_value(json!({
         "project_id": pid, "source_path": "context.md", "source_type": "rules"
     })).unwrap();
@@ -168,6 +177,23 @@ async fn contextual_markdown_remains_retrievable_without_automatic_enforcement()
     let result = engram.handle_pre_push_audit(req).await.unwrap();
     let text = &result.content[0].as_text().unwrap().text;
     assert!(text.contains("full_rule: get_chunk") && text.contains("of 1 in the namespace"), "{text}");
+    let doc = state.get_project_cached(&pid).unwrap().search
+        .list_docs_in_namespace(&pid, "quality_gate").unwrap().remove(0);
+    let full = engram.handle_get_chunk(serde_json::from_value(json!({
+        "project_id":pid,"namespace":"quality_gate","doc_id":doc.doc_id
+    })).unwrap()).await.unwrap();
+    assert!(full.content[0].as_text().unwrap().text.contains(&policy),
+        "The public recovery handoff must deliver every authored byte, including the final exception");
+    let citation = engram.handle_get_chunk(serde_json::from_value(json!({
+        "project_id":pid,"namespace":"quality_gate","doc_id":doc.doc_id,"citation":{}
+    })).unwrap()).await.unwrap();
+    let citation: serde_json::Value = serde_json::from_str(&citation.content[0].as_text().unwrap().text).unwrap();
+    let body = citation["content"].as_str().unwrap();
+    assert!(body.ends_with(&policy), "JSON citation must preserve complete qualified Markdown and CRLF bytes");
+    assert_eq!(citation["document_complete"], true);
+    assert_eq!(citation["raw_content_hash"], format!("blake3-raw-utf8:{}", blake3::hash(body.as_bytes()).to_hex()));
+    assert!(state.registry.list_repo_rules(&pid).unwrap().is_empty(),
+        "Recovering policy context must not turn it into automatic enforcement");
 }
 
 const SCOPED_MANDATE: &str =
@@ -200,6 +226,8 @@ async fn authored_json_scope_limits_enforcement_to_the_requested_area() {
     ]).to_string()).unwrap();
     ingest_json(&engram, &pid, "area-rules.json", false).await;
     assert!(scope_probe_is_enforced(&state, &pid, &root, "Site/maps/Widget.vb").await);
+    assert!(!scope_probe_is_enforced(&state, &pid, &root, "Site/maps-old/Widget.vb").await,
+        "A similarly prefixed sibling must not inherit the authored directory scope");
     assert!(!scope_probe_is_enforced(&state, &pid, &root, "Site/billing/Widget.vb").await,
         "an authored map rule must not become a repository-wide mandate");
 }
@@ -331,9 +359,13 @@ async fn ambiguous_legacy_source_ownership_is_rejected_before_replacing_the_corp
     let (tmp, state, engram, pid) = build().await;
     let root = tmp.path().join("proj");
     std::fs::write(root.join("rules.json"), json!([{"rule":SCOPED_MANDATE}]).to_string()).unwrap();
-    ingest_json(&engram, &pid, "rules.json", false).await;
-    let mut legacy = state.registry.list_repo_rules(&pid).unwrap().remove(0);
-    legacy.provenance = Some("quality-gate finding".into());
+    ingest(&engram, &pid, "rules_v1.txt", false).await;
+    let parsed = engram_index::quality_gates::parse_quality_source_checked(
+        &std::fs::read_to_string(root.join("rules.json")).unwrap(),
+        engram_index::quality_gates::QualitySource::CodingRulesMd,"rules.json").unwrap();
+    let legacy = engram_core::registry::RepoRule { rule_id:format!("qg-{}",parsed[0].id),
+        file_pattern:"**/*".into(),rule_text:SCOPED_MANDATE.into(),priority:5,updated_at_ms:1,
+        introduced_at:None,provenance:Some("quality-gate finding".into()) };
     state.registry.put_repo_rule(&pid, &legacy).unwrap();
     let before = serde_json::to_value(state.registry.list_repo_rules(&pid).unwrap()).unwrap();
     let engine = state.get_project_cached(&pid).unwrap().search;
@@ -397,12 +429,26 @@ async fn stale_policy_is_withheld_and_coverage_recovers_after_refresh() {
     })).unwrap()).await.unwrap();
     let recovered = &recovered.content[0].as_text().unwrap().text;
     assert!(recovered.contains("stale:") && recovered.contains(SCOPED_MANDATE), "stored evidence stays recoverable: {recovered}");
+    let before_missing = serde_json::to_value(state.registry.list_repo_rules(&pid).unwrap()).unwrap();
+    std::fs::remove_file(&source).unwrap();
+    let missing = engram.handle_ingest_quality_gates(serde_json::from_value(json!({
+        "project_id":pid,"source_path":"policy.json","source_type":"rules","clear_existing":true
+    })).unwrap()).await.unwrap_err();
+    assert!(missing.message.contains("quality-gate source") && missing.message.contains("policy.json")
+        && missing.message.contains("No rules imported"), "{missing}");
+    assert_eq!(serde_json::to_value(state.registry.list_repo_rules(&pid).unwrap()).unwrap(), before_missing);
+    assert_eq!(qg_count(&state, &pid), 1, "An unreadable source must not clear its existing evidence");
+    let unavailable = inject_repo_rules(&state, &pid, &path, "source body").await;
+    assert!(unavailable.contains("INCOMPLETE") && !unavailable.contains("[Repo Constraint]"), "{unavailable}");
     std::fs::write(&source, original).unwrap();
     ingest_json(&engram, &pid, "policy.json", false).await;
     assert!(scope_probe_is_enforced(&state, &pid, &root, path.as_str()).await);
     let refreshed = inject_repo_rules(&state, &pid, &path, "source body").await;
     assert!(!refreshed.contains("INCOMPLETE"), "{refreshed}");
 }
+
+#[path = "ingest_clear_existing_tests/publication_behavior.rs"]
+mod publication_behavior;
 
 #[tokio::test]
 async fn refreshing_one_source_preserves_another_sources_identical_mandate() {
@@ -425,16 +471,27 @@ async fn a_manual_edit_is_never_deleted_by_a_source_refresh() {
     let (tmp, state, engram, pid) = build().await;
     let root = tmp.path().join("proj");
     std::fs::write(root.join("policy.json"), json!([{"rule":SCOPED_MANDATE}]).to_string()).unwrap();
-    ingest_json(&engram, &pid, "policy.json", false).await;
-    let mut manual = state.registry.list_repo_rules(&pid).unwrap().remove(0);
+    // Model an older persisted/external edit before installing its stale source
+    // claim. Current supported writes must not bypass an existing source owner.
+    ingest(&engram, &pid, "rules_v1.txt", false).await;
+    let parsed = engram_index::quality_gates::parse_quality_source_checked(
+        &std::fs::read_to_string(root.join("policy.json")).unwrap(),
+        engram_index::quality_gates::QualitySource::CodingRulesMd, "policy.json").unwrap();
+    let original = engram_core::registry::RepoRule { rule_id:format!("qg-{}", parsed[0].id),
+        file_pattern:"**/*".into(),rule_text:SCOPED_MANDATE.into(),priority:5,updated_at_ms:1,
+        introduced_at:None,provenance:Some("quality-gate source: policy.json".into()) };
+    let mut manual = original.clone();
     manual.rule_text = "Manual change that must be preserved".into();
     state.registry.put_repo_rule(&pid, &manual).unwrap();
+    state.registry.set_meta(&pid, &format!("quality_source:{}",blake3::hash(b"policy.json").to_hex()),
+        &json!({"origin":"policy.json","source_hash":blake3::hash(&std::fs::read(root.join("policy.json")).unwrap()).to_hex().to_string(),
+            "authored":true,"pending":false,"doc_ids":[],"rules":[original],"cleanup":[],"corpus_revision":""}).to_string()).unwrap();
     std::fs::write(root.join("policy.json"), "[]").unwrap();
     let req = serde_json::from_value(json!({"project_id":pid,"source_path":"policy.json","source_type":"rules","clear_existing":true})).unwrap();
     let error = engram.handle_ingest_quality_gates(req).await.unwrap_err();
     assert!(error.message.contains("manually changed") && error.message.contains("No rules imported"), "{error}");
-    assert_eq!(qg_count(&state, &pid), 1);
-    assert_eq!(state.registry.list_repo_rules(&pid).unwrap()[0].rule_text, manual.rule_text);
+    assert_eq!(qg_count(&state, &pid), 2);
+    assert_eq!(state.registry.list_repo_rules(&pid).unwrap().iter().find(|r| r.rule_id == manual.rule_id).unwrap().rule_text, manual.rule_text);
 }
 
 #[tokio::test]
@@ -512,7 +569,13 @@ async fn scoped_managed_policy_never_becomes_a_generated_root_mandate() {
             "project_id":pid,"write_to_disk":false,"use_llm":false,"generate_agents_md":true
         })).unwrap()).await.unwrap();
         let text = response.content[0].as_text().unwrap().text.clone();
-        assert!(!text.contains("ScopeProbe"), "must not create root policy from scoped/stale managed source: {text}");
-        assert!(text.contains("Source-managed policies excluded"), "{text}");
+        let roots = text.split("Recovery ledger delivery:").next().unwrap();
+        assert!(roots.contains("# CLAUDE.md") && roots.contains("# AGENTS.md"),"{text}");
+        assert!(!roots.contains("ScopeProbe"), "must not create root policy from scoped/stale managed source: {roots}");
+        let ledger: serde_json::Value = serde_json::from_str(text.split("```json\n").nth(1).unwrap().split("\n```").next().unwrap()).unwrap();
+        let original = ledger["inputs"].as_array().unwrap().iter().find(|input|
+            input["original"]["rule_text"] == SCOPED_MANDATE).unwrap();
+        assert_eq!(original["original"]["file_pattern"],"Site/maps/**");
+        assert_eq!(original["placement"],"recoverable_ledger", "Preserve source policy for recovery without generalizing it into root guidance");
     }
 }

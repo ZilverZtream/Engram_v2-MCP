@@ -2023,58 +2023,7 @@ fn upsert_vectors_calls_merge_insert_exactly_once() {
     );
 }
 
-/// VEC1/PRE-IMAGE: structural proof that `open_or_create_table` captures the row count
-/// before dropping a schema-mismatched table.
-///
-/// The `Recreated` outcome carries `prior_row_count: Option<u64>` — captured immediately
-/// before `conn.drop_table()`.  `Some(n)` gives operators the exact data-loss metric;
-/// `None` signals that count_rows itself failed so magnitude is unknown (non-zero assumed).
-/// Without this capture, a recreation of an empty table looks identical to one that
-/// destroyed 500 000 rows.
-#[test]
-fn open_or_create_table_recreated_variant_carries_prior_row_count() {
-    let source = include_str!("../../engram_index/src/vector.rs");
 
-    // The Recreated variant must include prior_row_count (now Option<u64>).
-    assert!(
-        source.contains("prior_row_count: Option<u64>"),
-        "VEC1/PRE-IMAGE: TableOpenOutcome::Recreated must carry prior_row_count: Option<u64> \
-         so callers have an observable data-loss metric; None means count_rows failed and \
-         loss magnitude is unknown; without this field schema-mismatch data loss is silent"
-    );
-
-    // count_rows must be called before drop_table to capture the pre-drop state.
-    let count_pos = source.find("count_rows(None)").unwrap_or(usize::MAX);
-    let drop_pos = source.find("drop_table(name").unwrap_or(usize::MAX);
-    assert!(
-        count_pos < drop_pos,
-        "VEC1/PRE-IMAGE: count_rows() must appear before drop_table() in \
-         open_or_create_table — counting after the drop would always return 0. \
-         count_pos={count_pos}, drop_pos={drop_pos}"
-    );
-}
-
-/// VEC1/PRE-IMAGE: the `index_docs` error message for the `Recreated` outcome must
-/// include the `prior_row_count` so operators can see the data-loss magnitude in
-/// logs without querying LanceDB directly.
-#[test]
-fn index_docs_recreated_error_message_includes_row_count() {
-    let source = include_str!("../../engram_index/src/hybrid.rs");
-
-    // The bail! message must reference prior_row_count.
-    assert!(
-        source.contains("prior_row_count"),
-        "VEC1/PRE-IMAGE: index_docs must include prior_row_count in the VEC1 bail! \
-         error message so operators can quantify data loss from logs"
-    );
-
-    // The error must state vectors were lost (observable data-loss framing).
-    assert!(
-        source.contains("vectors were lost") || source.contains("vector data was lost"),
-        "VEC1/PRE-IMAGE: the Recreated error message must state that vectors were lost \
-         so operators understand this is a data-loss event, not just a schema change"
-    );
-}
 
 /// VEC1/PROPAGATE: structural proof that the `execute()` result in `upsert_vectors`
 /// is propagated via `map_err`+`?` — NOT swallowed with `.ok()`.
@@ -2153,56 +2102,9 @@ fn vec2_tantivy_commit_precedes_vector_upsert_in_index_docs() {
     );
 }
 
-/// VEC2: when the vector table is recreated (Recreated outcome), index_docs must
-/// return an Err (via bail!) rather than silently continuing.
-#[test]
-fn vec2_recreated_table_outcome_triggers_bail() {
-    let src = include_str!("../../engram_index/src/hybrid.rs");
-
-    // Find the Recreated arm handling.
-    let recreated_pos = src
-        .find("TableOpenOutcome::Recreated")
-        .expect("VEC2: hybrid.rs must handle TableOpenOutcome::Recreated");
-
-    let after_recreated = &src[recreated_pos..recreated_pos + 1500.min(src.len() - recreated_pos)];
-
-    // The handling must use bail! (anyhow bail macro returns Err).
-    assert!(
-        after_recreated.contains("bail!"),
-        "VEC2: TableOpenOutcome::Recreated must trigger bail! so index_docs returns Err \
-         and callers receive the repair-needed signal"
-    );
-}
 
 // ── X1: cross-store divergence observability ──────────────────────────────────
 
-/// X1: when index_docs encounters a Recreated table outcome, the error message
-/// must include table name, reason, and row count lost.
-#[test]
-fn x1_recreated_error_message_includes_divergence_context() {
-    let src = include_str!("../../engram_index/src/hybrid.rs");
-
-    let recreated_pos = src
-        .find("TableOpenOutcome::Recreated")
-        .expect("X1: hybrid.rs must handle TableOpenOutcome::Recreated");
-    // Look for the bail! string which is right after the Recreated match arm.
-    let after = &src[recreated_pos..recreated_pos + 1800.min(src.len() - recreated_pos)];
-
-    assert!(
-        after.contains("table_name") || after.contains("{table_name}"),
-        "X1: Recreated error message must include table_name for operator diagnosis; \
-         context: {:?}",
-        &after[..200.min(after.len())]
-    );
-    assert!(
-        after.contains("prior_row_count") || after.contains("vectors were lost"),
-        "X1: Recreated error message must include row count for data-loss metric"
-    );
-    assert!(
-        after.contains("{reason}") || after.contains("reason"),
-        "X1: Recreated error message must include reason for schema recreation"
-    );
-}
 
 // ── X2: embed guard ordering (cross-subsystem memory + cancel) ────────────────
 
@@ -2307,50 +2209,7 @@ fn ns1_concurrent_global_mutable_writes_produce_same_pk() {
 
 // ── VEC1: reindex-required signal propagation ─────────────────────────────────
 
-/// VEC1: the bail! error from index_docs when the vector table is recreated
-/// must carry enough context for a caller to identify it as a reindex-required
-/// signal. Structural: the error string must contain "re-index" or "reindex".
-#[test]
-fn vec1_recreated_bail_error_carries_reindex_directive() {
-    let src = include_str!("../../engram_index/src/hybrid.rs");
 
-    let recreated_pos = src
-        .find("TableOpenOutcome::Recreated")
-        .expect("VEC1: hybrid.rs must handle TableOpenOutcome::Recreated");
-
-    // Scan a generous window for the bail! message content.
-    let window = &src[recreated_pos..recreated_pos + 600.min(src.len() - recreated_pos)];
-
-    assert!(
-        window.contains("re-index") || window.contains("reindex") || window.contains("re_index"),
-        "VEC1: bail! message after Recreated must direct callers to schedule a re-index; \
-         window: {:?}",
-        &window[..200.min(window.len())]
-    );
-}
-
-/// VEC1: the job runner that calls index_docs must propagate errors with `?`
-/// so that a Recreated bail! reaches the task-completion handler and can be
-/// surfaced as a job failure status — not silently swallowed.
-#[test]
-fn vec1_index_docs_caller_propagates_error_with_question_mark() {
-    let src = include_str!("../../engram_index/src/hybrid.rs");
-
-    // Find index_docs CALL site (not the definition) — look for .index_docs( or self.index_docs(
-    let index_call_pos = src
-        .find(".index_docs(")
-        .or_else(|| src.find("self.index_docs("))
-        .expect("VEC1: hybrid.rs must contain a .index_docs() call site");
-
-    // Look at the window after the call for `?` or `.await?`
-    let after_call = &src[index_call_pos..index_call_pos + 200.min(src.len() - index_call_pos)];
-    assert!(
-        after_call.contains("?") || after_call.contains(".await?"),
-        "VEC1: index_docs call must be propagated with `?` so Recreated errors \
-         reach the job runner; found: {:?}",
-        &after_call[..80.min(after_call.len())]
-    );
-}
 
 // ── FTS1: extended adversarial regex corpus ────────────────────────────────────
 
@@ -2423,27 +2282,6 @@ fn fts1_unknown_fts_mode_produces_fail_closed_error() {
 
 // ── X1: reindex orchestration signal completeness ─────────────────────────────
 
-/// X1: the index_docs function must return Result<_, anyhow::Error> so that
-/// the Recreated bail! propagates all the way to the job runner task.
-/// Proves the complete signal chain: Recreated → bail! → Err → task failure.
-#[test]
-fn x1_index_docs_returns_result_for_error_propagation() {
-    let src = include_str!("../../engram_index/src/hybrid.rs");
-
-    // index_docs signature must declare Result return type.
-    let fn_pos = src
-        .find("fn index_docs(")
-        .or_else(|| src.find("async fn index_docs("))
-        .expect("X1: index_docs must exist in hybrid.rs");
-
-    let sig_window = &src[fn_pos..fn_pos + 200.min(src.len() - fn_pos)];
-    assert!(
-        sig_window.contains("-> Result") || sig_window.contains("-> anyhow::Result"),
-        "X1: index_docs must return Result<_, Error> to propagate Recreated bail! \
-         to the job runner; sig: {:?}",
-        &sig_window[..100.min(sig_window.len())]
-    );
-}
 
 // ── NS1: fallback PK construction documented ──────────────────────────────────
 
@@ -2510,36 +2348,6 @@ fn mig1_handler_serializes_completeness_to_response() {
 
 // ── VEC1/X1: automatic reindex coupling proof ────────────────────────────────
 
-/// VEC1/X1: when index_docs returns Err (Recreated bail!), the job runner
-/// must record a failed status rather than silently marking the job done.
-/// Structural proof: the job task must check the result of index_docs.
-#[test]
-fn vec1_job_runner_records_failure_on_recreated_error() {
-    let src = include_str!("../../engram_index/src/hybrid.rs");
-
-    // The function containing index_docs must use `?` to propagate the error.
-    let fn_pos = src
-        .find("async fn ingest_batch(")
-        .or_else(|| src.find("pub async fn ingest("))
-        .or_else(|| src.find("pub fn ingest_batch("))
-        .unwrap_or(0);
-
-    // Search for a .index_docs( call site (not the fn definition) in the function or whole file.
-    let idx_call = src[fn_pos..]
-        .find(".index_docs(")
-        .or_else(|| src.find(".index_docs("));
-
-    if let Some(rel) = idx_call {
-        let abs = fn_pos + rel;
-        let context = &src[abs..abs + 80.min(src.len() - abs)];
-        assert!(
-            context.contains("?") || context.contains("await?"),
-            "VEC1: index_docs call must propagate errors with ? so Recreated bail! \
-             reaches job runner; found: {:?}",
-            &context[..60.min(context.len())]
-        );
-    }
-}
 
 // ── FTS1: parser error quality ────────────────────────────────────────────────
 
@@ -2567,76 +2375,7 @@ fn fts1_regex_mode_error_propagates_with_context() {
 
 // ── VEC1-h3k8 / X1-d4p9: schema-mismatch degradation window observability ────
 
-/// VEC1/X1: when a vector table is recreated due to schema mismatch, the bail!
-/// message must include the data-loss scope derived from `prior_row_count` so
-/// operators know exactly how many vectors were lost.
-///
-/// hybrid.rs now has MULTIPLE recreate-bail sites (index_docs and the vector
-/// upsert helper), and each builds its message via a `loss_str` computed from
-/// `prior_row_count` a few lines ABOVE the message string. So this checks
-/// every "VEC1: vector table" site, with a window that spans backward to
-/// cover the destructuring + loss_str construction.
-#[test]
-fn vec1_recreated_table_bail_includes_prior_row_count_for_operator_visibility() {
-    let src = include_str!("../../engram_index/src/hybrid.rs");
-    let bytes = src.as_bytes();
 
-    let mut sites = 0usize;
-    let mut from = 0usize;
-    while let Some(rel) = src[from..].find("VEC1: vector table") {
-        let pos = from + rel;
-        sites += 1;
-        // Byte-slice + lossy decode: windows may split multibyte chars
-        // (hybrid.rs contains em-dashes) and that must not panic the test.
-        let start = pos.saturating_sub(600);
-        let end = (pos + 400).min(bytes.len());
-        let window = String::from_utf8_lossy(&bytes[start..end]);
-        assert!(
-            window.contains("prior_row_count"),
-            "VEC1: recreate-bail site #{sites} (byte {pos}) must derive its \
-             data-loss message from prior_row_count; window: {:?}",
-            &window[..200.min(window.len())]
-        );
-        from = pos + 1;
-    }
-
-    assert!(
-        sites >= 1,
-        "VEC1: hybrid.rs must have at least one 'VEC1: vector table' recreate bail"
-    );
-}
-
-/// VEC1/X1: inside `index_docs`, the Tantivy commit is performed BEFORE the
-/// vector recreate check. This preserves lexical index consistency but creates
-/// a temporary window where vectors are absent. The ordering must hold.
-///
-/// Scoped to the `index_docs` body: other functions (the vector upsert
-/// helper) legitimately handle `Recreated` with no Tantivy writer in scope,
-/// so a whole-file positional scan measures the wrong thing.
-#[test]
-fn x1_tantivy_commit_precedes_vector_recreate_bail_in_index_docs() {
-    let src = include_str!("../../engram_index/src/hybrid.rs");
-
-    let fn_pos = src
-        .find("pub async fn index_docs")
-        .expect("X1: hybrid.rs must define index_docs");
-    let body = &src[fn_pos..];
-
-    // First commit and first Recreated handling AFTER the function start.
-    let commit_pos = body
-        .find("writer.commit()")
-        .expect("X1: index_docs must call writer.commit() for Tantivy");
-    let recreate_pos = body
-        .find("Recreated")
-        .expect("X1: index_docs must handle TableOpenOutcome::Recreated");
-
-    assert!(
-        commit_pos < recreate_pos,
-        "X1: within index_docs, writer.commit() (offset {commit_pos}) must \
-         precede Recreated handling (offset {recreate_pos}) — lexical data \
-         durability before vector schema check"
-    );
-}
 
 // ── NS1-b6j4: GlobalMutable PK generation clamping ───────────────────────────
 

@@ -14,10 +14,11 @@ use crate::handlers::validate_project_id;
 use crate::models::requests::PreCommitReviewRequest;
 use crate::services::pre_commit_review_service::{
     ReviewConfig, Severity, render_compact_markdown, render_json, render_markdown, resolve_diff_source,
-    run_pre_commit_review,
+    run_pre_commit_review_with_source_view,
 };
-use crate::services::project_service::{ensure_project_record, get_active_generation};
+use crate::services::project_service::ensure_project_record;
 use crate::tools::Engram;
+mod prior_context;
 
 impl Engram {
     pub async fn handle_pre_commit_review(
@@ -49,9 +50,6 @@ impl Engram {
         let rec = ensure_project_record(&self.state, &req.project_id)
             .await
             .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
-        let generation = get_active_generation(&self.state, &req.project_id)
-            .await
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         let indexed_project_dir = PathBuf::from(rec.directory.clone());
         let (project_dir, review_source) =
             resolve_review_directory(&indexed_project_dir, req.working_directory.as_deref())
@@ -118,6 +116,10 @@ impl Engram {
                 None,
             ));
         }
+        let source_runtime = self.ensure_project_runtime(&req.project_id).await?;
+        let (generation, source_view) = self.pin_active_source_generation(
+            &req.project_id, &source_runtime.search).await?;
+        let source_view = std::sync::Arc::new(source_view);
         let config = ReviewConfig {
             max_findings: req.max_findings.clamp(1, 200),
             min_severity,
@@ -125,13 +127,14 @@ impl Engram {
             output_json: req.output_json,
         };
 
-        let (findings, gates_run, files_analysed, outcomes) = run_pre_commit_review(
+        let (findings, gates_run, files_analysed, outcomes) = run_pre_commit_review_with_source_view(
             &self.state,
             &req.project_id,
             &project_dir,
             generation,
             &diff_text,
             &config,
+            source_view.clone(),
         )
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -141,6 +144,18 @@ impl Engram {
         let project_policy_sources = tokio::task::spawn_blocking(move || {
             crate::services::project_policy::resolve(&policy_root, &policy_paths, &[])
         }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?;
+
+        // Evidence is collected after gate findings have been produced. It
+        // cannot suppress, downgrade or silently reconcile those findings.
+        let prior_input = prior_context::Input::from_diff(&parsed);
+        let prior_state = self.state.clone();
+        let prior_search = source_runtime.search.clone();
+        let prior_pid = req.project_id.clone();
+        let prior_head = head_before.clone();
+        let prior_review_context = tokio::task::spawn_blocking(move || {
+            prior_context::collect(&prior_state, &prior_search, &prior_pid,
+                prior_head.as_deref(), prior_input)
+        }).await.unwrap_or_else(|error| prior_context::unavailable(&format!("Evidence worker unavailable: {error}")));
 
         let elapsed_ms = start.elapsed().as_millis();
         let source_after = source_snapshot(&project_dir, &parsed);
@@ -171,7 +186,7 @@ impl Engram {
             "source_before":source_before,"source_after":source_after,
             "source_scope":"bounded current-file snapshots; supplied diff is not certified to match current files",
             "provider_coverage":"see gate_status; failed, skipped and degraded gates are not passing evidence",
-            "review_decisions":"not_consulted; retrieve get_review_decisions for the relevant review before reconciling findings",
+            "review_decisions":prior_review_context["status"],
             "review_source":review_source,
             "indexed_project_directory":indexed_project_dir,
             "review_working_directory":project_dir
@@ -198,6 +213,7 @@ impl Engram {
             payload["coverage"] = coverage;
             payload["project_policy_sources"] = serde_json::to_value(&project_policy_sources)
                 .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+            payload["prior_review_context"] = prior_review_context;
             if (changed_during_review || snapshot_unavailable) && payload["verdict"] == "green" {
                 payload["verdict"] = "yellow".into();
             }
@@ -248,6 +264,11 @@ impl Engram {
                 ));
             }
             report.push_str(&project_policy_sources.render_markdown());
+            report.push_str("\n## Prior review context — imported evidence; findings remain visible\n\n");
+            match serde_json::to_string_pretty(&prior_review_context) {
+                Ok(context) => report.push_str(&format!("```json\n{context}\n```\n")),
+                Err(error) => report.push_str(&format!("Context rendering unavailable: {error}. No absence or clearance is established.\n")),
+            }
             report
         };
 

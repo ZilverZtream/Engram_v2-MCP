@@ -190,7 +190,12 @@ impl Engram {
 
         // 2. doc_id resolution (search-layer identity).
         let ps = self.ensure_project_runtime(&req.project_id).await?;
-        let gen_ = self.get_active_generation(&req.project_id).await?;
+        let (gen_, _source_snapshot) = if req.namespace == "memory" {
+            let (generation, guard) = self.pin_active_source_generation(&req.project_id, &ps.search).await?;
+            (generation, Some(guard))
+        } else { (self.get_active_generation(&req.project_id).await?, None) };
+        #[cfg(test)]
+        super::search_tools::selected_source_tests::after_selection(&req.project_id).await;
         if let Ok(Some((path, lang, _content, start_line, end_line))) =
             ps.search
                 .get_doc_by_doc_id(&req.project_id, &req.namespace, gen_, &req.id)
@@ -355,7 +360,10 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
-        let gen_ = self.get_active_generation(&req.project_id).await?;
+        let (gen_, _source_snapshot) = if req.namespace == "memory" {
+            let (generation, guard) = self.pin_active_source_generation(&req.project_id, &ps.search).await?;
+            (generation, Some(guard))
+        } else { (self.get_active_generation(&req.project_id).await?, None) };
         let max_results = req.sanitized_max_results();
         let hop_depth = req.sanitized_hop_depth();
         let max_content_chars = req.sanitized_max_content_chars();
@@ -389,6 +397,9 @@ impl Engram {
             )
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        #[cfg(test)]
+        super::search_tools::selected_source_tests::after_selection(&req.project_id).await;
 
         // 2. Graph symbol name lookup: find symbol nodes whose name matches the query
         let symbol_nodes = self

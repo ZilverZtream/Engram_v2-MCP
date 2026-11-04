@@ -1,5 +1,86 @@
 # Engram ↔ OciusX evaluation harness
 
+## Current task-evaluation verification
+
+`frozen_task_eval.py` verifies a separately recorded private corpus of scoped
+policy, companion-edit, history and diagnosis tasks. Candidate agents receive
+only their frozen task/source packets, with or without the actual production
+context response. Both arms can request the same bounded frozen files. A fresh
+independent judge receives opaque candidate IDs without arm labels or metrics.
+Task criteria and a judge-only leakage canary are frozen before candidate runs.
+
+The November 3 pilot reran all eight arms using the same authorized read-only
+packet delivery after a manual-copy transcription error. The earlier attempts
+remain recorded and excluded. Opaque packet files preserve the frozen task and
+source values; each candidate may read its delivery packet and request only
+allowlisted evidence. Verification checks the delivery protocol, source bytes,
+response shapes, requested-versus-delivered reads and blinded judging records.
+
+Both conditions met 20/20 frozen criteria across four tasks, with no false
+guidance identified by the independent judge. Automatic context reduced
+requested evidence IDs from 10 to 6, while recorded packet plus delivery-message
+bytes increased from 202,876 to 249,825 (23.1%). Both conditions had the same
+evidence allowlist. This pilot does not measure file discovery, provider token
+cost, pure inference latency, or completed implementation/QA effort. These
+inspected cases can serve as regressions; future tuning needs new frozen tasks
+for another holdout comparison.
+
+```powershell
+python -B eval/frozen_task_eval.py verify <recorded-corpus> --require-results
+python -B eval/frozen_task_eval.py report <recorded-corpus>
+```
+
+The complete check requires eight captured candidate runs and their independent
+judgments. Input-only verification explicitly reports that candidate runs have
+not been verified. Checking saved runs is an offline regression/integrity check;
+fresh agents supply a new model evaluation. Reported agent wall time includes
+coordinator handoff and requested-file waits, not pure inference latency. These
+review/plan tasks do not establish completed OciusX implementation or matched QA
+productivity. Private source packets remain outside Git in the recorded evidence
+directory. The collector examples open no index, database, server or model.
+
+Separate instruction-maintenance examples cover a real reporting `no_change`,
+a present KML code/policy `conflict`, and a historical PR2077 marker API `change`.
+The last uses only two original files in an owned replay fixture: the old guide
+and changed code. Its proposal reproduces the accepted historical guide
+byte-for-byte, preserves all other conditions and exceptions, and refuses stale
+evidence. Independent review and raw Git/BLAKE3 checks support these examples.
+Current OciusX marker guidance already contains that accepted update. These are
+bounded proposal checks, not new model comparisons or implementation-compliance
+claims. Missing replay dependencies remain explicit. The new replay fixture is
+preserved because automatic approval review rejected its cleanup; exact local
+receipts record the path and the prohibition on equivalent deletion retries.
+
+## Repeated editing with explicit collection
+
+```powershell
+python -B eval/edit_collection_resource_workload.py <binary> <new-recorded-evidence-directory>
+```
+
+This wrapper imports the audit's frozen edit driver unchanged. It cycles 200
+edits over 50 paths, keeps one sibling unchanged, and requests zero-cutoff
+collection with vector compaction every 50 edits. It checks every current source
+through lexical and path-filtered pure-vector reads after collection and restart,
+including absence of the previous declaration. Source/native counts must survive.
+One owned fixture and sequential child processes are cleaned up on completion.
+Stops are fixed at 900 seconds, 512 MiB private memory, 512 MiB fixture size and
+1 GiB cumulative process logical writes; these are protective stops, not product
+memory requirements or hard OS quotas.
+
+`collection-report.json` records individual original RPC windows separately from
+collection and verification. The base driver's query windows include injected
+work. Counters include background work and IPC, so they do not measure physical
+SSD writes or isolate causality. Compaction retains old reader versions and need
+not reduce disk usage. Compare the same wrapper/configuration and disclose run
+order; a single pair does not establish a memory plateau or general performance.
+The frozen base-driver hash is checked before any fixture is created.
+
+The current audit uses the existing checkout, read-only Git objects and bounded
+owned fixtures. The historical harness notes below retain older production-store
+and temporary-worktree assumptions; they are not the current audit's run recipe.
+
+## Historical implementation/retrieval harness
+
 Measures whether **Model + Engram, given only a User Story, lands on the same
 implementation a developer eventually merged** — and finds the *Engram tool
 sequence* that gets closest. OciusX is a live repo: **everything here is

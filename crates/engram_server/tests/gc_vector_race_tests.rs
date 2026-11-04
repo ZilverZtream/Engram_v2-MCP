@@ -76,6 +76,14 @@ async fn build(files: usize) -> (tempfile::TempDir, AppState, Engram, String) {
         }))
         .await
         .unwrap();
+    // wait=true completes source publication; its Git follow-up is still an
+    // owned background job. Drain it before testing the GC's update-lock gate
+    // so SkippedIndexing cannot mask the wanted lock/retry behavior.
+    loop {
+        let jobs = state.active_jobs.write().await.drain().map(|(_, task)| task).collect::<Vec<_>>();
+        if jobs.is_empty() { break; }
+        for job in jobs { job.await.unwrap(); }
+    }
     let pid = state.registry.list_projects().unwrap()[0]
         .project_id
         .clone();
@@ -219,10 +227,18 @@ async fn the_gc_yields_to_a_held_project_update_lock() {
 async fn the_post_publish_purge_outcome_is_recorded_and_retried() {
     let (_tmp, state, engram, pid) = build(4).await;
     let new_gen = active_gen(&state, &pid) + 1;
+    // This case is about a POST-publication purge. An unchanged-source refresh
+    // deliberately publishes/purges nothing and cannot establish that behavior.
+    let root = std::path::PathBuf::from(state.registry.get_project(&pid).unwrap().unwrap().directory);
+    let changed = root.join("Site/App_Code/mod00.vb");
+    let before = std::fs::read_to_string(&changed).unwrap();
+    assert!(before.contains("kostnadskategori 0"));
+    std::fs::write(&changed, before.replace("kostnadskategori 0", "kostnadskategori 0 after source publication")).unwrap();
     let report = engram
         .update_project_impl(&pid, new_gen, 0, false, &CancellationToken::new())
         .await
         .unwrap();
+    assert_eq!(active_gen(&state, &pid), new_gen, "The fixture must actually publish its edited source");
     assert!(
         report.contains("purge: ok"),
         "the update reports its post-publication purge outcome: {report}"

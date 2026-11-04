@@ -1,5 +1,5 @@
 use crate::services::migration_progress_service::MigrationProgressStore;
-use dashmap::{DashMap, DashSet};
+use dashmap::DashMap;
 use engram_core::{CheckpointStore, Config, MemoryBudget, PathContext, Registry};
 use engram_graph::GraphStore;
 use engram_index::HybridSearchEngine;
@@ -33,9 +33,8 @@ pub enum AppEvent {
         directory: String,
         enabled: bool,
     },
-    /// VEC1/X1: vector table was recreated due to schema mismatch; all historical
-    /// vector data was lost. Consumers must schedule a full reindex. Emitted by
-    /// the index job when `open_or_create_table` returns `Recreated`.
+    /// Source vector ingestion failed and complete recovery is required.
+    /// The source-ingestion wrapper records this durably before emitting it.
     FullReindexRequired { project_id: String },
 }
 
@@ -62,6 +61,7 @@ pub struct ProjectInfo {
 
 #[derive(Clone)]
 pub struct ProjectState {
+    pub pagerank_cache: Arc<crate::services::pagerank_cache::PageRankCache>,
     pub info: ProjectInfo,
     pub search: Arc<HybridSearchEngine>,
 }
@@ -124,29 +124,9 @@ pub struct AppState {
     /// Migration progress tracker (standalone Redb database).
     pub migration_progress: Arc<MigrationProgressStore>,
 
-    /// In-memory TTL cache for per-project PageRank centrality scores.
-    ///
-    /// Prevents issuing a `spawn_blocking` Redb read (or full graph recomputation)
-    /// on every search request. Key: `"{project_id}:{generation}"`. Entries are
-    /// considered stale after `PAGERANK_CACHE_TTL` seconds (defined in search_tools)
-    /// and evicted on next access, triggering a background refresh.
-    pub pagerank_cache: Arc<
-        DashMap<
-            String,
-            (
-                std::time::Instant,
-                Arc<engram_graph::analysis::CentralityMetrics>,
-            ),
-        >,
-    >,
-
-    /// In-flight keys for PageRank background tasks.
-    ///
-    /// Before spawning a background PageRank task, a handler inserts the cache
-    /// key into this set. If the insert returns `false` the key was already
-    /// present (another task is running), so the spawn is skipped. The entry
-    /// is removed by the background task when it finishes.
-    pub pagerank_inflight: Arc<DashSet<String>>,
+    /// At most two optional PageRank workers across all live runtimes. The
+    /// permit belongs to the actual blocking worker, including cancellation.
+    pub pagerank_workers: Arc<Semaphore>,
 
     /// Per-project cache of the git co-change walk (commit → changed files).
     ///
@@ -288,8 +268,7 @@ impl AppState {
                 memory_budget: Arc::new(memory_budget),
                 checkpoints: Arc::new(checkpoints),
                 migration_progress: Arc::new(migration_progress),
-                pagerank_cache: Arc::new(DashMap::new()),
-                pagerank_inflight: Arc::new(DashSet::new()),
+                pagerank_workers: Arc::new(Semaphore::new(2)),
                 co_change_cache: Arc::new(DashMap::new()),
                 lexicon_cache: Arc::new(DashMap::new()),
                 node_snapshot_cache: Arc::new(DashMap::new()),
@@ -371,6 +350,16 @@ impl AppState {
                 .insert(project_id.to_string(), std::time::Instant::now());
         }
         cached
+    }
+
+    /// Observation must not keep an otherwise idle project in the runtime LRU.
+    /// The returned clone is temporary; no shard guard escapes this call.
+    pub fn peek_project_cached(&self, project_id: &str) -> Result<Option<ProjectState>, &'static str> {
+        match self.projects.try_get(project_id) {
+            dashmap::try_result::TryResult::Present(project) => Ok(Some(project.value().clone())),
+            dashmap::try_result::TryResult::Absent => Ok(None),
+            dashmap::try_result::TryResult::Locked => Err("busy"),
+        }
     }
 
     /// Fix #10: Evict any projects that overshot MAX_CACHED_PROJECTS while all

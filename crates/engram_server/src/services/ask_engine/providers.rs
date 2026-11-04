@@ -9,7 +9,8 @@
 use engram_core::namespaces;
 use engram_core::registry::Registry;
 use engram_graph::{EdgeKind, GraphStore, Node};
-use engram_index::{HybridHit, HybridQuery, HybridSearchEngine};
+use engram_index::{HybridHit, HybridQuery, HybridSearchEngine, SourceSnapshotGuard};
+use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
 use super::evidence::{Authority, EvidenceItem, EvidenceKind};
@@ -173,6 +174,7 @@ async fn search_arm(
     scopes: &[String],
     cancel: &CancellationToken,
     id: &mut usize,
+    source_view: Option<Arc<SourceSnapshotGuard>>,
 ) -> (Vec<EvidenceItem>, ProviderOutcome) {
     let mut q = base_query(project_id, namespace, generation, query, top_k);
     // Batch 8 (live r64 usage_5): a question-named path scope STEERS the
@@ -180,7 +182,7 @@ async fn search_arm(
     if !scopes.is_empty() {
         q.include_path_prefixes = Some(scopes.to_vec());
     }
-    search_with(search, q, kind, authority, provider, generation, cancel, id).await
+    search_with(search, q, kind, authority, provider, generation, cancel, id, source_view).await
 }
 
 /// Round-2 audit P0-4: source evidence restricted to the paths of a requested
@@ -198,6 +200,24 @@ pub async fn modality_evidence(
     scopes: &[String],
     cancel: &CancellationToken,
     id: &mut usize,
+) -> (Vec<EvidenceItem>, ProviderOutcome) {
+    modality_evidence_in_view(search, project_id, generation, suffixes, provider,
+        query, top_k, scopes, cancel, id, None).await
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn modality_evidence_in_view(
+    search: &HybridSearchEngine,
+    project_id: &str,
+    generation: u64,
+    suffixes: &[&str],
+    provider: &str,
+    query: &str,
+    top_k: usize,
+    scopes: &[String],
+    cancel: &CancellationToken,
+    id: &mut usize,
+    source_view: Option<Arc<SourceSnapshotGuard>>,
 ) -> (Vec<EvidenceItem>, ProviderOutcome) {
     let mut q = base_query(
         project_id,
@@ -220,6 +240,7 @@ pub async fn modality_evidence(
         generation,
         cancel,
         id,
+        source_view,
     )
     .await
 }
@@ -234,11 +255,31 @@ async fn search_with(
     generation: u64,
     cancel: &CancellationToken,
     id: &mut usize,
+    source_view: Option<Arc<SourceSnapshotGuard>>,
 ) -> (Vec<EvidenceItem>, ProviderOutcome) {
+    // This lease spans both asynchronous search and exact physical-body
+    // recovery. A supplied capability may already be retired; validate it
+    // without making a new request for that old generation.
+    let source_view = if q.namespace == namespaces::NAMESPACE_MEMORY {
+        let selected = match source_view {
+            Some(view) => search.validate_source_snapshot_guard(&q.project_id, generation, &view)
+                .map(|()| view),
+            None => search.pin_source_generation(&q.project_id, generation).map(Arc::new),
+        };
+        match selected {
+            Ok(view) => Some(view),
+            Err(error) => return (vec![], ProviderOutcome::failed(format!(
+                "Selected source view unavailable; refresh source selection and retry: {error:#}"))),
+        }
+    } else { None };
     match search.search(&q, None, cancel).await {
         Err(e) => (vec![], ProviderOutcome::failed(e.to_string())),
         Ok(hits) if hits.is_empty() => (vec![], ProviderOutcome::empty()),
         Ok(hits) => {
+            #[cfg(test)]
+            if q.namespace == namespaces::NAMESPACE_MEMORY {
+                super::retrieval::source_lifetime_tests::after_search(search, &q.project_id, provider).await;
+            }
             // Doc-13 Phase B: coverage is measured BEFORE the quality
             // filters — the question is what the index gave us to examine.
             let examined_before_filters = hits.len();
@@ -285,13 +326,18 @@ async fn search_with(
             terms.dedup();
             let mut items = Vec::with_capacity(hits.len());
             for h in &hits {
-                let full = search
-                    .get_doc_by_pk(&h.pk)
-                    .ok()
-                    .flatten()
-                    .map(|t| t.2)
-                    .or_else(|| h.snippet.clone())
-                    .unwrap_or_default();
+                let full = if let Some(view) = &source_view {
+                    match search.recover_selected_source_hit(&q.project_id, view, h) {
+                        Ok(Some((_, _, body, _, _))) => body,
+                        Ok(None) => return (vec![], ProviderOutcome::failed(
+                            "Selected source physical body is unavailable; repair source before retrying")),
+                        Err(error) => return (vec![], ProviderOutcome::failed(format!(
+                            "Selected source body recovery failed: {error:#}"))),
+                    }
+                } else {
+                    search.get_doc_by_pk(&h.pk).ok().flatten().map(|t| t.2)
+                        .or_else(|| h.snippet.clone()).unwrap_or_default()
+                };
                 let content = windowed_snippet(&full, &terms);
                 items.push(hit_to_evidence(
                     h,
@@ -339,6 +385,7 @@ pub async fn code_evidence(
         &[],
         cancel,
         id,
+        None,
     )
     .await
 }
@@ -360,9 +407,29 @@ pub async fn knowledge_evidence(
     cancel: &CancellationToken,
     id: &mut usize,
 ) -> (Vec<EvidenceItem>, ProviderOutcome) {
+    knowledge_evidence_in_view(search, project_id, generation, namespace, kind,
+        authority, provider, query, top_k, scopes, cancel, id, None).await
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn knowledge_evidence_in_view(
+    search: &HybridSearchEngine,
+    project_id: &str,
+    generation: u64,
+    namespace: &str,
+    kind: EvidenceKind,
+    authority: Authority,
+    provider: &str,
+    query: &str,
+    top_k: usize,
+    scopes: &[String],
+    cancel: &CancellationToken,
+    id: &mut usize,
+    source_view: Option<Arc<SourceSnapshotGuard>>,
+) -> (Vec<EvidenceItem>, ProviderOutcome) {
     search_arm(
         search, project_id, namespace, generation, kind, authority, provider, query, top_k, scopes,
-        cancel, id,
+        cancel, id, source_view,
     )
     .await
 }

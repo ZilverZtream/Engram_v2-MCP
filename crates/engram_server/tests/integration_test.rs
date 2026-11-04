@@ -545,6 +545,7 @@ async fn test_memory_bank_persistence() {
     // 3. Update Project (Generation 2)
     engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
+            instruction_maintenance: None,
             reindex_paths: Vec::new(),
             project_id: project_id.to_string(),
             wait: true,
@@ -791,6 +792,7 @@ async fn test_gc_preserves_global_namespaces() {
     // 3. Update Project (Gen 2)
     engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
+            instruction_maintenance: None,
             reindex_paths: Vec::new(),
             project_id: project_id.to_string(),
             wait: true,
@@ -808,6 +810,7 @@ async fn test_gc_preserves_global_namespaces() {
         let engram_tmp = Engram::new(state.clone());
         let _ps = engram_tmp
             .update_project(Parameters(engram_server::UpdateProjectRequest {
+                instruction_maintenance: None,
                 reindex_paths: Vec::new(),
                 project_id: project_id.to_string(),
                 wait: true,
@@ -2156,6 +2159,7 @@ async fn test_search_history() {
             as_of_rev: None,
             mode: Some("text".into()),
             rerank: None,
+            rerank_timeout_ms: None,
             limit: 5,
             fts_mode: engram_server::models::FtsMode::Strict,
             use_mmr: false,
@@ -2187,6 +2191,7 @@ async fn test_search_history() {
             as_of_rev: None,
             mode: Some("text".into()),
             rerank: None,
+            rerank_timeout_ms: None,
             limit: 5,
             fts_mode: engram_server::models::FtsMode::Strict,
             use_mmr: false,
@@ -2868,6 +2873,7 @@ async fn test_immune_system_end_to_end() {
     // 3. Update project to index history and anti-patterns
     engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
+            instruction_maintenance: None,
             reindex_paths: Vec::new(),
             project_id: project_id.to_string(),
             max_commits: 100,
@@ -3036,6 +3042,7 @@ async fn test_dream_immune_integration() {
 
     engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
+            instruction_maintenance: None,
             reindex_paths: Vec::new(),
             project_id: project_id.to_string(),
             max_commits: 100,
@@ -3567,6 +3574,7 @@ async fn test_gc_policy_preservation() {
     .unwrap();
     engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
+            instruction_maintenance: None,
             reindex_paths: Vec::new(),
             project_id: project_id.to_string(),
             wait: true,
@@ -3585,6 +3593,7 @@ async fn test_gc_policy_preservation() {
     .unwrap();
     engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
+            instruction_maintenance: None,
             reindex_paths: Vec::new(),
             project_id: project_id.to_string(),
             wait: true,

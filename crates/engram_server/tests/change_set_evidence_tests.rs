@@ -416,7 +416,20 @@ async fn typed_history_keeps_root_and_non_dotnet_paths_without_prose_inference()
     }).collect();
     state.graph.upsert_nodes(PID, &nodes).unwrap();
     let runtime = engram_server::services::project_service::ensure_project_runtime(&state, PID).await.unwrap();
-    let hash = "a".repeat(40);
+    // Own the history boundary: a fixture beneath another checkout must not
+    // inherit that checkout's published branch or use an unreachable fake OID.
+    let hash = {
+        let repo = git2::Repository::init(&root).unwrap();
+        let mut index = repo.index().unwrap();
+        index.add_all(["."], git2::IndexAddOption::DEFAULT, None).unwrap();
+        let tree = repo.find_tree(index.write_tree().unwrap()).unwrap();
+        let signature = git2::Signature::new("Fixture", "fixture@example.invalid", &git2::Time::new(1_735_689_600, 0)).unwrap();
+        let commit = repo.commit(Some("HEAD"), &signature, &signature, "Owned history fixture", &tree, &[]).unwrap();
+        repo.remote("origin", "https://fixture.invalid/owned.git").unwrap();
+        repo.reference("refs/remotes/origin/master", commit, true, "Owned published fixture").unwrap();
+        repo.reference_symbolic("refs/remotes/origin/HEAD", "refs/remotes/origin/master", true, "Owned default branch").unwrap();
+        commit.to_string()
+    };
     let mut records: Vec<_> = paths.iter().map(|path| format!("diff:{hash}:{path}")).collect();
     // A commit message that looks like a record must not create file evidence.
     records.push(format!("commit:{hash}"));

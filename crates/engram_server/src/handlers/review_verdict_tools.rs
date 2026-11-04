@@ -71,6 +71,18 @@ impl Engram {
         req: IngestReviewVerdictsRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        // Reserve an explicit logical import allowance before body reads,
+        // provider JSON decoding, retained projections or metadata copies. This
+        // is cooperative accounting, not an allocator/RSS ceiling.
+        let admission=std::sync::Arc::new(engram_core::memory::AllocationGuard::try_new(
+            &self.state.memory_budget,super::review_discussion::IMPORT_ALLOWANCE,
+            engram_core::Subsystem::Misc,"complete review discussion import")
+            .map_err(|error|McpError::internal_error(error.to_string(),None))?);
+        if req.decision_makers.len()>32 || req.decision_makers.iter().any(|name|name.len()>128)
+            || req.author_trust.as_ref().is_some_and(|trust|trust.len()>128
+                || trust.iter().any(|(name,value)|name.len()>128 || value.len()>128)) {
+            return Err(McpError::invalid_params("review projection configuration exceeds bounded identity limits",None));
+        }
         let decision_makers: Vec<String> = req
             .decision_makers
             .iter()
@@ -92,7 +104,7 @@ impl Engram {
             ));
         }
         let record = self.ensure_project_record(&req.project_id).await?;
-        let threads: Vec<ReviewThread> = match req.source.as_deref().unwrap_or("azure_devops") {
+        let imported: Vec<rv::CapturedReviewThread> = match req.source.as_deref().unwrap_or("azure_devops") {
             "json_file" => {
                 let raw = req.file_path.as_deref().ok_or_else(|| {
                     McpError::invalid_params("source json_file requires file_path", None)
@@ -103,18 +115,12 @@ impl Engram {
                 } else {
                     std::path::Path::new(&record.directory).join(path)
                 };
-                let text = std::fs::read_to_string(&path).map_err(|e| {
-                    McpError::invalid_params(format!("cannot read {}: {e}", path.display()), None)
-                })?;
-                text.lines()
-                    .enumerate()
-                    .filter(|(_, line)| !line.trim().is_empty())
-                    .map(|(n, line)| {
-                        serde_json::from_str::<ReviewThread>(line).map_err(|e| {
-                            McpError::invalid_params(format!("line {}: {e}", n + 1), None)
-                        })
-                    })
-                    .collect::<Result<_, _>>()?
+                let read_admission=admission.clone();
+                tokio::task::spawn_blocking(move || {
+                    let _admission=read_admission;
+                    super::review_discussion::read_jsonl(&path)
+                }).await.map_err(|error|McpError::internal_error(format!("review input worker failed: {error}"),None))?
+                    .map_err(|error|McpError::invalid_params(error.to_string(),None))?
             }
             "azure_devops" => {
                 let pat = req
@@ -137,7 +143,7 @@ impl Engram {
                     completed_before: req.completed_before.clone(),
                     max_prs: req.max_prs,
                 };
-                rv::fetch_azure_devops_threads(&org, &project, &repo, &pat, &window)
+                rv::fetch_azure_devops_thread_captures(&org, &project, &repo, &pat, &window)
                     .await
                     .map_err(|e| {
                         McpError::internal_error(format!("Azure DevOps fetch failed: {e}"), None)
@@ -150,17 +156,15 @@ impl Engram {
                 ));
             }
         };
-        let threads: Vec<ReviewThread> = threads
-            .into_iter()
-            .filter(|t| {
-                req.min_pr_id.is_none_or(|lo| t.pr_id >= lo)
-                    && req.max_pr_id.is_none_or(|hi| t.pr_id <= hi)
-            })
-            .collect();
+        let imported=imported.into_iter().filter(|capture|
+            req.min_pr_id.is_none_or(|lo|capture.thread.pr_id>=lo)
+                && req.max_pr_id.is_none_or(|hi|capture.thread.pr_id<=hi)).collect();
+        let (threads,captures)=super::review_discussion::prepare(imported,&decision_makers,req.author_trust.as_ref())
+            .map_err(|error|McpError::invalid_params(error.to_string(),None))?;
 
         let mut counts: BTreeMap<&'static str, usize> = BTreeMap::new();
         let mut docs = Vec::with_capacity(threads.len() + 1);
-        for thread in &threads {
+        for (thread,capture) in threads.iter().zip(&captures) {
             let verdict = rv::thread_verdict(thread, &decision_makers);
             *counts.entry(verdict.kind.as_str()).or_default() += 1;
             let timestamp = thread
@@ -169,7 +173,8 @@ impl Engram {
                 .and_then(crate::handlers::pr_history_tools::ymd_to_epoch_secs);
             docs.push(stable_doc(
                 &verdict_path(thread),
-                rv::verdict_doc_content(thread, &verdict),
+                super::review_discussion::append_reference(rv::verdict_doc_content(thread,&verdict),capture)
+                    .map_err(|error|McpError::internal_error(error.to_string(),None))?,
                 thread.comments.first().map(|c| c.author.clone()),
                 timestamp,
             ));
@@ -183,15 +188,33 @@ impl Engram {
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         docs.push(stable_doc(AUTHORS_PATH, authors_json, None, None));
 
-        let ps = self.ensure_project_runtime(&req.project_id).await?;
-        ps.search
-            .index_docs(
-                &req.project_id,
-                &docs,
-                &tokio_util::sync::CancellationToken::new(),
-            )
-            .await
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let reviews=captures.iter().map(|capture|capture.review_id.clone())
+            .collect::<std::collections::BTreeSet<_>>().into_iter().collect::<Vec<_>>();
+        let reg=self.state.registry.clone();
+        let pid=req.project_id.clone();
+        let store_admission=admission.clone();
+        let retained=tokio::task::spawn_blocking(move || {
+            let _admission=store_admission;
+            reg.store_review_discussions(&pid,&captures)
+        }).await.map_err(|error|McpError::internal_error(format!("review capture worker failed; inspect the exact review's discussion catalog before retry: {error}"),None))?
+            .map_err(|error|McpError::invalid_params(error.to_string(),None))?;
+        let retained_note=super::review_discussion::retained_note(&req.project_id,&reviews,&retained);
+        // Immutable evidence and quota exist before a searchable summary can
+        // reference them. Generic cross-store indexing may fail or be partial;
+        // never erase retained evidence or claim such a failure rolled it back.
+        let ps = self.ensure_project_runtime(&req.project_id).await
+            .map_err(|error|McpError::internal_error(format!("runtime unavailable before summary publication: {}; {retained_note}",error.message),None))?;
+        let search=ps.search.clone();
+        let project=req.project_id.clone();
+        let index_admission=admission.clone();
+        // Once indexing begins, caller cancellation does not drop its native
+        // operation or its retained input allowance. The actual worker owns
+        // both through completion; its normal waiter joins the result.
+        tokio::spawn(async move {
+            let _admission=index_admission;
+            search.index_docs(&project,&docs,&tokio_util::sync::CancellationToken::new()).await
+        }).await.map_err(|error|McpError::internal_error(format!("Review summary worker failed; publication is unconfirmed: {error}; {retained_note}"),None))?
+            .map_err(|error|McpError::internal_error(format!("Review summary index publication was not confirmed (partial cross-store work is possible): {error}; {retained_note}"),None))?;
 
         let prs: std::collections::BTreeSet<u64> = threads.iter().map(|t| t.pr_id).collect();
         let mut out = format!(
@@ -220,6 +243,7 @@ impl Engram {
                     .unwrap_or_default(),
             ));
         }
+        out.push('\n');out.push_str(&retained_note);out.push('\n');
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
@@ -373,19 +397,40 @@ impl Engram {
             *tally.entry(kind.as_str()).or_default() += 1;
         }
         let mut out = format!(
-            "{} past review findings like this ({}). Decision-makers: {}. A rejection's reason is \
-             the team's ruling on that trade-off; do not re-raise it without new evidence.\n",
+            "{} past review findings like this ({}).\n",
             rows.len(),
             tally
                 .iter()
                 .map(|(k, n)| format!("{n} {k}"))
                 .collect::<Vec<_>>()
                 .join(", "),
-            if authors.decision_makers.is_empty() {
-                "unknown".to_string()
-            } else {
-                authors.decision_makers.join(", ")
-            },
+        );
+        if let Some(cutoff) = req.before_pr_id {
+            // review:authors is replaced on ingestion and has no historical
+            // identity. Its totals and trust declarations cannot support a
+            // cutoff-scoped precedent, even when the selected PR is older.
+            out.push_str(&format!(
+                "PR-ID cutoff: only indexed threads with PR IDs below {cutoff} were selected. \
+                 Current decision-maker configuration, author records and owner trust are withheld \
+                 because their history is not retained. Stored verdicts can contain later replies \
+                 or re-ingestion changes; this is not an as-of decision or source-date replay.\n"
+            ));
+        } else {
+            out.push_str(&format!(
+                "Decision-makers: {} (current imported configuration; author records and owner trust \
+                 are current aggregates).\n",
+                if authors.decision_makers.is_empty() {
+                    "unknown".to_string()
+                } else {
+                    authors.decision_makers.join(", ")
+                },
+            ));
+        }
+        out.push_str(
+            "Imported labels, actors and quotations are evidence leads; authenticated authority, \
+             accepted scope and revision applicability are not established. Re-evaluate current \
+             code and retain findings; no automatic suppression. Stored finding and reasoning \
+             may be clipped. New imports provide exact full-capture recovery references; legacy summaries have no recoverable full discussion. Captured source is unauthenticated supplied input, not proof of unreturned provider history.\n",
         );
         for (i, (same_file, kind, content)) in rows.iter().enumerate() {
             out.push_str(&format!(
@@ -394,7 +439,10 @@ impl Engram {
                 if *same_file { " (same file)" } else { "" },
                 content.trim_end()
             ));
-            if kind == "contested_by_author"
+            let evidence=super::review_discussion::summary_reference(&req.project_id,content);
+            out.push_str(&format!("\nImported discussion recovery: {}\n",evidence));
+            if req.before_pr_id.is_none()
+                && kind == "contested_by_author"
                 && let Some(author) = content
                     .lines()
                     .find_map(|l| l.strip_prefix("Reasoning ("))

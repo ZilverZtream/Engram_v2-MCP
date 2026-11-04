@@ -101,6 +101,7 @@ async fn a_resolved_symbols_definition_is_evidence_without_a_usage_intent() {
         }
     }
     let ctx = RetrievalCtx {
+        source_view: None,
         insights_enabled: true,
         search: ps.search.clone(),
         graph: state.graph.clone(),

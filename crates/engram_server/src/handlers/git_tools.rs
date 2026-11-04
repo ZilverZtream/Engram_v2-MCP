@@ -357,7 +357,10 @@ fn history_doc_identity(path: &str) -> (Option<&str>, Option<&str>) {
     if let Some(oid) = path.strip_prefix("commit:") {
         return (Some(oid), None);
     }
-    if let Some((oid, file)) = path.strip_prefix("diff:").and_then(|rest| rest.split_once(':')) {
+    if let Some((oid, file)) = path
+        .strip_prefix("diff:")
+        .and_then(|rest| rest.split_once(':'))
+    {
         return (Some(oid), Some(file));
     }
     (None, None)
@@ -405,8 +408,14 @@ fn history_mode(mode: Option<&str>, query: &str) -> Result<HistoryMode, McpError
 /// benchmark-best model, or None when no OpenRouter LLM is configured.
 fn precedent_reranker(
     cfg: &engram_core::Config,
-) -> Option<(std::sync::Arc<dyn engram_ml::llm_provider::LlmProvider>, &'static str)> {
-    let backend = cfg.llm_provider.as_deref().unwrap_or(cfg.llm_backend.as_str());
+) -> Option<(
+    std::sync::Arc<dyn engram_ml::llm_provider::LlmProvider>,
+    &'static str,
+)> {
+    let backend = cfg
+        .llm_provider
+        .as_deref()
+        .unwrap_or(cfg.llm_backend.as_str());
     if backend != "openrouter" {
         return None;
     }
@@ -524,8 +533,10 @@ impl ReachableHistory {
         drop(cache);
         let mut walk = repo.revwalk()?;
         walk.push(tip)?;
-        let mut parents: std::collections::HashMap<Oid, Vec<Oid>> = std::collections::HashMap::new();
-        let mut summary_of: std::collections::HashMap<Oid, String> = std::collections::HashMap::new();
+        let mut parents: std::collections::HashMap<Oid, Vec<Oid>> =
+            std::collections::HashMap::new();
+        let mut summary_of: std::collections::HashMap<Oid, String> =
+            std::collections::HashMap::new();
         for oid in walk {
             let oid = oid?;
             let commit = repo.find_commit(oid)?;
@@ -542,7 +553,8 @@ impl ReachableHistory {
             cursor = parents.get(&commit).and_then(|p| p.first().copied());
         }
         line.reverse();
-        let mut published_by: std::collections::HashMap<Oid, Oid> = std::collections::HashMap::new();
+        let mut published_by: std::collections::HashMap<Oid, Oid> =
+            std::collections::HashMap::new();
         for &head in &line {
             let mut stack = vec![head];
             while let Some(commit) = stack.pop() {
@@ -559,7 +571,10 @@ impl ReachableHistory {
         };
         let walked = std::sync::Arc::new(Self {
             oids: summary_of.keys().map(Oid::to_string).collect(),
-            change_ids: summary_of.iter().map(|(oid, s)| change_id(oid, s)).collect(),
+            change_ids: summary_of
+                .iter()
+                .map(|(oid, s)| change_id(oid, s))
+                .collect(),
             publisher: published_by
                 .iter()
                 .map(|(commit, head)| (commit.to_string(), head.to_string()))
@@ -627,8 +642,17 @@ impl Engram {
         force_flag: bool,
     ) -> Result<String, McpError> {
         if mode == GitHistoryMode::Refresh {
-            return self.refresh_history_documents(project_id, directory, generation,
-                max_commits, force_flag, cancel, progress_cb).await;
+            return self
+                .refresh_history_documents(
+                    project_id,
+                    directory,
+                    generation,
+                    max_commits,
+                    force_flag,
+                    cancel,
+                    progress_cb,
+                )
+                .await;
         }
         let project_root = PathBuf::from(directory);
         let pid = project_id.to_string();
@@ -669,10 +693,14 @@ impl Engram {
                 Ok(GitWalker::approved_history_root(&repo)
                     .or_else(|| repo.head().ok().and_then(|head| head.target()))
                     .map(|oid| oid.to_string()))
-            }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?
-                .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+            })
+            .await
+            .map_err(|error| McpError::internal_error(error.to_string(), None))?
+            .map_err(|error| McpError::internal_error(error.to_string(), None))?;
             if last.is_some() && last == head {
-                return Ok("commits=0; git history already current at the approved history root".into());
+                return Ok(
+                    "commits=0; git history already current at the approved history root".into(),
+                );
             }
         }
         let oldest = tokio::task::spawn_blocking({
@@ -759,7 +787,10 @@ impl Engram {
             let mut guard = {
                 let mut attempt = 0u32;
                 loop {
-                    match search_consumer.create_bulk_writer() {
+                    match search_consumer
+                        .create_bulk_writer_async(&pid_consumer, &cancel_consumer)
+                        .await
+                    {
                         Ok(g) => break g,
                         Err(e) if attempt < 5 => {
                             attempt += 1;
@@ -772,6 +803,9 @@ impl Engram {
                     }
                 }
             };
+            // Embedding continues this admitted bulk writer; it must not
+            // attempt fresh admission after a lexical batch was committed.
+            let search_consumer = search_consumer.with_bulk_writer(&guard, &pid_consumer)?;
             let fields = search_consumer.fields();
             // Separate vector queues per namespace to avoid heterogeneous batch errors.
             let mut vector_queues: std::collections::HashMap<String, Vec<engram_index::IndexDoc>> =
@@ -809,7 +843,12 @@ impl Engram {
                     if queue.len() >= VECTOR_FLUSH_EVERY {
                         let vq = std::mem::take(queue);
                         if let Err(e) = search_consumer
-                            .embed_and_upsert_vectors(&pid_consumer, &vq, &cancel_consumer)
+                            .embed_and_upsert_vectors_with_writer(
+                                &mut guard,
+                                &pid_consumer,
+                                &vq,
+                                &cancel_consumer,
+                            )
                             .await
                         {
                             unembedded_docs += vq.len();
@@ -829,7 +868,12 @@ impl Engram {
                 for (_ns, queue) in vector_queues.drain() {
                     if !queue.is_empty() {
                         if let Err(e) = search_consumer
-                            .embed_and_upsert_vectors(&pid_consumer, &queue, &cancel_consumer)
+                            .embed_and_upsert_vectors_with_writer(
+                                &mut guard,
+                                &pid_consumer,
+                                &queue,
+                                &cancel_consumer,
+                            )
                             .await
                         {
                             unembedded_docs += queue.len();
@@ -1747,13 +1791,21 @@ impl Engram {
                     .revparse_single(rev)
                     .and_then(|o| o.peel_to_commit())
                     .map(|c| (c.id(), format!("published changes up to {rev}")))
-                    .map_err(|e| format!("as_of_rev '{rev}' does not name a commit: {}", e.message())),
+                    .map_err(|e| {
+                        format!("as_of_rev '{rev}' does not name a commit: {}", e.message())
+                    }),
                 None => match GitWalker::approved_history_root(&repo) {
                     Some(tip) => Ok((tip, "published history (origin default branch)".to_string())),
                     None => repo
                         .head()
                         .and_then(|h| h.peel_to_commit())
-                        .map(|c| (c.id(), "history of the checked-out branch (no origin default branch)".to_string()))
+                        .map(|c| {
+                            (
+                                c.id(),
+                                "history of the checked-out branch (no origin default branch)"
+                                    .to_string(),
+                            )
+                        })
                         .map_err(|e| e.message().to_string()),
                 },
             }
@@ -1763,7 +1815,7 @@ impl Engram {
         .map_err(|e| McpError::invalid_params(e, None))?;
 
         let prefixes = cards::EmbedPrefixes::for_model(self.state.cfg.embedding_model.as_deref());
-        let all = cards::cards_for_line(&dir, tip, &ps.search, prefixes)
+        let all = cards::cards_for_line_cached(&dir, tip, &ps.search, prefixes, &self.state.registry)
             .await
             .map_err(|e| McpError::internal_error(format!("change cards: {e}"), None))?;
         let file_filter = req.file_filter.as_deref().map(|f| f.replace('\\', "/"));
@@ -1783,43 +1835,46 @@ impl Engram {
                     && file_filter
                         .as_deref()
                         .is_none_or(|f| c.files.iter().any(|p| p.starts_with(f)))
-                    && !c.files.iter().any(|p| excluded.iter().any(|x| p.starts_with(x.as_str())))
+                    && !c
+                        .files
+                        .iter()
+                        .any(|p| excluded.iter().any(|x| p.starts_with(x.as_str())))
             })
             .collect();
         let total = eligible.len();
-        let ranked = cards::semantic_rank(&req.query, &eligible, &ps.search, prefixes)
-            .await
-            .map_err(|e| McpError::internal_error(format!("semantic ranking: {e}"), None))?;
-
-        let pool_len = ranked.len().min(cards::RERANK_POOL);
-        let (order, how) = match (req.rerank.unwrap_or(true), precedent_reranker(&self.state.cfg)) {
-            (false, _) => (ranked, "semantic order (rerank off)".to_string()),
-            (true, None) => (
-                ranked,
-                "semantic order — rerank unavailable: no OpenRouter LLM configured".to_string(),
-            ),
-            (true, Some((llm, model))) => {
-                let pool: Vec<_> = ranked[..pool_len].to_vec();
-                let rest: Vec<_> = ranked[pool_len..].to_vec();
-                match tokio::time::timeout(
-                    std::time::Duration::from_secs(90),
-                    cards::rerank(&req.query, pool, llm.as_ref()),
-                )
-                .await
-                {
-                    Ok(Ok(mut order)) => {
-                        order.extend(rest);
-                        (order, format!("top {pool_len} reranked by {model}"))
-                    }
-                    Ok(Err(e)) => (ranked, format!("semantic order — rerank failed: {e}")),
-                    Err(_) => (ranked, "semantic order — rerank timed out after 90 s".to_string()),
-                }
-            }
+        let quality = ps.search.semantic_quality();
+        let baseline_tier = match quality {
+            engram_index::hybrid::SemanticQuality::Off => "lexical fallback (vectors disabled)",
+            engram_index::hybrid::SemanticQuality::DegradedTrigram => "degraded trigram",
+            engram_index::hybrid::SemanticQuality::Semantic => "semantic",
         };
+        let ranked = if quality == engram_index::hybrid::SemanticQuality::Off {
+            cards::lexical_rank(&req.query, &eligible)
+        } else {
+            cards::semantic_rank(&req.query, &eligible, &ps.search, prefixes).await
+                .map_err(|e| McpError::internal_error(format!("semantic ranking: {e}"), None))?
+        };
+
+        let budget = req.validated_rerank_timeout_ms()
+            .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
+        let result = cards::rerank_with_budget(
+            &req.query, ranked, req.rerank.unwrap_or(true), budget,
+            || precedent_reranker(&self.state.cfg).map(|(provider, model)| (provider, model.to_owned())),
+        ).await.map_err(|e| McpError::invalid_params(e.to_string(), None))?;
+        let how = match &result.outcome {
+            cards::RerankOutcome::Disabled => "baseline order (rerank off)".to_string(),
+            cards::RerankOutcome::ZeroBudget => "baseline order (rerank skipped: zero budget)".to_string(),
+            cards::RerankOutcome::NoCandidates => "no rerank candidates".to_string(),
+            cards::RerankOutcome::Unavailable => "baseline order; rerank unavailable: no OpenRouter LLM configured".to_string(),
+            cards::RerankOutcome::Completed { model, pool_size } => format!("top {pool_size} reranked by {model}"),
+            cards::RerankOutcome::Failed { reason } => format!("baseline order; rerank failed: {reason}"),
+            cards::RerankOutcome::TimedOut { budget_ms } => format!("baseline order; rerank timed out after {budget_ms} ms"),
+        };
+        let order = result.ranked;
 
         let mut out = format!(
             "Precedents: {} of {total} published changes ({label}); ranked by whole-change \
-             semantic cards, {how}. Bulk changes of over {} files are excluded.\n",
+             {baseline_tier} cards, {how}. Bulk changes of over {} files are excluded.\n",
             order.len().min(limit),
             cards::BULK_FILES,
         );
@@ -1842,7 +1897,11 @@ impl Engram {
                 out.push_str(&format!("files: {}\n", files.join(", ")));
             }
             if req.max_content_chars > 0 && !card.description.is_empty() {
-                let body: String = card.description.chars().take(req.max_content_chars).collect();
+                let body: String = card
+                    .description
+                    .chars()
+                    .take(req.max_content_chars)
+                    .collect();
                 out.push_str(&format!("content:\n{}\n", body.trim_end()));
             }
         }
@@ -1855,7 +1914,14 @@ impl Engram {
     pub(crate) async fn search_history_hits(
         &self,
         req: SearchHistoryRequest,
-    ) -> Result<(crate::state::ProjectState, u64, Vec<engram_index::HybridHit>), McpError> {
+    ) -> Result<
+        (
+            crate::state::ProjectState,
+            u64,
+            Vec<engram_index::HybridHit>,
+        ),
+        McpError,
+    > {
         validate_project_id(&req.project_id)?;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
@@ -1912,6 +1978,8 @@ impl Engram {
         &self,
         mut req: SearchHistoryRequest,
     ) -> Result<CallToolResult, McpError> {
+        req.validated_rerank_timeout_ms()
+            .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
         if history_mode(req.mode.as_deref(), &req.query)? == HistoryMode::Precedent {
             return self.handle_precedents(req).await;
         }
@@ -1943,7 +2011,9 @@ impl Engram {
             // record joins its merge commit.
             let publisher = reachable.as_ref().and_then(|r| match commit {
                 Some(oid) => r.publisher_of(oid),
-                None => path.strip_prefix("pr:").and_then(|id| r.publisher_of_change(id)),
+                None => path
+                    .strip_prefix("pr:")
+                    .and_then(|id| r.publisher_of_change(id)),
             });
             let key = publisher.or(commit).unwrap_or(path);
             let index = match groups.iter().position(|g| g.key == key) {
@@ -2112,8 +2182,11 @@ impl Engram {
             let canonical_source = aliases
                 .iter()
                 .find(|alias| {
-                    engram_core::safe_join(project_root, alias.strip_prefix("file:").unwrap_or(alias))
-                        .is_ok_and(|path| path.is_file())
+                    engram_core::safe_join(
+                        project_root,
+                        alias.strip_prefix("file:").unwrap_or(alias),
+                    )
+                    .is_ok_and(|path| path.is_file())
                 })
                 .cloned()
                 .unwrap_or_else(|| format!("file:{normalized_request}"));

@@ -6,7 +6,7 @@ license.workspace = true
 
 [features]
 default = ["vector"]
-vector = ["dep:lancedb", "dep:lance-arrow", "dep:arrow", "dep:arrow-array", "dep:arrow-schema"]
+vector = ["dep:lancedb", "dep:lance-arrow", "dep:lance-table", "dep:arrow", "dep:arrow-array", "dep:arrow-schema", "dep:datafusion-expr"]
 
 [dependencies]
 engram_core = { path = "../engram_core" }
@@ -20,13 +20,16 @@ tracing.workspace = true
 tokio.workspace = true
 tokio-util = { version = "0.7", features = ["rt"] }
 futures.workspace = true
+fs2.workspace = true
 redb.workspace = true
 async-trait.workspace = true
 rayon = "1.10"
 
 tantivy.workspace = true
 lancedb = { workspace = true, optional = true }
+datafusion-expr = { version = "51.0.0", default-features = false, optional = true }
 lance-arrow = { workspace = true, optional = true }
+lance-table = { version = "=2.0.0", default-features = false, optional = true }
 arrow = { workspace = true, optional = true }
 arrow-array = { workspace = true, optional = true }
 arrow-schema = { workspace = true, optional = true }
@@ -51,9 +54,9 @@ regex.workspace = true
 memchr = "2.8.0"
 bincode.workspace = true
 quick-xml = "0.37"
+tempfile = "3"
 
 [dev-dependencies]
 tracing-subscriber = { workspace = true }
-tempfile = "3"
 arrow-array = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

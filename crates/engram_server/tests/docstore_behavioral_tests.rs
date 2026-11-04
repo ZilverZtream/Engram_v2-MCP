@@ -37,6 +37,7 @@ fn make_fingerprint(rel_path: &str) -> FileFingerprint {
         rel_path: rel_path.to_string(),
         size: 1024,
         mtime_ms: 1_000_000,
+        mtime_ns: None,
         file_hash: "abc123".to_string(),
     }
 }
@@ -671,12 +672,14 @@ fn ds3_delete_namespace_clears_file_fingerprints() {
         file_hash: "hash-main".into(),
         size: 42,
         mtime_ms: 0,
+        mtime_ns: None,
     };
     let fp2 = FileFingerprint {
         rel_path: "src/lib.rs".into(),
         file_hash: "hash-lib".into(),
         size: 100,
         mtime_ms: 0,
+        mtime_ns: None,
     };
     store
         .set_fingerprints("proj-ds3", &[fp1, fp2])
@@ -853,12 +856,14 @@ fn ds3_delete_namespace_preserves_other_namespace_fingerprints() {
         file_hash: "hash-a".into(),
         size: 1,
         mtime_ms: 0,
+        mtime_ns: None,
     };
     let fp_b = FileFingerprint {
         rel_path: "b.rs".into(),
         file_hash: "hash-b".into(),
         size: 2,
         mtime_ms: 0,
+        mtime_ns: None,
     };
     store
         .set_fingerprints("proj-ds3b", &[fp_a, fp_b])
