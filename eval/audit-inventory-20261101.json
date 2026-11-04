@@ -8376,10 +8376,20 @@
         "actual_results": "Default8CodeMap nowreturnsFileLayerZoomPolicy despite smallerarea; bothpublicimpactoutputs expose Resolve92..106 action withinfirst2KiB. All33IDs/47completeedgefacts andnamedfrontiers preserved againstfreshpriorpackage. ActualsourceB3 andoffset16declarationnavigation pass.",
         "cost": "CodeMap19135B (was17006B but missedtasklead); impact41331B vs49210B, compute42143B vs50022B. Shortprobe privatepeak76439552B/noalerts; notleak/sustainedproof.",
         "normal": "Defaultpolicy lead, declarationpaging, immediateprefix, all33IDs/47edges, paired33nodeyellowedit-safety PASS; configunchanged/holdreleased/all5newownedtempdirsremoved."
+      },
+      "optional_summary_batch": {
+        "state": "SOURCE_VERIFIED; actual/deploymentpending",
+        "source_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-summary-source-applied-20261104.json",
+        "source_receipt_sha256": "730f4c57a64097b33c9b513fbfc4f9bdd96c67a76db341c058eea100bce104a0",
+        "proposal_tasks": "Actualthreshold2500to3000 vsInteger?NullableIntegerbodyunchanged; sixreadonlyfollowups each. Sourceoraclevalidatedsource-baseddistinction, not runtime/compile or comparativeproductivity.",
+        "private_task_plans": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\proposal-task-candidate-plans-20261104.json",
+        "private_source_judgment": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\proposal-task-source-oracle-judgment-20261104.json",
+        "capability": "detail=summary optional, graphdefaultunchanged,12KiBtarget/immediateactions/counts/gaps/omissions/freshgraphcontinuation; summaryskips liveonehop/historyworkers.",
+        "remaining": "Realdeployment andsummaryusability; original31/19 and regularmulticategoryCIbenchmarkremainunfinished."
       }
     }
   },
-  "last_updated_at": "2026-11-04T19:25:55.666689+00:00",
+  "last_updated_at": "2026-11-04T19:57:30.268407+00:00",
   "current_execution_focus": {
     "at_utc": "2026-11-04T11:12:56.875854+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",

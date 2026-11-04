@@ -1722,6 +1722,14 @@ pub struct TraverseGraphRequest {
     pub direction: Direction,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ImpactDetail {
+    Summary,
+    #[default]
+    Graph,
+}
+
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ImpactAnalysisRequest {
@@ -1734,6 +1742,10 @@ pub struct ImpactAnalysisRequest {
     /// Default six; one requests direct callers only. Valid range 1..8.
     #[serde(default = "default_impact_depth")]
     pub max_depth: usize,
+    /// Summary gives bounded source-navigation actions and an explicit graph
+    /// expansion call. Graph preserves the complete existing report (default).
+    #[serde(default)]
+    pub detail: ImpactDetail,
 }
 
 fn default_impact_depth() -> usize {
@@ -2720,6 +2732,10 @@ pub struct ComputeBlastRadiusRequest {
     /// Default six; valid range 1..8.
     #[serde(default = "default_impact_depth")]
     pub max_depth: usize,
+    /// Summary uses revision-admitted facts only and omits the separate live
+    /// heuristic/history workers. Graph preserves the existing report (default).
+    #[serde(default)]
+    pub detail: ImpactDetail,
 }
 
 // -------------------- Autonomous Decision Gate --------------------

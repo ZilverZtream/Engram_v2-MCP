@@ -970,6 +970,14 @@ Directory groups and filename priorities are navigation
 heuristics; they do not establish runtime architecture. Memory/history context
 requires `include_retained_context: true` and remains separate from current source.
 
+For a smaller first read, both impact tools accept `detail: "summary"`. This
+optional view fits 12 KiB and gives the target, observed counts, immediate source
+actions, named missing/depth leads and explicit omissions. Its copyable
+`graph_continuation` expands through `impact_analysis` with `detail: "graph"`;
+this is a fresh observation, not an atomic replay. Summary skips the separate
+history and unverified one-hop advisory workers. Neither view predicts which
+consumers will actually break. Omitting `detail` preserves the existing graph view.
+
 Both impact tools return the same revision-admitted dependency graph. `max_depth` defaults
 to six (valid range 1..8); one requests direct callers only. Each displayed path
 retains its intermediate source locations and edge witnesses. Deeper paths are
