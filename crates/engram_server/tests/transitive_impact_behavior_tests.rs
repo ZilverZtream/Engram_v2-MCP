@@ -636,6 +636,113 @@ fn agents_can_inspect_recorded_references_without_reassigning_same_named_callers
                     .any(|v| v.as_str().unwrap().contains("delegate/property reference"))
             );
         }
+        // A stitched UI edge can carry the target handler's anchor on a
+        // source control in another file. Even an in-file line114 must not
+        // be attributed to the known92..106 caller merely because it exists.
+        for (anchor, explicit_reference, known_span, expected_scope) in [
+            (114, None, true, "unattributed_extractor_anchor"),
+            (616, None, true, "unattributed_extractor_anchor"),
+            (96, None, true, "indexed_metadata_only"),
+            (114, Some(114), true, "indexed_metadata_only"),
+            (114, None, false, "unverified_file_anchor"),
+        ] {
+            let mut owner = declaration(POLICY, "Resolve", 92, 3);
+            owner.end_line = 106;
+            if !known_span {
+                owner.start_line = 0;
+                owner.end_line = 0;
+            }
+            fixture
+                .engram
+                .state
+                .graph
+                .upsert_nodes(PID, &[owner])
+                .unwrap();
+            let mut call = edge(first.clone(), root.clone(), EdgeKind::Calls, 3);
+            let mut metadata = json!({"src_line":anchor});
+            if let Some(line) = explicit_reference {
+                metadata["call_site_line"] = json!(line);
+            }
+            call.metadata = Some(metadata);
+            fixture
+                .engram
+                .state
+                .graph
+                .upsert_edges(PID, &[call])
+                .unwrap();
+            for tool in ["impact_analysis", "compute_blast_radius"] {
+                let summary = impact_packet(&summary_impact(&fixture, tool, &root, 6).await);
+                let consumer = summary["immediate_consumers"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|n| n["node_id"] == first)
+                    .unwrap();
+                let connection = &consumer["sample_connection_to_target"];
+                assert_eq!(connection["source_line"], anchor);
+                assert_eq!(connection["extractor_anchor_line"], anchor);
+                assert_eq!(connection["source_position_scope"], expected_scope);
+                let unattributed = expected_scope == "unattributed_extractor_anchor";
+                assert_eq!(connection["recorded_position_read"].is_null(), unattributed);
+                let action = if unattributed {
+                    &consumer["source_read"]
+                } else {
+                    &connection["recorded_position_read"]
+                };
+                assert_eq!(action["tool"], "get_full_method_body");
+                if unattributed {
+                    assert_eq!(action["arguments"]["line_start"], 92);
+                    assert_eq!(action["arguments"]["line_end"], 106);
+                } else if anchor == 114 {
+                    assert_eq!(action["arguments"]["line_start"], 114);
+                    assert_eq!(action["arguments"]["line_end"], 114);
+                }
+                let result = fixture
+                    .engram
+                    .handle_get_full_method_body(
+                        serde_json::from_value(action["arguments"].clone()).unwrap(),
+                    )
+                    .await
+                    .unwrap();
+                assert!(!result.is_error.unwrap_or(false));
+                let recovered: Value =
+                    serde_json::from_str(&result.content[0].as_text().unwrap().text).unwrap();
+                assert_eq!(
+                    recovered["source_file_hash"],
+                    ContentHash::compute(body.as_bytes()).0
+                );
+                let graph = expand_summary_graph(&fixture, &summary, &root, 6).await;
+                assert_eq!(graph["coverage"], before["coverage"]);
+                assert_eq!(graph["shortest_paths"], before["shortest_paths"]);
+                assert_eq!(
+                    graph["edges"].as_array().unwrap().len(),
+                    before["edges"].as_array().unwrap().len()
+                );
+                let node = graph["nodes"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|n| n["node_id"] == first)
+                    .unwrap();
+                let witness = graph["edges"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|e| e["source_ref"] == node["ref"])
+                    .unwrap();
+                assert_eq!(witness["source_position_scope"], expected_scope);
+                if unattributed {
+                    assert!(
+                        graph["recoveries"]
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .all(|r| r["arguments"]["line_start"] != anchor
+                                || r["arguments"]["line_end"] != anchor)
+                    );
+                }
+            }
+        }
     });
 }
 
