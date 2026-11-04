@@ -1506,7 +1506,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Retrieve an indexed method body by unique FQN, or an explicit file:line source range. Returns the source-file hash and fingerprint verification status; legacy entries without fingerprints remain unverified. Explicit ranges do not resolve method boundaries and can end mid-method; search chunk bounds are not method bounds. Use FQN or get_method_edit_context to resolve a complete method. Optionally includes indexed caller bodies for pattern understanding."
+        description = "Read an indexed method by unique FQN, a strict explicit file+line_start+line_end range, or a bounded current-file excerpt using file_path without line_end (line_start defaults1). Excerpts return up to120 complete lines within32KiB rendered output and a4MiB file-read cap, full-file BLAKE3, actual bounds, total lines and a copyable next_page. Each page is a fresh read: compare hashes before combining. Excerpts omit extra context and cannot expand callers; they prove neither method boundaries nor indexed freshness. Explicit-end ranges remain strict. FQN checks known fingerprints; legacy missing fingerprints remain unverified. Use unique FQN or get_method_edit_context for indexed method spans."
     )]
     pub async fn get_full_method_body(
         &self,

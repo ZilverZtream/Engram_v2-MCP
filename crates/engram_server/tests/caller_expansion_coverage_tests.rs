@@ -262,9 +262,11 @@ async fn runtime_edit_context_qualifies_complete_queries_and_rendered_blast_scor
             assert_eq!(coverage["callers"]["status"], "complete");
             assert!(coverage["coverage_interpretation"].as_str().unwrap().contains("not exhaustive extraction"));
         } else {
-            let blast = text.lines().find(|line| line.contains("**Blast radius**:")).unwrap();
-            assert!(blast.contains("indexed evidence"), "{blast}");
-            assert!(blast.contains("omit consumers and side effects"), "{blast}");
+            let advisory = text.lines().find(|line| line.contains("**One-hop advisory score**:"))
+                .expect("Method context must distinguish a one-hop heuristic from validated downstream impact");
+            assert!(advisory.contains("live-graph heuristic"), "{advisory}");
+            assert!(advisory.contains("not source-revision validated or a complete downstream assessment"), "{advisory}");
+            assert!(text.contains("do not establish absence of consumers or side effects"));
             assert!(text.contains("not exhaustive extraction"));
         }
     }

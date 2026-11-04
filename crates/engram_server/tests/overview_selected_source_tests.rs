@@ -858,3 +858,342 @@ fn codemap_navigation_case(crowded: bool) {
         }
     });
 }
+
+async fn excerpt(engram: &Engram, arguments: Value) -> (String, Value) {
+    let result = engram
+        .handle_get_full_method_body(serde_json::from_value(arguments).unwrap())
+        .await
+        .unwrap();
+    assert!(!result.is_error.unwrap_or(false));
+    let text = result.content[0].as_text().unwrap().text.clone();
+    assert!(
+        text.len() <= 32 * 1024,
+        "Complete rendered excerpt, including escaping and freshness, must fit the agent budget"
+    );
+    let value = serde_json::from_str(&text).unwrap();
+    (text, value)
+}
+
+#[test]
+fn current_file_excerpt_pages_preserve_lines_and_hashes_without_claiming_indexed_method_boundaries()
+{
+    owned_case(true, |engram, _search| async move {
+        let root = std::path::PathBuf::from(
+            engram
+                .state
+                .registry
+                .get_project(PID)
+                .unwrap()
+                .unwrap()
+                .directory,
+        );
+        let lines: Vec<_> = (1..=245)
+            .map(|i| {
+                if i == 123 {
+                    String::new()
+                } else {
+                    format!("SELECT {i}; -- 日本 🙂 \\\" ")
+                }
+            })
+            .collect();
+        let source = format!("\u{feff}{}\r\n", lines.join("\r\n"));
+        std::fs::write(root.join("procedure.sql"), &source).unwrap();
+        let expected: Vec<_> = source.lines().map(str::to_owned).collect();
+        let hash = blake3::hash(source.as_bytes()).to_hex().to_string();
+        let mut arguments = json!({"project_id":PID,"file_path":"procedure.sql","output_json":true,
+            "context_lines":20,"include_caller_bodies":true});
+        let mut recovered = Vec::new();
+        let mut next_line = 1u64;
+        let mut first_next = None;
+        loop {
+            let (_, value) = excerpt(&engram, arguments).await;
+            assert_eq!(value["retrieval_scope"], "current_file_excerpt");
+            assert_eq!(
+                value["source_verification"],
+                "current_file_snapshot_not_index_verified"
+            );
+            assert_eq!(value["source_file_hash"], hash);
+            assert_eq!(value["language"], "sql");
+            assert_eq!(value["line_start"], next_line);
+            assert_eq!(value["file_excerpt"]["total_lines"], 245);
+            assert!(value["file_excerpt"]["returned_lines"].as_u64().unwrap() <= 120);
+            assert!(value["surrounding_context"].as_str().unwrap().is_empty());
+            assert!(value["caller_bodies"].as_array().unwrap().is_empty());
+            if next_line == 1 {
+                assert_eq!(value["caller_expansion"]["requested"], true);
+                assert_eq!(value["caller_expansion"]["attempted"], false);
+                assert_eq!(
+                    value["caller_expansion"]["status"],
+                    "unsupported_file_excerpt"
+                );
+            }
+            let count = value["file_excerpt"]["returned_lines"].as_u64().unwrap();
+            assert!(count > 0);
+            assert_eq!(value["line_end"].as_u64().unwrap(), next_line + count - 1);
+            recovered.extend(
+                value["source_code"]
+                    .as_str()
+                    .unwrap()
+                    .split('\n')
+                    .map(str::to_owned),
+            );
+            assert!(
+                recovered.len() <= expected.len(),
+                "Continuation must make progress rather than repeat forever"
+            );
+            let next = &value["file_excerpt"]["next_page"];
+            if next.is_null() {
+                assert_eq!(value["file_excerpt"]["reaches_eof"], true);
+                break;
+            }
+            assert_eq!(next["tool"], "get_full_method_body");
+            next_line = value["line_end"].as_u64().unwrap() + 1;
+            assert_eq!(next["arguments"]["line_start"], next_line);
+            first_next.get_or_insert_with(|| next["arguments"].clone());
+            arguments = next["arguments"].clone();
+        }
+        assert_eq!(
+            recovered, expected,
+            "Unchanged-file pagination must preserve every complete line, including blanks, BOM and Unicode"
+        );
+        let changed = format!("-- inserted after the first observation\r\n{source}");
+        std::fs::write(root.join("procedure.sql"), &changed).unwrap();
+        let (_, fresh) = excerpt(&engram, first_next.unwrap()).await;
+        assert_ne!(
+            fresh["source_file_hash"], hash,
+            "A fresh page must not silently reuse an earlier file snapshot"
+        );
+        assert_eq!(
+            fresh["source_file_hash"],
+            blake3::hash(changed.as_bytes()).to_hex().to_string()
+        );
+        assert_eq!(
+            fresh["source_verification"],
+            "current_file_snapshot_not_index_verified"
+        );
+    });
+}
+
+#[test]
+fn current_file_excerpts_bound_escaped_output_and_refuse_unpageable_or_invalid_inputs() {
+    owned_case(true, |engram, _search| async move {
+        let root = std::path::PathBuf::from(
+            engram
+                .state
+                .registry
+                .get_project(PID)
+                .unwrap()
+                .unwrap()
+                .directory,
+        );
+        let line = format!("-- 日本🙂 {}", "\0\"\\\t".repeat(80));
+        let source = (0..150)
+            .map(|_| line.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        std::fs::write(root.join("escaped.sql"), &source).unwrap();
+        let (_, value) = excerpt(
+            &engram,
+            json!({"project_id":PID,"file_path":"escaped.sql","output_json":true}),
+        )
+        .await;
+        let returned = value["file_excerpt"]["returned_lines"].as_u64().unwrap() as usize;
+        assert!(
+            returned > 0 && returned < 120,
+            "Escaped output must be budgeted, not just raw source bytes"
+        );
+        assert_eq!(
+            value["source_code"],
+            vec![line.as_str(); returned].join("\n")
+        );
+        let next = &value["file_excerpt"]["next_page"];
+        assert_eq!(next["arguments"]["line_start"], returned + 1);
+        let (_, continued) = excerpt(&engram, next["arguments"].clone()).await;
+        assert_eq!(continued["line_start"], returned + 1);
+        for (file, content) in [
+            ("empty.sql", String::new()),
+            ("fenced.sql", "SELECT '```';\nSELECT 2;\n".into()),
+        ] {
+            std::fs::write(root.join(file), &content).unwrap();
+            let (_, value) = excerpt(
+                &engram,
+                json!({"project_id":PID,"file_path":file,"output_json":true}),
+            )
+            .await;
+            assert_eq!(
+                value["source_file_hash"],
+                ContentHash::compute(content.as_bytes()).0
+            );
+            assert!(value["file_excerpt"]["next_page"].is_null());
+            if content.is_empty() {
+                assert_eq!(value["line_start"], 0);
+                assert_eq!(value["line_end"], 0);
+                assert_eq!(value["file_excerpt"]["returned_lines"], 0);
+            }
+            let result = engram
+                .handle_get_full_method_body(
+                    serde_json::from_value(json!({"project_id":PID,"file_path":file})).unwrap(),
+                )
+                .await
+                .unwrap();
+            let text = &result.content[0].as_text().unwrap().text;
+            assert!(text.len() <= 32 * 1024 && text.contains("# Current File Excerpt"));
+            assert!(!text.contains("Full Method Body"));
+            if file == "fenced.sql" {
+                assert!(text.contains("````sql\nSELECT '```';"));
+            }
+        }
+        std::fs::write(root.join("oversized-line.sql"), "x".repeat(40_000)).unwrap();
+        std::fs::write(
+            root.join("oversized-file.sql"),
+            vec![b'x'; 4 * 1024 * 1024 + 1],
+        )
+        .unwrap();
+        std::fs::write(root.join("invalid.sql"), [0xff, 0xfe]).unwrap();
+        for file in [
+            "oversized-line.sql",
+            "oversized-file.sql",
+            "invalid.sql",
+            "missing.sql",
+            ".",
+        ] {
+            assert!(
+                engram
+                    .handle_get_full_method_body(
+                        serde_json::from_value(
+                            json!({"project_id":PID,"file_path":file,"output_json":true})
+                        )
+                        .unwrap()
+                    )
+                    .await
+                    .is_err(),
+                "{file} must fail without partial/lossy source or an unbounded response"
+            );
+        }
+        for args in [
+            json!({"file_path":"../outside.sql"}),
+            json!({"file_path":"/outside.sql"}),
+            json!({"file_path":"empty.sql","line_start":2}),
+            json!({"file_path":"escaped.sql","line_start":0}),
+            json!({"file_path":"escaped.sql","line_start":0,"line_end":0}),
+            json!({"file_path":"escaped.sql","line_end":2}),
+            json!({"file_path":"escaped.sql","fqn":"Any.Method"}),
+        ] {
+            let mut args = args;
+            args["project_id"] = json!(PID);
+            assert!(
+                engram
+                    .handle_get_full_method_body(serde_json::from_value(args).unwrap())
+                    .await
+                    .is_err()
+            );
+        }
+    });
+}
+
+#[test]
+fn codemap_and_both_impact_tools_recover_selected_sql_with_zero_declaration_bounds() {
+    owned_case(true, |engram, search| async move {
+        const SQL: &str = "db/Lockout.sql";
+        let source = "CREATE PROCEDURE Lockout\nAS\nSELECT 1;\n";
+        let root = std::path::PathBuf::from(
+            engram
+                .state
+                .registry
+                .get_project(PID)
+                .unwrap()
+                .unwrap()
+                .directory,
+        );
+        std::fs::create_dir_all(root.join("db")).unwrap();
+        std::fs::write(root.join(SQL), source).unwrap();
+        let cancel = CancellationToken::new();
+        let before = engram.state.registry.capture_source_head(PID).unwrap();
+        search
+            .prepare_full_source_snapshot(PID, 0, 1, &[RelPath::new(SQL)], &cancel)
+            .await
+            .unwrap();
+        let mut source_doc = doc("memory", 1, 1, SQL, "sql", source);
+        source_doc.end_line = 3;
+        search
+            .index_docs(PID, &[source_doc], &cancel)
+            .await
+            .unwrap();
+        search.seal_source_snapshot(PID, 1).unwrap();
+        let mut file = node(&format!("file:{SQL}"), "file", SQL, SQL, 1);
+        file.start_line = 0;
+        file.end_line = 0;
+        file.metadata = Some(json!({"file_hash":ContentHash::compute(source.as_bytes()).0}));
+        engram.state.graph.upsert_nodes(PID, &[file]).unwrap();
+        engram
+            .state
+            .registry
+            .publish_source_head(&before, 1)
+            .unwrap();
+        let map = navigate(&engram, json!({"project_id":PID,"scope":SQL})).await;
+        let mut actions = vec![
+            map["files"][0]["actions"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|a| a["tool"] == "get_full_method_body")
+                .unwrap()
+                .clone(),
+        ];
+        for tool in ["impact_analysis", "compute_blast_radius"] {
+            let mut args = json!({"project_id":PID,"file_path":SQL,"detail":"summary"});
+            let result = if tool == "impact_analysis" {
+                engram
+                    .handle_impact_analysis(serde_json::from_value(args).unwrap())
+                    .await
+                    .unwrap()
+            } else {
+                args["include_guidance"] = json!(false);
+                engram
+                    .handle_compute_blast_radius(serde_json::from_value(args).unwrap())
+                    .await
+                    .unwrap()
+            };
+            assert!(!result.is_error.unwrap_or(false));
+            let text = &result.content[0].as_text().unwrap().text;
+            let packet: Value = serde_json::from_str(
+                text.split_once("## Revision-admitted change impact")
+                    .unwrap()
+                    .1
+                    .split_once("```json")
+                    .unwrap()
+                    .1
+                    .split_once("```")
+                    .unwrap()
+                    .0,
+            )
+            .unwrap();
+            assert_eq!(packet["target_revision_admitted"], true);
+            assert_eq!(packet["working_tree_checked"], false);
+            assert_eq!(
+                packet["target"]["source_read_scope"],
+                "current_file_excerpt"
+            );
+            actions.push(packet["target"]["source_read"].clone());
+        }
+        for action in actions {
+            assert_eq!(action["tool"], "get_full_method_body");
+            let (_, value) = excerpt(&engram, action["arguments"].clone()).await;
+            assert_eq!(value["retrieval_scope"], "current_file_excerpt");
+            assert_eq!(value["language"], "sql");
+            assert_eq!(
+                value["source_file_hash"],
+                ContentHash::compute(source.as_bytes()).0
+            );
+            assert_eq!(value["source_code"], source.trim_end_matches('\n'));
+            assert_eq!(value["line_start"], 1);
+            assert_eq!(value["line_end"], 3);
+        }
+        let excluded = navigate(
+            &engram,
+            json!({"project_id":PID,"scope":SQL,"exclude_paths":[SQL]}),
+        )
+        .await;
+        assert!(excluded["files"].as_array().unwrap().is_empty());
+    });
+}

@@ -3441,8 +3441,8 @@ pub struct GetMethodInfoRequest {
     pub output_json: bool,
 }
 
-/// Retrieve an indexed method body or an explicit source range. Explicit ranges
-/// do not resolve method boundaries and may contain only part of a method.
+/// Retrieve an indexed method, explicit source range, or bounded current-file
+/// excerpt. File/range reads do not resolve method boundaries.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetFullMethodBodyRequest {
@@ -3450,14 +3450,17 @@ pub struct GetFullMethodBodyRequest {
     /// Fully qualified name from method index. Mutually exclusive with file_path + line_start.
     #[serde(default)]
     pub fqn: Option<String>,
-    /// Explicit file path (alternative to FQN lookup). Returns only the requested
-    /// range, without establishing that it is a complete method.
+    /// Project-relative source file, alternative to FQN. With line_end, both
+    /// bounds are required and strict. Without line_end, return a current-file
+    /// excerpt: at most120 complete lines and32KiB output, reading at most4MiB.
+    /// Excerpts omit surrounding context and cannot expand callers. Follow the
+    /// returned next_page and compare hashes before combining fresh reads.
     #[serde(default)]
     pub file_path: Option<String>,
-    /// Start line (1-based). Required if file_path is used instead of fqn.
+    /// Start line (1-based). Defaults to1 only in file-excerpt mode.
     #[serde(default)]
     pub line_start: Option<u32>,
-    /// End line (1-based). Required if file_path is used instead of fqn.
+    /// Inclusive end line. Omit for bounded file-excerpt pagination.
     #[serde(default)]
     pub line_end: Option<u32>,
     /// Lines of context above the returned source span. Default: 5.
