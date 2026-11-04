@@ -3076,7 +3076,7 @@
           "before_bytes": 504,
           "after_bytes": 504
         },
-        "unwatch_response": "Ã¢Å“â€¦ Unwatched.",
+        "unwatch_response": "ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Unwatched.",
         "error": "RuntimeError('Updated project_id: 7efa788d-05ab-4892-b981-ca1462fb427a\\nstatus: done\\nsource_update: no_changes_detected\\nactive_generation: 1\\nfiles=0 chunks=0 bytes=0\\ncommits=0; git history already current at the approved history root\\n')",
         "fixture_removed": true,
         "required_candidate_behavior": "Same immutable binary/config/workload probe must index the changed source, preserve sibling queries and survive restart; no sleep is added to hide failure."
@@ -8288,7 +8288,7 @@
       ]
     },
     "agent_core_navigation_20261104": {
-      "state": "SOURCE_PUSHED995336c; compact follow-up32casesPASS; final optimized build/actualacceptance/deploy pending",
+      "state": "DEPLOYED_VERIFIED_BOUNDED_AGENT_NAVIGATION_AND_IMPACT_MILESTONE; NOT_PERFECT_OR_FULL_AUDIT_COMPLETE",
       "priority": "CodeMap and Blast Radius for agents only; instruction drafting remains parked and unfinished.",
       "changes": [
         "CodeMap: scoped/excluded diverse selected-source file navigation, callable identities and copyable source/context/impact recovery.",
@@ -8307,10 +8307,42 @@
         "latest_verification": "32focused publicbehavior cases PASS in one batch, including late declaration reached via actual supplied continuation and exactsourceB3."
       },
       "compact_source_receipt_sha256": "a4911b59097ba4d75dc4185bd0c519f7abd95a0d2cb98f78a3d629aa512ad428",
-      "final_acceptance": "PENDING; no deployment/perfection claim"
+      "final_acceptance": {
+        "source_commit": "bdc7a86c0e90e8df01e6e422b00e4ba45ace18a8",
+        "build": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\shipping-cached-release-build-agent-core-compact-20261104.json",
+          "sha256": "7e8ab7aebc639d485ac1151d45c23a4788c72da30b8c89bb455279a8263acba2"
+        },
+        "actual_ociusx": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-compact-actual-ociusx-20261104\\acceptance.json",
+          "sha256": "935f424e10add3d8831e34ddbb3543a21b2266ac617f32f429043e7a98f2e3f7"
+        },
+        "installed_normal": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-installed-normal-acceptance-20261104.json",
+          "sha256": "ce02fbf3667668da3dd573b930b4775ce4097c8a155c10a1c84c94fbd763a8d4"
+        },
+        "owned_accounting": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-owned-artifact-accounting-20261104.json",
+          "sha256": "535e9bf5d4a1747d27e3bce368aa132285220670447345d3f325304ca38a770d"
+        },
+        "executable_sha256": "543bee4bec7996f452d179c6835537d3997616171dba3e275a8bd0b6cfe2d350",
+        "manifest_sha256": "792720ba09b778690579de8e36af606ad12eedfdb6d9db237a628955ea087070",
+        "tests": "32 focused public behaviors PASS in one final batch; all owned fixtures removed.",
+        "actual": "All33observed selected dependent identities and47verified edges retained, both prepared-cache/nullable-count routes,25paths, zeroidentity/edge omissions. Policy declaration continuation actually executed atoffset16. Eight actual source recoveries checked against complete current-fileB3+lines.",
+        "measured_cost": "RootCodeMap17006B vsfirstcandidate57491B; scopedarea8968B vs55434B; impact49210B vs65634B, compute50022B vs66446B. NormalpublicIPC graph/safety match currentobservations.",
+        "short_resource_probe": "Missing recovery.282s vs3.857s; sampleprivatepeak91316224B vs639000576B, noalerts. No sustained/leak/physicalSSD claim.",
+        "native_codex_connector": "Fresh native list_projects stillTransportclosed; installednormaldaemon MCP/IPC works, clientreconnection required to refreshtransport/schema. No available reconnecttool was found; Codexapplication not restarted."
+      },
+      "remaining_core_limits": [
+        "Root8-fileCodeMap does not guarantee a task-specific featurefile appears; fresh consumer chose map area, requiring further scoping/paging/search. Representative relevance remains open.",
+        "Impact49KB stillsubstantial and closestconsumer mayneedcanonicalgraph join becausepathsdeepestfirst. Further accepted-task/context-efficiency work remains open.",
+        "No proposed-edit simulation, exhaustive dynamic/runtimecoverage or verified callsite/valueflow claim. Recorded lines can be declaration anchors.",
+        "HTTPbody notinspected byfirstblindCodeMapconsumerwithin3callcap; indexlead was found. Parentactualacceptance separately recovered/hashchecked it.",
+        "Original31findings/19fullauditgates remain tracked and unfinished, instructiondrafting andforensics stayparked under corepriority."
+      ]
     }
   },
-  "last_updated_at": "2026-11-04T18:28:02.208943+00:00",
+  "last_updated_at": "2026-11-04T18:49:34.470372+00:00",
   "current_execution_focus": {
     "at_utc": "2026-11-04T11:12:56.875854+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
@@ -8343,7 +8375,7 @@
       }
     ],
     "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
-    "next_user_visible_deliverable": "Publish this verified CodeMap/Blast batch, run actual OciusX outputs and independent agent-consumer walkthroughs, deploy the accepted runtime. Do not return to instruction drafting.",
+    "next_user_visible_deliverable": "Continue CodeMap/Blast agent-task usefulness: representative relevance and excessive graph context remain measured gaps. Preserve this deployed milestone and every original unfinished finding; do not return to parked instruction work without user redirection.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
