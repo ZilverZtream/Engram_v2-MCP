@@ -313,7 +313,7 @@ async fn check_edit_safety_agrees_with_get_method_edit_context() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn low_risk_method_with_complete_evidence_is_green() {
+async fn graph_only_method_without_source_attestation_cannot_be_green() {
     let (tmp, state) = build_state();
     let dir = register_project(&state, &tmp);
     seed_method(&state, &dir, 1, 1);
@@ -324,7 +324,21 @@ async fn low_risk_method_with_complete_evidence_is_green() {
             .await
             .unwrap(),
     );
-    assert_eq!(v["verdict"], "green", "{v}");
+    assert_ne!(v["verdict"], "green", "{v}");
+    assert_eq!(v["downstream_impact"]["status"], "unavailable", "{v}");
+    assert!(
+        v["downstream_impact"]["selected_dependents_observed"].is_null(),
+        "{v}"
+    );
+    assert!(
+        v["downstream_impact"]["direct_dependents_observed"].is_null(),
+        "{v}"
+    );
+    assert!(
+        v["downstream_impact"]["transitive_dependents_observed"].is_null(),
+        "{v}"
+    );
+    assert_ne!(v["completeness"]["downstream"]["status"], "complete", "{v}");
     for p in [
         "blast",
         "callers",
@@ -335,6 +349,8 @@ async fn low_risk_method_with_complete_evidence_is_green() {
     ] {
         assert_eq!(v["completeness"][p]["status"], "complete", "{p}: {v}");
     }
+    drop(engram);
+    tmp.close().unwrap();
 }
 
 // ─── identity ───────────────────────────────────────────────────────────────
