@@ -1,8 +1,12 @@
 #![allow(clippy::unwrap_used)]
 use engram_core::Config;
+use engram_core::{ContentHash, RelPath};
+use engram_index::IndexDoc;
 use engram_server::AppState;
 use rmcp::handler::server::tool::Parameters;
+use serde_json::{Value, json};
 use tempfile::tempdir;
+use tokio_util::sync::CancellationToken;
 
 #[tokio::test]
 async fn test_impact_analysis_smoke() {
@@ -80,16 +84,40 @@ namespace App {
         text
     );
 
+    let report = impact(text);
+    let callers = selected(&report);
+    let caller = callers
+        .iter()
+        .find(|node| node["name"] == "btn_Click")
+        .expect("Impact should include the revision-admitted caller");
+    assert_eq!(caller["node_id"], "sym:function:Page.aspx.cs:btn_Click:4");
+    assert_eq!(caller["start_line"], 4);
+    assert_eq!(caller["end_line"], 6);
     assert!(
-        text.contains("App.Page.btn_Click"),
-        "Impact should include the caller"
+        report["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|file| file["ref"] == caller["file_ref"] && file["path"] == "Page.aspx.cs")
     );
+    let target = report["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|node| node["ref"] == report["target_ref"])
+        .unwrap();
+    assert_eq!(target["name"], "Helper");
     // Raw `calls` edges map to EdgeKind::Calls (not Dependency) since the
     // calls edge kind was restored through the ingest pipeline.
-    assert!(text.contains("calls this"), "Should include reason");
     assert!(
-        text.contains("## Causal dependents"),
-        "callers must be reported in the causal tier"
+        report["edges"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|edge| edge["kind"] == "calls"
+                && edge["source_ref"] == caller["ref"]
+                && edge["target_ref"] == target["ref"]),
+        "Should include the causal call witness"
     );
 
     // 3. Analyze impact of file
@@ -111,8 +139,12 @@ namespace App {
         text_file
     );
     assert!(
-        text_file.contains("Page.aspx"),
-        "Impact should include the markup page"
+        impact(text_file)["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|file| file["path"] == "Page.aspx"),
+        "File impact should include the distinct dependent markup page"
     );
 }
 
@@ -145,7 +177,7 @@ fn graph_fixture() -> (
     let pid = "impact-fixture".to_string();
     state
         .registry
-        .put_project(&engram_core::ProjectRecord {
+        .register_source_project(&engram_core::ProjectRecord {
             project_id: pid.clone(),
             project_name: "fixture".into(),
             project_type: "dotnet_webforms_cs".into(),
@@ -156,6 +188,128 @@ fn graph_fixture() -> (
         })
         .unwrap();
     (tmp, engram, state, pid)
+}
+
+/// Publish real files and their managed source selection before asking the
+/// public tool to admit deterministic graph relationships from those files.
+async fn publish_fixture(
+    state: &AppState,
+    pid: &str,
+    mut nodes: Vec<engram_graph::Node>,
+    mut edges: Vec<engram_graph::Edge>,
+) {
+    let root =
+        std::path::PathBuf::from(state.registry.get_project(pid).unwrap().unwrap().directory);
+    let names: std::collections::BTreeMap<_, _> = nodes
+        .iter()
+        .map(|node| (node.node_id.clone(), node.name.clone()))
+        .collect();
+    let mut files: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
+    for node in &mut nodes {
+        let body = files
+            .entry(node.file_path.to_string())
+            .or_insert_with(|| "Public Module Fixture\n".into());
+        if node.node_type == "file" {
+            continue;
+        }
+        node.start_line = body.lines().count() as u32 + 1;
+        body.push_str(&format!(" Public Shared Sub {}()\n", node.name));
+        for binding in edges.iter().filter(|binding| {
+            binding.source_id == node.node_id && binding.edge_kind == engram_graph::EdgeKind::Calls
+        }) {
+            if let Some(name) = names.get(&binding.target_id) {
+                body.push_str(&format!("  {name}()\n"));
+            }
+        }
+        body.push_str(" End Sub\n");
+        node.end_line = body.lines().count() as u32;
+    }
+    let mut docs = Vec::new();
+    for (index, (path, body)) in files.iter_mut().enumerate() {
+        let path = path.as_str();
+        body.push_str("End Module\n");
+        if let Some(parent) = root.join(path).parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+        std::fs::write(root.join(path), body.as_bytes()).unwrap();
+        nodes.retain(|node| node.node_id != format!("file:{path}"));
+        let mut file = node(&format!("file:{path}"), path, path, "file");
+        file.end_line = body.lines().count() as u32;
+        file.metadata = Some(json!({"file_hash":ContentHash::compute(body.as_bytes()).0}));
+        nodes.push(file);
+        docs.push(IndexDoc {
+            namespace: "memory".into(),
+            generation: 1,
+            chunk_id: index as u64 + 1,
+            path: RelPath::new(path),
+            language: "vbnet".into(),
+            content: body.clone(),
+            author: None,
+            timestamp: None,
+            start_line: 1,
+            end_line: body.lines().count() as u32,
+            doc_id: format!("{path}:source"),
+            content_hash: ContentHash::compute(body.as_bytes()).0,
+        });
+    }
+    let runtime = engram_server::services::project_service::ensure_project_runtime(state, pid)
+        .await
+        .unwrap();
+    edges.extend(
+        nodes
+            .iter()
+            .filter(|node| node.node_type != "file")
+            .map(|node| {
+                edge(
+                    &format!("file:{}", node.file_path),
+                    &node.node_id,
+                    engram_graph::EdgeKind::Contains,
+                )
+            }),
+    );
+    let cancel = CancellationToken::new();
+    let initial = state.registry.capture_source_head(pid).unwrap();
+    let paths: Vec<_> = files.keys().map(|path| RelPath::new(path)).collect();
+    runtime
+        .search
+        .prepare_full_source_snapshot(pid, 0, 1, &paths, &cancel)
+        .await
+        .unwrap();
+    runtime
+        .search
+        .index_docs(pid, &docs, &cancel)
+        .await
+        .unwrap();
+    runtime.search.seal_source_snapshot(pid, 1).unwrap();
+    state.graph.upsert_nodes(pid, &nodes).unwrap();
+    state.graph.upsert_edges(pid, &edges).unwrap();
+    assert!(state.registry.publish_source_head(&initial, 1).unwrap());
+}
+
+fn packet(text: &str, heading: &str) -> Value {
+    serde_json::from_str(
+        text.split_once(heading)
+            .unwrap()
+            .1
+            .split_once("```json")
+            .unwrap()
+            .1
+            .split_once("```")
+            .unwrap()
+            .0,
+    )
+    .unwrap()
+}
+fn impact(text: &str) -> Value {
+    packet(text, "## Revision-admitted change impact")
+}
+fn selected<'a>(packet: &'a Value) -> Vec<&'a Value> {
+    packet["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|node| node["admission"] == "selected" && node["is_seed"] == false)
+        .collect()
 }
 
 fn node(id: &str, name: &str, file: &str, ty: &str) -> engram_graph::Node {
@@ -229,27 +383,19 @@ async fn temporal_edges_are_companions_not_causal() {
         ));
         edges.push(edge(&f, target, engram_graph::EdgeKind::TemporalCoupling));
     }
-    state.graph.upsert_nodes(&pid, &nodes).unwrap();
-    state.graph.upsert_edges(&pid, &edges).unwrap();
+    publish_fixture(&state, &pid, nodes, edges).await;
 
     let text = run(&engram, &pid, target).await;
+    let report = impact(&text);
+    assert_eq!(report["selected_dependents_observed"], 3);
     assert!(
-        text.contains("3 causal (may break)"),
-        "exactly 3 causal dependents despite 20 temporal edges: {text}"
+        selected(&report)
+            .iter()
+            .all(|node| !node["node_id"].as_str().unwrap().contains("companion"))
     );
-    assert!(
-        text.contains("20 historical companions"),
-        "temporal edges reported as companions: {text}"
-    );
-    let causal_section = text
-        .split("## Causal dependents")
-        .nth(1)
-        .and_then(|s| s.split("## ").next())
-        .unwrap_or("");
-    assert!(
-        !causal_section.contains("companion"),
-        "no companion may be listed as causal: {causal_section}"
-    );
+    let history = packet(&text, "## Historical companion observations");
+    assert_eq!(history["historical_companions_observed"], 20);
+    assert_eq!(history["count_is_lower_bound"], false);
 }
 
 /// ACCEPTANCE: two identical requests produce identical output.
@@ -269,18 +415,20 @@ async fn impact_analysis_is_deterministic() {
         ));
         edges.push(edge(&c, target, engram_graph::EdgeKind::Calls));
     }
-    state.graph.upsert_nodes(&pid, &nodes).unwrap();
-    state.graph.upsert_edges(&pid, &edges).unwrap();
+    publish_fixture(&state, &pid, nodes, edges).await;
     let a = run(&engram, &pid, target).await;
     let b = run(&engram, &pid, target).await;
     // The freshness footer renders wall-clock index age, so the COMPLETE
     // response is inherently time-dependent; the guarantee (and the public
     // contract) is a byte-identical EVIDENCE BODY, footer excluded.
-    let strip = |s: &str| s.split("\n---").next().unwrap_or(s).to_string();
     assert_eq!(
-        strip(&a),
-        strip(&b),
+        impact(&a),
+        impact(&b),
         "identical requests must render an identical evidence body"
+    );
+    assert_eq!(
+        packet(&a, "## Historical companion observations"),
+        packet(&b, "## Historical companion observations")
     );
 }
 
@@ -288,13 +436,27 @@ async fn impact_analysis_is_deterministic() {
 /// inputs at once are rejected.
 #[tokio::test]
 async fn missing_target_is_not_found_not_empty() {
-    let (_tmp, engram, _state, pid) = graph_fixture();
+    let (_tmp, engram, state, pid) = graph_fixture();
+    publish_fixture(
+        &state,
+        &pid,
+        vec![node(
+            "sym:function:t.vb:Target:1",
+            "Target",
+            "t.vb",
+            "function",
+        )],
+        vec![],
+    )
+    .await;
     let text = run(&engram, &pid, "sym:function:nope.vb:Missing:1").await;
-    assert!(
-        text.contains("TARGET NOT FOUND"),
-        "must distinguish resolution failure from empty impact: {text}"
+    let report = impact(&text);
+    assert_eq!(
+        report["status"], "unavailable",
+        "Resolution failure is unavailable evidence, not empty impact"
     );
-    assert!(!text.contains("No dependent nodes found"));
+    assert!(report["selected_dependents_observed"].is_null());
+    assert!(report["error"].as_str().unwrap().contains("target"));
 
     let both = engram
         .impact_analysis(Parameters(engram_server::ImpactAnalysisRequest {
@@ -345,16 +507,17 @@ async fn noncausal_flood_cannot_hide_causal_dependents() {
         e.weight = 9999;
         edges.push(e);
     }
-    state.graph.upsert_nodes(&pid, &nodes).unwrap();
-    state.graph.upsert_edges(&pid, &edges).unwrap();
+    publish_fixture(&state, &pid, nodes, edges).await;
     let text = run(&engram, &pid, target).await;
-    assert!(
-        text.contains("3 causal (may break)"),
-        "all 3 causal dependents must survive a 600-edge temporal flood: {text}"
+    let report = impact(&text);
+    assert_eq!(
+        report["selected_dependents_observed"], 3,
+        "All real callers must survive the historical flood"
     );
-    assert!(
-        !text.contains("CAUSAL is a LOWER BOUND"),
-        "causal coverage must be complete (temporal truncation is a separate tier): {text}"
+    assert_eq!(selected(&report).len(), 3);
+    assert_eq!(
+        report["coverage"]["truncated"], false,
+        "Historical truncation must not falsely truncate causal coverage"
     );
 }
 
@@ -384,8 +547,7 @@ async fn internal_flood_cannot_hide_external_caller() {
     let ext = "sym:function:zz_other.vb:ZzExternal:1";
     nodes.push(node(ext, "ZzExternal", "zz_other.vb", "function"));
     edges.push(edge(ext, &hub, engram_graph::EdgeKind::Calls));
-    state.graph.upsert_nodes(&pid, &nodes).unwrap();
-    state.graph.upsert_edges(&pid, &edges).unwrap();
+    publish_fixture(&state, &pid, nodes, edges).await;
 
     let res = engram
         .impact_analysis(Parameters(engram_server::ImpactAnalysisRequest {
@@ -398,18 +560,22 @@ async fn internal_flood_cannot_hide_external_caller() {
         .await
         .unwrap();
     let text = res.content[0].as_text().unwrap().text.clone();
-    assert!(
-        text.contains("1 causal (may break)"),
-        "the single external caller must be found behind 250 internal ones: {text}"
-    );
-    assert!(text.contains("ZzExternal"), "external caller named: {text}");
-    assert!(
-        !text.contains("CAUSAL is a LOWER BOUND"),
-        "internal edges must not consume the causal cap: {text}"
+    let report = impact(&text);
+    assert_eq!(
+        report["selected_dependents_observed"], 1,
+        "Internal sources must not consume the external-dependent count"
     );
     assert!(
-        !text.contains("no external incoming edges"),
-        "must not report 'no edges' when an external caller exists: {text}"
+        selected(&report).iter().any(|node| node["node_id"] == ext),
+        "The external caller must remain visible/recoverable"
+    );
+    assert!(selected(&report).iter().all(|node| node["node_id"] == ext));
+    // The declared per-file seed cap may remain incomplete. It must name that
+    // boundary rather than lose this already-known external consumer.
+    assert!(
+        report["coverage"]["reasons"]
+            .to_string()
+            .contains("file_seed_cap")
     );
 }
 
@@ -428,19 +594,31 @@ async fn mixed_tier_source_counted_in_both_tiers() {
         edge(caller, target, engram_graph::EdgeKind::Calls),
         edge(caller, target, engram_graph::EdgeKind::TemporalCoupling),
     ];
-    state.graph.upsert_nodes(&pid, &nodes).unwrap();
-    state.graph.upsert_edges(&pid, &edges).unwrap();
+    publish_fixture(&state, &pid, nodes, edges).await;
     let text = run(&engram, &pid, target).await;
-    assert!(text.contains("1 causal (may break)"), "{text}");
-    assert!(text.contains("1 historical companions"), "{text}");
-    let causal_section = text
-        .split("## Causal dependents")
-        .nth(1)
-        .and_then(|s| s.split("\n## ").next())
-        .unwrap_or("");
+    let report = impact(&text);
+    assert_eq!(report["selected_dependents_observed"], 1);
     assert!(
-        !causal_section.contains("often changed with this"),
-        "the temporal relation must not render inside the causal line: {causal_section}"
+        selected(&report)
+            .iter()
+            .any(|node| node["node_id"] == caller)
+    );
+    assert!(
+        report["edges"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|edge| edge["kind"] != "temporal_coupling")
+    );
+    let history = packet(&text, "## Historical companion observations");
+    assert_eq!(history["historical_companions_observed"], 1);
+    assert!(
+        history["examples"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|example| example["node_id"] == caller),
+        "The independent historical observation must survive even when the same identity is also causal"
     );
 }
 
@@ -464,16 +642,24 @@ async fn dangling_sources_excluded_from_confirmed_counts() {
             engram_graph::EdgeKind::Calls,
         ),
     ];
-    state.graph.upsert_nodes(&pid, &nodes).unwrap();
-    state.graph.upsert_edges(&pid, &edges).unwrap();
+    publish_fixture(&state, &pid, nodes, edges).await;
     let text = run(&engram, &pid, target).await;
+    let report = impact(&text);
+    assert_eq!(report["selected_dependents_observed"], 1);
+    assert_eq!(selected(&report).len(), 1);
+    assert_eq!(selected(&report)[0]["node_id"], real);
+    let ghost = report["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|node| node["node_id"] == "sym:function:ghost.vb:Ghost:1")
+        .unwrap();
+    assert_eq!(ghost["admission"], "unresolved");
     assert!(
-        text.contains("1 causal (may break)"),
-        "only the resolved caller is a confirmed causal dependent: {text}"
+        report["frontier"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|frontier| frontier["source_ref"] == ghost["ref"])
     );
-    assert!(
-        text.contains("1 UNRESOLVED endpoints"),
-        "the dangling source is reported as unresolved: {text}"
-    );
-    assert!(text.contains("## Unresolved endpoints"), "{text}");
 }

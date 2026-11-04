@@ -29,7 +29,7 @@ mod reader_experiment;
 #[cfg(test)]
 mod selected_source_recovery_tests;
 mod selected_source_membership;
-pub use selected_source_membership::{SelectedSourceRevisionLookup, SelectedSourceSummary};
+pub use selected_source_membership::{SelectedSourceNavigation, SelectedSourceRevisionLookup, SelectedSourceSummary};
 #[cfg(all(test, feature = "vector"))]
 mod retention_observation_tests;
 #[cfg(all(test, feature = "vector"))]

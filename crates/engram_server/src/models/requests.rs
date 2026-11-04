@@ -453,6 +453,37 @@ pub struct ProjectIdRequest {
     pub project_id: String,
 }
 
+/// Source-navigation CodeMap; retained memory/history is opt-in context.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CodebaseOverviewRequest {
+    pub project_id: String,
+    /// Literal project-relative file or directory boundary, never a glob.
+    #[serde(default)]
+    pub scope: Option<String>,
+    /// Literal boundaries omitted before declaration lookup or source recovery.
+    #[serde(default)]
+    pub exclude_paths: Vec<String>,
+    #[serde(default)]
+    pub include_retained_context: bool,
+    /// Scoped results page all matching file identities; project-wide results
+    /// page a diverse representative sample. Narrow an area's scope for more.
+    #[serde(default)]
+    pub offset: usize,
+    /// Files shown, 1..64. Declaration and response limits remain independent.
+    #[serde(default = "default_codemap_limit")]
+    pub limit: usize,
+}
+
+fn default_codemap_limit() -> usize { 24 }
+
+impl From<ProjectIdRequest> for CodebaseOverviewRequest {
+    fn from(request: ProjectIdRequest) -> Self {
+        Self { project_id: request.project_id, scope: None, exclude_paths: Vec::new(),
+            include_retained_context: false, offset: 0, limit: default_codemap_limit() }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ListRepoRulesRequest {

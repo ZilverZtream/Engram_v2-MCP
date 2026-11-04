@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 const MAX_SEEDS: usize = 128;
 const MAX_NODES: usize = 512;
 const MAX_WITNESSES: usize = 2048;
+const MAX_FRONTIER: usize = 128;
 const MAX_RETAINED_STRING_BYTES: usize = 256 * 1024;
 const MAX_RAW_ROWS: usize = 16_384;
 const MAX_PER_ENDPOINT_KIND: usize = 64;
@@ -109,12 +110,30 @@ pub struct ImpactWitness {
     pub edge_generation: u64,
     pub weight: u32,
     pub depth: usize,
+    /// Recorded extractor reference line, never inferred from a declaration.
+    pub source_line: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ImpactFrontier {
+    pub source_id: String,
+    pub target_id: Option<String>,
+    pub kind: Option<EdgeKind>,
+    pub reason: &'static str,
+    pub depth: usize,
+    pub file_path: Option<RelPath>,
+    pub start_line: Option<u32>,
+    pub end_line: Option<u32>,
+    pub node_generation: Option<u64>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
 pub struct ImpactWalkCoverage {
     /// Raw adjacency entries inspected, including entries rejected afterwards.
     pub raw_rows: usize,
+    /// File-impact rows whose source belongs to the requested file. Raw/decode
+    /// work is charged, but these are not external dependents or frontier.
+    pub internal_rows_skipped: usize,
     /// Distinct source identities admitted/excluded after edge validation.
     pub nodes_observed: usize,
     /// Missing graph-node read observations, not proof of absent source code.
@@ -127,6 +146,7 @@ pub struct ImpactWalkCoverage {
     /// Work, display-independent traversal, or unknown-source coverage was lost.
     pub truncated: bool,
     pub reasons: Vec<String>,
+    pub frontier_omitted: usize,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
@@ -134,6 +154,8 @@ pub struct IncomingImpactWalk {
     /// Selected and unknown identities only; excluded revisions are counted.
     pub nodes: Vec<ImpactWalkNode>,
     pub witnesses: Vec<ImpactWitness>,
+    /// Unverified or missing endpoints, separate from admitted causal edges.
+    pub frontier: Vec<ImpactFrontier>,
     pub coverage: ImpactWalkCoverage,
 }
 
@@ -203,6 +225,53 @@ fn identity_bytes(node: &Node) -> usize {
         + node.file_path.as_str().len()
 }
 
+fn record_frontier(
+    frontier: &mut Vec<ImpactFrontier>,
+    coverage: &mut ImpactWalkCoverage,
+    budget: &mut Budget,
+    witness_count: usize,
+    source: &str,
+    target: Option<&str>,
+    kind: Option<&EdgeKind>,
+    node: Option<&Node>,
+    depth: usize,
+    reason: &'static str,
+) {
+    if frontier.len() == MAX_FRONTIER || frontier.len() + witness_count >= MAX_WITNESSES {
+        coverage.frontier_omitted += 1;
+        gap(coverage, "frontier_lead_limit");
+        return;
+    }
+    let bytes = source.len()
+        + target.map_or(0, str::len)
+        + node.map_or(0, |node| node.file_path.as_str().len());
+    if !budget.retain(bytes, coverage) {
+        coverage.frontier_omitted += 1;
+        return;
+    }
+    frontier.push(ImpactFrontier {
+        source_id: source.to_owned(),
+        target_id: target.map(str::to_owned),
+        kind: kind.cloned(),
+        reason,
+        depth,
+        file_path: node.map(|node| node.file_path.clone()),
+        start_line: node.map(|node| node.start_line),
+        end_line: node.map(|node| node.end_line),
+        node_generation: node.map(|node| node.generation),
+    });
+}
+
+fn recorded_source_line(edge: &Edge) -> Option<u32> {
+    let value = edge.metadata.as_ref()?.get("src_line")?;
+    let line = match value {
+        JsonValue::String(text) if text.len() <= 10 => text.parse::<u32>().ok(),
+        JsonValue::Number(number) => number.as_u64().and_then(|line| u32::try_from(line).ok()),
+        _ => None,
+    }?;
+    (line > 0).then_some(line)
+}
+
 // Called only after the retained-byte gate. Never clone arbitrary metadata
 // into the traversal cache or response, even transiently.
 fn identity_clone(node: &Node) -> Node {
@@ -223,7 +292,6 @@ fn identity_clone(node: &Node) -> Node {
 struct Cached {
     node: Node,
     admission: ImpactAdmission,
-    output: Option<usize>,
 }
 
 /// Remember a source only after its edge's generation was validated. The
@@ -276,14 +344,7 @@ fn remember(
         gap(&mut output.coverage, "unknown_source_admission");
     }
     output.coverage.nodes_observed += 1;
-    cache.insert(
-        node.node_id.clone(),
-        Cached {
-            node,
-            admission,
-            output: index,
-        },
-    );
+    cache.insert(node.node_id.clone(), Cached { node, admission });
     index
 }
 
@@ -297,6 +358,26 @@ impl GraphStore {
         project_id: &str,
         file_paths: &[String],
         admit: &dyn Fn(&Node, Option<&Node>) -> anyhow::Result<ImpactAdmission>,
+    ) -> anyhow::Result<(Vec<String>, ImpactWalkCoverage)> {
+        self.bounded_file_impact_seeds_inner(project_id, file_paths, admit, true)
+    }
+
+    /// Navigation never falls back to a project-wide legacy node scan.
+    pub fn bounded_file_navigation_seeds(
+        &self,
+        project_id: &str,
+        file_paths: &[String],
+        admit: &dyn Fn(&Node, Option<&Node>) -> anyhow::Result<ImpactAdmission>,
+    ) -> anyhow::Result<(Vec<String>, ImpactWalkCoverage)> {
+        self.bounded_file_impact_seeds_inner(project_id, file_paths, admit, false)
+    }
+
+    fn bounded_file_impact_seeds_inner(
+        &self,
+        project_id: &str,
+        file_paths: &[String],
+        admit: &dyn Fn(&Node, Option<&Node>) -> anyhow::Result<ImpactAdmission>,
+        allow_legacy: bool,
     ) -> anyhow::Result<(Vec<String>, ImpactWalkCoverage)> {
         anyhow::ensure!(
             !project_id.is_empty()
@@ -561,7 +642,13 @@ impl GraphStore {
                 }
             }
         }
-        if seeds.is_empty() && other_declarations.is_empty() && !budget.halted {
+        if !allow_legacy && seeds.is_empty() && other_declarations.is_empty() {
+            gap(
+                &mut coverage,
+                "native_declaration_membership_unavailable; legacy scan disabled",
+            );
+        }
+        if allow_legacy && seeds.is_empty() && other_declarations.is_empty() && !budget.halted {
             gap(
                 &mut coverage,
                 "bounded_legacy_callable_fallback; native membership unavailable",
@@ -646,6 +733,26 @@ impl GraphStore {
         causal: &dyn Fn(&EdgeKind) -> bool,
         admit: &dyn Fn(&Node, Option<&Node>) -> anyhow::Result<ImpactAdmission>,
     ) -> anyhow::Result<IncomingImpactWalk> {
+        self.bounded_incoming_walk_excluding_file(project_id, seeds, max_depth, causal, admit, None)
+    }
+
+    /// File-level impact treats the requested file's own declarations as the
+    /// component, including declarations omitted from a bounded seed sample.
+    /// Decode their rows under the shared work budget, then skip them before
+    /// accepted-node, witness, frontier and per-endpoint result budgets.
+    pub fn bounded_incoming_walk_excluding_file(
+        &self,
+        project_id: &str,
+        seeds: &[String],
+        max_depth: usize,
+        causal: &dyn Fn(&EdgeKind) -> bool,
+        admit: &dyn Fn(&Node, Option<&Node>) -> anyhow::Result<ImpactAdmission>,
+        excluded_source_file: Option<&str>,
+    ) -> anyhow::Result<IncomingImpactWalk> {
+        anyhow::ensure!(
+            excluded_source_file.is_none_or(|path| !path.is_empty() && path.len() <= 2048),
+            "Invalid internal impact file boundary"
+        );
         anyhow::ensure!(
             !project_id.is_empty() && project_id.len() <= 1024,
             "Impact project identity must be 1..1024 bytes"
@@ -707,8 +814,12 @@ impl GraphStore {
         };
         let classify = |node: &Node,
                         budget: &mut Budget,
-                        coverage: &mut ImpactWalkCoverage|
+                        coverage: &mut ImpactWalkCoverage,
+                        frontier: &mut Vec<ImpactFrontier>,
+                        witness_count: usize,
+                        depth: usize|
          -> anyhow::Result<ImpactAdmission> {
+            let missing_before = coverage.missing_nodes;
             let file = if node.file_path.as_str().is_empty() {
                 None
             } else {
@@ -718,6 +829,25 @@ impl GraphStore {
                     coverage,
                 )?
             };
+            if file.is_none() && !node.file_path.as_str().is_empty() {
+                let reason = if coverage.missing_nodes > missing_before {
+                    "missing_file_node"
+                } else {
+                    "file_record_unavailable_within_budget"
+                };
+                record_frontier(
+                    frontier,
+                    coverage,
+                    budget,
+                    witness_count,
+                    &format!("file:{}", node.file_path.as_str()),
+                    Some(&node.node_id),
+                    None,
+                    None,
+                    depth,
+                    reason,
+                );
+            }
             let admission = admit(node, file.as_ref())?;
             budget.live(coverage);
             Ok(admission)
@@ -731,10 +861,53 @@ impl GraphStore {
             if !budget.live(&mut output.coverage) {
                 break;
             }
+            let missing_before = output.coverage.missing_nodes;
             let Some(node) = read_node(seed, &mut budget, &mut output.coverage)? else {
+                let reason = if output.coverage.missing_nodes > missing_before {
+                    "missing_graph_node"
+                } else {
+                    "seed_record_unavailable_within_budget"
+                };
+                record_frontier(
+                    &mut output.frontier,
+                    &mut output.coverage,
+                    &mut budget,
+                    output.witnesses.len(),
+                    seed,
+                    None,
+                    None,
+                    None,
+                    0,
+                    reason,
+                );
                 continue;
             };
-            let admission = classify(&node, &mut budget, &mut output.coverage)?;
+            let admission = classify(
+                &node,
+                &mut budget,
+                &mut output.coverage,
+                &mut output.frontier,
+                output.witnesses.len(),
+                0,
+            )?;
+            if admission != ImpactAdmission::Selected {
+                record_frontier(
+                    &mut output.frontier,
+                    &mut output.coverage,
+                    &mut budget,
+                    output.witnesses.len(),
+                    seed,
+                    None,
+                    None,
+                    Some(&node),
+                    0,
+                    if admission == ImpactAdmission::NonSelectedRevision {
+                        "non_selected_seed_revision"
+                    } else {
+                        "unknown_seed_admission"
+                    },
+                );
+            }
             if !budget.live(&mut output.coverage) {
                 break;
             }
@@ -759,7 +932,7 @@ impl GraphStore {
             let depth = output.nodes[index].depth;
             // A transient endpoint copy is bounded by its admitted identity.
             let target = output.nodes[index].node.node_id.clone();
-            'kinds: for kind in EdgeKind::ALL {
+            for kind in EdgeKind::ALL {
                 if !causal(kind) {
                     continue;
                 }
@@ -793,9 +966,33 @@ impl GraphStore {
                     let Some(raw) = edges.get(edge_id.as_str())? else {
                         output.coverage.unknown_nodes += 1;
                         gap(&mut output.coverage, "missing_graph_edge");
+                        record_frontier(
+                            &mut output.frontier,
+                            &mut output.coverage,
+                            &mut budget,
+                            output.witnesses.len(),
+                            source,
+                            Some(&target),
+                            Some(kind),
+                            None,
+                            depth + 1,
+                            "missing_graph_edge",
+                        );
                         continue;
                     };
                     if !budget.record(raw.value().len(), &mut output.coverage) {
+                        record_frontier(
+                            &mut output.frontier,
+                            &mut output.coverage,
+                            &mut budget,
+                            output.witnesses.len(),
+                            source,
+                            Some(&target),
+                            Some(kind),
+                            None,
+                            depth + 1,
+                            "edge_record_unavailable_within_budget",
+                        );
                         if budget.halted {
                             break 'walk;
                         }
@@ -812,20 +1009,29 @@ impl GraphStore {
                             && edge.edge_kind == *kind,
                         "Graph edge identity disagrees with its adjacency key"
                     );
-                    if edge.namespace != engram_core::namespaces::NAMESPACE_MEMORY {
-                        output.coverage.unknown_nodes += 1;
-                        gap(&mut output.coverage, "unverified_edge_source_namespace");
-                        continue;
-                    }
                     let loaded = if cache.contains_key(source) {
                         None
                     } else {
-                        if cache.len() >= MAX_NODES {
-                            gap(&mut output.coverage, "visited_node_limit");
-                            break 'walk;
-                        }
+                        let missing_before = output.coverage.missing_nodes;
                         let loaded = read_node(source, &mut budget, &mut output.coverage)?;
                         if loaded.is_none() {
+                            let reason = if output.coverage.missing_nodes > missing_before {
+                                "missing_graph_node"
+                            } else {
+                                "source_record_unavailable_within_budget"
+                            };
+                            record_frontier(
+                                &mut output.frontier,
+                                &mut output.coverage,
+                                &mut budget,
+                                output.witnesses.len(),
+                                source,
+                                Some(&target),
+                                Some(kind),
+                                None,
+                                depth + 1,
+                                reason,
+                            );
                             if budget.halted {
                                 break 'walk;
                             }
@@ -838,32 +1044,100 @@ impl GraphStore {
                         .map(|cached| &cached.node)
                         .or(loaded.as_ref())
                         .expect("cached or freshly read source");
+                    if excluded_source_file.is_some_and(|path| node.file_path.as_str() == path) {
+                        output.coverage.internal_rows_skipped += 1;
+                        continue;
+                    }
+                    if edge.namespace != engram_core::namespaces::NAMESPACE_MEMORY {
+                        output.coverage.unknown_nodes += 1;
+                        gap(&mut output.coverage, "unverified_edge_source_namespace");
+                        record_frontier(
+                            &mut output.frontier,
+                            &mut output.coverage,
+                            &mut budget,
+                            output.witnesses.len(),
+                            source,
+                            Some(&target),
+                            Some(kind),
+                            Some(node),
+                            depth + 1,
+                            "unverified_edge_source_namespace",
+                        );
+                        continue;
+                    }
+                    if loaded.is_some() && cache.len() >= MAX_NODES {
+                        gap(&mut output.coverage, "visited_node_limit");
+                        break 'walk;
+                    }
                     // Do not mark visited or invoke source admission on a stale
                     // edge. A later correctly bound edge may still admit source.
                     if !edge_source_revision_matches(&edge, node) {
                         output.coverage.unknown_nodes += 1;
                         gap(&mut output.coverage, "unverified_edge_source_revision");
+                        record_frontier(
+                            &mut output.frontier,
+                            &mut output.coverage,
+                            &mut budget,
+                            output.witnesses.len(),
+                            source,
+                            Some(&target),
+                            Some(kind),
+                            Some(node),
+                            depth + 1,
+                            "unverified_edge_source_revision",
+                        );
                         continue;
                     }
                     let cached = cache.get(source);
                     if let Some(cached) = cached {
                         output.coverage.cycles_or_revisits += 1;
-                        if cached.admission != ImpactAdmission::Selected
-                            || cached
-                                .output
-                                .is_some_and(|i| output.nodes[i].depth <= depth)
-                        {
+                        if cached.admission != ImpactAdmission::Selected {
+                            record_frontier(
+                                &mut output.frontier,
+                                &mut output.coverage,
+                                &mut budget,
+                                output.witnesses.len(),
+                                source,
+                                Some(&target),
+                                Some(kind),
+                                Some(node),
+                                depth + 1,
+                                if cached.admission == ImpactAdmission::NonSelectedRevision {
+                                    "non_selected_source_revision"
+                                } else {
+                                    "unknown_source_admission"
+                                },
+                            );
                             continue;
                         }
                     }
                     let admission = match cached {
                         Some(cached) => cached.admission,
-                        None => classify(node, &mut budget, &mut output.coverage)?,
+                        None => classify(
+                            node,
+                            &mut budget,
+                            &mut output.coverage,
+                            &mut output.frontier,
+                            output.witnesses.len(),
+                            depth + 1,
+                        )?,
                     };
                     if !budget.live(&mut output.coverage) {
                         break 'walk;
                     }
                     if admission == ImpactAdmission::NonSelectedRevision {
+                        record_frontier(
+                            &mut output.frontier,
+                            &mut output.coverage,
+                            &mut budget,
+                            output.witnesses.len(),
+                            source,
+                            Some(&target),
+                            Some(kind),
+                            Some(node),
+                            depth + 1,
+                            "non_selected_source_revision",
+                        );
                         if cached.is_none() {
                             remember(
                                 loaded.as_ref().expect("fresh source"),
@@ -877,16 +1151,54 @@ impl GraphStore {
                         }
                         continue;
                     }
-                    if depth == max_depth {
+                    if admission == ImpactAdmission::Unknown {
+                        record_frontier(
+                            &mut output.frontier,
+                            &mut output.coverage,
+                            &mut budget,
+                            output.witnesses.len(),
+                            source,
+                            Some(&target),
+                            Some(kind),
+                            Some(node),
+                            depth + 1,
+                            "unknown_source_admission",
+                        );
+                        if cached.is_none() {
+                            remember(
+                                loaded.as_ref().expect("fresh source"),
+                                admission,
+                                depth + 1,
+                                Some((&target, kind, edge.generation)),
+                                &mut cache,
+                                &mut output,
+                                &mut budget,
+                            );
+                        }
+                        continue;
+                    }
+                    if depth == max_depth && cached.is_none() {
                         gap(&mut output.coverage, "depth_limit");
-                        break 'kinds;
+                        record_frontier(
+                            &mut output.frontier,
+                            &mut output.coverage,
+                            &mut budget,
+                            output.witnesses.len(),
+                            source,
+                            Some(&target),
+                            Some(kind),
+                            Some(node),
+                            depth + 1,
+                            "depth_limit",
+                        );
+                        continue;
                     }
                     if accepted == MAX_PER_ENDPOINT_KIND {
                         gap(&mut output.coverage, "per_endpoint_kind_limit");
                         break;
                     }
                     accepted += 1;
-                    if output.witnesses.len() == MAX_WITNESSES {
+                    if output.witnesses.len() + output.frontier.len() == MAX_WITNESSES {
                         gap(&mut output.coverage, "witness_edge_limit");
                         break 'walk;
                     }
@@ -921,6 +1233,7 @@ impl GraphStore {
                         edge_generation: edge.generation,
                         weight: edge.weight,
                         depth: depth + 1,
+                        source_line: recorded_source_line(&edge),
                     });
                 }
             }
@@ -1147,8 +1460,16 @@ mod tests {
                     .collect::<Vec<_>>(),
                 ["target", "caller"]
             );
-            assert_eq!(walk.witnesses.len(), 1);
-            assert_eq!(walk.witnesses[0].kind, EdgeKind::Calls);
+            assert_eq!(
+                walk.witnesses.len(),
+                2,
+                "Both verified connections survive; the cycle is never expanded twice"
+            );
+            assert!(
+                walk.witnesses
+                    .iter()
+                    .all(|edge| edge.kind == EdgeKind::Calls)
+            );
             assert!(walk.coverage.cycles_or_revisits > 0);
             assert!(
                 !walk.coverage.truncated,

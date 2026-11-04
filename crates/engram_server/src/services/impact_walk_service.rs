@@ -85,118 +85,522 @@ struct CollectedImpact {
 fn section(value: &Value) -> String {
     format!(
         "\n## Revision-admitted change impact\n\nIndexed causal paths under the named source selection; not a proposed-change simulation, runtime proof or safe-change verdict.\n\n```json\n{}\n```\n",
-        serde_json::to_string_pretty(value).expect("JSON value serialization")
+        serde_json::to_string(value).expect("JSON value serialization")
     )
+}
+
+struct Endpoint<'a> {
+    id: &'a str,
+    name: Option<&'a str>,
+    kind: Option<&'a str>,
+    file: Option<&'a str>,
+    start: Option<u32>,
+    end: Option<u32>,
+    generation: Option<u64>,
+    depth: Option<usize>,
+    admission: &'static str,
+    is_seed: bool,
+}
+
+fn node_endpoint(node: &engram_graph::store::ImpactWalkNode) -> Endpoint<'_> {
+    Endpoint {
+        id: &node.node.node_id,
+        name: Some(&node.node.name),
+        kind: Some(&node.node.node_type),
+        file: Some(node.node.file_path.as_str()),
+        start: Some(node.node.start_line),
+        end: Some(node.node.end_line),
+        generation: Some(node.node.generation),
+        depth: Some(node.depth),
+        admission: if node.admission == ImpactAdmission::Selected {
+            "selected"
+        } else {
+            "unknown"
+        },
+        is_seed: node.depth == 0,
+    }
+}
+
+fn recovery_path(path: &str) -> bool {
+    !path.is_empty()
+        && path.len() <= 2048
+        && !path.contains(['\\', ':'])
+        && !path.chars().any(char::is_control)
+        && path
+            .split('/')
+            .all(|part| !part.is_empty() && part != "." && part != "..")
+}
+
+struct RecoveryDraft {
+    reference: String,
+    fresh: Option<(String, Value)>,
+}
+
+struct CompactEvidence<'a> {
+    project: &'a str,
+    remaining: usize,
+    files: Vec<Value>,
+    file_refs: BTreeMap<String, String>,
+    nodes: Vec<Value>,
+    node_indices: BTreeMap<String, usize>,
+    edges: Vec<Value>,
+    edge_refs: BTreeMap<(String, String, String), String>,
+    recoveries: Vec<Value>,
+    recovery_refs: BTreeMap<String, String>,
+}
+
+fn canonical_hint(id: &str) -> (Option<&str>, &str) {
+    if let Some(rest) = id.strip_prefix("sym:") {
+        let mut parts = rest.splitn(3, ':');
+        let _kind = parts.next();
+        if let (Some(file), Some(symbol)) = (parts.next(), parts.next()) {
+            if let Some((name, line)) = symbol.rsplit_once(':') {
+                if line.parse::<u32>().is_ok() && !name.is_empty() {
+                    return (Some(file), name);
+                }
+            }
+        }
+    }
+    (id.strip_prefix("file:"), id)
+}
+
+impl CompactEvidence<'_> {
+    fn reference(&self, id: &str) -> Option<String> {
+        self.node_indices.get(id).map(|index| format!("n{index}"))
+    }
+
+    fn recovery(&self, tool: &str, arguments: Value, scope: &str) -> Result<RecoveryDraft> {
+        let key = serde_json::to_string(&json!({"tool":tool,"arguments":arguments}))?;
+        if let Some(reference) = self.recovery_refs.get(&key) {
+            return Ok(RecoveryDraft {
+                reference: reference.clone(),
+                fresh: None,
+            });
+        }
+        let reference = format!("r{}", self.recoveries.len());
+        Ok(RecoveryDraft {
+            reference: reference.clone(),
+            fresh: Some((
+                key,
+                json!({"ref":reference,"tool":tool,"arguments":arguments,"scope":scope}),
+            )),
+        })
+    }
+
+    fn range_recovery(&self, file: &str, start: u32, end: u32) -> Result<RecoveryDraft> {
+        self.recovery("get_full_method_body", json!({"project_id":self.project,
+            "file_path":file,"line_start":start,"line_end":end,"context_lines":0,"output_json":true}),
+            "Current-source range at indexed positions, not complete-file, callsite or value-flow proof. Check the returned source hash and freshness before relying on it.")
+    }
+
+    fn lookup_recovery(&self, endpoint: &Endpoint<'_>) -> Result<RecoveryDraft> {
+        let (hint_file, hint_name) = canonical_hint(endpoint.id);
+        let file = endpoint
+            .file
+            .or(hint_file)
+            .filter(|path| recovery_path(path));
+        let span_known = matches!((endpoint.start,endpoint.end), (Some(start),Some(end)) if start>0 && end>=start);
+        if file.is_some()
+            && (endpoint.id.starts_with("file:")
+                || (endpoint.admission == "selected" && !span_known))
+        {
+            return self.recovery("get_codebase_overview", json!({"project_id":self.project,
+                "scope":file,"limit":1,"offset":0,"include_retained_context":false}),
+                "Scoped selected-source navigation to recover callable ranges; missing graph declarations remain unknown.");
+        }
+        let name = endpoint
+            .name
+            .filter(|name| !name.is_empty() && name.len() <= 2048)
+            .unwrap_or(hint_name);
+        let mut arguments = json!({"project_id":self.project,"symbol_name":name,
+            "max_incoming":64,"max_outgoing_per_kind":8});
+        if let Some(file) = file {
+            arguments["file_scope"] = json!(file);
+        }
+        self.recovery("find_symbol_references", arguments,
+            "Best-effort symbol/identity lookup for an unresolved endpoint or narrower branch; live graph results require revision/freshness checks and establish no absence or runtime proof.")
+    }
+
+    fn commit_recovery(&mut self, draft: RecoveryDraft) {
+        if let Some((key, value)) = draft.fresh {
+            self.recovery_refs.insert(key, draft.reference);
+            self.recoveries.push(value);
+        }
+    }
+
+    fn charge(&mut self, values: &[&Value]) -> Result<bool> {
+        // Conservative per-array comma charge; a fixed envelope reserve covers
+        // final scalar counters. Each staged row is bounded by the graph's
+        // retained-string budget; no unbounded body is materialized here.
+        let bytes = values
+            .iter()
+            .try_fold(0usize, |total, value| -> Result<usize> {
+                Ok(total
+                    .checked_add(serde_json::to_vec(value)?.len() + 1)
+                    .context("Impact response size overflow")?)
+            })?;
+        if bytes > self.remaining {
+            return Ok(false);
+        }
+        self.remaining -= bytes;
+        Ok(true)
+    }
+
+    fn endpoint(&mut self, endpoint: &Endpoint<'_>) -> Result<Option<String>> {
+        if let Some(reference) = self.reference(endpoint.id) {
+            return Ok(Some(reference));
+        }
+        let file = endpoint
+            .file
+            .or(canonical_hint(endpoint.id).0)
+            .filter(|path| path.len() <= 2048);
+        let file_ref = file.map(|path| {
+            self.file_refs
+                .get(path)
+                .cloned()
+                .unwrap_or_else(|| format!("f{}", self.files.len()))
+        });
+        let file_row = file
+            .filter(|path| !self.file_refs.contains_key(*path))
+            .map(|path| json!({"ref":file_ref,"path":path}));
+        let recovery = match (endpoint.file, endpoint.start, endpoint.end) {
+            (Some(file), Some(start), Some(end))
+                if recovery_path(file) && start > 0 && end >= start =>
+            {
+                self.range_recovery(file, start, end)?
+            }
+            _ => self.lookup_recovery(endpoint)?,
+        };
+        let reference = format!("n{}", self.nodes.len());
+        let name = endpoint
+            .name
+            .map(|name| &name[..name.floor_char_boundary(256)]);
+        let row = json!({"ref":reference,"node_id":endpoint.id,"name":name,"kind":endpoint.kind,
+            "name_truncated":endpoint.name.is_some_and(|name|name.len()>256),
+            "admission":endpoint.admission,"is_seed":endpoint.is_seed,"depth":endpoint.depth,
+            "file_ref":file_ref,"start_line":endpoint.start,"end_line":endpoint.end,
+            "generation":endpoint.generation,"recovery_ref":recovery.reference});
+        let mut staged = vec![&row];
+        if let Some(file) = &file_row {
+            staged.push(file);
+        }
+        if let Some((_, value)) = &recovery.fresh {
+            staged.push(value);
+        }
+        if !self.charge(&staged)? {
+            return Ok(None);
+        }
+        if let (Some(path), Some(file_row), Some(file_ref)) = (file, file_row, file_ref) {
+            self.file_refs.insert(path.into(), file_ref);
+            self.files.push(file_row);
+        }
+        self.commit_recovery(recovery);
+        self.node_indices
+            .insert(endpoint.id.into(), self.nodes.len());
+        self.nodes.push(row);
+        Ok(Some(reference))
+    }
+
+    fn lookup_boundary(&mut self, endpoint: &Endpoint<'_>) -> Result<Option<String>> {
+        let recovery = self.lookup_recovery(endpoint)?;
+        if let Some((_, value)) = &recovery.fresh {
+            if !self.charge(&[value])? {
+                return Ok(None);
+            }
+        }
+        let reference = recovery.reference.clone();
+        self.commit_recovery(recovery);
+        Ok(Some(reference))
+    }
 }
 
 fn render(
     walk: &IncomingImpactWalk,
     target: &str,
+    project: &str,
     generation: u64,
     max_depth: usize,
     display_limit: usize,
     managed: bool,
 ) -> Result<Value> {
+    let selected: Vec<_> = walk
+        .nodes
+        .iter()
+        .filter(|node| node.admission == ImpactAdmission::Selected)
+        .collect();
+    let total = selected.iter().filter(|node| node.depth > 0).count();
     let lookup: HashMap<_, _> = walk
         .nodes
         .iter()
         .map(|node| (node.node.node_id.as_str(), node))
         .collect();
-    let mut candidates: Vec<_> = walk
+    let mut value = json!({"schema_version":2,"source_generation":generation,"target_ref":null,
+        "requested_max_depth":max_depth,"source_layout":if managed{"managed"}else{"attested_legacy"},
+        "status":"bounded_indexed_exposure","coverage":walk.coverage,"selected_dependents_observed":total,
+        "selected_identities_observed":selected.len(),"selected_identities_returned":0,
+        "selected_dependent_identities_returned":0,"node_identities_omitted":0,"edges_omitted":0,
+        "frontier_rows_omitted":walk.coverage.frontier_omitted,"shortest_paths_omitted":total,
+        "omitted_from_display":total,"display_truncated":false,"files":[],"nodes":[],"edges":[],
+        "shortest_paths":[],"frontier":[],"recoveries":[],"continuation":null,
+        "working_tree_checked":false,"exhaustive_codebase":false,"change_breakage_proven":false,
+        "display_scope":"limit applies to shortest_paths, not canonical identities or additional verified edges",
+        "edge_direction":"source_ref is caller/dependent; target_ref is the reached dependency",
+        "limitations":["Selected means indexed node/file revisions and edge extraction/origin admission, not compiler, runtime or proposed-change validation.",
+        "Additional verified connections include cross/revisit edges; they do not enumerate every simple path or imply field/value flow.",
+        "Source-line evidence is recorded extractor metadata only. Declaration-range recovery is not a callsite. Current source may have changed; verify recovery hashes/freshness and project exclusions.",
+        "Missing, unverified, dynamic and uninspected bindings remain unknown. Work/depth/byte caps may omit evidence; empty output proves no absence."]});
+    let mut out = CompactEvidence {
+        project,
+        remaining: RESPONSE_BYTES.saturating_sub(section(&value).len() + 1024),
+        files: Vec::new(),
+        file_refs: BTreeMap::new(),
+        nodes: Vec::new(),
+        node_indices: BTreeMap::new(),
+        edges: Vec::new(),
+        edge_refs: BTreeMap::new(),
+        recoveries: Vec::new(),
+        recovery_refs: BTreeMap::new(),
+    };
+    let connected: std::collections::HashSet<_> = walk
+        .witnesses
+        .iter()
+        .flat_map(|edge| [edge.source_id.as_str(), edge.target_id.as_str()])
+        .collect();
+    let mut ordered = selected.clone();
+    ordered.sort_by(|a, b| {
+        (a.node.node_id != target)
+            .cmp(&(b.node.node_id != target))
+            .then_with(|| {
+                (!connected.contains(a.node.node_id.as_str()))
+                    .cmp(&(!connected.contains(b.node.node_id.as_str())))
+            })
+            .then_with(|| a.depth.cmp(&b.depth))
+            .then_with(|| a.node.node_id.cmp(&b.node.node_id))
+    });
+    let mut edge_reserve = None;
+    for node in ordered {
+        if node.node.node_id != target
+            && !connected.contains(node.node.node_id.as_str())
+            && edge_reserve.is_none()
+        {
+            // Sampled file-component roots without a verified external edge
+            // must not consume the space needed to address actual consumers.
+            let reserve = out.remaining.min(8 * 1024);
+            out.remaining -= reserve;
+            edge_reserve = Some(reserve);
+        }
+        let current = node_endpoint(node);
+        if let Some(reference) = out.endpoint(&current)? {
+            if node.node.node_id == target {
+                value["target_ref"] = json!(reference);
+                if let Some(recovery) = out.lookup_boundary(&current)? {
+                    value["continuation"] = json!({"at_ref":reference,"recovery_ref":recovery,
+                        "scope":"Inspect narrower direct bindings/scoped navigation for omitted branches, then rerun impact for exact returned identities. This is not complete pagination or an atomic replay."});
+                }
+            }
+        }
+    }
+    out.remaining += edge_reserve.unwrap_or(0);
+    let selected_returned = out.nodes.len();
+    let dependent_returned = out
         .nodes
         .iter()
-        .filter(|node| node.admission == ImpactAdmission::Selected && node.depth > 0)
+        .filter(|node| node["is_seed"] == false)
+        .count();
+    let tree_edge = |edge: &engram_graph::store::ImpactWitness| {
+        lookup.get(edge.source_id.as_str()).is_some_and(|node| {
+            node.predecessor.as_deref() == Some(edge.target_id.as_str())
+                && node.via_kind.as_ref() == Some(&edge.kind)
+        })
+    };
+    let mut edges: Vec<_> = walk.witnesses.iter().collect();
+    edges.sort_by_key(|edge| !tree_edge(edge));
+    let mut edge_omissions = 0;
+    for edge in edges {
+        let (Some(source_ref), Some(target_ref)) = (
+            out.reference(&edge.source_id),
+            out.reference(&edge.target_id),
+        ) else {
+            edge_omissions += 1;
+            continue;
+        };
+        let Some(source) = lookup
+            .get(edge.source_id.as_str())
+            .filter(|node| node.admission == ImpactAdmission::Selected)
+        else {
+            edge_omissions += 1;
+            continue;
+        };
+        let source_index = out.node_indices[&edge.source_id];
+        let source_recovery = out.nodes[source_index]["recovery_ref"]
+            .as_str()
+            .context("Node recovery missing")?
+            .to_owned();
+        let recovery = match edge.source_line {
+            Some(line) if recovery_path(source.node.file_path.as_str()) => {
+                Some(out.range_recovery(source.node.file_path.as_str(), line, line)?)
+            }
+            _ => None,
+        };
+        let recovery_ref = recovery
+            .as_ref()
+            .map_or(source_recovery, |recovery| recovery.reference.clone());
+        let reference = format!("e{}", out.edges.len());
+        let row = json!({"ref":reference,"source_ref":source_ref,"target_ref":target_ref,"kind":edge.kind.as_str(),
+            "edge_generation":edge.edge_generation,"source_generation":source.node.generation,
+            "edge_source_binding":if edge.edge_generation==source.node.generation{"extraction_generation"}else{"verified_unchanged_caller_origin"},
+            "connection_role":if tree_edge(edge){"shortest_predecessor"}else{"additional_verified_connection"},
+            "source_line":edge.source_line,"recovery_ref":recovery_ref,
+            "recovery_scope":if edge.source_line.is_some(){"recorded_indexed_reference_line; not runtime/value-flow proof"}else{"caller_declaration_range; callsite_not_recorded"}});
+        let mut staged = vec![&row];
+        if let Some((_, value)) = recovery
+            .as_ref()
+            .and_then(|recovery| recovery.fresh.as_ref())
+        {
+            staged.push(value);
+        }
+        if !out.charge(&staged)? {
+            edge_omissions += 1;
+            continue;
+        }
+        if let Some(recovery) = recovery {
+            out.commit_recovery(recovery);
+        }
+        out.edge_refs.insert(
+            (source_ref, target_ref, edge.kind.as_str().into()),
+            reference,
+        );
+        out.edges.push(row);
+    }
+    let mut frontier = Vec::new();
+    let mut frontier_omissions = walk.coverage.frontier_omitted;
+    for lead in &walk.frontier {
+        let known = lookup.get(lead.source_id.as_str());
+        let current = if let Some(known) = known {
+            node_endpoint(known)
+        } else {
+            Endpoint {
+                id: &lead.source_id,
+                name: None,
+                kind: None,
+                file: lead.file_path.as_ref().map(|path| path.as_str()),
+                start: lead.start_line,
+                end: lead.end_line,
+                generation: lead.node_generation,
+                depth: Some(lead.depth),
+                admission: if lead.file_path.is_some() {
+                    "unknown"
+                } else {
+                    "unresolved"
+                },
+                is_seed: false,
+            }
+        };
+        let Some(source_ref) = out.endpoint(&current)? else {
+            frontier_omissions += 1;
+            continue;
+        };
+        let target_ref = match lead.target_id.as_deref() {
+            None => None,
+            Some(target) => {
+                if let Some(reference) = out.reference(target) {
+                    Some(reference)
+                } else if let Some(known) = lookup.get(target) {
+                    out.endpoint(&node_endpoint(known))?
+                } else {
+                    None
+                }
+            }
+        };
+        if lead.target_id.is_some() && target_ref.is_none() {
+            frontier_omissions += 1;
+            continue;
+        }
+        let source_index = out.node_indices[&lead.source_id];
+        let row = json!({"source_ref":source_ref,"target_ref":target_ref,"kind":lead.kind.as_ref().map(|kind|kind.as_str()),
+            "reason":lead.reason,"depth":lead.depth,"recovery_ref":out.nodes[source_index]["recovery_ref"]});
+        if out.charge(&[&row])? {
+            frontier.push(row);
+        } else {
+            frontier_omissions += 1;
+        }
+    }
+    let mut paths = Vec::new();
+    let mut candidates: Vec<_> = selected
+        .iter()
+        .filter(|node| node.depth > 0)
+        .copied()
         .collect();
     candidates.sort_by(|a, b| {
         b.depth
             .cmp(&a.depth)
             .then_with(|| a.node.node_id.cmp(&b.node.node_id))
     });
-    let total = candidates.len();
-    let mut dependents = Vec::new();
-    let mut nodes: BTreeMap<String, Value> = BTreeMap::new();
-    let mut witnesses: BTreeMap<String, Value> = BTreeMap::new();
-    let mut value = json!({"source_generation":generation,"target":target,"requested_max_depth":max_depth,
-        "source_layout":if managed {"managed"} else {"attested_legacy"},
-        "coverage":walk.coverage,"dependents":[],"nodes":[],"witnesses":[],"omitted_from_display":total,
-        "status":"bounded_indexed_exposure","display_truncated":false,"selected_dependents_observed":total,
-        "working_tree_checked":false,"exhaustive_codebase":false,"change_breakage_proven":false,
-        "display_order":"deepest_paths_first_then_node_id; every displayed path includes its direct intermediates",
-        "limitations":["Paths are admitted by indexed node/file revisions and extraction generation or verified unchanged-caller origin, not by compiler or runtime validation.",
-            "The current working tree was not fingerprinted. Check index freshness and method edit context before editing.",
-            "Dynamic, missing, unsupported and uninspected bindings remain unknown; an empty list is not proof of no impact.",
-            "Historical companions and structural containment never create causal paths. Depth/work/display limits may omit further exposure.",
-            "For an omitted branch, rerun this tool on its exact node_id with a smaller max_depth."]});
     for dependent in candidates.into_iter().take(display_limit.clamp(1, 25)) {
-        let mut path = Vec::new();
-        let mut cursor = Some(dependent);
+        let mut node_refs = Vec::new();
+        let mut edge_refs = Vec::new();
+        let mut cursor = dependent;
+        let mut complete = true;
         for _ in 0..=8 {
-            let Some(node) = cursor else {
+            let Some(reference) = out.reference(&cursor.node.node_id) else {
+                complete = false;
                 break;
             };
-            path.push(node.node.node_id.clone());
-            cursor = node
-                .predecessor
-                .as_deref()
-                .map(|id| {
-                    lookup
-                        .get(id)
-                        .copied()
-                        .context("Walk witness predecessor unavailable")
-                })
-                .transpose()?;
+            node_refs.push(reference);
+            let Some(parent) = cursor.predecessor.as_deref() else {
+                break;
+            };
+            let (Some(parent_node), Some(parent_ref), Some(kind)) = (
+                lookup.get(parent),
+                out.reference(parent),
+                cursor.via_kind.as_ref(),
+            ) else {
+                complete = false;
+                break;
+            };
+            let key = (
+                out.reference(&cursor.node.node_id).unwrap(),
+                parent_ref,
+                kind.as_str().to_owned(),
+            );
+            let Some(edge) = out.edge_refs.get(&key) else {
+                complete = false;
+                break;
+            };
+            edge_refs.push(edge.clone());
+            cursor = parent_node;
         }
-        ensure!(
-            cursor.is_none(),
-            "Walk witness contains a cycle or exceeds the depth bound"
-        );
-        path.reverse();
-        let mut next_nodes = nodes.clone();
-        let mut next_witnesses = witnesses.clone();
-        for id in &path {
-            let node = lookup
-                .get(id.as_str())
-                .context("Walk witness source unavailable")?;
-            next_nodes.insert(id.clone(), json!({"node_id":id,"name":node.node.name,
-                "file_path":node.node.file_path,"start_line":node.node.start_line,"end_line":node.node.end_line,
-                "generation":node.node.generation,"kind":node.node.node_type}));
-            if let Some(predecessor) = &node.predecessor {
-                next_witnesses.insert(id.clone(), json!({"source_id":id,"target_id":predecessor,
-                    "kind":node.via_kind.as_ref().map(|kind| kind.as_str()),"edge_generation":node.edge_generation,
-                    "source_generation":node.node.generation,
-                    "edge_source_binding":if node.edge_generation == Some(node.node.generation) {
-                        "extraction_generation"
-                    } else { "verified_unchanged_caller_origin" }}));
-            }
-        }
-        let mut next_dependents = dependents.clone();
-        let seed = path.first().context("Walk witness has no source origin")?;
-        let seed_relationship = if seed == target {
-            "requested_target"
-        } else {
-            "contained_declaration_in_requested_file; structural_origin_not_a_causal_edge"
-        };
-        next_dependents.push(
-            json!({"node_id":dependent.node.node_id,"file_path":dependent.node.file_path,
-            "start_line":dependent.node.start_line,"generation":dependent.node.generation,
-            "depth":dependent.depth,"seed_node_id":seed,"seed_relationship":seed_relationship,"path":path}),
-        );
-        value["dependents"] = json!(next_dependents);
-        value["nodes"] = json!(next_nodes.values().collect::<Vec<_>>());
-        value["witnesses"] = json!(next_witnesses.values().collect::<Vec<_>>());
-        if section(&value).len() > RESPONSE_BYTES {
+        if !complete || cursor.predecessor.is_some() {
             continue;
         }
-        dependents = next_dependents;
-        nodes = next_nodes;
-        witnesses = next_witnesses;
+        node_refs.reverse();
+        edge_refs.reverse();
+        let row = json!({"dependent_ref":out.reference(&dependent.node.node_id),"node_refs":node_refs,"edge_refs":edge_refs,
+            "seed_ref":out.reference(&cursor.node.node_id),"seed_relationship":if cursor.node.node_id==target{"requested_target"}else{"contained_declaration_in_requested_file; structural_origin_not_a_causal_edge"}});
+        if out.charge(&[&row])? {
+            paths.push(row);
+        }
     }
-    value["dependents"] = json!(dependents);
-    value["nodes"] = json!(nodes.into_values().collect::<Vec<_>>());
-    value["witnesses"] = json!(witnesses.into_values().collect::<Vec<_>>());
-    value["omitted_from_display"] = json!(total - dependents.len());
-    value["display_truncated"] = json!(total != dependents.len());
-    value["selected_dependents_observed"] = json!(total);
+    let omitted_paths = total - paths.len();
+    value["selected_identities_returned"] = json!(selected_returned);
+    value["selected_dependent_identities_returned"] = json!(dependent_returned);
+    value["node_identities_omitted"] = json!(selected.len() - selected_returned);
+    value["edges_omitted"] = json!(edge_omissions);
+    value["frontier_rows_omitted"] = json!(frontier_omissions);
+    value["shortest_paths_omitted"] = json!(omitted_paths);
+    value["omitted_from_display"] = json!(omitted_paths);
+    value["display_truncated"] = json!(
+        omitted_paths > 0
+            || selected_returned < selected.len()
+            || edge_omissions > 0
+            || frontier_omissions > 0
+    );
+    value["files"] = json!(out.files);
+    value["nodes"] = json!(out.nodes);
+    value["edges"] = json!(out.edges);
+    value["shortest_paths"] = json!(paths);
+    value["frontier"] = json!(frontier);
+    value["recoveries"] = json!(out.recoveries);
     ensure!(
         section(&value).len() <= RESPONSE_BYTES,
         "Impact evidence exceeds response budget"
@@ -253,11 +657,13 @@ async fn collect_evidence(
         };
         let mut seeds = vec![target.clone()];
         let mut seed_cap = false;
+        let mut internal_file = None;
         if !exact {
             let root = graph
                 .get_node(&project, &target)?
                 .context("Impact target unavailable")?;
             if root.node_type == "file" {
+                internal_file = Some(root.file_path.as_str().to_owned());
                 let (members, capped) = graph.file_component_members(
                     &project,
                     root.file_path.as_str(),
@@ -273,12 +679,13 @@ async fn collect_evidence(
          -> Result<ImpactAdmission> {
             admit_selected_source(&membership, node, file)
         };
-        let mut walk = graph.bounded_incoming_walk(
+        let mut walk = graph.bounded_incoming_walk_excluding_file(
             &project,
             &seeds,
             max_depth,
             &super::blast_radius_service::is_causal_dependency,
             &admit,
+            internal_file.as_deref(),
         )?;
         if seed_cap {
             walk.coverage.truncated = true;
@@ -301,20 +708,38 @@ async fn collect_evidence(
             .iter()
             .filter(|node| node.admission == ImpactAdmission::Selected && node.depth > 1)
             .count();
-        let value = render(
+        let mut value = render(
             &walk,
             &target,
+            &project,
             generation,
             max_depth,
             display_limit,
             source.is_managed(),
         )?;
+        let mut coverage = walk.coverage;
+        value["dependency_scope"] = json!(if internal_file.is_some() {
+            "external_file_dependents; same-file source rows excluded before accepted-result budgets"
+        } else {
+            "symbol_dependents; same-file callers included"
+        });
+        value["target_revision_admitted"] = json!(target_revision_admitted);
+        if !target_revision_admitted {
+            coverage.truncated = true;
+            coverage.reasons.push("target_revision_not_admitted".into());
+            value["status"] = json!("unavailable");
+            value["coverage"] = json!(coverage);
+            value["selected_dependents_observed"] = Value::Null;
+            value["omitted_from_display"] = Value::Null;
+            value["error"] = json!("The requested root was not admitted by the held source selection; unavailable evidence is not zero impact.");
+        }
+        ensure!(section(&value).len() <= RESPONSE_BYTES, "Impact evidence exceeds response budget");
         Ok(CollectedImpact {
             value,
             source,
             generation,
             target_revision_admitted,
-            coverage: walk.coverage,
+            coverage,
             direct_dependents,
             transitive_dependents,
         })
@@ -324,9 +749,9 @@ async fn collect_evidence(
 }
 
 fn unavailable_value(max_depth: usize, error: &anyhow::Error) -> Value {
-    json!({"source_generation":null,"requested_max_depth":max_depth,
+    json!({"schema_version":2,"source_generation":null,"requested_max_depth":max_depth,
         "status":"unavailable","coverage":{"truncated":true,"reasons":["source_evidence_unavailable"]},
-        "dependents":[],"nodes":[],"witnesses":[],"omitted_from_display":null,
+        "files":[],"nodes":[],"edges":[],"shortest_paths":[],"frontier":[],"recoveries":[],"omitted_from_display":null,
         "error":format!("{error:#}").chars().take(2048).collect::<String>(),
         "exhaustive_codebase":false,"change_breakage_proven":false,
         "limitations":["Unavailable source evidence is not zero impact. Resolve the target and source snapshot before relying on current-source paths."]})

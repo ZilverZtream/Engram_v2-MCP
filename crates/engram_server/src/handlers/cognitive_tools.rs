@@ -239,618 +239,104 @@ impl Engram {
         if !(1..=8).contains(&req.max_depth) {
             return Err(McpError::invalid_params("max_depth must be 1..8", None));
         }
-        let walk_request = req.clone();
-        let _ = self.ensure_project_runtime(&req.project_id).await?;
-
-        // Exactly one target. Previously both were accepted and the symbol
-        // silently won.
-        match (&req.symbol_fqn, &req.file_path) {
-            (None, None) => {
-                return Err(McpError::invalid_params(
-                    "Either file_path or symbol_fqn must be provided.",
-                    None,
-                ));
-            }
-            (Some(_), Some(_)) => {
-                return Err(McpError::invalid_params(
-                    "Provide file_path OR symbol_fqn, not both (they resolve to different \
-                     targets and one would silently win).",
-                    None,
-                ));
-            }
-            _ => {}
+        if req.file_path.is_some() == req.symbol_fqn.is_some() {
+            return Err(McpError::invalid_params("Provide exactly one of file_path or symbol_fqn", None));
         }
-
-        let file_path_for_confidence = req.file_path.clone();
-        let project_id_outer = req.project_id.clone();
-        let graph = self.state.graph.clone();
-        let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
-            use crate::services::blast_radius_service::is_causal_dependency;
-            use engram_graph::EdgeKind;
-
-            // ── 1. Resolve the target; "not found" is NOT "no dependents". ──
-            let target_id = if let Some(ref fqn) = req.symbol_fqn {
-                if fqn.starts_with("sym:")
-                    || fqn.starts_with("sql:")
-                    || fqn.starts_with("table:")
-                    || fqn.starts_with("state:")
-                {
-                    // Every id form is existence-checked now (sql:/table:/state:
-                    // used to bypass the check and report "no dependents").
-                    if graph
-                        .get_node(&req.project_id, fqn)
-                        .map_err(|e| e.to_string())?
-                        .is_none()
-                    {
-                        return Ok(format!(
-                            "TARGET NOT FOUND: node_id '{fqn}' does not exist in this project \
-                             (this is a resolution failure, not an empty impact). Use \
-                             query_graph_nodes / resolve_id to find the exact node_id."
-                        ));
-                    }
-                    fqn.clone()
-                } else {
-                    match graph
-                        .resolve_symbol(&req.project_id, fqn, None, None)
-                        .map_err(|e| e.to_string())?
-                    {
-                        ResolveResult::Unique(node) => node.node_id,
-                        ResolveResult::Ambiguous(candidates) => {
-                            return Ok(format_ambiguous_symbol_error(fqn, &candidates));
-                        }
-                        ResolveResult::NotFound => {
-                            return Ok(format!(
-                                "TARGET NOT FOUND: symbol '{fqn}' is not in the graph (resolution \
-                                 failure, not an empty impact). Use query_graph_nodes to find the \
-                                 exact node_id/name, then retry with that node_id."
-                            ));
-                        }
-                    }
-                }
-            } else {
-                let path = req.file_path.as_deref().unwrap_or_default();
-                let id = engram_core::ids::NodeId::file(path).0;
-                if graph
-                    .get_node(&req.project_id, &id)
-                    .map_err(|e| e.to_string())?
-                    .is_none()
-                {
-                    return Ok(format!(
-                        "TARGET NOT FOUND: no file node for '{path}' (expected id '{id}'). This is \
-                         a resolution failure, not an empty impact — the file may be unindexed \
-                         (run update_project) or the path may need to be project-relative. Use \
-                         query_graph_nodes(node_type=\"file\", name_pattern=...) to find it."
-                    ));
-                }
-                id
-            };
-            let is_file_target = target_id.starts_with("file:");
-
-            // ── 2. Component, then ONE substrate call. ──
-            //
-            // The boundary/policy work now lives in the STORE
-            // (`component_adjacency`): it returns the first N+1 ACCEPTED
-            // external sources per (kind, endpoint) AFTER the component cut,
-            // in one read transaction. The previous handler-side version
-            // fetched the first N RAW sources per kind and filtered
-            // afterwards, so >N higher-weight internal callers could consume
-            // the entire budget and silently hide every external caller — the
-            // cap-before-boundary P0 this replaces. It also opened one
-            // transaction per (kind, endpoint): ~44 × (symbols+1) per file
-            // request.
-            const CAP_CAUSAL_PER_KIND: usize = 500;
-            const CAP_COMPANION: usize = 300;
-            const CAP_CONTEXT: usize = 200;
-            const CAP_CONTAINED: usize = 50_000;
-
-            let mut contained: Vec<String> = Vec::new();
-            let mut contained_truncated = false;
-            if is_file_target {
-                let file_rel_path = graph
-                    .get_node(&req.project_id, &target_id)
-                    .ok()
-                    .flatten()
-                    .map(|n| n.file_path.as_str().to_string())
-                    .unwrap_or_else(|| target_id[5..].to_string());
-                // Exact-equality membership applied BEFORE the cap, cap+1
-                // detection (exactly-at-cap is complete), sorted for
-                // determinism — all inside the store.
-                let (members, trunc) = graph
-                    .file_component_members(
-                        &req.project_id,
-                        &file_rel_path,
-                        &target_id,
-                        CAP_CONTAINED,
-                    )
-                    .map_err(|e| e.to_string())?;
-                contained = members;
-                contained_truncated = trunc;
-            }
-            let contained_count = contained.len();
-            let component: std::collections::HashSet<String> =
-                std::iter::once(target_id.clone()).chain(contained.iter().cloned()).collect();
-            let endpoints: Vec<String> =
-                std::iter::once(target_id.clone()).chain(contained.iter().cloned()).collect();
-
-            let companion_kind = |k: &EdgeKind| {
-                matches!(
-                    k,
-                    EdgeKind::TemporalCoupling | EdgeKind::CoOccurrence | EdgeKind::StateAffinity
-                )
-            };
-            let adjacency = graph
-                .component_adjacency(
-                    &req.project_id,
-                    &endpoints,
-                    &component,
-                    &|k| {
-                        if is_causal_dependency(k) {
-                            CAP_CAUSAL_PER_KIND
-                        } else if companion_kind(k) {
-                            CAP_COMPANION
-                        } else {
-                            CAP_CONTEXT
-                        }
-                    },
-                    &|_| 0, // incoming-only tool
-                )
-                .map_err(|e| e.to_string())?;
-            let internal_edges = adjacency.internal_skipped;
-
-            // Per-tier coverage from the substrate's per-(kind, endpoint)
-            // truncation records — a capped companion fetch never marks the
-            // causal count a lower bound, and vice versa. Totals are exact;
-            // the display list of capped causal fetches is bounded separately.
-            let causal_truncated_total = adjacency
-                .truncated_in
-                .iter()
-                .filter(|(k, _)| is_causal_dependency(k))
-                .count();
-            let causal_truncated_examples: Vec<String> = adjacency
-                .truncated_in
-                .iter()
-                .filter(|(k, _)| is_causal_dependency(k))
-                .take(12)
-                .map(|(k, ep)| format!("{}:{}", k.as_str(), ep))
-                .collect();
-            let companion_truncated = adjacency
-                .truncated_in
-                .iter()
-                .any(|(k, _)| companion_kind(k));
-            use crate::services::blast_radius_service::is_possible_dependency;
-            let annotation_kind =
-                |k: &EdgeKind| matches!(k, EdgeKind::Insight | EdgeKind::AntiPattern);
-            let possible_truncated = adjacency
-                .truncated_in
-                .iter()
-                .any(|(k, _)| is_possible_dependency(k));
-            let annotation_truncated = adjacency
-                .truncated_in
-                .iter()
-                .any(|(k, _)| annotation_kind(k));
-            let structural_truncated = adjacency.truncated_in.iter().any(|(k, _)| {
-                !is_causal_dependency(k)
-                    && !companion_kind(k)
-                    && !is_possible_dependency(k)
-                    && !annotation_kind(k)
-            });
-
-            // (source, kind, weight, reached_via) + causal confidence triples.
-            let mut edges: Vec<(String, EdgeKind, u32, String)> = Vec::new();
-            let mut conf_triples: Vec<(EdgeKind, String, String)> = Vec::new();
-            for (src, kind, w, ep) in adjacency.incoming {
-                if is_causal_dependency(&kind) {
-                    conf_triples.push((kind.clone(), src.clone(), ep.clone()));
-                }
-                edges.push((src, kind, w, ep));
-            }
-
-            if edges.is_empty() {
-                let mut msg = format!(
-                    "Impact analysis for {target_id}: no external incoming edges of any kind \
-                     (target exists; {contained_count} contained symbols checked; \
-                     {internal_edges} internal edges excluded)."
-                );
-                if causal_truncated_total > 0 || contained_truncated {
-                    msg.push_str(&format!(
-                        " ⚠ COVERAGE INCOMPLETE ({causal_truncated_total} causal fetch(es) \
-                         capped{}) — this is NOT a proven absence.",
-                        if contained_truncated {
-                            ", contained-symbol scan capped"
-                        } else {
-                            ""
-                        }
-                    ));
-                } else {
-                    msg.push_str(
-                        " A genuinely unreferenced target, or callers the index has not seen — \
-                         grep the working tree for the name to confirm.",
-                    );
-                }
-                msg.push_str(
-                    "\nnext: find_symbol_references(<name>) for a lexical fallback; \
-                     get_index_freshness if the code is newer than the index.",
-                );
-                return Ok(msg);
-            }
-
-            // ── 3. Confidence stays attached to the PATH; unknown stays unknown. ──
-            // Only causal edges were put in conf_triples (in the same order
-            // they were pushed to `edges`), so map them back by position.
-            let mut conf_lookup_failed = false;
-            let confs: Vec<Option<f32>> = graph
-                .get_edge_confidences(&req.project_id, &conf_triples)
-                .unwrap_or_else(|_| {
-                    conf_lookup_failed = true;
-                    vec![None; conf_triples.len()]
-                });
-
-            // ── 4. Resolve nodes in ONE transaction (needed before grouping so
-            //      dangling sources can be quarantined out of confirmed tiers). ──
-            let mut ids: Vec<String> = edges.iter().map(|e| e.0.clone()).collect();
-            ids.sort();
-            ids.dedup();
-            let nodes = graph
-                .get_nodes(&req.project_id, &ids)
-                .map_err(|e| e.to_string())?;
-
-            // ── 5. Group by (source, TIER) — never collapse tiers. ──
-            // A caller with both a Calls edge and a TemporalCoupling edge is
-            // one causal dependent AND one companion; the companion fact is
-            // not swallowed into its causal line, and the companion weight
-            // never ranks the causal entry.
-            //   tier 0 = confirmed causal (resolved source, causal kind)
-            //   tier 1 = possible / runtime-observed
-            //   tier 2 = structural context
-            //   tier 3 = historical companions
-            //   tier 4 = annotation (insight / anti-pattern)
-            //   tier 5 = unresolved endpoint (dangling source) — NOT confirmed
-            #[derive(Default)]
-            struct Dep {
-                kinds: Vec<EdgeKind>,
-                via: std::collections::BTreeSet<String>,
-                best_conf: Option<f32>,
-                weight: u32,
-            }
-            let tier_of = |k: &EdgeKind| -> u8 {
-                match k {
-                    // Shared classifier — the same one blast radius uses.
-                    k if crate::services::blast_radius_service::is_possible_dependency(k) => 1,
-                    EdgeKind::TemporalCoupling | EdgeKind::CoOccurrence | EdgeKind::StateAffinity => 3,
-                    EdgeKind::Insight | EdgeKind::AntiPattern => 4,
-                    // UnresolvedState*: the SOURCE node is resolved; only the
-                    // state KEY is unresolved — context, never "no node record".
-                    k if is_causal_dependency(k) => 0,
-                    _ => 2,
-                }
-            };
-            let directness = |k: &EdgeKind| -> u8 {
-                match k {
-                    EdgeKind::Calls | EdgeKind::Dependency | EdgeKind::SqlCalls => 0,
-                    EdgeKind::InheritsFrom | EdgeKind::Implements | EdgeKind::Imports => 1,
-                    _ => 2,
-                }
-            };
-            let mut deps: std::collections::BTreeMap<(u8, String), Dep> =
-                std::collections::BTreeMap::new();
-            let mut conf_i = 0usize;
-            for (src, kind, w, via) in edges.into_iter() {
-                let causal = is_causal_dependency(&kind);
-                let conf = if causal {
-                    let c = confs.get(conf_i).copied().flatten();
-                    conf_i += 1;
-                    c
-                } else {
-                    None
-                };
-                // A source with NO node record is an unresolved endpoint
-                // regardless of kind: quarantined from every confirmed tier.
-                let resolved = nodes.get(&src).map(|n| n.is_some()).unwrap_or(false);
-                let tier = if resolved { tier_of(&kind) } else { 5 };
-                let d = deps.entry((tier, src)).or_default();
-                if let Some(c) = conf {
-                    let c = c.clamp(0.0, 1.0);
-                    d.best_conf = Some(d.best_conf.map_or(c, |b| b.max(c)));
-                }
-                if w > d.weight {
-                    d.weight = w;
-                }
-                if !d.kinds.contains(&kind) {
-                    d.kinds.push(kind);
-                }
-                if via != target_id {
-                    d.via.insert(via);
-                }
-            }
-            let count_tier = |t: u8| deps.keys().filter(|(tier, _)| *tier == t).count();
-            let causal_total = count_tier(0);
-            let possible_total = count_tier(1);
-            let structural_total = count_tier(2);
-            let companion_total = count_tier(3);
-            let annotation_total = count_tier(4);
-            let unresolved_total = count_tier(5);
-
-            // ── 6. Rank within tier: directness → confidence → weight → id. ──
-            let mut ranked: Vec<((u8, String), Dep)> = deps.into_iter().collect();
-            ranked.sort_by(|((ta, ida), a), ((tb, idb), b)| {
-                let da = a.kinds.iter().map(directness).min().unwrap_or(9);
-                let db = b.kinds.iter().map(directness).min().unwrap_or(9);
-                ta.cmp(tb)
-                    .then(da.cmp(&db))
-                    .then_with(|| {
-                        b.best_conf
-                            .unwrap_or(0.0)
-                            .partial_cmp(&a.best_conf.unwrap_or(0.0))
-                            .unwrap_or(std::cmp::Ordering::Equal)
-                    })
-                    .then(b.weight.cmp(&a.weight))
-                    .then(ida.cmp(idb))
-            });
-
-            let label = |k: &EdgeKind| -> &'static str {
-                match k {
-                    EdgeKind::Calls => "calls this",
-                    EdgeKind::Dependency => "uses this",
-                    EdgeKind::Imports => "imports this",
-                    EdgeKind::IncludesFile => "includes this file",
-                    EdgeKind::InheritsFrom => "inherits from this",
-                    EdgeKind::Implements => "implements this",
-                    EdgeKind::SqlCalls => "executes this SQL",
-                    EdgeKind::CallsStoredProcedure => "calls this stored procedure",
-                    EdgeKind::QueriesTable => "queries this table",
-                    EdgeKind::ReadsColumn => "reads this column",
-                    EdgeKind::ReadsState => "reads this state",
-                    EdgeKind::WritesState => "writes this state",
-                    EdgeKind::ReadsSetting => "reads this setting",
-                    EdgeKind::DataBinding => "data-binds to this",
-                    EdgeKind::ParameterBinding => "binds parameters to this",
-                    EdgeKind::ApiCall => "calls this API",
-                    EdgeKind::ObservedRuntimeControl => "observed at runtime (control)",
-                    EdgeKind::ObservedRuntimeSql => "observed at runtime (SQL)",
-                    EdgeKind::Contains => "contains this",
-                    EdgeKind::ContainsUi => "contains this (UI)",
-                    EdgeKind::HasColumn => "has column",
-                    EdgeKind::ForeignKey => "foreign key",
-                    EdgeKind::UiLayoutNeighbor => "UI layout neighbor",
-                    EdgeKind::TemporalCoupling => "often changed with this",
-                    EdgeKind::CoOccurrence => "often searched with this",
-                    EdgeKind::StateAffinity => "shares state affinity",
-                    EdgeKind::Insight => "insight about this",
-                    EdgeKind::AntiPattern => "anti-pattern noted here",
-                    EdgeKind::UnresolvedStateRead => "reads state (unresolved)",
-                    EdgeKind::UnresolvedStateWrite => "writes state (unresolved)",
-                    _ => "related",
-                }
-            };
-            let render = |id: &str, d: &Dep, out: &mut String| {
-                let node = nodes.get(id).and_then(|n| n.as_ref());
-                let (disp, ntype) = match node {
-                    Some(n) => {
-                        let fqn = n
-                            .metadata
-                            .as_ref()
-                            .and_then(|m| m.get("fqn"))
-                            .and_then(|v| v.as_str())
-                            .unwrap_or(n.name.as_str());
-                        (
-                            if n.file_path.as_str().is_empty() {
-                                fqn.to_string()
-                            } else {
-                                format!("{fqn} ({}:{})", n.file_path, n.start_line)
-                            },
-                            n.node_type.as_str(),
-                        )
-                    }
-                    None => (id.to_string(), "no node record"),
-                };
-                let mut kinds: Vec<&str> = d.kinds.iter().map(label).collect();
-                kinds.sort();
-                kinds.dedup();
-                let conf = match d.best_conf {
-                    Some(c) if c < 0.6 => format!(" conf {c:.2} (LOW — verify with grep)"),
-                    Some(c) => format!(" conf {c:.2}"),
-                    None => String::new(),
-                };
-                let via = if d.via.is_empty() {
-                    String::new()
-                } else {
-                    let all: Vec<String> = d
-                        .via
-                        .iter()
-                        .map(|s| s.rsplit(':').nth(1).unwrap_or(s).to_string())
-                        .collect();
-                    let shown: Vec<&String> = all.iter().take(3).collect();
-                    let more = if all.len() > 3 {
-                        format!(" (+{} more)", all.len() - 3)
-                    } else {
-                        String::new()
-                    };
-                    format!(
-                        " — via {}{more}",
-                        shown.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ")
-                    )
-                };
-                out.push_str(&format!(
-                    "- {disp} [{ntype}] {}{conf}{via}\n",
-                    kinds.join(", ")
-                ));
-            };
-
-            // ── 7. Render by tier with per-tier coverage. ──
-            let limit = req.limit.clamp(1, 1000);
-            let mut out = format!("# Impact analysis: {target_id}\n\n");
-            out.push_str(
-                "**Scope**: 1-hop incoming (direct dependents of the target and, for a file, of its \
-                 contained symbols). NOT transitive. **Change**: unknown — no change spec was \
-                 supplied, so this is the conservative whole-target exposure; a comment edit and a \
-                 signature change would read the same here.\n",
-            );
-            out.push_str(&format!(
-                "**Live-graph unique candidates (source revisions unverified)**: {causal_total} causal (may break), \
-                 {possible_total} possible (runtime-observed), {structural_total} structural, \
-                 {companion_total} historical companions, {annotation_total} annotations"
-            ));
-            if unresolved_total > 0 {
-                out.push_str(&format!(
-                    " | {unresolved_total} UNRESOLVED endpoints (excluded from the confirmed counts)"
-                ));
-            }
-            if is_file_target {
-                out.push_str(&format!(
-                    " | {contained_count} contained symbols, {internal_edges} internal edges \
-                     (inside the component; excluded)"
-                ));
-            }
-            out.push('\n');
-            // Per-tier coverage: a capped companion fetch does NOT make the
-            // causal count a lower bound, and vice versa.
-            let mut cov: Vec<String> = Vec::new();
-            if causal_truncated_total > 0 {
-                cov.push(format!(
-                    "CAUSAL is a LOWER BOUND ({causal_truncated_total} kind/endpoint fetch(es) hit                      {CAP_CAUSAL_PER_KIND}; showing {}: {})",
-                    causal_truncated_examples.len(),
-                    causal_truncated_examples.join(", ")
-                ));
-            }
-            if companion_truncated {
-                cov.push("companions truncated".into());
-            }
-            if possible_truncated {
-                cov.push("possible (runtime-observed) truncated".into());
-            }
-            if annotation_truncated {
-                cov.push("annotations truncated".into());
-            }
-            if structural_truncated {
-                cov.push("structural truncated".into());
-            }
-            if contained_truncated {
-                cov.push(format!("contained-symbol scan hit {CAP_CONTAINED}").into());
-            }
-            if conf_lookup_failed {
-                cov.push("edge-confidence lookup failed (confidences shown as unknown)".into());
-            }
-            if cov.is_empty() {
-                out.push_str("**Live-graph query coverage**: complete for every tier; current-source and runtime coverage not established.\n");
-            } else {
-                out.push_str(&format!("⚠ **Coverage**: {}.\n", cov.join("; ")));
-            }
-
-            let section = |out: &mut String,
-                            tier: u8,
-                            title: &str,
-                            total: usize,
-                            cap: usize,
-                            ranked: &[((u8, String), Dep)]| {
-                if total == 0 {
-                    return;
-                }
-                out.push_str(&format!("\n## {title}\n"));
-                let mut n = 0;
-                for ((t, id), d) in ranked.iter().filter(|((t, _), _)| *t == tier) {
-                    let _ = t;
-                    if n >= cap {
-                        out.push_str(&format!("… and {} more\n", total - n));
-                        break;
-                    }
-                    render(id, d, out);
-                    n += 1;
-                }
-            };
-            out.push_str("\n## Causal dependents (live-graph candidates; source revisions unverified)\n");
-            if causal_total == 0 {
-                out.push_str("(none — no calls/uses/imports/state/table/api edges reach this)\n");
-            } else {
-                let mut n = 0;
-                for ((t, id), d) in ranked.iter().filter(|((t, _), _)| *t == 0) {
-                    let _ = t;
-                    if n >= limit {
-                        out.push_str(&format!(
-                            "… and {} more causal dependents (raise `limit`)\n",
-                            causal_total - n
-                        ));
-                        break;
-                    }
-                    render(id, d, &mut out);
-                    n += 1;
-                }
-            }
-            section(
-                &mut out,
-                1,
-                "Possible dependents (runtime-observed interaction — evidence, not a compiler-resolved call)",
-                possible_total,
-                10,
-                &ranked,
-            );
-            section(
-                &mut out,
-                2,
-                "Structural (containment/layout — context, not breakage)",
-                structural_total,
-                10,
-                &ranked,
-            );
-            section(
-                &mut out,
-                3,
-                "Historical companions (usually changed/searched together — plan to co-edit; NOT breakage)",
-                companion_total,
-                10,
-                &ranked,
-            );
-            section(&mut out, 4, "Annotations (insights / anti-patterns)", annotation_total, 5, &ranked);
-            if unresolved_total > 0 {
-                out.push_str(&format!(
-                    "\n## Unresolved endpoints ({unresolved_total}) — NOT confirmed dependents\n\
-                     Edges whose source has no node record. Two known causes: (1) history/co-change \
-                     ingestion wrote a historical repo-relative path (e.g. `file:App_Code/...` missing \
-                     the current `Site/` prefix) as if it were a current node id; (2) a causal edge \
-                     survived from a stale generation. Neither is verified impact. No repair tool \
-                     currently reconciles these endpoints (check_integrity does not scan edge \
-                     endpoints; repair_project does not re-ingest history) — treat as an integrity \
-                     backlog item, and grep for the name to confirm any you care about.\n"
-                ));
-                let mut n = 0;
-                for ((t, id), d) in ranked.iter().filter(|((t, _), _)| *t == 5) {
-                    let _ = t;
-                    if n >= 8 {
-                        out.push_str(&format!("… and {} more\n", unresolved_total - n));
-                        break;
-                    }
-                    render(id, d, &mut out);
-                    n += 1;
-                }
-            }
-            out.push_str(
-                "\nnext: compute_blast_radius(<symbol>) for the advisory exposure profile; \
-                 check_edit_safety(<method>) before editing.\n",
-            );
-            Ok(out)
-        })
-        .await
-        .map_err(|e| McpError::internal_error(e.to_string(), None))?
-        .map_err(|e| McpError::internal_error(e, None))?;
-
-        let (walk, _impact_source_hold, walk_generation) = crate::services::impact_walk_service::collect(
-            &self.state, &walk_request.project_id, walk_request.file_path, walk_request.symbol_fqn,
-            walk_request.max_depth, walk_request.limit,
+        let (mut result, _source_hold, generation) = crate::services::impact_walk_service::collect(
+            &self.state, &req.project_id, req.file_path.clone(), req.symbol_fqn.clone(),
+            req.max_depth, req.limit,
         ).await;
-        let mut result = walk;
-        result.push_str("\n## Unverified live-graph context\n\nLive-graph inventory below is not source-revision validated. Its query coverage/counts do not establish current-codebase completeness or a safe change.\n\n");
-        result.push_str(&out);
-        if let Some(ref fp) = file_path_for_confidence {
-            let rel = engram_core::RelPath::from(fp.as_str());
-            let lang = engram_core::guess_language(std::path::Path::new(fp));
-            result.push_str(&self.confidence_footer(&rel, lang));
+        result.push_str(&self.historical_impact_observations(
+            &req.project_id, req.file_path.clone(), req.symbol_fqn.clone(),
+            _source_hold.clone(), generation,
+        ).await);
+        if let Some(ref path) = req.file_path {
+            result.push_str(&self.confidence_footer(
+                &engram_core::RelPath::from(path.as_str()),
+                engram_core::guess_language(std::path::Path::new(path)),
+            ));
         }
-        if let Some(generation) = walk_generation {
-            result.push_str(&self.freshness_footer(&project_id_outer, generation).await);
+        if let Some(generation) = generation {
+            result.push_str(&self.freshness_footer(&req.project_id, generation).await);
         } else {
-            result.push_str("\nSource generation unavailable; no fresh-source assurance.\n");
+            result.push_str("\nSource generation unavailable; unavailable evidence is not zero impact.\n");
         }
-
         Ok(CallToolResult::success(vec![Content::text(result)]))
+    }
+
+    /// Historical co-change is separate live-graph evidence, never a causal
+    /// witness or a claim that the observed companion is current source.
+    async fn historical_impact_observations(
+        &self,
+        project: &str,
+        file: Option<String>,
+        symbol: Option<String>,
+        source: Option<std::sync::Arc<engram_index::SourceSnapshotGuard>>,
+        generation: Option<u64>,
+    ) -> String {
+        let graph=self.state.graph.clone();
+        let project=project.to_owned();
+        let runtime=match self.ensure_project_runtime(&project).await {
+            Ok(runtime)=>runtime,
+            Err(error)=>return format!("\nHistorical companion observations unavailable: {error}.\n"),
+        };
+        let observed=tokio::task::spawn_blocking(move || -> anyhow::Result<serde_json::Value> {
+            let _source_hold=source;
+            let target=match (file.as_deref(),symbol.as_deref()) {
+                (Some(path),_)=>format!("file:{path}"),
+                (_,Some(symbol))=>{
+                    if graph.get_node(&project,symbol)?.is_some(){symbol.to_owned()}
+                    else{match graph.resolve_symbol(&project,symbol,None,None)?{
+                        ResolveResult::Unique(node)=>node.node_id,
+                        _=>anyhow::bail!("Historical target unavailable or ambiguous"),
+                    }}
+                },
+                _=>anyhow::bail!("Historical target missing"),
+            };
+            anyhow::ensure!(target.len()<=2048 && !target.chars().any(char::is_control),
+                "Historical target exceeds bounded identity metadata");
+            let mut endpoints=vec![target.clone()];
+            let mut component_limited=false;
+            let mut component_coverage=None;
+            if let Some(path)=file.as_deref() {
+                if let (Some(view),Some(generation))=(_source_hold.as_ref(),generation) {
+                    let membership=runtime.search.selected_source_revision_lookup(&project,generation,view.clone())?;
+                    let admit=|node:&engram_graph::Node,file:Option<&engram_graph::Node>|
+                        crate::services::impact_walk_service::admit_selected_source(&membership,node,file);
+                    let (members,coverage)=graph.bounded_file_navigation_seeds(&project,&[path.to_owned()],&admit)?;
+                    component_limited=coverage.truncated || members.len()>15;
+                    component_coverage=Some(coverage);
+                    endpoints.extend(members.into_iter().filter(|id|id!=&target).take(15));
+                }else{component_limited=true;}
+            }
+            let component=endpoints.iter().cloned().collect();
+            let adjacency=graph.component_adjacency(&project,&endpoints,&component,
+                &|kind|if *kind==engram_graph::EdgeKind::TemporalCoupling{32}else{0},&|_|0)?;
+            let mut companions=std::collections::BTreeMap::<String,u32>::new();
+            for (source,_,weight,_) in adjacency.incoming {
+                anyhow::ensure!(source.len()<=2048 && !source.chars().any(char::is_control),
+                    "Historical companion exceeds bounded identity metadata");
+                companions.entry(source).and_modify(|old|*old=(*old).max(weight)).or_insert(weight);
+            }
+            let count=companions.len();
+            let mut examples:Vec<_>=companions.into_iter().collect();
+            examples.sort_by(|a,b|b.1.cmp(&a.1).then_with(||a.0.cmp(&b.0)));
+            let rows:Vec<_>=examples.into_iter().take(8).map(|(node_id,weight)|
+                serde_json::json!({"node_id":node_id,"weight":weight})).collect();
+            Ok(serde_json::json!({"historical_companions_observed":count,
+                "count_is_lower_bound":component_limited || !adjacency.truncated_in.is_empty(),
+                "examples_omitted":count-rows.len(),"examples":rows,"component_coverage":component_coverage,
+                "scope":"Bounded live-graph temporal-coupling observations, separate from revision-admitted causal exposure. Companion endpoints and present applicability were not validated; co-change is not breakage or runtime proof.",
+                "limits":{"component_endpoints":16,"accepted_external_per_endpoint":32,"examples":8},
+                "recovery":{"tool":"find_symbol_references","arguments":{"project_id":project,"symbol_name":target,
+                    "edge_kind_filter":["temporal_coupling"],"max_incoming":64,"max_outgoing_per_kind":8}},
+                "recovery_scope":"Direct target co-change lookup; for capped file components explore declarations with scoped CodeMap and inspect their exact identities separately."}))
+        }).await;
+        match observed {
+            Ok(Ok(value))=>format!("\n## Historical companion observations\n\n```json\n{}\n```\n",value),
+            Ok(Err(error))=>format!("\nHistorical companion observations unavailable: {}. Unknown is not zero companions.\n",error.to_string().chars().take(512).collect::<String>()),
+            Err(error)=>format!("\nHistorical companion observations worker unavailable: {}. Unknown is not zero companions.\n",error.to_string().chars().take(512).collect::<String>()),
+        }
     }
 
     pub async fn handle_get_table_schema(
@@ -1604,7 +1090,7 @@ impl Engram {
         let overview_result = self
             .handle_get_codebase_overview(ProjectIdRequest {
                 project_id: pid.clone(),
-            })
+            }.into())
             .await?;
         let overview_text = overview_result
             .content
@@ -1809,514 +1295,180 @@ impl Engram {
 
     pub async fn handle_get_codebase_overview(
         &self,
-        req: ProjectIdRequest,
+        req: crate::models::CodebaseOverviewRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
-        let pid = req.project_id;
-        let rec = self.ensure_project_record(&pid).await?;
-        let ps = self.ensure_project_runtime(&pid).await?;
-        let (gen_, source_view) = self.pin_active_source_generation(&pid, &ps.search).await?;
-        let source_view = std::sync::Arc::new(source_view);
-        let search = ps.search.clone();
-        let selected_pid = pid.clone();
-        let selected_view = source_view.clone();
-        let source_summary = tokio::task::spawn_blocking(move || {
-            search.selected_source_summary(&selected_pid, gen_, selected_view)
-        }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?
-            .map_err(|error| McpError::internal_error(format!("Selected source overview unavailable: {error:#}"), None))?;
-
-        let rules = self.state.registry.clone();
-        let pid_clone = pid.clone();
-        let rule_count = tokio::task::spawn_blocking(move || rules.list_repo_rules(&pid_clone))
-            .await
-            .ok()
-            .and_then(|r| r.ok())
-            .map(|v| v.len())
-            .unwrap_or(0);
-
-        // Agent memory: recent notes + dreamer insights, so orientation
-        // includes what past sessions learned, not only code structure.
-        let mut mem_sections = self
-            .state
-            .registry
-            .list_memory_sections(&pid)
-            .unwrap_or_default();
-        mem_sections.sort_by(|a, b| b.updated_at_ms.cmp(&a.updated_at_ms));
-        // Count STALE notes (P2 produced the flag; nothing consumed it). A note
-        // is stale when its review date lapsed or a referenced file changed
-        // since it was written — surfacing the count here closes that loop.
-        let graph_st = self.state.graph.clone();
-        let pid_st = pid.clone();
-        let stale_notes = {
-            let mtimes = tokio::task::spawn_blocking(move || {
-                crate::handlers::project_tools::indexed_file_mtimes_secs(&graph_st, &pid_st)
-            })
-            .await
-            .unwrap_or_default();
-            let now = crate::utils::now_ms();
-            mem_sections
-                .iter()
-                .filter(|s| {
-                    crate::handlers::project_tools::memory_stale_reason(s, now, &mtimes).is_some()
-                })
-                .count()
-        };
-        let graph_mem = self.state.graph.clone();
-        let pid_ins = pid.clone();
-        let mut insight_nodes = tokio::task::spawn_blocking(move || {
-            graph_mem
-                .query_nodes(&pid_ins, Some("insight"), None, None, 200)
-                .unwrap_or_default()
-        })
-        .await
-        .unwrap_or_default();
-        let insight_created = |n: &engram_graph::Node| -> u64 {
-            n.metadata
-                .as_ref()
-                .and_then(|m| m.get("created_at_ms"))
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0)
-        };
-        insight_nodes.sort_by(|a, b| insight_created(b).cmp(&insight_created(a)));
-
-        let search = ps.search.clone();
-        let corpus_pid = pid.clone();
-        let (tantivy_docs, ns_counts) = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
-            Ok((search.count_docs(&corpus_pid)?, search.count_docs_by_namespace(&corpus_pid)?))
-        }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?
-            .map_err(|error| McpError::internal_error(format!("Retained corpus inventory unavailable: {error:#}"), None))?;
-        let antipattern_docs = ns_counts.get("antipattern").copied().unwrap_or(0);
-        let history_docs = ns_counts.get("history").copied().unwrap_or(0);
-
-        let graph = self.state.graph.clone();
-        let pid_clone2 = pid.clone();
-        let membership = ps.search.selected_source_revision_lookup(&pid, gen_, source_view.clone())
-            .map_err(|error| McpError::internal_error(error.to_string(), None))?;
-        let (
-            node_type_counts,
-            edge_kind_counts,
-            source_candidates,
-            state_usage_data,
-            dead_code_count,
-            test_file_count,
-            total_file_count,
-            graph_sample,
-            graph_sample_capped,
-        ) = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
-            let ntc = graph.count_nodes_by_type(&pid_clone2)?;
-            let ekc = graph.count_edges_by_kind(&pid_clone2)?;
-            let mut nodes = graph.query_nodes(&pid_clone2, None, None, None, 4097)?;
-            let capped = nodes.len() > 4096;
-            nodes.truncate(4096);
-            let mut source_candidates = Vec::new();
-            let mut file_admission = std::collections::HashMap::new();
-            let mut code_nodes = Vec::new();
-            for kind in ["web_service", "http_handler", "wcf_service", "class", "interface", "function", "page", "ui_container"] {
-                code_nodes.extend(graph.query_nodes(&pid_clone2, Some(kind), None, None, 65)?.into_iter().take(64));
-            }
-            for node in &code_nodes {
-                if membership.matches(node.file_path.as_str(), node.generation)? != Some(true) { continue; }
-                let admitted = match file_admission.get(node.file_path.as_str()) {
-                    Some(admitted) => *admitted,
-                    None => {
-                        let admitted = match graph.get_node(&pid_clone2, &format!("file:{}", node.file_path.as_str()))? {
-                            Some(file) => membership.matches(node.file_path.as_str(), file.generation)? == Some(true),
-                            None => false,
-                        };
-                        file_admission.insert(node.file_path.as_str().to_owned(), admitted);
-                        admitted
-                    }
-                };
-                if admitted {
-                    source_candidates.push((node.file_path.as_str().to_owned(), node.node_type.clone(), node.name.clone()));
-                }
-            }
-            source_candidates.sort();
-            source_candidates.dedup();
-            source_candidates.truncate(12);
-            let state_nodes: Vec<_> = nodes.iter().filter(|node| node.node_type == "global_state").take(100).collect();
-            let mut state_usage: Vec<(String, usize, usize)> =
-                Vec::with_capacity(state_nodes.len());
-            for sn in &state_nodes {
-                let reads = graph
-                    .find_incoming_edges(&pid_clone2, Some(EdgeKind::ReadsState), &sn.node_id, 200)
-                    .map(|v| v.len())
-                    .unwrap_or(0);
-                let writes = graph
-                    .find_incoming_edges(&pid_clone2, Some(EdgeKind::WritesState), &sn.node_id, 200)
-                    .map(|v| v.len())
-                    .unwrap_or(0);
-                state_usage.push((sn.name.clone(), reads, writes));
-            }
-            state_usage.sort_by(|a, b| (b.1 + b.2).cmp(&(a.1 + a.2)));
-
-            let mut dead = 0usize;
-            let mut test_files = 0usize;
-            let file_nodes: Vec<_> = nodes.iter().filter(|node| node.node_type == "file").collect();
-            let total_files = file_nodes.len();
-            for f in &file_nodes {
-                let path_lower = f.file_path.as_str().to_lowercase();
-                if path_lower.contains("test")
-                    || path_lower.contains("spec")
-                    || path_lower.contains("_test.")
-                {
-                    test_files += 1;
-                }
-            }
-            let func_nodes: Vec<_> = nodes.iter().filter(|node| node.node_type == "function").take(2000).collect();
-            for func in &func_nodes {
-                let incoming = graph
-                    .find_incoming_edges(&pid_clone2, None, &func.node_id, 1)
-                    .unwrap_or_default();
-                if incoming.is_empty() {
-                    dead += 1;
-                }
-            }
-            Ok((ntc, ekc, source_candidates, state_usage, dead, test_files, total_files, nodes, capped))
-        })
-        .await
-        .map_err(|error| McpError::internal_error(error.to_string(), None))?
-        .map_err(|error| McpError::internal_error(format!("Graph inventory unavailable: {error:#}"), None))?;
-
-        let mut out = String::with_capacity(6144);
-        out.push_str(&format!("Codebase Overview: {}\n", rec.project_name));
-        out.push_str(&format!("project_id: {}\n", rec.project_id));
-        out.push_str(&format!("project_type: {}\n", rec.project_type));
-        out.push_str(&format!("directory: {}\n", rec.directory));
-        out.push_str(&format!("active_generation: {}\n", gen_));
-        out.push_str(&format!("repo_rules: {}\n", rule_count));
-        out.push_str("\n--- Current Source (held published selection) ---\n");
-        match source_summary.source_files {
-            Some(files) => out.push_str(&format!("source_files: {files}\n")),
-            None => out.push_str("source_files: unknown (legacy selection has no complete file manifest)\n"),
+        let valid = |path: &str| !path.is_empty() && path.len()<=2048
+            && !path.contains(['\\',':','\0','\n','\r'])
+            && path.split('/').all(|part| !part.is_empty() && part!="." && part!="..");
+        if !(1..=64).contains(&req.limit) || req.offset>250_000 || req.exclude_paths.len()>16
+            || req.exclude_paths.iter().map(String::len).sum::<usize>()>4096
+            || !req.exclude_paths.iter().all(|path|valid(path))
+            || req.scope.as_deref().is_some_and(|scope|!valid(scope)) {
+            return Err(McpError::invalid_params("Use literal relative scope/exclusions, limit1..64 and bounded offset",None));
         }
-        out.push_str(&format!("source_chunks: {}\n", source_summary.source_chunks));
+        let rec=self.ensure_project_record(&req.project_id).await?;
+        let runtime=self.ensure_project_runtime(&req.project_id).await?;
+        let (generation,view)=self.pin_active_source_generation(&req.project_id,&runtime.search).await?;
+        let source_hold=std::sync::Arc::new(view);
+        let search=runtime.search.clone();
+        let graph=self.state.graph.clone();
+        let worker_view=source_hold.clone();
+        let worker_request=req.clone();
+        let (summary,paths,file_rows,discovery,retained)=tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
+            let pid=&worker_request.project_id;
+            let membership=search.selected_source_revision_lookup(pid,generation,worker_view.clone())?;
+            let summary=search.selected_source_summary(pid,generation,worker_view)?;
+            let paths=membership.navigation_paths(worker_request.scope.as_deref(),&worker_request.exclude_paths,
+                worker_request.offset,worker_request.limit)?;
+            let mut rows=Vec::new();
+            let mut discovery=Vec::new();
+            for batch in paths.files.chunks(8) {
+                let files:Vec<_>=batch.iter().map(|(path,_,_)|path.clone()).collect();
+                let admit=|node:&engram_graph::Node,file:Option<&engram_graph::Node>|
+                    crate::services::impact_walk_service::admit_selected_source(&membership,node,file);
+                let (seeds,seed_coverage)=graph.bounded_file_navigation_seeds(pid,&files,&admit)?;
+                let walk=if seeds.is_empty(){engram_graph::store::IncomingImpactWalk::default()}
+                    else{graph.bounded_incoming_walk(pid,&seeds,1,&|_|false,&admit)?};
+                discovery.push(serde_json::json!({"seed_discovery":seed_coverage,"declaration_admission":walk.coverage}));
+                for (path,revision,area) in batch {
+                    let mut nodes:Vec<_>=walk.nodes.iter().filter(|item|
+                        item.admission==engram_graph::store::ImpactAdmission::Selected
+                        && item.node.node_type!="file" && item.node.file_path.as_str()==path).collect();
+                    let callable=|kind:&str|matches!(kind,"function"|"method"|"constructor"|"property"|"sub"|"procedure");
+                    nodes.sort_by(|a,b|(!callable(&a.node.node_type)).cmp(&(!callable(&b.node.node_type)))
+                        .then_with(||a.node.name.cmp(&b.node.name)).then_with(||a.node.node_id.cmp(&b.node.node_id)));
+                    let cap=if worker_request.scope.is_some() && paths.files.len()==1{16}else{3};
+                    let symbols:Vec<_>=nodes.iter().take(cap).map(|item|{
+                        let node=&item.node;
+                        let mut actions=Vec::new();
+                        if node.start_line>0 && node.end_line>=node.start_line {
+                            actions.push(serde_json::json!({"tool":"get_full_method_body","arguments":{
+                                "project_id":pid,"file_path":path,"line_start":node.start_line,
+                                "line_end":node.end_line.min(node.start_line.saturating_add(119)),
+                                "context_lines":0,"output_json":true}}));
+                        }
+                        actions.push(serde_json::json!({"tool":"impact_analysis","arguments":{
+                            "project_id":pid,"symbol_fqn":node.node_id,"max_depth":6,"limit":12}}));
+                        if node.start_line>0 && matches!(node.node_type.as_str(),"function"|"method"|"sub"|"procedure") {
+                            let mut args=serde_json::json!({"project_id":pid,"file_path":path,
+                                "method_name":node.name.rsplit('.').next().unwrap_or(&node.name),"line":node.start_line,
+                                "include_history":false,"include_business_logic":false,"include_full_body":false,"include_caller_bodies":false,
+                                "max_callers":2,"output_json":true});
+                            if let Some((prefix,_))=node.name.rsplit_once('.') {
+                                args["class_name"]=serde_json::json!(prefix.rsplit('.').next().unwrap_or(prefix));
+                            }
+                            actions.push(serde_json::json!({"tool":"get_method_edit_context","arguments":args}));
+                        }
+                        serde_json::json!({"node_id":node.node_id,"name":node.name,"kind":node.node_type,
+                            "start_line":node.start_line,"end_line":node.end_line,"generation":node.generation,
+                            "recovery_scope":"Bounded indexed source range; follow-up checks disk bytes. Not runtime entry-point proof.","actions":actions})
+                    }).collect();
+                    rows.push(serde_json::json!({"path":path,"physical_generation":revision,"area":area,"symbols":symbols,
+                        "symbol_display_limited":nodes.len()>cap,
+                        "declaration_coverage":"Bounded native/Contains discovery; missing or live-newer declarations remain unknown. Scope this file for more.",
+                        "actions":[{"tool":"get_codebase_overview","arguments":{"project_id":pid,"scope":path,
+                            "exclude_paths":worker_request.exclude_paths,"offset":0,"limit":24}}]}));
+                }
+            }
+            let retained=if worker_request.include_retained_context {
+                Some((search.count_docs(pid)?,search.count_docs_by_namespace(pid)?,graph.insight_title_sample(pid,8)))
+            }else{None};
+            Ok((summary,paths,rows,discovery,retained))
+        }).await.map_err(|e|McpError::internal_error(e.to_string(),None))?
+            .map_err(|e|McpError::internal_error(format!("CodeMap navigation unavailable: {e:#}"),None))?;
+        let explore=|scope:&str,offset:usize|serde_json::json!({"tool":"get_codebase_overview","arguments":{
+            "project_id":req.project_id,"scope":scope,"exclude_paths":req.exclude_paths,"offset":offset,"limit":req.limit}});
+        let mut navigation=serde_json::json!({"format":"engram-codemap-navigation-v1","source_generation":generation,
+            "scope":req.scope,"exclude_paths":req.exclude_paths,"working_tree_checked":false,
+            "coverage":{"managed_source":summary.source_files.is_some(),"matching_files":paths.matching_files,
+                "inspected_file_identities":paths.inspected_files,"scan_truncated":paths.scan_truncated,
+                "area_sample_truncated":paths.areas_truncated,"representative_sample":paths.representative_sample,
+                "representative_priority":"Generic Policy/Service/Controller/Handler basename heuristic, then path; not runtime architecture.",
+                "declarations":discovery},"areas":[],"files":[],"next_page":null,
+            "other_inventories":[{"label":"Database schema/config inventory not scanned by CodeMap","tool":"query_graph_nodes",
+                "arguments":{"project_id":req.project_id,"node_type":"db_table","limit":20}},
+                {"label":"Settings/config inventory not scanned by CodeMap","tool":"list_settings",
+                "arguments":{"project_id":req.project_id,"max_per_category":10}}],
+            "limitations":["Directory groups describe source layout, not runtime architecture or accepted policy.",
+                "File identities belong to one held published source selection, including inherited revisions. Declarations are bounded live-graph observations admitted against that selection.",
+                "No filesystem byte/LOC scan, source-body read, whole-project graph scan, native vector table or model query was performed.",
+                "Default files are diverse representatives. Scope an area and use page offsets for selected files beyond the sample.",
+                "Missing declarations or an empty bounded sample do not prove absence of code, consumers or entry points. Legacy file coverage is unknown."]});
+        let mut areas=Vec::new();
+        for (area,count) in &paths.areas {
+            areas.push(serde_json::json!({"scope":area,"selected_files":count,"explore":explore(area,0)}));
+            navigation["areas"]=serde_json::json!(&areas);
+            if serde_json::to_vec(&navigation).map_err(|e|McpError::internal_error(e.to_string(),None))?.len()>24*1024 {
+                areas.pop(); navigation["areas"]=serde_json::json!(&areas); break;
+            }
+        }
+        let wanted=file_rows.len();
+        let mut displayed=Vec::new();
+        for file in file_rows {
+            displayed.push(file); navigation["files"]=serde_json::json!(&displayed);
+            if serde_json::to_vec(&navigation).map_err(|e|McpError::internal_error(e.to_string(),None))?.len()>56*1024 {
+                displayed.pop(); navigation["files"]=serde_json::json!(&displayed); break;
+            }
+        }
+        let next=if displayed.len()<wanted{Some(req.offset+displayed.len())}else{paths.next_offset};
+        if let Some(offset)=next.filter(|offset|*offset>req.offset) {
+            navigation["next_page"]=match req.scope.as_deref(){Some(scope)=>explore(scope,offset),None=>
+                serde_json::json!({"tool":"get_codebase_overview","arguments":{"project_id":req.project_id,
+                    "exclude_paths":req.exclude_paths,"offset":offset,"limit":req.limit}})};
+        }
+        navigation["coverage"]["response_omitted_files"]=serde_json::json!(wanted-displayed.len());
+        navigation["coverage"]["response_omitted_areas"]=serde_json::json!(paths.areas.len()-areas.len());
+        let encoded=serde_json::to_string(&navigation).map_err(|e|McpError::internal_error(e.to_string(),None))?;
+        if encoded.len()>64*1024{return Err(McpError::internal_error("CodeMap response metadata exceeds bound; narrow scope/exclusions",None));}
+        let mut out=format!("Codebase Overview: {}\nproject_id: {}\nproject_type: {}\nactive_generation: {}\n",rec.project_name,req.project_id,rec.project_type,generation);
+        out.push_str("\n--- Current Source (entire held project selection; navigation scope/exclusions apply below) ---\n");
+        match summary.source_files{Some(files)=>out.push_str(&format!("source_files: {files}\n")),
+            None=>out.push_str("source_files: unknown (legacy selection has no complete file manifest)\n")};
+        out.push_str(&format!("source_chunks: {}\n",summary.source_chunks));
         out.push_str("\n--- File Types (selected source files) ---\n");
-        if let Some(files) = source_summary.source_files {
-            out.push_str(&format!("denominator: {files} selected source files\n"));
-            let mut types: Vec<_> = source_summary.files_by_extension.iter().collect();
-            types.sort_by(|a, b| b.1.cmp(a.1).then_with(|| a.0.cmp(b.0)));
-            for (extension, count) in types {
-                let percent = if files > 0 { (*count as f64 / files as f64 * 100.0) as u32 } else { 0 };
+        if let Some(total)=summary.source_files {
+            out.push_str(&format!("denominator: {total} selected source files\n"));
+            for (extension,count) in &summary.files_by_extension {
+                let percent=if total>0{(*count as f64/total as f64*100.0) as u32}else{0};
                 out.push_str(&format!("  {extension}: {count} ({percent}%)\n"));
             }
-        } else {
-            out.push_str("unknown (legacy selection has no complete file manifest; no file percentages calculated)\n");
+        }else{out.push_str("unknown (legacy selection has no complete file manifest; no file percentages calculated)\n");}
+        out.push_str("\n--- Language Breakdown (selected source chunks) ---\n");
+        out.push_str(&format!("denominator: {} selected source chunks (not file or byte percentages)\n",summary.source_chunks));
+        for (language,count) in &summary.chunks_by_language {
+            let percent=if summary.source_chunks>0{(*count as f64/summary.source_chunks as f64*100.0) as u32}else{0};
+            out.push_str(&format!("  {language}: {count} ({percent}%)\n"));
         }
-        if !source_summary.files_by_directory.is_empty() {
-            out.push_str("\n--- Source Areas (selected file identities; directory layout, not inferred architecture) ---\n");
-            let mut directories: Vec<_> = source_summary.files_by_directory.iter().collect();
-            directories.sort_by(|a,b| b.1.cmp(a.1).then_with(|| a.0.cmp(b.0)));
-            for (directory, count) in directories { out.push_str(&format!("  {directory}: {count} files\n")); }
-            if source_summary.directories_truncated { out.push_str("  Additional directory groups omitted; displayed groups are not the whole file total.\n"); }
-        }
-        out.push_str("\n--- Retained Corpus Inventory (all namespaces and physical revisions; separate observations) ---\n");
-        out.push_str(&format!("retained_index_documents: {tantivy_docs}\n"));
-        out.push_str(&format!("retained_memory_documents: {}\n", ns_counts.get("memory").copied().unwrap_or(0)));
-        out.push_str(&format!("retained_history_documents: {history_docs}\n"));
-        out.push_str(&format!("retained_antipattern_documents: {antipattern_docs}\n"));
-        out.push_str("retained_vector_rows: not measured (overview does not open native vector tables)\n");
-
-        // --- Agent Memory --- always shown, even at zero, so an agent learns
-        // the surface exists and can seed it with update_memory_bank.
-        {
-            let now = crate::utils::now_ms();
-            out.push_str("\n--- Agent Memory ---\n");
-            out.push_str(&format!("memory_bank_sections: {}\n", mem_sections.len()));
-            if stale_notes > 0 {
-                out.push_str(&format!(
-                    "  stale: {stale_notes} (review overdue or a referenced file changed since \
-                     written) — read_memory_bank shows why; update or delete_memory_bank.\n"
-                ));
-            }
-            for s in mem_sections.iter().take(8) {
-                out.push_str(&format!(
-                    "  {} ({})\n",
-                    s.title,
-                    crate::utils::humanize_age_ms(s.updated_at_ms, now)
-                ));
-            }
-            out.push_str(&format!("insights: {}\n", insight_nodes.len()));
-            for n in insight_nodes.iter().take(6) {
-                out.push_str(&format!("  {}\n", n.name));
-            }
-            if mem_sections.is_empty() && insight_nodes.is_empty() {
-                out.push_str(
-                    "  (none yet — write notes with update_memory_bank; insights accrue \
-                     as the project is searched. Recall across all of it with \
-                     search_memory search_scope=knowledge.)\n",
-                );
-            }
-        }
-
-        if !source_summary.chunks_by_language.is_empty() {
-            let mut lang_sorted: Vec<_> = source_summary.chunks_by_language.into_iter().collect();
-            lang_sorted.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-            out.push_str("\n--- Language Breakdown (selected source chunks) ---\n");
-            out.push_str(&format!("denominator: {} selected source chunks (not file or byte percentages)\n", source_summary.source_chunks));
-            for (lang, count) in &lang_sorted {
-                let pct = if source_summary.source_chunks > 0 {
-                    (*count as f64 / source_summary.source_chunks as f64 * 100.0) as u32
-                } else {
-                    0
-                };
-                out.push_str(&format!("  {}: {} ({}%)\n", lang, count, pct));
-            }
-        }
-
-        if !node_type_counts.is_empty() {
-            let mut nts: Vec<_> = node_type_counts.iter().collect();
-            nts.sort_by(|a, b| b.1.cmp(a.1));
-            let total_nodes: usize = node_type_counts.values().sum();
-            out.push_str(&format!("\n--- Full Graph Node Types ({} total; all recorded revisions, not a source snapshot) ---\n", total_nodes));
-            for (ntype, count) in &nts {
-                out.push_str(&format!("  {}: {}\n", ntype, count));
-            }
-        }
-
-        out.push_str("\nFull graph edges (all recorded revisions):\n");
-        out.push_str(&render_edge_kind_histogram(&edge_kind_counts));
-
-        {
-            let files = node_type_counts.get("file").copied().unwrap_or(0);
-            let classes = node_type_counts.get("class").copied().unwrap_or(0);
-            let functions = node_type_counts.get("function").copied().unwrap_or(0);
-            let interfaces = node_type_counts.get("interface").copied().unwrap_or(0);
-            let db_tables = node_type_counts.get("db_table").copied().unwrap_or(0);
-            let web_services = node_type_counts.get("web_service").copied().unwrap_or(0);
-            let http_handlers = node_type_counts.get("http_handler").copied().unwrap_or(0);
-            let wcf_services = node_type_counts.get("wcf_service").copied().unwrap_or(0);
-            let controls = node_type_counts.get("control").copied().unwrap_or(0);
-            let ui_containers = node_type_counts.get("ui_container").copied().unwrap_or(0);
-            let app_settings = node_type_counts.get("app_setting").copied().unwrap_or(0);
-            let conn_strings = node_type_counts
-                .get("connection_string")
-                .copied()
-                .unwrap_or(0);
-
-            out.push_str("\n--- Full Graph Inventory (all recorded revisions; not current-source architecture) ---\n");
-            if files > 0 {
-                out.push_str(&format!("  Recorded file nodes: {}\n", files));
-            }
-            if classes > 0 || interfaces > 0 {
-                out.push_str(&format!(
-                    "  Types: {} classes, {} interfaces\n",
-                    classes, interfaces
-                ));
-            }
-            if functions > 0 {
-                out.push_str(&format!("  Functions/Methods: {}\n", functions));
-            }
-            if controls > 0 || ui_containers > 0 {
-                out.push_str(&format!(
-                    "  UI: {} controls, {} containers\n",
-                    controls, ui_containers
-                ));
-            }
-            if web_services + http_handlers + wcf_services > 0 {
-                out.push_str(&format!(
-                    "  Service endpoints: {} ASMX, {} ASHX, {} WCF\n",
-                    web_services, http_handlers, wcf_services
-                ));
-            }
-            if db_tables > 0 {
-                out.push_str(&format!("  Database tables: {}\n", db_tables));
-            }
-            if app_settings > 0 || conn_strings > 0 {
-                out.push_str(&format!(
-                    "  Config: {} app settings, {} connection strings\n",
-                    app_settings, conn_strings
-                ));
-            }
-        }
-
-        out.push_str(&format!("\n--- Live Graph Sample ({} nodes; all recorded revisions{}) ---\n", graph_sample.len(), if graph_sample_capped { "; capped" } else { "" }));
-        if total_file_count > 0 {
-            let test_pct = (test_file_count as f64 / total_file_count as f64 * 100.0) as u32;
-            out.push_str(&format!(
-                "  Test files: {} / {} ({}%)\n",
-                test_file_count, total_file_count, test_pct
-            ));
-        }
-        if dead_code_count > 0 {
-            out.push_str(&format!(
-                "  Sampled zero-incoming function candidates (not proof of dead code): {}\n",
-                dead_code_count
-            ));
-        }
-        if antipattern_docs > 0 {
-            out.push_str(&format!("  Anti-patterns indexed: {}\n", antipattern_docs));
-        }
-
-        out.push_str("\n--- Source Entry/Type Candidates (up to64/type from live graph; selected file revisions, not runtime entry-point proof) ---\n");
-        if source_candidates.is_empty() {
-            out.push_str("  No selection-matched code candidates in this bounded graph sample; coverage is unknown.\n");
-        }
-        for (path, kind, name) in source_candidates {
-            out.push_str(&format!("  {path}: {name} ({kind})\n"));
-        }
-
-        let table_nodes = self
-            .state
-            .graph
-            .query_nodes(&pid, Some("db_table"), None, None, 100)
-            .unwrap_or_default();
-        if !table_nodes.is_empty() {
-            out.push_str(&format!(
-                "\n--- Database Tables ({} sampled; full graph, all recorded revisions) ---\n",
-                table_nodes.len()
-            ));
-            let names: Vec<_> = table_nodes
-                .iter()
-                .take(20)
-                .map(|n| n.name.as_str())
-                .collect();
-            out.push_str(&format!("  {}\n", names.join(", ")));
-            if table_nodes.len() > 20 {
-                out.push_str(&format!("  ... and {} more\n", table_nodes.len() - 20));
-            }
-        }
-
-        if !state_usage_data.is_empty() {
-            out.push_str(&format!(
-                "\n--- Global State Keys ({} sampled; full graph) ---\n",
-                state_usage_data.len()
-            ));
-            for (name, reads, writes) in state_usage_data.iter().take(10) {
-                out.push_str(&format!(
-                    "  {} (reads={}, writes={})\n",
-                    name, reads, writes
-                ));
-            }
-            if state_usage_data.len() > 10 {
-                out.push_str(&format!("  ... and {} more\n", state_usage_data.len() - 10));
-            }
-        }
-
-        let couplings =
-            engram_graph::algorithms::coupling::top_project_couplings(&self.state.graph, &pid, 5)
-                .unwrap_or_default();
-        if !couplings.is_empty() {
-            out.push_str("\n--- Retained Historical Temporal Couplings ---\n");
-            for c in couplings {
-                out.push_str(&format!(
-                    "  {} <-> {} (w={})\n",
-                    c.file_node_id, c.neighbor_node_id, c.weight
-                ));
-            }
-        }
-
-        // ── House conventions: auth, settings model, base-class hubs ────────
-        // One additional scan; this is what tells a fresh agent HOW this
-        // codebase does things, not just what it contains.
-        {
-            let graph = self.state.graph.clone();
-            let pid_conv = pid.clone();
-            let house_source = source_view.clone();
-            let (guards, roles, settings_tables, app_settings, top_bases) =
-                tokio::task::spawn_blocking(move || {
-                    let _held_source = house_source;
-                    let nodes = graph_sample;
-                    let mut guards: std::collections::HashMap<String, usize> = Default::default();
-                    let mut roles: std::collections::HashMap<String, usize> = Default::default();
-                    let mut settings_tables: Vec<String> = Vec::new();
-                    let mut app_settings = 0usize;
-                    let mut base_ids: Vec<(String, String)> = Vec::new();
-                    for n in &nodes {
-                        if n.node_type == "function" {
-                            if let Some(checks) = n
-                                .metadata
-                                .as_ref()
-                                .and_then(|m| m.get("permission_checks"))
-                                .and_then(|v| v.as_str())
-                            {
-                                for g in checks.split(';').filter(|g| !g.is_empty()) {
-                                    *guards.entry(g.to_string()).or_default() += 1;
-                                }
-                            }
-                            if let Some(r) = n
-                                .metadata
-                                .as_ref()
-                                .and_then(|m| m.get("guard_roles"))
-                                .and_then(|v| v.as_str())
-                            {
-                                for role in r.split(';').filter(|r| !r.is_empty()) {
-                                    *roles.entry(role.to_string()).or_default() += 1;
-                                }
-                            }
-                        } else if n.node_type == "app_setting" {
-                            app_settings += 1;
-                        } else if n.node_type == "db_table"
-                            && crate::handlers::planning_tools::is_settings_table_name(&n.name)
-                        {
-                            settings_tables.push(n.name.clone());
-                        } else if matches!(n.node_type.as_str(), "class" | "interface") {
-                            base_ids.push((n.node_id.clone(), n.name.clone()));
-                        }
-                    }
-                    // Most-inherited types: incoming InheritsFrom/Implements.
-                    let mut top_bases: Vec<(String, usize)> = Vec::new();
-                    for (id, name) in base_ids.iter().take(2000) {
-                        let inherit_in = graph
-                            .find_incoming_edges(&pid_conv, Some(EdgeKind::InheritsFrom), id, 200)
-                            .map(|v| v.len())
-                            .unwrap_or(0)
-                            + graph
-                                .find_incoming_edges(&pid_conv, Some(EdgeKind::Implements), id, 200)
-                                .map(|v| v.len())
-                                .unwrap_or(0);
-                        if inherit_in > 0 {
-                            top_bases.push((name.clone(), inherit_in));
-                        }
-                    }
-                    top_bases.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
-                    top_bases.truncate(8);
-                    (guards, roles, settings_tables, app_settings, top_bases)
-                })
-                .await
-                .unwrap_or_default();
-
-            if !guards.is_empty() || app_settings > 0 || !settings_tables.is_empty() {
-                out.push_str("\n--- House Convention Candidates (bounded full-graph sample; observations, not accepted policy) ---\n");
-                if !guards.is_empty() {
-                    let mut gs: Vec<_> = guards.into_iter().collect();
-                    gs.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
-                    let names: Vec<String> = gs
-                        .into_iter()
-                        .take(5)
-                        .map(|(g, c)| format!("{g} ({c})"))
-                        .collect();
-                    out.push_str(&format!("  auth guards: {}\n", names.join(", ")));
+        out.push_str("\n## CodeMap Navigation\n\n```json\n"); out.push_str(&encoded); out.push_str("\n```\n");
+        if let Some((total,namespaces,insights))=retained {
+            out.push_str("\n--- Retained Corpus Inventory (all namespaces and physical revisions; separate observations) ---\n");
+            out.push_str(&format!("retained_index_documents: {total}\nretained_memory_documents: {}\nretained_history_documents: {}\nretained_antipattern_documents: {}\n",
+                namespaces.get("memory").copied().unwrap_or(0),namespaces.get("history").copied().unwrap_or(0),namespaces.get("antipattern").copied().unwrap_or(0)));
+            out.push_str("retained_vector_rows: not measured (overview does not open native vector tables)\n");
+            out.push_str("\n--- Agent Memory (optional retained context; source applicability not verified by CodeMap) ---\n");
+            match self.state.registry.list_memory_sections(&req.project_id) {
+                Ok(mut notes)=>{
+                    notes.sort_by(|a,b|b.updated_at_ms.cmp(&a.updated_at_ms));
+                    let now=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
+                        .map_or(0,|elapsed|elapsed.as_millis().min(u64::MAX as u128) as u64);
+                    let overdue=notes.iter().filter(|note|note.review_after_ms.is_some_and(|review|review<=now)).count();
+                    out.push_str(&format!("memory_bank_sections: {}\nstale: {overdue} (overdue review dates only; related-file freshness uninspected)\n",notes.len()));
+                    for note in notes.iter().take(8){out.push_str(&format!("  {}\n",note.title.chars().take(160).collect::<String>()));}
                 }
-                if !roles.is_empty() {
-                    let mut rs: Vec<_> = roles.into_iter().collect();
-                    rs.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
-                    let names: Vec<String> = rs.into_iter().take(8).map(|(r, _)| r).collect();
-                    out.push_str(&format!("  roles: {}\n", names.join(", ")));
-                }
-                out.push_str(&format!("  app settings (config files): {app_settings}\n"));
-                if !settings_tables.is_empty() {
-                    out.push_str(&format!(
-                        "  settings tables: {}\n",
-                        settings_tables.join(", ")
-                    ));
-                }
-                out.push_str(
-                    "  details: map_guards_and_settings | start any story with plan_user_story\n",
-                );
+                Err(error)=>out.push_str(&format!("memory_bank_sections: unknown; stale: unknown (metadata unavailable: {})\n",error.to_string().chars().take(256).collect::<String>())),
             }
-            if !top_bases.is_empty() {
-                out.push_str("\n--- Most-Inherited Types (bounded live graph sample; not a selected-source blast-radius proof) ---\n");
-                for (name, c) in &top_bases {
-                    out.push_str(&format!("  {name} <- {c} derived/implementing type(s)\n"));
+            match insights {
+                Ok((titles,observed,incomplete))=>{
+                    out.push_str(&format!("insight_titles_sampled: {} (standard insight-prefix records examined: {observed}; coverage {}; recency within this bounded sample only)\n",titles.len(),if incomplete{"partial/unknown"}else{"complete standard-prefix observation"}));
+                    for (title,_) in titles {out.push_str(&format!("  {title}\n"));}
                 }
+                Err(error)=>out.push_str(&format!("insight_titles_sampled: unknown (metadata unavailable: {})\n",error.to_string().chars().take(256).collect::<String>())),
             }
-        }
-
-        out.push_str(&self.freshness_footer(&pid, gen_).await);
-        Ok(CallToolResult::success(vec![Content::text(
-            out.trim().to_string(),
-        )]))
+            out.push_str("Use read_memory_bank for notes and their stale-evidence warnings; retained notes/insights are not selected-source navigation facts.\n");
+        }else{out.push_str("\nRetained history/memory context omitted by default; request include_retained_context=true when relevant.\n");}
+        out.push_str(&self.freshness_footer(&req.project_id,generation).await);
+        Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
     pub async fn handle_get_extraction_confidence(
@@ -3791,235 +2943,62 @@ impl Engram {
             ));
         };
 
-        let gen_ = self.get_active_generation(&req.project_id).await?;
-        let graph = self.state.graph.clone();
-        let pid = req.project_id.clone();
-        let include_guidance = req.include_guidance;
-
-        type TopDependent = (String, String, u32); // label, kind, weight
-        let (report, (top_dependents, top_companions)) = tokio::task::spawn_blocking(move || {
-            let report = crate::services::blast_radius_service::compute_blast_radius(
-                &graph,
-                &pid,
-                &target_id,
-                gen_,
-                include_guidance,
-            )?;
-            // Named dependents come FROM THE SERVICE (report.top_causal_dependents):
-            // the same unique-source population (direct + file-aggregated) that
-            // produced `causal_dependents`, so count and examples describe one
-            // population. The renderer no longer queries the graph on its own
-            // (the old query hit only direct file-node edges and missed every
-            // symbol-level caller the score was built from). Companions are
-            // the one thing still read here, and only for display.
-            let ids: Vec<String> = report
-                .top_causal_dependents
-                .iter()
-                .map(|(id, _, _)| id.clone())
-                .collect();
-            let node_map = graph.get_nodes(&pid, &ids).unwrap_or_default();
-            let label_of = |src: &str| -> String {
-                node_map
-                    .get(src)
-                    .and_then(|n| n.as_ref())
-                    .map(|n| {
-                        if n.file_path.as_str().is_empty() {
-                            n.name.clone()
-                        } else {
-                            format!("{} ({}:{})", n.name, n.file_path, n.start_line)
-                        }
-                    })
-                    .unwrap_or_else(|| format!("{src} [no node record]"))
-            };
-            let deps: Vec<TopDependent> = report
-                .top_causal_dependents
-                .iter()
-                .map(|(id, kind, conf)| (label_of(id), kind.clone(), (conf * 100.0) as u32))
-                .collect();
-            let mut companions: Vec<(String, u32)> = graph
-                .find_incoming_edges_with_kind(
-                    &pid,
-                    Some(engram_graph::EdgeKind::TemporalCoupling),
-                    &target_id,
-                    200,
-                )
-                .unwrap_or_default()
-                .into_iter()
-                .map(|(src, _, w)| (src, w))
-                .collect();
-            companions.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
-            companions.truncate(5);
-            let cids: Vec<String> = companions.iter().map(|(s, _)| s.clone()).collect();
-            let cmap = graph.get_nodes(&pid, &cids).unwrap_or_default();
-            let companions: Vec<(String, u32)> = companions
-                .into_iter()
-                .map(|(src, w)| {
-                    let l = cmap
-                        .get(&src)
-                        .and_then(|n| n.as_ref())
-                        .map(|n| {
-                            if n.file_path.as_str().is_empty() {
-                                n.name.clone()
-                            } else {
-                                format!("{} ({}:{})", n.name, n.file_path, n.start_line)
-                            }
-                        })
-                        .unwrap_or_else(|| format!("{src} [no node record]"));
-                    (l, w)
-                })
-                .collect();
-            Ok::<_, anyhow::Error>((report, (deps, companions)))
-        })
-        .await
-        .map_err(|e| McpError::internal_error(e.to_string(), None))?
-        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-
-        // Lead with CAUSAL dependents (what may break), not the raw
-        // incoming+outgoing degree that counted co-change history and the
-        // target's own dependencies as "dependents". Flag lower bounds.
-        let ge_causal = if report.coverage.causal_truncated {
-            ">="
-        } else {
-            ""
-        };
-        let ge_comp = if report.coverage.companion_truncated {
-            ">="
-        } else {
-            ""
-        };
-        let ge = if report.coverage.truncated { ">=" } else { "" };
-        let mut out = format!(
-            "# Blast Radius Analysis: {}\n\n\
-             **Overall Risk**: {}/10 ({}) — an uncalibrated 1-hop heuristic, NOT a transitive \
-             change-impact analysis; treat as advisory\n\
-             **Causal dependents (1-hop, may break if this changes)**: {ge_causal}{}\n\
-             **Possible dependents (runtime-observed only)**: {}\n\
-             **Historical companions (usually changed together, NOT causal)**: {ge_comp}{}\n\
-             **Unresolved endpoints (dangling sources, quarantined from every incoming count and the score)**: {}\n\
-             **Raw 1-hop degree**: incoming {ge}{}, outgoing {ge}{} (outgoing = this target's own \
-             dependencies; they do not break when it changes)\n",
-            report.target,
-            report.migration_risk,
-            report.risk_band,
-            report.causal_dependents,
-            report.possible_dependents,
-            report.historical_companions,
-            report.unresolved_endpoints,
-            report.total_incoming,
-            report.total_outgoing
-        );
-        if report.coverage.truncated {
-            out.push_str(&format!(
-                "⚠ **COUNTS ARE LOWER BOUNDS** — a fetch cap was hit ({}); true numbers are higher. \
-                 Do not treat these as exact.\n",
-                report.coverage.truncated_fetches.join(", ")
-            ));
-        }
-
-        let bd = &report.complexity_breakdown;
-        out.push_str("\n**Complexity Breakdown**:\n");
-        out.push_str(&format!(
-            "- Dependency density: {:.1}/10\n",
-            bd.dependency_density_score
-        ));
-        out.push_str(&format!(
-            "- Data-access coupling (NOT an injection analysis): {:.1}/10\n",
-            bd.sql_concat_score
-        ));
-        out.push_str(&format!(
-            "- State coupling: {:.1}/10\n",
-            bd.state_coupling_score
-        ));
-        out.push_str(&format!(
-            "- Event wiring: {:.1}/10\n",
-            bd.handles_clause_score
-        ));
-        out.push_str(&format!(
-            "- PageRank centrality: {:.1}/10\n",
-            bd.pagerank_score
-        ));
-        out.push_str(&format!(
-            "- GIS coupling: {:.1}/10\n",
-            bd.gis_coupling_score
-        ));
-        out.push_str(&format!(
-            "- Script injection: {:.1}/10\n",
-            bd.script_injection_score
-        ));
-
-        if report.internal_edges > 0 {
-            out.push_str(&format!(
-                "**Internal wiring**: {} edges between this file's own symbols (cohesion/complexity, \
-                 not external blast; excluded from every count above)\n",
-                report.internal_edges
-            ));
-        }
-        if !top_dependents.is_empty() {
-            out.push_str(
-                if report.coverage.causal_truncated {
-                    // Under truncation the retained slice is id-order sampled:
-                    // higher-confidence callers beyond the cap cannot appear.
-                    "\n## Top causal dependents (1-hop; SAMPLED — causal coverage incomplete, \
-                     higher-confidence callers beyond the cap may be missing)\n"
-                } else {
-                    "\n## Top causal dependents (1-hop; may break — same population as the count above)\n"
-                },
-            );
-            for (label, kind, w) in &top_dependents {
-                // `w` carries confidence×100 from the service population.
-                out.push_str(&format!(
-                    "- {label} [{kind}] (conf {:.2})\n",
-                    *w as f32 / 100.0
-                ));
-            }
-        }
-        if !top_companions.is_empty() {
-            out.push_str(
-                "\n## Historical companions (direct co-changes of the target node only — the \
-                 count above also aggregates contained symbols; plan/co-edit evidence, NOT \
-                 breakage)\n",
-            );
-            for (label, w) in &top_companions {
-                out.push_str(&format!("- {label} (co-changes {w})\n"));
-            }
-        }
-
-        if !report.seam_candidates.is_empty() {
-            out.push_str("\n## Seam candidates (natural boundaries for splitting the change)\n");
-            for s in report.seam_candidates.iter().take(8) {
-                out.push_str(&format!(
-                    "- {} ({}) — {} [crossing: {}]\n",
-                    s.node_id,
-                    s.node_type,
-                    s.reason,
-                    s.edge_kinds_crossing.join(", ")
-                ));
-            }
-        }
-
-        if !report.guidance.is_empty() {
-            out.push_str("\n## Migration Guidance\n");
-            for g in &report.guidance {
-                out.push_str(&format!(
-                    "- **[{}]** {}: {}\n",
-                    g.severity, g.concern, g.recommendation
-                ));
-            }
-        }
-
-        out.push_str("\nThe advisory one-hop score above is live-graph evidence, not source-revision validated. The following walk separately admits indexed source revisions; it does not upgrade this score to a safety verdict.\n");
-        let (walk, _impact_source_hold, walk_generation) = crate::services::impact_walk_service::collect(
-            &self.state, &req.project_id, None, Some(report.target.clone()), req.max_depth, 25,
+        let (mut out, source_hold, walk_generation) = crate::services::impact_walk_service::collect(
+            &self.state, &req.project_id, None, Some(target_id.clone()), req.max_depth, 25,
         ).await;
-        let mut combined = walk;
-        combined.push_str("\n## Unverified one-hop advisory profile\n\n");
-        combined.push_str(&out);
-        out = combined;
+        out.push_str(&self.historical_impact_observations(
+            &req.project_id, req.file_path.clone(), req.symbol_fqn.clone(),
+            source_hold.clone(), walk_generation,
+        ).await);
+        // The legacy score remains an explicitly separate live-graph heuristic.
+        // Keep the actual selected-source capability in this worker as well as
+        // the response owner, including when the request future is cancelled.
         if let Some(generation) = walk_generation {
+            let graph = self.state.graph.clone();
+            let pid = req.project_id.clone();
+            let include_guidance = req.include_guidance;
+            let worker_hold = source_hold.clone();
+            let advisory = tokio::task::spawn_blocking(move || {
+                let _source_hold = worker_hold;
+                crate::services::blast_radius_service::compute_blast_radius(
+                    &graph, &pid, &target_id, generation, include_guidance,
+                )
+            }).await.map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            match advisory {
+                Ok(report) => {
+                    let profile = serde_json::json!({
+                        "interpretation":"Uncalibrated live-graph one-hop heuristic; not revision-admitted downstream counts, a probability, a breakage simulation or an edit-safety verdict.",
+                        "migration_risk":report.migration_risk,
+                        "risk_band":report.risk_band,
+                        "causal_dependents":report.causal_dependents,
+                        "possible_dependents":report.possible_dependents,
+                        "historical_companions":report.historical_companions,
+                        "unresolved_endpoints":report.unresolved_endpoints,
+                        "raw_incoming":report.total_incoming,
+                        "raw_outgoing":report.total_outgoing,
+                        "coverage":report.coverage,
+                        "complexity_breakdown":report.complexity_breakdown,
+                    });
+                    out.push_str("\n## Unverified one-hop advisory profile\n\n```json\n");
+                    out.push_str(&serde_json::to_string(&profile).map_err(|e| McpError::internal_error(e.to_string(), None))?);
+                    out.push_str("\n```\n");
+                    if include_guidance && !report.guidance.is_empty() {
+                        out.push_str("\nAdvisory guidance (not source-revision validated):\n");
+                        for item in report.guidance.iter().take(8) {
+                            let recommendation: String = item.recommendation.chars().take(512).collect();
+                            out.push_str(&format!("- {}\n", recommendation));
+                        }
+                    }
+                }
+                Err(error) => out.push_str(&format!("\nOne-hop advisory unavailable: {}. The revision-admitted report above remains separate.\n", error.to_string().chars().take(512).collect::<String>())),
+            }
             out.push_str(&self.freshness_footer(&req.project_id, generation).await);
         } else {
-            out.push_str("\nSource generation unavailable; the advisory score does not establish fresh-source coverage.\n");
+            out.push_str("\nSource generation unavailable; one-hop advisory omitted rather than presented as current-source impact.\n");
         }
+        // Retain through all response assembly; existing guards remain usable
+        // independently of Registry lifetime.
+        drop(source_hold);
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 

@@ -291,7 +291,7 @@ async fn impact_target(fixture: &Fixture, target: &str, max_depth: Option<usize>
         .collect()
 }
 
-fn selected_impact(text: &str) -> Value {
+fn impact_packet(text: &str) -> Value {
     let section = text
         .split_once("## Revision-admitted change impact")
         .expect("Public impact output needs a distinct revision-admitted section")
@@ -306,6 +306,53 @@ fn selected_impact(text: &str) -> Value {
     serde_json::from_str(json).unwrap()
 }
 
+// Resolve the compact public tables to the semantic identities/paths asserted
+// by the older behavior cases. This does not manufacture additional paths.
+fn selected_impact(text: &str) -> Value {
+    let mut report = impact_packet(text);
+    if report.get("shortest_paths").is_none() {
+        return report;
+    }
+    let nodes: std::collections::BTreeMap<_, _> = report["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|node| (node["ref"].as_str().unwrap().to_owned(), node.clone()))
+        .collect();
+    let files: std::collections::BTreeMap<_, _> = report["files"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|file| {
+            (
+                file["ref"].as_str().unwrap().to_owned(),
+                file["path"].clone(),
+            )
+        })
+        .collect();
+    let semantic_nodes: Vec<_> = nodes
+        .values()
+        .filter(|node| node["admission"] == "selected")
+        .map(|node| {
+            let mut node = node.clone();
+            node["file_path"] = files[node["file_ref"].as_str().unwrap()].clone();
+            node
+        })
+        .collect();
+    let dependents: Vec<_> = report["shortest_paths"].as_array().unwrap().iter().map(|path| {
+        let dependent = &nodes[path["dependent_ref"].as_str().unwrap()];
+        let node_refs = path["node_refs"].as_array().unwrap();
+        let ids: Vec<_> = node_refs.iter().map(|node_ref|nodes[node_ref.as_str().unwrap()]["node_id"].clone()).collect();
+        let seed = ids.first().unwrap();
+        json!({"node_id":dependent["node_id"],"file_path":files[dependent["file_ref"].as_str().unwrap()],
+            "start_line":dependent["start_line"],"generation":dependent["generation"],"depth":node_refs.len()-1,
+            "seed_node_id":seed,"seed_relationship":path["seed_relationship"],"path":ids})
+    }).collect();
+    report["nodes"] = json!(semantic_nodes);
+    report["dependents"] = json!(dependents);
+    report
+}
+
 fn dependent<'a>(report: &'a Value, node_id: &str) -> &'a Value {
     report["dependents"]
         .as_array()
@@ -313,6 +360,300 @@ fn dependent<'a>(report: &'a Value, node_id: &str) -> &'a Value {
         .iter()
         .find(|row| row["node_id"] == node_id)
         .unwrap_or_else(|| panic!("Missing current causal dependent: {node_id}"))
+}
+
+#[test]
+fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_identity_bound_recovery()
+ {
+    owned_case(|fixture| async move {
+        let spatial = "pub fn ResolvePolicy(stop: bool) -> i32 { crate::policy::Resolve() }\npub fn QueryCacheCore(stop: bool) -> i32 { ResolvePolicy(stop) }\npub fn QueryViewport() -> i32 { let prepared = true; if prepared { QueryCacheCore(true) } else { ResolvePolicy(true) } }\n";
+        let cancel = CancellationToken::new();
+        let baseline = fixture
+            .engram
+            .state
+            .registry
+            .capture_source_head(PID)
+            .unwrap();
+        fixture
+            .search
+            .prepare_source_snapshot(PID, 2, 3, &[RelPath::new(SPATIAL)], &[], &cancel)
+            .await
+            .unwrap();
+        fixture
+            .search
+            .index_docs(PID, &[source_doc(3, 100, SPATIAL, spatial)], &cancel)
+            .await
+            .unwrap();
+        fixture.search.seal_source_snapshot(PID, 3).unwrap();
+        std::fs::write(fixture.root.join(SPATIAL), spatial).unwrap();
+        let root = id(POLICY, "ClassifyAutomatic", 1);
+        let resolve = id(POLICY, "Resolve", 2);
+        let policy = id(SPATIAL, "ResolvePolicy", 1);
+        let cache = id(SPATIAL, "QueryCacheCore", 2);
+        let viewport = id(SPATIAL, "QueryViewport", 3);
+        let http = id(HTTP, "GetFileLayerViewport", 1);
+        let bad = id(COMPANION, "BadEdgeOnly", 3);
+        let dangling = "sym:function:src/deleted.rs:DeletedCaller:1";
+        fixture
+            .engram
+            .state
+            .graph
+            .upsert_nodes(
+                PID,
+                &[
+                    file_node(SPATIAL, spatial, 3),
+                    declaration(SPATIAL, "ResolvePolicy", 1, 3),
+                    declaration(SPATIAL, "QueryCacheCore", 2, 3),
+                    declaration(SPATIAL, "QueryViewport", 3, 3),
+                    declaration(COMPANION, "BadEdgeOnly", 3, 1),
+                ],
+            )
+            .unwrap();
+        let mut invalid_origin = edge(bad.clone(), root.clone(), EdgeKind::Calls, 1);
+        invalid_origin.metadata = Some(json!({"_engram_source_origin":{
+            "version":1,"source_id":bad,"source_generation":0}}));
+        // This case is a diamond, not recursion. Other cases retain genuine
+        // source cycles; retire this owned fixture's old recursive bindings.
+        fixture
+            .engram
+            .state
+            .graph
+            .delete_edges_of_kind(PID, &EdgeKind::Calls)
+            .unwrap();
+        fixture
+            .engram
+            .state
+            .graph
+            .upsert_edges(
+                PID,
+                &[
+                    edge(resolve.clone(), root.clone(), EdgeKind::Calls, 2),
+                    edge(policy.clone(), resolve.clone(), EdgeKind::Calls, 3),
+                    edge(cache.clone(), policy.clone(), EdgeKind::Calls, 3),
+                    edge(viewport.clone(), cache.clone(), EdgeKind::Calls, 3),
+                    edge(viewport.clone(), policy.clone(), EdgeKind::Calls, 3),
+                    edge(http.clone(), viewport.clone(), EdgeKind::Calls, 1),
+                    edge(
+                        id(COMPANION, "HistoricCompanion", 1),
+                        root.clone(),
+                        EdgeKind::TemporalCoupling,
+                        1,
+                    ),
+                    edge(
+                        format!("file:{POLICY}"),
+                        root.clone(),
+                        EdgeKind::Contains,
+                        2,
+                    ),
+                    edge(dangling.into(), root.clone(), EdgeKind::Calls, 1),
+                    invalid_origin,
+                ],
+            )
+            .unwrap();
+        assert!(
+            fixture
+                .engram
+                .state
+                .registry
+                .publish_source_head(&baseline, 3)
+                .unwrap()
+        );
+        let impact_text = impact(&fixture, None).await;
+        let blast = fixture
+            .engram
+            .handle_compute_blast_radius(
+                serde_json::from_value(json!({
+                    "project_id":PID,"symbol_fqn":root,"include_guidance":false,
+                }))
+                .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(!blast.is_error.unwrap_or(false));
+        let blast_text: String = blast
+            .content
+            .iter()
+            .filter_map(|item| item.as_text())
+            .map(|item| item.text.as_str())
+            .collect();
+        let mut observed_pairs = Vec::new();
+        for report in [impact_packet(&impact_text), impact_packet(&blast_text)] {
+            assert_eq!(report["source_generation"], 3);
+            let nodes = report["nodes"].as_array().unwrap();
+            let by_ref: std::collections::BTreeMap<_, _> = nodes
+                .iter()
+                .map(|node| (node["ref"].as_str().unwrap(), node))
+                .collect();
+            let identities: std::collections::BTreeSet<_> = nodes
+                .iter()
+                .map(|node| node["node_id"].as_str().unwrap())
+                .collect();
+            assert_eq!(
+                identities.len(),
+                nodes.len(),
+                "Each confirmed identity belongs in the table once, even on cyclic/diamond paths"
+            );
+            assert_eq!(by_ref.len(), nodes.len());
+            for expected in [&root, &resolve, &policy, &cache, &viewport, &http] {
+                assert!(
+                    nodes.iter().any(|node| node["node_id"] == expected.as_str()
+                        && node["admission"] == "selected")
+                );
+            }
+            let selected: Vec<_> = nodes
+                .iter()
+                .filter(|node| node["admission"] == "selected")
+                .collect();
+            assert_eq!(selected.len(), 6);
+            assert!(
+                nodes
+                    .iter()
+                    .filter(|node| node["node_id"] == bad || node["node_id"] == dangling)
+                    .all(|node| node["admission"] != "selected")
+            );
+            assert_eq!(
+                report["selected_dependents_observed"].as_u64().unwrap() as usize,
+                selected
+                    .iter()
+                    .filter(|node| node["is_seed"] == false)
+                    .count(),
+                "Observed counts must reconcile with distinct selected identities, not queued visits"
+            );
+            let files = report["files"].as_array().unwrap();
+            let file_refs: std::collections::BTreeSet<_> = files
+                .iter()
+                .map(|file| file["ref"].as_str().unwrap())
+                .collect();
+            for node in nodes {
+                if let Some(reference) = node["file_ref"].as_str() {
+                    assert!(file_refs.contains(reference));
+                } else {
+                    assert_ne!(
+                        node["admission"], "selected",
+                        "An unresolved frontier must not masquerade as selected source"
+                    );
+                }
+            }
+            let pairs: std::collections::BTreeSet<_> = report["edges"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|edge| {
+                    let source = by_ref[edge["source_ref"]
+                        .as_str()
+                        .expect("Every admitted edge needs a resolvable source")]["node_id"]
+                        .as_str()
+                        .unwrap();
+                    let target = by_ref[edge["target_ref"]
+                        .as_str()
+                        .expect("Every admitted edge needs a resolvable target")]["node_id"]
+                        .as_str()
+                        .unwrap();
+                    (source.to_owned(), target.to_owned())
+                })
+                .collect();
+            for expected in [
+                (&viewport, &policy),
+                (&viewport, &cache),
+                (&cache, &policy),
+                (&http, &viewport),
+            ] {
+                assert!(
+                    pairs.contains(&(expected.0.clone(), expected.1.clone())),
+                    "The shortest-path shortcut must not erase the longer prepared branch: {expected:?}"
+                );
+            }
+            assert!(
+                !pairs.contains(&(policy.clone(), cache.clone())),
+                "A diamond revisit is not evidence of a reverse call or a cycle"
+            );
+            assert!(!pairs.iter().any(|(source, _)| source == &bad
+                || source == dangling
+                || source.starts_with("file:")
+                || source.contains("HistoricCompanion")));
+            for path in report["shortest_paths"].as_array().unwrap() {
+                let refs = path["node_refs"].as_array().unwrap();
+                let unique: std::collections::BTreeSet<_> =
+                    refs.iter().map(|item| item.as_str().unwrap()).collect();
+                assert_eq!(
+                    unique.len(),
+                    refs.len(),
+                    "Revisiting an identity must not fabricate a cyclic shortest-path witness"
+                );
+                for reference in refs {
+                    assert!(by_ref.contains_key(reference.as_str().unwrap()));
+                }
+                let edge_refs = path["edge_refs"].as_array().unwrap();
+                assert_eq!(edge_refs.len() + 1, refs.len());
+                for (index, reference) in edge_refs.iter().enumerate() {
+                    let witness = report["edges"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .find(|edge| edge["ref"] == *reference)
+                        .unwrap();
+                    assert_eq!(witness["source_ref"], refs[index + 1]);
+                    assert_eq!(witness["target_ref"], refs[index]);
+                }
+            }
+            let frontier_ids: std::collections::BTreeSet<_> = report["frontier"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|boundary| {
+                    by_ref[boundary["source_ref"].as_str().unwrap()]["node_id"]
+                        .as_str()
+                        .unwrap()
+                })
+                .collect();
+            assert!(
+                frontier_ids.contains(dangling) && frontier_ids.contains(bad.as_str()),
+                "Missing/unverified endpoints need named frontier identities, not anonymous counter-only gaps"
+            );
+            let viewport_node = nodes
+                .iter()
+                .find(|node| node["node_id"] == viewport)
+                .unwrap();
+            assert_eq!(
+                report.to_string().matches(&viewport).count(),
+                1,
+                "Shared node references must avoid repeating the same full identity in every path and witness"
+            );
+            let recovery_ref = viewport_node["recovery_ref"].as_str().unwrap();
+            let recovery = report["recoveries"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|action| action["ref"] == recovery_ref)
+                .unwrap();
+            assert_eq!(recovery["tool"], "get_full_method_body");
+            let recovered = fixture
+                .engram
+                .handle_get_full_method_body(
+                    serde_json::from_value(recovery["arguments"].clone()).unwrap(),
+                )
+                .await
+                .unwrap();
+            assert!(!recovered.is_error.unwrap_or(false));
+            let recovered: Value =
+                serde_json::from_str(&recovered.content[0].as_text().unwrap().text).unwrap();
+            assert_eq!(
+                recovered["source_file_hash"],
+                ContentHash::compute(spatial.as_bytes()).0
+            );
+            let body = recovered["source_code"].as_str().unwrap();
+            assert!(
+                body.contains("if prepared")
+                    && body.contains("QueryCacheCore(true)")
+                    && body.contains("ResolvePolicy(true)")
+            );
+            observed_pairs.push(pairs);
+        }
+        assert_eq!(
+            observed_pairs[0], observed_pairs[1],
+            "Both public impact tools must expose the same admitted causal graph"
+        );
+    });
 }
 
 #[test]

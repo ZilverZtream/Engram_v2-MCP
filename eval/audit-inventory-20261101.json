@@ -3076,7 +3076,7 @@
           "before_bytes": 504,
           "after_bytes": 504
         },
-        "unwatch_response": "✅ Unwatched.",
+        "unwatch_response": "âœ… Unwatched.",
         "error": "RuntimeError('Updated project_id: 7efa788d-05ab-4892-b981-ca1462fb427a\\nstatus: done\\nsource_update: no_changes_detected\\nactive_generation: 1\\nfiles=0 chunks=0 bytes=0\\ncommits=0; git history already current at the approved history root\\n')",
         "fixture_removed": true,
         "required_candidate_behavior": "Same immutable binary/config/workload probe must index the changed source, preserve sibling queries and survive restart; no sleep is added to hide failure."
@@ -8286,9 +8286,22 @@
           "sha256": "88a476a7572cd968af44492ebd772d24fd798ff51620b6a06d46a0458ef72f81"
         }
       ]
+    },
+    "agent_core_navigation_20261104": {
+      "state": "FOCUSED_BEHAVIOR_VERIFIED; optimized build, actual OciusX agent acceptance and deployment pending",
+      "priority": "CodeMap and Blast Radius for agents only; instruction drafting remains parked and unfinished.",
+      "changes": [
+        "CodeMap: scoped/excluded diverse selected-source file navigation, callable identities and copyable source/context/impact recovery.",
+        "Blast: compact canonical graph references, additional verified connections beyond shortest paths, named missing/bounded frontiers and executable recovery.",
+        "Preserved separate bounded historical companions, same-file caller exclusion before external-result budgets, optional memory summaries and existing safety semantics."
+      ],
+      "verification": "32 behavior cases pass in scoped receipts (10 shared/safety plus22 core/memory); two earlier failing runs preserved. Owned fixture directories removed after Jobs closed.",
+      "source_receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/agent-core-source-applied-20261104.json",
+      "source_receipt_sha256": "35894d39792fdea379d8a9725e9a766184fb6920f3e84a1ed6eca1bcdb67da8c",
+      "limits": "No source counts, passing tests or bounded static graph establish perfect architecture, proposed-edit breakage or runtime coverage. Actual independent after-consumer walkthrough still required. Original31 findings/19 full-audit gates remain unfinished where tracked."
     }
   },
-  "last_updated_at": "2026-11-04T17:05:38.800738+00:00",
+  "last_updated_at": "2026-11-04T18:02:39.710257+00:00",
   "current_execution_focus": {
     "at_utc": "2026-11-04T11:12:56.875854+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
@@ -8321,7 +8334,7 @@
       }
     ],
     "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
-    "next_user_visible_deliverable": "Actual agent-consumer walkthroughs of overview and impact outputs on OciusX; compare required follow-up evidence with independent source oracle, then deliver concrete core navigation/witness/recovery improvements. Do not return to instruction collection.",
+    "next_user_visible_deliverable": "Publish this verified CodeMap/Blast batch, run actual OciusX outputs and independent agent-consumer walkthroughs, deploy the accepted runtime. Do not return to instruction drafting.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"

@@ -746,7 +746,7 @@ impl Engram {
     // ---- Agent / cognitive tools ----
 
     #[tool(
-        description = "Incoming change exposure for a file or symbol. Includes a bounded causal path walk under one published source selection (max_depth defaults to6, valid1..8;1 is direct-only), with actual intermediate node/path/line/edge witnesses. Node and file revisions must match the source selection; stale, dangling, missing and unverified source-edge bindings remain gaps. Depth/work/display limits are explicit. Historical companions and structural containment never create causal paths. The separate legacy one-hop live-graph inventory is not source-revision validated. No proposed-change simulation, exhaustive runtime coverage or safe-change guarantee."
+        description = "Agent-readable incoming change exposure for a file or symbol under one published source selection (max_depth defaults to6, valid1..8;1 is direct-only). Compact schema-v2 file/node references connect shortest paths and additional verified edges, preserving alternate connections without duplicating identities. Named missing/depth/budget frontiers carry executable source-range or narrower lookup recovery. Node/file/edge revisions are admitted; gaps and identity/edge/path omissions are explicit. File requests report external dependents, excluding same-file callers. Historical companions are separate unverified co-change observations; containment is structural. Source ranges are not verified callsites. No proposed-change simulation, exhaustive runtime coverage or safe-change guarantee."
     )]
     pub async fn impact_analysis(
         &self,
@@ -816,11 +816,11 @@ impl Engram {
     }
 
     #[tool(
-        description = "Project orientation from one held published source selection: source file/chunk counts, file-type proportions, separately labelled chunk-language proportions and a bounded directory map. File, chunk and byte shares are different measures; no filesystem byte/LOC scan is performed. Retained history/knowledge and full-graph inventory are shown separately. Source entry/type candidates are sampled indexed declarations, not proven runtime entry points or exhaustive architecture. Does not open native vector tables. For task-specific evidence use ask_codebase; for a known identifier use search_memory or resolve_id."
+        description = "Source-navigation CodeMap under one held published selection: diverse area/file representatives, selected callable/type identities and copyable bounded source-range, method-context and impact calls. Use literal scope for progressive file/directory exploration and offset/limit for scoped file pages; exclude_paths is applied before declaration lookup and is preserved in navigation calls. File/chunk proportions have separate denominators. Directory groups and basename priorities are navigation heuristics, not runtime architecture or proven entry points. Retained memory/history is omitted by default; include_retained_context opts into separate unverified context. No source-body, whole-project graph, native vector or model scan."
     )]
     pub async fn get_codebase_overview(
         &self,
-        params: Parameters<ProjectIdRequest>,
+        params: Parameters<CodebaseOverviewRequest>,
     ) -> Result<CallToolResult, McpError> {
         self.handle_get_codebase_overview(params.0).await
     }
@@ -1142,7 +1142,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Advisory one-hop exposure score PLUS a separately revision-admitted causal downstream path walk (max_depth default6, range1..8). The walk retains actual per-hop witnesses, admits matching selected node/file/edge revisions and discloses depth/work/display/missing-binding gaps. Historical co-change is separate from causal exposure. The live-graph1..10 heuristic score is uncalibrated and not source-revision validated; neither section simulates the proposed code change or proves safety/exhaustive runtime impact. Use impact_analysis for the detailed path report; check_edit_safety for the compact existing advisory verdict."
+        description = "Advisory one-hop exposure score PLUS the same compact revision-admitted dependency graph as impact_analysis (max_depth default6, range1..8): canonical identities, shortest paths, additional verified connections, named missing/bounded frontiers and executable recovery calls. File queries exclude same-file callers from external dependents. Identity/edge/path omissions and revision/work/depth gaps are explicit. Historical co-change is separate. The live-graph1..10 heuristic is uncalibrated and not source-revision validated. Neither section simulates the proposed edit or proves runtime breakage/safety; inspect recovered current source and its conditions. Use check_edit_safety for the compact existing advisory verdict."
     )]
     pub async fn compute_blast_radius(
         &self,

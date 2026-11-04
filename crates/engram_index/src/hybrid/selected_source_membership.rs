@@ -1,7 +1,7 @@
 //! File-revision membership under an existing request capability. No fresh pins,
 //! stored-body reads, or reconstruction of historical graph declarations.
 use super::*;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Mutex;
 use tantivy::collector::Count;
 
@@ -46,6 +46,19 @@ pub struct SelectedSourceSummary {
     /// Truncation means this is a sample, never a claim of global top groups.
     pub files_by_directory: std::collections::BTreeMap<String, usize>,
     pub directories_truncated: bool,
+}
+
+/// Bounded navigation over the existing immutable managed map. File identities
+/// are not declarations, disk freshness or a runtime architecture inference.
+pub struct SelectedSourceNavigation {
+    pub matching_files: Option<usize>,
+    pub inspected_files: usize,
+    pub scan_truncated: bool,
+    pub areas_truncated: bool,
+    pub representative_sample: bool,
+    pub files: Vec<(String, u64, String)>,
+    pub areas: Vec<(String, usize)>,
+    pub next_offset: Option<usize>,
 }
 
 impl HybridSearchEngine {
@@ -203,6 +216,104 @@ impl HybridSearchEngine {
 }
 
 impl SelectedSourceRevisionLookup {
+    pub fn navigation_paths(
+        &self,
+        scope: Option<&str>,
+        excluded: &[String],
+        offset: usize,
+        limit: usize,
+    ) -> anyhow::Result<SelectedSourceNavigation> {
+        let valid = |path: &str| !path.is_empty() && path.len() <= 2048
+            && !path.contains(['\\', ':', '\0', '\n', '\r'])
+            && path.split('/').all(|part| !part.is_empty() && part != "." && part != "..");
+        anyhow::ensure!(scope.is_none_or(valid) && excluded.len() <= 16
+            && excluded.iter().all(|path| valid(path)) && (1..=64).contains(&limit)
+            && offset <= 250_000, "Invalid CodeMap literal scope, exclusions or page bounds");
+        let snapshots::Selection::Files(files) = &self.view._snapshot.selection else {
+            return Ok(SelectedSourceNavigation { matching_files: None, inspected_files: 0,
+                scan_truncated: false, areas_truncated: false, representative_sample: scope.is_none(),
+                files: Vec::new(), areas: Vec::new(), next_offset: None });
+        };
+        fn within(path: &str, boundary: &str) -> bool {
+            #[cfg(windows)]
+            let (path, boundary) = (path.to_lowercase(), boundary.to_lowercase());
+            #[cfg(windows)]
+            let (path, boundary) = (path.as_str(), boundary.as_str());
+            path == boundary || path.strip_prefix(boundary).is_some_and(|tail| tail.starts_with('/'))
+        }
+        fn area_of(path: &str) -> &str {
+            // Root files use their actual file identity as an exploration
+            // boundary, never a synthetic `(root)` path that cannot resolve.
+            let Some((parent,_)) = path.rsplit_once('/') else { return path; };
+            let end = parent.match_indices('/').nth(2).map_or(parent.len(), |(position,_)|position);
+            &parent[..end]
+        }
+        let priority = |path: &str| {
+            let name = path.rsplit('/').next().unwrap_or(path).to_ascii_lowercase();
+            if name.contains("policy") { 4u8 }
+            else if name.contains("service") || name.contains("controller") || name.contains("handler") { 3 }
+            else if name.contains("application") || name.contains("bootstrap") || name.starts_with("main.") { 2 }
+            else { 1 }
+        };
+        // Borrow map strings during selection. Only bounded result paths and
+        // area labels are copied; never clone the complete source map.
+        let mut groups: BTreeMap<&str, (usize, Vec<(&str,u64)>)> = BTreeMap::new();
+        let mut group_bytes = 0usize;
+        let mut page = Vec::new();
+        let mut matching = 0usize;
+        let mut inspected = 0usize;
+        let mut scan_truncated = false;
+        let mut areas_truncated = false;
+        for (path, generation) in files {
+            if inspected == 50_000 { scan_truncated = true; break; }
+            inspected += 1;
+            if !valid(path) { scan_truncated = true; continue; }
+            if scope.is_some_and(|scope| !within(path, scope))
+                || excluded.iter().any(|excluded| within(path, excluded)) { continue; }
+            let position = matching;
+            matching += 1;
+            let area = area_of(path);
+            if scope.is_some() && position >= offset && page.len() < limit {
+                page.push((path.as_str(), *generation, area));
+            }
+            if !groups.contains_key(area) {
+                if groups.len() == 128 || group_bytes.saturating_add(area.len()) > 128 * 1024 {
+                    areas_truncated = true; continue;
+                }
+                group_bytes += area.len();
+                groups.insert(area, (0, Vec::new()));
+            }
+            let bucket = groups.get_mut(area).expect("bounded area");
+            bucket.0 += 1;
+            if scope.is_none() {
+                bucket.1.push((path.as_str(), *generation));
+                bucket.1.sort_by(|a,b| priority(b.0).cmp(&priority(a.0)).then_with(|| a.0.cmp(b.0)));
+                bucket.1.truncate(2);
+            }
+        }
+        let mut ranked: Vec<_> = groups.into_iter().collect();
+        ranked.sort_by(|a,b| b.1.0.cmp(&a.1.0).then_with(|| a.0.cmp(b.0)));
+        if ranked.len() > 32 { areas_truncated = true; ranked.truncate(32); }
+        let available = if scope.is_none() {
+            let mut diverse = Vec::new();
+            for round in 0..2 {
+                for (area, (_, paths)) in &ranked {
+                    if let Some((path,generation)) = paths.get(round) { diverse.push((*path,*generation,*area)); }
+                }
+            }
+            let available = diverse.len();
+            page.extend(diverse.into_iter().skip(offset).take(limit));
+            available
+        } else { matching };
+        let next_offset = (offset + page.len() < available && !page.is_empty()).then_some(offset + page.len());
+        Ok(SelectedSourceNavigation {
+            matching_files: (!scan_truncated).then_some(matching), inspected_files: inspected,
+            scan_truncated, areas_truncated, representative_sample: scope.is_none(),
+            files: page.into_iter().map(|(path,generation,area)| (path.to_owned(),generation,area.to_owned())).collect(),
+            areas: ranked.into_iter().map(|(area,(count,_))| (area.to_owned(),count)).collect(), next_offset,
+        })
+    }
+
     /// Discover file identities from the held immutable map, without loading
     /// every stored chunk body. Scope is an exact file or directory boundary.
     pub fn paths_in_scope(
