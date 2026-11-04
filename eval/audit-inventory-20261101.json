@@ -8378,18 +8378,31 @@
         "normal": "Defaultpolicy lead, declarationpaging, immediateprefix, all33IDs/47edges, paired33nodeyellowedit-safety PASS; configunchanged/holdreleased/all5newownedtempdirsremoved."
       },
       "optional_summary_batch": {
-        "state": "SOURCE_VERIFIED; actual/deploymentpending",
+        "state": "DEPLOYED_AND_ACTUAL_OCIUSX_VERIFIED; agent usability gaps remain open",
         "source_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-summary-source-applied-20261104.json",
         "source_receipt_sha256": "730f4c57a64097b33c9b513fbfc4f9bdd96c67a76db341c058eea100bce104a0",
         "proposal_tasks": "Actualthreshold2500to3000 vsInteger?NullableIntegerbodyunchanged; sixreadonlyfollowups each. Sourceoraclevalidatedsource-baseddistinction, not runtime/compile or comparativeproductivity.",
         "private_task_plans": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\proposal-task-candidate-plans-20261104.json",
         "private_source_judgment": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\proposal-task-source-oracle-judgment-20261104.json",
         "capability": "detail=summary optional, graphdefaultunchanged,12KiBtarget/immediateactions/counts/gaps/omissions/freshgraphcontinuation; summaryskips liveonehop/historyworkers.",
-        "remaining": "Realdeployment andsummaryusability; original31/19 and regularmulticategoryCIbenchmarkremainunfinished."
+        "remaining": "Fix self-contained summary references and validate next consumer findings; broaden accepted-task checks. Original31/19 and EG24 regular multicategory benchmark remain unfinished.",
+        "source_commit": "15d4c08",
+        "deployed_evidence": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-summary-deployed-evidence-20261104.json",
+          "sha256": "b830d70b1d9dd7288d5aeb7fed8888b62dabd3ff480a6207500a846cf2f7a07a"
+        },
+        "actual_summary_bytes": {
+          "impact_analysis": 7595,
+          "compute_blast_radius": 7595
+        },
+        "agent_usability_review": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-summary-blind-consumer-review-20261104.json",
+          "sha256": "d4f27e1a542990fbf4c74812d0fa93552bd2a16bbcbded97d24dc1de68f21807"
+        }
       }
     }
   },
-  "last_updated_at": "2026-11-04T19:57:30.268407+00:00",
+  "last_updated_at": "2026-11-04T20:18:05.078392+00:00",
   "current_execution_focus": {
     "at_utc": "2026-11-04T11:12:56.875854+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
@@ -8422,7 +8435,7 @@
       }
     ],
     "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
-    "next_user_visible_deliverable": "Continue current CodeMap/Blast agent-usefulness queue from deployed20d8769; improve task-appropriate preview/context and evaluate concrete proposed-change workflows. Preserve original audit scope; no return to parked work without userdirection.",
+    "next_user_visible_deliverable": "CodeMap and Blast Radius for agents: resolve concrete summary-reference/witness/recovery usability gaps from fresh consumer, then evaluate additional actual proposed-change workflows against independent source. Optional summary deployed15d4c08; no perfection claim.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
