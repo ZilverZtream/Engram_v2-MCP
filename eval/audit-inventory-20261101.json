@@ -8484,6 +8484,17 @@
         },
         "remaining": "The full authentication/provider/configuration task remains partial. Precise invocation positions, fallback ownership/legacy orphan lineage and regular multi-category task evaluation remain open.",
         "next_witness_review": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-invocation-witness-next-review-20261104.json"
+      },
+      "recorded_reference_witnesses": {
+        "state": "DEPLOYED_TARGETED_AGENT_BEHAVIOR_VERIFIED_NOT_CORE_TOOL_COMPLETION",
+        "source_commit": "671d927",
+        "evidence": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-reference-witness-deployed-evidence-20261104.json",
+          "sha256": "9ccc38ac339781e83cf7df40290ab9e0284a8b2ffbeadb325a98fd65b370f205"
+        },
+        "observed": "OciusX3117: caller92..106 preserved; recorded reference96 verified against current invocation syntax; same33dependents/47connections. Fresh agent correctly distinguishes conditional call from later override and withholds breakage/runtime/safety claims.",
+        "limits": "Targeted witness task, not representative accepted-task benchmark or perfection. Native Codex connector still Transport closed; actual public MCP checks use installed named-pipe transport.",
+        "next": "Run broader end-to-end agent CodeMap/Blast tasks in another allowed OciusX area against independent source evidence; measure discovery failures, unsupported claims and context/tool cost, then fix the highest-value observed gap."
       }
     }
   },
@@ -8520,7 +8531,7 @@
       }
     ],
     "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
-    "next_user_visible_deliverable": "Improve core Blast Radius invocation evidence: confirm retained call_site_line(s) metadata, then consume it without changing declaration anchors or overload ownership. Distinguish invocation-syntax samples from weaker legacy anchors and preserve all admission/route/coverage limits. This read-side candidate may avoid re-extraction; do not assume a parser change or broad reindex is necessary. Keep fallback nested-type ownership and malformed duplicate lineage separately open. Full provider/configuration workflows, regular task benchmarking and the broader audit remain unfinished.",
+    "next_user_visible_deliverable": "Run broader end-to-end agent CodeMap/Blast tasks in another allowed OciusX area against independent source evidence; measure discovery failures, unsupported claims and context/tool cost, then fix the highest-value observed gap.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -8532,6 +8543,8 @@
       "Kernel/SSD forensics and preexisting cleanup remain on existing hold"
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
-    "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact."
+    "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
+    "latest_completed_core_batch": "671d927 recorded call/reference witnesses and executable summary recovery deployed;13relatedtests,39actualOciusXreads,15normalreads and2fresh-agent sourcecalls. Core assignment and original audit remain incomplete.",
+    "previous_goal_turn_classification": "Prior user-status turn was no progress (status verification only). This continuation changes authoritative source671d927, pushesmaster, deploys paired runtime, and validates actual agent behavior."
   }
 }
