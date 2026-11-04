@@ -4397,17 +4397,57 @@ impl HybridSearchEngine {
             // vector_search exists to report was wrong. Safe to set per query:
             // no ANN index is built for these tables, so there is no index metric
             // to match.
-            let mut results = table
+            let native_query = table
                 .query()
                 .nearest_to(query_vec)?
                 .distance_type(lancedb::DistanceType::Cosine)
                 .only_if(where_clause)
-                .limit(q.top_k)
-                .execute()
-                .await?;
+                .limit(q.top_k);
+
+            use futures::{StreamExt, TryStreamExt};
+            let request = native_query.current_request();
+            let mut results: futures::stream::BoxStream<'static, anyhow::Result<arrow_array::RecordBatch>> =
+                match (table.dataset(), request.base.filter.as_ref()) {
+                    (Some(native), Some(lancedb::query::QueryFilter::Sql(filter)))
+                        if request.query_vector.len() == 1
+                            && matches!(&request.base.select, lancedb::query::Select::All)
+                            && request.base.full_text_search.is_none()
+                            && request.base.reranker.is_none()
+                            && request.base.norm.is_none() =>
+                    {
+                        // Clone the same immutable Dataset version as SDK create_plan;
+                        // do not retain its consistency-wrapper lock across streaming.
+                        let dataset = native.get().await?.clone();
+                        let mut scanner = dataset.scan();
+                        scanner.nearest(request.column.as_deref().unwrap_or("vector"),
+                            request.query_vector[0].as_ref(),
+                            request.base.limit.unwrap_or(q.top_k) + request.base.offset.unwrap_or(0))?;
+                        // Scanner defaults differ from LanceDB's indexed-query defaults.
+                        scanner.minimum_nprobes(request.minimum_nprobes);
+                        if let Some(maximum_nprobes) = request.maximum_nprobes {
+                            scanner.maximum_nprobes(maximum_nprobes);
+                        }
+                        scanner.use_index(request.use_index);
+                        scanner.prefilter(request.base.prefilter);
+                        scanner.distance_range(request.lower_bound, request.upper_bound);
+                        if let Some(ef) = request.ef { scanner.ef(ef); }
+                        if let Some(refine) = request.refine_factor { scanner.refine(refine); }
+                        if let Some(metric) = request.distance_type { scanner.distance_metric(metric.into()); }
+                        if request.base.fast_search { scanner.fast_search(); }
+                        if request.base.with_row_id { scanner.with_row_id(); }
+                        if request.base.disable_scoring_autoprojection { scanner.disable_scoring_autoprojection(); }
+                        scanner.limit(request.base.limit.map(|n| n as i64), request.base.offset.map(|n| n as i64))?;
+                        scanner.filter(filter)?;
+                        scanner.batch_size(lancedb::query::QueryExecutionOptions::default().max_batch_length as usize);
+                        // Bound fragment concurrency only. Keep the SDK's I/O byte
+                        // budget: lowering it below an encoded batch can deadlock.
+                        scanner.fragment_readahead(1);
+                        scanner.try_into_stream().await?.map_err(anyhow::Error::from).boxed()
+                    }
+                    _ => native_query.execute().await?.map_err(anyhow::Error::from).boxed(),
+                };
 
             let mut hits = Vec::new();
-            use futures::TryStreamExt;
             while let Some(batch) = TryStreamExt::try_next(&mut results).await? {
                 let batch: arrow_array::RecordBatch = batch;
                 let pk_arr = batch
