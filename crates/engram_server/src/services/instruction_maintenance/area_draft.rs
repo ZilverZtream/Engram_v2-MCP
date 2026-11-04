@@ -27,6 +27,9 @@ pub enum Section {
     HouseExample,
     CompanionFile,
     AcceptedException,
+    EntryPoint,
+    Consumer,
+    ValidationPath,
 }
 
 impl Section {
@@ -36,6 +39,9 @@ impl Section {
             Self::Invariant => "Invariants",
             Self::HouseExample => "House examples",
             Self::CompanionFile => "Companion files",
+            Self::EntryPoint => "Entry points",
+            Self::Consumer => "Consumers",
+            Self::ValidationPath => "Validation paths",
             Self::AcceptedException => "Exceptions and cited rulings — review required",
         }
     }
@@ -392,10 +398,30 @@ fn checked_source(packet: &Packet, cite: &Citation) -> Result<serde_json::Value>
     )
 }
 
-fn proposed_file(path: &str, content: String) -> Result<ProposedFile> {
+fn evidence_sources(
+    packet: &Packet,
+    draft: &AreaDraft,
+) -> Result<Vec<serde_json::Value>> {
+    let mut selected = BTreeMap::new();
+    for cite in draft.claims.iter().flat_map(|claim| {
+        claim.evidence.iter().chain(claim.explicit_ruling.iter())
+    }).chain(draft.shared_rules.iter()) {
+        citation(packet, cite)?;
+        let snapshot = cited_snapshot(packet, cite)?
+            .context("Affirmative area claims need present quoted evidence, not absence")?;
+        selected.entry((cite.path.as_str(), cite.version.clone())).or_insert(snapshot);
+    }
+    Ok(selected.into_iter().map(|((path, version), snapshot)| {
+        serde_json::json!({"path":path,"version":version,"blake3":snapshot.blake3,
+            "content":snapshot.content,"source_scope":manifest::scope_with_limit(snapshot, FILE_LIMIT),
+            "authority":"not_established_by_citation_integrity"})
+    }).collect())
+}
+
+fn proposed_file(path: &str, content: String, limit: usize) -> Result<ProposedFile> {
     ensure!(
-        content.len() <= FILE_LIMIT,
-        "Complete new area artifact exceeds 128KiB; reduce complete evidence, never truncate guidance"
+        content.len() <= limit,
+        "Complete new area artifact exceeds {limit} bytes; reduce complete evidence, never truncate guidance"
     );
     let unified_diff = similar::TextDiff::from_lines("", &content)
         .unified_diff()
@@ -447,7 +473,7 @@ pub(super) fn review(
         let mut claims = draft.claims.iter().collect::<Vec<_>>();
         claims.sort_by(|a, b| a.section.cmp(&b.section).then_with(|| a.id.cmp(&b.id)));
         let mut ids = BTreeSet::new();
-        let mut gaps = Vec::new();
+        let mut gaps = packet.area_evidence.as_ref().map(|area| area.gaps.clone()).unwrap_or_default();
         if !packet
             .evidence
             .iter()
@@ -488,6 +514,7 @@ pub(super) fn review(
                 ));
             }
             if claim.kind == ClaimKind::ObservedImplementation
+                && claim.section != Section::Consumer
                 && !claim
                     .evidence
                     .iter()
@@ -521,6 +548,7 @@ pub(super) fn review(
             }
             provenance_claims.push(serde_json::json!({"claim":claim,"classification_origin":"drafting_agent_declaration",
                 "sources":sources,"explicit_ruling":ruling,"ruling_evidence":if claim.explicit_ruling.is_some(){"citation_verified"}else{"absent"},
+                "scope_relationship":if claim.section == Section::Consumer {"Consumer evidence may be outside the area; it does not broaden the declared instruction scope"} else {"Declared instruction scope is unchanged"},
                 "acceptance":"not_established","interpretation_correctness":"not_established"}));
             let body = grouped.entry(claim.section.clone()).or_default();
             body.push_str(&format!(
@@ -542,6 +570,13 @@ pub(super) fn review(
         ] {
             if !grouped.contains_key(&section) {
                 gaps.push(format!("{}: no grounded draft supplied", section.heading()));
+            }
+        }
+        if packet.area_evidence.is_some() {
+            for section in [Section::EntryPoint, Section::Consumer, Section::ValidationPath] {
+                if !grouped.contains_key(&section) {
+                    gaps.push(format!("{}: no grounded draft supplied", section.heading()));
+                }
             }
         }
         for unresolved in &draft.unresolved_decisions {
@@ -587,16 +622,23 @@ pub(super) fn review(
                 content.push_str(&format!("\n> {}\n", gap.replace('\n', "\n> ")));
             }
         }
-        let instruction = proposed_file(&target.instruction_path, content)?;
-        let provenance = proposed_file(
-            &target.provenance_path,
-            serde_json::to_string_pretty(&serde_json::json!({
+        let instruction = proposed_file(&target.instruction_path, content, FILE_LIMIT)?;
+        let evidence_sources = evidence_sources(packet, draft)?;
+        let mut provenance_body = serde_json::json!({
                 "version":1,"packet_blake3":packet_hash,"project_id":packet.project_id,"project_root_blake3":packet.project_root_blake3,
                 "base_commit":packet.base_commit,"target":target,"absence_observation":declared,
                 "instruction_blake3":instruction.proposed_blake3,"claims":provenance_claims,"shared_rules":shared,"gaps":gaps,
+                "evidence_sources":evidence_sources,
                 "policy_correctness":"not_established","policy_acceptance":"not_established","authored_files_written":0,
-                "coverage":"Selected complete packet evidence only. Preserve the reviewed packet for full source context. References do not broaden source scope; semantic applicability, accepted exceptions and claim correctness require independent review. No exhaustive discovery or code execution was performed."
-            }))? + "\n",
+                "coverage":"Complete cited snapshots are included in evidence_sources, keyed by path and version. References do not broaden source scope; semantic applicability, accepted exceptions and claim correctness require independent review. No exhaustive discovery or code execution was performed."
+            });
+        if let Some(area) = &packet.area_evidence {
+            provenance_body["area_evidence"] = serde_json::to_value(area)?;
+        }
+        let provenance = proposed_file(
+            &target.provenance_path,
+            serde_json::to_string_pretty(&provenance_body)? + "\n",
+            PACKET_LIMIT,
         )?;
         let pair_blake3 = blake3::hash(&serde_json::to_vec(&serde_json::json!({
             "instruction":{"path":instruction.path,"blake3":instruction.proposed_blake3},

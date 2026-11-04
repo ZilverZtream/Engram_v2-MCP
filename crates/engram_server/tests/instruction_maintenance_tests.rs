@@ -689,6 +689,28 @@ fn update_fixture() -> (tempfile::TempDir, Engram, Value) {
     (temporary, engram, request)
 }
 
+async fn publish_fixture_source(engram: &Engram) {
+    let response = engram
+        .handle_repair_project(
+            serde_json::from_value(json!({
+                "project_id":"maintenance", "scope":"full",
+                "max_commits":0, "index_antipatterns":false
+            }))
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_ne!(response.is_error, Some(true));
+}
+
+async fn publish_update_baseline(engram: &Engram, root: &Path) {
+    // The first observed update must publish a real edit; repairing the already
+    // edited worktree would turn that wanted transition into a no-op.
+    std::fs::write(root.join("Site/helper.rs"), "pub fn OldHelper() -> usize { 1 }\n").unwrap();
+    publish_fixture_source(engram).await;
+    std::fs::write(root.join("Site/helper.rs"), "pub fn NewHelper() -> usize { 2 }\n").unwrap();
+}
+
 async fn updated_source_is_visible(engram: &Engram) {
     let result = engram
         .handle_search_memory(
@@ -714,6 +736,7 @@ async fn updated_source_is_visible(engram: &Engram) {
 #[tokio::test]
 async fn instruction_observation_after_update_and_noop_preserves_source_and_authored_policy() {
     let (temporary, engram, request) = update_fixture();
+    publish_update_baseline(&engram, &temporary.path().join("repo")).await;
     let policy_path = temporary.path().join("repo/rules/area.md");
     let policy_before = std::fs::read(&policy_path).unwrap();
     for expected_noop in [false, true] {
@@ -753,6 +776,7 @@ async fn instruction_observation_after_update_and_noop_preserves_source_and_auth
 #[tokio::test]
 async fn instruction_observation_failure_keeps_completed_source_update_successful() {
     let (temporary, engram, mut request) = update_fixture();
+    publish_update_baseline(&engram, &temporary.path().join("repo")).await;
     request["instruction_maintenance"]["instruction_paths"] = json!(["rules/not-present.md"]);
     let response = engram
         .handle_update_project(serde_json::from_value(request).unwrap())
@@ -1469,6 +1493,11 @@ async fn oversized_auto_dependency_is_omitted_explicitly_and_cannot_be_cited_as_
 #[tokio::test]
 async fn project_health_reports_optional_reference_manifest_separately_from_storage_verdict() {
     let (temp, engram, request) = fixture();
+    let mut project = engram.state.registry.get_project("maintenance").unwrap().unwrap();
+    project.project_type = "rust".into();
+    engram.state.registry.put_project(&project).unwrap();
+    std::fs::write(temp.path().join("repo/Site/health.rs"), "pub fn health_probe() -> bool { true }\n").unwrap();
+    publish_fixture_source(&engram).await;
     let report = call(&engram, request.clone()).await.unwrap();
     let health = engram
         .handle_project_health_with_instructions(serde_json::from_value(request).unwrap())

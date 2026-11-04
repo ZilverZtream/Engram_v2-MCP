@@ -383,7 +383,23 @@
       ],
       "closure_state": "OriginalEG09 artifact/scoringreconciliation verified. Currentarchivedbehaviorreplay matchesallarm/casedecisionsandscores; originalarchiveunchanged. Not a freshruntime/taskbenefit experiment.",
       "dependencies": [],
-      "current_evidence": "execution_evidence_20261101.eg09_archived_outcome_reconciliation_20261102"
+      "current_evidence": "execution_evidence_20261101.eg09_archived_outcome_reconciliation_20261102",
+      "observed_core_tool_evidence_20261104": {
+        "raw_public_calls": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/core-tool-real-ociusx-results-20261104.json",
+        "binary_sha256": "79c320d806132405b0660c7ede965e6967310890e9820e9bff2eaa8dce2515b4",
+        "source_generation": 3117,
+        "freshness": "One cross-store/source-format mismatch reported; disk check not run. Do not claim fully fresh or exhaustive ground truth.",
+        "overview_failure": "chunks_indexed214758 counts all namespaces/physicalrevisions; languageVB18473 displayed8percent against mixed-corpusdenominator; graph2303files incorrectly labelled selectedsource rather than managed2302; PageRank columns presented as codebasehubs.",
+        "blast_radius_limit": "23directcausalnodes for FileLayerZoomPolicy, actual source callers found. One-hop-only exposure, no proposedchange analysis or transitiveviewport/UI propagation. Uncalibratedlowrisk1/10 doesnot prove low change risk.",
+        "comparison": "Independent agent sourcebaseline eight selected relationships, excludes Site/Q; not exhaustive/runtime proof."
+      },
+      "next_concrete_slice": "Ship selected-source overview counts/languages/pathmap and honest fullgraphscope, verify public behavior with inherited revisions plus retained history/future graph contamination and before/after actual OciusX output. Do not claim core-tool ranking validated or blast radius complete.",
+      "current_implementation_evidence_20261104": {
+        "source_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-overview-area-source-applied-20261104.json",
+        "tests": "50 focused public behavior cases PASS (2 sourceoverview +3 autoarea +45 existingmaintenance); source immutable during run; exact ownedJob/TEMPclosed",
+        "review": "Independent scoped static review PASS selected-sourceAPI+handler+publicoracles",
+        "closure": "PARTIAL: source improvement verified locally; push/build/install/actual OciusX after-output pending. Core tool/task usefulness not established by these tests."
+      }
     },
     {
       "id": "EG-10",
@@ -485,6 +501,11 @@
         "package": "79c320d8/sourceb515a5e; deployed for liveOciusX",
         "evidence": "execution_evidence_20261101.ociusx_resource_release_and_matched_query_pair_20261104",
         "limit": "Runtime delivery is complete; existing partial behavior/coverage/usefulness requirements in this finding remain open."
+      },
+      "automatic_evidence_implementation_20261104": {
+        "behavior": "scope-only request selects bounded complete files/sharedguidance/directconsumer candidates under held snapshot; fingerprint checks both endpoints, exclusions extend to linkeddependencies; importeddispositions remain advisory; full cited snapshots in deduped provenance",
+        "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-overview-area-source-applied-20261104.json",
+        "closure": "PARTIAL: three new public cases and45maintenance regression cases pass; independent source review passed; actual OX usefulnesspilot and optimized runtime delivery pending"
       }
     },
     {
@@ -8162,5 +8183,51 @@
       ]
     }
   },
-  "last_updated_at": "2026-11-04T10:53:38.576492+00:00"
+  "last_updated_at": "2026-11-04T11:12:56.875886+00:00",
+  "current_execution_focus": {
+    "at_utc": "2026-11-04T11:12:56.875854+00:00",
+    "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
+    "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
+    "original_tool_roi_five": [
+      {
+        "rank": 1,
+        "item": "Bound complete get_change_set response with exact recovery",
+        "implementation": "Implemented and included in deployed79c package; EG02/EG12 evidence retained"
+      },
+      {
+        "rank": 2,
+        "item": "Decision-aware pre_commit_review annotations",
+        "implementation": "Implemented and included in deployed79c package; EG19 evidence retained"
+      },
+      {
+        "rank": 3,
+        "item": "Capability-aware responsive search_history",
+        "implementation": "Implemented and included in deployed79c package; EG20/EG21 evidence retained"
+      },
+      {
+        "rank": 4,
+        "item": "Dependency-complete optional tool presets",
+        "implementation": "Implemented and included in deployed79c package; EG18 evidence retained"
+      },
+      {
+        "rank": 5,
+        "item": "Regular accepted-task benchmark",
+        "implementation": "Incomplete; EG24 remains open"
+      }
+    ],
+    "active_original_item": "EG-09 demonstrated core-tool usefulness: correct misleading installed get_codebase_overview output against held selected source, then verify actual output. EG-14 WIP preserved, not substituted for core assignment.",
+    "next_user_visible_deliverable": "A useful selected-area instruction draft/evidence pack through existing Engram workflows for OciusX, grounded in entrypoints/consumers/house examples/accepted exceptions and separate provenance; compare with a real existing area guide, without changing OciusX policy. Complete missing product behavior rather than only revalidating supplied JSON.",
+    "following_original_items": [
+      "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
+      "EG24 regular task-level verification after user-visible original tool work"
+    ],
+    "parked_supporting_work": [
+      "EG26 catalog/schema expansion",
+      "EG28 further live legacy ownership investigation",
+      "Additional performance experiments or storage redesign",
+      "Kernel/SSD forensics and preexisting cleanup remain on existing hold"
+    ],
+    "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
+    "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact."
+  }
 }

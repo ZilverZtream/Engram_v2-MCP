@@ -472,7 +472,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Pre-push audit: given inline code or a project-relative diff_file with exact diff_file_blake3, retrieve relevant quality-gate rules/findings. Rules scoped to file_path rank first; retrieval is not compliance proof. Alternatively, instruction_maintenance collects complete selected authored instructions and Git-before/disk-after evidence. A drafting agent submits grounded exact edits or explained no_change/conflict outcomes bound to packet_blake3; Engram rejects stale dependencies, false citations and invalid anchors and returns a proposed diff. Independent semantic review and human approval remain required. Never writes authored policy or guesses legacy ownership."
+        description = "Pre-push audit: given inline code or a project-relative diff_file with exact diff_file_blake3, retrieve relevant quality-gate rules/findings. Rules scoped to file_path rank first; retrieval is not compliance proof. Alternatively, instruction_maintenance collects complete authored instructions and Git-before/disk-after evidence. For new_instruction_targets, optional area_context (scope, max_files, exclude_paths) automatically assembles bounded indexed area files, direct consumers, examples and applicable shared guidance; evidence_paths become optional seeds. Discovery gaps and advisory review dispositions remain explicit. A drafting agent submits grounded exact edits or explained no_change/conflict outcomes bound to packet_blake3; Engram rejects stale dependencies, false citations and invalid anchors and returns proposed instruction/provenance files. Independent semantic review and human approval remain required. Never writes authored policy or guesses legacy ownership."
     )]
     pub async fn pre_push_audit(
         &self,
@@ -812,7 +812,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Project orientation: languages, file counts, key directories, hub files and graph summary. Use when you need project-wide context. For a concrete question or change request, ask_codebase retrieves task-specific evidence; for a known identifier, search_memory or resolve_id provides a focused starting point."
+        description = "Project orientation from one held published source selection: source file/chunk counts, language proportions and a bounded directory map. Retained history/knowledge and full-graph inventory are shown separately. Source entry/type candidates are sampled indexed declarations, not proven runtime entry points or an exhaustive architecture map. Does not open native vector tables. For a concrete question or change request use ask_codebase; for a known identifier use search_memory or resolve_id."
     )]
     pub async fn get_codebase_overview(
         &self,

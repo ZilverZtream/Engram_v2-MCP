@@ -561,15 +561,42 @@ draft; complete relevant code and authored/shared guidance belong in
 `evidence_paths`. Both output paths must be absent at the exact base commit and
 on current disk; this operation never recreates a previously authored file.
 
+For automatic evidence gathering, add `area_context` to the nested maintenance
+request and omit `evidence_paths` (or supply explicit seed paths):
+
+```json
+"area_context": {
+  "scope": "src/payments",
+  "max_files": 4,
+  "exclude_paths": ["src/payments/generated"]
+}
+```
+
+This indexed workflow is available through `pre_push_audit`, with a managed
+source snapshot. It captures complete area files, bounded direct consumer and
+companion candidates, house-example candidates, applicable shared guidance and
+linked documents. Scope is a literal file or directory boundary; `max_files`
+is 1..8. Exclusions also apply to linked dependencies. Missing or capped evidence
+is named, and graph declarations/relations are withheld when either endpoint's
+selected file fingerprint cannot be verified against complete current source.
+Imported review dispositions remain advisory evidence with recovery references;
+they never become policy acceptance. No exhaustive discovery or validation run
+is implied. The explicit-path offline collector remains available.
+
 After collecting the packet, submit `draft.new_area_files`: each declared target
 gets claims with an ID, section, observed/authored/proposed classification, text,
 rationale and exact citations, plus shared-rule citations and unresolved
 decisions. Sections cover purpose, invariants, house examples, companions and
-exceptions. The response contains linked Markdown and provenance proposals,
+exceptions; automatic area packets also require entry-point, consumer and
+validation-path evidence or explicit gaps. The response contains linked Markdown and provenance proposals,
 creation diffs and a hash binding the pair. Missing evidence is named;
 `needs_policy_review` means only that mechanical checks passed. A verified
 ruling quote or a workflow status establishes no accepted exception. Neither
 proposed file is written, and the existing unique-anchor edit flow is unchanged.
+Provenance includes complete cited snapshots deduplicated by path and version,
+so a reviewer can independently resolve each quote and hash. Instruction text
+is capped at 128 KiB and complete provenance at 768 KiB; oversized artifacts are
+rejected rather than truncated.
 
 `get_change_set`, `prepare_implementation_context`, and `pre_commit_review`
 include applicable repository guidance in both JSON and Markdown.
@@ -914,7 +941,7 @@ cancellation of a running watcher update.
 | `get_chunk` | Fetch content for a chunk ID |
 | `graph_search` | Hybrid text + symbol match with edge expansion |
 | `find_symbol_references` | Incoming / outgoing edges for a symbol across all edge kinds |
-| `get_codebase_overview` | Languages, symbols, edge-kind distribution, PageRank, DB tables, state keys, temporal couplings, dead code |
+| `get_codebase_overview` | Selected source files/chunks, language proportions and directory map; sampled source declarations; separately labelled retained history and full-graph DB/state/edge inventory |
 | `analyze_error_stack` | Multi-language structured stacktrace parser with frame-boosted search |
 
 </details>
@@ -925,9 +952,9 @@ cancellation of a running watcher update.
 | Tool | Purpose |
 |---|---|
 | `query_graph_nodes` · `find_references` · `traverse_graph` | Core graph operations |
-| `impact_analysis` | Estimate what breaks if a file or symbol changes |
+| `impact_analysis` | Indexed direct (one-hop) exposure for a file or symbol; no proposed-change interpretation or transitive impact guarantee |
 | `ast_dependency_graph` | BFS with edge-kind filters, up to 12 hops; tree or JSON output |
-| `compute_blast_radius` | 1–10 risk score with seam candidates and per-node risk tier |
+| `compute_blast_radius` | Direct exposure plus an uncalibrated advisory score and seam candidates; does not prove low change risk or a complete blast radius |
 | `detect_design_patterns` | Structural pattern detection (Repository, Factory, Singleton…) |
 
 </details>

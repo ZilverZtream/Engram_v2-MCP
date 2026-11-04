@@ -379,12 +379,25 @@ impl Engram {
             let record = self.ensure_project_record(&req.project_id).await?;
             let project_id = req.project_id.clone();
             let maintenance = maintenance.clone();
-            let report = tokio::task::spawn_blocking(move || {
-                crate::services::instruction_maintenance::review(std::path::Path::new(&record.directory), &project_id, &maintenance)
+            let assembly = if maintenance.area_context.is_some() {
+                Some(crate::services::instruction_maintenance::area_evidence::assemble(
+                    &self.state, &project_id, std::path::Path::new(&record.directory), maintenance.clone(),
+                ).await.map_err(|error| McpError::invalid_params(format!("Area evidence unavailable: {error:#}"), None))?)
+            } else { None };
+            let report = tokio::task::spawn_blocking(move || -> anyhow::Result<String> {
+                let report = match &assembly {
+                    Some(assembly) => crate::services::instruction_maintenance::review_with_area(
+                        std::path::Path::new(&record.directory), &project_id, &assembly.request, Some(&assembly.evidence),
+                    )?,
+                    None => crate::services::instruction_maintenance::review(
+                        std::path::Path::new(&record.directory), &project_id, &maintenance,
+                    )?,
+                };
+                // The assembled source lease survives all collection and serialization.
+                Ok(serde_json::to_string_pretty(&report)?)
             }).await.map_err(|e| McpError::internal_error(e.to_string(), None))?
                 .map_err(|e| McpError::invalid_params(format!("Instruction maintenance unavailable: {e:#}"), None))?;
-            return Ok(CallToolResult::success(vec![Content::text(serde_json::to_string_pretty(&report)
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?)]));
+            return Ok(CallToolResult::success(vec![Content::text(report)]));
         }
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let code = resolve_audit_input(&req, std::path::Path::new(&ps.info.directory))?;
