@@ -8385,7 +8385,7 @@
         "private_task_plans": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\proposal-task-candidate-plans-20261104.json",
         "private_source_judgment": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\proposal-task-source-oracle-judgment-20261104.json",
         "capability": "detail=summary optional, graphdefaultunchanged,12KiBtarget/immediateactions/counts/gaps/omissions/freshgraphcontinuation; summaryskips liveonehop/historyworkers.",
-        "remaining": "Fix self-contained summary references and validate next consumer findings; broaden accepted-task checks. Original31/19 and EG24 regular multicategory benchmark remain unfinished.",
+        "remaining": "Self-contained compact references are fixed and deployed in 910f692. Exact-file CodeMap context cost, recorded position quality, and SQL recovery remain open. The original 31 findings, 19 full audit gates, and EG24 remain individually tracked and unfinished.",
         "source_commit": "15d4c08",
         "deployed_evidence": {
           "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-summary-deployed-evidence-20261104.json",
@@ -8399,10 +8399,37 @@
           "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-summary-blind-consumer-review-20261104.json",
           "sha256": "d4f27e1a542990fbf4c74812d0fa93552bd2a16bbcbded97d24dc1de68f21807"
         }
+      },
+      "agent_evidence_clarity_followup": {
+        "state": "Deployed and verified through the installed daemon; broader agent usability gaps remain open.",
+        "source_commit": "910f692",
+        "deployed_evidence": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-clarity-deployed-evidence-20261104.json",
+          "sha256": "fbc4bdc30f911e5cfb381f10ce6927df05304bb48a1a9c6d07ea2c88dd81b5ed"
+        },
+        "summary_bytes": {
+          "impact_analysis": 9722,
+          "compute_blast_radius": 9722
+        },
+        "blind_consumer": "A fresh agent selected the executable source inspection, treated recorded positions as metadata, and needed no missing reference registry.",
+        "security_trial": {
+          "state": "PARTIAL_NOT_SUCCESS",
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-security-task-assessment-20261104.json",
+            "sha256": "ce9e91e4fcfdbf269ece26c00e0e1772921bf6394fd54169b9a14c13c6f53fc8"
+          },
+          "qualification": "The first three CodeMap calls used an initial five-schema harness. Full search discovery was supplied before call four. This was not an unrestricted toolbelt comparison or held-out benchmark.",
+          "next_highest_value": "Reduce exact-file declaration pages while preserving identities, kinds, ranges, coverage, pagination, and an executable source action. Offer richer actions for a selected declaration."
+        },
+        "remaining": [
+          "Recorded invocation location quality: graph line 92 is the declaration; the actual invocation is line 96. The summary labels it as metadata, but extractor accuracy is not fixed.",
+          "SQL file targets with 0..0 ranges lack useful source/invocation recovery; the provider/configuration consumer chain remains unresolved.",
+          "Broader actual task coverage and the regular multi-category CI benchmark remain unfinished."
+        ]
       }
     }
   },
-  "last_updated_at": "2026-11-04T20:18:05.078392+00:00",
+  "last_updated_at": "2026-11-04T20:45:20.914566+00:00",
   "current_execution_focus": {
     "at_utc": "2026-11-04T11:12:56.875854+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
@@ -8435,7 +8462,7 @@
       }
     ],
     "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
-    "next_user_visible_deliverable": "CodeMap and Blast Radius for agents: resolve concrete summary-reference/witness/recovery usability gaps from fresh consumer, then evaluate additional actual proposed-change workflows against independent source. Optional summary deployed15d4c08; no perfection claim.",
+    "next_user_visible_deliverable": "Improve CodeMap and Blast Radius for agents: reduce repeated actions on exact-file declaration pages while preserving identities, source reads, coverage, pagination, and richer actions for a selected declaration. Recheck the actual security pages and repeat the task with complete tool discovery. Keep SQL recovery/provider-chain and callsite-position gaps explicitly open.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
