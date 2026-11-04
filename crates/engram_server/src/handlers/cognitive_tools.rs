@@ -1804,8 +1804,16 @@ impl Engram {
         validate_project_id(&req.project_id)?;
         let pid = req.project_id;
         let rec = self.ensure_project_record(&pid).await?;
-        let gen_ = self.get_active_generation(&pid).await.unwrap_or(1);
         let ps = self.ensure_project_runtime(&pid).await?;
+        let (gen_, source_view) = self.pin_active_source_generation(&pid, &ps.search).await?;
+        let source_view = std::sync::Arc::new(source_view);
+        let search = ps.search.clone();
+        let selected_pid = pid.clone();
+        let selected_view = source_view.clone();
+        let source_summary = tokio::task::spawn_blocking(move || {
+            search.selected_source_summary(&selected_pid, gen_, selected_view)
+        }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?
+            .map_err(|error| McpError::internal_error(format!("Selected source overview unavailable: {error:#}"), None))?;
 
         let rules = self.state.registry.clone();
         let pid_clone = pid.clone();
@@ -1861,32 +1869,62 @@ impl Engram {
         };
         insight_nodes.sort_by(|a, b| insight_created(b).cmp(&insight_created(a)));
 
-        let tantivy_docs = ps.search.count_docs(&pid).unwrap_or(0);
-        let lancedb_rows = ps.search.count_vectors(&pid).await.unwrap_or(0);
-        let ns_counts = ps.search.count_docs_by_namespace(&pid).unwrap_or_default();
+        let search = ps.search.clone();
+        let corpus_pid = pid.clone();
+        let (tantivy_docs, ns_counts) = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
+            Ok((search.count_docs(&corpus_pid)?, search.count_docs_by_namespace(&corpus_pid)?))
+        }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?
+            .map_err(|error| McpError::internal_error(format!("Retained corpus inventory unavailable: {error:#}"), None))?;
         let antipattern_docs = ns_counts.get("antipattern").copied().unwrap_or(0);
         let history_docs = ns_counts.get("history").copied().unwrap_or(0);
-        let lang_counts = ps.search.count_docs_by_language(&pid).unwrap_or_default();
 
         let graph = self.state.graph.clone();
         let pid_clone2 = pid.clone();
-        let active_gen = gen_;
+        let membership = ps.search.selected_source_revision_lookup(&pid, gen_, source_view.clone())
+            .map_err(|error| McpError::internal_error(error.to_string(), None))?;
         let (
             node_type_counts,
             edge_kind_counts,
-            centrality,
+            source_candidates,
             state_usage_data,
             dead_code_count,
             test_file_count,
             total_file_count,
-        ) = tokio::task::spawn_blocking(move || {
-            let ntc = graph.count_nodes_by_type(&pid_clone2).unwrap_or_default();
-            let ekc = graph.count_edges_by_kind(&pid_clone2).unwrap_or_default();
-            let pr = engram_graph::analysis::compute_pagerank(&graph, &pid_clone2, active_gen).ok();
-
-            let state_nodes = graph
-                .query_nodes(&pid_clone2, Some("global_state"), None, None, 100)
-                .unwrap_or_default();
+            graph_sample,
+            graph_sample_capped,
+        ) = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
+            let ntc = graph.count_nodes_by_type(&pid_clone2)?;
+            let ekc = graph.count_edges_by_kind(&pid_clone2)?;
+            let mut nodes = graph.query_nodes(&pid_clone2, None, None, None, 4097)?;
+            let capped = nodes.len() > 4096;
+            nodes.truncate(4096);
+            let mut source_candidates = Vec::new();
+            let mut file_admission = std::collections::HashMap::new();
+            let mut code_nodes = Vec::new();
+            for kind in ["web_service", "http_handler", "wcf_service", "class", "interface", "function", "page", "ui_container"] {
+                code_nodes.extend(graph.query_nodes(&pid_clone2, Some(kind), None, None, 65)?.into_iter().take(64));
+            }
+            for node in &code_nodes {
+                if membership.matches(node.file_path.as_str(), node.generation)? != Some(true) { continue; }
+                let admitted = match file_admission.get(node.file_path.as_str()) {
+                    Some(admitted) => *admitted,
+                    None => {
+                        let admitted = match graph.get_node(&pid_clone2, &format!("file:{}", node.file_path.as_str()))? {
+                            Some(file) => membership.matches(node.file_path.as_str(), file.generation)? == Some(true),
+                            None => false,
+                        };
+                        file_admission.insert(node.file_path.as_str().to_owned(), admitted);
+                        admitted
+                    }
+                };
+                if admitted {
+                    source_candidates.push((node.file_path.as_str().to_owned(), node.node_type.clone(), node.name.clone()));
+                }
+            }
+            source_candidates.sort();
+            source_candidates.dedup();
+            source_candidates.truncate(12);
+            let state_nodes: Vec<_> = nodes.iter().filter(|node| node.node_type == "global_state").take(100).collect();
             let mut state_usage: Vec<(String, usize, usize)> =
                 Vec::with_capacity(state_nodes.len());
             for sn in &state_nodes {
@@ -1904,9 +1942,7 @@ impl Engram {
 
             let mut dead = 0usize;
             let mut test_files = 0usize;
-            let file_nodes = graph
-                .query_nodes(&pid_clone2, Some("file"), None, None, 5000)
-                .unwrap_or_default();
+            let file_nodes: Vec<_> = nodes.iter().filter(|node| node.node_type == "file").collect();
             let total_files = file_nodes.len();
             for f in &file_nodes {
                 let path_lower = f.file_path.as_str().to_lowercase();
@@ -1917,9 +1953,7 @@ impl Engram {
                     test_files += 1;
                 }
             }
-            let func_nodes = graph
-                .query_nodes(&pid_clone2, Some("function"), None, None, 2000)
-                .unwrap_or_default();
+            let func_nodes: Vec<_> = nodes.iter().filter(|node| node.node_type == "function").take(2000).collect();
             for func in &func_nodes {
                 let incoming = graph
                     .find_incoming_edges(&pid_clone2, None, &func.node_id, 1)
@@ -1928,10 +1962,11 @@ impl Engram {
                     dead += 1;
                 }
             }
-            (ntc, ekc, pr, state_usage, dead, test_files, total_files)
+            Ok((ntc, ekc, source_candidates, state_usage, dead, test_files, total_files, nodes, capped))
         })
         .await
-        .unwrap_or_default();
+        .map_err(|error| McpError::internal_error(error.to_string(), None))?
+        .map_err(|error| McpError::internal_error(format!("Graph inventory unavailable: {error:#}"), None))?;
 
         let mut out = String::with_capacity(6144);
         out.push_str(&format!("Codebase Overview: {}\n", rec.project_name));
@@ -1940,10 +1975,25 @@ impl Engram {
         out.push_str(&format!("directory: {}\n", rec.directory));
         out.push_str(&format!("active_generation: {}\n", gen_));
         out.push_str(&format!("repo_rules: {}\n", rule_count));
-        out.push_str(&format!("chunks_indexed: {}\n", tantivy_docs));
-        out.push_str(&format!("vectors_stored: {}\n", lancedb_rows));
-        out.push_str(&format!("history_docs: {}\n", history_docs));
-        out.push_str(&format!("antipattern_docs: {}\n", antipattern_docs));
+        out.push_str("\n--- Current Source (held published selection) ---\n");
+        match source_summary.source_files {
+            Some(files) => out.push_str(&format!("source_files: {files}\n")),
+            None => out.push_str("source_files: unknown (legacy selection has no complete file manifest)\n"),
+        }
+        out.push_str(&format!("source_chunks: {}\n", source_summary.source_chunks));
+        if !source_summary.files_by_directory.is_empty() {
+            out.push_str("\n--- Source Areas (selected file identities; directory layout, not inferred architecture) ---\n");
+            let mut directories: Vec<_> = source_summary.files_by_directory.iter().collect();
+            directories.sort_by(|a,b| b.1.cmp(a.1).then_with(|| a.0.cmp(b.0)));
+            for (directory, count) in directories { out.push_str(&format!("  {directory}: {count} files\n")); }
+            if source_summary.directories_truncated { out.push_str("  Additional directory groups omitted; displayed groups are not the whole file total.\n"); }
+        }
+        out.push_str("\n--- Retained Corpus Inventory (all namespaces and physical revisions; separate observations) ---\n");
+        out.push_str(&format!("retained_index_documents: {tantivy_docs}\n"));
+        out.push_str(&format!("retained_memory_documents: {}\n", ns_counts.get("memory").copied().unwrap_or(0)));
+        out.push_str(&format!("retained_history_documents: {history_docs}\n"));
+        out.push_str(&format!("retained_antipattern_documents: {antipattern_docs}\n"));
+        out.push_str("retained_vector_rows: not measured (overview does not open native vector tables)\n");
 
         // --- Agent Memory --- always shown, even at zero, so an agent learns
         // the surface exists and can seed it with update_memory_bank.
@@ -1977,13 +2027,13 @@ impl Engram {
             }
         }
 
-        if !lang_counts.is_empty() {
-            let mut lang_sorted: Vec<_> = lang_counts.into_iter().collect();
-            lang_sorted.sort_by(|a, b| b.1.cmp(&a.1));
-            out.push_str("\n--- Language Breakdown (chunks) ---\n");
+        if !source_summary.chunks_by_language.is_empty() {
+            let mut lang_sorted: Vec<_> = source_summary.chunks_by_language.into_iter().collect();
+            lang_sorted.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+            out.push_str("\n--- Language Breakdown (selected source chunks) ---\n");
             for (lang, count) in &lang_sorted {
-                let pct = if tantivy_docs > 0 {
-                    (*count as f64 / tantivy_docs as f64 * 100.0) as u32
+                let pct = if source_summary.source_chunks > 0 {
+                    (*count as f64 / source_summary.source_chunks as f64 * 100.0) as u32
                 } else {
                     0
                 };
@@ -1995,12 +2045,13 @@ impl Engram {
             let mut nts: Vec<_> = node_type_counts.iter().collect();
             nts.sort_by(|a, b| b.1.cmp(a.1));
             let total_nodes: usize = node_type_counts.values().sum();
-            out.push_str(&format!("\n--- Symbol Types ({} total) ---\n", total_nodes));
+            out.push_str(&format!("\n--- Full Graph Node Types ({} total; all recorded revisions, not a source snapshot) ---\n", total_nodes));
             for (ntype, count) in &nts {
                 out.push_str(&format!("  {}: {}\n", ntype, count));
             }
         }
 
+        out.push_str("\nFull graph edges (all recorded revisions):\n");
         out.push_str(&render_edge_kind_histogram(&edge_kind_counts));
 
         {
@@ -2020,9 +2071,9 @@ impl Engram {
                 .copied()
                 .unwrap_or(0);
 
-            out.push_str("\n--- Architecture ---\n");
+            out.push_str("\n--- Full Graph Inventory (all recorded revisions; not current-source architecture) ---\n");
             if files > 0 {
-                out.push_str(&format!("  Source files: {}\n", files));
+                out.push_str(&format!("  Recorded file nodes: {}\n", files));
             }
             if classes > 0 || interfaces > 0 {
                 out.push_str(&format!(
@@ -2056,7 +2107,7 @@ impl Engram {
             }
         }
 
-        out.push_str("\n--- Code Quality ---\n");
+        out.push_str(&format!("\n--- Live Graph Sample ({} nodes; all recorded revisions{}) ---\n", graph_sample.len(), if graph_sample_capped { "; capped" } else { "" }));
         if total_file_count > 0 {
             let test_pct = (test_file_count as f64 / total_file_count as f64 * 100.0) as u32;
             out.push_str(&format!(
@@ -2066,7 +2117,7 @@ impl Engram {
         }
         if dead_code_count > 0 {
             out.push_str(&format!(
-                "  Potential dead functions (zero incoming refs): {}\n",
+                "  Sampled zero-incoming function candidates (not proof of dead code): {}\n",
                 dead_code_count
             ));
         }
@@ -2074,13 +2125,12 @@ impl Engram {
             out.push_str(&format!("  Anti-patterns indexed: {}\n", antipattern_docs));
         }
 
-        if let Some(metrics) = centrality {
-            let mut top_nodes: Vec<_> = metrics.pagerank.into_iter().collect();
-            top_nodes.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-            out.push_str("\n--- Top Central Nodes (PageRank) ---\n");
-            for (id, score) in top_nodes.iter().take(10) {
-                out.push_str(&format!("  {} ({:.4})\n", id, score));
-            }
+        out.push_str("\n--- Source Entry/Type Candidates (up to64/type from live graph; selected file revisions, not runtime entry-point proof) ---\n");
+        if source_candidates.is_empty() {
+            out.push_str("  No selection-matched code candidates in this bounded graph sample; coverage is unknown.\n");
+        }
+        for (path, kind, name) in source_candidates {
+            out.push_str(&format!("  {path}: {name} ({kind})\n"));
         }
 
         let table_nodes = self
@@ -2090,7 +2140,7 @@ impl Engram {
             .unwrap_or_default();
         if !table_nodes.is_empty() {
             out.push_str(&format!(
-                "\n--- Database Tables ({}) ---\n",
+                "\n--- Database Tables ({} sampled; full graph, all recorded revisions) ---\n",
                 table_nodes.len()
             ));
             let names: Vec<_> = table_nodes
@@ -2106,7 +2156,7 @@ impl Engram {
 
         if !state_usage_data.is_empty() {
             out.push_str(&format!(
-                "\n--- Global State Keys ({} total) ---\n",
+                "\n--- Global State Keys ({} sampled; full graph) ---\n",
                 state_usage_data.len()
             ));
             for (name, reads, writes) in state_usage_data.iter().take(10) {
@@ -2124,7 +2174,7 @@ impl Engram {
             engram_graph::algorithms::coupling::top_project_couplings(&self.state.graph, &pid, 5)
                 .unwrap_or_default();
         if !couplings.is_empty() {
-            out.push_str("\n--- Top Temporal Couplings ---\n");
+            out.push_str("\n--- Retained Historical Temporal Couplings ---\n");
             for c in couplings {
                 out.push_str(&format!(
                     "  {} <-> {} (w={})\n",
@@ -2139,17 +2189,11 @@ impl Engram {
         {
             let graph = self.state.graph.clone();
             let pid_conv = pid.clone();
+            let house_source = source_view.clone();
             let (guards, roles, settings_tables, app_settings, top_bases) =
                 tokio::task::spawn_blocking(move || {
-                    let nodes = graph
-                        .query_nodes(
-                            &pid_conv,
-                            None,
-                            None,
-                            None,
-                            crate::handlers::NODE_SCAN_LIMIT,
-                        )
-                        .unwrap_or_default();
+                    let _held_source = house_source;
+                    let nodes = graph_sample;
                     let mut guards: std::collections::HashMap<String, usize> = Default::default();
                     let mut roles: std::collections::HashMap<String, usize> = Default::default();
                     let mut settings_tables: Vec<String> = Vec::new();
@@ -2210,7 +2254,7 @@ impl Engram {
                 .unwrap_or_default();
 
             if !guards.is_empty() || app_settings > 0 || !settings_tables.is_empty() {
-                out.push_str("\n--- House Conventions ---\n");
+                out.push_str("\n--- House Convention Candidates (bounded full-graph sample; observations, not accepted policy) ---\n");
                 if !guards.is_empty() {
                     let mut gs: Vec<_> = guards.into_iter().collect();
                     gs.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
@@ -2239,7 +2283,7 @@ impl Engram {
                 );
             }
             if !top_bases.is_empty() {
-                out.push_str("\n--- Most-Inherited Types (edit with care — every derived class is blast radius) ---\n");
+                out.push_str("\n--- Most-Inherited Types (bounded live graph sample; not a selected-source blast-radius proof) ---\n");
                 for (name, c) in &top_bases {
                     out.push_str(&format!("  {name} <- {c} derived/implementing type(s)\n"));
                 }

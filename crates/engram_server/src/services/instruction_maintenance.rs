@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::BTreeSet, io::Read, path::Path};
 
 pub mod area_draft;
+pub mod area_evidence;
 pub mod manifest;
 
 const FILE_LIMIT: usize = 128 * 1024;
@@ -16,6 +17,11 @@ const PACKET_LIMIT: usize = 768 * 1024;
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MaintenanceRequest {
+    /// Assemble indexed area files, consumers and applicable shared guidance
+    /// before drafting. Available through pre_push_audit; explicit-path offline
+    /// maintenance remains unchanged when this is omitted.
+    #[serde(default)]
+    pub area_context: Option<area_evidence::AreaSelection>,
     /// Complete authored guidance to review. Existing and new targets together
     /// are limited to eight. New-only drafting may omit existing instructions.
     #[serde(default)]
@@ -24,8 +30,10 @@ pub struct MaintenanceRequest {
     /// absent at the requested commit and on current disk. Proposals only.
     #[serde(default)]
     pub new_instruction_targets: Vec<area_draft::NewTarget>,
-    /// All relevant code, shared guidance and decision evidence, 1..16 paths.
-    /// Explicit selection is not proof that every dependency was discovered.
+    /// Complete code/shared guidance/decision evidence, 1..16 explicit paths.
+    /// Optional seeds when area_context assembles evidence automatically.
+    /// Selection is not proof that every dependency was discovered.
+    #[serde(default)]
     pub evidence_paths: Vec<String>,
     /// Exact full commit ID for before evidence. After evidence is current disk.
     pub base_commit: String,
@@ -132,6 +140,8 @@ pub struct Packet {
     pub evidence: Vec<Evidence>,
     pub references: Vec<Reference>,
     pub instruction_manifest: manifest::Manifest,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub area_evidence: Option<area_evidence::AreaEvidence>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -282,6 +292,7 @@ fn committed(
 /// Pure request validation: callers can reject malformed observation requests
 /// before starting an update, without reading or writing project files.
 pub fn validate_observation_request(req: &MaintenanceRequest) -> Result<()> {
+    ensure!(req.area_context.is_none(), "Collect area evidence through pre_push_audit");
     ensure!(
         req.new_instruction_targets.is_empty(),
         "Collect new area drafts through pre_push_audit; this operation observes existing instructions"
@@ -300,13 +311,21 @@ pub fn validate_observation_request(req: &MaintenanceRequest) -> Result<()> {
 }
 
 pub fn capture(root: &Path, project_id: &str, req: &MaintenanceRequest) -> Result<Packet> {
+    ensure!(req.area_context.is_none(), "Indexed area evidence is collected through pre_push_audit");
+    capture_with_area(root, project_id, req, None)
+}
+
+fn capture_with_area(root: &Path, project_id: &str, req: &MaintenanceRequest,
+    area: Option<&area_evidence::AreaEvidence>) -> Result<Packet> {
     let instruction_paths =
         if req.instruction_paths.is_empty() && !req.new_instruction_targets.is_empty() {
             Vec::new()
         } else {
             paths(&req.instruction_paths, 8)?
         };
-    let evidence_paths = paths(&req.evidence_paths, 16)?;
+    let evidence_paths = if req.evidence_paths.is_empty() && area.is_some() {
+        Vec::new()
+    } else { paths(&req.evidence_paths, 16)? };
     let targets = area_draft::validate_targets(
         &req.new_instruction_targets,
         &instruction_paths,
@@ -362,6 +381,9 @@ pub fn capture(root: &Path, project_id: &str, req: &MaintenanceRequest) -> Resul
     for instruction in &mut instructions {
         instruction.before = committed(&repo, &tree, &instruction.path, &mut remaining)?;
     }
+    let shared_roots = area.map(|area| area.files.iter()
+        .filter(|file| file.roles.contains("shared_guidance"))
+        .map(|file| file.path.clone()).collect::<Vec<_>>()).unwrap_or_default();
     let instruction_manifest = manifest::capture(
         &root,
         &repo,
@@ -369,11 +391,17 @@ pub fn capture(root: &Path, project_id: &str, req: &MaintenanceRequest) -> Resul
         &req.base_commit,
         &instructions,
         &evidence,
+        &shared_roots,
+        area.map(|area| area.excluded_paths.as_slice()).unwrap_or_default(),
         &mut remaining,
     )?;
     let references = references(&instructions, &instruction_manifest);
+    let mut area_evidence = area.cloned();
+    if let Some(area) = &mut area_evidence {
+        area_evidence::bind(area, &evidence, &instructions);
+    }
     Ok(Packet {
-        version: 4,
+        version: if area.is_some() { 5 } else { 4 },
         project_id: project_id.into(),
         project_root_blake3: blake3::hash(root.to_string_lossy().as_bytes())
             .to_hex()
@@ -384,6 +412,7 @@ pub fn capture(root: &Path, project_id: &str, req: &MaintenanceRequest) -> Resul
         evidence,
         references,
         instruction_manifest,
+        area_evidence,
     })
 }
 
@@ -605,7 +634,13 @@ fn validate(packet: &Packet, draft: &MaintenanceDraft) -> Result<Vec<Proposal>> 
 }
 
 pub fn review(root: &Path, project_id: &str, req: &MaintenanceRequest) -> Result<Report> {
-    let packet = capture(root, project_id, req)?;
+    ensure!(req.area_context.is_none(), "Indexed area evidence is collected through pre_push_audit");
+    review_with_area(root, project_id, req, None)
+}
+
+pub(crate) fn review_with_area(root: &Path, project_id: &str, req: &MaintenanceRequest,
+    area: Option<&area_evidence::AreaEvidence>) -> Result<Report> {
+    let packet = capture_with_area(root, project_id, req, area)?;
     let packet_blake3 = packet_hash(&packet)?;
     let proposals = req
         .draft
@@ -630,7 +665,7 @@ pub fn review(root: &Path, project_id: &str, req: &MaintenanceRequest) -> Result
     // or validated proposal. This is an observation, never a filesystem lock
     // or authorization to apply after a later human edit.
     ensure!(
-        packet == capture(root, project_id, req)?,
+        packet == capture_with_area(root, project_id, req, area)?,
         "Maintenance inputs changed during collection; retry"
     );
     let report = Report {

@@ -253,8 +253,12 @@ fn collect_dependency(
     instructions: &[Instruction],
     evidence: &[Evidence],
     dependencies: &mut BTreeMap<String, Dependency>,
+    excluded_paths: &[String],
     remaining: &mut usize,
 ) -> Option<&'static str> {
+    if excluded_paths.iter().any(|scope| super::area_evidence::within(path, scope)) {
+        return Some("excluded_area_boundary");
+    }
     if view(path, version, instructions, evidence, dependencies).is_some() {
         return None;
     }
@@ -321,6 +325,8 @@ pub(super) fn capture(
     base: &str,
     instructions: &[Instruction],
     evidence: &[Evidence],
+    additional_roots: &[String],
+    excluded_paths: &[String],
     remaining: &mut usize,
 ) -> Result<Manifest> {
     let mut dependencies = BTreeMap::new();
@@ -331,6 +337,11 @@ pub(super) fn capture(
     for instruction in instructions {
         for version in [Version::Before, Version::After] {
             queue.push_back((instruction.path.clone(), version, 0));
+        }
+    }
+    for path in additional_roots {
+        for version in [Version::Before, Version::After] {
+            queue.push_back((path.clone(), version, 0));
         }
     }
     while let Some((source, version, depth)) = queue.pop_front() {
@@ -404,6 +415,7 @@ pub(super) fn capture(
                             instructions,
                             evidence,
                             &mut dependencies,
+                            excluded_paths,
                             remaining,
                         );
                         let status = omitted.unwrap_or_else(|| {
@@ -448,6 +460,7 @@ pub(super) fn capture(
                     instructions,
                     evidence,
                     &mut dependencies,
+                    excluded_paths,
                     remaining,
                 ) {
                     edge.status = status;

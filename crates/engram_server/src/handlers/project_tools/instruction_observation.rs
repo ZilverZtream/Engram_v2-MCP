@@ -191,6 +191,7 @@ mod tests {
             let registry = state.registry.clone();
             let engram = Engram::new(state);
             let request = MaintenanceRequest {
+                area_context: None,
                 new_instruction_targets: Vec::new(),
                 instruction_paths: vec!["area.md".into()],
                 evidence_paths: vec!["helper.rs".into()],
