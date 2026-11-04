@@ -742,7 +742,7 @@ impl Engram {
     // ---- Agent / cognitive tools ----
 
     #[tool(
-        description = "1-HOP incoming impact of a file or symbol (NOT transitive; no ripple beyond direct dependents). Separates CAUSAL dependents (calls/uses/imports/state/table/api — may break) from structural context and historical companions (co-change — not breakage), names the contained symbol each dependent reaches, reports unique-node counts with honest truncation, and the evidence body is deterministic across runs (the trailing freshness footer varies with index age). Takes no change spec: results are whole-target exposure. Use compute_blast_radius for the advisory risk profile."
+        description = "Incoming change exposure for a file or symbol. Includes a bounded causal path walk under one published source selection (max_depth defaults to6, valid1..8;1 is direct-only), with actual intermediate node/path/line/edge witnesses. Node and file revisions must match the source selection; stale, dangling, missing and unverified source-edge bindings remain gaps. Depth/work/display limits are explicit. Historical companions and structural containment never create causal paths. The separate legacy one-hop live-graph inventory is not source-revision validated. No proposed-change simulation, exhaustive runtime coverage or safe-change guarantee."
     )]
     pub async fn impact_analysis(
         &self,
@@ -812,7 +812,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Project orientation from one held published source selection: source file/chunk counts, language proportions and a bounded directory map. Retained history/knowledge and full-graph inventory are shown separately. Source entry/type candidates are sampled indexed declarations, not proven runtime entry points or an exhaustive architecture map. Does not open native vector tables. For a concrete question or change request use ask_codebase; for a known identifier use search_memory or resolve_id."
+        description = "Project orientation from one held published source selection: source file/chunk counts, file-type proportions, separately labelled chunk-language proportions and a bounded directory map. File, chunk and byte shares are different measures; no filesystem byte/LOC scan is performed. Retained history/knowledge and full-graph inventory are shown separately. Source entry/type candidates are sampled indexed declarations, not proven runtime entry points or exhaustive architecture. Does not open native vector tables. For task-specific evidence use ask_codebase; for a known identifier use search_memory or resolve_id."
     )]
     pub async fn get_codebase_overview(
         &self,
@@ -1136,7 +1136,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "ADVISORY 1-hop exposure profile for a file/symbol: causal dependents (what may break), historical companions (co-change, NOT breakage), raw degree, and a 1-10 heuristic risk. NOT a transitive change-impact analysis and it takes no proposed change (a comment edit and a signature change score the same). Counts are capped and flagged as lower bounds when truncated. Use it to orient, not to authorize; treat 7+ as 'plan carefully'. Quick verdict variant: check_edit_safety."
+        description = "Advisory one-hop exposure score PLUS a separately revision-admitted causal downstream path walk (max_depth default6, range1..8). The walk retains actual per-hop witnesses, admits matching selected node/file/edge revisions and discloses depth/work/display/missing-binding gaps. Historical co-change is separate from causal exposure. The live-graph1..10 heuristic score is uncalibrated and not source-revision validated; neither section simulates the proposed code change or proves safety/exhaustive runtime impact. Use impact_analysis for the detailed path report; check_edit_safety for the compact existing advisory verdict."
     )]
     pub async fn compute_blast_radius(
         &self,

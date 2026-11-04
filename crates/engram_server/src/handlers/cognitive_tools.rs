@@ -236,6 +236,10 @@ impl Engram {
         req: ImpactAnalysisRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        if !(1..=8).contains(&req.max_depth) {
+            return Err(McpError::invalid_params("max_depth must be 1..8", None));
+        }
+        let walk_request = req.clone();
         let _ = self.ensure_project_runtime(&req.project_id).await?;
 
         // Exactly one target. Previously both were accepted and the symbol
@@ -682,7 +686,7 @@ impl Engram {
                  signature change would read the same here.\n",
             );
             out.push_str(&format!(
-                "**Confirmed unique dependents**: {causal_total} causal (may break), \
+                "**Live-graph unique candidates (source revisions unverified)**: {causal_total} causal (may break), \
                  {possible_total} possible (runtime-observed), {structural_total} structural, \
                  {companion_total} historical companions, {annotation_total} annotations"
             ));
@@ -727,7 +731,7 @@ impl Engram {
                 cov.push("edge-confidence lookup failed (confidences shown as unknown)".into());
             }
             if cov.is_empty() {
-                out.push_str("**Coverage**: complete for every tier.\n");
+                out.push_str("**Live-graph query coverage**: complete for every tier; current-source and runtime coverage not established.\n");
             } else {
                 out.push_str(&format!("⚠ **Coverage**: {}.\n", cov.join("; ")));
             }
@@ -753,7 +757,7 @@ impl Engram {
                     n += 1;
                 }
             };
-            out.push_str("\n## Causal dependents (confirmed; may break if this changes)\n");
+            out.push_str("\n## Causal dependents (live-graph candidates; source revisions unverified)\n");
             if causal_total == 0 {
                 out.push_str("(none — no calls/uses/imports/state/table/api edges reach this)\n");
             } else {
@@ -828,17 +832,23 @@ impl Engram {
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e, None))?;
 
-        let mut result = out;
+        let (walk, _impact_source_hold, walk_generation) = crate::services::impact_walk_service::collect(
+            &self.state, &walk_request.project_id, walk_request.file_path, walk_request.symbol_fqn,
+            walk_request.max_depth, walk_request.limit,
+        ).await;
+        let mut result = walk;
+        result.push_str("\n## Unverified live-graph context\n\nLive-graph inventory below is not source-revision validated. Its query coverage/counts do not establish current-codebase completeness or a safe change.\n\n");
+        result.push_str(&out);
         if let Some(ref fp) = file_path_for_confidence {
             let rel = engram_core::RelPath::from(fp.as_str());
             let lang = engram_core::guess_language(std::path::Path::new(fp));
             result.push_str(&self.confidence_footer(&rel, lang));
         }
-        let gen_ = self
-            .get_active_generation(&project_id_outer)
-            .await
-            .unwrap_or(1);
-        result.push_str(&self.freshness_footer(&project_id_outer, gen_).await);
+        if let Some(generation) = walk_generation {
+            result.push_str(&self.freshness_footer(&project_id_outer, generation).await);
+        } else {
+            result.push_str("\nSource generation unavailable; no fresh-source assurance.\n");
+        }
 
         Ok(CallToolResult::success(vec![Content::text(result)]))
     }
@@ -1981,6 +1991,18 @@ impl Engram {
             None => out.push_str("source_files: unknown (legacy selection has no complete file manifest)\n"),
         }
         out.push_str(&format!("source_chunks: {}\n", source_summary.source_chunks));
+        out.push_str("\n--- File Types (selected source files) ---\n");
+        if let Some(files) = source_summary.source_files {
+            out.push_str(&format!("denominator: {files} selected source files\n"));
+            let mut types: Vec<_> = source_summary.files_by_extension.iter().collect();
+            types.sort_by(|a, b| b.1.cmp(a.1).then_with(|| a.0.cmp(b.0)));
+            for (extension, count) in types {
+                let percent = if files > 0 { (*count as f64 / files as f64 * 100.0) as u32 } else { 0 };
+                out.push_str(&format!("  {extension}: {count} ({percent}%)\n"));
+            }
+        } else {
+            out.push_str("unknown (legacy selection has no complete file manifest; no file percentages calculated)\n");
+        }
         if !source_summary.files_by_directory.is_empty() {
             out.push_str("\n--- Source Areas (selected file identities; directory layout, not inferred architecture) ---\n");
             let mut directories: Vec<_> = source_summary.files_by_directory.iter().collect();
@@ -2031,6 +2053,7 @@ impl Engram {
             let mut lang_sorted: Vec<_> = source_summary.chunks_by_language.into_iter().collect();
             lang_sorted.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
             out.push_str("\n--- Language Breakdown (selected source chunks) ---\n");
+            out.push_str(&format!("denominator: {} selected source chunks (not file or byte percentages)\n", source_summary.source_chunks));
             for (lang, count) in &lang_sorted {
                 let pct = if source_summary.source_chunks > 0 {
                     (*count as f64 / source_summary.source_chunks as f64 * 100.0) as u32
@@ -3702,6 +3725,13 @@ impl Engram {
         &self,
         req: ComputeBlastRadiusRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
+        if !(1..=8).contains(&req.max_depth) {
+            return Err(McpError::invalid_params("max_depth must be 1..8", None));
+        }
+        if req.file_path.is_some() == req.symbol_fqn.is_some() {
+            return Err(McpError::invalid_params("Provide exactly one of file_path or symbol_fqn", None));
+        }
         let target_id = if let Some(ref fp) = req.file_path {
             let graph = self.state.graph.clone();
             let pid = req.project_id.clone();
@@ -3977,7 +4007,19 @@ impl Engram {
             }
         }
 
-        out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
+        out.push_str("\nThe advisory one-hop score above is live-graph evidence, not source-revision validated. The following walk separately admits indexed source revisions; it does not upgrade this score to a safety verdict.\n");
+        let (walk, _impact_source_hold, walk_generation) = crate::services::impact_walk_service::collect(
+            &self.state, &req.project_id, None, Some(report.target.clone()), req.max_depth, 25,
+        ).await;
+        let mut combined = walk;
+        combined.push_str("\n## Unverified one-hop advisory profile\n\n");
+        combined.push_str(&out);
+        out = combined;
+        if let Some(generation) = walk_generation {
+            out.push_str(&self.freshness_footer(&req.project_id, generation).await);
+        } else {
+            out.push_str("\nSource generation unavailable; the advisory score does not establish fresh-source coverage.\n");
+        }
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 

@@ -941,7 +941,7 @@ cancellation of a running watcher update.
 | `get_chunk` | Fetch content for a chunk ID |
 | `graph_search` | Hybrid text + symbol match with edge expansion |
 | `find_symbol_references` | Incoming / outgoing edges for a symbol across all edge kinds |
-| `get_codebase_overview` | Selected source files/chunks, language proportions and directory map; sampled source declarations; separately labelled retained history and full-graph DB/state/edge inventory |
+| `get_codebase_overview` | Selected source files/chunks, file-type proportions and directory map; separately labelled chunk-language proportions, retained history and full-graph inventory |
 | `analyze_error_stack` | Multi-language structured stacktrace parser with frame-boosted search |
 
 </details>
@@ -952,10 +952,30 @@ cancellation of a running watcher update.
 | Tool | Purpose |
 |---|---|
 | `query_graph_nodes` · `find_references` · `traverse_graph` | Core graph operations |
-| `impact_analysis` | Indexed direct (one-hop) exposure for a file or symbol; no proposed-change interpretation or transitive impact guarantee |
+| `impact_analysis` | Bounded revision-admitted downstream causal paths with per-hop witnesses; separate unverified live-graph context and historical companions |
 | `ast_dependency_graph` | BFS with edge-kind filters, up to 12 hops; tree or JSON output |
-| `compute_blast_radius` | Direct exposure plus an uncalibrated advisory score and seam candidates; does not prove low change risk or a complete blast radius |
+| `compute_blast_radius` | Advisory one-hop score plus a separate bounded revision-admitted downstream path walk; no safe-change or complete-impact guarantee |
 | `detect_design_patterns` | Structural pattern detection (Repository, Factory, Singleton…) |
+
+
+Both impact tools lead with revision-admitted causal paths. `max_depth` defaults
+to six (valid range 1..8); one requests direct callers only. Each displayed path
+retains its intermediate source locations and edge witnesses. Deeper paths are
+shown first under the response budget, with explicit display omissions. A file
+query names the contained declaration where each causal path starts; containment
+itself is not presented as a causal hop. Older live-graph counts and the one-hop
+risk score remain separately labelled advisory evidence.
+
+An unchanged caller can keep an older physical file revision when its callee
+moves. Internally bound caller-origin evidence preserves that relationship across
+refreshes; removing the call invalidates it. Older or conflicting bindings without
+sufficient provenance remain unknown. These tools do not simulate the proposed
+change, compile the project, verify current disk contents or prove runtime safety.
+
+Overview file percentages count selected file identities. Chunk-language
+percentages count retrieval units, whose sizes vary with boundaries and overlap.
+Neither is a byte/LOC share or a measure of authored business code. Indexing
+respects repository ignore rules; tracked vendor and generated files can remain.
 
 </details>
 

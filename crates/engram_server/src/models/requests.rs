@@ -1695,6 +1695,14 @@ pub struct ImpactAnalysisRequest {
     pub symbol_fqn: Option<String>,
     #[serde(default = "default_limit_50")]
     pub limit: usize,
+    /// Maximum incoming causal depth in the revision-admitted path walk.
+    /// Default six; one requests direct callers only. Valid range 1..8.
+    #[serde(default = "default_impact_depth")]
+    pub max_depth: usize,
+}
+
+fn default_impact_depth() -> usize {
+    6
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -2673,6 +2681,10 @@ pub struct ComputeBlastRadiusRequest {
     /// Include agentic migration guidance in the response. Default: true.
     #[serde(default = "default_true")]
     pub include_guidance: bool,
+    /// Incoming causal walk depth, separate from the advisory one-hop score.
+    /// Default six; valid range 1..8.
+    #[serde(default = "default_impact_depth")]
+    pub max_depth: usize,
 }
 
 // -------------------- Autonomous Decision Gate --------------------

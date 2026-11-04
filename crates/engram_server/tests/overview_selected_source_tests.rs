@@ -92,7 +92,10 @@ fn overview_counts_current_inherited_source_separately_from_retained_corpora_and
 
         let base = engram.state.registry.capture_source_head(PID).unwrap();
         search.prepare_source_snapshot(PID,1,2,&[RelPath::new(A)],&[],&cancel).await.unwrap();
-        search.index_docs(PID,&[doc("memory",2,4,A,"rust","current Rust source")],&cancel).await.unwrap();
+        search.index_docs(PID,&[
+            doc("memory",2,4,A,"rust","current Rust source one"),
+            doc("memory",2,10,A,"rust","current Rust source two"),
+        ],&cancel).await.unwrap();
         search.seal_source_snapshot(PID,2).unwrap();
         assert!(engram.state.registry.publish_source_head(&base,2).unwrap());
         // A real sealed, unpublished candidate remains physically present.
@@ -123,11 +126,16 @@ fn overview_counts_current_inherited_source_separately_from_retained_corpora_and
         engram.state.graph.upsert_edges(PID,&edges).unwrap();
         let before_knowledge = overview(&engram).await;
         assert!(before_knowledge.contains("source_files: 2\n"));
-        assert!(before_knowledge.contains("source_chunks: 2\n"));
-        assert!(before_knowledge.contains("retained_memory_documents: 5\n"));
+        assert!(before_knowledge.contains("source_chunks: 3\n"));
+        assert!(before_knowledge.contains("retained_memory_documents: 6\n"));
+        let file_types = section(&before_knowledge,"--- File Types (selected source files) ---");
+        assert!(file_types.contains("denominator: 2 selected source files"));
+        assert!(file_types.contains(".rs: 1 (50%)") && file_types.contains(".py: 1 (50%)"));
+        assert!(!file_types.contains(".vb"));
         assert!(before_knowledge.contains("src/service: 1 files") && before_knowledge.contains("src/model: 1 files"));
         let languages = section(&before_knowledge,"--- Language Breakdown (selected source chunks) ---");
-        assert!(languages.contains("rust: 1 (50%)") && languages.contains("python: 1 (50%)"));
+        assert!(languages.contains("denominator: 3 selected source chunks (not file or byte percentages)"));
+        assert!(languages.contains("rust: 2 (66%)") && languages.contains("python: 1 (33%)"));
         assert!(!languages.contains("vbnet"));
         let candidates = section(&before_knowledge,"--- Source Entry/Type Candidates");
         assert!(candidates.contains("CurrentService") && candidates.contains("InheritedModel"));
@@ -148,9 +156,10 @@ fn overview_counts_current_inherited_source_separately_from_retained_corpora_and
         search.index_docs(PID,&[doc("business_logic",1,8,"knowledge/note","vbnet","retained knowledge")],&cancel).await.unwrap();
         search.index_docs(PID,&[doc("antipattern",1,9,"history/pattern","vbnet","retained anti-pattern")],&cancel).await.unwrap();
         let after_knowledge = overview(&engram).await;
-        assert!(after_knowledge.contains("source_files: 2\n") && after_knowledge.contains("source_chunks: 2\n"));
+        assert!(after_knowledge.contains("source_files: 2\n") && after_knowledge.contains("source_chunks: 3\n"));
+        assert_eq!(section(&after_knowledge,"--- File Types (selected source files) ---"), file_types);
         assert_eq!(section(&after_knowledge,"--- Language Breakdown (selected source chunks) ---"), languages);
-        assert!(after_knowledge.contains("retained_index_documents: 9\n"));
+        assert!(after_knowledge.contains("retained_index_documents: 10\n"));
         assert!(after_knowledge.contains("retained_history_documents: 2\n"));
         assert!(after_knowledge.contains("retained_antipattern_documents: 1\n"));
         drop(old_view);
@@ -169,6 +178,9 @@ fn overview_reports_unknown_legacy_file_coverage_without_fabricating_zero_or_cur
         let report = overview(&engram).await;
         assert!(report.contains("source_files: unknown (legacy selection has no complete file manifest)"));
         assert!(!report.contains("source_files: 0"));
+        let file_types = section(&report,"--- File Types (selected source files) ---");
+        assert!(file_types.contains("unknown") && file_types.contains("no file percentages calculated"));
+        assert!(!file_types.contains(".rs: 0") && !file_types.contains("(0%)"));
         assert!(report.contains("source_chunks: 1\n"));
         assert!(report.contains("rust: 1 (100%)"));
         assert!(report.contains("coverage is unknown"));

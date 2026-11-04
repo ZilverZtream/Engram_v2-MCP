@@ -15,6 +15,10 @@ use atomic_learning::{increment_edges_in_tx, upsert_nodes_in_tx};
 mod source_stat;
 mod file_metadata_scan;
 mod centrality_cache;
+mod impact_walk;
+pub use impact_walk::{
+    ImpactAdmission, ImpactWalkCoverage, ImpactWalkNode, ImpactWitness, IncomingImpactWalk,
+};
 pub use source_stat::{FileStatPatch, FileStatPatchReport, VerifiedFileStat, file_metadata_digest};
 
 // ─── Table definitions ───────────────────────────────────────────────────────
@@ -2518,6 +2522,7 @@ impl GraphStore {
         let (edge_keys_to_remove, remapped_edges) = {
             let rtx = self.db.begin_read()?;
             let et = rtx.open_table(EDGES)?;
+            let nt = rtx.open_table(NODES)?;
             let mut keys = Vec::new();
             let mut remapped: Vec<Edge> = Vec::new();
             for r in et.range(prefix.as_str()..)? {
@@ -2602,6 +2607,15 @@ impl GraphStore {
                     ne.source_id = src;
                     ne.target_id = tgt;
                     ne.generation = active_generation;
+                    let source = if source_derived && e.source_id == ne.source_id {
+                        let source_key = format!("{project_id}\0{}", e.source_id);
+                        nt.get(source_key.as_str())?
+                            .map(|value| bincode::deserialize::<Node>(value.value()))
+                            .transpose()?
+                    } else {
+                        None
+                    };
+                    impact_walk::bind_remapped_source_origin(&e, &mut ne, source.as_ref());
                     remapped.push(ne);
                 }
             }
