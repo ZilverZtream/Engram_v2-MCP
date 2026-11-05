@@ -49,6 +49,8 @@ mod vector_mutations;
 #[cfg(feature = "vector")]
 mod vector_reads;
 #[cfg(feature = "vector")]
+mod vector_generation_inventory;
+#[cfg(feature = "vector")]
 mod vector_recovery_scan;
 
 #[derive(Debug, Clone)]
@@ -2408,6 +2410,20 @@ impl HybridSearchEngine {
         namespace: Option<&str>,
         generation: u64,
     ) -> anyhow::Result<std::collections::BTreeSet<String>> {
+        self.vector_generation_inventory(project_id, namespace, generation)
+            .await
+            .map(|(_, paths)| paths)
+    }
+
+    /// One complete selected-vector observation: total rows and distinct paths.
+    /// Counting rows separately would plan and scan the same filtered dataset
+    /// again. Return neither observation until the bounded stream reaches EOF.
+    pub async fn vector_generation_inventory(
+        &self,
+        project_id: &str,
+        namespace: Option<&str>,
+        generation: u64,
+    ) -> anyhow::Result<(usize, std::collections::BTreeSet<String>)> {
         #[cfg(feature = "vector")]
         {
             use lancedb::query::Select;
@@ -2429,38 +2445,23 @@ impl HybridSearchEngine {
                     .await?
                     .contains(&table_name)
                 {
-                    return Ok(Default::default());
+                    return Ok((0, Default::default()));
                 }
                 let table = worker.open_vector_epoch_table(&_vector_epoch).await?;
-                let mut results = table
+                let results = table
                     .query()
                     .only_if(filter)
                     .select(Select::Columns(vec!["path".to_string()]))
-                    .limit(1_000_001)
+                    .limit(vector_generation_inventory::MAX_ROWS + 1)
                     .execute()
                     .await?;
-                let mut out = std::collections::BTreeSet::new();
-                let mut rows = 0usize;
-                use futures::TryStreamExt;
-                while let Some(batch) = TryStreamExt::try_next(&mut results).await? {
-                    let batch: arrow_array::RecordBatch = batch;
-                    rows += batch.num_rows();
-                    anyhow::ensure!(rows <= 1_000_000, "Native path inspection exceeds 1000000 rows");
-                    let path_arr = batch
-                        .column_by_name("path")
-                        .and_then(|c| c.as_any().downcast_ref::<arrow_array::StringArray>())
-                        .ok_or_else(|| anyhow::anyhow!("missing path"))?;
-                    for i in 0..batch.num_rows() {
-                        out.insert(path_arr.value(i).to_string());
-                    }
-                }
-                Ok(out)
+                vector_generation_inventory::observe(results).await
             }).await;
         }
         #[cfg(not(feature = "vector"))]
         {
             let _ = (project_id, namespace, generation);
-            Ok(Default::default())
+            Ok((0, Default::default()))
         }
     }
 

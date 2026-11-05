@@ -1608,23 +1608,29 @@ impl GraphStore {
         project_id: &str,
         node_type: Option<&str>,
     ) -> anyhow::Result<Vec<String>> {
+        file_metadata_scan::node_ids(self, project_id, node_type)
+    }
+
+    /// Project every node in stored key order, retaining only the caller's
+    /// derived records. Each complete Node is normally decoded and validated,
+    /// then released before the next row; there is no candidate/display cap.
+    pub fn map_nodes<T>(
+        &self,
+        project_id: &str,
+        mut project: impl FnMut(Node) -> T,
+    ) -> anyhow::Result<Vec<T>> {
         let prefix = format!("{project_id}\0");
-        let rtx = self.db.begin_read()?;
-        let nt = rtx.open_table(NODES)?;
-        let mut out = Vec::new();
-        for r in nt.range(prefix.as_str()..)? {
-            let (k, v) = r?;
-            let key = k.value();
-            if !key.starts_with(&prefix) {
+        let tx = self.db.begin_read()?;
+        let table = tx.open_table(NODES)?;
+        let mut output = Vec::new();
+        for entry in table.range(prefix.as_str()..)? {
+            let (key, value) = entry?;
+            if !key.value().starts_with(&prefix) {
                 break;
             }
-            let n: Node = bincode::deserialize(v.value())?;
-            if node_type.is_some_and(|t| n.node_type != t) {
-                continue;
-            }
-            out.push(n.node_id);
+            output.push(project(bincode::deserialize(value.value())?));
         }
-        Ok(out)
+        Ok(output)
     }
 
     pub fn list_file_node_metadata(
@@ -1778,11 +1784,12 @@ impl GraphStore {
             if !k.value().starts_with(&prefix) {
                 break;
             }
-            let n: Node = bincode::deserialize(v.value())?;
-
-            if node_type.is_some_and(|t| !t.is_empty() && n.node_type != t) {
+            if let Some(wanted) = node_type.filter(|kind| !kind.is_empty())
+                && file_metadata_scan::skip_other_type(v.value(), wanted)?
+            {
                 continue;
             }
+            let n: Node = bincode::deserialize(v.value())?;
 
             if name_q
                 .as_ref()

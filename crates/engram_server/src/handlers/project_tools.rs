@@ -2949,11 +2949,11 @@ async fn generation_completeness_with_graph_observation(
     )?;
     // Doc 11 P0-1: a provider error is DEGRADED, never an empty store.
     let mut store_errors: Vec<String> = Vec::new();
-    let vector_rows = match ps.search.count_vectors_in_generation(pid, generation).await {
-        Ok(n) => n,
+    let (vector_rows, vector_paths) = match ps.search.vector_generation_inventory(pid, None, generation).await {
+        Ok(observation) => observation,
         Err(e) => {
-            store_errors.push(format!("lancedb row count failed: {e}"));
-            0
+            store_errors.push(format!("lancedb row/path observation failed: {e}"));
+            (0, Default::default())
         }
     };
 
@@ -2988,17 +2988,7 @@ async fn generation_completeness_with_graph_observation(
         .into_iter()
         .map(|s| completeness_path(&s))
         .collect();
-    let vectors: BTreeSet<String> = match ps
-        .search
-        .vector_paths_in_generation(pid, None, generation)
-        .await
-    {
-        Ok(v) => v.into_iter().map(|s| completeness_path(&s)).collect(),
-        Err(e) => {
-            store_errors.push(format!("lancedb path enumeration failed: {e}"));
-            Default::default()
-        }
-    };
+    let vectors: BTreeSet<String> = vector_paths.into_iter().map(|s| completeness_path(&s)).collect();
     let captured;
     let observation = match graph_observation {
         Some(observation) => observation,
