@@ -129,6 +129,7 @@ async fn schema_failure_preserves_published_source(wait: bool) {
 
     let result = engram
         .handle_update_project(UpdateProjectRequest {
+            only_paths: None,
             instruction_maintenance: None,
             project_id: project_id.clone(),
             wait,

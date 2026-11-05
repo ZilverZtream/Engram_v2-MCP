@@ -639,15 +639,21 @@ fn agents_can_inspect_recorded_references_without_reassigning_same_named_callers
         // A stitched UI edge can carry the target handler's anchor on a
         // source control in another file. Even an in-file line114 must not
         // be attributed to the known92..106 caller merely because it exists.
-        for (anchor, explicit_reference, known_span, expected_scope) in [
-            (114, None, true, "unattributed_extractor_anchor"),
-            (616, None, true, "unattributed_extractor_anchor"),
-            (96, None, true, "indexed_metadata_only"),
-            (114, Some(114), true, "indexed_metadata_only"),
-            (114, None, false, "unverified_file_anchor"),
+        for (anchor, explicit_reference, known_span, expected_scope, file_wide) in [
+            (114, None, true, "unattributed_extractor_anchor", false),
+            (616, None, true, "unattributed_extractor_anchor", false),
+            (96, None, true, "indexed_metadata_only", false),
+            (114, Some(114), true, "indexed_metadata_only", false),
+            (114, None, false, "unverified_file_anchor", false),
+            (114, None, true, "unverified_file_anchor", true),
         ] {
             let mut owner = declaration(POLICY, "Resolve", 92, 3);
             owner.end_line = 106;
+            if file_wide {
+                owner.node_type = "page".into();
+                owner.start_line = 1;
+                owner.end_line = 1;
+            }
             if !known_span {
                 owner.start_line = 0;
                 owner.end_line = 0;

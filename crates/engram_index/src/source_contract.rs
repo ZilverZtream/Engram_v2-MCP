@@ -33,6 +33,9 @@ impl SourceExtractionExpectation {
             || configured.get("source_index_version").and_then(|v| v.as_u64()) != Some(self.configured.source_index_version)
             || configured.get("target_chars_per_chunk").and_then(|v| v.as_u64())
                 .and_then(|value| usize::try_from(value).ok()) != Some(self.configured.target_chars_per_chunk) { return false; }
+        if crate::webforms::is_webforms_markup(std::path::Path::new(path))
+            && metadata.get("webforms_position_contract").and_then(serde_json::Value::as_u64)
+                != Some(crate::webforms::POSITION_CONTRACT) { return false; }
         if !crate::vb_extractor::requires_parser_provenance(path) { return true; }
         self.vb_parser.as_ref().is_some_and(|expected| metadata.get("vb_parser_provenance")
             .is_some_and(|actual| expected.matches_metadata(actual)))
@@ -47,14 +50,26 @@ impl SourceExtractionExpectation {
                 "Source chunk/extraction configuration changed after admission; rescan and retry"),
             None => anyhow::ensure!(stats.files == 0 && stats.chunks == 0 && stats.bytes == 0
                 && stats.all_files.is_empty() && stats.fingerprints.is_empty() && stats.symbols.is_empty()
-                && stats.edges.is_empty() && stats.vb_parser_provenance.is_empty(),
+                && stats.edges.is_empty() && stats.vb_parser_provenance.is_empty()
+                && stats.webforms_position_contracts.is_empty(),
                 "Produced source output has no captured extraction configuration"),
         }
         for (path, actual) in &stats.vb_parser_provenance {
             anyhow::ensure!(actual.is_verified() && actual.context() == self.vb_parser.as_ref(),
                 "VB parser context changed while producing {}; source publication refused, rescan and retry", path);
         }
+        for (path, contract) in &stats.webforms_position_contracts {
+            anyhow::ensure!(*contract == crate::webforms::POSITION_CONTRACT
+                && crate::webforms::is_webforms_markup(std::path::Path::new(path))
+                && stats.all_files.iter().any(|produced| produced.as_str() == path),
+                "WebForms position receipt does not belong to current produced output: {}", path);
+        }
         for path in &stats.all_files {
+            if crate::webforms::is_webforms_markup(std::path::Path::new(path.as_str())) {
+                anyhow::ensure!(stats.webforms_position_contracts.get(path.as_str())
+                    == Some(&crate::webforms::POSITION_CONTRACT),
+                    "Produced WebForms file {} has no current position contract", path.as_str());
+            }
             if !crate::vb_extractor::requires_parser_provenance(path.as_str()) { continue; }
             anyhow::ensure!(stats.vb_parser_provenance.contains_key(path.as_str()),
                 "Produced VB file {} has no parser provenance", path.as_str());

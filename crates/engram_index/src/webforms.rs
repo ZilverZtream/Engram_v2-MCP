@@ -141,6 +141,10 @@ struct RegisterEntry {
     namespace: Option<String>,
 }
 
+/// One-based source positions for WebForms controls and layout. Stored per
+/// produced file so unchanged markup with older positions is re-extracted.
+pub const POSITION_CONTRACT: u64 = 1;
+
 /// Extract symbols and edges from a WebForms markup file.
 ///
 /// `project_root` is the root directory of the project.
@@ -166,8 +170,8 @@ pub fn extract_webforms(
 
     let char_to_line = |char_pos: usize| -> u32 {
         match line_offsets.binary_search(&char_pos) {
-            Ok(line) => line as u32,
-            Err(line) => line.saturating_sub(1) as u32,
+            Ok(line) => (line + 1) as u32,
+            Err(line) => line.max(1) as u32,
         }
     };
 

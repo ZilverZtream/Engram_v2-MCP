@@ -1012,6 +1012,21 @@ known node bounds, a legacy position remains an `unverified_file_anchor` read
 candidate. Explicit call/reference positions retain their separate inspection
 even outside a declaration range.
 
+WebForms controls and layout locations use one-based source lines. A per-file
+position contract makes older markup re-extract even when its bytes are unchanged;
+the global source format and VB parser identity are unaffected. Page/file directive
+locations do not delimit file-wide references.
+
+For an explicitly bounded refresh, `update_project` accepts `only_paths` with
+`wait: true` and 1–4096 exact eligible relative paths. It re-extracts that set and
+inherits outside source revisions without checking their current bytes, additions
+or deletions. Git/global enrichment is skipped; referenced extractor companions
+may still be read. This mode requires a verified existing source identity and
+refuses foreign unpublished source revisions. It cannot be combined with
+`reindex_paths`, instruction maintenance or anti-pattern refresh. Omitting it
+retains the normal project-wide update; `reindex_paths` adds forced paths to that
+normal change scan and does not restrict its scope.
+
 For a source file without usable indexed declaration bounds, CodeMap and admitted
 file-impact targets offer a current-file excerpt action. Call
 `get_full_method_body` with `file_path` and no `line_end`; `line_start` defaults to
