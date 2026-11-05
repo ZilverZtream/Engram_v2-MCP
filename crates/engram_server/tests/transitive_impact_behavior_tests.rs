@@ -2237,6 +2237,152 @@ fn missing_identities_offer_working_inspection_candidates_without_repairing_the_
     });
 }
 
+async fn publish_reset_candidates(fixture: &Fixture, count: usize) -> Vec<Node> {
+    let paths = [POLICY, HTTP];
+    let mut nodes = Vec::new();
+    let cancel = CancellationToken::new();
+    let baseline = fixture.engram.state.registry.capture_source_head(PID).unwrap();
+    fixture.search.prepare_source_snapshot(PID, 2, 3,
+        &paths.map(RelPath::new), &[], &cancel).await.unwrap();
+    for (index, path) in paths.iter().enumerate() {
+        let names: Vec<_> = (index..count).step_by(2).collect();
+        let body = names.iter().map(|n|
+            format!("mod area{n:03} {{ pub fn resetState() {{}} }}\n")).collect::<String>();
+        std::fs::write(fixture.root.join(path), &body).unwrap();
+        fixture.search.index_docs(PID, &[source_doc(3, 900 + index as u64, path, &body)], &cancel)
+            .await.unwrap();
+        fixture.engram.state.graph.upsert_nodes(PID, &[file_node(path, &body, 3)]).unwrap();
+        nodes.extend(names.iter().enumerate().map(|(line, n)|
+            declaration(path, &format!("area{n:03}.resetState"), line as u32 + 1, 3)));
+    }
+    fixture.search.seal_source_snapshot(PID, 3).unwrap();
+    fixture.engram.state.graph.upsert_nodes(PID, &nodes).unwrap();
+    assert!(fixture.engram.state.registry.publish_source_head(&baseline, 3).unwrap());
+    nodes
+}
+
+async fn ambiguous_reset(fixture: &Fixture, tool: &str, detail: &str) -> Value {
+    let mut args = json!({"project_id":PID,"symbol_fqn":"policy.resetState",
+        "max_depth":6,"detail":detail});
+    let response = if tool == "compute_blast_radius" {
+        args["include_guidance"] = json!(false);
+        fixture.engram.handle_compute_blast_radius(serde_json::from_value(args).unwrap()).await
+    } else {
+        fixture.engram.handle_impact_analysis(serde_json::from_value(args).unwrap()).await
+    }.unwrap();
+    assert!(!response.is_error.unwrap_or(false));
+    let text: String = response.content.iter().filter_map(|part| part.as_text())
+        .map(|part| part.text.as_str()).collect();
+    assert!(text.len() <= if detail == "summary" { 12 * 1024 } else { 64 * 1024 });
+    impact_packet(&text)
+}
+
+#[test]
+fn ambiguous_names_offer_executable_exact_target_and_source_choices_without_selecting_one() {
+    owned_case(|fixture| async move {
+        let nodes = publish_reset_candidates(&fixture, 2).await;
+        let before_nodes = serde_json::to_value(fixture.engram.state.graph
+            .query_nodes(PID, None, None, None, 1000).unwrap()).unwrap();
+        let before_edges = serde_json::to_value(fixture.engram.state.graph.list_edges(PID, None).unwrap()).unwrap();
+        for tool in ["impact_analysis", "compute_blast_radius"] {
+            for detail in ["summary", "graph"] {
+                let report = ambiguous_reset(&fixture, tool, detail).await;
+                assert_eq!(report["source_generation"], 3);
+                assert_eq!(report["status"], "unavailable");
+                assert_eq!(report["target_revision_admitted"], false);
+                assert!(report["selected_dependents_observed"].is_null());
+                assert!(report["graph_continuation"].is_null(), "Do not repeat the unresolved request");
+                let resolution = &report["target_resolution"];
+                assert_eq!(resolution["status"], "ambiguous");
+                assert_eq!(resolution["selection_required"], true);
+                let choices = resolution["candidates"].as_array().unwrap();
+                assert_eq!(choices.len(), 2);
+                for node in &nodes {
+                    let choice = choices.iter().find(|row| row["node_id"] == node.node_id).unwrap();
+                    let body = fixture.engram.handle_get_full_method_body(serde_json::from_value(
+                        choice["source_read"]["arguments"].clone()).unwrap()).await.unwrap();
+                    assert!(!body.is_error.unwrap_or(false));
+                    let body: Value = serde_json::from_str(&body.content[0].as_text().unwrap().text).unwrap();
+                    let raw = std::fs::read(fixture.root.join(node.file_path.as_str())).unwrap();
+                    assert_eq!(body["source_file_hash"], ContentHash::compute(&raw).0);
+                    assert_eq!(body["source_code"], String::from_utf8(raw).unwrap().trim_end());
+                    assert_eq!(choice["impact"]["arguments"]["symbol_fqn"], node.node_id);
+                    let exact = fixture.engram.handle_impact_analysis(serde_json::from_value(
+                        choice["impact"]["arguments"].clone()).unwrap()).await.unwrap();
+                    assert!(!exact.is_error.unwrap_or(false));
+                    let exact = impact_packet(&exact.content[0].as_text().unwrap().text);
+                    assert_eq!(exact["target_revision_admitted"], true);
+                    assert!(exact["nodes"].as_array().unwrap().iter().any(|row|
+                        row["node_id"] == node.node_id && row["is_seed"] == true));
+                }
+            }
+        }
+        assert_eq!(serde_json::to_value(fixture.engram.state.graph
+            .query_nodes(PID, None, None, None, 1000).unwrap()).unwrap(), before_nodes);
+        assert_eq!(serde_json::to_value(fixture.engram.state.graph.list_edges(PID, None).unwrap()).unwrap(), before_edges);
+    });
+}
+
+#[test]
+fn ambiguity_remains_when_only_one_candidate_has_current_bounded_source_evidence() {
+    for scenario in ["stale", "future", "other_namespace", "oversized_file"] {
+        owned_case(move |fixture| async move {
+            let nodes = publish_reset_candidates(&fixture, 2).await;
+            let mut other = nodes.iter().find(|node| node.file_path.as_str() == HTTP).unwrap().clone();
+            match scenario {
+                "stale" => other.generation = 2,
+                "future" => other.generation = 4,
+                "other_namespace" => other.namespace = "history".into(),
+                _ => {
+                    let mut file = fixture.engram.state.graph.get_node(PID, &format!("file:{HTTP}"))
+                        .unwrap().unwrap();
+                    file.metadata = Some(json!({"oversized": "x".repeat(65 * 1024)}));
+                    fixture.engram.state.graph.upsert_nodes(PID, &[file]).unwrap();
+                }
+            }
+            fixture.engram.state.graph.upsert_nodes(PID, &[other]).unwrap();
+            for tool in ["impact_analysis", "compute_blast_radius"] {
+                let report = ambiguous_reset(&fixture, tool, "summary").await;
+                assert_eq!(report["status"], "unavailable", "{scenario}");
+                assert_eq!(report["target_revision_admitted"], false);
+                assert!(report["selected_dependents_observed"].is_null());
+                let resolution = &report["target_resolution"];
+                assert_eq!(resolution["selection_required"], true);
+                assert_eq!(resolution["candidates"].as_array().unwrap().len(), 1, "{scenario}");
+                assert_eq!(resolution["candidates"][0]["file_path"], POLICY);
+                let coverage = &resolution["coverage"];
+                assert_eq!(coverage["resolver_candidates_observed"], 2);
+                assert_eq!(coverage["selected_candidates_observed"], 1);
+                assert_eq!(coverage["resolver_completeness"], "unknown");
+            }
+        });
+    }
+}
+
+#[test]
+fn crowded_ambiguity_discloses_uninspected_and_omitted_choices_with_bounded_recovery() {
+    owned_case(|fixture| async move {
+        publish_reset_candidates(&fixture, 80).await;
+        for tool in ["impact_analysis", "compute_blast_radius"] {
+            for detail in ["summary", "graph"] {
+                let report = ambiguous_reset(&fixture, tool, detail).await;
+                let resolution = &report["target_resolution"];
+                assert!(serde_json::to_vec(resolution).unwrap().len() <= 6 * 1024);
+                let coverage = &resolution["coverage"];
+                assert_eq!(coverage["resolver_candidates_observed"], 80);
+                assert_eq!(coverage["candidates_inspected"], 64);
+                assert_eq!(coverage["candidates_not_inspected"], 16);
+                let displayed = resolution["candidates"].as_array().unwrap().len();
+                assert!((1..=8).contains(&displayed));
+                assert_eq!(coverage["selected_candidates_observed"], 64);
+                assert_eq!(coverage["selected_candidates_omitted"].as_u64().unwrap() as usize,
+                    64 - displayed);
+                assert!(report["selected_dependents_observed"].is_null());
+            }
+        }
+    });
+}
+
 #[test]
 fn unresolved_receiver_navigation_opens_its_enclosing_declaration_without_resolving_it() {
     owned_case(|fixture| async move {

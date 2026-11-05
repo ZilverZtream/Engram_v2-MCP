@@ -2994,11 +2994,21 @@ impl Engram {
 
             match found {
                 ResolveResult::Unique(node) => node.node_id,
-                ResolveResult::Ambiguous(candidates) => {
-                    return Err(McpError::invalid_params(
-                        format_ambiguous_symbol_error(fqn, &candidates),
-                        None,
-                    ));
+                ResolveResult::Ambiguous(_) => {
+                    // Use the same source-pinned choices as summary mode;
+                    // live resolver rows alone are not admitted candidates.
+                    let (mut out, _source_hold, generation) =
+                        crate::services::impact_walk_service::collect_with_detail(
+                            &self.state, &req.project_id, None, req.symbol_fqn.clone(),
+                            req.max_depth, 25, req.detail,
+                        ).await;
+                    if let Some(generation) = generation {
+                        out.push_str(&self.freshness_footer(&req.project_id, generation).await);
+                    }
+                    if out.len() > 64 * 1024 {
+                        return Err(McpError::internal_error("Impact recovery exceeds response budget", None));
+                    }
+                    return Ok(CallToolResult::success(vec![Content::text(out)]));
                 }
                 ResolveResult::NotFound => {
                     return Err(McpError::invalid_params(
