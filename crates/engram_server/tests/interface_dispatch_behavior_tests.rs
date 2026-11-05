@@ -155,6 +155,8 @@ async fn verify(app: &Engram, pid: &str) -> Result<()> {
                 "A different overload is not a potential caller"
             );
             for row in routes {
+                ensure!(dispatch.get("configuration_inspection").is_none(),
+                    "Root-level declarations must not invent a shared configuration directory");
                 ensure!(row["implementation_primary_depth"] == 1 && row["potential_depth"] == 3);
                 ensure!(
                     row["connections"][0]["source"] == "implementation"
@@ -252,6 +254,7 @@ fn compact_dispatch_keeps_distinct_consumer_files_and_inspectable_caller_context
                 SERVICE,
             ),
             (caller, controller),
+            ("Site/App_Code/api-v2/Bindings.vb", "Namespace Example\nFriend Module Bindings\n Public Function CreateReader() As IReader\n Return New Reader()\n End Function\nEnd Module\nEnd Namespace\n"),
             (provider, provider_source.as_str()),
             (dashboard, dashboard_source.as_str()),
         ] {
@@ -300,6 +303,34 @@ fn compact_dispatch_keeps_distinct_consumer_files_and_inspectable_caller_context
                 let dispatch=&summary["potential_interface_callers"];ensure!(dispatch["routes_observed"]==1 && dispatch["routes"].as_array().unwrap().len()==1);
                 ensure!(dispatch["coverage"]["truncated"]==true,"Legacy dispatch remains explicitly unknown");
                 let route=&dispatch["routes"][0];let action=&route["caller_source_read"];
+                // A crowded summary keeps all three consumer files and its
+                // unknown frontiers; follow its literal graph action for an
+                // optional configuration hint that did not fit.
+                let expanded;
+                let inspection=if let Some(inspection)=dispatch.get("configuration_inspection") { inspection } else {
+                    ensure!(dispatch["configuration_inspection_actions_omitted"]==1);
+                    let continuation=&summary["graph_continuation"];
+                    let full=app.handle_impact_analysis(serde_json::from_value(continuation["arguments"].clone())?).await?;
+                    ensure!(full.is_error!=Some(true));
+                    expanded=packet(&full.content[0].as_text().unwrap().text)?;
+                    &expanded["potential_interface_callers"]["configuration_inspection"]
+                };
+                ensure!(inspection["actions"].as_array().is_some_and(|actions|actions.len()==1)
+                    && inspection["actions_omitted"]==0,
+                    "A usable contract route needs bounded configuration discovery without losing consumer files: {dispatch}");
+                let search=&inspection["actions"][0];ensure!(search["tool"]=="grep_project");
+                ensure!(search["arguments"]["path_prefix"]=="Site/App_Code/api-v2/"
+                    && search["arguments"]["pattern"]=="IReader"
+                    && search["arguments"]["regex"]==false);
+                let found=app.handle_grep_project(serde_json::from_value(search["arguments"].clone())?).await?;
+                ensure!(found.is_error!=Some(true),"Advertised configuration search must execute unchanged");
+                let found:Value=serde_json::from_str(&found.content[0].as_text().unwrap().text)?;
+                ensure!(found["matches"].as_array().unwrap().iter().any(|hit|
+                    hit["file_path"]=="Site/App_Code/api-v2/Bindings.vb" && hit["source"]=="index"
+                        && hit["line_text"].as_str().is_some_and(|line|line.contains("CreateReader"))),
+                    "The agent must discover the real binding factory without a guessed configuration filename: {found}");
+                ensure!(dispatch["runtime_dispatch_proven"]==false && dispatch["non_additive_to_primary_counts"]==true,
+                    "A text search suggestion must not promote a potential route into runtime proof");
                 let read=app.handle_get_full_method_body(serde_json::from_value(action["arguments"].clone())?).await?;
                 let body:Value=serde_json::from_str(&read.content[0].as_text().unwrap().text)?;
                 let source=body["source_code"].as_str().unwrap();
