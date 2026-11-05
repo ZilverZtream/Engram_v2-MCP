@@ -2926,6 +2926,15 @@ pub(crate) async fn generation_completeness_for(
     pid: &str,
     generation: u64,
 ) -> anyhow::Result<GenerationCompleteness> {
+    generation_completeness_with_graph_observation(state, pid, generation, None).await
+}
+
+async fn generation_completeness_with_graph_observation(
+    state: &crate::state::AppState,
+    pid: &str,
+    generation: u64,
+    graph_observation: Option<&project_service::SourceFileMetadataObservation>,
+) -> anyhow::Result<GenerationCompleteness> {
     use std::collections::BTreeSet;
     // External audit round 2 (docs/audits/10) P0-2: chunks and files are
     // different units — completeness compares PATH SETS per store against the
@@ -2990,25 +2999,24 @@ pub(crate) async fn generation_completeness_for(
             Default::default()
         }
     };
-    let graph = state.graph.clone();
-    let pid_g = pid.to_string();
-    let (graph_paths, unpublished_graph_files) = tokio::task::spawn_blocking(move || {
-        graph
-            .query_nodes(&pid_g, Some("file"), None, None, usize::MAX)
-            .map(|nodes| {
-                let mut paths = BTreeSet::new();
-                let mut unpublished = 0usize;
-                for node in nodes {
-                    if node.generation > generation {
-                        unpublished += 1;
-                    } else {
-                        paths.insert(completeness_path(node.file_path.as_str()));
-                    }
-                }
-                (paths, unpublished)
-            })
-    })
-    .await??;
+    let captured;
+    let observation = match graph_observation {
+        Some(observation) => observation,
+        None => {
+            captured = project_service::observe_source_file_metadata(state, pid).await;
+            &captured
+        }
+    };
+    let rows = observation.as_ref().map_err(|error| anyhow::anyhow!("{error}"))?;
+    let mut graph_paths = BTreeSet::new();
+    let mut unpublished_graph_files = 0usize;
+    for (path, _, graph_generation) in rows.iter() {
+        if *graph_generation > generation {
+            unpublished_graph_files += 1;
+        } else {
+            graph_paths.insert(completeness_path(path.as_str()));
+        }
+    }
     if unpublished_graph_files > 0 {
         // Source leases preserve physical chunks, not a historical graph.
         // Live metadata ahead of the selected head cannot certify its scope.
@@ -3445,10 +3453,13 @@ impl Engram {
             out.push_str(&format!("last_index_files: {files}\n"));
         }
         out.push_str(&format!("watcher_enabled: {watch_enabled}\n"));
-        let source_format = project_service::source_index_format_coverage_for_generation(
+        // Reuse validated graph rows for both diagnostics. Filesystem, search,
+        // vector and skip-ledger checks remain independent live observations.
+        let graph_observation = project_service::observe_source_file_metadata(&self.state, &pid).await;
+        let source_format = project_service::source_index_format_coverage_from_observation(
             &self.state,
-            &pid,
             generation,
+            &graph_observation,
         )
         .await;
         match &source_format {
@@ -3582,7 +3593,9 @@ impl Engram {
         // External audit 2026-08-29 P0-2: timestamps and modified files say
         // nothing about whether the published generation still HOLDS the
         // corpus. Completeness is checked here and outranks every other advice.
-        let completeness = self.generation_completeness(&pid, generation).await;
+        let completeness = generation_completeness_with_graph_observation(
+            &self.state, &pid, generation, Some(&graph_observation),
+        ).await;
         let completeness_unknown = match &completeness {
             Ok(c) => c.degraded,
             Err(_) => true,

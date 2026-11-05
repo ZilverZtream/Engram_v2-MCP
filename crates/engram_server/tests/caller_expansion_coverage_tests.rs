@@ -69,6 +69,33 @@ async fn body(engram: &Engram, request: Value) -> String {
 }
 
 #[tokio::test]
+async fn returned_source_hashes_identify_the_algorithm_and_complete_raw_file() {
+    let (_temp, engram, root) = fixture(0);
+    let source = "\u{feff}Public Sub Run()\r\n Return\r\nEnd Sub\r\n";
+    std::fs::write(root.join("target.vb"), source).unwrap();
+    let expected = blake3::hash(source.as_bytes()).to_hex().to_string();
+    let mut file = engram.state.graph.get_node(PID, "file:target.vb").unwrap().unwrap();
+    file.metadata = Some(json!({"file_hash":expected}));
+    engram.state.graph.upsert_nodes(PID, &[file]).unwrap();
+    for target in [
+        json!({"fqn":"Demo.Run"}),
+        json!({"file_path":"target.vb","line_start":1,"line_end":2}),
+        json!({"file_path":"target.vb"}),
+    ] {
+        let mut request = json!({"project_id":PID,"output_json":true});
+        request.as_object_mut().unwrap().extend(target.as_object().unwrap().clone());
+        let text = body(&engram, request).await;
+        let value: Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(value["source_file_hash_algorithm"], "blake3");
+        assert_eq!(value["source_file_hash"], expected,
+            "The digest must be reproducible from complete raw bytes, including BOM, CRLF and lines outside the returned range");
+        assert!(value["source_code"].as_str().unwrap().starts_with('\u{feff}'));
+        assert!(!value["source_code"].as_str().unwrap().contains('\r'));
+        assert!(text.len() <= 32 * 1024);
+    }
+}
+
+#[tokio::test]
 async fn later_project_update_does_not_verify_changed_indexed_locations() {
     let (_temp,engram,root)=fixture(0);
     let changed="' new first line\nPublic Sub Run()\n Return\nEnd Sub\n";
