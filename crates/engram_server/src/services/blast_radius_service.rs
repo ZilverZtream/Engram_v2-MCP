@@ -318,6 +318,44 @@ pub fn compute_blast_radius(
     generation: u64,
     include_guidance: bool,
 ) -> anyhow::Result<BlastRadiusReport> {
+    compute_blast_radius_inner(graph,project_id,target_id,generation,include_guidance,RankingInput::OnDemand,None)
+}
+
+enum RankingInput { OnDemand, Observed(Option<f32>) }
+
+/// Optional public advice must consume existing target observations only.
+/// File members come from the complete admitted seed inventory of the same
+/// held impact walk; absence is not permission to scan the project again.
+pub(crate) fn compute_request_advisory(
+    graph: &GraphStore, project: &str, target: &str, generation: u64,
+    ranking: super::pagerank_cache::TargetPageRank, file_members: Option<&[String]>,
+) -> anyhow::Result<(serde_json::Value, Vec<GuidanceItem>)> {
+    anyhow::ensure!(target.starts_with("file:")==file_members.is_some(),"Complete held file membership unavailable");
+    if let Some(members)=file_members {
+        anyhow::ensure!(members.len()<=127 && members.iter().map(String::len).sum::<usize>()<=128*1024,
+            "Held file membership exceeds advisory budget");
+    }
+    let score=ranking.score.filter(|v|v.is_finite() && *v>=0.0 && *v<=1.0);
+    let report=compute_blast_radius_inner(graph,project,target,generation,true,RankingInput::Observed(score),file_members)?;
+    let mut breakdown=serde_json::to_value(&report.complexity_breakdown)?;
+    if score.is_none() { breakdown["pagerank_score"]=serde_json::Value::Null; }
+    let profile=serde_json::json!({
+        "interpretation":"Uncalibrated live-graph one-hop heuristic; not revision-admitted downstream counts, a probability, a breakage simulation or an edit-safety verdict. Missing centrality leaves the composite score unassessed.",
+        "migration_risk":score.map(|_|report.migration_risk),"risk_band":score.map(|_|report.risk_band),
+        "centrality":{"status":if ranking.score.is_some() && score.is_none(){"invalid_cached_target_score"}else{ranking.status},"source_generation":generation,"score_available":score.is_some(),"project_ranking_started":false},
+        "component_membership":if file_members.is_some(){"Complete admitted file seed inventory at collection, reused from the held impact walk. This is not a live-graph snapshot; later nodes/edges may differ."}else{"Single symbol; no project member scan."},
+        "causal_dependents":report.causal_dependents,"possible_dependents":report.possible_dependents,
+        "historical_companions":report.historical_companions,"unresolved_endpoints":report.unresolved_endpoints,
+        "raw_incoming":report.total_incoming,"raw_outgoing":report.total_outgoing,
+        "coverage":report.coverage,"complexity_breakdown":breakdown,
+    });
+    Ok((profile,report.guidance))
+}
+
+fn compute_blast_radius_inner(
+    graph: &GraphStore, project_id: &str, target_id: &str, generation: u64,
+    include_guidance: bool, ranking: RankingInput, observed_members: Option<&[String]>,
+) -> anyhow::Result<BlastRadiusReport> {
     // 1. Fetch target node metadata
     let node = graph.get_node(project_id, target_id)?;
     if node.is_none() {
@@ -361,7 +399,9 @@ pub fn compute_blast_radius(
                 .to_string()
         });
     const CAP_CONTAINED: usize = 50_000;
-    let contained_symbols: Vec<String> = if is_file_target {
+    let contained_symbols: Vec<String> = if let Some(members)=observed_members {
+        members.to_vec()
+    } else if is_file_target {
         // Exact-equality membership BEFORE the cap, cap+1 detection, sorted —
         // in the store (`query_nodes`' substring pre-filter let suffix
         // collisions consume the budget, and exactly-at-cap read as truncated).
@@ -496,13 +536,16 @@ pub fn compute_blast_radius(
     let sql_concat_score = normalize_score(sql_count, 10);
 
     // PageRank centrality
-    let pagerank_score = match graph.get_or_compute_centrality(project_id, generation) {
+    let pagerank_score = match ranking {
+        RankingInput::Observed(score) => score.map_or(0.0,|value|(value*200.0).min(10.0)),
+        RankingInput::OnDemand => match graph.get_or_compute_centrality(project_id, generation) {
         Ok(pagerank) => {
             let pr = pagerank.get(target_id).copied().unwrap_or(0.0);
             // Normalize: typical high PageRank in a medium project is 0.01-0.05
             (pr * 200.0).min(10.0)
         }
         Err(_) => 0.0,
+        },
     };
 
     // State coupling: reads + writes + affinity
@@ -1732,6 +1775,34 @@ EndProject
             metadata: None,
             updated_at_ms: 0,
         }
+    }
+
+    #[test]
+    fn pagerank_request_advisory_stays_local_and_does_not_populate_or_load_stored_ranking() {
+        let (owned,store)=tmp_graph();let target="sym:function:Target.vb:Target:1";
+        let mut node=make_file_node("file:Target.vb");node.node_id=target.into();node.node_type="function".into();
+        store.upsert_nodes("proj",&[node]).unwrap();
+        let missing=super::super::pagerank_cache::TargetPageRank::unavailable("target_not_cached");
+        let (before,guidance)=compute_request_advisory(&store,"proj",target,1,missing,None).unwrap();
+        assert!(before["migration_risk"].is_null() && before["risk_band"].is_null());
+        assert!(before["complexity_breakdown"]["pagerank_score"].is_null());
+        assert!(guidance.iter().all(|g|g.concern!="Architectural Centrality"));
+        assert!(store.get_cached_centrality("proj",1).unwrap().is_none(),"Advice must not create a project ranking");
+        let unrelated=(0..1000).map(|i|make_file_node(&format!("file:Unrelated{i}.vb"))).collect::<Vec<_>>();
+        let edges=(1..1000).map(|i|make_dep_edge(&format!("file:Unrelated{i}.vb"),&format!("file:Unrelated{}.vb",i-1))).collect::<Vec<_>>();
+        store.upsert_nodes("proj",&unrelated).unwrap();store.upsert_edges("proj",&edges).unwrap();
+        // A contradictory persisted result is not an in-memory observation.
+        let stored=HashMap::from([(target.to_string(),0.99)]);
+        store.set_cached_centrality("proj",1,&stored).unwrap();
+        let (after,_)=compute_request_advisory(&store,"proj",target,1,missing,None).unwrap();
+        assert_eq!(before,after,"Unrelated project growth and stored ranking must not change target advice");
+        assert_eq!(store.get_cached_centrality("proj",1).unwrap().unwrap(),stored);
+        let observed=super::super::pagerank_cache::TargetPageRank {score:Some(0.04),status:"available_same_generation_in_memory"};
+        let (known,guidance)=compute_request_advisory(&store,"proj",target,1,observed,None).unwrap();
+        assert_eq!(known["complexity_breakdown"]["pagerank_score"],8.0);
+        assert!(known["migration_risk"].is_number());
+        assert!(guidance.iter().any(|g|g.concern=="Architectural Centrality"));
+        drop(store);owned.close().unwrap();
     }
 
     /// Seed a graph: target node + `n_sources` source nodes, each with a

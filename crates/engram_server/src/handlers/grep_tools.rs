@@ -338,8 +338,14 @@ impl Engram {
             value["coverage"] = serde_json::json!(
                 "bounded_search_not_exhaustive; candidate scans, result limits and verification warnings apply; a result below the limit does not prove complete corpus coverage"
             );
+            let mut has_current_source=false;
             if let Some(matches) = value["matches"].as_array_mut() {
                 for hit in matches {
+                    if let Some(action)=hit["file_path"].as_str().and_then(|path|
+                        hit["line"].as_u64().and_then(|line|u32::try_from(line).ok())
+                            .and_then(|line|current_source_recovery(&req.project_id,&req.namespace,path,line))) {
+                        hit["current_source_recovery"]=action;has_current_source=true;
+                    }
                     if let Some(doc_id) = hit
                         .get("doc_id")
                         .and_then(|v| v.as_str())
@@ -366,6 +372,7 @@ impl Engram {
                     }
                 }
             }
+            if has_current_source { value["current_source_recovery_scope"]=serde_json::json!(CURRENT_SOURCE_SCOPE); }
             serde_json::to_string_pretty(&value)
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?
         } else {
@@ -492,6 +499,18 @@ mod worker_lifetime_test {
 /// Default Markdown rendering. We keep it dense — each match is one
 /// line with file:line:col plus the line content; context lines are
 /// indented so a scanning reader can still pick out the match.
+const CURRENT_SOURCE_SCOPE: &str="Current-source excerpts at approximate match positions, with complete-file hashes. Source may have moved: use the first-page fallback if the anchor is invalid, then follow returned pages comparing hashes. These reads do not verify stored citations, indexed freshness, complete methods, match persistence or runtime binding.";
+
+fn current_source_recovery(project: &str, namespace: &str, path: &str, line: u32) -> Option<serde_json::Value> {
+    if namespace!="memory" || line==0 || path.is_empty() || path.len()>2048
+        || path.contains(['\\',':']) || path.chars().any(char::is_control)
+        || path.split('/').any(|part|matches!(part,""|"."|"..")) { return None; }
+    Some(serde_json::json!({"tool":"get_full_method_body","arguments":{"project_id":project,
+        "file_path":path,"line_start":line.saturating_sub(4).max(1),"context_lines":0,"output_json":true},
+        "first_page_fallback":{"tool":"get_full_method_body","arguments":{"project_id":project,
+            "file_path":path,"context_lines":0,"output_json":true}}}))
+}
+
 fn render_markdown(
     r: &engram_index::grep::GrepResult,
     pattern: &str,
@@ -604,6 +623,10 @@ fn render_markdown(
                 "_Working-tree match: open the file directly; no indexed doc_id._"
             );
         }
+        if let Some(action)=current_source_recovery(project_id,namespace,&m.file_path,m.line) {
+            let _=writeln!(out,"current get_full_method_body arguments: `{}`",action["arguments"]);
+            let _=writeln!(out,"first-page fallback get_full_method_body arguments: `{}`",action["first_page_fallback"]["arguments"]);
+        }
         for (i, after) in m.context_after.iter().enumerate() {
             let ln = m.line as usize + i + 1;
             let _ = writeln!(out, "    {}:{}: {}", m.file_path, ln, clip(after));
@@ -622,5 +645,6 @@ fn render_markdown(
             r.matches.len() - shown
         );
     }
+    if namespace=="memory" { let _=writeln!(out,"\n{CURRENT_SOURCE_SCOPE}"); }
     out
 }

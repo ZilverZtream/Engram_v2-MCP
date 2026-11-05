@@ -82,6 +82,14 @@ struct CollectedImpact {
     coverage: ImpactWalkCoverage,
     direct_dependents: usize,
     transitive_dependents: usize,
+    advisory_scope: AdvisoryScope,
+}
+
+/// Internal, unprojected membership; rendered rows may omit seed declarations.
+pub(crate) enum AdvisoryScope {
+    Symbol,
+    CompleteFile(Vec<String>),
+    Unavailable(&'static str),
 }
 
 fn immediate_section(value: &Value, include_references: bool) -> Option<String> {
@@ -1348,6 +1356,18 @@ async fn collect_evidence(
                 && node.node.node_id == target
                 && node.admission == ImpactAdmission::Selected
         });
+        let advisory_scope=if !target_revision_admitted {
+            AdvisoryScope::Unavailable("target_revision_not_admitted")
+        } else if internal_file.is_some() {
+            if seed_cap {
+                AdvisoryScope::Unavailable("file_member_inventory_capped")
+            } else if seeds.iter().any(|id|!walk.nodes.iter().any(|node|
+                node.depth==0 && node.node.node_id==*id && node.admission==ImpactAdmission::Selected)) {
+                AdvisoryScope::Unavailable("file_members_not_fully_admitted")
+            } else {
+                AdvisoryScope::CompleteFile(seeds.iter().filter(|id|*id!=&target).cloned().collect())
+            }
+        } else { AdvisoryScope::Symbol };
         let direct_dependents = walk
             .nodes
             .iter()
@@ -1395,6 +1415,7 @@ async fn collect_evidence(
             coverage,
             direct_dependents,
             transitive_dependents,
+            advisory_scope,
         })
     })
     .await
@@ -1444,6 +1465,21 @@ pub async fn collect_with_detail(
     display_limit: usize,
     detail: crate::models::ImpactDetail,
 ) -> (String, Option<Arc<SourceSnapshotGuard>>, Option<u64>) {
+    let (text,source,generation,_)=collect_with_advisory_detail(state,project,file_path,symbol_fqn,max_depth,display_limit,detail).await;
+    (text,source,generation)
+}
+
+pub(crate) async fn collect_for_advisory(
+    state: &AppState, project: &str, file_path: Option<String>, symbol_fqn: Option<String>,
+    max_depth: usize, display_limit: usize,
+) -> (String, Option<Arc<SourceSnapshotGuard>>, Option<u64>, AdvisoryScope) {
+    collect_with_advisory_detail(state,project,file_path,symbol_fqn,max_depth,display_limit,crate::models::ImpactDetail::Graph).await
+}
+
+async fn collect_with_advisory_detail(
+    state: &AppState, project: &str, file_path: Option<String>, symbol_fqn: Option<String>,
+    max_depth: usize, display_limit: usize, detail: crate::models::ImpactDetail,
+) -> (String, Option<Arc<SourceSnapshotGuard>>, Option<u64>, AdvisoryScope) {
     let result = collect_evidence(
         state,
         project,
@@ -1476,6 +1512,7 @@ pub async fn collect_with_detail(
             },
             Some(collected.source),
             Some(collected.generation),
+            collected.advisory_scope,
         ),
         Err(error) => {
             let value = unavailable_value(max_depth, &error);
@@ -1495,6 +1532,7 @@ pub async fn collect_with_detail(
                 },
                 None,
                 None,
+                AdvisoryScope::Unavailable("source_evidence_unavailable"),
             )
         }
     }

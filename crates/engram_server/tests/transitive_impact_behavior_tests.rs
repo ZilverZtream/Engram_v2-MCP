@@ -267,6 +267,69 @@ where
     temporary.close().unwrap();
 }
 
+#[test]
+fn optional_advice_uses_only_available_held_generation_ranking_and_preserves_impact() {
+    owned_case(|fixture|async move {
+        async fn blast(fixture:&Fixture,args:Value)->String {
+            let response=fixture.engram.handle_compute_blast_radius(serde_json::from_value(args).unwrap()).await.unwrap();
+            assert!(!response.is_error.unwrap_or(false));response.content.iter().filter_map(|c|c.as_text()).map(|t|t.text.as_str()).collect()
+        }
+        fn profile(text:&str)->Value { serde_json::from_str(text.split("## Unverified one-hop advisory profile").nth(1).unwrap().split("```json").nth(1).unwrap().split("```").next().unwrap()).unwrap() }
+        let target=id(POLICY,"ClassifyAutomatic",1);
+        let cache=fixture.engram.state.peek_project_cached(PID).unwrap().unwrap().pagerank_cache;
+        let retention=cache.retention_observation();let mut expected=None;
+        assert!(fixture.engram.state.graph.get_cached_centrality(PID,2).unwrap().is_none());
+        for guidance in [Some(false),Some(true),None] {
+            let mut args=json!({"project_id":PID,"symbol_fqn":target});
+            if let Some(value)=guidance {args["include_guidance"]=json!(value);}
+            let text=blast(&fixture,args).await;let facts=impact_packet(&text);
+            if let Some(old)=&expected {assert_eq!(&facts,old);} else {expected=Some(facts);}
+            if guidance==Some(false) {assert!(!text.contains("## Unverified one-hop advisory profile"));}
+            else {
+                let partial=profile(&text);
+                assert!(partial["migration_risk"].is_null() && partial["risk_band"].is_null());
+                assert!(partial["complexity_breakdown"]["pagerank_score"].is_null());
+                assert_eq!(partial["centrality"]["score_available"],false);
+            }
+            assert_eq!(cache.retention_observation(),retention,"Advice must not start ranking or alter retention");
+            assert!(fixture.engram.state.graph.get_cached_centrality(PID,2).unwrap().is_none(),"Default advice must not populate persistent project ranking");
+        }
+        let workers=Arc::new(tokio::sync::Semaphore::new(1));
+        cache.start(2,workers.clone().try_acquire_owned().unwrap()).unwrap().complete(engram_graph::analysis::CentralityMetrics {
+            pagerank:std::collections::HashMap::from([(target.clone(),0.04)]),
+        });
+        let cached=blast(&fixture,json!({"project_id":PID,"symbol_fqn":target})).await;
+        assert_eq!(impact_packet(&cached),expected.clone().unwrap());
+        assert_eq!(profile(&cached)["complexity_breakdown"]["pagerank_score"],8.0);
+        assert_eq!(profile(&cached)["centrality"]["source_generation"],2);
+        assert!(cache.get(3).is_none());
+        cache.start(3,workers.clone().try_acquire_owned().unwrap()).unwrap().complete(engram_graph::analysis::CentralityMetrics {
+            pagerank:std::collections::HashMap::from([(target.clone(),0.0)]),
+        });
+        let older=blast(&fixture,json!({"project_id":PID,"symbol_fqn":target})).await;
+        assert_eq!(impact_packet(&older),expected.unwrap());
+        assert_eq!(profile(&older)["centrality"]["status"],"generation_not_cached");
+        assert!(profile(&older)["migration_risk"].is_null(),"A newer map must not turn a held older request into zero/Low");
+        assert_eq!(workers.available_permits(),1);
+        let complete=blast(&fixture,json!({"project_id":PID,"file_path":SPATIAL})).await;
+        assert!(complete.contains("## Unverified one-hop advisory profile"));
+        assert!(profile(&complete)["component_membership"].as_str().unwrap().contains("at collection"));
+        // Retain an actual older declaration alongside the current graph.
+        // A partial component must not treat it as a current external caller.
+        fixture.engram.state.graph.upsert_nodes(PID,&[declaration(POLICY,"ObsoletePolicyCaller",3,1)]).unwrap();
+        let file=blast(&fixture,json!({"project_id":PID,"file_path":POLICY})).await;
+        assert!(file.contains("file_members_not_fully_admitted"));
+        assert!(!file.contains("## Unverified one-hop advisory profile"));
+        assert_eq!(impact_packet(&file)["target_revision_admitted"],true);
+        let overflow=(0..130).map(|i|declaration(POLICY,&format!("Overflow{i}"),1,2)).collect::<Vec<_>>();
+        fixture.engram.state.graph.upsert_nodes(PID,&overflow).unwrap();
+        let capped=blast(&fixture,json!({"project_id":PID,"file_path":POLICY})).await;
+        assert!(capped.contains("file_member_inventory_capped"));
+        assert!(!capped.contains("## Unverified one-hop advisory profile"));
+        assert!(impact_packet(&capped)["coverage"]["reasons"].to_string().contains("file_seed_cap"));
+    });
+}
+
 async fn impact(fixture: &Fixture, max_depth: Option<usize>) -> String {
     impact_target(fixture, &id(POLICY, "ClassifyAutomatic", 1), max_depth).await
 }

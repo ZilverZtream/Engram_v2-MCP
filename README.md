@@ -818,8 +818,10 @@ tool list. Tools omitted from `tools/list` may be unavailable to client agents;
 The full profile includes `list_advanced_tools` as a catalog; it is not a
 substitute for protocol discovery.
 Restart the daemon and reconnect clients after changing this setting.
-The 32-tool core includes `list_projects`, `project_info`, `get_chunk` and
-`read_memory_bank` for project discovery and citation recovery. Dedicated blast
+The 32-tool core includes `list_projects`, `project_info`, `get_chunk`,
+`get_full_method_body` and `read_memory_bank` for project discovery, stored
+citations and current-source recovery. Detailed `project_health` diagnostics
+remain in the full profile; Core retains `get_index_freshness` for index freshness. Dedicated blast
 radius queries, general graph-path discovery, inferred coding-style analysis
 and similar-change searches are available in the full profile, alongside
 instruction-file generation and pre-push audits. Core clients can poll and cancel

@@ -191,11 +191,11 @@ pub const CORE_TOOLS: &[&str] = &[
     "update_project",
     "get_job_status",
     "cancel_job",
-    "project_health",
     "get_index_freshness",
     "grep_project",
     "search_memory",
     "get_chunk",
+    "get_full_method_body",
     "read_memory_bank",
     "get_review_decisions",
 ];

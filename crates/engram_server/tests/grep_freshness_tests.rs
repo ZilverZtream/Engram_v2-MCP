@@ -663,6 +663,20 @@ async fn grep_advertised_citations_roundtrip_and_disk_only_has_none() {
     }).map(|s| serde_json::from_str(s).unwrap()).collect();
     assert_eq!(markdown_args, vec![json_args.clone()]);
     assert!(markdown.contains("\nget_chunk arguments: `"));
+    let current=hit["current_source_recovery"]["arguments"].clone();
+    let current_markdown:Vec<serde_json::Value>=markdown.lines().filter_map(|line|
+        line.strip_prefix("current get_full_method_body arguments: `").and_then(|s|s.strip_suffix('`')))
+        .map(|s|serde_json::from_str(s).unwrap()).collect();
+    assert_eq!(current_markdown,vec![current.clone()]);
+    assert!(current.get("line_end").is_none(),"No EOF is invented from indexed positions");
+    for args in [current,current_markdown[0].clone()] {
+        let read=engram.handle_get_full_method_body(serde_json::from_value(args).unwrap()).await.unwrap();
+        let body:serde_json::Value=serde_json::from_str(&read.content[0].as_text().unwrap().text).unwrap();
+        assert_eq!(body["source_file_hash"],blake3::hash(source.as_bytes()).to_hex().to_string());
+        assert_eq!(body["retrieval_scope"],"current_file_excerpt");
+        assert_eq!(body["file_excerpt"]["reaches_eof"],true);
+        assert!(body["source_code"].as_str().unwrap().contains("citation_marker Å"));
+    }
     for args in [json_args, markdown_args[0].clone()] {
         assert_eq!(args["citation"], serde_json::json!({}));
         let result = engram.handle_get_chunk(serde_json::from_value(args).unwrap()).await.unwrap();
@@ -685,10 +699,52 @@ async fn grep_advertised_citations_roundtrip_and_disk_only_has_none() {
     assert_eq!(hits[0]["source"], "working_tree");
     assert_eq!(hits[0]["recovery"]["action"], "read_file");
     assert!(hits[0].get("citation_recovery").is_none());
+    let read=engram.handle_get_full_method_body(serde_json::from_value(hits[0]["current_source_recovery"]["arguments"].clone()).unwrap()).await.unwrap();
+    let body:serde_json::Value=serde_json::from_str(&read.content[0].as_text().unwrap().text).unwrap();
+    assert!(body["source_code"].as_str().unwrap().contains("only_disk_citation"));
     request.output_json = false;
     let markdown = grep(&engram, request).await;
     assert!(!markdown.contains("citation get_chunk arguments:"));
     assert!(markdown.contains("no indexed doc_id"));
+}
+
+#[tokio::test]
+async fn stale_grep_locator_keeps_index_citation_and_executable_current_first_page_fallback() {
+    let source=format!("{}pub fn drifted_marker() {{}}\n","// earlier source\n".repeat(150));
+    let (_owned,engram,pid,root)=setup_with_source(source.as_bytes()).await;
+    std::fs::write(root.join("src/orders.rs"),"\u{feff}// replacement Å\r\n").unwrap();
+    let mut request=grep_request(&pid,"drifted_marker","off");request.output_json=true;
+    let page:serde_json::Value=serde_json::from_str(&grep(&engram,request).await).unwrap();
+    let hit=&page["matches"][0];assert_eq!(hit["source"],"index");
+    assert_eq!(hit["citation_recovery"]["tool"],"get_chunk");
+    let indexed=engram.handle_get_chunk(serde_json::from_value(hit["citation_recovery"]["arguments"].clone()).unwrap()).await;
+    assert!(indexed.is_err(),"Citation mode must keep withholding stale source rather than bypassing fingerprint checks");
+    let anchored=engram.handle_get_full_method_body(serde_json::from_value(hit["current_source_recovery"]["arguments"].clone()).unwrap()).await;
+    assert!(anchored.as_ref().map_or(true,|reply|reply.is_error.unwrap_or(false)),"A stale locator must not fabricate current lines");
+    let fallback=&hit["current_source_recovery"]["first_page_fallback"];
+    let read=engram.handle_get_full_method_body(serde_json::from_value(fallback["arguments"].clone()).unwrap()).await.unwrap();
+    let body:serde_json::Value=serde_json::from_str(&read.content[0].as_text().unwrap().text).unwrap();
+    assert_eq!(body["source_code"],"\u{feff}// replacement Å");
+    assert_eq!(body["source_file_hash"],blake3::hash("\u{feff}// replacement Å\r\n".as_bytes()).to_hex().to_string());
+    assert_eq!(body["source_verification"],"current_file_snapshot_not_index_verified");
+}
+
+#[tokio::test]
+async fn knowledge_hit_with_a_real_source_path_does_not_advertise_current_source_as_its_evidence() {
+    let (_owned,engram,pid,_root)=setup().await;
+    let runtime=engram.state.peek_project_cached(&pid).unwrap().unwrap();
+    let body="knowledge_only_marker";
+    runtime.search.index_docs(&pid,&[engram_index::IndexDoc {
+        namespace:"business_logic".into(),generation:engram.state.registry.active_source_generation(&pid).unwrap(),
+        chunk_id:99001,path:engram_core::RelPath::new("src/orders.rs"),language:"rust".into(),content:body.into(),
+        author:None,timestamp:None,start_line:1,end_line:1,doc_id:"knowledge-only-marker".into(),
+        content_hash:engram_core::ContentHash::compute(body.as_bytes()).0,
+    }],&tokio_util::sync::CancellationToken::new()).await.unwrap();
+    let mut request=grep_request(&pid,body,"off");request.namespace="business_logic".into();request.output_json=true;
+    let page:serde_json::Value=serde_json::from_str(&grep(&engram,request).await).unwrap();
+    assert_eq!(page["matches"].as_array().unwrap().len(),1);
+    assert!(page["matches"][0].get("citation_recovery").is_some());
+    assert!(page["matches"][0].get("current_source_recovery").is_none(),"Knowledge text must not borrow evidence from a same-named disk file");
 }
 
 /// `exclude_path_prefixes` removes matches under the named prefixes from the

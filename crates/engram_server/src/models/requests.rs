@@ -2744,7 +2744,9 @@ pub struct ComputeBlastRadiusRequest {
     pub symbol_fqn: Option<String>,
     /// Include the separate unverified one-hop advisory profile and migration
     /// guidance in graph responses. False skips that worker entirely.
-    /// Default true. Summary always omits it.
+    /// Default true. Uses only already retained same-generation centrality;
+    /// missing centrality makes the composite score/band null. File advice
+    /// requires complete admitted members from the held walk. Summary omits it.
     #[serde(default = "default_true")]
     pub include_guidance: bool,
     /// Incoming causal walk depth, separate from the advisory one-hop score.
