@@ -8680,12 +8680,53 @@
             "sha256": "152866775baf278d69bca406077a03cccea6bce18d17c5cc7809552271cbc9e3"
           }
         }
+      },
+      "rights_file_impact_20261105": {
+        "state": "SOURCE_REVIEWED_FOCUSED11PASS;BUILD_AND_ACTUAL_VALIDATION_PENDING",
+        "source_application": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-file-impact-summary-source-applied-20261105.json",
+          "sha256": "24f7e07a53bf7973c14721665680ee5d2754efe6f0989282a2ecaa4ed0e35856"
+        },
+        "baseline_tool_calls": [
+          {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-rights-consumer-batch1-20261105.json",
+            "sha256": "46aff86ad22c71c1d075b3b7799c88735d6f766fb3d85c4f518402da500fab9c"
+          },
+          {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-rights-consumer-batch2-20261105.json",
+            "sha256": "71ed63e591b0a727f085cf9564b89bd2d3b0c1217b44432e25c2a8440b7b4ce5"
+          },
+          {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-rights-consumer-batch3-20261105.json",
+            "sha256": "58cc0bf7b65dc4463dde38e029dad80e1dc94aa0a8d879ceb71aa97f2ddb97e1"
+          },
+          {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-rights-consumer-batch4-20261105.json",
+            "sha256": "6ef75f6832ee31807effb96a3f06f926125a438859a4c83b67e12bc5ae47e235"
+          },
+          {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-rights-consumer-batch5-20261105.json",
+            "sha256": "6206ced954541ceea607326cbdaaf2e36b695b4c8e199b28ae11a5f4a7a34d26"
+          }
+        ],
+        "independent_source_oracle": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-rights-source-oracle-20261105.json",
+          "sha256": "4596de33e4fde037deef9088719b185d043398f40ae01c974573dcf90d2bbbe0"
+        },
+        "evaluation_contamination": "Afterchoosingrequests1?12, consumerusedlist_agents andsawcompleted sourceoracle. Alllaterchoices/finalareoracle-exposed; no blindsuccessclaim. Futureconsumersmustnotlistagents, andsourceoraclesmustprivatelymessageparentandkeepfinalstatusanswer-free.",
+        "observed_defects": [
+          "Fourdisplayed directconsumers camefromAPIservice/provider andomittedbothdashboardmethods; needed37.7KBgraph expansion from7.1KBsummary.",
+          "Filetargetsampleconnectionsnull despiteactualmemberseed callwitnesses.",
+          "APIcontrollerentry omittedacrossinterfaceimplementation; thisseparategap remainsunfixed."
+        ],
+        "current_fix": "General bounded file-diverse summary/actualmember connections; graphtraversal/admissionanddata unchanged.",
+        "remaining": "Actualsame3119 source/witness/summarybudget verification, deploy, freshconsumerwithoutexposure; thencompleteinterfacegap work. Original31/19unfinished."
       }
     }
   },
   "last_updated_at": "2026-11-04T22:21:34.174161+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-04T11:12:56.875854+00:00",
+    "at_utc": "2026-11-05T03:40:53.223622+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -8716,7 +8757,7 @@
       }
     ],
     "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
-    "next_user_visible_deliverable": "Finish WebForms one-based control/layout emission and family-specific produced-contract migration; inspect complete planned changed paths (noSite/Qbodies), validate actual corrected control locations and preservedpage/bundle references, then deploy. Guard-onlycandidate6b was withheld after real binding assertion failed. Originalaudit/regularbenchmark remainopen.",
+    "next_user_visible_deliverable": "Deploy general file-impact summary diversity/realmember witnesses validated against currentUserRights case; preserve explicitmissinginterface-entrypath for subsequent coretool delivery.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -8729,7 +8770,7 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "671d927 recorded call/reference witnesses and executable summary recovery deployed;13relatedtests,39actualOciusXreads,15normalreads and2fresh-agent sourcecalls. Core assignment and original audit remain incomplete.",
-    "previous_goal_turn_classification": "Prior user-status turn was no progress (status verification only). This continuation changes authoritative source671d927, pushesmaster, deploys paired runtime, and validates actual agent behavior."
+    "latest_completed_core_batch": "7b1c8c9 unresolvedidentity inspection candidates deployed;focused10/cold38/freshconsumer6actions; originalmissingedges remainunresolved.",
+    "previous_goal_turn_classification": "PROGRESS: previous turn changedsource,pushedmaster,deployedandvalidatedactualcandidateactions. Currentturnfoundseparatefile-summary/dispatchgaps fromdifferentAPI task andimplementedsummaryfix; notwholegoalcompletion."
   }
 }

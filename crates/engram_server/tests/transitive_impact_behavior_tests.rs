@@ -2206,3 +2206,86 @@ fn ambiguous_or_unadmitted_declarations_do_not_become_missing_identity_candidate
         });
     }
 }
+
+
+#[test]
+fn file_impact_summary_exposes_distinct_consumer_files_and_actual_member_connections() {
+    owned_case(|fixture| async move {
+        const WIDGET: &str = "src/widget.rs";
+        const LONG: &str = "src/aaaa.rs";
+        let long_name="A".repeat(1950);
+        let long_body=format!("pub fn {long_name}() {{ crate::policy::ClassifyAutomatic(); }}\n");
+        let companion = "pub fn HistoricCompanion() { crate::policy::ClassifyAutomatic(); }\npub struct StructuralOnly;\npub fn BadEdgeOnly() { crate::policy::ClassifyAutomatic(); }\npub fn ValidAfterUnknown() { crate::policy::ClassifyAutomatic(); }\n";
+        let widget = "pub fn WidgetRead() { crate::policy::Resolve(); }\n";
+        let cancel = CancellationToken::new();
+        let baseline = fixture.engram.state.registry.capture_source_head(PID).unwrap();
+        fixture.search.prepare_source_snapshot(PID, 2, 3,
+            &[RelPath::new(COMPANION), RelPath::new(WIDGET), RelPath::new(LONG)], &[], &cancel).await.unwrap();
+        fixture.search.index_docs(PID, &[
+            source_doc(3, 300, COMPANION, companion), source_doc(3, 301, WIDGET, widget), source_doc(3,302,LONG,&long_body)
+        ], &cancel).await.unwrap();
+        fixture.search.seal_source_snapshot(PID, 3).unwrap();
+        std::fs::write(fixture.root.join(COMPANION), companion).unwrap();
+        std::fs::write(fixture.root.join(WIDGET), widget).unwrap();
+        std::fs::write(fixture.root.join(LONG), &long_body).unwrap();
+        fixture.engram.state.graph.upsert_nodes(PID, &[
+            file_node(COMPANION, companion, 3), file_node(WIDGET, widget, 3), file_node(LONG,&long_body,3),
+            declaration(LONG,&long_name,1,3),
+            declaration(COMPANION, "HistoricCompanion", 1, 3),
+            declaration(COMPANION, "BadEdgeOnly", 3, 3),
+            declaration(COMPANION, "ValidAfterUnknown", 4, 3),
+            declaration(WIDGET, "WidgetRead", 1, 3),
+        ]).unwrap();
+        let mut edges: Vec<_> = [("HistoricCompanion",1),("BadEdgeOnly",3),("ValidAfterUnknown",4)]
+            .into_iter().map(|(name,line)| {
+                let mut edge = edge(id(COMPANION,name,line),id(POLICY,"ClassifyAutomatic",1),EdgeKind::Calls,3);
+                edge.metadata=Some(json!({"call_site_line":line}));edge
+            }).collect();
+        let mut widget_edge = edge(id(WIDGET,"WidgetRead",1),id(POLICY,"Resolve",2),EdgeKind::Calls,3);
+        widget_edge.metadata=Some(json!({"call_site_line":1}));edges.push(widget_edge);
+        edges.push(edge(id(LONG,&long_name,1),id(POLICY,"ClassifyAutomatic",1),EdgeKind::Calls,3));
+        fixture.engram.state.graph.upsert_edges(PID,&edges).unwrap();
+        assert!(fixture.engram.state.registry.publish_source_head(&baseline,3).unwrap());
+        let target=format!("file:{POLICY}");
+        let full=impact_packet(&impact_target(&fixture,&target,Some(6)).await);
+        let by_ref:std::collections::BTreeMap<_,_>=full["nodes"].as_array().unwrap().iter()
+            .map(|node|(node["ref"].as_str().unwrap(),node)).collect();
+        for tool in ["impact_analysis","compute_blast_radius"] {
+            let summary=impact_packet(&summary_impact(&fixture,tool,&target,6).await);
+            assert_eq!(summary["selected_dependents_observed"],full["selected_dependents_observed"]);
+            assert_eq!(summary["coverage"],full["coverage"]);
+            let immediate=summary["immediate_consumers"].as_array().unwrap();
+            let files:std::collections::BTreeSet<_>=immediate.iter()
+                .map(|node|node["file_path"].as_str().unwrap()).collect();
+            assert_eq!(files,std::collections::BTreeSet::from([COMPANION,SPATIAL,WIDGET]),
+                "Busy or oversized first-file rows must not hide other consumer files that fit the summary");
+            assert_eq!(summary["immediate_consumers_omitted_from_summary"].as_u64().unwrap(),
+                summary["direct_dependents_observed"].as_u64().unwrap()-immediate.len() as u64);
+            for node in immediate {
+                let witness=&node["sample_connection_to_target"];
+                assert_eq!(witness["target_scope"],"file_member");
+                assert_eq!(summary["requested_file_node_id"],target);
+                assert_ne!(witness["target_node_id"],target,"Do not fabricate an edge to the file");
+                let edge=full["edges"].as_array().unwrap().iter().find(|edge|
+                    by_ref[edge["source_ref"].as_str().unwrap()]["node_id"]==node["node_id"]
+                    && by_ref[edge["target_ref"].as_str().unwrap()]["node_id"]==witness["target_node_id"]
+                    && edge["kind"]==witness["kind"]).unwrap();
+                let member=by_ref[edge["target_ref"].as_str().unwrap()];
+                assert_eq!(member["admission"],"selected");assert_eq!(member["is_seed"],true);
+                assert_eq!(witness["target_name"],member["name"]);
+                assert_eq!(witness["target_generation"],member["generation"]);
+                assert_eq!(witness["source_line"],edge["source_line"]);
+                let action=&node["source_read"];
+                let recovered=fixture.engram.handle_get_full_method_body(
+                    serde_json::from_value(action["arguments"].clone()).unwrap()
+                ).await.unwrap();
+                let body:Value=serde_json::from_str(&recovered.content[0].as_text().unwrap().text).unwrap();
+                let current=std::fs::read(fixture.root.join(node["file_path"].as_str().unwrap())).unwrap();
+                assert_eq!(body["source_file_hash"],ContentHash::compute(&current).0);
+                assert!(body["source_code"].as_str().unwrap().contains("crate::policy::"));
+            }
+            let expanded=expand_summary_graph(&fixture,&summary,&target,6).await;
+            assert_eq!(graph_connections(&expanded),graph_connections(&full));
+        }
+    });
+}

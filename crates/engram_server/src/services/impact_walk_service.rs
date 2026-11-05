@@ -197,6 +197,7 @@ fn summary_section(
         .as_str()
         .and_then(|reference| nodes.get(reference))
         .copied();
+    let file_component = target.is_some_and(|node| node["kind"] == "file");
     let action = |reference: &Value| {
         reference
             .as_str()
@@ -207,9 +208,13 @@ fn summary_section(
         let recovery = node["recovery_ref"]
             .as_str()
             .and_then(|reference| recoveries.get(reference));
-        let connection = full["edges"].as_array().into_iter().flatten().find(|edge| {
-            edge["source_ref"] == node["ref"] && edge["target_ref"] == full["target_ref"]
-        });
+        let connection = full["edges"].as_array().into_iter().flatten().filter(|edge| {
+            edge["source_ref"] == node["ref"] && (edge["target_ref"] == full["target_ref"]
+                || (file_component && edge["target_ref"].as_str()
+                    .and_then(|reference| nodes.get(reference)).is_some_and(|member|
+                        member["admission"] == "selected" && member["is_seed"] == true
+                            && target.is_some_and(|target| member["file_ref"] == target["file_ref"]))))
+        }).min_by_key(|edge| edge["connection_role"] == "additional_verified_connection");
         json!({"node_id":node["node_id"],"name":node["name"],
         "file_path":node["file_ref"].as_str().and_then(|reference| files.get(reference)),
         "start_line":node["start_line"],"end_line":node["end_line"],"generation":node["generation"],
@@ -217,8 +222,10 @@ fn summary_section(
         "source_read_scope":recovery.map(|row|match row["scope_ref"].as_str() {
             Some("range")=>"explicit_source_range",Some("file_excerpt")=>"current_file_excerpt",
             _=>"selected_source_navigation"}),
-        "sample_connection_to_target":connection.map(|edge|json!({
-            "source_node_id":node["node_id"],"target_node_id":target.map(|node|&node["node_id"]),
+        "sample_connection_to_target":connection.map(|edge| {
+            let reached = edge["target_ref"].as_str().and_then(|reference|nodes.get(reference));
+            let mut witness = json!({
+            "source_node_id":node["node_id"],"target_node_id":reached.map(|node|&node["node_id"]),
             "kind":edge["kind"],"edge_generation":edge["edge_generation"],"source_generation":node["generation"],
             "edge_source_binding":edge.get("edge_source_binding").cloned().unwrap_or(json!("extraction_generation")),
             "source_line":edge["source_line"],
@@ -230,7 +237,22 @@ fn summary_section(
             "reference_lines":edge.get("reference_lines").cloned().unwrap_or(json!([])),
             "reference_lines_truncated":edge.get("reference_lines_truncated").cloned().unwrap_or(json!(false)),
             "source_position_scope":edge.get("source_position_scope").cloned().unwrap_or(json!("not_recorded"))
-        }))})
+            });
+            if file_component {
+                witness["target_scope"] = json!(if edge["target_ref"] == full["target_ref"] { "requested_file" } else { "file_member" });
+                witness["target_name"] = reached.map(|node|node["name"].clone()).unwrap_or(Value::Null);
+                witness["target_generation"] = reached.map(|node|node["generation"].clone()).unwrap_or(Value::Null);
+                if !edge["source_line"].is_null() {
+                    if let Some(source_read) = action(&node["recovery_ref"]) {
+                        if witness.get("recorded_position_read") == Some(&source_read) {
+                            witness.as_object_mut().expect("witness object").remove("recorded_position_read");
+                            witness["recorded_position_uses_source_read"] = json!(true);
+                        }
+                    }
+                }
+            }
+            witness
+        })})
     };
     let mut arguments = json!({"project_id":project,"max_depth":full["requested_max_depth"],
         "limit":display_limit.clamp(1,25),"detail":"graph"});
@@ -266,6 +288,8 @@ fn summary_section(
         "dependency_scope":full["dependency_scope"],
         "change_breakage_proven":false,"target":null,"target_omitted_from_summary":target.is_some(),
         "immediate_consumers":[],"immediate_consumers_omitted_from_summary":direct,
+        "immediate_consumer_detail_limit_bytes":2048,
+        "immediate_selection_scope":"At most four observed direct consumers, one per source file before repeats; canonical order within each round. Per-row and total byte limits can omit rows. This is a sample, not a complete inventory. File-member witnesses name actual edges. recorded_position_uses_source_read=true reuses the owning consumer's source_read action, not a separate callsite proof.",
         "frontier":[],"frontier_rows_omitted_from_summary":frontier.len(),
         "graph_omissions":{"node_identities_omitted":full["node_identities_omitted"],
             "edges_omitted":full["edges_omitted"],"shortest_paths_omitted":full["shortest_paths_omitted"],
@@ -277,6 +301,9 @@ fn summary_section(
             "Source reads bind current file bytes/ranges, not callsites, complete method boundaries, value flow, compiler results or runtime execution."]});
     if let Some(error) = full.get("error") {
         value["error"] = error.clone();
+    }
+    if file_component {
+        value["requested_file_node_id"] = target.map(|node|node["node_id"].clone()).unwrap_or(Value::Null);
     }
     // Reserve shared candidate semantics before any optional rows consume the
     // summary budget, including when every candidate row is later omitted.
@@ -307,13 +334,26 @@ fn summary_section(
             .filter(|node| node["admission"] == "selected" && node["depth"] == 1)
             .collect();
         selected.sort_by(|a, b| a["node_id"].as_str().cmp(&b["node_id"].as_str()));
-        for node in selected.into_iter().take(4) {
-            immediate.push(describe(node));
+        let mut file_counts = HashMap::new();
+        let mut ranked: Vec<_> = selected.into_iter().map(|node| {
+            let file = node["file_ref"].as_str().and_then(|reference|files.get(reference)).and_then(|path|path.as_str());
+            let count = file_counts.entry(file).or_insert(0usize);
+            let rank = *count;
+            *count += 1;
+            (rank, node)
+        }).collect();
+        ranked.sort_by(|(a_rank,a),(b_rank,b)|a_rank.cmp(b_rank)
+            .then_with(||a["node_id"].as_str().cmp(&b["node_id"].as_str())));
+        for (_, node) in ranked {
+            if immediate.len() == 4 { break; }
+            let described = describe(node);
+            if serde_json::to_vec(&described).expect("JSON value serialization").len() > 2048 { continue; }
+            immediate.push(described);
             value["immediate_consumers"] = json!(&immediate);
             if !fits(&value) {
                 immediate.pop();
                 value["immediate_consumers"] = json!(&immediate);
-                break;
+                continue;
             }
         }
     }
