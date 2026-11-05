@@ -1323,6 +1323,8 @@ impl Engram {
         let runtime=self.ensure_project_runtime(&req.project_id).await?;
         let (generation,view)=self.pin_active_source_generation(&req.project_id,&runtime.search).await?;
         let source_hold=std::sync::Arc::new(view);
+        let compact_symbol = req.symbol_node_id.is_some() && !req.include_retained_context;
+        let managed_source = source_hold.is_managed();
         let search=runtime.search.clone();
         let graph=self.state.graph.clone();
         let worker_view=source_hold.clone();
@@ -1330,7 +1332,11 @@ impl Engram {
         let (summary,paths,file_rows,discovery,retained)=tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
             let pid=&worker_request.project_id;
             let membership=search.selected_source_revision_lookup(pid,generation,worker_view.clone())?;
-            let summary=search.selected_source_summary(pid,generation,worker_view)?;
+            let summary = if compact_symbol {
+                None
+            } else {
+                Some(search.selected_source_summary(pid,generation,worker_view)?)
+            };
             let paths=membership.navigation_paths(worker_request.scope.as_deref(),&worker_request.exclude_paths,
                 worker_request.offset,worker_request.limit)?;
             let exact_file=worker_request.scope.as_deref().is_some_and(|scope| paths.files.len()==1
@@ -1421,7 +1427,7 @@ impl Engram {
             "project_id":req.project_id,"scope":scope,"exclude_paths":req.exclude_paths,"offset":offset,"limit":req.limit}});
         let mut navigation=serde_json::json!({"format":"engram-codemap-navigation-v1","source_generation":generation,
             "scope":req.scope,"exclude_paths":req.exclude_paths,"working_tree_checked":false,
-            "coverage":{"managed_source":summary.source_files.is_some(),"matching_files":paths.matching_files,
+            "coverage":{"managed_source":managed_source,"matching_files":paths.matching_files,
                 "inspected_file_identities":paths.inspected_files,"scan_truncated":paths.scan_truncated,
                 "area_sample_truncated":paths.areas_truncated,"representative_sample":paths.representative_sample,
                 "representative_priority":"Generic Policy, Service/Controller/Handler, Application/Bootstrap/Main basename leads before area size, then path; bounded to retained groups, not runtime architecture.",
@@ -1439,8 +1445,19 @@ impl Engram {
                 "Ranges are indexed positions capped to120lines; follow-up verifies current bytes, not full methods or runtime entry points. Declaration discovery coverage is reported once above."]});
         navigation["limitations"].as_array_mut().expect("limitations array").push(serde_json::json!(
             "If no displayed declaration offers a source range, the file action offers a bounded current-file excerpt. This reads current bytes only when executed; compare page hashes and do not infer method boundaries or indexed freshness."));
+        if compact_symbol {
+            navigation["detail"] = serde_json::json!("exact_symbol");
+            navigation.as_object_mut().expect("navigation object").remove("other_inventories");
+            navigation["coverage"].as_object_mut().expect("coverage object").remove("representative_priority");
+            navigation["limitations"] = serde_json::json!([
+                "One held published source selection, including inherited physical revisions; declarations are bounded admitted graph observations.",
+                "Not observed is not absent. Discovery/admission/scan gaps are reported in coverage; no current-source, binding or runtime verification.",
+                "Indexed ranges are capped at120lines. Follow-ups observe fresh state/current bytes; compare source_generation and hashes, not complete-method or entry-point proof.",
+                "Project distributions and area/schema/settings context omitted; the file action returns normal navigation."
+            ]);
+        }
         let mut areas=Vec::new();
-        for (area,count) in &paths.areas {
+        for (area,count) in paths.areas.iter().filter(|_| !compact_symbol) {
             areas.push(serde_json::json!({"scope":area,"selected_files":count,"explore":explore(area,0)}));
             navigation["areas"]=serde_json::json!(&areas);
             if serde_json::to_vec(&navigation).map_err(|e|McpError::internal_error(e.to_string(),None))?.len()>24*1024 {
@@ -1466,6 +1483,8 @@ impl Engram {
         let encoded=serde_json::to_string(&navigation).map_err(|e|McpError::internal_error(e.to_string(),None))?;
         if encoded.len()>64*1024{return Err(McpError::internal_error("CodeMap response metadata exceeds bound; narrow scope/exclusions",None));}
         let mut out=format!("Codebase Overview: {}\nproject_id: {}\nproject_type: {}\nactive_generation: {}\n",rec.project_name,req.project_id,rec.project_type,generation);
+        if !compact_symbol {
+        let summary = summary.as_ref().expect("normal overview collects its project summary");
         out.push_str("\n--- Current Source (entire held project selection; navigation scope/exclusions apply below) ---\n");
         match summary.source_files{Some(files)=>out.push_str(&format!("source_files: {files}\n")),
             None=>out.push_str("source_files: unknown (legacy selection has no complete file manifest)\n")};
@@ -1483,6 +1502,7 @@ impl Engram {
         for (language,count) in &summary.chunks_by_language {
             let percent=if summary.source_chunks>0{(*count as f64/summary.source_chunks as f64*100.0) as u32}else{0};
             out.push_str(&format!("  {language}: {count} ({percent}%)\n"));
+        }
         }
         out.push_str("\n## CodeMap Navigation\n\n```json\n"); out.push_str(&encoded); out.push_str("\n```\n");
         if let Some((total,namespaces,insights))=retained {
@@ -1510,7 +1530,7 @@ impl Engram {
                 Err(error)=>out.push_str(&format!("insight_titles_sampled: unknown (metadata unavailable: {})\n",error.to_string().chars().take(256).collect::<String>())),
             }
             out.push_str("Use read_memory_bank for notes and their stale-evidence warnings; retained notes/insights are not selected-source navigation facts.\n");
-        }else{out.push_str("\nRetained history/memory context omitted by default; request include_retained_context=true when relevant.\n");}
+        }else if !compact_symbol{out.push_str("\nRetained history/memory context omitted by default; request include_retained_context=true when relevant.\n");}
         out.push_str(&self.freshness_footer(&req.project_id,generation).await);
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
