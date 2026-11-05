@@ -143,7 +143,7 @@ struct RegisterEntry {
 
 /// One-based source positions for WebForms controls and layout. Stored per
 /// produced file so unchanged markup with older positions is re-extracted.
-pub const POSITION_CONTRACT: u64 = 1;
+pub const POSITION_CONTRACT: u64 = 2;
 
 /// Extract symbols and edges from a WebForms markup file.
 ///

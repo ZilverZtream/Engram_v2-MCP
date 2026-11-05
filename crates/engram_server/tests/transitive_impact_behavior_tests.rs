@@ -1629,6 +1629,85 @@ fn cycles_terminate_and_stale_future_missing_or_unbound_edges_never_claim_curren
 }
 
 #[test]
+fn unverified_relationship_producers_do_not_hide_later_valid_caller_evidence() {
+    owned_case(|fixture| async move {
+        let source = id(COMPANION, "HistoricCompanion", 1);
+        let target = id(POLICY, "ClassifyAutomatic", 1);
+        for producer in [
+            json!({"version":1,"path":"src/missing-producer.vb","generation":1,"owner_class":"Home"}),
+            json!({"version":1,"path":FUTURE_FILE,"generation":2,"owner_class":"Home"}),
+            json!("unverified extractor string"),
+        ] {
+            fixture
+                .engram
+                .state
+                .graph
+                .delete_edges_of_kind(PID, &EdgeKind::Dependency)
+                .unwrap();
+            let mut unverified = edge(source.clone(), target.clone(), EdgeKind::Calls, 2);
+            unverified.metadata = Some(json!({"_engram_event_producer":producer,
+                "_engram_source_origin":{"version":1,"source_id":source,"source_generation":1}}));
+            fixture
+                .engram
+                .state
+                .graph
+                .upsert_edges(PID, &[unverified])
+                .unwrap();
+            let report = impact_packet(&impact(&fixture, None).await);
+            assert!(
+                !report["nodes"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|n| n["node_id"] == source && n["admission"] == "selected"),
+                "Missing, stale or unverified producer evidence cannot establish a causal caller"
+            );
+            assert!(
+                report["frontier"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|r| r["reason"] == "unverified_event_producer_revision")
+            );
+            fixture
+                .engram
+                .state
+                .graph
+                .upsert_edges(
+                    PID,
+                    &[edge(
+                        source.clone(),
+                        target.clone(),
+                        EdgeKind::Dependency,
+                        1,
+                    )],
+                )
+                .unwrap();
+            let recovered = impact_packet(&impact(&fixture, None).await);
+            assert!(
+                recovered["nodes"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|n| n["node_id"] == source && n["admission"] == "selected"),
+                "A rejected relationship must not suppress a later valid relationship from the same caller"
+            );
+            let connections = graph_connections(&recovered);
+            assert!(connections.contains(&(source.clone(), target.clone())));
+            assert!(
+                !recovered["nodes"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|n| n["node_id"] == format!("file:{FUTURE_FILE}")
+                        && n["admission"] == "selected"),
+                "Producer validation does not add unrelated file identities to the consumer set"
+            );
+        }
+    });
+}
+
+#[test]
 fn moving_the_callee_preserves_an_inherited_call_but_refreshing_away_that_call_removes_its_impact()
 {
     owned_case(|fixture| async move {

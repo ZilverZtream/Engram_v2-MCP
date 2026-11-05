@@ -1017,6 +1017,17 @@ position contract makes older markup re-extract even when its bytes are unchange
 the global source format and VB parser identity are unaffected. Page/file directive
 locations do not delimit file-wide references.
 
+WebForms contract version 2 also retains the distinction between an event's
+control location and its producing file/class. Markup-only refresh recovers VB
+`Handles` from exact admitted stored method signatures, without reading the
+unchanged codebehind body. Producer edits retire obsolete wiring; changing the
+page's backing class or deleting its control removes the old binding. Missing
+signature/ownership evidence or conflicting producers can refuse an update;
+they do not justify guessing another handler. Shared markup/Handles support for
+the same graph key remains an explicit limitation. These indexed relationships
+remain static evidence, with producer revisions checked against the held source
+selection.
+
 For an explicitly bounded refresh, `update_project` accepts `only_paths` with
 `wait: true` and 1–4096 exact eligible relative paths. It re-extracts that set and
 inherits outside source revisions without checking their current bytes, additions
