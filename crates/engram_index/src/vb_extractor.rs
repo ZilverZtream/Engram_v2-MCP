@@ -1406,6 +1406,47 @@ fn degraded_fallback(path: &Path, source: &str, context: VbParserContext, reason
     (symbols, edges, provenance)
 }
 
+/// Find a declaration's actual Handles clause outside parameter defaults,
+/// quoted strings, escaped identifiers and comments.
+pub fn declared_handles_clause(signature: &str) -> Option<&str> {
+    let mut chars = signature.char_indices().peekable();
+    let mut quoted = false;
+    let mut escaped_identifier = false;
+    let mut depth = 0usize;
+    while let Some((offset, ch)) = chars.next() {
+        if quoted {
+            if ch == '"' {
+                if chars.peek().is_some_and(|(_, c)| *c == '"') { chars.next(); }
+                else { quoted = false; }
+            }
+            continue;
+        }
+        if escaped_identifier {
+            if ch == ']' { escaped_identifier = false; }
+            continue;
+        }
+        match ch {
+            '"' => quoted = true,
+            '[' => escaped_identifier = true,
+            '\'' => return None,
+            '(' => depth += 1,
+            ')' => depth = depth.checked_sub(1)?,
+            c if depth == 0 && (c.is_alphabetic() || c == '_') => {
+                let mut end = offset + ch.len_utf8();
+                while let Some(&(i, c)) = chars.peek() {
+                    if !(c.is_alphanumeric() || c == '_') { break; }
+                    chars.next(); end = i + c.len_utf8();
+                }
+                if signature[offset..end].eq_ignore_ascii_case("Handles") {
+                    return Some(signature[end..].split('\'').next().unwrap_or("").trim());
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
 pub fn extract_vb_for_ingestion(path: &Path, source: &str)
     -> anyhow::Result<(Vec<ExtractedSymbol>, Vec<ExtractedEdge>, VbParserProvenance)> {
     let result = extract_vb_with_provenance(path, source);
@@ -2239,6 +2280,7 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
                     method.truncate(p);
                 }
                 let mut meta = fallback_method_metadata(source, line_no as usize);
+                meta.insert("signature".to_owned(), line.trim().to_owned());
                 // TODO-13: parameter count from the signature line so the
                 // degraded path also feeds arity-aware resolution. Counts
                 // top-level commas inside the first paren group; nested
@@ -2307,8 +2349,7 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
                 }
                 current_method = Some(fqn.clone());
                 local_types.clear();
-                if let Some(handles_pos) = lower.find(" handles ") {
-                    let handles = &line[handles_pos + 9..];
+                if let Some(handles) = declared_handles_clause(line) {
                     for part in handles.split(',') {
                         let part = part.trim();
                         if let Some((control, _evt)) = part.split_once('.') {

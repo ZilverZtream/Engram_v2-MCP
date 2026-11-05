@@ -129,6 +129,223 @@ async fn settle(app: &Engram) -> Result<()> {
     }
 }
 
+async fn binding_impact(app: &Engram, project: &str, handler: &str) -> Result<serde_json::Value> {
+    let response = app
+        .handle_impact_analysis(serde_json::from_value(json!({"project_id":project,
+        "symbol_fqn":handler,"limit":25,"max_depth":4}))?)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let text = &response.content[0].as_text().unwrap().text;
+    let value = text
+        .split("## Revision-admitted change impact")
+        .nth(1)
+        .unwrap()
+        .split("```json\n")
+        .nth(1)
+        .unwrap()
+        .split("```")
+        .next()
+        .unwrap();
+    Ok(serde_json::from_str(value)?)
+}
+
+fn has_control(impact: &serde_json::Value, id: &str) -> bool {
+    impact["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|n| n["node_id"] == id && n["admission"] == "selected")
+}
+
+#[test]
+fn markup_refresh_retains_handles_but_producer_or_control_removal_retires_it() -> Result<()> {
+    owned_case(|owned| async move {
+        let root = owned.join("repo");
+        std::fs::create_dir_all(&root)?;
+        drop(git2::Repository::init(&root)?);
+        let markup = "<%@ Page Language=\"VB\" CodeBehind=\"Home.aspx.vb\" Inherits=\"Home\" %>\n<asp:Button ID=\"btnUpload\" runat=\"server\" />\n<asp:Button ID=\"fake\" runat=\"server\" />\n";
+        let producer = "Public Class Home\nPublic Sub Upload(Optional label As String = \" handles fake.Click, x\") Handles btnUpload.Click\nEnd Sub\nEnd Class\n";
+        let other = "<%@ Page Language=\"VB\" CodeBehind=\"Other.aspx.vb\" Inherits=\"Other\" %>\n<asp:Button ID=\"btnUpload\" runat=\"server\" />\n";
+        std::fs::write(root.join("Home.aspx"), markup)?;
+        std::fs::write(root.join("Home.aspx.vb"), producer)?;
+        std::fs::write(root.join("Other.aspx"), other)?;
+        std::fs::write(
+            root.join("Other.aspx.vb"),
+            "Public Class Other\nPublic Sub Upload() Handles btnUpload.Click\nEnd Sub\nEnd Class\n",
+        )?;
+        let config = Config {
+            data_dir: owned.join("data"),
+            allowed_roots: vec![root.clone()],
+            embedding_backend: "fts_only".into(),
+            llm_backend: "none".into(),
+            ..Default::default()
+        };
+        let (state, _) = AppState::new(config.clone())?;
+        let app = Engram::new(state.clone());
+        let indexed = app
+            .handle_index_project(serde_json::from_value(
+                json!({"directory":root,"project_name":"Handles lifecycle",
+            "project_type":"dotnet_webforms_vb","wait":true}),
+            )?)
+            .await;
+        settle(&app).await?;
+        indexed.map_err(|e| anyhow::anyhow!("{e}"))?;
+        let project = state.registry.list_projects()?[0].project_id.clone();
+        let first = binding_impact(&app, &project, "Home.Upload").await?;
+        ensure!(
+            !has_control(&first, "control:Home.aspx:fake"),
+            "Text inside an optional string parameter must not invent an event binding"
+        );
+        ensure!(
+            has_control(&first, "control:Home.aspx:btnUpload"),
+            "Initial Handles must connect the actual control"
+        );
+        ensure!(
+            !has_control(&first, "control:Other.aspx:btnUpload"),
+            "A same-named control on another page is not a substitute"
+        );
+        let before = state
+            .graph
+            .get_node(&project, "file:Home.aspx.vb")?
+            .unwrap();
+        std::fs::write(root.join("Home.aspx"), format!("\n{markup}"))?;
+        let updated = app
+            .handle_update_project(serde_json::from_value(
+                json!({"project_id":project,"wait":true,
+            "only_paths":["Home.aspx"],"index_antipatterns":false}),
+            )?)
+            .await;
+        settle(&app).await?;
+        updated.map_err(|e| anyhow::anyhow!("{e}"))?;
+        let moved = binding_impact(&app, &project, "Home.Upload").await?;
+        ensure!(
+            !has_control(&moved, "control:Home.aspx:fake"),
+            "Stored-signature recovery must ignore quoted Handles text"
+        );
+        ensure!(
+            has_control(&moved, "control:Home.aspx:btnUpload"),
+            "A markup-only edit must preserve codebehind Handles"
+        );
+        let control = moved["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|n| n["node_id"] == "control:Home.aspx:btnUpload")
+            .unwrap();
+        ensure!(control["start_line"] == 3);
+        let after = state
+            .graph
+            .get_node(&project, "file:Home.aspx.vb")?
+            .unwrap();
+        ensure!(
+            before.generation == after.generation && before.metadata == after.metadata,
+            "Companion source revision remains inherited"
+        );
+        drop(app);
+        drop(state);
+        let (state, _) = AppState::new(config)?;
+        let app = Engram::new(state.clone());
+        ensure!(
+            has_control(
+                &binding_impact(&app, &project, "Home.Upload").await?,
+                "control:Home.aspx:btnUpload"
+            ),
+            "Cold reopen must retain the recovered route"
+        );
+        std::fs::write(
+            root.join("Home.aspx"),
+            markup.replace("Inherits=\"Home\"", "Inherits=\"Other\""),
+        )?;
+        let changed_owner = app
+            .handle_update_project(serde_json::from_value(
+                json!({"project_id":project,"wait":true,
+            "only_paths":["Home.aspx"],"index_antipatterns":false}),
+            )?)
+            .await;
+        settle(&app).await?;
+        changed_owner.map_err(|e| anyhow::anyhow!("{e}"))?;
+        ensure!(
+            !has_control(
+                &binding_impact(&app, &project, "Home.Upload").await?,
+                "control:Home.aspx:btnUpload"
+            ),
+            "A surviving control ID under a different backing class must not retain the old class's handler"
+        );
+        std::fs::write(root.join("Home.aspx"), markup)?;
+        let restored_owner = app
+            .handle_update_project(serde_json::from_value(
+                json!({"project_id":project,"wait":true,
+            "only_paths":["Home.aspx"],"index_antipatterns":false}),
+            )?)
+            .await;
+        settle(&app).await?;
+        restored_owner.map_err(|e| anyhow::anyhow!("{e}"))?;
+        ensure!(has_control(
+            &binding_impact(&app, &project, "Home.Upload").await?,
+            "control:Home.aspx:btnUpload"
+        ));
+        std::fs::write(
+            root.join("Home.aspx.vb"),
+            producer.replace(" Handles btnUpload.Click", ""),
+        )?;
+        let removed = app
+            .handle_update_project(serde_json::from_value(
+                json!({"project_id":project,"wait":true,"index_antipatterns":false}),
+            )?)
+            .await;
+        settle(&app).await?;
+        removed.map_err(|e| anyhow::anyhow!("{e}"))?;
+        ensure!(
+            !has_control(
+                &binding_impact(&app, &project, "Home.Upload").await?,
+                "control:Home.aspx:btnUpload"
+            ),
+            "Removing Handles must remove the UI dependency while keeping the method"
+        );
+        std::fs::write(root.join("Home.aspx.vb"), producer)?;
+        let restored = app
+            .handle_update_project(serde_json::from_value(
+                json!({"project_id":project,"wait":true,"index_antipatterns":false}),
+            )?)
+            .await;
+        settle(&app).await?;
+        restored.map_err(|e| anyhow::anyhow!("{e}"))?;
+        ensure!(
+            has_control(
+                &binding_impact(&app, &project, "Home.Upload").await?,
+                "control:Home.aspx:btnUpload"
+            ),
+            "A producer-only edit must bind the unchanged markup revision"
+        );
+        std::fs::write(
+            root.join("Home.aspx"),
+            "<%@ Page Language=\"VB\" CodeBehind=\"Home.aspx.vb\" Inherits=\"Home\" %>\n",
+        )?;
+        let removed = app
+            .handle_update_project(serde_json::from_value(
+                json!({"project_id":project,"wait":true,
+            "only_paths":["Home.aspx"],"index_antipatterns":false}),
+            )?)
+            .await;
+        settle(&app).await?;
+        removed.map_err(|e| anyhow::anyhow!("{e}"))?;
+        let result = binding_impact(&app, &project, "Home.Upload").await?;
+        ensure!(
+            !has_control(&result, "control:Home.aspx:btnUpload")
+                && !has_control(&result, "control:Other.aspx:btnUpload"),
+            "Removed controls must not survive or be replaced by another page's ID"
+        );
+        ensure!(
+            has_control(
+                &binding_impact(&app, &project, "Other.Upload").await?,
+                "control:Other.aspx:btnUpload"
+            ),
+            "Unrelated page binding must remain usable"
+        );
+        Ok(())
+    })
+}
+
 fn owned_case<F, Fut>(run: F) -> Result<()>
 where
     F: FnOnce(std::path::PathBuf) -> Fut,
@@ -270,6 +487,76 @@ fn unchanged_markup_migrates_once_and_preserves_other_source_and_authored_knowle
         ensure!(
             state.registry.source_head_is_current(&migrated)?,
             "A second ordinary update must not repeat migration"
+        );
+        Ok(())
+    })
+}
+
+#[test]
+fn another_producer_cannot_replace_a_still_valid_published_markup_binding() -> Result<()> {
+    owned_case(|owned| async move {
+        let root = owned.join("repo");
+        std::fs::create_dir_all(&root)?;
+        drop(git2::Repository::init(&root)?);
+        let markup = "<%@ Page Language=\"VB\" CodeBehind=\"Home.aspx.vb\" Inherits=\"Home\" %>\n<asp:Button ID=\"btnUpload\" runat=\"server\" OnClick=\"Upload\" />\n";
+        let producer = "Public Class Home\nPublic Sub Upload()\nEnd Sub\nEnd Class\n";
+        std::fs::write(root.join("Home.aspx"), markup)?;
+        std::fs::write(root.join("Home.aspx.vb"), producer)?;
+        let (state, _) = AppState::new(Config {
+            data_dir: owned.join("data"),
+            allowed_roots: vec![root.clone()],
+            embedding_backend: "fts_only".into(),
+            llm_backend: "none".into(),
+            ..Default::default()
+        })?;
+        let app = Engram::new(state.clone());
+        let result = app
+            .handle_index_project(serde_json::from_value(
+                json!({"directory":root,"project_name":"Independent binding support",
+            "project_type":"dotnet_webforms_vb","wait":true}),
+            )?)
+            .await;
+        settle(&app).await?;
+        result.map_err(|e| anyhow::anyhow!("{e}"))?;
+        let project = state.registry.list_projects()?[0].project_id.clone();
+        let before = state.registry.capture_source_head(&project)?;
+        ensure!(has_control(
+            &binding_impact(&app, &project, "Home.Upload").await?,
+            "control:Home.aspx:btnUpload"
+        ));
+        std::fs::write(
+            root.join("Home.aspx.vb"),
+            producer.replace("Upload()", "Upload() Handles btnUpload.Click"),
+        )?;
+        let result = app
+            .handle_update_project(serde_json::from_value(
+                json!({"project_id":project,"wait":true,"index_antipatterns":false}),
+            )?)
+            .await;
+        settle(&app).await?;
+        if result.is_err() {
+            ensure!(
+                state.registry.source_head_is_current(&before)?,
+                "An uncertain producer transition must preserve the published head"
+            );
+        } else {
+            // Implementations supporting multiple independent producers must
+            // retain the markup's support when VB later removes its support.
+            std::fs::write(root.join("Home.aspx.vb"), producer)?;
+            let result = app
+                .handle_update_project(serde_json::from_value(
+                    json!({"project_id":project,"wait":true,"index_antipatterns":false}),
+                )?)
+                .await;
+            settle(&app).await?;
+            result.map_err(|e| anyhow::anyhow!("{e}"))?;
+        }
+        ensure!(
+            has_control(
+                &binding_impact(&app, &project, "Home.Upload").await?,
+                "control:Home.aspx:btnUpload"
+            ),
+            "The independently valid markup relationship must remain available"
         );
         Ok(())
     })

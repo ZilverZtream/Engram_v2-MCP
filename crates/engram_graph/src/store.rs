@@ -17,7 +17,7 @@ mod file_metadata_scan;
 mod centrality_cache;
 mod impact_walk;
 pub use impact_walk::{
-    ImpactAdmission, ImpactWalkCoverage, ImpactWalkNode, ImpactWitness, IncomingImpactWalk,
+    ImpactAdmission, ImpactWalkCoverage, ImpactWalkNode, ImpactWitness, IncomingImpactWalk, event_producer, event_owner_matches,
 };
 pub use source_stat::{FileStatPatch, FileStatPatchReport, VerifiedFileStat, file_metadata_digest};
 
@@ -1330,6 +1330,39 @@ impl GraphStore {
         Ok(out)
     }
 
+    /// Exact indexed file members, refusing overflow before retaining more rows.
+    /// Used by scoped writers to recover admitted cross-file declarations.
+    pub fn file_members_bounded(&self, project: &str, path: &str, limit: usize) -> anyhow::Result<Vec<Node>> {
+        anyhow::ensure!(limit > 0 && limit <= 4096, "Invalid file-member budget");
+        let source = engram_core::ids::NodeId::file(path).0;
+        let prefix = adj_key(project, &EdgeKind::Contains, &source);
+        let tx = self.db.begin_read()?;
+        let adjacent = tx.open_table(ADJ_OUT)?;
+        let nodes = tx.open_table(NODES)?;
+        let mut result = Vec::new();
+        let mut bytes = 0usize;
+        let mut inspected = 0usize;
+        for row in adjacent.range((prefix.as_str(), "")..)? {
+            let (key,_) = row?;
+            let (actual,id) = key.value();
+            if actual != prefix { break; }
+            inspected+=1;
+            anyhow::ensure!(inspected<=limit.saturating_mul(2),"File declaration adjacency exceeds limit: {path}");
+            // File containment can also include unresolved class aliases.
+            // Only canonical location declarations establish stored members.
+            if !id.starts_with("sym:") { continue; }
+            anyhow::ensure!(result.len() < limit, "File member inventory exceeds limit: {path}");
+            let key = format!("{project}\0{id}");
+            let value = nodes.get(key.as_str())?.ok_or_else(||anyhow::anyhow!("Missing file member: {id}"))?;
+            bytes = bytes.saturating_add(value.value().len());
+            anyhow::ensure!(value.value().len() <= 256*1024 && bytes <= 8*1024*1024, "File member metadata exceeds limit");
+            let node: Node = bincode::deserialize(value.value())?;
+            anyhow::ensure!(node.file_path.as_str() == path, "Foreign file member: {id}");
+            result.push(node);
+        }
+        Ok(result)
+    }
+
     pub fn list_edges(
         &self,
         project_id: &str,
@@ -2630,10 +2663,32 @@ impl GraphStore {
                             | EdgeKind::Implements
                             | EdgeKind::TestOracle
                     );
-                if source_derived && refreshed_source_ids.contains(&e.source_id) {
+                let producer=if source_derived { impact_walk::event_producer(&e)? } else { None };
+                let producer_refreshed=producer.map_or_else(||refreshed_source_ids.contains(&e.source_id),|(path,_,_)|paths.contains(path));
+                if source_derived && producer_refreshed {
                     keys.push(k.value().to_string());
                     // The new extraction is authoritative for outgoing calls;
                     // remapping an old source would resurrect deleted evidence.
+                    continue;
+                }
+                if let Some((path,revision,class))=producer
+                    && refreshed_source_ids.contains(&e.source_id) && !removed_node_ids.contains(&e.source_id)
+                    && !removed_node_ids.contains(&e.target_id)
+                {
+                    let source_key=format!("{project_id}\0{}",e.source_id);
+                    let source:Node=bincode::deserialize(nt.get(source_key.as_str())?.ok_or_else(||anyhow::anyhow!("Missing event control"))?.value())?;
+                    if !impact_walk::event_owner_matches(&source,path,class) {
+                        keys.push(k.value().to_string());continue;
+                    }
+                    let producer_key=format!("{project_id}\0file:{path}");
+                    let file:Node=bincode::deserialize(nt.get(producer_key.as_str())?.ok_or_else(||anyhow::anyhow!("Missing event producer"))?.value())?;
+                    anyhow::ensure!(matches!(source.node_type.as_str(),"control"|"control_layout") && source.generation==active_generation
+                        && source.node_id==engram_core::ids::NodeId::control(source.file_path.as_str(),&source.name).0
+                        && file.node_type=="file" && file.file_path.as_str()==path && file.generation==revision
+                        && file.namespace==engram_core::namespaces::NAMESPACE_MEMORY,"Unverified preserved event binding");
+                    let mut rebound=e.clone();
+                    impact_walk::rebind_event_control(&mut rebound,&source)?;
+                    keys.push(k.value().to_string());remapped.push(rebound);
                     continue;
                 }
                 if !removed_node_ids.contains(&e.source_id)

@@ -106,6 +106,7 @@ pub async fn process_ingest_stats(
     generation: u64,
     stats: &engram_index::IngestStats,
 ) -> anyhow::Result<()> {
+    let mut inherited_wiring = super::webforms_bindings::inherited_handles(state, project_id, generation, stats).await?;
     let mut input_edge_kind_counts: std::collections::HashMap<String, usize> =
         std::collections::HashMap::new();
     for (_, edge) in &stats.edges {
@@ -138,6 +139,23 @@ pub async fn process_ingest_stats(
         .collect();
 
     let mut seen_virtual_node_ids = std::collections::HashSet::new();
+    let mut markup_owners: std::collections::HashMap<&str,(Option<&str>,Option<&str>,bool)>=std::collections::HashMap::new();
+    for (path,edge) in &stats.edges {
+        if !engram_index::webforms::is_webforms_markup(std::path::Path::new(path.as_str())) { continue; }
+        match edge.kind.as_str() {
+            "codebehind_file"=>{
+                let entry=markup_owners.entry(path.as_str()).or_default();
+                entry.2 |= entry.0.is_some_and(|p|p!=edge.target_name);
+                entry.0=Some(&edge.target_name);
+            }
+            "codebehind_class"=>if let Some(owner)=edge.metadata.as_ref().and_then(|m|m.get("fqn")) {
+                let entry=markup_owners.entry(path.as_str()).or_default();
+                entry.2 |= entry.1.is_some_and(|p|p!=owner);
+                entry.1=Some(owner);
+            },
+            _=>{}
+        }
+    }
 
     for rel_path in &stats.all_files {
         if !is_safe_project_relative_path(rel_path.as_str()) {
@@ -230,7 +248,7 @@ pub async fn process_ingest_stats(
 
         let language = engram_core::guess_language(std::path::Path::new(rel_path.as_str()));
 
-        let (metadata, fqn) = if let Some(m) = &sym.metadata {
+        let (mut metadata, fqn) = if let Some(m) = &sym.metadata {
             let fqn_val = m.get("fqn").map(|v| v.as_str().to_string());
             let mut map: serde_json::Map<String, serde_json::Value> = m
                 .iter()
@@ -244,6 +262,12 @@ pub async fn process_ingest_stats(
         } else {
             (None, None)
         };
+        if matches!(sym.kind.as_str(),"control"|"control_layout") {
+            if let Some((Some(path),Some(class),false))=markup_owners.get(rel_path.as_str()) {
+                metadata.get_or_insert_with(||serde_json::json!({})).as_object_mut().unwrap()
+                    .insert("_engram_webforms_owner".into(),serde_json::json!({"path":path,"class":class}));
+            }
+        }
         let fqn = fqn.as_deref();
 
         let (node_id, final_kind) = if sym.kind == "page" {
@@ -273,6 +297,13 @@ pub async fn process_ingest_stats(
             } else {
                 path_str
             };
+            if page_path != path_str && !stats.all_files.iter().any(|p|p.as_str() == page_path)
+                && state.graph.get_node(project_id,&engram_core::ids::NodeId::control(page_path,&sym.name).0)?
+                    .is_some_and(|n| matches!(n.node_type.as_str(),"control"|"control_layout") && n.file_path.as_str() == page_path)
+            {
+                // A codebehind/designer reference does not replace the markup declaration.
+                continue;
+            }
             (
                 engram_core::ids::NodeId::control(page_path, &sym.name).0,
                 "control".to_string(),
@@ -660,6 +691,7 @@ pub async fn process_ingest_stats(
     };
 
     let mut edges = Vec::with_capacity(stats.edges.len());
+    let mut event_producers = std::collections::HashMap::new();
     for (rel_path, edge) in &stats.edges {
         if !is_safe_project_relative_path(rel_path.as_str()) {
             anyhow::bail!(
@@ -1172,6 +1204,19 @@ pub async fn process_ingest_stats(
                 Some(serde_json::Value::Object(obj))
             }
         };
+        if raw_kind == "event_wiring" && edge.source_kind == "control" {
+            let owner=if engram_index::webforms::is_webforms_markup(std::path::Path::new(rel_path.as_str())) {
+                markup_owners.get(rel_path.as_str()).and_then(|entry|entry.1).unwrap_or("")
+            } else {
+                stats.symbols.iter().filter(|(p,s)|p==rel_path && s.kind=="function"
+                    && s.start_line<=edge.source_start_line && s.end_line>=edge.source_start_line)
+                    .min_by_key(|(_,s)|s.end_line-s.start_line).and_then(|(_,s)|s.name.rsplit_once('.').map(|(owner,_)|owner)).unwrap_or("")
+            };
+            let producing_identity=(rel_path.as_str().to_owned(),owner.to_owned());
+            if let Some(previous) = event_producers.insert((source_id.clone(),target_id.clone()),producing_identity.clone()) {
+                anyhow::ensure!(previous == producing_identity, "Event binding has multiple producer files/classes; refusing ambiguous ownership");
+            }
+        }
         edges.push(engram_graph::Edge {
             source_id,
             target_id,
@@ -1186,6 +1231,12 @@ pub async fn process_ingest_stats(
     }
 
     edges.append(&mut file_contains_edges);
+    super::webforms_bindings::stamp_extracted(state,project_id,&nodes,&mut edges,&event_producers,stats).await?;
+    for recovered in inherited_wiring.edges.drain(..) {
+        anyhow::ensure!(!edges.iter().any(|e|e.source_id==recovered.source_id && e.target_id==recovered.target_id && e.edge_kind==recovered.edge_kind),
+            "Event binding has both markup and inherited Handles producers; refusing ambiguous ownership");
+        edges.push(recovered);
+    }
 
     // Item 8 (live r43): two extractors may describe the SAME edge — the
     // Roslyn sidecar's `api.action → DeleteChangeRequest` Calls edge and the

@@ -8517,10 +8517,52 @@
         "result": "Fresh agent discovered storage viaCodeMap, inspected upload/folder/copy/download scope and markup/JS/handler bindings; source oracle agrees. Oracleadditionally finds independentapi-files uploads outside this chain. Onefunctional workflow, not exhaustive featurecoverage or regular-CI benchmark.",
         "cost": "26visiblecalls includingroot,230524returnedUTF8bytes;5extra harness replayattempts withunretainedbytesunknown;3separate diagnosticcalls. Oneagentchosen paddedbadbound,distinctfrom3advertisedwrong-fileactions.",
         "highest_value_gap": "Blastuses codebehindhandler anchors to generate markup-file reads beyondEOF. Correction preserves raw metadata and callergraph while separating unattributedpositions fromnodeinspection; positive validmarkup423read preserved.",
-        "unfinished": "Representative multi-task/cadencedbenchmark,CodeMapcontext/heuristicfriction,fallback-owner/orphans,fullprovider/configurationchain and originalaudit remainopen.",
+        "unfinished": "Representative multi-task/cadencedbenchmark,CodeMapcontext/heuristicfriction,fallback-owner/orphans,fullprovider/configurationchain and originalaudit remainopen. Current position migration did not finish delivery: cold validation found lost Handles/UI paths, requiring the producer-ownership correction recorded in webforms_position_producer_20261105.",
         "position_correction": {
           "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\upload-workflow-control-position-correction-20261105.json",
           "sha256": "736459b362666db17bd5743139b5412c89db31faca54a98e1648d0472d8bdd51"
+        }
+      },
+      "webforms_position_producer_20261105": {
+        "state": "OWNERSHIP_FIX_REVIEWED_FOCUSED15_PASS;REAL3118RECOVERY_AND_RELEASE_PENDING",
+        "source_commit": "402a1d4",
+        "source_application": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-webforms-positions-source-applied-20261105.json",
+          "sha256": "ae4ddd1da64dec05dad1ab5150b109719d967ad448f28284f5014529797f6512"
+        },
+        "optimized_build": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\shipping-cached-release-build-agent-core-webforms-positions-20261105.json",
+          "sha256": "6e28b8ed1a0253430966622b0c8477f23e5afc8ac8ab5998eac226b0c7a409be"
+        },
+        "actual_publication": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-webforms-publication-preservation-confirmed-20261105.json",
+          "sha256": "b8c16d1fa693ba7a3a15f6c90efb41309c6b3f7d0bd13843b7939fb05eb67551"
+        },
+        "retained_failed_acceptance": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-webforms-actual-migration-v2-20261105\\acceptance.json",
+          "sha256": "d7f9215c33ad845c2b1894c9229469f9cd8eb3c9f4c4365008bd33719c1cd10a"
+        },
+        "cold_failure": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-webforms-cold-readonly-20261105\\acceptance.json",
+          "sha256": "463f55acce2cabe71b281a65f2aa2f024004223a35b6ac2e72801087a3024760"
+        },
+        "stored_signature_diagnosis": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\webforms-handles-stored-signature-diagnosis-20261105\\diagnosis.json",
+          "sha256": "108f0d11b513e2a1f36261ccd76d26708f0b084a325bd177754f8c631b7de371"
+        },
+        "published_scope": "3117->3118;254paths/1770chunks/3194011bytes refreshed,2048outside physical revisions inherited,0pathsdeleted; all254sourcehashes and300storedmemorybank contenthashes/stablemetadata unchanged; other14knowncatalogs/routes and capturedRegistryrows unchanged except3publicationkeys. Not exhaustive knowledge/nativecontent proof.",
+        "real_blocker": "VB Handles is produced by codebehind but its control endpoint is markup-owned. Markup-only cleanup removed those bridges; Storage Create dependents11->4 and7UI/JS/bundle/page identities disappeared. Policy33/47 remainsunchanged. No deployment and no lowered acceptance criterion.",
+        "current_source_fix": "Per-event actual producingfile/revision/class; currentmarkupowner fence; exactadmittedstoredsignature recovery with lexeroutsidequoteddefaults/parameters; sourceandproducer admission; safe retirement/rebinding; bounded owned metadata lifetime. Focusedtests/review ongoing; not shipped.",
+        "remaining": "New optimizedpackage, successful bounded recovery of254 at3118, cold/originalrelationship verification, installednormalchecks and freshagenttrial. Multi-producer sharedgraphkeys currently refused ratherthan guessed; support remainsunfinished. Original31/19notclosed.",
+        "ownership_source": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-webforms-handles-source-applied-20261105.json",
+          "sha256": "c8a09eefdd6da04e7335ed062244600574facb73be16ab73c4dd3d817bff88c1"
+        },
+        "focused_behavior": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-webforms-handles-public-behavior-v4-20261105.json",
+          "sha256": "e4dbad3783bc3dacfbd4ecef12fa10e6b26486353de7d503211e5009ae21bf34",
+          "tests": 15,
+          "owned_fixtures_removed": true
         }
       }
     }

@@ -23,6 +23,42 @@ const WALK_TIME: Duration = Duration::from_secs(2);
 // writers retain their existing trusted managed-writer boundary.
 const SOURCE_ORIGIN: &str = "_engram_source_origin";
 
+/// Validate managed event extraction ownership; strings cannot mint this proof.
+pub fn event_producer(edge: &Edge) -> anyhow::Result<Option<(&str,u64,&str)>> {
+    let Some(value)=edge.metadata.as_ref().and_then(|m|m.get("_engram_event_producer")) else { return Ok(None) };
+    let object=value.as_object().ok_or_else(||anyhow::anyhow!("Invalid event producer metadata"))?;
+    let path=object.get("path").and_then(|v|v.as_str()).unwrap_or("");
+    let generation=object.get("generation").and_then(|v|v.as_u64()).unwrap_or(0);
+    let owner=object.get("owner_class").and_then(|v|v.as_str()).unwrap_or("");
+    anyhow::ensure!(object.len()==4 && object.get("version").and_then(|v|v.as_u64())==Some(1)
+        && generation>0 && generation<=edge.generation && !path.is_empty() && path.len()<=2048
+        && owner.len()<=2048 && !owner.chars().any(char::is_control)
+        && !path.contains('\\') && !path.contains(':') && !path.starts_with('/')
+        && path.split('/').all(|p| !matches!(p,""|"."|"..")),"Invalid event producer metadata");
+    Ok(Some((path,generation,owner)))
+}
+
+/// Whether a current markup declaration still selects the exact producer class.
+pub fn event_owner_matches(source: &Node, path: &str, class: &str) -> bool {
+    let Some(owner)=source.metadata.as_ref().and_then(|m|m.get("_engram_webforms_owner")).and_then(JsonValue::as_object) else { return false };
+    owner.len()==2 && !class.is_empty() && owner.get("path").and_then(JsonValue::as_str)==Some(path)
+        && owner.get("class").and_then(JsonValue::as_str).is_some_and(|actual|actual.eq_ignore_ascii_case(class))
+}
+
+pub(super) fn rebind_event_control(edge: &mut Edge, source: &Node) -> anyhow::Result<()> {
+    if let Some(origin)=edge.metadata.as_ref().and_then(|m|m.get(SOURCE_ORIGIN)) {
+        anyhow::ensure!(origin.as_object().is_some_and(|o|o.len()==3)
+            && origin.get("version").and_then(JsonValue::as_u64)==Some(1)
+            && origin.get("source_id").and_then(JsonValue::as_str)==Some(source.node_id.as_str())
+            && origin.get("source_generation").and_then(JsonValue::as_u64).is_some_and(|g|g>0 && g<source.generation),
+            "Unverified previous event source origin");
+    }
+    edge.generation=source.generation;
+    edge.metadata.as_mut().and_then(JsonValue::as_object_mut).expect("typed event metadata")
+        .insert(SOURCE_ORIGIN.into(),serde_json::json!({"version":1,"source_id":source.node_id,"source_generation":source.generation}));
+    Ok(())
+}
+
 pub(super) fn edge_source_revision_matches(edge: &Edge, source: &Node) -> bool {
     if edge.source_id != source.node_id {
         return false;
@@ -1142,6 +1178,26 @@ impl GraphStore {
                             "unverified_edge_source_revision",
                         );
                         continue;
+                    }
+                    let producer_selected=match event_producer(&edge) {
+                        Ok(None)=>true,
+                        Err(_)=>false,
+                        Ok(Some((path,revision,class)))=>{
+                        let producer=read_node(&format!("file:{path}"),&mut budget,&mut output.coverage)?;
+                        match producer.as_ref() {
+                            Some(file) if file.node_type=="file" && file.file_path.as_str()==path && file.generation==revision
+                                && (node.file_path.as_str()==path || event_owner_matches(node,path,class))
+                                && file.namespace==engram_core::namespaces::NAMESPACE_MEMORY => admit(file,Some(file))?==ImpactAdmission::Selected,
+                            _ => false,
+                        }
+                        }
+                    };
+                    if !producer_selected {
+                            output.coverage.unknown_nodes+=1;
+                            gap(&mut output.coverage,"unverified_event_producer_revision");
+                            record_frontier(&mut output.frontier,&mut output.coverage,&mut budget,output.witnesses.len(),
+                                source,Some(&target),Some(kind),Some(node),depth+1,"unverified_event_producer_revision");
+                            continue;
                     }
                     let cached = cache.get(source);
                     if let Some(cached) = cached {
