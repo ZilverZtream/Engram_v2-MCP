@@ -483,12 +483,12 @@ pub struct CodebaseOverviewRequest {
     /// native/Contains discovery and extraction gaps remain separately bounded.
     #[serde(default)]
     pub symbol_offset: usize,
-    /// Expand one exact observed declaration's actions. Requires exact-file
-    /// scope and both offsets zero. Match only within the bounded admitted
-    /// declarations, never by name or a separate graph lookup. A missing match
-    /// does not establish that the declaration is absent. Default pages retain
-    /// one source-range action when indexed line bounds are usable; reuse a
-    /// listed node_id here.
+    /// Expand one known exact declaration identity independently of discovery
+    /// limits. Requires exact-file scope and both offsets zero. Bounded reads
+    /// of the target and canonical file (64KiB each) must admit both under the
+    /// held source selection. No name fallback or declaration inventory scan.
+    /// An unobserved target does not establish absence. Default discovery pages
+    /// retain source-range actions when indexed line bounds are usable.
     #[serde(default)]
     pub symbol_node_id: Option<String>,
     /// Files shown, 1..64 (default 8). Declaration and response limits remain independent.

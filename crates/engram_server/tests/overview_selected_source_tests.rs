@@ -857,10 +857,14 @@ fn codemap_navigation_case(crowded: bool) {
                 assert_eq!(expanded["coverage"][flag],later_page["coverage"][flag],"Narrow rendering must preserve discovery coverage: {flag}");
             }
             assert_eq!(expanded["source_generation"],1);
-            assert_eq!(expanded["coverage"]["declarations"],later_page["coverage"]["declarations"],
-                "Selecting one action set must retain the same bounded discovery and admission evidence");
+            let observation=&expanded["coverage"]["declarations"][0];
+            assert_eq!(observation["observation"],"exact_bounded_identity_lookup");
+            assert_eq!(observation["declaration_inventory"],"not_scanned");
+            assert_eq!(observation["declaration_admission"]["nodes_observed"],1);
+            assert!(observation.get("seed_discovery").is_none());
             let file=&expanded["files"][0];
-            assert_eq!(file["declarations_observed"],25);
+            assert_eq!(file["declarations_observed"],1);
+            assert_eq!(file["declaration_inventory"],"not_scanned");
             assert_eq!(file["symbol_selection"]["observed"],true);
             assert_eq!(file["symbols"].as_array().unwrap().len(),1);
             assert!(file["next_symbols"].is_null(),"Exact identity selection is not another declaration page");
@@ -919,7 +923,8 @@ fn codemap_navigation_case(crowded: bool) {
                     "Wrong-file, excluded, future and unknown identities must not fall back to a same-named admitted declaration");
                 assert!(file["symbols"].as_array().unwrap().is_empty());
                 assert!(file["next_symbols"].is_null());
-                assert_eq!(file["declarations_observed"],25);
+                assert_eq!(file["declarations_observed"],0);
+                assert_eq!(file["declaration_inventory"],"not_scanned");
                 assert!(missing["limitations"].to_string().contains("Not observed is not absent"));
             }
             for arguments in [
@@ -935,6 +940,168 @@ fn codemap_navigation_case(crowded: bool) {
                 assert!(engram.handle_get_codebase_overview(serde_json::from_value(arguments).unwrap()).await.is_err());
             }
         }
+    });
+}
+
+#[test]
+fn exact_symbol_opens_known_identity_beyond_discovery_without_claiming_inventory() {
+    owned_case(true, |engram, search| async move {
+        const TARGET: &str = "src/late/crowded.rs";
+        const DECOY: &str = "src/aaa/earlier.rs";
+        const MISSING: &str = "src/late/missing-file-node.rs";
+        const WANTED_LINE: u32 = 146;
+        const WANTED: &str = "pub fn ResolveZoom() -> i32 { 42 }\n";
+        let root = std::path::PathBuf::from(
+            engram.state.registry.get_project(PID).unwrap().unwrap().directory,
+        );
+        let mut source = (0..145)
+            .map(|i| format!("pub fn Aaa{i:03}() -> i32 {{ {i} }}\n"))
+            .collect::<String>();
+        source.push_str(WANTED);
+        let bodies = [(TARGET, source.as_str()),
+            (DECOY, "pub fn ResolveZoom() -> i32 { 7 }\n"),
+            (MISSING, "pub fn Missing() {}\n")];
+        let cancel = CancellationToken::new();
+        let initial = engram.state.registry.capture_source_head(PID).unwrap();
+        search.prepare_full_source_snapshot(PID, 0, 1,
+            &bodies.map(|(path, _)| RelPath::new(path)), &cancel).await.unwrap();
+        let mut docs = Vec::new();
+        let mut graph_nodes = Vec::new();
+        for (i, (path, body)) in bodies.iter().enumerate() {
+            std::fs::create_dir_all(root.join(path).parent().unwrap()).unwrap();
+            std::fs::write(root.join(path), body).unwrap();
+            let mut indexed = doc("memory", 1, i as u64 + 1, path, "rust", body);
+            indexed.end_line = body.lines().count() as u32;
+            docs.push(indexed);
+            if *path != MISSING {
+                let mut file = node(&format!("file:{path}"), "file", path, path, 1);
+                file.end_line = body.lines().count() as u32;
+                file.metadata = Some(json!({"file_hash":ContentHash::compute(body.as_bytes()).0}));
+                graph_nodes.push(file);
+            }
+            for (line, text) in body.lines().enumerate() {
+                let name = text.strip_prefix("pub fn ").unwrap().split('(').next().unwrap();
+                let line = line as u32 + 1;
+                let mut declaration = node(&format!("sym:function:{path}:{name}:{line}"),
+                    "function", name, path, 1);
+                declaration.start_line = line;
+                declaration.end_line = line;
+                declaration.metadata = Some(json!({}));
+                graph_nodes.push(declaration);
+            }
+        }
+        search.index_docs(PID, &docs, &cancel).await.unwrap();
+        search.seal_source_snapshot(PID, 1).unwrap();
+        engram.state.graph.upsert_nodes(PID, &graph_nodes).unwrap();
+        assert!(engram.state.registry.publish_source_head(&initial, 1).unwrap());
+        let wanted_id = format!("sym:function:{TARGET}:ResolveZoom:{WANTED_LINE}");
+        let wanted = engram.state.graph.get_node(PID, &wanted_id).unwrap().unwrap();
+        let file = engram.state.graph.get_node(PID, &format!("file:{TARGET}")).unwrap().unwrap();
+        let select = |id: &str| json!({"project_id":PID,"scope":TARGET,
+            "symbol_node_id":id,"offset":0,"symbol_offset":0});
+        let ordinary = navigate(&engram, json!({"project_id":PID,"scope":TARGET})).await;
+        assert_eq!(ordinary["files"][0]["declarations_observed"], 128);
+        assert!(ordinary["files"][0]["symbols"].as_array().unwrap().iter()
+            .all(|row| row["node_id"] != wanted_id));
+
+        let text = navigation_text(&engram, select(&wanted_id)).await;
+        assert!(text.len() < 4 * 1024, "{} bytes", text.len());
+        let report = navigation(&text);
+        assert_eq!(report["source_generation"], 1);
+        assert_eq!(report["detail"], "exact_symbol");
+        assert_eq!(report["working_tree_checked"], false);
+        let selected = &report["files"][0];
+        assert_eq!(selected["path"], TARGET);
+        assert_eq!(selected["physical_generation"], 1);
+        assert_eq!(selected["declarations_observed"], 1);
+        assert_eq!(selected["declaration_inventory"], "not_scanned");
+        assert_eq!(selected["symbol_selection"]["observed"], true);
+        assert!(selected["next_symbols"].is_null());
+        assert_eq!(selected["symbols"].as_array().unwrap().len(), 1);
+        let observation = &report["coverage"]["declarations"][0];
+        assert_eq!(observation["observation"], "exact_bounded_identity_lookup");
+        assert_eq!(observation["declaration_inventory"], "not_scanned");
+        assert_eq!(observation["records_attempted"], 2);
+        assert!(observation["raw_record_bytes_decoded"].as_u64().unwrap() <= 128 * 1024);
+        assert!(observation.get("seed_discovery").is_none());
+        let declaration = &selected["symbols"][0];
+        assert_eq!(declaration["node_id"], wanted_id);
+        assert_eq!(declaration["start_line"], WANTED_LINE);
+        assert_eq!(declaration["end_line"], WANTED_LINE);
+        let actions = declaration["actions"].as_array().unwrap();
+        let read = actions.iter().find(|a| a["tool"] == "get_full_method_body").unwrap();
+        let reply = engram.handle_get_full_method_body(
+            serde_json::from_value(read["arguments"].clone()).unwrap()).await.unwrap();
+        assert!(!reply.is_error.unwrap_or(false));
+        let read: Value = serde_json::from_str(&reply.content[0].as_text().unwrap().text).unwrap();
+        assert_eq!(read["file_path"], TARGET);
+        assert_eq!(read["line_start"], WANTED_LINE);
+        assert_eq!(read["line_end"], WANTED_LINE);
+        assert_eq!(read["source_code"], WANTED.trim_end());
+        assert_eq!(read["source_file_hash_algorithm"], "blake3");
+        assert_eq!(read["source_file_hash"], ContentHash::compute(source.as_bytes()).0);
+        let edit = actions.iter().find(|a| a["tool"] == "get_method_edit_context").unwrap();
+        let reply = engram.handle_get_method_edit_context(
+            serde_json::from_value(edit["arguments"].clone()).unwrap()).await.unwrap();
+        assert!(!reply.is_error.unwrap_or(false));
+        let edit: Value = serde_json::from_str(&reply.content[0].as_text().unwrap().text).unwrap();
+        assert_eq!(edit["method_info"]["file_path"], TARGET);
+        assert_eq!(edit["method_info"]["line_start"], WANTED_LINE);
+        let impact = actions.iter().find(|a| a["tool"] == "impact_analysis").unwrap();
+        assert_eq!(impact["arguments"]["symbol_fqn"], wanted_id);
+        let reply = engram.handle_impact_analysis(
+            serde_json::from_value(impact["arguments"].clone()).unwrap()).await.unwrap();
+        assert!(!reply.is_error.unwrap_or(false));
+        let impact_text = reply.content.iter().filter_map(|c| c.as_text())
+            .map(|c| c.text.as_str()).collect::<String>();
+        assert!(impact_text.len() <= 12 * 1024);
+        let impact: Value = serde_json::from_str(impact_text
+            .split_once("## Revision-admitted change impact").unwrap().1
+            .split_once("```json").unwrap().1.split_once("```").unwrap().0).unwrap();
+        assert_eq!(impact["source_generation"], 1);
+        assert_eq!(impact["target_revision_admitted"], true);
+        assert_eq!(impact["target"]["node_id"], wanted_id);
+        assert_eq!(impact["graph_continuation"]["arguments"]["symbol_fqn"], wanted_id);
+
+        // Rejected records cannot borrow a selected file or leak their fields.
+        for scenario in ["stale", "future", "history", "foreign", "oversized", "long_name"] {
+            let mut bad = wanted.clone();
+            match scenario {
+                "stale" => bad.generation = 0,
+                "future" => bad.generation = 2,
+                "history" => bad.namespace = "history".into(),
+                "foreign" => bad.file_path = RelPath::new(DECOY),
+                "oversized" => bad.metadata = Some(json!({"payload":"x".repeat(65536)})),
+                _ => bad.name = "x".repeat(2049),
+            }
+            if scenario != "long_name" { bad.name = "FOREIGN_POINT_SENTINEL".into(); }
+            engram.state.graph.upsert_nodes(PID, &[bad]).unwrap();
+            let text = navigation_text(&engram, select(&wanted_id)).await;
+            let rejected = navigation(&text);
+            assert_eq!(rejected["files"][0]["symbol_selection"]["observed"], false, "{scenario}");
+            assert!(rejected["files"][0]["symbols"].as_array().unwrap().is_empty());
+            assert_eq!(rejected["files"][0]["declarations_observed"],0);
+            assert!(!text.contains("FOREIGN_POINT_SENTINEL"));
+            engram.state.graph.upsert_nodes(PID, &[wanted.clone()]).unwrap();
+        }
+        for scenario in ["stale", "future", "history", "oversized"] {
+            let mut bad_file = file.clone();
+            match scenario {
+                "stale" => bad_file.generation = 0,
+                "future" => bad_file.generation = 2,
+                "history" => bad_file.namespace = "history".into(),
+                _ => bad_file.metadata = Some(json!({"payload":"x".repeat(65536)})),
+            }
+            engram.state.graph.upsert_nodes(PID, &[bad_file]).unwrap();
+            let rejected = navigate(&engram, select(&wanted_id)).await;
+            assert_eq!(rejected["files"][0]["symbol_selection"]["observed"], false,"{scenario}");
+            assert!(rejected["files"][0]["symbols"].as_array().unwrap().is_empty());
+            engram.state.graph.upsert_nodes(PID, &[file.clone()]).unwrap();
+        }
+        let missing = navigate(&engram, json!({"project_id":PID,"scope":MISSING,
+            "symbol_node_id":format!("sym:function:{MISSING}:Missing:1")})).await;
+        assert_eq!(missing["files"][0]["symbol_selection"]["observed"], false);
+        assert!(missing["files"][0]["symbols"].as_array().unwrap().is_empty());
     });
 }
 
