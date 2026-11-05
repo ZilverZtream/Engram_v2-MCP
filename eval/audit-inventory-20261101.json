@@ -9018,7 +9018,7 @@
         "independent_evidence_review": "return_proposal_consumer independently checked34direct/nested receipt refs and5upgrade journals, old/new canonical graph/actions, two CodeMap inventory pages, exact source range/hash/qualification and fresh8request record. No discrepancy. Scoped deployment evidence only;300notes/native publication inherited, original global/resource/authority/19gate obligations remain open."
       },
       "compact_exact_symbol_codemap_20261105": {
-        "status": "IMPLEMENTED_22_FOCUSED_CASES_PASS_RELEASE_ACTUAL_AND_INSTALL_PENDING",
+        "status": "DEPLOYED_d3a62d1_22_FOCUSED_CASES_AND_ACTUAL_COLD_NORMAL_VERIFIED",
         "source": {
           "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\compact-symbol-source-applied-20261105.json",
           "sha256": "7fded6feb34c7d9f9cf1add233d43c2010b56a8a42aebe23e34e7c3f7c5c0745"
@@ -9026,7 +9026,26 @@
         "problem": "Fresh agent exactPage_Load recovery6542B included distracting wholeproject distributions/unrelated inventories.",
         "behavior": "Default exact-symbol CodeMap preserves held-source membership/admission/coverage/fileidentity/actions and bounded unknown-state caveats, omitting unrelated project distribution/area/schema/settings context and its unused summary query. Normal overview/file paging and explicitretained-context requests unchanged.",
         "checks": "22public/native impact/navigation casesPASS; exact shortreply<4KiB, source hash/context/admittedimpact actions, ordinaryfilefallback, explicit retainedtrue, wrongfile/excluded/future/noalias and legacyunknown validation.135capability entries checked.",
-        "remaining": "ActualshortPage_Load reply<=4KiB and>=2000B saved vs6542B baseline, all coverage/file/actions equal; sameprimaryimpact and normal inventory/statistics; installedagent workflow pending. Globalfreshness/watchpause and original31/19 gates remain open."
+        "remaining": "Controlled OciusX provenance/fullsource refresh, knowledge preservation, watcherrestoration and sustainedresource evidence next; all original31/19 requirements remain open.",
+        "source_revision": "d3a62d1cd317a255c2df865f398a6ce0d2bcb3cc",
+        "pair": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\compact-symbol-paired-package-20261105.json",
+          "sha256": "24bbe19cabdcad3d8d683bd4d11a943313c64ce2051e2ebff11ca1e618769b5e"
+        },
+        "actual_readonly": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-compact-symbol-readonly-20261105\\acceptance.json",
+          "sha256": "d3abfc79b21304d698c6c6fadeead13cb3be469e78c0c09636a8d4d9d2720c2b"
+        },
+        "upgrade": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\compact-symbol-upgrade-20261105.json",
+          "sha256": "c45ed34e15345a64d64faf528e9656320b845a9c51c02ca800672b1d595c8011"
+        },
+        "installed_verification": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\compact-symbol-installed-verified-20261105.json",
+          "sha256": "141ae7862ca34f87ee686503e1d6c1041ab7d46465675947891ed0f782b1c181"
+        },
+        "actual_result": "ExactPage_Load reply 6542 to 3748 bytes (~42.7% saved), same file/identity/ranges/generation/fullactions and discovery/admission coverage. Literal current source25..42/hash verified. General file/inventory2pages and proportions preserved; impact graph/both11483B summaries unchanged at3120. No parser/data refresh.",
+        "owned_resources": "22case runner/release Job+handles closed andTEMP removed; maintenancechild natural0/tmpremoved; confighold releasedunchanged, normaldaemon restarted. Latest rollbackpair C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-cf7a0d5c1ab543e28f7b178bcb085e15 retained with journals/evidence under existingV. No preexisting deletion/copies/worktrees/volumes."
       }
     },
     "ledger_publication_status_reconciliation_20261105": {
@@ -9066,9 +9085,17 @@
         }
       ],
       "scope": "Correct only currently stale publication/implementation status. Dated historical receipts and all31original required behaviors/dependencies/residual gates remain unchanged. Code inclusion is not renewed per-feature acceptance; OciusX scoped storage deployment is not all-project migration/full19closure."
+    },
+    "q_passive_indexing_authorization_20261105": {
+      "status": "USER_AUTHORIZED_PASSIVE_INDEXING_Q_CODE_AND_REVIEWS_REMAIN_FROZEN",
+      "evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\q-passive-indexing-authorization-20261105.json",
+        "sha256": "31b7c14311ea28b86e3abdba66c38e80347208ce142e11523bacc22420252fcd"
+      },
+      "scope": "Passive indexing mayread/parseeligibleQsource; noQcodechanges/reviews. Authorizationpersists; no repeatedpermission needed."
     }
   },
-  "last_updated_at": "2026-11-05T08:46:29.001826+00:00",
+  "last_updated_at": "2026-11-05T09:19:48.422992+00:00",
   "current_execution_focus": {
     "at_utc": "2026-11-05T08:29:39.390790+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
@@ -9101,7 +9128,7 @@
       }
     ],
     "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
-    "next_user_visible_deliverable": "Keep CodeMap/Blast real-agent priority: concentrate exact-symbol CodeMap recovery on requested declaration, reducing distracting global distributions/unrelated inventories while preserving full-project overview/proportions. Verify with actual agent tasks; all original unfinished requirements retained.",
+    "next_user_visible_deliverable": "User authorizedpassiveindexingincludingQ whilecodechanges/reviews stayfrozen: perform controlledordinaryOciusXrefresh, fresh300note/other14/sourcebytepreservation andcold checks, thenrestorewatching andobserve resources. Keepalloriginalrequirements.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9114,7 +9141,7 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "e7f9cce projection/source-time scope deployed:46focusedchecks/actualcold/normal/fresh8requesttaskPASS;~20%smaller full impact reply with all12primary consumers/evidence unchanged. Ledger publication wording corrected without closing31original requirements/19fullgates.",
+    "latest_completed_core_batch": "d3a62d1compactCodeMap deployed:22focusedcases/cold+normal same3120verified, ~43%smaller exactsymbolreply withsameactions/coverage. Existing ~20%impact reduction retained.",
     "previous_goal_turn_classification": "PROGRESS: implemented,pushedmaster,deployed e7f9cce; same-generation material byte reduction/full inventory/current source qualification and fresh taskverified. Stale ledger publication status corrected with all original requirements/gates preserved. No goal completion."
   }
 }
