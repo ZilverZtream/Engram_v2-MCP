@@ -157,6 +157,72 @@ fn has_control(impact: &serde_json::Value, id: &str) -> bool {
         .any(|n| n["node_id"] == id && n["admission"] == "selected")
 }
 
+async fn recover_control_through_codemap(
+    app: &Engram,
+    project: &str,
+    path: &str,
+    source: &str,
+    line: u32,
+) -> Result<()> {
+    let identity = format!("control:{path}:btnUpload");
+    let response = app
+        .handle_get_codebase_overview(serde_json::from_value(json!({
+            "project_id":project,"scope":path,"limit":1,"symbol_node_id":identity
+        }))?)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let text = &response.content[0].as_text().unwrap().text;
+    let navigation: serde_json::Value = serde_json::from_str(
+        text.split("## CodeMap Navigation")
+            .nth(1)
+            .unwrap()
+            .split("```json\n")
+            .nth(1)
+            .unwrap()
+            .split("```")
+            .next()
+            .unwrap(),
+    )?;
+    let row = &navigation["files"][0];
+    ensure!(row["path"] == path && row["symbol_selection"]["observed"] == true);
+    let symbols = row["symbols"].as_array().unwrap();
+    ensure!(
+        symbols.len() == 1,
+        "Exact selection must return the requested control"
+    );
+    let control = &symbols[0];
+    ensure!(
+        control["node_id"] == identity
+            && control["start_line"] == line
+            && control["end_line"] == line
+            && control["generation"] == row["physical_generation"]
+    );
+    let action = control["actions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|action| action["tool"] == "get_full_method_body")
+        .unwrap();
+    ensure!(
+        action["arguments"]["project_id"] == project
+            && action["arguments"]["file_path"] == path
+            && action["arguments"]["line_start"] == line
+            && action["arguments"]["line_end"] == line
+    );
+    let response = app
+        .handle_get_full_method_body(serde_json::from_value(action["arguments"].clone())?)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let body: serde_json::Value =
+        serde_json::from_str(&response.content[0].as_text().unwrap().text)?;
+    ensure!(body["source_file_hash"] == blake3::hash(source.as_bytes()).to_hex().as_str());
+    ensure!(
+        body["source_code"] == source.lines().nth(line as usize - 1).unwrap(),
+        "Following CodeMap's literal action must read the actual control line"
+    );
+    Ok(())
+}
+
 #[test]
 fn markup_refresh_retains_handles_but_producer_or_control_removal_retires_it() -> Result<()> {
     owned_case(|owned| async move {
@@ -191,6 +257,8 @@ fn markup_refresh_retains_handles_but_producer_or_control_removal_retires_it() -
         settle(&app).await?;
         indexed.map_err(|e| anyhow::anyhow!("{e}"))?;
         let project = state.registry.list_projects()?[0].project_id.clone();
+        recover_control_through_codemap(&app, &project, "Home.aspx", markup, 2).await?;
+        recover_control_through_codemap(&app, &project, "Other.aspx", other, 2).await?;
         let first = binding_impact(&app, &project, "Home.Upload").await?;
         ensure!(
             !has_control(&first, "control:Home.aspx:fake"),
@@ -233,6 +301,8 @@ fn markup_refresh_retains_handles_but_producer_or_control_removal_retires_it() -
             .find(|n| n["node_id"] == "control:Home.aspx:btnUpload")
             .unwrap();
         ensure!(control["start_line"] == 3);
+        recover_control_through_codemap(&app, &project, "Home.aspx", &format!("\n{markup}"), 3)
+            .await?;
         let after = state
             .graph
             .get_node(&project, "file:Home.aspx.vb")?
@@ -245,6 +315,8 @@ fn markup_refresh_retains_handles_but_producer_or_control_removal_retires_it() -
         drop(state);
         let (state, _) = AppState::new(config)?;
         let app = Engram::new(state.clone());
+        recover_control_through_codemap(&app, &project, "Home.aspx", &format!("\n{markup}"), 3)
+            .await?;
         ensure!(
             has_control(
                 &binding_impact(&app, &project, "Home.Upload").await?,

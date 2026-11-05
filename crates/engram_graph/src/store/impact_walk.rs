@@ -453,7 +453,8 @@ impl GraphStore {
         self.bounded_file_impact_seeds_inner(project_id, file_paths, admit, true)
     }
 
-    /// Navigation never falls back to a project-wide legacy node scan.
+    /// Navigation includes native markup controls and never falls back to a
+    /// project-wide legacy node scan.
     pub fn bounded_file_navigation_seeds(
         &self,
         project_id: &str,
@@ -631,6 +632,55 @@ impl GraphStore {
                         anyhow::ensure!(
                             key.value() == format!("{project_id}\0{}", node.node_id),
                             "Callable node identity disagrees with its key"
+                        );
+                        observe(
+                            &node,
+                            &file,
+                            &mut seeds,
+                            &mut other_declarations,
+                            &mut budget,
+                            &mut coverage,
+                        )?;
+                    }
+                }
+            }
+        }
+        // Markup controls have native IDs rather than location-based symbols
+        // and do not have file Contains edges. Seek only the exact file's
+        // control prefix, after all callables have had the shared budget.
+        // Impact seed selection keeps its existing callable-first policy.
+        if !allow_legacy {
+            'controls: for &file_index in &admitted_files {
+                if !budget.live(&mut coverage) {
+                    break;
+                }
+                let path = &file_paths[file_index];
+                let Some(file) = read(&format!("file:{path}"), &mut budget, &mut coverage)? else {
+                    continue;
+                };
+                let prefix = format!("{project_id}\0control:{path}:");
+                let mut entries = nodes.range(prefix.as_str()..)?;
+                loop {
+                    if !budget.live(&mut coverage) {
+                        break 'controls;
+                    }
+                    if coverage.raw_rows == MAX_RAW_ROWS {
+                        gap(&mut coverage, "callable_raw_row_limit");
+                        budget.halted = true;
+                        break 'controls;
+                    }
+                    let Some(entry) = entries.next() else {
+                        break;
+                    };
+                    coverage.raw_rows += 1;
+                    let (key, raw) = entry?;
+                    if !key.value().starts_with(&prefix) {
+                        break;
+                    }
+                    if let Some(node) = decode(raw.value(), &mut budget, &mut coverage)? {
+                        anyhow::ensure!(
+                            key.value() == format!("{project_id}\0{}", node.node_id),
+                            "Control node identity disagrees with its key"
                         );
                         observe(
                             &node,

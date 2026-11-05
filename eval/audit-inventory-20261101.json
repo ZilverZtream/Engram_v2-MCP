@@ -8524,7 +8524,7 @@
         }
       },
       "webforms_position_producer_20261105": {
-        "state": "PAGE_DIRECTIVE_SELECTOR_FIX_REVIEWED_FOCUSED6PASS;BUILD_AND_ACTUAL_RECOVERY_PENDING",
+        "state": "ACTUAL3119_BLAST_ROUTES_RESTORED;COLD_CODEMAP_CONTROL_DISCOVERY_FAILED;NAVIGATION_FIX_FOCUSED6PASS;NOT_DEPLOYED",
         "source_commit": "402a1d4",
         "source_application": {
           "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-webforms-positions-source-applied-20261105.json",
@@ -8550,10 +8550,10 @@
           "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\webforms-handles-stored-signature-diagnosis-20261105\\diagnosis.json",
           "sha256": "108f0d11b513e2a1f36261ccd76d26708f0b084a325bd177754f8c631b7de371"
         },
-        "published_scope": "3117->3118;254paths/1770chunks/3194011bytes refreshed,2048outside physical revisions inherited,0pathsdeleted; all254sourcehashes and300storedmemorybank contenthashes/stablemetadata unchanged; other14knowncatalogs/routes and capturedRegistryrows unchanged except3publicationkeys. Not exhaustive knowledge/nativecontent proof.",
-        "real_blocker": "VB Handles is produced by codebehind but its control endpoint is markup-owned. Markup-only cleanup removed those bridges; Storage Create dependents11->4 and7UI/JS/bundle/page identities disappeared. Policy33/47 remainsunchanged. No deployment and no lowered acceptance criterion.",
-        "current_source_fix": "Per-event actual producingfile/revision/class; currentmarkupowner fence; exactadmittedstoredsignature recovery with lexeroutsidequoteddefaults/parameters; sourceandproducer admission; safe retirement/rebinding; bounded owned metadata lifetime. Focusedtests/review ongoing; not shipped.",
-        "remaining": "New optimizedpackage, successful bounded recovery of254 at3118, cold/originalrelationship verification, installednormalchecks and freshagenttrial. Multi-producer sharedgraphkeys currently refused ratherthan guessed; support remainsunfinished. Original31/19notclosed.",
+        "published_scope": "3118->3119 recovery;254paths/1770chunks/3194011bytes refreshed,2048outside physical revisions inherited,0pathsdeleted; all254sourcehashes and300storedmemorybank contenthashes/stablemetadata unchanged; other14knowncatalogs/routes and capturedRegistryrows unchanged except3publicationkeys. Not exhaustive knowledge/nativecontent proof.",
+        "real_blocker": "Original Blast identities/routes/frontiers and corrected control reads passed cold at3119. CodeMap returned zero declarations for the same exact control selection: native controls lack Contains membership. Deployment withheld; assertion retained.",
+        "current_source_fix": "Add navigation-only exact control prefix lookup after callable discovery, reusing existing decode/row/string/time/revision admission budgets. Impact and writer behavior unchanged. Focused lifecycle follows literal CodeMap actions on initial, moved and cold source, with another page sameID isolation;6PASS.",
+        "remaining": "Existing CodeMap regression, new optimizedpackage, read-only cold verification at3119 (no repeatindex), install/normal mode and fresh agent task. Shared multi-producer graph keys remain refused rather than supported. Original31/19notclosed.",
         "ownership_source": {
           "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-webforms-handles-source-applied-20261105.json",
           "sha256": "c8a09eefdd6da04e7335ed062244600574facb73be16ab73c4dd3d817bff88c1"
@@ -8579,6 +8579,23 @@
             "sha256": "7bc8ecbea53139d8b88da846d5f860bbee045a2b77f7f61466b1b5db2a3db583"
           },
           "independent_review": "return_proposal_consumer: exactPageendpointselector excludes datasourceclassreferences; no blocker."
+        },
+        "page_owner_source_commit": "ea2a25c",
+        "actual_recovery": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-webforms-handles-actual-recovery-v2-20261105\\acceptance.json",
+          "sha256": "1ace6759425deedb14b8db4ec0ad1d410e7e5221ee06513fa00742eebc923131"
+        },
+        "actual_recovery_preservation": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-webforms-handles-publication-preservation-confirmed-20261105.json",
+          "sha256": "b6884b7f431840f1796bcb2a73a8cccb761ed734b33772da4381feada2989164"
+        },
+        "retained_codemap_failure": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-webforms-handles-cold-readonly-20261105\\acceptance.json",
+          "sha256": "9ce121deb1568a989767e0f1708436795d970e30e69734a98ee4419d832c6e4b"
+        },
+        "control_navigation_source": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-codemap-native-controls-source-applied-20261105.json",
+          "sha256": "0e91fbbc01a917c82524048a6e2a131110471cf55599600276f9df3e12d6b1a5"
         }
       }
     }
