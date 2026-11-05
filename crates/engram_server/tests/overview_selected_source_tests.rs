@@ -474,6 +474,13 @@ fn overview_reports_unknown_legacy_file_coverage_without_fabricating_zero_or_cur
         assert!(report.contains("rust: 1 (100%)"));
         assert!(report.contains("coverage is unknown"));
         assert!(!report.contains("--- Architecture ---"));
+        let legacy=navigation(&report);
+        assert_eq!(legacy["coverage"]["managed_source"],false);
+        assert_eq!(legacy["coverage"]["matching_files"],Value::Null);
+        let request=json!({"project_id":PID,"scope":A,"symbol_node_id":format!("sym:function:{A}:Run:1")});
+        let error=engram.handle_get_codebase_overview(serde_json::from_value(request).unwrap()).await.unwrap_err();
+        assert!(error.message.contains("exact selected-file scope"),
+            "Unknown legacy file coverage must not become a fabricated exact-symbol match or zero-result claim");
     });
 }
 
@@ -494,7 +501,7 @@ fn navigation(text: &str) -> Value {
     .unwrap()
 }
 
-async fn navigate(engram: &Engram, arguments: Value) -> Value {
+async fn navigation_text(engram: &Engram, arguments: Value) -> String {
     let result = engram
         .handle_get_codebase_overview(serde_json::from_value(arguments).unwrap())
         .await
@@ -506,7 +513,11 @@ async fn navigate(engram: &Engram, arguments: Value) -> Value {
         .filter_map(|item| item.as_text())
         .map(|item| item.text.as_str())
         .collect();
-    navigation(&text)
+    text
+}
+
+async fn navigate(engram: &Engram, arguments: Value) -> Value {
+    navigation(&navigation_text(engram, arguments).await)
 }
 
 #[test]
@@ -798,7 +809,20 @@ fn codemap_navigation_case(crowded: bool) {
             let wanted_id=format!("sym:function:{POLICY}:ResolveZoom:1");
             let select=|id:&str|json!({"project_id":PID,"scope":POLICY,
                 "exclude_paths":["Site/Q",PRIVATE],"symbol_node_id":id});
-            let expanded=navigate(&engram,select(&wanted_id)).await;
+            let compact_text=navigation_text(&engram,select(&wanted_id)).await;
+            assert!(compact_text.len()<4*1024,
+                "A short exact-symbol inspection must leave room for the agent's task: {}bytes",compact_text.len());
+            assert!(!compact_text.contains("--- File Types") && !compact_text.contains("--- Language Breakdown"));
+            let expanded=navigation(&compact_text);
+            assert_eq!(expanded["detail"],"exact_symbol");
+            assert!(expanded.get("other_inventories").is_none());
+            assert!(expanded["areas"].as_array().unwrap().is_empty());
+            assert_eq!(expanded["scope"],POLICY);
+            assert_eq!(expanded["exclude_paths"],json!(["Site/Q",PRIVATE]));
+            assert_eq!(expanded["working_tree_checked"],false);
+            for flag in ["managed_source","matching_files","inspected_file_identities","scan_truncated","area_sample_truncated","representative_sample"] {
+                assert_eq!(expanded["coverage"][flag],later_page["coverage"][flag],"Narrow rendering must preserve discovery coverage: {flag}");
+            }
             assert_eq!(expanded["source_generation"],1);
             assert_eq!(expanded["coverage"]["declarations"],later_page["coverage"]["declarations"],
                 "Selecting one action set must retain the same bounded discovery and admission evidence");
@@ -811,6 +835,26 @@ fn codemap_navigation_case(crowded: bool) {
             assert_eq!(declaration["node_id"],wanted_id);
             assert_eq!(declaration["start_line"],1);
             let actions=declaration["actions"].as_array().unwrap();
+            let read=actions.iter().find(|action|action["tool"]=="get_full_method_body").unwrap();
+            assert_eq!(read["arguments"]["project_id"],PID);
+            assert_eq!(read["arguments"]["file_path"],POLICY);
+            assert_eq!(read["arguments"]["line_start"],1);
+            assert_eq!(read["arguments"]["line_end"],1);
+            assert_eq!(read["arguments"]["context_lines"],0);
+            assert_eq!(read["arguments"]["output_json"],true);
+            let source=engram.handle_get_full_method_body(serde_json::from_value(read["arguments"].clone()).unwrap()).await.unwrap();
+            let source: Value=serde_json::from_str(&source.content[0].as_text().unwrap().text).unwrap();
+            assert_eq!(source["source_file_hash"],ContentHash::compute(policy_source.as_bytes()).0);
+            assert_eq!(source["source_code"].as_str().unwrap().trim(),POLICY_TEXT.trim());
+            assert!(source["freshness"]["interpretation"].as_str().unwrap().contains("call-binding"));
+            let normal=navigation_text(&engram,file["actions"][0]["arguments"].clone()).await;
+            assert!(normal.contains("--- File Types") && normal.contains("--- Language Breakdown"),
+                "The compact response must retain a literal route to the normal file overview");
+            let mut retained_request=select(&wanted_id);
+            retained_request["include_retained_context"]=json!(true);
+            let retained=navigation_text(&engram,retained_request).await;
+            assert!(retained.contains("--- Retained Corpus Inventory") && retained.contains("--- File Types"),
+                "Explicit retained context must not be suppressed by the narrow response");
             let inspect=actions.iter().find(|a|a["tool"]=="get_method_edit_context").unwrap();
             let context=engram.handle_get_method_edit_context(serde_json::from_value(inspect["arguments"].clone()).unwrap()).await.unwrap();
             assert!(!context.is_error.unwrap_or(false));
@@ -842,6 +886,7 @@ fn codemap_navigation_case(crowded: bool) {
                 assert!(file["symbols"].as_array().unwrap().is_empty());
                 assert!(file["next_symbols"].is_null());
                 assert_eq!(file["declarations_observed"],25);
+                assert!(missing["limitations"].to_string().contains("Not observed is not absent"));
             }
             for arguments in [
                 json!({"project_id":PID,"scope":PRIVATE,"exclude_paths":[PRIVATE],"symbol_node_id":wanted_id}),
