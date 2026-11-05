@@ -338,6 +338,7 @@ pub struct MethodEditContextResult {
     /// `None` when the blast provider failed — never a fake 0.0.
     pub blast_radius_score: Option<f32>,
     pub risk_band: String,
+    pub risk_band_scope: &'static str,
     pub edit_safety: EditSafetyResult,
     /// Present only when `include_business_logic` was requested.
     pub business_logic: Option<BusinessLogicSection>,
@@ -444,6 +445,10 @@ pub struct EditContextCompleteness {
     pub callers_dangling: usize,
     pub body: ProviderStatus,
     pub complexity: ProviderStatus,
+    /// Availability and scope of indexed effect/call metadata, independently
+    /// of successful graph queries or a low branching-complexity estimate.
+    #[serde(default)]
+    pub method_semantics: ProviderStatus,
     pub db_tables: ProviderStatus,
     pub stored_procs: ProviderStatus,
     pub session_reads: ProviderStatus,
@@ -453,7 +458,7 @@ pub struct EditContextCompleteness {
 }
 
 fn coverage_interpretation() -> String {
-    "Provider statuses describe query execution and available indexed evidence, not exhaustive extraction, correct binding of every call, or runtime coverage. Complete caller/blast queries and zero indexed callers do not establish absence of consumers or side effects.".into()
+    "Provider statuses describe query execution and available indexed evidence, not exhaustive extraction, correct binding of every call, or runtime coverage. Complete caller/blast queries and zero indexed callers do not establish absence of consumers or side effects. Method semantics are assessed separately: empty effects/calls metadata is not proof of no mutation, cancellation or outbound calls. Sync-hazard completion describes the supported .NET pattern scan, not general async safety.".into()
 }
 
 impl Default for EditContextCompleteness {
@@ -466,6 +471,7 @@ impl Default for EditContextCompleteness {
             callers_dangling: 0,
             body: Default::default(),
             complexity: Default::default(),
+            method_semantics: Default::default(),
             db_tables: Default::default(),
             stored_procs: Default::default(),
             session_reads: Default::default(),
@@ -486,6 +492,7 @@ impl EditContextCompleteness {
             callers_dangling: 0,
             body: ProviderStatus::Complete,
             complexity: ProviderStatus::Complete,
+            method_semantics: ProviderStatus::Complete,
             db_tables: ProviderStatus::Complete,
             stored_procs: ProviderStatus::Complete,
             session_reads: ProviderStatus::Complete,
@@ -1102,18 +1109,25 @@ fn meta_str(node: &Node, key: &str) -> String {
         .to_string()
 }
 
-/// Extract comma-separated metadata field as Vec<String>.
+/// Decode supported list payloads consistently for facts and coverage. This
+/// describes payload availability only, not the producer's analysis coverage.
+fn metadata_labels(value: &serde_json::Value) -> Option<Box<dyn Iterator<Item = &str> + '_>> {
+    match value {
+        serde_json::Value::String(text) => Some(Box::new(
+            text.split(',').map(str::trim).filter(|label| !label.is_empty()))),
+        serde_json::Value::Array(items) if items.iter().all(|item| item.is_string()) => Some(Box::new(
+            items.iter().filter_map(serde_json::Value::as_str).map(str::trim).filter(|label| !label.is_empty()))),
+        _ => None,
+    }
+}
+
+/// Extract a supported CSV or string-array metadata field as Vec<String>.
 fn meta_csv(node: &Node, key: &str) -> Vec<String> {
     node.metadata
         .as_ref()
         .and_then(|m| m.get(key))
-        .and_then(|v| v.as_str())
-        .map(|s| {
-            s.split(',')
-                .map(|e| e.trim().to_string())
-                .filter(|e| !e.is_empty())
-                .collect()
-        })
+        .and_then(metadata_labels)
+        .map(|labels| labels.map(str::to_string).collect())
         .unwrap_or_default()
 }
 
@@ -1672,6 +1686,33 @@ struct EditEvidence {
     edit_safety: EditSafetyResult,
 }
 
+/// None of the current producers publishes a complete method-effects/calls
+/// coverage contract. Retain available metadata (including valid empty lists)
+/// without promoting a payload, producer identity, or query success into one.
+fn method_semantic_coverage(node: &Node) -> ProviderStatus {
+    let mut observations = Vec::new();
+    let mut available = false;
+    for field in ["effects", "side_effects", "calls_methods"] {
+        let Some(value) = node.metadata.as_ref().and_then(|m| m.get(field)) else { continue };
+        let count = metadata_labels(value).map(Iterator::count);
+        observations.push(match count {
+            Some(count) => {
+                available = true;
+                format!("Indexed {field} payload available ({count} labels); payload availability does not establish analysis coverage")
+            }
+            None => format!("Indexed {field} payload unavailable: unsupported value type"),
+        });
+    }
+    let scope = "Method-wide effects and outbound-call coverage unassessed; current producers provide no complete coverage contract. Empty lists or absent metadata do not prove absence of mutations, cancellation or calls. Inspect current source and callees before editing.";
+    if !available {
+        observations.push(scope.into());
+        ProviderStatus::NotRun { reason: observations.join("; ") }
+    } else {
+        observations.push(scope.into());
+        ProviderStatus::Partial { reasons: observations }
+    }
+}
+
 fn assemble_edit_evidence(
     graph: &Arc<GraphStore>,
     project_id: &str,
@@ -1680,6 +1721,7 @@ fn assemble_edit_evidence(
 ) -> Result<EditEvidence, String> {
     let (mut method_info, cov) = build_method_info_with_coverage(&node, graph, project_id);
     let mut completeness = EditContextCompleteness {
+        method_semantics: method_semantic_coverage(&node),
         callers: cov.callers,
         callers_dangling: cov.callers_dangling,
         db_tables: cov.db_tables,
@@ -1759,8 +1801,9 @@ fn assemble_edit_evidence(
             Vec::new()
         }
     };
-    let sync_hazards: Vec<SyncHazardSummary> = match &content {
-        Ok(c) => {
+    let dotnet_patterns_supported = is_vb || file_path.to_ascii_lowercase().ends_with(".cs");
+    let sync_hazards: Vec<SyncHazardSummary> = match (&content, dotnet_patterns_supported) {
+        (Ok(c), true) => {
             completeness.sync_hazards = ProviderStatus::Complete;
             engram_index::sync_hazard_detector::detect_sync_hazards(c, is_vb)
                 .hazards
@@ -1777,7 +1820,13 @@ fn assemble_edit_evidence(
                 })
                 .collect()
         }
-        Err(e) => {
+        (Ok(_), false) => {
+            completeness.sync_hazards = ProviderStatus::NotRun {
+                reason: "The .NET blocking-pattern detector does not assess this language's async, cancellation or synchronization semantics".into(),
+            };
+            Vec::new()
+        }
+        (Err(e), _) => {
             completeness.sync_hazards = ProviderStatus::Failed {
                 reason: e.to_string(),
             };
@@ -1851,6 +1900,7 @@ fn render_coverage_block(c: &EditContextCompleteness) -> String {
         ("callers", &c.callers),
         ("body", &c.body),
         ("complexity", &c.complexity),
+        ("method semantics", &c.method_semantics),
         ("db tables", &c.db_tables),
         ("stored procs", &c.stored_procs),
         ("session reads", &c.session_reads),
@@ -2022,7 +2072,7 @@ fn compute_edit_safety(
     }
     // ── GREEN: safe ─────────────────────────────────────────────────────
     else {
-        reasons.push("One-hop advisory: low observed score, few resolved direct callers and no complex state detected; downstream evidence is assessed separately".to_string());
+        reasons.push("One-hop advisory: low observed graph score, few resolved direct callers and low branching-complexity estimate; these inputs do not establish absence of state changes or side effects".to_string());
         if has_no_bound_callers && framework_entry_point {
             reasons.push(
                 "No static caller edge is expected for this framework or constructor entry point; its entry-point classification prevented a false orphan warning"
@@ -2059,12 +2109,14 @@ fn compute_edit_safety(
     };
 
     // Provider floor (row-2 audit A2): evidence that FAILED or never ran is
-    // not "clean". Required axes: blast radius, callers, complexity.
+    // not "clean". Query completion and low branching complexity do not
+    // establish coverage of method effects or outbound calls.
     let mut missing: Vec<String> = Vec::new();
     for (name, status) in [
         ("blast radius", &blast_status),
         ("callers", &completeness.callers),
         ("complexity", &completeness.complexity),
+        ("method semantics", &completeness.method_semantics),
     ] {
         match status {
             ProviderStatus::Failed { reason } => {
@@ -2076,7 +2128,10 @@ fn compute_edit_safety(
             ProviderStatus::Partial { reasons } => {
                 missing.push(format!("{name} partial ({})", reasons.join("; ")))
             }
-            _ => {}
+            ProviderStatus::Truncated { shown, cap, known_total } => {
+                missing.push(format!("{name} bounded ({shown} shown, cap {cap}, total {known_total:?}); omitted evidence is unassessed"))
+            }
+            ProviderStatus::Complete => {}
         }
     }
     if completeness.callers_dangling > 0 {
@@ -2091,8 +2146,8 @@ fn compute_edit_safety(
             missing.join("; ")
         ));
         pre_checklist.push(
-            "Gather the missing evidence (impact_analysis / find_symbol_references, or reindex) \
-             before editing"
+            "Inspect current source, state changes and callees; use the coverage reasons to \
+             gather missing evidence before editing. Reindexing does not add unsupported analysis."
                 .to_string(),
         );
         "yellow"
@@ -4030,6 +4085,7 @@ impl Engram {
             );
             validate_held_method_revision(&graph, &project_id, &ev.node, membership.as_ref())?;
             Ok::<MethodEditContextResult, String>(MethodEditContextResult {
+                risk_band_scope: "Observed one-hop live-graph advisory only; not comprehensive edit safety or a calibrated probability",
                 blast_radius_score: ev.blast.as_ref().map(|b| b.migration_risk as f32 * 10.0),
                 risk_band: ev
                     .blast
@@ -7134,6 +7190,76 @@ mod edit_safety_tests {
             "{:?}",
             r.reasons
         );
+    }
+
+    #[test]
+    fn unassessed_method_effects_cannot_borrow_complete_graph_queries() {
+        let blast = blast_with_seams(0);
+        for status in [
+            ProviderStatus::NotRun { reason: "method effects not assessed".into() },
+            ProviderStatus::Partial { reasons: vec!["recognized patterns only".into()] },
+            ProviderStatus::Truncated { shown: 1, cap: 1, known_total: None },
+        ] {
+            let mut coverage = complete();
+            coverage.method_semantics = status.clone();
+            let low = compute_edit_safety(&info(2, 2, 0), Some(&blast), &coverage);
+            assert_eq!(low.verdict, "yellow", "{low:?}");
+            assert!(low.confidence <= 0.5);
+            assert!(low.reasons.iter().any(|reason| reason.contains("method semantics")));
+            assert!(!low.reasons.iter().any(|reason| reason.contains("no complex state detected")));
+            assert_eq!(low.completeness.method_semantics, status);
+            let high = compute_edit_safety(&info(20, 2, 0), Some(&blast), &coverage);
+            assert_eq!(high.verdict, "red", "Positive caller evidence must survive unavailable effects: {high:?}");
+            assert!(high.reasons.iter().any(|reason| reason.contains("20 distinct callers")));
+            assert!(high.reasons.iter().any(|reason| reason.contains("method semantics")));
+        }
+    }
+
+    #[test]
+    fn indexed_empty_or_positive_payloads_do_not_certify_method_effect_coverage() {
+        for (metadata, availability) in [
+            (None, false),
+            (Some(serde_json::json!({"effects":false})), false),
+            (Some(serde_json::json!({"effects":"","calls_methods":[]})), true),
+            (Some(serde_json::json!({"side_effects":"State_Access,DB_Write"})), true),
+        ] {
+            let node = Node { node_id: "method".into(), node_type: "function".into(),
+                name: "Reset".into(), namespace: "memory".into(), language: "vbnet".into(),
+                file_path: engram_core::RelPath::new("reset.vb"), start_line: 1, end_line: 3,
+                generation: 1, metadata };
+            let status = method_semantic_coverage(&node);
+            assert!(status.is_missing(), "A metadata payload is not comprehensive analysis: {status:?}");
+            assert_eq!(matches!(status, ProviderStatus::Partial { .. }), availability);
+            let explanation = provider_text(&status);
+            assert!(explanation.contains("coverage contract"));
+            if availability { assert!(explanation.contains("payload available")); }
+        }
+    }
+
+    #[test]
+    fn older_completeness_without_effect_coverage_is_unassessed() {
+        let mut old = serde_json::to_value(complete()).unwrap();
+        old.as_object_mut().unwrap().remove("method_semantics");
+        let restored: EditContextCompleteness = serde_json::from_value(old).unwrap();
+        assert!(restored.method_semantics.is_missing());
+    }
+
+    #[test]
+    fn known_positive_effects_survive_both_supported_payload_forms() {
+        for payload in [serde_json::json!("OnErrorResumeNext"), serde_json::json!(["OnErrorResumeNext"])] {
+            let node = Node { node_id: "method".into(), node_type: "function".into(),
+                name: "Reset".into(), namespace: "memory".into(), language: "vbnet".into(),
+                file_path: engram_core::RelPath::new("reset.vb"), start_line: 1, end_line: 3,
+                generation: 1, metadata: Some(serde_json::json!({"effects":payload})) };
+            let mut method = info(2, 2, 0);
+            method.effects = meta_csv(&node, "effects");
+            let mut coverage = complete();
+            coverage.method_semantics = method_semantic_coverage(&node);
+            let result = compute_edit_safety(&method, Some(&blast_with_seams(0)), &coverage);
+            assert_eq!(result.verdict, "red");
+            assert!(result.reasons.iter().any(|reason| reason.contains("On Error Resume Next")));
+            assert!(result.reasons.iter().any(|reason| reason.contains("method semantics")));
+        }
     }
 }
 
