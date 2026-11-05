@@ -159,6 +159,14 @@ async fn verify(app: &Engram, pid: &str) -> Result<()> {
                     read.is_error != Some(true),
                     "The advertised agent source action must execute unchanged"
                 );
+                let body: Value = serde_json::from_str(&read.content[0].as_text().unwrap().text)?;
+                ensure!(
+                    body["source_code"]
+                        .as_str()
+                        .unwrap()
+                        .contains("Public Class Controller"),
+                    "Caller context should expose the nearby declaration, not just the invocation"
+                );
             }
         }
     }
@@ -187,6 +195,115 @@ async fn verify(app: &Engram, pid: &str) -> Result<()> {
             .await?;
         ensure!(read.is_error != Some(true));
     }
+    Ok(())
+}
+
+#[test]
+fn compact_dispatch_keeps_distinct_consumer_files_and_inspectable_caller_context() -> Result<()> {
+    if std::env::var_os("ENGRAM_VB_SIDECAR_PATH").is_none() {
+        return Ok(());
+    }
+    let owned = tempfile::TempDir::new()?;
+    let parser = ParserOwner;
+    let result = (|| -> Result<()> {
+        let root = owned.path();
+        let repo = root.join("repo");
+        let helper = "Site/App_Code/shared-code/UserRightsHelper.vb";
+        let caller = "Site/App_Code/api-v2/Controllers/common/UserRightsController.vb";
+        let provider = "Site/App_Code/shared-code/UserRightsDataProvider.vb";
+        let dashboard = "Site/modules/dashboard/pages/admin/system/userrights/user_rights.aspx.vb";
+        let controller = "Namespace Example\nPublic Class HttpGetAttribute\n Inherits System.Attribute\nEnd Class\nPublic Class Controller\n Private ReadOnly _service As IReader\n Public Sub New(service As IReader)\n _service = service\n End Sub\n <HttpGet>\n Public Function GetAll(value As Alpha) As Alpha\n Return _service.Read(value)\n End Function\nEnd Class\nEnd Namespace\n";
+        let peer = |name: &str| {
+            format!(
+                "Namespace Example\nPublic Class {name}\n Public Function BuildRow(value As Alpha) As Alpha\n Return Policy.Resolve(value)\n End Function\nEnd Class\nEnd Namespace\n"
+            )
+        };
+        let provider_source = peer("UserRightsDataProvider");
+        let dashboard_source = peer("UserRightsDashboard");
+        for (path, source) in [
+            (helper, HELPER),
+            (
+                "Site/App_Code/api-v2/Services/common/interfaces/IUserRightsService.vb",
+                CONTRACTS,
+            ),
+            (
+                "Site/App_Code/api-v2/Services/common/UserRightsService.vb",
+                SERVICE,
+            ),
+            (caller, controller),
+            (provider, provider_source.as_str()),
+            (dashboard, dashboard_source.as_str()),
+        ] {
+            let path = repo.join(path);
+            std::fs::create_dir_all(path.parent().unwrap())?;
+            std::fs::write(path, source)?;
+        }
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()?;
+        let tested=runtime.block_on(async {
+            let (state,_)=AppState::new(config(root))?;let app=Engram::new(state);
+            let indexed=app.handle_index_project(serde_json::from_value(json!({"directory":repo,"project_name":"Agent dispatch summary","project_type":"general","wait":true}))?).await?;
+            ensure!(indexed.is_error!=Some(true));let pid=app.state.registry.list_projects()?[0].project_id.clone();
+            // Real stores can contain older/fallback declarations alongside
+            // new exact mappings. Their unknown-dispatch leads must stay
+            // visible as uncertainty without hiding confirmed consumer files.
+            for path in [provider,dashboard] {
+                let mut nodes=app.state.graph.query_nodes(&pid,Some("function"),None,Some(path),16)?;
+                ensure!(!nodes.is_empty());
+                for node in &mut nodes { if let Some(meta)=node.metadata.as_mut().and_then(Value::as_object_mut) {meta.remove("interface_dispatch_status");} }
+                app.state.graph.upsert_nodes(&pid,&nodes)?;
+            }
+            for tool in ["impact_analysis","compute_blast_radius"] {
+                let args=json!({"project_id":pid,"file_path":helper,"detail":"summary","max_depth":6});
+                let response=if tool=="impact_analysis" {app.handle_impact_analysis(serde_json::from_value(args)?).await?}
+                    else {app.handle_compute_blast_radius(serde_json::from_value(args)?).await?};
+                ensure!(response.is_error!=Some(true));
+                let text=response.content.iter().filter_map(|p|p.as_text()).map(|p|p.text.as_str()).collect::<String>();
+                ensure!(text.len()<=12*1024);let summary=packet(&text)?;
+                ensure!(summary["direct_dependents_observed"]==3);
+                let files:std::collections::BTreeSet<_>=summary["immediate_consumers"].as_array().unwrap().iter().map(|row|row["file_path"].as_str().unwrap()).collect();
+                ensure!(files.len()==3 && files.contains(provider) && files.contains(dashboard),
+                    "Potential dispatch and optional gap rows must not hide distinct ordinary consumers: {summary}");
+                let dispatch=&summary["potential_interface_callers"];ensure!(dispatch["routes_observed"]==1 && dispatch["routes"].as_array().unwrap().len()==1);
+                ensure!(dispatch["coverage"]["truncated"]==true,"Legacy dispatch remains explicitly unknown");
+                let route=&dispatch["routes"][0];let action=&route["caller_source_read"];
+                let read=app.handle_get_full_method_body(serde_json::from_value(action["arguments"].clone())?).await?;
+                let body:Value=serde_json::from_str(&read.content[0].as_text().unwrap().text)?;
+                let source=body["source_code"].as_str().unwrap();
+                ensure!(source.contains("<HttpGet>") && source.contains("Public Sub New") && source.contains("Private ReadOnly _service") && source.contains("Return _service.Read(value)"),
+                    "One advertised read must expose nearby entry/receiver context and the invocation");
+                ensure!(body["source_file_hash"]==engram_core::ContentHash::compute(controller.as_bytes()).0);
+                ensure!(route["reference_samples_outside_context"]==0 && route["recorded_position_read"].is_null());
+            }
+            let padding=" ' unrelated work\n".repeat(120);
+            let long=controller.replace(" Return _service.Read(value)",&format!("{padding} Return _service.Read(value)"));
+            std::fs::write(repo.join(caller),&long)?;
+            let updated=app.handle_update_project(serde_json::from_value(json!({"project_id":pid,"wait":true,"max_commits":1,"index_antipatterns":false}))?).await?;
+            ensure!(updated.is_error!=Some(true));
+            let response=app.handle_impact_analysis(serde_json::from_value(json!({"project_id":pid,"file_path":helper,"detail":"summary","max_depth":6}))?).await?;
+            let text=response.content[0].as_text().unwrap().text.clone();let summary=packet(&text)?;
+            let route=&summary["potential_interface_callers"]["routes"][0];
+            let expected=long.lines().position(|line|line.contains("Return _service.Read(value)")).unwrap()+1;
+            ensure!(route["connections"][1]["reference_lines"]==json!([expected]) && route["reference_samples_outside_context"]==1);
+            let context=app.handle_get_full_method_body(serde_json::from_value(route["caller_source_read"]["arguments"].clone())?).await?;
+            let context:Value=serde_json::from_str(&context.content[0].as_text().unwrap().text)?;
+            ensure!(!context["source_code"].as_str().unwrap().contains("Return _service.Read(value)"));
+            let reference=app.handle_get_full_method_body(serde_json::from_value(route["recorded_position_read"]["arguments"].clone())?).await?;
+            let reference:Value=serde_json::from_str(&reference.content[0].as_text().unwrap().text)?;
+            ensure!(reference["source_code"].as_str().unwrap().contains("Return _service.Read(value)"),"A distant callsite still needs a literal read action");
+            settle(&app).await?;Ok::<_,anyhow::Error>(())
+        });
+        drop(runtime);
+        tested
+    })();
+    let stopped = engram_index::vb_extractor::shutdown_idle_parser();
+    drop(parser);
+    let cleanup = owned.close();
+    result?;
+    stopped?;
+    cleanup?;
     Ok(())
 }
 

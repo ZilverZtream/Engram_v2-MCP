@@ -319,13 +319,14 @@ fn summary_section(
     if recoveries.values().any(|row| row["scope_ref"] == "inspection_candidate") {
         value["inspection_candidate_scope"] = full["recovery_scopes"]["inspection_candidate"].clone();
     }
-    // Reserve the existing <=2KiB immediate prefix, section framing and the
-    // public freshness footer. Drop only optional rows, never RPC arguments.
+    // Charge the actual bounded prefix, plus framing/freshness reserve. Its
+    // 2KiB ceiling is not its usual cost; over-reserving it hides useful rows.
+    let immediate_prefix=immediate_section(full,false).unwrap_or_default();
     let fits = |value: &Value| {
         serde_json::to_vec(value)
             .expect("JSON value serialization")
             .len()
-            <= SUMMARY_BYTES - IMMEDIATE_BYTES - 1024
+            <= SUMMARY_BYTES.saturating_sub(immediate_prefix.len()+1024)
     };
     if let Some(target) = target {
         value["target"] = describe(target);
@@ -339,20 +340,12 @@ fn summary_section(
     // These remain separate, non-additive observations of one dispatch hop.
     if let Some(dispatch)=full.get("potential_interface_callers") {
         let mut routes=Vec::new();
-        for route in dispatch["routes"].as_array().into_iter().flatten().take(2) {
+        for route in dispatch["routes"].as_array().into_iter().flatten().take(1) {
             routes.push(route.clone());
             value["potential_interface_callers"]["routes"]=json!(&routes);
             if !fits(&value) { routes.pop(); value["potential_interface_callers"]["routes"]=json!(&routes); break; }
         }
         value["potential_interface_callers"]["routes_omitted"]=json!(dispatch["routes_observed"].as_u64().unwrap_or(0).saturating_sub(routes.len() as u64));
-        let mut leads=Vec::new();
-        for lead in dispatch["frontier"].as_array().into_iter().flatten().take(2) {
-            leads.push(lead.clone());
-            value["potential_interface_callers"]["frontier"]=json!(&leads);
-            if !fits(&value) { leads.pop(); value["potential_interface_callers"]["frontier"]=json!(&leads); break; }
-        }
-        value["potential_interface_callers"]["frontier_omitted"]=json!(dispatch["frontier"].as_array().map_or(0,Vec::len)-leads.len()
-            +dispatch["frontier_omitted"].as_u64().unwrap_or(0) as usize);
     }
     let mut immediate = Vec::new();
     if admitted {
@@ -387,6 +380,15 @@ fn summary_section(
     }
     value["immediate_consumers_omitted_from_summary"] =
         json!(direct.map(|count| count.saturating_sub(immediate.len())));
+    // A second potential route is optional after the ordinary diverse sample.
+    if let Some(dispatch)=full.get("potential_interface_callers") {
+        let mut routes=value["potential_interface_callers"]["routes"].as_array().cloned().unwrap_or_default();
+        for route in dispatch["routes"].as_array().into_iter().flatten().skip(1).take(1) {
+            routes.push(route.clone()); value["potential_interface_callers"]["routes"]=json!(&routes);
+            if !fits(&value) { routes.pop();value["potential_interface_callers"]["routes"]=json!(&routes); }
+        }
+        value["potential_interface_callers"]["routes_omitted"]=json!(dispatch["routes_observed"].as_u64().unwrap_or(0).saturating_sub(routes.len() as u64));
+    }
     let mut leads = Vec::new();
     for lead in frontier.iter().take(8) {
         let node = lead["source_ref"]
@@ -416,9 +418,21 @@ fn summary_section(
         }
     }
     value["frontier_rows_omitted_from_summary"] = json!(frontier.len() - leads.len());
+    // Optional interface gap rows must not displace the ordinary file-diverse
+    // consumer sample. Counts/scope/coverage were reserved before every row.
+    if let Some(dispatch)=full.get("potential_interface_callers") {
+        let mut leads=Vec::new();
+        for lead in dispatch["frontier"].as_array().into_iter().flatten().take(2) {
+            leads.push(lead.clone());
+            value["potential_interface_callers"]["frontier"]=json!(&leads);
+            if !fits(&value) { leads.pop(); value["potential_interface_callers"]["frontier"]=json!(&leads); break; }
+        }
+        value["potential_interface_callers"]["frontier_omitted"]=json!(dispatch["frontier"].as_array().map_or(0,Vec::len)-leads.len()
+            +dispatch["frontier_omitted"].as_u64().unwrap_or(0) as usize);
+    }
     format!(
         "{}\n## Revision-admitted change impact\n\nSummary of the same bounded source selection. Expand the graph for all retained identities, connections and paths.\n\n```json\n{}\n```\n",
-        immediate_section(full, false).unwrap_or_default(),
+        immediate_prefix,
         serde_json::to_string(&value).expect("JSON value serialization")
     )
 }
@@ -709,7 +723,10 @@ fn render_interface_dispatch(walk: &IncomingImpactWalk, project: &str) -> Value 
     let mut rows=Vec::new();
     for route in &dispatch.routes {
         let caller=&route.caller;
-        let start=route.reference_lines.first().copied().unwrap_or(caller.start_line);
+        if caller.start_line==0 || caller.end_line<caller.start_line { continue; }
+        let start=caller.start_line.saturating_sub(20).max(1);
+        let end=caller.end_line.min(start.saturating_add(79));
+        let outside: Vec<_>=route.reference_lines.iter().copied().filter(|line|*line<start || *line>end).collect();
         let row=json!({"implementation":endpoint(&route.implementation),"implementation_primary_depth":route.implementation_depth,
             "contract":endpoint(&route.contract),"caller":endpoint(caller),"potential_depth":route.implementation_depth+2,
             "contract_type_key":route.contract_type_key,"contract_type":route.contract_type,
@@ -718,8 +735,12 @@ fn render_interface_dispatch(walk: &IncomingImpactWalk, project: &str) -> Value 
                 {"source":"caller","target":"contract","kind":"calls","traversed":"incoming","generation":route.call_generation,
                     "reference_lines":route.reference_lines,"reference_lines_truncated":route.reference_lines_truncated}],
             "caller_source_read":{"tool":"get_full_method_body","arguments":{"project_id":project,"file_path":caller.file_path,
-                "line_start":start,"line_end":caller.end_line.min(start.saturating_add(30)).max(start),"context_lines":0,"output_json":true}},
-            "source_read_scope":"Current bytes at the indexed position; verify freshness before editing. Follow the primary shortest path to the implementation; this potential caller is not a direct call to it."});
+                "line_start":start,"line_end":end,"context_lines":0,"output_json":true}},
+            "reference_samples_outside_context":outside.len(),
+            "recorded_position_read":outside.first().map(|line|json!({"tool":"get_full_method_body","arguments":{
+                "project_id":project,"file_path":caller.file_path,"line_start":line,
+                "line_end":caller.end_line.min(line.saturating_add(30)),"context_lines":0,"output_json":true}})),
+            "source_read_scope":"Current caller context: up to20 lines before its declaration, at most80 lines through its indexed end. Callsite samples remain separate. Verify freshness; potential dispatch is not runtime binding proof."});
         if serde_json::to_vec(&row).expect("JSON serialization").len()>4096 { continue; }
         rows.push(row); value["routes"]=json!(&rows);
         if serde_json::to_vec(&value).expect("JSON serialization").len()>8*1024 { rows.pop();value["routes"]=json!(&rows);break; }

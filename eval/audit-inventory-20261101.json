@@ -8751,7 +8751,7 @@
         }
       },
       "interface_dispatch_20261105": {
-        "status": "Implemented and source/native/public behavior verified; not released or refreshed in actual data yet.",
+        "status": "Committed/pushed bc78f4d, optimized-built, paired-installed, actual7file publication3120 and independent cold/current normal tool observations verify scoped controller recovery. Global freshness remains incomplete; original goal not closed.",
         "source_revision": "Same commit as this ledger entry; exact source hashes in receipt.",
         "evidence": {
           "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-interface-dispatch-source-verified-20261105.json",
@@ -8760,13 +8760,72 @@
         "checks": "12public impact behavior tests plus13native checks PASS; real seven-file UserRights source produced identical exact interface target locators for implementation/controller.",
         "scope": "Separate potential callers; preserves primary counts and source direction. One explicit VB interface boundary, always partial; rejected/unresolved alias calls not inventoried. No perfection/exhaustiveness/runtime dispatch proof.",
         "legacy_test_correction": "Both stale-cache-dominance tests also fail installed prior parser. Replace with wanted fresh-byte/refusal and untouched cross-file semantic-context behavior; old failure receipts retained.",
-        "unfinished": "Paired release, watch pause/drain, exact actual refresh/preservation, cold/installed tool validation and fresh consumer task remain. Other original31findings/19fullgates still unfinished."
+        "unfinished": "Paired release, watch pause/drain, exact actual refresh/preservation, cold/installed tool validation and fresh consumer task remain. Other original31findings/19fullgates still unfinished.",
+        "source_commit": "bc78f4d811c6e90e58d2f9db1d1c8bfaea534e09",
+        "paired_package": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\interface-dispatch-paired-package-20261105.json",
+          "sha256": "0ef09405a36f96063570f312814cd540109fde30ed90a53dd83df45093c8d134"
+        },
+        "actual_scoped_reconciliation": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\interface-dispatch-actual-scoped-preservation-reconciled-20261105.json",
+          "sha256": "977eaf915b7834da35558cd35b68f83d72488aef3bb4247992411b68d5dc3676"
+        },
+        "release_applicability": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\interface-dispatch-release-gates-admitted-20261105.json",
+          "sha256": "dabf4d4b3eff3d887006246e2157ce311f0dc63c565fee1095b77c6a02d88031"
+        },
+        "upgrade": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\interface-dispatch-upgrade-20261105.json",
+          "sha256": "75e28891e2af1210bb818eafde5f2abbd37461c24dabd8963b7e328e39adb497"
+        },
+        "installed_normal_readback": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\interface-dispatch-installed-normal-readback-20261105.json",
+          "sha256": "98159cc1375b50d5ce043767bfb00a690c02639b6889efe1c3a4184967601092"
+        },
+        "fresh_agent": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\interface-dispatch-fresh-agent-assessment-20261105.json",
+          "sha256": "4057123e1abbb568808a10b19a746f7390dafe1ffe88eb7cef2dae05a50dc4bc"
+        },
+        "installed_binary_sha256": "579e35113acda48ba20e02e9423d6578dfd8e7ec83fd7cc7bb1bef51d963b5eb",
+        "installed_manifest_sha256": "3b231a8bb2381319d889b1a9893b2485169c15ca1e950ab08365168aebbe9412",
+        "actual_publication": {
+          "before": 3119,
+          "after": 3120,
+          "files": 7,
+          "chunks": 25,
+          "bytes": 31194,
+          "selected_paths": 2302,
+          "outside_physical_revisions_preserved": 2295,
+          "memory_sections_preserved": 300,
+          "other14_known_metadata_preserved": true,
+          "primary_dependents": 12,
+          "separate_potential_controller_callers": 1
+        },
+        "global_limits": "Whole-project freshness FALSE:1009older parser-provenance paths; live eligible/unindexed counts observed2317/15,2411/109,2455/153 while selected2302 stays fixed. Cause of eligible growth not established. Source outside7 not refreshed. Watching remains persistently paused to protect frozenQ; this operational limitation is unfinished work.",
+        "observer_status": "Both original actual and cold observers retained as FAIL at their global/static completeness assertion. Full retained RPCs verify300prewrite/cold notes and prior completed workflow checks; scoped reconciliation is separately reviewed, no writer retry/global freshness or full19gate closure.",
+        "agent_cost": "Freshfork read only assigned bootstrap+8actual replies, no oracle/status/list_agents;8successful requests94,766B/~0.496s tooltime. Source-verified API/interface/controller and provider/WebForms/export paths, retained global/DI/runtime limits. Not held-out or general productivity proof.",
+        "remaining": "Read-side regression: new potential/gap rows crowded ordinary summaries to1immediate consumer, forcing46.4KBgraph. Caller call-only read hid entry/receiver context. Two-response-shaping fixes plus desired multifile/long-reference test are currently uncommitted/under focused tests; not deployed. Missing-self recovery/13.6KB CodeMap cost and original31findings/19fullgates remain open.",
+        "owned_resources": "Maintenance children exited0 naturally; pure native children/Job/handles closed; all new fixture/tmp removed. Config hold released unchanged SHA; normal runtime restarted. Backup C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-df1006e1e6264a5fb8869c7a90acdeac retained for rollback; evidence retained under V. No preexisting cleanup/extra copies/worktrees/volumes.",
+        "repository_visibility": "User requested fix: GitHub default changed main->master, remote HEAD verifiedbc78.49commits/264files were already onmaster; no PR/merge/history rewrite. Current master had no reported CI checks; retrieved failures were historical other-branch runs, user corrected attribution. No CI or CodeRabbit-pass claim."
+      },
+      "interface_context_diversity_followup_20261105": {
+        "status": "Implemented and13focusedchecksPASS; optimizedbuild/install/actualreadback stillpending.",
+        "source_revision": "Same commit as this entry; exact2file hashes in source receipt.",
+        "source": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\interface-context-diversity-source-applied-20261105.json",
+          "sha256": "202616661821482c0bf63690de6f9212567890859e2c808311354106afe1fce1"
+        },
+        "problem": "Fresh agent needed46400Bgraph because9991Bsummary hadonly1ordinaryconsumer; suppliedcall-onlycontrollerread hidcontext.",
+        "behavior": "Ordinarydiversefiles outrank optionalinterfacegap/secondroute; actualprefixbudget; boundeddeclarationcontext andseparateliteralread for distantrecordedreferences.",
+        "data_transition": "Read-side only. No parser/ingestion/storage schema change, no additionalsource update authorized/needed. Actualhead3120 and watchpause retained.",
+        "verification": "Native/public3consumerfiles+actualroute+entryreceivercontext+longreference; originalincremental/cold2routebehavior and11priorimpactcasesPASS.",
+        "unfinished": "Actualnewpackage/installedsourceactions andcomparativelimitedtask; unknownself navigation andbroaderoriginalbacklog/globalfreshness stillopen."
       }
     }
   },
   "last_updated_at": "2026-11-04T22:21:34.174161+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-05T05:19:31.023022+00:00",
+    "at_utc": "2026-11-05T06:33:34.941013+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -8797,7 +8856,7 @@
       }
     ],
     "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
-    "next_user_visible_deliverable": "Deploy and refresh the verified exact interface recovery on seven known UserRights files; return controller as a separate source-admitted potential caller in actual default Blast. Control enabled watch so refresh cannot expand into frozenQ. Preserve outside source revisions and knowledge; validate actual cold/installed responses and fresh agent task.",
+    "next_user_visible_deliverable": "Restore ordinary file-diverse consumers in compact impact while retaining actual potential interface caller, and provide bounded caller declaration context plus executable distant-callsite action. Validate focused behavior and actual installed agent task; no parser/data migration required for this read-side followup.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
