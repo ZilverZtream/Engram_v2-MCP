@@ -264,9 +264,10 @@
         "More than eight sources, exclusions, new files, case/separator forms, oversized recovery and changed source hashes remain correct.",
         "Historical requests never substitute live policy; prose delivery is distinguished from semantic enforcement."
       ],
-      "closure_state": "Local acceptance verified both builds144 executions total; release/publication/deployment pending, not whole-audit completion.",
+      "closure_state": "Local acceptance verified both builds144 executions total; implementation subsequently included in published/deployed lineage. Feature-specific deployed acceptance and original full-audit gates remain unclosed.",
       "dependencies": [],
-      "current_evidence": "execution_evidence_20261101.eg01_direct_retrieval_delivery_20261102"
+      "current_evidence": "execution_evidence_20261101.eg01_direct_retrieval_delivery_20261102",
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
     },
     {
       "id": "EG-02",
@@ -277,9 +278,10 @@
         "The entire serialized response fits its budget, preserving every mandatory reconciliation identity and omission count.",
         "Recovery reconstructs exact immutable UTF-8 bytes and hashes after subsequent source changes."
       ],
-      "closure_state": "Local acceptance verified both builds144 executions total; release/publication/deployment pending, not whole-audit completion.",
+      "closure_state": "Local acceptance verified both builds144 executions total; implementation subsequently included in published/deployed lineage. Feature-specific deployed acceptance and original full-audit gates remain unclosed.",
       "dependencies": [],
-      "current_evidence": "execution_evidence_20261101.eg02_deferred_omission_delivery_20261102"
+      "current_evidence": "execution_evidence_20261101.eg02_deferred_omission_delivery_20261102",
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
     },
     {
       "id": "EG-03",
@@ -290,14 +292,15 @@
         "Ignored/storage events schedule no work; unchanged refresh retains its source head; changes during indexing converge.",
         "Deletion and rename behavior remains correct under Windows path forms."
       ],
-      "closure_state": "Native and no-vector each passed11 focused +23 public checks. Current EG03 locally verified; release/deployment and full-audit gates remain.",
+      "closure_state": "Native and no-vector each passed11 focused +23 public checks. Current EG03 locally verified; implementation included in later deployed lineage; feature-specific deployed acceptance and full-audit gates remain unclosed.",
       "dependencies": [],
       "current_evidence": "execution_evidence_20261101.eg03_real_actor_behavior_20261102",
       "latest_runtime_delivery": {
         "package": "79c320d8/sourceb515a5e; deployed for liveOciusX",
         "evidence": "execution_evidence_20261101.ociusx_resource_release_and_matched_query_pair_20261104",
         "limit": "Runtime delivery is complete; existing partial behavior/coverage/usefulness requirements in this finding remain open."
-      }
+      },
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
     },
     {
       "id": "EG-04",
@@ -308,7 +311,7 @@
         "Repeated reads and store reloads retain bounded caches and do not reopen/shutdown persistent writers unnecessarily.",
         "Real-edit rewriting is measured and remains separately tracked in EG-13."
       ],
-      "closure_state": "Prior streaming/pagecache changesdeployed. NewPageRankretention39checks+native250resourceimprovement verifiedlocally. Explicit64/32MiB nativeconnectionpolicy20compatibilitychecks+realcachepressure/Weaklifetimes+matchedsmallworkloadcostverifiedlocally; no whole-appplateauclaim. Fullmandatory19releasegates/deployremainopen.",
+      "closure_state": "Prior streaming/pagecache changesdeployed. NewPageRankretention39checks+native250resourceimprovement verifiedlocally. Explicit64/32MiB nativeconnectionpolicy20compatibilitychecks+realcachepressure/Weaklifetimes+matchedsmallworkloadcostverifiedlocally; no whole-appplateauclaim. Full original19/resource gates remain open; implementation is included in later deployed lineage.",
       "dependencies": [],
       "current_generation_retention_evidence": "execution_evidence_20261101.pagerank_generation_retention_20261102",
       "current_resource_evidence": "execution_evidence_20261101.pagerank_actual_sustained_resources_20261102",
@@ -316,7 +319,8 @@
         "package": "79c320d8/sourceb515a5e; deployed for liveOciusX",
         "evidence": "execution_evidence_20261101.ociusx_resource_release_and_matched_query_pair_20261104",
         "limit": "Runtime delivery is complete; existing partial behavior/coverage/usefulness requirements in this finding remain open."
-      }
+      },
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
     },
     {
       "id": "EG-05",
@@ -339,9 +343,10 @@
         "Same-basename authored sources remain distinct; explicit JSON scopes survive promotion and source replacement.",
         "Malformed replacements preserve existing rows; scope dialect compatibility and legacy ambiguities remain explicit."
       ],
-      "closure_state": "OriginalEG06-08 localacceptance verified:30public+33actualcore/parser cases pernative/no-vector configuration (126currentexecutions); earlier92rendering perbuild alsoPASS. Release/deployment/fullauditremainpending.",
+      "closure_state": "OriginalEG06-08 localacceptance verified:30public+33actualcore/parser cases pernative/no-vector configuration (126currentexecutions); earlier92rendering perbuild alsoPASS. Implementation included in later published/deployed lineage; feature-specific deployed acceptance and full-audit gates remain open.",
       "dependencies": [],
-      "current_evidence": "execution_evidence_20261101.eg06_eg08_authored_scope_and_source_lifecycle_20261102"
+      "current_evidence": "execution_evidence_20261101.eg06_eg08_authored_scope_and_source_lifecycle_20261102",
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
     },
     {
       "id": "EG-07",
@@ -351,10 +356,11 @@
       "required_behavior": [
         "Authored prose is not generalized by model distillation; full qualifications and existing raw-output/Markdown contracts survive."
       ],
-      "closure_state": "OriginalEG06-08 localacceptance verified:30public+33actualcore/parser cases pernative/no-vector configuration (126currentexecutions); earlier92rendering perbuild alsoPASS. Release/deployment/fullauditremainpending.",
+      "closure_state": "OriginalEG06-08 localacceptance verified:30public+33actualcore/parser cases pernative/no-vector configuration (126currentexecutions); earlier92rendering perbuild alsoPASS. Implementation included in later published/deployed lineage; feature-specific deployed acceptance and full-audit gates remain open.",
       "dependencies": [],
       "current_instruction_work_evidence": "execution_evidence_20261101.instruction_authority_delivery_and_repair_outcomes; partial only, see remaining limits",
-      "current_evidence": "execution_evidence_20261101.eg06_eg08_authored_scope_and_source_lifecycle_20261102"
+      "current_evidence": "execution_evidence_20261101.eg06_eg08_authored_scope_and_source_lifecycle_20261102",
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
     },
     {
       "id": "EG-08",
@@ -367,9 +373,10 @@
         "Concurrent manual edits and source replacements are protected; interrupted publication converges.",
         "Whole-corpus clear invalidates other sources searchable completeness; generation does not promote stale managed rules."
       ],
-      "closure_state": "OriginalEG06-08 localacceptance verified:30public+33actualcore/parser cases pernative/no-vector configuration (126currentexecutions); earlier92rendering perbuild alsoPASS. Release/deployment/fullauditremainpending.",
+      "closure_state": "OriginalEG06-08 localacceptance verified:30public+33actualcore/parser cases pernative/no-vector configuration (126currentexecutions); earlier92rendering perbuild alsoPASS. Implementation included in later published/deployed lineage; feature-specific deployed acceptance and full-audit gates remain open.",
       "dependencies": [],
-      "current_evidence": "execution_evidence_20261101.eg06_eg08_authored_scope_and_source_lifecycle_20261102"
+      "current_evidence": "execution_evidence_20261101.eg06_eg08_authored_scope_and_source_lifecycle_20261102",
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
     },
     {
       "id": "EG-09",
@@ -517,13 +524,14 @@
       "required_behavior": [
         "A Windows-owned deep-path fixture persists and recovers a large response byte-for-byte with atomic containment and useful OS errors."
       ],
-      "closure_state": "Current native correctly selected8 Windows response-delivery cases pass including deep owned data path exact recovery. Historical actual94961B/five-page MCP proof retained; Nov2 wrong-filter50 totals explicitly excluded from delivery proof. Release/deployed validation remains.",
-      "dependencies": []
+      "closure_state": "Current native correctly selected8 Windows response-delivery cases pass including deep owned data path exact recovery. Historical actual94961B/five-page MCP proof retained; Nov2 wrong-filter50 totals explicitly excluded from delivery proof. Included in later shipped lineage; current deployed-path/long-path revalidation and original residual gates are not established by package inclusion.",
+      "dependencies": [],
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
     },
     {
       "id": "EG-13",
       "finding": "Actual source edits still copy unchanged chunks between generations",
-      "ledger_disposition": "In progress; replacement storage not deployed",
+      "ledger_disposition": "Partially deployed for OciusX; complete migration and original storage gates remain open",
       "existing_evidence_and_next_gate": "Original unrelated-file scaling reproduced; subsequent exact binaries/workloads recorded in execution evidence. Closed idle store hashes now unchanged. Matched200 physical compaction53->1/51->1 passes source verification but late private growth remains. Preserve all19 release gates; source parser provenance, remaining reader ownership, graph evidence boundaries, sustained resources, final feature checks/review and deployment remain.",
       "required_behavior": [
         "All storage_release_gates below must be met with and without vectors before deployment."
@@ -556,7 +564,8 @@
         "package": "79c320d8/sourceb515a5e; deployed for liveOciusX",
         "evidence": "execution_evidence_20261101.ociusx_resource_release_and_matched_query_pair_20261104",
         "limit": "Runtime delivery is complete; existing partial behavior/coverage/usefulness requirements in this finding remain open."
-      }
+      },
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
     },
     {
       "id": "EG-14",
@@ -616,43 +625,45 @@
     {
       "id": "EG-15",
       "finding": "Generated instruction-file ownership safety",
-      "ledger_disposition": "Implemented and locally verified; final review/deployment pending",
+      "ledger_disposition": "Implemented and locally verified; feature-specific publication/consumer acceptance pending",
       "existing_evidence_and_next_gate": "peer_refresh_publication_recovery_cutoff_and_delivery_20261103; current20 native cases include prior15+new5 interrupted-recovery behavior functions, some cover multiple real boundaries. Broader generator source-input provenance not represented by existing publication API; final review/release/deploy remains.",
       "required_behavior": [
         "Preserve human, unreceipted and externally edited generated files across root, diverted, scoped and integration outputs.",
         "Refresh/removal requires exact owner/path/current-content evidence; stale proposals and interrupted publication preserve human work.",
         "Return proposed content or explicit skips on conflicts; verify actual output and cleanup behavior."
       ],
-      "closure_state": "Native actual NTFS20 publication cases now pass, including automatic directory/bundle-bound journal v2 reconciliation that restores exact prior receipt ownership and preserves human winners, altered evidence and unbound legacy journals. Unsupported-platform publication remains proposal/refusal; final release/deployed validation pending.",
+      "closure_state": "Native actual NTFS20 publication cases now pass, including automatic directory/bundle-bound journal v2 reconciliation that restores exact prior receipt ownership and preserves human winners, altered evidence and unbound legacy journals. Unsupported-platform publication remains proposal/refusal; implementation code is in shipped lineage; feature-specific publication/deployed acceptance remains pending.",
       "dependencies": [],
       "implementation_state": "Reviewed bound interruption recovery + exact ownership rollback locally verified native20 cases. No current no-vector/release/deployed claim.",
       "current_instruction_work_evidence": "execution_evidence_20261101.instruction_authority_delivery_and_repair_outcomes; partial only, see remaining limits",
-      "latest_no_vector_publication_evidence": "execution_evidence_20261101.no_vector_alias_v4_publication_and_tool_milestone_20261103"
+      "latest_no_vector_publication_evidence": "execution_evidence_20261101.no_vector_alias_v4_publication_and_tool_milestone_20261103",
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
     },
     {
       "id": "EG-16",
       "finding": "Generator overflow accounting",
-      "ledger_disposition": "Locally verified overflow accounting; final review/deployment pending",
+      "ledger_disposition": "Locally verified overflow accounting; feature-specific consumer acceptance pending",
       "existing_evidence_and_next_gate": "Root overflow and original rule lineage remain recoverable through scoped companions or explicit omission/delivery accounting, including write failures. Final review/deployed validation and EG-24/25 task usefulness remain.",
       "required_behavior": [
         "Every root-overflow rule reaches a correctly scoped artifact or an explicit recoverable omission.",
         "Actual returned/written paths and counts match claims even at caps, write failures or disabled optional output."
       ],
-      "closure_state": "Verified locally in dated receipts: root overflow and original rule lineage remain recoverable in companions/ledger, with actual delivery paths and partial-write/conflict reporting. Remaining: final review and deployed-runtime validation; real task usefulness remains EG-24/25.",
+      "closure_state": "Verified locally in dated receipts: root overflow and original rule lineage remain recoverable in companions/ledger, with actual delivery paths and partial-write/conflict reporting. Implementation code is in shipped lineage. Remaining: feature-specific final review and deployed-runtime acceptance; real task usefulness remains EG-24/25.",
       "dependencies": [],
-      "current_instruction_work_evidence": "execution_evidence_20261101.instruction_authority_delivery_and_repair_outcomes; partial only, see remaining limits"
+      "current_instruction_work_evidence": "execution_evidence_20261101.instruction_authority_delivery_and_repair_outcomes; partial only, see remaining limits",
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
     },
     {
       "id": "EG-17",
       "finding": "Scope of manual/legacy rules in generated instructions",
-      "ledger_disposition": "Locally verified scope preservation; consumer/release gates pending",
+      "ledger_disposition": "Locally verified scope preservation; consumer acceptance gates pending",
       "existing_evidence_and_next_gate": "Manual exceptions, distinct legacy scopes, zero-match warnings and authority decisions preserve scope. Claude paths frontmatter contract is checked; actual consumer loading, final review and deployment remain.",
       "required_behavior": [
         "Manual/legacy generated rules retain directory/language/file scope and accepted exceptions.",
         "Different scopes are not merged into broader mandates; zero-match scope warns without widening or declaring policy wrong.",
         "Closed/fixed/rejected review workflow status is not automatically an accepted policy decision."
       ],
-      "closure_state": "Verified locally in dated receipts: manual exceptions/distinct legacy scopes and zero-match warnings survive; unknown authority is not promoted, workflow status does not invent policy acceptance. Consumer paths frontmatter validated locally. Remaining: final review, actual Claude consumer loading and deployed-runtime validation.",
+      "closure_state": "Verified locally in dated receipts: manual exceptions/distinct legacy scopes and zero-match warnings survive; unknown authority is not promoted, workflow status does not invent policy acceptance. Consumer paths frontmatter validated locally. Implementation code is in shipped lineage. Remaining: feature-specific final review, actual Claude consumer loading and deployed-runtime acceptance.",
       "dependencies": [],
       "consumer_format_subfinding": {
         "defect": "Generated Claude rule frontmatter used ignored globs field, causing scope loss",
@@ -661,18 +672,19 @@
         "evidence": "generated-rule-consumer-scope.json:52tests passed; fixtures empty",
         "limit": "Contract tests verify generated data; no real Claude runtime loading was tested. Original rule identity/scope lineage, overflow routing and remaining documentation drift stay open."
       },
-      "current_instruction_work_evidence": "execution_evidence_20261101.instruction_authority_delivery_and_repair_outcomes; partial only, see remaining limits"
+      "current_instruction_work_evidence": "execution_evidence_20261101.instruction_authority_delivery_and_repair_outcomes; partial only, see remaining limits",
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
     },
     {
       "id": "EG-18",
       "finding": "Core tool preset dependency closure",
-      "ledger_disposition": "Open original finding; verify current behavior",
+      "ledger_disposition": "Implemented and included in shipped lineage; feature-specific Core-client acceptance remains open",
       "existing_evidence_and_next_gate": "core-client-job-lifecycle-and-citations.json/log:5PASS136.912s; source stable, fixtures empty. Core32 includes project discovery/get_chunk/memory/job lifecycle. Other specialist handoffs require full profile, not equivalence. Current deployed behavior remains to verify.",
       "required_behavior": [
         "Limited MCP tools/list permits project discovery and resolution of advertised citations/context dependencies including get_chunk and memory-bank reads.",
         "Full discovery remains default and OciusX .NET capabilities remain available."
       ],
-      "closure_state": "Local actual-MCP-client five-case receipt inspected: project discovery, exact search/memory citation recovery, async job lifecycle, default full discovery and legacy schemas passed Nov1; no new execution in this reconciliation. Final source/release review and deployed runtime validation remain.",
+      "closure_state": "Local actual-MCP-client five-case receipt inspected: project discovery, exact search/memory citation recovery, async job lifecycle, default full discovery and legacy schemas passed Nov1; no new execution in this reconciliation. Implementation included in deployed79c lineage; feature-specific source review and complete Core-client deployed acceptance remain unclosed.",
       "dependencies": [],
       "implementation_state": "Implemented and real-MCP-client verified in WIP; final independent review and deployed-runtime verification remain pending.",
       "profile_evidence": {
@@ -699,51 +711,55 @@
         "verified": "Project discovery, exact search and memory citation recovery; queued asynchronous update status/cancel with stopped task; truthful completion followed by late cancellation; initialized workflow mentions advertised tools; full-profile legacy schemas remain; fixtures empty.",
         "limit": "Specialized tools are not equivalent to retained core tools. Other response handoffs explicitly require full-profile activation where applicable. Backend/data readiness remains separate from advertisement."
       },
-      "latest_core_recovery_evidence": "execution_evidence_20261101.native_ask_and_core_recovery_coherent_followup_20261104 and no_vector_storage_ask_discussion_core_milestone_terminal_20261104"
+      "latest_core_recovery_evidence": "execution_evidence_20261101.native_ask_and_core_recovery_coherent_followup_20261104 and no_vector_storage_ask_discussion_core_milestone_terminal_20261104",
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
     },
     {
       "id": "EG-19",
       "finding": "Review-decision annotations in review",
-      "ledger_disposition": "Open original integration finding",
+      "ledger_disposition": "Implemented in shipped lineage; original decision-applicability and authority gates remain open",
       "existing_evidence_and_next_gate": "Supply relevant prior rulings with scope, provenance and revision applicability; materially changed code must not inherit blanket suppression.",
       "required_behavior": [
         "Review supplies bounded relevant prior rulings with scope, decision evidence and revision applicability.",
         "Findings remain visible; changed code cannot inherit blanket suppression; historical cutoffs remain effective."
       ],
-      "closure_state": "Current native and actual no-vector full supplied discussion capture/recovery and Core MCP reader workflow verified. Immutable standalone events, unknown/legacy coverage and findings preservation verified. Scope/revision authority not supplied by source remains explicitly unestablished; exact final package and deployment pending.",
+      "closure_state": "Current native and actual no-vector full supplied discussion capture/recovery and Core MCP reader workflow verified. Immutable standalone events, unknown/legacy coverage and findings preservation verified. Scope/revision authority not supplied by source remains explicitly unestablished; implementation included in shipped lineage; feature-specific deployed acceptance and original authority/applicability limits remain open.",
       "dependencies": [],
       "latest_precedent_cutoff_evidence": "peer_refresh_publication_recovery_cutoff_and_delivery_20261103: actual public historical cutoff and current control both pass. Later current aggregates cannot become historical authority; quote attribution remains, no automatic suppression. Full decision provenance/scope/as-of reconstruction and other consumers remain open.",
       "latest_standalone_discovery_source": "execution_evidence_20261101.eg19_standalone_decision_discovery_source_applied_20261103",
       "latest_standalone_discovery_native_behavior": "execution_evidence_20261101.native_standalone_decisions_foreground_and_server_process_behavior_20261104",
-      "latest_full_discussion_source": "execution_evidence_20261101.eg19_full_discussion_v3_source_applied_20261104"
+      "latest_full_discussion_source": "execution_evidence_20261101.eg19_full_discussion_v3_source_applied_20261104",
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
     },
     {
       "id": "EG-20",
       "finding": "Automatic history routing without vectors",
-      "ledger_disposition": "Unverified original hypothesis",
+      "ledger_disposition": "Locally verified history routing in shipped lineage; deployed routing acceptance remains open",
       "existing_evidence_and_next_gate": "Exercise long natural-language queries in a no-vector build; require supported fallback or a clear capability response, preserving historical cutoffs.",
       "required_behavior": [
         "A long natural-language history query works in a no-vector build through a supported fallback or clear capability result.",
         "Automatic routing preserves historical reachability/cutoffs; static suspicion is not a reproduced defect."
       ],
-      "closure_state": "Local desired behavior verified:8publichistorycases pass both native and actual no-vector build. Explicit lexicalfallback preserves requested first-parent cutoff and filters, longprose auto routing works. Final release/review/deployed-runtime verification pending.",
+      "closure_state": "Local desired behavior verified:8publichistorycases pass both native and actual no-vector build. Explicit lexicalfallback preserves requested first-parent cutoff and filters, longprose auto routing works. Implementation included in deployed79c lineage; original review and feature-specific deployed routing acceptance remain open.",
       "dependencies": [],
       "implementation_state": "Implemented locally and behavior verified; no deployment.",
-      "current_feature_batch_evidence": "execution_evidence_20261101.breadth_reset_and_instruction_update_20261102"
+      "current_feature_batch_evidence": "execution_evidence_20261101.breadth_reset_and_instruction_update_20261102",
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
     },
     {
       "id": "EG-21",
       "finding": "Caller-controlled history reranking latency",
-      "ledger_disposition": "Open original proposal",
+      "ledger_disposition": "Locally verified latency budget behavior in shipped lineage; deployed workload acceptance remains open",
       "existing_evidence_and_next_gate": "A slow/unavailable reranker must permit bounded-latency useful fallback with an accurate ranking-tier disclosure.",
       "required_behavior": [
         "Caller controls rerank latency; slow/unavailable ranking returns useful fallback inside the chosen budget.",
         "Results disclose the ranking tier actually used and preserve historical cutoffs."
       ],
-      "closure_state": "Local budget behavior verified:caller0..90000ms,zero/disabledlazy skip,timeout dropspendingproviderfuture andretainsfullbaseline,invalid/providererrorfallback, accurateactualbaselinetier; publicinvalidbudget/zero native+no-vector pass. Full release/deployed-runtime checks pending.",
+      "closure_state": "Local budget behavior verified:caller0..90000ms,zero/disabledlazy skip,timeout dropspendingproviderfuture andretainsfullbaseline,invalid/providererrorfallback, accurateactualbaselinetier; publicinvalidbudget/zero native+no-vector pass. Implementation included in deployed79c lineage; full feature-specific deployed workload/latency checks remain open.",
       "dependencies": [],
       "implementation_state": "Implemented locally and behavior verified; no deployment.",
-      "current_feature_batch_evidence": "execution_evidence_20261101.breadth_reset_and_instruction_update_20261102"
+      "current_feature_batch_evidence": "execution_evidence_20261101.breadth_reset_and_instruction_update_20261102",
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
     },
     {
       "id": "EG-22",
@@ -754,22 +770,24 @@
         "Measure cold/restart card reconstruction and existing durable embedding-cache behavior first.",
         "Implement a material measured metadata-cache improvement or obtain an explicit evidence-based disposition; do not assume repeated embedding charges."
       ],
-      "closure_state": "Original measured-improvement requirement locally verified: baseline/restart measured first; bounded existing-Registry metadata cache; final native28+8public+1realprobe and no-vector26+8public PASS. Release/deployment and full-audit gates remain open.",
+      "closure_state": "Original measured-improvement requirement locally verified: baseline/restart measured first; bounded existing-Registry metadata cache; final native28+8public+1realprobe and no-vector26+8public PASS. Implementation included in shipped lineage; full required resource/current deployed acceptance and original full-audit gates remain open.",
       "dependencies": [],
-      "current_evidence": "execution_evidence_20261101.eg22_persistent_metadata_final_20261103"
+      "current_evidence": "execution_evidence_20261101.eg22_persistent_metadata_final_20261103",
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
     },
     {
       "id": "EG-23",
       "finding": "Change-card cache embedding identity",
-      "ledger_disposition": "Unverified original correctness hypothesis",
+      "ledger_disposition": "Locally verified identity/retention implementation in shipped lineage; residual original gates open",
       "existing_evidence_and_next_gate": "Establish whether cross-configuration vector reuse is reachable; prevent it if so, or disprove it with configuration/process-boundary evidence.",
       "required_behavior": [
         "Establish whether repository cards can be reused across embedding identities/configurations in one process.",
         "Prevent incompatible reuse if reachable, or disprove reachability with configuration/process-boundary evidence."
       ],
-      "closure_state": "Local identity/retention behavior verified:8native servicecases includingactual sameRepo twoLocalconfigurations/provideroracle+10 concurrentprofiles;7no-vector common servicecases. Canonicalrepo/documentprovideridentity/dimension/prefix key, localrequest snapshots,8partitions/estimated32MiBretention. Final full-change review/release/deployment remain pending.",
+      "closure_state": "Local identity/retention behavior verified:8native servicecases includingactual sameRepo twoLocalconfigurations/provideroracle+10 concurrentprofiles;7no-vector common servicecases. Canonicalrepo/documentprovideridentity/dimension/prefix key, localrequest snapshots,8partitions/estimated32MiBretention. Implementation included in shipped lineage; full-change review, feature-specific deployed acceptance and original residual gates remain open.",
       "dependencies": [],
-      "current_feature_batch_evidence": "execution_evidence_20261101.breadth_reset_and_instruction_update_20261102"
+      "current_feature_batch_evidence": "execution_evidence_20261101.breadth_reset_and_instruction_update_20261102",
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
     },
     {
       "id": "EG-24",
@@ -828,7 +846,7 @@
         "Renames and relevant evidence changes affect dependent instructions; unrelated body edits do not invalidate an entire directory.",
         "Bound cycles/traversal and retain source authority; historical replay uses the requested commit or explicitly reports unavailable evidence."
       ],
-      "closure_state": "Scopedreference-observation behavior locally verified45publiccasesinbothbuilds+2actualOXread-onlypilot/independentrawbyteoracles. Inlinepaths/symbolcandidates/impact/gaps/versionhashes supported. Actualrelevance/noise, semanticintent, broaderusefulness andfinalrelease/deployment remainopen.",
+      "closure_state": "Scopedreference-observation behavior locally verified45publiccasesinbothbuilds+2actualOXread-onlypilot/independentrawbyteoracles. Inlinepaths/symbolcandidates/impact/gaps/versionhashes supported. Actualrelevance/noise, semantic intent and broader usefulness remain open. Implementation code is in shipped lineage; feature-specific relevance/noise and deployed acceptance remain open.",
       "dependencies": [],
       "current_instruction_work_evidence": "execution_evidence_20261101.instruction_authority_delivery_and_repair_outcomes; partial only, see remaining limits",
       "current_maintenance_work_evidence": "execution_evidence_20261101.instruction_maintenance_workflow",
@@ -840,7 +858,8 @@
         "package": "79c320d8/sourceb515a5e; deployed for liveOciusX",
         "evidence": "execution_evidence_20261101.ociusx_resource_release_and_matched_query_pair_20261104",
         "limit": "Runtime delivery is complete; existing partial behavior/coverage/usefulness requirements in this finding remain open."
-      }
+      },
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
     },
     {
       "id": "EG-28",
@@ -853,7 +872,7 @@
         "Collisions, ambiguity, interruptions and human edits preserve existing rows and disclose incomplete coverage.",
         "Prepare concrete evidence for unresolved human policy/ownership decisions; never guess acceptance or ownership."
       ],
-      "closure_state": "Partial: exact legacy inventory/adoption and reviewed alias lifecycle verified locally in both actual feature configurations. Current native26 and no-vector58 milestone include actual alias/adoption/ownership/MCP functions. Live exact raw OX evidence, human ownership decisions and final release/deployment remain open; installed rendered94-row inventory is not raw ownership proof.",
+      "closure_state": "Partial: exact legacy inventory/adoption and reviewed alias lifecycle verified locally in both actual feature configurations. Current native26 and no-vector58 milestone include actual alias/adoption/ownership/MCP functions. Live exact raw OX evidence, human ownership decisions and feature-specific deployed acceptance remain open; code is in shipped lineage; installed rendered94-row inventory is not raw ownership proof.",
       "dependencies": [
         "Any legacy row with unresolved authority requires a concrete human decision after its evidence inventory is prepared."
       ],
@@ -861,7 +880,8 @@
       "current_ownership_inventory_evidence": "execution_evidence_20261101.legacy_rule_ownership_inventory_progress",
       "latest_live_inventory_evidence": "execution_evidence_20261101.eg28_installed_readonly_ipc_rendered_inventory_20261103",
       "latest_alias_lifecycle_evidence": "execution_evidence_20261101.eg28_alias_lifecycle_native_behavior_20261103",
-      "latest_both_features_alias_evidence": "execution_evidence_20261101.no_vector_alias_v4_publication_and_tool_milestone_20261103"
+      "latest_both_features_alias_evidence": "execution_evidence_20261101.no_vector_alias_v4_publication_and_tool_milestone_20261103",
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
     },
     {
       "id": "EG-29",
@@ -8916,16 +8936,16 @@
         "independent_evidence_review": "interface_gap_diagnosis independently reconciled exact pinned cold/normal/package/upgrade receipts: no concrete discrepancy. Confirmed exact identity/range/hash, three consumer files, separate potential route, unchanged primary graph/selected data and explicit global/original-audit limitations. Scoped installed feature evidence only."
       },
       "next_output_batch_20261105": {
-        "status": "MEASURED_AND_PLANNED_NOT_IMPLEMENTED",
+        "status": "MEASURED_BATCH_NOW_DEPLOYED_e7f9cce_SEE_OUTPUT_PROJECTION_AND_FRESHNESS_ENTRY",
         "evidence": {
           "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-agent-next-output-batch-20261105.json",
           "sha256": "1beca2c0dbb615a602464f541e602ce4161603ee807e7c1b4646947c00420890"
         },
-        "graph_reduction": "18unconnected/unreferenced targetfile seed declarations+18private recovery rows cost10037B (~21.6% of original46492B reply). Projection-only reduction must retain consumers/real witnesses/unknown frontiers/dispatch facts and truthful omission semantics; no delivery claim.",
+        "graph_reduction": "Measured proposal now implemented/deployed and actual-source verified in output_projection_and_freshness entry; traversal unchanged, omission/inventory semantics explicit.",
         "freshness_qualification": "Source bytes/ranges correctly verified. Unqualified warning:null/projectwide indexedage do not check perfile parser/locator/binding/currentcoverage. Qualify bounded source-action scope/lastPROJECTupdate without new scan/parser/reindex."
       },
       "output_projection_and_freshness_20261105": {
-        "status": "IMPLEMENTED_46_FOCUSED_CASES_PASS_RELEASE_AND_ACTUAL_REPLAY_PENDING",
+        "status": "DEPLOYED_e7f9cce_46_FOCUSED_CASES_ACTUAL_COLD_NORMAL_AND_FRESH_AGENT_TASK_PASS",
         "source_parent": "8adf720c2d92e9c8845c5788ead3afb32658d76f",
         "prior_measurement": {
           "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-agent-next-output-batch-20261105.json",
@@ -8940,7 +8960,7 @@
         "wanted_behavior": "Public native dispatch and graph cases retain3consumerfiles plus actualpotentialroute; real24unused declarations are omitted only from graph display and recovered by literal paged CodeMap+sourcehash, frontier-only member retained, exact counters. Partial project-update timestamp trap cannot rehabilitate stale fqn source; current range/hash still valid. Body/edit/page JSON+Markdown scope and32KiB escaped excerpt behavior verified.",
         "independent_review": "return_proposal_consumer reviewed graph/counters/recovery, interface_gap_diagnosis reviewed shared envelope/generation/budget. No implementation blocker. CodeRabbit authfalse; no remote review claimed.",
         "deployment": "Both owned test runners terminal0/PASS and temporary trees removed; source ready to push. Optimized build, actual material graph reduction/full CodeMap inventory and installed replay still pending. Baseline installed bedba14.",
-        "remaining": "Actual/installed agent validation, global source freshness/watchpause and original31findings/19fullgates remain unfinished.",
+        "remaining": "Exact-symbol CodeMap still includes distracting global file/language distributions/unrelated inventories; graph refs require joins. Globalfreshness/watchpause and original31findings/19fullgates open. Existing Codex native connector lastTransportclosed; actualnormal namedpipe workflow verified, no native-client health claim.",
         "source": {
           "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\output-projection-source-applied-20261105.json",
           "sha256": "bf9d169d65d142f9806a2ef12def782349d307338102d67ba87dbb4309c68ad8"
@@ -8948,13 +8968,98 @@
         "footer_checks": {
           "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\output-project-time-envelope-20261105.json",
           "sha256": "9f776a7b6ad9d599f775bfe6bb103c514384d3a2f6c474f8e5ebd6408857194c"
-        }
+        },
+        "source_revision": "e7f9ccefd310289de87067b453eb6575c8010e6c",
+        "origin_source": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\output-projection-origin-source-20261105.json",
+          "sha256": "0bfa64a3517b89647c54d8b45c274bc62a97ab75a0cf13edd4e32b491b64d5fa"
+        },
+        "pair": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\output-projection-paired-package-20261105.json",
+          "sha256": "56ffc04f7d2c4d6d1193f96cf0896c978f0f31a0506311d5f1c7c4df6dfedcb0"
+        },
+        "actual_readonly": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-output-projection-readonly-20261105\\acceptance.json",
+          "sha256": "ea644a305d31dfe9d2bb95e1aa5d954bfaf0f0d5f7ecede43120389e8ae74ac5"
+        },
+        "release_gate": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\output-projection-release-gates-admitted-20261105.json",
+          "sha256": "94620640731246f1a5b88ca527bf15f75ddb0151cc44240bc369b88bf821c2dd"
+        },
+        "upgrade": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\output-projection-upgrade-20261105.json",
+          "sha256": "9b14b7b22ee8a4f2b07ff592d26d84c533b245dd9bffd5ab0cecf808c4ba8a5a"
+        },
+        "installed_verification": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\output-projection-installed-verified-20261105.json",
+          "sha256": "42c2d48ce7f9f24d0ce710c2334999bba795bf636c0c42e594027db6f46234da"
+        },
+        "fresh_agent": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\output-projection-fresh-agent-assessment-20261105.json",
+          "sha256": "35950432f862222059fa7e0f192b0c92f088d3995420e60251117656f6b24f69"
+        },
+        "actual_result": "Generation3120 full impact reply47590?38173B (9417B/~19.8% saved); JSON44841?35412B (9429B/~21.0%). Exactly18unused seed declarations/private actions omitted; all12primary consumers/21connections/12paths/frontier/potentialcaller preserved. Selected37observed/19returned with explicit omissions. Both11483B summaries retain3ordinaryfiles+1potential. Two literal CodeMap pages recoverall18omitted declarations, with verified source range/hash and qualified JSON+Markdown timestamp scope.",
+        "data_preservation": "Selected registry/2302pathselection/other14metadata unchanged; native214assets identical; no source/parser/data refresh. Globalfreshness false,1009olderprovenance/162unindexed paths observed, watchpaused.",
+        "agent_cost": "8successfulrequests/61304B/0.5351s tooltime;6source replies independently match currentbytes/ranges. ExactPage_Load recovery worked and null-warning/binding limits retained. Limited non-held-out task; different inspection coverage from prior trial, no general productivity uplift claim.",
+        "resource_observation": {
+          "scope": "Primary process only; excludes Ollama and descendants; logical IO is not physical SSD writes",
+          "seconds": 6.598714400024619,
+          "peaks": {
+            "private_bytes": 506933248,
+            "resident_bytes": 526954496,
+            "logical_read_bytes": 98654439,
+            "logical_write_bytes": 159054,
+            "cpu_seconds": 9.640625,
+            "wall_seconds": 5.049616800039075
+          },
+          "interpretation": "One cold read-only workload, not sustained idle/editing/leak/hardRSS proof. LogicalIO includes process pipes/logs and is not physicalSSD writes."
+        },
+        "owned_resources": "Both test runners and release runner Job/handles closed;3ownedbuild/testTEMPtrees removed. Maintenancechild natural0/ownedtmpremoved; configreadhold released unchanged; normaldaemon restarted. Latest retained rollbackpair C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-b1829be98a7548469dd460881e20ff1c and exact installerjournals/evidence retained under existingV. Retention ends when rollback/audit retention is resolved. No preexisting-copy deletion/newprojectcopies/worktrees/volumes.",
+        "independent_evidence_review": "return_proposal_consumer independently checked34direct/nested receipt refs and5upgrade journals, old/new canonical graph/actions, two CodeMap inventory pages, exact source range/hash/qualification and fresh8request record. No discrepancy. Scoped deployment evidence only;300notes/native publication inherited, original global/resource/authority/19gate obligations remain open."
       }
+    },
+    "ledger_publication_status_reconciliation_20261105": {
+      "status": "APPLIED_STATUS_WORDING_ONLY_ALL31_REQUIREMENTS_AND19_GATES_PRESERVED",
+      "proposal": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\ledger-status-reconciliation-proposed-20261105.json",
+        "sha256": "23b01548067304f8534f17c7de25bdab082f525557c064e323b4cce62ce65f36"
+      },
+      "applied": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\ledger-status-reconciliation-applied-20261105.json",
+        "sha256": "c762ea922eba40cb5e097c3b39b0672654b79c371f7b1c2fbac63c41fc0d0779"
+      },
+      "support": [
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\ociusx-resource-source-publication-20261104.json",
+          "sha256": "5d02bc26982ed7a06061e372b42292277adb0810bb1af9040d795d39b704205c"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\ociusx-resource-installer-upgrade-20261104.json",
+          "sha256": "82e120737f02c218385ba0895875e1f8ac6faa9f156109df08b7d5faa1bf032f"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\installed-resource-package-smoke-20261104.json",
+          "sha256": "33186fcfd0cbda265b4b7fd8f5d58aeef2e1e10824acd609744a33aa60a0f10a"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\installed-resource-normal-ociusx-acceptance-20261104.json",
+          "sha256": "88a476a7572cd968af44492ebd772d24fd798ff51620b6a06d46a0458ef72f81"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\enclosing-declaration-installed-verified-20261105.json",
+          "sha256": "6d6d19a0e8d5de2073ba1aa87ff444b44978f4fad479ec23a29e93bad3ed8bf4"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\interface-dispatch-actual-scoped-preservation-reconciled-20261105.json",
+          "sha256": "977eaf915b7834da35558cd35b68f83d72488aef3bb4247992411b68d5dc3676"
+        }
+      ],
+      "scope": "Correct only currently stale publication/implementation status. Dated historical receipts and all31original required behaviors/dependencies/residual gates remain unchanged. Code inclusion is not renewed per-feature acceptance; OciusX scoped storage deployment is not all-project migration/full19closure."
     }
   },
-  "last_updated_at": "2026-11-05T08:03:40.345857+00:00",
+  "last_updated_at": "2026-11-05T08:29:39.390790+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-05T08:02:23.181820+00:00",
+    "at_utc": "2026-11-05T08:29:39.390790+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -8985,7 +9090,7 @@
       }
     ],
     "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
-    "next_user_visible_deliverable": "One coherent agent-output batch: remove measured unused targetfile seed/recovery projection with exact omission/inventory recovery, and qualify current-source freshness envelope without claiming indexed binding/coverage. Keep CodeMap/Blast/realagent workflow priority; no storage/parser migration.",
+    "next_user_visible_deliverable": "Keep CodeMap/Blast real-agent priority: concentrate exact-symbol CodeMap recovery on requested declaration, reducing distracting global distributions/unrelated inventories while preserving full-project overview/proportions. Verify with actual agent tasks; all original unfinished requirements retained.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -8998,7 +9103,7 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "bedba14 precise enclosing-declaration CodeMap recovery deployed;15focusedcases/actualcoldreadonly/normalreplayPASS. Prior a310 consumerbreadth/callercontext remainsvalidated; freshlimited8requesttask68781B. Originalfullauditunfinished.",
-    "previous_goal_turn_classification": "PROGRESS: previous turn pushed/deployed bedba14 with actualcold/normalverification. Current continuation implements measured graph projection and truthful source timestamp scope;42integrationcasesPASS, remaining exact unit/build handles observed live. No goal completion."
+    "latest_completed_core_batch": "e7f9cce projection/source-time scope deployed:46focusedchecks/actualcold/normal/fresh8requesttaskPASS;~20%smaller full impact reply with all12primary consumers/evidence unchanged. Ledger publication wording corrected without closing31original requirements/19fullgates.",
+    "previous_goal_turn_classification": "PROGRESS: implemented,pushedmaster,deployed e7f9cce; same-generation material byte reduction/full inventory/current source qualification and fresh taskverified. Stale ledger publication status corrected with all original requirements/gates preserved. No goal completion."
   }
 }
