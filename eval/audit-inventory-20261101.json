@@ -9526,11 +9526,36 @@
       },
       "facts": "9actualpublicrequests oninstalledbcba250c/sourcehead3135: exactfileCodeMap+2helperBlast summaries,4literaladvertisedcurrent-source actions and2literalgraphcontinuations. Independent3fileoracle and rawSHA256/BLAKE3+range checks agree. Eachhelper exposes same-fileGetAll directcaller at36/39 and separate potential interface/controller depth3/reference26. Counts not additive across targets; nofieldvalueflow/runtime/exhaustivenessproof. No concrete navigation/witness failure found for this task.",
       "limits": "No currentinterfacefilepublicread claim; contract is indexed mapping plus independent oracle. Currentformatv7/2309of2309storecoverage/watchtrue rechecked withdiskfalse,notglobaldisk/callbindingfreshness. Recorded2of7resourcefailure remainsopen."
+    },
+    "ambiguous_impact_target_recovery_delivery_20261105": {
+      "at_utc": "2026-11-05T21:00:13.802877+00:00",
+      "source_commit": "ff6c35b71d3bc801fe91acc2eb8497740d32a4c8",
+      "status": "DEPLOYED_TARGET_RECOVERY_CORE_AGENT_TASK_STILL_PARTIAL",
+      "delivery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\ambiguous-target-recovery-delivery-outcome-20261105.json",
+        "sha256": "ed535eb2bb4a8abf91c92b73da18543f1b5581a98109ede8309deb318952d522"
+      },
+      "actual_agent": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\typescript-img-reset-after-recovery-20261105.json",
+        "sha256": "82ffb1a4929cbaa3752998873d7f02ec12800efe40e3c3e0b6ccaed9ba4258ff"
+      },
+      "before_agent": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\typescript-img-reset-before-recovery-20261105.json",
+        "sha256": "be3dd8ed867c5232097f46225495149c7a242f9597a1ed9a9ff42106b552c380"
+      },
+      "facts": "RealblindTS task initially failed10publiccalls/77800B: ambiguous Blast repeated same unresolved graph request; CodeMap8pages/128declarations exhausted withoutresetState. Sourceff6c35b now preserves held-source generation and emits bounded current-admitted ambiguity choices with literal range/impact actions, noautoselection andunknownimpactcounts.19focusedcases18default+1no-vector passed; source+helpers independentlyreviewed; releasebuild684.45sPASS. Deployed63413c23/manifest35cc35ae with214nativeassets unchanged. Cold bothtools/details4choiceactionpairs+MapFeaturecanonicalcore/300notes/selectedRegistry/catalog/other14/currentformatcoverage preserved. Normal8call/48312Bagentretry selectsintendedroot+hashverified2733..2764 directly; this is navigationrecovery, notfulltasksuccess.",
+      "remaining_demonstrated_core_gap": "Currentselected3135 graph claims group._resetState118 ->group.resetState343, whilecurrenthashverifiedsourcecalls h.resetState124 overArray<imgHandler>. Intendedimage.resetState2733 missesprivategroupconsumer; groupgraph showsunsupportedcycle. Blindconsumer independentlywithheld bindingclaim; maintwofileoracle/currentcontext corroboratesactualtypedcollection. TS source responseslabelcsharp; callspositionsaredeclarationanchors,notinvocations. No runtime/exhaustive/globalbindingproof.",
+      "owned_resources": "Focuseddefault/no-vector/releaseJobs+handles closed andownedTEMPremoved; coldchildnatural0/tmpremoved; configreadholdreleasedunchanged; normaldaemonstartedoncePID90124. No OciusX source edits/refresh for response-onlydelta.218file335964970B oldpair retained at C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-3377885bf7a644a58ac43b4ca4adcc05 until releaseacceptance/rollbackretentionreview; diagnosticsretainedexistingV. No preexistingcopiesdeleted/newworktree/volume/projectcopies.",
+      "resource_failure_retained": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\app-code-edge-projection-delivery-outcome-20261105.json",
+        "sha256": "885289c99be0871a080626e2917e7c7bca22f497f85ab3824638e0afe46d960c"
+      },
+      "original_full19gates_closed": false
     }
   },
-  "last_updated_at": "2026-11-05T20:22:55.994701+00:00",
+  "last_updated_at": "2026-11-05T21:00:13.802877+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-05T20:22:55.994701+00:00",
+    "at_utc": "2026-11-05T21:00:13.802877+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9561,7 +9586,7 @@
       }
     ],
     "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
-    "next_user_visible_deliverable": "Exercise one representative TypeScript cross-file CodeMap/Blast agent task against a bounded independent source oracle; fix only a demonstrated navigation/witness gap. Keep remaining resource failure explicit and parked; no further allocation experiment/storage redesign without concrete core-tool blocker.",
+    "next_user_visible_deliverable": "Correct demonstrated TS member receiver falsebinding across producer,batch,AppCode/general rebinding; preserveunboundreceiver asunknown ratherthanborrowsame-file terminalname. Recordactual1basedcall_site_line separatelyfromdeclarationownershipanchor. Provideboundedliteralterminal-membersearch/source+exactcallerimpactactionsratherthanbuildanotherglobalreverse-namecollector orpartialTScompiler. Correctreal.ts current-source language label. Validatewantedbehavior+actual2filecohort viaexistingonly_paths scopedrefresh,cold/publicagentreceipts; no all15reindex/globalTSrepairclaim.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9574,8 +9599,8 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "Source0a11514pushedorigin/master anddeployedbcba250c/1556e5aa after28focusedcases+coldpreservation. Normalresourceguardfailed2of7at520.5MiBsecondedit/526.7cleanup; no sustained success. NewUserRights2helper agent task passes9actualcalls with correct samefilecaller36/39 and separate potential interfacecontroller26/depth3, executableliteralreads/graphcontinuations,currenthashes. No wholegoal/full19closure.",
-    "previous_goal_turn_classification": "PROGRESS:reviewed28caseedge-retentionfixpushed+deployed,real2editresourcefailurehonestlyretained,9requestUserRightsagenttaskverifiedwithactualsourcehashesandnavigation. Original31/full19remainunfinished; CodeMap/Blastpriorityrestored.",
+    "latest_completed_core_batch": "ff6c35bpushedorigin/master,deployed63413c23/35cc35ae after19focusedwantedcases+scopedcoldpreservation. Ambiguityrecoveryworks in8actualagentcalls; TSfullcallertaskstillpartialbecauseactualgroup._resetState->group.resetStatebindingisunsupported bycurrenth.resetState source. Fullresource/31/19remainunfinished.",
+    "previous_goal_turn_classification": "PROGRESS:realcoretooltasktriedandfailed; ambiguitydeadendfixed,19desiredbehaviorcasespassed,independentlyreviewed,pushedmaster,deployedandliteralagentrecoveryverified. Actualreceiverbinding/position/languagedefectsuncoveredthroughpublictaskremainselectednext; noresource/fulltask/fullscopecompletion.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -9589,6 +9614,13 @@
         "manifest_sha256": "5ac05a108858f2c08264b48110fd148b548b65ded833a55e4f526e5bd0e0cce1"
       },
       "original_core_priority_preserved": true
-    }
+    },
+    "next_slice_scope_limits": [
+      "Do not implement fulltypedfor-of inference orpromote name/globaluniqueness toreceiverproof.",
+      "Explicitunboundmembermarker must survive everygeneric/AppCode/globalrebind; source-onlyparserchange cannotrepair old3117edges.",
+      "UseexistingUpdateProject.only_paths for1..2eligibleTSfiles under solewriter/exactpreservation; alloutsidephysicalrevisions/300notes/other14remainpreserved. No globalparserformat bump/all15reindexwithoutdemonstratedneed.",
+      "If addinginspectionleads, preferboundedliteralgrep ofterminalmember inactualtargetdirectory; name-only matches/comments/overloads are notcalleeproof.",
+      "Retain512MiB watcherresourcefailure2of7,CodeMap128discoverylimit,oldreader/finalization/recovery/full19 obligations. Kernel/SSD/cleanup/instructiondraftingremainparked."
+    ]
   }
 }
