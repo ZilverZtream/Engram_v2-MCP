@@ -268,6 +268,9 @@ pub(crate) async fn purge_old_generations_serialized(
     Ok(())
 }
 
+mod source_purge;
+pub(crate) use source_purge::purge_managed_source_generations_serialized;
+
 /// A false result must use the latest committed view under the caller's commit
 /// lane. Reopen independently here: a preopened Table can retain an older
 /// Dataset indefinitely, and refreshing a clone would also move its readers.
@@ -310,11 +313,16 @@ pub(crate) async fn delete_rows_if_present(
 }
 
 fn generation_purge_filters(active_generation: u64, source_selection: Option<&str>) -> Vec<String> {
+    namespace_purge_filters(active_generation, source_selection,
+        engram_core::KNOWN_NAMESPACES.iter().copied())
+}
+
+fn namespace_purge_filters<'a>(active_generation: u64, source_selection: Option<&str>, namespaces: impl Iterator<Item = &'a str>) -> Vec<String> {
     let mut filters = Vec::new();
-    for ns in engram_core::KNOWN_NAMESPACES {
+    for ns in namespaces {
         if let Ok(policy) = engram_core::get_policy(ns) {
             let safe_ns = ns.replace('\'', "''");
-            if *ns == "memory" {
+            if ns == "memory" {
                 if let Some(selection) = source_selection {
                     filters.push(format!("namespace = 'memory' AND generation < {} AND NOT ({selection})", crate::sql_literals::u64_literal(active_generation)));
                     continue;

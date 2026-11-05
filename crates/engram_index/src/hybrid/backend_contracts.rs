@@ -56,18 +56,18 @@ async fn vector_generation_inventory_preserves_rows_selected_revisions_and_names
         let cancel = CancellationToken::new();
         let index = engine(temporary.path(), &cfg).await?;
         index.index_docs("project", &[
-            document("a.rs", 1, "a1", "first chunk"),
-            document("a.rs", 1, "a2", "second chunk"),
-            document("a.rs", 1, "a3", "third chunk"),
+            document("src/O'Brien-\u{00e5}.rs", 1, "a1", "first chunk"),
+            document("src/O'Brien-\u{00e5}.rs", 1, "a2", "second chunk"),
+            document("src/O'Brien-\u{00e5}.rs", 1, "a3", "third chunk"),
             document("b.rs", 1, "b1", "stable chunk"),
         ], &cancel).await?;
         let old = index.pin_source_generation("project", 1)?;
-        let paths = BTreeSet::from(["a.rs".into(), "b.rs".into()]);
+        let paths = BTreeSet::from(["src/O'Brien-\u{00e5}.rs".into(), "b.rs".into()]);
         assert_eq!(index.vector_generation_inventory("project", Some("memory"), 1).await?, (4, paths.clone()));
-        index.prepare_source_snapshot("project", 1, 2, &[RelPath::new("a.rs")], &[], &cancel).await?;
+        index.prepare_source_snapshot("project", 1, 2, &[RelPath::new("src/O'Brien-\u{00e5}.rs")], &[], &cancel).await?;
         index.index_docs("project", &[
-            document("a.rs", 2, "new-a1", "new first chunk"),
-            document("a.rs", 2, "new-a2", "new second chunk"),
+            document("src/O'Brien-\u{00e5}.rs", 2, "new-a1", "new first chunk"),
+            document("src/O'Brien-\u{00e5}.rs", 2, "new-a2", "new second chunk"),
         ], &cancel).await?;
         index.seal_source_snapshot("project", 2)?;
         let selected = index.pin_source_generation("project", 2)?;
@@ -80,15 +80,29 @@ async fn vector_generation_inventory_preserves_rows_selected_revisions_and_names
         global.namespace = "memory_bank".into();
         index.index_docs("project", &[global], &cancel).await?;
         index.index_docs("project", &[document("unselected.rs", 2, "unselected", "unselected physical row")], &cancel).await?;
-        index.prepare_source_snapshot("project", 2, 3, &[RelPath::new("a.rs")], &[], &cancel).await?;
-        index.index_docs("project", &[document("a.rs", 3, "future", "unpublished next revision")], &cancel).await?;
+        index.prepare_source_snapshot("project", 2, 3, &[RelPath::new("src/O'Brien-\u{00e5}.rs")], &[], &cancel).await?;
+        index.index_docs("project", &[document("src/O'Brien-\u{00e5}.rs", 3, "future", "unpublished next revision")], &cancel).await?;
         assert_eq!(index.vector_generation_inventory("project", Some("memory"), 1).await?, (4, paths.clone()));
         assert_eq!(index.vector_generation_inventory("project", Some("memory"), 2).await?, (3, paths.clone()));
         assert_eq!(index.vector_generation_inventory("project", None, 2).await?,
-            (4, BTreeSet::from(["a.rs".into(), "b.rs".into(), "legacy-note".into()])));
+            (4, BTreeSet::from(["src/O'Brien-\u{00e5}.rs".into(), "b.rs".into(), "legacy-note".into()])));
         assert_eq!(index.vector_generation_inventory("project", Some("legacy-custom"), 2).await?,
             (1, BTreeSet::from(["legacy-note".into()])));
         assert_eq!(index.vector_generation_inventory("project", Some("memory_bank"), 0).await?,
+            (1, BTreeSet::from(["global-note".into()])));
+        for revision in [1, 3] {
+            let mut excluded = document("excluded-other", revision, &format!("other-{revision}"), "other namespace revision");
+            excluded.namespace = "legacy-custom".into();
+            index.index_docs("project", &[excluded], &cancel).await?;
+        }
+        let mut shared = document("src/O'Brien-\u{00e5}.rs", 2, "same-path-custom", "other namespace same path");
+        shared.namespace = "shared-custom".into();
+        index.index_docs("project", &[shared], &cancel).await?;
+        assert_eq!(index.vector_generation_inventory("project", None, 2).await?,
+            (5, BTreeSet::from(["src/O'Brien-\u{00e5}.rs".into(), "b.rs".into(), "legacy-note".into()])));
+        assert_eq!(index.vector_generation_inventory("project", Some("legacy-custom"), 2).await?,
+            (1, BTreeSet::from(["legacy-note".into()])));
+        assert_eq!(index.vector_generation_inventory("project", None, 0).await?,
             (1, BTreeSet::from(["global-note".into()])));
         drop(old);
         drop(selected);
@@ -98,7 +112,15 @@ async fn vector_generation_inventory_preserves_rows_selected_revisions_and_names
         // Store loss without moving HEAD cannot reuse an earlier complete verdict.
         reopened.delete_vector_rows_for_paths("project", "memory", &[RelPath::new("b.rs")]).await?;
         assert_eq!(reopened.vector_generation_inventory("project", Some("memory"), 2).await?,
-            (2, BTreeSet::from(["a.rs".into()])));
+            (2, BTreeSet::from(["src/O'Brien-\u{00e5}.rs".into()])));
+        reopened.prepare_source_snapshot("project", 2, 4, &[], &[RelPath::new("src/O'Brien-\u{00e5}.rs"), RelPath::new("b.rs")], &cancel).await?;
+        reopened.seal_source_snapshot("project", 4)?;
+        let mut empty_legacy = document("empty-selection-custom", 4, "empty-custom", "exact non-memory evidence");
+        empty_legacy.namespace = "legacy-custom".into();
+        reopened.index_docs("project", &[empty_legacy], &cancel).await?;
+        assert_eq!(reopened.vector_generation_inventory("project", Some("memory"), 4).await?, (0, BTreeSet::new()));
+        assert_eq!(reopened.vector_generation_inventory("project", None, 4).await?,
+            (1, BTreeSet::from(["empty-selection-custom".into()])));
         Ok(())
     }.await;
     temporary.close()?;
