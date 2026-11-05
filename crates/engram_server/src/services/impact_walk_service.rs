@@ -276,7 +276,9 @@ fn summary_section(
     let bounded = |value: &str| {
         !value.is_empty() && value.len() <= 2048 && !value.chars().any(char::is_control)
     };
-    let continuation = if let Some(symbol) = exact.or(symbol_fqn).filter(|symbol| bounded(symbol)) {
+    let continuation = if full["target_resolution"]["status"] == "ambiguous" {
+        None
+    } else if let Some(symbol) = exact.or(symbol_fqn).filter(|symbol| bounded(symbol)) {
         arguments["symbol_fqn"] = json!(symbol);
         Some(json!({"tool":"impact_analysis","arguments":arguments}))
     } else if let Some(file) = file_path.filter(|file| bounded(file)) {
@@ -350,6 +352,17 @@ fn summary_section(
             .len()
             <= SUMMARY_BYTES.saturating_sub(immediate_prefix.len()+1024)
     };
+    if let Some(resolution) = full.get("target_resolution") {
+        value["target_resolution"] = resolution.clone();
+        while !fits(&value) {
+            let removed = value["target_resolution"]["candidates"]
+                .as_array_mut().and_then(Vec::pop);
+            if removed.is_none() { break; }
+            let omitted = value["target_resolution"]["coverage"]["selected_candidates_omitted"]
+                .as_u64().unwrap_or(0);
+            value["target_resolution"]["coverage"]["selected_candidates_omitted"] = json!(omitted + 1);
+        }
+    }
     if let Some(target) = target {
         value["target"] = describe(target);
         if fits(&value) {
@@ -1303,8 +1316,16 @@ async fn collect_evidence(
                 } else {
                     match graph.resolve_symbol(&project, &symbol, None, None)? {
                         ResolveResult::Unique(node) => node.node_id,
-                        ResolveResult::Ambiguous(_) => {
-                            anyhow::bail!("Impact target is ambiguous; select an exact node_id")
+                        ResolveResult::Ambiguous(candidates) => {
+                            let (value, coverage) = ambiguous_target_value(
+                                &graph, &membership, &project, &symbol, candidates,
+                                generation, max_depth, display_limit, source.is_managed(),
+                            )?;
+                            return Ok(CollectedImpact {
+                                value, source, generation, target_revision_admitted: false,
+                                coverage, direct_dependents: 0, transitive_dependents: 0,
+                                advisory_scope: AdvisoryScope::Unavailable("target_name_ambiguous"),
+                            });
                         }
                         ResolveResult::NotFound => anyhow::bail!(
                             "Impact target is absent; this does not establish no impact"
@@ -1420,6 +1441,109 @@ async fn collect_evidence(
     })
     .await
     .context("Impact evidence worker unavailable")?
+}
+
+/// Disambiguation is a separate bounded observation, never an admitted root or
+/// an impact walk. Even one surviving selected candidate still needs selection.
+fn ambiguous_target_value(
+    graph: &engram_graph::GraphStore,
+    membership: &engram_index::hybrid::SelectedSourceRevisionLookup,
+    project: &str,
+    symbol: &str,
+    mut candidates: Vec<engram_graph::Node>,
+    generation: u64,
+    max_depth: usize,
+    display_limit: usize,
+    managed: bool,
+) -> Result<(Value, ImpactWalkCoverage)> {
+    const INSPECT: usize = 64;
+    const RECORD_BYTES: usize = 64 * 1024;
+    const RESOLUTION_BYTES: usize = 6 * 1024;
+    let observed = candidates.len();
+    let qualifier = symbol.rsplit_once('.').map(|(prefix, _)|
+        prefix.rsplit('.').next().unwrap_or(prefix));
+    // A file-stem hint only orders inspection leads; it does not bind a class
+    // or receiver and must never turn this ambiguity into automatic selection.
+    let hinted = |node: &engram_graph::Node| {
+        let stem = node.file_path.as_str().rsplit('/').next()
+            .and_then(|file| file.rsplit_once('.').map(|(stem, _)| stem));
+        node.name == symbol || qualifier.is_some() && stem == qualifier
+    };
+    candidates.sort_by(|a, b| hinted(b).cmp(&hinted(a))
+        .then_with(|| a.file_path.as_str().cmp(b.file_path.as_str()))
+        .then_with(|| a.start_line.cmp(&b.start_line))
+        .then_with(|| a.node_id.cmp(&b.node_id)));
+    let mut seen = std::collections::HashSet::new();
+    let (mut inspected, mut selected, mut rejected, mut unknown, mut duplicates) = (0, 0, 0, 0, 0);
+    let mut rows = Vec::new();
+    for candidate in candidates.iter().take(INSPECT) {
+        inspected += 1;
+        if !seen.insert(candidate.node_id.as_str()) { duplicates += 1; continue; }
+        if candidate.node_id.is_empty() || candidate.node_id.len() > 2048
+            || candidate.node_id.chars().any(char::is_control)
+            || !recovery_path(candidate.file_path.as_str()) {
+            unknown += 1; continue;
+        }
+        // At most two bounded record reads per inspected candidate (8MiB in
+        // total), including records already returned by the legacy resolver.
+        // A missing/oversized/corrupt record is unavailable, not a stale match.
+        let node = match graph.get_node_bounded(project, &candidate.node_id, RECORD_BYTES) {
+            Ok(Some((node, _))) if node.node_id == candidate.node_id
+                && node.file_path == candidate.file_path && node.generation == candidate.generation => node,
+            _ => { unknown += 1; continue; }
+        };
+        let file = match graph.get_node_bounded(project,
+            &format!("file:{}", node.file_path.as_str()), RECORD_BYTES) {
+            Ok(Some((file, _))) => file,
+            _ => { unknown += 1; continue; }
+        };
+        match admit_selected_source(membership, &node, Some(&file))? {
+            ImpactAdmission::Selected => selected += 1,
+            ImpactAdmission::NonSelectedRevision => { rejected += 1; continue; }
+            _ => { unknown += 1; continue; }
+        }
+        let read = (node.start_line > 0 && node.end_line >= node.start_line).then(||
+            json!({"tool":"get_full_method_body","arguments":{"project_id":project,
+                "file_path":node.file_path.as_str(),"line_start":node.start_line,
+                "line_end":node.end_line.min(node.start_line.saturating_add(119)),
+                "context_lines":0,"output_json":true}}));
+        let row = json!({"node_id":node.node_id,"name":node.name.chars().take(240).collect::<String>(),
+            "kind":node.node_type,"file_path":node.file_path.as_str(),"generation":node.generation,
+            "start_line":node.start_line,"end_line":node.end_line,
+            "admission":"selected_candidate_not_selected_target","source_read":read,
+            "impact":{"tool":"impact_analysis","arguments":{"project_id":project,
+                "symbol_fqn":node.node_id,"max_depth":max_depth,
+                "limit":display_limit.clamp(1,25),"detail":"graph"}}});
+        if rows.len() < 8 {
+            rows.push(row);
+            // Reserve the fixed scope and counters before optional rows.
+            if serde_json::to_vec(&rows)?.len() > RESOLUTION_BYTES - 2048 { rows.pop(); }
+        }
+    }
+    let displayed = rows.len();
+    let resolution = json!({"status":"ambiguous","selection_required":true,"candidates":rows,
+        "scope":"Resolver suggestions admitted by the held source selection, not proven matches for the requested qualifier, class or receiver. Select an exact identity explicitly. Resolver completeness is unknown; a singleton displayed list does not resolve ambiguity. Source reads are capped current-file ranges, not method-boundary or binding proof. Actions observe fresh state; compare source generation and hashes.",
+        "ordering":"Exact stored name or qualifier/file-stem hint first, then path/line/identity; inspection order only, no automatic binding.",
+        "coverage":{"resolver_completeness":"unknown","resolver_candidates_observed":observed,
+            "inspection_limit":INSPECT,"record_limit_bytes":RECORD_BYTES,
+            "candidates_inspected":inspected,"candidates_not_inspected":observed-inspected,
+            "duplicate_candidate_ids":duplicates,"non_selected_candidates":rejected,
+            "unavailable_candidates":unknown,"selected_candidates_observed":selected,
+            "selected_candidates_omitted":selected-displayed,"display_limit":8,
+            "section_limit_bytes":RESOLUTION_BYTES}});
+    ensure!(serde_json::to_vec(&resolution)?.len() <= RESOLUTION_BYTES, "Target recovery exceeds budget");
+    let coverage = ImpactWalkCoverage {
+        truncated: true, reasons: vec!["target_name_ambiguous".into(), "target_candidate_inventory_not_exhaustive".into()],
+        ..Default::default()
+    };
+    let mut value = unavailable_value(max_depth,
+        &anyhow::anyhow!("Impact target is ambiguous; select an exact candidate identity"));
+    value["source_generation"] = json!(generation);
+    value["source_layout"] = json!(if managed { "managed" } else { "attested_legacy" });
+    value["coverage"] = json!(&coverage);
+    value["target_resolution"] = resolution;
+    ensure!(section(&value).len() <= RESPONSE_BYTES, "Target recovery exceeds response budget");
+    Ok((value, coverage))
 }
 
 fn unavailable_value(max_depth: usize, error: &anyhow::Error) -> Value {
