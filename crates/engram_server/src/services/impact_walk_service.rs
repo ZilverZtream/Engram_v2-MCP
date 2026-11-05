@@ -302,6 +302,15 @@ fn summary_section(
     if let Some(error) = full.get("error") {
         value["error"] = error.clone();
     }
+    if let Some(dispatch) = full.get("potential_interface_callers") {
+        let mut projection=dispatch.clone();
+        projection["routes"]=json!([]);
+        projection["frontier"]=json!([]);
+        projection["routes_omitted"]=dispatch["routes_observed"].clone();
+        projection["frontier_omitted"]=json!(dispatch["frontier"].as_array().map_or(0,Vec::len)
+            +dispatch["frontier_omitted"].as_u64().unwrap_or(0) as usize);
+        value["potential_interface_callers"]=projection;
+    }
     if file_component {
         value["requested_file_node_id"] = target.map(|node|node["node_id"].clone()).unwrap_or(Value::Null);
     }
@@ -325,6 +334,25 @@ fn summary_section(
         } else {
             value["target"] = Value::Null;
         }
+    }
+    // Reserve actual potential callers before optional ordinary consumer rows.
+    // These remain separate, non-additive observations of one dispatch hop.
+    if let Some(dispatch)=full.get("potential_interface_callers") {
+        let mut routes=Vec::new();
+        for route in dispatch["routes"].as_array().into_iter().flatten().take(2) {
+            routes.push(route.clone());
+            value["potential_interface_callers"]["routes"]=json!(&routes);
+            if !fits(&value) { routes.pop(); value["potential_interface_callers"]["routes"]=json!(&routes); break; }
+        }
+        value["potential_interface_callers"]["routes_omitted"]=json!(dispatch["routes_observed"].as_u64().unwrap_or(0).saturating_sub(routes.len() as u64));
+        let mut leads=Vec::new();
+        for lead in dispatch["frontier"].as_array().into_iter().flatten().take(2) {
+            leads.push(lead.clone());
+            value["potential_interface_callers"]["frontier"]=json!(&leads);
+            if !fits(&value) { leads.pop(); value["potential_interface_callers"]["frontier"]=json!(&leads); break; }
+        }
+        value["potential_interface_callers"]["frontier_omitted"]=json!(dispatch["frontier"].as_array().map_or(0,Vec::len)-leads.len()
+            +dispatch["frontier_omitted"].as_u64().unwrap_or(0) as usize);
     }
     let mut immediate = Vec::new();
     if admitted {
@@ -667,6 +695,55 @@ impl CompactEvidence<'_> {
     }
 }
 
+fn render_interface_dispatch(walk: &IncomingImpactWalk, project: &str) -> Value {
+    let dispatch=&walk.interface_dispatch;
+    let mut value=json!({"status":"partial_static_dispatch_observation",
+        "scope":"One explicit VB source-interface method boundary from selected reached methods, searching fully admitted recorded Calls. Rejected locators and unresolved aliases are not inventoried. Open/variant generic, partial-interface, implicit, inherited, property and other-language dispatch are unassessed. Empty routes do not prove absence of interface callers.",
+        "non_additive_to_primary_counts":true,"runtime_dispatch_proven":false,
+        "implementations_checked":dispatch.implementations_checked,"coverage":dispatch.coverage,
+        "routes_observed":dispatch.routes.len(),"distinct_callers_observed":dispatch.coverage.nodes_observed,
+        "routes":[],"routes_omitted":dispatch.routes.len(),"frontier":[],
+        "frontier_omitted":dispatch.frontier.len()+dispatch.coverage.frontier_omitted});
+    let endpoint=|node: &engram_graph::Node|json!({"node_id":node.node_id,"name":node.name,
+        "file_path":node.file_path,"generation":node.generation,"start_line":node.start_line,"end_line":node.end_line});
+    let mut rows=Vec::new();
+    for route in &dispatch.routes {
+        let caller=&route.caller;
+        let start=route.reference_lines.first().copied().unwrap_or(caller.start_line);
+        let row=json!({"implementation":endpoint(&route.implementation),"implementation_primary_depth":route.implementation_depth,
+            "contract":endpoint(&route.contract),"caller":endpoint(caller),"potential_depth":route.implementation_depth+2,
+            "contract_type_key":route.contract_type_key,"contract_type":route.contract_type,
+            "connections":[{"source":"implementation","target":"contract","kind":"implements_interface_member","traversed":"outgoing",
+                "generation":route.mapping_generation,"clause_line":route.clause_line},
+                {"source":"caller","target":"contract","kind":"calls","traversed":"incoming","generation":route.call_generation,
+                    "reference_lines":route.reference_lines,"reference_lines_truncated":route.reference_lines_truncated}],
+            "caller_source_read":{"tool":"get_full_method_body","arguments":{"project_id":project,"file_path":caller.file_path,
+                "line_start":start,"line_end":caller.end_line.min(start.saturating_add(30)).max(start),"context_lines":0,"output_json":true}},
+            "source_read_scope":"Current bytes at the indexed position; verify freshness before editing. Follow the primary shortest path to the implementation; this potential caller is not a direct call to it."});
+        if serde_json::to_vec(&row).expect("JSON serialization").len()>4096 { continue; }
+        rows.push(row); value["routes"]=json!(&rows);
+        if serde_json::to_vec(&value).expect("JSON serialization").len()>8*1024 { rows.pop();value["routes"]=json!(&rows);break; }
+    }
+    value["routes_omitted"]=json!(dispatch.routes.len()-rows.len());
+    let mut frontier=Vec::new();
+    for lead in &dispatch.frontier {
+        let mut row=json!(lead);
+        let hint=lead.file_path.as_ref().map(|path|path.as_str()).or_else(||canonical_hint(&lead.source_id).0);
+        if let Some(file)=hint.filter(|file|recovery_path(file)) {
+            row["inspection"] = if let Some(start)=lead.start_line.filter(|start|*start>0) {
+                json!({"tool":"get_full_method_body","arguments":{"project_id":project,"file_path":file,
+                    "line_start":start,"line_end":lead.end_line.unwrap_or(start).min(start.saturating_add(30)).max(start),"context_lines":0,"output_json":true},
+                    "scope":"Current source at indexed position; an inspection lead, not an admitted dispatch edge."})
+            } else { json!({"tool":"get_codebase_overview","arguments":{"project_id":project,"scope":file,"limit":1},
+                "scope":"Navigation from an unverified identity's path hint; the declaration may be absent."}) };
+        }
+        frontier.push(row); value["frontier"]=json!(&frontier);
+        if serde_json::to_vec(&value).expect("JSON serialization").len()>10*1024 { frontier.pop();value["frontier"]=json!(&frontier);break; }
+    }
+    value["frontier_omitted"]=json!(dispatch.frontier.len()-frontier.len()+dispatch.coverage.frontier_omitted);
+    value
+}
+
 fn render(
     walk: &IncomingImpactWalk,
     target: &str,
@@ -715,6 +792,7 @@ fn render(
         "Additional verified connections include cross/revisit edges; they do not enumerate every simple path or imply field/value flow.",
         "Source positions distinguish call_reference_syntax_metadata from weaker extractor_anchor_metadata. reference_lines contains at most 8 sorted recorded samples, never an exhaustive call list; a sample may be a delegate/property reference rather than a direct invocation. Declaration-range recovery is not a callsite. Current source may have changed; verify recovery hashes/freshness and project exclusions.",
         "Missing, unverified, dynamic and uninspected bindings remain unknown. Work/depth/byte caps may omit evidence; empty output proves no absence."]});
+    value["potential_interface_callers"]=render_interface_dispatch(walk,project);
     let mut out = CompactEvidence {
         project,
         observed_nodes: &walk.nodes,
@@ -1145,6 +1223,9 @@ async fn collect_evidence(
             value["coverage"] = json!(coverage);
             value["selected_dependents_observed"] = Value::Null;
             value["omitted_from_display"] = Value::Null;
+            value["potential_interface_callers"]=json!({"status":"unavailable","routes_observed":null,"routes_omitted":null,
+                "routes":[],"frontier":[],"frontier_omitted":null,"runtime_dispatch_proven":false,
+                "reason":"The requested target revision was not admitted; unavailable evidence is not zero potential callers."});
             value["error"] = json!("The requested root was not admitted by the held source selection; unavailable evidence is not zero impact.");
         }
         ensure!(section(&value).len() <= RESPONSE_BYTES, "Impact evidence exceeds response budget");

@@ -199,6 +199,31 @@ pub struct IncomingImpactWalk {
     /// Unverified or missing endpoints, separate from admitted causal edges.
     pub frontier: Vec<ImpactFrontier>,
     pub coverage: ImpactWalkCoverage,
+    /// Separate potential dispatch routes, never added to causal BFS counts.
+    pub interface_dispatch: InterfaceDispatch,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PotentialInterfaceCaller {
+    pub implementation: Node,
+    pub contract: Node,
+    pub caller: Node,
+    pub implementation_depth: usize,
+    pub mapping_generation: u64,
+    pub call_generation: u64,
+    pub clause_line: Option<u32>,
+    pub reference_lines: Vec<u32>,
+    pub reference_lines_truncated: bool,
+    pub contract_type_key: String,
+    pub contract_type: String,
+}
+
+#[derive(Debug, Default, Clone, Serialize)]
+pub struct InterfaceDispatch {
+    pub routes: Vec<PotentialInterfaceCaller>,
+    pub frontier: Vec<ImpactFrontier>,
+    pub coverage: ImpactWalkCoverage,
+    pub implementations_checked: usize,
 }
 
 fn gap(coverage: &mut ImpactWalkCoverage, reason: &'static str) {
@@ -926,6 +951,7 @@ impl GraphStore {
         let nodes = tx.open_table(NODES)?;
         let edges = tx.open_table(EDGES)?;
         let incoming = tx.open_table(ADJ_IN)?;
+        let outgoing = tx.open_table(ADJ_OUT)?;
         let read_node = |id: &str,
                          budget: &mut Budget,
                          coverage: &mut ImpactWalkCoverage|
@@ -1413,6 +1439,155 @@ impl GraphStore {
                 }
             }
         }
+        // An optional second phase shares this exact read transaction and the
+        // remaining decode/string/time/raw-work budgets. Never enqueue these
+        // callers in the primary BFS or change its counts, caches or routes.
+        let mut dispatch = InterfaceDispatch::default();
+        let remaining_rows = MAX_RAW_ROWS.saturating_sub(output.coverage.raw_rows);
+        let read_dispatch_edge = |source: &str, target: &str, kind: &EdgeKind,
+                                  budget: &mut Budget, coverage: &mut ImpactWalkCoverage| -> anyhow::Result<Option<Edge>> {
+            let Some(raw) = edges.get(edge_key(project_id,kind,source,target).as_str())? else {
+                gap(coverage,"missing_interface_graph_edge"); return Ok(None);
+            };
+            if !budget.record(raw.value().len(),coverage) { return Ok(None); }
+            let edge: Edge = bincode::DefaultOptions::new().with_fixint_encoding()
+                .with_limit(MAX_RECORD_BYTES as u64).reject_trailing_bytes().deserialize(raw.value())?;
+            anyhow::ensure!(edge.source_id==source && edge.target_id==target && edge.edge_kind==*kind,
+                "Interface graph edge disagrees with adjacency");
+            Ok(Some(edge))
+        };
+        'dispatch: for reached in output.nodes.iter().filter(|row|row.admission==ImpactAdmission::Selected && row.node.node_type=="function"
+            && (row.node.language.eq_ignore_ascii_case("vbnet") || row.node.language.eq_ignore_ascii_case("vb"))) {
+            if !budget.live(&mut dispatch.coverage) { gap(&mut dispatch.coverage,"primary_work_budget_exhausted"); break; }
+            let Some(implementation)=read_node(&reached.node.node_id,&mut budget,&mut dispatch.coverage)? else { continue; };
+            dispatch.implementations_checked+=1;
+            let status=implementation.metadata.as_ref().and_then(|m|m.get("interface_dispatch_status")).and_then(JsonValue::as_str);
+            if status!=Some("source_mapped") && status!=Some("no_explicit_contract") {
+                gap(&mut dispatch.coverage,"interface_mapping_unassessed");
+                record_frontier(&mut dispatch.frontier,&mut dispatch.coverage,&mut budget,output.witnesses.len()+output.frontier.len()+dispatch.routes.len(),
+                    &implementation.node_id,None,Some(&EdgeKind::Implements),Some(&implementation),reached.depth+1,"interface_mapping_unassessed");
+            }
+            if status==Some("no_explicit_contract") { continue; }
+            let Some(implementation_file)=read_node(&format!("file:{}",implementation.file_path.as_str()),&mut budget,&mut dispatch.coverage)? else { continue; };
+            let prefix=adj_key(project_id,&EdgeKind::Implements,&implementation.node_id);
+            let mut mappings=0;
+            let mut verified_mapping=false;
+            for entry in outgoing.range((prefix.as_str(), "")..)? {
+                if !budget.live(&mut dispatch.coverage) { break 'dispatch; }
+                if dispatch.coverage.raw_rows>=remaining_rows { gap(&mut dispatch.coverage,"raw_adjacency_row_limit"); break 'dispatch; }
+                dispatch.coverage.raw_rows+=1;
+                let (key,value)=entry?; let (observed,contract_id)=key.value();
+                if observed!=prefix { break; }
+                anyhow::ensure!(contract_id.len()<=2048 && !contract_id.contains(['\0','\n','\r']),"Interface adjacency target exceeds key limits");
+                let _=decode_adj_value(value.value())?;
+                mappings+=1;
+                if mappings>16 { gap(&mut dispatch.coverage,"interface_mapping_fanout_limit"); break; }
+                let Some(mapping)=read_dispatch_edge(&implementation.node_id,contract_id,&EdgeKind::Implements,&mut budget,&mut dispatch.coverage)? else {
+                    record_frontier(&mut dispatch.frontier,&mut dispatch.coverage,&mut budget,output.witnesses.len()+output.frontier.len()+dispatch.routes.len(),
+                        &implementation.node_id,Some(contract_id),Some(&EdgeKind::Implements),Some(&implementation),reached.depth+1,"interface_mapping_edge_unavailable");
+                    continue;
+                };
+                let supports=interface_bindings(&mapping).ok().flatten();
+                let Some(supports)=supports else {
+                    gap(&mut dispatch.coverage,"unverified_interface_member_mapping");
+                    record_frontier(&mut dispatch.frontier,&mut dispatch.coverage,&mut budget,output.witnesses.len()+output.frontier.len()+dispatch.routes.len(),
+                        &implementation.node_id,Some(contract_id),Some(&EdgeKind::Implements),Some(&implementation),reached.depth+1,"unverified_interface_member_mapping");
+                    continue;
+                };
+                if !supports.complete { gap(&mut dispatch.coverage,"interface_binding_supports_omitted"); }
+                let Some(contract)=read_node(contract_id,&mut budget,&mut dispatch.coverage)? else {
+                    record_frontier(&mut dispatch.frontier,&mut dispatch.coverage,&mut budget,output.witnesses.len()+output.frontier.len()+dispatch.routes.len(),
+                        contract_id,Some(&implementation.node_id),Some(&EdgeKind::Implements),None,reached.depth+1,"interface_contract_unavailable");
+                    continue;
+                };
+                let Some(contract_file)=read_node(&format!("file:{}",contract.file_path.as_str()),&mut budget,&mut dispatch.coverage)? else {
+                    record_frontier(&mut dispatch.frontier,&mut dispatch.coverage,&mut budget,output.witnesses.len()+output.frontier.len()+dispatch.routes.len(),
+                        contract_id,Some(&implementation.node_id),Some(&EdgeKind::Implements),Some(&contract),reached.depth+1,"interface_contract_file_unavailable");
+                    continue;
+                };
+                let mapping_admitted=mapping.namespace==engram_core::namespaces::NAMESPACE_MEMORY && edge_source_revision_matches(&mapping,&implementation)
+                    && admit(&implementation,Some(&implementation_file))?==ImpactAdmission::Selected
+                    && admit(&contract,Some(&contract_file))?==ImpactAdmission::Selected;
+                for support in supports.bindings {
+                    if !mapping_admitted || !support.matches(&implementation,&implementation_file,&contract,&contract_file) {
+                        gap(&mut dispatch.coverage,"unverified_interface_mapping_revision");
+                        record_frontier(&mut dispatch.frontier,&mut dispatch.coverage,&mut budget,output.witnesses.len()+output.frontier.len()+dispatch.routes.len(),
+                            &implementation.node_id,Some(contract_id),Some(&EdgeKind::Implements),Some(&implementation),reached.depth+1,"unverified_interface_mapping_revision");
+                        continue;
+                    }
+                    verified_mapping=true;
+                    if reached.depth+2>max_depth {
+                        gap(&mut dispatch.coverage,"interface_dispatch_depth_limit");
+                        record_frontier(&mut dispatch.frontier,&mut dispatch.coverage,&mut budget,output.witnesses.len()+output.frontier.len()+dispatch.routes.len(),
+                            contract_id,Some(&implementation.node_id),Some(&EdgeKind::Calls),Some(&contract),reached.depth+2,"interface_dispatch_depth_limit");
+                        continue;
+                    }
+                    let call_prefix=adj_key(project_id,&EdgeKind::Calls,contract_id);
+                    let mut callers=0;
+                    for entry in incoming.range((call_prefix.as_str(), "")..)? {
+                        if !budget.live(&mut dispatch.coverage) { break 'dispatch; }
+                        if dispatch.coverage.raw_rows>=remaining_rows { gap(&mut dispatch.coverage,"raw_adjacency_row_limit"); break 'dispatch; }
+                        dispatch.coverage.raw_rows+=1;
+                        let (key,value)=entry?; let (observed,caller_id)=key.value();
+                        if observed!=call_prefix { break; }
+                        anyhow::ensure!(caller_id.len()<=2048 && !caller_id.contains(['\0','\n','\r']),"Interface adjacency source exceeds key limits");
+                        let _=decode_adj_value(value.value())?;
+                        callers+=1;
+                        if callers>64 { gap(&mut dispatch.coverage,"interface_caller_fanout_limit"); break; }
+                        let Some(call)=read_dispatch_edge(caller_id,contract_id,&EdgeKind::Calls,&mut budget,&mut dispatch.coverage)? else {
+                            record_frontier(&mut dispatch.frontier,&mut dispatch.coverage,&mut budget,output.witnesses.len()+output.frontier.len()+dispatch.routes.len(),
+                                caller_id,Some(contract_id),Some(&EdgeKind::Calls),None,reached.depth+2,"interface_call_edge_unavailable");
+                            continue;
+                        };
+                        let Some(caller)=read_node(caller_id,&mut budget,&mut dispatch.coverage)? else {
+                            record_frontier(&mut dispatch.frontier,&mut dispatch.coverage,&mut budget,output.witnesses.len()+output.frontier.len()+dispatch.routes.len(),
+                                caller_id,Some(contract_id),Some(&EdgeKind::Calls),None,reached.depth+2,"interface_caller_unavailable");
+                            continue;
+                        };
+                        if excluded_source_file.is_some_and(|path|caller.file_path.as_str()==path) { dispatch.coverage.internal_rows_skipped+=1; continue; }
+                        let Some(caller_file)=read_node(&format!("file:{}",caller.file_path.as_str()),&mut budget,&mut dispatch.coverage)? else {
+                            record_frontier(&mut dispatch.frontier,&mut dispatch.coverage,&mut budget,output.witnesses.len()+output.frontier.len()+dispatch.routes.len(),
+                                caller_id,Some(contract_id),Some(&EdgeKind::Calls),Some(&caller),reached.depth+2,"interface_caller_file_unavailable");
+                            continue;
+                        };
+                        let call_supports=interface_bindings(&call).ok().flatten();
+                        let call_admitted=call.namespace==engram_core::namespaces::NAMESPACE_MEMORY && edge_source_revision_matches(&call,&caller)
+                            && admit(&caller,Some(&caller_file))?==ImpactAdmission::Selected;
+                        let matching=call_supports.as_ref().and_then(|bindings|bindings.bindings.iter().find(|binding|
+                            binding.target==support.target && binding.matches(&caller,&caller_file,&contract,&contract_file)));
+                        if !call_admitted || call_supports.is_none() || matching.is_none() && call_supports.as_ref().is_some_and(|b|b.bindings.iter().any(|s|s.target.contract_type_key==support.target.contract_type_key)) {
+                            gap(&mut dispatch.coverage,"unverified_interface_call_binding");
+                            record_frontier(&mut dispatch.frontier,&mut dispatch.coverage,&mut budget,output.witnesses.len()+output.frontier.len()+dispatch.routes.len(),
+                                caller_id,Some(contract_id),Some(&EdgeKind::Calls),Some(&caller),reached.depth+2,"unverified_interface_call_binding");
+                            continue;
+                        }
+                        if call_supports.as_ref().is_some_and(|s|!s.complete) { gap(&mut dispatch.coverage,"interface_binding_supports_omitted"); }
+                        let Some(call_support)=matching else { continue; }; // Another closed generic instance.
+                        if !budget.live(&mut dispatch.coverage) { break 'dispatch; }
+                        if dispatch.routes.iter().any(|route|route.implementation.node_id==implementation.node_id && route.contract.node_id==contract_id
+                            && route.contract_type_key==support.target.contract_type_key && route.caller.node_id==caller_id) { continue; }
+                        if dispatch.routes.len()==32 { gap(&mut dispatch.coverage,"potential_interface_route_limit"); break 'dispatch; }
+                        if output.witnesses.len()+output.frontier.len()+dispatch.frontier.len()+dispatch.routes.len()>=MAX_WITNESSES {
+                            gap(&mut dispatch.coverage,"shared_witness_edge_limit"); break 'dispatch;
+                        }
+                        if !budget.retain(identity_bytes(&implementation)+identity_bytes(&contract)+identity_bytes(&caller)
+                            +support.target.contract_type_key.len()+support.target.contract_type.len(),&mut dispatch.coverage) { break 'dispatch; }
+                        dispatch.routes.push(PotentialInterfaceCaller { implementation:identity_clone(&implementation),contract:identity_clone(&contract),caller:identity_clone(&caller),
+                            implementation_depth:reached.depth,mapping_generation:mapping.generation,call_generation:call.generation,
+                            clause_line:support.reference_lines.first().copied(),reference_lines:call_support.reference_lines.clone(),
+                            reference_lines_truncated:call_support.reference_lines_truncated,contract_type_key:support.target.contract_type_key.clone(),contract_type:support.target.contract_type.clone() });
+                    }
+                }
+            }
+            if status==Some("source_mapped") && !verified_mapping {
+                gap(&mut dispatch.coverage,"interface_member_mapping_unavailable");
+                record_frontier(&mut dispatch.frontier,&mut dispatch.coverage,&mut budget,output.witnesses.len()+output.frontier.len()+dispatch.routes.len(),
+                    &implementation.node_id,None,Some(&EdgeKind::Implements),Some(&implementation),reached.depth+1,"interface_member_mapping_unavailable");
+            }
+        }
+        dispatch.coverage.nodes_observed=dispatch.routes.iter().map(|row|row.caller.node_id.as_str()).collect::<std::collections::HashSet<_>>().len();
+        dispatch.coverage.reasons.sort();
+        output.interface_dispatch=dispatch;
         output.coverage.reasons.sort();
         Ok(output)
     }

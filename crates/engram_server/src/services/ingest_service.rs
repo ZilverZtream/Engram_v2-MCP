@@ -691,9 +691,10 @@ pub async fn process_ingest_stats(
         None
     };
 
+    let (mut nodes, interface_bindings, _interface_reservation) = super::interface_bindings::prepare(state,project_id,stats,nodes).await?;
     let mut edges = Vec::with_capacity(stats.edges.len());
     let mut event_producers = std::collections::HashMap::new();
-    for (rel_path, edge) in &stats.edges {
+    for (edge_index, (rel_path, edge)) in stats.edges.iter().enumerate() {
         if !is_safe_project_relative_path(rel_path.as_str()) {
             anyhow::bail!(
                 "process_ingest_stats: unsafe relative path in edges: {}",
@@ -706,7 +707,10 @@ pub async fn process_ingest_stats(
             edge.source_language
         )));
 
-        let source_id = if edge.source_kind == "asset_bundle"
+        let interface_binding = interface_bindings.get(&edge_index);
+        let source_id = if let Some(binding) = interface_binding {
+            binding.source_id.clone()
+        } else if edge.source_kind == "asset_bundle"
             && edge.source_name.starts_with("bundle:")
         {
             edge.source_name.clone()
@@ -822,7 +826,10 @@ pub async fn process_ingest_stats(
         // the post-pass).
         let mut target_resolution: Option<(f32, &'static str)> = None;
         let mut target_crossed_language = false;
-        let target_id = if edge.target_kind.as_deref() == Some("asset_bundle")
+        let target_id = if let Some(binding) = interface_binding {
+            if binding.evidence.is_some() { target_resolution=Some((1.0,"exact_source_interface_member")); }
+            binding.target_id.clone()
+        } else if edge.target_kind.as_deref() == Some("asset_bundle")
             && edge.target_name.starts_with("bundle:")
         {
             edge.target_name.clone()
@@ -1172,6 +1179,12 @@ pub async fn process_ingest_stats(
                     obj.insert(k.clone(), serde_json::Value::String(v.clone()));
                 }
             }
+            if let Some(binding) = interface_binding {
+                obj.insert("interface_binding_admission".into(),serde_json::json!(if binding.evidence.is_some() {"verified_source_declaration"}else{"unknown"}));
+                if let Some(evidence) = &binding.evidence {
+                    obj.insert(engram_graph::store::INTERFACE_BINDINGS.into(),evidence.clone());
+                }
+            }
             // Call-SITE anchor: the extractor's source_start_line is the line
             // the reference occurs on (line-scanned VB fallback exactly; the
             // enclosing-capture line otherwise). Persisting it lets
@@ -1266,6 +1279,7 @@ pub async fn process_ingest_stats(
                             .get_or_insert_with(|| serde_json::Value::Object(Default::default()));
                         if let serde_json::Value::Object(base) = slot {
                             merge_call_site_metadata(base, &extra);
+                            engram_graph::store::merge_interface_bindings(base, &extra)?;
                             for (k, v) in extra {
                                 base.entry(k).or_insert(v);
                             }

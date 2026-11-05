@@ -16,6 +16,8 @@ mod source_stat;
 mod file_metadata_scan;
 mod centrality_cache;
 mod impact_walk;
+mod interface_dispatch;
+pub use interface_dispatch::{InterfaceBinding, InterfaceBindings, InterfaceMemberLocator, INTERFACE_BINDINGS, interface_bindings, merge_interface_bindings};
 pub use impact_walk::{
     ImpactAdmission, ImpactWalkCoverage, ImpactWalkNode, ImpactWitness, IncomingImpactWalk, event_producer, event_owner_matches,
 };
@@ -1151,6 +1153,22 @@ impl GraphStore {
             return Ok(None);
         };
         Ok(Some(bincode::deserialize(v.value())?))
+    }
+
+    /// Exact managed-writer lookup with admission BEFORE allocating a decoded
+    /// record. Returns charged raw bytes for an aggregate working-set budget.
+    pub fn get_node_bounded(&self, project_id: &str, node_id: &str, max_bytes: usize) -> anyhow::Result<Option<(Node, usize)>> {
+        use bincode::Options;
+        anyhow::ensure!(max_bytes>0 && max_bytes<=256*1024 && node_id.len()<=2048,"Invalid bounded node lookup");
+        let tx=self.db.begin_read()?; let table=tx.open_table(NODES)?;
+        let key=format!("{project_id}\0{node_id}");
+        let Some(raw)=table.get(key.as_str())? else { return Ok(None); };
+        let bytes=raw.value().len();
+        anyhow::ensure!(bytes<=max_bytes,"Graph node exceeds bounded lookup byte limit");
+        let node: Node=bincode::DefaultOptions::new().with_fixint_encoding().with_limit(max_bytes as u64)
+            .reject_trailing_bytes().deserialize(raw.value())?;
+        anyhow::ensure!(node.node_id==node_id,"Graph node disagrees with its lookup key");
+        Ok(Some((node,bytes)))
     }
 
     /// One-hop adjacency of a COMPONENT with the policy applied BEFORE the
