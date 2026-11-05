@@ -254,3 +254,76 @@ async fn unbound_receiver_wins_over_legacy_target_kind_line_and_later_unique_glo
     drop(app);
     Ok(())
 }
+
+#[test]
+fn code_map_safety_actions_disclose_unassessed_state_and_cancellation_without_losing_callers() -> Result<()> {
+    let owned = tempfile::TempDir::new()?;
+    let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build()?;
+    runtime.block_on(async {
+        const FILE: &str = "src/state.ts";
+        const SOURCE: &str = "class ImageState {\n private generation = 0;\n private request: any = null;\n private preview = \"\";\n resetState() {\n  this.generation += 1;\n  this.request?.abort();\n  this.request = null;\n  this.preview = \"\";\n }\n deleteOne() { this.resetState(); }\n reload() { this.resetState(); }\n}\n";
+        std::fs::create_dir_all(owned.path().join("repo/src"))?;
+        std::fs::write(owned.path().join("repo").join(FILE), SOURCE)?;
+        let (app, pid) = indexed(owned.path()).await?;
+        let target = app.state.graph.query_nodes(&pid, Some("function"), Some("resetState"), Some(FILE), 16)?
+            .into_iter().find(|node| node.file_path.as_str() == FILE && node.name == "resetState").unwrap();
+        let navigation = app.handle_get_codebase_overview(serde_json::from_value(json!({
+            "project_id":pid,"scope":FILE,"symbol_node_id":target.node_id,"limit":1
+        }))?).await?;
+        ensure!(navigation.is_error != Some(true));
+        let nav: Value = serde_json::from_str(navigation.content[0].as_text().unwrap().text
+            .split("## CodeMap Navigation").nth(1).unwrap()
+            .split("```json").nth(1).unwrap().split("```").next().unwrap())?;
+        let declaration = &nav["files"][0]["symbols"][0];
+        ensure!(declaration["node_id"] == target.node_id);
+        let actions = declaration["actions"].as_array().unwrap();
+        let read = actions.iter().find(|action| action["tool"] == "get_full_method_body").unwrap();
+        let response = app.handle_get_full_method_body(serde_json::from_value(read["arguments"].clone())?).await?;
+        ensure!(response.is_error != Some(true));
+        let source: Value = serde_json::from_str(&response.content[0].as_text().unwrap().text)?;
+        ensure!(source["file_path"] == FILE && source["language"] == "typescript");
+        ensure!(source["source_file_hash"] == blake3::hash(SOURCE.as_bytes()).to_hex().to_string());
+        ensure!(source["line_start"] == 5 && source["line_end"] == 10);
+        ensure!(source["source_code"].as_str().unwrap().contains("this.request?.abort()"));
+        ensure!(source["source_code"].as_str().unwrap().contains("this.generation += 1"));
+        let inspect = actions.iter().find(|action| action["tool"] == "get_method_edit_context").unwrap();
+        let response = app.handle_get_method_edit_context(serde_json::from_value(inspect["arguments"].clone())?).await?;
+        ensure!(response.is_error != Some(true));
+        let context: Value = serde_json::from_str(&response.content[0].as_text().unwrap().text)?;
+        ensure!(context["method_info"]["return_type"] == "unknown" && context["method_info"]["access_level"] == "unknown",
+            "Unavailable signature facts must remain unknown");
+        ensure!(context["method_info"]["called_by"].as_array().unwrap().len() == 2);
+        ensure!(context["risk_band_scope"].as_str().unwrap().contains("one-hop"));
+        let response = app.handle_check_edit_safety(serde_json::from_value(json!({
+            "project_id":pid,"file_path":FILE,"method_name":"resetState","line":5,"output_json":true
+        }))?).await?;
+        ensure!(response.is_error != Some(true));
+        let standalone: Value = serde_json::from_str(&response.content[0].as_text().unwrap().text)?;
+        ensure!(context["edit_safety"] == standalone, "Both safety tools must use the same evidence and uncertainty");
+        ensure!(standalone["verdict"] == "yellow" && standalone["confidence"].as_f64().unwrap() <= 0.5);
+        ensure!(standalone["completeness"]["callers"]["status"] == "complete");
+        ensure!(standalone["completeness"]["method_semantics"]["status"] == "not_run");
+        ensure!(standalone["completeness"]["sync_hazards"]["status"] == "not_run");
+        let reasons = standalone["reasons"].to_string();
+        ensure!(reasons.contains("method semantics") && reasons.contains("unassessed"));
+        ensure!(!reasons.contains("no complex state detected"));
+        let downstream = &standalone["downstream_impact"];
+        ensure!(downstream["target_revision_admitted"] == true && downstream["selected_dependents_observed"] == 2);
+        ensure!(downstream["source_generation"] == nav["source_generation"]);
+        let impact = actions.iter().find(|action| action["tool"] == "impact_analysis").unwrap();
+        let response = app.handle_impact_analysis(serde_json::from_value(impact["arguments"].clone())?).await?;
+        ensure!(response.is_error != Some(true));
+        let impact = packet(&response.content[0].as_text().unwrap().text);
+        ensure!(impact["target_revision_admitted"] == true && impact["target"]["node_id"] == target.node_id);
+        ensure!(impact["source_generation"] == downstream["source_generation"]);
+        ensure!(impact["selected_dependents_observed"] == downstream["selected_dependents_observed"]);
+        // The other owned source's collection receiver remains unbound.
+        check_receivers(&app, &pid)?;
+        settle(&app).await?;
+        drop(app);
+        Ok::<(), anyhow::Error>(())
+    })?;
+    drop(runtime);
+    owned.close()?;
+    Ok(())
+}

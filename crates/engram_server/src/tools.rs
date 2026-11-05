@@ -1516,7 +1516,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Pre-edit context: assembles method info, full body, top callers (identities plus bounded fingerprint-verified lexical source excerpts; include_caller_bodies=true for full source; distinct indexed caller totals are separate from display caps), database footprint, session state flows, VB traps, sync hazards, bounded revision-admitted downstream paths, business-rule evidence, historical shipped-file leads (include_history=false to omit; merged_before for a historical cutoff), and the shared edit-safety verdict. Provider COVERAGE (complete / partial / truncated / failed / not run) describes available evidence, not exhaustive codebase coverage. Missing downstream evidence prevents green; static paths do not prove breakage or runtime safety. One-hop scores and confidence are advisory heuristics. Same-class overloads are refused until `line` selects one. Use before modifying a method."
+        description = "Pre-edit context: assembles method info, full body, top callers (identities plus bounded fingerprint-verified lexical source excerpts; include_caller_bodies=true for full source; distinct indexed caller totals are separate from display caps), database footprint, session state flows, VB traps, sync hazards, bounded revision-admitted downstream paths, business-rule evidence, historical shipped-file leads (include_history=false to omit; merged_before for a historical cutoff), and the shared edit-safety verdict. Provider COVERAGE (complete / partial / truncated / failed / not run) describes available evidence, not exhaustive codebase coverage. Missing downstream or unassessed method-effect/call semantics prevent green. Empty semantic metadata is not absence of mutations, cancellation or outbound calls; unsupported sync-hazard languages are explicit. Static paths do not prove breakage or runtime safety. One-hop scores and confidence are advisory heuristics. Same-class overloads are refused until `line` selects one. Use before modifying a method."
     )]
     pub async fn get_method_edit_context(
         &self,
@@ -1606,7 +1606,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Standalone edit safety check: green/yellow/red advisory verdict from bounded revision-admitted downstream paths, one-hop blast radius, exact caller count, session writes, and body complexity, computed from the SAME evidence as get_method_edit_context with per-provider coverage. Missing or incomplete downstream evidence prevents green. Static paths do not prove breakage or runtime safety; confidence is an uncalibrated heuristic. Use when you only need the verdict and its impact evidence."
+        description = "Standalone edit safety check: green/yellow/red advisory verdict from bounded revision-admitted downstream paths, one-hop blast radius, exact caller count, session writes, and body complexity, computed from the SAME evidence as get_method_edit_context with per-provider coverage. Missing or incomplete downstream evidence and unassessed method-effect/call semantics prevent green. Query completion and low branching complexity do not establish absence of state changes or cancellation. Static paths do not prove breakage or runtime safety; confidence is an uncalibrated heuristic. Use when you only need the verdict and its impact evidence."
     )]
     pub async fn check_edit_safety(
         &self,
