@@ -9180,7 +9180,7 @@
       "original_full19gates_closed": false
     },
     "file_codemap_potential_exposure_delta_20261105": {
-      "status": "PASS_FOCUSED_CORE_TOOL_BEHAVIOR_REVIEWED_NOT_YET_DEPLOYED",
+      "status": "DEPLOYED_COLD_AND_NORMAL_FRESH_AGENT_VERIFIED",
       "at_utc": "2026-11-05T11:02:47.776520+00:00",
       "focused_receipt": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\file-codemap-potential-exposure-behavior-20261105.json",
@@ -9205,12 +9205,16 @@
         "Separate admitted/potential observed counts appear before graph JSON; unadmitted roots say unknown. Summary bounds and full graph facts remain unchanged.",
         "include_guidance=false skips the whole optional legacy advisory; true/default compatibility, footer and held-source lifetime preserved."
       ],
-      "scope": "Response-only core-tool delta. No parser/native/storage format or source-data mutation. Actual candidate/install/normal agent acceptance pending; initial earlier15s timeout remains unlocated, not declared fixed.",
+      "scope": "Response-only core-tool delta deployed after scoped cold preservation, exact paired install and normal fresh-agent4request acceptance. No parser/native/storage format or source-data mutation. Earlier15s timeout remains unlocated, not declared fixed; actual editing, long-term resources and all original full gates remain open.",
       "goal_complete": false,
-      "original_full19gates_closed": false
+      "original_full19gates_closed": false,
+      "installed_receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\file-codemap-potential-exposure-installed-verified-20261105.json",
+        "sha256": "6ccf58d0e75f2c8c96a2bb4dd0534a3dddf0937b8aeec6c3cf55168497a3c015"
+      }
     }
   },
-  "last_updated_at": "2026-11-05T11:02:47.776520+00:00",
+  "last_updated_at": "2026-11-05T11:31:54.816779+00:00",
   "current_execution_focus": {
     "at_utc": "2026-11-05T08:29:39.390790+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
@@ -9243,7 +9247,7 @@
       }
     ],
     "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
-    "next_user_visible_deliverable": "Compact exact-file CodeMap navigation without global summary work; foreground admitted versus potential impact and honor include_guidance=false for the unverified advisory. Preserve source evidence and validate the real MapFeatureTypeCategory agent case. Initial15s timeout remains unlocated.",
+    "next_user_visible_deliverable": "Continue original CodeMap/Blast usefulness queue: bounded configuration/routing inspection leads and phase evidence for the unlocated initial15s timeout. Complete actual-edit resource witness with bounded owned resources; preserve Q code/review freeze and all original findings/gates.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9256,7 +9260,7 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "8409860 deployed; ordinary OciusX3120 to3121 refreshed1009existing+162eligible diagnostic paths, inherited1293unchanged. Preserved300authored notes/other14metadata. Watching restored with one explicit post-publication diagnostic addition still pending.603.5s primary watch/read-probe observation:270026logical write bytes,0.0633%machineCPU,392to445MiBprivate. Real edits and long-term memory gates remain open. Second realagenttask succeeded4publicrequests with explicit potential-interface/runtime limits.",
+    "latest_completed_core_batch": "c559069 deployed and verified on preserved3121: exact-fileCodeMap6208to3683B (~41%less), samefiles/actions/coverage; Blastfalseguidance omits optionaladvisory and foregrounds0admitted/1potential withoutchanginggraphfacts.22focusedcases+135capabilities passed;300notes/selectedsource/other14preserved. Freshagent used4publicrequests19531B andreturnedcorrectboundedAPI/interfaceanswer. Watching enabled; one diagnostic addition/global freshness, real editing and long-term resources remain open.",
     "previous_goal_turn_classification": "PROGRESS: implemented,pushedmaster,deployed e7f9cce; same-generation material byte reduction/full inventory/current source qualification and fresh taskverified. Stale ledger publication status corrected with all original requirements/gates preserved. No goal completion."
   }
 }
