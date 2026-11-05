@@ -318,6 +318,8 @@ fn summary_section(
         projection["routes_omitted"]=dispatch["routes_observed"].clone();
         projection["frontier_omitted"]=json!(dispatch["frontier"].as_array().map_or(0,Vec::len)
             +dispatch["frontier_omitted"].as_u64().unwrap_or(0) as usize);
+        projection.as_object_mut().unwrap().remove("configuration_inspection");
+        projection.as_object_mut().unwrap().remove("configuration_inspection_actions_omitted");
         value["potential_interface_callers"]=projection;
     }
     if file_component {
@@ -441,6 +443,20 @@ fn summary_section(
         }
         value["potential_interface_callers"]["frontier_omitted"]=json!(dispatch["frontier"].as_array().map_or(0,Vec::len)-leads.len()
             +dispatch["frontier_omitted"].as_u64().unwrap_or(0) as usize);
+        // Text-search suggestions come last: never trade a caller, witness or
+        // unknown boundary for an optional configuration discovery action.
+        if let Some(inspection)=dispatch.get("configuration_inspection") {
+            value["potential_interface_callers"]["configuration_inspection"]=inspection.clone();
+            if !fits(&value) {
+                value["potential_interface_callers"].as_object_mut().unwrap().remove("configuration_inspection");
+                value["potential_interface_callers"]["configuration_inspection_actions_omitted"]=json!(
+                    inspection["actions"].as_array().map_or(0,Vec::len)+inspection["actions_omitted"].as_u64().unwrap_or(0) as usize);
+                if !fits(&value) { value["potential_interface_callers"].as_object_mut().unwrap().remove("configuration_inspection_actions_omitted"); }
+            }
+        } else if let Some(omitted)=dispatch.get("configuration_inspection_actions_omitted") {
+            value["potential_interface_callers"]["configuration_inspection_actions_omitted"]=omitted.clone();
+            if !fits(&value) { value["potential_interface_callers"].as_object_mut().unwrap().remove("configuration_inspection_actions_omitted"); }
+        }
     }
     format!(
         "{}\n## Revision-admitted change impact\n\nSummary of the same bounded source selection. Expand the graph for all retained identities, connections and paths.\n\n```json\n{}\n```\n",
@@ -748,6 +764,35 @@ impl CompactEvidence<'_> {
     }
 }
 
+fn configuration_inspection(project: &str, contract: &str, files: [&str; 3]) -> Option<Value> {
+    if !files.iter().all(|file| recovery_path(file)) { return None; }
+    // VB constructed type arguments can contain dots. Take the declaring
+    // type before its argument list, then its literal simple identifier.
+    let mut depth=0usize;
+    let mut start=0;
+    for (offset,ch) in contract.char_indices() {
+        match ch {
+            '(' => depth+=1,
+            ')' => depth=depth.checked_sub(1)?,
+            '.' if depth==0 => start=offset+1,
+            _ => {}
+        }
+    }
+    if depth!=0 { return None; }
+    let name=contract[start..].split('(').next()?.trim();
+    if name.len()>128 || !name.chars().next().is_some_and(|c|c=='_' || c.is_alphabetic())
+        || !name.chars().all(|c|c=='_' || c.is_alphanumeric()) { return None; }
+    let mut common=files[0].rsplit_once('/')?.0.split('/').collect::<Vec<_>>();
+    for file in &files[1..] {
+        let directory=file.rsplit_once('/')?.0.split('/').collect::<Vec<_>>();
+        common.truncate(common.iter().zip(&directory).take_while(|(a,b)|a==b).count());
+    }
+    if common.is_empty() { return None; }
+    Some(json!({"tool":"grep_project","arguments":{"project_id":project,"pattern":name,
+        "regex":false,"case_sensitive":false,"path_prefix":format!("{}/",common.join("/")),
+        "max_results":8,"context_before":2,"context_after":2,"freshness":"off","output_json":true}}))
+}
+
 fn render_interface_dispatch(walk: &IncomingImpactWalk, project: &str) -> Value {
     let dispatch=&walk.interface_dispatch;
     let mut value=json!({"status":"partial_static_dispatch_observation",
@@ -801,6 +846,7 @@ fn render_interface_dispatch(walk: &IncomingImpactWalk, project: &str) -> Value 
         if serde_json::to_vec(&value).expect("JSON serialization").len()>10*1024 { frontier.pop();value["frontier"]=json!(&frontier);break; }
     }
     value["frontier_omitted"]=json!(dispatch.frontier.len()-frontier.len()+dispatch.coverage.frontier_omitted);
+
     value
 }
 
@@ -1177,6 +1223,34 @@ fn render(
     value["shortest_paths"] = json!(paths);
     value["frontier"] = json!(frontier);
     value["recoveries"] = json!(out.recoveries);
+    // Configuration discovery is optional. Allocate it only after every
+    // canonical graph row, so its availability cannot displace evidence.
+    let mut suggestions=BTreeMap::new();
+    for route in &walk.interface_dispatch.routes {
+        if let Some(action)=configuration_inspection(project,&route.contract_type,[
+            route.implementation.file_path.as_str(),route.contract.file_path.as_str(),route.caller.file_path.as_str()]) {
+            let key=(action["arguments"]["pattern"].as_str().unwrap().to_owned(),
+                action["arguments"]["path_prefix"].as_str().unwrap().to_owned());
+            suggestions.entry(key).or_insert(action);
+        }
+    }
+    if !suggestions.is_empty() {
+        let total=suggestions.len();
+        let mut actions=suggestions.into_values().take(2).collect::<Vec<_>>();
+        loop {
+            value["potential_interface_callers"]["configuration_inspection"]=json!({"scope":"Optional indexed literal text searches within the shared directory of admitted implementation, contract and caller files. Matches may include configuration, declarations, comments or unrelated names; neither registration, routing, runtime dispatch nor absence is proven. Setup elsewhere or beyond the match cap can be missed. Follow discovered files with current source/hash inspection.","actions":actions,"actions_omitted":total-actions.len()});
+            let fits=section(&value).len()<=RESPONSE_BYTES && serde_json::to_vec(&value["potential_interface_callers"]).expect("JSON serialization").len()<=10*1024;
+            if fits { break; }
+            if actions.pop().is_none() {
+                value["potential_interface_callers"].as_object_mut().unwrap().remove("configuration_inspection");
+                value["potential_interface_callers"]["configuration_inspection_actions_omitted"]=json!(total);
+                if section(&value).len()>RESPONSE_BYTES || serde_json::to_vec(&value["potential_interface_callers"]).expect("JSON serialization").len()>10*1024 {
+                    value["potential_interface_callers"].as_object_mut().unwrap().remove("configuration_inspection_actions_omitted");
+                }
+                break;
+            }
+        }
+    }
     ensure!(
         section(&value).len() <= RESPONSE_BYTES,
         "Impact evidence exceeds response budget"
