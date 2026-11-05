@@ -101,6 +101,77 @@ impl Drop for Harness {
 const SOURCE_V1: &str = "Class Widget\n  Public Sub Alpha()\n  End Sub\nEnd Class\n";
 const SOURCE_V2: &str = "Class Widget\n  Public Sub Beta()\n  End Sub\nEnd Class\n";
 
+/// Contract callers must remain discoverable without confusing overloads,
+/// namespaces or constructed generic interfaces. Drive the actual native
+/// producer, rather than manufacturing the metadata expected by ingestion.
+#[test]
+fn interface_dispatch_preserves_exact_declarations_and_constructed_contracts() {
+    let Some(bin) = sidecar_path() else { return; };
+    let owned = tempfile::TempDir::new().unwrap();
+    let contract = "Namespace Example\nPublic Class Alpha\nEnd Class\nPublic Class Beta\nEnd Class\nPublic Interface IReader\n Function Read(value As Alpha) As Alpha\n Function Read(value As Beta) As Beta\nEnd Interface\nPublic Interface IBox(Of T)\n Function Read(value As T) As T\nEnd Interface\nEnd Namespace\nNamespace Other\nPublic Interface IReader\n Function Read(value As Example.Alpha) As Example.Alpha\nEnd Interface\nEnd Namespace\n";
+    let implementation = "Namespace Example\nPublic Class Reader\n Implements IReader, IBox(Of Alpha), IBox(Of Beta)\n Public Function Fetch(value As Alpha) As Alpha Implements IReader.Read, IBox(Of Alpha).Read\n Return value\n End Function\n Public Function Fetch(value As Beta) As Beta Implements IReader.Read, IBox(Of Beta).Read\n Return value\n End Function\nEnd Class\nPublic Class OpenReader(Of T)\n Implements IBox(Of T)\n Public Function Read(value As T) As T Implements IBox(Of T).Read\n Return value\n End Function\nEnd Class\nPublic Class MissingReader\n Public Sub Work() Implements MissingContract.Work\n End Sub\nEnd Class\nEnd Namespace\n";
+    let caller = "Namespace Example\nPublic Class Controller\n Public Function First(service As IReader, value As Alpha) As Alpha\n Return service.Read(value)\n End Function\n Public Function Second(service As IReader, value As Beta) As Beta\n Return service.Read(value)\n End Function\n Public Function BoxA(service As IBox(Of Alpha), value As Alpha) As Alpha\n Return service.Read(value)\n End Function\n Public Function BoxB(service As IBox(Of Beta), value As Beta) As Beta\n Return service.Read(value)\n End Function\n Public Function Other(service As Other.IReader, value As Alpha) As Alpha\n Return service.Read(value)\n End Function\nEnd Class\nEnd Namespace\n";
+    let caller = caller.replace(" Public Function Other(", " Public Function Ambiguous(service As IReader) As Alpha\n Return service.Read(Nothing)\n End Function\n Public Function Other(");
+    let sources = [("contracts.vb", contract), ("implementation.vb", implementation), ("caller.vb", caller.as_str())];
+    let paths: Vec<_> = sources.iter().map(|(name, source)| {
+        let path = owned.path().join(name);
+        std::fs::write(&path, source).unwrap();
+        path.display().to_string()
+    }).collect();
+    let mut harness = Harness::start(&bin);
+    let plan = harness.send(serde_json::json!({"cmd":"plan_refresh", "project_root":owned.path(),
+        "files":paths, "paths":paths, "compilation_policy":{
+            "max_total_source_bytes":1048576, "max_file_source_bytes":524288,
+            "max_trees":64, "allocation_multiplier":32, "tree_overhead_bytes":8192}}));
+    assert!(plan.get("error").is_none(), "plan: {plan}");
+    let prepared = harness.send(serde_json::json!({"cmd":"refresh_project", "plan_id":plan["compilation_plan"]["id"]}));
+    assert!(prepared.get("error").is_none(), "refresh: {prepared}");
+    let parsed: Vec<_> = sources.iter().zip(&paths).map(|((_, source), path)| {
+        let result = harness.send(serde_json::json!({"cmd":"parse", "project_root":owned.path(), "path":path,"source":source}));
+        assert!(result.get("error").is_none(), "parse: {result}");
+        result
+    }).collect();
+    let declarations: Vec<_> = parsed[0]["symbols"].as_array().unwrap().iter()
+        .filter(|node| node["metadata"]["interface_member_declaration"] == "true").collect();
+    assert_eq!(declarations.len(), 4, "all contract methods, including overloads, must be navigable");
+    assert!(!parsed[0]["edges"].as_array().unwrap().iter().any(|edge| edge["kind"] == "calls"),
+        "a declaration has no implementation body");
+    let bindings = |response: &serde_json::Value, key: &str| -> Vec<serde_json::Value> {
+        response["edges"].as_array().unwrap().iter().filter_map(|edge| {
+            edge["metadata"][key].as_str().map(|value| serde_json::from_str(value).unwrap())
+        }).collect()
+    };
+    let mappings = bindings(&parsed[1], "interface_member_mapping_v1");
+    let calls = bindings(&parsed[2], "interface_call_target_v1");
+    assert_eq!(mappings.len(), 4, "two exact overloads and two closed generic implementations");
+    assert_eq!(calls.len(), 5, "all statically resolved interface calls have exact locators");
+    assert!(parsed[2]["edges"].as_array().unwrap().iter().any(|edge|
+        edge["metadata"]["interface_call_status"] == "unknown"
+            && edge["metadata"].get("interface_call_target_v1").is_none()),
+        "An ambiguous interface invocation must not fall through to generic name/arity resolution");
+    for locator in mappings.iter().chain(&calls) {
+        assert_eq!(locator["file_path"], "contracts.vb");
+        assert_eq!(locator["syntax_source_sha256"], parsed[0]["symbols"][0]["metadata"]["vb_syntax_source_sha256"]);
+        let matches: Vec<_> = declarations.iter().filter(|declaration| {
+            declaration["name"] == locator["name"] && declaration["start_line"] == locator["start_line"]
+                && declaration["metadata"]["semantic_member_id"] == locator["semantic_id"]
+                && declaration["metadata"]["semantic_span_start"].as_str().unwrap().parse::<u64>().unwrap() == locator["span_start"].as_u64().unwrap()
+        }).collect();
+        assert_eq!(matches.len(), 1, "exact declared target must exist: {locator}");
+    }
+    assert_ne!(calls[0]["semantic_id"], calls[1]["semantic_id"], "same-name/arity overloads stay distinct");
+    assert_eq!(calls[2]["semantic_id"], calls[3]["semantic_id"]);
+    assert_ne!(calls[2]["contract_type_key"], calls[3]["contract_type_key"], "closed generic instances must not cross-bind");
+    assert_ne!(calls[0]["semantic_id"], calls[4]["semantic_id"], "same short names in other namespaces stay distinct");
+    for name in ["Example.OpenReader.Read", "Example.MissingReader.Work"] {
+        let method = parsed[1]["symbols"].as_array().unwrap().iter().find(|node| node["name"] == name).unwrap();
+        assert_eq!(method["metadata"]["interface_dispatch_status"], "unknown", "unsupported dispatch must stay open");
+    }
+    harness.send(serde_json::json!({"cmd":"shutdown"}));
+    assert!(harness.child.wait().unwrap().success());
+    drop(harness); // Close child handles before the owned source directory.
+}
+
 #[test]
 fn statically_typed_receiver_retains_its_verified_declaring_type() {
     let Some(bin) = sidecar_path() else { return; };
@@ -143,12 +214,10 @@ fn method_metadata_includes_signature_access_and_return_type() {
     );
 }
 
-/// After `begin_project`, a cached tree WINS over the source the caller
-/// sends. That is the whole reason the old code had to re-scan the project
-/// on every update — and the reason `invalidate` is needed rather than just
-/// skipping `begin_project`.
+/// A warmed project must never silently substitute older source bytes. Legacy
+/// unscoped parses use requested bytes; prepared ingestion refuses a mismatch.
 #[test]
-fn cached_tree_shadows_newer_source_until_invalidated() {
+fn changed_requests_never_silently_return_warmed_source_bytes() {
     let Some(bin) = sidecar_path() else {
         eprintln!("sidecar not published — skipping");
         return;
@@ -164,15 +233,20 @@ fn cached_tree_shadows_newer_source_until_invalidated() {
     }));
     assert!(begun.get("error").is_none(), "begin_project: {begun}");
 
-    let stale = h.symbol_names(&file, SOURCE_V2);
+    let fresh = h.symbol_names(&file, SOURCE_V2);
     assert!(
-        stale.iter().any(|n| n.ends_with("Alpha")),
-        "expected the CACHED v1 tree to win; got {stale:?}"
+        fresh.iter().any(|n| n.ends_with("Beta")),
+        "requested bytes must win over the warmed source; got {fresh:?}"
     );
     assert!(
-        !stale.iter().any(|n| n.ends_with("Beta")),
-        "characterisation: without invalidate the new source is ignored; got {stale:?}"
+        !fresh.iter().any(|n| n.ends_with("Alpha")),
+        "stale declarations must not accompany the requested source; got {fresh:?}"
     );
+    let refused=h.send(serde_json::json!({"cmd":"parse","project_root":tmp.path(),"path":file,"source":SOURCE_V2}));
+    assert_eq!(refused["compilation_error"], true, "prepared ingestion must refuse mismatched bytes: {refused}");
+    assert!(refused["symbols"].as_array().is_none_or(Vec::is_empty), "a refused parse must not return declarations");
+    let baseline=h.symbol_names(&file,SOURCE_V1);
+    assert!(baseline.iter().any(|name|name.ends_with("Alpha")),"a one-off query must preserve the prepared baseline");
 
     let dropped = h.send(serde_json::json!({
         "cmd": "invalidate",
@@ -190,6 +264,8 @@ fn cached_tree_shadows_newer_source_until_invalidated() {
         fresh.iter().any(|n| n.ends_with("Beta")),
         "after invalidate the caller's source must be used; got {fresh:?}"
     );
+    h.send(serde_json::json!({"cmd":"shutdown"}));
+    assert!(h.child.wait().unwrap().success());
 }
 
 /// Invalidating one file must not tear down the rest of the project
@@ -207,7 +283,7 @@ fn invalidate_keeps_the_rest_of_the_project_warm() {
     std::fs::write(&a, SOURCE_V1).unwrap();
     std::fs::write(
         &b,
-        "Class Gadget\n  Public Sub Gamma()\n  End Sub\nEnd Class\n",
+        "Public Interface IContract\n Function Read() As Integer\nEnd Interface\n",
     )
     .unwrap();
 
@@ -223,17 +299,18 @@ fn invalidate_keeps_the_rest_of_the_project_warm() {
     }));
     assert_eq!(dropped["invalidated"].as_i64(), Some(1));
 
-    // b.vb was untouched, so its cached tree must still be there and still
-    // resolve. Sending deliberately different source proves the CACHE served
-    // it rather than a fresh single-file parse.
-    let names = h.symbol_names(
-        &b,
-        "Class Gadget\n  Public Sub Delta()\n  End Sub\nEnd Class\n",
-    );
-    assert!(
-        names.iter().any(|n| n.ends_with("Gamma")),
-        "b.vb must still be served from the warm compilation; got {names:?}"
-    );
+    // A caller in the invalidated file must still bind an interface declared
+    // only in the untouched peer. No stale request bytes are needed to test it.
+    let parsed=h.send(serde_json::json!({"cmd":"parse","path":a,
+        "source":"Public Class Widget\n Public Function Read(service As IContract) As Integer\n Return service.Read()\n End Function\nEnd Class\n"}));
+    let call=parsed["edges"].as_array().unwrap().iter().find(|edge|edge["kind"]=="calls").unwrap();
+    assert_eq!(call["target_name"],"IContract.Read");
+    let locator:serde_json::Value=serde_json::from_str(call["metadata"]["interface_call_target_v1"].as_str().unwrap()).unwrap();
+    assert_eq!(locator["file_path"],"b.vb","untouched peer declaration must stay available to semantic binding");
+    let remaining=h.send(serde_json::json!({"cmd":"invalidate","paths":[b]}));
+    assert_eq!(remaining["invalidated"],1);
+    h.send(serde_json::json!({"cmd":"shutdown"}));
+    assert!(h.child.wait().unwrap().success());
 }
 
 /// Invalidating a path the sidecar never cached is a no-op, not an error —

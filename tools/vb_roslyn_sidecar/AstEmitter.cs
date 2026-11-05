@@ -3,6 +3,10 @@ using Microsoft.CodeAnalysis.Text;
 using Microsoft.CodeAnalysis.VisualBasic;
 using Microsoft.CodeAnalysis.VisualBasic.Syntax;
 using System.Text.Json.Serialization;
+using System.Text.Json;
+using System.Security.Cryptography;
+using System.Text;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 
 internal sealed class AstEmitter
@@ -38,6 +42,10 @@ internal sealed class AstEmitter
     private RefreshPlan? _pendingPlan;
     private ulong _cacheEpoch;
     private ulong _nextPlan;
+    private sealed record SyntaxHash(string Value);
+    // Syntax trees are immutable. Weak keys reuse hashes across one prepared
+    // compilation without retaining trees from retired projects/revisions.
+    private readonly ConditionalWeakTable<SyntaxTree, SyntaxHash> _syntaxHashes = new();
     private sealed record RefreshPlan(CompilationPlanDto Receipt, string Root,
         List<(string Path, long Bytes)> Sources, ulong Epoch);
 
@@ -455,6 +463,83 @@ internal sealed class AstEmitter
         const string fileNode = "file";
         var isDesigner = path.EndsWith(".designer.vb", StringComparison.OrdinalIgnoreCase);
         var parseErrorCount = tree.GetDiagnostics().Count(d => d.Severity == DiagnosticSeverity.Error);
+        var interfaceBindingsProduced = 0;
+        var interfaceBindingsOmitted = 0;
+        string SyntaxSourceHash(SyntaxTree syntaxTree) => _syntaxHashes.GetValue(syntaxTree,
+            static key => new SyntaxHash(Convert.ToHexString(SHA256.HashData(
+                Encoding.UTF8.GetBytes(key.GetText().ToString()))).ToLowerInvariant())).Value;
+        string SemanticId(ISymbol symbol)
+        {
+            var id = symbol.OriginalDefinition.GetDocumentationCommentId();
+            return id is { Length: > 0 and <= 4096 } && !id.Any(char.IsControl) ? id : "";
+        }
+        string? ContractTypeKey(INamedTypeSymbol contract)
+        {
+            if (contract.OriginalDefinition.TypeParameters.Any(p => p.Variance != VarianceKind.None))
+                return null; // Assignability across variant contracts is not exact dispatch identity.
+            var key = new StringBuilder();
+            var observed = 0;
+            void Part(string value) => key.Append(value.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)).Append(':').Append(value);
+            bool Visit(ITypeSymbol type, int depth)
+            {
+                if (depth > 16 || ++observed > 64 || key.Length > 16 * 1024)
+                    return false;
+                if (type is IArrayTypeSymbol array)
+                {
+                    Part("array"); Part(array.Rank.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    return Visit(array.ElementType, depth + 1);
+                }
+                if (type is not INamedTypeSymbol named || named.TypeKind == TypeKind.Error || named.IsUnboundGenericType)
+                    return false; // Open type parameters need a substitution/constraint analysis.
+                var reference = DocumentationCommentId.CreateReferenceId(named.OriginalDefinition);
+                if (string.IsNullOrEmpty(reference)) return false;
+                Part("named"); Part(named.ContainingAssembly?.Identity.ToString() ?? ""); Part(reference);
+                Part(named.TypeArguments.Length.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                foreach (var argument in named.TypeArguments)
+                    if (!Visit(argument, depth + 1)) return false;
+                Part(named.ContainingType is null ? "root" : "nested");
+                return named.ContainingType is null || Visit(named.ContainingType, depth + 1);
+            }
+            return Visit(contract, 0) && key.Length <= 16 * 1024
+                ? Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key.ToString()))).ToLowerInvariant()
+                : null;
+        }
+
+        InterfaceMemberLocatorDto? SourceInterfaceMember(IMethodSymbol method)
+        {
+            var original = method.OriginalDefinition;
+            if (interfaceBindingsProduced >= 256 || original.ContainingType.TypeKind != TypeKind.Interface
+                || original.DeclaringSyntaxReferences.Length != 1
+                || original.ContainingType.DeclaringSyntaxReferences.Length != 1 || _projectRoot is null)
+                return null;
+            var syntax = original.DeclaringSyntaxReferences[0].GetSyntax();
+            if (syntax is not MethodStatementSyntax || syntax.Parent is not InterfaceBlockSyntax
+                || !_treesByPath.TryGetValue(syntax.SyntaxTree.FilePath, out var admittedTree)
+                || !ReferenceEquals(admittedTree, syntax.SyntaxTree))
+                return null;
+            var relative = Path.GetRelativePath(_projectRoot, syntax.SyntaxTree.FilePath).Replace('\\', '/');
+            var identity = SemanticId(original);
+            var name = original.ToDisplayString(BareQualifiedNameFormat);
+            var contractTypeKey = ContractTypeKey(method.ContainingType);
+            var contractDisplay = method.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            if (string.IsNullOrEmpty(identity) || identity.Length > 4096 || name.Length > 2048
+                || contractTypeKey is null || contractDisplay.Length > 2048
+                || relative.Length > 2048 || Path.IsPathRooted(relative)
+                || relative.Split('/').Any(part => part is "" or "." or "..")
+                || relative.Contains(':') || relative.Any(char.IsControl))
+                return null;
+            return new InterfaceMemberLocatorDto
+            {
+                Name = name, SemanticId = identity, FilePath = relative,
+                StartLine = Line(syntax.SyntaxTree, syntax),
+                SpanStart = syntax.SpanStart, SpanLength = syntax.Span.Length,
+                SyntaxSourceSha256 = SyntaxSourceHash(syntax.SyntaxTree),
+                ContractTypeKey = contractTypeKey, ContractType = contractDisplay,
+            };
+        }
+
+        string LocatorJson(InterfaceMemberLocatorDto locator) =>
+            JsonSerializer.Serialize(locator, AppJsonContext.Default.InterfaceMemberLocatorDto);
         symbols.Add(new SymbolDto
         {
             Name = "file_parse",
@@ -466,7 +551,9 @@ internal sealed class AstEmitter
                 ["fqn"] = "file",
                 ["parse_success"] = (parseErrorCount == 0).ToString().ToLowerInvariant(),
                 ["parse_error_count"] = parseErrorCount.ToString(),
-                ["is_designer"] = isDesigner.ToString().ToLowerInvariant()
+                ["is_designer"] = isDesigner.ToString().ToLowerInvariant(),
+                ["interface_member_contract"] = "1",
+                ["vb_syntax_source_sha256"] = SyntaxSourceHash(tree),
             }
         });
 
@@ -539,6 +626,9 @@ internal sealed class AstEmitter
                 case MethodBlockSyntax m:
                     EmitMethod(m, m.SubOrFunctionStatement, m.SubOrFunctionStatement.Identifier.Text, m.SubOrFunctionStatement.HandlesClause);
                     return;
+                case MethodStatementSyntax declaration when declaration.Parent is InterfaceBlockSyntax:
+                    EmitInterfaceMethod(declaration);
+                    return;
                 case ConstructorBlockSyntax ctor:
                     EmitMethod(ctor, ctor.SubNewStatement, "New", null);
                     return;
@@ -579,14 +669,80 @@ internal sealed class AstEmitter
             typeStartLines.Pop();
         }
 
+        void EmitInterfaceMethod(MethodStatementSyntax declaration)
+        {
+            var fqn = ComposeName(declaration.Identifier.Text);
+            var startLine = Line(tree, declaration);
+            var metadata = new Dictionary<string, string>
+            {
+                ["signature"] = declaration.WithoutTrivia().NormalizeWhitespace().ToFullString(),
+                ["interface_member_contract"] = "1",
+                ["interface_member_declaration"] = "true",
+                ["arity"] = (declaration.ParameterList?.Parameters.Count ?? 0).ToString(),
+                ["arity_min"] = (declaration.ParameterList?.Parameters.Count(p => !p.Modifiers.Any(m => m.IsKind(SyntaxKind.OptionalKeyword) || m.IsKind(SyntaxKind.ParamArrayKeyword))) ?? 0).ToString(),
+                ["arity_variadic"] = (declaration.ParameterList?.Parameters.Any(p => p.Modifiers.Any(m => m.IsKind(SyntaxKind.ParamArrayKeyword))) ?? false).ToString().ToLowerInvariant(),
+            };
+            if (model.GetDeclaredSymbol(declaration) is IMethodSymbol method)
+            {
+                metadata["semantic_member_id"] = SemanticId(method);
+                metadata["return_type"] = method.ReturnsVoid ? "Void" : method.ReturnType.ToDisplayString();
+                metadata["semantic_span_start"] = declaration.SpanStart.ToString();
+                metadata["semantic_span_length"] = declaration.Span.Length.ToString();
+            }
+            symbols.Add(new SymbolDto
+            {
+                Name = fqn, Kind = "function", StartLine = startLine,
+                EndLine = EndLine(tree, declaration), Metadata = metadata,
+            });
+            if (types.Count > 0)
+                edges.Add(Contains(types.Peek(), fqn, typeStartLines.Peek(), startLine, "function"));
+            // A contract declaration has no implementation body to collect.
+        }
+
         void EmitMethod(SyntaxNode node, MethodBaseSyntax stmt, string name, HandlesClauseSyntax? handles)
         {
             var fqn = ComposeName(name);
             var methodStartLine = Line(tree, node);
             var metadata = new Dictionary<string, string>();
             metadata["signature"] = stmt.WithoutTrivia().NormalizeWhitespace().ToFullString();
+            metadata["interface_member_contract"] = "1";
+            metadata["interface_dispatch_status"] = (stmt as MethodStatementSyntax)?.ImplementsClause is null
+                ? "no_explicit_contract" : "unknown";
+            metadata["interface_dispatch_omitted"] = "0";
             if (model.GetDeclaredSymbol(stmt) is IMethodSymbol declaredMethod)
             {
+                metadata["semantic_member_id"] = SemanticId(declaredMethod);
+                metadata["interface_member_contract"] = "1";
+                metadata["semantic_span_start"] = stmt.SpanStart.ToString();
+                metadata["semantic_span_length"] = stmt.Span.Length.ToString();
+                var explicitClause = (stmt as MethodStatementSyntax)?.ImplementsClause;
+                var declaredTargets = declaredMethod.ExplicitInterfaceImplementations;
+                var omitted = 0;
+                foreach (var contract in declaredTargets.Take(16))
+                {
+                    var locator = SourceInterfaceMember(contract);
+                    if (locator is null || metadata["semantic_member_id"].Length == 0)
+                    { omitted++; interfaceBindingsOmitted++; continue; }
+                    interfaceBindingsProduced++;
+                    edges.Add(new EdgeDto
+                    {
+                        SourceName = fqn, SourceKind = "function", SourceStartLine = methodStartLine,
+                        SourceLanguage = "vb", TargetName = locator.Name, TargetKind = "function",
+                        TargetStartLine = locator.StartLine, Kind = "implements_interface",
+                        Metadata = new()
+                        {
+                            ["interface_member_mapping_v1"] = LocatorJson(locator),
+                            ["implementation_semantic_id"] = metadata["semantic_member_id"],
+                            ["implementation_clause_line"] = Line(tree, (SyntaxNode?)explicitClause ?? stmt).ToString(),
+                        },
+                    });
+                }
+                var excess = Math.Max(0, declaredTargets.Length - 16);
+                omitted += excess;
+                interfaceBindingsOmitted += excess;
+                metadata["interface_dispatch_status"] = omitted > 0 || (explicitClause is not null && declaredTargets.IsEmpty)
+                    ? "unknown" : declaredTargets.IsEmpty ? "no_explicit_contract" : "source_mapped";
+                metadata["interface_dispatch_omitted"] = omitted.ToString();
                 metadata["access_level"] = declaredMethod.DeclaredAccessibility switch
                 {
                     Accessibility.Public => "Public",
@@ -693,6 +849,28 @@ internal sealed class AstEmitter
                 var targetName = ResolveInvocationName(inv);
                 var callSiteLine = Line(tree, inv);
                 var invocationMetadata = ResolveInvocationMetadata(inv) ?? new Dictionary<string, string>();
+                if (model.GetSymbolInfo(inv).Symbol is IMethodSymbol calledMethod
+                    && calledMethod.ContainingType.TypeKind == TypeKind.Interface)
+                {
+                    var locator = SourceInterfaceMember(calledMethod);
+                    invocationMetadata["interface_call_status"] = locator is null ? "unknown" : "source_located";
+                    if (locator is not null)
+                    {
+                        interfaceBindingsProduced++;
+                        invocationMetadata["interface_call_target_v1"] = LocatorJson(locator);
+                    }
+                    else { interfaceBindingsOmitted++; }
+                }
+                else if (model.GetSymbolInfo(inv).CandidateSymbols.OfType<IMethodSymbol>()
+                    .Any(candidate => candidate.ContainingType.TypeKind == TypeKind.Interface)
+                    || (inv.Expression is MemberAccessExpressionSyntax access
+                        && model.GetTypeInfo(access.Expression).Type?.TypeKind == TypeKind.Interface))
+                {
+                    // An ambiguous interface call must not enter Rust's
+                    // generic name/arity resolver as an ordinary call.
+                    invocationMetadata["interface_call_status"] = "unknown";
+                    interfaceBindingsOmitted++;
+                }
                 invocationMetadata["call_site_line"] = callSiteLine.ToString();
                 // TODO-13: argument count lets the resolver prefer the
                 // matching overload instead of the first name hit.
@@ -1260,6 +1438,9 @@ internal sealed class AstEmitter
         }
 
         Walk(root);
+        symbols[0].Metadata!["interface_bindings_produced"] = interfaceBindingsProduced.ToString();
+        symbols[0].Metadata!["interface_bindings_omitted"] = interfaceBindingsOmitted.ToString();
+        symbols[0].Metadata!["interface_binding_scope"] = "bounded_explicit_vb_source_methods; open/variant generic, partial-interface, implicit, inherited and property dispatch not assessed";
 
         string ComposeName(string terminal)
         {
