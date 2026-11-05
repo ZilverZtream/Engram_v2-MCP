@@ -327,3 +327,120 @@ fn code_map_safety_actions_disclose_unassessed_state_and_cancellation_without_lo
     owned.close()?;
     Ok(())
 }
+
+#[test]
+fn unbound_same_terminal_calls_are_inspectable_without_becoming_primary_callers() -> Result<()> {
+    fn target_id(report: &Value) -> Option<&str> {
+        report["target"]["node_id"].as_str().or_else(|| report["nodes"].as_array()?
+            .iter().find(|row| row["ref"] == report["target_ref"])?["node_id"].as_str())
+    }
+    let owned = tempfile::TempDir::new()?;
+    let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build()?;
+    runtime.block_on(async {
+        const OTHER: &str = "src/images/unrelated.ts";
+        const ROOT_SOURCE: &str = "class Image {\n resetState() {}\n deleteOne() { this.resetState(); }\n reload() { this.resetState(); }\n openImage() { this.resetState(); }\n}\n";
+        const OTHER_SOURCE: &str = "class Other {\n resetState() {}\n probe(other: any) { other.resetState(); }\n}\n";
+        for (file, text) in [(IMAGE, ROOT_SOURCE), (GROUP, GROUP_BODY), (OTHER, OTHER_SOURCE)] {
+            let path = owned.path().join("repo").join(file);
+            std::fs::create_dir_all(path.parent().unwrap())?;
+            std::fs::write(path, text)?;
+        }
+        let app = open(owned.path()).await?;
+        let indexed = app.handle_index_project(serde_json::from_value(json!({
+            "directory":owned.path().join("repo"),"project_name":"Unbound inspection",
+            "project_type":"general","wait":true
+        }))?).await?;
+        ensure!(indexed.is_error != Some(true));
+        settle(&app).await?;
+        let pid = app.state.registry.list_projects()?[0].project_id.clone();
+        let nodes = app.state.graph.query_nodes(&pid, Some("function"), None, None, 32)?;
+        let named = |file: &str, name: &str| nodes.iter()
+            .find(|node| node.file_path.as_str() == file && node.name == name).unwrap();
+        let target = named(IMAGE, "resetState");
+        let group_caller = named(GROUP, "clear");
+        let other_caller = named(OTHER, "probe");
+        let stored = app.state.graph.list_edges(&pid, Some(EdgeKind::Calls))?;
+        let primary: std::collections::BTreeSet<_> = stored.iter().filter(|edge| edge.target_id == target.node_id)
+            .map(|edge| edge.source_id.as_str()).collect();
+        let wanted: std::collections::BTreeSet<_> = ["deleteOne", "reload", "openImage"]
+            .map(|name| named(IMAGE, name).node_id.as_str()).into_iter().collect();
+        ensure!(primary == wanted && primary.len() == 3);
+        let before = serde_json::to_value(app.state.graph.list_edges(&pid, None)?)?;
+        check_receivers(&app, &pid)?;
+        for tool in ["impact_analysis", "compute_blast_radius"] {
+            for detail in ["summary", "graph"] {
+                let mut arguments = json!({"project_id":pid,"symbol_fqn":target.node_id,
+                    "max_depth":6,"detail":detail,"include_guidance":false});
+                let reply = if tool == "compute_blast_radius" {
+                    app.handle_compute_blast_radius(serde_json::from_value(arguments)?).await?
+                } else {
+                    arguments.as_object_mut().unwrap().remove("include_guidance");
+                    app.handle_impact_analysis(serde_json::from_value(arguments)?).await?
+                };
+                ensure!(reply.is_error != Some(true));
+                let text = &reply.content[0].as_text().unwrap().text;
+                ensure!(text.len() <= if detail == "summary" { 12 * 1024 } else { 64 * 1024 });
+                let mut report = packet(text);
+                ensure!(report["target_revision_admitted"] == true && target_id(&report) == Some(target.node_id.as_str()));
+                ensure!(report["selected_dependents_observed"] == 3);
+                let generation = report["source_generation"].clone();
+                if report["unbound_member_call_inspection"]["candidates"].as_array().map_or(0, Vec::len) != 2 {
+                    ensure!(detail == "summary", "Full graph must retain the small witness fixture: {report}");
+                    let next = &report["graph_continuation"];
+                    ensure!(next["tool"] == "impact_analysis");
+                    let expanded = app.handle_impact_analysis(serde_json::from_value(next["arguments"].clone())?).await?;
+                    ensure!(expanded.is_error != Some(true));
+                    let expanded = &expanded.content[0].as_text().unwrap().text;
+                    ensure!(expanded.len() <= 64 * 1024);
+                    report = packet(expanded);
+                    ensure!(report["source_generation"] == generation && report["selected_dependents_observed"] == 3);
+                }
+                let inspection = &report["unbound_member_call_inspection"];
+                ensure!(inspection["scope"].as_str().unwrap().contains("does not bind"));
+                let candidates = inspection["candidates"].as_array().unwrap();
+                ensure!(candidates.len() == 2);
+                for (caller, receiver, lines, text) in [
+                    (group_caller, "h", json!([7,8]), GROUP_BODY),
+                    (other_caller, "other", json!([3]), OTHER_SOURCE),
+                ] {
+                    let row = candidates.iter().find(|row| row["caller"]["node_id"] == caller.node_id).unwrap();
+                    ensure!(row["caller"]["file_path"] == caller.file_path.as_str() && row["caller"]["generation"] == caller.generation);
+                    ensure!(row["receiver"] == receiver && row["reference_lines"] == lines);
+                    let unresolved = row["unresolved_target_id"].as_str().unwrap();
+                    ensure!(unresolved.starts_with(engram_graph::store::UNBOUND_RECEIVER_PREFIX)
+                        && unresolved.ends_with(&format!("{receiver}.resetState")));
+                    ensure!(matches!(app.state.graph.resolve_symbol(&pid, unresolved, None, None)?, engram_graph::store::ResolveResult::NotFound));
+                    let actions = row["actions"].as_array().unwrap();
+                    let read = actions.iter().find(|action| action["tool"] == "get_full_method_body").unwrap();
+                    let read = app.handle_get_full_method_body(serde_json::from_value(read["arguments"].clone())?).await?;
+                    ensure!(read.is_error != Some(true));
+                    let read: Value = serde_json::from_str(&read.content[0].as_text().unwrap().text)?;
+                    ensure!(read["file_path"] == caller.file_path.as_str() && read["source_file_hash_algorithm"] == "blake3");
+                    ensure!(read["source_file_hash"] == blake3::hash(text.as_bytes()).to_hex().to_string());
+                    ensure!(read["source_code"].as_str().unwrap().contains(&format!("{receiver}.resetState()")));
+                    let context = actions.iter().find(|action| action["tool"] == "get_method_edit_context").unwrap();
+                    let context = app.handle_get_method_edit_context(serde_json::from_value(context["arguments"].clone())?).await?;
+                    ensure!(context.is_error != Some(true));
+                    let context: Value = serde_json::from_str(&context.content[0].as_text().unwrap().text)?;
+                    ensure!(context["method_info"]["file_path"] == caller.file_path.as_str()
+                        && context["method_info"]["line_start"] == caller.start_line);
+                    let impact = actions.iter().find(|action| action["tool"] == "impact_analysis").unwrap();
+                    ensure!(impact["arguments"]["symbol_fqn"] == caller.node_id);
+                    let impact = app.handle_impact_analysis(serde_json::from_value(impact["arguments"].clone())?).await?;
+                    ensure!(impact.is_error != Some(true));
+                    let impact = packet(&impact.content[0].as_text().unwrap().text);
+                    ensure!(impact["target_revision_admitted"] == true && target_id(&impact) == Some(caller.node_id.as_str())
+                        && impact["source_generation"] == generation);
+                }
+            }
+        }
+        ensure!(before == serde_json::to_value(app.state.graph.list_edges(&pid, None)?)?);
+        check_receivers(&app, &pid)?;
+        settle(&app).await?;
+        drop(app);
+        Ok::<(), anyhow::Error>(())
+    })?;
+    drop(runtime);
+    owned.close()?;
+    Ok(())
+}

@@ -479,6 +479,13 @@ fn summary_section(
             if !fits(&value) { value["potential_interface_callers"].as_object_mut().unwrap().remove("configuration_inspection_actions_omitted"); }
         }
     }
+    if let Some(inspection) = full.get("unbound_member_call_inspection") {
+        append_unbound_inspection(&mut value, inspection, &fits);
+    }
+    if let Some(omitted) = full.get("unbound_member_call_inspection_omitted") {
+        value["unbound_member_call_inspection_omitted"] = omitted.clone();
+        if !fits(&value) { value.as_object_mut().unwrap().remove("unbound_member_call_inspection_omitted"); }
+    }
     if let Some(inspection) = full.get("terminal_member_inspection") {
         value["terminal_member_inspection"] = inspection.clone();
         if !fits(&value) {
@@ -877,6 +884,85 @@ fn render_interface_dispatch(walk: &IncomingImpactWalk, project: &str) -> Value 
     value["frontier_omitted"]=json!(dispatch.frontier.len()-frontier.len()+dispatch.coverage.frontier_omitted);
 
     value
+}
+
+fn render_unbound_inspection(walk: &IncomingImpactWalk, project: &str) -> Option<Value> {
+    let inspection = walk.unbound_member_inspection.as_ref()?;
+    let mut value = json!({"status":"partial_same_terminal_syntax_inspection",
+        "scope":"Recorded unresolved member syntax in the target directory's canonical JS/TS function IDs. This does not bind a receiver/callee or add primary callers. Other directories, older/noncanonical producers, type/alias/dispatch coverage and runtime behavior remain unassessed. Empty or capped results prove no absence.",
+        "directory":inspection.directory,"member_name":inspection.member_name,
+        "coverage":inspection.coverage,"decoded_bytes":inspection.decoded_bytes,
+        "raw_row_limit":inspection.raw_row_limit,"undecoded_lookahead_observed":inspection.lookahead_observed,
+        "raw_keys_observed":inspection.raw_keys_observed,
+        "scoped_prefix_exhausted":inspection.scoped_prefix_exhausted,"witness_limit":inspection.witness_limit,
+        "distinct_callers_observed":inspection.coverage.nodes_observed,
+        "witnesses_retained":inspection.witnesses.len(),
+        "additional_witnesses_omitted_lower_bound":inspection.witnesses_omitted_lower_bound,
+        "candidates":[],"candidates_omitted_from_display":inspection.witnesses.len()});
+    let mut rows = Vec::new();
+    for witness in &inspection.witnesses {
+        let caller = &witness.caller;
+        if !recovery_path(caller.file_path.as_str()) || caller.start_line == 0 || caller.end_line < caller.start_line { continue; }
+        let start = witness.reference_lines.first().copied().unwrap_or(caller.start_line)
+            .saturating_sub(2).max(caller.start_line);
+        let end = caller.end_line.min(start.saturating_add(79));
+        let mut context = json!({"project_id":project,"file_path":caller.file_path,"method_name":caller.name.rsplit('.').next().unwrap_or(&caller.name),
+            "line":caller.start_line,"include_history":false,"include_business_logic":false,"include_full_body":false,
+            "include_caller_bodies":false,"max_callers":2,"output_json":true});
+        if let Some((prefix, _)) = caller.name.rsplit_once('.') {
+            context["class_name"] = json!(prefix.rsplit('.').next().unwrap_or(prefix));
+        }
+        let row = json!({"caller":{"node_id":caller.node_id,"name":caller.name,"file_path":caller.file_path,
+                "generation":caller.generation,"start_line":caller.start_line,"end_line":caller.end_line},
+            "unresolved_target_id":witness.unresolved_target_id,"receiver":witness.receiver,
+            "receiver_scope":"Producer's bounded receiver hint; inspect source for the full expression",
+            "edge_generation":witness.edge_generation,"source_position_kind":witness.source_position_kind,
+            "reference_lines":witness.reference_lines,"reference_lines_truncated":witness.reference_lines_truncated,
+            "reference_samples_outside_context":witness.reference_lines.iter().filter(|line| **line < start || **line > end).count(),
+            "actions":[
+                {"tool":"get_full_method_body","arguments":{"project_id":project,"file_path":caller.file_path,
+                    "line_start":start,"line_end":end,"context_lines":0,"output_json":true}},
+                {"tool":"get_method_edit_context","arguments":context},
+                {"tool":"impact_analysis","arguments":{"project_id":project,"symbol_fqn":caller.node_id,
+                    "max_depth":6,"limit":12,"detail":"summary"}}]});
+        if serde_json::to_vec(&row).expect("JSON serialization").len() > 4096 { continue; }
+        rows.push(row); value["candidates"] = json!(&rows);
+        if serde_json::to_vec(&value).expect("JSON serialization").len() > 8 * 1024 {
+            rows.pop(); value["candidates"] = json!(&rows); break;
+        }
+    }
+    value["candidates_omitted_from_display"] = json!(inspection.witnesses.len() - rows.len());
+    Some(value)
+}
+
+/// Optional inspection never displaces canonical consumers, interface routes
+/// or unknown frontiers. Keep exact omission counts when the descriptor fits;
+/// the ordinary graph continuation remains available when it does not.
+fn append_unbound_inspection(value: &mut Value, inspection: &Value, fits: &dyn Fn(&Value) -> bool) {
+    let mut projected = inspection.clone();
+    projected["candidates"] = json!([]);
+    let omitted = inspection["candidates_omitted_from_display"].as_u64().unwrap_or(0);
+    let candidates = inspection["candidates"].as_array().cloned().unwrap_or_default();
+    projected["candidates_omitted_from_display"] = json!(omitted + candidates.len() as u64);
+    value["unbound_member_call_inspection"] = projected;
+    if !fits(value) {
+        value.as_object_mut().unwrap().remove("unbound_member_call_inspection");
+        value["unbound_member_call_inspection_omitted"] = json!(true);
+        if !fits(value) { value.as_object_mut().unwrap().remove("unbound_member_call_inspection_omitted"); }
+        return;
+    }
+    let mut retained = Vec::new();
+    for candidate in candidates.iter() {
+        retained.push(candidate.clone());
+        value["unbound_member_call_inspection"]["candidates"] = json!(&retained);
+        value["unbound_member_call_inspection"]["candidates_omitted_from_display"] = json!(omitted + (candidates.len() - retained.len()) as u64);
+        if !fits(value) {
+            retained.pop();
+            value["unbound_member_call_inspection"]["candidates"] = json!(&retained);
+            value["unbound_member_call_inspection"]["candidates_omitted_from_display"] = json!(omitted + (candidates.len() - retained.len()) as u64);
+            break;
+        }
+    }
 }
 
 fn render(
@@ -1279,6 +1365,9 @@ fn render(
                 break;
             }
         }
+    }
+    if let Some(inspection) = render_unbound_inspection(walk, project) {
+        append_unbound_inspection(&mut value, &inspection, &|value| section(value).len() <= RESPONSE_BYTES);
     }
     // Optional source discovery comes after canonical evidence. A terminal
     // mention can recover an unassessed receiver, never establish its callee.
