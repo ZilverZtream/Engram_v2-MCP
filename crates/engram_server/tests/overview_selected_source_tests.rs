@@ -477,6 +477,9 @@ fn overview_reports_unknown_legacy_file_coverage_without_fabricating_zero_or_cur
         let legacy=navigation(&report);
         assert_eq!(legacy["coverage"]["managed_source"],false);
         assert_eq!(legacy["coverage"]["matching_files"],Value::Null);
+        let scoped=navigation_text(&engram,json!({"project_id":PID,"scope":A})).await;
+        assert!(navigation(&scoped).get("detail").is_none(),"Legacy unknown membership is not an exact-file observation");
+        assert!(scoped.contains("--- File Types") && scoped.contains("no file percentages calculated"));
         let request=json!({"project_id":PID,"scope":A,"symbol_node_id":format!("sym:function:{A}:Run:1")});
         let error=engram.handle_get_codebase_overview(serde_json::from_value(request).unwrap()).await.unwrap_err();
         assert!(error.message.contains("exact selected-file scope"),
@@ -755,7 +758,34 @@ fn codemap_navigation_case(crowded: bool) {
         assert_eq!(policy["physical_generation"], 1);
         let file_action=policy["actions"].as_array().unwrap().iter()
             .find(|action|action["tool"]=="get_codebase_overview").unwrap();
-        let first_page=navigate(&engram,file_action["arguments"].clone()).await;
+        let first_text=navigation_text(&engram,file_action["arguments"].clone()).await;
+        assert!(!first_text.contains("--- File Types") && !first_text.contains("--- Language Breakdown"));
+        let first_page=navigation(&first_text);
+        assert_eq!(first_page["detail"],"exact_file");
+        assert!(first_page["areas"].as_array().unwrap().is_empty());
+        assert!(first_page.get("other_inventories").is_none());
+        let mut retained_file=file_action["arguments"].clone();
+        retained_file["include_retained_context"]=json!(true);
+        let retained_text=navigation_text(&engram,retained_file).await;
+        let retained_page=navigation(&retained_text);
+        assert!(retained_text.contains("--- File Types") && retained_text.contains("--- Retained Corpus Inventory"));
+        assert_eq!(first_page["files"],retained_page["files"],"Compact file navigation must retain every declaration, source action and continuation");
+        for flag in ["managed_source","matching_files","inspected_file_identities","scan_truncated","area_sample_truncated","representative_sample","declarations"] {
+            assert_eq!(first_page["coverage"][flag],retained_page["coverage"][flag]);
+        }
+        let small=navigation_text(&engram,json!({"project_id":PID,"scope":JOB,"limit":1})).await;
+        assert!(small.len()<4*1024,"A two-declaration inspection must leave task context: {}bytes",small.len());
+        assert_eq!(navigation(&small)["files"][0]["symbols"].as_array().unwrap().len(),2);
+        let single_file_area=navigation_text(&engram,json!({"project_id":PID,"scope":"src/bbb-jobs","limit":1})).await;
+        assert!(single_file_area.contains("--- File Types"),"A directory with one selected file still needs area/project distributions");
+        assert!(navigation(&single_file_area).get("detail").is_none());
+        for scope in [PRIVATE,FUTURE,"src/missing.rs"] {
+            let empty=navigation_text(&engram,json!({"project_id":PID,"scope":scope,"exclude_paths":[PRIVATE]})).await;
+            let empty_page=navigation(&empty);
+            assert!(empty_page["files"].as_array().unwrap().is_empty());
+            assert!(empty_page.get("detail").is_none(),"Unobserved paths must not become exact-file matches");
+            assert!(empty.contains("--- File Types"),"Unobserved scope keeps the ordinary overview's explicit coverage");
+        }
         let first_policy=&first_page["files"][0];
         assert_eq!(first_policy["symbols"].as_array().unwrap().len(),16);
         for symbol in first_policy["symbols"].as_array().unwrap() {
@@ -770,7 +800,10 @@ fn codemap_navigation_case(crowded: bool) {
         assert_eq!(continuation["tool"],"get_codebase_overview");
         assert_eq!(continuation["arguments"]["scope"],POLICY);
         assert_eq!(continuation["arguments"]["exclude_paths"],json!(["Site/Q",PRIVATE]));
-        let later_page=navigate(&engram,continuation["arguments"].clone()).await;
+        let later_text=navigation_text(&engram,continuation["arguments"].clone()).await;
+        let later_page=navigation(&later_text);
+        assert_eq!(later_page["detail"],"exact_file");
+        assert!(!later_text.contains("--- File Types") && !later_text.contains("--- Language Breakdown"));
         assert_eq!(later_page["source_generation"],1);
         let policy=&later_page["files"][0];
         assert_eq!(policy["path"],POLICY);
@@ -848,8 +881,9 @@ fn codemap_navigation_case(crowded: bool) {
             assert_eq!(source["source_code"].as_str().unwrap().trim(),POLICY_TEXT.trim());
             assert!(source["freshness"]["interpretation"].as_str().unwrap().contains("call-binding"));
             let normal=navigation_text(&engram,file["actions"][0]["arguments"].clone()).await;
-            assert!(normal.contains("--- File Types") && normal.contains("--- Language Breakdown"),
-                "The compact response must retain a literal route to the normal file overview");
+            assert_eq!(navigation(&normal)["detail"],"exact_file");
+            assert_eq!(navigation(&normal)["files"][0]["symbols"].as_array().unwrap().len(),16,
+                "The exact-symbol file action must retain normal declaration paging");
             let mut retained_request=select(&wanted_id);
             retained_request["include_retained_context"]=json!(true);
             let retained=navigation_text(&engram,retained_request).await;
@@ -1176,6 +1210,9 @@ fn codemap_and_both_impact_tools_recover_selected_sql_with_zero_declaration_boun
             .publish_source_head(&before, 1)
             .unwrap();
         let map = navigate(&engram, json!({"project_id":PID,"scope":SQL})).await;
+        assert_eq!(map["detail"],"exact_file");
+        assert!(map["files"][0]["symbols"].as_array().unwrap().is_empty());
+        assert!(map["limitations"].to_string().contains("current-file excerpts"));
         let mut actions = vec![
             map["files"][0]["actions"]
                 .as_array()

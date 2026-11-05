@@ -9178,9 +9178,39 @@
       ],
       "goal_complete": false,
       "original_full19gates_closed": false
+    },
+    "file_codemap_potential_exposure_delta_20261105": {
+      "status": "PASS_FOCUSED_CORE_TOOL_BEHAVIOR_REVIEWED_NOT_YET_DEPLOYED",
+      "at_utc": "2026-11-05T11:02:47.776520+00:00",
+      "focused_receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\file-codemap-potential-exposure-behavior-20261105.json",
+        "sha256": "5e7560e6b7c36970aca4bd9846b0a45151831a040ef071273a0019aa17b66d26"
+      },
+      "cases": {
+        "overview": 6,
+        "transitive_impact": 14,
+        "native_interface": 2
+      },
+      "native_test_companion": {
+        "environment": "ENGRAM_VB_SIDECAR_PATH explicitly set for the owned focused runner",
+        "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\sidecar\\vb_roslyn_sidecar-win-x64.exe",
+        "sha256": "1ea10be7e93e9d600af0a83afbdbb1dbd9804a63e37aed65be758156291fe1b9"
+      },
+      "independent_review": [
+        "interface_gap_diagnosis: CodeMap",
+        "return_proposal_consumer: Blast"
+      ],
+      "wanted_behavior": [
+        "Exact selected-file pages keep declaration/source/continuation payloads while omitting unrelated global tables/work. Root/area, legacy uncertainty and retained context remain explicit.",
+        "Separate admitted/potential observed counts appear before graph JSON; unadmitted roots say unknown. Summary bounds and full graph facts remain unchanged.",
+        "include_guidance=false skips the whole optional legacy advisory; true/default compatibility, footer and held-source lifetime preserved."
+      ],
+      "scope": "Response-only core-tool delta. No parser/native/storage format or source-data mutation. Actual candidate/install/normal agent acceptance pending; initial earlier15s timeout remains unlocated, not declared fixed.",
+      "goal_complete": false,
+      "original_full19gates_closed": false
     }
   },
-  "last_updated_at": "2026-11-05T10:49:20.949038+00:00",
+  "last_updated_at": "2026-11-05T11:02:47.776520+00:00",
   "current_execution_focus": {
     "at_utc": "2026-11-05T08:29:39.390790+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",

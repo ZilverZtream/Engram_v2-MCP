@@ -157,9 +157,17 @@ fn immediate_section(value: &Value, include_references: bool) -> Option<String> 
 }
 
 fn section(value: &Value) -> String {
+    let count=|number:Option<u64>|number.map(|n|n.to_string()).unwrap_or_else(||"unknown".into());
+    let admitted=if value["target_revision_admitted"]==true {
+        value["selected_dependents_observed"].as_u64()
+    }else{None};
+    let dispatch=&value["potential_interface_callers"];
     format!(
-        "{}\n## Revision-admitted change impact\n\nIndexed causal paths under the named source selection; not a proposed-change simulation, runtime proof or safe-change verdict.\n\n```json\n{}\n```\n",
+        "{}\nAdmitted indexed dependents: {}. Separate potential interface callers: {} ({} recorded routes).\nBounded static observations; no absence, runtime binding or overall risk verdict.\n\n## Revision-admitted change impact\n\nIndexed causal paths under the named source selection; not a proposed-change simulation, runtime proof or safe-change verdict.\n\n```json\n{}\n```\n",
         immediate_section(value, true).unwrap_or_default(),
+        count(admitted),
+        count(dispatch["distinct_callers_observed"].as_u64()),
+        count(dispatch["routes_observed"].as_u64()),
         serde_json::to_string(value).expect("JSON value serialization")
     )
 }

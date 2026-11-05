@@ -18,14 +18,14 @@ Engram MCP v2 keeps v1 tool names and basic intent, with expanded parameters.
 - `get_chunk(project_id, chunk_id, namespace="memory")`
 - `graph_search(project_id, query, max_results=10, symbol_boost=0.1, namespace="memory", fts_mode="strict", use_mmr=false, hop_depth=1, include_content=false, max_content_chars=400, expansion_edge_kinds=null)` — hybrid text + graph symbol name matching with multi-edge neighbor expansion, configurable FTS modes (strict/loose/regex), MMR diversity, and content preview
 - `find_symbol_references(project_id, symbol_name, max_incoming=200, max_outgoing_per_kind=50, edge_kind_filter=null, file_scope=null)` — all-edge-kind graph lookup with FQN suffix matching, incoming/outgoing grouping by edge kind, edge kind and file scope filters, lexical fallback
-- `get_codebase_overview(project_id)` — language breakdown, symbol-type aggregation, edge-kind distribution, architectural layers, PageRank, DB tables, state keys, temporal couplings, dead code detection, test coverage stats
+- `get_codebase_overview(project_id, scope=null, exclude_paths=[], symbol_offset=0, symbol_node_id=null, include_retained_context=false)` ? bounded navigation under one held published source selection. Root/area overviews retain project file/chunk proportions with separate denominators; exact selected-file pages omit global tables and retain16 admitted declarations, source actions and `next_symbols`. Exact-symbol selection expands that declaration?s actions. Retained context is opt-in. Directory groups are source layout, not runtime architecture; follow actions and verify current source.
 - `analyze_error_stack(project_id, traceback, top_k=10)` — multi-language structured stacktrace parser with frame-boosted search
 
 ## Knowledge Graph
 - `query_graph_nodes(project_id, query, top_k=10)`
 - `find_references(project_id, node_id, top_k=10)`
 - `traverse_graph(project_id, start_node, depth=3)`
-- `impact_analysis(project_id, file_or_symbol, max_depth=3)`
+- `impact_analysis(project_id, file_path=null, symbol_fqn=null, max_depth=6, detail="graph")` ? bounded revision-admitted reverse dependency evidence, with canonical identities, source positions, uncertainty frontiers and literal recovery actions. Choose either file or symbol. Potential interface callers and historical co-change remain separate from admitted causal counts; neither proves runtime dispatch or change safety. `detail="summary"` returns bounded12KiB source-navigation evidence with graph expansion.
 - `ast_dependency_graph(project_id, entry, max_depth=6, direction="outgoing", compile_time_only=false, output_json=false)` — BFS graph traversal from an entry node with configurable direction (outgoing/incoming/both), compile-time edge filtering, and JSON or text tree output
 
 ## Git/history
@@ -71,7 +71,7 @@ Engram MCP v2 keeps v1 tool names and basic intent, with expanded parameters.
 ## Safety & Autonomous Decision
 - `evaluate_safety(project_id, affected_files, refactor_type, impact_node_count, impact_confidence, test_coverage, anti_pattern_clear, downstream_dependents, touches_global_state, touches_database)` — policy gate that blocks high-risk refactors unless confidence/coverage thresholds are met; returns go/no-go decision with risk level, individual check results, and suggested mitigations
 - `get_extraction_confidence(project_id, extraction_type, source_content, codebehind_content=null)` — WebForms extraction confidence scoring for event_wiring / sql_trace / control_binding; returns 0.0–1.0 score with individual signal breakdown
-- `compute_blast_radius(project_id, file_path=null, symbol_fqn=null, include_guidance=true)` — migration complexity score (1–10) with event wiring, SQL, PageRank, state coupling, GIS, and script injection sub-scores; returns seam candidates and agentic guidance
+- `compute_blast_radius(project_id, file_path=null, symbol_fqn=null, max_depth=6, detail="graph", include_guidance=true)` ? the same revision-admitted dependency evidence as `impact_analysis`, foregrounding separate admitted and potential-interface counts. Graph mode can additionally include an unverified one-hop complexity advisory; `include_guidance=false` omits that profile and worker. Default true retains the separate advisory for compatibility. Summary always omits the advisory/history workers. No score or count proves exhaustive impact, runtime binding or a safe proposed edit.
 - `detect_design_patterns(project_id, pattern_filter=[], limit=50)` — detects God Object, Spaghetti Code, Session Soup and other anti-patterns using graph topology
 - `autonomous_decision_gate(project_id, proposed_change, target_files, risk_profile="medium", require_runtime_evidence=false, output_json=false, extraction_confidence=null, immune_verdict=null, trace_used_fallback=false, trace_candidate_count=0, has_runtime_evidence=false)` — mandatory 8-gate verification pipeline (extraction confidence, trace certainty, safety policy, retrieval quality, blast radius, anti-pattern, runtime evidence, evidence sufficiency) returning allow/deny/abstain verdict with machine-readable failed gate IDs and required follow-ups
 
