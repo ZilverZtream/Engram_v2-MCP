@@ -9472,9 +9472,13 @@
     "post_publication_native_purge_attribution": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\update-stage-delivery-and-native-query-attribution-20261105.json",
       "sha256": "b921c4bcafb6dce865dc25a936cb0ddcfd2967eaeeb0da1bdeeb293a5a821a4a"
+    },
+    "bounded_native_membership_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\bounded-native-membership-delivery-outcome-20261105.json",
+      "sha256": "32c2618567ca708bccc6af9251f6964e09892af06b934c4ae685046c9639ee0a"
     }
   },
-  "last_updated_at": "2026-11-05T18:29:48.334062+00:00",
+  "last_updated_at": "2026-11-05T19:35:01.598996+00:00",
   "current_execution_focus": {
     "at_utc": "2026-11-05T17:36:01.623154+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
@@ -9507,7 +9511,7 @@
       }
     ],
     "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
-    "next_user_visible_deliverable": "Bound old-source candidate metadata reads and test exact protected physical membership in Rust, then delete only independently identified obsolete revisions. Preserve current/held readers, future rows, same commit/epoch ownership, completeEOF/failure refusal, no-op native versions and namespace retention. Validate before deployment and retry same512MiB workload; do not reset or relax the target.",
+    "next_user_visible_deliverable": "Reduce demonstrated App_Code full-edge retention using one whole-project validating scan and compact identities/candidate retention, preserving Dependency-before-Calls planning, all node/alias/arity candidates, full metadata/CAS/retraction and unrelated-corruption refusal; then retry unchanged512MiB sustained-edit guard. Preserve CodeMap/Blast priority,original31/full19 and parked work.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9520,8 +9524,8 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "f054cc7pushedorigin/master,deployed64e039/manifest2e7c74.67focusedcases,classifiedold/candidatereadercomparison,current3128CodeMap/Blast+2309/2309pathcoveragepassed. Oneownededit+7knowncatchupsstoppedat782MiBmemoryalert;fixturecleaned/retired,300notes/other14/nonfixturecontentpreserved. Freshness2.36speak694MiB stillresourcefailure. No fullgoal/gatecompletion.",
-    "previous_goal_turn_classification": "PROGRESS:logging-only29line delta shipped after2focusedwatcherbehaviors; exact nativepurge spike localized and read-only SELECTcases reproduced highmemory with no data changes. No optimization/gate/whole-goal closure claimed; next source work targets global native membership filtering.",
+    "latest_completed_core_batch": "46d8487pushedorigin/master,deployed4afbdab/manifestde7782.26focuseddesired-behaviorcasespassed; currenthead3130coldcore/coverage/300notes/other14preserved,freshnesspeak149114880B/0.878s. Actualwatch3130->3131->3132nativepurge93/235ms, fixturecleaned,allpreservationpassed;512MiBguardfailedlaterAppCode580276224B,so7editplanstopped1. No sustained/gate/wholegoalcompletion.",
+    "previous_goal_turn_classification": "PROGRESS:two related native query/write allocation fixes plus actual worker epoch retention delivered;26focusedcasespassed,pushedmaster,deployed,coldfreshnessnow142MiB. RealwatchprovednativepurgeimprovementandremainingAppCode553MiBfailure,withownedcleanup/preservation. Goalactive; noresource/fullscopeclosure.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
