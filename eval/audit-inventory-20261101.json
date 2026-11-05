@@ -9260,9 +9260,19 @@
       "sha256": "5e545047b240dad1a24edffa10c3a0491bc41ee1b37124f0a0db05679446dda1",
       "status": "SOURCE_CORROBORATED_QUEUED_NOT_FIXED",
       "goal_complete": false
+    },
+    "bounded_blast_advisory_delta_20261105": {
+      "status": "FOCUSED_VERIFIED_NOT_INSTALLED",
+      "behavior_receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\bounded-advisory-behavior-20261105.json",
+        "sha256": "ab688a6705a0edcf13744ef25083b7cbe98f5c0f0ffa664868677553f91b149b"
+      },
+      "scope": "Public optional advice consumes same-generation retained target ranking and unprojected complete admitted file seeds; no on-demand ranking/full-map load/secondfilemember scan. Unknown scores null/incompletefileadviceunavailable. Safe grep source actions+fallbacks preserve citations. Core32 swaps detailedhealth for requiredsourcegetter; fullhealthretained.51targetedchecks with reconciled two-snapshot tierdelta; release/cold/per-callmetrics/install acceptance pending.",
+      "goal_complete": false,
+      "original_full19gates_closed": false
     }
   },
-  "last_updated_at": "2026-11-05T12:37:53.378075+00:00",
+  "last_updated_at": "2026-11-05T13:15:08.825103+00:00",
   "current_execution_focus": {
     "at_utc": "2026-11-05T12:37:53.378061+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",

@@ -64,6 +64,7 @@ fn every_core_tool_exists_and_covers_the_ten_capabilities() {
         "list_projects",
         "project_info",
         "get_chunk",
+        "get_full_method_body",
         "read_memory_bank",
         "get_job_status",
         "cancel_job",
@@ -98,6 +99,9 @@ fn full_and_core_surfaces_cover_their_registered_tools() {
         "advertise_all_tools=false advertises exactly the core tier"
     );
 
+    assert!(!core_names.contains("project_health"), "Detailed health is optional; current-source recovery stays callable within32tools");
+    assert!(core_names.contains("get_full_method_body") && core_names.contains("get_index_freshness"));
+    assert!(all.iter().any(|tool|tool.name=="project_health"),"Full discovery retains detailed health diagnostics");
     let full = advertised(all.clone(), true);
     assert_eq!(
         full.len(),
@@ -164,6 +168,7 @@ async fn protocol_discovery_includes_pilotapp_agent_dependencies_with_schemas() 
     for name in [
         "get_full_method_body",
         "get_chunk",
+        "get_full_method_body",
         "get_table_schema",
         "describe_setting",
         "find_merged_work",
@@ -338,6 +343,7 @@ async fn core_client_can_choose_a_project_and_recover_search_and_memory_citation
             "list_projects",
             "project_info",
             "get_chunk",
+        "get_full_method_body",
             "read_memory_bank",
             "get_job_status",
             "cancel_job",
@@ -379,6 +385,15 @@ async fn core_client_can_choose_a_project_and_recover_search_and_memory_citation
         let chunk: Value = serde_json::from_str(&text(&chunk))?;
         anyhow::ensure!(chunk["content"] == BODY && chunk["identity"]["project_id"] == PID);
         anyhow::ensure!(chunk["identity"]["doc_id"] == "core-citation");
+        let found=call!("grep_project",json!({"project_id":PID,"pattern":"core_marker","freshness":"off","output_json":true}));
+        let found:Value=serde_json::from_str(&text(&found))?;
+        let action=&found["matches"][0]["current_source_recovery"];
+        anyhow::ensure!(action["tool"]=="get_full_method_body");
+        let current=call!("get_full_method_body",action["arguments"].clone());
+        let current:Value=serde_json::from_str(&text(&current))?;
+        anyhow::ensure!(current["retrieval_scope"]=="current_file_excerpt" && current["line_start"]==1 && current["line_end"]==2);
+        anyhow::ensure!(current["source_file_hash"]==ContentHash::compute(BODY.as_bytes()).0);
+        anyhow::ensure!(current["source_code"]==BODY.trim_end_matches('\n'));
         let recalled = call!("search_memory",json!({"project_id":PID,"query":"exact project memory",
             "search_scope":"knowledge","semantic":false,"max_results":1}));
         let recalled = text(&recalled);

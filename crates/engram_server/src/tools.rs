@@ -524,7 +524,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Fast literal/regex grep over the indexed file set. Uses the Tantivy trigram index as a prefilter — typically beats ripgrep on warm queries. Returns file:line:col matches with optional context lines."
+        description = "Fast literal/regex grep over the indexed file set. Uses the Tantivy trigram index as a prefilter — typically beats ripgrep on warm queries. Returns file:line:col matches with optional context lines. Safe source hits also supply executable current-file excerpt actions and a first-page fallback, separate from stored get_chunk citations; compare current hashes and coverage before relying on a stale locator."
     )]
     pub async fn grep_project(
         &self,
@@ -1142,7 +1142,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Choose detail=summary for the same bounded12KiB revision-admitted source-navigation summary as impact_analysis, omitting the live heuristic/history workers. Default detail=graph returns the same compact revision-admitted dependency graph as impact_analysis (max_depth default6, range1..8): canonical identities, shortest paths, additional verified connections, named missing/bounded frontiers and executable recovery calls. Admitted dependents and potential interface callers remain separate observed counts. include_guidance=false omits the entire unverified one-hop advisory profile and its worker; default true retains that separate score/guidance for compatibility. File queries exclude same-file callers from external dependents. Identity/edge/path omissions and revision/work/depth gaps are explicit. Historical co-change is separate. The live-graph1..10 heuristic is uncalibrated and not source-revision validated. Neither section simulates the proposed edit or proves runtime breakage/safety; inspect recovered current source and its conditions. Use check_edit_safety for the compact existing advisory verdict."
+        description = "Choose detail=summary for the same bounded12KiB revision-admitted source-navigation summary as impact_analysis, omitting the live heuristic/history workers. Default detail=graph returns the same compact revision-admitted dependency graph as impact_analysis (max_depth default6, range1..8): canonical identities, shortest paths, additional verified connections, named missing/bounded frontiers and executable recovery calls. Admitted dependents and potential interface callers remain separate observed counts. include_guidance=false omits the entire unverified one-hop advisory profile and its worker; default true retains separate one-hop guidance without starting project ranking. It reads only an already retained same-generation target score; missing centrality makes the composite score/band and PageRank component null. File advice reuses complete admitted seed membership at collection, and is explicitly unavailable if that membership is capped or unadmitted. File queries exclude same-file callers from external dependents. Identity/edge/path omissions and revision/work/depth gaps are explicit. Historical co-change is separate. The live-graph1..10 heuristic is uncalibrated and not source-revision validated. Neither section simulates the proposed edit or proves runtime breakage/safety; inspect recovered current source and its conditions. Use check_edit_safety for the compact existing advisory verdict."
     )]
     pub async fn compute_blast_radius(
         &self,

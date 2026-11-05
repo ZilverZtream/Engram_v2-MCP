@@ -9,6 +9,46 @@ fn metrics(score: f32) -> CentralityMetrics {
 }
 
 #[test]
+fn pagerank_request_advisory_peek_never_starts_work_or_changes_retention() {
+    let cache=Arc::new(PageRankCache::default());
+    let workers=Arc::new(Semaphore::new(1));
+    let empty=cache.retention_observation();
+    assert_eq!(cache.peek_target_score(7,"source-node").score,None);
+    assert_eq!(cache.retention_observation(),empty,"Observing an empty cache must not advance it");
+    cache.start(7,workers.clone().try_acquire_owned().unwrap()).unwrap().complete(metrics(0.02));
+    let held=cache.get(7).unwrap();
+    let before=cache.retention_observation();
+    assert_eq!(cache.peek_target_score(7,"source-node").score,Some(0.02));
+    for generation in [6,8] { assert_eq!(cache.peek_target_score(generation,"source-node").score,None); }
+    assert_eq!(cache.peek_target_score(7,"absent").score,None,"No entry is unknown, not zero centrality");
+    assert_eq!(cache.retention_observation(),before,"An older/newer request must not discard or clone the retained project map");
+    cache.state.lock().unwrap().value.as_mut().unwrap().0=Instant::now()-TTL-Duration::from_secs(1);
+    assert_eq!(cache.peek_target_score(7,"source-node").status,"cached_result_expired");
+    assert_eq!(cache.retention_observation()["retained_results"],1,"Read-only advice must not synchronously free an expired project map");
+    assert_eq!(held.pagerank["source-node"],0.02);
+    assert_eq!(workers.available_permits(),1);
+    let locked=cache.state.lock().unwrap();
+    assert_eq!(cache.peek_target_score(7,"source-node").status,"cache_busy_or_unavailable");
+    drop(locked);
+}
+
+#[test]
+fn pagerank_request_advisory_distinguishes_observed_zero_from_invalid_data() {
+    let cache=Arc::new(PageRankCache::default());let workers=Arc::new(Semaphore::new(1));
+    cache.start(3,workers.clone().try_acquire_owned().unwrap()).unwrap().complete(CentralityMetrics {
+        pagerank:HashMap::from([("zero".into(),0.0),("nan".into(),f32::NAN),
+            ("infinite".into(),f32::INFINITY),("negative".into(),-0.1),("out-of-range".into(),1.1)]),
+    });
+    assert_eq!(cache.peek_target_score(3,"zero").score,Some(0.0));
+    for target in ["nan","infinite","negative","out-of-range"] {
+        assert_eq!(cache.peek_target_score(3,target).status,"invalid_cached_target_score");
+        assert_eq!(cache.peek_target_score(3,target).score,None);
+    }
+    assert_eq!(cache.retention_observation()["work_in_flight"],false);
+    assert_eq!(workers.available_permits(),1);
+}
+
+#[test]
 fn pagerank_retention_failure_does_not_spin_and_new_evidence_can_refresh() {
     let cache = Arc::new(PageRankCache::default());
     let workers = Arc::new(Semaphore::new(2));

@@ -3017,7 +3017,7 @@ impl Engram {
             ));
         };
 
-        let (mut out, source_hold, walk_generation) = crate::services::impact_walk_service::collect(
+        let (mut out, source_hold, walk_generation, advisory_scope) = crate::services::impact_walk_service::collect_for_advisory(
             &self.state, &req.project_id, None, Some(target_id.clone()), req.max_depth, 25,
         ).await;
         out.push_str(&self.historical_impact_observations(
@@ -3032,34 +3032,30 @@ impl Engram {
             let graph = self.state.graph.clone();
             let pid = req.project_id.clone();
             let include_guidance = req.include_guidance;
+            let ranking=match self.state.peek_project_cached(&req.project_id) {
+                Ok(Some(project)) => project.pagerank_cache.peek_target_score(generation,&target_id),
+                Ok(None) => crate::services::pagerank_cache::TargetPageRank::unavailable("project_runtime_not_cached"),
+                Err(_) => crate::services::pagerank_cache::TargetPageRank::unavailable("project_runtime_busy"),
+            };
             let worker_hold = source_hold.clone();
             let advisory = tokio::task::spawn_blocking(move || {
                 let _source_hold = worker_hold;
-                crate::services::blast_radius_service::compute_blast_radius(
-                    &graph, &pid, &target_id, generation, include_guidance,
-                )
+                use crate::services::impact_walk_service::AdvisoryScope;
+                let members=match &advisory_scope {
+                    AdvisoryScope::Symbol => None,
+                    AdvisoryScope::CompleteFile(members) => Some(members.as_slice()),
+                    AdvisoryScope::Unavailable(reason) => anyhow::bail!("{reason}; optional advice requires a complete admitted target component"),
+                };
+                crate::services::blast_radius_service::compute_request_advisory(&graph,&pid,&target_id,generation,ranking,members)
             }).await.map_err(|e| McpError::internal_error(e.to_string(), None))?;
             match advisory {
-                Ok(report) => {
-                    let profile = serde_json::json!({
-                        "interpretation":"Uncalibrated live-graph one-hop heuristic; not revision-admitted downstream counts, a probability, a breakage simulation or an edit-safety verdict.",
-                        "migration_risk":report.migration_risk,
-                        "risk_band":report.risk_band,
-                        "causal_dependents":report.causal_dependents,
-                        "possible_dependents":report.possible_dependents,
-                        "historical_companions":report.historical_companions,
-                        "unresolved_endpoints":report.unresolved_endpoints,
-                        "raw_incoming":report.total_incoming,
-                        "raw_outgoing":report.total_outgoing,
-                        "coverage":report.coverage,
-                        "complexity_breakdown":report.complexity_breakdown,
-                    });
+                Ok((profile,guidance)) => {
                     out.push_str("\n## Unverified one-hop advisory profile\n\n```json\n");
                     out.push_str(&serde_json::to_string(&profile).map_err(|e| McpError::internal_error(e.to_string(), None))?);
                     out.push_str("\n```\n");
-                    if include_guidance && !report.guidance.is_empty() {
+                    if include_guidance && !guidance.is_empty() {
                         out.push_str("\nAdvisory guidance (not source-revision validated):\n");
-                        for item in report.guidance.iter().take(8) {
+                        for item in guidance.iter().take(8) {
                             let recommendation: String = item.recommendation.chars().take(512).collect();
                             out.push_str(&format!("- {}\n", recommendation));
                         }

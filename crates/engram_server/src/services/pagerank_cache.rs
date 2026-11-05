@@ -7,6 +7,17 @@ use tokio::sync::OwnedSemaphorePermit;
 const TTL: Duration = Duration::from_secs(300);
 const FAILURE_COOLDOWN: Duration = Duration::from_secs(5);
 
+/// A point observation only: never an instruction to load or compute a map.
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize)]
+pub struct TargetPageRank {
+    pub score: Option<f32>,
+    pub status: &'static str,
+}
+
+impl TargetPageRank {
+    pub fn unavailable(status: &'static str) -> Self { Self { score: None, status } }
+}
+
 #[derive(Default)]
 pub struct PageRankCache {
     state: Mutex<State>,
@@ -39,6 +50,20 @@ impl State {
 }
 
 impl PageRankCache {
+    /// Read one retained same-generation target without changing cache state,
+    /// expiring/dropping a map, waiting for work, or starting ranking work.
+    pub fn peek_target_score(&self, generation: u64, target: &str) -> TargetPageRank {
+        let Ok(state)=self.state.try_lock() else { return TargetPageRank::unavailable("cache_busy_or_unavailable"); };
+        if state.generation!=Some(generation) { return TargetPageRank::unavailable("generation_not_cached"); }
+        let Some((created,value))=&state.value else { return TargetPageRank::unavailable("result_not_cached"); };
+        if created.elapsed()>=TTL { return TargetPageRank::unavailable("cached_result_expired"); }
+        match value.pagerank.get(target).copied() {
+            Some(score) if score.is_finite() && score>=0.0 && score<=1.0 => TargetPageRank {score:Some(score),status:"available_same_generation_in_memory"},
+            Some(_) => TargetPageRank::unavailable("invalid_cached_target_score"),
+            None => TargetPageRank::unavailable("target_not_cached"),
+        }
+    }
+
     /// Does not expire, populate or start ranking work while observing it.
     pub fn retention_observation(&self) -> serde_json::Value {
         let Ok(state) = self.state.try_lock() else {
