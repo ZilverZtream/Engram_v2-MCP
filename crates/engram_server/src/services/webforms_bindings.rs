@@ -9,6 +9,28 @@ use std::collections::{HashMap, HashSet};
 
 pub(crate) const PRODUCER: &str = "_engram_event_producer";
 
+/// The registration site owns an event, including cross-class AddHandler
+/// callbacks. Bare native display names require their recorded qualified name.
+pub(crate) fn extracted_owner<'a>(stats: &'a IngestStats, path: &RelPath, line: u32) -> &'a str {
+    if line==0 { return ""; }
+    let mut found: Option<&engram_index::ExtractedSymbol> = None;
+    let mut ambiguous = false;
+    for (_, method) in stats.symbols.iter().filter(|(p,s)|p.as_ref()==path && s.kind=="function" && s.start_line>0
+        && s.start_line<=line && s.end_line>=line) {
+        let span = method.end_line-method.start_line;
+        match found {
+            None => { found=Some(method); ambiguous=false; }
+            Some(previous) if span < previous.end_line-previous.start_line => { found=Some(method); ambiguous=false; }
+            Some(previous) if span == previous.end_line-previous.start_line => { ambiguous=true; }
+            _ => {}
+        }
+    }
+    let Some(method)=found else { return ""; };
+    if ambiguous { return ""; }
+    method.metadata.as_ref().and_then(|m|m.get("fqn")).map(String::as_str)
+        .unwrap_or(&method.name).rsplit_once('.').map(|(owner,_)|owner).unwrap_or("")
+}
+
 #[derive(Default)]
 pub(crate) struct PreparedBindings {
     pub edges: Vec<Edge>,
@@ -259,7 +281,8 @@ pub(crate) async fn stamp_extracted(
         ensure!(
             source.file_path.as_str() == path
                 || engram_graph::store::event_owner_matches(&source, path, owner),
-            "Event producer does not match the declared markup backing class"
+            "Event producer does not match the declared markup backing class (producer path: {path}, source path: {})",
+            source.file_path.as_str()
         );
         let previous = graph.get_edges_by_endpoints(
             project,

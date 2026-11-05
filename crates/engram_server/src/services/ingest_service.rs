@@ -298,9 +298,16 @@ pub async fn process_ingest_stats(
             } else {
                 path_str
             };
-            if page_path != path_str && !stats.all_files.iter().any(|p|p.as_str() == page_path)
-                && state.graph.get_node(project_id,&engram_core::ids::NodeId::control(page_path,&sym.name).0)?
-                    .is_some_and(|n| matches!(n.node_type.as_str(),"control"|"control_layout") && n.file_path.as_str() == page_path)
+            let declared_in_batch = stats.symbols.iter().any(|(path, declaration)| {
+                path.as_str() == page_path
+                    && matches!(declaration.kind.as_str(), "control" | "control_layout")
+                    && declaration.metadata.as_ref().and_then(|m| m.get("control_id"))
+                        .unwrap_or(&declaration.name) == &sym.name
+            });
+            if page_path != path_str && (declared_in_batch
+                || (!stats.all_files.iter().any(|p|p.as_str() == page_path)
+                    && state.graph.get_node(project_id,&engram_core::ids::NodeId::control(page_path,&sym.name).0)?
+                        .is_some_and(|n| matches!(n.node_type.as_str(),"control"|"control_layout") && n.file_path.as_str() == page_path)))
             {
                 // A codebehind/designer reference does not replace the markup declaration.
                 continue;
@@ -708,6 +715,7 @@ pub async fn process_ingest_stats(
         )));
 
         let interface_binding = interface_bindings.get(&edge_index);
+        let mut unproven_markup_control = false;
         let source_id = if let Some(binding) = interface_binding {
             binding.source_id.clone()
         } else if edge.source_kind == "asset_bundle"
@@ -755,7 +763,7 @@ pub async fn process_ingest_stats(
                 .unwrap_or(edge.source_name.as_str());
 
             let path_str = rel_path.as_str();
-            let page_path = if path_str.ends_with(".cs") || path_str.ends_with(".vb") {
+            let candidate_page = if path_str.ends_with(".cs") || path_str.ends_with(".vb") {
                 if let Some(idx) = path_str.find(".aspx.") {
                     &path_str[..idx + 5]
                 } else if let Some(idx) = path_str.find(".ascx.") {
@@ -766,6 +774,22 @@ pub async fn process_ingest_stats(
             } else {
                 path_str
             };
+            // A Handles/AddHandler token belongs to its enclosing class. A
+            // sibling class in the same file must not borrow the page control.
+            let page_path = if edge.kind == "event_wiring" && candidate_page != path_str {
+                let owner = super::webforms_bindings::extracted_owner(stats, rel_path, edge.source_start_line);
+                let current = markup_owners.get(candidate_page).is_some_and(|entry| {
+                    !entry.2 && entry.0 == Some(path_str)
+                        && entry.1.is_some_and(|class| !owner.is_empty() && class.eq_ignore_ascii_case(owner))
+                });
+                let inherited = if stats.all_files.iter().any(|p|p.as_str()==candidate_page) { false }
+                    else { state.graph.get_node(project_id, &engram_core::ids::NodeId::control(candidate_page,control_id).0)?
+                        .is_some_and(|node| engram_graph::store::event_owner_matches(&node,path_str,owner)) };
+                if current || inherited { candidate_page } else {
+                    unproven_markup_control = true;
+                    path_str
+                }
+            } else { candidate_page };
             if !is_safe_project_relative_path(page_path) {
                 anyhow::bail!(
                     "process_ingest_stats: unsafe control source page path: {} (file: {})",
@@ -1179,6 +1203,9 @@ pub async fn process_ingest_stats(
                     obj.insert(k.clone(), serde_json::Value::String(v.clone()));
                 }
             }
+            if unproven_markup_control {
+                obj.insert("control_binding".into(),serde_json::json!("local_unresolved_markup_owner_not_proven"));
+            }
             if let Some(binding) = interface_binding {
                 obj.insert("interface_binding_admission".into(),serde_json::json!(if binding.evidence.is_some() {"verified_source_declaration"}else{"unknown"}));
                 if let Some(evidence) = &binding.evidence {
@@ -1222,9 +1249,7 @@ pub async fn process_ingest_stats(
             let owner=if engram_index::webforms::is_webforms_markup(std::path::Path::new(rel_path.as_str())) {
                 markup_owners.get(rel_path.as_str()).and_then(|entry|entry.1).unwrap_or("")
             } else {
-                stats.symbols.iter().filter(|(p,s)|p==rel_path && s.kind=="function"
-                    && s.start_line<=edge.source_start_line && s.end_line>=edge.source_start_line)
-                    .min_by_key(|(_,s)|s.end_line-s.start_line).and_then(|(_,s)|s.name.rsplit_once('.').map(|(owner,_)|owner)).unwrap_or("")
+                super::webforms_bindings::extracted_owner(stats, rel_path, edge.source_start_line)
             };
             let producing_identity=(rel_path.as_str().to_owned(),owner.to_owned());
             if let Some(previous) = event_producers.insert((source_id.clone(),target_id.clone()),producing_identity.clone()) {

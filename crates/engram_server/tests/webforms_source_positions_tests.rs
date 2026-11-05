@@ -438,6 +438,96 @@ where
 }
 
 #[test]
+fn page_controls_keep_their_declaration_and_do_not_borrow_sibling_class_events() -> Result<()> {
+    owned_case(|owned| async move {
+        use std::{collections::HashMap, sync::Arc};
+        use engram_index::{ExtractedEdge, ExtractedSymbol};
+        let root=owned.join("repo");std::fs::create_dir_all(&root)?;
+        for qualified_reference in [false,true] {
+            for bare_method_names in [false,true] {
+                for reverse in [false,true] {
+                    let data=owned.join(format!("data-{qualified_reference}-{bare_method_names}-{reverse}"));
+                    let (state,_events)=AppState::new(Config { data_dir:data,allowed_roots:vec![root.clone()],
+                        embedding_backend:"fts_only".into(),llm_backend:"none".into(),..Default::default() })?;
+                    let page=Arc::new(RelPath::new("Home.aspx"));
+                    let code=Arc::new(RelPath::new("Home.aspx.vb"));
+                    let designer=Arc::new(RelPath::new("Home.aspx.designer.vb"));
+                    let markup="<%@ Page Language=\"VB\" CodeBehind=\"Home.aspx.vb\" Inherits=\"Home\" %>\n<asp:Button ID=\"btnUpload\" runat=\"server\" />\n";
+                    let (symbols,edges)=engram_index::webforms::extract_webforms(&root,&page,markup);
+                    let mut stats=IngestStats { all_files:vec![(*page).clone(),(*code).clone(),(*designer).clone()],..Default::default() };
+                    stats.symbols.push((designer.clone(),ExtractedSymbol {
+                        name:if qualified_reference {"Home.btnUpload"}else{"btnUpload"}.into(),kind:"control_ref".into(),
+                        start_line:3,end_line:3,metadata:None }));
+                    stats.symbols.extend(symbols.into_iter().map(|s|(page.clone(),s)));
+                    stats.edges.extend(edges.into_iter().map(|e|(page.clone(),e)));
+                    for (fqn,line) in [("Home.Upload",4),("Other.OtherUpload",11)] {
+                        let name=if bare_method_names {fqn.rsplit('.').next().unwrap()} else {fqn};
+                        stats.symbols.push((code.clone(),ExtractedSymbol { name:name.into(),kind:"function".into(),
+                            start_line:line-1,end_line:line+1,metadata:Some(HashMap::from([("fqn".into(),fqn.into())])) }));
+                        stats.edges.push((code.clone(),ExtractedEdge { source_name:"btnUpload".into(),source_kind:"control".into(),
+                            source_start_line:line,source_language:"vb".into(),target_name:name.into(),target_kind:Some("function".into()),
+                            target_start_line:Some(line-1),kind:"event_wiring".into(),metadata:Some(HashMap::from([("fqn".into(),fqn.into())])) }));
+                    }
+                    if reverse {stats.symbols.reverse();stats.edges.reverse();}
+                    engram_server::services::ingest_service::process_ingest_stats(&state,"page-ownership",1,&stats).await?;
+                    let control=state.graph.get_node("page-ownership","control:Home.aspx:btnUpload")?.unwrap();
+                    ensure!(control.file_path.as_str()=="Home.aspx" && control.start_line==2,
+                        "Designer order must not replace the page declaration with its field reference");
+                    ensure!(engram_graph::store::event_owner_matches(&control,"Home.aspx.vb","Home"));
+                    let events=state.graph.neighbors("page-ownership",engram_graph::EdgeKind::Dependency,&control.node_id,10)?;
+                    ensure!(events.len()==1,"Only the page class may own this control's handler: {events:?}");
+                    let target=state.graph.get_node("page-ownership",&events[0].0)?.unwrap();
+                    ensure!(target.start_line==3,"The sibling class's same control token must not become a page dependency");
+                    let unresolved=state.graph.neighbors("page-ownership",engram_graph::EdgeKind::Dependency,"control:Home.aspx.vb:btnUpload",10)?;
+                    ensure!(unresolved.len()==1);
+                    let records=state.graph.get_edges_by_endpoints("page-ownership",&[("control:Home.aspx.vb:btnUpload".into(),engram_graph::EdgeKind::Dependency,unresolved[0].0.clone())])?;
+                    ensure!(records.len()==1 && records[0].metadata.as_ref().unwrap()["control_binding"]=="local_unresolved_markup_owner_not_proven",
+                        "Unproven ownership must remain explicit, without inventing a page declaration");
+                }
+            }
+        }
+        Ok(())
+    })
+}
+
+#[test]
+fn ordinary_refresh_accepts_two_classes_without_assigning_foreign_handlers_to_page_controls() -> Result<()> {
+    owned_case(|owned| async move {
+        let root=owned.join("repo");std::fs::create_dir_all(&root)?;
+        drop(git2::Repository::init(&root)?);
+        let markup="<%@ Page Language=\"VB\" CodeBehind=\"Home.aspx.vb\" Inherits=\"Home\" %>\n<asp:Button ID=\"btnUpload\" runat=\"server\" />\n";
+        let code="Public Class Home\nPublic Sub Upload() Handles btnUpload.Click\nEnd Sub\nEnd Class\nPublic Class Other\nProtected WithEvents btnUpload As Global.System.Web.UI.WebControls.Button\nPublic Sub OtherUpload() Handles btnUpload.Click\nEnd Sub\nEnd Class\n";
+        std::fs::write(root.join("Home.aspx"),markup)?;
+        std::fs::write(root.join("Home.aspx.vb"),code)?;
+        std::fs::write(root.join("Home.aspx.designer.vb"),"Partial Public Class Home\nProtected WithEvents btnUpload As Global.System.Web.UI.WebControls.Button\nEnd Class\n")?;
+        let (state,_events)=AppState::new(Config { data_dir:owned.join("data"),allowed_roots:vec![root.clone()],
+            embedding_backend:"fts_only".into(),llm_backend:"none".into(),..Default::default() })?;
+        let app=Engram::new(state.clone());
+        let result=app.handle_index_project(serde_json::from_value(json!({"directory":root,"project_name":"Multiple WebForms classes","project_type":"dotnet_webforms_vb","wait":true}))?).await;
+        settle(&app).await?;result.map_err(|e|anyhow::anyhow!("{e}"))?;
+        let project=state.registry.list_projects()?[0].project_id.clone();
+        for changed in [false,true] {
+            if changed {
+                std::fs::write(root.join("Home.aspx.vb"),format!("{code}' ordinary source edit\n"))?;
+                std::fs::write(root.join("Home.aspx"),format!("{markup}<%-- ordinary markup edit --%>\n"))?;
+                let result=app.handle_update_project(serde_json::from_value(json!({"project_id":project,"wait":true,"index_antipatterns":false,"max_commits":1}))?).await;
+                settle(&app).await?;result.map_err(|e|anyhow::anyhow!("{e}"))?;
+            }
+            ensure!(has_control(&binding_impact(&app,&project,"Home.Upload").await?,"control:Home.aspx:btnUpload"));
+            let other=binding_impact(&app,&project,"Other.OtherUpload").await?;
+            ensure!(other["target_revision_admitted"]==true,"The sibling method must remain available");
+            let target=other["nodes"].as_array().unwrap().iter().find(|n|n["ref"]==other["target_ref"]).unwrap();
+            ensure!(target["node_id"].as_str().unwrap().contains("OtherUpload"));
+            ensure!(!has_control(&other,"control:Home.aspx:btnUpload"),
+                "The unrelated class's event must never be admitted as a page consumer");
+            let current_markup=std::fs::read_to_string(root.join("Home.aspx"))?;
+            recover_control_through_codemap(&app,&project,"Home.aspx",&current_markup,2).await?;
+        }
+        Ok(())
+    })
+}
+
+#[test]
 fn unchanged_markup_migrates_once_and_preserves_other_source_and_authored_knowledge() -> Result<()>
 {
     owned_case(|owned| async move {
