@@ -66,6 +66,7 @@ pub(crate) async fn inherited_handles(
 ) -> Result<PreparedBindings> {
     let requires_projection = |p: &RelPath, e: &engram_index::ExtractedEdge| {
         e.kind == "codebehind_file"
+            && e.source_kind=="page" && e.source_name==p.as_str()
             && engram_index::webforms::is_webforms_markup(std::path::Path::new(p.as_str()))
             && e.target_name
                 .rsplit_once('.')
@@ -103,7 +104,7 @@ pub(crate) async fn inherited_handles(
         let owners: HashSet<_> = stats
             .edges
             .iter()
-            .filter(|(p, e)| p == markup && e.kind == "codebehind_class")
+            .filter(|(p, e)| p == markup && e.kind == "codebehind_class" && e.source_kind=="page" && e.source_name==markup.as_str())
             .filter_map(|(_, e)| e.metadata.as_ref()?.get("fqn"))
             .collect();
         ensure!(
