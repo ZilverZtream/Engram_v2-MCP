@@ -8524,7 +8524,7 @@
         }
       },
       "webforms_position_producer_20261105": {
-        "state": "ACTUAL3119_BLAST_ROUTES_RESTORED;COLD_CODEMAP_CONTROL_DISCOVERY_FAILED;NAVIGATION_FIX_FOCUSED6PASS;NOT_DEPLOYED",
+        "state": "DEPLOYED1198918;ACTUAL_COLD29CALLSPASS;NORMALMODEPASS;FRESH_AGENT16CALLS_USEFUL_WITH_REMAINING_GAPS;NOT_PERFECTED",
         "source_commit": "402a1d4",
         "source_application": {
           "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-webforms-positions-source-applied-20261105.json",
@@ -8551,9 +8551,9 @@
           "sha256": "108f0d11b513e2a1f36261ccd76d26708f0b084a325bd177754f8c631b7de371"
         },
         "published_scope": "3118->3119 recovery;254paths/1770chunks/3194011bytes refreshed,2048outside physical revisions inherited,0pathsdeleted; all254sourcehashes and300storedmemorybank contenthashes/stablemetadata unchanged; other14knowncatalogs/routes and capturedRegistryrows unchanged except3publicationkeys. Not exhaustive knowledge/nativecontent proof.",
-        "real_blocker": "Original Blast identities/routes/frontiers and corrected control reads passed cold at3119. CodeMap returned zero declarations for the same exact control selection: native controls lack Contains membership. Deployment withheld; assertion retained.",
+        "real_blocker": "Observed CodeMap nativecontrol membership defect fixed and deployed. All3controlselections/literalactions pass actualcold at3119; originalBlast paths/frontiers preserved. NativeCodexconnector remainsTransportclosed; installednormal IPC works. Freshagent confirmsuseful workflowbutUIflow/missingidentity/verbosity gaps remain.",
         "current_source_fix": "Add navigation-only exact control prefix lookup after callable discovery, reusing existing decode/row/string/time/revision admission budgets. Impact and writer behavior unchanged. Focused lifecycle follows literal CodeMap actions on initial, moved and cold source, with another page sameID isolation;6PASS.",
-        "remaining": "Existing CodeMap regression, new optimizedpackage, read-only cold verification at3119 (no repeatindex), install/normal mode and fresh agent task. Shared multi-producer graph keys remain refused rather than supported. Original31/19notclosed.",
+        "remaining": "Next core batch: concise taskfocused navigation/response cost and better honest recovery for UIflow/unresolvedidentities, validated withadditionalindependentagenttasks. Sharedmulti-producer graphkeys remainunsupported/refused. Fulloriginal31findings/19gates remainopen; no perfection/fullcoverage/productivityratio claim.",
         "ownership_source": {
           "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-webforms-handles-source-applied-20261105.json",
           "sha256": "c8a09eefdd6da04e7335ed062244600574facb73be16ab73c4dd3d817bff88c1"
@@ -8596,6 +8596,45 @@
         "control_navigation_source": {
           "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-codemap-native-controls-source-applied-20261105.json",
           "sha256": "0e91fbbc01a917c82524048a6e2a131110471cf55599600276f9df3e12d6b1a5"
+        },
+        "control_navigation_source_commit": "1198918ddc44d18b33dff053cd9f4122178053ce",
+        "control_navigation_optimized_build": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\shipping-cached-release-build-agent-core-codemap-controls-20261105.json",
+          "sha256": "7b45152a1283b2aefc153811606fba573f3de085e19c1fc9ff720e7ef7f6c71e"
+        },
+        "control_navigation_cold_acceptance": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-codemap-controls-cold-readonly-20261105\\acceptance.json",
+          "sha256": "85a97c2320b451855246a67e194cf32a58a0e5f1bd36b7c023adee9777b4c9df"
+        },
+        "control_navigation_behavior_tests": [
+          {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-codemap-native-controls-behavior-20261105.json",
+            "sha256": "e27fe8a92f8528ae9a6f3f8afbce18fa38e3241912130169e3dfd6e3bae9d99f"
+          },
+          {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-codemap-existing-navigation-behavior-20261105.json",
+            "sha256": "bdbed86f335652c911a37896c6fa7dc08f8d6bf90b24cfd530c386b470586245"
+          }
+        ],
+        "control_navigation_release": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-codemap-controls-upgrade-20261105.json",
+          "sha256": "282dba047a1405e93057da8c96e6555ddd77cb2f5dab5f057d4ffda52f8df29f"
+        },
+        "control_navigation_normal_acceptance": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-codemap-controls-installed-normal-acceptance-20261105.json",
+          "sha256": "0c01bcdc4f5247a095f529ee503f76efb69c1fdfebc43e2a426005e1d2fc9b73"
+        },
+        "fresh_agent_assessment": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-installed-consumer-assessment-20261105.json",
+          "sha256": "084faa1eff157a8b79a93ff22c8ce50039ae165df91e50cf7c3ac856cb8dd38d"
+        },
+        "owned_resources": {
+          "scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+          "test_fixtures": "Both focusedrunner ownedtemporary directories removed afterdatabase/process/Jobhandlesclosed; buildprivateTEMP andcoldprivateTMP removed. No newworktree/projectcopy/drive.",
+          "retained_evidence": "Focusedlogs/receipts/sourcehashes/package/agentrequestresponses retained under single V root forreview; cleanupcondition auditreview/retentiondecision.",
+          "installed_runtime": "One --daemon primaryPID97232 intentionally running normalconfiguration; installedstdio clientproxyPID84616 retained. OriginalconfigurationSHA unchanged; both configreadholds released.",
+          "retained_rollback_pair": "C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-001798f4c9074235a730cd10a952ff71",
+          "rollback_cleanup_condition": "Retain exact immediateprevious218file package forauthorized rollback; no deletion performed or inferred for preexisting backups/copies."
         }
       }
     }
