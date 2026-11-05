@@ -163,7 +163,7 @@ fn markup_refresh_retains_handles_but_producer_or_control_removal_retires_it() -
         let root = owned.join("repo");
         std::fs::create_dir_all(&root)?;
         drop(git2::Repository::init(&root)?);
-        let markup = "<%@ Page Language=\"VB\" CodeBehind=\"Home.aspx.vb\" Inherits=\"Home\" %>\n<asp:Button ID=\"btnUpload\" runat=\"server\" />\n<asp:Button ID=\"fake\" runat=\"server\" />\n";
+        let markup = "<%@ Page Language=\"VB\" CodeBehind=\"Home.aspx.vb\" Inherits=\"Home\" %>\n<asp:Button ID=\"btnUpload\" runat=\"server\" />\n<asp:Button ID=\"fake\" runat=\"server\" />\n<asp:ObjectDataSource ID=\"listing\" runat=\"server\" TypeName=\"Different.Service\" SelectMethod=\"List\" />\n";
         let producer = "Public Class Home\nPublic Sub Upload(Optional label As String = \" handles fake.Click, x\") Handles btnUpload.Click\nEnd Sub\nEnd Class\n";
         let other = "<%@ Page Language=\"VB\" CodeBehind=\"Other.aspx.vb\" Inherits=\"Other\" %>\n<asp:Button ID=\"btnUpload\" runat=\"server\" />\n";
         std::fs::write(root.join("Home.aspx"), markup)?;

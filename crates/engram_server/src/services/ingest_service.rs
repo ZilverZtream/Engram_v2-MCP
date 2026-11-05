@@ -141,7 +141,8 @@ pub async fn process_ingest_stats(
     let mut seen_virtual_node_ids = std::collections::HashSet::new();
     let mut markup_owners: std::collections::HashMap<&str,(Option<&str>,Option<&str>,bool)>=std::collections::HashMap::new();
     for (path,edge) in &stats.edges {
-        if !engram_index::webforms::is_webforms_markup(std::path::Path::new(path.as_str())) { continue; }
+        if !engram_index::webforms::is_webforms_markup(std::path::Path::new(path.as_str()))
+            || edge.source_kind!="page" || edge.source_name!=path.as_str() { continue; }
         match edge.kind.as_str() {
             "codebehind_file"=>{
                 let entry=markup_owners.entry(path.as_str()).or_default();
