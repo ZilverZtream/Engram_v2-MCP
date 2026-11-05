@@ -27,6 +27,14 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use uuid::Uuid;
 
+/// Correlate ordinary watcher updates with external resource samples without
+/// logging source contents. `returned` marks a control-flow boundary, not a
+/// success claim: several enrichment results intentionally remain best effort.
+/// A missing return marker can mean cancellation, failure or a process exit.
+fn observe_source_update(project_id: &str, generation: u64, stage: &'static str, boundary: &'static str) {
+    tracing::info!(project_id, generation, stage, boundary, "source update boundary");
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
 struct PhaseResumeState {
     pending_files: Vec<String>,
@@ -2609,6 +2617,7 @@ impl Engram {
 
         // Vector failure requires complete recovery. Retrying only these changed
         // files can otherwise publish a snapshot with inherited vectors missing.
+        observe_source_update(project_id, new_gen, "index_files", "begin");
         let stats = self
             .index_files_with_parse_guard(
                 &ps.search,
@@ -2623,25 +2632,31 @@ impl Engram {
                 |_, _| {},
             )
             .await?;
+        observe_source_update(project_id, new_gen, "index_files", "returned");
 
         extraction.verify_produced(&stats)?;
         #[cfg(test)]
         crate::actors::watcher::behavior_tests::staged(project_id).await;
         anyhow::ensure!(!cancel.is_cancelled(), "update cancelled before graph enrichment");
+        observe_source_update(project_id, new_gen, "graph_ingest", "begin");
         self.process_ingest_stats(project_id, new_gen, &stats)
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        observe_source_update(project_id, new_gen, "graph_ingest", "returned");
 
         if only_paths.is_none() {
             let graph = self.state.graph.clone();
             let pid2 = pid.clone();
             let generation = new_gen;
+            observe_source_update(project_id, new_gen, "sql_link", "begin");
             let _ = tokio::task::spawn_blocking(move || {
                 graph_service::link_sql_to_schema(&graph, &pid2, generation)
             })
             .await;
+            observe_source_update(project_id, new_gen, "sql_link", "returned");
         }
 
+        observe_source_update(project_id, new_gen, "git_enrichment", "begin");
         let git_result = if only_paths.is_some() {
             Ok("history_enrichment: skipped (exclusive source scope; outside paths preserved without checking current bytes)".to_owned())
         } else { self
@@ -2662,6 +2677,7 @@ impl Engram {
                 false,
             )
             .await };
+        observe_source_update(project_id, new_gen, "git_enrichment", "returned");
         // Match the background update path: history is enrichment, so its
         // failure must not strand a successfully indexed source generation.
         // Keep the degradation explicit rather than reporting clean success.
@@ -2685,7 +2701,9 @@ impl Engram {
             "update cancelled before source generation publication"
         );
         if memory_policy == engram_core::NamespaceVersioning::Snapshot {
+            observe_source_update(project_id, new_gen, "snapshot_seal", "begin");
             ps.search.seal_source_snapshot(project_id, new_gen)?;
+            observe_source_update(project_id, new_gen, "snapshot_seal", "returned");
         }
 
         {
@@ -2696,6 +2714,7 @@ impl Engram {
                 extraction.with_publication_fence(|| {
                     anyhow::ensure!(reg.publish_source_head(&source_head, new_gen)?,
                         "source generation changed while this update was staged; retry against the current snapshot");
+                    observe_source_update(source_head.project_id(), new_gen, "source_head", "published");
                     Ok(())
                 })
             })
@@ -2718,11 +2737,13 @@ impl Engram {
         // (`purge_pending`), never a swallowed error — and the REGISTRY WRITE
         // that records or clears the debt is itself part of the outcome,
         // never a discarded `let _`.
+        observe_source_update(project_id, new_gen, "source_purge", "begin");
         let purge_outcome = async {
             #[cfg(test)]
             anyhow::ensure!(injected_step != Some("source purge"), "Injected source purge failure");
             ps.search.purge_old_generations(project_id, new_gen).await
         }.await;
+        observe_source_update(project_id, new_gen, "source_purge", "returned");
         let purge_failed = purge_outcome.is_err();
         if let Err(e) = &purge_outcome {
             tracing::warn!(
@@ -2769,6 +2790,7 @@ impl Engram {
         if only_paths.is_none() {
             let st = self.state.clone();
             let pid_w = project_id.to_string();
+            observe_source_update(project_id, new_gen, "co_change_warm", "begin");
             let _ = tokio::task::spawn_blocking(move || {
                 if let Err(e) =
                     crate::handlers::planning_tools::warm_co_change_snapshot_blocking(&st, &pid_w)
@@ -2777,10 +2799,12 @@ impl Engram {
                 }
             })
             .await;
+            observe_source_update(project_id, new_gen, "co_change_warm", "returned");
         }
 
         // Retire old graph declarations only after actual head publication.
         // Preserve scoped cleanup ordering: a failed cleanup skips resolvers.
+        observe_source_update(project_id, new_gen, "graph_cleanup", "begin");
         let graph_cleanup = {
             let graph = self.state.graph.clone();
             let pid_gc = pid.clone();
@@ -2793,6 +2817,7 @@ impl Engram {
             }).await.map_err(|error| anyhow::anyhow!("scoped graph cleanup task failed: {error}"))
                 .and_then(|result| result)
         };
+        observe_source_update(project_id, new_gen, "graph_cleanup", "returned");
         match graph_cleanup {
             Ok((n, e)) => {
                 if n > 0 || e > 0 {
@@ -2806,11 +2831,15 @@ impl Engram {
                     #[cfg(test)]
                     anyhow::ensure!(injected_step != Some("App_Code derived-edge refresh"),
                         "Injected App_Code derived-edge refresh failure; symbol resolver refresh skipped");
+                    observe_source_update(&pid2, new_gen, "app_code_resolver", "begin");
                     graph_service::resolve_app_code_globals(&graph, &pid2, new_gen)
                         .map_err(|error| anyhow::anyhow!(
                             "App_Code derived-edge refresh failed; symbol resolver refresh skipped: {error:#}"))?;
+                    observe_source_update(&pid2, new_gen, "app_code_resolver", "returned");
+                    observe_source_update(&pid2, new_gen, "symbol_resolver", "begin");
                     graph.resolve_symbol_edges(&pid2)
                         .map_err(|error| anyhow::anyhow!("symbol edge resolver refresh failed: {error:#}"))?;
+                    observe_source_update(&pid2, new_gen, "symbol_resolver", "returned");
                     Ok(())
                 }).await.map_err(|error| anyhow::anyhow!("resolver refresh task failed: {error}"))
                     .and_then(|result| result);
