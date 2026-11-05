@@ -1648,32 +1648,33 @@ impl HybridSearchEngine {
                 // daemon log ("Too many concurrent writers", "Access is
                 // denied"), so name the consequence rather than letting an
                 // hour-later mismatch look like spontaneous corruption.
-                let source_selection = protected_source.as_ref().map(|views| {
-                    views
-                        .iter()
-                        .map(|view| format!("({})", view.sql()))
-                        .collect::<Vec<_>>()
-                        .join(" OR ")
-                });
                 let native_store = scoped.native_store.clone();
                 scoped
                     .run_native_vector_mutation_with_commit(&mut commit, async move {
+                        // Request cancellation may detach this actual worker.
+                        // Its epoch and protected source readers must survive
+                        // candidate observation and every native commit.
+                        let _epoch = _vector_epoch;
                         let _source_protection = protected_source;
                         let native = native_store.capture()?;
-                        crate::vector::purge_old_generations_serialized(
-                            &native.connection,
-                            table.name(),
-                            active_generation,
-                            source_selection.as_deref(),
-                        )
-                        .await
+                        if let Some(views) = _source_protection.as_ref() {
+                            crate::vector::purge_managed_source_generations_serialized(
+                                &native.connection, table.name(), active_generation,
+                                |path, revision| views.iter().any(|view| view.contains(path, revision)),
+                            ).await
+                        } else {
+                            crate::vector::purge_old_generations_serialized(
+                                &native.connection, table.name(), active_generation, None,
+                            ).await
+                        }
                     })
                     .await
                     .map_err(|e| {
                         anyhow::anyhow!(
                             "vector purge failed AFTER the Tantivy purge committed, so the \
-                             stores are now skewed for project {project_id} (Tantivy dropped \
-                             generations older than {active_generation}, LanceDB kept them). \
+                             native cleanup is incomplete for project {project_id} (Tantivy \
+                             retired generations older than {active_generation}; some obsolete \
+                             LanceDB rows may remain). \
                              This surfaces as a `vector_orphan` integrity mismatch until a \
                              later GC tick succeeds: {e}"
                         )
@@ -2428,10 +2429,25 @@ impl HybridSearchEngine {
         {
             use lancedb::query::Select;
             let _vector_epoch = self.pin_vector_epoch(project_id)?;
-            let (selection, snapshot) = self.exact_generation_sql(project_id, namespace, generation)?;
-            let filter = match namespace {
-                Some(ns) => format!("namespace = '{}' AND ({selection})", ns.replace('\'', "''")),
-                None => selection,
+            let snapshot = if namespace.is_some_and(|ns| ns != "memory") || (namespace.is_none() && generation == 0) {
+                None
+            } else { Some(self.snapshots.pin(project_id, "memory", generation)?) };
+            let exact = format!("generation = {}", crate::sql_literals::u64_literal(generation));
+            let range = snapshot.as_ref().map(|snapshot| match &snapshot.selection {
+                snapshots::Selection::Legacy(revision) => format!("generation = {}", crate::sql_literals::u64_literal(*revision)),
+                snapshots::Selection::Files(files) => match (files.values().min(), files.values().max()) {
+                    (Some(min), Some(max)) => format!("generation >= {} AND generation <= {}",
+                        crate::sql_literals::u64_literal(*min), crate::sql_literals::u64_literal(*max)),
+                    _ => "false".into(),
+                },
+            });
+            // These small native predicates admit candidates only. Exact
+            // immutable path/revision membership is checked below through EOF.
+            let filter = match (namespace, range.as_deref()) {
+                (Some("memory"), Some(range)) => format!("namespace = 'memory' AND ({range})"),
+                (None, Some(range)) => format!("((namespace = 'memory' AND ({range})) OR (namespace <> 'memory' AND {exact}))"),
+                (Some(ns), _) => format!("namespace = '{}' AND ({exact})", ns.replace('\'', "''")),
+                (None, None) => exact,
             };
             let worker = self.clone();
             return self.run_native_vector_query(_vector_epoch.clone(), &CancellationToken::new(), async move {
@@ -2448,14 +2464,16 @@ impl HybridSearchEngine {
                     return Ok((0, Default::default()));
                 }
                 let table = worker.open_vector_epoch_table(&_vector_epoch).await?;
-                let results = table
-                    .query()
-                    .only_if(filter)
-                    .select(Select::Columns(vec!["path".to_string()]))
-                    .limit(vector_generation_inventory::MAX_ROWS + 1)
-                    .execute()
-                    .await?;
-                vector_generation_inventory::observe(results).await
+                let query = table.query().only_if(filter).limit(vector_generation_inventory::MAX_ROWS + 1);
+                if let Some(snapshot) = _snapshot.as_ref() {
+                    let results = query.select(Select::Columns(vec!["path".into(), "generation".into(), "namespace".into()])).execute().await?;
+                    vector_generation_inventory::observe_selected(results, |namespace, path, revision| {
+                        if namespace == "memory" { snapshot.contains(path, revision) } else { revision == generation }
+                    }).await
+                } else {
+                    let results = query.select(Select::Columns(vec!["path".into()])).execute().await?;
+                    vector_generation_inventory::observe(results).await
+                }
             }).await;
         }
         #[cfg(not(feature = "vector"))]

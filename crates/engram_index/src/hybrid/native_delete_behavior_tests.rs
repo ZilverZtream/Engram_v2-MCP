@@ -71,6 +71,125 @@ async fn has_revision(table: &lancedb::Table, generation: u64, text: &str) -> Re
 }
 
 #[test]
+fn wide_managed_cleanup_preserves_inherited_files_all_reader_kinds_and_future_rows() -> Result<()> {
+    let owned = tempfile::tempdir()?;
+    let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build()?;
+    let result = runtime.block_on(async {
+        let index = engine(owned.path()).await?;
+        let cancel = CancellationToken::new();
+        let hot = "src/O'Brien-å.rs";
+        let mut docs = (0..2300).map(|i| document(1, &format!("stable/{i}.rs"), "inherited source"))
+            .collect::<Vec<_>>();
+        docs.push(document(1, hot, "original hot source"));
+        let mut extra = document(1, hot, "second original chunk");
+        extra.doc_id.push_str("#second");extra.chunk_id = 2;docs.push(extra);
+        index.index_docs("project", &docs, &cancel).await?;
+        let legacy_reader = index.pin_source_generation("project", 1)?;
+        let native_reader = table(&index).await?;
+        let reader_version = native_reader.version().await?;
+        native_reader.checkout(reader_version).await?;
+        index.prepare_source_snapshot("project", 1, 2, &[], &[], &cancel).await?;
+        index.seal_source_snapshot("project", 2)?;
+        let files_reader = index.pin_source_generation("project", 2)?;
+        index.prepare_source_snapshot("project", 2, 3, &[RelPath::new(hot)], &[], &cancel).await?;
+        index.index_docs("project", &[document(3, hot, "current hot source")], &cancel).await?;
+        index.seal_source_snapshot("project", 3)?;
+        let mut global = document(0, "knowledge", "authored global note");
+        global.namespace = "memory_bank".into();
+        index.embed_and_upsert_vectors("project", &[
+            document(1, "legacy-only.rs", "native-only legacy row"),
+            document(4, "future.rs", "unpublished future source"),
+        ], &cancel).await?;
+        index.embed_and_upsert_vectors("project", &[global], &cancel).await?;
+        let baseline = native_state(owned.path(), &index).await?;
+        index.purge_old_generations("project", 3).await?;
+        ensure!(native_state(owned.path(), &index).await? == baseline,
+            "Protected old revisions must not create native cleanup versions or metadata files");
+        drop(legacy_reader);
+        index.purge_old_generations("project", 3).await?;
+        let latest = table(&index).await?;
+        ensure!(!has_revision(&latest, 1, "native-only legacy row").await?);
+        ensure!(has_revision(&latest, 1, "original hot source").await?
+            && has_revision(&latest, 1, "second original chunk").await?,
+            "The separately held Files selection must still protect both original chunks");
+        drop(latest);drop(files_reader);
+        index.purge_old_generations("project", 3).await?;
+        let cleaned = native_state(owned.path(), &index).await?;
+        let latest = table(&index).await?;
+        ensure!(latest.count_rows(Some("namespace = 'memory' AND generation = 1".into())).await? == 2300);
+        ensure!(!has_revision(&latest, 1, "original hot source").await?
+            && !has_revision(&latest, 1, "second original chunk").await?);
+        ensure!(has_revision(&latest, 3, "current hot source").await?
+            && has_revision(&latest, 4, "unpublished future source").await?);
+        ensure!(latest.count_rows(Some("namespace = 'memory_bank'".into())).await? == 1);
+        ensure!(native_reader.version().await? == reader_version
+            && has_revision(&native_reader, 1, "original hot source").await?);
+        index.purge_old_generations("project", 3).await?;
+        ensure!(native_state(owned.path(), &index).await? == cleaned,
+            "Repeated completed cleanup must remain a physical native no-op");
+        drop(latest);drop(native_reader);drop(index);
+        let reopened = engine(owned.path()).await?;
+        ensure!(native_state(owned.path(), &reopened).await? == cleaned);
+        ensure!(reopened.count_docs_in_generation("project", "memory", 3)? == 2301);
+        let latest = table(&reopened).await?;
+        ensure!(latest.count_rows(None).await? == 2303);
+        Ok(())
+    });
+    drop(runtime);owned.close()?;result
+}
+
+#[test]
+fn managed_cleanup_queued_behind_native_only_write_observes_latest_and_preserves_readers() -> Result<()> {
+    let owned = tempfile::tempdir()?;
+    let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build()?;
+    let result = runtime.block_on(async {
+        let index = engine(owned.path()).await?;
+        let cancel = CancellationToken::new();
+        index.index_docs("project", &[document(1, "source.rs", "selected source")], &cancel).await?;
+        index.prepare_source_snapshot("project", 1, 2, &[], &[], &cancel).await?;
+        index.seal_source_snapshot("project", 2)?;
+        let stale = table(&index).await?;
+        let original = stale.version().await?;
+        let reader = table(&index).await?;reader.checkout(original).await?;
+        let waiting = Arc::new(tokio::sync::Notify::new());
+        let mut cleanup_index = index.clone();cleanup_index.commit_waiting = Some(waiting.clone());
+        let mut ahead = index.acquire_commit(&cancel).await?;
+        let cleanup = tokio::spawn(async move { cleanup_index.purge_old_generations("project", 2).await });
+        let queued = tokio::time::timeout(std::time::Duration::from_secs(10), waiting.notified()).await;
+        let written = if queued.is_ok() {
+            index.embed_vectors_in_commit("project", &[
+                document(1, "queued-only.rs", "queued obsolete native row"),
+                document(3, "future.rs", "queued future native row"),
+            ], &cancel, None, Some(&mut ahead)).await
+        } else { Err(anyhow::anyhow!("Managed cleanup did not queue behind the writer")) };
+        let stale_count = stale.count_rows(Some("path = 'queued-only.rs'".into())).await;
+        let postwrite = async {
+            let latest = table(&index).await?;
+            ensure!(has_revision(&latest, 1, "queued obsolete native row").await?
+                && has_revision(&latest, 3, "queued future native row").await?,
+                "The fresh native table must contain the real write queued ahead of cleanup");
+            Ok::<_, anyhow::Error>(latest.version().await?)
+        }.await;
+        drop(ahead);
+        let cleaned = cleanup.await; // Always join before propagating errors/tearing down.
+        written?;cleaned??;
+        let postwrite_version = postwrite?;
+        ensure!(stale_count? == 0 && stale.version().await? == original);
+        let latest = table(&index).await?;
+        ensure!(latest.version().await? > postwrite_version, "Real managed cleanup must commit a deletion");
+        ensure!(!has_revision(&latest, 1, "queued obsolete native row").await?);
+        ensure!(has_revision(&latest, 1, "selected source").await?
+            && has_revision(&latest, 3, "queued future native row").await?);
+        ensure!(reader.version().await? == original && has_revision(&reader, 1, "selected source").await?);
+        let before = native_state(owned.path(), &index).await?;
+        index.purge_old_generations("project", 2).await?;
+        ensure!(native_state(owned.path(), &index).await? == before);
+        Ok(())
+    });
+    drop(runtime);owned.close()?;result
+}
+
+#[test]
 fn native_empty_cleanup_preserves_versions_and_real_cleanup_preserves_readers_and_reopen()
 -> Result<()> {
     let owned = tempfile::tempdir()?;
