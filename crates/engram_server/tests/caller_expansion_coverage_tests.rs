@@ -69,6 +69,50 @@ async fn body(engram: &Engram, request: Value) -> String {
 }
 
 #[tokio::test]
+async fn later_project_update_does_not_verify_changed_indexed_locations() {
+    let (_temp,engram,root)=fixture(0);
+    let changed="' new first line\nPublic Sub Run()\n Return\nEnd Sub\n";
+    std::fs::write(root.join("target.vb"),changed).unwrap();
+    let mtime=engram_server::utils::envelope::file_mtime_ms(&root.join("target.vb")).unwrap();
+    // A partial project update can be newer than this file without refreshing
+    // its stored method spans. Timestamp silence must not override the hash.
+    engram.state.registry.set_meta(PID,"last_index_completed_ms",&(mtime+60_000).to_string()).unwrap();
+    let mut request=json!({"project_id":PID,"file_path":"target.vb","line_start":1,"line_end":2,"context_lines":0,"output_json":true});
+    let value: Value=serde_json::from_str(&body(&engram,request.clone()).await).unwrap();
+    assert_eq!(value["source_code"],"' new first line\nPublic Sub Run()");
+    assert_eq!(value["source_file_hash"],blake3::hash(changed.as_bytes()).to_hex().to_string());
+    assert_eq!(value["freshness"]["warning"],Value::Null);
+    assert_eq!(value["freshness"]["file_time_check"],"file_not_newer_than_last_project_update");
+    assert_eq!(value["freshness"]["warning_scope"],"file_mtime_vs_last_project_update");
+    let qualification=value["freshness"]["interpretation"].as_str().unwrap();
+    for limit in ["indexed-locator","parser","call-binding","project-coverage"] { assert!(qualification.contains(limit)); }
+    assert!(value["freshness"]["details"].as_str().unwrap().contains("last project update"));
+    request["output_json"]=json!(false);
+    let markdown=body(&engram,request).await;
+    assert!(markdown.contains("A null warning establishes no indexed-locator"));
+    assert!(markdown.contains("file_not_newer_than_last_project_update"));
+    let error=engram.handle_get_full_method_body(serde_json::from_value(json!({"project_id":PID,"fqn":"Demo.Run"})).unwrap()).await.unwrap_err();
+    assert!(error.message.contains("Stale method spans withheld"),"Project age must not rehabilitate stale indexed locations");
+}
+
+#[tokio::test]
+async fn missing_and_positive_timestamp_checks_preserve_current_source_verification() {
+    let (_temp,engram,root)=fixture(0);
+    let request=json!({"project_id":PID,"fqn":"Demo.Run","output_json":true});
+    let matching: Value=serde_json::from_str(&body(&engram,request).await).unwrap();
+    assert_eq!(matching["source_verification"],"matched_indexed_fingerprint");
+    assert_eq!(matching["freshness"]["file_time_check"],"timestamps_unavailable");
+    assert_eq!(matching["freshness"]["warning"],Value::Null);
+    assert!(matching["freshness"]["interpretation"].as_str().unwrap().contains("parser"));
+    engram.state.registry.set_meta(PID,"last_index_completed_ms","0").unwrap();
+    let positive: Value=serde_json::from_str(&body(&engram,json!({"project_id":PID,"file_path":"target.vb","line_start":1,"line_end":2,"context_lines":0,"output_json":true})).await).unwrap();
+    assert_eq!(positive["freshness"]["file_time_check"],"file_newer_than_last_project_update");
+    assert!(positive["freshness"]["warning"].as_str().unwrap().contains("last project update"));
+    assert_eq!(positive["source_file_hash"],blake3::hash(&std::fs::read(root.join("target.vb")).unwrap()).to_hex().to_string());
+    assert_eq!(positive["source_code"],"Public Sub Run()\n Return");
+}
+
+#[tokio::test]
 async fn changed_target_is_withheld_but_direct_snapshot_remains_available() {
     let (_temp, engram, root) = fixture(0);
     let changed = "' inserted line\nPublic Sub Run()\n Return\nEnd Sub\n";
@@ -259,6 +303,9 @@ async fn runtime_edit_context_qualifies_complete_queries_and_rendered_blast_scor
         if output_json {
             let value: Value = serde_json::from_str(text).unwrap();
             let coverage = &value["edit_safety"]["completeness"];
+            assert_eq!(value["freshness"]["warning"],Value::Null);
+            assert_eq!(value["freshness"]["file_time_check"],"timestamps_unavailable");
+            assert!(value["freshness"]["interpretation"].as_str().unwrap().contains("call-binding"));
             assert_eq!(coverage["callers"]["status"], "complete");
             assert!(coverage["coverage_interpretation"].as_str().unwrap().contains("not exhaustive extraction"));
         } else {
@@ -268,6 +315,7 @@ async fn runtime_edit_context_qualifies_complete_queries_and_rendered_blast_scor
             assert!(advisory.contains("not source-revision validated or a complete downstream assessment"), "{advisory}");
             assert!(text.contains("do not establish absence of consumers or side effects"));
             assert!(text.contains("not exhaustive extraction"));
+            assert!(text.contains("timestamps_unavailable") && text.contains("A null warning establishes no indexed-locator"));
         }
     }
 }

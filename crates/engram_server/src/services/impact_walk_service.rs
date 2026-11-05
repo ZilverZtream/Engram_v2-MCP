@@ -292,11 +292,12 @@ fn summary_section(
         "immediate_selection_scope":"At most four observed direct consumers, one per source file before repeats; canonical order within each round. Per-row and total byte limits can omit rows. This is a sample, not a complete inventory. File-member witnesses name actual edges. recorded_position_uses_source_read=true reuses the owning consumer's source_read action, not a separate callsite proof.",
         "frontier":[],"frontier_rows_omitted_from_summary":frontier.len(),
         "graph_omissions":{"node_identities_omitted":full["node_identities_omitted"],
+            "unconnected_file_seeds":full["unconnected_file_seeds_omitted"],
             "edges_omitted":full["edges_omitted"],"shortest_paths_omitted":full["shortest_paths_omitted"],
             "frontier_rows_omitted":full["frontier_rows_omitted"]},
         "graph_continuation":continuation,
         "continuation_scope":"Fresh bounded observation, not saved pagination or atomic replay; compare source_generation and coverage before combining results. No valid bounded target means continuation unavailable.",
-        "separate_context":"Historical companions and unverified one-hop advisory not collected in summary; request detail=graph for those separate observations.",
+        "separate_context":"Graph links omitted declaration inventory; historical/advisory context is separate.",
         "limitations":["Counts are bounded indexed exposure, not numbers of consumers that will break. Omitted rows and uninspected/dynamic bindings remain unknown.",
             "Source reads bind current file bytes/ranges, not callsites, complete method boundaries, value flow, compiler results or runtime execution."]});
     if let Some(error) = full.get("error") {
@@ -819,7 +820,7 @@ fn render(
         "requested_max_depth":max_depth,"source_layout":if managed{"managed"}else{"attested_legacy"},
         "status":"bounded_indexed_exposure","coverage":walk.coverage,"selected_dependents_observed":total,
         "selected_identities_observed":selected.len(),"selected_identities_returned":0,
-        "selected_dependent_identities_returned":0,"node_identities_omitted":0,"edges_omitted":0,
+        "selected_dependent_identities_returned":0,"node_identities_omitted":0,"unconnected_file_seeds_omitted":0,"edges_omitted":0,
         "frontier_rows_omitted":walk.coverage.frontier_omitted,"shortest_paths_omitted":total,
         "omitted_from_display":total,"display_truncated":false,"files":[],"nodes":[],"edges":[],
         "shortest_paths":[],"frontier":[],"recoveries":[],"continuation":null,
@@ -838,13 +839,40 @@ fn render(
             "direct":"Narrow direct impact for the admitted exact identity. A follow-up uses its own source selection; no complete pagination or atomic replay is promised.",
         },
         "working_tree_checked":false,"exhaustive_codebase":false,"change_breakage_proven":false,
-        "display_scope":"limit applies to shortest_paths, not canonical identities or additional verified edges",
+        "display_scope":"limit applies to shortest_paths. Unconnected file seed declarations may be omitted with a separate CodeMap inventory; retained identities and connections remain subject to the response budget.",
         "edge_direction":"source_ref is caller/dependent; target_ref is the reached dependency",
         "limitations":["Selected means indexed node/file revisions and edge extraction/origin admission, not compiler, runtime or proposed-change validation.",
         "Additional verified connections include cross/revisit edges; they do not enumerate every simple path or imply field/value flow.",
         "Source positions distinguish call_reference_syntax_metadata from weaker extractor_anchor_metadata. reference_lines contains at most 8 sorted recorded samples, never an exhaustive call list; a sample may be a delegate/property reference rather than a direct invocation. Declaration-range recovery is not a callsite. Current source may have changed; verify recovery hashes/freshness and project exclusions.",
         "Missing, unverified, dynamic and uninspected bindings remain unknown. Work/depth/byte caps may omit evidence; empty output proves no absence."]});
     value["potential_interface_callers"]=render_interface_dispatch(walk,project);
+    let mut required: std::collections::HashSet<&str> = walk.witnesses.iter()
+        .flat_map(|edge|[edge.source_id.as_str(),edge.target_id.as_str()]).collect();
+    required.insert(target);
+    for node in &walk.nodes {
+        if node.depth>0 { required.insert(&node.node.node_id); }
+        if let Some(parent)=node.predecessor.as_deref() { required.insert(parent); }
+    }
+    for lead in walk.frontier.iter().chain(&walk.interface_dispatch.frontier) {
+        required.insert(&lead.source_id);
+        if let Some(parent)=lead.target_id.as_deref() { required.insert(parent); }
+    }
+    for route in &walk.interface_dispatch.routes {
+        required.extend([route.implementation.node_id.as_str(),route.contract.node_id.as_str(),route.caller.node_id.as_str()]);
+    }
+    let requested_file=lookup.get(target).filter(|node|
+        node.admission==ImpactAdmission::Selected && node.node.node_type=="file")
+        .map(|node|node.node.file_path.as_str());
+    let unconnected_seed=|node: &engram_graph::store::ImpactWalkNode|
+        node.depth==0 && requested_file==Some(node.node.file_path.as_str())
+            && !required.contains(node.node.node_id.as_str());
+    let unconnected_seeds=selected.iter().filter(|node|unconnected_seed(node)).count();
+    value["unconnected_file_seeds_omitted"]=json!(unconnected_seeds);
+    if unconnected_seeds>0 {
+        value["declaration_inventory"]=json!({"tool":"get_codebase_overview",
+            "arguments":{"project_id":project,"scope":requested_file,"limit":1},
+            "scope":"Fresh bounded declaration inventory for the requested file; follow its symbol pages. Unconnected file seeds were omitted only from this display, not traversal or observed counts; they are not extra dependents. Verify source_generation before combining fresh results."});
+    }
     let mut out = CompactEvidence {
         project,
         observed_nodes: &walk.nodes,
@@ -863,7 +891,7 @@ fn render(
         .iter()
         .flat_map(|edge| [edge.source_id.as_str(), edge.target_id.as_str()])
         .collect();
-    let mut ordered = selected.clone();
+    let mut ordered: Vec<_> = selected.iter().copied().filter(|node|!unconnected_seed(node)).collect();
     ordered.sort_by(|a, b| {
         (a.node.node_id != target)
             .cmp(&(b.node.node_id != target))
@@ -898,12 +926,6 @@ fn render(
         }
     }
     out.remaining += edge_reserve.unwrap_or(0);
-    let selected_returned = out.nodes.len();
-    let dependent_returned = out
-        .nodes
-        .iter()
-        .filter(|node| node["is_seed"] == false)
-        .count();
     let tree_edge = |edge: &engram_graph::store::ImpactWitness| {
         lookup.get(edge.source_id.as_str()).is_some_and(|node| {
             node.predecessor.as_deref() == Some(edge.target_id.as_str())
@@ -1126,6 +1148,8 @@ fn render(
         }
     }
     let omitted_paths = total - paths.len();
+    let selected_returned=out.nodes.iter().filter(|node|node["admission"]=="selected").count();
+    let dependent_returned=out.nodes.iter().filter(|node|node["admission"]=="selected" && node["is_seed"]==false).count();
     value["selected_identities_returned"] = json!(selected_returned);
     value["selected_dependent_identities_returned"] = json!(dependent_returned);
     value["node_identities_omitted"] = json!(selected.len() - selected_returned);

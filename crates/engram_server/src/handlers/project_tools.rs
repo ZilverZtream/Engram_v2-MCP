@@ -464,8 +464,8 @@ impl Engram {
         unreachable!("bounded pin attempts return above")
     }
 
-    /// P0-4/P0-5: standard one-line response trailer (generation + index age).
-    /// Never fails — a missing meta key just renders as "index age unknown".
+    /// Standard one-line trailer: generation and last project-update age.
+    /// A missing timestamp is reported as unavailable, not per-file freshness.
     pub(crate) async fn freshness_footer(&self, project_id: &str, generation: u64) -> String {
         let reg = self.state.registry.clone();
         let pid = project_id.to_string();

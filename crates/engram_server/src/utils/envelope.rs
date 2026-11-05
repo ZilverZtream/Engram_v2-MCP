@@ -1,8 +1,8 @@
 //! P0-4/P0-5: standard one-line trailer for read-tool responses.
 //!
 //! Every hot read tool appends this footer so agents always know which
-//! generation served the answer and how old the index is — staleness is
-//! otherwise invisible until the answers are wrong. Keep it to a single
+//! generation served the answer and when the project last updated. This
+//! project-wide timestamp does not establish per-file freshness. Keep a single
 //! line: it is paid on every tool call.
 
 /// Render a duration in compact form: `42s`, `17m`, `3h`, `5d`.
@@ -19,7 +19,7 @@ fn age_str(age_ms: u64) -> String {
     }
 }
 
-/// One-line, token-cheap trailer: generation + index age + freshness hint.
+/// One-line trailer: generation + last project-update age + freshness hint.
 ///
 /// `last_index_ms` is the `last_index_completed_ms` registry meta value;
 /// `None` means the project predates freshness tracking (or never indexed).
@@ -27,19 +27,17 @@ pub fn footer(generation: u64, last_index_ms: Option<u64>) -> String {
     let indexed = match last_index_ms {
         Some(ms) => {
             let now = crate::utils::now_ms();
-            format!("indexed {} ago", age_str(now.saturating_sub(ms)))
+            format!("last project update {} ago", age_str(now.saturating_sub(ms)))
         }
-        None => "index age unknown".to_string(),
+        None => "last project update time unavailable".to_string(),
     };
     format!("\n---\n[engram] gen={generation} | {indexed} | stale? call get_index_freshness\n")
 }
 
-/// Prominent per-file drift warning for tools that read source from disk by
-/// GRAPH line numbers (the access layer). The wall-clock footer alone can't
-/// catch this: "indexed 2m ago" looks fine even when the agent edited the
-/// file 10 seconds ago and every line range in the graph is now shifted.
-/// Returns `None` when the file has not changed since the last index (or
-/// when either timestamp is unknown — no false alarms on missing data).
+/// Timestamp heuristic for source inspected using indexed locations. This
+/// compares mtime with a project update, not this file's selected revision.
+/// `None` means no positive timestamp warning, including missing timestamps;
+/// it does not establish locator/parser/binding freshness or project coverage.
 pub fn stale_file_banner(
     rel_path: &str,
     file_mtime_ms: Option<u64>,
@@ -51,9 +49,8 @@ pub fn stale_file_banner(
     }
     let now = crate::utils::now_ms();
     Some(format!(
-        "⚠ STALE FILE: `{rel_path}` was modified {} ago — AFTER the last index ({} ago). \
-         Line numbers and bodies below may be shifted. Run update_project (or wait for \
-         the watcher) before trusting exact line ranges.\n\n",
+        "⚠ FILE TIME CHECK: `{rel_path}` was modified {} ago — after the last project update ({} ago). \
+         Indexed locations may differ; current-source byte verification is separate.\n\n",
         age_str(now.saturating_sub(mtime)),
         age_str(now.saturating_sub(indexed)),
     ))
@@ -88,7 +85,7 @@ mod tests {
     fn footer_with_known_age_names_freshness_tool() {
         let f = footer(42, Some(crate::utils::now_ms().saturating_sub(120_000)));
         assert!(f.contains("gen=42"), "footer must carry generation: {f}");
-        assert!(f.contains("indexed 2m ago"), "footer must carry age: {f}");
+        assert!(f.contains("last project update 2m ago"), "footer must name the project update age: {f}");
         assert!(
             f.contains("get_index_freshness"),
             "footer must name the freshness tool: {f}"
@@ -99,7 +96,7 @@ mod tests {
     #[test]
     fn footer_without_metadata_is_honest() {
         let f = footer(1, None);
-        assert!(f.contains("index age unknown"), "{f}");
+        assert!(f.contains("last project update time unavailable"), "{f}");
     }
 
     #[test]
@@ -108,7 +105,7 @@ mod tests {
         // File edited after the index → banner.
         let b = stale_file_banner("a/b.vb", Some(now - 5_000), Some(now - 60_000));
         let b = b.expect("must warn when file is newer than index");
-        assert!(b.contains("STALE FILE"), "{b}");
+        assert!(b.contains("FILE TIME CHECK"), "{b}");
         assert!(b.contains("a/b.vb"), "{b}");
         // File older than the index → silent.
         assert!(stale_file_banner("a/b.vb", Some(now - 60_000), Some(now - 5_000)).is_none());
