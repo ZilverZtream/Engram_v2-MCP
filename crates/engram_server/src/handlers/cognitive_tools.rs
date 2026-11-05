@@ -22,6 +22,78 @@ use std::path::PathBuf;
 /// (node_id, node_type, name, file_path) tuple used in centrality reranking.
 type NodeMetaTuple = (String, Option<String>, Option<String>, Option<String>);
 
+/// Observe a known identity under the already-held file selection. This is
+/// deliberately separate from bounded declaration discovery and name lookup.
+fn exact_navigation_node(
+    graph: &engram_graph::GraphStore,
+    membership: &engram_index::hybrid::SelectedSourceRevisionLookup,
+    project: &str,
+    path: &str,
+    id: &str,
+) -> (Vec<engram_graph::Node>, serde_json::Value) {
+    use engram_graph::store::{ImpactAdmission, ImpactWalkCoverage};
+    let mut coverage = ImpactWalkCoverage::default();
+    let mut stage = "target";
+    let mut records = 0;
+    let mut bytes = 0;
+    let attempted = (|| -> anyhow::Result<Option<engram_graph::Node>> {
+        records += 1;
+        let Some((node, charged)) = graph.get_node_bounded(project, id, 64 * 1024)? else {
+            coverage.missing_nodes += 1;
+            coverage.reasons.push("exact_symbol_target_missing".into());
+            return Ok(None);
+        };
+        bytes += charged;
+        if node.file_path.as_str() != path || node.node_type == "file" {
+            coverage.unknown_nodes += 1;
+            coverage.reasons.push("exact_symbol_wrong_file_or_kind".into());
+            return Ok(None);
+        }
+        if node.name.len() > 2048 || node.node_type.len() > 64 {
+            coverage.unknown_nodes += 1;
+            coverage.reasons.push("exact_symbol_identity_fields_exceed_limit".into());
+            return Ok(None);
+        }
+        stage = "file";
+        records += 1;
+        let Some((file, charged)) = graph.get_node_bounded(project, &format!("file:{path}"), 64 * 1024)? else {
+            coverage.missing_nodes += 1;
+            coverage.reasons.push("exact_symbol_file_missing".into());
+            return Ok(None);
+        };
+        bytes += charged;
+        stage = "admission";
+        match crate::services::impact_walk_service::admit_selected_source(membership, &node, Some(&file))? {
+            ImpactAdmission::Selected => Ok(Some(node)),
+            ImpactAdmission::NonSelectedRevision => {
+                coverage.non_selected_nodes += 1;
+                coverage.reasons.push("exact_symbol_non_selected_revision".into());
+                Ok(None)
+            }
+            _ => {
+                coverage.unknown_nodes += 1;
+                coverage.reasons.push("exact_symbol_source_admission_unknown".into());
+                Ok(None)
+            }
+        }
+    })();
+    let nodes: Vec<_> = match attempted {
+        Ok(node) => node.into_iter().collect(),
+        Err(_) => {
+            coverage.unknown_nodes += 1;
+            coverage.reasons.push(format!("exact_symbol_{stage}_unavailable"));
+            Vec::new()
+        }
+    };
+    coverage.nodes_observed = nodes.len();
+    coverage.truncated = nodes.is_empty();
+    let observation = serde_json::json!({"observation":"exact_bounded_identity_lookup",
+        "declaration_inventory":"not_scanned","record_limit_bytes":64*1024,
+        "records_attempted":records,"raw_record_bytes_decoded":bytes,
+        "declaration_admission":coverage});
+    (nodes, observation)
+}
+
 /// Score a trace path from 0.0 (unusable) to 1.0 (high-certainty direct
 /// evidence). Starts from 1.0 and subtracts a penalty per hop based on
 /// the hop's edge kind (inferred from the `(prev, curr)` node-type pair),
@@ -1348,24 +1420,29 @@ impl Engram {
                 let files:Vec<_>=batch.iter().map(|(path,_,_)|path.clone()).collect();
                 let admit=|node:&engram_graph::Node,file:Option<&engram_graph::Node>|
                     crate::services::impact_walk_service::admit_selected_source(&membership,node,file);
-                let (seeds,seed_coverage)=graph.bounded_file_navigation_seeds(pid,&files,&admit)?;
-                let walk=if seeds.is_empty(){engram_graph::store::IncomingImpactWalk::default()}
-                    else{graph.bounded_incoming_walk(pid,&seeds,1,&|_|false,&admit)?};
-                discovery.push(serde_json::json!({"seed_discovery":seed_coverage,"declaration_admission":walk.coverage}));
+                let observed = if let Some(id) = worker_request.symbol_node_id.as_deref() {
+                    let (nodes, observation) = exact_navigation_node(&graph, &membership, pid, &files[0], id);
+                    discovery.push(observation);
+                    nodes
+                } else {
+                    let (seeds,seed_coverage)=graph.bounded_file_navigation_seeds(pid,&files,&admit)?;
+                    let walk=if seeds.is_empty(){engram_graph::store::IncomingImpactWalk::default()}
+                        else{graph.bounded_incoming_walk(pid,&seeds,1,&|_|false,&admit)?};
+                    discovery.push(serde_json::json!({"seed_discovery":seed_coverage,"declaration_admission":walk.coverage}));
+                    walk.nodes.into_iter().filter(|item|
+                        item.admission==engram_graph::store::ImpactAdmission::Selected).map(|item|item.node).collect()
+                };
                 for (path,revision,area) in batch {
-                    let mut nodes:Vec<_>=walk.nodes.iter().filter(|item|
-                        item.admission==engram_graph::store::ImpactAdmission::Selected
-                        && item.node.node_type!="file" && item.node.file_path.as_str()==path).collect();
+                    let mut nodes:Vec<_>=observed.iter().filter(|node|
+                        node.node_type!="file" && node.file_path.as_str()==path).collect();
                     let callable=|kind:&str|matches!(kind,"function"|"method"|"constructor"|"property"|"sub"|"procedure");
-                    nodes.sort_by(|a,b|(!callable(&a.node.node_type)).cmp(&(!callable(&b.node.node_type)))
-                        .then_with(||a.node.name.cmp(&b.node.name)).then_with(||a.node.node_id.cmp(&b.node.node_id)));
+                    nodes.sort_by(|a,b|(!callable(&a.node_type)).cmp(&(!callable(&b.node_type)))
+                        .then_with(||a.name.cmp(&b.name)).then_with(||a.node_id.cmp(&b.node_id)));
                     let selected=worker_request.symbol_node_id.as_deref();
                     let cap=if exact_file && selected.is_none(){16}else{1};
-                    let symbol_offset=if let Some(id)=selected {
-                        nodes.iter().position(|item|item.node.node_id==id).unwrap_or(nodes.len())
-                    }else if exact_file{worker_request.symbol_offset}else{0};
+                    let symbol_offset=if selected.is_some(){0}else if exact_file{worker_request.symbol_offset}else{0};
                     let symbols:Vec<_>=nodes.iter().skip(symbol_offset).take(cap).map(|item|{
-                        let node=&item.node;
+                        let node=*item;
                         let mut actions=Vec::new();
                         if node.start_line>0 && node.end_line>=node.start_line {
                             actions.push(serde_json::json!({"tool":"get_full_method_body","arguments":{
@@ -1409,7 +1486,8 @@ impl Engram {
                         "actions":file_actions});
                     if let Some(id)=selected {
                         row["symbol_selection"]=serde_json::json!({"node_id":id,"observed":!symbols.is_empty(),
-                            "scope":"exact_identity_in_bounded_admitted_declarations; not observed does not prove absent"});
+                            "scope":"exact_bounded_identity_lookup; not observed does not prove absent"});
+                        row["declaration_inventory"]=serde_json::json!("not_scanned");
                     }
                     rows.push(row);
                 }
@@ -1438,7 +1516,7 @@ impl Engram {
                 "No filesystem byte/LOC scan, source-body read, whole-project graph scan, native vector table or model query was performed.",
                 "Default files are diverse representatives. Scope an area and use page offsets for selected files beyond the sample.",
                 "Missing declarations or an empty bounded sample do not prove absence of code, consumers or entry points. Legacy file coverage is unknown.",
-                "Root/area previews show one declaration; exact-file pages show16 observed declarations with source-range actions and next_symbols (offset0..128). Set symbol_node_id to a listed identity under the exact-file scope with both offsets0 for that declaration's full actions. Selection is a fresh observation: compare source_generation and coverage; it is not atomic continuation. No match means not observed in the bounded admitted sample, not absent code.",
+                "Root/area previews show one declaration; exact-file pages show16 observed declarations with source-range actions and next_symbols (offset0..128). Set symbol_node_id to a known identity under the exact-file scope with both offsets0 for independently bounded target/file admission and that declaration's full actions, without declaration discovery or name fallback. Selection is a fresh observation: compare source_generation and coverage; it is not atomic continuation. Not observed does not prove absence.",
                 "Ranges are indexed positions capped to120lines; follow-up verifies current bytes, not full methods or runtime entry points. Declaration discovery coverage is reported once above."]});
         navigation["limitations"].as_array_mut().expect("limitations array").push(serde_json::json!(
             "If no displayed declaration offers a source range, the file action offers a bounded current-file excerpt. This reads current bytes only when executed; compare page hashes and do not infer method boundaries or indexed freshness."));
@@ -1451,7 +1529,7 @@ impl Engram {
                 "Not observed is not absent. Discovery/admission/scan gaps are reported in coverage; no current-source, binding or runtime verification.",
                 "Indexed ranges are capped at120lines. Follow-ups observe fresh state/current bytes; compare source_generation and hashes, not complete-method or entry-point proof.",
                 "File reads without line bounds are bounded current-file excerpts, not indexed method boundaries. Compare their hashes and continuation.",
-                "File actions page admitted declarations (16 per page, bounded through offset128). Project distributions and area/schema/settings context omitted; use root/area overview or request include_retained_context=true when that context is needed."
+                "File actions page admitted declarations (16 per page, bounded through offset128). Exact symbol_node_id uses independent bounded target/file admission, not a declaration inventory. Project distributions and area/schema/settings context omitted; use root/area overview or request include_retained_context=true when that context is needed."
             ]);
         }
         let mut areas=Vec::new();
