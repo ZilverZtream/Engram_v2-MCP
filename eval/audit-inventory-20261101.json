@@ -8923,12 +8923,38 @@
         },
         "graph_reduction": "18unconnected/unreferenced targetfile seed declarations+18private recovery rows cost10037B (~21.6% of original46492B reply). Projection-only reduction must retain consumers/real witnesses/unknown frontiers/dispatch facts and truthful omission semantics; no delivery claim.",
         "freshness_qualification": "Source bytes/ranges correctly verified. Unqualified warning:null/projectwide indexedage do not check perfile parser/locator/binding/currentcoverage. Qualify bounded source-action scope/lastPROJECTupdate without new scan/parser/reindex."
+      },
+      "output_projection_and_freshness_20261105": {
+        "status": "IMPLEMENTED_46_FOCUSED_CASES_PASS_RELEASE_AND_ACTUAL_REPLAY_PENDING",
+        "source_parent": "8adf720c2d92e9c8845c5788ead3afb32658d76f",
+        "prior_measurement": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-agent-next-output-batch-20261105.json",
+          "sha256": "1beca2c0dbb615a602464f541e602ce4161603ee807e7c1b4646947c00420890"
+        },
+        "focused": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\output-projection-freshness-behavior-20261105.json",
+          "sha256": "4ed621c9f7bfe5571bc1267f8ec32359d7d58f71617a7955b77f5573ec7390f4"
+        },
+        "graph_behavior": "Display-only omission of unused selected file-member seeds/private recoveries; preserve requested target, all consumers/witnesses/predecessors/primary and dispatch frontiers/routes. Keep observed traversal facts, disclose exact intentional omissions and provide literal paginated CodeMap declaration inventory. Symbol targets unchanged.",
+        "source_read_behavior": "Shared timestamp envelope distinguishes non-newer, newer, unavailable and absent file target. Project age is labelled last project update. Null warning establishes no indexed locator/parser/call-binding/project-coverage freshness; exact source hash/range and independent evidence remain separate. No new scans/parser/index updates.",
+        "wanted_behavior": "Public native dispatch and graph cases retain3consumerfiles plus actualpotentialroute; real24unused declarations are omitted only from graph display and recovered by literal paged CodeMap+sourcehash, frontier-only member retained, exact counters. Partial project-update timestamp trap cannot rehabilitate stale fqn source; current range/hash still valid. Body/edit/page JSON+Markdown scope and32KiB escaped excerpt behavior verified.",
+        "independent_review": "return_proposal_consumer reviewed graph/counters/recovery, interface_gap_diagnosis reviewed shared envelope/generation/budget. No implementation blocker. CodeRabbit authfalse; no remote review claimed.",
+        "deployment": "Both owned test runners terminal0/PASS and temporary trees removed; source ready to push. Optimized build, actual material graph reduction/full CodeMap inventory and installed replay still pending. Baseline installed bedba14.",
+        "remaining": "Actual/installed agent validation, global source freshness/watchpause and original31findings/19fullgates remain unfinished.",
+        "source": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\output-projection-source-applied-20261105.json",
+          "sha256": "bf9d169d65d142f9806a2ef12def782349d307338102d67ba87dbb4309c68ad8"
+        },
+        "footer_checks": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\output-project-time-envelope-20261105.json",
+          "sha256": "9f776a7b6ad9d599f775bfe6bb103c514384d3a2f6c474f8e5ebd6408857194c"
+        }
       }
     }
   },
-  "last_updated_at": "2026-11-05T07:31:44.749886+00:00",
+  "last_updated_at": "2026-11-05T08:03:40.345857+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-05T07:31:44.749886+00:00",
+    "at_utc": "2026-11-05T08:02:23.181820+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -8973,6 +8999,6 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
     "latest_completed_core_batch": "bedba14 precise enclosing-declaration CodeMap recovery deployed;15focusedcases/actualcoldreadonly/normalreplayPASS. Prior a310 consumerbreadth/callercontext remainsvalidated; freshlimited8requesttask68781B. Originalfullauditunfinished.",
-    "previous_goal_turn_classification": "PROGRESS: pushedsourcebedba14tomaster, deployeda310andbedba14, actualcold+normal outputs and literalactions verified, independentreviews/freshboundedtask complete. Original31findings/19fullgates remain unfinished; no goal completion."
+    "previous_goal_turn_classification": "PROGRESS: previous turn pushed/deployed bedba14 with actualcold/normalverification. Current continuation implements measured graph projection and truthful source timestamp scope;42integrationcasesPASS, remaining exact unit/build handles observed live. No goal completion."
   }
 }

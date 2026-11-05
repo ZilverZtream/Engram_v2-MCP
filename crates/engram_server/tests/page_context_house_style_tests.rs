@@ -137,6 +137,9 @@ async fn house_style_names_the_nearest_siblings_and_the_idioms_they_share() {
     )
     .await;
     let hs = &v["house_style"];
+    assert_eq!(v["freshness"]["warning"],Value::Null);
+    assert_eq!(v["freshness"]["file_time_check"],"timestamps_unavailable");
+    assert!(v["freshness"]["interpretation"].as_str().unwrap().contains("project-coverage"));
     assert!(
         hs.is_object(),
         "house_style is part of the page context: {v}"
@@ -190,6 +193,7 @@ async fn the_markdown_carries_a_house_style_section_and_the_flag_turns_it_off() 
     )
     .await;
     assert!(md.contains("## House style"), "the section renders:\n{md}");
+    assert!(md.contains("timestamps_unavailable") && md.contains("A null warning establishes no indexed-locator"));
     assert!(
         md.contains("list.aspx") && md.contains("uc:files"),
         "siblings and idioms render:\n{md}"

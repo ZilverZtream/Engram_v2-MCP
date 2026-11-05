@@ -2312,6 +2312,106 @@ fn ambiguous_or_unadmitted_declarations_do_not_become_missing_identity_candidate
 
 
 #[test]
+fn file_impact_omits_only_unused_inventory_and_recovers_it_through_codemap() {
+    owned_case(|fixture| async move {
+        const SEEDS: &str="src/seeded.rs";
+        const READER: &str="src/reader.rs";
+        let mut lines: Vec<_>=(0..24).map(|n|format!("pub fn Unused{n:02}() {{}}" )).collect();
+        lines.push("pub fn Used() -> i32 { 1 }".into());
+        lines.push("pub fn FrontierOnly() {}".into());
+        let source=lines.join("\n")+"\n";
+        let reader="pub fn ReadSeed() -> i32 { crate::seeded::Used() }\n";
+        let cancel=CancellationToken::new();
+        let baseline=fixture.engram.state.registry.capture_source_head(PID).unwrap();
+        fixture.search.prepare_source_snapshot(PID,2,3,&[RelPath::new(SEEDS),RelPath::new(READER)],&[],&cancel).await.unwrap();
+        fixture.search.index_docs(PID,&[source_doc(3,500,SEEDS,&source),source_doc(3,501,READER,reader)],&cancel).await.unwrap();
+        fixture.search.seal_source_snapshot(PID,3).unwrap();
+        std::fs::write(fixture.root.join(SEEDS),&source).unwrap();
+        std::fs::write(fixture.root.join(READER),reader).unwrap();
+        let mut nodes=vec![file_node(SEEDS,&source,3),file_node(READER,reader,3),
+            declaration(SEEDS,"Used",25,3),declaration(SEEDS,"FrontierOnly",26,3),declaration(READER,"ReadSeed",1,3)];
+        nodes.extend((0..24).map(|n|declaration(SEEDS,&format!("Unused{n:02}"),n+1,3)));
+        fixture.engram.state.graph.upsert_nodes(PID,&nodes).unwrap();
+        let unknown=id("src/unrecorded.rs","MissingCaller",1);
+        fixture.engram.state.graph.upsert_edges(PID,&[
+            edge(id(READER,"ReadSeed",1),id(SEEDS,"Used",25),EdgeKind::Calls,3),
+            edge(id(READER,"ReadSeed",1),id(SEEDS,"Used",25),EdgeKind::Dependency,3),
+            edge(unknown.clone(),id(SEEDS,"FrontierOnly",26),EdgeKind::Calls,3),
+        ]).unwrap();
+        assert!(fixture.engram.state.registry.publish_source_head(&baseline,3).unwrap());
+        let target=format!("file:{SEEDS}");
+        for tool in ["impact_analysis","compute_blast_radius"] {
+            let summary=impact_packet(&summary_impact(&fixture,tool,&target,6).await);
+            let graph=expand_summary_graph(&fixture,&summary,&target,6).await;
+            assert_eq!(graph["selected_identities_observed"],28);
+            assert_eq!(graph["selected_identities_returned"],4);
+            assert_eq!(graph["selected_dependent_identities_returned"],1);
+            assert_eq!(graph["selected_dependents_observed"],1);
+            assert_eq!(graph["node_identities_omitted"],24);
+            assert_eq!(graph["unconnected_file_seeds_omitted"],24);
+            assert_eq!(summary["graph_omissions"]["unconnected_file_seeds"],24);
+            assert_eq!(summary["graph_omissions"]["node_identities_omitted"],24);
+            assert_eq!(graph["display_truncated"],true);
+            assert_eq!(graph["edges_omitted"],0);
+            assert_eq!(graph["frontier_rows_omitted"],0);
+            assert_eq!(graph["shortest_paths_omitted"],0);
+            assert_eq!(graph["edges"].as_array().unwrap().len(),2);
+            assert_eq!(graph["shortest_paths"].as_array().unwrap().len(),1);
+            let by_ref: std::collections::BTreeMap<_,_>=graph["nodes"].as_array().unwrap().iter()
+                .map(|node|(node["ref"].as_str().unwrap(),node)).collect();
+            assert!(!by_ref.values().any(|node|node["node_id"].as_str().unwrap().contains("Unused")));
+            assert!(graph["frontier"].as_array().unwrap().iter().any(|lead|
+                by_ref[lead["source_ref"].as_str().unwrap()]["node_id"]==unknown
+                    && by_ref[lead["target_ref"].as_str().unwrap()]["node_id"]==id(SEEDS,"FrontierOnly",26)));
+            for edge in graph["edges"].as_array().unwrap() {
+                assert_eq!(by_ref[edge["source_ref"].as_str().unwrap()]["node_id"],id(READER,"ReadSeed",1));
+                assert_eq!(by_ref[edge["target_ref"].as_str().unwrap()]["node_id"],id(SEEDS,"Used",25));
+            }
+            let recovery_refs: std::collections::BTreeSet<_>=graph["recoveries"].as_array().unwrap().iter()
+                .map(|row|row["ref"].as_str().unwrap()).collect();
+            assert!(by_ref.values().all(|node|recovery_refs.contains(node["recovery_ref"].as_str().unwrap())));
+            assert!(!graph["recoveries"].as_array().unwrap().iter().any(|row|
+                row["tool"]=="get_full_method_body" && row["arguments"]["file_path"]==SEEDS
+                    && row["arguments"]["line_start"]==row["arguments"]["line_end"]
+                    && row["arguments"]["line_start"].as_u64().is_some_and(|line|(1..=24).contains(&line))),
+                "Unused declarations' private range actions must not consume the reduced graph response");
+            let inventory=&graph["declaration_inventory"];
+            assert_eq!(inventory["tool"],"get_codebase_overview");
+            let mut action=inventory.clone();
+            let mut found=std::collections::BTreeSet::new();
+            let mut recovered=false;
+            for _ in 0..4 {
+                let response=fixture.engram.handle_get_codebase_overview(serde_json::from_value(action["arguments"].clone()).unwrap()).await.unwrap();
+                let text=&response.content[0].as_text().unwrap().text;
+                let page: Value=serde_json::from_str(text.split("## CodeMap Navigation").nth(1).unwrap()
+                    .split("```json\n").nth(1).unwrap().split("```").next().unwrap()).unwrap();
+                assert_eq!(page["source_generation"],3);
+                let file=&page["files"][0];
+                assert_eq!(file["path"],SEEDS);
+                for symbol in file["symbols"].as_array().unwrap() {
+                    found.insert(symbol["name"].as_str().unwrap().to_owned());
+                    if symbol["name"]=="Unused23" {
+                        let read=&symbol["actions"][0];
+                        let result=fixture.engram.handle_get_full_method_body(serde_json::from_value(read["arguments"].clone()).unwrap()).await.unwrap();
+                        let body: Value=serde_json::from_str(&result.content[0].as_text().unwrap().text).unwrap();
+                        assert_eq!(body["source_file_hash"],ContentHash::compute(source.as_bytes()).0);
+                        assert_eq!(body["source_code"],lines[23]);recovered=true;
+                    }
+                }
+                if file["next_symbols"].is_null() { break; }
+                action=file["next_symbols"].clone();
+            }
+            assert!(recovered && (0..24).all(|n|found.contains(&format!("Unused{n:02}"))),
+                "Display-only omission must leave the full declaration inventory discoverable through its literal paging actions");
+        }
+        let symbol=impact_packet(&impact_target(&fixture,&id(SEEDS,"Unused23",24),Some(6)).await);
+        assert_eq!(symbol["unconnected_file_seeds_omitted"],0);
+        assert_eq!(symbol["node_identities_omitted"],0);
+        assert!(symbol["declaration_inventory"].is_null());
+    });
+}
+
+#[test]
 fn file_impact_summary_exposes_distinct_consumer_files_and_actual_member_connections() {
     owned_case(|fixture| async move {
         const WIDGET: &str = "src/widget.rs";

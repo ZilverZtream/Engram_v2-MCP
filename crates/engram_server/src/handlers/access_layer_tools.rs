@@ -60,10 +60,36 @@ struct FreshAccessResponse<'a, T: Serialize> {
     freshness: AccessFreshness,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 struct AccessFreshness {
     warning: Option<String>,
     details: String,
+    warning_scope: &'static str,
+    file_time_check: &'static str,
+    interpretation: &'static str,
+}
+
+impl AccessFreshness {
+    fn observed(file: Option<&str>, mtime: Option<u64>, last_update: Option<u64>, details: String) -> Self {
+        let file_time_check=match (file,mtime,last_update) {
+            (None,_,_)=>"no_file_target",
+            (Some(_),Some(modified),Some(updated)) if modified>updated=>"file_newer_than_last_project_update",
+            (Some(_),Some(_),Some(_))=>"file_not_newer_than_last_project_update",
+            _=>"timestamps_unavailable",
+        };
+        Self {
+            warning:file.and_then(|path|crate::utils::envelope::stale_file_banner(path,mtime,last_update)),
+            details,
+            warning_scope:"file_mtime_vs_last_project_update",
+            file_time_check,
+            interpretation:"A null warning establishes no indexed-locator, parser, call-binding or project-coverage freshness. Current-source hashes/ranges and other verification are reported separately.",
+        }
+    }
+
+    fn markdown_parts(&self) -> (Option<String>,String) {
+        (self.warning.clone(),format!("\nFreshness check: {} ({}). {}\n{}",
+            self.warning_scope,self.file_time_check,self.interpretation,self.details))
+    }
 }
 
 // ── Shared Output Types ──────────────────────────────────────────────────────
@@ -3543,17 +3569,15 @@ fn render_sql_validation_markdown(report: &SqlValidationReport) -> String {
 // ── Tool Handlers ────────────────────────────────────────────────────────────
 
 impl Engram {
-    /// Freshness envelope for access-layer responses: optional per-file
-    /// drift banner (file changed on disk AFTER the last index — the graph
-    /// line numbers these tools read bodies by may be shifted) plus the
-    /// standard one-line footer. The wall-clock footer alone cannot catch
-    /// drift caused by the agent's own edits seconds ago.
-    pub(crate) async fn access_freshness(
+    /// Compare a file timestamp with the last project update. This heuristic
+    /// does not establish per-file indexed locator/parser/binding freshness;
+    /// current-source byte verification belongs to each response's own facts.
+    async fn access_freshness(
         &self,
         project_id: &str,
         project_dir: &str,
         rel_file: Option<&str>,
-    ) -> (Option<String>, String) {
+    ) -> AccessFreshness {
         let reg = self.state.registry.clone();
         let pid = project_id.to_string();
         let last_ms = tokio::task::spawn_blocking(move || {
@@ -3564,16 +3588,10 @@ impl Engram {
         })
         .await
         .unwrap_or(None);
-        let banner = rel_file.and_then(|rf| {
-            let abs = safe_join(Path::new(project_dir), rf).ok()?;
-            crate::utils::envelope::stale_file_banner(
-                rf,
-                crate::utils::envelope::file_mtime_ms(&abs),
-                last_ms,
-            )
-        });
+        let mtime=rel_file.and_then(|file|safe_join(Path::new(project_dir),file).ok())
+            .and_then(|path|crate::utils::envelope::file_mtime_ms(&path));
         let gen_ = self.get_active_generation(project_id).await.unwrap_or(0);
-        (banner, crate::utils::envelope::footer(gen_, last_ms))
+        AccessFreshness::observed(rel_file,mtime,last_ms,crate::utils::envelope::footer(gen_,last_ms))
     }
 
     async fn method_downstream_assessment(
@@ -3637,7 +3655,7 @@ impl Engram {
         project_dir: &str,
         rel_file: &str,
         generation: Option<u64>,
-    ) -> (Option<String>, String) {
+    ) -> AccessFreshness {
         let registry = self.state.registry.clone();
         let project = project_id.to_owned();
         let last_ms = tokio::task::spawn_blocking(move || {
@@ -3649,20 +3667,14 @@ impl Engram {
         })
         .await
         .unwrap_or(None);
-        let banner = safe_join(Path::new(project_dir), rel_file)
+        let mtime = safe_join(Path::new(project_dir), rel_file)
             .ok()
-            .and_then(|path| {
-                crate::utils::envelope::stale_file_banner(
-                    rel_file,
-                    crate::utils::envelope::file_mtime_ms(&path),
-                    last_ms,
-                )
-            });
+            .and_then(|path|crate::utils::envelope::file_mtime_ms(&path));
         let footer = match generation {
             Some(generation) => crate::utils::envelope::footer(generation, last_ms),
             None => "\nDownstream source generation unavailable; current-source impact coverage is unknown.\n".into(),
         };
-        (banner, footer)
+        AccessFreshness::observed(Some(rel_file),mtime,last_ms,footer)
     }
 
     // ── 38-1: get_method_info ─────────────────────────────────────────────
@@ -3727,7 +3739,7 @@ impl Engram {
                     &rec.directory,
                     Some(results[0].file_path.as_str()),
                 )
-                .await;
+                .await.markdown_parts();
             let mut out = banner.unwrap_or_default();
             out.push_str(&render_method_info_markdown(&results[0]));
             out.push_str(&footer);
@@ -3771,7 +3783,7 @@ impl Engram {
 
         let (_, footer) = self
             .access_freshness(&req.project_id, &rec.directory, None)
-            .await;
+            .await.markdown_parts();
         md.push_str(&footer);
         Ok(CallToolResult::success(vec![Content::text(md)]))
     }
@@ -3886,17 +3898,18 @@ impl Engram {
 
         let mut body_result = result.map_err(|e| McpError::invalid_params(e, None))?;
 
-        let (banner, footer) = self
+        let freshness = self
             .access_freshness(
                 &req.project_id,
                 &rec.directory,
                 Some(body_result.file_path.as_str()),
             )
             .await;
+        let (banner,footer)=freshness.markdown_parts();
         loop {
             let out = if output_json {
                 serde_json::to_string_pretty(&FreshAccessResponse {result:&body_result,
-                    freshness:AccessFreshness {warning:banner.clone(),details:footer.clone()}})
+                    freshness:freshness.clone()})
                     .map_err(|e|McpError::internal_error(e.to_string(),None))?
             } else {
                 let mut out=banner.clone().unwrap_or_default();
@@ -4099,7 +4112,7 @@ impl Engram {
             );
         }
 
-        let (banner, footer) = self
+        let freshness = self
             .method_edit_freshness(
                 &req.project_id,
                 &rec.directory,
@@ -4110,15 +4123,13 @@ impl Engram {
         if output_json {
             let json = serde_json::to_string_pretty(&FreshAccessResponse {
                 result: &ctx,
-                freshness: AccessFreshness {
-                    warning: banner,
-                    details: footer,
-                },
+                freshness: freshness.clone(),
             })
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
             return Ok(CallToolResult::success(vec![Content::text(json)]));
         }
 
+        let (banner,footer)=freshness.markdown_parts();
         let mut out = banner.unwrap_or_default();
         out.push_str(&render_method_edit_context_markdown(&ctx));
         out.push_str(&footer);
@@ -4720,21 +4731,19 @@ impl Engram {
 
         let ctx = result.map_err(|e: String| McpError::invalid_params(e, None))?;
 
-        let (banner, footer) = self
+        let freshness = self
             .access_freshness(&req.project_id, &rec.directory, Some(&req.aspx_file))
             .await;
         if output_json {
             let json = serde_json::to_string_pretty(&FreshAccessResponse {
                 result: &ctx,
-                freshness: AccessFreshness {
-                    warning: banner,
-                    details: footer,
-                },
+                freshness: freshness.clone(),
             })
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
             return Ok(CallToolResult::success(vec![Content::text(json)]));
         }
 
+        let (banner,footer)=freshness.markdown_parts();
         // M-6 fix: cap the rendered Markdown to prevent multi-megabyte
         // responses on projects with many edges (10 kinds × up to 5 000 edges
         // each = up to 50 000 rows, which can exceed several MB and cause MCP
@@ -5322,7 +5331,7 @@ impl Engram {
 
         let (banner, footer) = self
             .access_freshness(&req.project_id, &rec.directory, Some(&req.file_path))
-            .await;
+            .await.markdown_parts();
         let mut out = banner.unwrap_or_default();
         out.push_str(&render_implementation_context_markdown(&ctx));
         out.push_str(&footer);
@@ -6449,7 +6458,7 @@ impl Engram {
                 &req.file_path,
                 downstream_generation,
             )
-            .await;
+            .await.markdown_parts();
         let mut out = banner.unwrap_or_default();
         out.push_str(&md);
         out.push_str(&footer);
