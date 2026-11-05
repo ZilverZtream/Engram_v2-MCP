@@ -255,6 +255,14 @@ fn compact_dispatch_keeps_distinct_consumer_files_and_inspectable_caller_context
                 for node in &mut nodes { if let Some(meta)=node.metadata.as_mut().and_then(Value::as_object_mut) {meta.remove("interface_dispatch_status");} }
                 app.state.graph.upsert_nodes(&pid,&nodes)?;
             }
+            let parent=app.state.graph.query_nodes(&pid,Some("function"),None,Some(dashboard),16)?
+                .into_iter().find(|node|node.name.ends_with(".BuildRow")).unwrap();
+            app.state.graph.upsert_edges(&pid,&[engram_graph::Edge {
+                source_id:format!("sym:self:{dashboard}:Me:{}",parent.start_line),
+                target_id:parent.node_id,namespace:"memory".into(),language:"vb".into(),
+                edge_kind:engram_graph::EdgeKind::Calls,weight:1,generation:parent.generation,
+                metadata:None,updated_at_ms:1,
+            }])?;
             for tool in ["impact_analysis","compute_blast_radius"] {
                 let args=json!({"project_id":pid,"file_path":helper,"detail":"summary","max_depth":6});
                 let response=if tool=="impact_analysis" {app.handle_impact_analysis(serde_json::from_value(args)?).await?}
@@ -263,6 +271,8 @@ fn compact_dispatch_keeps_distinct_consumer_files_and_inspectable_caller_context
                 let text=response.content.iter().filter_map(|p|p.as_text()).map(|p|p.text.as_str()).collect::<String>();
                 ensure!(text.len()<=12*1024);let summary=packet(&text)?;
                 ensure!(summary["direct_dependents_observed"]==3);
+                ensure!(summary["enclosing_declaration_scope"].as_str().is_some_and(|scope|scope.contains("unresolved")),
+                    "Receiver context uncertainty must stay explicit without crowding consumer files");
                 let files:std::collections::BTreeSet<_>=summary["immediate_consumers"].as_array().unwrap().iter().map(|row|row["file_path"].as_str().unwrap()).collect();
                 ensure!(files.len()==3 && files.contains(provider) && files.contains(dashboard),
                     "Potential dispatch and optional gap rows must not hide distinct ordinary consumers: {summary}");

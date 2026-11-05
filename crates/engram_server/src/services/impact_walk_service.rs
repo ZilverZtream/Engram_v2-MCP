@@ -319,6 +319,9 @@ fn summary_section(
     if recoveries.values().any(|row| row["scope_ref"] == "inspection_candidate") {
         value["inspection_candidate_scope"] = full["recovery_scopes"]["inspection_candidate"].clone();
     }
+    if recoveries.values().any(|row| row["scope_ref"] == "enclosing_declaration") {
+        value["enclosing_declaration_scope"] = json!("Enclosing context; receiver/edge unresolved. Fresh bounded read; verify hash/freshness.");
+    }
     // Charge the actual bounded prefix, plus framing/freshness reserve. Its
     // 2KiB ceiling is not its usual cost; over-reserving it hides useful rows.
     let immediate_prefix=immediate_section(full,false).unwrap_or_default();
@@ -519,7 +522,7 @@ impl CompactEvidence<'_> {
     }
 
     fn recovery(&self, tool: &str, arguments: Value, scope_ref: &str) -> Result<RecoveryDraft> {
-        let key = serde_json::to_string(&json!({"tool":tool,"arguments":arguments}))?;
+        let key = serde_json::to_string(&json!({"tool":tool,"arguments":arguments,"scope_ref":scope_ref}))?;
         if let Some(reference) = self.recovery_refs.get(&key) {
             return Ok(RecoveryDraft {
                 reference: reference.clone(),
@@ -589,6 +592,33 @@ impl CompactEvidence<'_> {
                     row["inspection_candidate"] = json!({"node_id":candidate.node.node_id,
                         "generation":candidate.node.generation,
                         "basis":"Unique admitted declaration in this held walk with the same hinted file, kind, start line and terminal name. Inspection lead only; original identity and edge remain unresolved."});
+                }
+                return Ok(recovery);
+            }
+        }
+        // An unresolved receiver is not an alternate identity for its method.
+        // Inspect a unique admitted containing declaration without repairing
+        // the receiver, its edge, or any uncertainty in the held walk.
+        if endpoint.admission == "unresolved" && hint_kind == Some("self")
+            && file.is_some() && file == hint_file && hint_line.is_some_and(|line| line > 0)
+        {
+            let line = hint_line.expect("checked positive hint");
+            let mut candidates = self.observed_nodes.iter().filter(|item| {
+                item.admission == ImpactAdmission::Selected
+                    && Some(item.node.file_path.as_str()) == file
+                    && matches!(item.node.node_type.as_str(), "function" | "method")
+                    && item.node.start_line > 0 && item.node.start_line <= line && item.node.end_line >= line
+                    && item.node.node_id == engram_core::ids::NodeId::symbol(
+                        &item.node.node_type, None, item.node.file_path.as_str(),
+                        &item.node.name, item.node.start_line).0
+            });
+            if let Some(candidate) = candidates.next().filter(|_| candidates.next().is_none()) {
+                arguments["symbol_node_id"] = json!(candidate.node.node_id);
+                let mut recovery = self.recovery("get_codebase_overview", arguments, "enclosing_declaration")?;
+                if let Some((_, row)) = recovery.fresh.as_mut() {
+                    row["enclosing_declaration"] = json!({"node_id":candidate.node.node_id,
+                        "generation":candidate.node.generation,
+                        "basis":"Unique admitted canonical callable in this held walk containing the unverified receiver's positive file/line hint. Enclosing context only; the receiver identity and edge remain unresolved."});
                 }
                 return Ok(recovery);
             }
@@ -804,6 +834,7 @@ fn render(
             "file_excerpt":"Bounded current-file lines with a complete-file hash. Follow next_page and compare hashes across fresh reads; no indexed freshness, method boundaries or invocation location is verified.",
             "navigation":"Bounded selected-source CodeMap for the known file, or a project representative when the file is unknown. Best-effort exploration only: no recovered binding, absence or runtime proof.",
             "inspection_candidate":"Exact CodeMap navigation to a unique separately admitted declaration matching the missing identity's hinted file, kind, start line and terminal name. Candidate only, not identity equivalence; the original graph identity and edge remain unresolved. Follow-up is a fresh observation and may not rediscover the declaration within its own bounds.",
+            "enclosing_declaration":"Exact CodeMap navigation to a unique admitted canonical callable containing an unresolved receiver's unverified file/line hint. Enclosing context only, not receiver binding or identity equivalence; the original graph identity and edge remain unresolved. Follow-up is a fresh bounded observation; verify returned source hash and freshness.",
             "direct":"Narrow direct impact for the admitted exact identity. A follow-up uses its own source selection; no complete pagination or atomic replay is promised.",
         },
         "working_tree_checked":false,"exhaustive_codebase":false,"change_breakage_proven":false,

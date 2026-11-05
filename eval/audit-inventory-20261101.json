@@ -8804,13 +8804,13 @@
         "global_limits": "Whole-project freshness FALSE:1009older parser-provenance paths; live eligible/unindexed counts observed2317/15,2411/109,2455/153 while selected2302 stays fixed. Cause of eligible growth not established. Source outside7 not refreshed. Watching remains persistently paused to protect frozenQ; this operational limitation is unfinished work.",
         "observer_status": "Both original actual and cold observers retained as FAIL at their global/static completeness assertion. Full retained RPCs verify300prewrite/cold notes and prior completed workflow checks; scoped reconciliation is separately reviewed, no writer retry/global freshness or full19gate closure.",
         "agent_cost": "Freshfork read only assigned bootstrap+8actual replies, no oracle/status/list_agents;8successful requests94,766B/~0.496s tooltime. Source-verified API/interface/controller and provider/WebForms/export paths, retained global/DI/runtime limits. Not held-out or general productivity proof.",
-        "remaining": "Read-side regression: new potential/gap rows crowded ordinary summaries to1immediate consumer, forcing46.4KBgraph. Caller call-only read hid entry/receiver context. Two-response-shaping fixes plus desired multifile/long-reference test are currently uncommitted/under focused tests; not deployed. Missing-self recovery/13.6KB CodeMap cost and original31findings/19fullgates remain open.",
+        "remaining": "Two summary/context regressions corrected and deployed at a310; see followup evidence. Missing-self navigation/large graph output and original31findings/19fullgates remain open.",
         "owned_resources": "Maintenance children exited0 naturally; pure native children/Job/handles closed; all new fixture/tmp removed. Config hold released unchanged SHA; normal runtime restarted. Backup C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-df1006e1e6264a5fb8869c7a90acdeac retained for rollback; evidence retained under V. No preexisting cleanup/extra copies/worktrees/volumes.",
         "repository_visibility": "User requested fix: GitHub default changed main->master, remote HEAD verifiedbc78.49commits/264files were already onmaster; no PR/merge/history rewrite. Current master had no reported CI checks; retrieved failures were historical other-branch runs, user corrected attribution. No CI or CodeRabbit-pass claim."
       },
       "interface_context_diversity_followup_20261105": {
-        "status": "Implemented and13focusedchecksPASS; optimizedbuild/install/actualreadback stillpending.",
-        "source_revision": "Same commit as this entry; exact2file hashes in source receipt.",
+        "status": "DEPLOYED_a310_WITH_ACTUAL_READ_ONLY_AND_NORMAL_READBACK_AND_FRESH_AGENT_TASK",
+        "source_revision": "a3100edd6b5b542d10c842d579ae6526d2a26f89",
         "source": {
           "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\interface-context-diversity-source-applied-20261105.json",
           "sha256": "202616661821482c0bf63690de6f9212567890859e2c808311354106afe1fce1"
@@ -8819,13 +8819,56 @@
         "behavior": "Ordinarydiversefiles outrank optionalinterfacegap/secondroute; actualprefixbudget; boundeddeclarationcontext andseparateliteralread for distantrecordedreferences.",
         "data_transition": "Read-side only. No parser/ingestion/storage schema change, no additionalsource update authorized/needed. Actualhead3120 and watchpause retained.",
         "verification": "Native/public3consumerfiles+actualroute+entryreceivercontext+longreference; originalincremental/cold2routebehavior and11priorimpactcasesPASS.",
-        "unfinished": "Actualnewpackage/installedsourceactions andcomparativelimitedtask; unknownself navigation andbroaderoriginalbacklog/globalfreshness stillopen."
+        "unfinished": "CodeMap unresolved-receiver recovery still generic; graph expansion remains46.5KB; global freshness false/watchpaused; source-action freshness warning null does not restate explicit global binding gap. Original31findings/19fullgates remain open.",
+        "pair": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\interface-context-diversity-paired-package-20261105.json",
+          "sha256": "efd4ffa4acafca9142b81de6ba1b918dfc7b12896c5fa4a98532e4ded7f34da1"
+        },
+        "actual_readonly": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-interface-context-readonly-20261105\\acceptance.json",
+          "sha256": "82a434c21b9198a94f339a6e9fff96c266201329e68a43253bc63d27ae484c3e"
+        },
+        "release_gate": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\interface-context-release-gates-admitted-20261105.json",
+          "sha256": "918d8d580973967de2a3788888d1fa3ee2b14d9f9468825216d05d78f6bf656f"
+        },
+        "upgrade": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\interface-context-upgrade-20261105.json",
+          "sha256": "066cd939d5d4533e8cee8be9e0e9a51500c841e2be64ac025d994f559affbf8f"
+        },
+        "normal_readback": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\interface-context-installed-normal-readback-20261105.json",
+          "sha256": "24b2be4d4f9fb05b7c1bdeddb55837223805cf47fa1a46bcfb64127b4015d0ff"
+        },
+        "fresh_agent": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\interface-context-fresh-agent-assessment-20261105.json",
+          "sha256": "dddbe381ac00947be7c7ab148b39cf96300d01a83bf62defa527a5137269a16e"
+        },
+        "actual_result": "Both11372B summaries retain3ordinary service/provider/dashboard files,1potential controller,primary6direct+6transitive and exact current caller context1..27. Primary graph unchanged;selected registry/2302pathselection andother14metadata unchanged; no source update. Normal outputs equal candidate.",
+        "agent_cost": "8successfulrequests/68781B/0.1368s tooltime;7source replies independently matched currentbytes/ranges. Still needed46492Bgraph. Limited task only.",
+        "resource_observation": "5.3s cold read-only owner: primary private peak759435264B, final sampled332308480B,140845logicalwritebytes.512MiB softalert retained. Excludes child/Ollama; not physicalSSD writes or sustained leak/idle evidence.",
+        "owned_resources": "Build and focused fixture temps removed; maintenance child natural0 and ownedtmp removed. Config read hold released unchanged; normal daemon restarted. Previous package retained at C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-83cc9402a4ec4f49b5ea73bc83c339d4. Evidence retained under existingV only."
+      },
+      "enclosing_declaration_navigation_20261105": {
+        "status": "IMPLEMENTED_15FOCUSED_BEHAVIOR_PASS_RELEASE_PENDING",
+        "problem": "Missing sym:self Me:25 recovery returns first16alphabetical declarations and omits admitted Page_Load; existing exactCodeMapselector can navigate it.",
+        "behavior": "Separate enclosing-declaration inspection using a unique selected canonical callable containing the positivefile/linehint; receiver/edge remain unresolved. Generic fallback for ambiguous/unadmitted/malformed/out-of-range hints.",
+        "data_transition": "Read-only response/navigation only; no parser/data/source migration.",
+        "source": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\enclosing-declaration-source-applied-20261105.json",
+          "sha256": "49bb50304966e172f5dec05eb3aedb4fd6cf4e1224ad78305ee6b1bde72f51d2"
+        },
+        "focused": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\enclosing-declaration-behavior-v2-20261105.json",
+          "sha256": "470d0f5233eedcb85e7b9cf06cd6aa6964e5240fb9f35ff1f468fdfcc69fc8ec"
+        },
+        "verification": "13public+2actual-native casesPASS. Literal exact CodeMap/source recovery beyond first16, current sourcehash, unresolved original, unchanged causalconnections and sixnegative admission/ambiguity cases; combined three-file/interface/receiver-context summary stays<=12KiB. Actualcandidate/installed replay stillpending."
       }
     }
   },
-  "last_updated_at": "2026-11-04T22:21:34.174161+00:00",
+  "last_updated_at": "2026-11-05T07:12:30.532736+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-05T06:33:34.941013+00:00",
+    "at_utc": "2026-11-05T07:05:54.310294+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -8856,7 +8899,7 @@
       }
     ],
     "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
-    "next_user_visible_deliverable": "Restore ordinary file-diverse consumers in compact impact while retaining actual potential interface caller, and provide bounded caller declaration context plus executable distant-callsite action. Validate focused behavior and actual installed agent task; no parser/data migration required for this read-side followup.",
+    "next_user_visible_deliverable": "Give unresolved receiver frontier a precise enclosing-declaration CodeMap inspection action without pretending its binding is resolved. Validate focused public behavior and actual source action; preserve existing data.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -8869,7 +8912,7 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "4ec9ea8 file-diverse fileimpactsummary/realmemberwitnesses deployed;focused11/cold55/freshlimitedsurface3sourceactions. Fullgraphunchanged; omittedrows/frontierexplicit. Original auditincomplete.",
+    "latest_completed_core_batch": "a310 compact consumer breadth and caller context deployed;13focusedchecks/actualcoldreadonly/normalreadback/fresh8requesttask. Fullprimarygraph unchanged; global freshness false/watchpause retained.",
     "previous_goal_turn_classification": "PROGRESS: previous turn changedsource,pushedmaster,deployedandvalidatedactualcandidateactions. Currentturnfoundseparatefile-summary/dispatchgaps fromdifferentAPI task andimplementedsummaryfix; notwholegoalcompletion."
   }
 }
