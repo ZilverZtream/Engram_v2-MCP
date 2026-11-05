@@ -8635,6 +8635,19 @@
           "installed_runtime": "One --daemon primaryPID97232 intentionally running normalconfiguration; installedstdio clientproxyPID84616 retained. OriginalconfigurationSHA unchanged; both configreadholds released.",
           "retained_rollback_pair": "C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-001798f4c9074235a730cd10a952ff71",
           "rollback_cleanup_condition": "Retain exact immediateprevious218file package forauthorized rollback; no deletion performed or inferred for preexisting backups/copies."
+        },
+        "inspection_candidate_batch": {
+          "state": "REVIEWED_FOCUSED10PASS;NOT_YET_SHIPPED",
+          "evidence": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-inspection-candidate-source-applied-20261105.json",
+            "sha256": "a7db23e39a72606afa441e0098815fc177819268735d382d40b0325ec5e8a841"
+          },
+          "before_recovery": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-inspection-candidate-installed-before-20261105.json",
+            "sha256": "b0a49701f1ab38edcbcf8fa05105b86aa6fb487b4518f9fc9c6779a94a6f8432"
+          },
+          "findings": "Three unresolved value.* identities/six observations offered same default16declaration CodeMap page; uploadhandlers absentfromfirstpage. New unique admitted candidate actions preserve original missing identities and uncertainty.",
+          "remaining": "Optimizedpackage, actualsame3119 graphpreservation/candidateaction/sourcechecks, deploy and freshconsumer inspection task."
         }
       }
     }

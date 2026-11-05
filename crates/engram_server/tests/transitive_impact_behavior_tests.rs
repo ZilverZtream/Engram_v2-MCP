@@ -2113,3 +2113,96 @@ fn default_impact_display_retains_the_distant_http_route_when_direct_callers_exc
         }
     });
 }
+
+
+#[test]
+fn missing_identities_offer_working_inspection_candidates_without_repairing_the_graph() {
+    owned_case(|fixture| async move {
+        let target = id(POLICY, "ClassifyAutomatic", 1);
+        let before = impact_packet(&impact(&fixture, Some(6)).await);
+        let expected = [(POLICY, "Resolve", 2), (SPATIAL, "ResolvePolicy", 1),
+            (SPATIAL, "QueryViewport", 3)];
+        let ghosts: Vec<_> = expected.iter().map(|(path, name, line)|
+            id(path, &format!("value.{name}"), *line)).collect();
+        let edges: Vec<_> = ghosts.iter().flat_map(|ghost| [
+            edge(ghost.clone(), target.clone(), EdgeKind::Calls, 2),
+            edge(ghost.clone(), target.clone(), EdgeKind::Dependency, 2),
+        ]).collect();
+        fixture.engram.state.graph.upsert_edges(PID, &edges).unwrap();
+        for tool in ["impact_analysis", "compute_blast_radius"] {
+            let summary = impact_packet(&summary_impact(&fixture, tool, &target, 6).await);
+            assert_eq!(summary["coverage"]["missing_nodes"], 6);
+            assert!(summary["inspection_candidate_scope"].as_str().unwrap().contains("remain unresolved"));
+            let report = expand_summary_graph(&fixture, &summary, &target, 6).await;
+            assert_eq!(report["selected_dependents_observed"], before["selected_dependents_observed"]);
+            assert_eq!(graph_connections(&report), graph_connections(&before),
+                "Inspection leads must not manufacture causal connections");
+            for ((path, name, line), ghost) in expected.iter().zip(&ghosts) {
+                let node = report["nodes"].as_array().unwrap().iter()
+                    .find(|node| node["node_id"] == *ghost).unwrap();
+                assert_eq!(node["admission"], "unresolved");
+                assert_eq!(report["frontier"].as_array().unwrap().iter()
+                    .filter(|row| row["source_ref"] == node["ref"]
+                        && row["reason"] == "missing_graph_node").count(), 2);
+                let recovery = report["recoveries"].as_array().unwrap().iter()
+                    .find(|row| row["ref"] == node["recovery_ref"]).unwrap();
+                assert_eq!(recovery["scope_ref"], "inspection_candidate");
+                assert_eq!(recovery["arguments"]["symbol_node_id"], id(path, name, *line));
+                let navigation = fixture.engram.handle_get_codebase_overview(
+                    serde_json::from_value(recovery["arguments"].clone()).unwrap()
+                ).await.unwrap();
+                let text = &navigation.content[0].as_text().unwrap().text;
+                let navigation: Value = serde_json::from_str(text.split("## CodeMap Navigation").nth(1).unwrap()
+                    .split("```json\n").nth(1).unwrap().split("```").next().unwrap()).unwrap();
+                let row = &navigation["files"][0];
+                assert_eq!(row["symbol_selection"]["observed"], true);
+                let action = row["symbols"][0]["actions"].as_array().unwrap().iter()
+                    .find(|action| action["tool"] == "get_full_method_body").unwrap();
+                let body = fixture.engram.handle_get_full_method_body(
+                    serde_json::from_value(action["arguments"].clone()).unwrap()
+                ).await.unwrap();
+                let body: Value = serde_json::from_str(&body.content[0].as_text().unwrap().text).unwrap();
+                let source = std::fs::read(fixture.root.join(path)).unwrap();
+                assert_eq!(body["source_file_hash"], ContentHash::compute(&source).0);
+                assert_eq!(body["source_code"], String::from_utf8(source).unwrap()
+                    .lines().nth(*line as usize - 1).unwrap());
+            }
+        }
+    });
+}
+
+#[test]
+fn ambiguous_or_unadmitted_declarations_do_not_become_missing_identity_candidates() {
+    for scenario in ["ambiguous", "stale", "future", "wrong_file", "wrong_line", "malformed"] {
+        owned_case(move |fixture| async move {
+            let target = id(POLICY, "ClassifyAutomatic", 1);
+            if scenario == "ambiguous" {
+                let alternative = declaration(POLICY, "Other.Resolve", 2, 2);
+                fixture.engram.state.graph.upsert_nodes(PID, &[alternative.clone()]).unwrap();
+                fixture.engram.state.graph.upsert_edges(PID, &[
+                    edge(alternative.node_id, target.clone(), EdgeKind::Calls, 2)
+                ]).unwrap();
+            } else if scenario == "stale" || scenario == "future" {
+                let candidate = declaration(POLICY, "Resolve", 2, if scenario == "stale" { 1 } else { 3 });
+                fixture.engram.state.graph.upsert_nodes(PID, &[candidate]).unwrap();
+            }
+            let ghost = match scenario {
+                "wrong_file" => id(HTTP, "value.Resolve", 2),
+                "wrong_line" => id(POLICY, "value.Resolve", 1),
+                "malformed" => format!("sym:function:{POLICY}:value.Resolve:not-a-line"),
+                _ => id(POLICY, "value.Resolve", 2),
+            };
+            fixture.engram.state.graph.upsert_edges(PID, &[
+                edge(ghost.clone(), target, EdgeKind::Calls, 2)
+            ]).unwrap();
+            let report = impact_packet(&impact(&fixture, Some(6)).await);
+            let node = report["nodes"].as_array().unwrap().iter()
+                .find(|node| node["node_id"] == ghost).unwrap();
+            assert_eq!(node["admission"], "unresolved", "{scenario}");
+            let recovery = report["recoveries"].as_array().unwrap().iter()
+                .find(|row| row["ref"] == node["recovery_ref"]).unwrap();
+            assert_eq!(recovery["scope_ref"], "navigation", "{scenario}");
+            assert!(recovery["arguments"].get("symbol_node_id").is_none(), "{scenario}");
+        });
+    }
+}

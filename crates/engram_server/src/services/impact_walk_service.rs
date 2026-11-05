@@ -278,6 +278,11 @@ fn summary_section(
     if let Some(error) = full.get("error") {
         value["error"] = error.clone();
     }
+    // Reserve shared candidate semantics before any optional rows consume the
+    // summary budget, including when every candidate row is later omitted.
+    if recoveries.values().any(|row| row["scope_ref"] == "inspection_candidate") {
+        value["inspection_candidate_scope"] = full["recovery_scopes"]["inspection_candidate"].clone();
+    }
     // Reserve the existing <=2KiB immediate prefix, section framing and the
     // public freshness footer. Drop only optional rows, never RPC arguments.
     let fits = |value: &Value| {
@@ -332,7 +337,9 @@ fn summary_section(
         leads.push(json!({"node_id":node.map(|node|&node["node_id"]),
             "parent_node_id":parent.map(|node|&node["node_id"]),"reason":lead["reason"],
             "kind":lead["kind"],"depth":lead["depth"],"admission":node.map(|node|&node["admission"]),
-            "recovery":action(&lead["recovery_ref"]),"lookup_hint":hint}));
+            "recovery":action(&lead["recovery_ref"]),
+            "recovery_scope":lead["recovery_ref"].as_str().and_then(|reference|recoveries.get(reference)).map(|row|&row["scope_ref"]),
+            "lookup_hint":hint}));
         value["frontier"] = json!(&leads);
         if !fits(&value) {
             leads.pop();
@@ -397,6 +404,7 @@ struct RecoveryDraft {
 
 struct CompactEvidence<'a> {
     project: &'a str,
+    observed_nodes: &'a [engram_graph::store::ImpactWalkNode],
     remaining: usize,
     files: Vec<Value>,
     file_refs: BTreeMap<String, String>,
@@ -462,7 +470,7 @@ impl CompactEvidence<'_> {
     }
 
     fn lookup_recovery(&self, endpoint: &Endpoint<'_>) -> Result<RecoveryDraft> {
-        let (hint_file, _) = canonical_hint(endpoint.id);
+        let (hint_file, hint_name) = canonical_hint(endpoint.id);
         let file = endpoint
             .file
             .or(hint_file)
@@ -470,6 +478,38 @@ impl CompactEvidence<'_> {
         let mut arguments = json!({"project_id":self.project,"limit":1});
         if let Some(file) = file {
             arguments["scope"] = json!(file);
+        }
+        // Missing graph identities are never repaired by name similarity.
+        // A unique declaration already admitted in this held walk can still
+        // provide an inspection lead, without adding reads or resolving edges.
+        let hint_kind = endpoint.id.strip_prefix("sym:").and_then(|s| s.split(':').next());
+        let hint_line = endpoint.id.rsplit_once(':').and_then(|(_, line)| line.parse::<u32>().ok());
+        fn terminal(name: &str) -> &str { name.rsplit(['.', ':']).next().unwrap_or("") }
+        if endpoint.admission == "unresolved" && file.is_some() && file == hint_file
+            && hint_line.is_some_and(|line| line > 0)
+            && !terminal(hint_name).is_empty()
+        {
+            let mut candidates = self.observed_nodes.iter().filter(|item| {
+                item.admission == ImpactAdmission::Selected
+                    && Some(item.node.file_path.as_str()) == file
+                    && Some(item.node.node_type.as_str()) == hint_kind
+                    && Some(item.node.start_line) == hint_line
+                    && terminal(&item.node.name) == terminal(hint_name)
+                    && item.node.node_id != endpoint.id
+                    && item.node.node_id == engram_core::ids::NodeId::symbol(
+                        &item.node.node_type, None, item.node.file_path.as_str(),
+                        &item.node.name, item.node.start_line).0
+            });
+            if let Some(candidate) = candidates.next().filter(|_| candidates.next().is_none()) {
+                arguments["symbol_node_id"] = json!(candidate.node.node_id);
+                let mut recovery = self.recovery("get_codebase_overview", arguments, "inspection_candidate")?;
+                if let Some((_, row)) = recovery.fresh.as_mut() {
+                    row["inspection_candidate"] = json!({"node_id":candidate.node.node_id,
+                        "generation":candidate.node.generation,
+                        "basis":"Unique admitted declaration in this held walk with the same hinted file, kind, start line and terminal name. Inspection lead only; original identity and edge remain unresolved."});
+                }
+                return Ok(recovery);
+            }
         }
         self.recovery("get_codebase_overview", arguments, "navigation")
     }
@@ -625,6 +665,7 @@ fn render(
             "range":"Current-source range at indexed positions, not complete-file, method-boundary, callsite or value-flow proof. Verify returned file hash/freshness and project exclusions.",
             "file_excerpt":"Bounded current-file lines with a complete-file hash. Follow next_page and compare hashes across fresh reads; no indexed freshness, method boundaries or invocation location is verified.",
             "navigation":"Bounded selected-source CodeMap for the known file, or a project representative when the file is unknown. Best-effort exploration only: no recovered binding, absence or runtime proof.",
+            "inspection_candidate":"Exact CodeMap navigation to a unique separately admitted declaration matching the missing identity's hinted file, kind, start line and terminal name. Candidate only, not identity equivalence; the original graph identity and edge remain unresolved. Follow-up is a fresh observation and may not rediscover the declaration within its own bounds.",
             "direct":"Narrow direct impact for the admitted exact identity. A follow-up uses its own source selection; no complete pagination or atomic replay is promised.",
         },
         "working_tree_checked":false,"exhaustive_codebase":false,"change_breakage_proven":false,
@@ -636,6 +677,7 @@ fn render(
         "Missing, unverified, dynamic and uninspected bindings remain unknown. Work/depth/byte caps may omit evidence; empty output proves no absence."]});
     let mut out = CompactEvidence {
         project,
+        observed_nodes: &walk.nodes,
         remaining: RESPONSE_BYTES.saturating_sub(section(&value).len() + 1024 + IMMEDIATE_BYTES),
         files: Vec::new(),
         file_refs: BTreeMap::new(),
