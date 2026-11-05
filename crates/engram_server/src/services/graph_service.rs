@@ -95,6 +95,16 @@ pub fn resolve_app_code_globals(
 ) -> anyhow::Result<usize> {
     use engram_graph::EdgeKind;
 
+    struct AppCodeNode {
+        node_id: String,
+        node_type: String,
+        name: String,
+        app_code: bool,
+        generation: u64,
+        fqn: String,
+        arity: Option<u64>,
+    }
+
     fn symbol_name(id: &str) -> Option<&str> {
         let rest = id.strip_prefix("sym:")?.split_once(':')?.1;
         if let Some((head, line)) = rest.rsplit_once(':')
@@ -104,7 +114,7 @@ pub fn resolve_app_code_globals(
         }
         (!rest.contains('/') && !rest.contains('\\')).then_some(rest)
     }
-    fn fqn(node: &engram_graph::Node) -> &str {
+    fn stored_fqn(node: &engram_graph::Node) -> &str {
         node.metadata
             .as_ref()
             .and_then(|m| m.get("fqn"))
@@ -112,11 +122,14 @@ pub fn resolve_app_code_globals(
             .or_else(|| symbol_name(&node.node_id))
             .unwrap_or(&node.name)
     }
+    fn fqn(node: &AppCodeNode) -> &str {
+        &node.fqn
+    }
     fn number(meta: Option<&serde_json::Value>, key: &str) -> Option<u64> {
         let value = meta?.get(key)?;
         value.as_u64().or_else(|| value.as_str()?.parse().ok())
     }
-    fn is_function(node: &engram_graph::Node) -> bool {
+    fn is_function(node: &AppCodeNode) -> bool {
         matches!(
             node.node_type.as_str(),
             "function" | "method" | "sub" | "procedure"
@@ -149,17 +162,25 @@ pub fn resolve_app_code_globals(
 
     // No display cap: a truncated candidate set can falsely appear unique.
     // One scan per invocation also avoids per-edge resolve_symbol full scans.
-    let nodes = graph.query_nodes(project_id, None, None, None, usize::MAX)?;
+    let nodes = graph.map_nodes(project_id, |node| {
+        let fqn = stored_fqn(&node).to_owned();
+        let arity = number(node.metadata.as_ref(), "arity");
+        let path = node.file_path.as_str().replace('\\', "/").to_ascii_lowercase();
+        AppCodeNode {
+            node_id: node.node_id,
+            node_type: node.node_type,
+            name: node.name,
+            app_code: path.starts_with("app_code/") || path.contains("/app_code/"),
+            generation: node.generation,
+            fqn,
+            arity,
+        }
+    })?;
     let by_id: HashMap<_, _> = nodes.iter().map(|n| (n.node_id.as_str(), n)).collect();
     let mut exact: HashMap<String, Vec<usize>> = HashMap::new();
     let mut folded: HashMap<String, Vec<usize>> = HashMap::new();
     for (index, node) in nodes.iter().enumerate() {
-        let path = node
-            .file_path
-            .as_str()
-            .replace('\\', "/")
-            .to_ascii_lowercase();
-        if !(path.starts_with("app_code/") || path.contains("/app_code/"))
+        if !node.app_code
             || !(is_function(node) || node.node_type == "class")
         {
             continue;
@@ -313,7 +334,7 @@ pub fn resolve_app_code_globals(
         // must not cause fallback to an unrelated owner's method.
         candidates.retain(|n| {
             // Unknown arity remains a candidate instead of creating false uniqueness.
-            args.zip(number(n.metadata.as_ref(), "arity"))
+            args.zip(n.arity)
                 .is_none_or(|(a, b)| a == b)
         });
         let [target] = candidates.as_slice() else {

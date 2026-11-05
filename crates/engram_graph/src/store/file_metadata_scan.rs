@@ -1,4 +1,4 @@
-//! File metadata scanning preserves validation of every stored node.
+//! Borrowed node scans preserve validation without retaining rejected metadata.
 
 use super::*;
 use serde::de::{DeserializeSeed, MapAccess, SeqAccess, Visitor};
@@ -11,7 +11,7 @@ use std::cell::Cell;
 #[derive(Deserialize)]
 struct BorrowedNode<'a> {
     #[serde(borrow)]
-    _node_id: &'a str,
+    node_id: &'a str,
     #[serde(borrow)]
     node_type: &'a str,
     #[serde(borrow)]
@@ -120,6 +120,44 @@ fn validate_metadata(json: &str) -> anyhow::Result<()> {
         result?;
     }
     Ok(())
+}
+
+/// A rejected type still validates the complete wire value and metadata, just
+/// as Node deserialization did. It need not retain unrelated metadata DOMs.
+pub(super) fn skip_other_type(bytes: &[u8], wanted: &str) -> anyhow::Result<bool> {
+    let node: BorrowedNode<'_> = bincode::deserialize(bytes)?;
+    if node.node_type == wanted {
+        return Ok(false);
+    }
+    if let Some(metadata) = node.metadata {
+        validate_metadata(metadata)?;
+    }
+    Ok(true)
+}
+
+pub(super) fn node_ids(
+    graph: &GraphStore,
+    project: &str,
+    node_type: Option<&str>,
+) -> anyhow::Result<Vec<String>> {
+    let prefix = format!("{project}\0");
+    let tx = graph.db.begin_read()?;
+    let table = tx.open_table(NODES)?;
+    let mut output = Vec::new();
+    for entry in table.range(prefix.as_str()..)? {
+        let (key, value) = entry?;
+        if !key.value().starts_with(&prefix) {
+            break;
+        }
+        let node: BorrowedNode<'_> = bincode::deserialize(value.value())?;
+        if let Some(metadata) = node.metadata {
+            validate_metadata(metadata)?;
+        }
+        if node_type.is_none_or(|wanted| wanted == node.node_type) {
+            output.push(node.node_id.to_owned());
+        }
+    }
+    Ok(output)
 }
 
 pub(super) fn scan<T>(
@@ -440,6 +478,9 @@ mod tests {
             let before = raw_rows_hash(&graph);
             assert!(graph.list_file_node_metadata("p").is_err());
             assert!(graph.list_file_node_metadata_with_generation("p").is_err());
+            assert!(graph.list_node_ids("p", Some("db_table")).is_err());
+            assert!(graph.map_nodes("p", |node| node.node_id).is_err());
+            assert!(graph.query_nodes("p", Some("db_table"), None, None, usize::MAX).is_err());
             assert_eq!(
                 raw_rows_hash(&graph),
                 before,
@@ -544,8 +585,80 @@ mod tests {
                 accepted,
                 "{json}"
             );
+            assert_eq!(graph.list_node_ids("p", Some("db_table")).is_ok(), accepted, "{json}");
+            assert_eq!(graph.map_nodes("p", |node| node.node_id).is_ok(), accepted, "{json}");
+            assert_eq!(graph.query_nodes("p", Some("db_table"), None, None, usize::MAX).is_ok(), accepted, "{json}");
             assert_eq!(raw_rows_hash(&graph), before);
         }
+    }
+
+    #[test]
+    fn typed_sql_reads_preserve_stored_ids_order_predicates_and_caps() {
+        let graph = TemporaryGraphStore::new();
+        let mut ignored = node("first-rejected-name", "stored_proc", "Area/SQL/x.sql", None, 4);
+        ignored.name = "Other".into();
+        let mut alpha = node("legacy-id-z", "stored_proc", "Area/SQL/a.sql", Some(JsonValue::Null), 7);
+        alpha.name = "StoredAlpha".into();
+        let mut beta = node("legacy-id-a", "stored_proc", "Area/SQL2/b.sql", None, 99);
+        beta.name = "StoredBeta".into();
+        let empty = node("empty-type", "", "empty.rs", None, 2);
+        let function = node("unrelated-function", "function", "source.rs", Some(serde_json::json!({"calls":["a","b"]})), 7);
+        let tx = graph.db.begin_write().unwrap();
+        {
+            let mut table = tx.open_table(NODES).unwrap();
+            for (key, value) in [("a", &ignored), ("b", &alpha), ("c", &beta), ("d", &empty), ("e", &function)] {
+                let bytes = bincode::serialize(value).unwrap();
+                table.insert(format!("p\0{key}").as_str(), bytes.as_slice()).unwrap();
+            }
+            // Another project's corrupt value must remain outside the query.
+            table.insert("p-extra\0bad", &[0xff][..]).unwrap();
+        }
+        tx.commit().unwrap();
+        let before = raw_rows_hash(&graph);
+        let ids = graph.list_node_ids("p", Some("stored_proc")).unwrap();
+        assert_eq!(ids, vec![ignored.node_id.clone(), alpha.node_id.clone(), beta.node_id.clone()]);
+        assert_eq!(graph.list_node_ids("p", Some("")).unwrap(), vec!["empty-type"]);
+        assert_eq!(graph.list_node_ids("p", None).unwrap().len(), 5);
+        assert_eq!(graph.map_nodes("p", |node| (node.node_id, node.generation)).unwrap(),
+            vec![(ignored.node_id.clone(), 4), (alpha.node_id.clone(), 7),
+                (beta.node_id.clone(), 99), ("empty-type".into(), 2), ("unrelated-function".into(), 7)]);
+        assert_eq!(graph.query_nodes("p", Some(""), None, None, usize::MAX).unwrap().len(), 5);
+        for limit in [0, 1, 2, usize::MAX] {
+            let actual = graph.query_nodes("p", Some("stored_proc"), Some("STORED"), Some("area/sql"), limit).unwrap();
+            let wanted = if limit <= 1 { vec![alpha.clone()] } else { vec![alpha.clone(), beta.clone()] };
+            assert_eq!(serde_json::to_value(actual).unwrap(), serde_json::to_value(wanted).unwrap());
+        }
+        assert_eq!(serde_json::to_value(graph.query_nodes_in_file("p", Some("stored_proc"), "area\\sql\\A.SQL", 1).unwrap()).unwrap(),
+            serde_json::to_value(vec![alpha.clone()]).unwrap());
+        assert_eq!(serde_json::to_value(graph.query_nodes_in_scope("p", Some("stored_proc"), "Area/SQL/", usize::MAX).unwrap()).unwrap(),
+            serde_json::to_value(vec![ignored, alpha]).unwrap());
+        assert_eq!(raw_rows_hash(&graph), before);
+        store_raw(&graph, "p", &[0xff]);
+        assert!(graph.query_nodes("p", Some("stored_proc"), None, None, 1).is_ok(),
+            "Rows beyond the fulfilled cap must retain their existing unvisited semantics");
+        assert!(graph.query_nodes("p", Some("stored_proc"), None, None, usize::MAX).is_err());
+        assert!(graph.list_node_ids("p", Some("stored_proc")).is_err());
+        assert!(graph.map_nodes("p", |node| node.node_id).is_err());
+    }
+
+    #[test]
+    fn unrelated_large_metadata_is_validated_without_materializing_its_tree() {
+        let graph = TemporaryGraphStore::new();
+        let sql = node("legacy-sql", "stored_proc", "query.sql", Some(serde_json::json!({"sql":"SELECT 1"})), 7);
+        let unrelated = node("unrelated", "function", "source.rs",
+            Some(serde_json::json!({"nested":[{"body":"x".repeat(4*1024*1024),"calls":["A","B"]}]})), 7);
+        graph.upsert_nodes("p", &[sql.clone(), unrelated]).unwrap();
+        let before = raw_rows_hash(&graph);
+        // Warm the same database pages before measuring query allocations.
+        graph.query_nodes("p", Some("stored_proc"), None, None, usize::MAX).unwrap();
+        graph.list_node_ids("p", Some("stored_proc")).unwrap();
+        let (nodes, query_bytes, _) = allocations(|| graph.query_nodes("p", Some("stored_proc"), None, None, usize::MAX).unwrap());
+        let (ids, id_bytes, _) = allocations(|| graph.list_node_ids("p", Some("stored_proc")).unwrap());
+        assert_eq!(serde_json::to_value(nodes).unwrap(), serde_json::to_value(vec![sql]).unwrap());
+        assert_eq!(ids, vec!["legacy-sql"]);
+        assert!(query_bytes < 512*1024 && id_bytes < 512*1024,
+            "Unrelated4MiB source metadata must not force an owned copy/tree: query={query_bytes}, ids={id_bytes}");
+        assert_eq!(raw_rows_hash(&graph), before, "Inspection must never rewrite source graph rows");
     }
 
     type FileRows = Vec<(RelPath, Option<JsonValue>, u64)>;

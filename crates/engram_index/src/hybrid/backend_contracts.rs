@@ -48,6 +48,64 @@ async fn engine(root: &Path, cfg: &engram_core::Config) -> anyhow::Result<Hybrid
 }
 
 #[tokio::test]
+async fn vector_generation_inventory_preserves_rows_selected_revisions_and_namespaces()
+-> anyhow::Result<()> {
+    let temporary = tempfile::tempdir()?;
+    let result = async {
+        let cfg = engram_core::Config::default();
+        let cancel = CancellationToken::new();
+        let index = engine(temporary.path(), &cfg).await?;
+        index.index_docs("project", &[
+            document("a.rs", 1, "a1", "first chunk"),
+            document("a.rs", 1, "a2", "second chunk"),
+            document("a.rs", 1, "a3", "third chunk"),
+            document("b.rs", 1, "b1", "stable chunk"),
+        ], &cancel).await?;
+        let old = index.pin_source_generation("project", 1)?;
+        let paths = BTreeSet::from(["a.rs".into(), "b.rs".into()]);
+        assert_eq!(index.vector_generation_inventory("project", Some("memory"), 1).await?, (4, paths.clone()));
+        index.prepare_source_snapshot("project", 1, 2, &[RelPath::new("a.rs")], &[], &cancel).await?;
+        index.index_docs("project", &[
+            document("a.rs", 2, "new-a1", "new first chunk"),
+            document("a.rs", 2, "new-a2", "new second chunk"),
+        ], &cancel).await?;
+        index.seal_source_snapshot("project", 2)?;
+        let selected = index.pin_source_generation("project", 2)?;
+        // Legacy custom corpora keep their supplied physical generation. The
+        // namespace=None contract includes these rows at the logical head.
+        let mut legacy = document("legacy-note", 2, "legacy", "legacy evidence");
+        legacy.namespace = "legacy-custom".into();
+        index.index_docs("project", &[legacy], &cancel).await?;
+        let mut global = document("global-note", 0, "global", "authored knowledge");
+        global.namespace = "memory_bank".into();
+        index.index_docs("project", &[global], &cancel).await?;
+        index.index_docs("project", &[document("unselected.rs", 2, "unselected", "unselected physical row")], &cancel).await?;
+        index.prepare_source_snapshot("project", 2, 3, &[RelPath::new("a.rs")], &[], &cancel).await?;
+        index.index_docs("project", &[document("a.rs", 3, "future", "unpublished next revision")], &cancel).await?;
+        assert_eq!(index.vector_generation_inventory("project", Some("memory"), 1).await?, (4, paths.clone()));
+        assert_eq!(index.vector_generation_inventory("project", Some("memory"), 2).await?, (3, paths.clone()));
+        assert_eq!(index.vector_generation_inventory("project", None, 2).await?,
+            (4, BTreeSet::from(["a.rs".into(), "b.rs".into(), "legacy-note".into()])));
+        assert_eq!(index.vector_generation_inventory("project", Some("legacy-custom"), 2).await?,
+            (1, BTreeSet::from(["legacy-note".into()])));
+        assert_eq!(index.vector_generation_inventory("project", Some("memory_bank"), 0).await?,
+            (1, BTreeSet::from(["global-note".into()])));
+        drop(old);
+        drop(selected);
+        drop(index);
+        let reopened = engine(temporary.path(), &cfg).await?;
+        assert_eq!(reopened.vector_generation_inventory("project", Some("memory"), 2).await?, (3, paths.clone()));
+        // Store loss without moving HEAD cannot reuse an earlier complete verdict.
+        reopened.delete_vector_rows_for_paths("project", "memory", &[RelPath::new("b.rs")]).await?;
+        assert_eq!(reopened.vector_generation_inventory("project", Some("memory"), 2).await?,
+            (2, BTreeSet::from(["a.rs".into()])));
+        Ok(())
+    }.await;
+    temporary.close()?;
+    result
+}
+
+#[tokio::test]
 async fn default_vectors_survive_cold_reopen_and_reuse_unchanged_content_after_edit()
 -> anyhow::Result<()> {
     let temporary = tempfile::tempdir()?;

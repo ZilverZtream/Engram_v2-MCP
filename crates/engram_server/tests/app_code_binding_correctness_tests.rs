@@ -61,6 +61,36 @@ fn declarations() -> Vec<Node> {
         node("valid", "Omega.Api.Write", "Site/App_Code/Api.vb", Some(1)),
     ]
 }
+
+#[test]
+fn large_unused_metadata_keeps_global_source_owner_and_string_arity_binding() {
+    for fallback_to_id in [false, true] {
+        let mut source = node("caller", "UnqualifiedSourceName", "Site/Handlers/job.vb", None);
+        // Sources outside App_Code and outside declaration types still supply
+        // lexical ownership and generation evidence for a retained reference.
+        source.node_type = "handler".into();
+        if fallback_to_id {
+            source.node_id = "sym:function:Site/Handlers/job.vb:A.Api.Read:12".into();
+        }
+        source.metadata = Some(json!({"fqn":if fallback_to_id {json!(7)} else {json!("A.Api.Read")},
+            "unused_body":"x".repeat(2*1024*1024)}));
+        let mut alpha = node("alpha", "A.Api.Write", "Site/App_Code/Alpha.vb", Some(1));
+        alpha.metadata = Some(json!({"fqn":"A.Api.Write","arity":"1"}));
+        let beta = node("beta", "B.Api.Write", "Site/App_Code/Beta.vb", Some(1));
+        let mut unrelated = node("unrelated", "Noise", "Site/Other.vb", None);
+        unrelated.node_type = "insight".into();
+        unrelated.metadata = Some(json!({"nested":[{"body":"y".repeat(2*1024*1024)}]}));
+        let mut reference = call("::Write", "vbnet", json!({"args":"1"}));
+        reference.source_id = source.node_id.clone();
+        let source_id = source.node_id.clone();
+        let metadata = source.metadata.clone();
+        let (_tmp, graph) = setup(&[source, alpha, beta, unrelated], reference);
+        assert_eq!(resolve_app_code_globals(&graph, "p", 1).unwrap(), 1);
+        assert_eq!(bound(&graph), vec![("calls".into(), "alpha".into()), ("dependency".into(), "alpha".into())]);
+        assert_eq!(graph.get_node("p", &source_id).unwrap().unwrap().metadata, metadata,
+            "A resolver projection must not rewrite or truncate stored source metadata");
+    }
+}
 #[test]
 fn unknown_receiver_and_duplicate_terminals_stay_unresolved() {
     for (name, metadata) in [
