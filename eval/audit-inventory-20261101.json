@@ -9108,7 +9108,7 @@
       "goal_complete": false
     },
     "webforms_event_identity_correction_20261105": {
-      "status": "PASS_FOCUSED_BEHAVIOR_REVIEWED_NOT_YET_DEPLOYED",
+      "status": "DEPLOYED_AND_VALIDATED_IN_AUTHORIZED_ORDINARY_REFRESH",
       "at_utc": "2026-11-05T09:58:06.094534+00:00",
       "focused": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\webforms-owner-binding-behavior-v3-20261105.json",
@@ -9130,10 +9130,57 @@
         "New owned fixture hash expectation fixed to use current edited markup."
       ],
       "goal_complete": false,
+      "original_full19gates_closed": false,
+      "installed_receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\webforms-owner-binding-installed-observed-20261105.json",
+        "sha256": "ba14c4ad041ff4303fd6a79f8eb9a616a2247834927e6066a6bf44ce535b17ee"
+      }
+    },
+    "map_category_real_agent_task_20261105": {
+      "status": "PASS_SECOND_REAL_AGENT_CORE_TASK_WITH_EXPLICIT_REMAINING_GAPS",
+      "at_utc": "2026-11-05T10:49:20.949038+00:00",
+      "source_generation": 3121,
+      "consumer": "map_category_tool_consumer",
+      "consumer_had_oracle": false,
+      "public_replies": [
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\map-category-instrumented-requests-01-02-20261105.json",
+          "sha256": "cfce0dac53375f17a730f4387d17540db1f3840f53570d22a938bd72f388d333"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\map-category-instrumented-source-actions-03-04-20261105.json",
+          "sha256": "358164d3a42de22bf8ce23ade7d94e9217798b6f6cf44e78db638b9fe28c80f1"
+        }
+      ],
+      "independent_oracle": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\map-category-independent-source-oracle-20261105.json",
+        "sha256": "3dabce5ce8f03aa5dbe11ffca27373611533f508022cbe9c226b8130eecef740"
+      },
+      "requests_successful": 4,
+      "attempts_conservative": 6,
+      "reply_utf8_bytes": 22679,
+      "successful_warm_tool_seconds": [
+        0.354634,
+        0.2839024,
+        0.010246,
+        0.0103574
+      ],
+      "initial_sequence_timeout": "Earlier uninstrumented two-request sequence exceeded the15s reader deadline; partial progress was not retained, so the exact stalled tool is unlocated. Counted conservatively as2attempts; not a cold-latency success.",
+      "consumer_answer": "Recovered the real GetValues API controller, explicit interface member route and constructor-injected call through literal source/context actions. Kept0admitted primary dependents separate from1potential interface caller; runtimeDI, HTTP route/verb and exhaustive consumers unverified.",
+      "source_ranges_and_current_sha256_blake3_independently_match": true,
+      "unverified": [
+        "Interface declaration body and WebApiConfig were not read by consumer.",
+        "No runtime execution, safe-change verdict, exhaustive consumer census, apples-to-apples productivity comparison or cold-latency closure."
+      ],
+      "next_selected_core_fixes": [
+        "Exact-file CodeMap pages still include unrelated global tables/inventory prose; compact them while preserving declarations, continuation and root/area proportions.",
+        "Blast with include_guidance=false still emits Low one-hop advisory beside a useful potential caller; omit that optional advisory and foreground separately observed potential counts."
+      ],
+      "goal_complete": false,
       "original_full19gates_closed": false
     }
   },
-  "last_updated_at": "2026-11-05T09:58:06.094534+00:00",
+  "last_updated_at": "2026-11-05T10:49:20.949038+00:00",
   "current_execution_focus": {
     "at_utc": "2026-11-05T08:29:39.390790+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
@@ -9166,7 +9213,7 @@
       }
     ],
     "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
-    "next_user_visible_deliverable": "Complete the event-control ownership correction that blocked the authorized ordinary OciusX refresh. Verify fresh authored-memory/source/other-project preservation, cold readback, then restore passive watching and observe resources. Q code changes and reviews remain frozen.",
+    "next_user_visible_deliverable": "Compact exact-file CodeMap navigation without global summary work; foreground admitted versus potential impact and honor include_guidance=false for the unverified advisory. Preserve source evidence and validate the real MapFeatureTypeCategory agent case. Initial15s timeout remains unlocated.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9179,7 +9226,7 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "d3a62d1 compact CodeMap deployed:22 focused cases plus cold and normal readback at3120. Exact-symbol reply6542 to3748 bytes with the same actions and coverage. Prior impact reply reduction preserved.",
+    "latest_completed_core_batch": "8409860 deployed; ordinary OciusX3120 to3121 refreshed1009existing+162eligible diagnostic paths, inherited1293unchanged. Preserved300authored notes/other14metadata. Watching restored with one explicit post-publication diagnostic addition still pending.603.5s primary watch/read-probe observation:270026logical write bytes,0.0633%machineCPU,392to445MiBprivate. Real edits and long-term memory gates remain open. Second realagenttask succeeded4publicrequests with explicit potential-interface/runtime limits.",
     "previous_goal_turn_classification": "PROGRESS: implemented,pushedmaster,deployed e7f9cce; same-generation material byte reduction/full inventory/current source qualification and fresh taskverified. Stale ledger publication status corrected with all original requirements/gates preserved. No goal completion."
   }
 }
