@@ -2499,8 +2499,10 @@ fn render_method_body_markdown(result: &MethodBodyResult) -> String {
 
     let lang_tag = if result.language.contains("vb") {
         "vb"
-    } else {
+    } else if matches!(result.language.as_str(), "cs" | "csharp") {
         "csharp"
+    } else {
+        result.language.as_str()
     };
 
     let direct_range = result.retrieval_scope == "explicit_source_range";
@@ -3841,11 +3843,7 @@ impl Engram {
                 } else if let (Some(fp), Some(start), Some(end)) =
                     (&file_path, line_start, line_end)
                 {
-                    let lang = if fp.to_lowercase().ends_with(".vb") {
-                        "vbnet".to_string()
-                    } else {
-                        "csharp".to_string()
-                    };
+                    let lang = engram_core::types::guess_language(std::path::Path::new(fp)).to_string();
                     ("(direct)".to_string(), fp.clone(), start, end, lang)
                 } else {
                     return Err(

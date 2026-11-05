@@ -25,6 +25,10 @@ pub use impact_walk::{
 };
 pub use source_stat::{FileStatPatch, FileStatPatchReport, VerifiedFileStat, file_metadata_digest};
 
+/// A member spelling without receiver binding must never enter name-only
+/// resolution, including legacy traversals that retain only target identities.
+pub const UNBOUND_RECEIVER_PREFIX: &str = "::receiver_unbound:";
+
 // ─── Table definitions ───────────────────────────────────────────────────────
 // v2 tables use bincode serialization for Node/Edge and composite keys for
 // adjacency. Legacy v1 tables (JSON, single-key adj) are dropped on open().
@@ -1939,6 +1943,9 @@ impl GraphStore {
         node_type: Option<&str>,
         prefer_file_path: Option<&str>,
     ) -> anyhow::Result<ResolveResult> {
+        if input.starts_with(UNBOUND_RECEIVER_PREFIX) {
+            return Ok(ResolveResult::NotFound);
+        }
         const DIRECT_PREFIXES: [&str; 11] = [
             "sym:",
             "file:",
@@ -2059,9 +2066,28 @@ impl GraphStore {
         Ok(ResolveResult::NotFound)
     }
 
-    fn try_resolve_unresolved_target(&self, project_id: &str, target_id: &str) -> Option<String> {
+    fn try_resolve_unresolved_target(&self, project_id: &str, source_id: &str, target_id: &str) -> Option<String> {
+        if target_id.starts_with(UNBOUND_RECEIVER_PREFIX) { return None; }
         if !target_id.starts_with("::") {
             return None;
+        }
+        // Older marked placeholders may predate the reserved identity. Legacy
+        // adjacency readers lost edge metadata; check the actual Calls record
+        // before applying their name-only fallback. Fail closed on read limits.
+        {
+            let rtx = self.db.begin_read().ok()?;
+            let table = rtx.open_table(EDGES).ok()?;
+            let key = edge_key(project_id, &EdgeKind::Calls, source_id, target_id);
+            if let Some(value) = table.get(key.as_str()).ok()? {
+                if value.value().len() > 64 * 1024 { return None; }
+                use bincode::Options;
+                let edge: Edge = bincode::DefaultOptions::new().with_fixint_encoding()
+                    .with_limit(64 * 1024).reject_trailing_bytes().deserialize(value.value()).ok()?;
+                if edge.source_id != source_id || edge.target_id != target_id
+                    || edge.edge_kind != EdgeKind::Calls { return None; }
+                if edge.metadata.as_ref().is_some_and(|m| m.get("receiver_unbound")
+                    .is_some_and(|v| v == true || v.as_str() == Some("true"))) { return None; }
+            }
         }
         let name = &target_id[2..];
         let name = name.split('(').next().unwrap_or(name).trim_end();
@@ -2971,7 +2997,7 @@ impl GraphStore {
             neighbors.truncate(MAX_BRANCHING);
 
             for mut next_id in neighbors {
-                if let Some(resolved_id) = self.try_resolve_unresolved_target(project_id, &next_id)
+                if let Some(resolved_id) = self.try_resolve_unresolved_target(project_id, &curr_id, &next_id)
                 {
                     next_id = resolved_id;
                 }
@@ -3074,7 +3100,7 @@ impl GraphStore {
             neighbors.truncate(MAX_BRANCHING_FACTOR);
 
             for mut next_id in neighbors {
-                if let Some(resolved_id) = self.try_resolve_unresolved_target(project_id, &next_id)
+                if let Some(resolved_id) = self.try_resolve_unresolved_target(project_id, &curr_id, &next_id)
                 {
                     next_id = resolved_id;
                 }
@@ -3335,6 +3361,11 @@ impl GraphStore {
         let mut updates: Vec<(String, Edge)> = Vec::new();
 
         for entry in &unresolved {
+            if entry.edge.target_id.starts_with(UNBOUND_RECEIVER_PREFIX)
+                || entry.edge.metadata.as_ref().is_some_and(|m|
+                    m.get("receiver_unbound").is_some_and(|v| v == true || v.as_str() == Some("true"))) {
+                continue;
+            }
             let name = &entry.edge.target_id[2..]; // strip "::"
             // Defensive: Roslyn-emitted call targets can be signature-shaped
             // ("Ns.Cls.Save(Integer, String)") while node names are bare —

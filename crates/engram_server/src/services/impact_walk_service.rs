@@ -479,6 +479,14 @@ fn summary_section(
             if !fits(&value) { value["potential_interface_callers"].as_object_mut().unwrap().remove("configuration_inspection_actions_omitted"); }
         }
     }
+    if let Some(inspection) = full.get("terminal_member_inspection") {
+        value["terminal_member_inspection"] = inspection.clone();
+        if !fits(&value) {
+            value.as_object_mut().unwrap().remove("terminal_member_inspection");
+            value["terminal_member_inspection_omitted"] = json!(true);
+            if !fits(&value) { value.as_object_mut().unwrap().remove("terminal_member_inspection_omitted"); }
+        }
+    }
     format!(
         "{}\n## Revision-admitted change impact\n\nSummary of the same bounded source selection. Expand the graph for all retained identities, connections and paths.\n\n```json\n{}\n```\n",
         immediate_prefix,
@@ -1269,6 +1277,28 @@ fn render(
                     value["potential_interface_callers"].as_object_mut().unwrap().remove("configuration_inspection_actions_omitted");
                 }
                 break;
+            }
+        }
+    }
+    // Optional source discovery comes after canonical evidence. A terminal
+    // mention can recover an unassessed receiver, never establish its callee.
+    if let Some(root) = lookup.get(target).filter(|n|
+        n.admission == ImpactAdmission::Selected && n.node.node_type == "function") {
+        let path = root.node.file_path.as_str();
+        let name = root.node.name.rsplit('.').next().unwrap_or("");
+        if recovery_path(path) && (path.ends_with(".ts") || path.ends_with(".tsx"))
+            && name.len() <= 128 && !name.is_empty()
+            && name.chars().enumerate().all(|(i,c)| c == '_' || c == '$'
+                || if i == 0 { c.is_alphabetic() } else { c.is_alphanumeric() }) {
+            if let Some((directory, _)) = path.rsplit_once('/') {
+                value["terminal_member_inspection"] = json!({
+                    "scope":"Optional indexed literal mentions in the target directory. Declarations, comments, prefix names and other receivers can match; this does not bind a receiver/callee, prove execution or absence, or add callers to impact counts. Follow returned current-source actions/hashes; inspect the caller and its separate impact before inferring a route.",
+                    "action":{"tool":"grep_project","arguments":{"project_id":project,
+                        "pattern":name,"regex":false,"case_sensitive":true,"path_prefix":format!("{directory}/"),
+                        "max_results":8,"context_before":2,"context_after":2,"freshness":"off","output_json":true}}});
+                if section(&value).len() > RESPONSE_BYTES {
+                    value.as_object_mut().unwrap().remove("terminal_member_inspection");
+                }
             }
         }
     }
