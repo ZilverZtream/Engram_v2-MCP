@@ -9578,11 +9578,54 @@
         "sha256": "885289c99be0871a080626e2917e7c7bca22f497f85ab3824638e0afe46d960c"
       },
       "original_full19gates_closed": false
+    },
+    "exact_symbol_beyond_discovery_delivery_20261105": {
+      "at_utc": "2026-11-05T22:46:25.423576+00:00",
+      "status": "PASS_DEPLOYED_EXACT_SYMBOL_NAVIGATION_NOT_FULL_CORE_OR_AUDIT_CLOSURE",
+      "source_commit": "61595978fc9cfd35039c0f48ef63d6b559d39b8f",
+      "server_sha256": "084d5b4bfa5d4baf7576de9b10cb04af94d36384dc2efae9df82bbe5d7ffcd48",
+      "manifest_sha256": "707a4544b8c11b187c48ad5e0569bd534fd5670de3da36287ce86476a2492746",
+      "outcome": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\exact-symbol-delivery-outcome-20261105.json",
+        "sha256": "2ec0d1e01b0bc2f69696b9bfd3f84cd66082e002d3ece6216cd873c3e51e2ef3"
+      },
+      "behavior": "Known exact identities now use two bounded target/canonical-file reads admitted under the same held source selection, independently of the 128-declaration discovery limit. Wrong-file, stale/future/history, missing-file and oversized records cannot borrow admission or fall back by name. Point coverage reports declaration_inventory=not_scanned. Normal paging and retained context remain intact.",
+      "validation": "Seven focused desired-behavior cases passed, including 145 earlier declarations, a same-name decoy, literal source/edit/impact execution and rejection cases. Documentation parity check passed for 135 capabilities in console. Release build took 1002.13 seconds passed, all captured inputs unchanged, focused/shipping Jobs and TEMP ownership closed/removed. Source 6159597 pushed only origin/master and package 084d5b4/707a454 deployed with 214 native assets unchanged; no reindex or data/parser migration.",
+      "actual_agent_result": "Cold first exact request and all emitted actions passed against source generation 3136; normal installed daemon 103348 then delivered four public requests totaling 40,438 UTF-8 bytes. The 3,618-byte CodeMap response directly recovers resetState2733-2764; raw BLAKE3/range independently verified, context and impact agree on 3 primary direct consumers with syntax1965/2604/2631. Broader receiver/navigation coverage and runtime safety remain unproven.",
+      "preservation": "Cold closed selected Registry/catalog/other14 metadata and 300 notes preserved; normal watcher enabled, config bytes unchanged. Passive Q indexing authorized; Q changes/reviews frozen and no manual Q review/edit performed.",
+      "owned_resources": {
+        "focused_and_shipping_jobs_closed_temps_removed": true,
+        "cold_child_natural_exit0_tmp_removed": true,
+        "guard_released": true,
+        "normal_daemon_started_once": true,
+        "retained_rollback_pair": {
+          "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-ff1e885cb28045369bc2fb08fc7fe02a",
+          "files": 218,
+          "logical_bytes": 336082218,
+          "purpose": "Exact previous deployed pair retained for release rollback retention review; not old-reader or data rollback proof.",
+          "cleanup_condition": "After scoped release acceptance and explicit rollback-retention review; do not delete preexisting retained pairs."
+        },
+        "no_preexisting_copy_deletion": true
+      },
+      "open_core_workflow_finding": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\exact-symbol-edit-safety-finding-20261105.json",
+        "sha256": "98f5bfd562f4ff5912f728fbc7b01a1a6de02ca361fb6e93c5d3f081667cd9b6"
+      },
+      "next_bounded_diagnosis": "Literal CodeMap edit-context action reports green / confidence 0.9 / Low/no complex state despite TS cancellation/mutation and unavailable semantic extraction. Empty effects/calls metadata and generic keyword/sync probes are treated as complete providers. Shared semantic coverage should be explicit and unsupported absence must not become confident green. No graph promotion or producer migration needed for honest unknown handling.",
+      "resource_failure_retained": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\app-code-edge-projection-delivery-outcome-20261105.json",
+        "sha256": "885289c99be0871a080626e2917e7c7bca22f497f85ab3824638e0afe46d960c"
+      },
+      "original_full19gates_closed": false,
+      "independent_delivery_review": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\exact-symbol-delivery-review-20261105.json",
+        "sha256": "78170ebc4c7fee824754fd29d4886a7d51d9a8086790e6ca6caa47a47315b53a"
+      }
     }
   },
-  "last_updated_at": "2026-11-05T22:04:09.059198+00:00",
+  "last_updated_at": "2026-11-05T22:46:25.423576+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-05T22:04:09.059198+00:00",
+    "at_utc": "2026-11-05T22:46:25.423576+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9613,7 +9656,7 @@
       }
     ],
     "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
-    "next_user_visible_deliverable": "Fix actualCodeMapexact-symbol deadend foralreadyknownadmittedidentitybeyond128discoverycap: bounded node+matchingfile lookup underSAMEheldsource membership, requestedcanonicalfile/exclusions/offset validation; no namefallback/unboundedscan. Outputonepointobservation,notfakewholefileinventory; executeemittedsource/edit/impactactionsagainstcrowdedrealimgHandlerroot. Ordinaryfile/root/area paginationunchanged. Keeptypedcollectionreceivergraphunassessed/open; safety/searchrecoveryisnotfullTSresolution.",
+    "next_user_visible_deliverable": "Correct the unsupported confident green verdict returned by the actual CodeMap edit-context action for TypeScript resetState: make missing semantic/effects analysis explicit in shared edit-context/standalone safety coverage and floor unsupported absence to caution/unknown. Preserve observed one-hop scores, primary/downstream counts, exact source actions and unresolved receiver state; no false high-risk inference or terminal-name binding. Verify both public tools on cancellation/state mutation and supported-provider cases, then real OciusX output.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9626,8 +9669,8 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "055d74fpushedmaster+deployed78bedec/e3bd62b.53scopedexecutions(49distinct+4FTS)passedwithinitialfixturefailurepreserved. Exact2unchangedTScohortpublished3136;other2313catalogselections/300notes/other14preserved. Cold+10callblindnormalagentverifyfalsegroupbindinggone,unknownreceiverretained,true330/344samples+language/sourceplanning. Rootreceivergraphand128CodeMaplimitstillpartial;fullresource/31/19open.",
-    "previous_goal_turn_classification": "PROGRESS:receiverfalsebindingcorrectedacrossproducer/resolvers/traversal;actualpositions/language+noncausalrecoverydelivered;53scopedchecks/push/deploy/exact2producerrefresh/cold/preservation+blindagentplancompleted. NewCodeMapexactselectionfailuremeasuredwithknowncurrentID. Goalactive;noresource/fulltask/fullscopeclosure.",
+    "latest_completed_core_batch": "6159597 pushed origin/master and deployed 084d5b4/707a454. Seven focused behavior cases and 135-capability doc check passed; release build took 1002.13 seconds. Cold real OciusX first exact lookup/actions and normal four-call agent acceptance recovered known target beyond the 128-declaration discovery cap; raw source hash and 3 primary consumers verified, normal paging/canonical blast / 300 notes / selected data/other14 preserved. No full navigation, receiver, runtime, resource or full-audit closure claim.",
+    "previous_goal_turn_classification": "PROGRESS: Actual exact-symbol dead end reproduced then fixed, seven focused cases passed, source pushed/deployed and real OciusX cold+normal agent actions validated. All original 31 findings and 19 full gates remain unclosed. Actual emitted action exposed unsupported confident safety verdict; bounded source diagnosis completed and recorded as next core workflow deliverable.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -9643,10 +9686,12 @@
       "original_core_priority_preserved": true
     },
     "next_slice_scope_limits": [
-      "Knownexactidentitylookupmustnotrepin/ignorecanonicalrequestedfile/exclusionsoradmitstale/future/history/missingfile/oversize/corruptrecords.",
-      "Labelpointobservationversusnot-scannedwholefileinventoryhonestly; do notraisecapsoraddlargecatalog/cachingframework.",
-      "Preserveunknownreceiver/rootTSbindinggap,legacyoutsidecohortcoverage,512MiB2of7failure,oldreader/recovery/finalization/full19requirements.",
-      "Kernel/SSD/preexistingcleanup/instructiondraftingremainparkedundertheexistinguserprioritycorrection;noAIattribution/tags/pushoutsideoriginmaster."
-    ]
+      "This is the next demonstrated agent workflow gap in the current CodeMap/impact tool path, not another broad audit or instruction feature.",
+      "Unavailable effects/calls analysis and limited language-specific probes must not become confident no-state/no-calls claims; provider execution is separate from semantic coverage.",
+      "Preserve exact navigation from 6159597, held source admission, ordinary paging, unknown collection receiver and observed graph counts. No reindex/parser/storage redesign is needed for honest safety coverage.",
+      "All original 31 findings and 19 full gates, sustained-resource failure (2 of 7 edits; 552 MB during cleanup), old-reader/recovery/finalization and legacy/instruction items remain open as previously tracked.",
+      "Q passive indexing authorized; Q changes and reviews remain frozen. Kernel/SSD/preexisting cleanup/instruction drafting stay parked. Push only origin/master, no AI attribution/tags."
+    ],
+    "q_freeze_decision": "User authorized passive automatic indexing; keep Q code changes and reviews frozen. This is sufficient authorization to restore normal watching without another permission prompt."
   }
 }
