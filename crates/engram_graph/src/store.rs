@@ -17,6 +17,8 @@ mod file_metadata_scan;
 mod centrality_cache;
 mod impact_walk;
 mod interface_dispatch;
+#[cfg(test)]
+mod edge_scan_tests;
 pub use interface_dispatch::{InterfaceBinding, InterfaceBindings, InterfaceMemberLocator, INTERFACE_BINDINGS, interface_bindings, merge_interface_bindings};
 pub use impact_walk::{
     ImpactAdmission, ImpactWalkCoverage, ImpactWalkNode, ImpactWitness, IncomingImpactWalk, event_producer, event_owner_matches,
@@ -1379,6 +1381,23 @@ impl GraphStore {
             result.push(node);
         }
         Ok(result)
+    }
+
+    /// Consume complete edges in stored project-key order without retaining a
+    /// project-wide list. Every visited value receives the same full wire and
+    /// metadata decoding as list_edges, including kinds discarded by callers.
+    /// Callers should stage changes until this whole observation succeeds.
+    pub fn visit_edges(&self, project_id: &str, mut visit: impl FnMut(Edge)) -> anyhow::Result<()> {
+        let prefix = format!("{project_id}\0");
+        let rtx = self.db.begin_read()?;
+        let table = rtx.open_table(EDGES)?;
+        for row in table.range(prefix.as_str()..)? {
+            let (key, value) = row?;
+            if !key.value().starts_with(&prefix) { break; }
+            let edge: Edge = bincode::deserialize(value.value())?;
+            visit(edge);
+        }
+        Ok(())
     }
 
     pub fn list_edges(

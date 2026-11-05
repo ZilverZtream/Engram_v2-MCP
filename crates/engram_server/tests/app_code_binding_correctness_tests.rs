@@ -63,6 +63,68 @@ fn declarations() -> Vec<Node> {
 }
 
 #[test]
+fn unrelated_large_edge_metadata_and_known_targets_survive_binding_unchanged() {
+    let mut nodes = declarations();
+    nodes.push(node("known", "Other.Work", "Site/Handlers/Other.vb", None));
+    let (_tmp, graph) = setup(&nodes, call("::Omega.Api.Write", "vbnet", json!({"args":1})));
+    let mut known = call("known", "vbnet", json!({"body":"x".repeat(2*1024*1024)}));
+    known.source_id = "unrelated".into();
+    let mut fenced = call("::Omega.Api.Write", "vbnet", json!({"unresolved":true,"body":"y".repeat(2*1024*1024)}));
+    fenced.source_id = "fenced".into();
+    let mut history = call("history-target", "vbnet", json!({"body":"z".repeat(2*1024*1024)}));
+    history.source_id = "history-source".into();history.edge_kind = EdgeKind::TemporalCoupling;
+    let endpoints = [known, fenced, history].into_iter().map(|edge| {
+        let endpoint = (edge.source_id.clone(), edge.edge_kind.clone(), edge.target_id.clone());
+        graph.upsert_edges("p", &[edge]).unwrap();endpoint
+    }).collect::<Vec<_>>();
+    let before = bincode::serialize(&graph.get_edges_by_endpoints("p", &endpoints).unwrap()).unwrap();
+    assert_eq!(resolve_app_code_globals(&graph, "p", 1).unwrap(), 1);
+    assert_eq!(before, bincode::serialize(&graph.get_edges_by_endpoints("p", &endpoints).unwrap()).unwrap());
+    assert!(graph.get_edges_by_endpoints("p", &[("caller".into(), EdgeKind::Calls, "valid".into())]).unwrap().len() == 1);
+}
+
+#[test]
+fn dependency_precedes_calls_when_both_supply_the_same_resolved_dependency() {
+    let mut dependency = call("::Omega.Api.Write", "vbnet", json!({"args":1,"witness":"dependency"}));
+    dependency.edge_kind = EdgeKind::Dependency;dependency.weight = 3;
+    let (_tmp, graph) = setup(&declarations(), dependency);
+    let mut calls = call("::Omega.Api.Write", "vbnet", json!({"args":1,"witness":"calls"}));
+    calls.weight = 9;graph.upsert_edges("p", &[calls]).unwrap();
+    assert_eq!(resolve_app_code_globals(&graph, "p", 1).unwrap(), 1);
+    let resolved = graph.get_edges_by_endpoints("p", &[("caller".into(), EdgeKind::Dependency, "valid".into()),
+        ("caller".into(), EdgeKind::Calls, "valid".into())]).unwrap();
+    assert_eq!(resolved.len(), 2);
+    assert_eq!(resolved[0].weight, 3);
+    assert_eq!(resolved[0].metadata.as_ref().unwrap()["witness"], "dependency");
+    assert_eq!(resolved[1].weight, 9);
+    assert_eq!(resolved[1].metadata.as_ref().unwrap()["witness"], "calls");
+}
+
+#[test]
+fn unrelated_corrupt_edge_refuses_binding_before_owned_retraction_or_substrate_changes() {
+    let (temporary, graph) = setup(&declarations(), call("::Omega.Api.Write", "vbnet", json!({"args":1})));
+    let old = call("old-target", "vbnet", json!({"resolved_from":"app_code","resolution":"app_code_unique"}));
+    graph.upsert_edges("p", &[old]).unwrap();
+    let endpoints = [("caller".into(), EdgeKind::Calls, "old-target".into()),
+        ("caller".into(), EdgeKind::Calls, "::Omega.Api.Write".into())];
+    let before = bincode::serialize(&graph.get_edges_by_endpoints("p", &endpoints).unwrap()).unwrap();
+    drop(graph);
+    let raw = engram_core::storage::open_database(&temporary.path().join("graph.redb"),
+        engram_core::storage::DatabaseCache::Graph).unwrap();
+    {
+        let write = raw.begin_write().unwrap();
+        let table: redb::TableDefinition<&str, &[u8]> = redb::TableDefinition::new("edges_v2");
+        let key = format!("p\0{}\0broken\0edge", EdgeKind::TemporalCoupling.as_str());
+        write.open_table(table).unwrap().insert(key.as_str(), &[1,2,3][..]).unwrap();
+        write.commit().unwrap();
+    }
+    drop(raw);
+    let graph = GraphStore::open(&temporary.path().join("graph.redb")).unwrap();
+    assert!(resolve_app_code_globals(&graph, "p", 2).is_err());
+    assert_eq!(before, bincode::serialize(&graph.get_edges_by_endpoints("p", &endpoints).unwrap()).unwrap());
+}
+
+#[test]
 fn large_unused_metadata_keeps_global_source_owner_and_string_arity_binding() {
     for fallback_to_id in [false, true] {
         let mut source = node("caller", "UnqualifiedSourceName", "Site/Handlers/job.vb", None);

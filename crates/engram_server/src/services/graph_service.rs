@@ -205,47 +205,7 @@ pub fn resolve_app_code_globals(
             folded.entry(alias).or_default().push(index);
         }
     }
-    let deps = graph.list_edges(project_id, Some(EdgeKind::Dependency))?;
-    let calls = graph.list_edges(project_id, Some(EdgeKind::Calls))?;
-    let previous_owned: Vec<_> = deps
-        .iter()
-        .chain(&calls)
-        .filter(|e| owned(e))
-        .cloned()
-        .collect();
-    let owned_by_identity: HashMap<_, _> = previous_owned
-        .iter()
-        .map(|e| {
-            (
-                (
-                    e.source_id.as_str(),
-                    e.target_id.as_str(),
-                    e.edge_kind.as_str(),
-                ),
-                e,
-            )
-        })
-        .collect();
-    let mut present: HashMap<_, _> = deps
-        .iter()
-        .chain(&calls)
-        .map(|e| {
-            (
-                (
-                    e.source_id.clone(),
-                    e.target_id.clone(),
-                    e.edge_kind.as_str(),
-                ),
-                (e.generation, owned(e)),
-            )
-        })
-        .collect();
-    let mut updates = Vec::new();
-    let mut substrate_updates = Vec::new();
-    let mut substrate_expected = Vec::new();
-    let mut desired = HashSet::new();
-    let mut added_dependencies = 0;
-    for edge in deps.iter().chain(&calls) {
+    let resolve_candidate = |edge: &engram_graph::Edge| -> Option<(String, usize)> {
         // Recompute exclusively from retained substrate references. A legacy
         // terminal hint cannot recover a lost qualified target safely.
         if owned(edge)
@@ -253,20 +213,20 @@ pub fn resolve_app_code_globals(
                 .get(edge.source_id.as_str())
                 .is_some_and(|source| source.generation > edge.generation)
         {
-            continue;
+            return None;
         }
         if by_id.contains_key(edge.target_id.as_str()) {
-            continue;
+            return None;
         }
         let raw = if let Some(name) = edge.target_id.strip_prefix("::") {
             name
         } else if edge.target_id.starts_with("sym:function:") && edge.target_id.ends_with(":0") {
             let Some(name) = symbol_name(&edge.target_id) else {
-                continue;
+                return None;
             };
             name
         } else {
-            continue;
+            return None;
         };
         let meta = edge.metadata.as_ref();
         // Semantic failures and routed dispatch are owned by their resolvers.
@@ -277,7 +237,7 @@ pub fn resolve_app_code_globals(
                 || m.get("ajax_target_method").is_some()
                 || m.get("resolution").is_some()
         }) {
-            continue;
+            return None;
         }
         let vb = matches!(
             edge.language.to_ascii_lowercase().as_str(),
@@ -291,7 +251,7 @@ pub fn resolve_app_code_globals(
             .to_string();
         // Signature text cannot safely be reduced to a name without type binding.
         if requested.contains('(') {
-            continue;
+            return None;
         }
         if !requested.contains('.')
             && let Some(receiver) = meta
@@ -303,13 +263,13 @@ pub fn resolve_app_code_globals(
         }
         let lookup = if vb { &folded } else { &exact };
         let Some(indices) = lookup.get(&key(&requested, vb)) else {
-            continue;
+            return None;
         };
         let args = number(meta, "args");
         let mut candidates: Vec<_> = indices
             .iter()
-            .map(|&i| &nodes[i])
-            .filter(|n| edge.edge_kind != EdgeKind::Calls || is_function(n))
+            .copied()
+            .filter(|&i| edge.edge_kind != EdgeKind::Calls || is_function(&nodes[i]))
             .collect();
         // A shared file does not establish scope. An unqualified call can use
         // its known lexical owner, but same-owner overloads remain ambiguous.
@@ -320,8 +280,8 @@ pub fn resolve_app_code_globals(
             let local: Vec<_> = candidates
                 .iter()
                 .copied()
-                .filter(|n| {
-                    fqn(n).rsplit_once('.').is_some_and(|(candidate_owner, _)| {
+                .filter(|&i| {
+                    fqn(&nodes[i]).rsplit_once('.').is_some_and(|(candidate_owner, _)| {
                         key(candidate_owner, vb) == key(owner, vb)
                     })
                 })
@@ -332,14 +292,59 @@ pub fn resolve_app_code_globals(
         }
         // Check arity after lexical scope: an incompatible local overload
         // must not cause fallback to an unrelated owner's method.
-        candidates.retain(|n| {
+        candidates.retain(|&i| {
             // Unknown arity remains a candidate instead of creating false uniqueness.
-            args.zip(n.arity)
+            args.zip(nodes[i].arity)
                 .is_none_or(|(a, b)| a == b)
         });
-        let [target] = candidates.as_slice() else {
-            continue;
+        let [target_index] = candidates.as_slice() else {
+            return None;
         };
+        Some((requested, *target_index))
+    };
+    // Preserve the old Dependency-then-Calls planning order even though the
+    // single validating key scan can encounter Calls first. Retain whole
+    // metadata only for owned originals and actual unique binding candidates.
+    let mut owned_deps = Vec::new();
+    let mut owned_calls = Vec::new();
+    let mut dependency_candidates = Vec::new();
+    let mut call_candidates = Vec::new();
+    let mut present = HashMap::new();
+    graph.visit_edges(project_id, |edge| {
+        let is_call = match &edge.edge_kind {
+            EdgeKind::Dependency => false,
+            EdgeKind::Calls => true,
+            _ => return,
+        };
+        let is_owned = owned(&edge);
+        present.insert((edge.source_id.clone(), edge.target_id.clone(), edge.edge_kind.as_str()),
+            (edge.generation, is_owned));
+        if is_owned {
+            if is_call { owned_calls.push(edge); } else { owned_deps.push(edge); }
+        } else if let Some((requested, target_index)) = resolve_candidate(&edge) {
+            let candidate = (edge, requested, target_index);
+            if is_call { call_candidates.push(candidate); } else { dependency_candidates.push(candidate); }
+        }
+    })?;
+    let mut previous_owned = owned_deps;
+    previous_owned.extend(owned_calls);
+    let owned_by_identity: HashMap<_, _> = previous_owned.iter().map(|edge| {
+        ((edge.source_id.as_str(), edge.target_id.as_str(), edge.edge_kind.as_str()), edge)
+    }).collect();
+    let mut updates = Vec::new();
+    let mut substrate_updates = Vec::new();
+    let mut substrate_expected = Vec::new();
+    let mut desired = HashSet::new();
+    let mut added_dependencies = 0;
+    fn with_metadata(edge: &engram_graph::Edge, metadata: serde_json::Value) -> engram_graph::Edge {
+        engram_graph::Edge { source_id: edge.source_id.clone(), target_id: edge.target_id.clone(),
+            namespace: edge.namespace.clone(), language: edge.language.clone(), edge_kind: edge.edge_kind.clone(),
+            weight: edge.weight, generation: edge.generation, metadata: Some(metadata), updated_at_ms: edge.updated_at_ms }
+    }
+    for (edge, requested, target_index) in dependency_candidates.into_iter().chain(call_candidates) {
+        let edge = &edge;
+        let target = &nodes[target_index];
+        let meta = edge.metadata.as_ref();
         // Keep the extracted reference available for later rebinding. The
         // general symbol resolver otherwise consumes its placeholder and can
         // overwrite our resolved call, leaving no substrate on the next refresh.
@@ -348,11 +353,10 @@ pub fn resolve_app_code_globals(
         if meta.and_then(|m| m.get("resolution_owner")).and_then(|v| v.as_str())
             != Some("app_code")
         {
-            let mut retained = edge.clone();
-            let mut metadata = retained.metadata.take()
-                .and_then(|m| m.as_object().cloned()).unwrap_or_default();
+            let mut metadata = edge.metadata.as_ref()
+                .and_then(|m| m.as_object()).cloned().unwrap_or_default();
             metadata.insert("resolution_owner".into(), "app_code".into());
-            retained.metadata = Some(serde_json::Value::Object(metadata));
+            let retained = with_metadata(edge, serde_json::Value::Object(metadata));
             substrate_expected.push(edge.clone());
             substrate_updates.push(retained);
         }
@@ -376,22 +380,18 @@ pub fn resolve_app_code_globals(
                 added_dependencies += 1;
             }
             present.insert(identity, (generation, true));
-            let mut metadata = edge
-                .metadata
-                .clone()
-                .and_then(|m| m.as_object().cloned())
-                .unwrap_or_default();
+            let mut metadata = edge.metadata.as_ref()
+                .and_then(|m| m.as_object()).cloned().unwrap_or_default();
             metadata.insert("resolved_from".into(), "app_code".into());
             metadata.insert("resolution_owner".into(), "app_code".into());
             metadata.insert("original_target".into(), edge.target_id.clone().into());
             metadata.insert("original_target_name".into(), requested.clone().into());
             metadata.insert("resolved_target_fqn".into(), fqn(target).into());
             metadata.insert("resolution".into(), "app_code_unique".into());
-            let mut resolved = edge.clone();
+            let mut resolved = with_metadata(edge, serde_json::Value::Object(metadata));
             resolved.target_id = target.node_id.clone();
             resolved.edge_kind = kind;
             resolved.generation = generation;
-            resolved.metadata = Some(serde_json::Value::Object(metadata));
             resolved.updated_at_ms = now_ms();
             if let Some(old) = owned_by_identity.get(&(
                 resolved.source_id.as_str(),
