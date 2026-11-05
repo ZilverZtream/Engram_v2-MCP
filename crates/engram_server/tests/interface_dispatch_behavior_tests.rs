@@ -95,6 +95,27 @@ async fn impact(app: &Engram, pid: &str, tool: &str, detail: &str, depth: usize)
 }
 
 async fn verify(app: &Engram, pid: &str) -> Result<()> {
+    let implementation=app.state.graph.query_nodes(pid,Some("function"),None,Some("Service.vb"),16)?
+        .into_iter().find(|node|node.start_line==4).ok_or_else(||anyhow::anyhow!("Missing exact Alpha implementation"))?;
+    let mut expected=None;
+    for guidance in [Some(false),Some(true),None] {
+        let mut args=json!({"project_id":pid,"symbol_fqn":implementation.node_id,"max_depth":4,"detail":"graph"});
+        if let Some(flag)=guidance {args["include_guidance"]=json!(flag);}
+        let result=app.handle_compute_blast_radius(serde_json::from_value(args)?).await?;
+        ensure!(result.is_error!=Some(true));
+        let text=result.content[0].as_text().unwrap().text.as_str();
+        let prefix=text.split_once("## Revision-admitted change impact").unwrap().0;
+        ensure!(prefix.contains("Admitted indexed dependents: 0.")
+            && prefix.contains("Separate potential interface callers: 2 (2 recorded routes)"),
+            "Zero primary count must not conceal useful potential consumers: {prefix}");
+        ensure!(text.contains("[engram]"),"Skipping optional advice must retain freshness");
+        ensure!(text.contains("## Unverified one-hop advisory profile")==guidance.unwrap_or(true),
+            "False omits the entire separate advisory; true/default preserve compatibility");
+        let facts=packet(text)?;
+        ensure!(facts["selected_dependents_observed"]==0 && facts["potential_interface_callers"]["routes_observed"]==2);
+        if let Some(old)=&expected {ensure!(&facts==old,"Advice must not change admitted evidence or potential routes");}
+        else {expected=Some(facts);}
+    }
     for tool in ["impact_analysis", "compute_blast_radius"] {
         for detail in ["summary", "graph"] {
             let report = impact(app, pid, tool, detail, 4).await?;

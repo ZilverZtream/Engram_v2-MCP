@@ -1574,6 +1574,9 @@ fn cycles_terminate_and_stale_future_missing_or_unbound_edges_never_claim_curren
         assert_eq!(unavailable["status"], "unavailable");
         assert_eq!(unavailable["target_revision_admitted"], false);
         assert!(unavailable["selected_dependents_observed"].is_null());
+        assert!(unselected_target.contains("Admitted indexed dependents: unknown."));
+        assert!(unselected_target.contains("Separate potential interface callers: unknown"),
+            "An unadmitted root must not advertise zero potential consumers");
         assert!(
             !unselected_target.contains("## First immediate indexed consumer"),
             "An unpublished target cannot acquire a confirmed-consumer prefix"

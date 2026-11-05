@@ -1323,20 +1323,14 @@ impl Engram {
         let runtime=self.ensure_project_runtime(&req.project_id).await?;
         let (generation,view)=self.pin_active_source_generation(&req.project_id,&runtime.search).await?;
         let source_hold=std::sync::Arc::new(view);
-        let compact_symbol = req.symbol_node_id.is_some() && !req.include_retained_context;
         let managed_source = source_hold.is_managed();
         let search=runtime.search.clone();
         let graph=self.state.graph.clone();
         let worker_view=source_hold.clone();
         let worker_request=req.clone();
-        let (summary,paths,file_rows,discovery,retained)=tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
+        let (summary,paths,file_rows,discovery,retained,compact_navigation)=tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
             let pid=&worker_request.project_id;
             let membership=search.selected_source_revision_lookup(pid,generation,worker_view.clone())?;
-            let summary = if compact_symbol {
-                None
-            } else {
-                Some(search.selected_source_summary(pid,generation,worker_view)?)
-            };
             let paths=membership.navigation_paths(worker_request.scope.as_deref(),&worker_request.exclude_paths,
                 worker_request.offset,worker_request.limit)?;
             let exact_file=worker_request.scope.as_deref().is_some_and(|scope| paths.files.len()==1
@@ -1345,6 +1339,9 @@ impl Engram {
                 "symbol_offset requires an exact selected-file scope and offset0");
             anyhow::ensure!(worker_request.symbol_node_id.is_none() || exact_file,
                 "symbol_node_id requires an exact selected-file scope and both offsets0");
+            let compact_navigation=exact_file && !worker_request.include_retained_context;
+            let summary=if compact_navigation { None }
+                else { Some(search.selected_source_summary(pid,generation,worker_view)?) };
             let mut rows=Vec::new();
             let mut discovery=Vec::new();
             for batch in paths.files.chunks(8) {
@@ -1420,7 +1417,7 @@ impl Engram {
             let retained=if worker_request.include_retained_context {
                 Some((search.count_docs(pid)?,search.count_docs_by_namespace(pid)?,graph.insight_title_sample(pid,8)))
             }else{None};
-            Ok((summary,paths,rows,discovery,retained))
+            Ok((summary,paths,rows,discovery,retained,compact_navigation))
         }).await.map_err(|e|McpError::internal_error(e.to_string(),None))?
             .map_err(|e|McpError::internal_error(format!("CodeMap navigation unavailable: {e:#}"),None))?;
         let explore=|scope:&str,offset:usize|serde_json::json!({"tool":"get_codebase_overview","arguments":{
@@ -1445,19 +1442,20 @@ impl Engram {
                 "Ranges are indexed positions capped to120lines; follow-up verifies current bytes, not full methods or runtime entry points. Declaration discovery coverage is reported once above."]});
         navigation["limitations"].as_array_mut().expect("limitations array").push(serde_json::json!(
             "If no displayed declaration offers a source range, the file action offers a bounded current-file excerpt. This reads current bytes only when executed; compare page hashes and do not infer method boundaries or indexed freshness."));
-        if compact_symbol {
-            navigation["detail"] = serde_json::json!("exact_symbol");
+        if compact_navigation {
+            navigation["detail"] = serde_json::json!(if req.symbol_node_id.is_some(){"exact_symbol"}else{"exact_file"});
             navigation.as_object_mut().expect("navigation object").remove("other_inventories");
             navigation["coverage"].as_object_mut().expect("coverage object").remove("representative_priority");
             navigation["limitations"] = serde_json::json!([
                 "One held published source selection, including inherited physical revisions; declarations are bounded admitted graph observations.",
                 "Not observed is not absent. Discovery/admission/scan gaps are reported in coverage; no current-source, binding or runtime verification.",
                 "Indexed ranges are capped at120lines. Follow-ups observe fresh state/current bytes; compare source_generation and hashes, not complete-method or entry-point proof.",
-                "Project distributions and area/schema/settings context omitted; the file action returns normal navigation."
+                "File reads without line bounds are bounded current-file excerpts, not indexed method boundaries. Compare their hashes and continuation.",
+                "File actions page admitted declarations (16 per page, bounded through offset128). Project distributions and area/schema/settings context omitted; use root/area overview or request include_retained_context=true when that context is needed."
             ]);
         }
         let mut areas=Vec::new();
-        for (area,count) in paths.areas.iter().filter(|_| !compact_symbol) {
+        for (area,count) in paths.areas.iter().filter(|_| !compact_navigation) {
             areas.push(serde_json::json!({"scope":area,"selected_files":count,"explore":explore(area,0)}));
             navigation["areas"]=serde_json::json!(&areas);
             if serde_json::to_vec(&navigation).map_err(|e|McpError::internal_error(e.to_string(),None))?.len()>24*1024 {
@@ -1483,7 +1481,7 @@ impl Engram {
         let encoded=serde_json::to_string(&navigation).map_err(|e|McpError::internal_error(e.to_string(),None))?;
         if encoded.len()>64*1024{return Err(McpError::internal_error("CodeMap response metadata exceeds bound; narrow scope/exclusions",None));}
         let mut out=format!("Codebase Overview: {}\nproject_id: {}\nproject_type: {}\nactive_generation: {}\n",rec.project_name,req.project_id,rec.project_type,generation);
-        if !compact_symbol {
+        if !compact_navigation {
         let summary = summary.as_ref().expect("normal overview collects its project summary");
         out.push_str("\n--- Current Source (entire held project selection; navigation scope/exclusions apply below) ---\n");
         match summary.source_files{Some(files)=>out.push_str(&format!("source_files: {files}\n")),
@@ -1530,7 +1528,7 @@ impl Engram {
                 Err(error)=>out.push_str(&format!("insight_titles_sampled: unknown (metadata unavailable: {})\n",error.to_string().chars().take(256).collect::<String>())),
             }
             out.push_str("Use read_memory_bank for notes and their stale-evidence warnings; retained notes/insights are not selected-source navigation facts.\n");
-        }else if !compact_symbol{out.push_str("\nRetained history/memory context omitted by default; request include_retained_context=true when relevant.\n");}
+        }else if !compact_navigation{out.push_str("\nRetained history/memory context omitted by default; request include_retained_context=true when relevant.\n");}
         out.push_str(&self.freshness_footer(&req.project_id,generation).await);
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
@@ -3030,6 +3028,7 @@ impl Engram {
         // Keep the actual selected-source capability in this worker as well as
         // the response owner, including when the request future is cancelled.
         if let Some(generation) = walk_generation {
+            if req.include_guidance {
             let graph = self.state.graph.clone();
             let pid = req.project_id.clone();
             let include_guidance = req.include_guidance;
@@ -3067,6 +3066,7 @@ impl Engram {
                     }
                 }
                 Err(error) => out.push_str(&format!("\nOne-hop advisory unavailable: {}. The revision-admitted report above remains separate.\n", error.to_string().chars().take(512).collect::<String>())),
+            }
             }
             out.push_str(&self.freshness_footer(&req.project_id, generation).await);
         } else {

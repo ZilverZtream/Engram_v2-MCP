@@ -470,6 +470,9 @@ pub struct CodebaseOverviewRequest {
     /// Literal boundaries omitted before declaration lookup or source recovery.
     #[serde(default)]
     pub exclude_paths: Vec<String>,
+    /// Exact selected-file pages omit global tables by default. Root/area
+    /// overviews retain project distributions. True also includes retained
+    /// history/memory context and keeps the full overview rendering.
     #[serde(default)]
     pub include_retained_context: bool,
     /// Scoped results page all matching file identities; project-wide results
@@ -2739,7 +2742,9 @@ pub struct ComputeBlastRadiusRequest {
     /// Fully qualified symbol name to analyze. Mutually exclusive with file_path.
     #[serde(default)]
     pub symbol_fqn: Option<String>,
-    /// Include agentic migration guidance in the response. Default: true.
+    /// Include the separate unverified one-hop advisory profile and migration
+    /// guidance in graph responses. False skips that worker entirely.
+    /// Default true. Summary always omits it.
     #[serde(default = "default_true")]
     pub include_guidance: bool,
     /// Incoming causal walk depth, separate from the advisory one-hop score.
