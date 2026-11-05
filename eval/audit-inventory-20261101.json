@@ -9476,11 +9476,61 @@
     "bounded_native_membership_delivery": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\bounded-native-membership-delivery-outcome-20261105.json",
       "sha256": "32c2618567ca708bccc6af9251f6964e09892af06b934c4ae685046c9639ee0a"
+    },
+    "app_code_edge_projection_delivery_20261105": {
+      "at_utc": "2026-11-05T20:22:55.994701+00:00",
+      "source_commit": "0a115140841354a3ac5ff46fffd7dfe5abdb6763",
+      "status": "DEPLOYED_VALIDATED_EDGE_STREAM_RETENTION_DELTA_RESOURCE_TARGET_STILL_FAILED",
+      "pair": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\app-code-edge-projection-paired-package-20261105.json",
+        "sha256": "484b38109ef77e2d44fe942c3d47fa29be0f11bc18f5e493e15c7599d2e3cf19"
+      },
+      "behavior": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\app-code-edge-projection-behavior-summary-20261105.json",
+        "sha256": "66c644f4d4a05e74d2a3c5e365e2a292de679f214c9140041040a2da6cd85068"
+      },
+      "source_review": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\app-code-edge-projection-source-review-20261105.json",
+        "sha256": "4b905f72ab9ff91a0a6e63c85fcc3840887eb6bf736e751059b5e9eeba29a933"
+      },
+      "helper_review": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\app-code-edge-projection-helper-review-20261105.json",
+        "sha256": "7535aba1d5e01688b6c0c207e565a06fe0462cf82f825f845c3c968c8f9fbbdd"
+      },
+      "installed": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\app-code-edge-projection-installed-pair-20261105.json",
+        "sha256": "522fed74dfebd4f0f6c7431064ba16f3072b5e7f4528b5ebbea998780e86e967"
+      },
+      "cold_reader": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\app-code-edge-projection-cold-20261105\\acceptance.json",
+        "sha256": "bd8e9fced78adf31e03f5becf620bc01d0dc93713622621a0fd46f7da0b06cbe"
+      },
+      "outcome": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\app-code-edge-projection-delivery-outcome-20261105.json",
+        "sha256": "885289c99be0871a080626e2917e7c7bca22f497f85ab3824638e0afe46d960c"
+      },
+      "post_edit_coverage": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\app-code-edge-projection-post-edit-coverage-20261105.json",
+        "sha256": "8eaddcf94a451c8ead6f3f29f6241ade0bd5f4cc7cdf0a4403cce22b5634c977"
+      },
+      "facts": "One complete validated edge scan retains compact endpoint ownership plus intact owned/candidate edges, preserving Dependency-before-Calls, metadata/CAS/retraction/strong producers/corruption refusal.28focuseddesired-behaviorcases passed and source0a11514pushedmaster. Paired installedbcba250c/manifest1556e5aa with214nativeassets unchanged; cold CodeMap/Blast+300notes/selectedRegistry/catalog/other14 preserved. Normal samePID7704 edits3132->3133->3134, retirement3135; firstedit534507520B,second545800192B,cleanup552308736B.512MiBguardfailed2of7; baseline-to-final14,255,271logicalwriteB/7,312,175,677logicalreadB/38.578CPU-s. No physicalSSD/long-term/finalization/oldreader/resource/fullscope closure. Fixture deleted by owned identity,selectedidentity retired; all300notes/other14/nonfixturecurrentcontents+physicalselections preserved.",
+      "owned_resources": "All focused/shippingJobs+handles closed and ownedTEMPremoved; cold child natural0/tmpremoved; configreadhold released unchanged; currentnormaldaemon untouched during workload.218file/335943466B previouspair retained at C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-cd83ae71bc374c489ddae4ae0f1ba234 for rollback until release acceptance/retention review. Evidence/scripts remain under existing V, no newprojectcopies/worktrees/volumes.",
+      "original_full19gates_closed": false
+    },
+    "user_rights_two_helper_actual_agent_task_20261105": {
+      "at_utc": "2026-11-05T20:22:55.994701+00:00",
+      "status": "PASS_BOUNDED_TWO_HELPER_SOURCE_AND_ADVERTISED_NAVIGATION_TASK",
+      "evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\user-rights-multi-helper-agent-acceptance-20261105.json",
+        "sha256": "e1d0c57b1e646e4ffeb1b662502c649fe98fe3bddbb5b52511fef9e3d4dc14ee"
+      },
+      "facts": "9actualpublicrequests oninstalledbcba250c/sourcehead3135: exactfileCodeMap+2helperBlast summaries,4literaladvertisedcurrent-source actions and2literalgraphcontinuations. Independent3fileoracle and rawSHA256/BLAKE3+range checks agree. Eachhelper exposes same-fileGetAll directcaller at36/39 and separate potential interface/controller depth3/reference26. Counts not additive across targets; nofieldvalueflow/runtime/exhaustivenessproof. No concrete navigation/witness failure found for this task.",
+      "limits": "No currentinterfacefilepublicread claim; contract is indexed mapping plus independent oracle. Currentformatv7/2309of2309storecoverage/watchtrue rechecked withdiskfalse,notglobaldisk/callbindingfreshness. Recorded2of7resourcefailure remainsopen."
     }
   },
-  "last_updated_at": "2026-11-05T19:35:01.598996+00:00",
+  "last_updated_at": "2026-11-05T20:22:55.994701+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-05T17:36:01.623154+00:00",
+    "at_utc": "2026-11-05T20:22:55.994701+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9511,7 +9561,7 @@
       }
     ],
     "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
-    "next_user_visible_deliverable": "Reduce demonstrated App_Code full-edge retention using one whole-project validating scan and compact identities/candidate retention, preserving Dependency-before-Calls planning, all node/alias/arity candidates, full metadata/CAS/retraction and unrelated-corruption refusal; then retry unchanged512MiB sustained-edit guard. Preserve CodeMap/Blast priority,original31/full19 and parked work.",
+    "next_user_visible_deliverable": "Exercise one representative TypeScript cross-file CodeMap/Blast agent task against a bounded independent source oracle; fix only a demonstrated navigation/witness gap. Keep remaining resource failure explicit and parked; no further allocation experiment/storage redesign without concrete core-tool blocker.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9524,8 +9574,8 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "46d8487pushedorigin/master,deployed4afbdab/manifestde7782.26focuseddesired-behaviorcasespassed; currenthead3130coldcore/coverage/300notes/other14preserved,freshnesspeak149114880B/0.878s. Actualwatch3130->3131->3132nativepurge93/235ms, fixturecleaned,allpreservationpassed;512MiBguardfailedlaterAppCode580276224B,so7editplanstopped1. No sustained/gate/wholegoalcompletion.",
-    "previous_goal_turn_classification": "PROGRESS:two related native query/write allocation fixes plus actual worker epoch retention delivered;26focusedcasespassed,pushedmaster,deployed,coldfreshnessnow142MiB. RealwatchprovednativepurgeimprovementandremainingAppCode553MiBfailure,withownedcleanup/preservation. Goalactive; noresource/fullscopeclosure.",
+    "latest_completed_core_batch": "Source0a11514pushedorigin/master anddeployedbcba250c/1556e5aa after28focusedcases+coldpreservation. Normalresourceguardfailed2of7at520.5MiBsecondedit/526.7cleanup; no sustained success. NewUserRights2helper agent task passes9actualcalls with correct samefilecaller36/39 and separate potential interfacecontroller26/depth3, executableliteralreads/graphcontinuations,currenthashes. No wholegoal/full19closure.",
+    "previous_goal_turn_classification": "PROGRESS:reviewed28caseedge-retentionfixpushed+deployed,real2editresourcefailurehonestlyretained,9requestUserRightsagenttaskverifiedwithactualsourcehashesandnavigation. Original31/full19remainunfinished; CodeMap/Blastpriorityrestored.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
