@@ -9374,11 +9374,105 @@
         "sha256": "c4a1023cf56a4d584baef938c90228e6cc6083be553e5e38d5800fbebe088bec"
       },
       "scope": "Two existing resource blockers supported by actual tool/workload evidence. Not implemented or completed; no new broad audit/storage redesign."
+    },
+    "bounded_graph_vector_pipeline_delivery_20261105": {
+      "status": "PUSHED_MASTER_DEPLOYED_CURRENT_CORE_AND_COVERAGE_VERIFIED_RESOURCE_TARGET_STILL_FAILS",
+      "source_commit": "f054cc7ac3aaf364e475961084cf0f750e362f72",
+      "server_sha256": "64e039b5a75d1e0273ac472faa631e57aaf4c9b95679f374c9fafafd8ab7cc7a",
+      "manifest_sha256": "2e7c7442b321e7b56caccd1298bdbdefdb3909a86930de227bc6f49b27ec072c",
+      "behavior": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\bounded-pipeline-behavior-summary-20261105.json",
+        "sha256": "836ade4e70a88a28e3b5d1491c5619b0990b8147d941e3a28330c1e178781853"
+      },
+      "review": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\bounded-pipeline-review-20261105.json",
+        "sha256": "3114839ef4d806836d784b3e92d97f34e6a71da33e9bb7efba029732a82e2aa9"
+      },
+      "installed": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\bounded-pipeline-installed-verified-20261105.json",
+        "sha256": "75c0d50efb4c7a37c4467ac9b186700266a8dc92d9c9291be297b4ef2fd784ce"
+      },
+      "upgrade": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\bounded-pipeline-upgrade-20261105.json",
+        "sha256": "25d8ffab2283fbacc32be1d642c64987e062a416b6d79c67d49a6357417662c9"
+      },
+      "changes": [
+        "One exact-selector vector stream supplies totalrows and distinctpaths throughEOF; no partialsuccess after provider/schema/cap failure; source/epoch andnamespace behavior retained. Completeness avoids duplicate filtered countquery.",
+        "Typed graph reads validate rejected complete wire/metadata without materializing unrelated DOMs; IDs/order/path/name/caps/corruption semantics retained.",
+        "App_Code resolution normally decodes every node and retains only needed global ID/owner/FQN/arity data. All declarations, ambiguity and stale-source fences/edge provenance/CAS/substrate/retraction behavior retained; bodymetadata released perrow."
+      ],
+      "verification": "67focused behaviorcases passed from identical finalsource:7graph,5vectorstream/native,1nativeworkerexclusion,53serverbinding/refresh/provider/coretools/interface,1explicitFTS-onlybuild/test. Source+helper independentreview; CodeRabbit unauthenticated, no remote review. Releasebuild22m22s completed;214nativeassets unchanged; exactownedtest/build/coldtmp removed.",
+      "observed_cold_freshness": {
+        "seconds": 2.3570209000026807,
+        "cpu_seconds": 5.65625,
+        "logical_read_bytes": 23228317,
+        "sampled_private_peak_bytes": 728100864,
+        "after_private_bytes": 218214400,
+        "scope": "Sequential per-call primary observations, not controlled speedup or physicalSSD/wholemachine proof. Peak still exceeds512MiB target."
+      },
+      "retained_rollback": {
+        "path": "C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-495fb4e72adf4929bfce10fb0d15200a",
+        "files": 218,
+        "bytes": 335130410,
+        "cleanup_condition": "Old pair/journals retained per installer, no automatic deletion. Existing holds unchanged."
+      },
+      "original_full19gates_closed": false
+    },
+    "bounded_pipeline_classified_live_staleness_20261105": {
+      "status": "ORIGINAL_COLD_FAILURE_RETAINED_CLASSIFIED_AGAINST_INSTALLED_READER",
+      "failed": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\bounded-pipeline-cold-20261105\\acceptance.json",
+        "sha256": "6ba8fd56ca020c336c47b1f138b046e4f57f309d7620c0ac86b3b8b836dea130"
+      },
+      "comparison": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\bounded-pipeline-reader-comparison-20261105\\comparison.json",
+        "sha256": "fc36550b6aa662ca46160c9ea638d12c9da9a89910880f28b871b0220e95bf4d"
+      },
+      "classification": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\bounded-pipeline-classified-staleness-20261105.json",
+        "sha256": "5fecdc68f713996be76c407f62c0084173ec31e208481510d5eaa95b1b4b5dbb"
+      },
+      "read_only_actual": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\bounded-pipeline-cold-v2-20261105\\acceptance.json",
+        "sha256": "f166abd7201dd895f70e5046c0e95f48bb5b58bd2fe740ba4151a47f39044146"
+      },
+      "release_scope": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\bounded-pipeline-release-gates-20261105.json",
+        "sha256": "4f84648b8cb8e0b25590aa21f0ce0bd4719d19830fc2bdf2230668b0682752bf"
+      },
+      "facts": "Fresh3126candidate initiallyrefusedincompletecoverage. Passiveinventoryshowednewunselecteddiagnosticswrittenoutsidethisrun under.audit-20261105-dev-r2. Sequentialinstalledf4/candidate64readeroutputsidentical(provider/health/freshness, ageonlynormalized);2302admittedeligiblepaths/31861rows availableall3stores,7newdiagnosticpaths unindexed. Sixoldermissingdiagnosticcatalogentriesexplicitlyunsupported,currentbyte/locatorassurancenotclaimed. Fullcatalog/selectedRegistry/other14preserved,all2302admittedeligiblehashesstable. Pinnedv2exceptionrequiresexactpair+head+freshliteralhealth/freshness match; unknown/degraded/unclassifiedchangesstillfail. OriginalFAILnevermappedtohealthyPASS. Fullv2rerunpassedcore+source+300notes+root/closedpreservation; currentglobalfreshnessremainedfalseuntilnormalcatchup."
+    },
+    "bounded_pipeline_actual_watch_resource_20261105": {
+      "status": "ONE_EDIT_PLUS_SEVEN_FILE_CATCHUP_MEMORY_ALERT_CLEANED_AND_RETIRED_NOT_SUSTAINED_PASS",
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\bounded-pipeline-watch-resource-outcome-20261105.json",
+        "sha256": "4ea2532851887615f8dc4d44f85b293ab7fea685b05eaa041af7bc0bccf8297a"
+      },
+      "raw": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\bounded-pipeline-watch-edit-observation-v2-20261105\\observation.json",
+        "sha256": "863633647d1972a1d7e61bb4b797b483101b2d03a2c9b379ffeaa1e7d8845a19"
+      },
+      "observer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\observe_bounded_pipeline_watch_edits_v2_20261105.py",
+        "sha256": "3c67037284bedf5a7b613f3070411d6f558c62c6c970c287ee80be076fb933a6"
+      },
+      "facts": "Normaldeployedprimary41960 admittedfresh30sbelow512MiBbaseline366383104B. OwnrootVBfixtureoutsideSite/Q published3127from3126in18.169s; selectedphysical3127+same-held-generationindexmarkerproven. SameupdatecaughtupEXACTsevenpreviouslyclassifiedunindexeddiagnosticpaths.48sedit/observationwindow20413265logicalwriteB,3277894086logicalreadB,17.953125CPU-seconds. Primarymarkerpeak819503104B(~782MiB) exceeded512MiB; stoppedallfurtheredits. Cleanuppeak577519616B,final555319296B. IdentityCASremovedfixture;selectedidentityretired3128.300notes/other14/nonfixturecontentpreserved;allobservedhandles/publicpipeclosed.",
+      "observer_correction": "Inheritedobserverincorrectlyrequiredphysicalfixtureversion==latestlogicalHEAD. Freshv2observerrequiresprevious<physical<=observed, preservesindex-onlymarker/doc_id+held-generationcheck, recordsphysicalseparately. This supports ordinary unrelatedheadadvances without weakeningpublication proof. Deletion/timing/512MiBand1GiBbudgetsunchanged.",
+      "limitations": "Onecontrollededit+seven-filecatchup,notisolatedsingleeditcost orcontrolledcomparison.7plannededitsnotcompleted. No per-editfinalization/oldreader/recovery/sustained-resource/physicalSSD/kernel/leakproof. No memorytrim/forcedrestart/thresholdrelaxduringrun.",
+      "original_full19gates_closed": false
+    },
+    "bounded_pipeline_post_edit_core_coverage_20261105": {
+      "status": "CURRENT3128_CORE_AND_PATH_COVERAGE_VERIFIED",
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\bounded-pipeline-post-edit-core-20261105.json",
+        "sha256": "70f37dcfd62f0f3970b730e48a9da0dd1106df04f218bff98825233656e0be5c"
+      },
+      "facts": "Afterworkloadend,41960naturallyidle-exited. Sameinstalledimagestarted58688solelyforposteditsemantic/coverageverification;no resetbaseline/resourceclaim. CodeMap10.2ms,Blastsummary62.9ms,targetadmitted0primary+1separatepotentialinterface routeunchanged. get_index_freshness check_disk:false currentformatv7,2309/2309eligiblepathsallstores,missing0/crossmismatch0,watchmetadatatrue. The7diagnosticsarenowindexed. Fullcurrentdiskbyte/callbindingfreshnessstillnotproven; sixolderabsentcatalogentriesremainexplicitgaps."
     }
   },
-  "last_updated_at": "2026-11-05T15:24:44.837130+00:00",
+  "last_updated_at": "2026-11-05T17:36:01.623154+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-05T15:24:44.837130+00:00",
+    "at_utc": "2026-11-05T17:36:01.623154+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9409,7 +9503,7 @@
       }
     ],
     "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
-    "next_user_visible_deliverable": "Implement one exact-selector vector stream for completeness rowcount+paths and validated borrowed filtering for typed GraphStore node reads, preserving all source/namespace/decoder/provider/EOF/limit/global-enrichment contracts. Then run the same bounded ownededit workload under unchanged budgets. These remain unimplemented next steps; all31findings/19fullgates stayopen and EG14drafting remainsstopped.",
+    "next_user_visible_deliverable": "Attribute remaining measured prepublication peak and retained memory using stage/trajectory evidence before another implementation guess. The seven-edit sustained workload is still incomplete; retain the512MiBfailure ratherthanclaimsuccessfromfasterqueries or changing thresholds. Preserve deployedCodeMap/Blastusefulness and original31/19scope; instructiondraftingEG14staysstopped, parkedkernel/legacy/cleanupworkunchanged.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9422,7 +9516,7 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "639ff1epushedorigin/master,deployedserverf4d30c/manifest6b45b6. ExplicitrawBLAKE3labels resolvedactualagentambiguity; freshnessreusesvalidatedgraphrowswithoutweakeningindependentcoveragechecks.34focusedcases+current3124coldpreservation+6requestpublicagenttask verified.Cold freshness8.04s peak796MiB stillresourcealert. Actualownededitstoppedafterfirst877MiBalert;fixturecleaned/retired3126,300notes/other14/nonfixturecontentspreserved. No overallcompletion.",
-    "previous_goal_turn_classification": "PROGRESS:639ff1e implemented,tested,pushedmaster,deployed,realpublicagenttask verified; actualresourcegateattempt nowproduced onepublishededit andmemorybudgetfailure withcompleteownedcleanup. Temporary memoryspike andsustainedediting remainunresolved; no blocked/complete goal transition."
+    "latest_completed_core_batch": "f054cc7pushedorigin/master,deployed64e039/manifest2e7c74.67focusedcases,classifiedold/candidatereadercomparison,current3128CodeMap/Blast+2309/2309pathcoveragepassed. Oneownededit+7knowncatchupsstoppedat782MiBmemoryalert;fixturecleaned/retired,300notes/other14/nonfixturecontentpreserved. Freshness2.36speak694MiB stillresourcefailure. No fullgoal/gatecompletion.",
+    "previous_goal_turn_classification": "PROGRESS:3relatedquery/retentionfixesimplemented,67behaviorcasespassed,pushedmaster,deployed; realreaderstalenessclassifiedwithoutwaivingproviderregression,currentcoverage/corechecksverified; actualoneeditprovedremainingmemoryfailureandcompleteownedcleanup. Requiredworkremains; goalactive."
   }
 }
