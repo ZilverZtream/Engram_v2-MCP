@@ -9468,9 +9468,13 @@
         "sha256": "70f37dcfd62f0f3970b730e48a9da0dd1106df04f218bff98825233656e0be5c"
       },
       "facts": "Afterworkloadend,41960naturallyidle-exited. Sameinstalledimagestarted58688solelyforposteditsemantic/coverageverification;no resetbaseline/resourceclaim. CodeMap10.2ms,Blastsummary62.9ms,targetadmitted0primary+1separatepotentialinterface routeunchanged. get_index_freshness check_disk:false currentformatv7,2309/2309eligiblepathsallstores,missing0/crossmismatch0,watchmetadatatrue. The7diagnosticsarenowindexed. Fullcurrentdiskbyte/callbindingfreshnessstillnotproven; sixolderabsentcatalogentriesremainexplicitgaps."
+    },
+    "post_publication_native_purge_attribution": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\update-stage-delivery-and-native-query-attribution-20261105.json",
+      "sha256": "b921c4bcafb6dce865dc25a936cb0ddcfd2967eaeeb0da1bdeeb293a5a821a4a"
     }
   },
-  "last_updated_at": "2026-11-05T17:36:01.623154+00:00",
+  "last_updated_at": "2026-11-05T18:29:48.334062+00:00",
   "current_execution_focus": {
     "at_utc": "2026-11-05T17:36:01.623154+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
@@ -9503,7 +9507,7 @@
       }
     ],
     "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
-    "next_user_visible_deliverable": "Attribute remaining measured prepublication peak and retained memory using stage/trajectory evidence before another implementation guess. The seven-edit sustained workload is still incomplete; retain the512MiBfailure ratherthanclaimsuccessfromfasterqueries or changing thresholds. Preserve deployedCodeMap/Blastusefulness and original31/19scope; instructiondraftingEG14staysstopped, parkedkernel/legacy/cleanupworkunchanged.",
+    "next_user_visible_deliverable": "Bound old-source candidate metadata reads and test exact protected physical membership in Rust, then delete only independently identified obsolete revisions. Preserve current/held readers, future rows, same commit/epoch ownership, completeEOF/failure refusal, no-op native versions and namespace retention. Validate before deployment and retry same512MiB workload; do not reset or relax the target.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9517,6 +9521,20 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
     "latest_completed_core_batch": "f054cc7pushedorigin/master,deployed64e039/manifest2e7c74.67focusedcases,classifiedold/candidatereadercomparison,current3128CodeMap/Blast+2309/2309pathcoveragepassed. Oneownededit+7knowncatchupsstoppedat782MiBmemoryalert;fixturecleaned/retired,300notes/other14/nonfixturecontentpreserved. Freshness2.36speak694MiB stillresourcefailure. No fullgoal/gatecompletion.",
-    "previous_goal_turn_classification": "PROGRESS:3relatedquery/retentionfixesimplemented,67behaviorcasespassed,pushedmaster,deployed; realreaderstalenessclassifiedwithoutwaivingproviderregression,currentcoverage/corechecksverified; actualoneeditprovedremainingmemoryfailureandcompleteownedcleanup. Requiredworkremains; goalactive."
+    "previous_goal_turn_classification": "PROGRESS:logging-only29line delta shipped after2focusedwatcherbehaviors; exact nativepurge spike localized and read-only SELECTcases reproduced highmemory with no data changes. No optimization/gate/whole-goal closure claimed; next source work targets global native membership filtering.",
+    "latest_resource_attribution_batch": {
+      "at_utc": "2026-11-05T18:29:48.334062+00:00",
+      "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
+      "evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\update-stage-delivery-and-native-query-attribution-20261105.json",
+        "sha256": "b921c4bcafb6dce865dc25a936cb0ddcfd2967eaeeb0da1bdeeb293a5a821a4a"
+      },
+      "status": "NATIVE_PURGE_QUERY_RESOURCE_FAILURE_ATTRIBUTED_NEXT_OPTIMIZATION_OPEN",
+      "installed_pair": {
+        "server_sha256": "80b40ff96e873fa96f7cb7d1e65607feb99fa492c788b7734c3deadc56b0b3bb",
+        "manifest_sha256": "5ac05a108858f2c08264b48110fd148b548b65ded833a55e4f526e5bd0e0cce1"
+      },
+      "original_core_priority_preserved": true
+    }
   }
 }
