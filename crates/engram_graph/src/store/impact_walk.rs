@@ -201,6 +201,37 @@ pub struct IncomingImpactWalk {
     pub coverage: ImpactWalkCoverage,
     /// Separate potential dispatch routes, never added to causal BFS counts.
     pub interface_dispatch: InterfaceDispatch,
+    /// Same-terminal unresolved syntax for inspection only. Never a causal
+    /// caller tier, path, receiver binding, or addition to primary counts.
+    pub unbound_member_inspection: Option<UnboundMemberInspection>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UnboundMemberWitness {
+    pub caller: Node,
+    pub unresolved_target_id: String,
+    pub receiver: String,
+    pub edge_generation: u64,
+    pub source_position_kind: &'static str,
+    pub reference_lines: Vec<u32>,
+    pub reference_lines_truncated: bool,
+}
+
+#[derive(Debug, Default, Clone, Serialize)]
+pub struct UnboundMemberInspection {
+    pub directory: String,
+    pub member_name: String,
+    pub witnesses: Vec<UnboundMemberWitness>,
+    pub coverage: ImpactWalkCoverage,
+    pub decoded_bytes: usize,
+    pub raw_row_limit: usize,
+    pub raw_keys_observed: usize,
+    pub witness_limit: usize,
+    /// One undecoded matching-prefix key can establish that the row cap hid
+    /// more work. It does not establish how many eligible witnesses remain.
+    pub lookahead_observed: bool,
+    pub scoped_prefix_exhausted: bool,
+    pub witnesses_omitted_lower_bound: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -290,6 +321,175 @@ fn identity_bytes(node: &Node) -> usize {
         + node.namespace.len()
         + node.language.len()
         + node.file_path.as_str().len()
+}
+
+fn canonical_script_callable(node: &Node) -> bool {
+    let path = node.file_path.as_str();
+    node.namespace == engram_core::namespaces::NAMESPACE_MEMORY
+        && node.node_type == "function" && node.start_line > 0 && node.end_line >= node.start_line
+        && node.language.len() <= 32 && node.name.len() <= 2048
+        && matches!(node.language.to_ascii_lowercase().as_str(), "ts" | "typescript" | "js" | "javascript")
+        && path.rsplit('.').next().is_some_and(|extension| extension.len() <= 3
+            && matches!(extension.to_ascii_lowercase().as_str(), "ts" | "tsx" | "js" | "jsx"))
+        && !path.is_empty() && path.len() <= 2048 && !path.contains(['\\', ':'])
+        && !path.chars().any(char::is_control)
+        && path.split('/').all(|part| !matches!(part, "" | "." | ".."))
+        && node.node_id.len() <= 2048 && !node.node_id.chars().any(char::is_control)
+        && node.node_id == format!("sym:function:{path}:{}:{}", node.name, node.start_line)
+}
+
+/// An optional final observation under the SAME transaction, source capability
+/// and remaining work budget. Only canonical directory-scoped JS/TS Calls are
+/// examined; type/receiver binding and all other scopes remain unassessed.
+fn inspect_unbound_members(
+    tx: &redb::ReadTransaction,
+    project: &str,
+    root: &Node,
+    remaining_rows: usize,
+    remaining_witnesses: usize,
+    budget: &mut Budget,
+    admit: &dyn Fn(&Node, Option<&Node>) -> anyhow::Result<ImpactAdmission>,
+) -> Option<UnboundMemberInspection> {
+    if !canonical_script_callable(root) { return None; }
+    let (directory, _) = root.file_path.as_str().rsplit_once('/')?;
+    let member = root.name.rsplit('.').next()?;
+    if directory.is_empty() || member.is_empty() || member.len() > 128
+        || !member.chars().enumerate().all(|(i, c)| c == '_' || c == '$'
+            || if i == 0 { c.is_alphabetic() } else { c.is_alphanumeric() }) { return None; }
+    let mut result = UnboundMemberInspection {
+        // Reserve one shared raw-work slot for an undecoded boundary/lookahead
+        // key. Every obtained key remains within the original shared limit.
+        raw_row_limit: remaining_rows.saturating_sub(1).min(512),
+        witness_limit: remaining_witnesses.min(8), ..Default::default()
+    };
+    if !budget.live(&mut result.coverage) {
+        gap(&mut result.coverage, "unbound_shared_work_budget_unavailable");
+        return Some(result);
+    }
+    if !budget.retain(directory.len() + member.len(), &mut result.coverage) { return Some(result); }
+    result.directory = directory.to_owned();
+    result.member_name = member.to_owned();
+    if result.raw_row_limit == 0 || result.witness_limit == 0 {
+        gap(&mut result.coverage, "unbound_shared_row_or_witness_budget_unavailable");
+        return Some(result);
+    }
+    let mut optional_halted = false;
+    let attempted = (|| -> anyhow::Result<()> {
+        let nodes = tx.open_table(NODES)?;
+        let edges = tx.open_table(EDGES)?;
+        let charge = |bytes: usize, budget: &mut Budget, coverage: &mut ImpactWalkCoverage,
+                      decoded: &mut usize, halted: &mut bool| -> bool {
+            if bytes > 64 * 1024 {
+                coverage.unknown_nodes += 1;
+                gap(coverage, "unbound_record_byte_limit");
+                return false;
+            }
+            if decoded.checked_add(bytes).is_none_or(|total| total > 2 * 1024 * 1024) {
+                gap(coverage, "unbound_decode_byte_limit"); *halted = true; return false;
+            }
+            if !budget.record(bytes, coverage) { *halted = budget.halted; return false; }
+            *decoded += bytes;
+            true
+        };
+        let read = |id: &str, budget: &mut Budget, coverage: &mut ImpactWalkCoverage,
+                    decoded: &mut usize, halted: &mut bool| -> anyhow::Result<Option<Node>> {
+            if !budget.live(coverage) { *halted = true; return Ok(None); }
+            let key = format!("{project}\0{id}");
+            let Some(raw) = nodes.get(key.as_str())? else {
+                coverage.missing_nodes += 1; gap(coverage, "unbound_node_or_file_missing"); return Ok(None);
+            };
+            if !charge(raw.value().len(), budget, coverage, decoded, halted) { return Ok(None); }
+            let node: Node = bincode::DefaultOptions::new().with_fixint_encoding()
+                .with_limit(64 * 1024).reject_trailing_bytes().deserialize(raw.value())?;
+            anyhow::ensure!(node.node_id == id, "Unbound inspection node/key mismatch");
+            Ok(Some(node))
+        };
+        let prefix = format!("{project}\0calls\0sym:function:{directory}/");
+        let mut range = edges.range(prefix.as_str()..)?;
+        loop {
+            if !budget.live(&mut result.coverage) || optional_halted { return Ok(()); }
+            let Some(entry) = range.next() else { break; };
+            result.raw_keys_observed += 1;
+            let (key, raw) = entry?;
+            let key = key.value();
+            if !key.starts_with(&prefix) { result.scoped_prefix_exhausted = true; return Ok(()); }
+            if result.coverage.raw_rows == result.raw_row_limit {
+                result.lookahead_observed = true;
+                gap(&mut result.coverage, "unbound_raw_row_limit"); return Ok(());
+            }
+            result.coverage.raw_rows += 1;
+            anyhow::ensure!(key.len() <= project.len() + 3 + "calls".len() + 4096,
+                "Unbound inspection edge key exceeds limits");
+            let parts = key.split('\0').collect::<Vec<_>>();
+            anyhow::ensure!(parts.len() == 4 && parts[0] == project && parts[1] == "calls"
+                && parts[2..].iter().all(|id| !id.is_empty() && id.len() <= 2048 && !id.chars().any(char::is_control)),
+                "Unbound inspection edge key unavailable");
+            let (source, target) = (parts[2], parts[3]);
+            if !charge(raw.value().len(), budget, &mut result.coverage, &mut result.decoded_bytes, &mut optional_halted) {
+                if optional_halted { return Ok(()); } else { continue; }
+            }
+            let edge: Edge = bincode::DefaultOptions::new().with_fixint_encoding()
+                .with_limit(64 * 1024).reject_trailing_bytes().deserialize(raw.value())?;
+            anyhow::ensure!(edge.source_id == source && edge.target_id == target && edge.edge_kind == EdgeKind::Calls,
+                "Unbound inspection edge/key mismatch");
+            let Some(spelling) = target.strip_prefix(super::UNBOUND_RECEIVER_PREFIX) else { continue; };
+            let Some((receiver, terminal)) = spelling.rsplit_once('.') else { continue; };
+            if terminal != member { continue; }
+            let metadata = edge.metadata.as_ref();
+            let marked = metadata.and_then(|m| m.get("receiver_unbound"))
+                .is_some_and(|v| v == true || v.as_str() == Some("true"));
+            let hint = metadata.and_then(|m| m.get("receiver")).and_then(JsonValue::as_str);
+            let matches_hint = hint.is_some_and(|hint| hint.len() <= 512
+                && hint.chars().map(|c| if c.is_control() { ' ' } else { c }).eq(receiver.chars()));
+            if !marked || !matches_hint || receiver.is_empty() || edge.namespace != engram_core::namespaces::NAMESPACE_MEMORY {
+                result.coverage.unknown_nodes += 1; gap(&mut result.coverage, "unbound_marker_or_namespace_unverified"); continue;
+            }
+            let Some(caller) = read(source, budget, &mut result.coverage, &mut result.decoded_bytes, &mut optional_halted)? else { continue; };
+            if !canonical_script_callable(&caller) || !caller.file_path.as_str().starts_with(&format!("{directory}/")) {
+                result.coverage.unknown_nodes += 1; gap(&mut result.coverage, "unbound_caller_identity_unverified"); continue;
+            }
+            let Some(file) = read(&format!("file:{}", caller.file_path.as_str()), budget,
+                &mut result.coverage, &mut result.decoded_bytes, &mut optional_halted)? else { continue; };
+            if file.node_type != "file" || file.file_path != caller.file_path
+                || file.namespace != engram_core::namespaces::NAMESPACE_MEMORY {
+                result.coverage.unknown_nodes += 1; gap(&mut result.coverage, "unbound_file_identity_unverified"); continue;
+            }
+            match admit(&caller, Some(&file))? {
+                ImpactAdmission::Selected if edge_source_revision_matches(&edge, &caller) => {}
+                ImpactAdmission::NonSelectedRevision => {
+                    result.coverage.non_selected_nodes += 1; gap(&mut result.coverage, "unbound_non_selected_caller"); continue;
+                }
+                _ => {
+                    result.coverage.unknown_nodes += 1; gap(&mut result.coverage, "unbound_source_revision_unverified"); continue;
+                }
+            }
+            if !budget.live(&mut result.coverage) { return Ok(()); }
+            if result.witnesses.iter().any(|row| row.caller.node_id == source && row.unresolved_target_id == target) { continue; }
+            let (_, position_kind, lines, lines_truncated) = recorded_positions(&edge);
+            if lines.iter().any(|line| *line < caller.start_line || *line > caller.end_line) {
+                result.coverage.unknown_nodes += 1; gap(&mut result.coverage, "unbound_reference_outside_declared_span"); continue;
+            }
+            if result.witnesses.len() == result.witness_limit {
+                result.witnesses_omitted_lower_bound += 1;
+                gap(&mut result.coverage, "unbound_witness_limit"); return Ok(());
+            }
+            if !budget.retain(identity_bytes(&caller) + target.len() + receiver.len()
+                + lines.len() * std::mem::size_of::<u32>(), &mut result.coverage) { return Ok(()); }
+            result.witnesses.push(UnboundMemberWitness { caller: identity_clone(&caller),
+                unresolved_target_id: target.to_owned(), receiver: receiver.to_owned(), edge_generation: edge.generation,
+                source_position_kind: position_kind, reference_lines: lines, reference_lines_truncated: lines_truncated });
+        }
+        result.scoped_prefix_exhausted = !optional_halted && !budget.halted;
+        Ok(())
+    })();
+    if attempted.is_err() {
+        result.coverage.unknown_nodes += 1;
+        gap(&mut result.coverage, "unbound_graph_or_admission_unavailable");
+    }
+    result.coverage.nodes_observed = result.witnesses.iter().map(|row| row.caller.node_id.as_str())
+        .collect::<std::collections::HashSet<_>>().len();
+    result.coverage.reasons.sort();
+    Some(result)
 }
 
 fn record_frontier(
@@ -1588,6 +1788,16 @@ impl GraphStore {
         dispatch.coverage.nodes_observed=dispatch.routes.iter().map(|row|row.caller.node_id.as_str()).collect::<std::collections::HashSet<_>>().len();
         dispatch.coverage.reasons.sort();
         output.interface_dispatch=dispatch;
+        if excluded_source_file.is_none() && seeds.len() == 1 && causal(&EdgeKind::Calls) {
+            if let Some(root) = output.nodes.iter().find(|row| row.depth == 0 && row.admission == ImpactAdmission::Selected) {
+                let remaining = MAX_RAW_ROWS.saturating_sub(output.coverage.raw_rows
+                    .saturating_add(output.interface_dispatch.coverage.raw_rows));
+                let remaining_witnesses = MAX_WITNESSES.saturating_sub(output.witnesses.len()
+                    + output.frontier.len() + output.interface_dispatch.routes.len() + output.interface_dispatch.frontier.len());
+                output.unbound_member_inspection = inspect_unbound_members(&tx, project_id, &root.node,
+                    remaining, remaining_witnesses, &mut budget, admit);
+            }
+        }
         output.coverage.reasons.sort();
         Ok(output)
     }
@@ -1691,6 +1901,201 @@ mod tests {
                 ImpactAdmission::NonSelectedRevision
             },
         )
+    }
+
+    fn script_node(path: &str, name: &str, start: u32) -> Node {
+        let mut value = node(&format!("sym:function:{path}:{name}:{start}"), path, 1);
+        value.name = name.into(); value.language = "typescript".into();
+        value.start_line = start; value.end_line = start + 10;
+        value
+    }
+
+    fn unbound_edge(caller: &Node, receiver: &str) -> Edge {
+        let mut value = edge(&caller.node_id, &format!("{UNBOUND_RECEIVER_PREFIX}{receiver}.resetState"), EdgeKind::Calls, 1);
+        value.language = "typescript".into();
+        value.metadata = Some(serde_json::json!({"receiver_unbound":true,"receiver":receiver,
+            "call_site_lines":[caller.start_line+2,caller.start_line+3]}));
+        value
+    }
+
+    fn unbound_fixture(store: &GraphStore) -> anyhow::Result<(Node, Node, Edge)> {
+        let root = script_node("src/images/image.ts", "resetState", 1);
+        let caller = script_node("src/images/group.ts", "clear", 10);
+        let mut nodes = vec![root.clone(), caller.clone(), file(root.file_path.as_str(), 1), file(caller.file_path.as_str(), 1)];
+        let mut edges = Vec::new();
+        for (index, name) in ["deleteOne", "reload", "openImage"].iter().enumerate() {
+            let direct = script_node(root.file_path.as_str(), name, 30 + index as u32 * 20);
+            edges.push(edge(&direct.node_id, &root.node_id, EdgeKind::Calls, 1)); nodes.push(direct);
+        }
+        store.upsert_nodes_and_edges(PROJECT, &nodes, &edges)?;
+        let unresolved = unbound_edge(&caller, "h");
+        Ok((root, caller, unresolved))
+    }
+
+    fn primary_facts(walk: &IncomingImpactWalk) -> anyhow::Result<JsonValue> {
+        Ok(serde_json::json!({"nodes":serde_json::to_value(&walk.nodes)?,"witnesses":walk.witnesses,
+            "frontier":walk.frontier,"coverage":walk.coverage,"interface":walk.interface_dispatch}))
+    }
+
+    #[test]
+    fn unbound_inspection_admits_source_syntax_without_rewriting_causal_facts() -> anyhow::Result<()> {
+        owned_case(|store| {
+            let (root, caller, original) = unbound_fixture(store)?;
+            let expected = [("src/images/image.ts", 1), ("src/images/group.ts", 1)];
+            let observe = || store.bounded_incoming_walk(PROJECT, &[root.node_id.clone()], 6, &causal,
+                &|node, file| selected(&expected, node, file));
+            let baseline = primary_facts(&observe()?)?;
+            store.upsert_edges(PROJECT, &[original.clone()])?;
+            let admitted = observe()?;
+            assert_eq!(primary_facts(&admitted)?, baseline);
+            let inspection = admitted.unbound_member_inspection.unwrap();
+            assert_eq!(inspection.witnesses.len(), 1);
+            assert_eq!(inspection.witnesses[0].caller.node_id, caller.node_id);
+            assert_eq!(inspection.witnesses[0].reference_lines, vec![12,13]);
+            assert_eq!(inspection.coverage.nodes_observed, 1);
+            assert!(matches!(store.resolve_symbol(PROJECT, &original.target_id, None, None)?, ResolveResult::NotFound));
+            let file_id = format!("file:{}", caller.file_path.as_str());
+            let original_file = store.get_node(PROJECT, &file_id)?.unwrap();
+            for scenario in ["stale_caller", "future_caller", "foreign_caller", "wrong_caller_path",
+                "stale_file", "future_file", "foreign_file", "wrong_file_kind", "foreign_edge",
+                "stale_edge", "bad_marker", "bad_receiver", "bad_origin", "outside_span"] {
+                let mut bad_caller = caller.clone(); let mut bad_file = original_file.clone(); let mut bad_edge = original.clone();
+                match scenario {
+                    "stale_caller" => bad_caller.generation = 0,
+                    "future_caller" => bad_caller.generation = 2,
+                    "foreign_caller" => bad_caller.namespace = "history".into(),
+                    "wrong_caller_path" => bad_caller.file_path = RelPath::new("src/images2/group.ts"),
+                    "stale_file" => bad_file.generation = 0,
+                    "future_file" => bad_file.generation = 2,
+                    "foreign_file" => bad_file.namespace = "history".into(),
+                    "wrong_file_kind" => bad_file.node_type = "function".into(),
+                    "foreign_edge" => bad_edge.namespace = "history".into(),
+                    "stale_edge" => bad_edge.generation = 0,
+                    "bad_marker" => bad_edge.metadata.as_mut().unwrap()["receiver_unbound"] = serde_json::json!(false),
+                    "bad_receiver" => bad_edge.metadata.as_mut().unwrap()["receiver"] = serde_json::json!("different"),
+                    "bad_origin" => bad_edge.metadata.as_mut().unwrap()[SOURCE_ORIGIN] = JsonValue::Null,
+                    _ => bad_edge.metadata.as_mut().unwrap()["call_site_lines"] = serde_json::json!([999]),
+                }
+                store.upsert_nodes(PROJECT, &[bad_caller, bad_file])?;
+                store.upsert_edges(PROJECT, &[bad_edge])?;
+                let rejected = observe()?;
+                assert_eq!(primary_facts(&rejected)?, baseline, "{scenario}");
+                let inspection = rejected.unbound_member_inspection.unwrap();
+                assert!(inspection.witnesses.is_empty() && inspection.coverage.truncated, "{scenario}: {inspection:?}");
+                assert!(!inspection.coverage.reasons.is_empty());
+                store.upsert_nodes(PROJECT, &[caller.clone(), original_file.clone()])?;
+                store.upsert_edges(PROJECT, &[original.clone()])?;
+            }
+            let mut inherited = original.clone(); inherited.generation = 2;
+            inherited.metadata.as_mut().unwrap()[SOURCE_ORIGIN] = serde_json::json!({
+                "version":1,"source_id":caller.node_id,"source_generation":1});
+            store.upsert_edges(PROJECT, &[inherited])?;
+            let inherited = observe()?;
+            assert_eq!(primary_facts(&inherited)?, baseline);
+            let witness = &inherited.unbound_member_inspection.as_ref().unwrap().witnesses[0];
+            assert_eq!(witness.caller.generation, 1);
+            assert_eq!(witness.edge_generation, 2);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn unbound_inspection_bounds_skipped_rows_and_discloses_unknown_remainder() -> anyhow::Result<()> {
+        owned_case(|store| {
+            let (root, _, unresolved) = unbound_fixture(store)?;
+            store.upsert_edges(PROJECT, &[unresolved])?;
+            let skipped = (0..513).map(|number| edge("sym:function:src/images/aaa.ts:Probe:1",
+                &format!("::unrelated_{number:04}"), EdgeKind::Calls, 1)).collect::<Vec<_>>();
+            store.upsert_edges(PROJECT, &skipped)?;
+            let walk = store.bounded_incoming_walk(PROJECT, &[root.node_id], 6, &causal,
+                &|node, file| selected(&[("src/images/image.ts",1),("src/images/group.ts",1)], node, file))?;
+            assert_eq!(walk.nodes.iter().filter(|node| node.depth>0 && node.admission==ImpactAdmission::Selected).count(), 3);
+            let inspection = walk.unbound_member_inspection.unwrap();
+            assert!(inspection.witnesses.is_empty() && inspection.coverage.truncated);
+            assert_eq!(inspection.coverage.raw_rows, 512);
+            assert_eq!(inspection.raw_keys_observed, 513);
+            assert!(inspection.lookahead_observed && !inspection.scoped_prefix_exhausted);
+            assert_eq!(inspection.witnesses_omitted_lower_bound, 0, "Unexamined rows are not known eligible witnesses");
+            Ok(())
+        })?;
+        owned_case(|store| {
+            let (root, _, _) = unbound_fixture(store)?;
+            let mut paths = vec![root.file_path.as_str().to_owned()];
+            let mut nodes = Vec::new(); let mut edges = Vec::new();
+            for number in 0..9 {
+                let path = format!("src/images/candidate{number}.ts");
+                let caller = script_node(&path, "Probe", 10);
+                edges.push(unbound_edge(&caller, &format!("h{number}")));
+                nodes.extend([file(&path, 1), caller]); paths.push(path);
+            }
+            store.upsert_nodes_and_edges(PROJECT, &nodes, &edges)?;
+            let expected = paths.iter().map(|path| (path.as_str(), 1)).collect::<Vec<_>>();
+            let walk = store.bounded_incoming_walk(PROJECT, &[root.node_id], 6, &causal,
+                &|node, file| selected(&expected, node, file))?;
+            assert_eq!(walk.nodes.iter().filter(|node| node.depth>0 && node.admission==ImpactAdmission::Selected).count(), 3);
+            let inspection = walk.unbound_member_inspection.unwrap();
+            assert_eq!(inspection.witnesses.len(), 8);
+            assert_eq!(inspection.coverage.nodes_observed, 8);
+            assert_eq!(inspection.witnesses_omitted_lower_bound, 1);
+            assert!(inspection.coverage.truncated && !inspection.scoped_prefix_exhausted);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn unbound_bad_records_and_spent_shared_budget_preserve_primary_evidence() -> anyhow::Result<()> {
+        owned_case(|store| {
+            let (root, caller, original) = unbound_fixture(store)?;
+            store.upsert_edges(PROJECT, &[original.clone()])?;
+            let expected = [("src/images/image.ts",1),("src/images/group.ts",1)];
+            let observe = || store.bounded_incoming_walk(PROJECT, &[root.node_id.clone()], 6, &causal,
+                &|node, file| selected(&expected, node, file));
+            let baseline = primary_facts(&observe()?)?;
+            let file_id = format!("file:{}", caller.file_path.as_str());
+            let original_file = store.get_node(PROJECT, &file_id)?.unwrap();
+            for scenario in ["large_edge", "large_node", "large_file", "corrupt_edge", "corrupt_node", "mismatched_node", "missing_file"] {
+                let mut bad_caller = caller.clone(); let mut bad_file = original_file.clone(); let mut bad_edge = original.clone();
+                if scenario == "large_edge" { bad_edge.metadata.as_mut().unwrap()["payload"] = serde_json::json!("FOREIGN_INSPECTION_SENTINEL".repeat(4000)); }
+                if scenario == "large_node" { bad_caller.metadata.as_mut().unwrap()["payload"] = serde_json::json!("FOREIGN_INSPECTION_SENTINEL".repeat(4000)); }
+                if scenario == "large_file" { bad_file.metadata.as_mut().unwrap()["payload"] = serde_json::json!("FOREIGN_INSPECTION_SENTINEL".repeat(4000)); }
+                store.upsert_nodes(PROJECT, &[bad_caller, bad_file])?; store.upsert_edges(PROJECT, &[bad_edge])?;
+                // Mutate this fixture's existing database handle between completed
+                // read transactions; no second owner or production data is opened.
+                if matches!(scenario, "corrupt_edge" | "corrupt_node" | "mismatched_node" | "missing_file") {
+                    let write = store.db.begin_write()?;
+                    if scenario == "corrupt_edge" {
+                        write.open_table(EDGES)?.insert(edge_key(PROJECT,&EdgeKind::Calls,&caller.node_id,&original.target_id).as_str(), &[255u8][..])?;
+                    } else {
+                        let mut table = write.open_table(NODES)?;
+                        let id = if scenario == "missing_file" { &file_id } else { &caller.node_id };
+                        let key = format!("{PROJECT}\0{id}");
+                        if scenario == "missing_file" { table.remove(key.as_str())?; }
+                        else if scenario == "corrupt_node" { table.insert(key.as_str(), &[255u8][..])?; }
+                        else {
+                            let mut mismatched = caller.clone(); mismatched.node_id = "FOREIGN_INSPECTION_SENTINEL".into();
+                            table.insert(key.as_str(), bincode::serialize(&mismatched)?.as_slice())?;
+                        }
+                    }
+                    write.commit()?;
+                }
+                let rejected = observe()?;
+                assert_eq!(primary_facts(&rejected)?, baseline, "{scenario}");
+                let inspection = rejected.unbound_member_inspection.unwrap();
+                assert!(inspection.witnesses.is_empty() && inspection.coverage.truncated, "{scenario}");
+                assert!(!serde_json::to_string(&inspection)?.contains("FOREIGN_INSPECTION_SENTINEL"));
+                store.upsert_nodes(PROJECT, &[caller.clone(), original_file.clone()])?;
+                store.upsert_edges(PROJECT, &[original.clone()])?;
+            }
+            let tx = store.db.begin_read()?;
+            let mut spent = Budget { started: Instant::now()-WALK_TIME-Duration::from_secs(1), string_bytes:0, decode_bytes:0, halted:false };
+            let inspected = inspect_unbound_members(&tx, PROJECT, &root, MAX_RAW_ROWS, MAX_WITNESSES, &mut spent,
+                &|node, file| selected(&expected, node, file)).unwrap();
+            assert!(inspected.coverage.truncated && inspected.witnesses.is_empty());
+            assert_eq!(inspected.raw_keys_observed, 0);
+            assert_eq!(inspected.decoded_bytes, 0);
+            assert!(spent.halted);
+            Ok(())
+        })
     }
 
     #[test]
