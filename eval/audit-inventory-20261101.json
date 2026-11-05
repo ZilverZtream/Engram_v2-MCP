@@ -9291,11 +9291,94 @@
         "sha256": "71735d5ace5bc6b8b259a26bcb725fe5b1ad654e61c3acfb662bf95474c44ad0"
       },
       "goal_complete": false
+    },
+    "settled_watch_baseline_ineligible_20261105": {
+      "status": "BASELINE_INELIGIBLE_NO_FIXTURE_CREATED_WITH_EXTERNAL_DIAGNOSTIC_CHURN",
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\settled-watch-baseline-classification-20261105.json",
+        "sha256": "7e3e0a9e77a2606fb186427849d16bdced6c6ddb2df84917213060f8c4f87325"
+      },
+      "facts": "Old installed7d primary26740 stayed above512MiB. During read-only observation163eligible diagnostic paths disappeared fromdisk; this run deleted no source.300notes andcheckedother14metadata preserved. Rawfailure retained; not editing proof or attribution of who removed paths."
+    },
+    "shared_freshness_hash_delivery_20261105": {
+      "status": "PUSHED_MASTER_DEPLOYED_AND_PUBLIC_AGENT_TASK_VERIFIED_RESOURCE_GATES_OPEN",
+      "source_commit": "639ff1e30f375723b450f6fb4eda14f3a421dcac",
+      "binary_sha256": "f4d30c1e6b90899c7d8f530decc7a784619ded67cc201d8e6cf2c3d63fb49041",
+      "manifest_sha256": "6b45b6b70ccd9c3d9d5e15502ec863f7278e1bbf2564dbd72ac3ff2b416fba18",
+      "behavior": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\shared-freshness-hash-behavior-summary-20261105.json",
+        "sha256": "291ca3c026994dd569d25f99da37462886fc53e63e9bb2b4d750460e54a3451f"
+      },
+      "cold": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\shared-freshness-hash-cold-20261105\\acceptance.json",
+        "sha256": "2f16caea964628746beea547e2c3e95c00005c59aaa82d9b606ceb4f794d8cbe"
+      },
+      "installed": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\shared-freshness-hash-installed-verified-20261105.json",
+        "sha256": "198bc250bebb9c3e6d8358bfe641edaea2569332606db5b92782f0728cb8aa9e"
+      },
+      "upgrade": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\shared-freshness-hash-upgrade-20261105.json",
+        "sha256": "0d3028f6c5805582406ae3f82eeb3e3d917455c10eaac4fd6091e69e231ee65b"
+      },
+      "release_scope": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\shared-freshness-hash-release-gates-20261105.json",
+        "sha256": "38dba93e0ae04e41ba74aa8c913a802b405b00caccb8b9ff311a35441373e1d8"
+      },
+      "changes": [
+        "Public source reads explicitly label complete raw-file BLAKE3 hashes across indexed spans, explicit ranges and bounded current-file excerpts; BOM/CRLF bytes remain covered.",
+        "Freshness shares one request-local validated graph-file observation between format and completeness, replacing the second full Node scan. Independent filesystem/ignore/parser/Tantivy/vector/skip-ledger checks and corruption/newer-graph refusal remain; no cached complete-by-head."
+      ],
+      "verification": "34focused desired-behavior cases passed from identical source inputs, including unchanged-head lexical loss, legacy/current shadow, newer graph, provider failures, rawhash reproduction, bounded pagination and selected-old-reader survival.2independent reviewers; CodeRabbit signedout, no remote review claim.26m42s releasebuild completed;214nativeassets unchanged.Coldreader at3124 preserved300notes/selectedRegistry/fullcatalog/other14metadata. Agent consumed6literalpublicrequests36348B; algorithm/completebyte scope nowidentified and no blocking scoped navigation ambiguity.",
+      "actual_observations": {
+        "normal_code_map_seconds": 0.010770900000352412,
+        "normal_blast_summary_seconds": 0.12625309999566525,
+        "normal_default_blast_seconds": 0.3159670999739319,
+        "cold_freshness_seconds": 8.042427000007592,
+        "cold_freshness_peak_private_bytes": 834764800,
+        "cold_freshness_after_private_bytes": 228257792,
+        "scope": "Separate sequential observations, not controlled speedup/wholemachine/physicalSSD or sustained editing proof. check_disk:false coverage/current format at3124 doesnot verify every current source byte/callbinding."
+      },
+      "remaining": [
+        "Freshness memorysoftalert796MiB remains open.",
+        "Codexnative connector stillTransportclosed after cutover; normalinstalled publicnamedpipe MCP verified.",
+        "InstructiondraftingEG14 remainsstopped/partial; original31findings/full19gates unchanged."
+      ],
+      "retained_rollback": {
+        "path": "C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-3bd0c34c198e4d87b2c4d4459299f7c0",
+        "files": 218,
+        "bytes": 335805738,
+        "cleanup_condition": "Previous pair/journals intentionally retained; no automatic deletion. Existing cleanup holds unchanged."
+      },
+      "all_owned_build_test_cold_tmp_removed": true,
+      "original_full19gates_closed": false
+    },
+    "shared_freshness_actual_watch_edit_20261105": {
+      "status": "RESOURCE_ALERT_AFTER_ONE_EDIT_CLEANED_AND_RETIRED_NOT_SUSTAINED_PASS",
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\shared-freshness-watch-resource-outcome-20261105.json",
+        "sha256": "51febcce76927dce752d2b136340bd97476d95690aa513cbde3cb5b63f91018a"
+      },
+      "scope": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\shared-freshness-watch-start-scope-20261105.json",
+        "sha256": "0a5d0d03f12f5d2282ac6dece472fab51d21139b1cfbc52377a4b9d09fd7ada1"
+      },
+      "facts": "Deployed daemon47192 naturallyidle-exited; sameinstalledimage startednormally as104520 for actualworkload. Freshpoststart baseline362221568B stayedbelow512MiB30s; no thresholdsrelaxed ormemorytrim. One tinyrootVB fixtureoutsideSite/Q published3124->3125in14.184s; edit/publicpollingwindow44s observed4335746logicalwriteB,3269103529logicalreadB,24.046875CPU-seconds. Sampledprimary919212032B exceeded512MiB; stopped furtheredits. ExactidentityCASremovedfixture andpublicselectedidentityretired3126; deletionwindowpeak938352640B.300notes/other14metadata/allnonfixtureeligiblecontents preserved. Allhandlesclosed,fixtureabsent.",
+      "limitations": "Includes MCP polling/backgroundwork; not purewatcher/physicalSSD/kernel attribution. Seven planned edits were NOT completed; no per-edit finalization or oldreader/recovery/sustainedworkload proof. Comprehensivefreshness not rerun at3126; cold3124coverage receipt stays historical.",
+      "original_full19gates_closed": false
+    },
+    "shared_freshness_next_resource_batch_20261105": {
+      "status": "SOURCE_SUPPORTED_NEXT_RESOURCE_BATCH_UNIMPLEMENTED",
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\shared-freshness-next-resource-batch-20261105.json",
+        "sha256": "c4a1023cf56a4d584baef938c90228e6cc6083be553e5e38d5800fbebe088bec"
+      },
+      "scope": "Two existing resource blockers supported by actual tool/workload evidence. Not implemented or completed; no new broad audit/storage redesign."
     }
   },
-  "last_updated_at": "2026-11-05T13:53:32.734881+00:00",
+  "last_updated_at": "2026-11-05T15:24:44.837130+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-05T13:53:32.734857+00:00",
+    "at_utc": "2026-11-05T15:24:44.837130+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9326,7 +9409,7 @@
       }
     ],
     "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
-    "next_user_visible_deliverable": "Continue original resource/agent-tool requirements: run bounded actual-edit observation with comprehensive freshness outside measured edit windows and settled below-budget baseline; publication is not writer finalization. Correct source hash algorithm ambiguity in a coherent core batch. Comprehensive freshness cost is source-traced but no product patch yet; do not weaken coverage or start parked broad audits. All original31findings/19gates remain tracked.",
+    "next_user_visible_deliverable": "Implement one exact-selector vector stream for completeness rowcount+paths and validated borrowed filtering for typed GraphStore node reads, preserving all source/namespace/decoder/provider/EOF/limit/global-enrichment contracts. Then run the same bounded ownededit workload under unchanged budgets. These remain unimplemented next steps; all31findings/19fullgates stayopen and EG14drafting remainsstopped.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9339,7 +9422,7 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "7d72268pushedorigin/master,deployedserver1a6060/manifest7b3464. OptionalpublicBlastadvice avoidsfullprojectranking/mapload andsecondfilemembershipscan; observedcoldtrue0.165s/default0.159s,normaldefault0.256s.51focusedcases;canonicalfacts/300notes/255selectedRegistry/fullselection/other14preserved. Freshagentfollowed5literalrequests33340B tocaller/config. Missinghashalgorithm label remainsopen; wholeverificationsoftmemoryalert740MiBretained.",
-    "previous_goal_turn_classification": "PROGRESS: implemented7d72268,passedfocusedbehaviorchecks,pushedmaster,deployed exactpair andverifiedcoldper-callresources/preservation plus freshnormalpublictask. Same held-generation source/graph facts retained; no goal/fullgate completion."
+    "latest_completed_core_batch": "639ff1epushedorigin/master,deployedserverf4d30c/manifest6b45b6. ExplicitrawBLAKE3labels resolvedactualagentambiguity; freshnessreusesvalidatedgraphrowswithoutweakeningindependentcoveragechecks.34focusedcases+current3124coldpreservation+6requestpublicagenttask verified.Cold freshness8.04s peak796MiB stillresourcealert. Actualownededitstoppedafterfirst877MiBalert;fixturecleaned/retired3126,300notes/other14/nonfixturecontentspreserved. No overallcompletion.",
+    "previous_goal_turn_classification": "PROGRESS:639ff1e implemented,tested,pushedmaster,deployed,realpublicagenttask verified; actualresourcegateattempt nowproduced onepublishededit andmemorybudgetfailure withcompleteownedcleanup. Temporary memoryspike andsustainedediting remainunresolved; no blocked/complete goal transition."
   }
 }
