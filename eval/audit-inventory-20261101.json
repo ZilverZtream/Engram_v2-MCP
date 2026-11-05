@@ -9551,11 +9551,38 @@
         "sha256": "885289c99be0871a080626e2917e7c7bca22f497f85ab3824638e0afe46d960c"
       },
       "original_full19gates_closed": false
+    },
+    "ts_receiver_safety_and_source_recovery_delivery_20261105": {
+      "at_utc": "2026-11-05T22:04:09.059198+00:00",
+      "source_commit": "055d74f8301aceee3c2c339cade002e3c9abeba9",
+      "status": "DEPLOYED_TWO_FILE_RECEIVER_SAFETY_SOURCE_PLANNING_PASS_ROOT_GRAPH_PARTIAL",
+      "delivery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\ts-receiver-binding-delivery-outcome-20261105.json",
+        "sha256": "9e9e8bda09a157a48e4e17d59995f6e0c2571d8dd9a0cdfaaeee05bb5547c89a"
+      },
+      "actual_agent": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\ts-receiver-binding-agent-acceptance-20261105.json",
+        "sha256": "33aef33eb7384ff65e749fbd0b88d8bf1d755d8f821204bfa736082430ab62eb"
+      },
+      "exact_symbol_navigation_gap": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\ts-exact-symbol-navigation-diagnostic-20261105.json",
+        "sha256": "5e82a4b995610226ce237dbda9b7d84edd18aaecbfb8c2a406f211ccffe9c3f3"
+      },
+      "facts": "UnknownJS/TSmemberreceivers no longer borrowfilelocalshortFQNs. Reservedplaceholder+marker survivebatch/global/AppCode/legacytrace fallback; own lexicalthissource rules retainpositives,actualcall_site_line separatefromowneranchor. TSranges/Markdown languagecorrect,indexedinlineJS retainsjavascript. Optionalboundednoncausalterminalsearch comesaftercanonicalimpactevidence.11parser+34completedexistingbinding/impact+4currentpublic+4FTScheckexecutionspassed; initialoverallbatchFAILduetooneinvalidfixturefqnargumentretained,correctedfixtureonlyrerun.Source055pushedmaster; release1323.06sPASS,pair78bedec/e3bd62b/native214unchanged deployed.",
+      "cohort_and_preservation": "Oneonly_paths updatehead3135->3136 forunchanged imgHandler.ts/imgGroupHandler.ts only;2physicalrevisions3117->3136,other2313selections/pathset/all2309eligibleFSidentities+bytes/300notes/other14/selectedRegistryexcept3publicationmeta keys preserved. Coldknown330/344samples+329/343anchors,unknownh.resetState retained andwronggroupcalleeabsent;MapFeaturecanonicalfacts preserved. No globalsourceformat7/nativewire4bump/all15conversion/globalTSrepair claim.",
+      "agent_usefulness": "10freshnormalpubliccalls/80917Ballowblindagenttobuildsource-supportedloadAllImages->_resetState->containedimgHandler.resetState plan usingliteralcurrentreads,terminalsearch+CodeMap. All4readBLAKE3/ranges independentlyverified. Rootgraphadmits3samefilecalls(samples1965/2604/2631); separateprivategroupgraphadmits2callers330/344. hreceiverremainsunbound/notaddedtoprimarycounts; noTScompiler/runtime/exhaustive-rootgraphproof. Search8capandCodeMap128limitretained.",
+      "remaining_concrete_gap": "ActualCodeMapexact_symbol requestwithknownadmittedrootnodeIDreturnsobservedfalse becauseitfiltersafter128seeddiscovery. Needsboundedexactidentitylookupunderalreadyheldselectedfilemembership/exclusions; ordinaryfilepagingunchanged. Typedcollectionreceiverbinding/rootgraphstillincompleteandmustnotbecalledfixedbythissafety/sourceplanningbatch.",
+      "owned_resources": "Alltest/buildJobs+handlesclosed,ownedTEMPsremoved. Writer/coldchildnatural0+tmpremoved;configholdreleasedunchanged;normaldaemonstartedoncePID25872. DiagnosticsretainedexistingV; no sourceFSedit/newcopies/worktrees/volumes/preexistingdeletion. Latest218file335942954Brollbackpair C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-8ee3ab5ae67b451faec147277fbc0ffe retaineduntilreleaseacceptance/rollbackretentionreview;notoldreader/data rollbackproof.",
+      "resource_failure_retained": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\app-code-edge-projection-delivery-outcome-20261105.json",
+        "sha256": "885289c99be0871a080626e2917e7c7bca22f497f85ab3824638e0afe46d960c"
+      },
+      "original_full19gates_closed": false
     }
   },
-  "last_updated_at": "2026-11-05T21:00:13.802877+00:00",
+  "last_updated_at": "2026-11-05T22:04:09.059198+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-05T21:00:13.802877+00:00",
+    "at_utc": "2026-11-05T22:04:09.059198+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9586,7 +9613,7 @@
       }
     ],
     "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
-    "next_user_visible_deliverable": "Correct demonstrated TS member receiver falsebinding across producer,batch,AppCode/general rebinding; preserveunboundreceiver asunknown ratherthanborrowsame-file terminalname. Recordactual1basedcall_site_line separatelyfromdeclarationownershipanchor. Provideboundedliteralterminal-membersearch/source+exactcallerimpactactionsratherthanbuildanotherglobalreverse-namecollector orpartialTScompiler. Correctreal.ts current-source language label. Validatewantedbehavior+actual2filecohort viaexistingonly_paths scopedrefresh,cold/publicagentreceipts; no all15reindex/globalTSrepairclaim.",
+    "next_user_visible_deliverable": "Fix actualCodeMapexact-symbol deadend foralreadyknownadmittedidentitybeyond128discoverycap: bounded node+matchingfile lookup underSAMEheldsource membership, requestedcanonicalfile/exclusions/offset validation; no namefallback/unboundedscan. Outputonepointobservation,notfakewholefileinventory; executeemittedsource/edit/impactactionsagainstcrowdedrealimgHandlerroot. Ordinaryfile/root/area paginationunchanged. Keeptypedcollectionreceivergraphunassessed/open; safety/searchrecoveryisnotfullTSresolution.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9599,8 +9626,8 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "ff6c35bpushedorigin/master,deployed63413c23/35cc35ae after19focusedwantedcases+scopedcoldpreservation. Ambiguityrecoveryworks in8actualagentcalls; TSfullcallertaskstillpartialbecauseactualgroup._resetState->group.resetStatebindingisunsupported bycurrenth.resetState source. Fullresource/31/19remainunfinished.",
-    "previous_goal_turn_classification": "PROGRESS:realcoretooltasktriedandfailed; ambiguitydeadendfixed,19desiredbehaviorcasespassed,independentlyreviewed,pushedmaster,deployedandliteralagentrecoveryverified. Actualreceiverbinding/position/languagedefectsuncoveredthroughpublictaskremainselectednext; noresource/fulltask/fullscopecompletion.",
+    "latest_completed_core_batch": "055d74fpushedmaster+deployed78bedec/e3bd62b.53scopedexecutions(49distinct+4FTS)passedwithinitialfixturefailurepreserved. Exact2unchangedTScohortpublished3136;other2313catalogselections/300notes/other14preserved. Cold+10callblindnormalagentverifyfalsegroupbindinggone,unknownreceiverretained,true330/344samples+language/sourceplanning. Rootreceivergraphand128CodeMaplimitstillpartial;fullresource/31/19open.",
+    "previous_goal_turn_classification": "PROGRESS:receiverfalsebindingcorrectedacrossproducer/resolvers/traversal;actualpositions/language+noncausalrecoverydelivered;53scopedchecks/push/deploy/exact2producerrefresh/cold/preservation+blindagentplancompleted. NewCodeMapexactselectionfailuremeasuredwithknowncurrentID. Goalactive;noresource/fulltask/fullscopeclosure.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -9616,11 +9643,10 @@
       "original_core_priority_preserved": true
     },
     "next_slice_scope_limits": [
-      "Do not implement fulltypedfor-of inference orpromote name/globaluniqueness toreceiverproof.",
-      "Explicitunboundmembermarker must survive everygeneric/AppCode/globalrebind; source-onlyparserchange cannotrepair old3117edges.",
-      "UseexistingUpdateProject.only_paths for1..2eligibleTSfiles under solewriter/exactpreservation; alloutsidephysicalrevisions/300notes/other14remainpreserved. No globalparserformat bump/all15reindexwithoutdemonstratedneed.",
-      "If addinginspectionleads, preferboundedliteralgrep ofterminalmember inactualtargetdirectory; name-only matches/comments/overloads are notcalleeproof.",
-      "Retain512MiB watcherresourcefailure2of7,CodeMap128discoverylimit,oldreader/finalization/recovery/full19 obligations. Kernel/SSD/cleanup/instructiondraftingremainparked."
+      "Knownexactidentitylookupmustnotrepin/ignorecanonicalrequestedfile/exclusionsoradmitstale/future/history/missingfile/oversize/corruptrecords.",
+      "Labelpointobservationversusnot-scannedwholefileinventoryhonestly; do notraisecapsoraddlargecatalog/cachingframework.",
+      "Preserveunknownreceiver/rootTSbindinggap,legacyoutsidecohortcoverage,512MiB2of7failure,oldreader/recovery/finalization/full19requirements.",
+      "Kernel/SSD/preexistingcleanup/instructiondraftingremainparkedundertheexistinguserprioritycorrection;noAIattribution/tags/pushoutsideoriginmaster."
     ]
   }
 }
