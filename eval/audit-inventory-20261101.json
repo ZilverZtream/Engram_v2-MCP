@@ -9258,23 +9258,44 @@
     "optional_blast_advisory_performance_finding_20261105": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\optional-blast-advisory-pagerank-finding-20261105.json",
       "sha256": "5e545047b240dad1a24edffa10c3a0491bc41ee1b37124f0a0db05679446dda1",
-      "status": "SOURCE_CORROBORATED_QUEUED_NOT_FIXED",
-      "goal_complete": false
+      "status": "PUBLIC_OPTIONAL_ADVICE_FIXED_DEPLOYED_OTHER_LEGACY_CALLERS_UNCHANGED",
+      "goal_complete": false,
+      "resolution": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\bounded-blast-advisory-delivery-20261105.json",
+        "sha256": "e99fd91863e59403cc2ae2d7a282c3d7644abc8a922ec383ec1ac004a6deafdf"
+      }
     },
     "bounded_blast_advisory_delta_20261105": {
-      "status": "FOCUSED_VERIFIED_NOT_INSTALLED",
+      "status": "DEPLOYED_COLD_RESOURCES_PRESERVED_AND_FRESH_INSTALLED_AGENT_VERIFIED",
       "behavior_receipt": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\bounded-advisory-behavior-20261105.json",
         "sha256": "ab688a6705a0edcf13744ef25083b7cbe98f5c0f0ffa664868677553f91b149b"
       },
-      "scope": "Public optional advice consumes same-generation retained target ranking and unprojected complete admitted file seeds; no on-demand ranking/full-map load/secondfilemember scan. Unknown scores null/incompletefileadviceunavailable. Safe grep source actions+fallbacks preserve citations. Core32 swaps detailedhealth for requiredsourcegetter; fullhealthretained.51targetedchecks with reconciled two-snapshot tierdelta; release/cold/per-callmetrics/install acceptance pending.",
+      "scope": "Public default/true advice now uses point in-memory same-held-generation ranking only; coldtrue0.1654s/default0.1594s andnormaldefault0.2555s observed. Unknown scores null; completeadmittedfilemembershipreused oradviceunavailable. Canonicalfacts unchanged;51focusedchecks with explicit tier-only snapshot reconciliation. Sourceactions copiedliteral in5request/33340B freshcase; algorithm-label ambiguity retained.300notes/selectedRegistry/catalog/other14preserved. Wholeverification stillpeaked776376320B and no fullresource/gateclosure.",
       "goal_complete": false,
-      "original_full19gates_closed": false
+      "original_full19gates_closed": false,
+      "source_commit": "7d72268f125a5d6a2be5ac8a49a59052fe9c1be5",
+      "delivery_receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\bounded-blast-advisory-delivery-20261105.json",
+        "sha256": "e99fd91863e59403cc2ae2d7a282c3d7644abc8a922ec383ec1ac004a6deafdf"
+      },
+      "installed_receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\bounded-blast-advisory-installed-verified-20261105.json",
+        "sha256": "d6706e58a21f7ab550ba96df6fd2b66a8b729f3e17f9f6bd5595d021aa6e4ba6"
+      }
+    },
+    "freshness_resource_preflight_finding_20261105": {
+      "status": "QUEUED_NOT_FIXED",
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\freshness-resource-preflight-finding-20261105.json",
+        "sha256": "71735d5ace5bc6b8b259a26bcb725fe5b1ad654e61c3acfb662bf95474c44ad0"
+      },
+      "goal_complete": false
     }
   },
-  "last_updated_at": "2026-11-05T13:15:08.825103+00:00",
+  "last_updated_at": "2026-11-05T13:53:32.734881+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-05T12:37:53.378061+00:00",
+    "at_utc": "2026-11-05T13:53:32.734857+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9305,7 +9326,7 @@
       }
     ],
     "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
-    "next_user_visible_deliverable": "Bound optional Blast Radius advisory work: source trace and actual23.288s true/0.200s false observation expose whole-project PageRank work on a symbol request. Preserve guidance compatibility and explicitly unknown missing centrality; verify bounded work and per-call resources. Batch direct current-source recovery on grep hits if justified by the fresh consumer gap. Do not broaden into parked infrastructure.",
+    "next_user_visible_deliverable": "Continue original resource/agent-tool requirements: run bounded actual-edit observation with comprehensive freshness outside measured edit windows and settled below-budget baseline; publication is not writer finalization. Correct source hash algorithm ambiguity in a coherent core batch. Comprehensive freshness cost is source-traced but no product patch yet; do not weaken coverage or start parked broad audits. All original31findings/19gates remain tracked.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9318,7 +9339,7 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "8a76388 pushedorigin/master,deployedserver98caa6.../manifestc4f022...;optionalconfigurationinspectiondiscoveredcurrentRegisterType40,resolver50,routes60to63 in4publictaskrequests29403B.16focused+135docs passed;300notes/255selectedRegistry/fullselection/other14preserved. Source/witness facts unchanged, fullgoal/gates remainopen.",
-    "previous_goal_turn_classification": "PROGRESS: source8a76388 implemented,pushedmaster,deployed and independently source/cold/freshagentverified. Actual one-creation/deletion resource witness completed with memory soft stop; sustained edit gates remain open. Original31findings/19gates preserved. New optional-advice coreperformance cause traced and queued, not fixed."
+    "latest_completed_core_batch": "7d72268pushedorigin/master,deployedserver1a6060/manifest7b3464. OptionalpublicBlastadvice avoidsfullprojectranking/mapload andsecondfilemembershipscan; observedcoldtrue0.165s/default0.159s,normaldefault0.256s.51focusedcases;canonicalfacts/300notes/255selectedRegistry/fullselection/other14preserved. Freshagentfollowed5literalrequests33340B tocaller/config. Missinghashalgorithm label remainsopen; wholeverificationsoftmemoryalert740MiBretained.",
+    "previous_goal_turn_classification": "PROGRESS: implemented7d72268,passedfocusedbehaviorchecks,pushedmaster,deployed exactpair andverifiedcoldper-callresources/preservation plus freshnormalpublictask. Same held-generation source/graph facts retained; no goal/fullgate completion."
   }
 }
