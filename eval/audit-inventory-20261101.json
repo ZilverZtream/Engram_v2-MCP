@@ -8497,7 +8497,7 @@
         "next": "Run broader end-to-end agent CodeMap/Blast tasks in another allowed OciusX area against independent source evidence; measure discovery failures, unsupported claims and context/tool cost, then fix the highest-value observed gap."
       },
       "upload_workflow_trial_20261105": {
-        "state": "SOURCE_BACKED_FUNCTIONAL_AGENT_TASK_COMPLETE_WITH_CONFIRMED_RECOVERY_DEFECT;CORRECTION_TESTED_NOT_YET_DEPLOYED",
+        "state": "PARTIAL_SOURCE_LOGIC_SUPPORTED_BUT_EXACT_CONTROL_POSITIONS_WRONG;DEPLOYMENT_WITHHELD_PENDING_PRODUCER_FIX",
         "assessment": {
           "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\upload-workflow-agent-assessment-20261105.json",
           "sha256": "2db93132776dc7a3028a0db85f70bbe822a1dcea7368cb09cec9f30f37d98d6e"
@@ -8517,7 +8517,11 @@
         "result": "Fresh agent discovered storage viaCodeMap, inspected upload/folder/copy/download scope and markup/JS/handler bindings; source oracle agrees. Oracleadditionally finds independentapi-files uploads outside this chain. Onefunctional workflow, not exhaustive featurecoverage or regular-CI benchmark.",
         "cost": "26visiblecalls includingroot,230524returnedUTF8bytes;5extra harness replayattempts withunretainedbytesunknown;3separate diagnosticcalls. Oneagentchosen paddedbadbound,distinctfrom3advertisedwrong-fileactions.",
         "highest_value_gap": "Blastuses codebehindhandler anchors to generate markup-file reads beyondEOF. Correction preserves raw metadata and callergraph while separating unattributedpositions fromnodeinspection; positive validmarkup423read preserved.",
-        "unfinished": "Representative multi-task/cadencedbenchmark,CodeMapcontext/heuristicfriction,fallback-owner/orphans,fullprovider/configurationchain and originalaudit remainopen."
+        "unfinished": "Representative multi-task/cadencedbenchmark,CodeMapcontext/heuristicfriction,fallback-owner/orphans,fullprovider/configurationchain and originalaudit remainopen.",
+        "position_correction": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\upload-workflow-control-position-correction-20261105.json",
+          "sha256": "736459b362666db17bd5743139b5412c89db31faca54a98e1648d0472d8bdd51"
+        }
       }
     }
   },
@@ -8554,7 +8558,7 @@
       }
     ],
     "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
-    "next_user_visible_deliverable": "Deploy the tested position-attribution correction, repeat actual upload Create/CreateCore action checks and positive markup423 read, preserve canonical identities/routes/coverage, then continue broader representative agent tasks. No original audit or regular benchmark completion claim.",
+    "next_user_visible_deliverable": "Finish WebForms one-based control/layout emission and family-specific produced-contract migration; inspect complete planned changed paths (noSite/Qbodies), validate actual corrected control locations and preservedpage/bundle references, then deploy. Guard-onlycandidate6b was withheld after real binding assertion failed. Originalaudit/regularbenchmark remainopen.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"

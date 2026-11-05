@@ -56,7 +56,8 @@ fn shared_bundle_has_two_distinct_hosts() {
             .expect("script dependency");
         assert_eq!(edge.source_kind, "page");
         assert_eq!(edge.source_name, host);
-        assert_eq!(edge.source_start_line, 1); // ExtractedEdge lines are zero-based.
+        // The script is on source line two; tool source ranges are one-based.
+        assert_eq!(edge.source_start_line, 2);
         assert_eq!(edge.target_kind.as_deref(), Some("file"));
         if edge.target_name == "Scripts/shared.js" {
             consumers.push(edge.source_name.clone());

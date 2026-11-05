@@ -219,8 +219,8 @@ pub fn extract_webforms_layout(
 
     let char_to_line = |char_pos: usize| -> u32 {
         match line_offsets.binary_search(&char_pos) {
-            Ok(line) => line as u32,
-            Err(line) => line.saturating_sub(1) as u32,
+            Ok(line) => (line + 1) as u32,
+            Err(line) => line.max(1) as u32,
         }
     };
 

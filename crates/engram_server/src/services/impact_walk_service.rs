@@ -728,15 +728,18 @@ fn render(
             && edge
                 .source_line
                 .is_some_and(|line| line >= source.node.start_line && line <= source.node.end_line);
+        // A page directive or file marker does not delimit file-wide ownership.
+        let ownership_range_known =
+            caller_range_known && !matches!(source.node.node_type.as_str(), "file" | "page");
         // Some stitched UI edges retain the handler's declaration anchor on
         // the markup control edge. It is evidence, but not a position in the
         // control's file. Never turn that contradiction into a fabricated read.
         let weak_anchor = edge.source_position_kind == "extractor_anchor_metadata";
         let position_scope = if edge.source_line.is_none() {
             "not_recorded"
-        } else if weak_anchor && caller_range_known && !line_within_caller {
+        } else if weak_anchor && ownership_range_known && !line_within_caller {
             "unattributed_extractor_anchor"
-        } else if weak_anchor && !caller_range_known {
+        } else if weak_anchor && !ownership_range_known {
             "unverified_file_anchor"
         } else {
             "indexed_metadata_only"

@@ -165,6 +165,7 @@ pub async fn process_ingest_stats(
                 "source_index_version": stats.source_extraction_identity.map(|identity| identity.source_index_version),
                 "source_extraction_identity": stats.source_extraction_identity,
                 "vb_parser_provenance": stats.vb_parser_provenance.get(rel_path.as_str()),
+                "webforms_position_contract": stats.webforms_position_contracts.get(rel_path.as_str()),
             }));
         }
 

@@ -2140,6 +2140,7 @@ impl Engram {
         // Stage 1: file index (changed/added/removed source files).
         match self
             .handle_update_project(crate::models::UpdateProjectRequest {
+                only_paths: None,
                 instruction_maintenance: None,
                 reindex_paths: Vec::new(),
                 project_id: req.project_id.clone(),
@@ -2293,6 +2294,13 @@ impl Engram {
         req: UpdateProjectRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        if let Some(paths) = &req.only_paths {
+            if !req.wait || paths.is_empty() || paths.len() > 4096
+                || !req.reindex_paths.is_empty() || req.instruction_maintenance.is_some()
+                || req.index_antipatterns {
+                return Err(McpError::invalid_params("only_paths requires wait=true, 1..4096 paths, and no reindex_paths, instruction maintenance or anti-pattern refresh",None));
+            }
+        }
         if let Some(maintenance) = &req.instruction_maintenance {
             if !req.wait {
                 return Err(McpError::invalid_params("instruction_maintenance requires wait=true; queued updates have no completed source observation", None));
@@ -2306,12 +2314,13 @@ impl Engram {
         if req.wait {
             let cancel = tokio_util::sync::CancellationToken::new();
             let summary = self
-                .update_project_with_paths(
+                .update_project_with_scope(
                     &req.project_id,
                     new_gen,
                     req.sanitized_max_commits(),
                     req.index_antipatterns,
                     &req.reindex_paths,
+                    req.only_paths.as_deref(),
                     &cancel,
                 )
                 .await
@@ -2434,10 +2443,24 @@ impl Engram {
     async fn update_project_with_paths(
         &self,
         project_id: &str,
+        requested_generation: u64,
+        max_commits: usize,
+        index_antipatterns: bool,
+        reindex_paths: &[String],
+        cancel: &tokio_util::sync::CancellationToken,
+    ) -> anyhow::Result<String> {
+        self.update_project_with_scope(project_id, requested_generation, max_commits,
+            index_antipatterns, reindex_paths, None, cancel).await
+    }
+
+    async fn update_project_with_scope(
+        &self,
+        project_id: &str,
         _requested_generation: u64,
         max_commits: usize,
         index_antipatterns: bool,
         reindex_paths: &[String],
+        only_paths: Option<&[String]>,
         cancel: &tokio_util::sync::CancellationToken,
     ) -> anyhow::Result<String> {
         let _update_guard = self.state.acquire_project_update_lock(project_id).await;
@@ -2467,10 +2490,12 @@ impl Engram {
             .checked_add(1)
             .ok_or_else(|| anyhow::anyhow!("source generation exhausted"))?;
 
-        let project_service::SourceChangeScan { changed, deleted, extraction, vb_source_files } = project_service::get_incremental_changes_for_update(
-            &self.state, &ps.search, &source_head, &dir, &exts)
-            .await
-            .map_err(|e| anyhow::anyhow!(e))?;
+        let project_service::SourceChangeScan { changed, deleted, extraction, vb_source_files } =
+            if let Some(paths) = only_paths {
+                project_service::exclusive_source_changes(&self.state, &ps.search, &source_head, &dir, &exts, paths).await?
+            } else {
+                project_service::get_incremental_changes_for_update(&self.state, &ps.search, &source_head, &dir, &exts).await?
+            };
 
         let mut changed = changed;
         project_service::include_reindex_paths(
@@ -2501,7 +2526,7 @@ impl Engram {
         // Resume from a previously interrupted job: narrow the pending-file list
         // so only files not yet processed are re-indexed.
         let mut resumed_from_checkpoint = false;
-        let source_migration_required =
+        let source_migration_required = only_paths.is_some() ||
             !project_service::outdated_source_index_paths(&self.state, project_id)
                 .await?
                 .is_empty();
@@ -2607,7 +2632,7 @@ impl Engram {
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        {
+        if only_paths.is_none() {
             let graph = self.state.graph.clone();
             let pid2 = pid.clone();
             let generation = new_gen;
@@ -2617,7 +2642,9 @@ impl Engram {
             .await;
         }
 
-        let git_result = self
+        let git_result = if only_paths.is_some() {
+            Ok("history_enrichment: skipped (exclusive source scope; outside paths preserved without checking current bytes)".to_owned())
+        } else { self
             .git_update_stream(
                 project_id,
                 &ps.info.directory,
@@ -2634,7 +2661,7 @@ impl Engram {
                 Box::new(|_, _| {}),
                 false,
             )
-            .await;
+            .await };
         // Match the background update path: history is enrichment, so its
         // failure must not strand a successfully indexed source generation.
         // Keep the degradation explicit rather than reporting clean success.
@@ -2739,7 +2766,7 @@ impl Engram {
         }
         // External audit 2026-08-29 row 9: refresh the co-change snapshot
         // (incremental by walked commit) so the next get_change_set only reads.
-        {
+        if only_paths.is_none() {
             let st = self.state.clone();
             let pid_w = project_id.to_string();
             let _ = tokio::task::spawn_blocking(move || {
@@ -2772,6 +2799,7 @@ impl Engram {
                     tracing::debug!(project_id = %pid, nodes = n, edges = e,
                         "purged stale graph generations for re-indexed files");
                 }
+                if only_paths.is_none() {
                 let graph = self.state.graph.clone();
                 let pid2 = pid.clone();
                 let resolved = tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
@@ -2790,6 +2818,7 @@ impl Engram {
                     finalization_warnings.push(format!(
                         "Source generation {new_gen} was published, but resolver refresh is incomplete: {error:#}"
                     ));
+                }
                 }
             }
             Err(error) => finalization_warnings.push(format!(
@@ -2815,8 +2844,11 @@ impl Engram {
             }
         }
         let finalization_report = finalization_warnings.join("\n");
+        let scope_report = if only_paths.is_some() {
+            "update_scope: only_paths\noutside_scope_disk_check: not_run\noutside_source_revisions: inherited\nglobal_enrichment: skipped\n"
+        } else { "update_scope: project\n" };
         Ok(format!(
-            "✅ Updated project_id: {project_id}\nstatus: {update_status}\nactive_generation: {new_gen}\nSource generation {new_gen} published.\n{purge_note}\nfiles={} chunks={} bytes={}\n{git_summary}\n{finalization_report}\n",
+            "✅ Updated project_id: {project_id}\nstatus: {update_status}\nactive_generation: {new_gen}\nSource generation {new_gen} published.\n{scope_report}{purge_note}\nfiles={} chunks={} bytes={}\n{git_summary}\n{finalization_report}\n",
             stats.files, stats.chunks, stats.bytes
         ))
     }

@@ -361,6 +361,15 @@ pub async fn scan_source_files(
     root: &Path,
     exts: &[&str],
 ) -> anyhow::Result<Vec<PathBuf>> {
+    scan_source_files_with_parser_preflight(state, root, exts, true).await
+}
+
+async fn scan_source_files_with_parser_preflight(
+    state: &AppState,
+    root: &Path,
+    exts: &[&str],
+    preflight: bool,
+) -> anyhow::Result<Vec<PathBuf>> {
     let root = root.to_path_buf();
     let exts = exts.iter().map(|ext| ext.to_string()).collect::<Vec<_>>();
     let max_files = state.cfg.max_project_files;
@@ -376,11 +385,13 @@ pub async fn scan_source_files(
             .map(|relative| vec![relative.to_path_buf()]).unwrap_or_default();
         let refs = exts.iter().map(String::as_str).collect::<Vec<_>>();
         let files = engram_index::ingest::iter_files_checked_excluding(&root, &refs, max_files, max_bytes, &excluded)?;
-        let relative = files.iter().filter_map(|path| engram_core::RelPath::from_relative(&root, path))
-            .map(|path| path.as_str().to_owned()).collect::<Vec<_>>();
         // Preflight unknown old-protocol parsers before source staging. No
         // registry flag/revision is written by read-only walks or health calls.
-        engram_index::SourceExtractionExpectation::for_paths(source_chunk_target, relative.iter().map(String::as_str))?;
+        if preflight {
+            let relative = files.iter().filter_map(|path| engram_core::RelPath::from_relative(&root, path))
+                .map(|path| path.as_str().to_owned()).collect::<Vec<_>>();
+            engram_index::SourceExtractionExpectation::for_paths(source_chunk_target, relative.iter().map(String::as_str))?;
+        }
         Ok(files)
     })
     .await?
@@ -915,6 +926,51 @@ fn select_reindex_paths(
         }
     }
     Ok(())
+}
+
+/// Admit an exclusive source refresh using metadata only outside the selected
+/// files. Do not certify unverified inheritance or adopt a foreign failed attempt.
+pub(crate) async fn exclusive_source_changes(
+    state: &AppState,
+    search: &engram_index::HybridSearchEngine,
+    base: &engram_core::registry::SourceHeadToken,
+    root: &Path,
+    exts: &[&str],
+    requested: &[String],
+) -> anyhow::Result<SourceChangeScan> {
+    anyhow::ensure!(!requested.is_empty() && requested.len() <= 4096,
+        "only_paths requires 1..4096 exact eligible paths");
+    anyhow::ensure!(requested.iter().all(|p| p.len() <= 2048 && !p.chars().any(char::is_control)),
+        "only_paths contains an oversized or control-character path");
+    let source = pin_source_generation(state, search, base.project_id(), base.generation())?;
+    let allowed = scan_source_files_with_parser_preflight(state, root, exts, false).await?;
+    let mut changed = Vec::new();
+    select_reindex_paths(root, &allowed, requested, &mut changed)?;
+    let selected = changed.iter().filter_map(|p| engram_core::RelPath::from_relative(root, p))
+        .collect::<std::collections::HashSet<_>>();
+    let graph = state.graph.clone();
+    let registry = state.registry.clone();
+    let token = base.clone();
+    tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
+        anyhow::ensure!(registry.source_head_is_current(&token)?, "Source head changed before exclusive admission");
+        anyhow::ensure!(!registry.source_identity_needs_verification(token.project_id())?,
+            "only_paths requires an already verified source identity; run a normal verified update first");
+        for (path, metadata, generation) in graph.list_file_node_metadata_with_generation(token.project_id())? {
+            if selected.contains(&path) {
+                anyhow::ensure!(generation <= token.generation().saturating_add(1),
+                    "Selected graph revision is beyond the next source generation; recover before only_paths: {}", path.as_str());
+            } else {
+                anyhow::ensure!(generation <= token.generation()
+                    && (generation != 0 || !meta_has_fingerprint(&metadata)),
+                    "Unpublished or unproven outside source revision requires recovery before only_paths: {}", path.as_str());
+            }
+        }
+        Ok(())
+    }).await??;
+    let extraction = capture_source_extraction_for_files(state, root, &changed).await?;
+    let vb_source_files = admitted_vb_source_files(root, &changed);
+    drop(source);
+    Ok(SourceChangeScan { changed, deleted:Vec::new(), extraction, vb_source_files })
 }
 
 #[cfg(test)]

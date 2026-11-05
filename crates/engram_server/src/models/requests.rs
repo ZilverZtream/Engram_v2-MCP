@@ -430,6 +430,12 @@ pub struct RefreshCorporaRequest {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct UpdateProjectRequest {
+    /// Exclusive synchronous source refresh. Outside paths are inherited
+    /// without checking disk bytes; Git and global enrichment are skipped.
+    /// Requires a verified existing source identity, 1..4096 eligible paths,
+    /// wait=true, and no other update/maintenance scope.
+    #[serde(default)]
+    pub only_paths: Option<Vec<String>>,
     /// Observe selected instruction references after a synchronous source
     /// update. Draft proposals belong to pre_push_audit; no policy is written.
     #[serde(default)]

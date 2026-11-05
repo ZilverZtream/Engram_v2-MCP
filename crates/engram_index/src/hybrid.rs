@@ -223,6 +223,9 @@ pub struct IngestStats {
     pub source_extraction_identity: Option<crate::SourceExtractionIdentity>,
     /// Actual parser used per VB file, including files with no symbols.
     pub vb_parser_provenance: std::collections::HashMap<String, crate::vb_extractor::VbParserProvenance>,
+    /// Position policy of newly produced WebForms output, including empty
+    /// output from vendor suppression. Never attached to inherited files.
+    pub webforms_position_contracts: std::collections::HashMap<String, u64>,
     pub files: usize,
     pub chunks: usize,
     pub bytes: u64,
@@ -2948,6 +2951,10 @@ impl HybridSearchEngine {
                             // died on the first BOM-visible reference).
                             extractor.extract(std::path::Path::new(arc_rel.as_str()), &text)
                         };
+                        if crate::webforms::is_webforms_markup(p) {
+                            local_stats.webforms_position_contracts.insert(
+                                arc_rel.as_str().to_owned(), crate::webforms::POSITION_CONTRACT);
+                        }
                         if let Some(provenance) = vb_provenance {
                             if let crate::vb_extractor::VbParserProvenance::RustFallback { reason, .. } = &provenance {
                                 local_stats.warnings.push(format!("{}: VB source used recorded Rust fallback contract {} ({reason:?}); Roslyn semantic binding was not used for this file", arc_rel.as_str(), crate::SOURCE_INDEX_VERSION));
@@ -3138,6 +3145,7 @@ impl HybridSearchEngine {
                             a.0.all_files.extend(b.0.all_files);
                             a.0.fingerprints.extend(b.0.fingerprints);
                             a.0.vb_parser_provenance.extend(b.0.vb_parser_provenance);
+                            a.0.webforms_position_contracts.extend(b.0.webforms_position_contracts);
                             a.0.symbols.extend(b.0.symbols);
                             a.0.edges.extend(b.0.edges);
                             a.0.skipped_files.extend(b.0.skipped_files);
@@ -3163,6 +3171,7 @@ impl HybridSearchEngine {
             stats.all_files.extend(chunk_stats.all_files);
             stats.fingerprints.extend(chunk_stats.fingerprints);
             stats.vb_parser_provenance.extend(chunk_stats.vb_parser_provenance);
+            stats.webforms_position_contracts.extend(chunk_stats.webforms_position_contracts);
             stats.symbols.extend(chunk_stats.symbols);
             stats.edges.extend(chunk_stats.edges);
             stats.skipped_files.extend(chunk_stats.skipped_files);

@@ -104,6 +104,7 @@ async fn update_project_resumes_from_checkpoint_after_restart() {
 
     let res = engram2
         .update_project(Parameters(engram_server::UpdateProjectRequest {
+            only_paths: None,
             instruction_maintenance: None,
             reindex_paths: Vec::new(),
             project_id: project_id.clone(),

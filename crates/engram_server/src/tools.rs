@@ -63,7 +63,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Incrementally re-index changed files and refresh git intelligence. Cheap when little changed. Use when get_index_freshness reports drift; watch_project automates this. Optional instruction_maintenance with wait=true observes selected guidance and linked evidence after the source update. Its separate outcome does not write policy or change a completed source result; submit drafts through pre_push_audit."
+        description = "Incrementally re-index changed files and refresh git intelligence. Optional only_paths (1..4096 exact eligible paths, wait=true) exclusively re-extracts those files and inherits outside revisions without checking current outside bytes; it skips Git/global enrichment and requires an already verified source identity with no foreign unpublished attempt. Extractors may read referenced companion files. only_paths cannot combine with reindex_paths, anti-pattern refresh or instruction maintenance. Otherwise reindex_paths adds forced paths to the normal whole-project change scan. Optional instruction_maintenance with wait=true observes guidance after the normal update; it does not write policy."
     )]
     pub async fn update_project(
         &self,

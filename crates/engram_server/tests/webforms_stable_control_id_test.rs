@@ -144,6 +144,7 @@ namespace MyApp {
     // Update project (Generation 2)
     engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
+            only_paths: None,
             instruction_maintenance: None,
             reindex_paths: Vec::new(),
             project_id: project_id.clone(),
