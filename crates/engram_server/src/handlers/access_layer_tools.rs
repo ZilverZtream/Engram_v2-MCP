@@ -144,6 +144,8 @@ pub struct MethodBodyResult {
     pub source_verification: &'static str,
     /// BLAKE3 hex digest of those complete-file bytes, before line normalization.
     pub source_file_hash: String,
+    /// Algorithm for the complete raw-file digest, including BOM and CRLF.
+    pub source_file_hash_algorithm: &'static str,
     pub fqn: String,
     pub file_path: String,
     pub line_start: u32,
@@ -268,6 +270,7 @@ fn current_file_excerpt(
         boundary_guidance: "These are bounded current-file lines, not a resolved method. Surrounding context is omitted. The hash binds the returned lines to the loaded complete-file bytes; it does not verify indexed-generation freshness, method boundaries or invocation locations.",
         source_verification: "current_file_snapshot_not_index_verified",
         source_file_hash: hash,
+        source_file_hash_algorithm: "blake3",
         fqn: "(file excerpt)".into(),
         file_path: file.into(),
         line_start: if total == 0 { 0 } else { start },
@@ -3881,6 +3884,7 @@ impl Engram {
                 },
                 source_verification,
                 source_file_hash,
+                source_file_hash_algorithm: "blake3",
                 fqn: resolved_fqn,
                 file_path: resolved_file,
                 line_start: resolved_start,

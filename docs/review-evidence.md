@@ -18,6 +18,9 @@ review; unavailable data is explicit.
 a matching stored fingerprint from a legacy entry without one. Legacy boundaries
 remain unverified. `source_file_hash` is the BLAKE3 hex digest of the complete
 file bytes used for slicing; verification and slicing use that same snapshot.
+JSON identifies the algorithm as `source_file_hash_algorithm: "blake3"` for
+indexed spans, explicit ranges and current-file excerpts. The digest includes
+the original BOM and line endings, before source-line normalization.
 Later edits are outside that snapshot. An explicit file/line request
 returns only those lines; it does not establish method boundaries. Search chunk
 bounds can end mid-method. Resolve a unique FQN or use `get_method_edit_context`

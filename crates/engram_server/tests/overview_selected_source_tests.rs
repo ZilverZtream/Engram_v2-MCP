@@ -992,6 +992,7 @@ fn current_file_excerpt_pages_preserve_lines_and_hashes_without_claiming_indexed
                 "current_file_snapshot_not_index_verified"
             );
             assert_eq!(value["source_file_hash"], hash);
+            assert_eq!(value["source_file_hash_algorithm"], "blake3");
             assert_eq!(value["language"], "sql");
             assert_eq!(value["line_start"], next_line);
             assert_eq!(value["file_excerpt"]["total_lines"], 245);

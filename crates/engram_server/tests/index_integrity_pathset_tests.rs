@@ -96,7 +96,7 @@ async fn freshness(engram: &Engram, pid: &str) -> String {
 /// speaks in PATHS and never prints a figure above 100 %.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_healthy_index_reports_the_path_sets_of_every_store() {
-    let (_tmp, _state, engram, pid, _big, _small) = build().await;
+    let (_tmp, state, engram, pid, _big, small) = build().await;
     let h = health(&engram, &pid).await;
     assert!(h.starts_with("Health: OK"), "{h}");
     assert!(
@@ -113,6 +113,27 @@ async fn a_healthy_index_reports_the_path_sets_of_every_store() {
     );
     let f = freshness(&engram, &pid).await;
     assert!(f.contains("generation_complete: true"), "{f}");
+    assert!(f.contains("source_index_format: current"), "{f}");
+
+    // A legacy same-path shadow must not hide the canonical current marker or
+    // count as another eligible file. A pending shadow, however, must prevent
+    // certifying an older selected source against the live graph.
+    let head = state.registry.get_meta(&pid, "active_generation").unwrap();
+    let mut shadow = state.graph.query_nodes(&pid, Some("file"), None, None, usize::MAX)
+        .unwrap().into_iter().find(|node| node.file_path.as_str() == small[0]).unwrap();
+    shadow.node_id = "legacy-shadow-file".into();
+    shadow.metadata = Some(json!({}));
+    state.graph.upsert_nodes(&pid, &[shadow.clone()]).unwrap();
+    let legacy = freshness(&engram, &pid).await;
+    assert!(legacy.contains("source_index_format: current")
+        && legacy.contains("generation_complete: true"), "{legacy}");
+    shadow.generation = head.as_ref().unwrap().parse::<u64>().unwrap() + 1;
+    state.graph.upsert_nodes(&pid, &[shadow]).unwrap();
+    let pending = freshness(&engram, &pid).await;
+    assert!(pending.contains("source_index_format: reindex_required")
+        && pending.contains("generation_complete: unknown")
+        && pending.contains("1 file records newer than selected source generation"), "{pending}");
+    assert_eq!(state.registry.get_meta(&pid, "active_generation").unwrap(), head);
 }
 
 /// The auditor's masking case: 8 of 10 files (80 %) vanish from the searchable
@@ -285,6 +306,17 @@ async fn an_fts_only_project_with_no_vectors_stays_ok() {
     );
     let f = freshness(&engram, &pid).await;
     assert!(f.contains("generation_complete: true"), "{f}");
+
+    // Completeness is a new live observation on every request. An unchanged
+    // source head and compatible graph markers cannot hide lexical-only loss.
+    let head = state.registry.get_meta(&pid, "active_generation").unwrap();
+    state.get_project_cached(&pid).unwrap().search
+        .delete_files(&pid, CODE_NS, &[RelPath::new("Site/App_Code/f0.vb")]).await.unwrap();
+    let lost = freshness(&engram, &pid).await;
+    assert_eq!(state.registry.get_meta(&pid, "active_generation").unwrap(), head);
+    assert!(lost.contains("source_index_format: current")
+        && lost.contains("generation_complete: false")
+        && lost.contains("missing 1, cross-store mismatch 1"), "{lost}");
 }
 
 /// A file created after the last index is absent from EVERY store: the stores

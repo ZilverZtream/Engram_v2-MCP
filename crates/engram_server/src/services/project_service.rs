@@ -324,23 +324,51 @@ pub async fn source_index_format_coverage_for_generation(
     project_id: &str,
     active_generation: u64,
 ) -> anyhow::Result<(usize, Vec<String>)> {
+    let observation = observe_source_file_metadata(state, project_id).await;
+    source_index_format_coverage_from_observation(state, active_generation, &observation).await
+}
+
+/// Request-local live graph observation. Share the raw, validated rows even if
+/// parser provenance checking fails; this is not a cached completeness verdict
+/// or a historical graph snapshot for the selected source generation.
+pub(crate) type SourceFileMetadataObservation = Result<
+    std::sync::Arc<Vec<(engram_core::RelPath, Option<serde_json::Value>, u64)>>,
+    String,
+>;
+
+pub(crate) async fn observe_source_file_metadata(
+    state: &AppState,
+    project_id: &str,
+) -> SourceFileMetadataObservation {
     let graph = state.graph.clone();
     let pid = project_id.to_string();
+    match tokio::task::spawn_blocking(move || graph.list_file_node_metadata_with_generation(&pid)).await {
+        Ok(Ok(rows)) => Ok(std::sync::Arc::new(rows)),
+        Ok(Err(error)) => Err(error.to_string()),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+pub(crate) async fn source_index_format_coverage_from_observation(
+    state: &AppState,
+    active_generation: u64,
+    observation: &SourceFileMetadataObservation,
+) -> anyhow::Result<(usize, Vec<String>)> {
+    let rows = observation.as_ref().map_err(|error| anyhow::anyhow!("{error}"))?.clone();
     let target_chars_per_chunk = state.cfg.max_chunks_per_file;
     tokio::task::spawn_blocking(move || {
         let mut paths = std::collections::BTreeMap::<String, (bool, bool)>::new();
-        let rows = graph.list_file_node_metadata_with_generation(&pid)?;
         let expected = engram_index::SourceExtractionExpectation::for_paths(
             target_chars_per_chunk, rows.iter().map(|(path, _, _)| path.as_str()),
         )?;
-        for (path, metadata, generation) in rows {
+        for (path, metadata, generation) in rows.iter() {
             let current = metadata.as_ref().is_some_and(|m| {
                 expected.metadata_is_compatible(m, path.as_str())
             });
             // Legacy shadow file nodes must not hide the canonical file's marker.
             let entry = paths.entry(path.as_str().to_owned()).or_default();
             entry.0 |= current;
-            entry.1 |= generation > active_generation;
+            entry.1 |= *generation > active_generation;
         }
         Ok((
             paths.len(),
