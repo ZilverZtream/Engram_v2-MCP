@@ -9093,9 +9093,47 @@
         "sha256": "31b7c14311ea28b86e3abdba66c38e80347208ce142e11523bacc22420252fcd"
       },
       "scope": "Passive indexing mayread/parseeligibleQsource; noQcodechanges/reviews. Authorizationpersists; no repeatedpermission needed."
+    },
+    "ociusx_authorized_passive_refresh_failure_20261105": {
+      "status": "FAILED_BEFORE_PUBLICATION_FIX_IN_PROGRESS",
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\passive-refresh-failure-disposition-20261105.json",
+        "sha256": "1988820b70096302ea1e32c6bf2e26d2252ff935730c1edce4614d3fc780971e"
+      },
+      "result": "One ordinary update returned an event-producer ownership error. Closed head remains3120; selected Registry rows and other14 catalog/route artifacts unchanged. Production-walker source pathset and hashes unchanged. No blind retry.",
+      "limits": "Authored notes captured before update; post-failure cold check still required. Unchanged head does not prove no staged store writes. Primary private memory peaked at810184704 bytes; logical writes188853927 bytes; no physical SSD or sustained-idle claim.",
+      "fix_scope": "Correct page-control identity selection and designer-reference precedence; retain exact owner and selected-revision fences. Actual private producer cause remains unconfirmed; no Q source/declarations reviewed.",
+      "watcher_enabled": false,
+      "original_full19gates_closed": false,
+      "goal_complete": false
+    },
+    "webforms_event_identity_correction_20261105": {
+      "status": "PASS_FOCUSED_BEHAVIOR_REVIEWED_NOT_YET_DEPLOYED",
+      "at_utc": "2026-11-05T09:58:06.094534+00:00",
+      "focused": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\webforms-owner-binding-behavior-v3-20261105.json",
+        "sha256": "bbb13979c3981eca44302431b1388597d357045693eee3e823fe1e801629d6ef"
+      },
+      "tests": {
+        "webforms": 8,
+        "transitive_impact": 14,
+        "failures": 0
+      },
+      "independent_review": [
+        "interface_gap_diagnosis",
+        "return_proposal_consumer"
+      ],
+      "change": "Page controls retain markup identity across designer ordering. Event controls alias markup only when registration owner and companion match; unproven ownership remains an explicit local unresolved reference. Exact owner, inherited revision and competing-producer fences retained.",
+      "scope": "Known source mechanisms and owned behavior fixtures; actual private failing producer not identified. No Q code changes or declaration review. No parser/native/storage format change; runtime deployment and authorized refresh pending.",
+      "earlier_failed_checks": [
+        "Compile error in new test fixed by reading actual Edge rather than neighbor weight.",
+        "New owned fixture hash expectation fixed to use current edited markup."
+      ],
+      "goal_complete": false,
+      "original_full19gates_closed": false
     }
   },
-  "last_updated_at": "2026-11-05T09:19:48.422992+00:00",
+  "last_updated_at": "2026-11-05T09:58:06.094534+00:00",
   "current_execution_focus": {
     "at_utc": "2026-11-05T08:29:39.390790+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
@@ -9128,7 +9166,7 @@
       }
     ],
     "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
-    "next_user_visible_deliverable": "User authorizedpassiveindexingincludingQ whilecodechanges/reviews stayfrozen: perform controlledordinaryOciusXrefresh, fresh300note/other14/sourcebytepreservation andcold checks, thenrestorewatching andobserve resources. Keepalloriginalrequirements.",
+    "next_user_visible_deliverable": "Complete the event-control ownership correction that blocked the authorized ordinary OciusX refresh. Verify fresh authored-memory/source/other-project preservation, cold readback, then restore passive watching and observe resources. Q code changes and reviews remain frozen.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9141,7 +9179,7 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "d3a62d1compactCodeMap deployed:22focusedcases/cold+normal same3120verified, ~43%smaller exactsymbolreply withsameactions/coverage. Existing ~20%impact reduction retained.",
+    "latest_completed_core_batch": "d3a62d1 compact CodeMap deployed:22 focused cases plus cold and normal readback at3120. Exact-symbol reply6542 to3748 bytes with the same actions and coverage. Prior impact reply reduction preserved.",
     "previous_goal_turn_classification": "PROGRESS: implemented,pushedmaster,deployed e7f9cce; same-generation material byte reduction/full inventory/current source qualification and fresh taskverified. Stale ledger publication status corrected with all original requirements/gates preserved. No goal completion."
   }
 }
