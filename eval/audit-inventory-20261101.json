@@ -8634,10 +8634,16 @@
           "retained_evidence": "Focusedlogs/receipts/sourcehashes/package/agentrequestresponses retained under single V root forreview; cleanupcondition auditreview/retentiondecision.",
           "installed_runtime": "One --daemon primaryPID97232 intentionally running normalconfiguration; installedstdio clientproxyPID84616 retained. OriginalconfigurationSHA unchanged; both configreadholds released.",
           "retained_rollback_pair": "C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-001798f4c9074235a730cd10a952ff71",
-          "rollback_cleanup_condition": "Retain exact immediateprevious218file package forauthorized rollback; no deletion performed or inferred for preexisting backups/copies."
+          "rollback_cleanup_condition": "Retain exact immediateprevious218file package forauthorized rollback; no deletion performed or inferred for preexisting backups/copies.",
+          "latest_inspection_batch": {
+            "test_fixtures": "Both owned focused10case runs removed TEMP after Job/database/workerhandles closed; buildprivateTEMP andcoldprivateTMP removed.",
+            "normal_runtime": "Oldstorageowner97232 exitednaturally0 after300.88secs; onlyreadonlyproxy84616 terminated. Readonly configguard36828 released; unchangedconfigSHA. Normal newpackage launched; observerclientpipesclosed.",
+            "retained_rollback_pair": "C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-056d0faa634b4a44ad2daba48dded008",
+            "cleanup_condition": "Retain immediatelyprevious installedpair forauthorizedrollback; retain V evidence for auditreview. No preexistingcopy/backup deletion or projectcopy/worktree created."
+          }
         },
         "inspection_candidate_batch": {
-          "state": "REVIEWED_FOCUSED10PASS;NOT_YET_SHIPPED",
+          "state": "DEPLOYED7b1c8c9;FOCUSED10PASS;COLD38CALLSPASS;NORMAL_FRESH_AGENT6ACTIONSPASS;ORIGINALIDENTITIES_UNRESOLVED",
           "evidence": {
             "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-inspection-candidate-source-applied-20261105.json",
             "sha256": "a7db23e39a72606afa441e0098815fc177819268735d382d40b0325ec5e8a841"
@@ -8647,7 +8653,32 @@
             "sha256": "b0a49701f1ab38edcbcf8fa05105b86aa6fb487b4518f9fc9c6779a94a6f8432"
           },
           "findings": "Three unresolved value.* identities/six observations offered same default16declaration CodeMap page; uploadhandlers absentfromfirstpage. New unique admitted candidate actions preserve original missing identities and uncertainty.",
-          "remaining": "Optimizedpackage, actualsame3119 graphpreservation/candidateaction/sourcechecks, deploy and freshconsumer inspection task."
+          "remaining": "Selected unresolved-recovery usability gap validated for this workflow. Actual alias/edge repair is not claimed. Continue original coretool queue: UIflow/navigation gaps, taskresponsecost dominated bygrep, incorrectASPX/JS source labels and representativeindependenttasks; original31/19unfinished.",
+          "source_commit": "7b1c8c9",
+          "optimized_build": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\shipping-cached-release-build-agent-core-inspection-candidate-20261105.json",
+            "sha256": "11fbdf722eae24125f75c92ee81b00f8784c6ea22a2c14b0c8de8cc8296478d6"
+          },
+          "cold_acceptance": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-inspection-candidate-cold-readonly-20261105\\acceptance.json",
+            "sha256": "75a95aa7e3f6ba1987e681d737754ec2721a06ba543b0a7d103bf5860794c58e"
+          },
+          "release": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-inspection-candidate-upgrade-20261105.json",
+            "sha256": "7334e591835a6045aad2d07eeac413db44af642dad5b2fe75e4e5feff9a23f21"
+          },
+          "normal_bootstrap": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-inspection-candidate-normal-bootstrap-20261105.json",
+            "sha256": "64f3d88335190eb2c8fa06a332ee7dfcfe95438f0f82b21edfe5ce65c5d9346b"
+          },
+          "fresh_agent_assessment": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-inspection-consumer-assessment-20261105.json",
+            "sha256": "7fed31404a1dbda32be6d88e30d6b4ef7e3b2f8b50e3c180223416081ebea211"
+          },
+          "natural_old_daemon_exit": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\agent-core-inspection-candidate-natural-quiescence-result-20261105.json",
+            "sha256": "152866775baf278d69bca406077a03cccea6bce18d17c5cc7809552271cbc9e3"
+          }
         }
       }
     }
