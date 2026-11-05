@@ -853,6 +853,13 @@ pub async fn process_ingest_stats(
         let target_id = if let Some(binding) = interface_binding {
             if binding.evidence.is_some() { target_resolution=Some((1.0,"exact_source_interface_member")); }
             binding.target_id.clone()
+        } else if edge.kind == "calls" && edge.metadata.as_ref()
+            .is_some_and(|m| m.get("receiver_unbound").is_some_and(|v| v == "true")) {
+            // An unresolved receiver cannot borrow a same-file FQN, even when
+            // an older producer supplied a target kind or declaration line.
+            let spelling = edge.target_name.trim().replace('\0', "");
+            anyhow::ensure!(!spelling.is_empty(), "Empty unbound member spelling");
+            format!("{}{}", engram_graph::store::UNBOUND_RECEIVER_PREFIX, spelling)
         } else if edge.target_kind.as_deref() == Some("asset_bundle")
             && edge.target_name.starts_with("bundle:")
         {

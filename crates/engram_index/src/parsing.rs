@@ -668,6 +668,47 @@ pub struct SymbolExtractor {
     _priv: (),
 }
 
+/// `this.member` is local only when syntax establishes a class method owner
+/// and one own method of that class. Ordinary nested functions rebind `this`;
+/// arrows do not. Missing/inherited/overloaded members remain unbound.
+fn local_this_member(
+    node: tree_sitter::Node<'_>, member: &str, content: &str, table: &FqnTable,
+) -> Option<String> {
+    if member == "constructor" { return None; }
+    let mut ancestor = node.parent();
+    let owner = loop {
+        let current = ancestor?;
+        match current.kind() {
+            "function_expression" | "function_declaration" | "generator_function"
+            | "generator_function_declaration" => return None,
+            "method_definition" => break current,
+            "class_body" | "program" => return None,
+            _ => ancestor = current.parent(),
+        }
+    };
+    let body = owner.parent().filter(|p| p.kind() == "class_body")?;
+    // Static methods/constructors and object methods require different receiver
+    // rules; do not quietly treat them as instance-method proof.
+    let mut cursor = owner.walk();
+    if owner.children(&mut cursor).any(|n| n.kind() == "static")
+        || owner.child_by_field_name("name").is_some_and(|n|
+            &content[n.start_byte()..n.end_byte()] == "constructor") { return None; }
+    let mut matches = Vec::new();
+    let mut cursor = body.walk();
+    for method in body.named_children(&mut cursor).filter(|n|
+        matches!(n.kind(), "method_definition" | "method_signature" | "abstract_method_signature")) {
+        let Some(name) = method.child_by_field_name("name") else { continue; };
+        if name.kind() != "property_identifier"
+            || &content[name.start_byte()..name.end_byte()] != member { continue; }
+        let mut cursor = method.walk();
+        if method.children(&mut cursor).any(|n| matches!(n.kind(), "static" | "get" | "set")) {
+            return None;
+        }
+        matches.push(table.declaration(name.start_byte())?.clone());
+    }
+    if matches.len() == 1 { matches.pop() } else { None }
+}
+
 impl Default for SymbolExtractor {
     fn default() -> Self {
         Self::new()
@@ -898,11 +939,11 @@ impl SymbolExtractor {
 
                 if tag.starts_with("call") {
                     let callee_short = &content[node.start_byte()..node.end_byte()];
-                    // Pass 2: resolve callee to FQN if known.
-                    let callee_fqn = fqn_table.get(callee_short).cloned();
                     // Item 8: `new api.ajax().getImage(…)` — the property name
                     // alone is ambiguous across a project; keep the RECEIVER
                     // text so the resolver can bind it to its class/file.
+                    let member_object = node.parent().filter(|p| p.kind() == "member_expression")
+                        .and_then(|p| p.child_by_field_name("object"));
                     let receiver: Option<String> = node.parent().and_then(|p| {
                         if p.kind() == "member_expression" {
                             p.child_by_field_name("object").map(|o| {
@@ -919,6 +960,14 @@ impl SymbolExtractor {
                             None
                         }
                     });
+                    let js_member = matches!(ext, "ts" | "tsx" | "js" | "jsx")
+                        && member_object.is_some();
+                    let callee_fqn = if js_member {
+                        if member_object.is_some_and(|n| n.kind() == "this") {
+                            local_this_member(node, callee_short, content, &fqn_table)
+                        } else { None }
+                    } else { fqn_table.get(callee_short).cloned() };
+                    let receiver_unbound = js_member && callee_fqn.is_none();
 
                     // Find parent symbol
                     if let Some((_, _, parent_name, parent_kind, parent_line, parent_fqn)) =
@@ -927,9 +976,22 @@ impl SymbolExtractor {
                         })
                     {
                         let mut meta = std::collections::HashMap::new();
+                        if matches!(ext, "ts" | "tsx" | "js" | "jsx") {
+                            meta.insert("call_site_line".into(), (node.start_position().row + 1).to_string());
+                        }
                         if let Some(r) = receiver.as_deref() {
                             if !r.is_empty() {
                                 meta.insert("receiver".into(), r.to_string());
+                            }
+                        }
+                        if receiver_unbound {
+                            meta.insert("receiver_unbound".into(), "true".into());
+                            if let Some(object) = member_object {
+                                let expression = &content[object.start_byte()..object.end_byte()];
+                                meta.insert("receiver_expression".into(), expression.chars().take(512).collect());
+                                if expression.chars().count() > 512 {
+                                    meta.insert("receiver_expression_truncated".into(), "true".into());
+                                }
                             }
                         }
                         let (target_name, target_kind): (String, Option<String>) =
@@ -937,7 +999,12 @@ impl SymbolExtractor {
                                 (fqn, Some("function".to_string()))
                             } else {
                                 meta.insert("unresolved".into(), "true".into());
-                                (callee_short.to_string(), None)
+                                let spelling = if receiver_unbound {
+                                    let hint: String = receiver.as_deref().unwrap_or("?").chars()
+                                        .map(|c| if c.is_control() { ' ' } else { c }).collect();
+                                    format!("{hint}.{callee_short}")
+                                } else { callee_short.to_string() };
+                                (spelling, None)
                             };
 
                         edges.push(ExtractedEdge {
@@ -1465,6 +1532,50 @@ class Baz {
                 .map(String::as_str),
             Some("Baz.qux")
         );
+    }
+
+    #[test]
+    fn collection_members_do_not_borrow_same_named_methods_and_keep_real_call_positions() {
+        let source = "function local() {}\nclass Group {\n resetState() {}\n run(items) {\n  for (const h of items) {\n   h.resetState();\n   h.resetState();\n  }\n  this.resetState();\n  local();\n }\n}\n";
+        for path in ["group.ts", "group.js"] {
+            let (_, edges) = SymbolExtractor::new().extract(Path::new(path), source);
+            let calls: Vec<_> = edges.iter().filter(|e| e.kind == "calls").collect();
+            for line in [6, 7] {
+                let call = calls.iter().find(|e| e.metadata.as_ref().unwrap()
+                    .get("call_site_line").is_some_and(|v| v == &line.to_string())).unwrap();
+                assert_eq!(call.source_start_line, 4, "The owning method stays distinct from the invocation");
+                assert_eq!(call.target_kind, None);
+                assert_eq!(call.target_name, "h.resetState");
+                assert_eq!(call.metadata.as_ref().unwrap().get("receiver_unbound").map(String::as_str), Some("true"));
+            }
+            assert!(calls.iter().any(|e| e.target_name == "Group.resetState"
+                && e.target_kind.as_deref() == Some("function")));
+            assert!(calls.iter().any(|e| e.target_name == "local"
+                && e.target_kind.as_deref() == Some("function")));
+        }
+    }
+
+    #[test]
+    fn this_calls_use_the_owning_class_and_ordinary_nested_functions_keep_unknown_this() {
+        let source = "class Other { resetState() {} }\nclass Group { resetState() {}\n run() {\n  this.resetState();\n  const arrow = () => this.resetState();\n  function nested() { this.resetState(); }\n }\n}\nclass Child extends Group { run() { this.resetState(); } }\n";
+        let (_, edges) = SymbolExtractor::new().extract(Path::new("group.ts"), source);
+        let at = |line: u32| edges.iter().find(|e| e.kind == "calls"
+            && e.metadata.as_ref().is_some_and(|m| m.get("call_site_line").is_some_and(|v| v == &line.to_string()))).unwrap();
+        for line in [4, 5] { assert_eq!(at(line).target_name, "Group.resetState"); }
+        for line in [6, 9] {
+            assert_eq!(at(line).target_kind, None);
+            assert_eq!(at(line).metadata.as_ref().unwrap().get("receiver_unbound").map(String::as_str), Some("true"));
+        }
+    }
+
+    #[test]
+    fn overloaded_or_static_this_members_are_not_resolved_by_one_implementation_name() {
+        let source = "class Group {\n constructor() {}\n resetState(value: string): void;\n resetState(value: number): void;\n resetState(value: any) {}\n run() { this.resetState(1); }\n static stat() { this.resetState(1); }\n construct() { this.constructor(); }\n}\n";
+        let (_, edges) = SymbolExtractor::new().extract(Path::new("group.ts"), source);
+        let calls: Vec<_> = edges.iter().filter(|e| e.kind == "calls").collect();
+        assert_eq!(calls.len(), 3);
+        assert!(calls.iter().all(|e| e.target_kind.is_none()
+            && e.metadata.as_ref().unwrap().get("receiver_unbound").map(String::as_str) == Some("true")));
     }
 }
 

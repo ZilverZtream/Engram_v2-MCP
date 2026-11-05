@@ -208,7 +208,8 @@ pub fn resolve_app_code_globals(
     let resolve_candidate = |edge: &engram_graph::Edge| -> Option<(String, usize)> {
         // Recompute exclusively from retained substrate references. A legacy
         // terminal hint cannot recover a lost qualified target safely.
-        if owned(edge)
+        if edge.target_id.starts_with(engram_graph::store::UNBOUND_RECEIVER_PREFIX)
+            || owned(edge)
             || by_id
                 .get(edge.source_id.as_str())
                 .is_some_and(|source| source.generation > edge.generation)
@@ -231,7 +232,8 @@ pub fn resolve_app_code_globals(
         let meta = edge.metadata.as_ref();
         // Semantic failures and routed dispatch are owned by their resolvers.
         if meta.is_some_and(|m| {
-            m.get("unresolved")
+            m.get("receiver_unbound").is_some_and(|v| v == true || v.as_str() == Some("true"))
+                || m.get("unresolved")
                 .is_some_and(|v| v.as_bool() == Some(true) || v.as_str() == Some("true"))
                 || m.get("dispatch_key").is_some()
                 || m.get("ajax_target_method").is_some()
