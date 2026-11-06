@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-06T23:13:40.694970+00:00",
+  "last_updated_at": "2026-11-06T23:52:31.849961+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-06T23:13:40.694970+00:00",
+    "at_utc": "2026-11-06T23:52:31.849961+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap/Blast agent usefulness remains active. Pressure-only coherent-witness projection now passes all7 selected public FTS behavior checks. Prior TS scoped task pass and VB baselinePARTIAL preserved. Native production build, actual current-data comparisons, deployment and same-criteria fresh VB reevaluation remain pending.",
-    "next_user_visible_deliverable": "Push reviewed coherent first-hop witness projection onlyorigin/master; build the native production binary once, compare actual deepVB and unchanged healthy outputs/current data, deploy and repeat the same frozen VB agent task without relaxing criteria. Do not expand instruction/kernel/catalog/storage/cleanup work.",
+    "active_original_item": "CodeMap/Blast agent usefulness remains active. First-hop witness pressure fix247fcca is pushed/deployed605bed8f/a51a1722 and verified on actual OciusX; VB fresh02 remainsPARTIAL(3PASS,2PARTIAL) after8successfulcalls64398B. Next selected core gap: recover known-file bare method names as bounded canonical candidates so agents can choose method-specific impact instead of broad file-member witnesses. No goal completion or new reboot.",
+    "next_user_visible_deliverable": "Implement/review bounded exact-file terminal-name fallback only after zero admitted exact-name results, within the same64key/2MiB/8candidate/500ms limits; retain exact-success/default/directory semantics and qualified/overload identities. Verify desired source+method-impact actions and ambiguity/admission/cap behavior in one focused batch, then native/current-data/fresh task checks. Do not expand catalog/parser/instructions/kernel/storage/cleanup work.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9855,8 +9855,8 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "230cb4b pushed onlyorigin/master; native6affe4f/manifest1904e2b installed after6final public FTS behavior cases, separate default-feature native build and current-data reader pass. Both impact summaries now expose7observed external file paths/minimum depths in11496B, preserving prior summary facts after exact action sharing; full41300B graph and CodeMap remain unchanged. This adds navigation to the old11054B summary, not compression of the full graph.300notes/other14metadata/selectedregistry+source selection preserved;218active/218prior/5journals verified,335534378Bprior runtime retained. Fresh consumer adoptedsummary, inspected currentgroup/manager/JS snippets, identified indexedIEtype reference with honest freshness/ownership gaps, and passed all5unchanged file-task criteria in8calls50460B. First budget-failed fresh01 and fixture-failed initial test run retained. Current private library fixture not rerun after its test-only path shortening. NativeCodexMCPtransport remainsclosed; ordinary installedpublicpipe150tools/8definitions verified. Reset task, full31/full19, sustained resources and perfect/runtime coverage remain open.",
-    "previous_goal_turn_classification": "PROGRESS: independent source review and frozen7-case public integration batch PASS;921.78s total,2.15s tests. Source inputs unchanged; owned Job, relay and fixture cleanup confirmed. Root reviewed native observer and release-evidence preparer without executing them. Goal active; no new reboot or pause requested.",
+    "latest_completed_core_batch": "247fcca pushed onlyorigin/master and deployed605bed8f/a51a1722.7publicFTS behaviors pass(2.15stest/921.78sbatch); native954.92sPASS, frozen inputs and owned teardown. Actual deepVB retains4real coherent member witnesses/currentreferences118/381/586/206 rather than4nulls;81/21/60whole-walk counts/coverage unchanged. Fullgraph55printed+90omitted edges vs prior1+144;65198B. Optional27path inventory now honestly omitted under12KiB, with47identity/81path/3frontier/16unconnected omissions. HealthyTSsummaries/fullgraph/CodeMap/VBdepth2 parsed unchanged; controlled exactmethod11378B unchanged.300notes,14othermetadata,registry/selection andall150definitions preserved.218active/218old/5journalsverified;335573290Bpriorruntime retained at recorded exactpath; normal bothpublicsummarytools verified. SamefrozenVBfresh02 isPARTIAL(3PASS/2PARTIAL),8success64398B/5currentranges3files. No task perfection/full31/full19/resource/hostreconnect orremoteCIpass claim.",
+    "previous_goal_turn_classification": "PROGRESS: reviewed source247fcca pushed; seven focused public behaviors/native build/current-data/independent actual checks passed; exact pair installed and both normal public tools read back. Same-criteria unhinted task completed and independently judgedPARTIAL. Original31findings/full19gate records preserved; next concrete core navigation design selected from repeated actual misses. No new reboot/pause.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -9881,8 +9881,8 @@
     ],
     "q_freeze_decision": "User authorized passive automatic indexing; keep Q code changes and reviews frozen. This is sufficient authorization to restore normal watching without another permission prompt.",
     "latest_core_delivery_evidence": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\file-blast-file-navigation-delivery-outcome-20261106.json",
-      "sha256": "b9855f36f168e01d09f01bf7f9ea4768429895e5127938e6dc7b46184ecbcfbd"
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-file-impact-witness-delivery-outcome-20261106.json",
+      "sha256": "18bbd6214ba6f59ceeef79e597b752394ab1a3e624740f596cee29f92f0e7079"
     },
     "latest_stateful_core_task": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\resetstate-fresh02-independent-judgment-20261106.json",
@@ -9898,7 +9898,9 @@
     },
     "pending_reboot_checkpoint": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-output-cost-reboot-checkpoint-20261106.json",
-      "sha256": "5d79dfa92a000e6d7d04fad60098d17d23ba90461ef58a7b47ce6037a06f83cf"
+      "sha256": "5d79dfa92a000e6d7d04fad60098d17d23ba90461ef58a7b47ce6037a06f83cf",
+      "status": "HISTORICAL_ALREADY_RESUMED_DO_NOT_PAUSE",
+      "user_correction": "Already rebooted and returned; no current reboot request."
     },
     "previous_completed_core_batch": "048c80e pushed only origin/master and deployed35d6ccb0/05efbee5. Compact agent JSON preserves all method-context/safety values; symbol summaries reuse exactly equal source actions via the existing marker.24 focused behavior cases and135-capability documentation check pass, independent source/observer/replay reviews pass. Actual candidate context30427->22686B and groupBlast9349->8945B; source hashes, distinct/unattributed position handling and all prior graph/summary evidence preserved. Same12 literal normal requests all returned:96489->88343B tool-content UTF8,8145B selected output saving plus1B grep timing-width difference. Original strict comparison failure retained; saved-only reconciliation separates ONLY grep.elapsed_ms136->59 plus documented aliases/age, with no RPC retry and all other facts equal. Fresh no-history immediate-caller task passed independent source review in2calls11751B, using one composed adjacent source read. Not target-discovery, runtime/escape/async safety, latency or whole-task productivity proof. Selected data/300notes/other14 metadata preserved;214native assets unchanged. Build950.99s, owned jobs/handles/temps closed and removed. Previous218-file runtime pair retained at exact accounted path. Original31 findings/full19 gate records and prior resource failure unchanged.",
     "latest_exact_name_delivery": {
@@ -9912,13 +9914,13 @@
         "sha256": "d138a9dfcf35b1adfd0df8e2a19d04f21b87ae2012609e64a82f46d7759ce56b"
       }
     },
-    "last_session_control_correction": "User reasserted they had already rebooted8hours earlier. Old delayed reboot reply is historical; no new reboot/pause authorized. Goal verifiedactive and original Cargo session continued through terminalPASS.",
+    "last_session_control_correction": "User had already rebooted8hours before the delayed reply was misread. Existing goal isactive. No new reboot or pause authorized; old checkpoint is historical. Normal runtime was changed only for the reviewed upgrade and restored with one hidden normal launcher.",
     "latest_in_progress_core_batch": {
-      "state": "NEXT_ORIGINAL_CORE_FILE_LEVEL_IMPACT_USE_CASE",
-      "candidate": "File-level Blast Radius against independently observed source consumers",
+      "state": "NEXT_SELECTED_EXACT_FILE_TERMINAL_METHOD_DISCOVERY_DESIGN_READY",
+      "candidate": "CodeMap known-file bare-name to canonical method/source/impact recovery",
       "evidence": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-directory-name-delivery-outcome-20261106.json",
-        "sha256": "6140e7a3f1675aff8d883002e5339b61c2ce52a3287b0010bbabd1b5ce47611f"
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-file-terminal-name-navigation-design-20261106.json",
+        "sha256": "17ed24337102b30e30b1422bf8f310c02b56adc18d89f0f263ad23acb834ed2b"
       },
       "goal_complete": false
     },
@@ -9965,7 +9967,7 @@
       "native_codex_connection_reestablished": false
     },
     "vb_classification_case_20261106": {
-      "status": "BASELINE_PARTIAL_SELECTED_WITNESS_FIX_PUBLIC_BEHAVIORS_PASS_NATIVE_AND_TASK_VALIDATION_PENDING",
+      "status": "WITNESS_FIX_DEPLOYED_VERIFIED_SAME_FROZEN_VB_TASK_STILL_PARTIAL",
       "actual_target": "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb:ClassifyAutomatic",
       "target_correction": "Root first paired method with unrelated category service; independent source disproved that owner before this frozen trial. No-match on wrong file is valid behavior, not a backend finding.",
       "source_oracle": {
@@ -10027,11 +10029,46 @@
         "full_suite_run": false,
         "tests_seconds": 2.15,
         "batch_seconds": 921.7823016000038,
-        "native_build_passed": false,
-        "actual_deep_VB_recovery_verified": false,
+        "native_build_passed": true,
+        "actual_deep_VB_recovery_verified": true,
         "fresh_VB_task_passed": false,
-        "goal_complete": false
-      }
+        "goal_complete": false,
+        "delivery": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-file-impact-witness-delivery-outcome-20261106.json",
+          "sha256": "18bbd6214ba6f59ceeef79e597b752394ab1a3e624740f596cee29f92f0e7079"
+        }
+      },
+      "fresh02": {
+        "frozen": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-classification-fresh02-frozen-rubric-20261106.json",
+          "sha256": "fcd800d3a474a1b9dd3cb23ecac3500814763e5f0d28cfd0d053c2e480584a86"
+        },
+        "proposal": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-classification-fresh02-proposal-20261106.json",
+          "sha256": "b10208618262eac9de94c4a16bd256864c2d46a34194fece736c2ded587a066b"
+        },
+        "mechanical": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-classification-fresh02-receipt-verification-20261106.json",
+          "sha256": "3a9562ec123fb0c569033fe7ea7884e4fc14c4976357bb0c17ecf3aee61c5854"
+        },
+        "judgment": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-classification-fresh02-independent-judgment-20261106.json",
+          "sha256": "2e75120358cacd5865b0e56a658bf7d645e67ff244ec66c3b97683bc9c223832"
+        },
+        "classification": "PARTIAL",
+        "criteria_passed": 3,
+        "criteria_partial": 2,
+        "calls": 8,
+        "complete_tool_text_utf8_bytes": 64398,
+        "successes": 8,
+        "errors": 0
+      },
+      "previously_parked_navigation_now_selected": "Bare terminal-name discovery was parked before second unhinted trace. Both consumers now demonstrate this exact known-file miss; controlled exact canonical method impact works unchanged. Select bounded file-local metadata recovery as next original CodeMap improvement, not a storage/extractor regression or fabricated source absence."
+    },
+    "previous_file_witness_predecessor_summary": "230cb4b pushed onlyorigin/master; native6affe4f/manifest1904e2b installed after6final public FTS behavior cases, separate default-feature native build and current-data reader pass. Both impact summaries now expose7observed external file paths/minimum depths in11496B, preserving prior summary facts after exact action sharing; full41300B graph and CodeMap remain unchanged. This adds navigation to the old11054B summary, not compression of the full graph.300notes/other14metadata/selectedregistry+source selection preserved;218active/218prior/5journals verified,335534378Bprior runtime retained. Fresh consumer adoptedsummary, inspected currentgroup/manager/JS snippets, identified indexedIEtype reference with honest freshness/ownership gaps, and passed all5unchanged file-task criteria in8calls50460B. First budget-failed fresh01 and fixture-failed initial test run retained. Current private library fixture not rerun after its test-only path shortening. NativeCodexMCPtransport remainsclosed; ordinary installedpublicpipe150tools/8definitions verified. Reset task, full31/full19, sustained resources and perfect/runtime coverage remain open.",
+    "vb_file_impact_witness_delivery_20261106": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-file-impact-witness-delivery-outcome-20261106.json",
+      "sha256": "18bbd6214ba6f59ceeef79e597b752394ab1a3e624740f596cee29f92f0e7079"
     }
   }
 }
