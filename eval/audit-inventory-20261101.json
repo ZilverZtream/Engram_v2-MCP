@@ -9677,11 +9677,56 @@
         "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\semantic-safety-delivery-review-20261106.json",
         "sha256": "66fe29c16446cdfa947fd10e26d96bbcc146948873e59fc28c7faf3a3a10c0c1"
       }
+    },
+    "unbound_member_source_inspection_delivery_20261106": {
+      "at_utc": "2026-11-06T00:16:05.946582+00:00",
+      "status": "PASS_DEPLOYED_UNBOUND_SOURCE_INSPECTION_NOT_CALLEE_BINDING_OR_FULL_AUDIT",
+      "source_commit": "855b58b17d63229c9e0fbc48d6b75049b8a9d803",
+      "server_sha256": "d9b7e478f8ae1f2212db2d1686cd09a3c652818a26638e1b1bc97766c251b916",
+      "manifest_sha256": "16e04d4875c20f5db93b7b0397ffbeddda8c5df757e73ecfb422554e62e41ab0",
+      "outcome": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\unbound-inspection-delivery-outcome-20261106.json",
+        "sha256": "8d7a42d660e0663443d0cdbdd83d8920c9e1b35603bfb76387f873fa0253cfe1"
+      },
+      "independent_delivery_review": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\unbound-inspection-delivery-review-20261106.json",
+        "sha256": "8757879afebe7d9881e5b90e87552d70bfe3965073e057325c326b94379fbf91"
+      },
+      "behavior": "Optional canonical JS/TS directory-prefixed Calls inspection uses the same graph transaction, held source admission and remaining budgets. Source/key/marker/file/origin validated; bad or capped evidence is explicitly unknown. Literal source/context/independent caller-impact actions remain separate from canonical callers, interface routes and paths. Stored Calls unchanged; no callee binding or reindex.",
+      "validation": "All 54 scoped checks passed: 9 graph, 14 caller/source, 7 CodeMap, 18 impact and 6 TS cases. Actual OciusX both impact tools/details expose group private _resetState at118 with h.resetState sample124, root3 and independent owner2 unchanged, unknown endpoint preserved. Current source ranges/hashes and all literal actions verified. Source855b58b pushed origin/master; release692.46 seconds; installed d9b7e478/16e04d48 with214 native assets unchanged.",
+      "agent_task": "Known exact identity task completed in six normal public calls totaling39,109 UTF-8 bytes, with four literal follow-ups and one composed documented header read. Source supports reset-generation-before-cancel ordering and loadAllImages -> group reset -> contained handler reset planning. Four ranges across two files independently hashed. Not a fresh project orientation/name-disambiguation or controlled historical speedup assessment.",
+      "bounds_observed": "Normal optional scan512 rows plus one lookahead,191,772 decoded bytes, one retained witness. Raw-row cap hit; prefix not exhausted and no complete fan-out inventory claim.",
+      "preservation": "300 notes, selected Registry/catalog and other14 metadata unchanged; no source refresh/parser/storage migration. Configuration released unchanged and normal watcher enabled. Passive Q indexing allowed; Q code changes/reviews remain frozen.",
+      "owned_resources": {
+        "two_focused_jobs_and_shipping_closed_owned_temps_removed": true,
+        "cold_child_natural_exit0_and_tmp_removed": true,
+        "configuration_hold_released": true,
+        "normal_daemon_started_once": true,
+        "retained_rollback_pair": {
+          "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-e4c3506a990e47cd98cc3e7fa4d31316",
+          "files": 218,
+          "logical_bytes": 335800618,
+          "purpose": "Previous deployed pair retained for scoped release acceptance and rollback-retention review; not old-reader or data rollback proof.",
+          "cleanup_condition": "After scoped release acceptance and explicit rollback-retention review; do not remove preexisting retained pairs."
+        },
+        "preexisting_deletion": false
+      },
+      "publication_recovery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\unbound-inspection-master-push-recovery-20261106.json",
+        "sha256": "f4a651a212b45163488632bc54d89d6957a10befaa3b20e7292f980c5d1aa9e0"
+      },
+      "remaining": "Exact receiver/type/alias/compiler/runtime binding, older/noncanonical/outside-directory and global caller coverage remain open. Shared semantic caution preserved; complete effect/signature/access analysis still unavailable.",
+      "resource_failure_retained": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\app-code-edge-projection-delivery-outcome-20261105.json",
+        "sha256": "885289c99be0871a080626e2917e7c7bca22f497f85ab3824638e0afe46d960c"
+      },
+      "resource_target_passed": false,
+      "original_full19gates_closed": false
     }
   },
-  "last_updated_at": "2026-11-05T23:21:47.698693+00:00",
+  "last_updated_at": "2026-11-06T00:16:05.946582+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-05T23:21:47.698693+00:00",
+    "at_utc": "2026-11-06T00:16:05.946582+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9712,7 +9757,7 @@
       }
     ],
     "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
-    "next_user_visible_deliverable": "Expose the already recorded unresolved member invocation as a separately named, bounded source-inspection observation in core impact tools. For actual imgHandler.resetState, recover the admitted group caller containing h.resetState at124 directly through literal source/context/independent caller-impact actions. Use the same held source and graph read transaction, existing directory-prefixed Calls substrate and shared work/byte/deadline limits; no project-wide scan, parser/storage migration or callee fabrication. Preserve primary/interface counts and canonical paths. Actual type/callee binding and global receiver completeness remain open.",
+    "next_user_visible_deliverable": "Run a genuinely fresh core-tool consumer task starting from project-wide CodeMap, outside the already exercised image-handler case: locate the server-side map feature type/category retrieval path and distinguish an implementation from its confirmed or potential consumer. Freeze independent expected source facts before giving the consumer public outputs; do not supply expected filenames or method IDs. Measure correctness, false guidance, useful evidence/read and context cost within a bounded read-only call budget. Fix demonstrated CodeMap/impact navigation failures within the existing queue; do not substitute another broad audit or supporting framework.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9725,8 +9770,8 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "4e7a4b2 pushed origin/master and deployed a5215d37/1012efc6. All 58 scoped checks passed; release took 672.44 seconds. Actual OciusX cold and five-call normal agent acceptance confirm shared caution/0.5 with explicit semantic uncertainty, preserving the prior method/one-hop score/admitted graph facts, exact CodeMap lookup, 300 notes, selected data and other 14 metadata. No complete effect-analysis, callee-binding, runtime, sustained-resource or full-audit closure claim.",
-    "previous_goal_turn_classification": "PROGRESS: Corrected actual misleading green verdict, added explicit semantic uncertainty and payload/positive-risk preservation, passed 58 scoped checks, pushed/deployed source, verified real cold/normal shared safety and source/graph/data preservation with independent agents. Prepared bounded next known impact-witness implementation and tests. Goal remains active; original full scope is not closed.",
+    "latest_completed_core_batch": "855b58b pushed origin/master and deployed d9b7e478/16e04d48. All 54 scoped checks passed; release took 692.46 seconds. Real cold both tools/details and six-call known-target normal agent acceptance expose h.resetState at124 as a separate source witness, preserving root3/caller2, unknown stored endpoint, semantic caution, canonical facts, exact CodeMap, 300 notes/selected data/other14. No full binding/global completeness/runtime/resource/full-audit closure claim. Previously pending ledger4df5032 also published by the normal push.",
+    "previous_goal_turn_classification": "PROGRESS: Implemented and independently reviewed bounded source inspection for the actual missing unresolved invocation; all54 scoped tests passed, source and previous pending ledger pushed/deployed, real cold and six-call agent source investigation verified with hash-bound preservation. Prepared next fresh orientation task because the current acceptance explicitly supplied a known root identity. Goal active; full original scope unclosed.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -9742,12 +9787,12 @@
       "original_core_priority_preserved": true
     },
     "next_slice_scope_limits": [
-      "Current work remains CodeMap/Blast agent usefulness; this next slice addresses an already demonstrated missing source witness, not another audit or unrelated feature.",
-      "Same-terminal unresolved syntax is an inspection lead, not a causal caller tier or a proved receiver/callee. Keep typed binding, shadowing/import/type/dispatch and outside-directory/noncanonical producer coverage explicitly unassessed.",
-      "Validate canonical slash-bounded source prefix, decoded path/key/marker identity, selected caller/file and edge physical origin under one held selection/transaction. Fail closed on malformed, stale, future, foreign or oversized records.",
-      "Charge every visited edge and point-read caller/file byte to existing budgets/deadline; do not restart the clock. Distinguish retained caller, receiver-target and invocation samples; disclose all caps/omissions.",
-      "Preserve primary/interface/frontier evidence before optional leads and keep graph continuation when summaries omit them. New real producer fixtures must execute literal witness actions and preserve exact caller facts.",
-      "Preserve all original 31 findings and full 19 gate records and unfinished states, sustained-resource failure, old-reader/recovery/finalization and instruction/legacy work. Q changes/reviews remain frozen; passive indexing authorized. Kernel/SSD/preexisting cleanup/instruction drafting stay parked. Push only origin/master; no AI attribution or tags."
+      "Current priority remains demonstrated CodeMap and Blast Radius usefulness for agents. The new witness slice is delivered; exact/global receiver binding remains explicitly unassessed, not marked fixed.",
+      "Use a new consumer without prior oracle/receipt/implementation context. Supply only task, project ID, actual public tool definitions/results and Q/read-only constraints. Main relays tool calls; no extra Engram process or repository copies.",
+      "Project-wide orientation must exclude Site/Q and retained audit fixture areas. Q source changes/reviews remain frozen while passive automatic indexing stays authorized.",
+      "Bound normal public MCP calls and response sizes; preserve literal actions where supplied. Independently verify source bytes/identity and distinguish graph admission, interface potential, same-terminal inspection and runtime proof.",
+      "Preserve source855b58b, all original31 finding and full19 gate records/unfinished states, sustained-resource failure, old-reader/recovery/finalization and instruction/legacy work. Kernel/SSD/preexisting cleanup/instruction drafting remain parked.",
+      "Push only origin/master, preserve existing/local work, no AI/coauthor trailers or tags. Temporary fixtures own and close their resources; no full suite per tiny edit."
     ],
     "q_freeze_decision": "User authorized passive automatic indexing; keep Q code changes and reviews frozen. This is sufficient authorization to restore normal watching without another permission prompt."
   }
