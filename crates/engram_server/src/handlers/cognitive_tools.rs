@@ -1512,7 +1512,7 @@ impl Engram {
             "project_id":req.project_id,"scope":scope,"exclude_paths":req.exclude_paths,"offset":offset,"limit":req.limit}}),req.path_contains.as_deref());
         let file_selection_scope=if req.path_contains.is_some() {
             "Filtered selected paths page lexically; the literal case-insensitive substring is applied with scope/exclusions before bounded declaration discovery. This is not a semantic or source-body search."
-        }else{"Root files are diverse representatives. Scoped area actions descend to the next child directory or direct file; scoped file pages retain lexical order and page offsets recover selected files beyond the page."};
+        }else{"Unfiltered root areas are immediate path children with counts for their complete boundary within the observed selection; follow their literal actions for deeper areas. Root files remain diverse representatives from deeper groups (files[].area), independently bounded in representative_groups_truncated. Scoped area actions descend to the next child directory or direct file; scoped file pages retain lexical order and page offsets recover selected files beyond the page."};
         let mut navigation=serde_json::json!({"format":"engram-codemap-navigation-v1","source_generation":generation,
             "scope":req.scope,"exclude_paths":req.exclude_paths,"working_tree_checked":false,
             "coverage":{"managed_source":managed_source,"matching_files":paths.matching_files,
@@ -1533,6 +1533,9 @@ impl Engram {
                 "Ranges are indexed positions capped to120lines; follow-up verifies current bytes, not full methods or runtime entry points. Declaration discovery coverage is reported once above."]});
         navigation["limitations"].as_array_mut().expect("limitations array").push(serde_json::json!(
             "If no displayed declaration offers a source range, the file action offers a bounded current-file excerpt. This reads current bytes only when executed; compare page hashes and do not infer method boundaries or indexed freshness."));
+        if req.scope.is_none() && req.path_contains.is_none() {
+            navigation["coverage"]["representative_groups_truncated"]=serde_json::json!(paths.representative_groups_truncated);
+        }
         if let Some(term)=req.path_contains.as_deref() {
             navigation["path_contains"]=serde_json::json!(term);
             navigation["coverage"].as_object_mut().expect("coverage object").remove("representative_priority");

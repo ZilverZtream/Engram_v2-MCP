@@ -55,6 +55,7 @@ pub struct SelectedSourceNavigation {
     pub inspected_files: usize,
     pub scan_truncated: bool,
     pub areas_truncated: bool,
+    pub representative_groups_truncated: bool,
     pub representative_sample: bool,
     pub files: Vec<(String, u64, String)>,
     pub areas: Vec<(String, usize)>,
@@ -237,7 +238,7 @@ impl SelectedSourceRevisionLookup {
         let path_term = path_contains.map(str::to_lowercase);
         let snapshots::Selection::Files(files) = &self.view._snapshot.selection else {
             return Ok(SelectedSourceNavigation { matching_files: None, inspected_files: 0,
-                scan_truncated: false, areas_truncated: false, representative_sample: !lexical,
+                scan_truncated: false, areas_truncated: false, representative_groups_truncated: false, representative_sample: !lexical,
                 files: Vec::new(), areas: Vec::new(), next_offset: None });
         };
         fn within(path: &str, boundary: &str) -> bool {
@@ -276,11 +277,17 @@ impl SelectedSourceRevisionLookup {
         // area labels are copied; never clone the complete source map.
         let mut groups: BTreeMap<&str, (usize, Vec<(&str,u64)>)> = BTreeMap::new();
         let mut group_bytes = 0usize;
+        // Root display boundaries are immediate children, independently of
+        // the deeper buckets that diversify the existing file representatives.
+        // Own only bounded comparison keys; observed path spellings stay borrowed.
+        let mut root_groups: BTreeMap<String, (&str, usize)> = BTreeMap::new();
+        let mut root_group_bytes = 0usize;
         let mut page = Vec::new();
         let mut matching = 0usize;
         let mut inspected = 0usize;
         let mut scan_truncated = false;
         let mut areas_truncated = false;
+        let mut representative_groups_truncated = false;
         for (path, generation) in files {
             if inspected == 50_000 { scan_truncated = true; break; }
             inspected += 1;
@@ -290,6 +297,18 @@ impl SelectedSourceRevisionLookup {
             if path_term.as_ref().is_some_and(|term| !path.to_lowercase().contains(term)) { continue; }
             let position = matching;
             matching += 1;
+            if !lexical {
+                let boundary=path.split('/').next().expect("validated path");
+                #[cfg(windows)]
+                let key=boundary.to_lowercase();
+                #[cfg(not(windows))]
+                let key=boundary.to_owned();
+                if let Some((_,count))=root_groups.get_mut(&key) { *count+=1; }
+                else if root_groups.len()<128 && root_group_bytes.saturating_add(key.len()+boundary.len())<=128*1024 {
+                    root_group_bytes+=key.len()+boundary.len();
+                    root_groups.insert(key,(boundary,1));
+                } else { areas_truncated=true; }
+            }
             let area = area_of(path, scope);
             if lexical && position >= offset && page.len() < limit {
                 // Keep file-page labels stable; only the area exploration
@@ -301,7 +320,8 @@ impl SelectedSourceRevisionLookup {
             if scope.is_some_and(|scope| within(scope, path)) { continue; }
             if !groups.contains_key(area) {
                 if groups.len() == 128 || group_bytes.saturating_add(area.len()) > 128 * 1024 {
-                    areas_truncated = true; continue;
+                    if lexical { areas_truncated=true; } else { representative_groups_truncated=true; }
+                    continue;
                 }
                 group_bytes += area.len();
                 groups.insert(area, (0, Vec::new()));
@@ -338,13 +358,16 @@ impl SelectedSourceRevisionLookup {
             page.extend(diverse.into_iter().skip(offset).take(limit));
             available
         } else { matching };
-        if ranked.len() > 32 { areas_truncated = true; ranked.truncate(32); }
+        let mut area_rows:Vec<_>=if !lexical { root_groups.into_values().collect() }
+            else { ranked.into_iter().map(|(area,(count,_))|(area,count)).collect() };
+        area_rows.sort_by(|a,b|b.1.cmp(&a.1).then_with(||a.0.cmp(b.0)));
+        if area_rows.len()>32 { areas_truncated=true; area_rows.truncate(32); }
         let next_offset = (offset + page.len() < available && !page.is_empty()).then_some(offset + page.len());
         Ok(SelectedSourceNavigation {
             matching_files: (!scan_truncated).then_some(matching), inspected_files: inspected,
-            scan_truncated, areas_truncated, representative_sample: !lexical,
+            scan_truncated, areas_truncated, representative_groups_truncated, representative_sample: !lexical,
             files: page.into_iter().map(|(path,generation,area)| (path.to_owned(),generation,area.to_owned())).collect(),
-            areas: ranked.into_iter().map(|(area,(count,_))| (area.to_owned(),count)).collect(), next_offset,
+            areas: area_rows.into_iter().map(|(area,count)| (area.to_owned(),count)).collect(), next_offset,
         })
     }
 
