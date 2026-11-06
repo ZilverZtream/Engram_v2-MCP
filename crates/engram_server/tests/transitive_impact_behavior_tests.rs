@@ -2714,3 +2714,141 @@ fn file_impact_summary_exposes_distinct_consumer_files_and_actual_member_connect
         }
     });
 }
+
+#[test]
+fn file_impact_summary_reveals_files_beyond_samples_without_counting_unadmitted_references() {
+    owned_case(|fixture| async move {
+        let paths: Vec<_> = (0..6).map(|i|format!("src/consumer_{i}.rs")).collect();
+        let body = "pub fn UsePolicy() { crate::policy::ClassifyAutomatic(); }\n";
+        let cancel = CancellationToken::new();
+        let baseline = fixture.engram.state.registry.capture_source_head(PID).unwrap();
+        let revisions: Vec<_> = paths.iter().map(|path|RelPath::new(path)).collect();
+        fixture.search.prepare_source_snapshot(PID,2,3,&revisions,&[],&cancel).await.unwrap();
+        let docs: Vec<_> = paths.iter().enumerate()
+            .map(|(i,path)|source_doc(3,300+i as u64,path,body)).collect();
+        fixture.search.index_docs(PID,&docs,&cancel).await.unwrap();
+        fixture.search.seal_source_snapshot(PID,3).unwrap();
+        let mut nodes = Vec::new();
+        let mut edges = Vec::new();
+        for path in &paths {
+            std::fs::write(fixture.root.join(path),body).unwrap();
+            nodes.extend([file_node(path,body,3),declaration(path,"UsePolicy",1,3)]);
+            edges.push(edge(id(path,"UsePolicy",1),id(POLICY,"ClassifyAutomatic",1),EdgeKind::Calls,3));
+        }
+        // A known declaration with no admitted physical file, and a future
+        // declaration revision, must remain unknown/non-selected leads.
+        nodes.extend([declaration(UNBOUND,"MissingFileBinding",1,1),
+            declaration(FUTURE_FILE,"FutureFileBinding",1,2)]);
+        edges.extend([edge(id(UNBOUND,"MissingFileBinding",1),id(POLICY,"ClassifyAutomatic",1),EdgeKind::Calls,1),
+            edge(id(FUTURE_FILE,"FutureFileBinding",1),id(POLICY,"ClassifyAutomatic",1),EdgeKind::Calls,2)]);
+        fixture.engram.state.graph.upsert_nodes(PID,&nodes).unwrap();
+        fixture.engram.state.graph.upsert_edges(PID,&edges).unwrap();
+        assert!(fixture.engram.state.registry.publish_source_head(&baseline,3).unwrap());
+        let target = format!("file:{POLICY}");
+        for tool in ["impact_analysis","compute_blast_radius"] {
+            let report = impact_packet(&summary_impact(&fixture,tool,&target,6).await);
+            let inventory = &report["observed_dependent_files"];
+            assert_eq!(inventory["files_observed"],8);
+            assert_eq!(inventory["files_omitted"],0);
+            let files: std::collections::BTreeMap<_,_> = inventory["files"].as_array().unwrap().iter()
+                .map(|row|(row["file_path"].as_str().unwrap(),row["min_depth"].as_u64().unwrap())).collect();
+            for path in &paths { assert_eq!(files[path.as_str()],1); }
+            assert_eq!(files[SPATIAL],1);
+            assert_eq!(files[HTTP],4,"Transitive-only files must remain navigable beyond the direct witness sample");
+            assert_eq!(files.len(),8,"Multiple declarations in a file are one observed path");
+            assert!(!files.contains_key(POLICY) && !files.contains_key(UNBOUND) && !files.contains_key(FUTURE_FILE));
+            assert!(report["selected_dependents_observed"].as_u64().unwrap()>8);
+            assert_eq!(report["immediate_consumers"].as_array().unwrap().len(),4);
+            assert!(report["coverage"]["unknown_nodes"].as_u64().unwrap()>0);
+            assert_eq!(report["working_tree_checked"],false);
+            assert!(inventory["scope"].as_str().unwrap().contains("not runtime"));
+
+            let empty = impact_packet(&summary_impact(&fixture,tool,&format!("file:{COMPANION}"),6).await);
+            assert_eq!(empty["observed_dependent_files"]["files_observed"],0);
+            assert_eq!(empty["observed_dependent_files"]["files_omitted"],0);
+            assert_eq!(empty["observed_dependent_files"]["files"],json!([]));
+            let missing = impact_packet(&summary_impact(&fixture,tool,"file:src/absent.rs",6).await);
+            assert!(missing["observed_dependent_files"].is_null(),"Unavailable evidence is not an observed empty inventory");
+        }
+    });
+}
+
+#[test]
+fn file_impact_summary_keeps_observed_file_counts_when_graph_display_drops_identities() {
+    owned_case(|fixture| async move {
+        let paths: Vec<_> = (0..40).map(|i|format!("src/consumer_{i:02}.rs")).collect();
+        // Long canonical identities exhaust graph display bytes well before
+        // the bounded walk's admitted file inventory; summary must not recount
+        // only whichever identities happen to survive that display budget.
+        let name = "A".repeat(600);
+        let body = format!("pub fn {name}() {{ crate::policy::ClassifyAutomatic(); }}\n");
+        let cancel = CancellationToken::new();
+        let baseline = fixture.engram.state.registry.capture_source_head(PID).unwrap();
+        let revisions: Vec<_> = paths.iter().map(|path|RelPath::new(path)).collect();
+        fixture.search.prepare_source_snapshot(PID,2,3,&revisions,&[],&cancel).await.unwrap();
+        let docs: Vec<_> = paths.iter().enumerate()
+            .map(|(i,path)|source_doc(3,300+i as u64,path,&body)).collect();
+        fixture.search.index_docs(PID,&docs,&cancel).await.unwrap();
+        fixture.search.seal_source_snapshot(PID,3).unwrap();
+        let mut nodes = Vec::new();
+        let mut edges = Vec::new();
+        for path in &paths {
+            nodes.extend([file_node(path,&body,3),declaration(path,&name,1,3)]);
+            edges.push(edge(id(path,&name,1),id(POLICY,"ClassifyAutomatic",1),EdgeKind::Calls,3));
+        }
+        fixture.engram.state.graph.upsert_nodes(PID,&nodes).unwrap();
+        fixture.engram.state.graph.upsert_edges(PID,&edges).unwrap();
+        assert!(fixture.engram.state.registry.publish_source_head(&baseline,3).unwrap());
+        let target = format!("file:{POLICY}");
+        let graph = impact_packet(&impact_target(&fixture,&target,Some(6)).await);
+        assert!(!graph["coverage"]["reasons"].as_array().unwrap().iter()
+            .any(|reason|reason=="retained_string_byte_limit"),
+            "This fixture must reach display clipping without exhausting the traversal's separate retained-data budget");
+        assert!(graph["selected_dependent_identities_returned"].as_u64().unwrap()<44);
+        for tool in ["impact_analysis","compute_blast_radius"] {
+            let report = impact_packet(&summary_impact(&fixture,tool,&target,6).await);
+            let inventory = &report["observed_dependent_files"];
+            assert_eq!(inventory["files_observed"],42);
+            let retained = inventory["files"].as_array().unwrap();
+            assert!(!retained.is_empty() && retained.len()<=32);
+            assert_eq!(retained.len() as u64+inventory["files_omitted"].as_u64().unwrap(),42);
+            assert_eq!(report["selected_dependents_observed"],44);
+            assert_eq!(report["coverage"],graph["coverage"]);
+            assert!(!report["immediate_consumers"].as_array().unwrap().is_empty(),"File navigation must preserve usable witnesses");
+        }
+    });
+}
+
+#[test]
+fn file_impact_shared_excerpt_keeps_unrecorded_positions_unknown() {
+    owned_case(|fixture| async move {
+        let mut consumer = file_node(SPATIAL,SPATIAL_BODY,1);
+        consumer.start_line=0;
+        consumer.end_line=0;
+        fixture.engram.state.graph.upsert_nodes(PID,&[consumer]).unwrap();
+        fixture.engram.state.graph.upsert_edges(PID,&[
+            edge(format!("file:{SPATIAL}"),format!("file:{POLICY}"),EdgeKind::Imports,1)
+        ]).unwrap();
+        for tool in ["impact_analysis","compute_blast_radius"] {
+            let report=impact_packet(&summary_impact(&fixture,tool,&format!("file:{POLICY}"),6).await);
+            let consumer=report["immediate_consumers"].as_array().unwrap().iter()
+                .find(|row|row["node_id"]==format!("file:{SPATIAL}")).unwrap();
+            let witness=&consumer["sample_connection_to_target"];
+            assert_eq!(witness["recorded_position_uses_source_read"],true);
+            assert!(witness.get("recorded_position_read").is_none());
+            assert!(witness["source_line"].is_null() && witness["extractor_anchor_line"].is_null());
+            assert_eq!(witness["source_position_kind"],"not_recorded");
+            assert_eq!(witness["source_position_scope"],"not_recorded");
+            assert_eq!(witness["reference_lines"],json!([]));
+            assert_eq!(witness["reference_lines_truncated"],false);
+            assert_eq!(consumer["source_read_scope"],"current_file_excerpt");
+            let action=&consumer["source_read"];
+            let result=fixture.engram.handle_get_full_method_body(
+                serde_json::from_value(action["arguments"].clone()).unwrap()).await.unwrap();
+            let body:Value=serde_json::from_str(&result.content[0].as_text().unwrap().text).unwrap();
+            assert_eq!(body["source_file_hash"],ContentHash::compute(SPATIAL_BODY.as_bytes()).0);
+            assert_eq!(body["retrieval_scope"],"current_file_excerpt");
+            assert_eq!(body["source_verification"],"current_file_snapshot_not_index_verified");
+        }
+    });
+}
