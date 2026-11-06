@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-06T16:57:49.982798+00:00",
+  "last_updated_at": "2026-11-06T17:34:24.156730+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-06T16:57:49.982798+00:00",
+    "at_utc": "2026-11-06T17:34:24.156730+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Deliver the CodeMap filtered-area browsing fix chosen from actual broad agent-task evidence; continue Blast Radius usefulness. Preserve original backlog and parked scope.",
-    "next_user_visible_deliverable": "Publish reviewedCodeMap browsingfix after all11FTScasespassed; performonenativedefaultproductionshippingbuild, preparedactualcoldreader/gates/deploy, thenliteralbrowseandfreshsame-taskjudgment. No newfeaturedeploymentorfullgoalclosureyet.",
+    "active_original_item": "CodeMap/Blastagenttaskusefulness remainsincomplete. Browsingcapabilitydeployed/verified, butfreshfrozen8call64KiBtaskNOTPASSED: noBlastandmissingtwoprimarycallers. Nextselectedcandidateisoptionalpaths-onlyCodeMapdiscoverytoleavebudgetforimpact/callerinspection.",
+    "next_user_visible_deliverable": "Implementandverifyoptionalpaths-onlyCodeMapoutputusingexistingheldfilemembership,exclusions,paginationandrecoveryactions; defaultstate stable. Recheckactualinitial2querypayloadbudgetandfreshSAMEfivecriteria/8call64KiBtask,includingBlast/directcallerpostconditions. No newcatalog/instructions/performanceproject.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9855,8 +9855,8 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "30b8364 pushed origin/master and deployedbc92a33d/640eb2f6. Bounded exact producer-extracted names in an exact selected file return revision-admitted candidates and source/context/impact actions without full inventory scan. Real TS/VB paths and actions pass; default CodeMap/Blast,300 notes,other14 metadata and selected stores preserved. Fresh no-history known-file/name task independently passes4 frozen criteria in3calls19011B. This is neither broad discovery nor exhaustive change safety.11 initial regressions and final2 changed name cases passed; no repeated full suite. Two-line installer cap fix handles259 retained entries with bounded4096 enumeration; actual upgrade and218/218 file verification passed. Native Codex transport remains closed; normal installed public MCP succeeds. Full31 findings/19 gate records remain unchanged.",
-    "previous_goal_turn_classification": "PROGRESS: all11unchangedFTSfixturecasespassed onfrozenreviewedsource, includingexplicitneighborbrowsing/crowdedoptionalomission/exclusion/pagination/sourcehashbehavior. Ownedjob/relay/tempclosedremoved. Sourcefixreadytopublish; nativeproductionbuild/coldpreservation/livefresh-agentacceptanceremainmandatory. Original31findings/19gaterecordsunchanged.",
+    "latest_completed_core_batch": "d1fa780sourcepushedonlyorigin/master; nativea0006acd/23323755installed218/old218/fivejournalsverified,all11FTSfixturecasespassandseparatenativebuild/coldcurrentformatpreservationpass. Newfiltered-areaunfilteredbrowse preservesold48matches/11areas/filepageandexclusions,reveals10selectedsiblings.300notes/other14/selectedregistryunchanged;normal150tools/eightdefsunchanged. Specificcapabilitydelivered, FULLFROZENTASKNOTPASSED: newfresh7calls64655BwithnoBlast/missingdelete+loadcallers; asyncsourcebetter, callercoverageworse. Old8calls64753Bcomparisonisnotoverallwin. Initial2navresponses33195Bleavetoolittlebudget; original31findings/full19recordsremainunchanged.",
+    "previous_goal_turn_classification": "PROGRESS: nativebuildandcoldcompatibilitypassed; packageinstalled/normalpublicMCPverified; samefrozenfreshagenttaskexecuted/independentlyjudgedNOTPASSED,mixedevidence. Recordedconcretediscoverypayloadbottleneckandselectednextcorefixwithoutloweringcriteria. No fullgoalclosure.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -9913,12 +9913,22 @@
     },
     "last_session_control_correction": "A delayed reply to an old reboot question was incorrectly treated as a new pause. User corrected it; goal restored active. No new reboot required. New guard used/released, original work preserved.",
     "latest_in_progress_core_batch": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-area-browse-fts-test-outcome-20261106.json",
-      "sha256": "2a448d15f218a468a29f5f0b0c6b1ae33fcb4dae7981a448ebc50a5107455f0c"
+      "state": "NEXT_CORE_FIX_SELECTED_FROM_ACTUAL_FAILED_TASK",
+      "candidate": "Optionalpaths-onlyCodeMapdiscovery",
+      "evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-area-browse-delivery-outcome-20261106.json",
+        "sha256": "a3a04820c4ffcf30f18a41cb19113e4e636807dd4456a4712186a9139f9b351e"
+      },
+      "goal_complete": false
     },
     "latest_delivery_preparation": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-area-browse-fts-profile-checkpoint-20261106.json",
-      "sha256": "80e410bf5186c045ea418b02f6bc9c569780d9cf863f03d19666192f601f7bc6"
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-area-browse-delivery-outcome-20261106.json",
+      "sha256": "a3a04820c4ffcf30f18a41cb19113e4e636807dd4456a4712186a9139f9b351e"
+    },
+    "prior_exact_name_delivery_summary": "30b8364 pushed origin/master and deployedbc92a33d/640eb2f6. Bounded exact producer-extracted names in an exact selected file return revision-admitted candidates and source/context/impact actions without full inventory scan. Real TS/VB paths and actions pass; default CodeMap/Blast,300 notes,other14 metadata and selected stores preserved. Fresh no-history known-file/name task independently passes4 frozen criteria in3calls19011B. This is neither broad discovery nor exhaustive change safety.11 initial regressions and final2 changed name cases passed; no repeated full suite. Two-line installer cap fix handles259 retained entries with bounded4096 enumeration; actual upgrade and218/218 file verification passed. Native Codex transport remains closed; normal installed public MCP succeeds. Full31 findings/19 gate records remain unchanged.",
+    "latest_area_browse_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-area-browse-delivery-outcome-20261106.json",
+      "sha256": "a3a04820c4ffcf30f18a41cb19113e4e636807dd4456a4712186a9139f9b351e"
     }
   }
 }
