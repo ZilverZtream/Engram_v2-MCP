@@ -294,8 +294,12 @@ fn overview_counts_current_inherited_source_separately_from_retained_corpora_and
         assert!(languages.contains("rust: 2 (66%)") && languages.contains("python: 1 (33%)"));
         assert!(!languages.contains("vbnet"));
         let source_navigation = navigation(&before_knowledge);
+        let root_area=source_navigation["areas"].as_array().unwrap().iter()
+            .find(|area|area["scope"]=="src").unwrap();
+        assert_eq!(root_area["selected_files"],2);
+        let source_children=navigate(&engram,root_area["explore"]["arguments"].clone()).await;
         for scope in ["src/service", "src/model"] {
-            let area = source_navigation["areas"]
+            let area = source_children["areas"]
                 .as_array()
                 .unwrap()
                 .iter()
@@ -773,6 +777,91 @@ fn scoped_codemap_actions_descend_without_losing_files_to_area_caps() {
 }
 
 #[test]
+fn root_area_counts_match_literal_actions_without_hiding_representative_or_display_gaps() {
+    owned_case(true, |engram, search| async move {
+        let mut paths=vec!["README.md".to_owned(),"src/Direct.rs".into(),
+            "src/app/a.rs".into(),"src/app/deeper/b.rs".into(),"srcx/Other.rs".into(),
+            "private/Secret.rs".into(),"Alias/One.rs".into(),"alias/Two.rs".into(),
+            "İrea/One.rs".into(),"i\u{307}rea/Two.rs".into()];
+        // Many deep representative groups must not make one shallow directory's
+        // count partial, or silently hide that the representative pool is capped.
+        paths.extend((0..130).map(|i|format!("src/many{i:03}/Part.rs")));
+        let cancel=CancellationToken::new();
+        let initial=engram.state.registry.capture_source_head(PID).unwrap();
+        let identities:Vec<_>=paths.iter().map(|path|RelPath::new(path)).collect();
+        search.prepare_full_source_snapshot(PID,0,1,&identities,&cancel).await.unwrap();
+        let text="pub fn Selected() {}\n";
+        let docs:Vec<_>=paths.iter().enumerate().map(|(i,path)|doc("memory",1,i as u64+1,path,"rust",text)).collect();
+        search.index_docs(PID,&docs,&cancel).await.unwrap();
+        search.seal_source_snapshot(PID,1).unwrap();
+        assert!(engram.state.registry.publish_source_head(&initial,1).unwrap());
+        let root=std::path::PathBuf::from(engram.state.registry.get_project(PID).unwrap().unwrap().directory);
+        std::fs::write(root.join("README.md"),text).unwrap();
+        let request=json!({"project_id":PID,"exclude_paths":["private"],"limit":8});
+        let first=navigation_text(&engram,request.clone()).await;
+        assert!(first.len()<16*1024,"Root orientation should leave room for the source task: {}bytes",first.len());
+        assert!(first.contains(&format!("source_files: {}\n",paths.len())));
+        assert!(first.contains(&format!("source_chunks: {}\n",paths.len())));
+        let report=navigation(&first);
+        assert_eq!(report["coverage"]["matching_files"],paths.len()-1);
+        assert_eq!(report["coverage"]["area_sample_truncated"],false);
+        assert_eq!(report["coverage"]["representative_groups_truncated"],true);
+        let mut expected=std::collections::BTreeMap::from([
+            ("README.md",1u64),("src",133),("srcx",1),
+        ]);
+        if cfg!(windows) {
+            expected.extend([("Alias",2),("i\u{307}rea",2)]);
+        } else {
+            expected.extend([("Alias",1),("alias",1),("İrea",1),("i\u{307}rea",1)]);
+        }
+        let actual:std::collections::BTreeMap<_,_>=report["areas"].as_array().unwrap().iter()
+            .map(|area|(area["scope"].as_str().unwrap(),area["selected_files"].as_u64().unwrap())).collect();
+        assert_eq!(actual,expected,"Top-level scopes partition the selected files, including Windows aliases");
+        assert_eq!(actual.values().sum::<u64>(),report["coverage"]["matching_files"].as_u64().unwrap());
+        for area in report["areas"].as_array().unwrap() {
+            assert_eq!(area["explore"]["arguments"]["exclude_paths"],json!(["private"]));
+            let child=navigate(&engram,area["explore"]["arguments"].clone()).await;
+            assert_eq!(child["source_generation"],1);
+            assert_eq!(child["coverage"]["matching_files"],area["selected_files"],
+                "The literal area action must match its reported count, including root files and aliases");
+            if area["scope"]=="README.md" {
+                assert_eq!(child["detail"],"exact_file");
+                let read=child["files"][0]["actions"].as_array().unwrap().iter()
+                    .find(|action|action["tool"]=="get_full_method_body").unwrap();
+                let response=engram.handle_get_full_method_body(serde_json::from_value(read["arguments"].clone()).unwrap()).await.unwrap();
+                let source:Value=serde_json::from_str(&response.content[0].as_text().unwrap().text).unwrap();
+                assert_eq!(source["source_code"],text.trim_end());
+                assert_eq!(source["source_file_hash"],ContentHash::compute(text.as_bytes()).0);
+            }
+        }
+        // A separate cap on displayed top-level areas remains explicit. It
+        // must not prevent an exact scoped/filtered lookup beyond that sample.
+        let added:Vec<_>=(0..130).map(|i|format!("top{i:03}/Part.rs")).collect();
+        let head=engram.state.registry.capture_source_head(PID).unwrap();
+        let identities:Vec<_>=added.iter().map(|path|RelPath::new(path)).collect();
+        search.prepare_source_snapshot(PID,1,2,&identities,&[],&cancel).await.unwrap();
+        let docs:Vec<_>=added.iter().enumerate().map(|(i,path)|doc("memory",2,2000+i as u64,path,"rust",text)).collect();
+        search.index_docs(PID,&docs,&cancel).await.unwrap();
+        search.seal_source_snapshot(PID,2).unwrap();
+        assert!(engram.state.registry.publish_source_head(&head,2).unwrap());
+        let crowded=navigate(&engram,request).await;
+        assert_eq!(crowded["coverage"]["matching_files"],paths.len()+added.len()-1);
+        assert_eq!(crowded["coverage"]["area_sample_truncated"],true);
+        assert_eq!(crowded["areas"].as_array().unwrap().len(),32);
+        assert_eq!(crowded["coverage"]["representative_groups_truncated"],true);
+        assert!(!crowded["areas"].as_array().unwrap().iter().any(|area|area["scope"]=="top129"));
+        for args in [json!({"project_id":PID,"scope":"top129","exclude_paths":["private"]}),
+            json!({"project_id":PID,"path_contains":"top129","exclude_paths":["private"]})] {
+            let found=navigate(&engram,args).await;
+            assert_eq!(found["coverage"]["matching_files"],1);
+            assert_eq!(found["files"][0]["path"],"top129/Part.rs");
+            assert!(found["coverage"].get("representative_groups_truncated").is_none(),
+                "A root representative limit must not become a false gap in independent lexical file lookup");
+        }
+    });
+}
+
+#[test]
 fn codemap_diversifies_areas_and_its_scoped_recovery_opens_selected_source_without_prefix_starvation()
 {
     for crowded in [false, true] {
@@ -939,7 +1028,13 @@ fn codemap_navigation_case(crowded: bool) {
             assert_eq!(files.len(), 8, "Useful leads must fit the default file budget");
         }
         assert_eq!(report["coverage"]["scan_truncated"], false);
-        assert_eq!(report["coverage"]["area_sample_truncated"], crowded);
+        assert_eq!(report["coverage"]["area_sample_truncated"], false);
+        assert_eq!(report["coverage"]["representative_groups_truncated"],false);
+        let src_area=report["areas"].as_array().unwrap().iter()
+            .find(|area|area["scope"]=="src").unwrap();
+        let src_page=navigate(&engram,src_area["explore"]["arguments"].clone()).await;
+        assert_eq!(src_page["coverage"]["matching_files"],src_area["selected_files"]);
+        assert_eq!(src_page["coverage"]["area_sample_truncated"],crowded);
         assert!(
             files
                 .iter()
@@ -959,7 +1054,7 @@ fn codemap_navigation_case(crowded: bool) {
                 .all(|file| ![PRIVATE, FROZEN, FUTURE].contains(&file["path"].as_str().unwrap()))
         );
         if crowded {
-            let ordinary_area = report["areas"]
+            let ordinary_area = src_page["areas"]
                 .as_array()
                 .unwrap()
                 .iter()
@@ -990,7 +1085,7 @@ fn codemap_navigation_case(crowded: bool) {
             // its root file representative must itself offer working recovery.
             report.clone()
         } else {
-            let map_area = report["areas"]
+            let map_area = src_page["areas"]
                 .as_array().unwrap().iter()
                 .find(|area| area["scope"] == "src/zzz-map")
                 .expect("The map area needs copyable drill-down");
