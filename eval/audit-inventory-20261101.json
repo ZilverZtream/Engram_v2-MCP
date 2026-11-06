@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-06T06:56:29.609231+00:00",
+  "last_updated_at": "2026-11-06T15:55:27.255343+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-06T06:56:29.609231+00:00",
+    "at_utc": "2026-11-06T15:55:27.255343+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap and Blast Radius agent usefulness. Evidence-preserving response reduction is pushed and deployed; same12-request trace and fresh immediate-caller consumption verified. Post-reboot normal runtime readback, initial discovery cost, escape/async coverage and original unfinished work remain open.",
-    "next_user_visible_deliverable": "After the requested reboot, verify the actual normal installed watcher/current source/tool definitions, without assuming an old PID survives. Continue the original core-tool usefulness queue from real agent traces; initial CodeMap discovery/navigation cost and broader source coverage remain open. Preserve original finding/gate records and parked scope.",
+    "active_original_item": "CodeMap and Blast Radius usefulness for agents. Exact stored-name navigation within a known selected file is now deployed and passed a fresh3-call task. Broader target discovery, escape/async and runtime safety coverage remain unfinished.",
+    "next_user_visible_deliverable": "Continue the core-tool queue from real agent-task evidence. Existing native Codex MCP transport needs reconnection; normal installed public MCP was verified separately. Do not resume instruction drafting or parked support work.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9855,8 +9855,8 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "048c80e pushed only origin/master and deployed35d6ccb0/05efbee5. Compact agent JSON preserves all method-context/safety values; symbol summaries reuse exactly equal source actions via the existing marker.24 focused behavior cases and135-capability documentation check pass, independent source/observer/replay reviews pass. Actual candidate context30427->22686B and groupBlast9349->8945B; source hashes, distinct/unattributed position handling and all prior graph/summary evidence preserved. Same12 literal normal requests all returned:96489->88343B tool-content UTF8,8145B selected output saving plus1B grep timing-width difference. Original strict comparison failure retained; saved-only reconciliation separates ONLY grep.elapsed_ms136->59 plus documented aliases/age, with no RPC retry and all other facts equal. Fresh no-history immediate-caller task passed independent source review in2calls11751B, using one composed adjacent source read. Not target-discovery, runtime/escape/async safety, latency or whole-task productivity proof. Selected data/300notes/other14 metadata preserved;214native assets unchanged. Build950.99s, owned jobs/handles/temps closed and removed. Previous218-file runtime pair retained at exact accounted path. Original31 findings/full19 gate records and prior resource failure unchanged.",
-    "previous_goal_turn_classification": "PROGRESS: response-cost code published/deployed, exact real normal trace measured with evidence preserved, bounded fresh agent task independently verified, and reboot checkpoint saved. No full-goal closure. This continuation only records verified delivery; post-reboot normal readback remains pending.",
+    "latest_completed_core_batch": "30b8364 pushed origin/master and deployedbc92a33d/640eb2f6. Bounded exact producer-extracted names in an exact selected file return revision-admitted candidates and source/context/impact actions without full inventory scan. Real TS/VB paths and actions pass; default CodeMap/Blast,300 notes,other14 metadata and selected stores preserved. Fresh no-history known-file/name task independently passes4 frozen criteria in3calls19011B. This is neither broad discovery nor exhaustive change safety.11 initial regressions and final2 changed name cases passed; no repeated full suite. Two-line installer cap fix handles259 retained entries with bounded4096 enumeration; actual upgrade and218/218 file verification passed. Native Codex transport remains closed; normal installed public MCP succeeds. Full31 findings/19 gate records remain unchanged.",
+    "previous_goal_turn_classification": "PROGRESS: scoped CodeMap navigation delivered and independently consumed through actual installed public MCP. Supporting installer cap fixed only because it blocked deployment. Goal remains active; no full-goal closure.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -9898,6 +9898,19 @@
     "pending_reboot_checkpoint": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-output-cost-reboot-checkpoint-20261106.json",
       "sha256": "5d79dfa92a000e6d7d04fad60098d17d23ba90461ef58a7b47ce6037a06f83cf"
-    }
+    },
+    "previous_completed_core_batch": "048c80e pushed only origin/master and deployed35d6ccb0/05efbee5. Compact agent JSON preserves all method-context/safety values; symbol summaries reuse exactly equal source actions via the existing marker.24 focused behavior cases and135-capability documentation check pass, independent source/observer/replay reviews pass. Actual candidate context30427->22686B and groupBlast9349->8945B; source hashes, distinct/unattributed position handling and all prior graph/summary evidence preserved. Same12 literal normal requests all returned:96489->88343B tool-content UTF8,8145B selected output saving plus1B grep timing-width difference. Original strict comparison failure retained; saved-only reconciliation separates ONLY grep.elapsed_ms136->59 plus documented aliases/age, with no RPC retry and all other facts equal. Fresh no-history immediate-caller task passed independent source review in2calls11751B, using one composed adjacent source read. Not target-discovery, runtime/escape/async safety, latency or whole-task productivity proof. Selected data/300notes/other14 metadata preserved;214native assets unchanged. Build950.99s, owned jobs/handles/temps closed and removed. Previous218-file runtime pair retained at exact accounted path. Original31 findings/full19 gate records and prior resource failure unchanged.",
+    "latest_exact_name_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-exact-name-delivery-outcome-20261106.json",
+      "sha256": "6bc6e82ac6c6069d5a1e9a921d5eb648216d09cb041463c5fe35244328d05d82"
+    },
+    "previous_post_reboot_readback": {
+      "status": "VERIFIED_ACTUAL_NORMAL_RUNTIME_AND_PUBLIC_DEFINITIONS",
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-output-cost-post-reboot-complete-20261106.json",
+        "sha256": "d138a9dfcf35b1adfd0df8e2a19d04f21b87ae2012609e64a82f46d7759ce56b"
+      }
+    },
+    "last_session_control_correction": "A delayed reply to an old reboot question was incorrectly treated as a new pause. User corrected it; goal restored active. No new reboot required. New guard used/released, original work preserved."
   }
 }

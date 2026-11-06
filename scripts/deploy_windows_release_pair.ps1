@@ -23,6 +23,7 @@ $script:Pins = [Collections.Generic.Dictionary[string,object]]::new([StringCompa
 $maxStageBytes = 512MB
 $maxArchiveBytes = 2GB # Hash/rename only; historical executables are never copied into stage.
 $maxStageFiles = 1024
+$maxInstallEntries = 4096 # Retained complete pairs and five journals per upgrade share this parent.
 $lockStream = $null
 
 function Sha([string]$Value) {
@@ -316,7 +317,7 @@ try {
         if ($old.ManifestSha -eq $candidate.ManifestSha -and $old.BinarySha -eq $candidate.BinarySha) { [pscustomobject]@{ status='package-already-identical'; post_install_runtime_validation='not implied' }; return }
         $topEntries = 0
         foreach ($name in [IO.Directory]::EnumerateFileSystemEntries($InstallRoot)) {
-            $topEntries++; if ($topEntries -gt 256) { throw 'Install parent inventory bound exceeded; preserve entries' }
+            $topEntries++; if ($topEntries -gt $maxInstallEntries) { throw 'Install parent inventory bound exceeded; preserve entries' }
             if ([IO.Path]::GetFileName($name) -like 'engram-pair-stage-*') { throw 'Prior stage path exists; preserve/reconcile its journal before another stage' }
         }
         $id = [Guid]::NewGuid().ToString('N')
