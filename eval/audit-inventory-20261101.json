@@ -9811,7 +9811,7 @@
   },
   "last_updated_at": "2026-11-06T17:34:24.156730+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-06T17:34:24.156730+00:00",
+    "at_utc": "2026-11-06T18:55:09.848676+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap/Blastagenttaskusefulness remainsincomplete. Browsingcapabilitydeployed/verified, butfreshfrozen8call64KiBtaskNOTPASSED: noBlastandmissingtwoprimarycallers. Nextselectedcandidateisoptionalpaths-onlyCodeMapdiscoverytoleavebudgetforimpact/callerinspection.",
-    "next_user_visible_deliverable": "Implementandverifyoptionalpaths-onlyCodeMapoutputusingexistingheldfilemembership,exclusions,paginationandrecoveryactions; defaultstate stable. Recheckactualinitial2querypayloadbudgetandfreshSAMEfivecriteria/8call64KiBtask,includingBlast/directcallerpostconditions. No newcatalog/instructions/performanceproject.",
+    "active_original_item": "CodeMap/Blast agent-task usefulness remains unfinished. Optional compact paths-only discovery deployed and controlled replay verified; fresh same8call64KiB task remains PARTIAL on current server-delete caller postconditions.",
+    "next_user_visible_deliverable": "Reduce demonstrated declaration/identity recovery overhead so a fresh agent can also inspect remaining caller postconditions under the unchanged task/budget. Narrow source-grounded comparison of existing CodeMap directory-name lookup vs bounded Blast witness/recovery; select one, preserve defaults/evidence and validate on actual tools. No new catalog/storage/instruction project.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9855,8 +9855,8 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "d1fa780sourcepushedonlyorigin/master; nativea0006acd/23323755installed218/old218/fivejournalsverified,all11FTSfixturecasespassandseparatenativebuild/coldcurrentformatpreservationpass. Newfiltered-areaunfilteredbrowse preservesold48matches/11areas/filepageandexclusions,reveals10selectedsiblings.300notes/other14/selectedregistryunchanged;normal150tools/eightdefsunchanged. Specificcapabilitydelivered, FULLFROZENTASKNOTPASSED: newfresh7calls64655BwithnoBlast/missingdelete+loadcallers; asyncsourcebetter, callercoverageworse. Old8calls64753Bcomparisonisnotoverallwin. Initial2navresponses33195Bleavetoolittlebudget; original31findings/full19recordsremainunchanged.",
-    "previous_goal_turn_classification": "PROGRESS: nativebuildandcoldcompatibilitypassed; packageinstalled/normalpublicMCPverified; samefrozenfreshagenttaskexecuted/independentlyjudgedNOTPASSED,mixedevidence. Recordedconcretediscoverypayloadbottleneckandselectednextcorefixwithoutloweringcriteria. No fullgoalclosure.",
+    "latest_completed_core_batch": "687b7a1 pushed only origin/master; production186ff001/77b0c94a installed andnormal150tools/newdefaulttrue CodeMap mode verified with other7definitions unchanged.13 focused FTS behavior cases andseparate default-native productionbuild pass. Actual2query payload33195->22086B saves11109B with all16file identities/revisions and21area/counts retained; literal declaration/source/pagination recovery andold default CodeMap/Blast facts preserved.300notes/other14/selectedregistry preserved,214native assets unchanged.218active/218old/5journals verified andprevious336039722B pair retained at recorded exact path. Fresh no-history samefrozen task8calls60214B remainsPARTIAL: all3caller candidates, currentdelete+load postconditions checked, server-delete current postconditions unread; asynchronous enforcement explicitlyunverified. Different searchchoices/publicdefinitions prevent causal attribution. Original31findings/full19records/resourcefailure unchanged.",
+    "previous_goal_turn_classification": "PROGRESS: nativebuild/coldactualverification passed, pairinstalled andnormalpublicschema checked, fullfreshsame-task trial executed andindependentlyjudgedPARTIAL, exactgap retained. Goal remainsactive; no fullcompletion claim.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -9913,22 +9913,26 @@
     },
     "last_session_control_correction": "A delayed reply to an old reboot question was incorrectly treated as a new pause. User corrected it; goal restored active. No new reboot required. New guard used/released, original work preserved.",
     "latest_in_progress_core_batch": {
-      "state": "NEXT_CORE_FIX_SELECTED_FROM_ACTUAL_FAILED_TASK",
-      "candidate": "Optionalpaths-onlyCodeMapdiscovery",
+      "state": "NEXT_CORE_RECOVERY_FIX_NARROW_DESIGN_COMPARISON",
+      "candidate": "Existing CodeMap directory-name lookup vs bounded Blast current witness/recovery",
       "evidence": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-area-browse-delivery-outcome-20261106.json",
-        "sha256": "a3a04820c4ffcf30f18a41cb19113e4e636807dd4456a4712186a9139f9b351e"
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-paths-only-delivery-outcome-20261106.json",
+        "sha256": "601645175bb39b8733e99823c5053bf3e6f3ea4085c8940d6f7f0290ff92ab2a"
       },
       "goal_complete": false
     },
     "latest_delivery_preparation": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-area-browse-delivery-outcome-20261106.json",
-      "sha256": "a3a04820c4ffcf30f18a41cb19113e4e636807dd4456a4712186a9139f9b351e"
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-paths-only-delivery-outcome-20261106.json",
+      "sha256": "601645175bb39b8733e99823c5053bf3e6f3ea4085c8940d6f7f0290ff92ab2a"
     },
     "prior_exact_name_delivery_summary": "30b8364 pushed origin/master and deployedbc92a33d/640eb2f6. Bounded exact producer-extracted names in an exact selected file return revision-admitted candidates and source/context/impact actions without full inventory scan. Real TS/VB paths and actions pass; default CodeMap/Blast,300 notes,other14 metadata and selected stores preserved. Fresh no-history known-file/name task independently passes4 frozen criteria in3calls19011B. This is neither broad discovery nor exhaustive change safety.11 initial regressions and final2 changed name cases passed; no repeated full suite. Two-line installer cap fix handles259 retained entries with bounded4096 enumeration; actual upgrade and218/218 file verification passed. Native Codex transport remains closed; normal installed public MCP succeeds. Full31 findings/19 gate records remain unchanged.",
     "latest_area_browse_delivery": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-area-browse-delivery-outcome-20261106.json",
       "sha256": "a3a04820c4ffcf30f18a41cb19113e4e636807dd4456a4712186a9139f9b351e"
+    },
+    "latest_paths_only_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-paths-only-delivery-outcome-20261106.json",
+      "sha256": "601645175bb39b8733e99823c5053bf3e6f3ea4085c8940d6f7f0290ff92ab2a"
     }
   }
 }
