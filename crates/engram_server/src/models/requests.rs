@@ -500,6 +500,13 @@ pub struct CodebaseOverviewRequest {
     /// retain source-range actions when indexed line bounds are usable.
     #[serde(default)]
     pub symbol_node_id: Option<String>,
+    /// Exact, case-sensitive extracted declaration name (1..256 UTF-8 bytes),
+    /// not class/FQN/suffix resolution. Requires exact selected-file scope,
+    /// offsets zero and no symbol_node_id. Returns bounded admitted native
+    /// callable candidates, including same-name overloads, with source/impact
+    /// actions. No match is not absence; legacy/other kinds/aliases unassessed.
+    #[serde(default)]
+    pub symbol_name: Option<String>,
     /// Files shown, 1..64 (default 8). Declaration and response limits remain independent.
     #[serde(default = "default_codemap_limit")]
     pub limit: usize,
@@ -510,7 +517,7 @@ fn default_codemap_limit() -> usize { 8 }
 impl From<ProjectIdRequest> for CodebaseOverviewRequest {
     fn from(request: ProjectIdRequest) -> Self {
         Self { project_id: request.project_id, scope: None, exclude_paths: Vec::new(),
-            path_contains: None, include_retained_context: false, offset: 0, symbol_offset: 0, symbol_node_id: None, limit: default_codemap_limit() }
+            path_contains: None, include_retained_context: false, offset: 0, symbol_offset: 0, symbol_node_id: None, symbol_name: None, limit: default_codemap_limit() }
     }
 }
 
