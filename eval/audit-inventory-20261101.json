@@ -9760,9 +9760,22 @@
         "sha256": "42e1936d7002b1072f3cd7396ec2c22dd3fa1b1e690308ec0b680fc0a5085cef"
       },
       "fresh_category_result": "Narrow category task source-correct:9calls/78739B, service/controller/static registration verified, primary0 plus separate1potential interface route, runtime binding unproven. New child actions not exercised; no comparative uplift claim."
+    },
+    "selected_path_and_configuration_discovery_delivery_20261106": {
+      "status": "DELIVERED_PATH_FILTER_AND_LAZY_CONFIG_LOOKUP_TOTAL_TASK_COST_UNRESOLVED",
+      "source_commit": "a778965168c39ca9d62d8e5de2116dbc3c05748c",
+      "delivery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-path-discovery-delivery-outcome-20261106.json",
+        "sha256": "6fda40bd05cdc079588692913626afa451bff2c3cbae202a2988d259a4e45c2e"
+      },
+      "installed_server_sha256": "f6150f486a3823013cf29dc73e186ad32c171f14ab79efce34ccde961a98cdde",
+      "installed_manifest_sha256": "a7aab284f784cd8e02a833ab7d7a20c719641153882d6459e37899eac4507e35",
+      "behavior": "Optional literal selected-path filter, complete lexical paging/compact query response, and lazy Config-path discovery beside existing exact-text fallback.",
+      "actual_use": "Fresh agent used file filtering and established current service/controller;8calls82341B exceeded target421B and lacked current config proof. New Config action unused; overall output-cost win not established.",
+      "original_scope_unclosed": true
     }
   },
-  "last_updated_at": "2026-11-06T01:02:04.657998+00:00",
+  "last_updated_at": "2026-11-06T02:23:50.377507+00:00",
   "current_execution_focus": {
     "at_utc": "2026-11-06T00:16:05.946582+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
@@ -9794,7 +9807,7 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap and Blast Radius usefulness: reduce selected-file discovery and configuration-recovery context cost exposed by actual fresh tasks.",
+    "active_original_item": "CodeMap and Blast Radius agent usefulness: prioritize targeted configuration recovery and clarify recorded contract-call evidence, grounded in fresh03 actual choices/output cost.",
     "next_user_visible_deliverable": "Run a genuinely fresh core-tool consumer task starting from project-wide CodeMap, outside the already exercised image-handler case: locate the server-side map feature type/category retrieval path and distinguish an implementation from its confirmed or potential consumer. Freeze independent expected source facts before giving the consumer public outputs; do not supply expected filenames or method IDs. Measure correctness, false guidance, useful evidence/read and context cost within a bounded read-only call budget. Fix demonstrated CodeMap/impact navigation failures within the existing queue; do not substitute another broad audit or supporting framework.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
@@ -9808,8 +9821,8 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "598625e pushed origin/master and deployed48aed9f4/306ea070. Scoped CodeMap actions descend to child directories/direct files; all8 relevant public behavior tests and135-entry doc check pass. Real cold3scopes/literal actions and previous CodeMap/Blast/semantic/unbound facts,300notes/selected stores/other14 preserved; installed218/backup218 verified. Fresh narrower category agent9calls/78739B correctly found service/consumer/static registration without runtime/completeness overclaim. Native host transport and broad original scope remain unclosed.",
-    "previous_goal_turn_classification": "PROGRESS: Concrete scoped CodeMap defect delivered end to end; fresh real category task independently source-checked. Remain active on measured discovery/configuration output cost; no scoped-action agent uplift or full31/19 completion claim.",
+    "latest_completed_core_batch": "a778965 pushed origin/master and deployedf6150f48/a7aab284. All11 scoped checks (native2+overview9) and135-entry doc check passed; release750.48s. Real held source query found4categoryfiles7447B; Config lookup1file3279B/source literal range9-99, emitted bybothimpactAPIs/details and executedonce. Unfiltered/root/oldcanonical facts and300notes/closedselectedstores/other14 preserved; actual218active/218backup verified. Fresh03usedpathfilterbut8calls82341B exceededbyte target421B, extra contract check and repeated genericgrep yieldednocurrentconfig proof. Functionalitydelivered; completeagentcost/presentationstillunresolved, notperfection or fullauditclosure.",
+    "previous_goal_turn_classification": "PROGRESS: Coherent selected-file discovery feature delivered/pushed/deployed with11 focused checks and actual data preservation. Independent fresh trial proves path-filter adoption/static correctness but no total output-cost win. Continue core recovery-action presentation; all original31/19 and prior resource/instruction/legacy work unclosed.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
