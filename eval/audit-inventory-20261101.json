@@ -9773,11 +9773,28 @@
       "behavior": "Optional literal selected-path filter, complete lexical paging/compact query response, and lazy Config-path discovery beside existing exact-text fallback.",
       "actual_use": "Fresh agent used file filtering and established current service/controller;8calls82341B exceeded target421B and lacked current config proof. New Config action unused; overall output-cost win not established.",
       "original_scope_unclosed": true
+    },
+    "caller_file_origin_recovery_and_fresh_stateful_task_20261106": {
+      "status": "DELIVERED_SPECIFIC_RECOVERY_WITH_OPEN_ESCAPE_AND_COST_GAPS",
+      "source_commit": "00437c1d506c6f052acffefa0c48c413dfc74bda",
+      "delivery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\caller-file-start-delivery-outcome-20261106.json",
+        "sha256": "360d48d9106636cb3ba6991ec0e095e6209d519f42a087a19a7304da1e98261c"
+      },
+      "fresh_judgment": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\resetstate-fresh02-independent-judgment-20261106.json",
+        "sha256": "9705b9574ef937652b0fc80d673dc14133b78c61b910698aed6a7a4d3ce00202"
+      },
+      "fresh_traffic_and_source": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\resetstate-fresh02-traffic-and-source-20261106.json",
+        "sha256": "77f21261b3084ae34ac285f2b76025c2b408e8d05c9cc7fc0f7ef30ea3b387b0"
+      },
+      "scope": "Optional source-context handoff on retained unresolved leads, not callee binding or exhaustive safety. Minimum static planning supported; mutable-array escape detail and async helpers not fully inspected.12calls96489B,8860B above previous trial.26 focused cases, actual source/hash/paging and preservation verified. All original finding/gate records unchanged; no resource or full-goal closure."
     }
   },
-  "last_updated_at": "2026-11-06T05:13:57.934092+00:00",
+  "last_updated_at": "2026-11-06T06:03:20.608720+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-06T05:13:57.934092+00:00",
+    "at_utc": "2026-11-06T06:03:20.608720+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9807,8 +9824,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap/Blast agent usefulness: resetState trial source-correct but partial receiver-origin recovery; actual idle-shutdown availability blocker fixed and deployed. Continue bounded caller-file context handoff, preserving unbound/admitted distinctions.",
-    "next_user_visible_deliverable": "Expose an independently optional literal caller-file-start source-inspection action on already-retained unbound receiver leads, after existing evidence budgets. Preserve old witnesses/actions/terminal recovery,4KiB candidate/8KiB unbound/full response caps and primary counts. Validate actual source/hash/paging and a fresh stateful change task against frozen source; do not claim header always contains origin, binds receiver, or guarantees12call completion. Keep repeated discovery cost and all parked original work open.",
+    "active_original_item": "CodeMap and Blast Radius agent usefulness. Optional receiver-origin recovery is delivered and adopted in a fresh bounded task. Specific escape/async coverage and actual navigation/output cost remain open.",
+    "next_user_visible_deliverable": "Reduce demonstrated CodeMap/Blast evidence-navigation burden while preserving useful source leads, mandatory evidence, primary/unbound distinctions, witnesses and recovery. Use the actual fresh traces: first filename overview9642B and method context30427B, including compact downstream impact13566B. Choose a bounded core-tool improvement from these observed costs, not another broad supporting audit. No claim of a task-cost reduction yet.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9821,8 +9838,8 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "d599270 pushed origin/master and deployedcc7b0172/20b729ef. Source/log evidence: defaultdaemon idle-exited9safter successfulread despite300s timeout; isolatedoldbinary repro0.654safterlastbriefclient with10s setting. Sharedsessionreservation/quiettime/closingmutex andRAII nowprotect brieftraffic and admittedsessions,releaseoncancel/unwind; cap32/default300/min10 unchanged.23focusedmulti-clientcases pass(1684unrelatedfiltered);actualsame-drivernewbinary7briefMCPsessionssurvivebeyondtimeoutthenexit0after10.719squiet. Bothfixturetemps/jobs/handlesclean;release678.44s. Closedcurrentformat/core/root/source/300notes/other14 preserved,214nativeunchanged,218active/218backupverified;normalwatcherenabled/configunchanged. NewTSfreshtrial12calls87629Bsource/staticcorrectbutPARTIAL(typeorigin10/new65notread), originaltransportfailureseparate. Controlledposttrial2calls12318Brecoveredtypeorigin/getterwithrawhash, notfreshadoptionorretroactivebudgetcompletion. Original31/full19/resource/instruction/legacy/kernel/cleanup stillunclosed.",
-    "previous_goal_turn_classification": "PROGRESS: Different realCodeMap/Blast change task produced independently judged partialreceiver-context evidence and exposedactualidleavailabilityfailure. Boundedblockingfix delivered/pushed/deployed with23wantedbehaviorcases, realold/newMCPtrafficproof andrealdata/corepreservation. Sourcecontext/repeateddiscovery task remainsopen; no claimofperfecttools/fullgoalclosure.",
+    "latest_completed_core_batch": "00437c1 pushed only origin/master and deployed ba292ddc/e2f06ef3. Optional caller-file-start action is appended last within existing row4KiB/inspection8KiB/whole-response caps. Existing witnesses/actions/terminal searches and primary counts are preserved; no binding or extra eager scan.26 focused behavior checks and135-capability doc lint pass. Candidate literal header/pager source hashes and all four previous impact reports are verified; current selected data,300 notes and other14 metadata preserved,214 native assets unchanged. Fresh no-history task used12calls96489B, independently judged sufficient for minimum static planning with no material overclaim. Required field10/new65/push98 context missed previously is now inspected. Getter401-403 escape detail and async helpers remain uninspected; no exhaustive safety or runtime proof. Output grew8860B versus previous12call trial, so no cost win. All owned focused/build/cold temporary resources closed and removed; exact previous218-file pair retained and accounted for. Original31 findings/full19 gates and prior resource failure unchanged.",
+    "previous_goal_turn_classification": "PROGRESS: selected core-tool receiver-context gap fixed, published, deployed, and independently evaluated on the same bounded real task. Specific recovery benefit demonstrated; escape coverage and response cost remain partial. Goal remains active, not achieved.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -9839,20 +9856,20 @@
     },
     "next_slice_scope_limits": [
       "Keep CodeMap and Blast Radius as active core priority; new instruction drafting, catalog expansion, storage/performance experiments and kernel/cleanup remain parked.",
-      "Only add bounded existing-API context recovery to retained unbound witnesses; do not infer binding, expandparser/catalog/global scans, displace prior evidence or relabel controlledsourceprobes asfreshagent acceptance. Preserve original source/filter/root/config facts and primary/potential/runtime distinctions.",
+      "Continue only measured CodeMap/Blast agent usefulness. Preserve recovered source context and all existing admitted/unbound evidence while reducing demonstrated navigation/output burden. Do not expand parser/catalog/global scans, infer binding, displace mandatory facts or relabel controlled probes as fresh adoption.",
       "Frozen Q code changes/reviews remain prohibited; passive indexing is user-authorized.",
       "All31 findings/full19 gate records and prior sustained-resource failure remain unchanged/unclosed.",
       "Use existing checkout/shared target, owned temporary lifetimes and focused behavior checks; push only origin/master without AI/coauthor attribution or tags."
     ],
     "q_freeze_decision": "User authorized passive automatic indexing; keep Q code changes and reviews frozen. This is sufficient authorization to restore normal watching without another permission prompt.",
     "latest_core_delivery_evidence": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\session-activity-delivery-outcome-20261106.json",
-      "sha256": "058da5a4fb461a858e29486f53a7f6c0690677c203abbe0aa432d06154400843"
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\caller-file-start-delivery-outcome-20261106.json",
+      "sha256": "360d48d9106636cb3ba6991ec0e095e6209d519f42a087a19a7304da1e98261c"
     },
     "latest_stateful_core_task": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\resetstate-fresh01-task-outcome-20261106.json",
-      "sha256": "9e122be4fc9b857df9f7bd42eb49f9de57d8e09e191b153ced338f3f0b94c2f1",
-      "classification": "PARTIAL_SOURCE_CORRECT_RECEIVER_ORIGIN_UNINSPECTED_WITHIN_CALL_LIMIT"
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\resetstate-fresh02-independent-judgment-20261106.json",
+      "sha256": "9705b9574ef937652b0fc80d673dc14133b78c61b910698aed6a7a4d3ce00202",
+      "classification": "MINIMUM_STATIC_PLAN_SATISFIED_WITH_UNINSPECTED_ESCAPE_DETAIL_AND_HIGHER_BYTE_COST"
     }
   }
 }
