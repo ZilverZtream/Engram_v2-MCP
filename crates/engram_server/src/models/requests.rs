@@ -478,6 +478,12 @@ pub struct CodebaseOverviewRequest {
     /// including project-wide searches, and omit global tables by default.
     #[serde(default)]
     pub path_contains: Option<String>,
+    /// False gives compact selected-file/area discovery without graph
+    /// declaration lookup. Follow a file's declaration-inspection action,
+    /// or request an exact extracted symbol_name with this true, for source
+    /// and impact navigation. Skipped declarations are unknown, never absent.
+    #[serde(default = "default_true")]
+    pub include_declarations: bool,
     /// Exact selected-file and filtered-path pages omit global tables by
     /// default. Unfiltered root/area overviews retain project distributions.
     /// True also includes retained
@@ -517,7 +523,7 @@ fn default_codemap_limit() -> usize { 8 }
 impl From<ProjectIdRequest> for CodebaseOverviewRequest {
     fn from(request: ProjectIdRequest) -> Self {
         Self { project_id: request.project_id, scope: None, exclude_paths: Vec::new(),
-            path_contains: None, include_retained_context: false, offset: 0, symbol_offset: 0, symbol_node_id: None, symbol_name: None, limit: default_codemap_limit() }
+            path_contains: None, include_declarations: true, include_retained_context: false, offset: 0, symbol_offset: 0, symbol_node_id: None, symbol_name: None, limit: default_codemap_limit() }
     }
 }
 
