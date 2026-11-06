@@ -155,6 +155,8 @@ async fn verify(app: &Engram, pid: &str) -> Result<()> {
                 "A different overload is not a potential caller"
             );
             for row in routes {
+                ensure!(row["caller_to_contract_admission"]=="source_revision_admitted_indexed_call",
+                    "Admitted contract calls must be distinguishable from unverified concrete dispatch");
                 ensure!(dispatch.get("configuration_inspection").is_none(),
                     "Root-level declarations must not invent a shared configuration directory");
                 ensure!(row["implementation_primary_depth"] == 1 && row["potential_depth"] == 3);
@@ -322,6 +324,16 @@ fn compact_dispatch_keeps_distinct_consumer_files_and_inspectable_caller_context
                 ensure!(search["arguments"]["path_prefix"]=="Site/App_Code/api-v2/"
                     && search["arguments"]["pattern"]=="IReader"
                     && search["arguments"]["regex"]==false);
+                if let Some(fallback)=inspection.get("unrestricted_fallback") {
+                    let omitted:std::collections::BTreeSet<_>=search["arguments"]["exclude_path_prefixes"].as_array().unwrap()
+                        .iter().map(|path|path.as_str().unwrap()).collect();
+                    ensure!(omitted==std::collections::BTreeSet::from([caller,
+                        "Site/App_Code/api-v2/Services/common/UserRightsService.vb",
+                        "Site/App_Code/api-v2/Services/common/interfaces/IUserRightsService.vb"]),
+                        "The first search must skip only the listed route-file prefixes");
+                    ensure!(fallback["actions"][0]["arguments"].get("exclude_path_prefixes").is_none(),
+                        "The unrestricted fallback must still cover setup in declaration files");
+                } else {ensure!(inspection["narrowed_actions_omitted"].as_u64().is_some_and(|count|count>0));}
                 if let Some(discovery)=inspection.get("path_discovery") {
                     let action=&discovery["actions"][0];
                     ensure!(action["tool"]=="get_codebase_overview" && action["arguments"]["path_contains"]=="Config");
@@ -338,6 +350,15 @@ fn compact_dispatch_keeps_distinct_consumer_files_and_inspectable_caller_context
                     hit["file_path"]=="Site/App_Code/api-v2/Bindings.vb" && hit["source"]=="index"
                         && hit["line_text"].as_str().is_some_and(|line|line.contains("CreateReader"))),
                     "The agent must discover the real binding factory without a guessed configuration filename: {found}");
+                let binding=found["matches"].as_array().unwrap().iter().find(|hit|
+                    hit["file_path"]=="Site/App_Code/api-v2/Bindings.vb" && hit["line_text"].as_str().is_some_and(|line|line.contains("CreateReader"))).unwrap();
+                let recovery=&binding["current_source_recovery"];
+                let current=app.handle_get_full_method_body(serde_json::from_value(recovery["arguments"].clone())?).await?;
+                ensure!(current.is_error!=Some(true));let current:Value=serde_json::from_str(&current.content[0].as_text().unwrap().text)?;
+                let raw=std::fs::read(repo.join("Site/App_Code/api-v2/Bindings.vb"))?;
+                ensure!(current["source_code"].as_str().is_some_and(|source|source.contains("CreateReader"))
+                    && current["source_file_hash"]==engram_core::ContentHash::compute(&raw).0,
+                    "The discovered non-Config factory must have a working current-source/hash follow-up");
                 ensure!(dispatch["runtime_dispatch_proven"]==false && dispatch["non_additive_to_primary_counts"]==true,
                     "A text search suggestion must not promote a potential route into runtime proof");
                 let read=app.handle_get_full_method_body(serde_json::from_value(action["arguments"].clone())?).await?;
@@ -389,6 +410,54 @@ fn compact_dispatch_keeps_distinct_consumer_files_and_inspectable_caller_context
             ensure!(body["source_code"].as_str().is_some_and(|source|source.contains("Return New Reader()"))
                 && body["source_file_hash"]==engram_core::ContentHash::compute(configuration.as_bytes()).0,
                 "Literal path and source follow-ups must recover current configuration bytes with an exact file hash");
+            // Configuration can live beside an implementation. A fast search
+            // outside the known prefixes is a first attempt, never absence.
+            let service_path="Site/App_Code/api-v2/Services/common/UserRightsService.vb";
+            let concrete=app.state.graph.query_nodes(&pid,Some("function"),None,Some(service_path),16)?
+                .into_iter().find(|node|node.file_path.as_str()==service_path && node.start_line==4).unwrap();
+            let colocated=SERVICE.replace("End Class"," Public Shared Function CreateCoLocated() As IReader\n Return New Reader()\n End Function\nEnd Class");
+            std::fs::write(repo.join(service_path),&colocated)?;
+            std::fs::remove_file(repo.join("Site/App_Code/api-v2/Bindings.vb"))?;
+            std::fs::remove_file(repo.join(config_path))?;
+            let updated=app.handle_update_project(serde_json::from_value(json!({"project_id":pid,"wait":true,"max_commits":1,"index_antipatterns":false}))?).await?;
+            ensure!(updated.is_error!=Some(true));
+            let args=json!({"project_id":pid,"symbol_fqn":concrete.node_id,"detail":"graph","max_depth":6,"include_guidance":false});
+            let response=app.handle_compute_blast_radius(serde_json::from_value(args.clone())?).await?;
+            ensure!(response.is_error!=Some(true));let facts=packet(&response.content[0].as_text().unwrap().text)?;
+            ensure!(facts["selected_dependents_observed"]==0 && facts["potential_interface_callers"]["routes_observed"]==1
+                && facts["potential_interface_callers"]["runtime_dispatch_proven"]==false);
+            let inspection=&facts["potential_interface_callers"]["configuration_inspection"];
+            ensure!(inspection.get("unrestricted_fallback").is_some(),"A simple route must offer bounded fast search plus unrestricted fallback");
+            let first=app.handle_grep_project(serde_json::from_value(inspection["actions"][0]["arguments"].clone())?).await?;
+            ensure!(first.is_error!=Some(true));let first:Value=serde_json::from_str(&first.content[0].as_text().unwrap().text)?;
+            ensure!(first["matches"].as_array().unwrap().is_empty(),"Known-prefix exclusions must be applied before capped matching");
+            let fallback=app.handle_grep_project(serde_json::from_value(inspection["unrestricted_fallback"]["actions"][0]["arguments"].clone())?).await?;
+            ensure!(fallback.is_error!=Some(true));let fallback:Value=serde_json::from_str(&fallback.content[0].as_text().unwrap().text)?;
+            let hit=fallback["matches"].as_array().unwrap().iter().find(|hit|hit["file_path"]==service_path
+                && hit["line_text"].as_str().is_some_and(|line|line.contains("CreateCoLocated"))).unwrap();
+            let read=&hit["current_source_recovery"];
+            ensure!(read["tool"]=="get_full_method_body");
+            let body=app.handle_get_full_method_body(serde_json::from_value(read["arguments"].clone())?).await?;
+            ensure!(body.is_error!=Some(true));let body:Value=serde_json::from_str(&body.content[0].as_text().unwrap().text)?;
+            ensure!(body["source_code"].as_str().is_some_and(|source|source.contains("CreateCoLocated"))
+                && body["source_file_hash"]==engram_core::ContentHash::compute(colocated.as_bytes()).0,
+                "Fallback must recover current co-located setup with a file hash");
+            // Different callers of one contract must retain distinct listed
+            // exclusions, rather than silently borrowing the first route's.
+            let other_path="Site/App_Code/api-v2/Controllers/common/OtherController.vb";
+            std::fs::write(repo.join(other_path),"Namespace Example\nPublic Class OtherController\n Public Function GetAll(service As IReader, value As Alpha) As Alpha\n Return service.Read(value)\n End Function\nEnd Class\nEnd Namespace\n")?;
+            let updated=app.handle_update_project(serde_json::from_value(json!({"project_id":pid,"wait":true,"max_commits":1,"index_antipatterns":false}))?).await?;
+            ensure!(updated.is_error!=Some(true));
+            let response=app.handle_compute_blast_radius(serde_json::from_value(args)?).await?;
+            ensure!(response.is_error!=Some(true));let facts=packet(&response.content[0].as_text().unwrap().text)?;
+            ensure!(facts["selected_dependents_observed"]==0 && facts["potential_interface_callers"]["routes_observed"]==2
+                && facts["potential_interface_callers"]["runtime_dispatch_proven"]==false);
+            let searches=facts["potential_interface_callers"]["configuration_inspection"]["actions"].as_array().unwrap();
+            ensure!(searches.len()==2,"Different route-file exclusions must not collapse under a shared contract/scope");
+            let exclusions:std::collections::BTreeSet<_>=searches.iter().map(|action|action["arguments"]["exclude_path_prefixes"].as_array().unwrap()
+                .iter().map(|path|path.as_str().unwrap().to_owned()).collect::<Vec<_>>()).collect();
+            ensure!(exclusions.len()==2 && exclusions.iter().any(|paths|paths.contains(&caller.to_owned()))
+                && exclusions.iter().any(|paths|paths.contains(&other_path.to_owned())));
             settle(&app).await?;Ok::<_,anyhow::Error>(())
         });
         drop(runtime);
@@ -420,6 +489,8 @@ fn actual_native_interface_callers_survive_incremental_refresh_and_cold_reopen()
             ("Helper.vb", HELPER),
             ("Service.vb", SERVICE),
             ("Caller.vb", CALLER),
+            ("IdleContract.vb", "Namespace Example\nPublic Interface IUnused\n Function Idle() As Integer\nEnd Interface\nEnd Namespace\n"),
+            ("IdleImplementation.vb", "Namespace Example\nPublic Class UnusedService\n Implements IUnused\n Public Function Idle() As Integer Implements IUnused.Idle\n Return 1\n End Function\nEnd Class\nEnd Namespace\n"),
         ] {
             std::fs::write(root.join("repo").join(path), source)?;
         }
@@ -433,6 +504,16 @@ fn actual_native_interface_callers_survive_incremental_refresh_and_cold_reopen()
             ensure!(indexed.is_error!=Some(true),"Native indexing failed: {indexed:?}");
             let pid=app.state.registry.list_projects()?[0].project_id.clone();
             verify(&app,&pid).await?;
+            let contract=app.state.graph.query_nodes(&pid,Some("function"),None,Some("IdleContract.vb"),8)?
+                .into_iter().find(|node|node.name.ends_with(".Idle")).unwrap();
+            for detail in ["graph","summary"] {
+                let response=app.handle_compute_blast_radius(serde_json::from_value(json!({"project_id":pid,"symbol_fqn":contract.node_id,"detail":detail,"max_depth":6,"include_guidance":false}))?).await?;
+                ensure!(response.is_error!=Some(true));let text=&response.content[0].as_text().unwrap().text;
+                let prefix=text.split("## Revision-admitted change impact").next().unwrap();
+                ensure!(prefix.contains("Relationship: implements_interface") && prefix.contains("declaration/implementation dependency"),
+                    "An implementation dependency must be visibly typed before an agent reads it as an invocation: {prefix}");
+                let facts=packet(text)?;ensure!(facts["selected_dependents_observed"]==1);
+            }
             // A selected caller with an invalid physical fingerprint is an
             // inspectable unknown, never a verified interface consumer.
             let original=app.state.graph.get_node(&pid,"file:Caller.vb")?.unwrap();
@@ -441,6 +522,8 @@ fn actual_native_interface_callers_survive_incremental_refresh_and_cold_reopen()
             let report=impact(&app,&pid,"impact_analysis","summary",4).await?;
             let dispatch=&report["potential_interface_callers"];
             ensure!(dispatch["routes_observed"]==0 && dispatch["coverage"]["truncated"]==true);
+            ensure!(dispatch["frontier"].as_array().unwrap().iter().all(|row|row.get("caller_to_contract_admission").is_none()),
+                "Rejected/unknown locators must not claim admitted contract calls");
             ensure!(dispatch["frontier"].as_array().unwrap().iter().any(|lead|lead["source_id"].as_str().unwrap_or("").contains("Controller.First")
                 && lead["inspection"]["tool"]=="get_full_method_body"),"Rejected caller needs a named working inspection lead: {dispatch}");
             app.state.graph.upsert_nodes(&pid,&[original])?;

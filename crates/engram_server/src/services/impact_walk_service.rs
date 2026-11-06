@@ -146,8 +146,12 @@ fn immediate_section(value: &Value, include_references: bool) -> Option<String> 
     } else {
         "Navigate declarations under a fresh source selection. This action does not read or verify the consumer body."
     };
+    let kind=edge["kind"].as_str()?;
+    let relationship=if kind=="implements_interface" {
+        "declaration/implementation dependency"
+    }else{"recorded dependency"};
     let output = format!(
-        "\n## First immediate indexed consumer\n\n{} — {}:{}{}\n{}\nOne next evidence read; other consumers and unknown branches follow. No runtime or safe-change proof.\n\n```json\n{}\n```\n",
+        "\n## First immediate indexed consumer\n\n{} — {}:{}{}\nRelationship: {} (dependent → dependency; {}).\n{}\nOne next evidence read; other consumers and unknown branches follow. No runtime or safe-change proof.\n\n```json\n{}\n```\n",
         display(node["name"].as_str()?, 96),
         display(file, 160),
         if excerpt {
@@ -156,6 +160,8 @@ fn immediate_section(value: &Value, include_references: bool) -> Option<String> 
             node["start_line"].to_string()
         },
         references,
+        display(kind,64),
+        relationship,
         scope,
         serde_json::to_string(&call).expect("JSON value serialization")
     );
@@ -470,17 +476,33 @@ fn summary_section(
             let mut base=inspection.clone();
             let discovery=base.as_object_mut().unwrap().remove("path_discovery");
             let omitted=base.as_object_mut().unwrap().remove("path_discovery_actions_omitted");
-            value["potential_interface_callers"]["configuration_inspection"]=base;
+            let narrowing_omitted=base.as_object_mut().unwrap().remove("narrowed_actions_omitted");
+            let generic=base.get("unrestricted_fallback").cloned().unwrap_or_else(||base.clone());
+            value["potential_interface_callers"]["configuration_inspection"]=generic.clone();
             if !fits(&value) {
                 value["potential_interface_callers"].as_object_mut().unwrap().remove("configuration_inspection");
                 value["potential_interface_callers"]["configuration_inspection_actions_omitted"]=json!(
-                    inspection["actions"].as_array().map_or(0,Vec::len)+inspection["actions_omitted"].as_u64().unwrap_or(0) as usize);
+                    generic["actions"].as_array().map_or(0,Vec::len)+generic["actions_omitted"].as_u64().unwrap_or(0) as usize);
                 if !fits(&value) { value["potential_interface_callers"].as_object_mut().unwrap().remove("configuration_inspection_actions_omitted"); }
-            } else if let Some(discovery)=discovery {
-                append_configuration_path_discovery(&mut value,&discovery,&fits);
-            } else if let Some(omitted)=omitted {
-                value["potential_interface_callers"]["configuration_inspection"]["path_discovery_actions_omitted"]=omitted;
-                if !fits(&value) { value["potential_interface_callers"]["configuration_inspection"].as_object_mut().unwrap().remove("path_discovery_actions_omitted"); }
+            } else {
+                if base.get("unrestricted_fallback").is_some() {
+                    value["potential_interface_callers"]["configuration_inspection"]=base;
+                    if !fits(&value) {
+                        let total=inspection["actions"].as_array().map_or(0,Vec::len)+inspection["actions_omitted"].as_u64().unwrap_or(0) as usize;
+                        value["potential_interface_callers"]["configuration_inspection"]=generic;
+                        value["potential_interface_callers"]["configuration_inspection"]["narrowed_actions_omitted"]=json!(total);
+                        if !fits(&value) {value["potential_interface_callers"]["configuration_inspection"].as_object_mut().unwrap().remove("narrowed_actions_omitted");}
+                    }
+                } else if let Some(omitted)=narrowing_omitted {
+                    value["potential_interface_callers"]["configuration_inspection"]["narrowed_actions_omitted"]=omitted;
+                    if !fits(&value) {value["potential_interface_callers"]["configuration_inspection"].as_object_mut().unwrap().remove("narrowed_actions_omitted");}
+                }
+                if let Some(discovery)=discovery {
+                    append_configuration_path_discovery(&mut value,&discovery,&fits);
+                } else if let Some(omitted)=omitted {
+                    value["potential_interface_callers"]["configuration_inspection"]["path_discovery_actions_omitted"]=omitted;
+                    if !fits(&value) { value["potential_interface_callers"]["configuration_inspection"].as_object_mut().unwrap().remove("path_discovery_actions_omitted"); }
+                }
             }
         } else if let Some(omitted)=dispatch.get("configuration_inspection_actions_omitted") {
             value["potential_interface_callers"]["configuration_inspection_actions_omitted"]=omitted.clone();
@@ -827,6 +849,19 @@ fn append_configuration_path_discovery(value: &mut Value, discovery: &Value, fit
     }
 }
 
+fn promote_configuration_search(value: &mut Value, actions: Vec<Value>, total: usize, fits: &impl Fn(&Value)->bool) {
+    if actions.is_empty() || !value["potential_interface_callers"]["configuration_inspection"].is_object() {return;}
+    let generic=value["potential_interface_callers"]["configuration_inspection"].clone();
+    let promoted=json!({"scope":"First try literal contract-name searches outside each action's listed known route-file prefixes. Prefix exclusions also cover similarly named files; preserve them when adding task exclusions. These actions have not run. Use unrestricted_fallback to include those files and colocated setup. Indexed matches do not prove registration, concrete dispatch, execution or absence.",
+        "actions_omitted":total-actions.len(),"actions":actions,"unrestricted_fallback":generic.clone()});
+    value["potential_interface_callers"]["configuration_inspection"]=promoted;
+    if !fits(value) {
+        value["potential_interface_callers"]["configuration_inspection"]=generic;
+        value["potential_interface_callers"]["configuration_inspection"]["narrowed_actions_omitted"]=json!(total);
+        if !fits(value) {value["potential_interface_callers"]["configuration_inspection"].as_object_mut().unwrap().remove("narrowed_actions_omitted");}
+    }
+}
+
 fn configuration_inspection(project: &str, contract: &str, files: [&str; 3]) -> Option<Value> {
     if !files.iter().all(|file| recovery_path(file)) { return None; }
     // VB constructed type arguments can contain dots. Take the declaring
@@ -877,6 +912,8 @@ fn render_interface_dispatch(walk: &IncomingImpactWalk, project: &str) -> Value 
         let row=json!({"implementation":endpoint(&route.implementation),"implementation_primary_depth":route.implementation_depth,
             "contract":endpoint(&route.contract),"caller":endpoint(caller),"potential_depth":route.implementation_depth+2,
             "contract_type_key":route.contract_type_key,"contract_type":route.contract_type,
+            "caller_to_contract_admission":"source_revision_admitted_indexed_call",
+            "contract_call_scope":"Caller-to-contract is a recorded static Calls relation under the selected revisions. Current bytes, concrete dispatch, execution and complete extraction remain unverified.",
             "connections":[{"source":"implementation","target":"contract","kind":"implements_interface_member","traversed":"outgoing",
                 "generation":route.mapping_generation,"clause_line":route.clause_line},
                 {"source":"caller","target":"contract","kind":"calls","traversed":"incoming","generation":route.call_generation,
@@ -1368,11 +1405,15 @@ fn render(
     // Configuration discovery is optional. Allocate it only after every
     // canonical graph row, so its availability cannot displace evidence.
     let mut suggestions=BTreeMap::new();
+    let mut narrowed=BTreeMap::new();
     for route in &walk.interface_dispatch.routes {
-        if let Some(action)=configuration_inspection(project,&route.contract_type,[
-            route.implementation.file_path.as_str(),route.contract.file_path.as_str(),route.caller.file_path.as_str()]) {
+        let files=[route.implementation.file_path.as_str(),route.contract.file_path.as_str(),route.caller.file_path.as_str()];
+        if let Some(action)=configuration_inspection(project,&route.contract_type,files) {
             let key=(action["arguments"]["pattern"].as_str().unwrap().to_owned(),
                 action["arguments"]["path_prefix"].as_str().unwrap().to_owned());
+            let excluded=files.into_iter().map(str::to_owned).collect::<std::collections::BTreeSet<_>>().into_iter().collect::<Vec<_>>();
+            let mut preferred=action.clone();preferred["arguments"]["exclude_path_prefixes"]=json!(&excluded);
+            narrowed.entry((key.clone(),excluded)).or_insert(preferred);
             suggestions.entry(key).or_insert(action);
         }
     }
@@ -1393,8 +1434,11 @@ fn render(
             }
         }
     }
-    // Lazy selected-path discovery precedes the broad text fallback for the
-    // consumer, but is budgeted after that fallback and canonical evidence.
+    let total=narrowed.len();
+    promote_configuration_search(&mut value,narrowed.into_values().take(2).collect(),total,&|value|
+        section(value).len()<=RESPONSE_BYTES && serde_json::to_vec(&value["potential_interface_callers"]).expect("JSON serialization").len()<=10*1024);
+    // Alternative path discovery is allocated after the literal search and
+    // its unrestricted fallback, never ahead of canonical evidence.
     // No extra source-map, filesystem, graph or source-body scan occurs here.
     let scopes=value["potential_interface_callers"]["configuration_inspection"]["actions"]
         .as_array().into_iter().flatten()
@@ -1403,7 +1447,7 @@ fn render(
     if !scopes.is_empty() {
         let actions=scopes.into_iter().take(2).map(|scope|json!({"tool":"get_codebase_overview","arguments":{
             "project_id":project,"scope":scope,"path_contains":"Config","limit":4}})).collect::<Vec<_>>();
-        let discovery=json!({"scope":"Suggested first lookup: selected paths containing literal Config within the admitted route's shared directory. This action has not run. File names are advisory, not registration, binding or runtime proof. Follow returned source/hash actions; use the broader text-search actions if names/scopes are insufficient. Other configuration names can be missed.","actions":actions,"actions_omitted":0});
+        let discovery=json!({"scope":"Alternative lookup: selected paths containing literal Config within the admitted route's shared directory. This action has not run. File names are advisory, not registration, binding or runtime proof. Follow returned source/hash actions; use the text-search actions if names/scopes are insufficient. Other configuration names can be missed.","actions":actions,"actions_omitted":0});
         append_configuration_path_discovery(&mut value,&discovery,&|value|
             section(value).len()<=RESPONSE_BYTES && serde_json::to_vec(&value["potential_interface_callers"]).expect("JSON serialization").len()<=10*1024);
     }
