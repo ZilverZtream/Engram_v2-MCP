@@ -79,16 +79,33 @@ impl Budget {
 }
 
 impl GraphStore {
-    /// Seek exact native kind/file/name prefixes under one graph transaction.
-    /// Matching candidates are not a uniqueness or complete inventory claim.
+    /// Existing exact-file contract, including its original coverage shape.
     pub fn bounded_file_named_nodes(
         &self, project: &str, path: &str, name: &str,
         admit: &dyn Fn(&Node, Option<&Node>) -> anyhow::Result<ImpactAdmission>,
     ) -> anyhow::Result<(Vec<Node>, Value)> {
+        self.bounded_named_nodes(project, &[path], name, admit, false)
+    }
+
+    /// One shared work budget across one selected directory page, never a
+    /// project-wide name scan. The caller owns file selection/pagination.
+    pub fn bounded_files_named_nodes(
+        &self, project: &str, paths: &[&str], name: &str,
+        admit: &dyn Fn(&Node, Option<&Node>) -> anyhow::Result<ImpactAdmission>,
+    ) -> anyhow::Result<(Vec<Node>, Value)> {
+        anyhow::ensure!(paths.len()<=8, "Directory name lookup accepts at most8 selected files");
+        self.bounded_named_nodes(project, paths, name, admit, true)
+    }
+
+    fn bounded_named_nodes(
+        &self, project: &str, paths: &[&str], name: &str,
+        admit: &dyn Fn(&Node, Option<&Node>) -> anyhow::Result<ImpactAdmission>,
+        directory: bool,
+    ) -> anyhow::Result<(Vec<Node>, Value)> {
         anyhow::ensure!(!project.is_empty() && project.len() <= 1024
             && !project.chars().any(char::is_control), "Invalid named lookup project");
-        anyhow::ensure!(!path.is_empty() && path.len() <= 2048
-            && !path.chars().any(char::is_control), "Invalid named lookup file");
+        anyhow::ensure!(paths.iter().all(|path|!path.is_empty() && path.len()<=2048
+            && !path.chars().any(char::is_control)), "Invalid named lookup file");
         anyhow::ensure!(!name.is_empty() && name.len() <= 256
             && !name.chars().any(char::is_control), "Use exact extracted name1..256bytes without controls");
         let mut budget = Budget { started: Instant::now(), halted: false, attempted: 0,
@@ -97,73 +114,101 @@ impl GraphStore {
         let table = tx.open_table(NODES)?;
         let mut out = Vec::new();
         let mut kinds = Vec::new();
-        let file_id = format!("file:{path}");
-        let file_key = format!("{project}\0{file_id}");
-        let file = match table.get(file_key.as_str())? {
-            Some(raw) => budget.decode(raw.value(), &file_id),
-            None => {
-                budget.attempted += 1;
-                budget.coverage.missing_nodes += 1;
-                budget.gap("named_file_missing");
-                None
+        let mut attempted_files=0;
+        let mut completed_files=0;
+        let mut admitted_files=0;
+        let mut partial_file=None;
+        for path in paths {
+            if !budget.live() {break;}
+            attempted_files+=1;
+            let file_id = format!("file:{path}");
+            let file_key = format!("{project}\0{file_id}");
+            let file = match table.get(file_key.as_str())? {
+                Some(raw) => budget.decode(raw.value(), &file_id),
+                None => {
+                    budget.attempted += 1;
+                    budget.coverage.missing_nodes += 1;
+                    budget.gap("named_file_missing");
+                    None
+                }
+            };
+            let Some(file) = file else {
+                if budget.halted {partial_file=Some(*path);break;}
+                completed_files+=1;continue;
+            };
+            if file.node_type != "file" || file.namespace != "memory" || file.file_path.as_str() != *path
+                || admit(&file, Some(&file))? != ImpactAdmission::Selected {
+                budget.coverage.unknown_nodes += 1;
+                budget.gap("named_file_not_admitted");
+                completed_files+=1;continue;
             }
-        };
-        let Some(file) = file else { return Ok((out, budget.report(name, 0, kinds, false))); };
-        if file.node_type != "file" || file.namespace != "memory" || file.file_path.as_str() != path
-            || admit(&file, Some(&file))? != ImpactAdmission::Selected {
-            budget.coverage.unknown_nodes += 1;
-            budget.gap("named_file_not_admitted");
-            return Ok((out, budget.report(name, 0, kinds, false)));
-        }
-        'kinds: for kind in ["function", "method", "constructor", "property"] {
-            if !budget.live() { break; }
-            kinds.push(kind);
-            let prefix = format!("{project}\0sym:{kind}:{path}:{name}:");
-            let mut entries = table.range(prefix.as_str()..)?;
-            loop {
-                if !budget.live() { break 'kinds; }
-                if budget.coverage.raw_rows == RAW_KEYS {
-                    budget.gap("named_raw_key_limit");
-                    break 'kinds;
-                }
-                let Some(entry) = entries.next() else { break; };
-                budget.coverage.raw_rows += 1;
-                let (key, raw) = entry?;
-                if !key.value().starts_with(&prefix) { break; }
-                let id = key.value().strip_prefix(&format!("{project}\0")).expect("project prefix");
-                let Some(mut node) = budget.decode(raw.value(), id) else { continue; };
-                if node.node_type != kind || node.file_path.as_str() != path
-                    || node.namespace != "memory" || node.name.len()>2048
-                    || node.node_id != format!("sym:{kind}:{path}:{}:{}", node.name, node.start_line) {
-                    budget.coverage.unknown_nodes += 1;
-                    budget.gap("named_candidate_identity_mismatch");
-                    continue;
-                }
-                // A valid extracted name containing ':' can share this prefix.
-                if node.name != name { continue; }
-                match admit(&node, Some(&file))? {
-                    ImpactAdmission::Selected => {
-                        budget.matches += 1;
-                        budget.coverage.nodes_observed += 1;
-                        if out.len() == CANDIDATES {
-                            budget.gap("named_candidate_limit");
-                            break 'kinds;
-                        }
-                        node.metadata = None;
-                        out.push(node);
+            admitted_files+=1;
+            'kinds: for kind in ["function", "method", "constructor", "property"] {
+                if !budget.live() { break; }
+                kinds.push(kind);
+                let prefix = format!("{project}\0sym:{kind}:{path}:{name}:");
+                let mut entries = table.range(prefix.as_str()..)?;
+                loop {
+                    if !budget.live() { break 'kinds; }
+                    if budget.coverage.raw_rows == RAW_KEYS {
+                        budget.gap("named_raw_key_limit");
+                        budget.halted=true;
+                        break 'kinds;
                     }
-                    ImpactAdmission::NonSelectedRevision => {
-                        budget.coverage.non_selected_nodes += 1;
-                        budget.gap("named_non_selected_revision");
-                    }
-                    _ => {
+                    let Some(entry) = entries.next() else { break; };
+                    budget.coverage.raw_rows += 1;
+                    let (key, raw) = entry?;
+                    if !key.value().starts_with(&prefix) { break; }
+                    let id = key.value().strip_prefix(&format!("{project}\0")).expect("project prefix");
+                    let Some(mut node) = budget.decode(raw.value(), id) else { continue; };
+                    if node.node_type != kind || node.file_path.as_str() != *path
+                        || node.namespace != "memory" || node.name.len()>2048
+                        || node.node_id != format!("sym:{kind}:{path}:{}:{}", node.name, node.start_line) {
                         budget.coverage.unknown_nodes += 1;
-                        budget.gap("named_candidate_admission_unknown");
+                        budget.gap("named_candidate_identity_mismatch");
+                        continue;
+                    }
+                    if node.name != name { continue; }
+                    match admit(&node, Some(&file))? {
+                        ImpactAdmission::Selected => {
+                            budget.matches += 1;
+                            budget.coverage.nodes_observed += 1;
+                            if out.len() == CANDIDATES {
+                                budget.gap("named_candidate_limit");
+                                budget.halted=true;
+                                break 'kinds;
+                            }
+                            node.metadata = None;
+                            out.push(node);
+                        }
+                        ImpactAdmission::NonSelectedRevision => {
+                            budget.coverage.non_selected_nodes += 1;
+                            budget.gap("named_non_selected_revision");
+                        }
+                        _ => {
+                            budget.coverage.unknown_nodes += 1;
+                            budget.gap("named_candidate_admission_unknown");
+                        }
                     }
                 }
             }
+            if budget.halted {partial_file=Some(*path);break;}
+            completed_files+=1;
         }
-        let retained = out.len();
-        Ok((out, budget.report(name, retained, kinds, true)))
+        let retained=out.len();
+        let report=if directory {
+            json!({"files_selected":paths.len(),"files_attempted":attempted_files,
+                "files_completed":completed_files,"files_not_attempted":paths.len()-attempted_files,
+                "canonical_files_admitted":admitted_files,"partial_file":partial_file,
+                "matching_candidates_observed":budget.matches,"candidates_retained":retained,
+                "records_attempted":budget.attempted,"records_decoded":budget.decoded,
+                "decoded_bytes":budget.bytes,"raw_keys":budget.coverage.raw_rows,"prefix_seeks":kinds.len(),
+                "limits":{"files":8,"record_bytes":RECORD_BYTES,"decode_bytes":DECODE_BYTES,
+                    "raw_keys":RAW_KEYS,"prefix_seeks":32,"candidates":CANDIDATES,"deadline_ms":DEADLINE_MS},
+                "truncated":budget.coverage.truncated,"reasons":budget.coverage.reasons,
+                "unknown":budget.coverage.unknown_nodes,"non_selected":budget.coverage.non_selected_nodes,
+                "missing":budget.coverage.missing_nodes})
+        }else{budget.report(name,retained,kinds,admitted_files==1)};
+        Ok((out,report))
     }
 }
