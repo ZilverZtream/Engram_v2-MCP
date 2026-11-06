@@ -9775,9 +9775,9 @@
       "original_scope_unclosed": true
     }
   },
-  "last_updated_at": "2026-11-06T04:11:50.588771+00:00",
+  "last_updated_at": "2026-11-06T05:13:57.934092+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-06T04:11:50.588771+00:00",
+    "at_utc": "2026-11-06T05:13:57.934092+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9807,8 +9807,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap and Blast Radius agent usefulness: truthful shallow root counts/local-byte reduction delivered; repeated discovery/end-to-end context cost remains open. Next exercise a different known TS change/caller task against independent source evidence.",
-    "next_user_visible_deliverable": "Validate actual CodeMap/Blast behavior on the known TypeScript resetState/unbound-receiver inspection case. Freeze independently read non-Q target/caller/receiver-origin facts before a fresh consumer; distinguish source-grounded binding from same-terminal syntax and admitted causal paths. Fix demonstrated witness/navigation/recovery gaps. Preserve unresolved initial/repeated-discovery context cost; no broad audit, instruction drafting, resource or ownership expansion.",
+    "active_original_item": "CodeMap/Blast agent usefulness: resetState trial source-correct but partial receiver-origin recovery; actual idle-shutdown availability blocker fixed and deployed. Continue bounded caller-file context handoff, preserving unbound/admitted distinctions.",
+    "next_user_visible_deliverable": "Expose an independently optional literal caller-file-start source-inspection action on already-retained unbound receiver leads, after existing evidence budgets. Preserve old witnesses/actions/terminal recovery,4KiB candidate/8KiB unbound/full response caps and primary counts. Validate actual source/hash/paging and a fresh stateful change task against frozen source; do not claim header always contains origin, binds receiver, or guarantees12call completion. Keep repeated discovery cost and all parked original work open.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9821,8 +9821,8 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "7cca660 pushed origin/master and deployedc014abd4/af2b559d.10overview behavior cases and135capability documentcheck pass; release754.49s. Root23208?20072B(13.5%less),22shallowarea counts match immutable3136catalog2273eligiblefiles under exactexclusions;3literalboundaryactions/rootfilecurrentsourcehash verified. Old8filerows/proportions, canonicalimpact/configrecovery,300notes,closedselectedstores/other14 and214nativeassets preserved;218active/218backupverified. Normalwatcherenabled andconfigbytesunchanged; Qpassiveindexing allowed, changes/reviewsfrozen. Fresh05 source/staticcorrect9calls76588B,9.0% MORE thanfresh04(8/70256),so noend-to-endcostwin. Filenamefilter/preferredconfigsearch used; rootareaactions unused. ExactpublicFQNresolvedcorrectly; localrecorderguardpermittedonlySHA-pinnedobservedname, no productchange/rejectedRPC. Original31/19 remainunclosed.",
-    "previous_goal_turn_classification": "PROGRESS: delivered/pushed/deployed correctroot count/action boundaries and13.5%localbyte reduction, with10focused wantedbehavior checks and real selected-source/data preservation. Independentfresh05 confirms boundedcorrectsource/impact/config workflow, but completecostincreased9.0% versus04; repeateddiscovery remainsopen. Continue realcoretool evidence on a different existing change task, not claimperfecttools/fullauditclosure.",
+    "latest_completed_core_batch": "d599270 pushed origin/master and deployedcc7b0172/20b729ef. Source/log evidence: defaultdaemon idle-exited9safter successfulread despite300s timeout; isolatedoldbinary repro0.654safterlastbriefclient with10s setting. Sharedsessionreservation/quiettime/closingmutex andRAII nowprotect brieftraffic and admittedsessions,releaseoncancel/unwind; cap32/default300/min10 unchanged.23focusedmulti-clientcases pass(1684unrelatedfiltered);actualsame-drivernewbinary7briefMCPsessionssurvivebeyondtimeoutthenexit0after10.719squiet. Bothfixturetemps/jobs/handlesclean;release678.44s. Closedcurrentformat/core/root/source/300notes/other14 preserved,214nativeunchanged,218active/218backupverified;normalwatcherenabled/configunchanged. NewTSfreshtrial12calls87629Bsource/staticcorrectbutPARTIAL(typeorigin10/new65notread), originaltransportfailureseparate. Controlledposttrial2calls12318Brecoveredtypeorigin/getterwithrawhash, notfreshadoptionorretroactivebudgetcompletion. Original31/full19/resource/instruction/legacy/kernel/cleanup stillunclosed.",
+    "previous_goal_turn_classification": "PROGRESS: Different realCodeMap/Blast change task produced independently judged partialreceiver-context evidence and exposedactualidleavailabilityfailure. Boundedblockingfix delivered/pushed/deployed with23wantedbehaviorcases, realold/newMCPtrafficproof andrealdata/corepreservation. Sourcecontext/repeateddiscovery task remainsopen; no claimofperfecttools/fullgoalclosure.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -9839,15 +9839,20 @@
     },
     "next_slice_scope_limits": [
       "Keep CodeMap and Blast Radius as active core priority; new instruction drafting, catalog expansion, storage/performance experiments and kernel/cleanup remain parked.",
-      "Evaluate actualCodeMap/Blast navigation,witnessandreceiver-recovery behavior on independently read non-Q source; preserve deliveredselected-source/filter/config/rootfacts and honest primary/potential/runtime distinctions. Do not substitute catalogue/storage/performance expansion.",
+      "Only add bounded existing-API context recovery to retained unbound witnesses; do not infer binding, expandparser/catalog/global scans, displace prior evidence or relabel controlledsourceprobes asfreshagent acceptance. Preserve original source/filter/root/config facts and primary/potential/runtime distinctions.",
       "Frozen Q code changes/reviews remain prohibited; passive indexing is user-authorized.",
       "All31 findings/full19 gate records and prior sustained-resource failure remain unchanged/unclosed.",
       "Use existing checkout/shared target, owned temporary lifetimes and focused behavior checks; push only origin/master without AI/coauthor attribution or tags."
     ],
     "q_freeze_decision": "User authorized passive automatic indexing; keep Q code changes and reviews frozen. This is sufficient authorization to restore normal watching without another permission prompt.",
     "latest_core_delivery_evidence": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\root-boundary-delivery-outcome-20261106.json",
-      "sha256": "130e714453fba4211817e070d459c6512a8688feeaca483a49f428656a1c2583"
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\session-activity-delivery-outcome-20261106.json",
+      "sha256": "058da5a4fb461a858e29486f53a7f6c0690677c203abbe0aa432d06154400843"
+    },
+    "latest_stateful_core_task": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\resetstate-fresh01-task-outcome-20261106.json",
+      "sha256": "9e122be4fc9b857df9f7bd42eb49f9de57d8e09e191b153ced338f3f0b94c2f1",
+      "classification": "PARTIAL_SOURCE_CORRECT_RECEIVER_ORIGIN_UNINSPECTED_WITHIN_CALL_LIMIT"
     }
   }
 }
