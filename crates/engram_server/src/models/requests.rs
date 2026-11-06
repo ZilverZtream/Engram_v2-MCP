@@ -507,13 +507,18 @@ pub struct CodebaseOverviewRequest {
     #[serde(default)]
     pub symbol_node_id: Option<String>,
     /// Exact, case-sensitive extracted declaration name (1..256 UTF-8 bytes),
-    /// not class/FQN/suffix resolution. Requires exact selected-file scope,
-    /// offsets zero and no symbol_node_id. Returns bounded admitted native
-    /// callable candidates, including same-name overloads, with source/impact
-    /// actions. No match is not absence; legacy/other kinds/aliases unassessed.
+    /// not class/FQN/suffix resolution; no symbol_node_id and symbol_offset0.
+    /// Exact-file scope requires offset0 and retains full candidate actions.
+    /// Directory scope searches at most8 selected files per lexical page with
+    /// ONE shared lookup budget; offset/returned next_page advance by attempted
+    /// files, not matches. Directory pages require no retained context and show
+    /// only matched candidates with source/impact actions. Exact-file/ID expansion
+    /// restores method context. Skipped/legacy/other kinds/aliases stay unassessed;
+    /// no match is not absence. Display-omitted retained IDs remain explicit.
     #[serde(default)]
     pub symbol_name: Option<String>,
-    /// Files shown, 1..64 (default 8). Declaration and response limits remain independent.
+    /// Selected files per page, 1..64 (default8); directory symbol_name uses1..8.
+    /// Matching candidates, lookup work and response bounds are independent.
     #[serde(default = "default_codemap_limit")]
     pub limit: usize,
 }

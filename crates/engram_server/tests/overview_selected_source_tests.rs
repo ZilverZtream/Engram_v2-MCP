@@ -719,6 +719,197 @@ fn filtered_codemap_preserves_search_and_explicitly_browses_neighboring_selected
 }
 
 #[test]
+fn directory_name_lookup_preserves_ambiguity_selected_revisions_and_literal_recovery_across_empty_pages() {
+    owned_case(true, |engram,search| async move {
+        const SCOPE:&str="src/actions";
+        const PRIVATE:&str="src/actions/private";
+        const FUTURE:&str="src/actions/Future.rs";
+        let paths:Vec<_>=(0..10).map(|i|format!("{SCOPE}/Part{i:02}.rs")).collect();
+        let cancel=CancellationToken::new();
+        let initial=engram.state.registry.capture_source_head(PID).unwrap();
+        let mut identities:Vec<_>=paths.iter().map(|path|RelPath::new(path)).collect();
+        let private=format!("{PRIVATE}/Hidden.rs");identities.push(RelPath::new(&private));
+        search.prepare_full_source_snapshot(PID,0,1,&identities,&cancel).await.unwrap();
+        let docs:Vec<_>=identities.iter().enumerate().map(|(i,path)|doc("memory",1,i as u64+1,path.as_str(),"rust","fn reset() {}\n")).collect();
+        search.index_docs(PID,&docs,&cancel).await.unwrap();search.seal_source_snapshot(PID,1).unwrap();
+        assert!(engram.state.registry.publish_source_head(&initial,1).unwrap());
+        let base=engram.state.registry.capture_source_head(PID).unwrap();
+        let current="fn reset() { let current = true; }\n";
+        search.prepare_source_snapshot(PID,1,2,&[RelPath::new(&paths[1])],&[],&cancel).await.unwrap();
+        search.index_docs(PID,&[doc("memory",2,100,&paths[1],"rust",current)],&cancel).await.unwrap();
+        search.seal_source_snapshot(PID,2).unwrap();assert!(engram.state.registry.publish_source_head(&base,2).unwrap());
+        search.prepare_source_snapshot(PID,2,3,&[RelPath::new(FUTURE)],&[],&cancel).await.unwrap();
+        search.index_docs(PID,&[doc("memory",3,200,FUTURE,"rust","unpublished")],&cancel).await.unwrap();search.seal_source_snapshot(PID,3).unwrap();
+        let root=std::path::PathBuf::from(engram.state.registry.get_project(PID).unwrap().unwrap().directory);
+        let mut nodes=Vec::new();
+        for (i,path) in paths.iter().enumerate() {
+            let file=root.join(path);std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+            std::fs::write(file,if i==1{current}else{"fn reset() {}\n"}).unwrap();
+            if i==3 {continue;} // Selected source without graph metadata stays unknown.
+            let generation=if i==1{2}else{1};
+            nodes.push(node(&format!("file:{path}"),"file",path,path,generation));
+            if i==4 {continue;} // A native file may have no observed exact-name callable.
+            let id=format!("sym:function:{path}:reset:1");
+            let mut declaration=node(&id,"function","reset",path,generation);
+            if i==5 {declaration.generation=0;}
+            if i==6 {declaration.namespace="history".into();}
+            if i==7 {declaration.file_path=RelPath::new(&paths[0]);}
+            if i==8 {declaration.metadata=Some(json!({"sentinel":"ForeignMetadataSentinel".repeat(4096)}));}
+            nodes.push(declaration);
+        }
+        for (path,generation) in [(private.as_str(),1),(FUTURE,3)] {
+            nodes.push(node(&format!("file:{path}"),"file",path,path,generation));
+            nodes.push(node(&format!("sym:function:{path}:reset:1"),"function","reset",path,generation));
+        }
+        engram.state.graph.upsert_nodes(PID,&nodes).unwrap();
+        let mut arguments=json!({"project_id":PID,"scope":SCOPE,"symbol_name":"reset","exclude_paths":[PRIVATE],"limit":3});
+        let mut found=std::collections::BTreeSet::new();let mut pages=0;let mut empty_page=false;
+        loop {
+            let text=navigation_text(&engram,arguments.clone()).await;assert!(text.len()<64*1024);
+            assert!(!text.contains("ForeignMetadataSentinel") && !text.contains("--- File Types"));
+            let page=navigation(&text);pages+=1;assert!(pages<=4);
+            assert_eq!(page["detail"],"directory_exact_name_candidates");assert_eq!(page["source_generation"],2);
+            assert_eq!(page["coverage"]["matching_files"],10);
+            assert!(page.get("areas").is_none());
+            assert!(page["coverage"]["raw_keys"].as_u64().unwrap()<=64);
+            assert!(page["coverage"]["decoded_bytes"].as_u64().unwrap()<=2*1024*1024);
+            let files=page["files"].as_array().unwrap();empty_page|=files.is_empty();
+            if pages==1 {assert_eq!(files.len(),3,"Same-name declarations must remain distinct candidates, not a selected winner");}
+            for file in files {
+                let path=file["path"].as_str().unwrap();assert!(found.insert(path.to_owned()));
+                assert!(!path.starts_with(PRIVATE) && path!=FUTURE);
+                assert_eq!(file["physical_generation"],if path==paths[1]{2}else{1});
+                let symbol=&file["symbols"][0];assert_eq!(symbol["generation"],file["physical_generation"]);
+                let actions=symbol["actions"].as_array().unwrap();assert_eq!(actions.len(),2);
+                let (_,body)=excerpt(&engram,actions[0]["arguments"].clone()).await;
+                let raw=std::fs::read(root.join(path)).unwrap();
+                assert_eq!(body["source_file_hash"],ContentHash::compute(&raw).0);
+                let response=engram.handle_impact_analysis(serde_json::from_value(actions[1]["arguments"].clone()).unwrap()).await.unwrap();
+                let text=&response.content[0].as_text().unwrap().text;
+                let impact:Value=serde_json::from_str(text.split_once("## Revision-admitted change impact").unwrap().1.split_once("```json").unwrap().1.split_once("```").unwrap().0).unwrap();
+                assert_eq!(impact["target"]["node_id"],symbol["node_id"]);assert_eq!(impact["target_revision_admitted"],true);
+                // Context remains available through existing exact identity expansion.
+                let expanded=navigate(&engram,json!({"project_id":PID,"scope":path,"symbol_node_id":symbol["node_id"]})).await;
+                assert!(expanded["files"][0]["symbols"][0]["actions"].as_array().unwrap().iter().any(|action|action["tool"]=="get_method_edit_context"));
+            }
+            if page["next_page"].is_null(){break;}
+            let next=&page["next_page"]["arguments"];
+            assert_eq!(next["symbol_name"],"reset");assert_eq!(next["exclude_paths"],json!([PRIVATE]));
+            assert!(next["offset"].as_u64().unwrap()>arguments.get("offset").and_then(Value::as_u64).unwrap_or(0));
+            arguments=next.clone();
+        }
+        assert!(empty_page,"An empty matched-candidate page must retain selected-file continuation");
+        assert_eq!(found,[paths[0].clone(),paths[1].clone(),paths[2].clone(),paths[9].clone()].into_iter().collect());
+        let filtered=navigate(&engram,json!({"project_id":PID,"scope":SCOPE,"symbol_name":"reset","path_contains":"Part01","exclude_paths":[PRIVATE],"limit":3})).await;
+        assert_eq!(filtered["files"].as_array().unwrap().len(),1);assert_eq!(filtered["files"][0]["path"],paths[1]);
+        assert_eq!(filtered["path_contains"],"Part01");
+        for arguments in [json!({"project_id":PID,"scope":SCOPE,"symbol_name":"reset","limit":9}),
+            json!({"project_id":PID,"scope":SCOPE,"symbol_name":"reset","include_retained_context":true})] {
+            assert!(engram.handle_get_codebase_overview(serde_json::from_value(arguments).unwrap()).await.is_err());
+        }
+    });
+}
+
+#[test]
+fn directory_name_lookup_shares_caps_and_recovers_partial_files_without_skipping_unattempted_paths() {
+    owned_case(true, |engram,search| async move {
+        let paths:Vec<_>=(0..10).map(|i|format!("src/commands/Part{i:02}.rs")).collect();
+        let cancel=CancellationToken::new();let initial=engram.state.registry.capture_source_head(PID).unwrap();
+        let identities:Vec<_>=paths.iter().map(|path|RelPath::new(path)).collect();
+        search.prepare_full_source_snapshot(PID,0,1,&identities,&cancel).await.unwrap();
+        let docs:Vec<_>=paths.iter().enumerate().map(|(i,path)|doc("memory",1,i as u64+1,path,"rust","mod a {fn perform() {}}\nmod b {fn perform() {}}\n")).collect();
+        search.index_docs(PID,&docs,&cancel).await.unwrap();search.seal_source_snapshot(PID,1).unwrap();assert!(engram.state.registry.publish_source_head(&initial,1).unwrap());
+        let mut nodes=Vec::new();
+        for path in &paths {
+            nodes.push(node(&format!("file:{path}"),"file",path,path,1));
+            for line in 1..=2 {
+                let mut candidate=node(&format!("sym:function:{path}:perform:{line}"),"function","perform",path,1);
+                candidate.start_line=line;candidate.end_line=line;nodes.push(candidate);
+            }
+        }
+        engram.state.graph.upsert_nodes(PID,&nodes).unwrap();
+        let request=json!({"project_id":PID,"scope":"src/commands","symbol_name":"perform","limit":8});
+        let mut arguments=request.clone();let mut seen=std::collections::BTreeSet::new();let mut pages=0;
+        loop {
+            let page=navigate(&engram,arguments.clone()).await;pages+=1;assert!(pages<=3);
+            let count:usize=page["files"].as_array().unwrap().iter().map(|file|file["symbols"].as_array().unwrap().len()).sum();
+            assert!(count<=8,"Candidate limit applies to the whole request, not each selected file");
+            assert!(page["coverage"]["raw_keys"].as_u64().unwrap()<=64);
+            assert!(page["coverage"]["decoded_bytes"].as_u64().unwrap()<=2*1024*1024);
+            for file in page["files"].as_array().unwrap(){for symbol in file["symbols"].as_array().unwrap(){seen.insert(symbol["node_id"].as_str().unwrap().to_owned());}}
+            if !page["retry_file"].is_null() {
+                assert_eq!(page["retry_file"]["arguments"]["scope"],page["coverage"]["partial_file"]);
+                let retried=navigate(&engram,page["retry_file"]["arguments"].clone()).await;
+                assert_eq!(retried["detail"],"exact_name_candidates");
+                for symbol in retried["files"][0]["symbols"].as_array().unwrap(){seen.insert(symbol["node_id"].as_str().unwrap().to_owned());}
+            }
+            if page["next_page"].is_null(){break;}
+            let attempted=page["coverage"]["files_attempted"].as_u64().unwrap();
+            let offset=arguments.get("offset").and_then(Value::as_u64).unwrap_or(0);
+            assert_eq!(page["next_page"]["arguments"]["offset"],offset+attempted);
+            arguments=page["next_page"]["arguments"].clone();
+        }
+        assert_eq!(seen.len(),20,"Partial-file recovery plus directory continuation must not silently lose overloads or later files");
+        // Valid colon-containing native names share the requested prefix but
+        // are not aliases. Crowding must consume a single global budget.
+        let mut crowd=Vec::new();
+        for i in 0..80 {
+            let name=format!("perform:alias{i:02}");let line=100+i;
+            let mut candidate=node(&format!("sym:function:{}:{name}:{line}",paths[0]),"function",&name,&paths[0],1);
+            candidate.start_line=line;candidate.end_line=line;crowd.push(candidate);
+        }
+        engram.state.graph.upsert_nodes(PID,&crowd).unwrap();
+        let capped=navigate(&engram,request.clone()).await;
+        assert!(capped["coverage"]["reasons"].as_array().unwrap().iter().any(|reason|reason=="named_raw_key_limit"));
+        assert!(capped["coverage"]["files_not_attempted"].as_u64().unwrap()>0);
+        assert!(capped["coverage"]["raw_keys"].as_u64().unwrap()<=64);
+        assert!(!capped["retry_file"].is_null() && !capped["next_page"].is_null());
+        for candidate in &mut crowd {candidate.metadata=Some(json!({"padding":"x".repeat(60000)}));}
+        engram.state.graph.upsert_nodes(PID,&crowd).unwrap();
+        let capped=navigate(&engram,request).await;
+        assert!(capped["coverage"]["reasons"].as_array().unwrap().iter().any(|reason|reason=="named_decode_budget"));
+        assert!(capped["coverage"]["decoded_bytes"].as_u64().unwrap()<=2*1024*1024);
+        assert!(capped["coverage"]["files_not_attempted"].as_u64().unwrap()>0);
+        assert!(capped["files"].as_array().unwrap().iter().all(|file|file["symbols"].as_array().unwrap().iter().all(|symbol|symbol["name"]=="perform")));
+    });
+}
+
+#[test]
+fn directory_name_display_omissions_keep_identities_and_offer_progressing_exact_expansion() {
+    owned_case(true, |engram,search| async move {
+        // Legal stored identities exercise response bounds without claiming
+        // these long metadata paths are existing filesystem components.
+        let path=format!("src/{}","a".repeat(1796));let name="n".repeat(220);
+        let excluded:Vec<_>=(0..16).map(|i|format!("excluded/{i:02}/{}","x".repeat(244))).collect();
+        assert_eq!(excluded.iter().map(String::len).sum::<usize>(),4096);
+        let cancel=CancellationToken::new();let initial=engram.state.registry.capture_source_head(PID).unwrap();
+        search.prepare_full_source_snapshot(PID,0,1,&[RelPath::new(&path)],&cancel).await.unwrap();
+        search.index_docs(PID,&[doc("memory",1,1,&path,"rust","indexed identity")],&cancel).await.unwrap();search.seal_source_snapshot(PID,1).unwrap();assert!(engram.state.registry.publish_source_head(&initial,1).unwrap());
+        let mut nodes=vec![node(&format!("file:{path}"),"file",&path,&path,1)];
+        let mut expected=std::collections::BTreeSet::new();
+        for line in 10..18 {
+            let id=format!("sym:function:{path}:{name}:{line}");assert!(id.len()<=2048);expected.insert(id.clone());
+            let mut declaration=node(&id,"function",&name,&path,1);declaration.start_line=line;declaration.end_line=line;nodes.push(declaration);
+        }
+        engram.state.graph.upsert_nodes(PID,&nodes).unwrap();
+        let text=navigation_text(&engram,json!({"project_id":PID,"scope":"src","symbol_name":name,"exclude_paths":excluded,"limit":1})).await;
+        assert!(text.len()<64*1024);let page=navigation(&text);
+        assert!(page["coverage"]["display_omitted_candidates"].as_u64().unwrap()>0);
+        let mut observed=std::collections::BTreeSet::new();
+        for file in page["files"].as_array().unwrap(){for symbol in file["symbols"].as_array().unwrap(){assert!(observed.insert(symbol["node_id"].as_str().unwrap().to_owned()));}}
+        for group in page["omitted_candidates"].as_array().unwrap(){assert_eq!(group["path"],path);for id in group["node_ids"].as_array().unwrap(){assert!(observed.insert(id.as_str().unwrap().to_owned()));}}
+        assert_eq!(observed,expected,"Response fitting must retain every observed candidate identity, not hide overloads");
+        let action=&page["display_retry"];assert_eq!(action["tool"],"get_codebase_overview");
+        assert!(action["arguments"].get("symbol_name").is_none());assert_eq!(action["arguments"]["scope"],path);
+        let id=action["arguments"]["symbol_node_id"].as_str().unwrap();assert!(expected.contains(id));
+        let expanded=navigate(&engram,action["arguments"].clone()).await;
+        assert_eq!(expanded["detail"],"exact_symbol");assert_eq!(expanded["files"][0]["symbols"].as_array().unwrap().len(),1);
+        assert_eq!(expanded["files"][0]["symbols"][0]["node_id"],id);
+        assert!(page["next_page"].is_null(),"A display omission must not pretend that another selected file page exists");
+    });
+}
+
+#[test]
 fn paths_only_codemap_preserves_selected_files_and_executable_declaration_and_source_recovery() {
     owned_case(true, |engram, search| async move {
         const SCOPE: &str = "src/media";
@@ -1648,7 +1839,6 @@ fn named_candidates_and_exact_symbol_open_known_identity_beyond_discovery_withou
             assert!(!unobserved["coverage"]["declarations"][0]["unassessed"].as_array().unwrap().is_empty());
         }
         for arguments in [
-            json!({"project_id":PID,"scope":"src/late","symbol_name":"ResolveZoom"}),
             json!({"project_id":PID,"scope":TARGET,"exclude_paths":[TARGET],"symbol_name":"ResolveZoom"}),
             json!({"project_id":PID,"scope":TARGET,"symbol_name":"ResolveZoom","symbol_node_id":wanted_id}),
             json!({"project_id":PID,"scope":TARGET,"symbol_name":"ResolveZoom","offset":1}),
