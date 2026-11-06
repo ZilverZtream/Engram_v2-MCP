@@ -9722,9 +9722,47 @@
       },
       "resource_target_passed": false,
       "original_full19gates_closed": false
+    },
+    "fresh_codemap_orientation_and_descent_20261106": {
+      "status": "DELIVERED_SCOPED_CODEMAP_DESCENT_WITH_NARROW_FRESH_TASK_VERIFIED",
+      "source_commit": "598625e0f3c66dc48d1fca587cffc1c52975d9cf",
+      "fresh_task": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-fresh-orientation-baseline-outcome-20261106.json",
+        "sha256": "3a5da7a7b837b1f9ac8b7127aeded0937889cf0ac82dd9d5d9f7ba571c2e54f7"
+      },
+      "finding": "Scoped CodeMap area actions reused the root-relative three-component group: they repeated the current boundary or widened to an ancestor. Fresh task also exposed costly irrelevant representative/search output.",
+      "change": "Scoped areas now descend to a next child directory or direct selected file; root representative selection and scoped lexical files/labels remain unchanged.",
+      "behavior_verification": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-child-navigation-focused-v2-20261106.json",
+        "sha256": "37069bc7316c463c91ea53194e730b0a514f8dd67ab51932b095c7be77fe8609"
+      },
+      "independent_review": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-child-navigation-source-review-20261106.json",
+        "sha256": "cec75773d6d2f40baba11548f474afd4672d7408462ea39a8a432bf4fc322838"
+      },
+      "local_doc_check": "135 capability entries passed",
+      "first_attempt": "Focused fixture failed compilation due to function-pointer coercion, before tests executed. Corrected; owned Job/temp removed in both attempts.",
+      "fresh_task_result": "Partial: ten public calls/76,555 bytes reached type service and both controllers; concrete category service uninspected. No runtime binding, exhaustive impact or compute_blast_radius acceptance claim.",
+      "scope_limits": [
+        "No post-change task-quality uplift claimed yet.",
+        "Original31 findings and full19 gate records remain unchanged/unclosed.",
+        "Q passive indexing allowed; manual Q code changes/reviews frozen.",
+        "Native Codex transport remains unverified."
+      ],
+      "delivery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-child-navigation-delivery-outcome-20261106.json",
+        "sha256": "752c67f67ff0be77abfe86921010e66e2bec9ae5c50b472f28b2636c0c1840a6"
+      },
+      "installed_server_sha256": "48aed9f4ec56e50f3a96754c6ad408f97ab85fcb81972c2799456a98d9b7ec5e",
+      "installed_manifest_sha256": "306ea0707f1971ac0440dd72da5982ef7a4a498f74a8bed6a6517cfc5462efb5",
+      "fresh_category_task": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-category-fresh-task-outcome-20261106.json",
+        "sha256": "42e1936d7002b1072f3cd7396ec2c22dd3fa1b1e690308ec0b680fc0a5085cef"
+      },
+      "fresh_category_result": "Narrow category task source-correct:9calls/78739B, service/controller/static registration verified, primary0 plus separate1potential interface route, runtime binding unproven. New child actions not exercised; no comparative uplift claim."
     }
   },
-  "last_updated_at": "2026-11-06T00:16:05.946582+00:00",
+  "last_updated_at": "2026-11-06T01:02:04.657998+00:00",
   "current_execution_focus": {
     "at_utc": "2026-11-06T00:16:05.946582+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
@@ -9756,7 +9794,7 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "User correction: CodeMap and Blast Radius agent usefulness ONLY as next delivery. Instruction drafting stopped; EG14 remains partial, not completion of core tools.",
+    "active_original_item": "CodeMap and Blast Radius usefulness: reduce selected-file discovery and configuration-recovery context cost exposed by actual fresh tasks.",
     "next_user_visible_deliverable": "Run a genuinely fresh core-tool consumer task starting from project-wide CodeMap, outside the already exercised image-handler case: locate the server-side map feature type/category retrieval path and distinguish an implementation from its confirmed or potential consumer. Freeze independent expected source facts before giving the consumer public outputs; do not supply expected filenames or method IDs. Measure correctness, false guidance, useful evidence/read and context cost within a bounded read-only call budget. Fix demonstrated CodeMap/impact navigation failures within the existing queue; do not substitute another broad audit or supporting framework.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
@@ -9770,8 +9808,8 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "855b58b pushed origin/master and deployed d9b7e478/16e04d48. All 54 scoped checks passed; release took 692.46 seconds. Real cold both tools/details and six-call known-target normal agent acceptance expose h.resetState at124 as a separate source witness, preserving root3/caller2, unknown stored endpoint, semantic caution, canonical facts, exact CodeMap, 300 notes/selected data/other14. No full binding/global completeness/runtime/resource/full-audit closure claim. Previously pending ledger4df5032 also published by the normal push.",
-    "previous_goal_turn_classification": "PROGRESS: Implemented and independently reviewed bounded source inspection for the actual missing unresolved invocation; all54 scoped tests passed, source and previous pending ledger pushed/deployed, real cold and six-call agent source investigation verified with hash-bound preservation. Prepared next fresh orientation task because the current acceptance explicitly supplied a known root identity. Goal active; full original scope unclosed.",
+    "latest_completed_core_batch": "598625e pushed origin/master and deployed48aed9f4/306ea070. Scoped CodeMap actions descend to child directories/direct files; all8 relevant public behavior tests and135-entry doc check pass. Real cold3scopes/literal actions and previous CodeMap/Blast/semantic/unbound facts,300notes/selected stores/other14 preserved; installed218/backup218 verified. Fresh narrower category agent9calls/78739B correctly found service/consumer/static registration without runtime/completeness overclaim. Native host transport and broad original scope remain unclosed.",
+    "previous_goal_turn_classification": "PROGRESS: Concrete scoped CodeMap defect delivered end to end; fresh real category task independently source-checked. Remain active on measured discovery/configuration output cost; no scoped-action agent uplift or full31/19 completion claim.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -9787,12 +9825,11 @@
       "original_core_priority_preserved": true
     },
     "next_slice_scope_limits": [
-      "Current priority remains demonstrated CodeMap and Blast Radius usefulness for agents. The new witness slice is delivered; exact/global receiver binding remains explicitly unassessed, not marked fixed.",
-      "Use a new consumer without prior oracle/receipt/implementation context. Supply only task, project ID, actual public tool definitions/results and Q/read-only constraints. Main relays tool calls; no extra Engram process or repository copies.",
-      "Project-wide orientation must exclude Site/Q and retained audit fixture areas. Q source changes/reviews remain frozen while passive automatic indexing stays authorized.",
-      "Bound normal public MCP calls and response sizes; preserve literal actions where supplied. Independently verify source bytes/identity and distinguish graph admission, interface potential, same-terminal inspection and runtime proof.",
-      "Preserve source855b58b, all original31 finding and full19 gate records/unfinished states, sustained-resource failure, old-reader/recovery/finalization and instruction/legacy work. Kernel/SSD/preexisting cleanup/instruction drafting remain parked.",
-      "Push only origin/master, preserve existing/local work, no AI/coauthor trailers or tags. Temporary fixtures own and close their resources; no full suite per tiny edit."
+      "Keep CodeMap and Blast Radius as active core priority; new instruction drafting, catalog expansion, storage/performance experiments and kernel/cleanup remain parked.",
+      "Choose bounded selected-source file discovery/configuration-inspection improvements from actual fresh tasks, preserving root default proportions/representatives and honest primary/potential/runtime distinctions.",
+      "Frozen Q code changes/reviews remain prohibited; passive indexing is user-authorized.",
+      "All31 findings/full19 gate records and prior sustained-resource failure remain unchanged/unclosed.",
+      "Use existing checkout/shared target, owned temporary lifetimes and focused behavior checks; push only origin/master without AI/coauthor attribution or tags."
     ],
     "q_freeze_decision": "User authorized passive automatic indexing; keep Q code changes and reviews frozen. This is sufficient authorization to restore normal watching without another permission prompt."
   }
