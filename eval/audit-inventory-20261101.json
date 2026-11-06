@@ -9775,9 +9775,9 @@
       "original_scope_unclosed": true
     }
   },
-  "last_updated_at": "2026-11-06T02:23:50.377507+00:00",
+  "last_updated_at": "2026-11-06T03:24:49.299530+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-06T00:16:05.946582+00:00",
+    "at_utc": "2026-11-06T03:24:49.299530+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9807,8 +9807,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap and Blast Radius agent usefulness: prioritize targeted configuration recovery and clarify recorded contract-call evidence, grounded in fresh03 actual choices/output cost.",
-    "next_user_visible_deliverable": "Run a genuinely fresh core-tool consumer task starting from project-wide CodeMap, outside the already exercised image-handler case: locate the server-side map feature type/category retrieval path and distinguish an implementation from its confirmed or potential consumer. Freeze independent expected source facts before giving the consumer public outputs; do not supply expected filenames or method IDs. Measure correctness, false guidance, useful evidence/read and context cost within a bounded read-only call budget. Fix demonstrated CodeMap/impact navigation failures within the existing queue; do not substitute another broad audit or supporting framework.",
+    "active_original_item": "CodeMap and Blast Radius agent usefulness: targeted interface-call/configuration recovery delivered; next reduce demonstrated initial orientation/search output cost.",
+    "next_user_visible_deliverable": "Reduce root CodeMap and initial search context cost exposed by fresh04:39127B/55.7% of70256B total. Preserve root proportions, honest coverage, canonical evidence and executable source recovery; validate actual fresh agent choices against independent source evidence. No broad audit or instruction-drafting expansion.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9821,8 +9821,8 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "a778965 pushed origin/master and deployedf6150f48/a7aab284. All11 scoped checks (native2+overview9) and135-entry doc check passed; release750.48s. Real held source query found4categoryfiles7447B; Config lookup1file3279B/source literal range9-99, emitted bybothimpactAPIs/details and executedonce. Unfiltered/root/oldcanonical facts and300notes/closedselectedstores/other14 preserved; actual218active/218backup verified. Fresh03usedpathfilterbut8calls82341B exceededbyte target421B, extra contract check and repeated genericgrep yieldednocurrentconfig proof. Functionalitydelivered; completeagentcost/presentationstillunresolved, notperfection or fullauditclosure.",
-    "previous_goal_turn_classification": "PROGRESS: Coherent selected-file discovery feature delivered/pushed/deployed with11 focused checks and actual data preservation. Independent fresh trial proves path-filter adoption/static correctness but no total output-cost win. Continue core recovery-action presentation; all original31/19 and prior resource/instruction/legacy work unclosed.",
+    "latest_completed_core_batch": "f3ef750 pushed origin/master and deployedc2d3b376/91bcdc74.20focused cases(native2+transitive18),135capability check, release688.47s. Both impactAPIs/details expose accepted staticcall admission and preferred configgrep outside knownroutefileprefixes, exact unrestrictedfallback retained. Literal grep and current registration40/sourcehash verified; old canonicalgraph/navigation,300notes,closedselectedstores andother14 preserved.218active/218backup verified, normalwatcher restored; Qpassiveindexing allowed, sourcechanges/reviews frozen. Fresh04 used newpreferredgrep and verifiedcurrentconfig/DTO in8calls70256B,12085B/14.7% fewerthancompletefresh03trace, source/staticclassification independentlyaccepted. One reconstructed comparabletask, no controlledcausal/generaloptimality claim. NativeCodextransportclosedafterrestart; normalinstalled publicMCPpipe verified.",
+    "previous_goal_turn_classification": "PROGRESS: Coherent static-call/configuration-recovery change delivered/pushed/deployed with20focused cases and actual source/data preservation. Fresh consumer independently used preferredaction successfully, stayedwithinbudget and made boundedcorrectsource/impact claims. Original31/19 and priorresource/instruction/legacy findings remainunclosed; continue core orientation/search cost gap.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -9844,6 +9844,10 @@
       "All31 findings/full19 gate records and prior sustained-resource failure remain unchanged/unclosed.",
       "Use existing checkout/shared target, owned temporary lifetimes and focused behavior checks; push only origin/master without AI/coauthor attribution or tags."
     ],
-    "q_freeze_decision": "User authorized passive automatic indexing; keep Q code changes and reviews frozen. This is sufficient authorization to restore normal watching without another permission prompt."
+    "q_freeze_decision": "User authorized passive automatic indexing; keep Q code changes and reviews frozen. This is sufficient authorization to restore normal watching without another permission prompt.",
+    "latest_core_delivery_evidence": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\contract-recovery-delivery-outcome-20261106.json",
+      "sha256": "a598dc417e6eb610d0210ef7c6ca96b4cd983a7ae29c1ed021e14ba0f04320ca"
+    }
   }
 }
