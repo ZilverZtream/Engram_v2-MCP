@@ -189,6 +189,69 @@ fn section(value: &Value) -> String {
     )
 }
 
+fn describe_summary_node(
+    full: &Value,
+    node: &Value,
+    nodes: &HashMap<&str, &Value>,
+    files: &HashMap<&str, &Value>,
+    recoveries: &HashMap<&str, &Value>,
+    target: Option<&Value>,
+    file_component: bool,
+) -> Value {
+    let action = |reference: &Value| {
+        reference.as_str().and_then(|reference| recoveries.get(reference))
+            .map(|row| json!({"tool":row["tool"],"arguments":row["arguments"]}))
+    };
+    let recovery = node["recovery_ref"]
+        .as_str()
+        .and_then(|reference| recoveries.get(reference));
+    let connection = full["edges"].as_array().into_iter().flatten().filter(|edge| {
+        edge["source_ref"] == node["ref"] && (edge["target_ref"] == full["target_ref"]
+            || (file_component && edge["target_ref"].as_str()
+                .and_then(|reference| nodes.get(reference)).is_some_and(|member|
+                    member["admission"] == "selected" && member["is_seed"] == true
+                        && target.is_some_and(|target| member["file_ref"] == target["file_ref"]))))
+    }).min_by_key(|edge| edge["connection_role"] == "additional_verified_connection");
+    json!({"node_id":node["node_id"],"name":node["name"],
+    "file_path":node["file_ref"].as_str().and_then(|reference| files.get(reference)),
+    "start_line":node["start_line"],"end_line":node["end_line"],"generation":node["generation"],
+    "admission":node["admission"],"source_read":action(&node["recovery_ref"]),
+    "source_read_scope":recovery.map(|row|match row["scope_ref"].as_str() {
+        Some("range")=>"explicit_source_range",Some("file_excerpt")=>"current_file_excerpt",
+        _=>"selected_source_navigation"}),
+    "sample_connection_to_target":connection.map(|edge| {
+        let reached = edge["target_ref"].as_str().and_then(|reference|nodes.get(reference));
+        let mut witness = json!({
+        "source_node_id":node["node_id"],"target_node_id":reached.map(|node|&node["node_id"]),
+        "kind":edge["kind"],"edge_generation":edge["edge_generation"],"source_generation":node["generation"],
+        "edge_source_binding":edge.get("edge_source_binding").cloned().unwrap_or(json!("extraction_generation")),
+        "source_line":edge["source_line"],
+        "recorded_position_read":if edge["source_position_scope"] == "unattributed_extractor_anchor" {
+            None
+        } else { action(edge.get("recovery_ref").unwrap_or(&node["recovery_ref"])) },
+        "source_position_kind":edge.get("source_position_kind").cloned().unwrap_or(json!("not_recorded")),
+        "extractor_anchor_line":edge["extractor_anchor_line"],
+        "reference_lines":edge.get("reference_lines").cloned().unwrap_or(json!([])),
+        "reference_lines_truncated":edge.get("reference_lines_truncated").cloned().unwrap_or(json!(false)),
+        "source_position_scope":edge.get("source_position_scope").cloned().unwrap_or(json!("not_recorded"))
+        });
+        if file_component {
+            witness["target_scope"] = json!(if edge["target_ref"] == full["target_ref"] { "requested_file" } else { "file_member" });
+            witness["target_name"] = reached.map(|node|node["name"].clone()).unwrap_or(Value::Null);
+            witness["target_generation"] = reached.map(|node|node["generation"].clone()).unwrap_or(Value::Null);
+        }
+        // The same executable read can cover a symbol or file-member
+        // witness. Preserve its position/scope; share only exact actions.
+        if let Some(source_read) = action(&node["recovery_ref"]) {
+            if witness.get("recorded_position_read") == Some(&source_read) {
+                witness.as_object_mut().expect("witness object").remove("recorded_position_read");
+                witness["recorded_position_uses_source_read"] = json!(true);
+            }
+        }
+        witness
+    })})
+}
+
 /// Project the already-collected facts. No graph/source/model query is made.
 fn summary_section(
     full: &Value,
@@ -231,54 +294,7 @@ fn summary_section(
             .map(|row| json!({"tool":row["tool"],"arguments":row["arguments"]}))
     };
     let describe = |node: &Value| {
-        let recovery = node["recovery_ref"]
-            .as_str()
-            .and_then(|reference| recoveries.get(reference));
-        let connection = full["edges"].as_array().into_iter().flatten().filter(|edge| {
-            edge["source_ref"] == node["ref"] && (edge["target_ref"] == full["target_ref"]
-                || (file_component && edge["target_ref"].as_str()
-                    .and_then(|reference| nodes.get(reference)).is_some_and(|member|
-                        member["admission"] == "selected" && member["is_seed"] == true
-                            && target.is_some_and(|target| member["file_ref"] == target["file_ref"]))))
-        }).min_by_key(|edge| edge["connection_role"] == "additional_verified_connection");
-        json!({"node_id":node["node_id"],"name":node["name"],
-        "file_path":node["file_ref"].as_str().and_then(|reference| files.get(reference)),
-        "start_line":node["start_line"],"end_line":node["end_line"],"generation":node["generation"],
-        "admission":node["admission"],"source_read":action(&node["recovery_ref"]),
-        "source_read_scope":recovery.map(|row|match row["scope_ref"].as_str() {
-            Some("range")=>"explicit_source_range",Some("file_excerpt")=>"current_file_excerpt",
-            _=>"selected_source_navigation"}),
-        "sample_connection_to_target":connection.map(|edge| {
-            let reached = edge["target_ref"].as_str().and_then(|reference|nodes.get(reference));
-            let mut witness = json!({
-            "source_node_id":node["node_id"],"target_node_id":reached.map(|node|&node["node_id"]),
-            "kind":edge["kind"],"edge_generation":edge["edge_generation"],"source_generation":node["generation"],
-            "edge_source_binding":edge.get("edge_source_binding").cloned().unwrap_or(json!("extraction_generation")),
-            "source_line":edge["source_line"],
-            "recorded_position_read":if edge["source_position_scope"] == "unattributed_extractor_anchor" {
-                None
-            } else { action(edge.get("recovery_ref").unwrap_or(&node["recovery_ref"])) },
-            "source_position_kind":edge.get("source_position_kind").cloned().unwrap_or(json!("not_recorded")),
-            "extractor_anchor_line":edge["extractor_anchor_line"],
-            "reference_lines":edge.get("reference_lines").cloned().unwrap_or(json!([])),
-            "reference_lines_truncated":edge.get("reference_lines_truncated").cloned().unwrap_or(json!(false)),
-            "source_position_scope":edge.get("source_position_scope").cloned().unwrap_or(json!("not_recorded"))
-            });
-            if file_component {
-                witness["target_scope"] = json!(if edge["target_ref"] == full["target_ref"] { "requested_file" } else { "file_member" });
-                witness["target_name"] = reached.map(|node|node["name"].clone()).unwrap_or(Value::Null);
-                witness["target_generation"] = reached.map(|node|node["generation"].clone()).unwrap_or(Value::Null);
-            }
-            // The same executable read can cover a symbol or file-member
-            // witness. Preserve its position/scope; share only exact actions.
-            if let Some(source_read) = action(&node["recovery_ref"]) {
-                if witness.get("recorded_position_read") == Some(&source_read) {
-                    witness.as_object_mut().expect("witness object").remove("recorded_position_read");
-                    witness["recorded_position_uses_source_read"] = json!(true);
-                }
-            }
-            witness
-        })})
+        describe_summary_node(full,node,&nodes,&files,&recoveries,target,file_component)
     };
     let mut arguments = json!({"project_id":project,"max_depth":full["requested_max_depth"],
         "limit":display_limit.clamp(1,25),"detail":"graph"});
@@ -413,7 +429,8 @@ fn summary_section(
         for (_, node) in ranked {
             if immediate.len() == 4 { break; }
             let described = describe(node);
-            if serde_json::to_vec(&described).expect("JSON value serialization").len() > 2048 { continue; }
+            if described["sample_connection_to_target"].is_null()
+                || serde_json::to_vec(&described).expect("JSON value serialization").len() > 2048 { continue; }
             immediate.push(described);
             value["immediate_consumers"] = json!(&immediate);
             if !fits(&value) {
@@ -677,6 +694,7 @@ struct RecoveryDraft {
     fresh: Option<(String, Value)>,
 }
 
+#[derive(Clone)]
 struct CompactEvidence<'a> {
     project: &'a str,
     observed_nodes: &'a [engram_graph::store::ImpactWalkNode],
@@ -1226,6 +1244,196 @@ mod caller_file_start_behavior {
     }
 }
 
+fn append_rendered_edge(
+    out: &mut CompactEvidence<'_>,
+    edge: &engram_graph::store::ImpactWitness,
+    source: &engram_graph::store::ImpactWalkNode,
+    source_ref: String,
+    target_ref: String,
+    is_tree: bool,
+) -> Result<bool> {
+    let source_index = out.node_indices[&edge.source_id];
+    let source_recovery = out.nodes[source_index]["recovery_ref"]
+        .as_str()
+        .context("Node recovery missing")?
+        .to_owned();
+    let caller_range_known = recovery_path(source.node.file_path.as_str())
+        && source.node.start_line > 0
+        && source.node.end_line >= source.node.start_line;
+    let line_within_caller = caller_range_known
+        && edge
+            .source_line
+            .is_some_and(|line| line >= source.node.start_line && line <= source.node.end_line);
+    // A page directive or file marker does not delimit file-wide ownership.
+    let ownership_range_known =
+        caller_range_known && !matches!(source.node.node_type.as_str(), "file" | "page");
+    // Some stitched UI edges retain the handler's declaration anchor on
+    // the markup control edge. It is evidence, but not a position in the
+    // control's file. Never turn that contradiction into a fabricated read.
+    let weak_anchor = edge.source_position_kind == "extractor_anchor_metadata";
+    let position_scope = if edge.source_line.is_none() {
+        "not_recorded"
+    } else if weak_anchor && ownership_range_known && !line_within_caller {
+        "unattributed_extractor_anchor"
+    } else if weak_anchor && !ownership_range_known {
+        "unverified_file_anchor"
+    } else {
+        "indexed_metadata_only"
+    };
+    let recovery = match edge.source_line {
+        Some(line)
+            if !line_within_caller
+                && position_scope != "unattributed_extractor_anchor"
+                && recovery_path(source.node.file_path.as_str()) =>
+        {
+            Some(out.range_recovery(source.node.file_path.as_str(), line, line)?)
+        }
+        _ => None,
+    };
+    let recovery_ref = recovery.as_ref().map_or_else(
+        || source_recovery.clone(),
+        |recovery| recovery.reference.clone(),
+    );
+    let reference = format!("e{}", out.edges.len());
+    let mut row = json!({"ref":reference,"source_ref":source_ref,"target_ref":target_ref,"kind":edge.kind.as_str(),
+        "edge_generation":edge.edge_generation});
+    if edge.edge_generation != source.node.generation {
+        row["edge_source_binding"] = json!("verified_unchanged_caller_origin");
+    }
+    if !is_tree {
+        row["connection_role"] = json!("additional_verified_connection");
+    }
+    if let Some(line) = edge.source_line {
+        row["source_line"] = json!(line);
+        row["source_position_kind"] = json!(edge.source_position_kind);
+        row["source_position_scope"] = json!(position_scope);
+    }
+    if !edge.reference_lines.is_empty() {
+        row["reference_lines"] = json!(edge.reference_lines);
+    }
+    if let Some(line) = edge.extractor_anchor_line {
+        row["extractor_anchor_line"] = json!(line);
+    }
+    if edge.reference_lines_truncated {
+        row["reference_lines_truncated"] = json!(true);
+    }
+    if recovery_ref != source_recovery {
+        row["recovery_ref"] = json!(recovery_ref);
+    }
+    let mut staged = vec![&row];
+    if let Some((_, value)) = recovery
+        .as_ref()
+        .and_then(|recovery| recovery.fresh.as_ref())
+    {
+        staged.push(value);
+    }
+    if !out.charge(&staged)? { return Ok(false); }
+    if let Some(recovery) = recovery {
+        out.commit_recovery(recovery);
+    }
+    out.edge_refs.insert(
+        (source_ref, target_ref, edge.kind.as_str().into()),
+        reference,
+    );
+    out.edges.push(row);
+    Ok(true)
+}
+
+/// Stage the whole connection: a failed endpoint/position read must not leave
+/// an orphan consuming the budget intended for a later usable witness.
+fn append_witness_unit(
+    out: &mut CompactEvidence<'_>,
+    edge: &engram_graph::store::ImpactWitness,
+    lookup: &HashMap<&str, &engram_graph::store::ImpactWalkNode>,
+) -> Result<bool> {
+    let (Some(source),Some(target))=(lookup.get(edge.source_id.as_str()),lookup.get(edge.target_id.as_str())) else {
+        return Ok(false);
+    };
+    if source.admission!=ImpactAdmission::Selected || target.admission!=ImpactAdmission::Selected {
+        return Ok(false);
+    }
+    let is_tree=source.predecessor.as_deref()==Some(edge.target_id.as_str())
+        && source.via_kind.as_ref()==Some(&edge.kind);
+    if let (Some(a),Some(b))=(out.reference(&edge.source_id),out.reference(&edge.target_id)) {
+        if out.edge_refs.contains_key(&(a.clone(),b.clone(),edge.kind.as_str().to_owned())) { return Ok(true); }
+        // Existing endpoints need only the already-atomic edge/recovery charge;
+        // avoid copying the projection for every additional connection.
+        return append_rendered_edge(out,edge,source,a,b,is_tree);
+    }
+    let mut staged=out.clone();
+    let Some(source_ref)=staged.endpoint(&node_endpoint(source))? else { return Ok(false); };
+    let Some(target_ref)=staged.endpoint(&node_endpoint(target))? else { return Ok(false); };
+    if !append_rendered_edge(&mut staged,edge,source,source_ref,target_ref,is_tree)? { return Ok(false); }
+    *out=staged;
+    Ok(true)
+}
+
+fn compact_description(out: &CompactEvidence<'_>, target_ref: &str, id: &str) -> Option<Value> {
+    let frame=json!({"target_ref":target_ref,"nodes":out.nodes,"files":out.files,
+        "recoveries":out.recoveries,"edges":out.edges});
+    projected_description(&frame,id)
+}
+
+fn projected_description(frame: &Value, id: &str) -> Option<Value> {
+    let nodes:HashMap<_,_>=frame["nodes"].as_array()?.iter()
+        .filter_map(|node|Some((node["ref"].as_str()?,node))).collect();
+    let files:HashMap<_,_>=frame["files"].as_array()?.iter()
+        .filter_map(|file|Some((file["ref"].as_str()?,&file["path"]))).collect();
+    let recoveries:HashMap<_,_>=frame["recoveries"].as_array()?.iter()
+        .filter_map(|row|Some((row["ref"].as_str()?,row))).collect();
+    let target=frame["target_ref"].as_str().and_then(|reference|nodes.get(reference)).copied();
+    let node=nodes.values().copied().find(|node|node["node_id"]==id)?;
+    Some(describe_summary_node(&frame,node,&nodes,&files,&recoveries,target,
+        target.is_some_and(|node|node["kind"]=="file")))
+}
+
+/// Choose the same canonical, file-diverse direct rows that can actually fit
+/// a summary with their connection. This uses the held walk only, not another
+/// graph transaction, source read, name lookup or admission decision.
+fn preferred_direct_witnesses<'a>(
+    walk: &'a IncomingImpactWalk,
+    target: &str,
+    project: &str,
+) -> Result<Vec<&'a engram_graph::store::ImpactWitness>> {
+    let lookup:HashMap<_,_>=walk.nodes.iter().map(|node|(node.node.node_id.as_str(),node)).collect();
+    let Some(root)=lookup.get(target).filter(|node|node.admission==ImpactAdmission::Selected) else {
+        return Ok(Vec::new());
+    };
+    let file_component=root.node.node_type=="file";
+    let mut direct:Vec<_>=walk.nodes.iter().filter(|node|
+        node.admission==ImpactAdmission::Selected && node.depth==1).collect();
+    direct.sort_by(|a,b|a.node.node_id.cmp(&b.node.node_id));
+    let mut counts=HashMap::new();
+    let mut ranked:Vec<_>=direct.into_iter().map(|node| {
+        let count=counts.entry(node.node.file_path.as_str()).or_insert(0usize);
+        let rank=*count;*count+=1;(rank,node)
+    }).collect();
+    ranked.sort_by(|(a_rank,a),(b_rank,b)|a_rank.cmp(b_rank)
+        .then_with(||a.node.node_id.cmp(&b.node.node_id)));
+    let mut probe=CompactEvidence {project,observed_nodes:&walk.nodes,remaining:RESPONSE_BYTES,
+        files:Vec::new(),file_refs:BTreeMap::new(),nodes:Vec::new(),node_indices:BTreeMap::new(),
+        edges:Vec::new(),edge_refs:BTreeMap::new(),recoveries:Vec::new(),recovery_refs:BTreeMap::new()};
+    let Some(root_ref)=probe.endpoint(&node_endpoint(root))? else { return Ok(Vec::new()); };
+    let mut preferred=Vec::new();
+    for (_,source) in ranked {
+        let edge=walk.witnesses.iter().filter(|edge| {
+            edge.source_id==source.node.node_id && lookup.get(edge.target_id.as_str()).is_some_and(|reached|
+                reached.admission==ImpactAdmission::Selected && reached.depth==0
+                    && (reached.node.node_id==target || (file_component && reached.node.file_path==root.node.file_path)))
+        }).min_by_key(|edge|!(source.predecessor.as_deref()==Some(edge.target_id.as_str())
+            && source.via_kind.as_ref()==Some(&edge.kind)));
+        let Some(edge)=edge else { continue; };
+        let mut staged=probe.clone();
+        if !append_witness_unit(&mut staged,edge,&lookup)? { continue; }
+        let Some(row)=compact_description(&staged,&root_ref,&source.node.node_id) else { continue; };
+        if row["sample_connection_to_target"].is_null()
+            || serde_json::to_vec(&row)?.len()>2048 { continue; }
+        probe=staged;preferred.push(edge);
+        if preferred.len()==4 { break; }
+    }
+    Ok(preferred)
+}
+
 fn render(
     walk: &IncomingImpactWalk,
     target: &str,
@@ -1234,6 +1442,25 @@ fn render(
     max_depth: usize,
     display_limit: usize,
     managed: bool,
+) -> Result<Value> {
+    let ordinary=render_projection(walk,target,project,generation,max_depth,display_limit,managed,&[])?;
+    if ordinary["edges_omitted"].as_u64().unwrap_or(0)==0 { return Ok(ordinary); }
+    let preferred=preferred_direct_witnesses(walk,target,project)?;
+    if preferred.iter().all(|edge|projected_description(&ordinary,&edge.source_id).is_some_and(|row|
+        !row["sample_connection_to_target"].is_null()
+            && serde_json::to_vec(&row).expect("JSON value serialization").len()<=2048)) { return Ok(ordinary); }
+    render_projection(walk,target,project,generation,max_depth,display_limit,managed,&preferred)
+}
+
+fn render_projection(
+    walk: &IncomingImpactWalk,
+    target: &str,
+    project: &str,
+    generation: u64,
+    max_depth: usize,
+    display_limit: usize,
+    managed: bool,
+    preferred: &[&engram_graph::store::ImpactWitness],
 ) -> Result<Value> {
     let selected: Vec<_> = walk
         .nodes
@@ -1332,30 +1559,6 @@ fn render(
             .then_with(|| a.depth.cmp(&b.depth))
             .then_with(|| a.node.node_id.cmp(&b.node.node_id))
     });
-    let mut edge_reserve = None;
-    for node in ordered {
-        if node.node.node_id != target
-            && !connected.contains(node.node.node_id.as_str())
-            && edge_reserve.is_none()
-        {
-            // Sampled file-component roots without a verified external edge
-            // must not consume the space needed to address actual consumers.
-            let reserve = out.remaining.min(8 * 1024);
-            out.remaining -= reserve;
-            edge_reserve = Some(reserve);
-        }
-        let current = node_endpoint(node);
-        if let Some(reference) = out.endpoint(&current)? {
-            if node.node.node_id == target {
-                value["target_ref"] = json!(reference);
-                if let Some(recovery) = out.lookup_boundary(&current)? {
-                    value["continuation"] = json!({"at_ref":reference,"recovery_ref":recovery,
-                        "scope_ref":if current.admission=="selected"{"direct"}else{"navigation"}});
-                }
-            }
-        }
-    }
-    out.remaining += edge_reserve.unwrap_or(0);
     let tree_edge = |edge: &engram_graph::store::ImpactWitness| {
         lookup.get(edge.source_id.as_str()).is_some_and(|node| {
             node.predecessor.as_deref() == Some(edge.target_id.as_str())
@@ -1365,108 +1568,70 @@ fn render(
     let mut edges: Vec<_> = walk.witnesses.iter().collect();
     edges.sort_by_key(|edge| !tree_edge(edge));
     let mut edge_omissions = 0;
-    for edge in edges {
-        let (Some(source_ref), Some(target_ref)) = (
-            out.reference(&edge.source_id),
-            out.reference(&edge.target_id),
-        ) else {
-            edge_omissions += 1;
-            continue;
-        };
-        let Some(source) = lookup
-            .get(edge.source_id.as_str())
-            .filter(|node| node.admission == ImpactAdmission::Selected)
-        else {
-            edge_omissions += 1;
-            continue;
-        };
-        let source_index = out.node_indices[&edge.source_id];
-        let source_recovery = out.nodes[source_index]["recovery_ref"]
-            .as_str()
-            .context("Node recovery missing")?
-            .to_owned();
-        let caller_range_known = recovery_path(source.node.file_path.as_str())
-            && source.node.start_line > 0
-            && source.node.end_line >= source.node.start_line;
-        let line_within_caller = caller_range_known
-            && edge
-                .source_line
-                .is_some_and(|line| line >= source.node.start_line && line <= source.node.end_line);
-        // A page directive or file marker does not delimit file-wide ownership.
-        let ownership_range_known =
-            caller_range_known && !matches!(source.node.node_type.as_str(), "file" | "page");
-        // Some stitched UI edges retain the handler's declaration anchor on
-        // the markup control edge. It is evidence, but not a position in the
-        // control's file. Never turn that contradiction into a fabricated read.
-        let weak_anchor = edge.source_position_kind == "extractor_anchor_metadata";
-        let position_scope = if edge.source_line.is_none() {
-            "not_recorded"
-        } else if weak_anchor && ownership_range_known && !line_within_caller {
-            "unattributed_extractor_anchor"
-        } else if weak_anchor && !ownership_range_known {
-            "unverified_file_anchor"
-        } else {
-            "indexed_metadata_only"
-        };
-        let recovery = match edge.source_line {
-            Some(line)
-                if !line_within_caller
-                    && position_scope != "unattributed_extractor_anchor"
-                    && recovery_path(source.node.file_path.as_str()) =>
+    if preferred.is_empty() {
+        let mut edge_reserve = None;
+        for node in ordered {
+            if node.node.node_id != target
+                && !connected.contains(node.node.node_id.as_str())
+                && edge_reserve.is_none()
             {
-                Some(out.range_recovery(source.node.file_path.as_str(), line, line)?)
+                // Sampled file-component roots without a verified external edge
+                // must not consume the space needed to address actual consumers.
+                let reserve = out.remaining.min(8 * 1024);
+                out.remaining -= reserve;
+                edge_reserve = Some(reserve);
             }
-            _ => None,
-        };
-        let recovery_ref = recovery.as_ref().map_or_else(
-            || source_recovery.clone(),
-            |recovery| recovery.reference.clone(),
-        );
-        let reference = format!("e{}", out.edges.len());
-        let mut row = json!({"ref":reference,"source_ref":source_ref,"target_ref":target_ref,"kind":edge.kind.as_str(),
-            "edge_generation":edge.edge_generation});
-        if edge.edge_generation != source.node.generation {
-            row["edge_source_binding"] = json!("verified_unchanged_caller_origin");
+            let current = node_endpoint(node);
+            if let Some(reference) = out.endpoint(&current)? {
+                if node.node.node_id == target {
+                    value["target_ref"] = json!(reference);
+                    if let Some(recovery) = out.lookup_boundary(&current)? {
+                        value["continuation"] = json!({"at_ref":reference,"recovery_ref":recovery,
+                            "scope_ref":if current.admission=="selected"{"direct"}else{"navigation"}});
+                    }
+                }
+            }
         }
-        if !tree_edge(edge) {
-            row["connection_role"] = json!("additional_verified_connection");
+        out.remaining += edge_reserve.unwrap_or(0);
+        for edge in edges {
+            let (Some(source_ref), Some(target_ref)) = (
+                out.reference(&edge.source_id),
+                out.reference(&edge.target_id),
+            ) else {
+                edge_omissions += 1;
+                continue;
+            };
+            let Some(source) = lookup
+                .get(edge.source_id.as_str())
+                .filter(|node| node.admission == ImpactAdmission::Selected)
+            else {
+                edge_omissions += 1;
+                continue;
+            };
+            if !append_rendered_edge(&mut out,edge,source,source_ref,target_ref,tree_edge(edge))? {
+                edge_omissions += 1;
+            }
         }
-        if let Some(line) = edge.source_line {
-            row["source_line"] = json!(line);
-            row["source_position_kind"] = json!(edge.source_position_kind);
-            row["source_position_scope"] = json!(position_scope);
+    } else {
+        // A bounded second projection of this SAME admitted walk. Preserve
+        // complete useful connections before optional standalone identities.
+        if let Some(root)=lookup.get(target) {
+            let current=node_endpoint(root);
+            if let Some(reference)=out.endpoint(&current)? {
+                value["target_ref"]=json!(&reference);
+                if let Some(recovery)=out.lookup_boundary(&current)? {
+                    value["continuation"]=json!({"at_ref":reference,"recovery_ref":recovery,
+                        "scope_ref":if current.admission=="selected"{"direct"}else{"navigation"}});
+                }
+            }
         }
-        if !edge.reference_lines.is_empty() {
-            row["reference_lines"] = json!(edge.reference_lines);
+        for edge in preferred.iter().copied().chain(edges.iter().copied()) {
+            append_witness_unit(&mut out,edge,&lookup)?;
         }
-        if let Some(line) = edge.extractor_anchor_line {
-            row["extractor_anchor_line"] = json!(line);
+        for node in ordered {
+            out.endpoint(&node_endpoint(node))?;
         }
-        if edge.reference_lines_truncated {
-            row["reference_lines_truncated"] = json!(true);
-        }
-        if recovery_ref != source_recovery {
-            row["recovery_ref"] = json!(recovery_ref);
-        }
-        let mut staged = vec![&row];
-        if let Some((_, value)) = recovery
-            .as_ref()
-            .and_then(|recovery| recovery.fresh.as_ref())
-        {
-            staged.push(value);
-        }
-        if !out.charge(&staged)? {
-            edge_omissions += 1;
-            continue;
-        }
-        if let Some(recovery) = recovery {
-            out.commit_recovery(recovery);
-        }
-        out.edge_refs.insert(
-            (source_ref, target_ref, edge.kind.as_str().into()),
-            reference,
-        );
-        out.edges.push(row);
+        edge_omissions=walk.witnesses.len().saturating_sub(out.edges.len());
     }
     let mut frontier = Vec::new();
     let mut frontier_omissions = walk.coverage.frontier_omitted;
