@@ -719,6 +719,158 @@ fn filtered_codemap_preserves_search_and_explicitly_browses_neighboring_selected
 }
 
 #[test]
+fn paths_only_codemap_preserves_selected_files_and_executable_declaration_and_source_recovery() {
+    owned_case(true, |engram, search| async move {
+        const SCOPE: &str = "src/media";
+        const IMAGE: &str = "src/media/ImageEditor.rs";
+        const HANDLER: &str = "src/media/Handler.rs";
+        const PRIVATE: &str = "src/media/private";
+        const FUTURE: &str = "src/media/ImageFuture.rs";
+        let mut sources=vec![(IMAGE.to_owned(),"fn draw() {}\n".to_owned()),
+            (HANDLER.to_owned(),"fn reset() { let old = true; }\n".to_owned())];
+        sources.extend((0..8).map(|i|(format!("{SCOPE}/Part{i:02}.rs"),"fn part() {}\n".to_owned())));
+        sources.push((format!("{PRIVATE}/ImageSecret.rs"),"fn secret() {}\n".to_owned()));
+        let cancel=CancellationToken::new();
+        let initial=engram.state.registry.capture_source_head(PID).unwrap();
+        let paths:Vec<_>=sources.iter().map(|(path,_)|RelPath::new(path)).collect();
+        search.prepare_full_source_snapshot(PID,0,1,&paths,&cancel).await.unwrap();
+        let docs:Vec<_>=sources.iter().enumerate().map(|(i,(path,body))|
+            doc("memory",1,i as u64+1,path,"rust",body)).collect();
+        search.index_docs(PID,&docs,&cancel).await.unwrap();search.seal_source_snapshot(PID,1).unwrap();
+        assert!(engram.state.registry.publish_source_head(&initial,1).unwrap());
+        let base=engram.state.registry.capture_source_head(PID).unwrap();
+        let current="fn reset() { let current = true; }\n";
+        search.prepare_source_snapshot(PID,1,2,&[RelPath::new(HANDLER)],&[],&cancel).await.unwrap();
+        search.index_docs(PID,&[doc("memory",2,2000,HANDLER,"rust",current)],&cancel).await.unwrap();
+        search.seal_source_snapshot(PID,2).unwrap();assert!(engram.state.registry.publish_source_head(&base,2).unwrap());
+        search.prepare_source_snapshot(PID,2,3,&[RelPath::new(FUTURE)],&[],&cancel).await.unwrap();
+        search.index_docs(PID,&[doc("memory",3,3000,FUTURE,"rust","unpublished")],&cancel).await.unwrap();
+        search.seal_source_snapshot(PID,3).unwrap();
+        // Only one selected file has graph declarations; missing graph data
+        // must not turn the other selected file identities into absent code.
+        let id=format!("sym:function:{HANDLER}:reset:1");
+        engram.state.graph.upsert_nodes(PID,&[
+            node(&format!("file:{HANDLER}"),"file",HANDLER,HANDLER,2),
+            node(&id,"function","reset",HANDLER,2),
+            node(&format!("file:{FUTURE}"),"file",FUTURE,FUTURE,3),
+        ]).unwrap();
+        let root=std::path::PathBuf::from(engram.state.registry.get_project(PID).unwrap().unwrap().directory);
+        for (path,body) in [(IMAGE,"fn draw() {}\n"),(HANDLER,current)] {
+            let file=root.join(path);std::fs::create_dir_all(file.parent().unwrap()).unwrap();std::fs::write(file,body).unwrap();
+        }
+        let normal=json!({"project_id":PID,"scope":SCOPE,"exclude_paths":[PRIVATE],"limit":8});
+        let mut explicit=normal.clone();explicit["include_declarations"]=json!(true);
+        assert_eq!(navigation_text(&engram,normal.clone()).await,navigation_text(&engram,explicit).await,
+            "Omitting the new mode must preserve the existing declaration overview");
+        let old:engram_server::models::ProjectIdRequest=serde_json::from_value(json!({"project_id":PID})).unwrap();
+        let old:engram_server::models::CodebaseOverviewRequest=old.into();assert!(old.include_declarations);
+        let query=json!({"project_id":PID,"path_contains":"Image","exclude_paths":[PRIVATE],"limit":8,"include_declarations":false});
+        let filtered_text=navigation_text(&engram,query).await;let filtered=navigation(&filtered_text);
+        assert_eq!(filtered["detail"],"paths_only");assert_eq!(filtered["source_generation"],2);
+        assert_eq!(filtered["coverage"]["matching_files"],1);
+        assert_eq!(filtered["coverage"]["declaration_lookup"],"not_requested");
+        assert!(filtered["coverage"].get("declarations").is_none());
+        assert!(!filtered_text.contains("--- File Types") && !filtered_text.contains("--- Language Breakdown"));
+        assert_eq!(filtered["files"][0]["path"],IMAGE);
+        let area=filtered["areas"].as_array().unwrap().iter().find(|area|area["scope"]==SCOPE).unwrap();
+        assert_eq!(area["explore"]["arguments"]["path_contains"],"Image");
+        assert_eq!(area["explore"]["arguments"]["include_declarations"],false);
+        let browse=&area["browse_without_path_filter"];
+        assert!(browse["arguments"].get("path_contains").is_none());
+        assert_eq!(browse["arguments"]["include_declarations"],false);
+        assert_eq!(browse["arguments"]["exclude_paths"],json!([PRIVATE]));
+        let first=navigate(&engram,browse["arguments"].clone()).await;
+        assert_eq!(first["files"].as_array().unwrap().len(),8,"Cheap mode must retain every requested file that fits, not shrink the sample to pass a byte gate");
+        assert_eq!(first["areas"].as_array().unwrap().len(),10);
+        for area in first["areas"].as_array().unwrap() {
+            let file=first["files"].as_array().unwrap().iter().find(|file|file["path"]==area["scope"]);
+            if area["use_file_actions"]==true {
+                assert!(file.is_some());assert!(area.get("explore").is_none());
+            } else {
+                assert!(file.is_none());assert_eq!(area["explore"]["arguments"]["include_declarations"],false);
+            }
+        }
+        let handler=first["files"].as_array().unwrap().iter().find(|file|file["path"]==HANDLER).unwrap();
+        assert_eq!(handler["physical_generation"],2);
+        assert!(handler.get("symbols").is_none() && handler.get("declarations_observed").is_none());
+        let mut inspect=handler["actions"][0]["arguments"].clone();assert_eq!(inspect["include_declarations"],true);
+        assert_eq!(inspect["exclude_paths"],json!([PRIVATE]));inspect["symbol_name"]=json!("reset");
+        let declaration=navigate(&engram,inspect).await;
+        assert_eq!(declaration["files"][0]["symbols"][0]["node_id"],id);
+        let source=engram.handle_get_full_method_body(serde_json::from_value(declaration["files"][0]["symbols"][0]["actions"][0]["arguments"].clone()).unwrap()).await.unwrap();
+        let source:Value=serde_json::from_str(&source.content[0].as_text().unwrap().text).unwrap();
+        assert_eq!(source["source_file_hash"],ContentHash::compute(current.as_bytes()).0);
+        assert!(source["source_code"].as_str().unwrap().contains("current = true"));
+        let image=first["files"].as_array().unwrap().iter().find(|file|file["path"]==IMAGE).unwrap();
+        assert_eq!(image["physical_generation"],1);
+        let source=engram.handle_get_full_method_body(serde_json::from_value(image["actions"][1]["arguments"].clone()).unwrap()).await.unwrap();
+        let source:Value=serde_json::from_str(&source.content[0].as_text().unwrap().text).unwrap();
+        assert_eq!(source["retrieval_scope"],"current_file_excerpt");
+        assert_eq!(source["source_file_hash"],ContentHash::compute(b"fn draw() {}\n").0);
+        let mut page=first;let mut found=std::collections::BTreeSet::new();
+        loop {
+            assert_eq!(page["coverage"]["matching_files"],10);
+            for file in page["files"].as_array().unwrap() {
+                let path=file["path"].as_str().unwrap();assert!(!path.starts_with(PRIVATE) && path!=FUTURE);
+                assert!(found.insert(path.to_owned()));
+            }
+            if page["next_page"].is_null() {break;}
+            assert_eq!(page["next_page"]["arguments"]["include_declarations"],false);
+            assert_eq!(page["next_page"]["arguments"]["exclude_paths"],json!([PRIVATE]));
+            page=navigate(&engram,page["next_page"]["arguments"].clone()).await;
+        }
+        assert_eq!(found.len(),10);
+        let mut retained=normal.clone();retained["include_declarations"]=json!(false);retained["include_retained_context"]=json!(true);
+        let text=navigation_text(&engram,retained).await;assert!(text.contains("--- Retained Corpus Inventory"));
+        assert_eq!(navigation(&text)["coverage"]["declaration_lookup"],"not_requested");
+        for selector in [json!({"symbol_name":"reset"}),json!({"symbol_node_id":id}),json!({"symbol_offset":1})] {
+            let mut invalid=json!({"project_id":PID,"scope":HANDLER,"include_declarations":false});
+            invalid.as_object_mut().unwrap().extend(selector.as_object().unwrap().clone());
+            assert!(engram.handle_get_codebase_overview(serde_json::from_value(invalid).unwrap()).await.is_err());
+        }
+    });
+}
+
+#[test]
+fn paths_only_area_actions_do_not_alias_files_omitted_by_response_budget() {
+    owned_case(true, |engram,search| async move {
+        // These are indexed identities, not claims of current filesystem
+        // existence. Long valid metadata forces both response budgets.
+        let paths:Vec<String>=(0..12).map(|i|format!("crowded/F{i:02}_{}.rs","x".repeat(1825))).collect();
+        let cancel=CancellationToken::new();
+        let initial=engram.state.registry.capture_source_head(PID).unwrap();
+        let identities:Vec<_>=paths.iter().map(|path|RelPath::new(path)).collect();
+        search.prepare_full_source_snapshot(PID,0,1,&identities,&cancel).await.unwrap();
+        let docs:Vec<_>=paths.iter().enumerate().map(|(i,path)|doc("memory",1,i as u64+1,path,"rust","fn recorded() {}\n")).collect();
+        search.index_docs(PID,&docs,&cancel).await.unwrap();search.seal_source_snapshot(PID,1).unwrap();
+        assert!(engram.state.registry.publish_source_head(&initial,1).unwrap());
+        let text=navigation_text(&engram,json!({"project_id":PID,"scope":"crowded","limit":12,"include_declarations":false})).await;
+        assert!(text.len()<64*1024);let page=navigation(&text);
+        let files=page["files"].as_array().unwrap();assert!(!files.is_empty() && files.len()<paths.len());
+        assert_eq!(page["coverage"]["matching_files"],12);
+        assert!(page["coverage"]["response_omitted_files"].as_u64().unwrap()>0);
+        let mut omitted_area=None;
+        for area in page["areas"].as_array().unwrap() {
+            let displayed=files.iter().any(|file|file["path"]==area["scope"]);
+            if area["use_file_actions"]==true {
+                assert!(displayed,"An area must never point to actions on a file omitted from the response");
+                assert!(area.get("explore").is_none());
+            } else if !displayed {
+                assert_eq!(area["explore"]["tool"],"get_codebase_overview");
+                assert_eq!(area["explore"]["arguments"]["include_declarations"],false);
+                omitted_area=Some(area.clone());
+            }
+        }
+        let area=omitted_area.expect("The valid crowded fixture must retain an area for a file that did not fit its file page");
+        let recovered=navigate(&engram,area["explore"]["arguments"].clone()).await;
+        assert_eq!(recovered["source_generation"],1);assert_eq!(recovered["coverage"]["matching_files"],1);
+        assert_eq!(recovered["files"][0]["path"],area["scope"]);
+        assert_eq!(recovered["files"][0]["physical_generation"],1);
+        assert_eq!(page["next_page"]["arguments"]["include_declarations"],false);
+    });
+}
+
+#[test]
 fn scoped_codemap_actions_descend_without_losing_files_to_area_caps() {
     owned_case(true, |engram, search| async move {
         const SCOPE: &str = "src/application/api/v2";
