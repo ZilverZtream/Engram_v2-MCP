@@ -22,6 +22,13 @@ use std::path::PathBuf;
 /// (node_id, node_type, name, file_path) tuple used in centrality reranking.
 type NodeMetaTuple = (String, Option<String>, Option<String>, Option<String>);
 
+fn codemap_followup(mut action: serde_json::Value, path_contains: Option<&str>) -> serde_json::Value {
+    if let Some(term) = path_contains {
+        action["arguments"]["path_contains"] = serde_json::json!(term);
+    }
+    action
+}
+
 /// Observe a known identity under the already-held file selection. This is
 /// deliberately separate from bounded declaration discovery and name lookup.
 fn exact_navigation_node(
@@ -1388,8 +1395,10 @@ impl Engram {
                 || id.chars().any(char::is_control) || req.scope.is_none() || req.offset!=0 || req.symbol_offset!=0)
             || req.exclude_paths.iter().map(String::len).sum::<usize>()>4096
             || !req.exclude_paths.iter().all(|path|valid(path))
+            || req.path_contains.as_deref().is_some_and(|term|term.is_empty() || term.len()>128
+                || term.chars().any(char::is_control))
             || req.scope.as_deref().is_some_and(|scope|!valid(scope)) {
-            return Err(McpError::invalid_params("Use literal relative scope/exclusions, limit1..64 and bounded offsets; symbol_node_id requires an exact-file scope, nonempty identity up to2048bytes and both offsets0",None));
+            return Err(McpError::invalid_params("Use literal relative scope/exclusions, optional nonempty path_contains up to128bytes without controls, limit1..64 and bounded offsets; symbol_node_id requires an exact-file scope, nonempty identity up to2048bytes and both offsets0",None));
         }
         let rec=self.ensure_project_record(&req.project_id).await?;
         let runtime=self.ensure_project_runtime(&req.project_id).await?;
@@ -1400,18 +1409,19 @@ impl Engram {
         let graph=self.state.graph.clone();
         let worker_view=source_hold.clone();
         let worker_request=req.clone();
-        let (summary,paths,file_rows,discovery,retained,compact_navigation)=tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
+        let (summary,paths,file_rows,discovery,retained,compact_navigation,exact_file)=tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
             let pid=&worker_request.project_id;
             let membership=search.selected_source_revision_lookup(pid,generation,worker_view.clone())?;
             let paths=membership.navigation_paths(worker_request.scope.as_deref(),&worker_request.exclude_paths,
-                worker_request.offset,worker_request.limit)?;
+                worker_request.offset,worker_request.limit,worker_request.path_contains.as_deref())?;
             let exact_file=worker_request.scope.as_deref().is_some_and(|scope| paths.files.len()==1
                 && if cfg!(windows){paths.files[0].0.eq_ignore_ascii_case(scope)}else{paths.files[0].0==scope});
             anyhow::ensure!(worker_request.symbol_offset==0 || exact_file,
                 "symbol_offset requires an exact selected-file scope and offset0");
             anyhow::ensure!(worker_request.symbol_node_id.is_none() || exact_file,
                 "symbol_node_id requires an exact selected-file scope and both offsets0");
-            let compact_navigation=exact_file && !worker_request.include_retained_context;
+            let compact_navigation=(exact_file || worker_request.path_contains.is_some()) && !worker_request.include_retained_context;
+            let follow=|action|codemap_followup(action,worker_request.path_contains.as_deref());
             let summary=if compact_navigation { None }
                 else { Some(search.selected_source_summary(pid,generation,worker_view)?) };
             let mut rows=Vec::new();
@@ -1470,11 +1480,11 @@ impl Engram {
                     }).collect();
                     let next_offset=symbol_offset.saturating_add(symbols.len());
                     let next_symbols=if exact_file && selected.is_none() && next_offset<nodes.len() && next_offset<=128 {
-                        serde_json::json!({"tool":"get_codebase_overview","arguments":{"project_id":pid,"scope":path,
-                            "exclude_paths":worker_request.exclude_paths,"offset":0,"limit":1,"symbol_offset":next_offset}})
+                        follow(serde_json::json!({"tool":"get_codebase_overview","arguments":{"project_id":pid,"scope":path,
+                            "exclude_paths":worker_request.exclude_paths,"offset":0,"limit":1,"symbol_offset":next_offset}}))
                     }else{serde_json::Value::Null};
-                    let mut file_actions=vec![serde_json::json!({"tool":"get_codebase_overview","arguments":{"project_id":pid,"scope":path,
-                        "exclude_paths":worker_request.exclude_paths,"offset":0,"limit":1}})];
+                    let mut file_actions=vec![follow(serde_json::json!({"tool":"get_codebase_overview","arguments":{"project_id":pid,"scope":path,
+                        "exclude_paths":worker_request.exclude_paths,"offset":0,"limit":1}}))];
                     if !symbols.iter().any(|symbol|symbol["actions"].as_array().is_some_and(|actions|
                         actions.iter().any(|action|action["tool"]=="get_full_method_body"))) {
                         file_actions.push(serde_json::json!({"tool":"get_full_method_body","arguments":{
@@ -1495,11 +1505,14 @@ impl Engram {
             let retained=if worker_request.include_retained_context {
                 Some((search.count_docs(pid)?,search.count_docs_by_namespace(pid)?,graph.insight_title_sample(pid,8)))
             }else{None};
-            Ok((summary,paths,rows,discovery,retained,compact_navigation))
+            Ok((summary,paths,rows,discovery,retained,compact_navigation,exact_file))
         }).await.map_err(|e|McpError::internal_error(e.to_string(),None))?
             .map_err(|e|McpError::internal_error(format!("CodeMap navigation unavailable: {e:#}"),None))?;
-        let explore=|scope:&str,offset:usize|serde_json::json!({"tool":"get_codebase_overview","arguments":{
-            "project_id":req.project_id,"scope":scope,"exclude_paths":req.exclude_paths,"offset":offset,"limit":req.limit}});
+        let explore=|scope:&str,offset:usize|codemap_followup(serde_json::json!({"tool":"get_codebase_overview","arguments":{
+            "project_id":req.project_id,"scope":scope,"exclude_paths":req.exclude_paths,"offset":offset,"limit":req.limit}}),req.path_contains.as_deref());
+        let file_selection_scope=if req.path_contains.is_some() {
+            "Filtered selected paths page lexically; the literal case-insensitive substring is applied with scope/exclusions before bounded declaration discovery. This is not a semantic or source-body search."
+        }else{"Root files are diverse representatives. Scoped area actions descend to the next child directory or direct file; scoped file pages retain lexical order and page offsets recover selected files beyond the page."};
         let mut navigation=serde_json::json!({"format":"engram-codemap-navigation-v1","source_generation":generation,
             "scope":req.scope,"exclude_paths":req.exclude_paths,"working_tree_checked":false,
             "coverage":{"managed_source":managed_source,"matching_files":paths.matching_files,
@@ -1514,14 +1527,19 @@ impl Engram {
             "limitations":["Directory groups describe source layout, not runtime architecture or accepted policy.",
                 "File identities belong to one held published source selection, including inherited revisions. Declarations are bounded live-graph observations admitted against that selection.",
                 "No filesystem byte/LOC scan, source-body read, whole-project graph scan, native vector table or model query was performed.",
-                "Root files are diverse representatives. Scoped area actions descend to the next child directory or direct file; scoped file pages retain lexical order and page offsets recover selected files beyond the page.",
+                file_selection_scope,
                 "Missing declarations or an empty bounded sample do not prove absence of code, consumers or entry points. Legacy file coverage is unknown.",
                 "Root/area previews show one declaration; exact-file pages show16 observed declarations with source-range actions and next_symbols (offset0..128). Set symbol_node_id to a known identity under the exact-file scope with both offsets0 for independently bounded target/file admission and that declaration's full actions, without declaration discovery or name fallback. Selection is a fresh observation: compare source_generation and coverage; it is not atomic continuation. Not observed does not prove absence.",
                 "Ranges are indexed positions capped to120lines; follow-up verifies current bytes, not full methods or runtime entry points. Declaration discovery coverage is reported once above."]});
         navigation["limitations"].as_array_mut().expect("limitations array").push(serde_json::json!(
             "If no displayed declaration offers a source range, the file action offers a bounded current-file excerpt. This reads current bytes only when executed; compare page hashes and do not infer method boundaries or indexed freshness."));
+        if let Some(term)=req.path_contains.as_deref() {
+            navigation["path_contains"]=serde_json::json!(term);
+            navigation["coverage"].as_object_mut().expect("coverage object").remove("representative_priority");
+            navigation["coverage"]["file_order"]=serde_json::json!("lexical_filtered_paths");
+        }
         if compact_navigation {
-            navigation["detail"] = serde_json::json!(if req.symbol_node_id.is_some(){"exact_symbol"}else{"exact_file"});
+            navigation["detail"] = serde_json::json!(if req.symbol_node_id.is_some(){"exact_symbol"}else if exact_file{"exact_file"}else{"filtered_paths"});
             navigation.as_object_mut().expect("navigation object").remove("other_inventories");
             navigation["coverage"].as_object_mut().expect("coverage object").remove("representative_priority");
             navigation["limitations"] = serde_json::json!([
@@ -1531,9 +1549,17 @@ impl Engram {
                 "File reads without line bounds are bounded current-file excerpts, not indexed method boundaries. Compare their hashes and continuation.",
                 "File actions page admitted declarations (16 per page, bounded through offset128). Exact symbol_node_id uses independent bounded target/file admission, not a declaration inventory. Project distributions and area/schema/settings context omitted; use root/area overview or request include_retained_context=true when that context is needed."
             ]);
+            if !exact_file {
+                navigation["limitations"]=serde_json::json!([
+                    "Literal case-insensitive path substring over one held selected file map, applied with scope/exclusions before bounded declaration lookup; not a source-body or semantic search.",
+                    "Filtered files page lexically. Area/group caps do not limit independent file pagination. Scan/legacy/declaration gaps remain in coverage; a missing file or declaration is not proof of absent code or consumers.",
+                    "Declarations are bounded admitted graph observations, with one preview per file. Follow exact-file/known-symbol actions for more; indexed ranges are capped at120lines. Current bytes, freshness, binding and runtime are unverified.",
+                    "Filter and exclusions persist in CodeMap actions. Follow-ups observe fresh selections, not atomic continuations. Project-wide distributions and retained context omitted; include_retained_context=true restores them with their unfiltered denominators."
+                ]);
+            }
         }
         let mut areas=Vec::new();
-        for (area,count) in paths.areas.iter().filter(|_| !compact_navigation) {
+        for (area,count) in paths.areas.iter().filter(|_| !exact_file || !compact_navigation) {
             areas.push(serde_json::json!({"scope":area,"selected_files":count,"explore":explore(area,0)}));
             navigation["areas"]=serde_json::json!(&areas);
             if serde_json::to_vec(&navigation).map_err(|e|McpError::internal_error(e.to_string(),None))?.len()>24*1024 {
@@ -1551,8 +1577,8 @@ impl Engram {
         let next=if displayed.len()<wanted{Some(req.offset+displayed.len())}else{paths.next_offset};
         if let Some(offset)=next.filter(|offset|*offset>req.offset) {
             navigation["next_page"]=match req.scope.as_deref(){Some(scope)=>explore(scope,offset),None=>
-                serde_json::json!({"tool":"get_codebase_overview","arguments":{"project_id":req.project_id,
-                    "exclude_paths":req.exclude_paths,"offset":offset,"limit":req.limit}})};
+                codemap_followup(serde_json::json!({"tool":"get_codebase_overview","arguments":{"project_id":req.project_id,
+                    "exclude_paths":req.exclude_paths,"offset":offset,"limit":req.limit}}),req.path_contains.as_deref())};
         }
         navigation["coverage"]["response_omitted_files"]=serde_json::json!(wanted-displayed.len());
         navigation["coverage"]["response_omitted_areas"]=serde_json::json!(paths.areas.len()-areas.len());
@@ -1561,7 +1587,9 @@ impl Engram {
         let mut out=format!("Codebase Overview: {}\nproject_id: {}\nproject_type: {}\nactive_generation: {}\n",rec.project_name,req.project_id,rec.project_type,generation);
         if !compact_navigation {
         let summary = summary.as_ref().expect("normal overview collects its project summary");
-        out.push_str("\n--- Current Source (entire held project selection; navigation scope/exclusions apply below) ---\n");
+        out.push_str(if req.path_contains.is_some() {
+            "\n--- Current Source (entire held project selection; navigation scope/exclusions/path filter apply below) ---\n"
+        }else{"\n--- Current Source (entire held project selection; navigation scope/exclusions apply below) ---\n"});
         match summary.source_files{Some(files)=>out.push_str(&format!("source_files: {files}\n")),
             None=>out.push_str("source_files: unknown (legacy selection has no complete file manifest)\n")};
         out.push_str(&format!("source_chunks: {}\n",summary.source_chunks));

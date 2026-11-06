@@ -472,13 +472,20 @@ pub struct CodebaseOverviewRequest {
     /// Literal boundaries omitted before declaration lookup or source recovery.
     #[serde(default)]
     pub exclude_paths: Vec<String>,
-    /// Exact selected-file pages omit global tables by default. Root/area
-    /// overviews retain project distributions. True also includes retained
+    /// Optional literal, case-insensitive path substring (1..128 UTF-8 bytes),
+    /// never a glob, regex or source-body search. Filters the held selected
+    /// file identities before declaration discovery. Results page lexically,
+    /// including project-wide searches, and omit global tables by default.
+    #[serde(default)]
+    pub path_contains: Option<String>,
+    /// Exact selected-file and filtered-path pages omit global tables by
+    /// default. Unfiltered root/area overviews retain project distributions.
+    /// True also includes retained
     /// history/memory context and keeps the full overview rendering.
     #[serde(default)]
     pub include_retained_context: bool,
-    /// Scoped results page all matching file identities; project-wide results
-    /// page a diverse representative sample. Narrow an area's scope for more.
+    /// Scoped/filtered results page all matching file identities; unfiltered
+    /// project-wide results page a diverse representative sample.
     #[serde(default)]
     pub offset: usize,
     /// Exact-file declaration page offset, 0..128. Use returned next_symbols;
@@ -503,7 +510,7 @@ fn default_codemap_limit() -> usize { 8 }
 impl From<ProjectIdRequest> for CodebaseOverviewRequest {
     fn from(request: ProjectIdRequest) -> Self {
         Self { project_id: request.project_id, scope: None, exclude_paths: Vec::new(),
-            include_retained_context: false, offset: 0, symbol_offset: 0, symbol_node_id: None, limit: default_codemap_limit() }
+            path_contains: None, include_retained_context: false, offset: 0, symbol_offset: 0, symbol_node_id: None, limit: default_codemap_limit() }
     }
 }
 
