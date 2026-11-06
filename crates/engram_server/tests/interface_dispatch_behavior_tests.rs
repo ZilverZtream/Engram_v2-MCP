@@ -322,6 +322,15 @@ fn compact_dispatch_keeps_distinct_consumer_files_and_inspectable_caller_context
                 ensure!(search["arguments"]["path_prefix"]=="Site/App_Code/api-v2/"
                     && search["arguments"]["pattern"]=="IReader"
                     && search["arguments"]["regex"]==false);
+                if let Some(discovery)=inspection.get("path_discovery") {
+                    let action=&discovery["actions"][0];
+                    ensure!(action["tool"]=="get_codebase_overview" && action["arguments"]["path_contains"]=="Config");
+                    let page=app.handle_get_codebase_overview(serde_json::from_value(action["arguments"].clone())?).await?;
+                    ensure!(page.is_error!=Some(true));
+                    let page:Value=serde_json::from_str(page.content[0].as_text().unwrap().text.split("```json\n").nth(1).unwrap().split("```").next().unwrap())?;
+                    ensure!(page["coverage"]["matching_files"]==0 && page["files"].as_array().unwrap().is_empty(),
+                        "No Config-named file must remain an honest empty path lookup; the broader binding search stays usable");
+                }
                 let found=app.handle_grep_project(serde_json::from_value(search["arguments"].clone())?).await?;
                 ensure!(found.is_error!=Some(true),"Advertised configuration search must execute unchanged");
                 let found:Value=serde_json::from_str(&found.content[0].as_text().unwrap().text)?;
@@ -342,6 +351,9 @@ fn compact_dispatch_keeps_distinct_consumer_files_and_inspectable_caller_context
             let padding=" ' unrelated work\n".repeat(120);
             let long=controller.replace(" Return _service.Read(value)",&format!("{padding} Return _service.Read(value)"));
             std::fs::write(repo.join(caller),&long)?;
+            let config_path="Site/App_Code/api-v2/WebApiConfig.vb";
+            let configuration="Namespace Example\nFriend Module WebApiConfig\n Public Function Configure() As IReader\n Return New Reader()\n End Function\nEnd Module\nEnd Namespace\n";
+            std::fs::write(repo.join(config_path),configuration)?;
             let updated=app.handle_update_project(serde_json::from_value(json!({"project_id":pid,"wait":true,"max_commits":1,"index_antipatterns":false}))?).await?;
             ensure!(updated.is_error!=Some(true));
             let response=app.handle_impact_analysis(serde_json::from_value(json!({"project_id":pid,"file_path":helper,"detail":"summary","max_depth":6}))?).await?;
@@ -355,6 +367,28 @@ fn compact_dispatch_keeps_distinct_consumer_files_and_inspectable_caller_context
             let reference=app.handle_get_full_method_body(serde_json::from_value(route["recorded_position_read"]["arguments"].clone())?).await?;
             let reference:Value=serde_json::from_str(&reference.content[0].as_text().unwrap().text)?;
             ensure!(reference["source_code"].as_str().unwrap().contains("Return _service.Read(value)"),"A distant callsite still needs a literal read action");
+            let full=app.handle_compute_blast_radius(serde_json::from_value(json!({"project_id":pid,"file_path":helper,"detail":"graph","max_depth":6,"include_guidance":false}))?).await?;
+            ensure!(full.is_error!=Some(true));let report=packet(&full.content[0].as_text().unwrap().text)?;
+            ensure!(report["selected_dependents_observed"]==3 && report["potential_interface_callers"]["routes_observed"]==1
+                && report["potential_interface_callers"]["runtime_dispatch_proven"]==false,
+                "Configuration filename discovery must not promote its contents into primary callers or runtime proof: {report}");
+            let inspection=&report["potential_interface_callers"]["configuration_inspection"];
+            ensure!(inspection["actions"][0]["tool"]=="grep_project","Keep the broader fallback for other configuration names");
+            let discovery=&inspection["path_discovery"];ensure!(discovery["actions"].as_array().is_some_and(|actions|actions.len()==1));
+            let action=&discovery["actions"][0];
+            let page=app.handle_get_codebase_overview(serde_json::from_value(action["arguments"].clone())?).await?;
+            ensure!(page.is_error!=Some(true));let text=&page.content[0].as_text().unwrap().text;
+            ensure!(text.len()<8*1024,"A one-file configuration lookup must leave room to inspect its source");
+            let page:Value=serde_json::from_str(text.split("```json\n").nth(1).unwrap().split("```").next().unwrap())?;
+            ensure!(page["detail"]=="filtered_paths" && page["coverage"]["matching_files"]==1 && page["files"][0]["path"]==config_path);
+            let file=&page["files"][0];
+            let read=file["symbols"].as_array().unwrap().iter().flat_map(|symbol|symbol["actions"].as_array().unwrap())
+                .chain(file["actions"].as_array().unwrap()).find(|action|action["tool"]=="get_full_method_body").unwrap();
+            let body=app.handle_get_full_method_body(serde_json::from_value(read["arguments"].clone())?).await?;
+            ensure!(body.is_error!=Some(true));let body:Value=serde_json::from_str(&body.content[0].as_text().unwrap().text)?;
+            ensure!(body["source_code"].as_str().is_some_and(|source|source.contains("Return New Reader()"))
+                && body["source_file_hash"]==engram_core::ContentHash::compute(configuration.as_bytes()).0,
+                "Literal path and source follow-ups must recover current configuration bytes with an exact file hash");
             settle(&app).await?;Ok::<_,anyhow::Error>(())
         });
         drop(runtime);

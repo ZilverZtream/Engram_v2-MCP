@@ -467,12 +467,20 @@ fn summary_section(
         // Text-search suggestions come last: never trade a caller, witness or
         // unknown boundary for an optional configuration discovery action.
         if let Some(inspection)=dispatch.get("configuration_inspection") {
-            value["potential_interface_callers"]["configuration_inspection"]=inspection.clone();
+            let mut base=inspection.clone();
+            let discovery=base.as_object_mut().unwrap().remove("path_discovery");
+            let omitted=base.as_object_mut().unwrap().remove("path_discovery_actions_omitted");
+            value["potential_interface_callers"]["configuration_inspection"]=base;
             if !fits(&value) {
                 value["potential_interface_callers"].as_object_mut().unwrap().remove("configuration_inspection");
                 value["potential_interface_callers"]["configuration_inspection_actions_omitted"]=json!(
                     inspection["actions"].as_array().map_or(0,Vec::len)+inspection["actions_omitted"].as_u64().unwrap_or(0) as usize);
                 if !fits(&value) { value["potential_interface_callers"].as_object_mut().unwrap().remove("configuration_inspection_actions_omitted"); }
+            } else if let Some(discovery)=discovery {
+                append_configuration_path_discovery(&mut value,&discovery,&fits);
+            } else if let Some(omitted)=omitted {
+                value["potential_interface_callers"]["configuration_inspection"]["path_discovery_actions_omitted"]=omitted;
+                if !fits(&value) { value["potential_interface_callers"]["configuration_inspection"].as_object_mut().unwrap().remove("path_discovery_actions_omitted"); }
             }
         } else if let Some(omitted)=dispatch.get("configuration_inspection_actions_omitted") {
             value["potential_interface_callers"]["configuration_inspection_actions_omitted"]=omitted.clone();
@@ -797,6 +805,25 @@ impl CompactEvidence<'_> {
         let reference = recovery.reference.clone();
         self.commit_recovery(recovery);
         Ok(Some(reference))
+    }
+}
+
+fn append_configuration_path_discovery(value: &mut Value, discovery: &Value, fits: &impl Fn(&Value)->bool) {
+    if !value["potential_interface_callers"]["configuration_inspection"].is_object() { return; }
+    let mut actions=discovery["actions"].as_array().cloned().unwrap_or_default();
+    let total=actions.len()+discovery["actions_omitted"].as_u64().unwrap_or(0) as usize;
+    loop {
+        let mut bounded=discovery.clone();
+        bounded["actions"]=json!(&actions);bounded["actions_omitted"]=json!(total-actions.len());
+        value["potential_interface_callers"]["configuration_inspection"]["path_discovery"]=bounded;
+        if fits(value) { return; }
+        if actions.pop().is_none() { break; }
+    }
+    let inspection=value["potential_interface_callers"]["configuration_inspection"].as_object_mut().unwrap();
+    inspection.remove("path_discovery");
+    inspection.insert("path_discovery_actions_omitted".into(),json!(total));
+    if !fits(value) {
+        value["potential_interface_callers"]["configuration_inspection"].as_object_mut().unwrap().remove("path_discovery_actions_omitted");
     }
 }
 
@@ -1365,6 +1392,20 @@ fn render(
                 break;
             }
         }
+    }
+    // Lazy selected-path discovery precedes the broad text fallback for the
+    // consumer, but is budgeted after that fallback and canonical evidence.
+    // No extra source-map, filesystem, graph or source-body scan occurs here.
+    let scopes=value["potential_interface_callers"]["configuration_inspection"]["actions"]
+        .as_array().into_iter().flatten()
+        .filter_map(|action|action["arguments"]["path_prefix"].as_str())
+        .map(|scope|scope.trim_end_matches('/').to_owned()).collect::<std::collections::BTreeSet<_>>();
+    if !scopes.is_empty() {
+        let actions=scopes.into_iter().take(2).map(|scope|json!({"tool":"get_codebase_overview","arguments":{
+            "project_id":project,"scope":scope,"path_contains":"Config","limit":4}})).collect::<Vec<_>>();
+        let discovery=json!({"scope":"Suggested first lookup: selected paths containing literal Config within the admitted route's shared directory. This action has not run. File names are advisory, not registration, binding or runtime proof. Follow returned source/hash actions; use the broader text-search actions if names/scopes are insufficient. Other configuration names can be missed.","actions":actions,"actions_omitted":0});
+        append_configuration_path_discovery(&mut value,&discovery,&|value|
+            section(value).len()<=RESPONSE_BYTES && serde_json::to_vec(&value["potential_interface_callers"]).expect("JSON serialization").len()<=10*1024);
     }
     if let Some(inspection) = render_unbound_inspection(walk, project) {
         append_unbound_inspection(&mut value, &inspection, &|value| section(value).len() <= RESPONSE_BYTES);

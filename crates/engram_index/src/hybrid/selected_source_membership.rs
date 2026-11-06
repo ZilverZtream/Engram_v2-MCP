@@ -222,16 +222,22 @@ impl SelectedSourceRevisionLookup {
         excluded: &[String],
         offset: usize,
         limit: usize,
+        path_contains: Option<&str>,
     ) -> anyhow::Result<SelectedSourceNavigation> {
         let valid = |path: &str| !path.is_empty() && path.len() <= 2048
             && !path.contains(['\\', ':', '\0', '\n', '\r'])
             && path.split('/').all(|part| !part.is_empty() && part != "." && part != "..");
         anyhow::ensure!(scope.is_none_or(valid) && excluded.len() <= 16
             && excluded.iter().all(|path| valid(path)) && (1..=64).contains(&limit)
-            && offset <= 250_000, "Invalid CodeMap literal scope, exclusions or page bounds");
+            && offset <= 250_000
+            && path_contains.is_none_or(|term| !term.is_empty() && term.len()<=128
+                && !term.chars().any(char::is_control)),
+            "Invalid CodeMap literal scope, exclusions, path substring or page bounds");
+        let lexical = scope.is_some() || path_contains.is_some();
+        let path_term = path_contains.map(str::to_lowercase);
         let snapshots::Selection::Files(files) = &self.view._snapshot.selection else {
             return Ok(SelectedSourceNavigation { matching_files: None, inspected_files: 0,
-                scan_truncated: false, areas_truncated: false, representative_sample: scope.is_none(),
+                scan_truncated: false, areas_truncated: false, representative_sample: !lexical,
                 files: Vec::new(), areas: Vec::new(), next_offset: None });
         };
         fn within(path: &str, boundary: &str) -> bool {
@@ -281,10 +287,11 @@ impl SelectedSourceRevisionLookup {
             if !valid(path) { scan_truncated = true; continue; }
             if scope.is_some_and(|scope| !within(path, scope))
                 || excluded.iter().any(|excluded| within(path, excluded)) { continue; }
+            if path_term.as_ref().is_some_and(|term| !path.to_lowercase().contains(term)) { continue; }
             let position = matching;
             matching += 1;
             let area = area_of(path, scope);
-            if scope.is_some() && position >= offset && page.len() < limit {
+            if lexical && position >= offset && page.len() < limit {
                 // Keep file-page labels stable; only the area exploration
                 // boundaries become relative to the requested directory.
                 page.push((path.as_str(), *generation, area_of(path, None)));
@@ -301,7 +308,7 @@ impl SelectedSourceRevisionLookup {
             }
             let bucket = groups.get_mut(area).expect("bounded area");
             bucket.0 += 1;
-            if scope.is_none() {
+            if !lexical {
                 bucket.1.push((path.as_str(), *generation));
                 bucket.1.sort_by(|a,b| priority(b.0).cmp(&priority(a.0)).then_with(|| a.0.cmp(b.0)));
                 bucket.1.truncate(2);
@@ -309,7 +316,7 @@ impl SelectedSourceRevisionLookup {
         }
         let mut ranked: Vec<_> = groups.into_iter().collect();
         ranked.sort_by(|a,b| b.1.0.cmp(&a.1.0).then_with(|| a.0.cmp(b.0)));
-        let available = if scope.is_none() {
+        let available = if !lexical {
             // File representatives use the strongest basename lead in each
             // retained group before area size. The independently count-ranked
             // area display must not hide a small role-bearing source area.
@@ -335,7 +342,7 @@ impl SelectedSourceRevisionLookup {
         let next_offset = (offset + page.len() < available && !page.is_empty()).then_some(offset + page.len());
         Ok(SelectedSourceNavigation {
             matching_files: (!scan_truncated).then_some(matching), inspected_files: inspected,
-            scan_truncated, areas_truncated, representative_sample: scope.is_none(),
+            scan_truncated, areas_truncated, representative_sample: !lexical,
             files: page.into_iter().map(|(path,generation,area)| (path.to_owned(),generation,area.to_owned())).collect(),
             areas: ranked.into_iter().map(|(area,(count,_))| (area.to_owned(),count)).collect(), next_offset,
         })
