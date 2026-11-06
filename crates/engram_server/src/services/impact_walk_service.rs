@@ -524,6 +524,7 @@ fn summary_section(
             if !fits(&value) { value.as_object_mut().unwrap().remove("terminal_member_inspection_omitted"); }
         }
     }
+    append_caller_file_starts(&mut value, project, &fits);
     format!(
         "{}\n## Revision-admitted change impact\n\nSummary of the same bounded source selection. Expand the graph for all retained identities, connections and paths.\n\n```json\n{}\n```\n",
         immediate_prefix,
@@ -1005,8 +1006,14 @@ fn render_unbound_inspection(walk: &IncomingImpactWalk, project: &str) -> Option
 fn append_unbound_inspection(value: &mut Value, inspection: &Value, fits: &dyn Fn(&Value) -> bool) {
     let mut projected = inspection.clone();
     projected["candidates"] = json!([]);
+    projected.as_object_mut().unwrap().remove("caller_file_start_inspections_omitted");
     let omitted = inspection["candidates_omitted_from_display"].as_u64().unwrap_or(0);
-    let candidates = inspection["candidates"].as_array().cloned().unwrap_or_default();
+    let mut candidates = inspection["candidates"].as_array().cloned().unwrap_or_default();
+    // A graph may already carry these late optional actions. Refit the old
+    // summary evidence first, then independently allocate context actions.
+    for candidate in &mut candidates {
+        candidate.as_object_mut().unwrap().remove("caller_file_start_inspection");
+    }
     projected["candidates_omitted_from_display"] = json!(omitted + candidates.len() as u64);
     value["unbound_member_call_inspection"] = projected;
     if !fits(value) {
@@ -1026,6 +1033,98 @@ fn append_unbound_inspection(value: &mut Value, inspection: &Value, fits: &dyn F
             value["unbound_member_call_inspection"]["candidates_omitted_from_display"] = json!(omitted + (candidates.len() - retained.len()) as u64);
             break;
         }
+    }
+}
+
+/// A separate current-file inspection lead may expose fields/construction
+/// outside the invocation clip. Allocate only after all existing evidence;
+/// never remove a witness, older action or terminal search to make it fit.
+fn append_caller_file_starts(value: &mut Value, project: &str, fits: &dyn Fn(&Value) -> bool) {
+    let count=value["unbound_member_call_inspection"]["candidates"].as_array().map_or(0,Vec::len);
+    let mut omitted=count.saturating_sub(8);
+    for index in 0..count.min(8) {
+        let Some(file)=value["unbound_member_call_inspection"]["candidates"][index]["caller"]["file_path"]
+            .as_str().filter(|path|recovery_path(path)).map(str::to_owned) else { continue; };
+        value["unbound_member_call_inspection"]["candidates"][index]["caller_file_start_inspection"]=json!({
+            "scope":"Optional current caller-file beginning for possible receiver type/construction context. This action has not run, may omit the origin, and does not bind a receiver/callee. Follow returned paging/hash checks; inspect the invocation separately.",
+            "action":{"tool":"get_full_method_body","arguments":{"project_id":project,"file_path":file,
+                "line_start":1,"context_lines":0,"output_json":true}}});
+        let candidate=&value["unbound_member_call_inspection"]["candidates"][index];
+        if serde_json::to_vec(candidate).expect("JSON serialization").len()>4096
+            || serde_json::to_vec(&value["unbound_member_call_inspection"]).expect("JSON serialization").len()>8*1024
+            || !fits(value) {
+            value["unbound_member_call_inspection"]["candidates"][index].as_object_mut().unwrap()
+                .remove("caller_file_start_inspection");
+            omitted+=1;
+        }
+    }
+    if omitted>0 {
+        value["unbound_member_call_inspection"]["caller_file_start_inspections_omitted"]=json!(omitted);
+        if serde_json::to_vec(&value["unbound_member_call_inspection"]).expect("JSON serialization").len()>8*1024 || !fits(value) {
+            value["unbound_member_call_inspection"].as_object_mut().unwrap().remove("caller_file_start_inspections_omitted");
+        }
+    }
+}
+
+#[cfg(test)]
+mod caller_file_start_behavior {
+    use super::*;
+
+    fn baseline(padding: usize, candidates: usize) -> Value {
+        json!({"selected_dependents_observed":3,"coverage":{"truncated":true},
+            "terminal_member_inspection":{"action":{"tool":"grep_project"}},
+            "unbound_member_call_inspection":{"candidates_omitted_from_display":0,
+                "candidates":(0..candidates).map(|index|json!({
+                    "caller":{"file_path":format!("src/images/group{index}.ts")},
+                    "reference_lines":[131,132],"actions":[{"tool":"get_full_method_body"}],
+                    "retained_witness": "x".repeat(padding)})).collect::<Vec<_>>()}})
+    }
+
+    fn without_new_actions(mut value: Value) -> Value {
+        let inspection=&mut value["unbound_member_call_inspection"];
+        inspection.as_object_mut().unwrap().remove("caller_file_start_inspections_omitted");
+        for row in inspection["candidates"].as_array_mut().unwrap() {
+            row.as_object_mut().unwrap().remove("caller_file_start_inspection");
+        }
+        value
+    }
+
+    #[test]
+    fn caller_file_start_actions_never_displace_witnesses_or_exceed_response_budgets() {
+        // Crowding at the row, inspection section and total response limits
+        // must sacrifice only optional context, preserving the original facts.
+        for (padding, count, whole_limit) in [(3750,1,RESPONSE_BYTES),(3500,2,RESPONSE_BYTES),
+            (0,2,SUMMARY_BYTES-1024),(0,2,RESPONSE_BYTES)] {
+            let original=baseline(padding,count);
+            let mut report=original.clone();
+            let limit=if padding==0 {serde_json::to_vec(&report).unwrap().len()+150} else {whole_limit};
+            append_caller_file_starts(&mut report,"project",&|v|serde_json::to_vec(v).unwrap().len()<=limit);
+            assert_eq!(without_new_actions(report.clone()),original);
+            assert!(serde_json::to_vec(&report).unwrap().len()<=limit);
+            let inspection=&report["unbound_member_call_inspection"];
+            assert!(serde_json::to_vec(inspection).unwrap().len()<=8192);
+            for row in inspection["candidates"].as_array().unwrap() {
+                assert!(serde_json::to_vec(row).unwrap().len()<=4096);
+            }
+            assert!(inspection["caller_file_start_inspections_omitted"].as_u64().unwrap_or(0)>0);
+        }
+    }
+
+    #[test]
+    fn caller_file_start_graph_actions_cannot_evict_summary_witnesses() {
+        let original=baseline(0,2);
+        let mut graph=original.clone();
+        append_caller_file_starts(&mut graph,"project",&|_|true);
+        assert!(graph["unbound_member_call_inspection"]["candidates"][0]
+            .get("caller_file_start_inspection").is_some());
+        let mut summary=original.clone();
+        summary.as_object_mut().unwrap().remove("unbound_member_call_inspection");
+        let limit=serde_json::to_vec(&original).unwrap().len();
+        append_unbound_inspection(&mut summary,&graph["unbound_member_call_inspection"],
+            &|v|serde_json::to_vec(v).unwrap().len()<=limit);
+        assert_eq!(summary,original);
+        append_caller_file_starts(&mut summary,"project",&|v|serde_json::to_vec(v).unwrap().len()<=limit);
+        assert_eq!(summary,original);
     }
 }
 
@@ -1476,6 +1575,7 @@ fn render(
             }
         }
     }
+    append_caller_file_starts(&mut value, project, &|value|section(value).len()<=RESPONSE_BYTES);
     ensure!(
         section(&value).len() <= RESPONSE_BYTES,
         "Impact evidence exceeds response budget"

@@ -411,6 +411,7 @@ fn unbound_same_terminal_calls_are_inspectable_without_becoming_primary_callers(
                         && unresolved.ends_with(&format!("{receiver}.resetState")));
                     ensure!(matches!(app.state.graph.resolve_symbol(&pid, unresolved, None, None)?, engram_graph::store::ResolveResult::NotFound));
                     let actions = row["actions"].as_array().unwrap();
+                    ensure!(actions.len()==3, "File context is separate from the existing witness/context/impact actions");
                     let read = actions.iter().find(|action| action["tool"] == "get_full_method_body").unwrap();
                     let read = app.handle_get_full_method_body(serde_json::from_value(read["arguments"].clone())?).await?;
                     ensure!(read.is_error != Some(true));
@@ -436,6 +437,67 @@ fn unbound_same_terminal_calls_are_inspectable_without_becoming_primary_callers(
         }
         ensure!(before == serde_json::to_value(app.state.graph.list_edges(&pid, None)?)?);
         check_receivers(&app, &pid)?;
+        // Type/construction context can precede the caller while its actual
+        // invocation and escaped-array getter live on later source pages.
+        let mut group_source=String::from("/// <reference path=\"image.ts\" />\nclass Group {\n private images: Array<Image> = [];\n constructor() { this.images.push(new Image()); }\n resetState() { this.clear(); }\n");
+        while group_source.lines().count()<128 {group_source.push('\n');}
+        group_source.push_str(" clear() {\n  for (const h of this.images) {\n   h.resetState();\n   h.resetState();\n  }\n }\n loadAll() { this.clear(); }\n");
+        while group_source.lines().count()<260 {group_source.push('\n');}
+        group_source.push_str(" get handlers(): Array<Image> { return this.images; }\n}\n");
+        std::fs::write(owned.path().join("repo").join(GROUP),&group_source)?;
+        let updated=app.handle_update_project(serde_json::from_value(json!({
+            "project_id":pid,"only_paths":[GROUP],"wait":true,"index_antipatterns":false}))?).await?;
+        ensure!(updated.is_error!=Some(true));settle(&app).await?;
+        let generation=engram_server::services::project_service::get_active_generation(&app.state,&pid).await?;
+        let current=app.state.graph.query_nodes(&pid,Some("function"),None,Some(GROUP),64)?;
+        let caller=current.iter().find(|node|node.name=="clear" && node.generation==generation).unwrap();
+        let before_context=serde_json::to_value(app.state.graph.list_edges(&pid,None)?)?;
+        for tool in ["impact_analysis","compute_blast_radius"] {
+            for detail in ["summary","graph"] {
+                let mut args=json!({"project_id":pid,"symbol_fqn":target.node_id,"max_depth":6,"detail":detail,"include_guidance":false});
+                let response=if tool=="compute_blast_radius" {app.handle_compute_blast_radius(serde_json::from_value(args)?).await?}
+                    else {args.as_object_mut().unwrap().remove("include_guidance");app.handle_impact_analysis(serde_json::from_value(args)?).await?};
+                ensure!(response.is_error!=Some(true));
+                let text=&response.content[0].as_text().unwrap().text;
+                ensure!(text.len()<=if detail=="summary" {12*1024}else{64*1024});
+                let mut report=packet(text);
+                ensure!(report["selected_dependents_observed"]==3 && report["source_generation"]==generation);
+                let has_context=report["unbound_member_call_inspection"]["candidates"].as_array().is_some_and(|rows|
+                    rows.iter().any(|row|row["caller"]["node_id"]==caller.node_id && row.get("caller_file_start_inspection").is_some()));
+                if !has_context {
+                    ensure!(detail=="summary","Small graph retains source-context recovery");
+                    let next=&report["graph_continuation"];ensure!(next["tool"]=="impact_analysis");
+                    let expanded=app.handle_impact_analysis(serde_json::from_value(next["arguments"].clone())?).await?;
+                    ensure!(expanded.is_error!=Some(true));report=packet(&expanded.content[0].as_text().unwrap().text);
+                }
+                let inspection=&report["unbound_member_call_inspection"];
+                ensure!(serde_json::to_vec(inspection)?.len()<=8*1024);
+                let row=inspection["candidates"].as_array().unwrap().iter().find(|row|row["caller"]["node_id"]==caller.node_id).unwrap();
+                ensure!(serde_json::to_vec(row)?.len()<=4096 && row["actions"].as_array().unwrap().len()==3);
+                let header=&row["caller_file_start_inspection"];
+                ensure!(header["scope"].as_str().unwrap().contains("does not bind"));
+                let action=&header["action"];ensure!(action["tool"]=="get_full_method_body");
+                ensure!(action["arguments"]["file_path"]==GROUP && action["arguments"]["line_start"]==1
+                    && action["arguments"].get("line_end").is_none() && action["arguments"].get("fqn").is_none());
+                let page=app.handle_get_full_method_body(serde_json::from_value(action["arguments"].clone())?).await?;
+                ensure!(page.is_error!=Some(true));let page:Value=serde_json::from_str(&page.content[0].as_text().unwrap().text)?;
+                ensure!(page["retrieval_scope"]=="current_file_excerpt" && page["line_start"]==1
+                    && page["file_excerpt"]["returned_lines"].as_u64().unwrap()<=120);
+                ensure!(page["source_file_hash_algorithm"]=="blake3" && page["source_file_hash"]==ContentHash::compute(group_source.as_bytes()).0);
+                let source=page["source_code"].as_str().unwrap();
+                ensure!(source.contains("Array<Image>") && source.contains("new Image()") && !source.contains("h.resetState()"));
+                let next=&page["file_excerpt"]["next_page"];ensure!(next["tool"]=="get_full_method_body");
+                let next_page=app.handle_get_full_method_body(serde_json::from_value(next["arguments"].clone())?).await?;
+                ensure!(next_page.is_error!=Some(true));let next_page:Value=serde_json::from_str(&next_page.content[0].as_text().unwrap().text)?;
+                ensure!(next_page["source_file_hash"]==page["source_file_hash"] && next_page["source_code"].as_str().unwrap().contains("h.resetState()"));
+                let witness=&row["actions"][0];ensure!(witness["tool"]=="get_full_method_body");
+                let witness=app.handle_get_full_method_body(serde_json::from_value(witness["arguments"].clone())?).await?;
+                ensure!(witness.is_error!=Some(true));let witness:Value=serde_json::from_str(&witness.content[0].as_text().unwrap().text)?;
+                ensure!(witness["source_file_hash"]==page["source_file_hash"] && witness["source_code"].as_str().unwrap().contains("h.resetState()"));
+                ensure!(matches!(app.state.graph.resolve_symbol(&pid,row["unresolved_target_id"].as_str().unwrap(),None,None)?,engram_graph::store::ResolveResult::NotFound));
+            }
+        }
+        ensure!(before_context==serde_json::to_value(app.state.graph.list_edges(&pid,None)?)?);
         settle(&app).await?;
         drop(app);
         Ok::<(), anyhow::Error>(())
