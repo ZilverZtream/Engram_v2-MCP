@@ -82,6 +82,9 @@ struct CollectedImpact {
     coverage: ImpactWalkCoverage,
     direct_dependents: usize,
     transitive_dependents: usize,
+    // All admitted external files in this bounded walk, before graph display
+    // clipping. None is unavailable/not a file query, never an empty inventory.
+    dependent_files: Option<BTreeMap<String, usize>>,
     advisory_scope: AdvisoryScope,
 }
 
@@ -195,6 +198,7 @@ fn summary_section(
     display_limit: usize,
     direct: Option<usize>,
     transitive: Option<usize>,
+    dependent_files: Option<&BTreeMap<String, usize>>,
 ) -> String {
     let nodes: HashMap<_, _> = full["nodes"]
         .as_array()
@@ -267,12 +271,10 @@ fn summary_section(
             }
             // The same executable read can cover a symbol or file-member
             // witness. Preserve its position/scope; share only exact actions.
-            if !edge["source_line"].is_null() {
-                if let Some(source_read) = action(&node["recovery_ref"]) {
-                    if witness.get("recorded_position_read") == Some(&source_read) {
-                        witness.as_object_mut().expect("witness object").remove("recorded_position_read");
-                        witness["recorded_position_uses_source_read"] = json!(true);
-                    }
+            if let Some(source_read) = action(&node["recovery_ref"]) {
+                if witness.get("recorded_position_read") == Some(&source_read) {
+                    witness.as_object_mut().expect("witness object").remove("recorded_position_read");
+                    witness["recorded_position_uses_source_read"] = json!(true);
                 }
             }
             witness
@@ -527,11 +529,105 @@ fn summary_section(
         }
     }
     append_caller_file_starts(&mut value, project, &fits);
+    if let Some(files) = dependent_files {
+        append_dependent_files(&mut value, files, &fits);
+    }
     format!(
         "{}\n## Revision-admitted change impact\n\nSummary of the same bounded source selection. Expand the graph for all retained identities, connections and paths.\n\n```json\n{}\n```\n",
         immediate_prefix,
         serde_json::to_string(&value).expect("JSON value serialization")
     )
+}
+
+/// Optional file navigation must never evict a caller, witness or uncertainty
+/// frontier. Counts cover the held bounded walk, not just rendered graph rows.
+fn append_dependent_files(
+    value: &mut Value,
+    files: &BTreeMap<String, usize>,
+    fits: &dyn Fn(&Value) -> bool,
+) {
+    value["observed_dependent_files"] = json!({
+        "files_observed":files.len(),"files_omitted":files.len(),"files":[],
+        "scope":"Selected external paths before display clipping; walk limits apply, not runtime proof."
+    });
+    if !fits(value) {
+        value.as_object_mut().unwrap().remove("observed_dependent_files");
+        value["observed_dependent_files_omitted"] = json!(true);
+        if !fits(value) {
+            value.as_object_mut().unwrap().remove("observed_dependent_files_omitted");
+        }
+        return;
+    }
+    let mut ranked: Vec<_> = files.iter().collect();
+    ranked.sort_by(|(a_path,a_depth),(b_path,b_depth)|
+        a_depth.cmp(b_depth).then_with(||a_path.cmp(b_path)));
+    let mut rows = Vec::new();
+    for (path, depth) in ranked {
+        if rows.len() == 32 { break; }
+        rows.push(json!({"file_path":path,"min_depth":depth}));
+        value["observed_dependent_files"]["files"] = json!(&rows);
+        value["observed_dependent_files"]["files_omitted"] = json!(files.len()-rows.len());
+        if !fits(value) {
+            rows.pop();
+            value["observed_dependent_files"]["files"] = json!(&rows);
+            value["observed_dependent_files"]["files_omitted"] = json!(files.len()-rows.len());
+        }
+    }
+}
+
+fn dependent_file_inventory(
+    walk: &IncomingImpactWalk,
+    requested_file: Option<&str>,
+    admitted: bool,
+) -> Option<BTreeMap<String, usize>> {
+    let requested_file = requested_file.filter(|_|admitted)?;
+    let mut files: BTreeMap<String, usize> = BTreeMap::new();
+    for row in &walk.nodes {
+        let path = row.node.file_path.as_str();
+        if row.admission == ImpactAdmission::Selected && row.depth > 0
+            && !path.is_empty() && path != requested_file {
+            files.entry(path.to_owned()).and_modify(|depth|*depth=(*depth).min(row.depth))
+                .or_insert(row.depth);
+        }
+    }
+    Some(files)
+}
+
+#[cfg(test)]
+mod dependent_file_navigation_behavior {
+    use super::*;
+
+    #[test]
+    fn optional_file_navigation_preserves_evidence_when_only_some_paths_fit() {
+        let original = json!({"coverage":{"truncated":true,"reasons":["file_seed_cap"]},
+            "immediate_consumers":[{"source_read":{"tool":"get_full_method_body"}}],
+            "frontier":[{"reason":"missing_graph_node"}],
+            "graph_continuation":{"tool":"impact_analysis"}});
+        let files = BTreeMap::from([
+            (format!("src/{}.rs","a".repeat(2041)),1),
+            ("src/brief.rs".into(),1),
+            ("src/downstream.rs".into(),3),
+        ]);
+        for extra_bytes in [0,50,350,500,4096] {
+            let mut report = original.clone();
+            let limit = serde_json::to_vec(&report).unwrap().len()+extra_bytes;
+            append_dependent_files(&mut report,&files,&|v|serde_json::to_vec(v).unwrap().len()<=limit);
+            assert!(serde_json::to_vec(&report).unwrap().len()<=limit);
+            if let Some(inventory) = report.get("observed_dependent_files") {
+                let rows = inventory["files"].as_array().unwrap();
+                assert_eq!(inventory["files_observed"],3);
+                assert_eq!(rows.len() as u64+inventory["files_omitted"].as_u64().unwrap(),3);
+                if extra_bytes==500 {
+                    assert!(rows.iter().any(|row|row["file_path"]=="src/brief.rs"),
+                        "One oversized path must not conceal later short paths that fit");
+                    assert!(inventory["files_omitted"].as_u64().unwrap()>0);
+                }
+            }
+            report.as_object_mut().unwrap().remove("observed_dependent_files");
+            report.as_object_mut().unwrap().remove("observed_dependent_files_omitted");
+            assert_eq!(report,original,"Navigation cannot evict or alter existing evidence");
+        }
+    }
 }
 
 struct Endpoint<'a> {
@@ -1630,6 +1726,7 @@ async fn collect_evidence(
                             return Ok(CollectedImpact {
                                 value, source, generation, target_revision_admitted: false,
                                 coverage, direct_dependents: 0, transitive_dependents: 0,
+                                dependent_files: None,
                                 advisory_scope: AdvisoryScope::Unavailable("target_name_ambiguous"),
                             });
                         }
@@ -1705,6 +1802,7 @@ async fn collect_evidence(
             .iter()
             .filter(|node| node.admission == ImpactAdmission::Selected && node.depth > 1)
             .count();
+        let dependent_files = dependent_file_inventory(&walk, internal_file.as_deref(), target_revision_admitted);
         let mut value = render(
             &walk,
             &target,
@@ -1742,6 +1840,7 @@ async fn collect_evidence(
             coverage,
             direct_dependents,
             transitive_dependents,
+            dependent_files,
             advisory_scope,
         })
     })
@@ -1936,6 +2035,7 @@ async fn collect_with_advisory_detail(
                     collected
                         .target_revision_admitted
                         .then_some(collected.transitive_dependents),
+                    collected.dependent_files.as_ref(),
                 )
             } else {
                 section(&collected.value)
@@ -1954,6 +2054,7 @@ async fn collect_with_advisory_detail(
                         file_path.as_deref(),
                         symbol_fqn.as_deref(),
                         display_limit,
+                        None,
                         None,
                         None,
                     )
