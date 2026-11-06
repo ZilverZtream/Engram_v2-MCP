@@ -289,6 +289,8 @@ fn code_map_safety_actions_disclose_unassessed_state_and_cancellation_without_lo
         let inspect = actions.iter().find(|action| action["tool"] == "get_method_edit_context").unwrap();
         let response = app.handle_get_method_edit_context(serde_json::from_value(inspect["arguments"].clone())?).await?;
         ensure!(response.is_error != Some(true));
+        ensure!(response.content[0].as_text().unwrap().text.len()<=20*1024,
+            "This two-caller agent context must preserve its evidence within20KiB");
         let context: Value = serde_json::from_str(&response.content[0].as_text().unwrap().text)?;
         ensure!(context["method_info"]["return_type"] == "unknown" && context["method_info"]["access_level"] == "unknown",
             "Unavailable signature facts must remain unknown");
@@ -298,6 +300,8 @@ fn code_map_safety_actions_disclose_unassessed_state_and_cancellation_without_lo
             "project_id":pid,"file_path":FILE,"method_name":"resetState","line":5,"output_json":true
         }))?).await?;
         ensure!(response.is_error != Some(true));
+        ensure!(response.content[0].as_text().unwrap().text.len()<=16*1024,
+            "This two-caller standalone safety evidence must fit16KiB");
         let standalone: Value = serde_json::from_str(&response.content[0].as_text().unwrap().text)?;
         ensure!(context["edit_safety"] == standalone, "Both safety tools must use the same evidence and uncertainty");
         ensure!(standalone["verdict"] == "yellow" && standalone["confidence"].as_f64().unwrap() <= 0.5);
