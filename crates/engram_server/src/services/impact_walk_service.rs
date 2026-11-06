@@ -264,12 +264,14 @@ fn summary_section(
                 witness["target_scope"] = json!(if edge["target_ref"] == full["target_ref"] { "requested_file" } else { "file_member" });
                 witness["target_name"] = reached.map(|node|node["name"].clone()).unwrap_or(Value::Null);
                 witness["target_generation"] = reached.map(|node|node["generation"].clone()).unwrap_or(Value::Null);
-                if !edge["source_line"].is_null() {
-                    if let Some(source_read) = action(&node["recovery_ref"]) {
-                        if witness.get("recorded_position_read") == Some(&source_read) {
-                            witness.as_object_mut().expect("witness object").remove("recorded_position_read");
-                            witness["recorded_position_uses_source_read"] = json!(true);
-                        }
+            }
+            // The same executable read can cover a symbol or file-member
+            // witness. Preserve its position/scope; share only exact actions.
+            if !edge["source_line"].is_null() {
+                if let Some(source_read) = action(&node["recovery_ref"]) {
+                    if witness.get("recorded_position_read") == Some(&source_read) {
+                        witness.as_object_mut().expect("witness object").remove("recorded_position_read");
+                        witness["recorded_position_uses_source_read"] = json!(true);
                     }
                 }
             }

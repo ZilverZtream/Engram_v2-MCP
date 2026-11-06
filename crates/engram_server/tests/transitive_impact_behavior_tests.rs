@@ -668,11 +668,14 @@ fn agents_can_inspect_recorded_references_without_reassigning_same_named_callers
             assert_eq!(connection["source_line"], 96);
             assert_eq!(connection["extractor_anchor_line"], 92);
             assert_eq!(connection["reference_lines"], json!([96, 101]));
+            assert_eq!(connection["recorded_position_uses_source_read"], true);
+            assert!(connection.get("recorded_position_read").is_none(),
+                "An identical executable read should appear once, with an explicit reuse marker");
             let recovered = fixture
                 .engram
                 .handle_get_full_method_body(
                     serde_json::from_value(
-                        connection["recorded_position_read"]["arguments"].clone(),
+                        consumer["source_read"]["arguments"].clone(),
                     )
                     .unwrap(),
                 )
@@ -752,8 +755,14 @@ fn agents_can_inspect_recorded_references_without_reassigning_same_named_callers
                 assert_eq!(connection["extractor_anchor_line"], anchor);
                 assert_eq!(connection["source_position_scope"], expected_scope);
                 let unattributed = expected_scope == "unattributed_extractor_anchor";
-                assert_eq!(connection["recorded_position_read"].is_null(), unattributed);
-                let action = if unattributed {
+                let shared = connection["recorded_position_uses_source_read"] == true;
+                if shared {
+                    assert!(!unattributed);
+                    assert!(connection.get("recorded_position_read").is_none());
+                } else {
+                    assert_eq!(connection["recorded_position_read"].is_null(), unattributed);
+                }
+                let action = if unattributed || shared {
                     &consumer["source_read"]
                 } else {
                     &connection["recorded_position_read"]
@@ -763,6 +772,7 @@ fn agents_can_inspect_recorded_references_without_reassigning_same_named_callers
                     assert_eq!(action["arguments"]["line_start"], 92);
                     assert_eq!(action["arguments"]["line_end"], 106);
                 } else if anchor == 114 {
+                    assert!(!shared, "A position outside the declaration keeps its own read action");
                     assert_eq!(action["arguments"]["line_start"], 114);
                     assert_eq!(action["arguments"]["line_end"], 114);
                 }

@@ -4179,7 +4179,7 @@ impl Engram {
             )
             .await;
         if output_json {
-            let json = serde_json::to_string_pretty(&FreshAccessResponse {
+            let json = serde_json::to_string(&FreshAccessResponse {
                 result: &ctx,
                 freshness: freshness.clone(),
             })
@@ -6454,7 +6454,7 @@ impl Engram {
         apply_downstream_safety(&mut safety, downstream);
 
         if output_json {
-            let json = serde_json::to_string_pretty(&safety)
+            let json = serde_json::to_string(&safety)
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?;
             return Ok(CallToolResult::success(vec![Content::text(json)]));
         }
