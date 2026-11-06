@@ -181,6 +181,13 @@ Every socket connection arriving at the primary is treated as a new MCP session:
 
 Default 5 min is short enough that a forgotten instance doesn't squat the lock, long enough that a Claude Code session closing and reopening within the same task doesn't incur cold-start cost twice.
 
+The quiet interval starts when the last session closes, including sessions that
+open and close entirely between watchdog polls. An admitted session prevents
+idle shutdown. Admission and the final idle-close decision are serialized, so
+a connection either reserves its session before shutdown or is rejected after
+shutdown has committed. Session reservations are released on normal completion,
+task cancellation, and unwinding.
+
 ### 4.6 Crash recovery
 
 Three crash modes to handle:

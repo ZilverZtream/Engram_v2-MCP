@@ -26,8 +26,8 @@
 use std::fs::File;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
+use std::sync::atomic::Ordering;
 
 use engram_core::Config;
 use fs2::FileExt as _;
@@ -604,13 +604,57 @@ pub async fn run_daemon(cfg: Config) -> anyhow::Result<()> {
 
 // ─── Primary ────────────────────────────────────────────────────────────────
 
-/// State a primary process carries across its lifetime. Everything
-/// the MCP session handler needs is here so session tasks can be
-/// spawned freely.
+/// Session admission and quiet time share one short critical section.
+struct SessionActivity {
+    state: Mutex<SessionActivityState>,
+}
+
+struct SessionActivityState {
+    active: usize,
+    quiet_since: tokio::time::Instant,
+    closing: bool,
+}
+
+/// A session remains reserved across task spawning, serving, cancellation and
+/// unwinding. Short sessions must renew the quiet interval even between polls.
+struct SessionLease(Arc<SessionActivity>);
+
+impl SessionActivity {
+    fn new() -> Self {
+        Self { state: Mutex::new(SessionActivityState {
+            active: 0, quiet_since: tokio::time::Instant::now(), closing: false,
+        }) }
+    }
+
+    fn try_acquire(self: &Arc<Self>) -> Option<SessionLease> {
+        let mut state=self.state.lock().unwrap_or_else(|error|error.into_inner());
+        if state.closing || state.active>=MAX_CONCURRENT_SESSIONS { return None; }
+        state.active+=1;
+        Some(SessionLease(self.clone()))
+    }
+
+    fn close_if_idle(&self, timeout: std::time::Duration) -> bool {
+        let mut state=self.state.lock().unwrap_or_else(|error|error.into_inner());
+        if !state.closing && state.active==0 && state.quiet_since.elapsed()>=timeout {
+            // Serialize the final idle decision with admission: a new lease
+            // either pins us before this decision, or is rejected afterward.
+            state.closing=true;
+        }
+        state.closing
+    }
+}
+
+impl Drop for SessionLease {
+    fn drop(&mut self) {
+        let mut state=self.0.state.lock().unwrap_or_else(|error|error.into_inner());
+        state.active-=1;
+        if state.active==0 { state.quiet_since=tokio::time::Instant::now(); }
+    }
+}
+
 struct PrimaryState {
-    /// Count of currently-active MCP sessions (stdio + sockets). Used
-    /// by the idle watchdog to decide when to exit.
-    active_sessions: Arc<AtomicUsize>,
+    /// Session reservations and last-disconnect time, shared with the watchdog.
+    active_sessions: Arc<SessionActivity>,
     /// Shutdown signal fired when idle timeout expires or a SIGTERM
     /// arrives.
     shutdown: tokio_util::sync::CancellationToken,
@@ -698,9 +742,12 @@ async fn run_primary_core(
     ));
 
     let ps = PrimaryState {
-        active_sessions: Arc::new(AtomicUsize::new(0)),
+        active_sessions: Arc::new(SessionActivity::new()),
         shutdown: shutdown.clone(),
     };
+    // Reserve the legacy primary's own session before peers or the watchdog
+    // can run, and release it even if serving stdio exits exceptionally.
+    let stdio_lease=serve_stdio.then(||ps.active_sessions.try_acquire().expect("new primary session"));
 
     // Start the socket listener. Socket file is removed on startup
     // if stale (prior primary crashed without cleanup).
@@ -748,9 +795,8 @@ async fn run_primary_core(
     // has no MCP client of its own — it serves IPC sessions exclusively
     // and lives by the idle watchdog alone.
     let stdio_result = if serve_stdio {
-        ps.active_sessions.fetch_add(1, Ordering::SeqCst);
         let r = crate::tools::run_stdio(state.clone()).await;
-        ps.active_sessions.fetch_sub(1, Ordering::SeqCst);
+        drop(stdio_lease);
         r
     } else {
         Ok(())
@@ -804,7 +850,7 @@ fn remove_stale_socket(socket_path: &Path) -> anyhow::Result<()> {
 async fn spawn_socket_listener(
     socket_path: PathBuf,
     state: crate::state::AppState,
-    active: Arc<AtomicUsize>,
+    active: Arc<SessionActivity>,
     shutdown: tokio_util::sync::CancellationToken,
 ) -> anyhow::Result<tokio::task::JoinHandle<()>> {
     #[cfg(unix)]
@@ -817,33 +863,21 @@ async fn spawn_socket_listener(
                     accepted = listener.accept() => {
                         match accepted {
                             Ok((sock, _addr)) => {
-                                // Atomic reserve-or-reject: use
-                                // fetch_update to both cap at
-                                // MAX_CONCURRENT_SESSIONS AND
-                                // increment before the task spawns.
-                                // This closes the window where the
-                                // watchdog could observe idle=0
-                                // between accept() and the session
-                                // task actually running.
-                                let reserved = active.fetch_update(
-                                    Ordering::SeqCst,
-                                    Ordering::SeqCst,
-                                    |c| if c < MAX_CONCURRENT_SESSIONS { Some(c + 1) } else { None },
-                                );
-                                if reserved.is_err() {
+                                // Reserve before spawning so idle shutdown
+                                // cannot pass an already admitted client.
+                                let Some(lease)=active.try_acquire() else {
                                     tracing::warn!(
                                         cap = MAX_CONCURRENT_SESSIONS,
-                                        "rejecting socket connection — concurrent-session cap hit"
+                                        "rejecting socket connection — session limit or shutdown"
                                     );
                                     drop(sock);
                                     continue;
-                                }
+                                };
                                 let state_c = state.clone();
-                                let active_c = active.clone();
                                 let shutdown_c = shutdown.clone();
                                 tokio::spawn(async move {
+                                    let _lease=lease;
                                     serve_socket_session(sock, state_c, shutdown_c).await;
-                                    active_c.fetch_sub(1, Ordering::SeqCst);
                                 });
                             }
                             Err(e) => {
@@ -891,42 +925,30 @@ async fn spawn_socket_listener(
                                         );
                                         // Still serve the client we have.
                                         let state_c = state.clone();
-                                        let active_c = active.clone();
                                         let shutdown_c = shutdown.clone();
-                                        if active
-                                            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |c| {
-                                                (c < MAX_CONCURRENT_SESSIONS).then_some(c + 1)
-                                            })
-                                            .is_ok()
-                                        {
+                                        if let Some(lease)=active.try_acquire() {
                                             tokio::spawn(async move {
+                                                let _lease=lease;
                                                 serve_pipe_session(connected, state_c, shutdown_c)
                                                     .await;
-                                                active_c.fetch_sub(1, Ordering::SeqCst);
                                             });
                                         }
                                         break;
                                     }
                                 };
-                                let reserved = active.fetch_update(
-                                    Ordering::SeqCst,
-                                    Ordering::SeqCst,
-                                    |c| if c < MAX_CONCURRENT_SESSIONS { Some(c + 1) } else { None },
-                                );
-                                if reserved.is_err() {
+                                let Some(lease)=active.try_acquire() else {
                                     tracing::warn!(
                                         cap = MAX_CONCURRENT_SESSIONS,
-                                        "rejecting named-pipe connection — concurrent-session cap hit"
+                                        "rejecting named-pipe connection — session limit or shutdown"
                                     );
                                     drop(connected);
                                     continue;
-                                }
+                                };
                                 let state_c = state.clone();
-                                let active_c = active.clone();
                                 let shutdown_c = shutdown.clone();
                                 tokio::spawn(async move {
+                                    let _lease=lease;
                                     serve_pipe_session(connected, state_c, shutdown_c).await;
-                                    active_c.fetch_sub(1, Ordering::SeqCst);
                                 });
                             }
                             Err(e) => {
@@ -1101,30 +1123,23 @@ async fn serve_socket_session(
 }
 
 async fn run_idle_watchdog(
-    active: Arc<AtomicUsize>,
+    active: Arc<SessionActivity>,
     shutdown: tokio_util::sync::CancellationToken,
     idle_timeout: std::time::Duration,
 ) {
     let poll = std::time::Duration::from_secs(1);
-    let mut idle_since: Option<std::time::Instant> = None;
     loop {
         tokio::select! {
             _ = shutdown.cancelled() => return,
             _ = tokio::time::sleep(poll) => {}
         }
-        let count = active.load(Ordering::SeqCst);
-        if count == 0 {
-            let started = idle_since.get_or_insert_with(std::time::Instant::now);
-            if started.elapsed() >= idle_timeout {
-                tracing::info!(
-                    idle_timeout_secs = idle_timeout.as_secs(),
-                    "multi-client primary: idle timeout reached, shutting down"
-                );
-                shutdown.cancel();
-                return;
-            }
-        } else {
-            idle_since = None;
+        if active.close_if_idle(idle_timeout) {
+            tracing::info!(
+                idle_timeout_secs = idle_timeout.as_secs(),
+                "multi-client primary: idle timeout reached, shutting down"
+            );
+            shutdown.cancel();
+            return;
         }
     }
 }
@@ -1556,44 +1571,100 @@ mod tests {
     }
 
     #[test]
-    fn session_counter_cap_via_fetch_update() {
-        // Regression guard for the "active_sessions race" fix —
-        // fetch_update must atomically reject increments above the
-        // cap and return Err when the cap is hit.
-        let active = std::sync::atomic::AtomicUsize::new(MAX_CONCURRENT_SESSIONS - 1);
-        let res = active.fetch_update(
-            std::sync::atomic::Ordering::SeqCst,
-            std::sync::atomic::Ordering::SeqCst,
-            |c| {
-                if c < MAX_CONCURRENT_SESSIONS {
-                    Some(c + 1)
-                } else {
-                    None
-                }
-            },
-        );
-        assert!(res.is_ok());
-        assert_eq!(
-            active.load(std::sync::atomic::Ordering::SeqCst),
-            MAX_CONCURRENT_SESSIONS
-        );
-        // At cap — next attempt must fail without mutating.
-        let res = active.fetch_update(
-            std::sync::atomic::Ordering::SeqCst,
-            std::sync::atomic::Ordering::SeqCst,
-            |c| {
-                if c < MAX_CONCURRENT_SESSIONS {
-                    Some(c + 1)
-                } else {
-                    None
-                }
-            },
-        );
-        assert!(res.is_err());
-        assert_eq!(
-            active.load(std::sync::atomic::Ordering::SeqCst),
-            MAX_CONCURRENT_SESSIONS
-        );
+    fn session_limit_rejects_excess_and_reuses_released_capacity() {
+        let activity=Arc::new(SessionActivity::new());
+        let mut leases:Vec<_>=(0..MAX_CONCURRENT_SESSIONS)
+            .map(|_|activity.try_acquire().expect("capacity available")).collect();
+        assert!(activity.try_acquire().is_none());
+        drop(leases.pop());
+        let replacement=activity.try_acquire().expect("released capacity is reusable");
+        assert!(activity.try_acquire().is_none());
+        drop(replacement);drop(leases);
+        assert!(activity.close_if_idle(std::time::Duration::ZERO));
+        assert!(activity.try_acquire().is_none(),"An idle-close decision rejects later admissions");
+    }
+
+    async fn advance_watchdog(duration: std::time::Duration) {
+        tokio::time::advance(duration).await;
+        tokio::task::yield_now().await;
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn brief_clients_between_polls_renew_the_full_idle_grace() {
+        use std::time::Duration;
+        let activity=Arc::new(SessionActivity::new());
+        let shutdown=tokio_util::sync::CancellationToken::new();
+        let watchdog=tokio::spawn(run_idle_watchdog(activity.clone(),shutdown.clone(),Duration::from_secs(3)));
+        tokio::task::yield_now().await;
+        advance_watchdog(Duration::from_secs(1)).await;
+        advance_watchdog(Duration::from_millis(500)).await;
+        drop(activity.try_acquire().unwrap());
+        advance_watchdog(Duration::from_secs(1)).await;
+        advance_watchdog(Duration::from_secs(1)).await;
+        drop(activity.try_acquire().unwrap());
+        advance_watchdog(Duration::from_secs(1)).await;
+        assert!(!shutdown.is_cancelled(),"Completed clients between polls must invalidate the old idle deadline");
+        advance_watchdog(Duration::from_secs(1)).await;
+        assert!(!shutdown.is_cancelled(),"The last client gets the full configured quiet interval");
+        advance_watchdog(Duration::from_secs(1)).await;
+        assert!(shutdown.is_cancelled(),"A genuinely idle primary still shuts down");
+        watchdog.await.unwrap();
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_held_session_pins_the_primary_and_last_close_starts_a_new_grace() {
+        use std::time::Duration;
+        let activity=Arc::new(SessionActivity::new());
+        let lease=activity.try_acquire().unwrap();
+        let shutdown=tokio_util::sync::CancellationToken::new();
+        let watchdog=tokio::spawn(run_idle_watchdog(activity.clone(),shutdown.clone(),Duration::from_secs(3)));
+        tokio::task::yield_now().await;
+        advance_watchdog(Duration::from_secs(10)).await;
+        assert!(!shutdown.is_cancelled(),"An admitted live session prevents idle shutdown");
+        drop(lease);
+        advance_watchdog(Duration::from_secs(2)).await;
+        assert!(!shutdown.is_cancelled(),"Time spent serving the client is not idle time");
+        advance_watchdog(Duration::from_secs(1)).await;
+        assert!(shutdown.is_cancelled());
+        watchdog.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn cancelling_a_session_returns_its_reservation() {
+        let activity=Arc::new(SessionActivity::new());
+        let lease=activity.try_acquire().unwrap();
+        let (ready,started)=tokio::sync::oneshot::channel();
+        let task=tokio::spawn(async move {
+            let _lease=lease;
+            ready.send(()).unwrap();
+            std::future::pending::<()>().await;
+        });
+        started.await.unwrap();
+        let leases:Vec<_>=(1..MAX_CONCURRENT_SESSIONS).map(|_|activity.try_acquire().unwrap()).collect();
+        assert!(activity.try_acquire().is_none());
+        task.abort();assert!(task.await.unwrap_err().is_cancelled());
+        let replacement=activity.try_acquire().expect("Cancelled sessions must not strand capacity");
+        drop(replacement);drop(leases);
+        assert!(activity.close_if_idle(std::time::Duration::ZERO));
+    }
+
+    #[test]
+    fn admission_and_idle_close_cannot_both_win() {
+        for _ in 0..8 {
+            let activity=Arc::new(SessionActivity::new());
+            let ready=Arc::new(std::sync::Barrier::new(3));
+            let acquire={let activity=activity.clone();let ready=ready.clone();std::thread::spawn(move || {
+                ready.wait();activity.try_acquire()
+            })};
+            let close={let activity=activity.clone();let ready=ready.clone();std::thread::spawn(move || {
+                ready.wait();activity.close_if_idle(std::time::Duration::ZERO)
+            })};
+            ready.wait();
+            let lease=acquire.join().unwrap();let closing=close.join().unwrap();
+            assert_ne!(lease.is_some(),closing,"An admitted lease pins the primary; a committed idle close rejects the lease");
+            drop(lease);
+            assert!(activity.close_if_idle(std::time::Duration::ZERO));
+        }
     }
 
     #[tokio::test]
