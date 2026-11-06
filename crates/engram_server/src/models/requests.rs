@@ -465,6 +465,8 @@ pub struct ProjectIdRequest {
 pub struct CodebaseOverviewRequest {
     pub project_id: String,
     /// Literal project-relative file or directory boundary, never a glob.
+    /// Directory area actions descend to the next child directory or direct
+    /// selected file; scoped file pages retain lexical order independently.
     #[serde(default)]
     pub scope: Option<String>,
     /// Literal boundaries omitted before declaration lookup or source recovery.

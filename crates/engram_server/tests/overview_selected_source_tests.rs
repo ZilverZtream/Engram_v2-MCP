@@ -524,6 +524,97 @@ async fn navigate(engram: &Engram, arguments: Value) -> Value {
 }
 
 #[test]
+fn scoped_codemap_actions_descend_without_losing_files_to_area_caps() {
+    owned_case(true, |engram, search| async move {
+        const SCOPE: &str = "src/application/api/v2";
+        const EXCLUDED: &str = "src/application/api/v2/private";
+        const CAPPED: &str = "src/application/many";
+        let mut paths = vec![
+            format!("{SCOPE}/entry.rs"),
+            format!("{SCOPE}/controllers/catalog/List.rs"),
+            format!("{SCOPE}/controllers/catalog/detail/Get.rs"),
+            format!("{SCOPE}/services/catalog/Read.rs"),
+            format!("{EXCLUDED}/Secret.rs"),
+            "src/application/api/v20/Unrelated.rs".into(),
+        ];
+        paths.extend((0..130).map(|i| format!("{CAPPED}/child{i:03}/Leaf.rs")));
+        let cancel = CancellationToken::new();
+        let initial = engram.state.registry.capture_source_head(PID).unwrap();
+        let identities: Vec<_> = paths.iter().map(|path| RelPath::new(path)).collect();
+        search.prepare_full_source_snapshot(PID, 0, 1, &identities, &cancel).await.unwrap();
+        let docs: Vec<_> = paths.iter().enumerate()
+            .map(|(i,path)| doc("memory", 1, i as u64 + 1, path, "rust", "selected source"))
+            .collect();
+        search.index_docs(PID, &docs, &cancel).await.unwrap();
+        search.seal_source_snapshot(PID, 1).unwrap();
+        assert!(engram.state.registry.publish_source_head(&initial, 1).unwrap());
+
+        let requested = if cfg!(windows) { SCOPE.to_uppercase() } else { SCOPE.to_owned() };
+        let start = json!({"project_id":PID,"scope":requested,"exclude_paths":[EXCLUDED],"limit":2});
+        let first = navigate(&engram, start).await;
+        assert_eq!(first["coverage"]["matching_files"], 4);
+        assert_eq!(first["coverage"]["area_sample_truncated"], false);
+        let areas = first["areas"].as_array().unwrap();
+        let actual: std::collections::BTreeMap<_,_> = areas.iter()
+            .map(|area|(area["scope"].as_str().unwrap().to_owned(), area["selected_files"].as_u64().unwrap()))
+            .collect();
+        assert_eq!(actual, std::collections::BTreeMap::from([
+            (format!("{SCOPE}/controllers"), 2),
+            (format!("{SCOPE}/services"), 1),
+            (format!("{SCOPE}/entry.rs"), 1),
+        ]), "Drill-down must expose immediate children, not repeat the current/ancestor scope");
+        for area in areas {
+            assert_eq!(area["explore"]["arguments"]["exclude_paths"], json!([EXCLUDED]));
+            let child = navigate(&engram, area["explore"]["arguments"].clone()).await;
+            assert_eq!(child["source_generation"], 1);
+            let boundary = area["scope"].as_str().unwrap();
+            assert!(child["files"].as_array().unwrap().iter().all(|file| {
+                let path = file["path"].as_str().unwrap();
+                path == boundary || path.starts_with(&format!("{boundary}/"))
+            }));
+            for next in child["areas"].as_array().unwrap() {
+                let narrower = next["scope"].as_str().unwrap();
+                assert!(narrower.starts_with(&format!("{boundary}/")), "Area actions must strictly narrow: {boundary} -> {narrower}");
+                let grandchild = navigate(&engram, next["explore"]["arguments"].clone()).await;
+                assert_eq!(grandchild["source_generation"], 1);
+                assert!(grandchild["files"].as_array().unwrap().iter().all(|file| {
+                    let path = file["path"].as_str().unwrap();
+                    path == narrower || path.starts_with(&format!("{narrower}/"))
+                }));
+            }
+            if boundary.ends_with("entry.rs") {
+                assert_eq!(child["detail"], "exact_file");
+                assert!(child["areas"].as_array().unwrap().is_empty());
+            }
+        }
+        // Area discovery/display caps must not hide file identities or break
+        // the independent lexical continuation, including a one-file child.
+        let mut page = navigate(&engram, json!({"project_id":PID,"scope":CAPPED,"limit":8})).await;
+        assert_eq!(page["coverage"]["matching_files"], 130);
+        assert_eq!(page["coverage"]["area_sample_truncated"], true);
+        assert_eq!(page["areas"].as_array().unwrap().len(), 32);
+        let one = navigate(&engram, page["areas"][0]["explore"]["arguments"].clone()).await;
+        assert_eq!(one["coverage"]["matching_files"], 1);
+        assert!(one["areas"][0]["scope"].as_str().unwrap().ends_with("/Leaf.rs"));
+        let mut seen = std::collections::BTreeSet::new();
+        loop {
+            assert_eq!(page["source_generation"], 1);
+            for file in page["files"].as_array().unwrap() {
+                assert!(seen.insert(file["path"].as_str().unwrap().to_owned()), "File continuation must not repeat identities");
+            }
+            if page["next_page"].is_null() { break; }
+            page = navigate(&engram, page["next_page"]["arguments"].clone()).await;
+        }
+        assert_eq!(seen, paths.iter().filter(|path|path.starts_with(&format!("{CAPPED}/"))).cloned().collect());
+        for scope in [EXCLUDED,"src/application/absent"] {
+            let empty = navigate(&engram, json!({"project_id":PID,"scope":scope,"exclude_paths":[EXCLUDED]})).await;
+            assert!(empty["files"].as_array().unwrap().is_empty());
+            assert!(empty["areas"].as_array().unwrap().is_empty());
+        }
+    });
+}
+
+#[test]
 fn codemap_diversifies_areas_and_its_scoped_recovery_opens_selected_source_without_prefix_starvation()
 {
     for crowded in [false, true] {

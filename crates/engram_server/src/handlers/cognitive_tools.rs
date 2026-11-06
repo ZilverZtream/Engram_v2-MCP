@@ -1514,7 +1514,7 @@ impl Engram {
             "limitations":["Directory groups describe source layout, not runtime architecture or accepted policy.",
                 "File identities belong to one held published source selection, including inherited revisions. Declarations are bounded live-graph observations admitted against that selection.",
                 "No filesystem byte/LOC scan, source-body read, whole-project graph scan, native vector table or model query was performed.",
-                "Default files are diverse representatives. Scope an area and use page offsets for selected files beyond the sample.",
+                "Root files are diverse representatives. Scoped area actions descend to the next child directory or direct file; scoped file pages retain lexical order and page offsets recover selected files beyond the page.",
                 "Missing declarations or an empty bounded sample do not prove absence of code, consumers or entry points. Legacy file coverage is unknown.",
                 "Root/area previews show one declaration; exact-file pages show16 observed declarations with source-range actions and next_symbols (offset0..128). Set symbol_node_id to a known identity under the exact-file scope with both offsets0 for independently bounded target/file admission and that declaration's full actions, without declaration discovery or name fallback. Selection is a fresh observation: compare source_generation and coverage; it is not atomic continuation. Not observed does not prove absence.",
                 "Ranges are indexed positions capped to120lines; follow-up verifies current bytes, not full methods or runtime entry points. Declaration discovery coverage is reported once above."]});

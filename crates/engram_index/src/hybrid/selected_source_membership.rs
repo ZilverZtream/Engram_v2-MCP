@@ -241,10 +241,21 @@ impl SelectedSourceRevisionLookup {
             let (path, boundary) = (path.as_str(), boundary.as_str());
             path == boundary || path.strip_prefix(boundary).is_some_and(|tail| tail.starts_with('/'))
         }
-        fn area_of(path: &str) -> &str {
+        fn area_of<'a>(path: &'a str, scope: Option<&str>) -> &'a str {
             // Root files use their actual file identity as an exploration
             // boundary, never a synthetic `(root)` path that cannot resolve.
             let Some((parent,_)) = path.rsplit_once('/') else { return path; };
+            if let Some(scope) = scope {
+                // A scoped action must make progress: use the next directory
+                // component, or the file itself when it is directly in scope.
+                // Count components rather than slicing at scope.len(): Windows
+                // admission is case-insensitive and folding can change bytes.
+                let depth = scope.split('/').count();
+                if parent.split('/').count() <= depth { return path; }
+                let end = parent.match_indices('/').nth(depth)
+                    .map_or(parent.len(), |(position,_)| position);
+                return &parent[..end];
+            }
             let end = parent.match_indices('/').nth(2).map_or(parent.len(), |(position,_)|position);
             &parent[..end]
         }
@@ -272,10 +283,15 @@ impl SelectedSourceRevisionLookup {
                 || excluded.iter().any(|excluded| within(path, excluded)) { continue; }
             let position = matching;
             matching += 1;
-            let area = area_of(path);
+            let area = area_of(path, scope);
             if scope.is_some() && position >= offset && page.len() < limit {
-                page.push((path.as_str(), *generation, area));
+                // Keep file-page labels stable; only the area exploration
+                // boundaries become relative to the requested directory.
+                page.push((path.as_str(), *generation, area_of(path, None)));
             }
+            // An exact-file page has no narrower area to explore. It still
+            // appears in the file page with its declaration/source actions.
+            if scope.is_some_and(|scope| within(scope, path)) { continue; }
             if !groups.contains_key(area) {
                 if groups.len() == 128 || group_bytes.saturating_add(area.len()) > 128 * 1024 {
                     areas_truncated = true; continue;
