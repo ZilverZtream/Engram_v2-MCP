@@ -17,6 +17,7 @@ mod file_metadata_scan;
 mod centrality_cache;
 mod impact_walk;
 mod interface_dispatch;
+mod named_navigation;
 #[cfg(test)]
 mod edge_scan_tests;
 pub use interface_dispatch::{InterfaceBinding, InterfaceBindings, InterfaceMemberLocator, INTERFACE_BINDINGS, interface_bindings, merge_interface_bindings};

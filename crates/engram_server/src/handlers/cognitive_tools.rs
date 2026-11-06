@@ -29,6 +29,16 @@ fn codemap_followup(mut action: serde_json::Value, path_contains: Option<&str>) 
     action
 }
 
+fn named_source_fallback(row: &mut serde_json::Value, project: &str) {
+    let has_read=row["symbols"].as_array().is_some_and(|symbols|symbols.iter().any(|symbol|
+        symbol["actions"].as_array().is_some_and(|actions|actions.iter().any(|a|a["tool"]=="get_full_method_body"))));
+    if !has_read && !row["actions"].as_array().unwrap().iter().any(|a|a["tool"]=="get_full_method_body") {
+        let path=row["path"].clone();
+        row["actions"].as_array_mut().unwrap().push(serde_json::json!({"tool":"get_full_method_body",
+            "arguments":{"project_id":project,"file_path":path,"context_lines":0,"output_json":true}}));
+    }
+}
+
 /// Observe a known identity under the already-held file selection. This is
 /// deliberately separate from bounded declaration discovery and name lookup.
 fn exact_navigation_node(
@@ -1393,12 +1403,15 @@ impl Engram {
             || (req.symbol_offset>0 && (req.scope.is_none() || req.offset!=0)) || req.exclude_paths.len()>16
             || req.symbol_node_id.as_deref().is_some_and(|id|id.is_empty() || id.len()>2048
                 || id.chars().any(char::is_control) || req.scope.is_none() || req.offset!=0 || req.symbol_offset!=0)
+            || req.symbol_name.as_deref().is_some_and(|name|name.is_empty() || name.len()>256
+                || name.chars().any(char::is_control) || req.scope.is_none() || req.offset!=0
+                || req.symbol_offset!=0 || req.symbol_node_id.is_some())
             || req.exclude_paths.iter().map(String::len).sum::<usize>()>4096
             || !req.exclude_paths.iter().all(|path|valid(path))
             || req.path_contains.as_deref().is_some_and(|term|term.is_empty() || term.len()>128
                 || term.chars().any(char::is_control))
             || req.scope.as_deref().is_some_and(|scope|!valid(scope)) {
-            return Err(McpError::invalid_params("Use literal relative scope/exclusions, optional nonempty path_contains up to128bytes without controls, limit1..64 and bounded offsets; symbol_node_id requires an exact-file scope, nonempty identity up to2048bytes and both offsets0",None));
+            return Err(McpError::invalid_params("Use literal relative scope/exclusions, optional nonempty path_contains up to128bytes without controls, limit1..64 and bounded offsets; symbol_node_id or symbol_name requires exact-file scope, both offsets0 and mutually exclusive selectors. symbol_name is exact case-sensitive extracted name1..256bytes without controls, not class/FQN resolution",None));
         }
         let rec=self.ensure_project_record(&req.project_id).await?;
         let runtime=self.ensure_project_runtime(&req.project_id).await?;
@@ -1420,6 +1433,8 @@ impl Engram {
                 "symbol_offset requires an exact selected-file scope and offset0");
             anyhow::ensure!(worker_request.symbol_node_id.is_none() || exact_file,
                 "symbol_node_id requires an exact selected-file scope and both offsets0");
+            anyhow::ensure!(worker_request.symbol_name.is_none() || exact_file,
+                "symbol_name requires an exact selected-file scope and both offsets0");
             let compact_navigation=(exact_file || worker_request.path_contains.is_some()) && !worker_request.include_retained_context;
             let follow=|action|codemap_followup(action,worker_request.path_contains.as_deref());
             let summary=if compact_navigation { None }
@@ -1432,6 +1447,10 @@ impl Engram {
                     crate::services::impact_walk_service::admit_selected_source(&membership,node,file);
                 let observed = if let Some(id) = worker_request.symbol_node_id.as_deref() {
                     let (nodes, observation) = exact_navigation_node(&graph, &membership, pid, &files[0], id);
+                    discovery.push(observation);
+                    nodes
+                } else if let Some(name) = worker_request.symbol_name.as_deref() {
+                    let (nodes, observation) = graph.bounded_file_named_nodes(pid, &files[0], name, &admit)?;
                     discovery.push(observation);
                     nodes
                 } else {
@@ -1449,8 +1468,10 @@ impl Engram {
                     nodes.sort_by(|a,b|(!callable(&a.node_type)).cmp(&(!callable(&b.node_type)))
                         .then_with(||a.name.cmp(&b.name)).then_with(||a.node_id.cmp(&b.node_id)));
                     let selected=worker_request.symbol_node_id.as_deref();
-                    let cap=if exact_file && selected.is_none(){16}else{1};
-                    let symbol_offset=if selected.is_some(){0}else if exact_file{worker_request.symbol_offset}else{0};
+                    let named=worker_request.symbol_name.as_deref();
+                    let targeted=selected.is_some() || named.is_some();
+                    let cap=if named.is_some(){8}else if exact_file && !targeted{16}else{1};
+                    let symbol_offset=if targeted{0}else if exact_file{worker_request.symbol_offset}else{0};
                     let symbols:Vec<_>=nodes.iter().skip(symbol_offset).take(cap).map(|item|{
                         let node=*item;
                         let mut actions=Vec::new();
@@ -1460,11 +1481,11 @@ impl Engram {
                                 "line_end":node.end_line.min(node.start_line.saturating_add(119)),
                                 "context_lines":0,"output_json":true}}));
                         }
-                        if selected.is_some() {
+                        if targeted {
                             actions.push(serde_json::json!({"tool":"impact_analysis","arguments":{
                                 "project_id":pid,"symbol_fqn":node.node_id,"max_depth":6,"limit":12,"detail":"summary"}}));
                         }
-                        if selected.is_some() && node.start_line>0 && matches!(node.node_type.as_str(),"function"|"method"|"sub"|"procedure") {
+                        if targeted && node.start_line>0 && matches!(node.node_type.as_str(),"function"|"method"|"sub"|"procedure") {
                             let mut args=serde_json::json!({"project_id":pid,"file_path":path,
                                 "method_name":node.name.rsplit('.').next().unwrap_or(&node.name),"line":node.start_line,
                                 "include_history":false,"include_business_logic":false,"include_full_body":false,"include_caller_bodies":false,
@@ -1479,7 +1500,7 @@ impl Engram {
                             "actions":actions})
                     }).collect();
                     let next_offset=symbol_offset.saturating_add(symbols.len());
-                    let next_symbols=if exact_file && selected.is_none() && next_offset<nodes.len() && next_offset<=128 {
+                    let next_symbols=if exact_file && !targeted && next_offset<nodes.len() && next_offset<=128 {
                         follow(serde_json::json!({"tool":"get_codebase_overview","arguments":{"project_id":pid,"scope":path,
                             "exclude_paths":worker_request.exclude_paths,"offset":0,"limit":1,"symbol_offset":next_offset}}))
                     }else{serde_json::Value::Null};
@@ -1491,13 +1512,33 @@ impl Engram {
                             "project_id":pid,"file_path":path,"context_lines":0,"output_json":true}}));
                     }
                     let mut row=serde_json::json!({"path":path,"physical_generation":revision,"area":area,"symbols":symbols,
-                        "symbol_offset":symbol_offset,"symbol_display_limited":if selected.is_some(){symbols.len()<nodes.len()}else{next_offset<nodes.len()},
+                        "symbol_offset":symbol_offset,"symbol_display_limited":if targeted{symbols.len()<nodes.len()}else{next_offset<nodes.len()},
                         "declarations_observed":nodes.len(),"next_symbols":next_symbols,
                         "actions":file_actions});
                     if let Some(id)=selected {
                         row["symbol_selection"]=serde_json::json!({"node_id":id,"observed":!symbols.is_empty(),
                             "scope":"exact_bounded_identity_lookup; not observed does not prove absent"});
                         row["declaration_inventory"]=serde_json::json!("not_scanned");
+                    }
+                    if let Some(name)=named {
+                        row["declaration_inventory"]=serde_json::json!("not_scanned");
+                        row["name_selection"]=serde_json::json!({"requested_name":name,
+                            "match":"exact_case_sensitive_extracted_name","observed":!symbols.is_empty(),
+                            "scope":"Admitted bounded native callable candidates, not uniqueness, FQN resolution or absence proof"});
+                        // Fit candidates inside the sole file row so crowding
+                        // cannot discard every matched identity and action.
+                        let original=symbols.len();
+                        loop {
+                            named_source_fallback(&mut row,pid);
+                            if serde_json::to_vec(&row)?.len()<=40*1024 || row["symbols"].as_array().unwrap().len()<=1 {break;}
+                            row["symbols"].as_array_mut().unwrap().pop();
+                        }
+                        let shown=row["symbols"].as_array().unwrap().len();
+                        row["symbols_omitted_from_display"]=serde_json::json!(original-shown);
+                        row["symbol_display_limited"]=serde_json::json!(shown<nodes.len()
+                            || discovery.last().is_some_and(|item|item["declaration_admission"]["truncated"]==true));
+                        anyhow::ensure!(serde_json::to_vec(&row)?.len()<=48*1024,
+                            "Named candidate metadata exceeds response bound; narrow name/path");
                     }
                     rows.push(row);
                 }
@@ -1542,7 +1583,7 @@ impl Engram {
             navigation["coverage"]["file_order"]=serde_json::json!("lexical_filtered_paths");
         }
         if compact_navigation {
-            navigation["detail"] = serde_json::json!(if req.symbol_node_id.is_some(){"exact_symbol"}else if exact_file{"exact_file"}else{"filtered_paths"});
+            navigation["detail"] = serde_json::json!(if req.symbol_name.is_some(){"exact_name_candidates"}else if req.symbol_node_id.is_some(){"exact_symbol"}else if exact_file{"exact_file"}else{"filtered_paths"});
             navigation.as_object_mut().expect("navigation object").remove("other_inventories");
             navigation["coverage"].as_object_mut().expect("coverage object").remove("representative_priority");
             navigation["limitations"] = serde_json::json!([
@@ -1561,6 +1602,15 @@ impl Engram {
                 ]);
             }
         }
+        if req.symbol_name.is_some() {
+            navigation["detail"]=serde_json::json!("exact_name_candidates");
+            navigation["limitations"]=serde_json::json!([
+                "Exact case-sensitive extracted Node.name within one selected canonical file; not class/FQN/suffix resolution. For example use resetState, not imgHandler.resetState when the extracted name is resetState.",
+                "Bounded native function/method/constructor/property prefixes under the held file/node selection. Same-name declarations remain candidates, not a unique target. Legacy/noncanonical identities, other kinds and name aliases remain unassessed; not observed never proves absence.",
+                "Lookup work/decode/candidate/deadline gaps are reported in coverage. Display may omit retained candidates; no offset-based inventory continuation. File action returns ordinary discovery; symbol_node_id expands a known identity.",
+                "Executable source/impact/context actions are fresh observations, not atomic replay. Compare returned generations/hashes; indexed ranges are bounded and current-source, method-boundary, binding and runtime proof remain separate."
+            ]);
+        }
         let mut areas=Vec::new();
         for (area,count) in paths.areas.iter().filter(|_| !exact_file || !compact_navigation) {
             areas.push(serde_json::json!({"scope":area,"selected_files":count,"explore":explore(area,0)}));
@@ -1571,7 +1621,21 @@ impl Engram {
         }
         let wanted=file_rows.len();
         let mut displayed=Vec::new();
-        for file in file_rows {
+        for mut file in file_rows {
+            if req.symbol_name.is_some() {
+                loop {
+                    named_source_fallback(&mut file,&req.project_id);
+                    navigation["files"]=serde_json::json!([&file]);
+                    if serde_json::to_vec(&navigation).map_err(|e|McpError::internal_error(e.to_string(),None))?.len()<=56*1024 {break;}
+                    if file["symbols"].as_array().unwrap().len()<=1 {
+                        return Err(McpError::invalid_params("Named candidate metadata exceeds response bound; narrow scope/exclusions",None));
+                    }
+                    file["symbols"].as_array_mut().unwrap().pop();
+                    let omitted=file["symbols_omitted_from_display"].as_u64().unwrap_or(0)+1;
+                    file["symbols_omitted_from_display"]=serde_json::json!(omitted);
+                    file["symbol_display_limited"]=serde_json::json!(true);
+                }
+            }
             displayed.push(file); navigation["files"]=serde_json::json!(&displayed);
             if serde_json::to_vec(&navigation).map_err(|e|McpError::internal_error(e.to_string(),None))?.len()>56*1024 {
                 displayed.pop(); navigation["files"]=serde_json::json!(&displayed); break;
