@@ -532,11 +532,12 @@ async fn navigate(engram: &Engram, arguments: Value) -> Value {
 }
 
 #[test]
-fn filtered_codemap_finds_selected_files_and_preserves_search_in_all_navigation_actions() {
+fn filtered_codemap_preserves_search_and_explicitly_browses_neighboring_selected_files() {
     owned_case(true, |engram, search| async move {
         const SERVICE: &str = "src/domain/api/Services/CatalogService.rs";
         const CONTROLLER: &str = "src/domain/api/Controllers/CatalogController.rs";
         const CONTRACT: &str = "src/domain/api/Contracts/CatalogContract.rs";
+        const NEIGHBOR: &str = "src/domain/api/Services/State.rs";
         const PRIVATE: &str = "src/domain/api/private";
         const FUTURE: &str = "src/domain/api/Services/CatalogFuture.rs";
         let aux: String = (0..20).map(|i|format!("fn Aux{i:02}() {{}}\n")).collect();
@@ -545,6 +546,7 @@ fn filtered_codemap_finds_selected_files_and_preserves_search_in_all_navigation_
             (SERVICE.to_owned(), format!("fn read() {{ let old = true; }}\n{aux}")),
             (CONTROLLER.to_owned(), "fn read() {}\n".to_owned()),
             (CONTRACT.to_owned(), "fn read() {}\n".to_owned()),
+            (NEIGHBOR.to_owned(), "fn read() {}\n".to_owned()),
             (format!("{PRIVATE}/CatalogSecret.rs"), "fn secret() {}\n".to_owned()),
         ];
         sources.extend((0..130).map(|i|(format!("src/aaa/unrelated/File{i:03}.rs"), "fn unrelated() {}\n".to_owned())));
@@ -589,7 +591,7 @@ fn filtered_codemap_finds_selected_files_and_preserves_search_in_all_navigation_
         engram.state.graph.upsert_nodes(PID,&nodes).unwrap();
         engram.state.graph.upsert_edges(PID,&edges).unwrap();
         let repo=std::path::PathBuf::from(engram.state.registry.get_project(PID).unwrap().unwrap().directory);
-        for (path,body) in [(SERVICE,current.as_str()),(CONTROLLER,"fn read() {}\n"),(CONTRACT,"fn read() {}\n")] {
+        for (path,body) in [(SERVICE,current.as_str()),(CONTROLLER,"fn read() {}\n"),(CONTRACT,"fn read() {}\n"),(NEIGHBOR,"fn read() {}\n")] {
             let file=repo.join(path);std::fs::create_dir_all(file.parent().unwrap()).unwrap();std::fs::write(file,body).unwrap();
         }
         let request=json!({"project_id":PID,"path_contains":"cAtAlOg","exclude_paths":[PRIVATE],"limit":1});
@@ -619,11 +621,54 @@ fn filtered_codemap_finds_selected_files_and_preserves_search_in_all_navigation_
         let compact=navigation_text(&engram,all.clone()).await;
         assert!(compact.len()<12*1024,"A small selected filename search must leave room for source/impact evidence: {}bytes",compact.len());
         let result=navigation(&compact);
+        let mut neighboring_files=std::collections::BTreeSet::new();
         for area in result["areas"].as_array().unwrap() {
             assert_eq!(area["explore"]["arguments"]["path_contains"],"cAtAlOg");
             let child=navigate(&engram,area["explore"]["arguments"].clone()).await;
             assert!(child["files"].as_array().unwrap().iter().all(|file|observed.contains_key(file["path"].as_str().unwrap())));
+            let browse=&area["browse_without_path_filter"];
+            assert_eq!(browse["tool"],"get_codebase_overview");
+            assert_eq!(browse["arguments"]["scope"],area["scope"]);
+            assert_eq!(browse["arguments"]["exclude_paths"],json!([PRIVATE]));
+            assert!(browse["arguments"].get("path_contains").is_none());
+            let neighbors=navigate(&engram,browse["arguments"].clone()).await;
+            assert!(neighbors["path_contains"].is_null());
+            assert!(neighbors["areas"].as_array().unwrap().iter().all(|entry|entry.get("browse_without_path_filter").is_none()));
+            for file in neighbors["files"].as_array().unwrap() {
+                neighboring_files.insert(file["path"].as_str().unwrap().to_owned());
+                assert!(!file["path"].as_str().unwrap().starts_with(PRIVATE));
+                assert_ne!(file["path"],FUTURE);
+                if file["path"]==NEIGHBOR {
+                    let source=engram.handle_get_full_method_body(serde_json::from_value(file["symbols"][0]["actions"][0]["arguments"].clone()).unwrap()).await.unwrap();
+                    let source:Value=serde_json::from_str(&source.content[0].as_text().unwrap().text).unwrap();
+                    assert_eq!(source["source_file_hash"],ContentHash::compute(b"fn read() {}\n").0);
+                    assert_eq!(source["source_code"],"fn read() {}");
+                }
+            }
         }
+        assert!(neighboring_files.contains(NEIGHBOR),"Browsing a matching area must recover selected neighbors whose names do not contain the search term");
+        let mut crowded=request.clone();crowded["scope"]=json!("src/domain/api");crowded["limit"]=json!(4);
+        let mut exclusions=vec![PRIVATE.to_owned()];
+        exclusions.extend((0..15).map(|i|format!("ignored/{i:02}/{}","x".repeat(250))));
+        assert!(exclusions.iter().map(String::len).sum::<usize>()<=4096);
+        crowded["exclude_paths"]=json!(exclusions);
+        let mut crowded_files=std::collections::BTreeSet::new();let mut browsing_omitted=false;
+        loop {
+            let text=navigation_text(&engram,crowded).await;
+            assert!(text.len()<64*1024);
+            let page=navigation(&text);
+            assert_eq!(page["coverage"]["matching_files"],3);
+            browsing_omitted|=page["coverage"]["browse_actions_omitted"].as_u64().unwrap_or(0)>0;
+            for file in page["files"].as_array().unwrap() {
+                assert!(crowded_files.insert(file["path"].as_str().unwrap().to_owned()));
+            }
+            if page["next_page"].is_null() {break;}
+            assert_eq!(page["next_page"]["arguments"]["exclude_paths"],json!(exclusions));
+            assert_eq!(page["next_page"]["arguments"]["path_contains"],"cAtAlOg");
+            crowded=page["next_page"]["arguments"].clone();
+        }
+        assert!(browsing_omitted,"Optional sibling browsing must yield to existing filtered navigation when exclusions crowd the area budget");
+        assert_eq!(crowded_files,observed.keys().cloned().collect(),"Crowding must leave every filtered file reachable through its preserved continuation");
         let file_action=&observed[SERVICE]["actions"][0];
         assert_eq!(file_action["arguments"]["path_contains"],"cAtAlOg");
         let file=navigate(&engram,file_action["arguments"].clone()).await;
@@ -641,14 +686,14 @@ fn filtered_codemap_finds_selected_files_and_preserves_search_in_all_navigation_
         assert!(source["source_code"].as_str().unwrap().contains("current = true"));
         all["include_retained_context"]=json!(true);
         let full=navigation_text(&engram,all).await;
-        assert!(full.contains("source_files: 134\n") && full.contains("--- Retained Corpus Inventory"));
+        assert!(full.contains("source_files: 135\n") && full.contains("--- Retained Corpus Inventory"));
         let full=navigation(&full);assert_eq!(full["files"],result["files"]);
         assert_eq!(full["coverage"]["matching_files"],3);
         assert!(full["coverage"].get("representative_priority").is_none());
         let mut all=navigate(&engram,json!({"project_id":PID,"path_contains":".RS","exclude_paths":[PRIVATE],"limit":64})).await;
         let mut every=std::collections::BTreeSet::new();
         loop {
-            assert_eq!(all["coverage"]["matching_files"],133);
+            assert_eq!(all["coverage"]["matching_files"],134);
             for file in all["files"].as_array().unwrap() {
                 assert!(every.insert(file["path"].as_str().unwrap().to_owned()),"Filtered root pages must not repeat file identities");
             }
@@ -656,7 +701,7 @@ fn filtered_codemap_finds_selected_files_and_preserves_search_in_all_navigation_
             assert_eq!(all["next_page"]["arguments"]["path_contains"],".RS");
             all=navigate(&engram,all["next_page"]["arguments"].clone()).await;
         }
-        assert_eq!(every.len(),133,"Filtered root search must recover every matching file, beyond two-per-area representatives and response display caps");
+        assert_eq!(every.len(),134,"Filtered root search must recover every matching file, beyond two-per-area representatives and response display caps");
         for term in ["Missing","*.rs"] {
             let empty=navigate(&engram,json!({"project_id":PID,"path_contains":term})).await;
             assert_eq!(empty["detail"],"filtered_paths");assert_eq!(empty["coverage"]["matching_files"],0);
