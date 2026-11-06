@@ -2780,21 +2780,23 @@ fn file_impact_summary_keeps_observed_file_counts_when_graph_display_drops_ident
         // Long canonical identities exhaust graph display bytes well before
         // the bounded walk's admitted file inventory; summary must not recount
         // only whichever identities happen to survive that display budget.
-        let name = "A".repeat(600);
-        let body = format!("pub fn {name}() {{ crate::policy::ClassifyAutomatic(); }}\n");
+        let names:Vec<_>=(0..40).map(|i|if i<36 {"A".repeat(600)}else{format!("Useful{i:02}")}).collect();
+        let bodies:Vec<_>=names.iter().map(|name|
+            format!("pub fn {name}() {{ crate::policy::ClassifyAutomatic(); }}\n")).collect();
         let cancel = CancellationToken::new();
         let baseline = fixture.engram.state.registry.capture_source_head(PID).unwrap();
         let revisions: Vec<_> = paths.iter().map(|path|RelPath::new(path)).collect();
         fixture.search.prepare_source_snapshot(PID,2,3,&revisions,&[],&cancel).await.unwrap();
         let docs: Vec<_> = paths.iter().enumerate()
-            .map(|(i,path)|source_doc(3,300+i as u64,path,&body)).collect();
+            .map(|(i,path)|source_doc(3,300+i as u64,path,&bodies[i])).collect();
         fixture.search.index_docs(PID,&docs,&cancel).await.unwrap();
         fixture.search.seal_source_snapshot(PID,3).unwrap();
         let mut nodes = Vec::new();
         let mut edges = Vec::new();
-        for path in &paths {
-            nodes.extend([file_node(path,&body,3),declaration(path,&name,1,3)]);
-            edges.push(edge(id(path,&name,1),id(POLICY,"ClassifyAutomatic",1),EdgeKind::Calls,3));
+        for (i,path) in paths.iter().enumerate() {
+            std::fs::write(fixture.root.join(path),&bodies[i]).unwrap();
+            nodes.extend([file_node(path,&bodies[i],3),declaration(path,&names[i],1,3)]);
+            edges.push(edge(id(path,&names[i],1),id(POLICY,"ClassifyAutomatic",1),EdgeKind::Calls,3));
         }
         fixture.engram.state.graph.upsert_nodes(PID,&nodes).unwrap();
         fixture.engram.state.graph.upsert_edges(PID,&edges).unwrap();
@@ -2814,7 +2816,23 @@ fn file_impact_summary_keeps_observed_file_counts_when_graph_display_drops_ident
             assert_eq!(retained.len() as u64+inventory["files_omitted"].as_u64().unwrap(),42);
             assert_eq!(report["selected_dependents_observed"],44);
             assert_eq!(report["coverage"],graph["coverage"]);
-            assert!(!report["immediate_consumers"].as_array().unwrap().is_empty(),"File navigation must preserve usable witnesses");
+            let consumers=report["immediate_consumers"].as_array().unwrap();
+            assert_eq!(consumers.len(),4,"Oversized inventory rows must leave room for four usable direct witnesses");
+            let consumer_files:std::collections::BTreeSet<_>=consumers.iter()
+                .map(|row|row["file_path"].as_str().unwrap()).collect();
+            assert_eq!(consumer_files.len(),4);
+            for consumer in consumers {
+                let witness=&consumer["sample_connection_to_target"];
+                assert_eq!(witness["source_node_id"],consumer["node_id"]);
+                assert_eq!(witness["target_node_id"],id(POLICY,"ClassifyAutomatic",1));
+                assert_eq!(witness["target_scope"],"file_member");
+                let response=fixture.engram.handle_get_full_method_body(
+                    serde_json::from_value(consumer["source_read"]["arguments"].clone()).unwrap()).await.unwrap();
+                let body:Value=serde_json::from_str(&response.content[0].as_text().unwrap().text).unwrap();
+                let current=std::fs::read(fixture.root.join(consumer["file_path"].as_str().unwrap())).unwrap();
+                assert_eq!(body["source_file_hash"],ContentHash::compute(&current).0);
+                assert!(body["source_code"].as_str().unwrap().contains("ClassifyAutomatic"));
+            }
         }
     });
 }
@@ -2849,6 +2867,81 @@ fn file_impact_shared_excerpt_keeps_unrecorded_positions_unknown() {
             assert_eq!(body["source_file_hash"],ContentHash::compute(SPATIAL_BODY.as_bytes()).0);
             assert_eq!(body["retrieval_scope"],"current_file_excerpt");
             assert_eq!(body["source_verification"],"current_file_snapshot_not_index_verified");
+        }
+    });
+}
+
+#[test]
+fn file_impact_deeper_inventory_cannot_erase_first_hop_connections() {
+    owned_case(|fixture| async move {
+        let mut entries=Vec::new();
+        for i in 0..6 {
+            let path=format!("src/direct_{i:02}.rs");let name=format!("Direct{i:02}");
+            entries.push((path.clone(),name.clone(),
+                format!("pub fn {name}() {{ crate::policy::ClassifyAutomatic(); }}\n"),
+                id(POLICY,"ClassifyAutomatic",1)));
+            for j in 0..20 {
+                let child=format!("src/fanout_{i:02}_{j:02}.rs");let child_name=format!("UseDirect{i:02}{j:02}");
+                entries.push((child,child_name.clone(),
+                    format!("pub fn {child_name}() {{ crate::direct_{i:02}::{name}(); }}\n"),
+                    id(&path,&name,1)));
+            }
+        }
+        let cancel=CancellationToken::new();
+        let baseline=fixture.engram.state.registry.capture_source_head(PID).unwrap();
+        let paths:Vec<_>=entries.iter().map(|(path,_,_,_)|RelPath::new(path)).collect();
+        fixture.search.prepare_source_snapshot(PID,2,3,&paths,&[],&cancel).await.unwrap();
+        let docs:Vec<_>=entries.iter().enumerate().map(|(i,(path,_,body,_))|
+            source_doc(3,300+i as u64,path,body)).collect();
+        fixture.search.index_docs(PID,&docs,&cancel).await.unwrap();
+        fixture.search.seal_source_snapshot(PID,3).unwrap();
+        let mut nodes=Vec::new();let mut edges=Vec::new();
+        for (path,name,body,callee) in &entries {
+            std::fs::write(fixture.root.join(path),body).unwrap();
+            nodes.extend([file_node(path,body,3),declaration(path,name,1,3)]);
+            let mut call=edge(id(path,name,1),callee.clone(),EdgeKind::Calls,3);
+            call.metadata=Some(json!({"call_site_line":1}));edges.push(call);
+        }
+        fixture.engram.state.graph.upsert_nodes(PID,&nodes).unwrap();
+        fixture.engram.state.graph.upsert_edges(PID,&edges).unwrap();
+        assert!(fixture.engram.state.registry.publish_source_head(&baseline,3).unwrap());
+        let target=format!("file:{POLICY}");
+        let full=impact_packet(&impact_target(&fixture,&target,Some(6)).await);
+        assert_eq!(full["selected_dependents_observed"],130);
+        assert!(full["display_truncated"].as_bool().unwrap(),"Exercise the response budget, not a tiny graph");
+        let by_ref:std::collections::BTreeMap<_,_>=full["nodes"].as_array().unwrap().iter()
+            .map(|row|(row["ref"].as_str().unwrap(),row)).collect();
+        let recovery_refs:std::collections::BTreeSet<_>=full["recoveries"].as_array().unwrap().iter()
+            .map(|row|row["ref"].as_str().unwrap()).collect();
+        for connection in full["edges"].as_array().unwrap() {
+            assert!(by_ref.contains_key(connection["source_ref"].as_str().unwrap()));
+            assert!(by_ref.contains_key(connection["target_ref"].as_str().unwrap()));
+            if let Some(reference)=connection["recovery_ref"].as_str() { assert!(recovery_refs.contains(reference)); }
+        }
+        for row in by_ref.values() { assert!(recovery_refs.contains(row["recovery_ref"].as_str().unwrap())); }
+        for tool in ["impact_analysis","compute_blast_radius"] {
+            let shallow=impact_packet(&summary_impact(&fixture,tool,&target,1).await);
+            let deep=impact_packet(&summary_impact(&fixture,tool,&target,6).await);
+            assert_eq!(deep["selected_dependents_observed"],130);
+            assert_eq!(deep["direct_dependents_observed"],7);
+            assert_eq!(deep["coverage"],full["coverage"]);
+            let shallow_ids:std::collections::BTreeSet<_>=shallow["immediate_consumers"].as_array().unwrap().iter()
+                .map(|row|row["node_id"].as_str().unwrap()).collect();
+            let consumers=deep["immediate_consumers"].as_array().unwrap();
+            assert_eq!(consumers.len(),4);
+            assert_eq!(consumers.iter().map(|row|row["node_id"].as_str().unwrap()).collect::<std::collections::BTreeSet<_>>(),shallow_ids,
+                "Adding downstream inventory must preserve the usable first-hop sample");
+            assert_eq!(consumers.iter().map(|row|row["file_path"].as_str().unwrap()).collect::<std::collections::BTreeSet<_>>().len(),4);
+            for consumer in consumers {
+                let witness=&consumer["sample_connection_to_target"];
+                assert_eq!(witness["source_node_id"],consumer["node_id"]);
+                assert_eq!(witness["target_scope"],"file_member");
+                assert_eq!(witness["reference_lines"],json!([1]));
+                assert!(full["edges"].as_array().unwrap().iter().any(|connection|
+                    by_ref[connection["source_ref"].as_str().unwrap()]["node_id"]==witness["source_node_id"]
+                    && by_ref[connection["target_ref"].as_str().unwrap()]["node_id"]==witness["target_node_id"]
+                    && connection["kind"]==witness["kind"]),"Every summary witness must exist as a complete full-graph connection");
+            }
         }
     });
 }
