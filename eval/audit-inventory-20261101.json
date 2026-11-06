@@ -9775,9 +9775,9 @@
       "original_scope_unclosed": true
     }
   },
-  "last_updated_at": "2026-11-06T03:24:49.299530+00:00",
+  "last_updated_at": "2026-11-06T04:11:50.588771+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-06T03:24:49.299530+00:00",
+    "at_utc": "2026-11-06T04:11:50.588771+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9807,8 +9807,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap and Blast Radius agent usefulness: targeted interface-call/configuration recovery delivered; next reduce demonstrated initial orientation/search output cost.",
-    "next_user_visible_deliverable": "Reduce root CodeMap and initial search context cost exposed by fresh04:39127B/55.7% of70256B total. Preserve root proportions, honest coverage, canonical evidence and executable source recovery; validate actual fresh agent choices against independent source evidence. No broad audit or instruction-drafting expansion.",
+    "active_original_item": "CodeMap and Blast Radius agent usefulness: truthful shallow root counts/local-byte reduction delivered; repeated discovery/end-to-end context cost remains open. Next exercise a different known TS change/caller task against independent source evidence.",
+    "next_user_visible_deliverable": "Validate actual CodeMap/Blast behavior on the known TypeScript resetState/unbound-receiver inspection case. Freeze independently read non-Q target/caller/receiver-origin facts before a fresh consumer; distinguish source-grounded binding from same-terminal syntax and admitted causal paths. Fix demonstrated witness/navigation/recovery gaps. Preserve unresolved initial/repeated-discovery context cost; no broad audit, instruction drafting, resource or ownership expansion.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9821,8 +9821,8 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "f3ef750 pushed origin/master and deployedc2d3b376/91bcdc74.20focused cases(native2+transitive18),135capability check, release688.47s. Both impactAPIs/details expose accepted staticcall admission and preferred configgrep outside knownroutefileprefixes, exact unrestrictedfallback retained. Literal grep and current registration40/sourcehash verified; old canonicalgraph/navigation,300notes,closedselectedstores andother14 preserved.218active/218backup verified, normalwatcher restored; Qpassiveindexing allowed, sourcechanges/reviews frozen. Fresh04 used newpreferredgrep and verifiedcurrentconfig/DTO in8calls70256B,12085B/14.7% fewerthancompletefresh03trace, source/staticclassification independentlyaccepted. One reconstructed comparabletask, no controlledcausal/generaloptimality claim. NativeCodextransportclosedafterrestart; normalinstalled publicMCPpipe verified.",
-    "previous_goal_turn_classification": "PROGRESS: Coherent static-call/configuration-recovery change delivered/pushed/deployed with20focused cases and actual source/data preservation. Fresh consumer independently used preferredaction successfully, stayedwithinbudget and made boundedcorrectsource/impact claims. Original31/19 and priorresource/instruction/legacy findings remainunclosed; continue core orientation/search cost gap.",
+    "latest_completed_core_batch": "7cca660 pushed origin/master and deployedc014abd4/af2b559d.10overview behavior cases and135capability documentcheck pass; release754.49s. Root23208?20072B(13.5%less),22shallowarea counts match immutable3136catalog2273eligiblefiles under exactexclusions;3literalboundaryactions/rootfilecurrentsourcehash verified. Old8filerows/proportions, canonicalimpact/configrecovery,300notes,closedselectedstores/other14 and214nativeassets preserved;218active/218backupverified. Normalwatcherenabled andconfigbytesunchanged; Qpassiveindexing allowed, changes/reviewsfrozen. Fresh05 source/staticcorrect9calls76588B,9.0% MORE thanfresh04(8/70256),so noend-to-endcostwin. Filenamefilter/preferredconfigsearch used; rootareaactions unused. ExactpublicFQNresolvedcorrectly; localrecorderguardpermittedonlySHA-pinnedobservedname, no productchange/rejectedRPC. Original31/19 remainunclosed.",
+    "previous_goal_turn_classification": "PROGRESS: delivered/pushed/deployed correctroot count/action boundaries and13.5%localbyte reduction, with10focused wantedbehavior checks and real selected-source/data preservation. Independentfresh05 confirms boundedcorrectsource/impact/config workflow, but completecostincreased9.0% versus04; repeateddiscovery remainsopen. Continue realcoretool evidence on a different existing change task, not claimperfecttools/fullauditclosure.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -9839,15 +9839,15 @@
     },
     "next_slice_scope_limits": [
       "Keep CodeMap and Blast Radius as active core priority; new instruction drafting, catalog expansion, storage/performance experiments and kernel/cleanup remain parked.",
-      "Choose bounded selected-source file discovery/configuration-inspection improvements from actual fresh tasks, preserving root default proportions/representatives and honest primary/potential/runtime distinctions.",
+      "Evaluate actualCodeMap/Blast navigation,witnessandreceiver-recovery behavior on independently read non-Q source; preserve deliveredselected-source/filter/config/rootfacts and honest primary/potential/runtime distinctions. Do not substitute catalogue/storage/performance expansion.",
       "Frozen Q code changes/reviews remain prohibited; passive indexing is user-authorized.",
       "All31 findings/full19 gate records and prior sustained-resource failure remain unchanged/unclosed.",
       "Use existing checkout/shared target, owned temporary lifetimes and focused behavior checks; push only origin/master without AI/coauthor attribution or tags."
     ],
     "q_freeze_decision": "User authorized passive automatic indexing; keep Q code changes and reviews frozen. This is sufficient authorization to restore normal watching without another permission prompt.",
     "latest_core_delivery_evidence": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\contract-recovery-delivery-outcome-20261106.json",
-      "sha256": "a598dc417e6eb610d0210ef7c6ca96b4cd983a7ae29c1ed021e14ba0f04320ca"
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\root-boundary-delivery-outcome-20261106.json",
+      "sha256": "130e714453fba4211817e070d459c6512a8688feeaca483a49f428656a1c2583"
     }
   }
 }
