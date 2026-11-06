@@ -1649,6 +1649,33 @@ impl Engram {
         }
         navigation["coverage"]["response_omitted_files"]=serde_json::json!(wanted-displayed.len());
         navigation["coverage"]["response_omitted_areas"]=serde_json::json!(paths.areas.len()-areas.len());
+        if req.path_contains.is_some() {
+            // Allocate optional sibling browsing after existing areas, files and
+            // continuations, so it cannot displace their navigation evidence.
+            let mut omitted=0usize;
+            for (index,(area,_)) in paths.areas.iter().take(areas.len()).enumerate() {
+                let mut browse=explore(area,0);
+                browse["arguments"].as_object_mut().expect("action arguments").remove("path_contains");
+                let mut trial=navigation.clone();
+                trial["areas"][index]["browse_without_path_filter"]=browse;
+                let explanation=serde_json::json!("explore/file/page actions preserve the filter. browse_without_path_filter explicitly clears it within that same area boundary, preserving exclusions. Directory areas can reveal neighboring selected files; a file boundary stays that file. selected_files still counts filtered matches; unfiltered counts require executing the fresh action. Follow-ups are not atomic continuations.");
+                if compact_navigation && !exact_file {
+                    trial["limitations"][3]=explanation;
+                } else if !trial["limitations"].as_array().expect("limitations array").contains(&explanation) {
+                    trial["limitations"].as_array_mut().expect("limitations array").push(explanation);
+                }
+                let mut area_check=trial.clone();
+                area_check["files"]=serde_json::json!([]);area_check["next_page"]=serde_json::Value::Null;
+                if serde_json::to_vec(&area_check).map_err(|e|McpError::internal_error(e.to_string(),None))?.len()<=24*1024
+                    && serde_json::to_vec(&trial).map_err(|e|McpError::internal_error(e.to_string(),None))?.len()<=56*1024 {
+                    navigation=trial;
+                } else {omitted+=1;}
+            }
+            if omitted>0 {
+                let mut trial=navigation.clone();trial["coverage"]["browse_actions_omitted"]=serde_json::json!(omitted);
+                if serde_json::to_vec(&trial).map_err(|e|McpError::internal_error(e.to_string(),None))?.len()<=64*1024 {navigation=trial;}
+            }
+        }
         let encoded=serde_json::to_string(&navigation).map_err(|e|McpError::internal_error(e.to_string(),None))?;
         if encoded.len()>64*1024{return Err(McpError::internal_error("CodeMap response metadata exceeds bound; narrow scope/exclusions",None));}
         let mut out=format!("Codebase Overview: {}\nproject_id: {}\nproject_type: {}\nactive_generation: {}\n",rec.project_name,req.project_id,rec.project_type,generation);
