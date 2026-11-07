@@ -632,6 +632,11 @@ fn downstream_profiles_bound_agent_context_without_losing_safety_or_graph_recove
         }
         let mut direct=edge(id(POLICY,"Policy.Resolve",5),id(POLICY,"Policy.ClassifyAutomatic",2),EdgeKind::Calls,2);
         direct.metadata=Some(json!({"src_line":5,"call_site_line":6}));edges.push(direct);
+        nodes.extend([node(SPATIAL,"Spatial.FutureRoute",2,4,4),node(UNBOUND,"Unbound.UnknownCaller",2,4,1)]);
+        edges.extend([
+            edge(id(SPATIAL,"Spatial.FutureRoute",2),id(POLICY,"Policy.Resolve",5),EdgeKind::Calls,4),
+            edge(id(UNBOUND,"Unbound.UnknownCaller",2),id(POLICY,"Policy.Resolve",5),EdgeKind::Calls,1),
+        ]);
         fixture.engram.state.graph.upsert_nodes(PID,&nodes).unwrap();fixture.engram.state.graph.upsert_edges(PID,&edges).unwrap();
         let (compact,safety)=both_profile(&fixture,None,true).await;
         let (explicit,explicit_safety)=both_profile(&fixture,Some("summary"),true).await;
@@ -651,6 +656,35 @@ fn downstream_profiles_bound_agent_context_without_losing_safety_or_graph_recove
         assert_eq!(evidence["detail"],"summary");assert!(evidence.get("nodes").is_none());
         assert_eq!(evidence["source_generation"],3);assert_eq!(evidence["selected_dependents_observed"],46);
         assert_eq!(evidence["direct_dependents_observed"],1);assert_eq!(evidence["transitive_dependents_observed"],45);
+        let sources = &evidence["source_routes"];
+        assert_eq!(sources["admission"], "selected");
+        assert!(serde_json::to_vec(sources).unwrap().len() <= 4 * 1024);
+        let reads = sources["reads"].as_array().unwrap();
+        assert_eq!(reads.len() + sources["windows_omitted"].as_u64().unwrap() as usize,
+            sources["eligible_windows"].as_u64().unwrap() as usize);
+        assert!(sources["windows_omitted"].as_u64().unwrap() > 0,
+            "Many shallow callers must leave explicit display omissions");
+        for node in sources["nodes"].as_array().unwrap() {
+            assert_ne!(node["node_id"], id(SPATIAL,"Spatial.FutureRoute",2));
+            assert_ne!(node["node_id"], id(UNBOUND,"Unbound.UnknownCaller",2));
+            assert_ne!(node["node_id"], id(POLICY,"Policy.Helper",8),
+                "An outgoing input/helper dependency is not an admitted reverse-impact route");
+        }
+        let spatial_read = reads.iter().find(|read| read["arguments"]["file_path"] == SPATIAL).unwrap();
+        assert_eq!(spatial_read["arguments"]["line_start"], 2);
+        assert_eq!(spatial_read["arguments"]["line_end"], 10);
+        let http_read = reads.iter().find(|read| read["arguments"]["file_path"] == HTTP).unwrap();
+        for read in [spatial_read,http_read] {
+            let args = &read["arguments"];
+            assert_eq!(read["tool"], "get_full_method_body");
+            assert!(args["line_end"].as_u64().unwrap() - args["line_start"].as_u64().unwrap() < 120);
+            let current: Value = serde_json::from_str(&text(&fixture.engram.handle_get_full_method_body(
+                serde_json::from_value(args.clone()).unwrap()).await.unwrap())).unwrap();
+            let path = args["file_path"].as_str().unwrap();
+            let raw = std::fs::read(root.join(path)).unwrap();
+            assert_eq!(current["source_file_hash"], ContentHash::compute(&raw).0);
+            assert!(current["source_code"].as_str().unwrap().contains(if path == SPATIAL {"Return ResolvePolicy()"} else {"Spatial.QueryViewport()"}));
+        }
         let expanded = expand_consumer(&fixture, evidence).await;
         assert_eq!(expanded["direct_dependents_observed"], 41);
         assert_eq!(expanded["transitive_dependents_observed"], 0);

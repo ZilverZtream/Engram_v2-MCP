@@ -6,13 +6,14 @@ use engram_graph::store::{ImpactAdmission, ImpactWalkCoverage, IncomingImpactWal
 use engram_index::SourceSnapshotGuard;
 use serde_json::{Value, json};
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap},
     sync::Arc,
 };
 
 const RESPONSE_BYTES: usize = 64 * 1024;
 const IMMEDIATE_BYTES: usize = 2 * 1024;
 pub const SUMMARY_BYTES: usize = 12 * 1024;
+const SOURCE_ROUTE_BYTES: usize = 4 * 1024;
 
 /// Apply one already-held source selection to both graph endpoints' physical
 /// node/file revisions. This helper never pins or observes a newer HEAD.
@@ -443,6 +444,14 @@ fn summary_value(
     }
     value["immediate_consumers_omitted_from_summary"] =
         json!(direct.map(|count| count.saturating_sub(immediate.len())));
+    // File inventory is established independently of declaration display
+    // clipping. Keep its counts/paths before optional route/inspection detail.
+    if let Some(files) = dependent_files {
+        append_dependent_files(&mut value, files, &fits);
+    }
+    // Admitted source routes outrank optional inspection-detail rows. Required
+    // counts, gaps, target/direct witnesses and graph recovery are already fixed.
+    append_source_routes(&mut value, full, project, &fits);
     // A second potential route is optional after the ordinary diverse sample.
     if let Some(dispatch)=full.get("potential_interface_callers") {
         let mut routes=value["potential_interface_callers"]["routes"].as_array().cloned().unwrap_or_default();
@@ -475,9 +484,16 @@ fn summary_value(
             "lookup_hint":hint}));
         value["frontier"] = json!(&leads);
         if !fits(&value) {
-            leads.pop();
+            // A long optional inspection action must not by itself erase a
+            // named unknown. Keep its identity/reason and disclose that the
+            // full graph holds the omitted inspection details.
+            let row = leads.last_mut().unwrap().as_object_mut().unwrap();
+            let details = ["recovery", "recovery_scope", "lookup_hint"].iter()
+                .any(|key| row.get(*key).is_some_and(|value| !value.is_null()));
+            row.remove("recovery"); row.remove("recovery_scope"); row.remove("lookup_hint");
+            row.insert("recovery_details_omitted".into(), json!(details));
             value["frontier"] = json!(&leads);
-            break;
+            if !fits(&value) { leads.pop(); value["frontier"] = json!(&leads); break; }
         }
     }
     value["frontier_rows_omitted_from_summary"] = json!(frontier.len() - leads.len());
@@ -547,10 +563,196 @@ fn summary_value(
         }
     }
     append_caller_file_starts(&mut value, project, &fits);
-    if let Some(files) = dependent_files {
-        append_dependent_files(&mut value, files, &fits);
-    }
     value
+}
+
+/// Recover useful current-file windows from this frame only. A window can
+/// combine connected indexed declaration spans, never infer value flow or pull
+/// an input producer into reverse impact. No database/source/HEAD query occurs.
+fn append_source_routes(value: &mut Value, full: &Value, project: &str, fits: &dyn Fn(&Value) -> bool) {
+    if value["target_revision_admitted"] != true { return; }
+    let nodes: HashMap<_, _> = full["nodes"].as_array().into_iter().flatten()
+        .filter_map(|node| Some((node["ref"].as_str()?, node))).collect();
+    let files: HashMap<_, _> = full["files"].as_array().into_iter().flatten()
+        .filter_map(|file| Some((file["ref"].as_str()?, file))).collect();
+    let recoveries: HashMap<_, _> = full["recoveries"].as_array().into_iter().flatten()
+        .filter_map(|row| Some((row["ref"].as_str()?, row))).collect();
+    let Some(target) = full["target_ref"].as_str().and_then(|reference| nodes.get(reference)).copied() else { return };
+    let callable = |node: &Value| node["admission"] == "selected"
+        && matches!(node["kind"].as_str(), Some("function" | "method" | "constructor"));
+    let edges: Vec<_> = full["edges"].as_array().into_iter().flatten().filter(|edge| {
+        !matches!(edge["kind"].as_str(), Some("contains" | "includes_file" | "implements_interface" | "implements_interface_member"))
+            && edge["source_ref"].as_str().and_then(|r| nodes.get(r)).is_some_and(|n| callable(n))
+            && edge["target_ref"].as_str().and_then(|r| nodes.get(r)).is_some_and(|n| callable(n))
+    }).collect();
+    let mut parents = BTreeMap::new();
+    for edge in &edges {
+        let source = edge["source_ref"].as_str().unwrap();
+        let parent = edge["target_ref"].as_str().unwrap();
+        if edge["connection_role"] != "additional_verified_connection"
+            && nodes[source]["depth"].as_u64().zip(nodes[parent]["depth"].as_u64())
+                .is_some_and(|(source, parent)| source == parent + 1) {
+            parents.entry(source).or_insert(parent);
+        }
+    }
+    let trace = |reference: &str| -> Option<Vec<String>> {
+        let mut path = vec![reference.to_owned()];
+        while let Some(parent) = parents.get(path.last()?.as_str()) {
+            if path.len() >= nodes.len() || path.iter().any(|r| r == parent) { return None; }
+            path.push((*parent).to_owned());
+        }
+        let seed = nodes.get(path.last()?.as_str())?;
+        if seed["is_seed"] != true || !(seed["ref"] == target["ref"]
+            || (target["kind"] == "file" && seed["file_ref"] == target["file_ref"])) { return None; }
+        path.reverse(); Some(path)
+    };
+    let mut eligible = Vec::new();
+    let mut traces = HashMap::new();
+    let mut ineligible = 0usize;
+    for node in nodes.values().copied().filter(|node| callable(node) && node["depth"].as_u64().is_some_and(|d| d >= 2)) {
+        let reference = node["ref"].as_str().unwrap();
+        let path = node["file_ref"].as_str().and_then(|r| files.get(r)).and_then(|f| f["path"].as_str());
+        let bounds = node["start_line"].as_u64().zip(node["end_line"].as_u64());
+        let recovery = node["recovery_ref"].as_str().and_then(|r| recoveries.get(r));
+        let usable = path.zip(bounds).zip(recovery).filter(|((path, (start, end)), recovery)|
+            *start > 0 && *end >= *start && end - start < 120 && node["generation"].as_u64().is_some()
+                && recovery["tool"] == "get_full_method_body" && recovery["scope_ref"] == "range"
+                && recovery["arguments"]["file_path"] == *path
+                && recovery["arguments"]["line_start"].as_u64() == Some(*start)
+                && recovery["arguments"]["line_end"].as_u64().is_some_and(|limit| limit >= *end));
+        if usable.is_none() { ineligible += 1; continue; }
+        let Some(path) = trace(reference) else { ineligible += 1; continue };
+        traces.insert(reference, path); eligible.push(node);
+    }
+    eligible.sort_by(|a, b| a["node_id"].as_str().cmp(&b["node_id"].as_str()));
+    if eligible.is_empty() { return; }
+    let indices: HashMap<_, _> = eligible.iter().enumerate().map(|(i, node)| (node["ref"].as_str().unwrap(), i)).collect();
+    let mut owners: Vec<_> = (0..eligible.len()).collect();
+    let mut lows: Vec<_> = eligible.iter().map(|node| node["start_line"].as_u64().unwrap()).collect();
+    let mut highs: Vec<_> = eligible.iter().map(|node| node["end_line"].as_u64().unwrap()).collect();
+    fn owner(owners: &mut [usize], mut i: usize) -> usize {
+        while owners[i] != i { owners[i] = owners[owners[i]]; i = owners[i]; } i
+    }
+    // Merge nearer connections first: an outer wrapper must not use the whole
+    // range budget before two nearer declarations can share one source read.
+    let mut ordered_edges = edges.clone();
+    ordered_edges.sort_by_key(|edge| {
+        let a = nodes[edge["source_ref"].as_str().unwrap()];
+        let b = nodes[edge["target_ref"].as_str().unwrap()];
+        (a["depth"].as_u64().unwrap_or(0).max(b["depth"].as_u64().unwrap_or(0)),
+            a["node_id"].as_str(), b["node_id"].as_str())
+    });
+    for edge in ordered_edges {
+        let Some((&a, &b)) = edge["source_ref"].as_str().and_then(|r| indices.get(r))
+            .zip(edge["target_ref"].as_str().and_then(|r| indices.get(r))) else { continue };
+        let a = owner(&mut owners, a); let b = owner(&mut owners, b);
+        if a == b || eligible[a]["file_ref"] != eligible[b]["file_ref"]
+            || eligible[a]["generation"] != eligible[b]["generation"] { continue; }
+        let lo = lows[a].min(lows[b]); let hi = highs[a].max(highs[b]);
+        if hi - lo >= 120 { continue; }
+        let (keep, drop) = (a.min(b), a.max(b)); owners[drop] = keep; lows[keep] = lo; highs[keep] = hi;
+    }
+    let mut groups: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
+    for i in 0..eligible.len() { groups.entry(owner(&mut owners, i)).or_default().push(i); }
+    let groups: Vec<_> = groups.into_values().collect();
+    let score = |group: &Vec<usize>| {
+        let refs: BTreeSet<_> = group.iter().map(|i| eligible[*i]["ref"].as_str().unwrap()).collect();
+        let incoming: BTreeSet<_> = edges.iter().filter_map(|edge| {
+            let a = edge["source_ref"].as_str()?; let b = edge["target_ref"].as_str()?;
+            (refs.contains(b) && !refs.contains(a)).then_some(a)
+        }).collect();
+        let mut spans: Vec<_> = group.iter().map(|i| (eligible[*i]["start_line"].as_u64().unwrap(), eligible[*i]["end_line"].as_u64().unwrap())).collect();
+        spans.sort_unstable(); let mut covered = 0; let mut previous = 0;
+        for (lo, hi) in spans { covered += hi.saturating_sub(previous.max(lo - 1)); previous = previous.max(hi); }
+        let read_lines = group.iter().map(|i| eligible[*i]["end_line"].as_u64().unwrap()).max().unwrap()
+            - group.iter().map(|i| eligible[*i]["start_line"].as_u64().unwrap()).min().unwrap() + 1;
+        (std::cmp::Reverse(!incoming.is_empty()),
+            group.iter().map(|i| eligible[*i]["depth"].as_u64().unwrap()).min().unwrap(),
+            std::cmp::Reverse(group.len()), incoming.len(), std::cmp::Reverse(covered),
+            read_lines, eligible[group[0]]["node_id"].as_str().unwrap())
+    };
+    let mut ranked: Vec<_> = (0..groups.len()).collect(); ranked.sort_by_key(|i| score(&groups[*i]));
+    let mut file_counts = HashMap::new();
+    let mut rounds: Vec<_> = ranked.into_iter().map(|i| {
+        let file = eligible[groups[i][0]]["file_ref"].as_str().unwrap();
+        let rank = file_counts.entry(file).or_insert(0usize); let round = *rank; *rank += 1; (round, i)
+    }).collect();
+    rounds.sort_by_key(|(round, i)| (*round, score(&groups[*i])));
+    // Keep the useful selected-file discovery from the previous projection
+    // even when route allocation clips the later optional navigation object.
+    let mut hint_depths = BTreeMap::new();
+    for node in nodes.values().filter(|node| node["admission"] == "selected"
+        && node["kind"] == "file" && node["is_seed"] == false) {
+        let Some(depth) = node["depth"].as_u64().filter(|depth| *depth > 0) else { continue };
+        if node["file_ref"] == target["file_ref"] { continue; }
+        let Some(path) = node["file_ref"].as_str().and_then(|r| files.get(r)).and_then(|file| file["path"].as_str()) else { continue };
+        hint_depths.entry(path).and_modify(|old: &mut u64| *old = (*old).min(depth)).or_insert(depth);
+    }
+    let mut hints: Vec<_> = hint_depths.into_iter().collect();
+    hints.sort_by(|(a, ad), (b, bd)| ad.cmp(bd).then_with(|| a.cmp(b)));
+    let build = |chosen: &[usize]| {
+        let mut references = BTreeSet::new(); let mut seeds = BTreeSet::new(); let mut reads = Vec::new();
+        references.insert(target["ref"].as_str().unwrap().to_owned());
+        for index in chosen {
+            let group = &groups[*index]; let first = eligible[group[0]];
+            let covered: Vec<_> = group.iter().map(|i| eligible[*i]["ref"].as_str().unwrap()).collect();
+            for reference in &covered {
+                let path = &traces[reference]; seeds.insert(path[0].clone()); references.extend(path.iter().cloned());
+            }
+            let start = group.iter().map(|i| eligible[*i]["start_line"].as_u64().unwrap()).min().unwrap();
+            let end = group.iter().map(|i| eligible[*i]["end_line"].as_u64().unwrap()).max().unwrap();
+            reads.push(json!({"covered_refs":covered,"tool":"get_full_method_body","arguments":{
+                "project_id":project,"file_path":files[first["file_ref"].as_str().unwrap()]["path"],
+                "line_start":start,"line_end":end,"context_lines":0,"include_caller_bodies":false,"output_json":true}}));
+        }
+        let selected_nodes: Vec<_> = references.iter().map(|r| nodes[r.as_str()]).collect();
+        let file_refs: BTreeSet<_> = selected_nodes.iter().filter_map(|node| node["file_ref"].as_str()).collect();
+        let selected_files: Vec<_> = file_refs.iter().filter_map(|r| files.get(r)).copied().collect();
+        let selected_edges: Vec<_> = edges.iter().filter(|edge|
+            edge["source_ref"].as_str().is_some_and(|r| references.contains(r))
+                && edge["target_ref"].as_str().is_some_and(|r| references.contains(r))).map(|edge| {
+            let mut edge = (*edge).clone(); edge.as_object_mut().unwrap().remove("recovery_ref"); edge
+        }).collect();
+        let selected_nodes: Vec<_> = selected_nodes.iter().map(|node| json!({"ref":node["ref"],"node_id":node["node_id"],
+            "generation":node["generation"],"file_ref":node["file_ref"],
+            "indexed_lines":[node["start_line"],node["end_line"]]})).collect();
+        let mut projection = json!({"scope":"Selected links, not value flow/runtime. Reads inspect current ranges, not method/call bounds. Graph retains other branches/position reads. Input producers may lie outside reverse impact.",
+            "requested_target_ref":target["ref"],"seed_refs":seeds,"admission":"selected","nodes":selected_nodes,
+            "files":selected_files,"connections":selected_edges,"connection_defaults":full["omitted_defaults"]["edges"],
+            "reads":reads,"eligible_windows":groups.len(),"windows_omitted":groups.len()-chosen.len(),
+            "file_hints":[],"file_hints_omitted":hints.len(),
+            "ineligible_retained_callables":ineligible});
+        if target["kind"] == "file" {
+            projection["seed_scope"] = json!("Callable file members are structural seeds, not causal file-to-member edges.");
+        }
+        projection
+    };
+    value["source_routes"] = build(&[]);
+    if serde_json::to_vec(&value["source_routes"]).unwrap().len() > SOURCE_ROUTE_BYTES || !fits(value) {
+        value.as_object_mut().unwrap().remove("source_routes"); value["source_routes_omitted"] = json!(true);
+        if !fits(value) { value.as_object_mut().unwrap().remove("source_routes_omitted"); } return;
+    }
+    let mut chosen = Vec::new();
+    for (_, index) in rounds {
+        if chosen.len() == 3 { break; }
+        chosen.push(index); let routes = build(&chosen);
+        if serde_json::to_vec(&routes).unwrap().len() <= SOURCE_ROUTE_BYTES {
+            value["source_routes"] = routes;
+            if fits(value) { continue; }
+        }
+        chosen.pop(); value["source_routes"] = build(&chosen);
+    }
+    let mut shown = Vec::new();
+    for (path, _) in &hints {
+        if shown.len() == 2 { break; }
+        shown.push(*path);
+        value["source_routes"]["file_hints"] = json!(&shown);
+        value["source_routes"]["file_hints_omitted"] = json!(hints.len() - shown.len());
+        if serde_json::to_vec(&value["source_routes"]).unwrap().len() > SOURCE_ROUTE_BYTES || !fits(value) {
+            shown.pop(); value["source_routes"]["file_hints"] = json!(&shown);
+            value["source_routes"]["file_hints_omitted"] = json!(hints.len() - shown.len());
+        }
+    }
 }
 
 /// Optional navigation consumes only spare display space after all existing
@@ -744,8 +946,8 @@ pub(crate) fn assessment_summary(
     Ok(value)
 }
 
-/// Optional file navigation must never evict a caller, witness or uncertainty
-/// frontier. Counts cover the held bounded walk, not just rendered graph rows.
+/// Reserve file navigation after direct witnesses, before optional route and
+/// inspection detail. Counts cover the held walk, not just rendered graph rows.
 fn append_dependent_files(
     value: &mut Value,
     files: &BTreeMap<String, usize>,
