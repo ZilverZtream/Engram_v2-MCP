@@ -2016,6 +2016,158 @@ async fn publish_named_sources(engram: &Engram, search: &HybridSearchEngine, sou
 }
 
 #[test]
+fn codemap_literal_inspection_combines_current_normalization_and_guarded_application_without_inventing_owners() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str="src/client.ts";
+        let mut lines:Vec<_>=(1..=320).map(|i|format!("// source line {i}")).collect();
+        for (line,text) in [(20,"// GATEVALUE documentation"),(23,"const label = \"gateValue\";"),
+            (40,"const gateValue = incoming ?? previous;"),(41,"if (gateValue === null) pending();"),
+            (170,"if (policyVersion < currentVersion) return;"),(175,"if (saving) return; // gateValue"),
+            (176,"const changed = gateValue !== oldValue;"),(180,"apply(gateValue);"),(181,"return gateValue;"),
+            (300,"// gateValue ninth match; later uses remain unassessed")] {lines[line-1]=text.into();}
+        let indexed=lines.join("\n");
+        publish_named_sources(&engram,&search,&[(PATH,&indexed),("src/sibling.ts","gateValue sibling must not leak")]).await;
+        let baseline_args=json!({"project_id":PID,"scope":PATH,"include_declarations":false});
+        let baseline=navigate(&engram,baseline_args.clone()).await;
+        lines[39]="const gateValue = updatedInput ?? previous;".into();
+        let current=format!("\u{feff}{}\r\n",lines.join("\r\n"));
+        let root=std::path::PathBuf::from(engram.state.registry.get_project(PID).unwrap().unwrap().directory);
+        std::fs::write(root.join(PATH),&current).unwrap();
+        let mut args=baseline_args;args["include_source"]=json!(true);args["source_contains"]=json!("gateValue");
+        let text=navigation_text(&engram,args).await;assert!(text.len()<=12*1024);
+        let mut result=navigation(&text);let field=result.as_object_mut().unwrap().remove("current_source").unwrap();
+        assert_eq!(result,baseline);assert_eq!(field["mode"],"literal_inspection");
+        assert_eq!(field["matched_lines"],json!([20,23,40,41,175,176,180,181]));
+        assert_eq!(field["matching_lines_observed"],9);assert_eq!(field["lookahead_line"],300);
+        assert_eq!(field["scan_complete"],false);assert_eq!(field["scanned_through_line"],300);
+        assert_eq!(field["more_matches_unassessed"],true);assert_eq!(field["windows_observed"],2);
+        assert_eq!(field["windows_omitted"],0);assert_eq!(field["sampled_matching_lines_source_omitted"],0);
+        assert_eq!(field["source_file_hash"],blake3::hash(current.as_bytes()).to_hex().to_string());
+        assert!(serde_json::to_vec(&field).unwrap().len()<=8*1024);
+        let windows=field["windows"].as_array().unwrap();assert_eq!(windows.len(),2);
+        let combined=windows.iter().map(|w|w["source_code"].as_str().unwrap()).collect::<Vec<_>>().join("\n");
+        assert!(combined.contains("updatedInput ?? previous") && combined.contains("policyVersion < currentVersion")
+            && combined.contains("if (saving) return") && combined.contains("apply(gateValue)"));
+        assert!(combined.contains("GATEVALUE documentation") && combined.contains("\"gateValue\""));
+        assert!(!combined.contains("sibling"));
+        for window in windows {
+            let start=window["line_start"].as_u64().unwrap() as usize;let end=window["line_end"].as_u64().unwrap() as usize;
+            assert!(end-start<120);assert_eq!(window["source_code"],current.lines().skip(start-1).take(end-start+1).collect::<Vec<_>>().join("\n"));
+            assert!(window.get("node_id").is_none() && window.get("calls").is_none(),"A literal occurrence is not an invented owner/call");
+        }
+        assert_eq!(field["recovery"]["arguments"]["line_start"],300);
+        let (_,next)=excerpt(&engram,field["recovery"]["arguments"].clone()).await;
+        assert_eq!(next["source_file_hash"],field["source_file_hash"]);
+        assert!(next["source_code"].as_str().unwrap().contains("ninth match"));
+    });
+}
+
+#[test]
+fn codemap_literal_inspection_distinguishes_complete_negative_unicode_cases_and_denied_scopes() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str="src/fields.ts";
+        let source="// ΔNAME\r\n// δname\r\n// unrelated\r\n";
+        publish_named_sources(&engram,&search,&[(PATH,source)]).await;
+        let base=json!({"project_id":PID,"scope":PATH,"include_declarations":false});
+        let baseline=navigate(&engram,base.clone()).await;
+        let mut args=base.clone();args["include_source"]=json!(true);args["source_contains"]=json!("Δname");
+        let upper=navigate(&engram,args.clone()).await;
+        assert_eq!(upper["current_source"]["matched_lines"],json!([1]));
+        assert_eq!(upper["current_source"]["scan_complete"],true);
+        assert!(upper["current_source"]["lookahead_line"].is_null());
+        args["source_contains"]=json!("δNAME");
+        assert_eq!(navigate(&engram,args.clone()).await["current_source"]["matched_lines"],json!([2]));
+        args["source_contains"]=json!("notInThisFile");
+        let absent=navigate(&engram,args.clone()).await;
+        assert_eq!(absent["current_source"]["status"],"not_observed");
+        assert_eq!(absent["current_source"]["scan_complete"],true);
+        assert_eq!(absent["current_source"]["scanned_through_line"],3);
+        assert_eq!(absent["current_source"]["matched_lines"],json!([]));
+        assert_eq!(absent["current_source"]["source_file_hash"],blake3::hash(source.as_bytes()).to_hex().to_string());
+        let mut old_preview=base.clone();old_preview["include_source"]=json!(true);
+        let normal=navigate(&engram,old_preview.clone()).await;
+        old_preview["source_contains"]=Value::Null;
+        assert_eq!(navigate(&engram,old_preview).await,normal,"Absent/null selector must preserve the existing preview");
+        let mut explicit_none=base.clone();explicit_none["source_contains"]=Value::Null;
+        assert_eq!(navigate(&engram,explicit_none).await,baseline);
+        for extra in [json!({"source_contains":""}),json!({"source_contains":"x".repeat(129)}),
+            json!({"source_contains":"line\nbreak"}),json!({"include_source":false}),
+            json!({"include_declarations":true}),json!({"symbol_name":"name"}),
+            json!({"symbol_node_id":"sym:function:src/fields.ts:name:1"}),json!({"include_retained_context":true}),
+            json!({"scope":"src"}),json!({"scope":PATH,"exclude_paths":[PATH]})] {
+            let mut invalid=args.clone();
+            for (key,value) in extra.as_object().unwrap(){invalid[key]=value.clone();}
+            assert!(engram.handle_get_codebase_overview(serde_json::from_value(invalid).unwrap()).await.is_err());
+        }
+        let root=std::path::PathBuf::from(engram.state.registry.get_project(PID).unwrap().unwrap().directory);
+        std::fs::write(root.join(PATH),[0xff,0xfe]).unwrap();
+        let unavailable=navigate(&engram,args.clone()).await;
+        assert_eq!(unavailable["current_source"]["status"],"unavailable");
+        assert!(unavailable["current_source"].get("scan_complete").is_none(),"Read failure is never a complete negative search");
+        std::fs::remove_file(root.join(PATH)).unwrap();
+        assert_eq!(navigate(&engram,args).await["current_source"]["status"],"unavailable");
+    });
+}
+
+#[test]
+fn codemap_literal_inspection_reports_source_omissions_and_recovers_a_whole_escaped_matching_line() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str="src/pressure.ts";
+        let mut lines:Vec<_>=(1..=240).map(|i|format!("// context line {i}")).collect();
+        lines[7]=String::new();lines[187]=String::new();
+        lines[19]=format!("const gateValue = \"{}{}\";","日本🙂".repeat(700),"\\\"".repeat(1000));
+        lines[199]="if (saving) return; apply(gateValue);".into();
+        let source=format!("\u{feff}{}\r\n",lines.join("\r\n"));
+        publish_named_sources(&engram,&search,&[(PATH,&source)]).await;
+        let baseline=navigate(&engram,json!({"project_id":PID,"scope":PATH,"include_declarations":false})).await;
+        let text=navigation_text(&engram,json!({"project_id":PID,"scope":PATH,"include_declarations":false,
+            "include_source":true,"source_contains":"gateValue"})).await;
+        assert!(text.len()<=12*1024);let mut result=navigation(&text);
+        let field=result.as_object_mut().unwrap().remove("current_source").unwrap();assert_eq!(result,baseline);
+        assert!(serde_json::to_vec(&field).unwrap().len()<=8*1024);
+        assert_eq!(field["matched_lines"],json!([20,200]));assert_eq!(field["scan_complete"],true);
+        assert_eq!(field["windows_omitted"],0);assert_eq!(field["sampled_matching_lines_source_omitted"],1);
+        let windows=field["windows"].as_array().unwrap();assert_eq!(windows.len(),2);
+        assert_eq!(windows[0]["source_omitted"],true);assert!(windows[0].get("source_code").is_none());
+        assert_eq!(windows[1]["source_code"],source.lines().skip(187).take(25).collect::<Vec<_>>().join("\n"),"Leading blank context lines must retain their positions");
+        let (_,recovered)=excerpt(&engram,field["recovery"]["arguments"].clone()).await;
+        assert_eq!(recovered["source_file_hash"],field["source_file_hash"]);
+        assert_eq!(recovered["source_file_hash"],blake3::hash(source.as_bytes()).to_hex().to_string());
+        assert_eq!(recovered["source_code"],source.lines().skip(7).take(25).collect::<Vec<_>>().join("\n"));
+    });
+}
+
+#[test]
+fn codemap_literal_inspection_keeps_useful_source_and_recovery_when_later_windows_exceed_the_budget() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str="src/near-limit.ts";
+        let mut lines:Vec<_>=(1..=320).map(|i|format!("// source line {i}")).collect();
+        lines[19]=format!("// gateValue {}","x".repeat(6000));
+        lines[299]="if (saving) return; apply(gateValue);".into();
+        let source=lines.join("\n");
+        publish_named_sources(&engram,&search,&[(PATH,&source)]).await;
+        let base=json!({"project_id":PID,"scope":PATH,"include_declarations":false});
+        let baseline=navigate(&engram,base.clone()).await;
+        let mut args=base;args["include_source"]=json!(true);args["source_contains"]=json!("gateValue");
+        let text=navigation_text(&engram,args).await;
+        assert!(text.len()<=12*1024);
+        let mut result=navigation(&text);let field=result.as_object_mut().unwrap().remove("current_source").unwrap();
+        assert_eq!(result,baseline,"Later source pressure must preserve useful navigation");
+        assert!(serde_json::to_vec(&field).unwrap().len()<=8*1024);
+        assert_eq!(field["matched_lines"],json!([20,300]));
+        assert_eq!(field["scan_complete"],true);
+        assert!(field["windows"].as_array().unwrap().iter().any(|w|w.get("source_code").is_some()),
+            "Retain source that fits alongside honest omission and recovery metadata");
+        assert!(field["sampled_matching_lines_source_omitted"].as_u64().unwrap()>0);
+        let (_,recovered)=excerpt(&engram,field["recovery"]["arguments"].clone()).await;
+        let start=recovered["line_start"].as_u64().unwrap() as usize;
+        let end=recovered["line_end"].as_u64().unwrap() as usize;
+        assert_eq!(recovered["source_code"],source.lines().skip(start-1).take(end-start+1).collect::<Vec<_>>().join("\n"));
+        assert_eq!(recovered["source_file_hash"],field["source_file_hash"]);
+    });
+}
+
+#[test]
 fn codemap_source_preview_combines_current_policy_and_orientation_without_upgrading_indexed_freshness() {
     owned_case(true, |engram, search| async move {
         const PATH: &str = "src/Policy.vb";

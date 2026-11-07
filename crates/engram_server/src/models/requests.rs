@@ -497,6 +497,14 @@ pub struct CodebaseOverviewRequest {
     /// certify indexed method bounds, binding or project-wide freshness.
     #[serde(default)]
     pub include_source: bool,
+    /// Optional literal current-file text (1..128 UTF-8 bytes, no controls),
+    /// ASCII-case-insensitive with all other bytes exact. Requires include_source
+    /// true and include_declarations false; no symbol selectors. Samples eight
+    /// distinct matching lines plus lookahead from the same bounded snapshot,
+    /// with nearby current source and literal recovery. Not owner/Calls/value
+    /// flow resolution or a project-wide search; omitted matches stay unknown.
+    #[serde(default)]
+    pub source_contains: Option<String>,
     /// Scoped/filtered results page all matching file identities; unfiltered
     /// project-wide results page a diverse representative sample.
     #[serde(default)]
@@ -539,7 +547,7 @@ fn default_codemap_limit() -> usize { 8 }
 impl From<ProjectIdRequest> for CodebaseOverviewRequest {
     fn from(request: ProjectIdRequest) -> Self {
         Self { project_id: request.project_id, scope: None, exclude_paths: Vec::new(),
-            path_contains: None, include_declarations: true, include_retained_context: false, include_source: false, offset: 0, symbol_offset: 0, symbol_node_id: None, symbol_name: None, limit: default_codemap_limit() }
+            path_contains: None, include_declarations: true, include_retained_context: false, include_source: false, source_contains: None, offset: 0, symbol_offset: 0, symbol_node_id: None, symbol_name: None, limit: default_codemap_limit() }
     }
 }
 
