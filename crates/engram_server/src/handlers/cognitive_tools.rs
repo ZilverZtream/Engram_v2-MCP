@@ -61,10 +61,13 @@ fn codemap_source_preview(
     let file = row["path"].as_str().ok_or("Missing selected file path")?.to_string();
     let symbols = row["symbols"].as_array();
     // A source-page anchor is inspection context, never overload resolution.
-    // Ambiguous, display-clipped and unfinished inventories use the file start.
+    // Ambiguous and display-clipped inventories use the file start. One observed
+    // candidate can orient an unfinished scan without claiming name uniqueness.
     let anchor = symbols.filter(|nodes| targeted && nodes.len() == 1
-        && row["declarations_observed"] == 1 && row["symbol_display_limited"] == false)
+        && row["declarations_observed"] == 1
+        && (row["symbol_display_limited"] == false || row["symbols_omitted_from_display"] == 0))
         .and_then(|nodes| nodes.first()).filter(|node| node["start_line"].as_u64().is_some_and(|n| n > 0));
+    let unfinished_anchor = anchor.is_some() && row["symbol_display_limited"] == true;
     let start = anchor.and_then(|node| node["start_line"].as_u64()).map_or(1, |line| (line - 1) / LINES * LINES + 1);
     let anchor_id = anchor.and_then(|node| node["node_id"].as_str()).map(str::to_string);
     let recovery = |line: u64| serde_json::json!({"tool":"get_full_method_body","arguments":{
@@ -111,6 +114,10 @@ fn codemap_source_preview(
             "source_verification":"current_file_snapshot_not_index_verified","indexed_anchor_node_id":anchor_id,
             "scope":"Current excerpt, not verified indexed method bounds, binding or project freshness.",
             "next_page":if end<total{Some(recovery(end+1))}else{None}});
+        if unfinished_anchor {
+            navigation["current_source"]["indexed_anchor_scope"] = serde_json::json!(
+                "Single observed candidate in an unfinished inventory; additional declarations may be unobserved. Inspection only, not unique name or overload resolution.");
+        }
         let preview_bytes = serde_json::to_vec(&navigation["current_source"]).map_err(|e|e.to_string())?.len();
         let out = render(&navigation)?;
         if preview_bytes <= PREVIEW_BYTES && out.len() <= REPLY_BYTES { return Ok(out); }

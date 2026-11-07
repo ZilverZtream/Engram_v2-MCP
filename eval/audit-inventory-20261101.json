@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-07T17:47:40.425980+00:00",
+  "last_updated_at": "2026-11-07T18:06:44.127639+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-07T17:47:40.425980+00:00",
+    "at_utc": "2026-11-07T18:29:20.181965+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap/Blast agent usefulness remains active. Member recovery72cf95c deployed274e396c/6e7017bd: actual Summary/Graph for both tools preserve graph evidence and first .policy search reaches3 independently verified editor reads. Original8-attempt task remains exactly unchanged PARTIAL4PASS1PARTIAL60466/65536B; known-getter checks outside task budget. Original31/full19 unchanged and unfinished.",
-    "next_user_visible_deliverable": "Continue the original CodeMap/Blast task from actual output: the frozen classification task still lacks representative HTTP/JSON-to-client link, discovery initiation and editor dependency within its original8-attempt/65536B budget. The new known-getter recovery is delivered, not a substitute for that task. Use actual requests and independent source to choose the next concrete navigation/witness improvement; preserve all criteria/caps. No instruction/pilot, catalog/parser, infrastructure, ownership, performance or broad-audit detour.",
+    "active_original_item": "CodeMap/Blast remains active. Observed-candidate preview fix and public description aligned; final focused-v3 PASS5 with frozen inputs and full owned cleanup. Candidate/native/deployment checks pending. Original8-attempt task stillPARTIAL; original31/full19 unchanged.",
+    "next_user_visible_deliverable": "Build committed source with observed-anchor-shipping-20261107; keep compiled inputs frozen. Pair against final observed-anchor-focused-v3-20261107 and installed274e396c/6e7017bd. Use verify_observed_anchor_v2_20261107.py, prepare_observed_anchor_release_v3_20261107.py and normal replay. Exactly one description delta allowed;149 other definitions/all150 schemas unchanged. Actual named preview must include serializer2584..2609 and preserve all coverage. No completion claim.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
     "latest_completed_core_batch": "72cf95c member syntax recovery deployed274e396c/6e7017bd.10behavior checks/native630.44s PASS; frozen inputs/owned cleanup. Actual353-call candidate:35controls/150defs unchanged; both tools Summary6665B/Graph10208B (+450) preserve all other evidence, first .policy search recovers editor683/695/794 with3current-source hashes/ranges verified; broad fallback preserved. Registry/selection3136/other14metadata/300notes unchanged.218active/218prior/5journals verified;stageabsent;holdreleased/configunchanged. Normalprimary2340 confirms candidate and unchanged8-attempt60466B task; PARTIAL4PASS1PARTIAL. No fresh-agent/full31/full19 completion claim.",
-    "previous_goal_turn_classification": "PROGRESS: deployed and verified concrete member recovery through actual installed tools. Original task remains partial with all8texts/arguments unchanged; continue source-connection navigation within its frozen scope.",
+    "previous_goal_turn_classification": "PROGRESS: final5 source-preview behaviors PASS610.42s batch/0.77s tests; capability135 and diff checks PASS. Actual candidate check and deployment pending.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10301,6 +10301,45 @@
       "files": 218,
       "bytes": 336593194,
       "cleanup_condition": "Prior complete runtime retained for reviewed recovery; exact-path cleanup approval required. No automatic deletion or rollback proof."
+    },
+    "latest_observed_anchor_checkpoint": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\observed-anchor-continuation-checkpoint-20261107.json",
+      "sha256": "4138ef21a006ffa820b84ec8473c70462e77ba132bae29afda14cf372e7927c0"
+    },
+    "observed_anchor_prepared_verification": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\observed-anchor-verification-prepared-20261107.json",
+      "sha256": "44a53b9999345ab1d06652e966d21729cf08fc5883a4c764b1e538f6ec5bb690"
+    },
+    "latest_observed_anchor_correction": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\observed-anchor-correction-checkpoint-20261107.json",
+      "sha256": "fa2b261702220d5b0d40ab09da702202112333fed263731975ca1922bed35733"
+    },
+    "remaining_original_task_observation": {
+      "at_utc": "2026-11-07T18:10:35.294184+00:00",
+      "scope": "Queue note only; finish the current observed-anchor delivery first. No additional implementation started.",
+      "evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-classification-fresh09-call07-scope-block-20261107.json",
+        "sha256": "0b76b8573c50cf4ecb907016bf56f1fd86061caca10d0dd49af47f44d037ee99"
+      },
+      "observation": "Original task call7 strict grep was blocked because current strict freshness can fingerprint excluded source before applying query scope. This consumed one of8 attempts and forced the source-recovery retry. Once the current preview fix is delivered, evaluate this existing task blocker as a possible next core recovery improvement, preserving exclusions/current-source honesty and existing bounds; do not automatically broaden into global freshness/performance work.",
+      "caller_body_expansion_note": "Existing FQN caller expansion can read caller source without task exclusion parameters and uses incoming indexed edges. Do not use it on this frozen-Q task merely to reduce call count without first proving its complete read scope is allowed."
+    },
+    "observed_anchor_public_contract_followup": {
+      "at_utc": "2026-11-07T18:13:55.659614+00:00",
+      "status": "Applied after focused-v2; final focused-v3 PASS5 with cleanup. Observer/preparer expect exact description delta and three compiled inputs.",
+      "path": "crates/engram_server/src/tools.rs",
+      "old_text": "A sole fully displayed named/ID candidate anchors its120line source page; ambiguous/unfinished candidates use file start without choosing an overload.",
+      "new_text": "A sole observed, fully displayed named/ID candidate anchors its120line source page; an unfinished scan keeps explicit non-uniqueness scope. Multiple or display-clipped candidates use file start without choosing an overload.",
+      "scope": "Description correction for this selected behavior only, no new tool/parameter/schema or catalog expansion. models/requests.rs already says sole fully displayed candidate and needs no change.",
+      "required_followthrough": "After current test run ends, replace this exact description substring once, rerun focused source-preview tests on the final frozen source, and use that final receipt for native pairing. Update candidate definition comparison to require exactly this get_codebase_overview.description change,149 other definitions and all schemas unchanged; do not claim all150definitionsunchanged. Release preparer must expect3compiledinputchanges (cognitive_tools.rs,tools.rs,overview_selected_source_tests.rs) and final source-review pins. Normal replay already compares all definitions to candidate."
+    },
+    "latest_observed_anchor_final_contract": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\observed-anchor-final-contract-checkpoint-20261107.json",
+      "sha256": "51a708d6cb10d4a22ed9e6729fd6582e6125fed93c063bfe4b3eb4e5cbafd155"
+    },
+    "observed_anchor_final_focused": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\observed-anchor-focused-v3-20261107.json",
+      "sha256": "8ef005b32eb35d879c42aac8e5af85ea20d40f76c11bee17acb63383fcf49019"
     }
   }
 }

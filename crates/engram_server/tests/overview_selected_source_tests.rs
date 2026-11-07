@@ -2276,6 +2276,64 @@ fn codemap_source_preview_combines_current_policy_and_orientation_without_upgrad
 }
 
 #[test]
+fn codemap_source_preview_inspects_one_observed_candidate_without_resolving_an_unfinished_name() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str = "src/Serializer.vb";
+        let mut lines: Vec<_> = (1..=360).map(|i|format!("' source line {i}")).collect();
+        lines[152]="Private Function BuildMetaOnlyJson() As String".into();
+        lines[153]="    AppendJson(sb, policy) ' observed serializer handoff".into();
+        lines[154]="    Return sb.ToString()".into();
+        lines[155]="End Function".into();
+        lines[272]="Private Function BuildMetaOnlyJson(version As Integer) As String".into();
+        lines[273]="    Return alternatePayload ' second candidate beyond the lookup budget".into();
+        lines[274]="End Function".into();
+        let source=lines.join("\n");
+        publish_named_sources(&engram,&search,&[(PATH,&source)]).await;
+        let mut declarations=Vec::new();
+        for (name,start,end) in [("A.BuildMetaOnlyJson",153,156),("Z.BuildMetaOnlyJson",273,275)] {
+            let mut declaration=node(&format!("sym:function:{PATH}:{name}:{start}"),"function",name,PATH,1);
+            declaration.start_line=start;declaration.end_line=end;declarations.push(declaration);
+        }
+        for index in 0..80 {
+            let name=format!("B{index:03}.Other");
+            declarations.push(node(&format!("sym:function:{PATH}:{name}:10"),"function",&name,PATH,1));
+        }
+        engram.state.graph.upsert_nodes(PID,&declarations).unwrap();
+        let request=json!({"project_id":PID,"scope":PATH,"symbol_name":"BuildMetaOnlyJson"});
+        let baseline=navigate(&engram,request.clone()).await;
+        let file=&baseline["files"][0];
+        assert_eq!(file["declarations_observed"],1);
+        assert_eq!(file["symbols"].as_array().unwrap().len(),1);
+        assert_eq!(file["symbols_omitted_from_display"],0);
+        assert_eq!(file["symbol_display_limited"],true);
+        assert!(baseline["coverage"]["declarations"][0]["declaration_admission"]["reasons"]
+            .as_array().unwrap().contains(&json!("named_raw_key_limit")));
+        let mut args=request;args["include_source"]=json!(true);
+        let text=navigation_text(&engram,args).await;
+        assert!(text.len()<=12*1024);
+        let mut result=navigation(&text);
+        let preview=result.as_object_mut().unwrap().remove("current_source").unwrap();
+        assert_eq!(result,baseline,"Source inspection must preserve unfinished lookup coverage and every candidate/action");
+        assert_eq!(preview["indexed_anchor_node_id"],declarations[0].node_id);
+        assert_eq!(preview["line_start"],121);
+        assert!(preview["source_code"].as_str().unwrap().contains("observed serializer handoff"),
+            "The first response must inspect its admitted candidate rather than spend the source budget on unrelated file headers");
+        assert!(preview["indexed_anchor_scope"].as_str().unwrap().contains("not unique name or overload resolution"));
+        assert_eq!(preview["source_file_hash"],blake3::hash(source.as_bytes()).to_hex().to_string());
+        let end=preview["line_end"].as_u64().unwrap() as usize;
+        assert_eq!(preview["source_code"],lines[120..end].join("\n"));
+        assert!(serde_json::to_vec(&preview).unwrap().len()<=8*1024);
+        assert_eq!(result["working_tree_checked"],false);
+        // An unobserved overload really exists; inspecting the first candidate
+        // must neither resolve the name nor prevent explicit recovery of it.
+        let other=navigate(&engram,json!({"project_id":PID,"scope":PATH,
+            "symbol_node_id":declarations[1].node_id,"include_source":true})).await;
+        assert!(other["current_source"]["source_code"].as_str().unwrap().contains("second candidate beyond the lookup budget"));
+        assert!(other["current_source"].get("indexed_anchor_scope").is_none());
+    });
+}
+
+#[test]
 fn codemap_source_preview_keeps_ambiguous_candidates_and_selected_file_boundaries() {
     owned_case(true, |engram, search| async move {
         const PATH: &str = "src/client.ts";
