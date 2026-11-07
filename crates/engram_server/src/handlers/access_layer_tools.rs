@@ -2266,6 +2266,23 @@ fn apply_downstream_safety(
     safety.downstream_impact = Some(assessment);
 }
 
+/// Apply only after the original assessment has determined the verdict,
+/// including its raw graph omissions. Display choices never rescore safety.
+fn project_downstream_safety_display(
+    safety: &mut EditSafetyResult,
+    project: &str,
+    exact_node_id: &str,
+    detail: crate::models::ImpactDetail,
+) -> Result<(), McpError> {
+    if detail==crate::models::ImpactDetail::Graph { return Ok(()); }
+    if let Some(assessment)=safety.downstream_impact.as_mut() {
+        assessment.evidence=crate::services::impact_walk_service::assessment_summary(
+            assessment,project,exact_node_id,25).map_err(|error|McpError::internal_error(
+                format!("Cannot render bounded downstream evidence: {error:#}; request downstream_detail=graph for the retained graph profile"),None))?;
+    }
+    Ok(())
+}
+
 fn validate_held_method_revision(
     graph: &GraphStore,
     project: &str,
@@ -2310,9 +2327,10 @@ fn render_downstream_safety(safety: &EditSafetyResult) -> String {
     );
     if let Some(assessment) = &safety.downstream_impact {
         text.push_str("\n```json\n");
-        text.push_str(
-            &serde_json::to_string_pretty(assessment).expect("Structured impact serialization"),
-        );
+        let encoded=if assessment.evidence["detail"]=="summary" {
+            serde_json::to_string(assessment)
+        } else { serde_json::to_string_pretty(assessment) };
+        text.push_str(&encoded.expect("Structured impact serialization"));
         text.push_str("\n```\n");
     }
     text
@@ -4031,6 +4049,7 @@ impl Engram {
             .method_downstream_assessment(&req.project_id, &node)
             .await?;
         let downstream_generation = downstream.source_generation;
+        let downstream_node_id = node.node_id.clone();
         let worker_source = _impact_source_hold.clone();
         let result = tokio::task::spawn_blocking(move || {
             let _worker_source = worker_source;
@@ -4113,6 +4132,8 @@ impl Engram {
 
         let mut ctx = result.map_err(|e| McpError::invalid_params(e, None))?;
         apply_downstream_safety(&mut ctx.edit_safety, downstream);
+        project_downstream_safety_display(&mut ctx.edit_safety,&req.project_id,
+            &downstream_node_id,req.downstream_detail)?;
 
         if req.include_history {
             let query = req
@@ -6430,6 +6451,7 @@ impl Engram {
             .method_downstream_assessment(&req.project_id, &node)
             .await?;
         let downstream_generation = downstream.source_generation;
+        let downstream_node_id = node.node_id.clone();
         let worker_source = _impact_source_hold.clone();
         let result = tokio::task::spawn_blocking(move || {
             let _worker_source = worker_source;
@@ -6452,6 +6474,8 @@ impl Engram {
 
         let (mut safety, callers) = result.map_err(|e| McpError::invalid_params(e, None))?;
         apply_downstream_safety(&mut safety, downstream);
+        project_downstream_safety_display(&mut safety,&req.project_id,
+            &downstream_node_id,req.downstream_detail)?;
 
         if output_json {
             let json = serde_json::to_string(&safety)

@@ -62,7 +62,8 @@ pub struct ImpactAssessment {
     pub selected_dependents_observed: Option<usize>,
     pub direct_dependents_observed: Option<usize>,
     pub transitive_dependents_observed: Option<usize>,
-    /// The existing bounded JSON witness/path/node payload, without Markdown.
+    /// Bounded JSON evidence, without Markdown: the retained graph or an
+    /// explicitly identified summary display projected after safety evaluation.
     pub evidence: Value,
 }
 
@@ -253,7 +254,7 @@ fn describe_summary_node(
 }
 
 /// Project the already-collected facts. No graph/source/model query is made.
-fn summary_section(
+fn summary_value(
     full: &Value,
     project: &str,
     file_path: Option<&str>,
@@ -262,7 +263,7 @@ fn summary_section(
     direct: Option<usize>,
     transitive: Option<usize>,
     dependent_files: Option<&BTreeMap<String, usize>>,
-) -> String {
+) -> Value {
     let nodes: HashMap<_, _> = full["nodes"]
         .as_array()
         .into_iter()
@@ -549,11 +550,50 @@ fn summary_section(
     if let Some(files) = dependent_files {
         append_dependent_files(&mut value, files, &fits);
     }
+    value
+}
+
+fn summary_section(
+    full: &Value,
+    project: &str,
+    file_path: Option<&str>,
+    symbol_fqn: Option<&str>,
+    display_limit: usize,
+    direct: Option<usize>,
+    transitive: Option<usize>,
+    dependent_files: Option<&BTreeMap<String, usize>>,
+) -> String {
+    let value=summary_value(full,project,file_path,symbol_fqn,display_limit,direct,transitive,dependent_files);
+    let immediate_prefix=immediate_section(full,false).unwrap_or_default();
     format!(
         "{}\n## Revision-admitted change impact\n\nSummary of the same bounded source selection. Expand the graph for all retained identities, connections and paths.\n\n```json\n{}\n```\n",
         immediate_prefix,
         serde_json::to_string(&value).expect("JSON value serialization")
     )
+}
+
+/// Display projection of an existing assessment, after its safety decision.
+/// No new graph/source query or source-head capture occurs here.
+pub(crate) fn assessment_summary(
+    assessment: &ImpactAssessment,
+    project: &str,
+    exact_node_id: &str,
+    display_limit: usize,
+) -> anyhow::Result<Value> {
+    let mut value=summary_value(&assessment.evidence,project,None,Some(exact_node_id),
+        display_limit,assessment.direct_dependents_observed,assessment.transitive_dependents_observed,None);
+    // Unavailable frames may lack graph fields. Preserve the typed capability
+    // and nullable observations rather than inventing a layout or zero impact.
+    value["source_generation"]=json!(assessment.source_generation);
+    value["source_layout"]=json!(assessment.source_layout);
+    value["requested_max_depth"]=json!(assessment.requested_max_depth);
+    value["status"]=json!(assessment.status);
+    value["target_revision_admitted"]=json!(assessment.target_revision_admitted);
+    value["selected_dependents_observed"]=json!(assessment.selected_dependents_observed);
+    value["coverage"]=json!(assessment.coverage);
+    anyhow::ensure!(serde_json::to_vec(&value)?.len()<=SUMMARY_BYTES,
+        "Required downstream summary facts exceed the 12KiB display bound");
+    Ok(value)
 }
 
 /// Optional file navigation must never evict a caller, witness or uncertainty

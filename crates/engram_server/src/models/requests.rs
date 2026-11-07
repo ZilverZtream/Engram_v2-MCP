@@ -3530,6 +3530,10 @@ fn default_max_callers_3() -> usize {
     3
 }
 
+fn default_downstream_detail() -> ImpactDetail {
+    ImpactDetail::Summary
+}
+
 /// "Everything I need before touching a method" — assembles method info, full body,
 /// callers, database footprint, session state, VB traps, sync hazards, blast radius,
 /// and business logic into a single response.
@@ -3537,6 +3541,11 @@ fn default_max_callers_3() -> usize {
 #[serde(deny_unknown_fields)]
 pub struct GetMethodEditContextRequest {
     pub project_id: String,
+    /// Downstream evidence display: summary (default) keeps bounded caller
+    /// witnesses, coverage and full-graph recovery. Graph retains the legacy
+    /// graph payload. Safety decisions use the same original evidence in both.
+    #[serde(default = "default_downstream_detail")]
+    pub downstream_detail: ImpactDetail,
     /// Relative path to the code file containing the method.
     pub file_path: String,
     /// Method name to analyze.
@@ -3844,6 +3853,11 @@ pub struct FindDeadMethodsRequest {
 #[serde(deny_unknown_fields)]
 pub struct CheckEditSafetyRequest {
     pub project_id: String,
+    /// Downstream evidence display: summary (default) keeps bounded caller
+    /// witnesses, coverage and full-graph recovery. Graph retains the legacy
+    /// graph payload. Safety decisions use the same original evidence in both.
+    #[serde(default = "default_downstream_detail")]
+    pub downstream_detail: ImpactDetail,
     /// Relative path to the file containing the method.
     pub file_path: String,
     /// Method name.
