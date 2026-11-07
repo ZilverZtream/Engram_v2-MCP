@@ -2016,6 +2016,181 @@ async fn publish_named_sources(engram: &Engram, search: &HybridSearchEngine, sou
 }
 
 #[test]
+fn codemap_source_preview_combines_current_policy_and_orientation_without_upgrading_indexed_freshness() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str = "src/Policy.vb";
+        let mut lines: Vec<_> = (1..=180).map(|i|format!("' policy line {i}")).collect();
+        lines[34]="Const Cutoff = 100".into();
+        lines[75]="Function Classify(count As Long) As Integer".into();
+        lines[83]="End Function".into();
+        lines[91]="Function Resolve(override As Integer?, count As Long?) As Integer?".into();
+        lines[105]="End Function ' Resolve".into();
+        let indexed=lines.join("\n");
+        publish_named_sources(&engram,&search,&[(PATH,&indexed)]).await;
+        let id=format!("sym:function:{PATH}:Classify:76");
+        let mut declaration=node(&id,"function","Classify",PATH,1);
+        declaration.start_line=76;declaration.end_line=84;
+        engram.state.graph.upsert_nodes(PID,&[declaration]).unwrap();
+        let request=json!({"project_id":PID,"scope":PATH,"symbol_name":"Classify"});
+        let baseline=navigate(&engram,request.clone()).await;
+        lines[34]="Const Cutoff = 2500 ' current edit, not reindexed".into();
+        let current=format!("\u{feff}{}\r\n",lines.join("\r\n"));
+        let root=std::path::PathBuf::from(engram.state.registry.get_project(PID).unwrap().unwrap().directory);
+        std::fs::write(root.join(PATH),&current).unwrap();
+        let mut with_source=request.clone();with_source["include_source"]=json!(true);
+        let text=navigation_text(&engram,with_source.clone()).await;
+        assert!(text.len()<=12*1024);
+        let mut result=navigation(&text);let preview=result.as_object_mut().unwrap().remove("current_source").unwrap();
+        assert_eq!(result,baseline,"Current source must not rescore or replace indexed navigation");
+        assert_eq!(preview["status"],"available");
+        assert_eq!(preview["source_file_hash"],blake3::hash(current.as_bytes()).to_hex().to_string());
+        assert_ne!(preview["source_file_hash"],ContentHash::compute(current.as_bytes()).0,
+            "Preview hashes bind raw CRLF/BOM bytes, independently of normalized indexed content hashes");
+        assert_eq!(preview["source_file_hash_algorithm"],"blake3");
+        assert_eq!(preview["source_verification"],"current_file_snapshot_not_index_verified");
+        assert_eq!(preview["indexed_anchor_node_id"],id);
+        assert_eq!(preview["line_start"],1);
+        let end=preview["line_end"].as_u64().unwrap() as usize;
+        assert!(end>=106 && end<=120,"One orientation must expose the cutoff and Resolve behavior");
+        assert_eq!(preview["source_code"],current.lines().take(end).collect::<Vec<_>>().join("\n"));
+        assert!(preview["source_code"].as_str().unwrap().contains("Cutoff = 2500"));
+        assert!(preview["source_code"].as_str().unwrap().contains("Resolve"));
+        assert_eq!(result["source_generation"],1);
+        assert_eq!(result["working_tree_checked"],false);
+        let next=&preview["next_page"];
+        assert_eq!(next["arguments"]["line_start"],end+1);
+        let (_,rest)=excerpt(&engram,next["arguments"].clone()).await;
+        assert_eq!(rest["source_file_hash"],preview["source_file_hash"]);
+        assert_eq!(rest["line_start"],end+1);
+        assert_eq!(rest["source_code"],current.lines().skip(end).collect::<Vec<_>>().join("\n"));
+
+        std::fs::remove_file(root.join(PATH)).unwrap();
+        assert_eq!(navigate(&engram,request.clone()).await,baseline,"Default orientation remains useful without source files");
+        let missing=navigate(&engram,with_source).await;
+        assert_eq!(missing["current_source"]["status"],"unavailable");
+        assert!(missing["current_source"].get("source_code").is_none());
+        assert_eq!(missing["files"],baseline["files"]);
+        let mut explicit_default=request;explicit_default["include_source"]=json!(false);
+        assert_eq!(navigate(&engram,explicit_default).await,baseline);
+    });
+}
+
+#[test]
+fn codemap_source_preview_keeps_ambiguous_candidates_and_selected_file_boundaries() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str = "src/client.ts";
+        let source=(1..=245).map(|i|format!("// client source line {i}\n")).collect::<String>();
+        publish_named_sources(&engram,&search,&[(PATH,&source)]).await;
+        let mut declarations=Vec::new();
+        for (name,line,generation) in [("First.Run",14,1),("Second.Run",145,1),("Future.Run",33,2)] {
+            let mut declaration=node(&format!("sym:function:{PATH}:{name}:{line}"),"function",name,PATH,generation);
+            declaration.start_line=line;declaration.end_line=line+5;declarations.push(declaration);
+        }
+        engram.state.graph.upsert_nodes(PID,&declarations).unwrap();
+        let request=json!({"project_id":PID,"scope":PATH,"symbol_name":"Run"});
+        let baseline=navigate(&engram,request.clone()).await;
+        assert_eq!(baseline["files"][0]["symbols"].as_array().unwrap().len(),2);
+        let mut with_source=request;with_source["include_source"]=json!(true);
+        let text=navigation_text(&engram,with_source).await;assert!(text.len()<=12*1024);
+        let mut result=navigation(&text);let preview=result.as_object_mut().unwrap().remove("current_source").unwrap();
+        assert_eq!(result,baseline);
+        assert!(preview["indexed_anchor_node_id"].is_null(),"A shared excerpt must not choose an overload");
+        assert_eq!(preview["line_start"],1);
+        let root=std::path::PathBuf::from(engram.state.registry.get_project(PID).unwrap().unwrap().directory);
+        std::fs::write(root.join("outside.ts"),"unselected private source").unwrap();
+        for arguments in [json!({"scope":"src"}),json!({"scope":"outside.ts"}),
+            json!({"scope":PATH,"exclude_paths":[PATH]}),json!({"scope":PATH,"offset":1}),
+            json!({"scope":PATH,"symbol_offset":1}),json!({"scope":PATH,"include_retained_context":true})] {
+            let mut args=arguments;args["project_id"]=json!(PID);args["include_source"]=json!(true);
+            let error=engram.handle_get_codebase_overview(serde_json::from_value(args).unwrap()).await.unwrap_err();
+            assert!(error.message.contains("include_source"));
+        }
+        // A late exact identity anchors its own indexed page, independently of
+        // the default file-start preview used for ambiguous names.
+        let later=navigate(&engram,json!({"project_id":PID,"scope":PATH,"symbol_node_id":declarations[1].node_id,"include_source":true})).await;
+        assert_eq!(later["current_source"]["line_start"],121);
+        assert_eq!(later["current_source"]["indexed_anchor_node_id"],declarations[1].node_id);
+        std::fs::write(root.join(PATH),"// current file was shortened\n").unwrap();
+        let shortened=navigate(&engram,json!({"project_id":PID,"scope":PATH,"symbol_node_id":declarations[1].node_id,"include_source":true})).await;
+        assert_eq!(shortened["files"],later["files"]);
+        assert_eq!(shortened["current_source"]["status"],"unavailable");
+        assert!(shortened["current_source"]["reason"].as_str().unwrap().contains("beyond current file"));
+        assert_eq!(shortened["current_source"]["recovery"]["arguments"]["line_start"],1);
+    });
+}
+
+#[test]
+fn codemap_source_preview_bounds_whole_utf8_lines_and_preserves_orientation_when_source_is_unavailable() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str = "src/data.ts";
+        let source=format!("\u{feff}{}\r\n",(1..=245).map(|i|format!("日本🙂 {i} {}","\\\"".repeat(90))).collect::<Vec<_>>().join("\r\n"));
+        publish_named_sources(&engram,&search,&[(PATH,&source)]).await;
+        let root=std::path::PathBuf::from(engram.state.registry.get_project(PID).unwrap().unwrap().directory);
+        let request=json!({"project_id":PID,"scope":PATH,"include_declarations":false});
+        let baseline=navigate(&engram,request.clone()).await;
+        let mut with_source=request;with_source["include_source"]=json!(true);
+        let text=navigation_text(&engram,with_source.clone()).await;
+        assert!(text.len()<=12*1024,"Escaping and footer are inside the complete reply budget");
+        let mut result=navigation(&text);let preview=result.as_object_mut().unwrap().remove("current_source").unwrap();
+        assert_eq!(result,baseline);assert!(serde_json::to_vec(&preview).unwrap().len()<=8*1024);
+        let end=preview["line_end"].as_u64().unwrap() as usize;assert!(end>0 && end<120);
+        assert_eq!(preview["source_code"],source.lines().take(end).collect::<Vec<_>>().join("\n"));
+        assert_eq!(preview["source_file_hash"],blake3::hash(source.as_bytes()).to_hex().to_string());
+        assert_ne!(preview["source_file_hash"],ContentHash::compute(source.as_bytes()).0,
+            "Raw current-source verification must not silently normalize CRLF");
+        let (_,next)=excerpt(&engram,preview["next_page"]["arguments"].clone()).await;
+        assert_eq!(next["line_start"],end+1);
+        assert_eq!(next["source_code"].as_str().unwrap().lines().next(),source.lines().nth(end));
+
+        std::fs::write(root.join(PATH),"").unwrap();
+        let empty=navigate(&engram,with_source.clone()).await;
+        assert_eq!(empty["current_source"]["status"],"available");
+        assert_eq!(empty["current_source"]["line_start"],0);assert_eq!(empty["current_source"]["line_end"],0);
+        assert_eq!(empty["current_source"]["source_code"],"");assert!(empty["current_source"]["next_page"].is_null());
+        for bytes in [vec![0xff,0xfe,0],"🙂".repeat(3000).into_bytes()] {
+            std::fs::write(root.join(PATH),bytes).unwrap();
+            let mut result=navigate(&engram,with_source.clone()).await;
+            let preview=result.as_object_mut().unwrap().remove("current_source").unwrap();
+            assert_eq!(result,baseline);assert_eq!(preview["status"],"unavailable");
+            assert!(preview.get("source_code").is_none());
+            assert_eq!(preview["recovery"]["arguments"]["line_start"],1);
+        }
+        let oversized=std::fs::File::create(root.join(PATH)).unwrap();oversized.set_len(4*1024*1024+1).unwrap();drop(oversized);
+        let oversized=navigate(&engram,with_source.clone()).await;
+        assert_eq!(oversized["current_source"]["status"],"unavailable");
+        assert!(oversized["current_source"]["reason"].as_str().unwrap().contains("4MiB"));
+        assert_eq!(oversized["files"],baseline["files"]);
+        std::fs::remove_file(root.join(PATH)).unwrap();
+        let missing=navigate(&engram,with_source).await;
+        assert_eq!(missing["current_source"]["status"],"unavailable");assert_eq!(missing["files"],baseline["files"]);
+    });
+}
+
+#[test]
+fn codemap_source_preview_rejects_oversized_base_without_silently_discarding_candidates() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str = "src/Overloads.ts";
+        let name=format!("Inspect{}","N".repeat(185));
+        let source=(0..8).map(|i|format!("class Owner{i} {{ {name}() {{}} }}\n")).collect::<String>();
+        publish_named_sources(&engram,&search,&[(PATH,&source)]).await;
+        let declarations:Vec<_>=(1..=8).map(|line|{
+            let mut declaration=node(&format!("sym:function:{PATH}:{name}:{line}"),"function",&name,PATH,1);
+            declaration.start_line=line;declaration.end_line=line;declaration
+        }).collect();
+        engram.state.graph.upsert_nodes(PID,&declarations).unwrap();
+        let request=json!({"project_id":PID,"scope":PATH,"symbol_name":name});
+        let text=navigation_text(&engram,request.clone()).await;assert!(text.len()>12*1024);
+        let baseline=navigation(&text);assert_eq!(baseline["files"][0]["symbols"].as_array().unwrap().len(),8);
+        let mut with_source=request.clone();with_source["include_source"]=json!(true);
+        let error=engram.handle_get_codebase_overview(serde_json::from_value(with_source).unwrap()).await.unwrap_err();
+        assert!(error.message.contains("12KiB") && error.message.contains("include_source=false"));
+        assert_eq!(navigate(&engram,request).await,baseline,"The caller can recover every original candidate");
+        let narrow=navigation_text(&engram,json!({"project_id":PID,"scope":PATH,"symbol_node_id":declarations[0].node_id,"include_source":true})).await;
+        assert!(narrow.len()<=12*1024);assert_eq!(navigation(&narrow)["current_source"]["status"],"available");
+    });
+}
+
+#[test]
 fn named_terminal_lookup_recovers_qualified_method_and_executable_method_impact() {
     owned_case(true,|engram,search| async move {
         const PATH:&str="src/Policy.vb";

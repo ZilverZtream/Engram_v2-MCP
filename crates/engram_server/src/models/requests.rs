@@ -490,6 +490,13 @@ pub struct CodebaseOverviewRequest {
     /// history/memory context and keeps the full overview rendering.
     #[serde(default)]
     pub include_retained_context: bool,
+    /// Opt-in current source preview for one exact selected file, with both
+    /// offsets zero and retained context off. At most120 complete lines from
+    /// a sole fully displayed named/ID candidate's page (otherwise file start), trimmed
+    /// to an8KiB preview and12KiB complete reply. Current bytes/hash do not
+    /// certify indexed method bounds, binding or project-wide freshness.
+    #[serde(default)]
+    pub include_source: bool,
     /// Scoped/filtered results page all matching file identities; unfiltered
     /// project-wide results page a diverse representative sample.
     #[serde(default)]
@@ -532,7 +539,7 @@ fn default_codemap_limit() -> usize { 8 }
 impl From<ProjectIdRequest> for CodebaseOverviewRequest {
     fn from(request: ProjectIdRequest) -> Self {
         Self { project_id: request.project_id, scope: None, exclude_paths: Vec::new(),
-            path_contains: None, include_declarations: true, include_retained_context: false, offset: 0, symbol_offset: 0, symbol_node_id: None, symbol_name: None, limit: default_codemap_limit() }
+            path_contains: None, include_declarations: true, include_retained_context: false, include_source: false, offset: 0, symbol_offset: 0, symbol_node_id: None, symbol_name: None, limit: default_codemap_limit() }
     }
 }
 
