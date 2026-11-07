@@ -150,7 +150,8 @@ fn codemap_literal_inspection(
     let mut groups: Vec<(u64,u64,Vec<u64>)>=Vec::new();
     for &line in &hits {
         let start=line.saturating_sub(CONTEXT).max(1);let end=line.saturating_add(CONTEXT).min(total);
-        if let Some(previous)=groups.last_mut().filter(|previous|end-previous.0<120) {
+        if let Some(previous)=groups.last_mut().filter(|previous|
+            start<=previous.1.saturating_add(1) && end-previous.0<120) {
             previous.1=end;previous.2.push(line);
         }else{groups.push((start,end,vec![line]));}
     }

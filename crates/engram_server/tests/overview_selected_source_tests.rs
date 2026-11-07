@@ -2016,6 +2016,54 @@ async fn publish_named_sources(engram: &Engram, search: &HybridSearchEngine, sou
 }
 
 #[test]
+fn codemap_literal_inspection_keeps_distant_callback_contexts_useful_under_source_pressure() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str="src/policy-responses.ts";
+        let mut lines:Vec<_>=(1..=450).map(|i|format!("// source line {i}")).collect();
+        for (line,text) in [(20,"function applyPolicy(payload) {"),
+            (21,"if (saving) return false;"),(22,"return payload !== previous;"),
+            (96,"if (requestVersion !== currentVersion) return;"),
+            (100,"const changed = applyPolicy(response.policy);"),(101,"if (changed) queueDiscovery();"),
+            (186,"if (!response || requestGeneration !== currentGeneration) return;"),
+            (190,"if (applyPolicy(response.policy)) scheduleLoad();"),
+            (300,"applyPolicy(metadata);"),(400,"applyPolicy(overridePolicy);")] {
+            lines[line-1]=text.into();
+        }
+        for line in 44..=74 {lines[line-1]=format!("// unrelated intervening block {}","x".repeat(400));}
+        let source=format!("\u{feff}{}\r\n",lines.join("\r\n"));
+        publish_named_sources(&engram,&search,&[(PATH,&source)]).await;
+        let base=json!({"project_id":PID,"scope":PATH,"include_declarations":false});
+        let baseline=navigate(&engram,base.clone()).await;
+        let mut args=base;args["include_source"]=json!(true);args["source_contains"]=json!("applyPolicy(");
+        let text=navigation_text(&engram,args).await;assert!(text.len()<=12*1024);
+        let mut result=navigation(&text);let field=result.as_object_mut().unwrap().remove("current_source").unwrap();
+        assert_eq!(result,baseline);
+        assert!(serde_json::to_vec(&field).unwrap().len()<=8*1024);
+        assert_eq!(field["matched_lines"],json!([20,100,190,300,400]));
+        assert_eq!(field["scan_complete"],true);assert!(field["lookahead_line"].is_null());
+        let rows=field["windows"].as_array().unwrap();
+        let supplied:Vec<_>=rows.iter().filter(|row|row.get("source_code").is_some()).collect();
+        assert_eq!(supplied.len(),3);
+        for (row,matched) in supplied.iter().zip([20u64,100,190]) {
+            assert_eq!(row["matched_lines"],json!([matched]));
+            let start=row["line_start"].as_u64().unwrap() as usize;
+            let end=row["line_end"].as_u64().unwrap() as usize;assert!(end-start<120);
+            assert_eq!(row["source_code"],source.lines().skip(start-1).take(end-start+1).collect::<Vec<_>>().join("\n"));
+            assert!(!row["source_code"].as_str().unwrap().contains("unrelated intervening block"));
+        }
+        assert!(supplied[1]["source_code"].as_str().unwrap().contains("requestVersion !== currentVersion"));
+        assert!(supplied[2]["source_code"].as_str().unwrap().contains("requestGeneration !== currentGeneration"));
+        assert_eq!(field["sampled_matching_lines_source_omitted"],2);
+        assert_eq!(field["windows_omitted"],0);
+        let (_,recovered)=excerpt(&engram,field["recovery"]["arguments"].clone()).await;
+        assert_eq!(recovered["source_file_hash"],field["source_file_hash"]);
+        assert_eq!(recovered["source_file_hash"],blake3::hash(source.as_bytes()).to_hex().to_string());
+        assert!(recovered["line_start"].as_u64().unwrap()<=300 && recovered["line_end"].as_u64().unwrap()>=300);
+        assert!(recovered["source_code"].as_str().unwrap().contains("applyPolicy(metadata)"));
+    });
+}
+
+#[test]
 fn codemap_literal_inspection_combines_current_normalization_and_guarded_application_without_inventing_owners() {
     owned_case(true, |engram, search| async move {
         const PATH: &str="src/client.ts";
