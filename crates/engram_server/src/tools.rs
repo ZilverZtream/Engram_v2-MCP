@@ -524,7 +524,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Fast literal/regex grep over the indexed file set. Uses the Tantivy trigram index as a prefilter — typically beats ripgrep on warm queries. Returns file:line:col matches with optional context lines. Safe source hits also supply executable current-file excerpt actions and a first-page fallback, separate from stored get_chunk citations; compare current hashes and coverage before relying on a stale locator."
+        description = "Fast literal/regex grep over the indexed file set. Freshness stat/hash reads and source overlays honor path_prefix, exclude_path_prefixes and language; warnings describe that scope, not project-wide freshness. Uses the Tantivy trigram index as a prefilter — typically beats ripgrep on warm queries. Returns file:line:col matches with optional context lines. Safe source hits also supply executable current-file excerpt actions and a first-page fallback, separate from stored get_chunk citations; compare current hashes and coverage before relying on a stale locator."
     )]
     pub async fn grep_project(
         &self,

@@ -93,15 +93,7 @@ fn overlay_working_tree(
         .iter()
         .map(|s| (s.rel_path.replace('\\', "/"), s))
         .collect();
-    let eligible = |rel: &str| {
-        !q.is_excluded(rel)
-            && q.path_prefix.as_ref().is_none_or(|p| {
-            rel.to_ascii_lowercase()
-                .starts_with(&p.replace('\\', "/").to_ascii_lowercase())
-        }) && q.language.as_ref().is_none_or(|l| {
-            engram_core::types::guess_language(std::path::Path::new(rel)).eq_ignore_ascii_case(l)
-        })
-    };
+    let eligible = |rel: &str| q.includes_source_path(rel);
     let mut paths: Vec<_> = engram_index::ingest::iter_files(root, exts);
     paths.sort();
     let mut replaced = HashSet::new();
