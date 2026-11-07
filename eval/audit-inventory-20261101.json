@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-07T21:30:20.173732+00:00",
+  "last_updated_at": "2026-11-07T21:38:48.193905+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-07T21:30:20.173732+00:00",
+    "at_utc": "2026-11-07T21:38:48.193905+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap/Blast agent-useful navigation and recovery. Capped member recovery ed50372 is deployed; informed resetstate03 uses it in the unchanged original12call/96KiB task and satisfies all six minimum planning criteria against current raw source. No full runtime/receiver or overall goal closure.",
-    "next_user_visible_deliverable": "Evaluate one upstream batch-cancellation planning case reached by the delivered recovery: identify actual imgManager.cancelUpload reset/reload callers, session invalidation ordering and late completion/stall guards. Freeze bounded12call/96KiB criteria before new responses, use actual CodeMap/Blast and source reads, then independently check current raw source. Choose an implementation change only if actual task evidence demonstrates a concrete core-tool gap; no new broad audit, CI project or instruction drafting.",
+    "active_original_item": "CodeMap/Blast agent-useful navigation and recovery. Installed ed50372 supports informed reset planning and upstream batch-cancellation planning. Batchcancel01 completed9calls77094B, all five frozen planning criteria supported by seven exact raw-source windows. Three indexed manager self-links lack explicit current self-call corroboration; remain recorded limitations, not proven recursion or a new ownership project.",
+    "next_user_visible_deliverable": "Prepared one no-history agent validation of the same batch-cancellation task, criteria and12call/96KiB bounds. User authorization for delegation requested once because current session forbids unrequested sub-agents. Do not spawn before authorization; do not relabel informed root runs as fresh adoption. Reviewable task packet excludes prior answers; root transport/source judgment remain separate.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
     "latest_completed_core_batch": "Capped member recovery deployed:8focused behaviors/native build PASS, frozen inputs and owned cleanup. Actual382calls preserve63prior controls,150definitions and full cancelUpload Graph; returned search/current source reaches manager772 without adding indexed callers.218active/218prior/5journals verified; normal runtime matches candidate. Original31/full19 and broader adoption remain open.",
-    "previous_goal_turn_classification": "PROGRESS: completed informed original reset planning in12calls87233B; eight returned source windows and three search hits match raw source. Six minimum criteria source-verified, delivered recovery executed into manager collection call. No fresh-adoption, causal cost or exhaustive safety claim.",
+    "previous_goal_turn_classification": "PROGRESS: new actual CodeMap/Blast/impact task completed and independently checked against raw file bytes. Concrete cancel/reset/reload and late-callback plan fits9calls77094B. Three source-unsupported self-links explicitly recorded. Prepared reviewable fresh-agent case; not run or credited.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10509,6 +10509,35 @@
         "selection": "Recorded only. No fix selected from this limitation; continue actual core-tool task validation."
       }
     ],
-    "next_core_task_rationale": "Existing delivered recovery exposes an upstream collection consumer and batch lifecycle. Inspecting that actual caller route tests useful change planning beyond the previously rehearsed reset method. It does not redefine the completed reset rubric or seek exhaustive runtime safety."
+    "next_core_task_rationale": "Existing delivered recovery exposes an upstream collection consumer and batch lifecycle. Inspecting that actual caller route tests useful change planning beyond the previously rehearsed reset method. It does not redefine the completed reset rubric or seek exhaustive runtime safety.",
+    "latest_batch_cancellation_task": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\batchcancel-informed01-source-judgment-20261107.json",
+      "sha256": "c8bff5ac3935ccc5648a62a78b7d2fa61d0e15affa8ba118da7862fe38f2e06e"
+    },
+    "prepared_fresh_batch_cancellation_validation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\batchcancel-fresh01-prepared-validation-20261107.json",
+      "sha256": "616172a9bc670d9c0e127a4fd3517c5c08af9571cf6d70cfe65aa3529a5cd87f"
+    },
+    "pending_delegation_request": {
+      "status": "ASKED_AWAITING_USER_RESPONSE",
+      "asked_at_utc": "2026-11-07T21:38:48.193905+00:00",
+      "scope": "One no-history sub-agent, read-only bounded batch-cancellation planning case; no source edits.",
+      "reason": "Session developer instructions prohibit sub-agent spawning unless user or applicable AGENTS/skill explicitly asks.",
+      "question_tool": "request_user_input_async",
+      "rule": "No elapsed-time approval. Do not re-ask automatically or spawn before authorization."
+    },
+    "batch_cancellation_index_discrepancy": {
+      "evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\batchcancel-informed01-source-judgment-20261107.json",
+        "sha256": "c8bff5ac3935ccc5648a62a78b7d2fa61d0e15affa8ba118da7862fe38f2e06e"
+      },
+      "self_links": 3,
+      "file": "Site/ts/imgHandler/imgManager.ts",
+      "physical_generation": 3117,
+      "active_selection": 3136,
+      "interpretation": "Current collection-element calls do not corroborate explicit self-recursion. Selected links carry weaker extractor-anchor positions; existing contract separates revision admission from binding. Source checks, not indexed labels, support the plan.",
+      "disposition": "Recorded; no reindex, extraction/ownership investigation, scan expansion or speculative read-side filtering selected."
+    },
+    "current_owned_resource_state": "All task RPC batches terminal, observer pipes closed, no pending request or owned temporary directories. Prior daemon40112 ended normal300s idle timeout; new hidden normal launch recorded in batchcancel-informed01-normal-launch-20261107.json after confirmed absence. Normal daemon owns its idle lifetime. All evidence retained in the existing diagnostics directory."
   }
 }
