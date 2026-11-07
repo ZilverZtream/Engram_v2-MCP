@@ -52,6 +52,94 @@ fn packet(text: &str) -> Value {
         .split("```json").nth(1).unwrap().split("```").next().unwrap()).unwrap()
 }
 
+#[test]
+fn capped_empty_receiver_scan_keeps_executable_member_recovery_beside_known_callers() -> Result<()> {
+    let owned = tempfile::TempDir::new()?;
+    let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build()?;
+    runtime.block_on(async {
+        let handler = "src/ts/images/imageUploadHandler.ts";
+        let manager = "src/ts/images/uploadBatchManager.ts";
+        let mut body = String::from("class ImageUploadHandler {\n");
+        for (line, method) in [
+            (190, " deleteFromServer() { this.resetState(); }\n"),
+            (600, " cancelUpload() {}\n"),
+            (900, " deleteImage() { this.resetState(); this.deleteFromServer(); }\n"),
+            (1400, " loadImage() { this.resetState(); }\n"),
+            (1700, " resetState() { this.cancelUpload(); }\n"),
+        ] {
+            while body.lines().count() + 1 < line { body.push('\n'); }
+            body.push_str(method);
+        }
+        body.push_str("}\n");
+        // A real source directory larger than the unresolved inspection budget.
+        // Its unrelated calls sort before the useful collection consumer.
+        let noise = format!("class EarlierDeclarations {{\n{}\n}}\n",
+            (0..600).map(|n| format!(" earlier{n:04}(other: any) {{ other.touch(); }}\n")).collect::<String>());
+        let consumer = "class UploadBatchManager {\n cancelAll(groups: any[]) {\n  for (const group of groups) {\n   for (const handler of group.imageHandlers) {\n    handler.cancelUpload();\n   }\n  }\n }\n}\n";
+        for (file, text) in [(handler, body.as_str()), (manager, consumer),
+            ("src/ts/images/aaaEarlierDeclarations.ts", noise.as_str())] {
+            let path = owned.path().join("repo").join(file);
+            std::fs::create_dir_all(path.parent().unwrap())?;
+            std::fs::write(path, text)?;
+        }
+        let app = open(owned.path()).await?;
+        let indexed = app.handle_index_project(serde_json::from_value(json!({
+            "directory":owned.path().join("repo"),"project_name":"Capped receiver recovery",
+            "project_type":"general","wait":true
+        }))?).await?;
+        ensure!(indexed.is_error != Some(true));
+        settle(&app).await?;
+        let pid = app.state.registry.list_projects()?[0].project_id.clone();
+        let target = app.state.graph.query_nodes(&pid, Some("function"), None, Some(handler), 32)?
+            .into_iter().find(|node| node.name == "cancelUpload").unwrap();
+        let before = serde_json::to_value(app.state.graph.list_edges(&pid, None)?)?;
+        for tool in ["impact_analysis", "compute_blast_radius"] {
+            let mut args = json!({"project_id":pid,"symbol_fqn":target.node_id,
+                "max_depth":6,"detail":"summary","include_guidance":false});
+            let reply = if tool == "compute_blast_radius" {
+                app.handle_compute_blast_radius(serde_json::from_value(args)?).await?
+            } else {
+                args.as_object_mut().unwrap().remove("include_guidance");
+                app.handle_impact_analysis(serde_json::from_value(args)?).await?
+            };
+            ensure!(reply.is_error != Some(true));
+            let text = &reply.content[0].as_text().unwrap().text;
+            ensure!(text.len() <= 12 * 1024);
+            let report = packet(text);
+            ensure!(report["direct_dependents_observed"] == 1
+                && report["transitive_dependents_observed"] == 3);
+            ensure!(report["immediate_consumers"][0]["name"] == "resetState");
+            let scan = &report["unbound_member_call_inspection"];
+            ensure!(scan["coverage"]["truncated"] == true && scan["distinct_callers_observed"] == 0,
+                "This scenario requires an empty capped scan, not absence of source consumers: {scan}");
+            let inspection = &report["terminal_member_inspection"];
+            ensure!(inspection["scope"].as_str().is_some_and(|s| s.contains("does not bind")),
+                "Recovery must remain explicitly separate from admitted callers: {report}");
+            let action = &inspection["action"];
+            ensure!(action["tool"] == "grep_project" && action["arguments"]["pattern"] == ".cancelUpload");
+            let hits = app.handle_grep_project(serde_json::from_value(action["arguments"].clone())?).await?;
+            ensure!(hits.is_error != Some(true));
+            let hits: Value = serde_json::from_str(&hits.content[0].as_text().unwrap().text)?;
+            let hit = hits["matches"].as_array().unwrap().iter().find(|row|
+                row["file_path"] == manager && row["line"] == 5).unwrap();
+            let source = app.handle_get_full_method_body(serde_json::from_value(
+                hit["current_source_recovery"]["arguments"].clone())?).await?;
+            ensure!(source.is_error != Some(true));
+            let source: Value = serde_json::from_str(&source.content[0].as_text().unwrap().text)?;
+            ensure!(source["source_file_hash"] == ContentHash::compute(consumer.as_bytes()).0);
+            ensure!(source["source_code"].as_str().unwrap().contains("handler.cancelUpload();"));
+            ensure!(report["change_breakage_proven"] == false && report["exhaustive_codebase"] == false);
+        }
+        ensure!(before == serde_json::to_value(app.state.graph.list_edges(&pid, None)?)?);
+        settle(&app).await?;
+        drop(app);
+        Ok::<(), anyhow::Error>(())
+    })?;
+    drop(runtime);
+    owned.close()?;
+    Ok(())
+}
+
 fn check_receivers(app: &Engram, pid: &str) -> Result<()> {
     let functions = app.state.graph.query_nodes(pid, Some("function"), None, None, 32)?;
     let named = |file: &str, name: &str| functions.iter()
