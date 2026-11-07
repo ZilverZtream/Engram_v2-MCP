@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-07T18:06:44.127639+00:00",
+  "last_updated_at": "2026-11-07T19:36:43.706918+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-07T19:10:37.584688+00:00",
+    "at_utc": "2026-11-07T19:36:43.706918+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap/Blast originaltask recovery active. Scoped grep freshness final4index+23public behaviorsPASS104.19s/646.44s batches,allsourcefrozen/ownedcleanup. Code ready for native candidate. Original8taskPARTIAL, original31/full19 incomplete.",
-    "next_user_visible_deliverable": "Commit source and build scoped-grep-shipping-20261107 using existing shipping runner. Finalize scoped-grep pair with server-focused receipt and installedf23b8a83/dbdae618. Prepared verify_scoped_grep_20261107.py, prepare_scoped_grep_release_20261107.py and verify_scoped_grep_normal_20261107.py require review-v2 and final index4/public23/native evidence. Original blocked strict OciusX request may run only on scope-reviewed candidate; preserve55priorcontrols/data and exact description delta. Original8ledger remains immutable/partial.",
+    "active_original_item": "CodeMap/Blast original task recovery active. Scoped grep79efd47 deployed9b7958b2/1fce97cc and verified. Informed controlled10:8calls63748B,4PASS1PARTIAL; missing current-source HTTP/JSON-to-TS transport witness. Original31/full19 incomplete.",
+    "next_user_visible_deliverable": "Continue the demonstrated core navigation/witness gap: evaluate actual CodeMap and existing source recovery for the omitted serializer/TS request-response callback against raw source, choose a compact bounded recovery improvement only if existing tools cannot support the agent plan within unchanged criteria/caps. Do not borrow outside evidence as task credit or claim a fresh-agent win. No broad audit/infrastructure/catalog/performance/EG14 detour.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9855,8 +9855,8 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "534102d observed-candidate source preview deployedf23b8a83/dbdae618. Final5behaviorsPASS610.42sbatch/0.77stest;native656.51sPASS,frozeninputs/ownedcleanup. Actual358calls:50priorcontrols+3serializercontrols unchanged;150schemas/149otherdefs same,CodeMapdescriptiononly aligned. Namedpreview1..104->2521..2627 includes serializer2584..2609,currentrawSHA/B3+nextpage2628verified;12282->12190B. Registry/selection3136/other14metadata/300notes preserved.218active/218prior/5journals verified,stageabsent,holdreleased/configsame;normalprimary47244 confirms newpreview and exactprevious8requests/text60466B. Task remainsPARTIAL. Initialv1regressionFAIL retained,testsunchanged,correctedv2/v3PASS. No full31/full19/fresh-agent/resourcecompletion claim.",
-    "previous_goal_turn_classification": "PROGRESS: final27 behaviors passed, owned resources cleaned, candidate/preparer/normal observers prepared and offline55response decoder/definition delta checked. Actual OciusX candidate and deployment pending.",
+    "latest_completed_core_batch": "79efd47 scoped grep deployed. Final4index+23publicPASS; native832.914sPASS, frozeninputs/ownedcleanup. Actual362candidatecalls and55priorcontrols preserved;150schemas/149otherdefsunchanged,grepdescriptiononly. Exactoriginalstrictquery5834B returns259/370/461 with current-source recovery verified;excludeandrepeatPASS. Installed218active/218prior/5journals,stageabsent;holdreleased/configsame;normal48564PASS. Informed8task63748B nowincludeseditor but remains4PASS1PARTIAL. Original31/full19/fresh-agent completion not claimed.",
+    "previous_goal_turn_classification": "PROGRESS: selected blocker repaired, installed, normal-runtime verified, informed task repeated and independently source-checked; remaining transport witness gap recorded honestly.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10261,8 +10261,13 @@
         "crates/engram_index/src/grep.rs:479",
         "crates/engram_index/src/grep.rs:311"
       ],
-      "not_deployed_or_fixed": true,
-      "no_Q_content_read_proven": true
+      "not_deployed_or_fixed": false,
+      "no_Q_content_read_proven": true,
+      "resolution": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\scoped-grep-delivery-outcome-20261107.json",
+        "sha256": "862b621ea97878d0d6c03cf7373794f2bd6a84ed0d695ae092fb1cd073263c12"
+      },
+      "status": "Historical issue; fixed and deployed79efd47 after original task demonstrated it blocked delivery."
     },
     "fresh09_immutable_parent_ledger_sha256": "a7d9c1ada86af921afa478e2f97528ad5585668db6dab3f8366cf9644e15385c",
     "adjacent_context_delivery_evidence": {
@@ -10315,14 +10320,13 @@
       "sha256": "fa2b261702220d5b0d40ab09da702202112333fed263731975ca1922bed35733"
     },
     "remaining_original_task_observation": {
-      "at_utc": "2026-11-07T18:10:35.294184+00:00",
-      "scope": "Queue note only; finish the current observed-anchor delivery first. No additional implementation started.",
+      "at_utc": "2026-11-07T19:36:43.706918+00:00",
       "evidence": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-classification-fresh09-call07-scope-block-20261107.json",
-        "sha256": "0b76b8573c50cf4ecb907016bf56f1fd86061caca10d0dd49af47f44d037ee99"
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-classification-controlled10-source-judgment-20261107.json",
+        "sha256": "79f1270581164672e2aa9147d6b4daff787ccaeb3ad0c311b08bcb0618404f8f"
       },
-      "observation": "Original task call7 strict grep was blocked because current strict freshness can fingerprint excluded source before applying query scope. This consumed one of8 attempts and forced the source-recovery retry. Once the current preview fix is delivered, evaluate this existing task blocker as a possible next core recovery improvement, preserving exclusions/current-source honesty and existing bounds; do not automatically broaden into global freshness/performance work.",
-      "caller_body_expansion_note": "Existing FQN caller expansion can read caller source without task exclusion parameters and uses incoming indexed edges. Do not use it on this frozen-Q task merely to reduce call count without first proving its complete read scope is allowed."
+      "observation": "Strict-search blocker repaired. Informed8task recovers editor within budget but still omits complete HTTP/JSON-to-TS transport witness. Raw post-proposal source shows fetch/response.json/_applyPolicy and serializer; this is diagnostic evidence, not task credit.",
+      "caller_body_expansion_note": "Keep frozen exclusions; generic caller source expansion must not read unapproved scopes merely to save a call."
     },
     "observed_anchor_public_contract_followup": {
       "at_utc": "2026-11-07T18:13:55.659614+00:00",
@@ -10386,6 +10390,28 @@
       },
       "same_compiled_inputs": true,
       "all_owned_resources_closed_removed": true
+    },
+    "latest_scoped_grep_native_running": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\scoped-grep-native-running-checkpoint-20261107.json",
+      "sha256": "cf76aa71defc1adbda85b6a1eae4f815a8356288ac78bb15bf71fd7e84c61242"
+    },
+    "scoped_grep_next_controlled_task": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\scoped-grep-controlled-task-prepared-20261107.json",
+      "sha256": "c320d033722164d40fbe4677b2f3e41260109a323cd631eb3c5bdd5f52f198da"
+    },
+    "latest_scoped_grep_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\scoped-grep-delivery-outcome-20261107.json",
+      "sha256": "862b621ea97878d0d6c03cf7373794f2bd6a84ed0d695ae092fb1cd073263c12"
+    },
+    "latest_controlled_agent_task": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-classification-controlled10-source-judgment-20261107.json",
+      "sha256": "79f1270581164672e2aa9147d6b4daff787ccaeb3ad0c311b08bcb0618404f8f"
+    },
+    "latest_scoped_grep_retained_pair": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-fcf81534efe4495cb734620232ec20ba",
+      "files": 218,
+      "bytes": 336539946,
+      "cleanup_condition": "Prior complete runtime retained for reviewed recovery; exact-path cleanup approval required. No automatic deletion or rollback proof."
     }
   }
 }
