@@ -143,9 +143,10 @@ async fn unknown_member_inspection_finds_source_without_creating_a_callee_bindin
             ensure!(inspection["scope"].as_str().unwrap().contains("does not bind"));
             let action = &inspection["action"];
             ensure!(action["tool"] == "grep_project");
-            ensure!(action["arguments"]["pattern"] == "resetState"
+            ensure!(action["arguments"]["pattern"] == ".resetState"
                 && action["arguments"]["path_prefix"] == "src/images/"
                 && action["arguments"]["freshness"] == "off");
+            ensure!(inspection["unrestricted_fallback"]["arguments"]["pattern"] == "resetState");
             let hits = app.handle_grep_project(serde_json::from_value(action["arguments"].clone())?).await?;
             ensure!(hits.is_error != Some(true));
             let hits: Value = serde_json::from_str(&hits.content[0].as_text().unwrap().text)?;
@@ -160,6 +161,68 @@ async fn unknown_member_inspection_finds_source_without_creating_a_callee_bindin
         }
     }
     check_receivers(&app, &pid)?;
+    settle(&app).await?;
+    drop(app);
+    Ok(())
+}
+
+#[tokio::test]
+async fn property_read_recovery_reaches_editor_before_bare_name_noise_without_claiming_callers() -> Result<()> {
+    let owned = tempfile::TempDir::new()?;
+    let getter = "class Layer {\n get policy() { return { automaticZoom: 8 }; }\n}\n";
+    let editor = format!("class Editor {{\n threshold(layer: Layer) {{\n{}  return layer.policy.automaticZoom;\n }}\n}}\n",
+        "  // policy belongs to the layer; ordinary prose is not a member read.\n".repeat(12));
+    for (path, body) in [("src/map/layer.ts", getter), ("src/map/editor.ts", editor.as_str())] {
+        let file = owned.path().join("repo").join(path);
+        std::fs::create_dir_all(file.parent().unwrap())?;
+        std::fs::write(file, body)?;
+    }
+    let app = open(owned.path()).await?;
+    let indexed = app.handle_index_project(serde_json::from_value(json!({
+        "directory":owned.path().join("repo"),"project_name":"Property read recovery",
+        "project_type":"general","wait":true
+    }))?).await?;
+    ensure!(indexed.is_error != Some(true));
+    settle(&app).await?;
+    let pid = app.state.registry.list_projects()?[0].project_id.clone();
+    let target = app.state.graph.query_nodes(&pid, Some("function"), None, Some("src/map/layer.ts"), 8)?
+        .into_iter().find(|node| node.name == "policy").unwrap();
+    for blast in [false, true] {
+        for detail in ["summary", "graph"] {
+            let mut args = json!({"project_id":pid,"symbol_fqn":target.node_id,"max_depth":6,"detail":detail});
+            let reply = if blast {
+                args["include_guidance"] = json!(false);
+                app.handle_compute_blast_radius(serde_json::from_value(args)?).await?
+            } else {
+                app.handle_impact_analysis(serde_json::from_value(args)?).await?
+            };
+            ensure!(reply.is_error != Some(true));
+            let text = &reply.content[0].as_text().unwrap().text;
+            ensure!(text.len() <= if detail == "summary" { 12 * 1024 } else { 64 * 1024 });
+            let report = packet(text);
+            ensure!(report["target_revision_admitted"] == true && report["selected_dependents_observed"] == 0);
+            ensure!(report["exhaustive_codebase"] == false && report["change_breakage_proven"] == false);
+            let inspection = &report["terminal_member_inspection"];
+            let hits = app.handle_grep_project(serde_json::from_value(inspection["action"]["arguments"].clone())?).await?;
+            ensure!(hits.is_error != Some(true));
+            let hits: Value = serde_json::from_str(&hits.content[0].as_text().unwrap().text)?;
+            let hit = hits["matches"].as_array().unwrap().iter().find(|hit|
+                hit["file_path"] == "src/map/editor.ts" && hit["line_text"].as_str().unwrap().contains("layer.policy.automaticZoom"))
+                .ok_or_else(|| anyhow::anyhow!("First recovery must reach the member read before bare-name comments fill its result budget: {hits}"))?;
+            let read = app.handle_get_full_method_body(serde_json::from_value(hit["current_source_recovery"]["arguments"].clone())?).await?;
+            ensure!(read.is_error != Some(true));
+            let read: Value = serde_json::from_str(&read.content[0].as_text().unwrap().text)?;
+            ensure!(read["source_file_hash"] == ContentHash::compute(editor.as_bytes()).0);
+            ensure!(read["source_code"].as_str().unwrap().contains("return layer.policy.automaticZoom;"));
+            let broad = app.handle_grep_project(serde_json::from_value(inspection["unrestricted_fallback"]["arguments"].clone())?).await?;
+            ensure!(broad.is_error != Some(true));
+            let broad: Value = serde_json::from_str(&broad.content[0].as_text().unwrap().text)?;
+            ensure!(broad["result_limit_reached"] == true);
+            ensure!(!broad["matches"].as_array().unwrap().iter().any(|hit|
+                hit["line_text"].as_str().unwrap().contains("layer.policy.automaticZoom")),
+                "Fixture must exercise a crowded broad search rather than merely compare action spelling");
+        }
+    }
     settle(&app).await?;
     drop(app);
     Ok(())
