@@ -1784,6 +1784,9 @@ pub struct ImpactAnalysisRequest {
     pub project_id: String,
     pub file_path: Option<String>,
     pub symbol_fqn: Option<String>,
+    /// Maximum displayed shortest paths in graph mode; does not cap retained
+    /// nodes, edges, recovery actions, walk work or response bytes. Summary
+    /// stays within 12KiB and offers direct-dependent expansion actions.
     #[serde(default = "default_limit_50")]
     pub limit: usize,
     /// Maximum incoming causal depth in the revision-admitted path walk.
