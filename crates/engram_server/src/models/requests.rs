@@ -506,14 +506,18 @@ pub struct CodebaseOverviewRequest {
     /// retain source-range actions when indexed line bounds are usable.
     #[serde(default)]
     pub symbol_node_id: Option<String>,
-    /// Exact, case-sensitive extracted declaration name (1..256 UTF-8 bytes),
-    /// not class/FQN/suffix resolution; no symbol_node_id and symbol_offset0.
+    /// Exact, case-sensitive extracted declaration name (1..256 UTF-8 bytes).
+    /// Exact-file scope tries exact names first; only after no admitted match,
+    /// a bare name matches the final dot-separated name segment within that
+    /// same file and shared work budget. Qualified/overload identities stay
+    /// separate candidates, not resolved class/FQN bindings. No symbol_node_id
+    /// and symbol_offset0. Directory lookup remains exact-extracted-name only.
     /// Exact-file scope requires offset0 and retains full candidate actions.
     /// Directory scope searches at most8 selected files per lexical page with
     /// ONE shared lookup budget; offset/returned next_page advance by attempted
     /// files, not matches. Directory pages require no retained context and show
     /// only matched candidates with source/impact actions. Exact-file/ID expansion
-    /// restores method context. Skipped/legacy/other kinds/aliases stay unassessed;
+    /// restores method context. Skipped/legacy/other kinds/other aliases stay unassessed;
     /// no match is not absence. Display-omitted retained IDs remain explicit.
     #[serde(default)]
     pub symbol_name: Option<String>,

@@ -1,4 +1,4 @@
-//! Bounded exact extracted-name navigation. No project scan or name inference.
+//! Bounded exact-name navigation with selected-file terminal-name recovery.
 use super::{GraphStore, ImpactAdmission, ImpactWalkCoverage, NODES, Node};
 use bincode::Options;
 use serde_json::{Value, json};
@@ -79,7 +79,7 @@ impl Budget {
 }
 
 impl GraphStore {
-    /// Existing exact-file contract, including its original coverage shape.
+    /// Exact names first, with bounded terminal-name recovery in one selected file.
     pub fn bounded_file_named_nodes(
         &self, project: &str, path: &str, name: &str,
         admit: &dyn Fn(&Node, Option<&Node>) -> anyhow::Result<ImpactAdmission>,
@@ -114,6 +114,7 @@ impl GraphStore {
         let table = tx.open_table(NODES)?;
         let mut out = Vec::new();
         let mut kinds = Vec::new();
+        let mut terminal_kinds = Vec::new();
         let mut attempted_files=0;
         let mut completed_files=0;
         let mut admitted_files=0;
@@ -143,51 +144,68 @@ impl GraphStore {
                 completed_files+=1;continue;
             }
             admitted_files+=1;
-            'kinds: for kind in ["function", "method", "constructor", "property"] {
-                if !budget.live() { break; }
-                kinds.push(kind);
-                let prefix = format!("{project}\0sym:{kind}:{path}:{name}:");
-                let mut entries = table.range(prefix.as_str()..)?;
-                loop {
-                    if !budget.live() { break 'kinds; }
-                    if budget.coverage.raw_rows == RAW_KEYS {
-                        budget.gap("named_raw_key_limit");
-                        budget.halted=true;
-                        break 'kinds;
-                    }
-                    let Some(entry) = entries.next() else { break; };
-                    budget.coverage.raw_rows += 1;
-                    let (key, raw) = entry?;
-                    if !key.value().starts_with(&prefix) { break; }
-                    let id = key.value().strip_prefix(&format!("{project}\0")).expect("project prefix");
-                    let Some(mut node) = budget.decode(raw.value(), id) else { continue; };
-                    if node.node_type != kind || node.file_path.as_str() != *path
-                        || node.namespace != "memory" || node.name.len()>2048
-                        || node.node_id != format!("sym:{kind}:{path}:{}:{}", node.name, node.start_line) {
-                        budget.coverage.unknown_nodes += 1;
-                        budget.gap("named_candidate_identity_mismatch");
-                        continue;
-                    }
-                    if node.name != name { continue; }
-                    match admit(&node, Some(&file))? {
-                        ImpactAdmission::Selected => {
-                            budget.matches += 1;
-                            budget.coverage.nodes_observed += 1;
-                            if out.len() == CANDIDATES {
-                                budget.gap("named_candidate_limit");
-                                budget.halted=true;
-                                break 'kinds;
-                            }
-                            node.metadata = None;
-                            out.push(node);
+            for terminal in [false, true] {
+                // Exact successes, qualified requests and directory pages keep
+                // their original path. Recovery shares this transaction, file
+                // admission and budget; it never starts a project-wide scan.
+                if terminal && (directory || name.contains('.') || !out.is_empty() || budget.halted) {
+                    break;
+                }
+                'kinds: for kind in ["function", "method", "constructor", "property"] {
+                    if !budget.live() { break; }
+                    kinds.push(kind);
+                    let prefix = if terminal {
+                        terminal_kinds.push(kind);
+                        format!("{project}\0sym:{kind}:{path}:")
+                    } else {
+                        format!("{project}\0sym:{kind}:{path}:{name}:")
+                    };
+                    let mut entries = table.range(prefix.as_str()..)?;
+                    loop {
+                        if !budget.live() { break 'kinds; }
+                        if budget.coverage.raw_rows == RAW_KEYS {
+                            budget.gap("named_raw_key_limit");
+                            budget.halted=true;
+                            break 'kinds;
                         }
-                        ImpactAdmission::NonSelectedRevision => {
-                            budget.coverage.non_selected_nodes += 1;
-                            budget.gap("named_non_selected_revision");
-                        }
-                        _ => {
+                        let Some(entry) = entries.next() else { break; };
+                        budget.coverage.raw_rows += 1;
+                        let (key, raw) = entry?;
+                        if !key.value().starts_with(&prefix) { break; }
+                        let id = key.value().strip_prefix(&format!("{project}\0")).expect("project prefix");
+                        let Some(mut node) = budget.decode(raw.value(), id) else { continue; };
+                        if node.node_type != kind || node.file_path.as_str() != *path
+                            || node.namespace != "memory" || node.name.len()>2048
+                            || node.node_id != format!("sym:{kind}:{path}:{}:{}", node.name, node.start_line) {
                             budget.coverage.unknown_nodes += 1;
-                            budget.gap("named_candidate_admission_unknown");
+                            budget.gap("named_candidate_identity_mismatch");
+                            continue;
+                        }
+                        let matches = if terminal {
+                            node.name.rsplit_once('.').is_some_and(|(owner, member)|
+                                !owner.is_empty() && member == name)
+                        } else { node.name == name };
+                        if !matches { continue; }
+                        match admit(&node, Some(&file))? {
+                            ImpactAdmission::Selected => {
+                                budget.matches += 1;
+                                budget.coverage.nodes_observed += 1;
+                                if out.len() == CANDIDATES {
+                                    budget.gap("named_candidate_limit");
+                                    budget.halted=true;
+                                    break 'kinds;
+                                }
+                                node.metadata = None;
+                                out.push(node);
+                            }
+                            ImpactAdmission::NonSelectedRevision => {
+                                budget.coverage.non_selected_nodes += 1;
+                                budget.gap("named_non_selected_revision");
+                            }
+                            _ => {
+                                budget.coverage.unknown_nodes += 1;
+                                budget.gap("named_candidate_admission_unknown");
+                            }
                         }
                     }
                 }
@@ -196,7 +214,9 @@ impl GraphStore {
             completed_files+=1;
         }
         let retained=out.len();
-        let report=if directory {
+        let prefix_seeks=kinds.len();
+        let completed=!budget.halted;
+        let mut report=if directory {
             json!({"files_selected":paths.len(),"files_attempted":attempted_files,
                 "files_completed":completed_files,"files_not_attempted":paths.len()-attempted_files,
                 "canonical_files_admitted":admitted_files,"partial_file":partial_file,
@@ -209,6 +229,17 @@ impl GraphStore {
                 "unknown":budget.coverage.unknown_nodes,"non_selected":budget.coverage.non_selected_nodes,
                 "missing":budget.coverage.missing_nodes})
         }else{budget.report(name,retained,kinds,admitted_files==1)};
+        if !terminal_kinds.is_empty() {
+            report["observation"]=json!("bounded_exact_file_terminal_name_fallback");
+            report["name_match"]=json!("exact_case_sensitive_terminal_segment");
+            report["declaration_inventory"]=json!("bounded_callable_file_prefixes");
+            report["terminal_name_fallback"]=json!({"attempted":true,
+                "bounded_procedure_completed":completed,"kinds_started":terminal_kinds,
+                "prefix_seeks":prefix_seeks,"exact_extracted_name_priority":true,
+                "scope":"Only after zero admitted exact-name candidates; shared work limits over one selected file. Distinct qualified/overload identities remain candidates, not binding or uniqueness proof."});
+            report["unassessed"]=json!(["legacy_or_noncanonical_identities","other_node_kinds",
+                "case_aliases","other_qualified_or_nonterminal_aliases","current_source_and_runtime_binding"]);
+        }
         Ok((out,report))
     }
 }
