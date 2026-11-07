@@ -43,7 +43,7 @@ fn named_source_fallback(row: &mut serde_json::Value, project: &str) {
 /// navigation remains untouched; only trailing complete preview lines may go.
 fn codemap_source_preview(
     mut navigation: serde_json::Value, directory: &std::path::Path, project: &str,
-    targeted: bool, header: &str, footer: &str,
+    targeted: bool, source_contains: Option<&str>, header: &str, footer: &str,
 ) -> Result<String, String> {
     const REPLY_BYTES: usize = 12 * 1024;
     const PREVIEW_BYTES: usize = 8 * 1024;
@@ -82,6 +82,9 @@ fn codemap_source_preview(
             return if out.len() <= REPLY_BYTES { Ok(out) } else { Err("Source-preview unavailability metadata exceeds12KiB; narrow the symbol selection or use include_source=false".into()) };
         }
     };
+    if let Some(literal) = source_contains {
+        return codemap_literal_inspection(navigation, &file, &source, &hash, project, literal, header, footer);
+    }
     let total = source.lines().count() as u64;
     if (total == 0 && start != 1) || (total > 0 && start > total) {
         navigation["current_source"] = unavailable("Indexed anchor page lies beyond current file; inspect from the beginning. Indexed method bounds are unverified.".into(), 1);
@@ -115,6 +118,106 @@ fn codemap_source_preview(
             return Err("Source-preview metadata exceeds12KiB; narrow the selection or use include_source=false".into());
         }
     }
+}
+
+/// Current literal occurrences are inspection leads, never graph declarations
+/// or calls. The selected-file navigation and its coverage remain unchanged.
+fn codemap_literal_inspection(
+    mut navigation: serde_json::Value, file: &str, source: &str, hash: &str,
+    project: &str, literal: &str, header: &str, footer: &str,
+) -> Result<String, String> {
+    const MATCHES: usize = 8;
+    const CONTEXT: u64 = 12;
+    let render = |value: &serde_json::Value| -> Result<String, String> {
+        Ok(format!("{header}\n## CodeMap Navigation\n\n```json\n{}\n```\n{footer}",
+            serde_json::to_string(value).map_err(|e|e.to_string())?))
+    };
+    let read = |start: u64, end: Option<u64>| {
+        let mut arguments=serde_json::json!({"project_id":project,"file_path":file,"line_start":start,
+            "context_lines":0,"include_caller_bodies":false,"output_json":true});
+        if let Some(end)=end {arguments["line_end"]=serde_json::json!(end);}
+        serde_json::json!({"tool":"get_full_method_body","arguments":arguments})
+    };
+    let total=source.lines().count() as u64;
+    let mut hits=Vec::new();let mut lookahead=None;let mut scanned=0;
+    for (index,line) in source.lines().enumerate() {
+        scanned=index as u64+1;
+        if line.as_bytes().windows(literal.len()).any(|part|part.eq_ignore_ascii_case(literal.as_bytes())) {
+            if hits.len()==MATCHES {lookahead=Some(scanned);break;}
+            hits.push(scanned);
+        }
+    }
+    let mut groups: Vec<(u64,u64,Vec<u64>)>=Vec::new();
+    for &line in &hits {
+        let start=line.saturating_sub(CONTEXT).max(1);let end=line.saturating_add(CONTEXT).min(total);
+        if let Some(previous)=groups.last_mut().filter(|previous|end-previous.0<120) {
+            previous.1=end;previous.2.push(line);
+        }else{groups.push((start,end,vec![line]));}
+    }
+    // Reserve the largest possible bounded recovery before accepting source.
+    // A later omission must not invalidate previously accepted windows. The
+    // reservation is only byte accounting; the returned action stays literal.
+    let recovery_budget=if groups.is_empty(){0}else{
+        serde_json::to_vec(&read(total,Some(total))).map_err(|e|e.to_string())?.len()
+    };
+    let fits = |value: &serde_json::Value| -> Result<bool, String> {
+        let actual=serde_json::to_vec(&value["current_source"]["recovery"]).map_err(|e|e.to_string())?.len();
+        let reserved=recovery_budget.saturating_sub(actual);
+        Ok(serde_json::to_vec(&value["current_source"]).map_err(|e|e.to_string())?.len()+reserved<=8*1024
+            && render(value)?.len()+reserved<=12*1024)
+    };
+    let mut preview=serde_json::json!({"status":if hits.is_empty(){"not_observed"}else{"available"},
+        "mode":"literal_inspection","file_path":file,"total_lines":total,
+        "source_file_hash":hash,"source_file_hash_algorithm":"blake3",
+        "source_verification":"current_file_snapshot_not_index_verified",
+        "source_contains":literal,"match_case":"ASCII_insensitive_Unicode_exact",
+        "matched_lines":hits,"matching_line_limit":MATCHES,
+        "matching_lines_observed":hits.len()+usize::from(lookahead.is_some()),
+        "scan_complete":lookahead.is_none(),"scanned_through_line":scanned,
+        "lookahead_line":lookahead,"more_matches_unassessed":lookahead.is_some(),
+        "windows_observed":groups.len(),"windows":[],"windows_omitted":groups.len(),
+        "sampled_matching_lines_source_omitted":hits.len(),
+        "recovery":lookahead.map(|line|read(line,None)),
+        "scope":"Current literal text and nearby lines, not declarations, calls, value flow, binding or project freshness. Context may contain unsampled matches; recovery reads fresh source, not a continued search."});
+    navigation["current_source"]=preview.clone();
+    if !fits(&navigation)? {return Err("Literal-inspection metadata exceeds the source-preview budget; use a narrower scope or a separate source read".into());}
+    let mut rows=Vec::new();let mut inline_matches=0;let mut inline_windows=0;let mut first_missing=None;
+    for (start,end,matches) in &groups {
+        let mut row=serde_json::json!({"line_start":start,"line_end":end,"matched_lines":matches,
+            "source_read":read(*start,Some(*end))});
+        let mut code=String::new();let mut raw_fits=true;let mut line_count=0;
+        for line in source.lines().skip((*start-1) as usize).take((end-start+1) as usize) {
+            if code.len().saturating_add(line.len()).saturating_add(usize::from(line_count>0))>8*1024 {
+                raw_fits=false;break;
+            }
+            if line_count>0{code.push('\n');}code.push_str(line);line_count+=1;
+        }
+        let may_inline=raw_fits && inline_windows<3;
+        if may_inline {row["source_code"]=serde_json::json!(code);}
+        else {row["source_omitted"]=serde_json::json!(true);}
+        rows.push(row);
+        preview["windows"]=serde_json::json!(&rows);
+        preview["windows_omitted"]=serde_json::json!(groups.len()-rows.len());
+        preview["sampled_matching_lines_source_omitted"]=serde_json::json!(hits.len()-inline_matches);
+        navigation["current_source"]=preview.clone();
+        let supplied=may_inline && fits(&navigation)?;
+        if !supplied {
+            first_missing.get_or_insert((*start,*end));
+            let (missing_start,missing_end)=first_missing.unwrap();
+            preview["recovery"]=read(missing_start,Some(missing_end));
+            let last=rows.last_mut().unwrap().as_object_mut().unwrap();
+            last.remove("source_code");last.insert("source_omitted".into(),serde_json::json!(true));
+            preview["windows"]=serde_json::json!(&rows);navigation["current_source"]=preview.clone();
+            if !fits(&navigation)? {rows.pop();}
+        }else{inline_matches+=matches.len();inline_windows+=1;}
+    }
+    preview["windows"]=serde_json::json!(&rows);
+    preview["windows_omitted"]=serde_json::json!(groups.len()-rows.len());
+    preview["sampled_matching_lines_source_omitted"]=serde_json::json!(hits.len()-inline_matches);
+    if let Some((start,end))=first_missing {preview["recovery"]=read(start,Some(end));}
+    navigation["current_source"]=preview;
+    if !fits(&navigation)? {return Err("Literal-inspection recovery metadata exceeds12KiB; use a separate bounded source read".into());}
+    render(&navigation)
 }
 
 /// A directory/name lookup has its own compact profile. File pagination
@@ -1554,6 +1657,11 @@ impl Engram {
         req: crate::models::CodebaseOverviewRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        if req.source_contains.as_deref().is_some_and(|term|term.is_empty() || term.len()>128
+            || term.chars().any(char::is_control) || !req.include_source || req.include_declarations
+            || req.symbol_name.is_some() || req.symbol_node_id.is_some()) {
+            return Err(McpError::invalid_params("source_contains requires literal text1..128UTF8bytes without controls, include_source=true, include_declarations=false and no symbol selectors; it inspects one selected file, not owners or calls",None));
+        }
         if req.include_source && (req.scope.is_none() || req.offset != 0
             || req.symbol_offset != 0 || req.include_retained_context) {
             return Err(McpError::invalid_params("include_source requires one exact selected-file scope, offsets0 and include_retained_context=false", None));
@@ -1933,12 +2041,13 @@ impl Engram {
             let directory=std::path::PathBuf::from(&rec.directory);
             let project=req.project_id.clone();
             let targeted=req.symbol_node_id.is_some() || req.symbol_name.is_some();
+            let source_contains=req.source_contains.clone();
             let header=format!("Codebase Overview: {}\nproject_id: {}\nproject_type: {}\nactive_generation: {}\n",rec.project_name,req.project_id,rec.project_type,generation);
             let footer=self.freshness_footer(&req.project_id,generation).await;
             let preview_hold=source_hold.clone();
             let text=tokio::task::spawn_blocking(move || {
                 let _held=preview_hold;
-                codemap_source_preview(navigation,&directory,&project,targeted,&header,&footer)
+                codemap_source_preview(navigation,&directory,&project,targeted,source_contains.as_deref(),&header,&footer)
             }).await.map_err(|e|McpError::internal_error(e.to_string(),None))?
                 .map_err(|e|McpError::invalid_params(e,None))?;
             return Ok(CallToolResult::success(vec![Content::text(text)]));
