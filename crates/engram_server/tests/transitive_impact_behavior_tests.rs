@@ -1235,6 +1235,55 @@ fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_iden
             assert_eq!(immediate[0]["file_path"], POLICY);
             assert_eq!(immediate[0]["admission"], "selected");
             assert_eq!(immediate[0]["source_read_scope"], "explicit_source_range");
+            let sources = &summary["source_routes"];
+            assert_eq!(sources["admission"], "selected");
+            assert_eq!(sources["connection_defaults"], graph["omitted_defaults"]["edges"],
+                "Missing position metadata must retain its original unverified defaults");
+            assert!(serde_json::to_vec(sources).unwrap().len() <= 4 * 1024);
+            let source_nodes: std::collections::BTreeMap<_, _> = sources["nodes"].as_array().unwrap().iter()
+                .map(|node| (node["ref"].as_str().unwrap(), node)).collect();
+            for node in source_nodes.values() {
+                let original = graph["nodes"].as_array().unwrap().iter()
+                    .find(|old| old["node_id"] == node["node_id"]).unwrap();
+                assert_eq!(original["admission"], "selected");
+                assert_eq!(node["generation"], original["generation"]);
+                assert_ne!(node["node_id"], dangling);
+                assert_ne!(node["node_id"], bad);
+            }
+            for edge in sources["connections"].as_array().unwrap() {
+                assert!(source_nodes.contains_key(edge["source_ref"].as_str().unwrap())
+                    && source_nodes.contains_key(edge["target_ref"].as_str().unwrap()),
+                    "An agent must not resolve dangling local graph references");
+                let mut original = graph["edges"].as_array().unwrap().iter()
+                    .find(|old| old["ref"] == edge["ref"]).unwrap().clone();
+                original.as_object_mut().unwrap().remove("recovery_ref");
+                assert_eq!(*edge, original, "Source leads retain original connection/position provenance");
+            }
+            let reads = sources["reads"].as_array().unwrap();
+            assert_eq!(reads.len() + sources["windows_omitted"].as_u64().unwrap() as usize,
+                sources["eligible_windows"].as_u64().unwrap() as usize);
+            let prepared = reads.iter().find(|read| read["arguments"]["file_path"] == SPATIAL).unwrap();
+            assert_eq!(prepared["arguments"]["line_start"], 1);
+            assert_eq!(prepared["arguments"]["line_end"], 3,
+                "The shortcut must not prevent one bounded read from inspecting the prepared alternate route");
+            let covered: std::collections::BTreeSet<_> = prepared["covered_refs"].as_array().unwrap().iter()
+                .map(|r| source_nodes[r.as_str().unwrap()]["node_id"].as_str().unwrap()).collect();
+            assert!(covered.contains(policy.as_str()) && covered.contains(cache.as_str()) && covered.contains(viewport.as_str()));
+            let http_source = reads.iter().find(|read| read["arguments"]["file_path"] == HTTP).unwrap();
+            for read in [prepared, http_source] {
+                assert_eq!(read["tool"], "get_full_method_body");
+                let args = &read["arguments"];
+                assert!(args["line_end"].as_u64().unwrap() - args["line_start"].as_u64().unwrap() < 120);
+                let reply = fixture.engram.handle_get_full_method_body(serde_json::from_value(args.clone()).unwrap()).await.unwrap();
+                let current: Value = serde_json::from_str(&reply.content[0].as_text().unwrap().text).unwrap();
+                let path = args["file_path"].as_str().unwrap();
+                let raw = std::fs::read(fixture.root.join(path)).unwrap();
+                assert_eq!(current["source_file_hash"], ContentHash::compute(&raw).0);
+                if path == SPATIAL {
+                    let text = current["source_code"].as_str().unwrap();
+                    assert!(text.contains("if prepared") && text.contains("QueryCacheCore(true)") && text.contains("ResolvePolicy(true)"));
+                } else { assert!(current["source_code"].as_str().unwrap().contains("QueryViewport()")); }
+            }
             let navigation = &summary["consumer_navigation"];
             let next = &navigation["expansions"][0];
             assert_eq!(next["tool"], "impact_analysis");
@@ -2701,6 +2750,12 @@ fn file_impact_summary_exposes_distinct_consumer_files_and_actual_member_connect
             let summary=impact_packet(&summary_impact(&fixture,tool,&target,6).await);
             assert_eq!(summary["selected_dependents_observed"],full["selected_dependents_observed"]);
             assert_eq!(summary["coverage"],full["coverage"]);
+            if let Some(routes) = summary.get("source_routes") {
+                assert!(routes["seed_scope"].as_str().unwrap().contains("structural seeds"));
+                assert!(routes["connections"].as_array().unwrap().iter().all(|edge|
+                    edge["source_ref"] != routes["requested_target_ref"]),
+                    "Callable file members are structural origins, not invented outgoing causal file edges");
+            }
             let immediate=summary["immediate_consumers"].as_array().unwrap();
             let files:std::collections::BTreeSet<_>=immediate.iter()
                 .map(|node|node["file_path"].as_str().unwrap()).collect();

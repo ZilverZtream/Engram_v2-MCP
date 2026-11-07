@@ -343,6 +343,8 @@ async fn graph_only_method_without_source_attestation_cannot_be_green() {
     assert_eq!(v["downstream_impact"]["evidence"]["source_layout"],"unavailable");
     assert!(v["downstream_impact"]["evidence"]["source_generation"].is_null());
     assert!(v["downstream_impact"]["evidence"]["selected_dependents_observed"].is_null());
+    assert!(v["downstream_impact"]["evidence"].get("source_routes").is_none(),
+        "Unavailable source admission must not invent an executable source route");
     assert!(v["downstream_impact"]["evidence"].get("consumer_navigation").is_none(),
         "Unavailable source admission cannot supply executable admitted-consumer leads");
     let mut graph=json_of(&edit_safety(&engram,json!({"project_id":PID,
