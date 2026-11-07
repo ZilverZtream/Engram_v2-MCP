@@ -9811,7 +9811,7 @@
   },
   "last_updated_at": "2026-11-07T18:06:44.127639+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-07T18:29:20.181965+00:00",
+    "at_utc": "2026-11-07T18:45:55.525865+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap/Blast remains active. Observed-candidate preview fix and public description aligned; final focused-v3 PASS5 with frozen inputs and full owned cleanup. Candidate/native/deployment checks pending. Original8-attempt task stillPARTIAL; original31/full19 unchanged.",
-    "next_user_visible_deliverable": "Build committed source with observed-anchor-shipping-20261107; keep compiled inputs frozen. Pair against final observed-anchor-focused-v3-20261107 and installed274e396c/6e7017bd. Use verify_observed_anchor_v2_20261107.py, prepare_observed_anchor_release_v3_20261107.py and normal replay. Exactly one description delta allowed;149 other definitions/all150 schemas unchanged. Actual named preview must include serializer2584..2609 and preserve all coverage. No completion claim.",
+    "active_original_item": "CodeMap/Blast remains active. Observed-candidate preview534102d deployedf23b8a83/dbdae618 and verified on actual OciusX: named BuildMetaOnlyJson now includes serializer2584..2609, output12282->12190B, navigation/unfinished coverage unchanged. Original8-attempt task remainsPARTIAL4PASS1PARTIAL,60466B. Preserve original31/full19; no goal completion.",
+    "next_user_visible_deliverable": "Continue original CodeMap/Blast agent-usefulness task. Evaluate demonstrated originalcall7 strict-grep scope blocker against handler/index source before any new edit: strict freshness currently fingerprints outside query exclusions. Keep frozen-Q source unread, preserve real task budget and independent source evidence. Observed-preview delivery complete; do not rebuild/redeploy it or expand instruction/catalog/performance work. Record and validate any next fix against original task; original31/full19 remain open.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9855,8 +9855,8 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "72cf95c member syntax recovery deployed274e396c/6e7017bd.10behavior checks/native630.44s PASS; frozen inputs/owned cleanup. Actual353-call candidate:35controls/150defs unchanged; both tools Summary6665B/Graph10208B (+450) preserve all other evidence, first .policy search recovers editor683/695/794 with3current-source hashes/ranges verified; broad fallback preserved. Registry/selection3136/other14metadata/300notes unchanged.218active/218prior/5journals verified;stageabsent;holdreleased/configunchanged. Normalprimary2340 confirms candidate and unchanged8-attempt60466B task; PARTIAL4PASS1PARTIAL. No fresh-agent/full31/full19 completion claim.",
-    "previous_goal_turn_classification": "PROGRESS: final5 source-preview behaviors PASS610.42s batch/0.77s tests; capability135 and diff checks PASS. Actual candidate check and deployment pending.",
+    "latest_completed_core_batch": "534102d observed-candidate source preview deployedf23b8a83/dbdae618. Final5behaviorsPASS610.42sbatch/0.77stest;native656.51sPASS,frozeninputs/ownedcleanup. Actual358calls:50priorcontrols+3serializercontrols unchanged;150schemas/149otherdefs same,CodeMapdescriptiononly aligned. Namedpreview1..104->2521..2627 includes serializer2584..2609,currentrawSHA/B3+nextpage2628verified;12282->12190B. Registry/selection3136/other14metadata/300notes preserved.218active/218prior/5journals verified,stageabsent,holdreleased/configsame;normalprimary47244 confirms newpreview and exactprevious8requests/text60466B. Task remainsPARTIAL. Initialv1regressionFAIL retained,testsunchanged,correctedv2/v3PASS. No full31/full19/fresh-agent/resourcecompletion claim.",
+    "previous_goal_turn_classification": "PROGRESS: native build passed; actual358-call candidate comparison passed; installed pair verified; normal runtime replay passed; recorded deployment and unchanged original partial task.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10340,6 +10340,20 @@
     "observed_anchor_final_focused": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\observed-anchor-focused-v3-20261107.json",
       "sha256": "8ef005b32eb35d879c42aac8e5af85ea20d40f76c11bee17acb63383fcf49019"
+    },
+    "latest_observed_anchor_native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\observed-anchor-native-running-checkpoint-20261107.json",
+      "sha256": "20fe1dae87b827135a89d380bc9480754d01e1ca960f95eab1e6e5fdf2e1a20d"
+    },
+    "latest_observed_anchor_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\observed-anchor-delivery-outcome-20261107.json",
+      "sha256": "33510492029d5877d098f170c7cd3e29d2f0379535c88af7f58d1dd1ba6596dd"
+    },
+    "latest_observed_anchor_retained_pair": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-b5455133de1543e39228eca0ec5bd100",
+      "files": 218,
+      "bytes": 336594730,
+      "cleanup_condition": "Prior complete runtime retained for reviewed recovery; exact-path cleanup approval required. No automatic deletion or rollback proof."
     }
   }
 }
