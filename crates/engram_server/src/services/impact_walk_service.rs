@@ -555,15 +555,25 @@ fn summary_value(
         if !fits(&value) { value.as_object_mut().unwrap().remove("unbound_member_call_inspection_omitted"); }
     }
     if let Some(inspection) = full.get("terminal_member_inspection") {
-        value["terminal_member_inspection"] = inspection.clone();
-        if !fits(&value) {
-            value.as_object_mut().unwrap().remove("terminal_member_inspection");
-            value["terminal_member_inspection_omitted"] = json!(true);
-            if !fits(&value) { value.as_object_mut().unwrap().remove("terminal_member_inspection_omitted"); }
-        }
+        append_terminal_inspection(&mut value, inspection, &fits);
     }
     append_caller_file_starts(&mut value, project, &fits);
     value
+}
+
+// Keep the focused member search if its broader fallback alone would overflow.
+// Neither action executes a search or contributes graph evidence.
+fn append_terminal_inspection(value: &mut Value, inspection: &Value, fits: &dyn Fn(&Value) -> bool) {
+    value["terminal_member_inspection"] = inspection.clone();
+    if !fits(value) && value["terminal_member_inspection"].get("unrestricted_fallback").is_some() {
+        value["terminal_member_inspection"].as_object_mut().unwrap().remove("unrestricted_fallback");
+        value["terminal_member_inspection"]["unrestricted_fallback_omitted"] = json!(true);
+    }
+    if !fits(value) {
+        value.as_object_mut().unwrap().remove("terminal_member_inspection");
+        value["terminal_member_inspection_omitted"] = json!(true);
+        if !fits(value) { value.as_object_mut().unwrap().remove("terminal_member_inspection_omitted"); }
+    }
 }
 
 /// Recover useful current-file windows from this frame only. A window can
@@ -1576,6 +1586,26 @@ fn append_caller_file_starts(value: &mut Value, project: &str, fits: &dyn Fn(&Va
 mod caller_file_start_behavior {
     use super::*;
 
+    #[test]
+    fn member_recovery_sacrifices_broad_fallback_before_focused_action_or_existing_evidence() {
+        let original = json!({"selected_dependents_observed":3,"coverage":{"truncated":true}});
+        let inspection = json!({"action":{"tool":"grep_project","arguments":{"pattern":".policy"}},
+            "unrestricted_fallback":{"tool":"grep_project","arguments":{"pattern":"policy","path_prefix":"src/map/"}}});
+        let mut focused = inspection.clone();
+        focused.as_object_mut().unwrap().remove("unrestricted_fallback");
+        focused["unrestricted_fallback_omitted"] = json!(true);
+        let mut expected = original.clone();
+        expected["terminal_member_inspection"] = focused;
+        let size = serde_json::to_vec(&expected).unwrap().len();
+        let mut report = original.clone();
+        append_terminal_inspection(&mut report, &inspection, &|value|serde_json::to_vec(value).unwrap().len() <= size);
+        assert_eq!(report, expected);
+        let mut report = original.clone();
+        let size = serde_json::to_vec(&original).unwrap().len();
+        append_terminal_inspection(&mut report, &inspection, &|value|serde_json::to_vec(value).unwrap().len() <= size);
+        assert_eq!(report, original);
+    }
+
     fn baseline(padding: usize, candidates: usize) -> Value {
         json!({"selected_dependents_observed":3,"coverage":{"truncated":true},
             "terminal_member_inspection":{"action":{"tool":"grep_project"}},
@@ -2217,14 +2247,15 @@ fn render_projection(
             && name.chars().enumerate().all(|(i,c)| c == '_' || c == '$'
                 || if i == 0 { c.is_alphabetic() } else { c.is_alphanumeric() }) {
             if let Some((directory, _)) = path.rsplit_once('/') {
-                value["terminal_member_inspection"] = json!({
-                    "scope":"Optional indexed literal mentions in the target directory. Declarations, comments, prefix names and other receivers can match; this does not bind a receiver/callee, prove execution or absence, or add callers to impact counts. Follow returned current-source actions/hashes; inspect the caller and its separate impact before inferring a route.",
-                    "action":{"tool":"grep_project","arguments":{"project_id":project,
+                let fallback = json!({"tool":"grep_project","arguments":{"project_id":project,
                         "pattern":name,"regex":false,"case_sensitive":true,"path_prefix":format!("{directory}/"),
-                        "max_results":8,"context_before":2,"context_after":2,"freshness":"off","output_json":true}}});
-                if section(&value).len() > RESPONSE_BYTES {
-                    value.as_object_mut().unwrap().remove("terminal_member_inspection");
-                }
+                        "max_results":8,"context_before":2,"context_after":2,"freshness":"off","output_json":true}});
+                let mut action = fallback.clone();
+                action["arguments"]["pattern"] = json!(format!(".{name}"));
+                let inspection = json!({
+                    "scope":"First inspect indexed literal .member mentions in the target directory. Spaced/bracket access and bare names need the unrestricted_fallback (same directory, bare name); it may be omitted by the display budget. Comments, prefix names and other receivers can match; this does not bind a receiver/callee, prove execution or absence, or add callers to impact counts. Follow returned current-source actions/hashes; inspect the caller and its separate impact before inferring a route.",
+                    "action":action,"unrestricted_fallback":fallback});
+                append_terminal_inspection(&mut value, &inspection, &|value| section(value).len() <= RESPONSE_BYTES);
             }
         }
     }

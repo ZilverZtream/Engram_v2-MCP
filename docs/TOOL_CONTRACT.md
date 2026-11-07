@@ -1,5 +1,7 @@
 # Tool Contract
 
+Impact and Blast Radius may expose `terminal_member_inspection` for an admitted TypeScript function. Its first lazy `grep_project` action searches literal `.member` in the target directory, so bare declarations, local names and prose do not fill the result cap first. `unrestricted_fallback` searches the bare name in the same directory for spaced/bracket access and other mentions. Both use indexed freshness `off`, eight matches and returned current-source recovery actions; neither binds a receiver, adds callers or proves absence. Comments, strings and prefix names can still match. Under response pressure the broad fallback is omitted before the focused action, with `unrestricted_fallback_omitted=true`; existing graph evidence and response caps take priority.
+
 Engram MCP v2 keeps v1 tool names and basic intent, with expanded parameters.
 
 ## Project tools
