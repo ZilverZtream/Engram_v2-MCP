@@ -171,6 +171,70 @@ async fn grep_results_round_trip_to_get_chunk_across_search_tiers() {
     assert!(hit["recovery"].get("tool").is_none());
 }
 
+#[tokio::test]
+async fn grep_json_keeps_eight_contextual_hits_and_recovery_within_an_agent_page() {
+    let lines: Vec<_> = (0..9).map(|i|
+        format!("    // page_marker_{i:02} \u{00c5} \"C:\\source\\ui\"" )).collect();
+    let source = format!("pub fn markers() {{\n{}\n}}\n", lines.join("\n"));
+    let (owned, engram, pid, root) = setup_with_source(source.as_bytes()).await;
+    let mut request = grep_request(&pid, "page_marker", "strict");
+    request.output_json = true;
+    request.max_results = 8;
+    request.context_before = 1;
+    request.context_after = 1;
+    let raw = grep(&engram, request).await;
+    assert!(raw.len() <= 12 * 1024,
+        "Eight short contextual hits and executable source/citation recovery must fit an agent page: {} bytes", raw.len());
+    let page: serde_json::Value = serde_json::from_str(&raw).unwrap();
+    assert_eq!(page["project_id"], pid);
+    assert_eq!(page["result_limit"], 8);
+    assert_eq!(page["result_limit_reached"], true);
+    assert!(page["coverage"].as_str().unwrap().contains("not_exhaustive"));
+    let hits = page["matches"].as_array().unwrap();
+    assert_eq!(hits.len(), 8);
+    for hit in hits {
+        let line = hit["line"].as_u64().unwrap() as usize;
+        assert_eq!(hit["line_text"], source.lines().nth(line - 1).unwrap());
+        assert_eq!(hit["column"], 8);
+        assert_eq!(hit["source"], "index");
+        assert_eq!(hit["file_path"], "src/orders.rs");
+        assert!(hit["doc_id"].is_string());
+        assert_eq!(hit["citation_recovery"]["tool"], "get_chunk");
+        assert_eq!(hit["recovery"]["arguments"]["doc_id"], hit["doc_id"]);
+        assert_eq!(hit["current_source_recovery"]["tool"], "get_full_method_body");
+        assert_eq!(hit["context_before"], serde_json::json!([source.lines().nth(line - 2).unwrap()]));
+        assert_eq!(hit["context_after"], serde_json::json!([source.lines().nth(line).unwrap()]));
+    }
+    let chunk = engram.handle_get_chunk(serde_json::from_value(
+        hits[0]["citation_recovery"]["arguments"].clone()).unwrap()).await.unwrap();
+    assert!(chunk.content[0].as_text().unwrap().text.contains("page_marker_00"));
+    let disk = "pub fn disk_only() { /* page_disk \u{00c5} \"C:\\source\\ui\" */ }\n";
+    std::fs::write(root.join("src/new.rs"), disk).unwrap();
+    let mut request = grep_request(&pid, "page_disk", "warn");
+    request.output_json = true;
+    let raw = grep(&engram, request).await;
+    assert!(raw.len() <= 4 * 1024);
+    let page: serde_json::Value = serde_json::from_str(&raw).unwrap();
+    let hit = &page["matches"][0];
+    assert_eq!(hit["source"], "working_tree");
+    assert_eq!(hit["line_text"], disk.trim_end());
+    assert!(hit.get("doc_id").is_none() && hit.get("citation_recovery").is_none());
+    assert_eq!(hit["recovery"]["action"], "read_file");
+    let read = engram.handle_get_full_method_body(serde_json::from_value(
+        hit["current_source_recovery"]["arguments"].clone()).unwrap()).await.unwrap();
+    let current: serde_json::Value = serde_json::from_str(&read.content[0].as_text().unwrap().text).unwrap();
+    assert_eq!(current["source_code"], disk.trim_end());
+    assert_eq!(current["source_file_hash"], blake3::hash(disk.as_bytes()).to_hex().to_string());
+    let mut request = grep_request(&pid, "absent_page_marker", "off");
+    request.output_json = true;
+    let page: serde_json::Value = serde_json::from_str(&grep(&engram, request).await).unwrap();
+    assert_eq!(page["matches"], serde_json::json!([]));
+    assert_eq!(page["result_limit_reached"], false);
+    assert!(page["coverage"].as_str().unwrap().contains("not_exhaustive"));
+    drop(engram);
+    owned.close().unwrap();
+}
+
 fn grep_request(pid: &str, pattern: &str, freshness: &str) -> engram_server::GrepProjectRequest {
     engram_server::GrepProjectRequest {
         project_id: pid.to_string(),

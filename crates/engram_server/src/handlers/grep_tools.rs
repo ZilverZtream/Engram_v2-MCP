@@ -373,7 +373,7 @@ impl Engram {
                 }
             }
             if has_current_source { value["current_source_recovery_scope"]=serde_json::json!(CURRENT_SOURCE_SCOPE); }
-            serde_json::to_string_pretty(&value)
+            serde_json::to_string(&value)
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?
         } else {
             render_markdown(

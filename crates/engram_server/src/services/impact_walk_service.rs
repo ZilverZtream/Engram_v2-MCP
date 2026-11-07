@@ -588,7 +588,7 @@ fn append_consumer_navigation(
         .then_with(||a["node_id"].as_str().cmp(&b["node_id"].as_str())));
     next.dedup_by(|(ap, a), (bp, b)| ap["node_id"] == bp["node_id"] && a["node_id"] == b["node_id"]);
     value["consumer_navigation"] = json!({
-        "scope":"Expansions query that consumer's direct dependents afresh; counts are non-additive. Inline leads are selected depth-two connections retained in this graph, not value flow or exhaustive callers. Navigation runs target outward; edges run dependent to dependency.",
+        "scope":"Fresh consumer-rooted direct queries; non-additive counts. Inline depth-2 edges and file hints sample retained selected data, not all callers/value flow. Navigate outward; edges point to dependencies.",
         "expansions":[],"expansions_omitted":immediate.len(),
         "next_level":[],"next_level_omitted":next.len()
     });
@@ -643,6 +643,47 @@ fn append_consumer_navigation(
             leads.pop();
             value["consumer_navigation"]["next_level"] = json!(&leads);
             value["consumer_navigation"]["next_level_omitted"] = json!(total - leads.len());
+        }
+    }
+    // File identities farther down a retained branch may be the only bridge
+    // from backend declarations to a consumer's source tree. These are paths
+    // to inspect, not inferred value flow or additional admitted callers.
+    // Allocate them last so existing witnesses and complete actions survive.
+    let target_file = full["target_ref"].as_str().and_then(|reference| nodes.get(reference))
+        .and_then(|node| node["file_ref"].as_str()).and_then(|reference| files.get(reference))
+        .and_then(|path| path.as_str());
+    let mut depths = BTreeMap::new();
+    for node in nodes.values() {
+        if node["admission"] != "selected" || node["kind"] != "file"
+            || node["is_seed"] != false { continue; }
+        let Some(depth) = node["depth"].as_u64().filter(|depth| *depth > 0) else { continue };
+        let Some(path) = node["file_ref"].as_str().and_then(|reference| files.get(reference))
+            .and_then(|path| path.as_str()).filter(|path| Some(*path) != target_file) else { continue };
+        depths.entry(path).and_modify(|old: &mut u64| *old = (*old).min(depth)).or_insert(depth);
+    }
+    if depths.is_empty() { return; }
+    let mut paths: Vec<_> = depths.into_iter().collect();
+    paths.sort_by(|(a, ad), (b, bd)| ad.cmp(bd).then_with(|| a.cmp(b)));
+    let total = paths.len();
+    value["consumer_navigation"]["selected_file_hints"] = json!([]);
+    value["consumer_navigation"]["selected_file_hints_omitted"] = json!(total);
+    if !fits(value) {
+        value["consumer_navigation"].as_object_mut().unwrap().remove("selected_file_hints");
+        if !fits(value) {
+            value["consumer_navigation"].as_object_mut().unwrap().remove("selected_file_hints_omitted");
+        }
+        return;
+    }
+    let mut hints = Vec::new();
+    for (path, _) in paths {
+        if hints.len() == 2 { break; }
+        hints.push(path);
+        value["consumer_navigation"]["selected_file_hints"] = json!(&hints);
+        value["consumer_navigation"]["selected_file_hints_omitted"] = json!(total - hints.len());
+        if !fits(value) {
+            hints.pop();
+            value["consumer_navigation"]["selected_file_hints"] = json!(&hints);
+            value["consumer_navigation"]["selected_file_hints_omitted"] = json!(total - hints.len());
         }
     }
 }
