@@ -2276,6 +2276,90 @@ fn codemap_source_preview_combines_current_policy_and_orientation_without_upgrad
 }
 
 #[test]
+fn codemap_source_preview_keeps_named_response_handling_across_a_page_boundary() {
+    for escaped_context in [false, true] {
+        owned_case(true, move |engram, search| async move {
+            const PATH: &str = "src/transport.ts";
+            let mut lines: Vec<_> = (1..=420).map(|i| format!("// source line {i}")).collect();
+            if escaped_context {
+                for line in &mut lines[240..323] {
+                    *line = format!("// unrelated context {}", "\\\"".repeat(80));
+                }
+            }
+            lines[323] = "private fetchDiscovery(version: number): void {".into();
+            lines[326] = "    fetch(this.url).then(response => response.json()).then(payload => {".into();
+            lines[369] = "        this.applyPolicy(payload, version);".into();
+            lines[370] = "        if (!this.isInZoomRange()) return;".into();
+            lines[383] = "    });".into();
+            lines[384] = "}".into();
+            let source = format!("\u{feff}{}\r\n", lines.join("\r\n"));
+            publish_named_sources(&engram, &search, &[(PATH, &source)]).await;
+            let id = format!("sym:method:{PATH}:fetchDiscovery:324");
+            let mut declaration = node(&id, "method", "fetchDiscovery", PATH, 1);
+            declaration.start_line = 324;
+            declaration.end_line = 385;
+            engram.state.graph.upsert_nodes(PID, &[declaration]).unwrap();
+            let request = json!({"project_id":PID,"scope":PATH,"symbol_name":"fetchDiscovery"});
+            let baseline = navigate(&engram, request.clone()).await;
+            let mut args = request; args["include_source"] = json!(true);
+            let text = navigation_text(&engram, args).await;
+            let mut result = navigation(&text);
+            let preview = result.as_object_mut().unwrap().remove("current_source").unwrap();
+            assert_eq!(result, baseline, "Changing inspection context cannot change indexed navigation");
+            assert!(text.len() <= 12 * 1024);
+            assert!(serde_json::to_vec(&preview).unwrap().len() <= 8 * 1024);
+            let start = preview["line_start"].as_u64().unwrap() as usize;
+            let end = preview["line_end"].as_u64().unwrap() as usize;
+            assert!(start <= 324 && end >= 385,
+                "The bounded named callback fits: supply its JSON parsing, policy application and closing lines together");
+            assert!(end-start < 120);
+            assert_eq!(preview["source_code"], source.lines().skip(start-1).take(end-start+1).collect::<Vec<_>>().join("\n"));
+            assert_eq!(preview["source_file_hash"], blake3::hash(source.as_bytes()).to_hex().to_string());
+            assert_eq!(preview["source_verification"], "current_file_snapshot_not_index_verified");
+            assert_eq!(preview["next_page"]["arguments"]["line_start"], end+1);
+            let (_, next) = excerpt(&engram, preview["next_page"]["arguments"].clone()).await;
+            assert_eq!(next["source_file_hash"], preview["source_file_hash"]);
+            assert_eq!(next["source_code"], source.lines().skip(end).take(120).collect::<Vec<_>>().join("\n"));
+        });
+    }
+}
+
+#[test]
+fn codemap_source_preview_long_or_invalid_indexed_spans_keep_honest_recovery() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str = "src/large.ts";
+        let mut lines: Vec<_> = (1..=400).map(|i| format!("// current line {i}")).collect();
+        lines[152] = "function largeCallback() {".into();
+        lines[329] = "} // callback end".into();
+        let source = lines.join("\n");
+        publish_named_sources(&engram, &search, &[(PATH, &source)]).await;
+        let id = format!("sym:function:{PATH}:largeCallback:153");
+        let mut declaration = node(&id, "function", "largeCallback", PATH, 1);
+        declaration.start_line = 153; declaration.end_line = 330;
+        engram.state.graph.upsert_nodes(PID, &[declaration.clone()]).unwrap();
+        let args = json!({"project_id":PID,"scope":PATH,"symbol_node_id":id,"include_source":true});
+        let result = navigate(&engram, args.clone()).await;
+        let preview = &result["current_source"];
+        assert_eq!(preview["line_start"], 153, "An oversized callback must begin at its anchor, not omit its beginning to show its end");
+        let end = preview["line_end"].as_u64().unwrap() as usize;
+        assert!(end < 330 && end-153 < 120);
+        assert_eq!(preview["source_code"], lines[152..end].join("\n"));
+        let (_, next) = excerpt(&engram, preview["next_page"]["arguments"].clone()).await;
+        assert_eq!(next["line_start"], end+1);
+        assert_eq!(next["source_file_hash"], preview["source_file_hash"]);
+        assert!(next["source_code"].as_str().unwrap().contains("callback end"));
+        declaration.end_line = 900;
+        engram.state.graph.upsert_nodes(PID, &[declaration]).unwrap();
+        let invalid = navigate(&engram, args).await;
+        let current = &invalid["current_source"];
+        assert_eq!(current["status"], "available", "An invalid indexed end must not move a readable anchor off the current file");
+        assert!(current["source_code"].as_str().unwrap().contains("function largeCallback"));
+        assert_eq!(current["source_verification"], "current_file_snapshot_not_index_verified");
+        assert_eq!(invalid["working_tree_checked"], false);
+    });
+}
+
+#[test]
 fn codemap_source_preview_inspects_one_observed_candidate_without_resolving_an_unfinished_name() {
     owned_case(true, |engram, search| async move {
         const PATH: &str = "src/Serializer.vb";

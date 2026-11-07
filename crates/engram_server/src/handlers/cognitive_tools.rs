@@ -40,7 +40,7 @@ fn named_source_fallback(row: &mut serde_json::Value, project: &str) {
 }
 
 /// Supplement a selected-file orientation with one current snapshot. Indexed
-/// navigation remains untouched; only trailing complete preview lines may go.
+/// navigation remains untouched; complete context lines yield to the anchor.
 fn codemap_source_preview(
     mut navigation: serde_json::Value, directory: &std::path::Path, project: &str,
     targeted: bool, source_contains: Option<&str>, header: &str, footer: &str,
@@ -68,7 +68,8 @@ fn codemap_source_preview(
         && (row["symbol_display_limited"] == false || row["symbols_omitted_from_display"] == 0))
         .and_then(|nodes| nodes.first()).filter(|node| node["start_line"].as_u64().is_some_and(|n| n > 0));
     let unfinished_anchor = anchor.is_some() && row["symbol_display_limited"] == true;
-    let start = anchor.and_then(|node| node["start_line"].as_u64()).map_or(1, |line| (line - 1) / LINES * LINES + 1);
+    let anchor_start = anchor.and_then(|node| node["start_line"].as_u64());
+    let mut start = anchor_start.map_or(1, |line| (line - 1) / LINES * LINES + 1);
     let anchor_id = anchor.and_then(|node| node["node_id"].as_str()).map(str::to_string);
     let recovery = |line: u64| serde_json::json!({"tool":"get_full_method_body","arguments":{
         "project_id":project,"file_path":file,"line_start":line,"context_lines":0,
@@ -89,17 +90,35 @@ fn codemap_source_preview(
         return codemap_literal_inspection(navigation, &file, &source, &hash, project, literal, header, footer);
     }
     let total = source.lines().count() as u64;
+    // Preserve the surrounding page when it contains the observed declaration.
+    // Otherwise shift just enough to inspect its end, or begin at the anchor
+    // when the declaration itself exceeds one page. These remain indexed hints,
+    // not verified current method boundaries. Invalid ends cannot move the page.
+    let anchor_end = anchor.and_then(|node| node["end_line"].as_u64())
+        .filter(|&end| anchor_start.is_some_and(|line| end >= line) && end <= total);
+    if let (Some(line), Some(end)) = (anchor_start, anchor_end) {
+        start = start.max(end.saturating_sub(LINES - 1).min(line));
+    }
     if (total == 0 && start != 1) || (total > 0 && start > total) {
         navigation["current_source"] = unavailable("Indexed anchor page lies beyond current file; inspect from the beginning. Indexed method bounds are unverified.".into(), 1);
         let out = render(&navigation)?;
         return if out.len() <= REPLY_BYTES { Ok(out) } else { Err("Source-preview metadata exceeds12KiB; narrow the selection".into()) };
     }
-    let mut lines = Vec::new();
-    let mut raw_bytes = 0usize;
-    for line in source.lines().skip((start - 1) as usize).take(LINES as usize) {
-        let next = raw_bytes.saturating_add(line.len()).saturating_add(usize::from(!lines.is_empty()));
-        if next > PREVIEW_BYTES { break; }
-        lines.push(line); raw_bytes = next;
+    let mut lines: Vec<_> = source.lines().skip((start - 1) as usize).take(LINES as usize).collect();
+    // Trim optional trailing context first, then preceding context, before
+    // shortening the requested indexed span. Never skip a line inside a span.
+    let trim = |lines: &mut Vec<&str>, start: &mut u64| {
+        let end = start.saturating_add(lines.len() as u64).saturating_sub(1);
+        if !lines.is_empty() && anchor_end.is_some_and(|last| end <= last)
+            && anchor_start.is_some_and(|first| *start < first) {
+            lines.remove(0);
+            *start += 1;
+        } else {
+            lines.pop();
+        }
+    };
+    while lines.iter().map(|line| line.len()).sum::<usize>() + lines.len().saturating_sub(1) > PREVIEW_BYTES {
+        trim(&mut lines, &mut start);
     }
     loop {
         if lines.is_empty() && total > 0 {
@@ -121,9 +140,10 @@ fn codemap_source_preview(
         let preview_bytes = serde_json::to_vec(&navigation["current_source"]).map_err(|e|e.to_string())?.len();
         let out = render(&navigation)?;
         if preview_bytes <= PREVIEW_BYTES && out.len() <= REPLY_BYTES { return Ok(out); }
-        if lines.pop().is_none() {
+        if lines.is_empty() {
             return Err("Source-preview metadata exceeds12KiB; narrow the selection or use include_source=false".into());
         }
+        trim(&mut lines, &mut start);
     }
 }
 
