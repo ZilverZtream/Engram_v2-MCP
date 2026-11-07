@@ -1235,6 +1235,28 @@ fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_iden
             assert_eq!(immediate[0]["file_path"], POLICY);
             assert_eq!(immediate[0]["admission"], "selected");
             assert_eq!(immediate[0]["source_read_scope"], "explicit_source_range");
+            let navigation = &summary["consumer_navigation"];
+            let next = &navigation["expansions"][0];
+            assert_eq!(next["tool"], "impact_analysis");
+            assert_eq!(next["arguments"]["symbol_fqn"], resolve);
+            assert_eq!(next["arguments"]["detail"], "summary");
+            assert_eq!(next["arguments"]["max_depth"], 1);
+            let result = fixture.engram.handle_impact_analysis(
+                serde_json::from_value(next["arguments"].clone()).unwrap()).await.unwrap();
+            assert!(!result.is_error.unwrap_or(false));
+            let returned = &result.content[0].as_text().unwrap().text;
+            assert!(returned.len() <= 12 * 1024);
+            let expanded_callers = impact_packet(returned);
+            assert_eq!(expanded_callers["target"]["node_id"], resolve);
+            assert_eq!(expanded_callers["direct_dependents_observed"], 1);
+            assert!(expanded_callers["immediate_consumers"].as_array().unwrap().iter()
+                .any(|node| node["node_id"] == policy));
+            let inline = navigation["next_level"].as_array().unwrap().iter()
+                .find(|node| node["node_id"] == policy).unwrap();
+            assert_eq!(inline["parent_node_id"], resolve);
+            assert_eq!(inline["generation"], 3);
+            assert_eq!(inline["connection_to_parent"]["kind"], "calls");
+            assert!(inline["connection_to_parent"]["source_line"].is_null());
             let connection = &immediate[0]["sample_connection_to_target"];
             assert_eq!(connection["source_node_id"], resolve);
             assert_eq!(connection["target_node_id"], root);

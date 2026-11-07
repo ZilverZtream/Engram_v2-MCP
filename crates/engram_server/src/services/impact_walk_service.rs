@@ -207,7 +207,7 @@ fn describe_summary_node(
         .as_str()
         .and_then(|reference| recoveries.get(reference));
     let connection = full["edges"].as_array().into_iter().flatten().filter(|edge| {
-        edge["source_ref"] == node["ref"] && (edge["target_ref"] == full["target_ref"]
+        edge["source_ref"] == node["ref"] && (target.is_some_and(|target| edge["target_ref"] == target["ref"])
             || (file_component && edge["target_ref"].as_str()
                 .and_then(|reference| nodes.get(reference)).is_some_and(|member|
                     member["admission"] == "selected" && member["is_seed"] == true
@@ -553,6 +553,108 @@ fn summary_value(
     value
 }
 
+/// Optional navigation consumes only spare display space after all existing
+/// witnesses and frontiers have been selected. It never queries a new HEAD.
+fn append_consumer_navigation(
+    value: &mut Value,
+    full: &Value,
+    project: &str,
+    fits: &dyn Fn(&Value) -> bool,
+) {
+    if value["target_revision_admitted"] != true { return; }
+    let immediate = value["immediate_consumers"].as_array().cloned().unwrap_or_default();
+    if immediate.is_empty() { return; }
+    let nodes: HashMap<_, _> = full["nodes"].as_array().into_iter().flatten()
+        .filter_map(|node| Some((node["ref"].as_str()?, node))).collect();
+    let files: HashMap<_, _> = full["files"].as_array().into_iter().flatten()
+        .filter_map(|file| Some((file["ref"].as_str()?, &file["path"]))).collect();
+    let recoveries: HashMap<_, _> = full["recoveries"].as_array().into_iter().flatten()
+        .filter_map(|row| Some((row["ref"].as_str()?, row))).collect();
+    let parents: Vec<_> = immediate.iter().filter_map(|row| {
+        nodes.values().copied().find(|node| node["node_id"] == row["node_id"]
+            && node["admission"] == "selected" && node["depth"] == 1)
+    }).collect();
+    let mut next = Vec::new();
+    for parent in &parents {
+        for edge in full["edges"].as_array().into_iter().flatten()
+            .filter(|edge| edge["target_ref"] == parent["ref"]) {
+            let Some(node) = edge["source_ref"].as_str().and_then(|r| nodes.get(r)).copied() else { continue };
+            if node["admission"] != "selected" || node["depth"] != 2
+                || node["node_id"] == parent["node_id"] { continue; }
+            next.push((*parent, node));
+        }
+    }
+    next.sort_by(|(ap, a), (bp, b)| ap["node_id"].as_str().cmp(&bp["node_id"].as_str())
+        .then_with(||a["node_id"].as_str().cmp(&b["node_id"].as_str())));
+    next.dedup_by(|(ap, a), (bp, b)| ap["node_id"] == bp["node_id"] && a["node_id"] == b["node_id"]);
+    value["consumer_navigation"] = json!({
+        "scope":"Expansions query that consumer's direct dependents afresh; counts are non-additive. Inline leads are selected depth-two connections retained in this graph, not value flow or exhaustive callers. Navigation runs target outward; edges run dependent to dependency.",
+        "expansions":[],"expansions_omitted":immediate.len(),
+        "next_level":[],"next_level_omitted":next.len()
+    });
+    if !fits(value) {
+        value.as_object_mut().unwrap().remove("consumer_navigation");
+        value["consumer_navigation_omitted"] = json!(true);
+        if !fits(value) { value.as_object_mut().unwrap().remove("consumer_navigation_omitted"); }
+        return;
+    }
+    let mut expansions = Vec::new();
+    for parent in &parents {
+        let Some(id) = parent["node_id"].as_str().filter(|id|
+            !id.is_empty() && id.len() <= 2048 && !id.chars().any(char::is_control)) else { continue };
+        expansions.push(json!({"tool":"impact_analysis","arguments":{
+            "project_id":project,"symbol_fqn":id,"max_depth":1,"limit":4,"detail":"summary"}}));
+        value["consumer_navigation"]["expansions"] = json!(&expansions);
+        value["consumer_navigation"]["expansions_omitted"] = json!(immediate.len() - expansions.len());
+        if !fits(value) {
+            expansions.pop();
+            value["consumer_navigation"]["expansions"] = json!(&expansions);
+            value["consumer_navigation"]["expansions_omitted"] = json!(immediate.len() - expansions.len());
+        }
+    }
+    // Round-robin by parent/file keeps a busy same-file branch from taking
+    // every optional slot. Canonical ordering makes the sample deterministic.
+    let mut file_counts = HashMap::new();
+    let mut ranked: Vec<_> = next.into_iter().map(|(parent, node)| {
+        let key = (parent["node_id"].as_str(), node["file_ref"].as_str());
+        let count = file_counts.entry(key).or_insert(0usize);
+        let rank = *count; *count += 1; (rank, parent, node)
+    }).collect();
+    ranked.sort_by(|(ar, ap, a), (br, bp, b)| ar.cmp(br)
+        .then_with(||ap["node_id"].as_str().cmp(&bp["node_id"].as_str()))
+        .then_with(||a["node_id"].as_str().cmp(&b["node_id"].as_str())));
+    let total = ranked.len();
+    let mut leads = Vec::new();
+    for (_, parent, node) in ranked {
+        if leads.len() == 4 { break; }
+        let mut lead = describe_summary_node(full,node,&nodes,&files,&recoveries,Some(parent),false);
+        let Some(mut connection) = lead.as_object_mut().unwrap().remove("sample_connection_to_target")
+            .filter(|connection|!connection.is_null()) else { continue };
+        // The two identities are already explicit in the unit. Position and
+        // recovery provenance remain complete; no callsite is inferred.
+        connection.as_object_mut().unwrap().remove("source_node_id");
+        connection.as_object_mut().unwrap().remove("target_node_id");
+        lead["parent_node_id"] = parent["node_id"].clone();
+        lead["connection_to_parent"] = connection;
+        leads.push(lead);
+        value["consumer_navigation"]["next_level"] = json!(&leads);
+        value["consumer_navigation"]["next_level_omitted"] = json!(total - leads.len());
+        if !fits(value) {
+            leads.pop();
+            value["consumer_navigation"]["next_level"] = json!(&leads);
+            value["consumer_navigation"]["next_level_omitted"] = json!(total - leads.len());
+        }
+    }
+}
+
+fn render_summary(value: &Value, immediate_prefix: &str) -> String {
+    format!(
+        "{}\n## Revision-admitted change impact\n\nSummary of the same bounded source selection. Expand the graph for all retained identities, connections and paths.\n\n```json\n{}\n```\n",
+        immediate_prefix,
+        serde_json::to_string(value).expect("JSON value serialization")
+    )
+}
+
 fn summary_section(
     full: &Value,
     project: &str,
@@ -563,13 +665,16 @@ fn summary_section(
     transitive: Option<usize>,
     dependent_files: Option<&BTreeMap<String, usize>>,
 ) -> String {
-    let value=summary_value(full,project,file_path,symbol_fqn,display_limit,direct,transitive,dependent_files);
+    let mut value=summary_value(full,project,file_path,symbol_fqn,display_limit,direct,transitive,dependent_files);
     let immediate_prefix=immediate_section(full,false).unwrap_or_default();
-    format!(
-        "{}\n## Revision-admitted change impact\n\nSummary of the same bounded source selection. Expand the graph for all retained identities, connections and paths.\n\n```json\n{}\n```\n",
-        immediate_prefix,
-        serde_json::to_string(&value).expect("JSON value serialization")
-    )
+    // The only caller suffix is envelope::footer: fixed ASCII plus u64
+    // generation/age (or unavailable timestamp), always below 256 bytes.
+    // Measure the exact wrapper; retain the older, conservative row selection.
+    let framing = render_summary(&Value::Null,&immediate_prefix).len() - 4;
+    append_consumer_navigation(&mut value,full,project,&|candidate|
+        serde_json::to_vec(candidate).expect("JSON value serialization").len()
+            <= SUMMARY_BYTES.saturating_sub(framing + 256));
+    render_summary(&value,&immediate_prefix)
 }
 
 /// Display projection of an existing assessment, after its safety decision.
@@ -591,6 +696,8 @@ pub(crate) fn assessment_summary(
     value["target_revision_admitted"]=json!(assessment.target_revision_admitted);
     value["selected_dependents_observed"]=json!(assessment.selected_dependents_observed);
     value["coverage"]=json!(assessment.coverage);
+    append_consumer_navigation(&mut value,&assessment.evidence,project,&|candidate|
+        serde_json::to_vec(candidate).expect("JSON value serialization").len()<=SUMMARY_BYTES);
     anyhow::ensure!(serde_json::to_vec(&value)?.len()<=SUMMARY_BYTES,
         "Required downstream summary facts exceed the 12KiB display bound");
     Ok(value)

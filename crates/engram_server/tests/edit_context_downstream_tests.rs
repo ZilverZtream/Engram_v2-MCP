@@ -279,6 +279,22 @@ fn text(result: &rmcp::model::CallToolResult) -> String {
         .collect()
 }
 
+async fn expand_consumer(fixture: &Fixture, evidence: &Value) -> Value {
+    let navigation = &evidence["consumer_navigation"];
+    let action = &navigation["expansions"][0];
+    assert_eq!(action["tool"], "impact_analysis");
+    assert_eq!(action["arguments"]["symbol_fqn"], id(POLICY, "Policy.Resolve", 5));
+    assert_eq!(action["arguments"]["detail"], "summary");
+    assert_eq!(action["arguments"]["max_depth"], 1);
+    assert!(action["arguments"]["limit"].as_u64().unwrap() <= 8);
+    let result = fixture.engram.handle_impact_analysis(
+        serde_json::from_value(action["arguments"].clone()).unwrap()).await.unwrap();
+    let rendered = text(&result);
+    assert!(rendered.len() <= 12 * 1024, "A next step must not require the complete graph");
+    serde_json::from_str(rendered.split_once("## Revision-admitted change impact").unwrap().1
+        .split_once("```json").unwrap().1.split_once("```").unwrap().0).unwrap()
+}
+
 async fn both(fixture: &Fixture) -> (Value, Value) {
     both_profile(fixture,None,false).await
 }
@@ -343,6 +359,25 @@ fn one_direct_caller_still_requires_downstream_review_of_http_and_ui_in_both_edi
         let reasons = safety["reasons"].to_string().to_lowercase();
         assert!(reasons.contains("downstream") || reasons.contains("transitive"));
         assert_eq!(downstream["evidence"]["detail"],"summary");
+        let compact = &downstream["evidence"];
+        let lead = compact["consumer_navigation"]["next_level"].as_array().unwrap().iter()
+            .find(|lead| lead["node_id"] == id(SPATIAL, "Spatial.ResolvePolicy", 2)).unwrap();
+        assert_eq!(lead["parent_node_id"], id(POLICY, "Policy.Resolve", 5));
+        assert_eq!(lead["generation"], 1);
+        assert_eq!(lead["connection_to_parent"]["kind"], "calls");
+        assert_eq!(lead["connection_to_parent"]["source_position_scope"], "not_recorded");
+        assert!(lead["connection_to_parent"]["source_line"].is_null());
+        let expanded = expand_consumer(&fixture, compact).await;
+        assert_eq!(expanded["target"]["node_id"], id(POLICY, "Policy.Resolve", 5));
+        assert_eq!(expanded["selected_dependents_observed"], 1);
+        assert_eq!(expanded["direct_dependents_observed"], 1);
+        assert_eq!(expanded["transitive_dependents_observed"], 0);
+        let source = &expanded["immediate_consumers"][0]["source_read"];
+        let result = fixture.engram.handle_get_full_method_body(
+            serde_json::from_value(source["arguments"].clone()).unwrap()).await.unwrap();
+        let body: Value = serde_json::from_str(&text(&result)).unwrap();
+        assert_eq!(body["source_file_hash"], ContentHash::compute(SPATIAL_BODY.as_bytes()).0);
+        assert!(body["source_code"].as_str().unwrap().contains("Return Policy.Resolve()"));
         let (_,graph_safety)=both_profile(&fixture,Some("graph"),false).await;
         let mut preserved=graph_safety.clone();preserved["downstream_impact"]["evidence"]=downstream["evidence"].clone();
         assert_eq!(preserved,safety,"Choosing a display profile must preserve every safety decision and coverage field");
@@ -465,6 +500,17 @@ fn unverified_missing_and_noncausal_records_do_not_inflate_shared_downstream_cou
                 ],
             )
             .unwrap();
+        let resolve = id(POLICY, "Policy.Resolve", 5);
+        let decoys = [
+            (historical.clone(), EdgeKind::TemporalCoupling, 1),
+            (id(POLICY, "Policy.ObsoleteCaller", 11), EdgeKind::Calls, 1),
+            (id(SPATIAL, "Spatial.FutureCaller", 11), EdgeKind::Calls, 3),
+            (id(UNBOUND, "Unbound.UnknownCaller", 2), EdgeKind::Calls, 1),
+            (id(NOISE, "Noise.BadEdgeCaller", 4), EdgeKind::ApiCall, 3),
+            ("sym:function:Site/deleted.vb:Deleted.Caller:1".into(), EdgeKind::Calls, 1),
+        ];
+        fixture.engram.state.graph.upsert_edges(PID, &decoys.iter().map(|(source, kind, generation)|
+            edge(source.clone(), resolve.clone(), kind.clone(), *generation)).collect::<Vec<_>>()).unwrap();
         let (context, safety) = both(&fixture).await;
         assert_eq!(context["edit_safety"], safety);
         assert_ne!(safety["verdict"], "green");
@@ -499,6 +545,14 @@ fn unverified_missing_and_noncausal_records_do_not_inflate_shared_downstream_cou
             "Partial downstream status must retain reasons instead of pretending a display cap was hit"
         );
         assert_eq!(downstream["evidence"]["detail"],"summary");
+        let expanded = expand_consumer(&fixture, &downstream["evidence"]).await;
+        assert_eq!(expanded["direct_dependents_observed"], 1);
+        for (unverified, _, _) in &decoys {
+            for rows in [&downstream["evidence"]["consumer_navigation"]["next_level"], &expanded["immediate_consumers"]] {
+                assert!(rows.as_array().unwrap().iter().all(|row| row["node_id"] != *unverified),
+                    "Unselected, unknown, temporal and invalid edges must not become executable admitted leads");
+            }
+        }
         let (_,graph_safety)=both_profile(&fixture,Some("graph"),false).await;
         let mut preserved=graph_safety.clone();preserved["downstream_impact"]["evidence"]=downstream["evidence"].clone();
         assert_eq!(preserved,safety,"Unknown or unselected evidence cannot become safer in the compact profile");
@@ -597,6 +651,31 @@ fn downstream_profiles_bound_agent_context_without_losing_safety_or_graph_recove
         assert_eq!(evidence["detail"],"summary");assert!(evidence.get("nodes").is_none());
         assert_eq!(evidence["source_generation"],3);assert_eq!(evidence["selected_dependents_observed"],46);
         assert_eq!(evidence["direct_dependents_observed"],1);assert_eq!(evidence["transitive_dependents_observed"],45);
+        let expanded = expand_consumer(&fixture, evidence).await;
+        assert_eq!(expanded["direct_dependents_observed"], 41);
+        assert_eq!(expanded["transitive_dependents_observed"], 0);
+        let callers = expanded["immediate_consumers"].as_array().unwrap();
+        assert!(callers.iter().any(|row| row["file_path"] == EXTRA));
+        assert!(callers.iter().any(|row| row["file_path"] == SPATIAL),
+            "A busy same-file branch must not hide the other direct consumer file");
+        let navigation = &evidence["consumer_navigation"];
+        let inline = navigation["next_level"].as_array().unwrap();
+        assert_eq!(inline.len() + navigation["next_level_omitted"].as_u64().unwrap() as usize, 41);
+        if inline.len() >= 2 {
+            assert!(inline.iter().any(|lead| lead["file_path"] == EXTRA));
+            assert!(inline.iter().any(|lead| lead["file_path"] == SPATIAL),
+                "Inline branch samples also expose another caller file before repeating one");
+        }
+        for lead in inline {
+            assert_eq!(lead["parent_node_id"], id(POLICY, "Policy.Resolve", 5));
+            assert_eq!(lead["admission"], "selected");
+            assert_eq!(lead["connection_to_parent"]["kind"], "calls");
+            if lead["file_path"] == EXTRA {
+                assert_eq!(lead["generation"], 3);
+                assert_eq!(lead["connection_to_parent"]["source_line"].as_u64().unwrap(),
+                    lead["start_line"].as_u64().unwrap() + 1);
+            }
+        }
         assert_eq!(evidence["coverage"],graph_evidence["coverage"]);assert_ne!(safety["verdict"],"green");
         let omitted=graph_evidence["omitted_from_display"].as_u64().unwrap();assert!(omitted>0);
         assert!(safety["reasons"].as_array().unwrap().iter().any(|r|r.as_str().unwrap().contains(&format!("{omitted} observed downstream dependents omitted"))),"Safety must be computed before compact projection removes the legacy display field");
