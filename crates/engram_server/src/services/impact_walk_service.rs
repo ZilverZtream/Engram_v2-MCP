@@ -908,6 +908,27 @@ fn render_summary(value: &Value, immediate_prefix: &str) -> String {
     )
 }
 
+// The first projection reserves conservative framing space. Once the actual
+// envelope is known, use spare bytes to recover a search for an empty capped
+// scan before adding optional consumer-expansion shortcuts. Keep every fact,
+// witness and source route already selected by the first projection.
+fn recover_capped_member_search(value: &mut Value, full: &Value, fits: &dyn Fn(&Value) -> bool) {
+    let unresolved = &full["unbound_member_call_inspection"];
+    if value.get("terminal_member_inspection").is_some()
+        || unresolved["coverage"]["truncated"] != true
+        || unresolved["distinct_callers_observed"] != 0
+    {
+        return;
+    }
+    let Some(inspection) = full.get("terminal_member_inspection") else { return; };
+    let mut candidate = value.clone();
+    candidate.as_object_mut().unwrap().remove("terminal_member_inspection_omitted");
+    append_terminal_inspection(&mut candidate, inspection, fits);
+    if candidate.get("terminal_member_inspection").is_some() && fits(&candidate) {
+        *value = candidate;
+    }
+}
+
 fn summary_section(
     full: &Value,
     project: &str,
@@ -924,9 +945,11 @@ fn summary_section(
     // generation/age (or unavailable timestamp), always below 256 bytes.
     // Measure the exact wrapper; retain the older, conservative row selection.
     let framing = render_summary(&Value::Null,&immediate_prefix).len() - 4;
-    append_consumer_navigation(&mut value,full,project,&|candidate|
+    let fits = |candidate: &Value|
         serde_json::to_vec(candidate).expect("JSON value serialization").len()
-            <= SUMMARY_BYTES.saturating_sub(framing + 256));
+            <= SUMMARY_BYTES.saturating_sub(framing + 256);
+    recover_capped_member_search(&mut value, full, &fits);
+    append_consumer_navigation(&mut value,full,project,&fits);
     render_summary(&value,&immediate_prefix)
 }
 
@@ -949,8 +972,10 @@ pub(crate) fn assessment_summary(
     value["target_revision_admitted"]=json!(assessment.target_revision_admitted);
     value["selected_dependents_observed"]=json!(assessment.selected_dependents_observed);
     value["coverage"]=json!(assessment.coverage);
-    append_consumer_navigation(&mut value,&assessment.evidence,project,&|candidate|
-        serde_json::to_vec(candidate).expect("JSON value serialization").len()<=SUMMARY_BYTES);
+    let fits = |candidate: &Value|
+        serde_json::to_vec(candidate).expect("JSON value serialization").len()<=SUMMARY_BYTES;
+    recover_capped_member_search(&mut value, &assessment.evidence, &fits);
+    append_consumer_navigation(&mut value,&assessment.evidence,project,&fits);
     anyhow::ensure!(serde_json::to_vec(&value)?.len()<=SUMMARY_BYTES,
         "Required downstream summary facts exceed the 12KiB display bound");
     Ok(value)

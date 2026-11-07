@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-07T20:16:22.608394+00:00",
+  "last_updated_at": "2026-11-07T21:01:47.205184+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-07T20:16:22.608394+00:00",
+    "at_utc": "2026-11-07T21:01:47.205184+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap/Blast core navigation active. Named-span fix dc9387c deployed and actual callback/current-source recovery verified. Controlled13 passes the unchanged full static-planning rubric in8calls62058B, informed only; prior fresh09/controlled11/12 remain partial. Continue remaining original stateful task evidence. Original31/full19 incomplete.",
-    "next_user_visible_deliverable": "Return to the existing reset-state task evidence: inspect its unassessed escaped mutable-array getter and asynchronous-writer leads using actual CodeMap/impact/Blast and existing source recovery, then check against independent source. Select a code change only from a demonstrated remaining navigation/witness gap. Keep the satisfied minimum planning rubric and unknown coverage distinct; no new blanket safety requirement or broad audit.",
+    "active_original_item": "CodeMap/Blast core recovery: late-envelope member search implemented for empty capped unresolved scans. Corrected public TS fixture and all8behaviors PASS with frozen inputs/owned cleanup. Actual manager772 gap source-verified; native build and actual candidate/normal-runtime validation remain pending. Not deployed.",
+    "next_user_visible_deliverable": "Build native release on final frozen source, pair with unchanged native assets, then execute prepared v2 actual382call observer under existing exclusive configuration hold. Both impact and Blast must expose working .cancelUpload recovery for manager772, preserve existing facts/routes/full Graph and63prior controls. Final v2 test receipt required; install and normal-runtime verification only after scoped gates.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
     "latest_completed_core_batch": "Named-span preview deployed. Focused7PASS/nativePASS with frozen inputs and owned cleanup. Actual366calls:59prior controls unchanged, callback241..360->266..385/10638->10462B with exact current source and continuation;two serializer previews unchanged.150schemas/149other definitions preserved;CodeMap description only.218active/218prior/5journals verified,stage absent,hold released/config same,normal runtime PASS. Controlled12 routing search partial;controlled13 uses existing exclusion to recover all3static links,5criteria PASS in8calls62058B. Informed planning only; no fresh-agent/full31/full19 completion claim or causal task credit for named-span fix.",
-    "previous_goal_turn_classification": "PROGRESS: named-preview correction deployed and normal-runtime verified; new informed original-rubric planning attempt passed after existing scoped exclusion recovery. Prior partial attempts preserved; original goal still open.",
+    "previous_goal_turn_classification": "PROGRESS: first run7PASS/1FAIL retained with complete cleanup; corrected Calls fixture then8PASS in80.23s with frozen inputs/owned cleanup. Implementation is ready for native/actual validation, not delivered yet.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10437,6 +10437,48 @@
       "files": 218,
       "bytes": 336619818,
       "cleanup_condition": "Prior complete runtime retained for reviewed recovery; exact-path cleanup approval required. No automatic deletion or rollback proof."
+    },
+    "latest_stateful_followup": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\stateful-followup01-source-judgment-20261107.json",
+      "sha256": "21e4291feafd144e70fa60fdcafac88da19ca7224b5d0a262eb7405390319eb1"
+    },
+    "selected_capped_member_recovery_gap": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\cancelupload-summary-recovery-gap-20261107.json",
+      "sha256": "f8a184b304fe569c94f29e87579a3b68d5a32633c30a3c66bae03875ae08ee96"
+    },
+    "latest_capped_member_recovery_checkpoint": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\capped-member-recovery-continuation-checkpoint-20261107.json",
+      "sha256": "69e09027c8e01ba568357549851d059b74960bd9daf614c4b744b75afdaca845"
+    },
+    "capped_member_observer_preparation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\capped-member-observer-preparation-v2-20261107.json",
+      "sha256": "be091472674eb5da05dfcca66c3b6355c74b783de19584877600ea90d8301034"
+    },
+    "capped_member_fixture_review_followup": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\capped-member-recovery-fixture-review-followup-20261107.json",
+      "sha256": "f75de7f07ba26997ad1a83cf4b53e8cdcf05a5afd220e22acf69703d1beaa756"
+    },
+    "capped_member_prepared_validators": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\verify_capped_member_recovery_v2_20261107.py",
+        "sha256": "d4cb2404205af61af431f2402e285099d1f23d2a844ba167b537a953eb96a4be"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\prepare_capped_member_release_v2_20261107.py",
+        "sha256": "e5ef6dfde84f6f1a3f39e7ed3d8cab8a74b64e8c9b4bba9efe9584efa70b7db9"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\verify_capped_member_normal_20261107.py",
+        "sha256": "c24fa36940f0454a8467b4b68d401c6cfbcf5899e3e92d2b37660e4930f5317c"
+      }
+    ],
+    "capped_member_final_focused": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\capped-member-recovery-focused-v2-20261107.json",
+      "sha256": "a073822627cee01ca197fc4b712fbd9160bca063949f539d1f31d3528d94ef6b"
+    },
+    "capped_member_final_source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\capped-member-recovery-source-review-v2-20261107.json",
+      "sha256": "69fe2b7087b444727aeca5301fff97a308246bd31236f447a02915e2d4a81ee0"
     }
   }
 }
