@@ -32,7 +32,7 @@
 //!    every stored chunk in the project.
 //!
 //! Every query begins with an optional freshness check comparing the
-//! indexed (size, mtime) of each tracked file against disk. The caller
+//! indexed (size, mtime) of tracked files in the requested source scope against disk. The caller
 //! supplies those stats — they live on the code graph's file nodes,
 //! written by ingest and trusted by the incremental change scan. Stale
 //! files are listed in the result, and a check that had NOTHING to
@@ -49,7 +49,7 @@ use crate::hybrid::{HybridQuery, HybridSearchEngine};
 /// How to handle staleness between the index and disk state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum FreshnessMode {
-    /// Default. Fingerprint every tracked file; surface stale paths
+    /// Default. Fingerprint tracked files in the requested source scope; surface stale paths
     /// in `index_stale_warning`. Callers that need bytewise-current
     /// results should re-index first.
     #[default]
@@ -94,7 +94,7 @@ pub struct GrepQuery {
     /// whose stored path starts with this string is eligible.
     pub path_prefix: Option<String>,
     /// Skip paths starting with any of these prefixes (forward slashes,
-    /// ASCII case-insensitive), in the index and the working-tree overlay.
+    /// ASCII case-insensitive), in the index, fingerprint guard and working-tree overlay.
     pub exclude_path_prefixes: Vec<String>,
     pub language: Option<String>,
     pub context_before: usize,
@@ -113,6 +113,20 @@ impl GrepQuery {
         self.exclude_path_prefixes
             .iter()
             .any(|p| path.starts_with(&p.replace('\\', "/").to_ascii_lowercase()))
+    }
+
+    /// Source-file scope shared by the fingerprint guard and disk overlay.
+    /// Apply it before stat/hash reads, not just when displaying results.
+    pub fn includes_source_path(&self, path: &str) -> bool {
+        let path = path.replace('\\', "/");
+        !self.is_excluded(&path)
+            && self.path_prefix.as_ref().is_none_or(|prefix| {
+                path.to_ascii_lowercase()
+                    .starts_with(&prefix.replace('\\', "/").to_ascii_lowercase())
+            })
+            && self.language.as_ref().is_none_or(|language| {
+                engram_core::types::guess_language(Path::new(&path)).eq_ignore_ascii_case(language)
+            })
     }
 }
 
@@ -140,7 +154,7 @@ pub struct GrepResult {
     /// intersection).
     pub chunks_scanned: usize,
     pub files_scanned: usize,
-    /// Paths whose on-disk fingerprint doesn't match the indexed
+    /// In-scope paths whose on-disk fingerprint doesn't match the indexed
     /// fingerprint. Empty when `freshness == Off` or when nothing is
     /// stale.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -222,6 +236,15 @@ pub struct FreshnessCheck {
     pub files_checked: usize,
 }
 
+#[derive(PartialEq, Eq)]
+struct FreshnessScope {
+    generation: u64,
+    root: PathBuf,
+    path_prefix: Option<String>,
+    exclude_path_prefixes: Vec<String>,
+    language: Option<String>,
+}
+
 /// Compare indexed file stats against disk.
 ///
 /// The stats are supplied by the caller rather than read here, because the
@@ -239,25 +262,32 @@ pub struct FreshnessCheck {
 /// this guard exists to prevent.
 pub fn check_freshness<F>(
     indexed: F,
-    project_id: &str,
-    namespace: &str,
+    query: &GrepQuery,
     project_root: &Path,
 ) -> anyhow::Result<FreshnessCheck>
 where
     F: FnOnce() -> anyhow::Result<Vec<IndexedFileStat>>,
 {
-    // TODO-46: agents fire grep bursts (many calls within seconds); the
-    // O(files) sweep is recomputed at most once per TTL per project.
+    // Reuse bursts only within the same source scope and generation. Keep one
+    // entry per project/namespace, replacing it when scope changes, rather than
+    // retaining every path/filter combination an agent has queried.
     const FRESHNESS_TTL: std::time::Duration = std::time::Duration::from_secs(10);
     #[allow(clippy::type_complexity)]
     static CACHE: std::sync::LazyLock<
         std::sync::Mutex<
-            std::collections::HashMap<(String, String), (std::time::Instant, FreshnessCheck)>,
+            std::collections::HashMap<(String, String), (FreshnessScope, std::time::Instant, FreshnessCheck)>,
         >,
     > = std::sync::LazyLock::new(Default::default);
-    let cache_key = (project_id.to_string(), namespace.to_string());
+    let cache_key = (query.project_id.clone(), query.namespace.clone());
+    let scope = FreshnessScope {
+        generation: query.generation, root: project_root.to_path_buf(),
+        path_prefix: query.path_prefix.clone(),
+        exclude_path_prefixes: query.exclude_path_prefixes.clone(),
+        language: query.language.clone(),
+    };
     if let Ok(c) = CACHE.lock()
-        && let Some((at, check)) = c.get(&cache_key)
+        && let Some((cached_scope, at, check)) = c.get(&cache_key)
+        && cached_scope == &scope
         && at.elapsed() < FRESHNESS_TTL
     {
         return Ok(check.clone());
@@ -269,6 +299,10 @@ where
         files_checked: indexed.len(),
     };
     for fp in indexed {
+        if !query.includes_source_path(&fp.rel_path) {
+            out.files_checked -= 1;
+            continue;
+        }
         // Never flag VCS/internal files: they are not part of the searchable
         // corpus and editors/git rewrite them constantly, which is the bulk of
         // the false-"stale" noise (they should not be indexed in the first
@@ -326,7 +360,7 @@ where
     }
     out.stale_paths.sort();
     if let Ok(mut c) = CACHE.lock() {
-        c.insert(cache_key, (std::time::Instant::now(), out.clone()));
+        c.insert(cache_key, (scope, std::time::Instant::now(), out.clone()));
     }
     Ok(out)
 }
@@ -477,7 +511,7 @@ where
     let freshness = match q.freshness {
         FreshnessMode::Off => FreshnessCheck::default(),
         FreshnessMode::Strict | FreshnessMode::Warn => {
-            check_freshness(indexed_files, &q.project_id, &q.namespace, project_root)
+            check_freshness(indexed_files, q, project_root)
                 .unwrap_or_default()
         }
     };
@@ -498,7 +532,7 @@ where
         // fingerprint set yields an empty stale list, which reads identically
         // to a clean bill of health. Say so instead.
         Some(
-            "freshness could NOT be verified — this project has no indexed file \
+            "freshness could NOT be verified — this search scope has no indexed file \
              fingerprints, so staleness was not checked. Treat these results as \
              unverified against disk, and run `update_project` to record them."
                 .to_string(),
@@ -1415,8 +1449,8 @@ mod tests {
     #[test]
     fn freshness_hash_confirms_touched_but_unchanged_file() {
         use std::io::Write as _;
-        let dir = std::env::temp_dir().join(format!("engram_fresh_{}_unch", std::process::id()));
-        let _ = std::fs::create_dir_all(&dir);
+        let owned = tempfile::tempdir().unwrap();
+        let dir = owned.path();
         let content = b"Class A\n  Sub Foo()\n  End Sub\nEnd Class\n";
         std::fs::File::create(dir.join("a.vb"))
             .unwrap()
@@ -1431,21 +1465,20 @@ mod tests {
             mtime_secs: 1, // != disk mtime → forces the hash-confirm path
             file_hash: Some(blake3::hash(content).to_hex().to_string()),
         };
-        let pid = format!("freshtest_unch_{}", std::process::id());
-        let check = check_freshness(|| Ok(vec![stat]), &pid, "code", &dir).unwrap();
+        let check = check_freshness(|| Ok(vec![stat]), &freshness_query(), dir).unwrap();
         assert!(
             check.stale_paths.is_empty(),
             "touched-but-unchanged file must NOT be stale: {:?}",
             check.stale_paths
         );
-        let _ = std::fs::remove_dir_all(&dir);
+        owned.close().unwrap();
     }
 
     #[test]
     fn freshness_flags_changed_content_and_skips_git() {
         use std::io::Write as _;
-        let dir = std::env::temp_dir().join(format!("engram_fresh_{}_chg", std::process::id()));
-        let _ = std::fs::create_dir_all(&dir);
+        let owned = tempfile::tempdir().unwrap();
+        let dir = owned.path();
         let content = b"real disk content\n";
         std::fs::File::create(dir.join("b.vb"))
             .unwrap()
@@ -1469,13 +1502,82 @@ mod tests {
             mtime_secs: 1,
             file_hash: Some("whatever".to_string()),
         };
-        let pid = format!("freshtest_chg_{}", std::process::id());
-        let check = check_freshness(|| Ok(vec![changed, git]), &pid, "code", &dir).unwrap();
+        let check = check_freshness(|| Ok(vec![changed, git]), &freshness_query(), dir).unwrap();
         assert_eq!(
             check.stale_paths,
             vec!["b.vb".to_string()],
             "changed content flagged; .git/ skipped"
         );
-        let _ = std::fs::remove_dir_all(&dir);
+        owned.close().unwrap();
+    }
+
+    fn freshness_query() -> GrepQuery {
+        GrepQuery { project_id: "freshness-scope-test".into(), namespace: "memory".into(),
+            generation: 1, pattern: "marker".into(), regex: false, case_sensitive: None,
+            multiline: false, path_prefix: None, exclude_path_prefixes: Vec::new(),
+            language: None, context_before: 0, context_after: 0, max_results: 3,
+            freshness: FreshnessMode::Strict }
+    }
+
+    #[test]
+    fn freshness_scope_checks_only_requested_paths_and_does_not_reuse_other_scope_warnings() {
+        let owned = tempfile::tempdir().unwrap();
+        let root = owned.path();
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        let text = b"marker\n";
+        std::fs::write(root.join("src/current.rs"), text).unwrap();
+        let stats = ["src/current.rs", "src/excluded.rs", "src/other.ts", "outside.rs"]
+            .into_iter().map(|path| IndexedFileStat { rel_path: path.into(),
+                size: text.len() as u64, mtime_secs: 1,
+                file_hash: Some(blake3::hash(text).to_hex().to_string()) }).collect::<Vec<_>>();
+        let mut query = freshness_query();
+        let broad = check_freshness(|| Ok(stats.clone()), &query, root).unwrap();
+        assert_eq!(broad.stale_paths, ["outside.rs", "src/excluded.rs", "src/other.ts"]);
+        // Missing files outside the request are not stale files of this query.
+        // Mixed path separators/case retain the disk overlay's existing scope.
+        query.path_prefix = Some("SRC\\".into());
+        query.exclude_path_prefixes = vec!["sRc/ExClUdEd".into()];
+        query.language = Some("RUST".into());
+        let scoped = check_freshness(|| Ok(stats.clone()), &query, root).unwrap();
+        assert_eq!(scoped.files_checked, 1);
+        assert!(scoped.stale_paths.is_empty());
+        query.language = Some("typescript".into());
+        let other_language = check_freshness(|| Ok(stats.clone()), &query, root).unwrap();
+        assert_eq!(other_language.files_checked, 1);
+        assert_eq!(other_language.stale_paths, ["src/other.ts"]);
+        query.language = Some("RUST".into());
+        let restored_scope = check_freshness(|| Ok(stats.clone()), &query, root).unwrap();
+        assert_eq!(restored_scope.files_checked, 1);
+        assert!(restored_scope.stale_paths.is_empty());
+        // Clearing exclusions is now the only changed cache input.
+        query.exclude_path_prefixes.clear();
+        let included = check_freshness(|| Ok(stats.clone()), &query, root).unwrap();
+        assert_eq!(included.files_checked, 2);
+        assert_eq!(included.stale_paths, ["src/excluded.rs"]);
+        query.path_prefix = Some("outside.rs".into());
+        let outside = check_freshness(|| Ok(stats.clone()), &query, root).unwrap();
+        assert_eq!(outside.files_checked, 1);
+        assert_eq!(outside.stale_paths, ["outside.rs"]);
+        owned.close().unwrap();
+    }
+
+    #[test]
+    fn freshness_scope_cache_cannot_hide_a_new_generation_or_relocated_project() {
+        let owned = tempfile::tempdir().unwrap();
+        let root = owned.path().join("first");
+        let relocated = owned.path().join("second");
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::create_dir_all(&relocated).unwrap();
+        let text = b"marker\n";
+        std::fs::write(root.join("a.rs"), text).unwrap();
+        let stat = IndexedFileStat { rel_path: "a.rs".into(), size: text.len() as u64,
+            mtime_secs: 1, file_hash: Some(blake3::hash(text).to_hex().to_string()) };
+        let mut query = freshness_query();
+        assert!(check_freshness(|| Ok(vec![stat.clone()]), &query, &root).unwrap().stale_paths.is_empty());
+        assert_eq!(check_freshness(|| Ok(vec![stat.clone()]), &query, &relocated).unwrap().stale_paths, ["a.rs"]);
+        query.generation += 1;
+        let changed_stat = IndexedFileStat { file_hash: Some(blake3::hash(b"new indexed content").to_hex().to_string()), ..stat };
+        assert_eq!(check_freshness(|| Ok(vec![changed_stat]), &query, &root).unwrap().stale_paths, ["a.rs"]);
+        owned.close().unwrap();
     }
 }

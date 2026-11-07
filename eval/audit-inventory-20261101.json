@@ -9811,7 +9811,7 @@
   },
   "last_updated_at": "2026-11-07T18:06:44.127639+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-07T18:45:55.525865+00:00",
+    "at_utc": "2026-11-07T19:10:37.584688+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap/Blast remains active. Observed-candidate preview534102d deployedf23b8a83/dbdae618 and verified on actual OciusX: named BuildMetaOnlyJson now includes serializer2584..2609, output12282->12190B, navigation/unfinished coverage unchanged. Original8-attempt task remainsPARTIAL4PASS1PARTIAL,60466B. Preserve original31/full19; no goal completion.",
-    "next_user_visible_deliverable": "Continue original CodeMap/Blast agent-usefulness task. Evaluate demonstrated originalcall7 strict-grep scope blocker against handler/index source before any new edit: strict freshness currently fingerprints outside query exclusions. Keep frozen-Q source unread, preserve real task budget and independent source evidence. Observed-preview delivery complete; do not rebuild/redeploy it or expand instruction/catalog/performance work. Record and validate any next fix against original task; original31/full19 remain open.",
+    "active_original_item": "CodeMap/Blast originaltask recovery active. Scoped grep freshness final4index+23public behaviorsPASS104.19s/646.44s batches,allsourcefrozen/ownedcleanup. Code ready for native candidate. Original8taskPARTIAL, original31/full19 incomplete.",
+    "next_user_visible_deliverable": "Commit source and build scoped-grep-shipping-20261107 using existing shipping runner. Finalize scoped-grep pair with server-focused receipt and installedf23b8a83/dbdae618. Prepared verify_scoped_grep_20261107.py, prepare_scoped_grep_release_20261107.py and verify_scoped_grep_normal_20261107.py require review-v2 and final index4/public23/native evidence. Original blocked strict OciusX request may run only on scope-reviewed candidate; preserve55priorcontrols/data and exact description delta. Original8ledger remains immutable/partial.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
     "latest_completed_core_batch": "534102d observed-candidate source preview deployedf23b8a83/dbdae618. Final5behaviorsPASS610.42sbatch/0.77stest;native656.51sPASS,frozeninputs/ownedcleanup. Actual358calls:50priorcontrols+3serializercontrols unchanged;150schemas/149otherdefs same,CodeMapdescriptiononly aligned. Namedpreview1..104->2521..2627 includes serializer2584..2609,currentrawSHA/B3+nextpage2628verified;12282->12190B. Registry/selection3136/other14metadata/300notes preserved.218active/218prior/5journals verified,stageabsent,holdreleased/configsame;normalprimary47244 confirms newpreview and exactprevious8requests/text60466B. Task remainsPARTIAL. Initialv1regressionFAIL retained,testsunchanged,correctedv2/v3PASS. No full31/full19/fresh-agent/resourcecompletion claim.",
-    "previous_goal_turn_classification": "PROGRESS: native build passed; actual358-call candidate comparison passed; installed pair verified; normal runtime replay passed; recorded deployment and unchanged original partial task.",
+    "previous_goal_turn_classification": "PROGRESS: final27 behaviors passed, owned resources cleaned, candidate/preparer/normal observers prepared and offline55response decoder/definition delta checked. Actual OciusX candidate and deployment pending.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10354,6 +10354,38 @@
       "files": 218,
       "bytes": 336594730,
       "cleanup_condition": "Prior complete runtime retained for reviewed recovery; exact-path cleanup approval required. No automatic deletion or rollback proof."
+    },
+    "latest_scoped_grep_checkpoint": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\scoped-grep-continuation-checkpoint-20261107.json",
+      "sha256": "62f9cf78572db62ff5f0a6f0df9b227bd5bb05de313947373de20b0d60917915"
+    },
+    "scoped_grep_cache_review_followup": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\scoped-grep-cache-review-followup-20261107.json",
+      "sha256": "3d8ae8c29b23015d5eaa3f7e987d27eb48447c2205927b219ff0199ddc37b108"
+    },
+    "latest_scoped_grep_final_source": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\scoped-grep-final-source-checkpoint-20261107.json",
+      "sha256": "5f9af4a2d43a57f07a3f8ccfb3938db3c8f9872894b0cc88fe5ff89ebed85df9"
+    },
+    "latest_scoped_grep_public_running": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\scoped-grep-public-running-checkpoint-20261107.json",
+      "sha256": "72d0219078475f5a5f9296e0ede1afaf3c504d8aca49fb2b260c5f51f8ae29a9"
+    },
+    "scoped_grep_prepared_verification": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\scoped-grep-verification-prepared-20261107.json",
+      "sha256": "82be60c2c540a4328c183d7b12f39ac5e96c1c74ff71257d454a773ad2c15dc3"
+    },
+    "scoped_grep_final_behaviors": {
+      "index4": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\scoped-grep-index-focused-v2-20261107.json",
+        "sha256": "7fc8078b0f1beb933838edba3885094cee152e4d86c97952fdfc33de88792036"
+      },
+      "public23": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\scoped-grep-server-focused-20261107.json",
+        "sha256": "f19ad061676d9d9a50c25e75a03b33542e564c2440da99b0d30a277bffb146d4"
+      },
+      "same_compiled_inputs": true,
+      "all_owned_resources_closed_removed": true
     }
   }
 }

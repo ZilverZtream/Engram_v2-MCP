@@ -841,3 +841,49 @@ async fn exclude_path_prefixes_drop_indexed_and_working_tree_matches() {
         "{json}"
     );
 }
+
+#[tokio::test]
+async fn scoped_freshness_keeps_unrelated_drift_out_and_recovers_current_selected_source() {
+    let (owned, engram, pid, root) = setup().await;
+    std::fs::write(root.join("src/stable.rs"), "pub fn tracker_marker_unrelated_change() {}\n").unwrap();
+    let mut broad = grep_request(&pid, "tracker_marker", "strict");
+    broad.output_json = true;
+    let initial: serde_json::Value = serde_json::from_str(&grep(&engram, broad.clone()).await).unwrap();
+    assert!(initial["stale_paths"].as_array().unwrap().contains(&serde_json::json!("src/stable.rs")));
+
+    let mut selected = broad.clone();
+    selected.path_prefix = Some("src/orders.rs".into());
+    let mut excluded = broad;
+    excluded.path_prefix = Some("src/".into());
+    excluded.exclude_path_prefixes = vec!["SRC\\STABLE".into()];
+    for request in [selected.clone(), excluded.clone()] {
+        let page: serde_json::Value = serde_json::from_str(&grep(&engram, request).await).unwrap();
+        assert!(page.get("stale_paths").is_none(), "Unrelated drift must not contaminate the scoped search: {page}");
+        assert!(page.get("index_stale_warning").is_none());
+        assert_eq!(page["matches"].as_array().unwrap().len(), 1);
+        assert_eq!(page["matches"][0]["file_path"], "src/orders.rs");
+        assert_eq!(page["matches"][0]["line"], 2);
+    }
+
+    let current = "pub fn tracker_marker_current_selected() {}\n";
+    std::fs::write(root.join("src/orders.rs"), current).unwrap();
+    for mode in ["strict", "warn"] {
+        for mut request in [selected.clone(), excluded.clone()] {
+            request.freshness = mode.into();
+            let page: serde_json::Value = serde_json::from_str(&grep(&engram, request).await).unwrap();
+            assert_eq!(page["stale_paths"], serde_json::json!(["src/orders.rs"]));
+            let hits = page["matches"].as_array().unwrap();
+            assert_eq!(hits.len(), 1);
+            assert_eq!(hits[0]["line_text"], current.trim_end());
+            assert_eq!(hits[0]["source"], "working_tree");
+            assert!(hits[0].get("doc_id").is_none(), "Current bytes must not borrow an old citation");
+            let read = engram.handle_get_full_method_body(serde_json::from_value(
+                hits[0]["current_source_recovery"]["arguments"].clone()).unwrap()).await.unwrap();
+            let body: serde_json::Value = serde_json::from_str(&read.content[0].as_text().unwrap().text).unwrap();
+            assert_eq!(body["source_code"], current.trim_end());
+            assert_eq!(body["source_file_hash"], blake3::hash(current.as_bytes()).to_hex().to_string());
+        }
+    }
+    drop(engram);
+    owned.close().unwrap();
+}
