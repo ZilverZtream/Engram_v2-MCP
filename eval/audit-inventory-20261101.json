@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-07T03:42:10.421134+00:00",
+  "last_updated_at": "2026-11-07T04:56:57.975833+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-07T03:42:10.421134+00:00",
+    "at_utc": "2026-11-07T04:56:57.975833+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap/Blast usefulness remainsactive. Boundedconsumernavigation300d380deliveredandverified;fresh05nowfits8calls/65536BbutremainsPARTIAL3PASS2PARTIAL. HeldGraphcontainsrelevantmaintainedTSfile omittedfromcompactreports;agentbundle-onlygrepwascorrectforscope. Nextselectedcohesivegap is authoredconsumer-pathdiscoverypluscompactgrepJSONaffordability, notparser/storage/catalog/instructionwork.",
-    "next_user_visible_deliverable": "Affordable authored-consumer discovery: expose up to two retained admitted file-node path hints ordered by minimum depth/canonical path with explicit omitted count, without evicting old navigation/witness/frontier data or raising12KiB. Actual offline fit shows TS+bundle hints can fit via semantically shorter shared navigation scope; verify natively. Pair with compact grep JSON preserving all parsed values (actual archived15,461->11,274B format-only estimate). Existing paths-only CodeMap lookup is1,989B. No language/generated inference, new traversal/parser/storage/profile, automatic source read or promised full task win.",
+    "active_original_item": "CodeMap and Blast Radius usefulness for agents remains active.89855d4 is pushed and deployed;21 focused behaviors/native/current-OciusX/normal150+5 readbacks pass. Fresh06 uses the maintainedTS hint and current source but remains PARTIAL3PASS2PARTIAL. Next selected original gap is admitted branch/route source recovery to avoid paying another whole Summary for one hop; prepared-count and HTTP/UI bridges remain unfinished.",
+    "next_user_visible_deliverable": "Expose a bounded admitted branch/route source-lead sample before optional long inspection details, retaining direct witnesses, required unknown counts and truthful frontier/route omissions under the unchanged12KiB cap. Reuse existing current-source actions; same-file retained QueryCacheCore2247..2289 and ResolvePolicy2343..2345 fit one99line range2247..2345. Preserve full Graph and do not claim ReadMeta/input-producer or value-flow recovery from reverse impact. Validate actual outputs and repeat the unchanged task; no pass promised.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9855,8 +9855,8 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "300d380 pushed ONLYorigin/master and deployedcf5635ae/bb2d9c97.16focusedpublicbehaviorsPASS(5/6/5,3.32stest/734.59sbatch),135capabilitydoclintPASS,native730.53sPASS;twoindependentstaticreviews+actualreview. SharedSummarypreservesoldwitness/frontier/position/safetyfacts andGraph, addscanonicaldirectSummaryqueries+optionaladmitteddepth2sourceunits. Actualcontext19572B/nested12140B;nextstep12071B returns3/3/0rootedResolve,inline1+2omitted,threecurrentSpatialreads3842/5681/2221Bactualrefs381/499/2344. Old21requestvalues sameafterONLYnewnavremoval,146otherdefs/allotherschema/defaults exact, normal150+NEW8 verified.300notes/255registry/selection/other14metadata preserved;218active/218old/5journals verified,336434986Bpriorruntime retainedexactpath. Allownedbuild/reader/tmp/guardresourcesclosed,onehiddennormallauncher primary33276. Fresh05PARTIAL:8successcalls64873B/663spare,3PASS2PARTIAL, literalnewactionused. MaintainedTS/HTTP/preparedmetadata-chainmissing. Prior04FAIL/03FAIL/VB02-resetPARTIAL/TSscopedPASS unchanged. No full31/full19/resource/hostreconnect/remoteCIpass claim.",
-    "previous_goal_turn_classification": "PROGRESS: nativebuild/pair/current-OciusXverification/independentactualreview/scopedupgrade/normalpublicliteralreadbackcompleted. Fresh05ranall8callswithin64873B,usedliteralnewnavigationaction,strictjudgmentPARTIAL3PASS2PARTIAL. MissingmaintainedTS/preparedmetadata-chainpreservedasunfinished; controlledCodeMap1989Bandactualofflinefilehintfit/outputcostmeasurementsgroundnextoriginalcoreimprovement. Alloriginal31/full19records unchanged.",
+    "latest_completed_core_batch": "89855d4 pushed onlyorigin/master and deployed a947127e/a930dbb1.21focused behaviorsPASS(5/6/5/5,3.95stest,720.50sbatch),135doclint/syntax4PASS,native696.64sPASS; source/behavior/observer/actual independent reviews. Existing Summary facts/actions/Graph/safety retained; scope prose shortened and2selected retained file hints+12omitted expose maintainedTS+bundle without language preference. Samegrep15461->11275B controlled,11274Bnormal; parsed evidence exact except actual elapsed75->191ms,no resource/latency claim. Actual context19663B/nested12231B/rootSummary12096B; consumer step12011B. Normalall150definitions and5literal outputs match;300notes/255registry15projects/selection/other14metadata preserved.218active/218old/5journals verified;336306474Bpriorruntime retained exactpath. Owned build/reader/temp/guard resources closed; one hidden normal launcher44520 restoredprimary36396. Fresh06PARTIAL8successcalls64726B/810spare,3PASS2PARTIAL; literal expansion+newmaintainedTS hint used. Counts/cache-policy ordering andHTTP/application/discovery/editor/geometry source remain untraced. Prior05PARTIAL/04FAIL/03FAIL/VB02-resetPARTIAL/TSscopedPASS preserved. No full31/full19/globalfreshness/hosttransport/resource/perfection claim.",
+    "previous_goal_turn_classification": "PROGRESS: single native build, guarded current-data comparison, independent actual review, scoped installation and normal-runtime verification completed; fresh06 independently graded PARTIAL under unchanged5criteria/8calls/65536B. Concrete next route recovery selected from actual24,107B/two-call expansion cost and retained source ranges. Original31/full19 fields remain exactly unchanged; goal active.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -9881,8 +9881,8 @@
     ],
     "q_freeze_decision": "User authorized passive automatic indexing; keep Q code changes and reviews frozen. This is sufficient authorization to restore normal watching without another permission prompt.",
     "latest_core_delivery_evidence": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\consumer-summary-navigation-delivery-outcome-20261107.json",
-      "sha256": "89ea5f0a99743b6a2571df90f30ae7c07033224492193c0ddbf1685e69e8f452"
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\consumer-file-hints-delivery-outcome-20261107.json",
+      "sha256": "e085826fd40081658841c5a30079cd9483ce656f5c9e2b4f6428b820791949d1"
     },
     "latest_stateful_core_task": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\resetstate-fresh02-independent-judgment-20261106.json",
@@ -9916,30 +9916,20 @@
     },
     "last_session_control_correction": "User had already rebooted8hours before the delayed reply was misread. Existing goal isactive. No new reboot or pause authorized; old checkpoint is historical. Normal runtime was changed only for the reviewed upgrade and restored with one hidden normal launcher.",
     "latest_in_progress_core_batch": {
-      "state": "NEXT_AUTHORED_CONSUMER_PATH_HINTS_AND_COMPACT_GREP_SELECTED_NOT_IMPLEMENTED",
-      "completed_navigation_delivery": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\consumer-summary-navigation-delivery-outcome-20261107.json",
-        "sha256": "89ea5f0a99743b6a2571df90f30ae7c07033224492193c0ddbf1685e69e8f452"
+      "state": "NEXT_ADMITTED_ROUTE_SOURCE_RECOVERY_SELECTED_NOT_IMPLEMENTED",
+      "completed_file_hints_delivery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\consumer-file-hints-delivery-outcome-20261107.json",
+        "sha256": "e085826fd40081658841c5a30079cd9483ce656f5c9e2b4f6428b820791949d1"
       },
-      "actual_next_gap": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\consumer-summary-navigation-fresh05-next-gap-20261107.json",
-        "sha256": "c315292aa3a3733b59401f6ec4e545082617567713bf8a152b075a0b9eca08d7"
+      "next_gap": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\consumer-file-hints-fresh06-next-route-recovery-gap-20261107.json",
+        "sha256": "2d201e199b78d900b7f8aff751864216e4a7fe372c37b839c1d8532e02a84fce"
       },
-      "actual_endpoint_lookup": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\consumer-summary-navigation-endpoint-lookup-control-20261107.json",
-        "sha256": "73deb03f5945fed22400a9b44a0586327cd42ee6b19b1303585ffa9fe98cee6c"
-      },
-      "offline_hint_fit": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\consumer-summary-navigation-endpoint-hint-fit-design-20261107.json",
-        "sha256": "00acc7b9fbc08c00226386a62d781fd873556811bab54524f8a0705e9b3f76fa"
-      },
-      "json_output_cost": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-classification-fresh05-json-output-cost-20261107.json",
-        "sha256": "8580106019d490123570227b25b175b1adf103a96199777416f2d4d82ed0ae47"
-      },
-      "candidate": "Affordable authored-consumer discovery: expose up to two retained admitted file-node path hints ordered by minimum depth/canonical path with explicit omitted count, without evicting old navigation/witness/frontier data or raising12KiB. Actual offline fit shows TS+bundle hints can fit via semantically shorter shared navigation scope; verify natively. Pair with compact grep JSON preserving all parsed values (actual archived15,461->11,274B format-only estimate). Existing paths-only CodeMap lookup is1,989B. No language/generated inference, new traversal/parser/storage/profile, automatic source read or promised full task win.",
+      "current_source_commit": "89855d4f5b63b6adc364c4b0961ad0349bba158b",
       "implementation_started": false,
       "fresh_task_pass_proven": false,
+      "all_owned_build_reader_temp_guard_resources_closed": true,
+      "normal_primary_pid": 36396,
       "no_new_supporting_project": true
     },
     "latest_delivery_preparation": {
@@ -10148,6 +10138,39 @@
     "prior_terminal_name_completed_core_batch": "0db45c1 pushed onlyorigin/master, deployed3b140333/9a3eea04.8publicFTSbehaviorsPASS(1.54stest/738.53sbatch),135capabilitydoclintPASS;native776.57sPASS, independent source/behavior/current-datareviews. Actual bareClassify query5409B yieldscanonicalqualifiedmethod76..84,31keys/16206decodebytes/8seeks; literal source andmethodimpact44dependents/1Resolve/reference96 andcurrentResolve92..106verified. Old7TS/directory/VB reports+ordinaryVBfile parsedunchanged; sameoldcompute25exact, literalimpact12differsONLYcontinuationlimit andshortestpathomissions32vs19.149otherdefs exact;CodeMaponly2descriptionstrings changed, normalall150/actualNEW8 verified.300notes/14meta/registryselectionpreserved,218active/218old/5journalsverified;336256298Bpriorruntime retained exactpath. Fresh03 FAILS after2successcalls70905B, not8calls: context65496B includes58064Bgraph; no classifierbody/numericcontract/currentUI read. Same exactgeneratedcontextaction yieldsALLvaluesidentical65496B, notcallerclass/linehint issue. Prior02/resetpartial andTSscopedpasspreserved; full31/full19/resource/hostreconnect/remoteCIpass unclaimed.",
     "latest_fresh_vb_method_task": {
       "frozen_rubric": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-classification-fresh06-frozen-rubric-20261107.json",
+        "sha256": "a3feddfdd60c7b5a162033f49cb4b4c00c92a8788516040a450c3e85e50b7b1d"
+      },
+      "proposal": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-classification-fresh06-proposal-20261107.json",
+        "sha256": "dfca6ae1e2e7aeb56c24b5725dc652d3ccca49215b2fd10a5f8523a54f797250"
+      },
+      "verification": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-classification-fresh06-receipt-verification-20261107.json",
+        "sha256": "ed5600fd17d1f66ed0214c1bb5d5f945ee579074a5a4e623ecb2b30bfb41aa28"
+      },
+      "judgment": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-classification-fresh06-independent-judgment-20261107.json",
+        "sha256": "7c05caee9705ecf5d16439f0f06b6cdd6e04f5551457ca1498393475504c2589"
+      },
+      "classification": "PARTIAL:8successcalls64726B/810spare;PASS/PASS/PARTIAL/PARTIAL/PASS. No ninth/control/oracle evidence credited. Maintained TS policy guards inspected; prepared-count/cache and HTTP-to-UI source path incomplete.",
+      "prior_fresh05_remains": "PARTIAL8calls64873B,3PASS2PARTIAL",
+      "prior_fresh04_remains": "FAIL4calls70695B(+5159)",
+      "prior_fresh03_remains": "FAIL2calls70905B",
+      "prior_VB02_reset_and_TS_outcomes_preserved": true
+    },
+    "latest_deployed_shared_summary": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\method-context-summary-delivery-outcome-20261107.json",
+      "sha256": "c611775c3487e14548c04b20f74159567acc7ef2ed93db8eb3b5c30f08fade6c"
+    },
+    "prior_shared_method_summary_completed_core_batch": "00a20bc pushed ONLYorigin/master and deployed0028dba1/4bb88347.13focused publicbehaviorsPASS(5/6/2,2.62stest,42.17sv2batch),135capabilitydoclintPASS,native782.61sPASS. Initialoldgreen-expectation FAIL and diagnostic retained; existingmethod-semanticfloor unchanged, wantedNotRun caution checkedbothprofiles. Actualminimalcontext65496->17805B,evidence10373B<=12KiB; everyoldnon-evidencefact exact, explicitGraphentireoldValue exact, bothcontext/safetyprofiles equal; literalcontext/graph/currentResolveactions verified. Old14reports/148otherdefs unchanged, normal150+NEW8 verified.300notes/255registryrecords/selection/other14metadata preserved,218active/218old/5journals verified;336474922Bpriorruntime retainedexactpath. Allnewownedbuild/reader/tmp/guardresourcesclosed; onehiddennormallauncher restoredprimary46540. Fresh04FAILafter4successcalls70695B(+5159):criteria3PASS1PARTIAL1FAIL. Classifier/Resolve sourceconfirmed; metadata/cache-gate/currentHTTP/TS missing. No fresh/full31/full19/resource/hostreconnect/remoteCIpass claim.",
+    "latest_deployed_consumer_navigation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\consumer-summary-navigation-delivery-outcome-20261107.json",
+      "sha256": "89ea5f0a99743b6a2571df90f30ae7c07033224492193c0ddbf1685e69e8f452"
+    },
+    "prior_consumer_navigation_completed_core_batch": "300d380 pushed ONLYorigin/master and deployedcf5635ae/bb2d9c97.16focusedpublicbehaviorsPASS(5/6/5,3.32stest/734.59sbatch),135capabilitydoclintPASS,native730.53sPASS;twoindependentstaticreviews+actualreview. SharedSummarypreservesoldwitness/frontier/position/safetyfacts andGraph, addscanonicaldirectSummaryqueries+optionaladmitteddepth2sourceunits. Actualcontext19572B/nested12140B;nextstep12071B returns3/3/0rootedResolve,inline1+2omitted,threecurrentSpatialreads3842/5681/2221Bactualrefs381/499/2344. Old21requestvalues sameafterONLYnewnavremoval,146otherdefs/allotherschema/defaults exact, normal150+NEW8 verified.300notes/255registry/selection/other14metadata preserved;218active/218old/5journals verified,336434986Bpriorruntime retainedexactpath. Allownedbuild/reader/tmp/guardresourcesclosed,onehiddennormallauncher primary33276. Fresh05PARTIAL:8successcalls64873B/663spare,3PASS2PARTIAL, literalnewactionused. MaintainedTS/HTTP/preparedmetadata-chainmissing. Prior04FAIL/03FAIL/VB02-resetPARTIAL/TSscopedPASS unchanged. No full31/full19/resource/hostreconnect/remoteCIpass claim.",
+    "prior_fresh05_vb_method_task": {
+      "frozen_rubric": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-classification-fresh05-frozen-rubric-20261107.json",
         "sha256": "b4a0cb080418bc1e29812ca27fae6468e170de34a58d234ebddabf6c7f6ed70b"
       },
@@ -10168,14 +10191,9 @@
       "prior_fresh03_remains": "FAIL2calls70905B",
       "prior_VB02_reset_and_TS_outcomes_preserved": true
     },
-    "latest_deployed_shared_summary": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\method-context-summary-delivery-outcome-20261107.json",
-      "sha256": "c611775c3487e14548c04b20f74159567acc7ef2ed93db8eb3b5c30f08fade6c"
-    },
-    "prior_shared_method_summary_completed_core_batch": "00a20bc pushed ONLYorigin/master and deployed0028dba1/4bb88347.13focused publicbehaviorsPASS(5/6/2,2.62stest,42.17sv2batch),135capabilitydoclintPASS,native782.61sPASS. Initialoldgreen-expectation FAIL and diagnostic retained; existingmethod-semanticfloor unchanged, wantedNotRun caution checkedbothprofiles. Actualminimalcontext65496->17805B,evidence10373B<=12KiB; everyoldnon-evidencefact exact, explicitGraphentireoldValue exact, bothcontext/safetyprofiles equal; literalcontext/graph/currentResolveactions verified. Old14reports/148otherdefs unchanged, normal150+NEW8 verified.300notes/255registryrecords/selection/other14metadata preserved,218active/218old/5journals verified;336474922Bpriorruntime retainedexactpath. Allnewownedbuild/reader/tmp/guardresourcesclosed; onehiddennormallauncher restoredprimary46540. Fresh04FAILafter4successcalls70695B(+5159):criteria3PASS1PARTIAL1FAIL. Classifier/Resolve sourceconfirmed; metadata/cache-gate/currentHTTP/TS missing. No fresh/full31/full19/resource/hostreconnect/remoteCIpass claim.",
-    "latest_deployed_consumer_navigation": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\consumer-summary-navigation-delivery-outcome-20261107.json",
-      "sha256": "89ea5f0a99743b6a2571df90f30ae7c07033224492193c0ddbf1685e69e8f452"
+    "latest_deployed_consumer_file_hints": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\consumer-file-hints-delivery-outcome-20261107.json",
+      "sha256": "e085826fd40081658841c5a30079cd9483ce656f5c9e2b4f6428b820791949d1"
     }
   }
 }
