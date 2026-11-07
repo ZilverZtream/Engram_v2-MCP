@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-07T09:42:38.683890+00:00",
+  "last_updated_at": "2026-11-07T16:44:30.998858+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-07T09:42:38.683890+00:00",
+    "at_utc": "2026-11-07T16:44:30.998858+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap/Blast agent usefulness: daedb08 deployedaf206e2e/7a55d25a; fresh09 independently judged PARTIAL4PASS1PARTIAL,8attempts60225B/5311spare (7successfulRPC+1presend scopeblock). Newliteral mode usedunhintedcalls6/8. Actual adjacent callback contexts were merged and omitted; nextselected core improvement is overlap/adjacency-only coalescing under samecaps. Original31/full19 unchanged and unfinished.",
-    "next_user_visible_deliverable": "Implement meaningful source-window packing correction grounded in fresh09call8: preserve separate non-touching contexts, so definition/discovery/viewport snippets can fit instead of swallowing unrelated intervening lines. Preserve literal-only semantics/currenthash/omissions/recovery, existing effectiveMinZoom control/defaults and same budgets. Validate actual OciusX outputs and unchanged fresh task; no broad audit/instruction/catalog/storage/kernel detour.",
+    "active_original_item": "CodeMap/Blast agent usefulness remains active. Adjacent-only literal context coalescing a5a44a9 is pushed/deployed and verified on actual OciusX. Same recorded task replay remains PARTIAL4PASS1PARTIAL at60466/65536B; controlled evidence, not a fresh-agent win. Original31/full19 unchanged and unfinished.",
+    "next_user_visible_deliverable": "Continue core CodeMap/Blast navigation and source-witness recovery for the measured remaining HTTP/JSON-to-client connection, discovery initiation and editor threshold dependency. Choose a concrete tool-output improvement from actual requests against independent source, preserving frozen task criteria/caps and truthful omitted coverage. Do not substitute another broad audit, instruction/catalog expansion, resource tuning, ownership or cleanup project.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9855,8 +9855,8 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "Complete focused10PASS1.48stest/902.91sbatch; nativePASS964.97s; sourcefrozen, owned closures/tmp removed. Actual339calls:25defaults and old2previews preserved,149defs exact/newoptional nullable literal+description; newactual9365B/7358Bfield/2windows/rawB3/first8+lookahead/literalreadsexecuted;300notes/registry/selection3136/other14metadata unchanged. Independent actual review.218active/218prior/5journals verified,stageabsent. Guard released unchangedconfig/onehiddenlauncher19684/primary31404. Normal150defs+9publicreadbacks exactcandidate. Fresh09PARTIAL4PASS1PARTIAL60225B; source scoping block honestly charged, old08/07/etc outcomes retained. No fulltask/perfection/resource/full31/full19/host/globalfreshness claim.",
-    "previous_goal_turn_classification": "PROGRESS: shippingcandidatePASS, actual339OciusXcalls+independent review, scoped upgrade and218/218/5journals verified,normal150+9readbacks restored. Fresh09 completed/judged4PASS1PARTIAL underunchangedrubric/caps; measured nextsame-corepackinggap. Allownedresources accounted, original31/19 canonicalhash unchanged; goalactive.",
+    "latest_completed_core_batch": "a5a44a9 adjacent-only literal coalescing pushed onlyorigin/master/deployed0bbb6788/fa7b9f85. Focused11PASS1.51s/nativePASS696.50s, frozen inputs/owned cleanup. Actual338calls:28controls and150defs unchanged, exact task request now exposes247..271/358..382/449..473 in8810B(+241), source6803B, five literal reads and omitted recovery verified. Registry/selection3136/other14metadata/300notes preserved.218active/218prior/5journals verified,stageabsent. Config unchanged/hold released; onehiddenlauncher46712 restored primary9896. Normal public replay8requests7RPC1scopeblock60466B; first6fulltexts byte-exact, last exactcandidate; PARTIAL4PASS1PARTIAL, nofresh-agent/fulltask/full31/full19 claim.",
+    "previous_goal_turn_classification": "PROGRESS: delivered and verified selected CodeMap packing correction on actual tools and normal installed interface. Original unchanged task remains partial; continue remaining core navigation/witness gaps.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10264,6 +10264,15 @@
       "not_deployed_or_fixed": true,
       "no_Q_content_read_proven": true
     },
-    "fresh09_immutable_parent_ledger_sha256": "a7d9c1ada86af921afa478e2f97528ad5585668db6dab3f8366cf9644e15385c"
+    "fresh09_immutable_parent_ledger_sha256": "a7d9c1ada86af921afa478e2f97528ad5585668db6dab3f8366cf9644e15385c",
+    "adjacent_context_delivery_evidence": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-adjacent-context-delivery-outcome-20261107.json",
+      "sha256": "2167da60ddce4579df4f8fb4827fa98160764e415e0db0d86cfa0897a9575175"
+    },
+    "adjacent_context_retained_runtime_recovery": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-cc6c3eac278c433297c9610973516bca",
+      "bytes": 336599338,
+      "cleanup_condition": "Prior complete runtime retained for reviewed recovery; exact-path cleanup approval required. No automatic deletion or rollback proof."
+    }
   }
 }
