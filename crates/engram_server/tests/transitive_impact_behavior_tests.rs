@@ -2862,15 +2862,62 @@ fn file_impact_summary_keeps_observed_file_counts_when_graph_display_drops_ident
 #[test]
 fn file_impact_shared_excerpt_keeps_unrecorded_positions_unknown() {
     owned_case(|fixture| async move {
+        const A: &str = "src/a_ui.rs";
+        const Z: &str = "src/z_ui.rs";
+        let body = "pub fn display() { crate::spatial::QueryViewport(); }\n";
+        let cancel = CancellationToken::new();
+        let baseline = fixture.engram.state.registry.capture_source_head(PID).unwrap();
+        for path in [A, Z] { std::fs::write(fixture.root.join(path), body).unwrap(); }
+        fixture.search.prepare_source_snapshot(PID, 2, 3,
+            &[RelPath::new(A), RelPath::new(Z)], &[], &cancel).await.unwrap();
+        fixture.search.index_docs(PID,
+            &[source_doc(3, 91, A, body), source_doc(3, 92, Z, body)], &cancel).await.unwrap();
+        fixture.search.seal_source_snapshot(PID, 3).unwrap();
+        assert!(fixture.engram.state.registry.publish_source_head(&baseline, 3).unwrap());
         let mut consumer = file_node(SPATIAL,SPATIAL_BODY,1);
         consumer.start_line=0;
         consumer.end_line=0;
-        fixture.engram.state.graph.upsert_nodes(PID,&[consumer]).unwrap();
-        fixture.engram.state.graph.upsert_edges(PID,&[
-            edge(format!("file:{SPATIAL}"),format!("file:{POLICY}"),EdgeKind::Imports,1)
+        fixture.engram.state.graph.upsert_nodes(PID,&[
+            consumer, file_node(A, body, 3), file_node(Z, body, 3),
+            file_node(FUTURE_FILE, FUTURE_BODY, 4),
         ]).unwrap();
+        fixture.engram.state.graph.upsert_edges(PID,&[
+            edge(format!("file:{SPATIAL}"),format!("file:{POLICY}"),EdgeKind::Imports,1),
+            edge(format!("file:{A}"),format!("file:{SPATIAL}"),EdgeKind::Imports,3),
+            edge(format!("file:{A}"),format!("file:{SPATIAL}"),EdgeKind::Dependency,3),
+            edge(format!("file:{Z}"),format!("file:{SPATIAL}"),EdgeKind::Imports,3),
+            edge(format!("file:{UNBOUND}"),format!("file:{SPATIAL}"),EdgeKind::Imports,1),
+            edge(format!("file:{FUTURE_FILE}"),format!("file:{SPATIAL}"),EdgeKind::Imports,4),
+        ]).unwrap();
+        let target = format!("file:{POLICY}");
+        let graph = impact_packet(&impact_target(&fixture, &target, Some(6)).await);
         for tool in ["impact_analysis","compute_blast_radius"] {
-            let report=impact_packet(&summary_impact(&fixture,tool,&format!("file:{POLICY}"),6).await);
+            let report=impact_packet(&summary_impact(&fixture,tool,&target,6).await);
+            assert_eq!(report["selected_dependents_observed"], graph["selected_dependents_observed"]);
+            assert_eq!(report["coverage"], graph["coverage"]);
+            let hints = &report["consumer_navigation"]["selected_file_hints"];
+            assert_eq!(*hints, json!([SPATIAL, A]),
+                "Show nearer consumer files first, then a deterministic path sample; parallel edges must not duplicate files");
+            assert_eq!(report["consumer_navigation"]["selected_file_hints_omitted"], 1,
+                "Only retained selected external file identities belong in the hint sample or its omitted count");
+            let result = fixture.engram.handle_get_codebase_overview(serde_json::from_value(json!({
+                "project_id":PID,"scope":hints[1],"include_declarations":false,
+                "include_retained_context":false,"limit":8
+            })).unwrap()).await.unwrap();
+            let output = &result.content[0].as_text().unwrap().text;
+            let navigation: Value = serde_json::from_str(output.split("## CodeMap Navigation").nth(1).unwrap()
+                .split("```json\n").nth(1).unwrap().split("```").next().unwrap()).unwrap();
+            assert_eq!(navigation["source_generation"], 3);
+            assert_eq!(navigation["files"][0]["path"], A,
+                "A compact hint must let an agent discover the selected consumer through an exact-file CodeMap query");
+            assert_eq!(navigation["files"][0]["physical_generation"], 3);
+            let read = &navigation["files"][0]["actions"][1];
+            assert_eq!(read["tool"], "get_full_method_body");
+            let result = fixture.engram.handle_get_full_method_body(
+                serde_json::from_value(read["arguments"].clone()).unwrap()).await.unwrap();
+            let source: Value = serde_json::from_str(&result.content[0].as_text().unwrap().text).unwrap();
+            assert_eq!(source["source_file_hash"], ContentHash::compute(body.as_bytes()).0);
+            assert_eq!(source["source_code"], body.trim_end());
             let consumer=report["immediate_consumers"].as_array().unwrap().iter()
                 .find(|row|row["node_id"]==format!("file:{SPATIAL}")).unwrap();
             let witness=&consumer["sample_connection_to_target"];
