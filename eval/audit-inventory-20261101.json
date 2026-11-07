@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-07T17:27:05.688853+00:00",
+  "last_updated_at": "2026-11-07T17:47:40.425980+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-07T17:27:05.688853+00:00",
+    "at_utc": "2026-11-07T17:47:40.425980+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap/Blast agent usefulness remains active. Member-text recovery improvement implemented and10focused/receiver behaviors pass with frozen inputs and owned cleanup. Live installed comparison: bare policy search caps at8 before layer.policy reads; proposed .policy reaches3 independently verified editor reads in6527B versus12700B. Native build, emitted candidate validation and deployment remain pending. Original8-attempt task remains PARTIAL4PASS1PARTIAL; original31/full19 unchanged and unfinished.",
-    "next_user_visible_deliverable": "Build the tested member-recovery change with the existing native shipping runner (label member-recovery-shipping-20261107), then pair against installed0bbb6788/fa7b9f85. Use the prepared verify_member_recovery_20261107.py candidate observer and prepare_member_recovery_release_20261107.py under the established read hold and paired installer after their checks pass. Original full task stays partial; no new broad audit, infrastructure or parser/catalog expansion.",
+    "active_original_item": "CodeMap/Blast agent usefulness remains active. Member recovery72cf95c deployed274e396c/6e7017bd: actual Summary/Graph for both tools preserve graph evidence and first .policy search reaches3 independently verified editor reads. Original8-attempt task remains exactly unchanged PARTIAL4PASS1PARTIAL60466/65536B; known-getter checks outside task budget. Original31/full19 unchanged and unfinished.",
+    "next_user_visible_deliverable": "Continue the original CodeMap/Blast task from actual output: the frozen classification task still lacks representative HTTP/JSON-to-client link, discovery initiation and editor dependency within its original8-attempt/65536B budget. The new known-getter recovery is delivered, not a substitute for that task. Use actual requests and independent source to choose the next concrete navigation/witness improvement; preserve all criteria/caps. No instruction/pilot, catalog/parser, infrastructure, ownership, performance or broad-audit detour.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9855,8 +9855,8 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "a5a44a9 adjacent-only literal coalescing pushed onlyorigin/master/deployed0bbb6788/fa7b9f85. Focused11PASS1.51s/nativePASS696.50s, frozen inputs/owned cleanup. Actual338calls:28controls and150defs unchanged, exact task request now exposes247..271/358..382/449..473 in8810B(+241), source6803B, five literal reads and omitted recovery verified. Registry/selection3136/other14metadata/300notes preserved.218active/218prior/5journals verified,stageabsent. Config unchanged/hold released; onehiddenlauncher46712 restored primary9896. Normal public replay8requests7RPC1scopeblock60466B; first6fulltexts byte-exact, last exactcandidate; PARTIAL4PASS1PARTIAL, nofresh-agent/fulltask/full31/full19 claim.",
-    "previous_goal_turn_classification": "PROGRESS: focused3 and receiver-regression7 behaviors pass, all owned resources closed/removed and inputs unchanged. Preparing native build; candidate public emission and deployment remain unverified.",
+    "latest_completed_core_batch": "72cf95c member syntax recovery deployed274e396c/6e7017bd.10behavior checks/native630.44s PASS; frozen inputs/owned cleanup. Actual353-call candidate:35controls/150defs unchanged; both tools Summary6665B/Graph10208B (+450) preserve all other evidence, first .policy search recovers editor683/695/794 with3current-source hashes/ranges verified; broad fallback preserved. Registry/selection3136/other14metadata/300notes unchanged.218active/218prior/5journals verified;stageabsent;holdreleased/configunchanged. Normalprimary2340 confirms candidate and unchanged8-attempt60466B task; PARTIAL4PASS1PARTIAL. No fresh-agent/full31/full19 completion claim.",
+    "previous_goal_turn_classification": "PROGRESS: deployed and verified concrete member recovery through actual installed tools. Original task remains partial with all8texts/arguments unchanged; continue source-connection navigation within its frozen scope.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10291,6 +10291,16 @@
         "seconds": 6.225903600003221,
         "owned_temp_removed": true
       }
-    ]
+    ],
+    "latest_member_recovery_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\member-recovery-delivery-outcome-20261107.json",
+      "sha256": "83a4a99aa24e9f20d393669938f80b2e059c3f104bd07b141b7291746544dbcb"
+    },
+    "latest_member_recovery_retained_pair": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-019d6d1945c8430d8ae5415a99e1652b",
+      "files": 218,
+      "bytes": 336593194,
+      "cleanup_condition": "Prior complete runtime retained for reviewed recovery; exact-path cleanup approval required. No automatic deletion or rollback proof."
+    }
   }
 }
