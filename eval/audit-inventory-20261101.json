@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-07T04:56:57.975833+00:00",
+  "last_updated_at": "2026-11-07T06:42:15.800666+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-07T04:56:57.975833+00:00",
+    "at_utc": "2026-11-07T06:42:15.800666+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap and Blast Radius usefulness for agents remains active.89855d4 is pushed and deployed;21 focused behaviors/native/current-OciusX/normal150+5 readbacks pass. Fresh06 uses the maintainedTS hint and current source but remains PARTIAL3PASS2PARTIAL. Next selected original gap is admitted branch/route source recovery to avoid paying another whole Summary for one hop; prepared-count and HTTP/UI bridges remain unfinished.",
-    "next_user_visible_deliverable": "Expose a bounded admitted branch/route source-lead sample before optional long inspection details, retaining direct witnesses, required unknown counts and truthful frontier/route omissions under the unchanged12KiB cap. Reuse existing current-source actions; same-file retained QueryCacheCore2247..2289 and ResolvePolicy2343..2345 fit one99line range2247..2345. Preserve full Graph and do not claim ReadMeta/input-producer or value-flow recovery from reverse impact. Validate actual outputs and repeat the unchanged task; no pass promised.",
+    "active_original_item": "CodeMap/Blast agent usefulness:50069ac pushedonlyorigin/master anddeployed546781cd/66022f25; normalpublicoutputs verified. Fresh07PARTIAL4PASS1PARTIAL at8successcalls61608B/3928spare, versusfresh06PARTIAL3PASS2PARTIAL. Prepared-count/cache-policy ordering criterion3closed; criterion4HTTP/JSON-toTSlinkage/discoverycompletion/editoreffects remainsincomplete. Alloriginal31findings/19fullstoragegates unchanged.",
+    "next_user_visible_deliverable": "Continue selected CodeMap/Blast navigation/witness/recovery work toward source-grounded automatic-policy/client bridges. CurrentheldGraph has only a narrower override-save TSdeclaration read; do not substitute it for missingautomatic-policy application/rendering or claimgrepavoidance/taskcompletion. Use actualagentoutputs andindependentcurrent-source evidence; no catalog/instruction/performance detour.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9855,8 +9855,8 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "89855d4 pushed onlyorigin/master and deployed a947127e/a930dbb1.21focused behaviorsPASS(5/6/5/5,3.95stest,720.50sbatch),135doclint/syntax4PASS,native696.64sPASS; source/behavior/observer/actual independent reviews. Existing Summary facts/actions/Graph/safety retained; scope prose shortened and2selected retained file hints+12omitted expose maintainedTS+bundle without language preference. Samegrep15461->11275B controlled,11274Bnormal; parsed evidence exact except actual elapsed75->191ms,no resource/latency claim. Actual context19663B/nested12231B/rootSummary12096B; consumer step12011B. Normalall150definitions and5literal outputs match;300notes/255registry15projects/selection/other14metadata preserved.218active/218old/5journals verified;336306474Bpriorruntime retained exactpath. Owned build/reader/temp/guard resources closed; one hidden normal launcher44520 restoredprimary36396. Fresh06PARTIAL8successcalls64726B/810spare,3PASS2PARTIAL; literal expansion+newmaintainedTS hint used. Counts/cache-policy ordering andHTTP/application/discovery/editor/geometry source remain untraced. Prior05PARTIAL/04FAIL/03FAIL/VB02-resetPARTIAL/TSscopedPASS preserved. No full31/full19/globalfreshness/hosttransport/resource/perfection claim.",
-    "previous_goal_turn_classification": "PROGRESS: single native build, guarded current-data comparison, independent actual review, scoped installation and normal-runtime verification completed; fresh06 independently graded PARTIAL under unchanged5criteria/8calls/65536B. Concrete next route recovery selected from actual24,107B/two-call expansion cost and retained source ranges. Original31/full19 fields remain exactly unchanged; goal active.",
+    "latest_completed_core_batch": "50069ac source-route projection deployed. Initial focused19 retained18PASS/1FAIL fileinventory allocation regression; productionallocation fixed without weakened tests; affected7PASS6.03testseconds/710.55batchseconds. Sameinputs nativePASS750.60s,135doclint+syntax5PASS, independent source/behavior/observer/actual reviews. Candidate v1 verifier KeyError on nested request arguments retainedFAIL; child0/data unchanged/resourcesclosed; corrected report-schema predicate v2PASS336calls. Real source5plans/currentSpatial99lines6886B+HTTP62lines5007B andTS+bundlehints;4KiBblock4040B/nested12278B/completeSummary11857..12116B/context19710B. Graph/requiredfacts/outer safety unchanged;150schemas/defaults unchanged,4descriptions changed.300notes/255registry/3136selection/14metadata preserved.218active/218backup/5journals verified; active336599850B,prior336502058B retained exactpath for reviewed recovery. Guard released unchangedconfig; ONEhidden launcher27936 restorednormalprimary41096; normal150defs/core3/literal2reads exact candidate. No resource/globaldiskfreshness/hosttransport/full31/full19/fresh-task closure. Fresh07judgment:PASS/PASS/PASS/PARTIAL/PASS,8success61608B/3928spare; source-route actions5+6 andmaintainedTS hint7+8actuallyused. Independentunchanged5criteriascoreimprovescriterion3; producerconstructionaudit notaddedasrequirement. Remainingcriterion4wrapper/serialization/request-responseapplication/discovery/editor sources untraced. No overalltaskwin.",
+    "previous_goal_turn_classification": "PROGRESS: nativebuild/package/currentOciusXchecks/revieweddeployment/normalpublicreadback delivered; fresh07completedandindependentlyjudged4PASS1PARTIAL underunchanged8calls/65536B. Allreferencedevidencepinned; original31/19canonicalhashunchanged; goalactive.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -9902,7 +9902,7 @@
       "status": "HISTORICAL_ALREADY_RESUMED_DO_NOT_PAUSE",
       "user_correction": "Already rebooted and returned; no current reboot request."
     },
-    "previous_completed_core_batch": "048c80e pushed only origin/master and deployed35d6ccb0/05efbee5. Compact agent JSON preserves all method-context/safety values; symbol summaries reuse exactly equal source actions via the existing marker.24 focused behavior cases and135-capability documentation check pass, independent source/observer/replay reviews pass. Actual candidate context30427->22686B and groupBlast9349->8945B; source hashes, distinct/unattributed position handling and all prior graph/summary evidence preserved. Same12 literal normal requests all returned:96489->88343B tool-content UTF8,8145B selected output saving plus1B grep timing-width difference. Original strict comparison failure retained; saved-only reconciliation separates ONLY grep.elapsed_ms136->59 plus documented aliases/age, with no RPC retry and all other facts equal. Fresh no-history immediate-caller task passed independent source review in2calls11751B, using one composed adjacent source read. Not target-discovery, runtime/escape/async safety, latency or whole-task productivity proof. Selected data/300notes/other14 metadata preserved;214native assets unchanged. Build950.99s, owned jobs/handles/temps closed and removed. Previous218-file runtime pair retained at exact accounted path. Original31 findings/full19 gate records and prior resource failure unchanged.",
+    "previous_completed_core_batch": "89855d4 pushed onlyorigin/master and deployed a947127e/a930dbb1.21focused behaviorsPASS(5/6/5/5,3.95stest,720.50sbatch),135doclint/syntax4PASS,native696.64sPASS; source/behavior/observer/actual independent reviews. Existing Summary facts/actions/Graph/safety retained; scope prose shortened and2selected retained file hints+12omitted expose maintainedTS+bundle without language preference. Samegrep15461->11275B controlled,11274Bnormal; parsed evidence exact except actual elapsed75->191ms,no resource/latency claim. Actual context19663B/nested12231B/rootSummary12096B; consumer step12011B. Normalall150definitions and5literal outputs match;300notes/255registry15projects/selection/other14metadata preserved.218active/218old/5journals verified;336306474Bpriorruntime retained exactpath. Owned build/reader/temp/guard resources closed; one hidden normal launcher44520 restoredprimary36396. Fresh06PARTIAL8successcalls64726B/810spare,3PASS2PARTIAL; literal expansion+newmaintainedTS hint used. Counts/cache-policy ordering andHTTP/application/discovery/editor/geometry source remain untraced. Prior05PARTIAL/04FAIL/03FAIL/VB02-resetPARTIAL/TSscopedPASS preserved. No full31/full19/globalfreshness/hosttransport/resource/perfection claim.",
     "latest_exact_name_delivery": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-exact-name-delivery-outcome-20261106.json",
       "sha256": "6bc6e82ac6c6069d5a1e9a921d5eb648216d09cb041463c5fe35244328d05d82"
@@ -9916,20 +9916,19 @@
     },
     "last_session_control_correction": "User had already rebooted8hours before the delayed reply was misread. Existing goal isactive. No new reboot or pause authorized; old checkpoint is historical. Normal runtime was changed only for the reviewed upgrade and restored with one hidden normal launcher.",
     "latest_in_progress_core_batch": {
-      "state": "NEXT_ADMITTED_ROUTE_SOURCE_RECOVERY_SELECTED_NOT_IMPLEMENTED",
-      "completed_file_hints_delivery": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\consumer-file-hints-delivery-outcome-20261107.json",
-        "sha256": "e085826fd40081658841c5a30079cd9483ce656f5c9e2b4f6428b820791949d1"
+      "state": "LOCAL_FILE_INVENTORY_PRIORITY_FIXED_SEVEN_CASE_RERUN_LIVE",
+      "checkpoint": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\admitted-source-routes-rerun-checkpoint-20261107.json",
+        "sha256": "5cd911138c488fa747017c8525fa2587ac6f70b110980fc9e0fd60fc8f65e5d6"
       },
-      "next_gap": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\consumer-file-hints-fresh06-next-route-recovery-gap-20261107.json",
-        "sha256": "2d201e199b78d900b7f8aff751864216e4a7fe372c37b839c1d8532e02a84fce"
-      },
-      "current_source_commit": "89855d4f5b63b6adc364c4b0961ad0349bba158b",
-      "implementation_started": false,
+      "implementation_started": true,
+      "initial_focused_pass_proven": false,
+      "initial_failure_fixed_recheck_pending": true,
+      "focused_v2_owned_session_id": 24807,
+      "focused_v2_pass_proven": false,
+      "native_build_pass_proven": false,
+      "deployed": false,
       "fresh_task_pass_proven": false,
-      "all_owned_build_reader_temp_guard_resources_closed": true,
-      "normal_primary_pid": 36396,
       "no_new_supporting_project": true
     },
     "latest_delivery_preparation": {
@@ -10194,6 +10193,27 @@
     "latest_deployed_consumer_file_hints": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\consumer-file-hints-delivery-outcome-20261107.json",
       "sha256": "e085826fd40081658841c5a30079cd9483ce656f5c9e2b4f6428b820791949d1"
+    },
+    "source_route_delivery_evidence": {
+      "source_commit": "50069acac82c0a2c665b6165ae02efd91a48a868",
+      "candidate_actual": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/admitted-source-routes-cold-v2-20261107/acceptance.json",
+      "candidate_actual_sha256": "e45a7d286efe9146a52c55608f45b2bbf084a31c9794de396e99556c8a2e6a6c",
+      "installed_pair_sha256": "7f446099a740bcabaa4c20d3961a05ad59c96efb8d25d0e9ebdc718dae12c40e",
+      "normal_runtime_sha256": "3cde5a510598a4ef3c045698aaffe626f5ce55d91f52d24243e09746ba53bade",
+      "fresh07_frozen_contract_sha256": "70c9a782d17fc64e23a2f40240bcc1131518068780c3298ee16e48f15e78554b",
+      "fresh07_frozen_rubric_sha256": "dae49f92ed33d45ee335ea4043d9e4f5947a34954e277438899ea1f95890ad5f",
+      "retained_backup": "C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-e8faa43e8d8745778bc21c5cc3612185",
+      "backup_cleanup_condition": "Priorcomplete pair retained for reviewed recovery; exactpathcleanupapproval required, no automaticdeletion.",
+      "delivery_outcome": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\admitted-source-routes-delivery-outcome-20261107.json",
+        "sha256": "59299aae453afc8753f5daa22b3fbb65415dab149ff14656ff7c997d17a8b894"
+      },
+      "fresh07_judgment": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-classification-fresh07-judgment-20261107.json",
+        "sha256": "9226af762cbe435a8c9f125b450ae0fb706a253a1cc7482ceacf3463bdfb80da"
+      },
+      "fresh07_parent_ledger_sha256": "2e7f58afe8e121e11083b1ed148eb3799a668b6465c931458ec21610cf160139",
+      "next_ui_evidence_sha256": "bddfc0c1ff6773cc5e9c2d2860c756f7d3b64b20458237759ac11c82fbe3341e"
     }
   }
 }
