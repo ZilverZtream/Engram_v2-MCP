@@ -39,6 +39,84 @@ fn named_source_fallback(row: &mut serde_json::Value, project: &str) {
     }
 }
 
+/// Supplement a selected-file orientation with one current snapshot. Indexed
+/// navigation remains untouched; only trailing complete preview lines may go.
+fn codemap_source_preview(
+    mut navigation: serde_json::Value, directory: &std::path::Path, project: &str,
+    targeted: bool, header: &str, footer: &str,
+) -> Result<String, String> {
+    const REPLY_BYTES: usize = 12 * 1024;
+    const PREVIEW_BYTES: usize = 8 * 1024;
+    const LINES: u64 = 120;
+    let render = |value: &serde_json::Value| -> Result<String, String> {
+        let encoded = serde_json::to_string(value).map_err(|e| e.to_string())?;
+        Ok(format!("{header}\n## CodeMap Navigation\n\n```json\n{encoded}\n```\n{footer}"))
+    };
+    if render(&navigation)?.len() > REPLY_BYTES {
+        return Err("CodeMap metadata exceeds the12KiB source-preview profile; narrow to a symbol_name/symbol_node_id or retry with include_source=false. No navigation facts were discarded.".into());
+    }
+    let files = navigation["files"].as_array().ok_or("Missing selected file navigation")?;
+    if files.len() != 1 { return Err("include_source requires one exact selected file".into()); }
+    let row = &files[0];
+    let file = row["path"].as_str().ok_or("Missing selected file path")?.to_string();
+    let symbols = row["symbols"].as_array();
+    // A source-page anchor is inspection context, never overload resolution.
+    // Ambiguous, display-clipped and unfinished inventories use the file start.
+    let anchor = symbols.filter(|nodes| targeted && nodes.len() == 1
+        && row["declarations_observed"] == 1 && row["symbol_display_limited"] == false)
+        .and_then(|nodes| nodes.first()).filter(|node| node["start_line"].as_u64().is_some_and(|n| n > 0));
+    let start = anchor.and_then(|node| node["start_line"].as_u64()).map_or(1, |line| (line - 1) / LINES * LINES + 1);
+    let anchor_id = anchor.and_then(|node| node["node_id"].as_str()).map(str::to_string);
+    let recovery = |line: u64| serde_json::json!({"tool":"get_full_method_body","arguments":{
+        "project_id":project,"file_path":file,"line_start":line,"context_lines":0,
+        "include_caller_bodies":false,"output_json":true}});
+    let unavailable = |reason: String, line: u64| serde_json::json!({"status":"unavailable",
+        "file_path":file,"reason":reason,"recovery":recovery(line),
+        "scope":"Indexed navigation preserved; current source not supplied. No freshness or binding proof."});
+    let snapshot = super::access_layer_tools::read_current_source_snapshot(directory, &file);
+    let (source, hash) = match snapshot {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            navigation["current_source"] = unavailable(error.chars().take(240).collect(), 1);
+            let out = render(&navigation)?;
+            return if out.len() <= REPLY_BYTES { Ok(out) } else { Err("Source-preview unavailability metadata exceeds12KiB; narrow the symbol selection or use include_source=false".into()) };
+        }
+    };
+    let total = source.lines().count() as u64;
+    if (total == 0 && start != 1) || (total > 0 && start > total) {
+        navigation["current_source"] = unavailable("Indexed anchor page lies beyond current file; inspect from the beginning. Indexed method bounds are unverified.".into(), 1);
+        let out = render(&navigation)?;
+        return if out.len() <= REPLY_BYTES { Ok(out) } else { Err("Source-preview metadata exceeds12KiB; narrow the selection".into()) };
+    }
+    let mut lines = Vec::new();
+    let mut raw_bytes = 0usize;
+    for line in source.lines().skip((start - 1) as usize).take(LINES as usize) {
+        let next = raw_bytes.saturating_add(line.len()).saturating_add(usize::from(!lines.is_empty()));
+        if next > PREVIEW_BYTES { break; }
+        lines.push(line); raw_bytes = next;
+    }
+    loop {
+        if lines.is_empty() && total > 0 {
+            navigation["current_source"] = unavailable("No complete source line fits the preview budget; no line was clipped or skipped.".into(), start);
+            let out = render(&navigation)?;
+            return if out.len() <= REPLY_BYTES { Ok(out) } else { Err("Source-preview metadata exceeds12KiB; narrow the selection".into()) };
+        }
+        let end = if total == 0 { 0 } else { start + lines.len() as u64 - 1 };
+        navigation["current_source"] = serde_json::json!({"status":"available","file_path":file,
+            "line_start":if total==0{0}else{start},"line_end":end,"total_lines":total,
+            "source_code":lines.join("\n"),"source_file_hash":hash,"source_file_hash_algorithm":"blake3",
+            "source_verification":"current_file_snapshot_not_index_verified","indexed_anchor_node_id":anchor_id,
+            "scope":"Current excerpt, not verified indexed method bounds, binding or project freshness.",
+            "next_page":if end<total{Some(recovery(end+1))}else{None}});
+        let preview_bytes = serde_json::to_vec(&navigation["current_source"]).map_err(|e|e.to_string())?.len();
+        let out = render(&navigation)?;
+        if preview_bytes <= PREVIEW_BYTES && out.len() <= REPLY_BYTES { return Ok(out); }
+        if lines.pop().is_none() {
+            return Err("Source-preview metadata exceeds12KiB; narrow the selection or use include_source=false".into());
+        }
+    }
+}
+
 /// A directory/name lookup has its own compact profile. File pagination
 /// counts attempted identities, never the number of matching declarations.
 fn directory_named_navigation(
@@ -1476,6 +1554,10 @@ impl Engram {
         req: crate::models::CodebaseOverviewRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        if req.include_source && (req.scope.is_none() || req.offset != 0
+            || req.symbol_offset != 0 || req.include_retained_context) {
+            return Err(McpError::invalid_params("include_source requires one exact selected-file scope, offsets0 and include_retained_context=false", None));
+        }
         let valid = |path: &str| !path.is_empty() && path.len()<=2048
             && !path.contains(['\\',':','\0','\n','\r'])
             && path.split('/').all(|part| !part.is_empty() && part!="." && part!="..");
@@ -1515,6 +1597,10 @@ impl Engram {
             let scope_paths=first_page.as_ref().unwrap_or(&paths);
             let exact_file=worker_request.scope.as_deref().is_some_and(|scope| scope_paths.files.len()==1
                 && if cfg!(windows){scope_paths.files[0].0.eq_ignore_ascii_case(scope)}else{scope_paths.files[0].0==scope});
+            if worker_request.include_source && !exact_file {
+                return Ok((None,paths,Vec::new(),Vec::new(),None,true,false,
+                    Some(Err(McpError::invalid_params("include_source requires an exact selected file surviving scope, filter and exclusions",None)))));
+            }
             anyhow::ensure!(worker_request.symbol_offset==0 || exact_file,
                 "symbol_offset requires an exact selected-file scope and offset0");
             anyhow::ensure!(worker_request.symbol_node_id.is_none() || exact_file,
@@ -1842,6 +1928,20 @@ impl Engram {
                 let mut trial=navigation.clone();trial["coverage"]["browse_actions_omitted"]=serde_json::json!(omitted);
                 if serde_json::to_vec(&trial).map_err(|e|McpError::internal_error(e.to_string(),None))?.len()<=64*1024 {navigation=trial;}
             }
+        }
+        if req.include_source {
+            let directory=std::path::PathBuf::from(&rec.directory);
+            let project=req.project_id.clone();
+            let targeted=req.symbol_node_id.is_some() || req.symbol_name.is_some();
+            let header=format!("Codebase Overview: {}\nproject_id: {}\nproject_type: {}\nactive_generation: {}\n",rec.project_name,req.project_id,rec.project_type,generation);
+            let footer=self.freshness_footer(&req.project_id,generation).await;
+            let preview_hold=source_hold.clone();
+            let text=tokio::task::spawn_blocking(move || {
+                let _held=preview_hold;
+                codemap_source_preview(navigation,&directory,&project,targeted,&header,&footer)
+            }).await.map_err(|e|McpError::internal_error(e.to_string(),None))?
+                .map_err(|e|McpError::invalid_params(e,None))?;
+            return Ok(CallToolResult::success(vec![Content::text(text)]));
         }
         let encoded=serde_json::to_string(&navigation).map_err(|e|McpError::internal_error(e.to_string(),None))?;
         if encoded.len()>64*1024{return Err(McpError::internal_error("CodeMap response metadata exceeds bound; narrow scope/exclusions",None));}

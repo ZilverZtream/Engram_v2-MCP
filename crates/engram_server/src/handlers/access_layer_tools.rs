@@ -191,7 +191,6 @@ fn current_file_excerpt(
     directory: &Path,
     request: &GetFullMethodBodyRequest,
 ) -> Result<MethodBodyResult, String> {
-    use std::io::Read;
     let file = request
         .file_path
         .as_deref()
@@ -205,27 +204,7 @@ fn current_file_excerpt(
     if start == 0 {
         return Err("Invalid excerpt start: use1-based source lines".into());
     }
-    let path = safe_join(directory, file).map_err(|e| format!("Path validation failed: {e}"))?;
-    let handle = std::fs::File::open(&path).map_err(|e| format!("Cannot open source file: {e}"))?;
-    let metadata = handle
-        .metadata()
-        .map_err(|e| format!("Cannot inspect source file: {e}"))?;
-    if !metadata.is_file() {
-        return Err("Source excerpts require a regular file".into());
-    }
-    if metadata.len() > EXCERPT_FILE_BYTES {
-        return Err("Source file exceeds the4MiB excerpt read limit".into());
-    }
-    let mut bytes = Vec::with_capacity(metadata.len() as usize);
-    handle
-        .take(EXCERPT_FILE_BYTES + 1)
-        .read_to_end(&mut bytes)
-        .map_err(|e| format!("Cannot read source file: {e}"))?;
-    if bytes.len() as u64 > EXCERPT_FILE_BYTES {
-        return Err("Source file exceeds the4MiB excerpt read limit".into());
-    }
-    let hash = blake3::hash(&bytes).to_hex().to_string();
-    let source = String::from_utf8(bytes).map_err(|e| format!("Source is not valid UTF-8: {e}"))?;
+    let (source, hash) = read_current_source_snapshot(directory, file)?;
     let total = source.lines().count() as u32;
     if (total == 0 && start != 1) || (total > 0 && start > total) {
         return Err(format!(
@@ -292,6 +271,24 @@ fn current_file_excerpt(
             page_semantics: "Each page is a fresh current-file read, not atomic pagination. Compare source_file_hash before combining pages. Complete lines are preserved; an oversized first line fails explicitly.",
         }),
     })
+}
+
+/// One bounded handle read; the hash binds complete raw bytes before line
+/// normalization. No graph lookup, caller expansion or indexed-freshness claim.
+pub(crate) fn read_current_source_snapshot(directory: &Path, file: &str) -> Result<(String, String), String> {
+    use std::io::Read;
+    let path = safe_join(directory, file).map_err(|e| format!("Path validation failed: {e}"))?;
+    let handle = std::fs::File::open(&path).map_err(|e| format!("Cannot open source file: {e}"))?;
+    let metadata = handle.metadata().map_err(|e| format!("Cannot inspect source file: {e}"))?;
+    if !metadata.is_file() { return Err("Source excerpts require a regular file".into()); }
+    if metadata.len() > EXCERPT_FILE_BYTES { return Err("Source file exceeds the4MiB excerpt read limit".into()); }
+    let mut bytes = Vec::with_capacity(metadata.len() as usize);
+    handle.take(EXCERPT_FILE_BYTES + 1).read_to_end(&mut bytes)
+        .map_err(|e| format!("Cannot read source file: {e}"))?;
+    if bytes.len() as u64 > EXCERPT_FILE_BYTES { return Err("Source file exceeds the4MiB excerpt read limit".into()); }
+    let hash = blake3::hash(&bytes).to_hex().to_string();
+    let source = String::from_utf8(bytes).map_err(|e| format!("Source is not valid UTF-8: {e}"))?;
+    Ok((source, hash))
 }
 
 /// Execution of optional caller-body expansion, not a claim of consumer coverage.
