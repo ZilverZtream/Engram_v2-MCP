@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-07T06:42:15.800666+00:00",
+  "last_updated_at": "2026-11-07T08:12:18.649268+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-07T06:42:15.800666+00:00",
+    "at_utc": "2026-11-07T08:12:18.649268+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap/Blast agent usefulness:50069ac pushedonlyorigin/master anddeployed546781cd/66022f25; normalpublicoutputs verified. Fresh07PARTIAL4PASS1PARTIAL at8successcalls61608B/3928spare, versusfresh06PARTIAL3PASS2PARTIAL. Prepared-count/cache-policy ordering criterion3closed; criterion4HTTP/JSON-toTSlinkage/discoverycompletion/editoreffects remainsincomplete. Alloriginal31findings/19fullstoragegates unchanged.",
-    "next_user_visible_deliverable": "Continue selected CodeMap/Blast navigation/witness/recovery work toward source-grounded automatic-policy/client bridges. CurrentheldGraph has only a narrower override-save TSdeclaration read; do not substitute it for missingautomatic-policy application/rendering or claimgrepavoidance/taskcompletion. Use actualagentoutputs andindependentcurrent-source evidence; no catalog/instruction/performance detour.",
+    "active_original_item": "CodeMap/Blastagentusefulness:af9bc1adeployedandfresh08source-groundedPARTIAL4PASS1PARTIAL underunchangedcriteria/caps. PreviewdeliverscontractinoneorientationandextraUIcallbackwasinspected;remainingC4sourcebridgesnotcomplete. Preserveold07/06/05partial/04/03fail. Original31findingsand19fullgatesunchanged/openasapplicable.",
+    "next_user_visible_deliverable": "Continue selectedCodeMap/Blastnavigation,witnessandrecoveryworkusingactualremainingclient-source retrievalgaps. Chooseasubstantivegroundedchangeagainstindependentsource,includingrepeated12KiBfield-search/path-onlyfilehintcost;do notsubstitutenarrowoverridebranch,sourcecounts,passingtestsoranotherbroadauditforrequiredclient-pathcoverage. Keepinstruction/catalog/perf/ownership/forensics/cleanupdetoursparked.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9855,8 +9855,8 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "50069ac source-route projection deployed. Initial focused19 retained18PASS/1FAIL fileinventory allocation regression; productionallocation fixed without weakened tests; affected7PASS6.03testseconds/710.55batchseconds. Sameinputs nativePASS750.60s,135doclint+syntax5PASS, independent source/behavior/observer/actual reviews. Candidate v1 verifier KeyError on nested request arguments retainedFAIL; child0/data unchanged/resourcesclosed; corrected report-schema predicate v2PASS336calls. Real source5plans/currentSpatial99lines6886B+HTTP62lines5007B andTS+bundlehints;4KiBblock4040B/nested12278B/completeSummary11857..12116B/context19710B. Graph/requiredfacts/outer safety unchanged;150schemas/defaults unchanged,4descriptions changed.300notes/255registry/3136selection/14metadata preserved.218active/218backup/5journals verified; active336599850B,prior336502058B retained exactpath for reviewed recovery. Guard released unchangedconfig; ONEhidden launcher27936 restorednormalprimary41096; normal150defs/core3/literal2reads exact candidate. No resource/globaldiskfreshness/hosttransport/full31/full19/fresh-task closure. Fresh07judgment:PASS/PASS/PASS/PARTIAL/PASS,8success61608B/3928spare; source-route actions5+6 andmaintainedTS hint7+8actuallyused. Independentunchanged5criteriascoreimprovescriterion3; producerconstructionaudit notaddedasrequirement. Remainingcriterion4wrapper/serialization/request-responseapplication/discovery/editor sources untraced. No overalltaskwin.",
-    "previous_goal_turn_classification": "PROGRESS: nativebuild/package/currentOciusXchecks/revieweddeployment/normalpublicreadback delivered; fresh07completedandindependentlyjudged4PASS1PARTIAL underunchanged8calls/65536B. Allreferencedevidencepinned; original31/19canonicalhashunchanged; goalactive.",
+    "latest_completed_core_batch": "af9bc1aopt-inexactselected-fileCodeMapsourcepreviewpushedonlyorigin/master/deployed017ea2a3/bce1d3b8. Defaultfalsepreservesoldoutput/nonewsourcefileIO;currentrawB3snapshot<=4MiB/120complete lines/8KiBpreview/12KiBcompletereply,scopeandexclusionsbeforeI/O,metadata/candidates/graphfactspreserved. Initialfocused11=9PASS2FAILwrongnormalizedhashoracles;rawcontractcorrectedandstrengthened,productionunchanged;affected2PASS0.49stest/80.27sbatch,initialfailure retained/not11singlecurrentbinarygreen. Syntax5/doclint135PASS,independentsource/behavior/observer/actualreviews. NativePASS938.80s/sourcefrozen/ownedcleanup. Actual334calls:Policy1..11312265B+TS241..36010617B/currentrawB3/literalcontinuations;25defaultresponsesexact,149otherdefsunchanged/CodeMaponlybooleanfalse+desc;300notes/255registry/3136selection/14metadata preserved.218active/218prior/5journalsverified;prior336599850Bretainedexactpathforreviewedrecovery. Guardreleasedunchangedconfig/onehiddenlauncher32700 restoredprimary34964;normal150defs+7readbacksexact. Fresh08PARTIAL4PASS1PARTIAL,8success64291B/1245spare;previewusedinfirstcall,extraTS425..475fetchJSON->_applyPolicy->clearbeforegeometrysource inspected. C4routing/serialization/discoverycompletion/editoreffectsremainuntraced;no fulltask/perfection/resource/full31/full19/host/globalfreshnessclaim.",
+    "previous_goal_turn_classification": "PROGRESS:native/pair/actualOciusXchecks/independentreview/scopedupgrade/218+218+5journals/normalpublicreadbackdelivered. Fresh08completedandindependentlyjudged4PASS1PARTIAL,unchanged8calls/65536B/5criteria. Allsourceproofspinned,original31/19canonicalhashunchanged;goalactive.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -9902,7 +9902,7 @@
       "status": "HISTORICAL_ALREADY_RESUMED_DO_NOT_PAUSE",
       "user_correction": "Already rebooted and returned; no current reboot request."
     },
-    "previous_completed_core_batch": "89855d4 pushed onlyorigin/master and deployed a947127e/a930dbb1.21focused behaviorsPASS(5/6/5/5,3.95stest,720.50sbatch),135doclint/syntax4PASS,native696.64sPASS; source/behavior/observer/actual independent reviews. Existing Summary facts/actions/Graph/safety retained; scope prose shortened and2selected retained file hints+12omitted expose maintainedTS+bundle without language preference. Samegrep15461->11275B controlled,11274Bnormal; parsed evidence exact except actual elapsed75->191ms,no resource/latency claim. Actual context19663B/nested12231B/rootSummary12096B; consumer step12011B. Normalall150definitions and5literal outputs match;300notes/255registry15projects/selection/other14metadata preserved.218active/218old/5journals verified;336306474Bpriorruntime retained exactpath. Owned build/reader/temp/guard resources closed; one hidden normal launcher44520 restoredprimary36396. Fresh06PARTIAL8successcalls64726B/810spare,3PASS2PARTIAL; literal expansion+newmaintainedTS hint used. Counts/cache-policy ordering andHTTP/application/discovery/editor/geometry source remain untraced. Prior05PARTIAL/04FAIL/03FAIL/VB02-resetPARTIAL/TSscopedPASS preserved. No full31/full19/globalfreshness/hosttransport/resource/perfection claim.",
+    "previous_completed_core_batch": "50069ac source-route projection deployed. Initial focused19 retained18PASS/1FAIL fileinventory allocation regression; productionallocation fixed without weakened tests; affected7PASS6.03testseconds/710.55batchseconds. Sameinputs nativePASS750.60s,135doclint+syntax5PASS, independent source/behavior/observer/actual reviews. Candidate v1 verifier KeyError on nested request arguments retainedFAIL; child0/data unchanged/resourcesclosed; corrected report-schema predicate v2PASS336calls. Real source5plans/currentSpatial99lines6886B+HTTP62lines5007B andTS+bundlehints;4KiBblock4040B/nested12278B/completeSummary11857..12116B/context19710B. Graph/requiredfacts/outer safety unchanged;150schemas/defaults unchanged,4descriptions changed.300notes/255registry/3136selection/14metadata preserved.218active/218backup/5journals verified; active336599850B,prior336502058B retained exactpath for reviewed recovery. Guard released unchangedconfig; ONEhidden launcher27936 restorednormalprimary41096; normal150defs/core3/literal2reads exact candidate. No resource/globaldiskfreshness/hosttransport/full31/full19/fresh-task closure. Fresh07judgment:PASS/PASS/PASS/PARTIAL/PASS,8success61608B/3928spare; source-route actions5+6 andmaintainedTS hint7+8actuallyused. Independentunchanged5criteriascoreimprovescriterion3; producerconstructionaudit notaddedasrequirement. Remainingcriterion4wrapper/serialization/request-responseapplication/discovery/editor sources untraced. No overalltaskwin.",
     "latest_exact_name_delivery": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-exact-name-delivery-outcome-20261106.json",
       "sha256": "6bc6e82ac6c6069d5a1e9a921d5eb648216d09cb041463c5fe35244328d05d82"
@@ -10214,6 +10214,32 @@
       },
       "fresh07_parent_ledger_sha256": "2e7f58afe8e121e11083b1ed148eb3799a668b6465c931458ec21610cf160139",
       "next_ui_evidence_sha256": "bddfc0c1ff6773cc5e9c2d2860c756f7d3b64b20458237759ac11c82fbe3341e"
+    },
+    "current_source_preview_checkpoint": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-current-source-deployed-fresh08-checkpoint-20261107.json",
+      "sha256": "32a4bab4104e48d412e33903d0fba4065324f73cd5005ac40fe0ff064eb97f66",
+      "native_build_pending": false,
+      "fresh_task_win_proven": false
+    },
+    "retained_earlier_completed_core_batch_notes": [
+      "89855d4 pushed onlyorigin/master and deployed a947127e/a930dbb1.21focused behaviorsPASS(5/6/5/5,3.95stest,720.50sbatch),135doclint/syntax4PASS,native696.64sPASS; source/behavior/observer/actual independent reviews. Existing Summary facts/actions/Graph/safety retained; scope prose shortened and2selected retained file hints+12omitted expose maintainedTS+bundle without language preference. Samegrep15461->11275B controlled,11274Bnormal; parsed evidence exact except actual elapsed75->191ms,no resource/latency claim. Actual context19663B/nested12231B/rootSummary12096B; consumer step12011B. Normalall150definitions and5literal outputs match;300notes/255registry15projects/selection/other14metadata preserved.218active/218old/5journals verified;336306474Bpriorruntime retained exactpath. Owned build/reader/temp/guard resources closed; one hidden normal launcher44520 restoredprimary36396. Fresh06PARTIAL8successcalls64726B/810spare,3PASS2PARTIAL; literal expansion+newmaintainedTS hint used. Counts/cache-policy ordering andHTTP/application/discovery/editor/geometry source remain untraced. Prior05PARTIAL/04FAIL/03FAIL/VB02-resetPARTIAL/TSscopedPASS preserved. No full31/full19/globalfreshness/hosttransport/resource/perfection claim."
+    ],
+    "current_source_preview_delivery_evidence": {
+      "source_commit": "af9bc1a4ca1f2cbbc60574e6b7875b6922ecca98",
+      "outcome": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-current-source-delivery-outcome-20261107.json",
+        "sha256": "af83be54dc8a070d7c581ed6927953cc89b9a1925eb99cbf1279d4de3c19b526"
+      },
+      "fresh08_judgment": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-classification-fresh08-judgment-20261107.json",
+        "sha256": "823dde4e1fedeb9255a79f98f78a7a0a716e45c0a97da49213dab19819b19f49"
+      },
+      "fresh08_immutable_parent_ledger_sha256": "9dea9c7926c17621cd04cfaa41a7ceb08100d93652ff81b0a3f12dfadb6656b2",
+      "normal_runtime_sha256": "b51eaad5134221ebb4e3968eafb4d0b8ae3de397dcbd92d4e9c1b1277312ca77",
+      "retained_backup": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-1cf6651097de499ca0f6490938e0e15a",
+      "retained_backup_bytes": 336599850,
+      "cleanup_condition": "Priorcompletepairforreviewedrecovery;exactpathcleanupapprovalrequired,noautodeletion.",
+      "goal_complete": false
     }
   }
 }
