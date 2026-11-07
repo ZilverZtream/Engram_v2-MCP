@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-07T21:01:47.205184+00:00",
+  "last_updated_at": "2026-11-07T21:22:25.669194+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-07T21:01:47.205184+00:00",
+    "at_utc": "2026-11-07T21:22:25.669194+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap/Blast core recovery: late-envelope member search implemented for empty capped unresolved scans. Corrected public TS fixture and all8behaviors PASS with frozen inputs/owned cleanup. Actual manager772 gap source-verified; native build and actual candidate/normal-runtime validation remain pending. Not deployed.",
-    "next_user_visible_deliverable": "Build native release on final frozen source, pair with unchanged native assets, then execute prepared v2 actual382call observer under existing exclusive configuration hold. Both impact and Blast must expose working .cancelUpload recovery for manager772, preserve existing facts/routes/full Graph and63prior controls. Final v2 test receipt required; install and normal-runtime verification only after scoped gates.",
+    "active_original_item": "CodeMap/Blast recovery ed50372 deployed and normal-verified. Both Summary tools now expose executable .cancelUpload recovery to manager772; existing facts/routes/full Graph and63prior controls preserved. Continue original bounded reset-state planning evidence; original31/full19 incomplete.",
+    "next_user_visible_deliverable": "Use the delivered recovery in the existing reset-state planning task under its unchanged call/byte criteria, checking the resulting plan against raw source. Keep informed reuse distinct from fresh adoption; do not require exhaustive runtime safety or reopen instruction drafting.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9855,8 +9855,8 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "Named-span preview deployed. Focused7PASS/nativePASS with frozen inputs and owned cleanup. Actual366calls:59prior controls unchanged, callback241..360->266..385/10638->10462B with exact current source and continuation;two serializer previews unchanged.150schemas/149other definitions preserved;CodeMap description only.218active/218prior/5journals verified,stage absent,hold released/config same,normal runtime PASS. Controlled12 routing search partial;controlled13 uses existing exclusion to recover all3static links,5criteria PASS in8calls62058B. Informed planning only; no fresh-agent/full31/full19 completion claim or causal task credit for named-span fix.",
-    "previous_goal_turn_classification": "PROGRESS: first run7PASS/1FAIL retained with complete cleanup; corrected Calls fixture then8PASS in80.23s with frozen inputs/owned cleanup. Implementation is ready for native/actual validation, not delivered yet.",
+    "latest_completed_core_batch": "Capped member recovery deployed:8focused behaviors/native build PASS, frozen inputs and owned cleanup. Actual382calls preserve63prior controls,150definitions and full cancelUpload Graph; returned search/current source reaches manager772 without adding indexed callers.218active/218prior/5journals verified; normal runtime matches candidate. Original31/full19 and broader adoption remain open.",
+    "previous_goal_turn_classification": "PROGRESS: source-confirmed missing recovery delivered and normal-runtime verified. Earlier fixture failure and task limits retained; no overall completion claim.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10477,8 +10477,24 @@
       "sha256": "a073822627cee01ca197fc4b712fbd9160bca063949f539d1f31d3528d94ef6b"
     },
     "capped_member_final_source_review": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\capped-member-recovery-source-review-v2-20261107.json",
-      "sha256": "69fe2b7087b444727aeca5301fff97a308246bd31236f447a02915e2d4a81ee0"
-    }
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\capped-member-recovery-source-review-v3-20261107.json",
+      "sha256": "82e71395727bc2814762b19b7aa93acd8755148d8c8413ac54a027261d9cf93e"
+    },
+    "latest_capped_member_native_running": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\capped-member-recovery-native-running-checkpoint-20261107.json",
+      "sha256": "d8a2de1e1f6ae7033172f3b78ae634215d57bff7a511c52578482d480eba377a",
+      "superseded_by": "latest_capped_member_delivery; build terminal PASS, owned resources removed, installed normal validation PASS"
+    },
+    "latest_capped_member_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\capped-member-recovery-delivery-outcome-20261107.json",
+      "sha256": "4b095ed4ff348eb8f288e8ed6f0f4cdba85915d8ba923d60a697531b4abe5416"
+    },
+    "latest_capped_member_retained_pair": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-c998946e025946e08c2cab3d007079a6",
+      "files": 218,
+      "bytes": 336615210,
+      "cleanup_condition": "Prior complete runtime retained for reviewed recovery; exact-path cleanup approval required. No automatic deletion or rollback proof."
+    },
+    "capped_member_current_resource_state": "No pending verification RPC or owned runner. Test/native/candidate temp resources removed; read-only configuration hold released with unchanged bytes. Normal daemon PID40112 owns its idle lifetime. Prior pair and diagnostics retained under recorded cleanup conditions."
   }
 }
