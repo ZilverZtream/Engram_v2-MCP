@@ -339,6 +339,15 @@ async fn graph_only_method_without_source_attestation_cannot_be_green() {
         "{v}"
     );
     assert_ne!(v["completeness"]["downstream"]["status"], "complete", "{v}");
+    assert_eq!(v["downstream_impact"]["evidence"]["detail"],"summary");
+    assert_eq!(v["downstream_impact"]["evidence"]["source_layout"],"unavailable");
+    assert!(v["downstream_impact"]["evidence"]["source_generation"].is_null());
+    assert!(v["downstream_impact"]["evidence"]["selected_dependents_observed"].is_null());
+    let mut graph=json_of(&edit_safety(&engram,json!({"project_id":PID,
+        "file_path":"Site/App_Code/svc.vb","method_name":"M","output_json":true,
+        "downstream_detail":"graph"})).await.unwrap());
+    graph["downstream_impact"]["evidence"]=v["downstream_impact"]["evidence"].clone();
+    assert_eq!(v,graph,"Unavailable evidence must retain the same failure/nullable facts in both display profiles");
     for p in [
         "blast",
         "callers",

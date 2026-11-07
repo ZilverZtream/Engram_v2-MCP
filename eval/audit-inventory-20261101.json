@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-07T00:54:18.731059+00:00",
+  "last_updated_at": "2026-11-07T01:27:00.135023+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-07T00:54:18.731059+00:00",
+    "at_utc": "2026-11-07T01:27:00.135023+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,7 +9841,7 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap/Blast agent usefulness remains active.0db45c1 bare-name recovery is deployed3b140333/9a3eea04 and native/current-data verified;8public behaviorsPASS. Fresh03 finds canonicalmethod oncall1 but FAILS bytebudget after contextcall2:70905B total/5369over, numericcontract/currentUItrace uninspected. Next concrete core blocker is58064B mandatory downstream graph embedded in65496B minimal editcontext. Select shared post-decision bounded summary display, explicit fullgraph profile, preserving safety/coverage/counts/actions and source guard. No storage/parser/catalog/instruction/kernel drift.",
+    "active_original_item": "CodeMap/Blast agent usefulness remains active. Summarydefault/Graphopt-in implemented on BOTHedittools and13focusedpublicbehaviorchecksPASS. Initiallegacygreenexpectation corrected from actualboth-profilediagnostic to preserve missing-method-semantics caution; no production safety rule change. Defaultnativebuild/current-OciusX validation/deployment/frozenfreshVBtask remain pending. Original31/19 and priorfresh03FAIL/otherPARTIALs preserved.",
     "next_user_visible_deliverable": "Implement/review summary-default downstream_detail on BOTH existing method-context and edit-safety requests, explicit graph preserves legacy evidence. Reuse existing held snapshot pure summary projection only AFTER raw apply_downstream_safety to keep verdict/reasons/completeness identical. Verify profiles/source/witness/graph recovery, actual minimal context<=24KiB target and nested summary<=12KiB; repeat SAMEfrozenVBtask without hints/relaxedcriteria. No latency/resource claim from output reduction.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
     "latest_completed_core_batch": "0db45c1 pushed onlyorigin/master, deployed3b140333/9a3eea04.8publicFTSbehaviorsPASS(1.54stest/738.53sbatch),135capabilitydoclintPASS;native776.57sPASS, independent source/behavior/current-datareviews. Actual bareClassify query5409B yieldscanonicalqualifiedmethod76..84,31keys/16206decodebytes/8seeks; literal source andmethodimpact44dependents/1Resolve/reference96 andcurrentResolve92..106verified. Old7TS/directory/VB reports+ordinaryVBfile parsedunchanged; sameoldcompute25exact, literalimpact12differsONLYcontinuationlimit andshortestpathomissions32vs19.149otherdefs exact;CodeMaponly2descriptionstrings changed, normalall150/actualNEW8 verified.300notes/14meta/registryselectionpreserved,218active/218old/5journalsverified;336256298Bpriorruntime retained exactpath. Fresh03 FAILS after2successcalls70905B, not8calls: context65496B includes58064Bgraph; no classifierbody/numericcontract/currentUI read. Same exactgeneratedcontextaction yieldsALLvaluesidentical65496B, notcallerclass/linehint issue. Prior02/resetpartial andTSscopedpasspreserved; full31/full19/resource/hostreconnect/remoteCIpass unclaimed.",
-    "previous_goal_turn_classification": "PROGRESS: reviewed0db45c1/source8case checks/native/currentdata passed, exactpair deployed and normalpublicCodeMap/literal source+impact readback passed. SAMEfrozenunhinted fresh03 completed as2call70905B budgetFAIL; independent judgment preserved. Separate exactcontextaction/control identifiedsame58064Bgraph bottleneck and selected narrowlyscoped displaydesign; no newcode or broader audit.31originalfindings/19fullgates unchanged; goalactive and no newreboot/pause.",
+    "previous_goal_turn_classification": "PROGRESS: corrected preexisting low-exposure test contract using actual identical default/Graph yellow0.5/NotRun evidence; all13focused behaviors PASS(5/6/2,2.62stest,42.17sownedbatch), ownedjob/relay/temp closed and removed, frozen inputs unchanged. Updated independent review requested; sourcepush/nativebuild next. No native/current-data/deployment/fresh-task win claimed.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -9916,25 +9916,71 @@
     },
     "last_session_control_correction": "User had already rebooted8hours before the delayed reply was misread. Existing goal isactive. No new reboot or pause authorized; old checkpoint is historical. Normal runtime was changed only for the reviewed upgrade and restored with one hidden normal launcher.",
     "latest_in_progress_core_batch": {
-      "state": "NEXT_SHARED_EDIT_SAFETY_SUMMARY_DISPLAY_DESIGN_READY_NOT_IMPLEMENTED",
-      "candidate": "Bounded downstream evidence in method context and standalone edit safety, preserving raw safety decision/full graph opt-in",
+      "state": "LOCAL_SHARED_EDIT_SUMMARY_13_FOCUSED_PASS_NATIVE_AND_ACTUAL_DATA_PENDING",
+      "candidate": "Compact downstream evidence in existing method context and edit safety; explicitGraph retainslegacy payload",
       "design": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\method-context-impact-summary-design-20261106.json",
         "sha256": "6935883e3261891c8a2b58637cb7312a2a73e13795deaf9437a54c2cb8876147"
       },
-      "actual_output_profile": {
+      "source_review": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\method-context-summary-source-review-v2-20261107.json",
+        "sha256": "f0c38101f9bae4038d1269c9742084cf63f41ddcf631d860080743d10b6ebc80"
+      },
+      "doc_lint": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\method-context-summary-doc-lint-20261107.json",
+        "sha256": "c57cbad87e052b2ae095a80973968572780dad256cd70ce5b0a8b1a6dc07d084"
+      },
+      "original_failure": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-classification-fresh03-independent-judgment-20261106.json",
+        "sha256": "030d7568b18c700bb83370858160a32f3b551810c2d38aea6fccd8883a6d7271"
+      },
+      "profile": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\method-context-impact-output-profile-20261106.json",
         "sha256": "1c26e7dd7462460c37845724d7a752249f3275718355d97b2926001dcd39c77a"
       },
-      "fresh_budget_failure": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-classification-fresh03-independent-judgment-20261106.json",
-        "sha256": "030d7568b18c700bb83370858160a32f3b551810c2d38aea6fccd8883a6d7271"
+      "invariants": [
+        "Safety computed from original evidence BEFORE display projection; preserve ALL non-evidence fields/counts/coverage/reasons/positions/scopes.",
+        "Same canonicaltargetID and heldguard remain through assembly/serialization; no newquery/walk/HEAD capture.",
+        "Field-specificSummary default on2requests only; globalImpactDetaildefaultGraph unchanged.",
+        "Pure summaryValue refactor preserves public impact output; explicitGraph restoreslegacy nestedgraph.",
+        "FinalnestedValue12KiBbound errors explicitly rather than graphfallback or inventedzero/unavailablecounts."
+      ],
+      "focused_plan": {
+        "label": "method-context-summary-fts-focused-20261107",
+        "targets": [
+          "edit_context_downstream_tests",
+          "edit_context_tests",
+          "transitive_impact_behavior_tests"
+        ],
+        "expected_case_counts": [
+          5,
+          6,
+          2
+        ],
+        "total": 13,
+        "no_library_test_target": true,
+        "source_frozen_during_build": true
       },
       "implementation_validated_by_executed_public_tests": false,
       "native_build_passed": false,
       "deployed": false,
       "fresh_VB_task_passed": false,
-      "goal_complete": false
+      "goal_complete": false,
+      "low_exposure_test_contract_diagnosis": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\method-context-summary-low-exposure-diagnosis-20261107.json",
+        "sha256": "3981ce106b2485c4c38ed03a81996156f8d8193125be2d5b6efc67af9767d6fb"
+      },
+      "focused_behavior": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\method-context-summary-fts-focused-v2-20261107.json",
+        "sha256": "d2934aef6ac939f555eae51492a36595b11227ffab1aa2f4ae3848ece748135b"
+      },
+      "focused_behavior_counts": [
+        5,
+        6,
+        2
+      ],
+      "native_build_pass_proven": false,
+      "fresh_agent_task_win_proven": false
     },
     "latest_delivery_preparation": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-directory-name-delivery-outcome-20261106.json",

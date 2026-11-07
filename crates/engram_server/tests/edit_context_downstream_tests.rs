@@ -280,9 +280,23 @@ fn text(result: &rmcp::model::CallToolResult) -> String {
 }
 
 async fn both(fixture: &Fixture) -> (Value, Value) {
+    both_profile(fixture,None,false).await
+}
+
+async fn both_profile(fixture: &Fixture, detail: Option<&str>, minimal: bool) -> (Value, Value) {
     let mut context_request = request();
+    let mut safety_request = request();
     context_request["include_history"] = json!(false);
     context_request["include_business_logic"] = json!(false);
+    if minimal {
+        context_request["include_full_body"]=json!(false);
+        context_request["include_caller_bodies"]=json!(false);
+        context_request["max_callers"]=json!(2);
+    }
+    if let Some(detail)=detail {
+        context_request["downstream_detail"]=json!(detail);
+        safety_request["downstream_detail"]=json!(detail);
+    }
     let context = fixture
         .engram
         .handle_get_method_edit_context(serde_json::from_value(context_request).unwrap())
@@ -290,7 +304,7 @@ async fn both(fixture: &Fixture) -> (Value, Value) {
         .unwrap();
     let safety = fixture
         .engram
-        .handle_check_edit_safety(serde_json::from_value(request()).unwrap())
+        .handle_check_edit_safety(serde_json::from_value(safety_request).unwrap())
         .await
         .unwrap();
     (
@@ -328,7 +342,11 @@ fn one_direct_caller_still_requires_downstream_review_of_http_and_ui_in_both_edi
         );
         let reasons = safety["reasons"].to_string().to_lowercase();
         assert!(reasons.contains("downstream") || reasons.contains("transitive"));
-        let evidence = &downstream["evidence"];
+        assert_eq!(downstream["evidence"]["detail"],"summary");
+        let (_,graph_safety)=both_profile(&fixture,Some("graph"),false).await;
+        let mut preserved=graph_safety.clone();preserved["downstream_impact"]["evidence"]=downstream["evidence"].clone();
+        assert_eq!(preserved,safety,"Choosing a display profile must preserve every safety decision and coverage field");
+        let evidence = &graph_safety["downstream_impact"]["evidence"];
         assert_eq!(evidence["change_breakage_proven"], false);
         assert_eq!(evidence["working_tree_checked"], false);
         let rows = evidence["nodes"].as_array().unwrap();
@@ -480,7 +498,11 @@ fn unverified_missing_and_noncausal_records_do_not_inflate_shared_downstream_cou
                 .is_some_and(|reasons| !reasons.is_empty()),
             "Partial downstream status must retain reasons instead of pretending a display cap was hit"
         );
-        let evidence = &downstream["evidence"];
+        assert_eq!(downstream["evidence"]["detail"],"summary");
+        let (_,graph_safety)=both_profile(&fixture,Some("graph"),false).await;
+        let mut preserved=graph_safety.clone();preserved["downstream_impact"]["evidence"]=downstream["evidence"].clone();
+        assert_eq!(preserved,safety,"Unknown or unselected evidence cannot become safer in the compact profile");
+        let evidence = &graph_safety["downstream_impact"]["evidence"];
         for row in evidence["nodes"]
             .as_array()
             .unwrap()
@@ -498,7 +520,7 @@ fn unverified_missing_and_noncausal_records_do_not_inflate_shared_downstream_cou
 }
 
 #[test]
-fn a_selected_low_exposure_method_can_be_lower_observed_risk_without_claiming_safe_execution() {
+fn a_selected_low_exposure_method_keeps_unknown_effects_visible_in_both_profiles() {
     owned_case(false, |fixture| async move {
         let (context, safety) = both(&fixture).await;
         assert_eq!(context["edit_safety"], safety);
@@ -509,7 +531,15 @@ fn a_selected_low_exposure_method_can_be_lower_observed_risk_without_claiming_sa
             safety["downstream_impact"]["transitive_dependents_observed"],
             0
         );
-        assert_eq!(safety["verdict"], "green");
+        let (_, graph_safety) = both_profile(&fixture, Some("graph"), false).await;
+        let mut preserved = graph_safety.clone();
+        preserved["downstream_impact"]["evidence"] = safety["downstream_impact"]["evidence"].clone();
+        assert_eq!(preserved, safety, "Display selection must preserve low-exposure safety facts");
+        assert_eq!(safety["completeness"]["method_semantics"]["status"], "not_run");
+        assert_eq!(safety["verdict"], "yellow", "Unassessed method effects require caution even with complete low-exposure graph evidence: {safety}");
+        assert!(safety["confidence"].as_f64().unwrap() <= 0.5);
+        assert!(safety["reasons"].as_array().unwrap().iter().any(|reason|
+            reason.as_str().unwrap().contains("method semantics not measured")));
         assert_eq!(
             safety["downstream_impact"]["evidence"]["change_breakage_proven"],
             false
@@ -522,7 +552,97 @@ fn a_selected_low_exposure_method_can_be_lower_observed_risk_without_claiming_sa
             .await
             .unwrap();
         let markdown = text(&result);
-        assert!(markdown.contains("LOWER OBSERVED RISK"));
+        assert!(markdown.contains("CAUTION"));
+        assert!(markdown.contains("method semantics not measured"));
         assert!(!markdown.contains("SAFE TO EDIT"));
     });
+}
+
+#[test]
+fn downstream_profiles_bound_agent_context_without_losing_safety_or_graph_recovery() {
+    owned_case(true,|fixture| async move {
+        const EXTRA:&str="Site/App_Code/Consumers.vb";
+        let body=(0..40).map(|i|format!("Public Function Caller{i:02}() As Integer\n Return Policy.Resolve()\nEnd Function\n")).collect::<String>();
+        let root=std::path::PathBuf::from(fixture.engram.state.registry.get_project(PID).unwrap().unwrap().directory);
+        std::fs::write(root.join(EXTRA),&body).unwrap();
+        let cancel=CancellationToken::new();let base=fixture.engram.state.registry.capture_source_head(PID).unwrap();
+        fixture.search.prepare_source_snapshot(PID,2,3,&[RelPath::new(EXTRA)],&[],&cancel).await.unwrap();
+        fixture.search.index_docs(PID,&[doc(EXTRA,&body,3,40)],&cancel).await.unwrap();
+        fixture.search.seal_source_snapshot(PID,3).unwrap();assert!(fixture.engram.state.registry.publish_source_head(&base,3).unwrap());
+        let mut nodes=vec![file_node(EXTRA,&body,3)];let mut edges=Vec::new();
+        for i in 0..40 {
+            let name=format!("Consumers.Caller{i:02}");let line=i*3+1;
+            nodes.push(node(EXTRA,&name,line,line+2,3));
+            let mut call=edge(id(EXTRA,&name,line),id(POLICY,"Policy.Resolve",5),EdgeKind::Calls,3);
+            call.metadata=Some(json!({"src_line":line,"call_site_line":line+1}));edges.push(call);
+        }
+        let mut direct=edge(id(POLICY,"Policy.Resolve",5),id(POLICY,"Policy.ClassifyAutomatic",2),EdgeKind::Calls,2);
+        direct.metadata=Some(json!({"src_line":5,"call_site_line":6}));edges.push(direct);
+        fixture.engram.state.graph.upsert_nodes(PID,&nodes).unwrap();fixture.engram.state.graph.upsert_edges(PID,&edges).unwrap();
+        let (compact,safety)=both_profile(&fixture,None,true).await;
+        let (explicit,explicit_safety)=both_profile(&fixture,Some("summary"),true).await;
+        assert_eq!(compact,explicit);assert_eq!(safety,explicit_safety);
+        let (graph,graph_safety)=both_profile(&fixture,Some("graph"),true).await;
+        assert_eq!(compact["edit_safety"],safety);assert_eq!(graph["edit_safety"],graph_safety);
+        let evidence=&safety["downstream_impact"]["evidence"];
+        let graph_evidence=&graph_safety["downstream_impact"]["evidence"];
+        let mut restored=compact.clone();restored["edit_safety"]["downstream_impact"]["evidence"]=graph_evidence.clone();
+        assert_eq!(restored,graph,"The chosen evidence display is the ONLY context value allowed to differ");
+        let mut restored=safety.clone();restored["downstream_impact"]["evidence"]=graph_evidence.clone();assert_eq!(restored,graph_safety);
+        assert!(serde_json::to_vec(evidence).unwrap().len()<=12*1024);
+        assert!(serde_json::to_vec(&compact).unwrap().len()<=24*1024);
+        assert!(serde_json::to_vec(&graph).unwrap().len()>24*1024,"Use a genuinely connected graph that would consume the agent context budget");
+        assert_eq!(compact["full_source"],Value::Null);assert_eq!(compact["caller_bodies"][0]["source_code"],"");
+        assert_eq!(compact["caller_excerpts"][0]["status"],"verified_source");
+        assert_eq!(evidence["detail"],"summary");assert!(evidence.get("nodes").is_none());
+        assert_eq!(evidence["source_generation"],3);assert_eq!(evidence["selected_dependents_observed"],46);
+        assert_eq!(evidence["direct_dependents_observed"],1);assert_eq!(evidence["transitive_dependents_observed"],45);
+        assert_eq!(evidence["coverage"],graph_evidence["coverage"]);assert_ne!(safety["verdict"],"green");
+        let omitted=graph_evidence["omitted_from_display"].as_u64().unwrap();assert!(omitted>0);
+        assert!(safety["reasons"].as_array().unwrap().iter().any(|r|r.as_str().unwrap().contains(&format!("{omitted} observed downstream dependents omitted"))),"Safety must be computed before compact projection removes the legacy display field");
+        assert_eq!(evidence["graph_omissions"]["shortest_paths_omitted"],graph_evidence["shortest_paths_omitted"]);
+        let witness=&evidence["immediate_consumers"][0];assert_eq!(witness["node_id"],id(POLICY,"Policy.Resolve",5));
+        assert_eq!(witness["sample_connection_to_target"]["source_line"],6);
+        assert_eq!(witness["sample_connection_to_target"]["reference_lines"],json!([6]));
+        let source=&witness["source_read"];assert_eq!(source["tool"],"get_full_method_body");
+        let result=fixture.engram.handle_get_full_method_body(serde_json::from_value(source["arguments"].clone()).unwrap()).await.unwrap();
+        let current:Value=serde_json::from_str(&text(&result)).unwrap();assert_eq!(current["source_file_hash"],ContentHash::compute(POLICY_BODY.as_bytes()).0);
+        assert!(current["source_code"].as_str().unwrap().contains("Return ClassifyAutomatic()"));
+        let recovery=&evidence["graph_continuation"];assert_eq!(recovery["tool"],"impact_analysis");
+        let result=fixture.engram.handle_impact_analysis(serde_json::from_value(recovery["arguments"].clone()).unwrap()).await.unwrap();
+        let full=text(&result);let recovered:Value=serde_json::from_str(full.split_once("## Revision-admitted change impact").unwrap().1.split_once("```json").unwrap().1.split_once("```").unwrap().0).unwrap();
+        assert_eq!(recovered,*graph_evidence,"Executed graph recovery must retain the same canonical identities, positions and coverage when the source has not changed");
+        for tool in ["context","safety"] {
+            let mut args=request();args["output_json"]=json!(false);
+            let result=if tool=="context" {
+                args["include_full_body"]=json!(false);args["include_history"]=json!(false);args["include_business_logic"]=json!(false);
+                fixture.engram.handle_get_method_edit_context(serde_json::from_value(args).unwrap()).await.unwrap()
+            } else {fixture.engram.handle_check_edit_safety(serde_json::from_value(args).unwrap()).await.unwrap()};
+            let markdown=text(&result);assert!(markdown.contains("\"detail\":\"summary\""));
+            assert!(!markdown.contains("\"shortest_paths\":["),"Default Markdown must also avoid embedding the full graph inventory");
+        }
+    });
+}
+
+#[test]
+fn downstream_profiles_expose_summary_default_and_explicit_graph_in_both_request_schemas() {
+    use engram_server::models::{CheckEditSafetyRequest,GetMethodEditContextRequest,ImpactDetail};
+    let base=json!({"project_id":PID,"file_path":POLICY,"method_name":"ClassifyAutomatic"});
+    let ctx:GetMethodEditContextRequest=serde_json::from_value(base.clone()).unwrap();
+    let safety:CheckEditSafetyRequest=serde_json::from_value(base.clone()).unwrap();
+    assert_eq!(ctx.downstream_detail,ImpactDetail::Summary);assert_eq!(safety.downstream_detail,ImpactDetail::Summary);
+    assert_eq!(ImpactDetail::default(),ImpactDetail::Graph,"Standalone impact-tool defaults must remain graph");
+    for mode in ["summary","graph","tiny"] {
+        let mut request=base.clone();request["downstream_detail"]=json!(mode);
+        let ctx=serde_json::from_value::<GetMethodEditContextRequest>(request.clone());
+        let safety=serde_json::from_value::<CheckEditSafetyRequest>(request);
+        if mode=="tiny" {assert!(ctx.is_err() && safety.is_err());}
+        else {let expected=if mode=="summary"{ImpactDetail::Summary}else{ImpactDetail::Graph};assert_eq!(ctx.unwrap().downstream_detail,expected);assert_eq!(safety.unwrap().downstream_detail,expected);}
+    }
+    for schema in [serde_json::to_value(schemars::schema_for!(GetMethodEditContextRequest)).unwrap(),serde_json::to_value(schemars::schema_for!(CheckEditSafetyRequest)).unwrap()] {
+        assert!(!schema["required"].as_array().unwrap().contains(&json!("downstream_detail")));
+        let field=&schema["properties"]["downstream_detail"];assert_eq!(field["default"],"summary");
+        let definition=field["$ref"].as_str().and_then(|reference|schema.pointer(reference.strip_prefix('#')?)).unwrap_or(field);
+        assert_eq!(definition["enum"],json!(["summary","graph"]));
+    }
 }
