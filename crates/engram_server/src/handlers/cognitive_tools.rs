@@ -1640,6 +1640,12 @@ impl Engram {
                         row["name_selection"]=serde_json::json!({"requested_name":name,
                             "match":"exact_case_sensitive_extracted_name","observed":!symbols.is_empty(),
                             "scope":"Admitted bounded native callable candidates, not uniqueness, FQN resolution or absence proof"});
+                        if let Some(lookup)=discovery.last().filter(|lookup|
+                            lookup["name_match"]=="exact_case_sensitive_terminal_segment") {
+                            row["name_selection"]["match"]=lookup["name_match"].clone();
+                            row["name_selection"]["exact_extracted_name_priority"]=serde_json::json!(true);
+                            row["declaration_inventory"]=lookup["declaration_inventory"].clone();
+                        }
                         // Fit candidates inside the sole file row so crowding
                         // cannot discard every matched identity and action.
                         let original=symbols.len();
@@ -1737,6 +1743,13 @@ impl Engram {
                 "Lookup work/decode/candidate/deadline gaps are reported in coverage. Display may omit retained candidates; no offset-based inventory continuation. File action returns ordinary discovery; symbol_node_id expands a known identity.",
                 "Executable source/impact/context actions are fresh observations, not atomic replay. Compare returned generations/hashes; indexed ranges are bounded and current-source, method-boundary, binding and runtime proof remain separate."
             ]);
+            if navigation["coverage"]["declarations"].as_array().is_some_and(|lookups|
+                lookups.iter().any(|lookup|lookup["name_match"]=="exact_case_sensitive_terminal_segment")) {
+                navigation["limitations"][0]=serde_json::json!(
+                    "No admitted exact extracted-name candidate was observed. A bare name then compares exact case-sensitive final dot-separated name segments within this selected file; full qualified identities and overload candidates remain distinct, not resolved bindings.");
+                navigation["limitations"][1]=serde_json::json!(
+                    "Exact seeks and callable file-prefix recovery share one key/decode/candidate/deadline budget and held file/node selection. A capped or empty result does not prove absence. Exact-name successes are not unioned with qualified terminal alternatives; directory-name pages remain exact extracted-name only.");
+            }
         }
         if !req.include_declarations {
             navigation["detail"]=serde_json::json!("paths_only");

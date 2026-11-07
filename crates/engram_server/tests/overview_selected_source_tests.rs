@@ -1993,6 +1993,154 @@ fn named_candidates_preserve_ambiguity_and_usable_actions_under_work_and_respons
     });
 }
 
+async fn publish_named_sources(engram: &Engram, search: &HybridSearchEngine, sources: &[(&str, &str)]) {
+    let root=std::path::PathBuf::from(engram.state.registry.get_project(PID).unwrap().unwrap().directory);
+    let cancel=CancellationToken::new();
+    let initial=engram.state.registry.capture_source_head(PID).unwrap();
+    let paths:Vec<_>=sources.iter().map(|(path,_)|RelPath::new(path)).collect();
+    search.prepare_full_source_snapshot(PID,0,1,&paths,&cancel).await.unwrap();
+    let docs:Vec<_>=sources.iter().enumerate().map(|(i,(path,body))| {
+        std::fs::create_dir_all(root.join(path).parent().unwrap()).unwrap();
+        std::fs::write(root.join(path),body).unwrap();
+        let mut indexed=doc("memory",1,i as u64+1,path,"vb",body);
+        indexed.end_line=body.lines().count() as u32;indexed
+    }).collect();
+    search.index_docs(PID,&docs,&cancel).await.unwrap();search.seal_source_snapshot(PID,1).unwrap();
+    let files:Vec<_>=sources.iter().map(|(path,body)| {
+        let mut file=node(&format!("file:{path}"),"file",path,path,1);
+        file.end_line=body.lines().count() as u32;
+        file.metadata=Some(json!({"file_hash":ContentHash::compute(body.as_bytes()).0}));file
+    }).collect();
+    engram.state.graph.upsert_nodes(PID,&files).unwrap();
+    assert!(engram.state.registry.publish_source_head(&initial,1).unwrap());
+}
+
+#[test]
+fn named_terminal_lookup_recovers_qualified_method_and_executable_method_impact() {
+    owned_case(true,|engram,search| async move {
+        const PATH:&str="src/Policy.vb";
+        const BODY:&str="Namespace Demo\nPublic Class Policy\nPublic Shared Function ChooseLevel(features As Long, coordinates As Long) As Integer\nReturn 10\nEnd Function\nPublic Shared Function Resolve() As Integer\nReturn ChooseLevel(1, 1)\nEnd Function\nEnd Class\nEnd Namespace\n";
+        publish_named_sources(&engram,&search,&[(PATH,BODY)]).await;
+        // A newer published head may inherit this file's physical revision.
+        let cancel=CancellationToken::new();let base=engram.state.registry.capture_source_head(PID).unwrap();
+        search.prepare_source_snapshot(PID,1,2,&[RelPath::new("src/Other.vb")],&[],&cancel).await.unwrap();
+        search.index_docs(PID,&[doc("memory",2,2,"src/Other.vb","vb","other source")],&cancel).await.unwrap();
+        search.seal_source_snapshot(PID,2).unwrap();assert!(engram.state.registry.publish_source_head(&base,2).unwrap());
+        let wanted=format!("sym:function:{PATH}:Demo.Policy.ChooseLevel:3");
+        let caller=format!("sym:function:{PATH}:Demo.Policy.Resolve:6");
+        let mut target=node(&wanted,"function","Demo.Policy.ChooseLevel",PATH,1);target.start_line=3;target.end_line=5;
+        let mut consumer=node(&caller,"function","Demo.Policy.Resolve",PATH,1);consumer.start_line=6;consumer.end_line=8;
+        let mut declarations=vec![target.clone(),consumer];
+        for (owner,revision) in [("Future",3),("History",1),("Foreign",1)] {
+            let name=format!("Demo.{owner}.ChooseLevel");
+            let mut rejected=node(&format!("sym:function:{PATH}:{name}:13"),"function",&name,PATH,revision);
+            rejected.start_line=13;rejected.end_line=13;
+            if owner=="History" {rejected.namespace="history".into();}
+            if owner=="Foreign" {rejected.file_path=RelPath::new("src/Other.vb");}
+            rejected.metadata=Some(json!({"sentinel":"RejectedQualifiedNamePayload"}));declarations.push(rejected);
+        }
+        engram.state.graph.upsert_nodes(PID,&declarations).unwrap();
+        engram.state.graph.upsert_edges(PID,&[Edge{source_id:caller.clone(),target_id:wanted.clone(),namespace:"memory".into(),language:"vb".into(),edge_kind:EdgeKind::Calls,weight:1,generation:1,metadata:Some(json!({"src_line":6,"call_site_line":7})),updated_at_ms:1}]).unwrap();
+        let text=navigation_text(&engram,json!({"project_id":PID,"scope":PATH,"symbol_name":"ChooseLevel"})).await;
+        assert!(text.len()<12*1024 && !text.contains("RejectedQualifiedNamePayload"));
+        let page=navigation(&text);assert_eq!(page["source_generation"],2);assert_eq!(page["working_tree_checked"],false);
+        let file=&page["files"][0];assert_eq!(file["physical_generation"],1);
+        assert_eq!(file["symbols"].as_array().unwrap().len(),1);
+        let selected=&file["symbols"][0];assert_eq!(selected["node_id"],wanted);assert_eq!(selected["name"],"Demo.Policy.ChooseLevel");
+        assert_eq!(file["name_selection"]["match"],"exact_case_sensitive_terminal_segment");
+        let lookup=&page["coverage"]["declarations"][0];assert_eq!(lookup["terminal_name_fallback"]["attempted"],true);
+        assert!(lookup["declaration_admission"]["non_selected_nodes"].as_u64().unwrap()>0);
+        let actions=selected["actions"].as_array().unwrap();
+        let read=actions.iter().find(|a|a["tool"]=="get_full_method_body").unwrap();
+        let (_,body)=excerpt(&engram,read["arguments"].clone()).await;
+        assert_eq!(body["source_code"],BODY.lines().skip(2).take(3).collect::<Vec<_>>().join("\n"));
+        assert_eq!(body["source_file_hash"],ContentHash::compute(BODY.as_bytes()).0);
+        let impact=actions.iter().find(|a|a["tool"]=="impact_analysis").unwrap();assert_eq!(impact["arguments"]["symbol_fqn"],wanted);
+        let result=engram.handle_impact_analysis(serde_json::from_value(impact["arguments"].clone()).unwrap()).await.unwrap();
+        assert!(!result.is_error.unwrap_or(false));
+        let impact:Value=serde_json::from_str(result.content[0].as_text().unwrap().text.split_once("## Revision-admitted change impact").unwrap().1.split_once("```json").unwrap().1.split_once("```").unwrap().0).unwrap();
+        assert_eq!(impact["target"]["node_id"],wanted);assert_eq!(impact["target_revision_admitted"],true);
+        assert_eq!(impact["direct_dependents_observed"],1,"The returned action must inspect method callers, including same-file calls, rather than whole-file consumers");
+        assert_eq!(impact["immediate_consumers"][0]["node_id"],caller);
+        assert_eq!(impact["immediate_consumers"][0]["sample_connection_to_target"]["source_line"],7);
+        for name in ["chooselevel","Level","Other.Policy.ChooseLevel"] {
+            let absent=navigate(&engram,json!({"project_id":PID,"scope":PATH,"symbol_name":name})).await;
+            assert!(absent["files"][0]["symbols"].as_array().unwrap().is_empty());
+        }
+        let directory=navigate(&engram,json!({"project_id":PID,"scope":"src","symbol_name":"ChooseLevel","limit":8})).await;
+        assert!(directory["files"].as_array().unwrap().is_empty(),"Directory mode retains its exact-name contract");
+    });
+}
+
+#[test]
+fn named_terminal_lookup_preserves_ambiguity_and_exact_name_priority() {
+    owned_case(true,|engram,search| async move {
+        const PATH:&str="src/Overloads.vb";
+        let body=(1..=12).map(|i|format!("Public Function Run(arg{i} As Integer) As Integer : Return {i} : End Function\n")).collect::<String>();
+        publish_named_sources(&engram,&search,&[(PATH,&body)]).await;
+        let mut declarations=Vec::new();
+        for line in 1..=10 {
+            let name=if line<=2 {"Demo.First.Run".to_owned()}else{format!("Demo.Owner{line:02}.Run")};
+            let mut declaration=node(&format!("sym:function:{PATH}:{name}:{line}"),"function",&name,PATH,1);
+            declaration.start_line=line;declaration.end_line=line;declarations.push(declaration);
+        }
+        engram.state.graph.upsert_nodes(PID,&declarations).unwrap();
+        let request=json!({"project_id":PID,"scope":PATH,"symbol_name":"Run"});
+        let all=navigate(&engram,request.clone()).await;let file=&all["files"][0];let symbols=file["symbols"].as_array().unwrap();
+        assert_eq!(symbols.len(),8);assert_eq!(all["coverage"]["declarations"][0]["matching_admitted_records_observed"],9);
+        assert!(all["coverage"]["declarations"][0]["declaration_admission"]["reasons"].as_array().unwrap().contains(&json!("named_candidate_limit")));
+        assert_ne!(symbols[0]["node_id"],symbols[1]["node_id"]);assert_eq!(symbols[0]["name"],symbols[1]["name"]);
+        for selected in symbols {
+            assert!(selected["name"].as_str().unwrap().ends_with(".Run"));
+            let (_,read)=excerpt(&engram,selected["actions"][0]["arguments"].clone()).await;
+            assert_eq!(read["source_file_hash"],ContentHash::compute(body.as_bytes()).0);
+            assert!(selected["actions"].as_array().unwrap().iter().any(|a|a["tool"]=="impact_analysis" && a["arguments"]["symbol_fqn"]==selected["node_id"]));
+        }
+        let qualified=navigate(&engram,json!({"project_id":PID,"scope":PATH,"symbol_name":"Demo.First.Run"})).await;
+        assert_eq!(qualified["files"][0]["symbols"].as_array().unwrap().len(),2);
+        assert!(qualified["coverage"]["declarations"][0].get("terminal_name_fallback").is_none());
+        let mut exact=node(&format!("sym:function:{PATH}:Run:11"),"function","Run",PATH,1);exact.start_line=11;exact.end_line=11;
+        engram.state.graph.upsert_nodes(PID,&[exact.clone()]).unwrap();
+        let preferred=navigate(&engram,request.clone()).await;
+        assert_eq!(preferred["files"][0]["symbols"].as_array().unwrap().len(),1);assert_eq!(preferred["files"][0]["symbols"][0]["node_id"],exact.node_id);
+        assert!(preferred["coverage"]["declarations"][0].get("terminal_name_fallback").is_none());
+        assert!(preferred["coverage"]["declarations"][0]["declaration_admission"]["raw_rows"].as_u64().unwrap()<=5,"A healthy exact match must not scan unrelated qualified declarations");
+        exact.generation=2;engram.state.graph.upsert_nodes(PID,&[exact]).unwrap();
+        let recovered=navigate(&engram,request).await;
+        assert_eq!(recovered["files"][0]["symbols"].as_array().unwrap().len(),8,"An unselected exact declaration must not hide selected qualified candidates");
+        assert_eq!(recovered["coverage"]["declarations"][0]["terminal_name_fallback"]["attempted"],true);
+    });
+}
+
+#[test]
+fn named_terminal_lookup_shares_remaining_key_and_decode_budgets() {
+    owned_case(true,|engram,search| async move {
+        let body="Public Function Run() As Integer : Return 1 : End Function\n";
+        publish_named_sources(&engram,&search,&[("src/keys.vb",body),("src/bytes.vb",body)]).await;
+        for (path,fillers,neighbors,padded,reason) in [("src/keys.vb",32,16,false,"named_raw_key_limit"),("src/bytes.vb",20,12,true,"named_decode_budget")] {
+            let mut declarations=Vec::new();
+            let names=(0..fillers).map(|i|format!("A.Fill{i:02}")).chain((0..neighbors).map(|i|format!("Run:Shadow{i:02}")));
+            for name in names {
+                let mut declaration=node(&format!("sym:function:{path}:{name}:1"),"function",&name,path,1);
+                if padded {declaration.metadata=Some(json!({"padding":"x".repeat(60*1024)}));}
+                declarations.push(declaration);
+            }
+            declarations.push(node(&format!("sym:function:{path}:Zed.Run:1"),"function","Zed.Run",path,1));
+            engram.state.graph.upsert_nodes(PID,&declarations).unwrap();
+            let page=navigate(&engram,json!({"project_id":PID,"scope":path,"symbol_name":"Run"})).await;
+            assert!(page["files"][0]["symbols"].as_array().unwrap().is_empty(),"The second phase must spend the remainder of the existing work budget, not reset it");
+            let lookup=&page["coverage"]["declarations"][0];assert_eq!(lookup["terminal_name_fallback"]["attempted"],true);
+            assert_eq!(lookup["terminal_name_fallback"]["bounded_procedure_completed"],false);
+            assert!(lookup["declaration_admission"]["reasons"].as_array().unwrap().contains(&json!(reason)));
+            assert!(lookup["declaration_admission"]["raw_rows"].as_u64().unwrap()<=64);
+            assert!(lookup["raw_record_bytes_decoded"].as_u64().unwrap()<=2*1024*1024);
+            let fallback=page["files"][0]["actions"].as_array().unwrap().iter().find(|a|a["tool"]=="get_full_method_body").unwrap();
+            let (_,current)=excerpt(&engram,fallback["arguments"].clone()).await;
+            assert_eq!(current["source_file_hash"],ContentHash::compute(body.as_bytes()).0);
+        }
+    });
+}
+
 async fn excerpt(engram: &Engram, arguments: Value) -> (String, Value) {
     let result = engram
         .handle_get_full_method_body(serde_json::from_value(arguments).unwrap())
