@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-08T09:10:00.337173+00:00",
+  "last_updated_at": "2026-11-08T09:22:10.948446+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-08T09:10:00.337173+00:00",
+    "at_utc": "2026-11-08T09:22:10.948446+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9842,7 +9842,7 @@
       }
     ],
     "active_original_item": "CodeMap/Blast recovery usefulness: actual generation-guard planning exposed an invalid-regex search that silently returned zero matches. Repair this concrete recovery failure; no graph/parser/catalog/instruction changes.",
-    "next_user_visible_deliverable": "Finish index test43957, native build and actual paired/runtime invalid-regex recovery verification. Original failed pattern must be an actionable invalid-parameters error; valid control still recovers reset2735. Preserve prior CodeMap/Blast/source and data controls, full31/full19, previous task scores and original scope.",
+    "next_user_visible_deliverable": "Finish native6505 and execute prepared invalid-regex recovery delivery pipeline. Require actual invalid-params error for original false-empty pattern, unchanged9valid task calls/50prior controls/150definitions, current source and data preservation, paired install and normal public verification. Optional external review/delegation must not block.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
     "latest_completed_core_batch": "Directory-name recovery delivered:35unique CodeMap tests/37executions, native release PASS.353candidate calls preserve45prior controls,150definitions, all previous class/callable source previews and impact evidence, registry/3136selection/14metadata/300notes. Actual emitted action finds6raw-verified text hits, current descriptor211..329 and selected classidentity3121. path_contains suppression prevents silent scope broadening.218active/218prior/5journals verified;14normal calls include12candidate comparisons and1raw source read. Full31/full19 and broader goal remain open.",
-    "previous_goal_turn_classification": "PROGRESS: previous directory recovery deployment checkpoint pushed2ca5059. This turn completed10call59231B generation-guard task, independently verified five source windows and three indexed consumer witnesses, and isolated unsupported-regex false-empty output. Corrective source implemented;24public cases/25executions PASS; index suite live43957. Native/package/runtime acceptance pending.",
+    "previous_goal_turn_classification": "PROGRESS plus verified wait: index suite43957 terminalPASS4cases764.54s after additional dependency compilation; public24+focused1 alreadyPASS. All28unique29executions have unchanged inputs and cleaned owned fixtures. Native6505 started once, current cargo36128 verified live. Candidate/normal/release/installation scripts prepared and root-reviewed; no deployed claim.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10542,7 +10542,7 @@
       "interpretation": "Current collection-element calls do not corroborate explicit self-recursion. Selected links carry weaker extractor-anchor positions; existing contract separates revision admission from binding. Source checks, not indexed labels, support the plan.",
       "disposition": "Recorded; no reindex, extraction/ownership investigation, scan expansion or speculative read-side filtering selected."
     },
-    "current_owned_resource_state": "Public focused35396 and regression42051 terminalPASS; owned directories removed and Jobs/handles closed. Index regression43957 currently live (cargo21844 observed); owns edit-workload-focused-dhvjgo3h. Freeze source; poll original handle and inspect final receipt before next build. Task observers closed, no pending RPC; normal launch21680 followed zero owners/absent PRIMARY after idle exit. No configuration or application writes.",
+    "current_owned_resource_state": "Public35396/42051 and index43957 terminalPASS, Jobs/handles closed and owned fixtures removed. Native6505 live; owns edit-workload-focused-wmusy0j8. Freeze source and poll original handle. No active config hold, candidate or install yet. Last normal owner query zero; recheck actual owners and PRIMARY before maintenance or launch. Evidence stays in recorded diagnostics root.",
     "latest_fresh_batch_cancellation_run": {
       "status": "FRESH_BATCH_CANCELLATION_BOUNDED_PLANNING_CRITERIA_PASS_SOURCE_VERIFIED",
       "agent": "/root/batchcancel_fresh01",
@@ -10778,6 +10778,10 @@
     "latest_invalid_regex_recovery_source": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\invalid-regex-recovery-source-checkpoint-20261108.json",
       "sha256": "7c04511f64445cc1ed93660a5ab6b6faad4f1eef484a9442002f25f71cb68fa1"
+    },
+    "latest_invalid_regex_recovery_native_running": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\invalid-regex-recovery-native-running-checkpoint-20261108.json",
+      "sha256": "892f920441c554588c6ce9d5f332b553d370c08f3a3cdbf519c2eb02fc446480"
     }
   }
 }
