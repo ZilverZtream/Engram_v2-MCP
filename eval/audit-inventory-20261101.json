@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-08T08:37:21.119006+00:00",
+  "last_updated_at": "2026-11-08T08:56:05.440291+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-08T08:37:21.119006+00:00",
+    "at_utc": "2026-11-08T08:56:05.440291+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap recovery for a known declaration name and source area when its file is unknown. Actual bare descriptor directory query observes0candidates/8of35files and offers only further exact-name paging; prior scoped lexical search finds the qualified declaration and its users. Add explicit bounded lexical recovery without claiming declaration/reference binding or widening caller filters.",
-    "next_user_visible_deliverable": "Finish directory-name recovery delivery: native build, replay actual empty OciusX directory page and execute returned scoped grep/current-source actions. Verify known class identity, all prior source previews/impact evidence and150definitions unchanged; complete pair/data/normal-runtime checks. No broader source investigation or optional-review blocker.",
+    "active_original_item": "CodeMap/Blast agent usefulness remains the active original priority. Directory-name lexical recovery from0b53172 is deployed: the actual empty OciusX page now supplies an executable scoped search, source recovery and selected-identity path without changing graph evidence or caller filters.",
+    "next_user_visible_deliverable": "Continue original CodeMap/Blast usefulness work from real agent tasks and independent source evidence. Known-file class lookup, unknown-file directory-name recovery and direct descriptor serialization are verified; preserve their qualified results. Choose the next remaining concrete navigation/witness/recovery requirement before another implementation. Do not widen into instruction drafting, parser/catalog/ownership/performance work, or stall for optional fresh-agent/external review.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9855,8 +9855,8 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "Selected class-name navigation deployed from0394db3:33unique CodeMap cases/35executions and native774.74s PASS. Candidate348calls verifies two originally failed names, explicit source/impact actions, exact-ID controls and filename-filtered directory names;35prior controls admitted. One Classify preview documentation line113 moves to continuation; relevant Classify/Resolve bodies and all other previews preserved.149otherdefinitions, registry/3136selection/14metadata/300notes preserved.218active/218prior/5journals verified;17normal calls match candidate including both source reads. Overall goal/original31/full19 remain open.",
-    "previous_goal_turn_classification": "PROGRESS: concrete directory-name recovery gap isolated after one preserved invalid trailing-slash request and one valid2225B page. Lazy recovery implemented with exclusion/component-boundary preservation and explicit path_contains suppression.2focused and35CodeMap regression cases pass,37executions; both owned fixture dirs removed. Root source review complete; CodeRabbit authfalse, no external review. Not deployed yet.",
+    "latest_completed_core_batch": "Directory-name recovery delivered:35unique CodeMap tests/37executions, native release PASS.353candidate calls preserve45prior controls,150definitions, all previous class/callable source previews and impact evidence, registry/3136selection/14metadata/300notes. Actual emitted action finds6raw-verified text hits, current descriptor211..329 and selected classidentity3121. path_contains suppression prevents silent scope broadening.218active/218prior/5journals verified;14normal calls include12candidate comparisons and1raw source read. Full31/full19 and broader goal remain open.",
+    "previous_goal_turn_classification": "PROGRESS: native build completed, candidate emitted recovery executed and independently source-checked, paired package installed and normal public runtime verified. No source bodies or prior graph facts normalized away. No new parser/catalog/instruction project or optional permission blocker.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10542,7 +10542,7 @@
       "interpretation": "Current collection-element calls do not corroborate explicit self-recursion. Selected links carry weaker extractor-anchor positions; existing contract separates revision admission from binding. Source checks, not indexed labels, support the plan.",
       "disposition": "Recorded; no reindex, extraction/ownership investigation, scan expansion or speculative read-side filtering selected."
     },
-    "current_owned_resource_state": "Focused93850/regression99796 terminal PASS; owned temp directories removed after Jobs/handles closed. Both baseline observers closed; no pending RPC. Normal launcher46516 followed actual zero-owner query and absent PRIMARY; no timeout restart. Evidence stays under existing diagnostics root. Native build not started at this checkpoint; freeze source and poll its same session once launched.",
+    "current_owned_resource_state": "All test/native/candidate/installer runners terminal, owned handles/fixtures closed/removed. Config hold released unchanged; normal daemon owns idle lifetime. All observer pipes closed with no pending RPC. Evidence remains in existing diagnostics root; complete prior package retained at recorded exact path requiring cleanup approval.",
     "latest_fresh_batch_cancellation_run": {
       "status": "FRESH_BATCH_CANCELLATION_BOUNDED_PLANNING_CRITERIA_PASS_SOURCE_VERIFIED",
       "agent": "/root/batchcancel_fresh01",
@@ -10755,6 +10755,21 @@
       },
       "unique_cases": 35,
       "executions": 37
+    },
+    "latest_directory_name_recovery_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\directory-name-recovery-delivery-outcome-20261108.json",
+      "sha256": "15fd3910f7068b36bbecdfc53e9d6dd848e55a40138a2917b35adce5b09d6006"
+    },
+    "latest_directory_name_recovery_native_running": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\directory-name-recovery-native-running-checkpoint-20261108.json",
+      "sha256": "fb937ced909dd3c9d4036956da0884b992924ec5999928be0b6d92e158c03cb8",
+      "superseded_by": "latest_directory_name_recovery_delivery; native terminalPASS/resourcesremoved and installed normal verificationPASS"
+    },
+    "latest_directory_name_retained_pair": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-108027d4d3924e208518334f52a685ed",
+      "files": 218,
+      "bytes": 336730922,
+      "cleanup_condition": "Prior complete runtime retained for reviewed recovery; exact-path cleanup approval required. No automatic deletion or rollback proof."
     }
   }
 }
