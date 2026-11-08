@@ -2016,6 +2016,70 @@ async fn publish_named_sources(engram: &Engram, search: &HybridSearchEngine, sou
 }
 
 #[test]
+fn directory_name_recovery_finds_unknown_file_without_claiming_lexical_hits_are_declarations() {
+    owned_case(true, |engram,search| async move {
+        const TARGET:&str="src/contracts/zz.vb";
+        const BODY:&str="Public Class PacketConfig\n    Public deadline As Integer\nEnd Class\n";
+        const ID:&str="sym:class:src/contracts/zz.vb:_app.PacketConfig:1";
+        let paths:Vec<_>=(0..8).map(|i|format!("src/contracts/a{i:02}.vb")).collect();
+        let mut sources:Vec<(&str,&str)>=paths.iter().map(|path|(path.as_str(),"' unrelated\n")).collect();
+        sources[0].1="Dim config As PacketConfig\n";
+        sources[1].1="' PacketConfig may be pending\n";
+        sources.extend([(TARGET,BODY),("src/contracts/private/hidden.vb",BODY),("src/contracts-other/outside.vb",BODY)]);
+        publish_named_sources(&engram,&search,&sources).await;
+        let mut declaration=node(ID,"class","_app.PacketConfig",TARGET,1);declaration.end_line=3;
+        engram.state.graph.upsert_nodes(PID,&[declaration]).unwrap();
+        let request=json!({"project_id":PID,"scope":"src/contracts","symbol_name":"PacketConfig",
+            "exclude_paths":["src/contracts/private"],"limit":8});
+        let page=navigate(&engram,request).await;
+        assert!(page["files"].as_array().unwrap().is_empty());
+        assert_eq!(page["coverage"]["matching_candidates_observed"],0);
+        assert_eq!(page["next_page"]["arguments"]["offset"],8,"Lexical recovery must not erase file pagination");
+        let action=&page["name_search_recovery"];
+        assert_eq!(action["tool"],"grep_project");
+        assert!(page["name_search_recovery_scope"].as_str().unwrap().contains("not binding or absence proof"));
+        let reply=engram.handle_grep_project(serde_json::from_value(action["arguments"].clone()).unwrap()).await.unwrap();
+        let hits:Value=serde_json::from_str(&reply.content[0].as_text().unwrap().text).unwrap();
+        let matches=hits["matches"].as_array().unwrap();assert_eq!(matches.len(),3);
+        let observed:std::collections::BTreeSet<_>=matches.iter().map(|hit|hit["file_path"].as_str().unwrap()).collect();
+        assert_eq!(observed,[paths[0].as_str(),paths[1].as_str(),TARGET].into_iter().collect(),
+            "Recovery must keep directory component boundaries and exclusions; text users/comments are not admitted graph candidates");
+        let found=matches.iter().find(|hit|hit["file_path"]==TARGET).unwrap();
+        let read=&found["current_source_recovery"];
+        let (_,body)=excerpt(&engram,read["arguments"].clone()).await;
+        assert_eq!(body["source_code"],BODY.trim_end());
+        assert_eq!(body["source_file_hash"],ContentHash::compute(BODY.as_bytes()).0);
+        let resolved=navigate(&engram,json!({"project_id":PID,"scope":TARGET,"symbol_name":"PacketConfig"})).await;
+        assert_eq!(resolved["files"][0]["symbols"][0]["node_id"],ID);
+        assert_eq!(resolved["source_generation"],page["source_generation"]);
+        // A qualified miss can offer text inspection, never resolved FQN binding.
+        let qualified=navigate(&engram,json!({"project_id":PID,"scope":"src/contracts",
+            "symbol_name":"Different.PacketConfig","exclude_paths":["src/contracts/private"],"limit":8})).await;
+        assert_eq!(qualified["coverage"]["matching_candidates_observed"],0);
+        assert_eq!(qualified["name_search_recovery"]["arguments"]["pattern"],"PacketConfig");
+    });
+}
+
+#[test]
+fn directory_name_recovery_does_not_broaden_path_filters_or_replace_found_candidates() {
+    owned_case(true, |engram,search| async move {
+        const PATH:&str="src/contracts/types.vb";
+        publish_named_sources(&engram,&search,&[(PATH,"Public Class PacketConfig\nEnd Class\n")]).await;
+        let declaration=node("sym:class:src/contracts/types.vb:_app.PacketConfig:1","class","_app.PacketConfig",PATH,1);
+        engram.state.graph.upsert_nodes(PID,&[declaration]).unwrap();
+        let filtered=navigate(&engram,json!({"project_id":PID,"scope":"src/contracts",
+            "symbol_name":"PacketConfig","path_contains":"types"})).await;
+        assert!(filtered["files"].as_array().unwrap().is_empty());
+        assert!(filtered.get("name_search_recovery").is_none(),"No search may silently discard path_contains");
+        assert!(filtered["name_search_recovery_omitted"].as_str().unwrap().contains("cannot preserve path_contains"));
+        let exact=navigate(&engram,json!({"project_id":PID,"scope":"src/contracts","symbol_name":"_app.PacketConfig"})).await;
+        assert_eq!(exact["files"][0]["symbols"][0]["name"],"_app.PacketConfig");
+        assert!(exact.get("name_search_recovery").is_none());
+        assert!(exact.get("name_search_recovery_omitted").is_none());
+    });
+}
+
+#[test]
 fn codemap_literal_inspection_keeps_distant_callback_contexts_useful_under_source_pressure() {
     owned_case(true, |engram, search| async move {
         const PATH: &str="src/policy-responses.ts";
