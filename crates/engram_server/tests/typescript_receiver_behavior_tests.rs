@@ -17,6 +17,112 @@ fn config(root: &Path) -> Config {
         embedding_backend: "fts_only".into(), llm_backend: "none".into(), ..Default::default() }
 }
 
+#[test]
+fn normal_update_repairs_legacy_script_receivers_without_source_edits_or_losing_recursion() -> Result<()> {
+    let owned = tempfile::TempDir::new()?;
+    let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build()?;
+    runtime.block_on(async {
+        const BODY: &str = "class Group {\n private images: Array<Image> = [];\n cancelUpload() {\n  for (const h of this.images) {\n   h.cancelUpload();\n  }\n }\n resetState() { this.cancelUpload(); }\n recurse() { this.recurse(); }\n}\n";
+        for (path, body) in [(IMAGE, "class Image { cancelUpload() {} }\n"), (GROUP, BODY),
+            ("src/empty.jsx", ""), ("src/untouched.rs", "pub fn untouched() {}\n")] {
+            let path = owned.path().join("repo").join(path);
+            std::fs::create_dir_all(path.parent().unwrap())?;
+            std::fs::write(path, body)?;
+        }
+        drop(git2::Repository::init(owned.path().join("repo"))?);
+        let app = open(owned.path()).await?;
+        let indexed = app.handle_index_project(serde_json::from_value(json!({
+            "directory":owned.path().join("repo"),"project_name":"Script receiver upgrade",
+            "project_type":"general","wait":true
+        }))?).await?;
+        ensure!(indexed.is_error != Some(true));
+        settle(&app).await?;
+        let pid = app.state.registry.list_projects()?[0].project_id.clone();
+        let nodes = app.state.graph.query_nodes(&pid, Some("function"), None, Some(GROUP), 16)?;
+        let cancel = nodes.iter().find(|n| n.name == "cancelUpload").unwrap().clone();
+        let reset = nodes.iter().find(|n| n.name == "resetState").unwrap().clone();
+        let recurse = nodes.iter().find(|n| n.name == "recurse").unwrap().clone();
+        let untouched = [IMAGE, "src/untouched.rs"].map(|path|
+            app.state.graph.get_node(&pid, &format!("file:{path}")).unwrap().unwrap());
+        for path in [GROUP, "src/empty.jsx"] {
+            let mut file = app.state.graph.get_node(&pid, &format!("file:{path}"))?.unwrap();
+            file.metadata.as_mut().unwrap().as_object_mut().unwrap().remove("script_call_contract");
+            app.state.graph.upsert_nodes(&pid, &[file])?;
+        }
+        app.state.graph.upsert_edges(&pid, &[engram_graph::Edge {
+            source_id: cancel.node_id.clone(), target_id: cancel.node_id.clone(), namespace:"memory".into(),
+            language:"typescript".into(), edge_kind:EdgeKind::Calls, weight:1, generation:cancel.generation,
+            metadata:Some(json!({"src_line":"3","receiver":"h"})), updated_at_ms:1,
+        }])?;
+        let before = app.state.registry.capture_source_head(&pid)?;
+        let freshness = app.handle_get_index_freshness(serde_json::from_value(json!({
+            "project_id":pid,"check_disk":false
+        }))?).await?;
+        ensure!(freshness.content[0].as_text().unwrap().text.contains("source_index_format: reindex_required"),
+            "Unchanged source hashes cannot certify legacy script bindings as current");
+        let reply = app.handle_update_project(serde_json::from_value(json!({
+            "project_id":pid,"wait":true,"index_antipatterns":false
+        }))?).await?;
+        ensure!(reply.is_error != Some(true), "Ordinary update failed: {reply:?}");
+        settle(&app).await?;
+        ensure!(!app.state.registry.source_head_is_current(&before)?,
+            "Normal update must refresh legacy script binding even when every source byte is unchanged");
+        let edges = app.state.graph.list_edges(&pid, Some(EdgeKind::Calls))?;
+        ensure!(!edges.iter().any(|e| e.source_id == cancel.node_id && e.target_id == cancel.node_id),
+            "The retained collection-receiver self-edge must be retracted");
+        ensure!(edges.iter().any(|e| e.source_id == reset.node_id && e.target_id == cancel.node_id));
+        ensure!(edges.iter().any(|e| e.source_id == recurse.node_id && e.target_id == recurse.node_id),
+            "Actual this-method recursion must survive migration");
+        ensure!(edges.iter().any(|e| e.source_id == cancel.node_id
+            && e.target_id.starts_with(engram_graph::store::UNBOUND_RECEIVER_PREFIX)
+            && e.metadata.as_ref().is_some_and(|m| m["receiver_unbound"] == "true"
+                && m["call_site_lines"] == json!([5]))),
+            "Unknown handler identity must retain the real invocation line, not invent a callee");
+        for old in untouched {
+            let current = app.state.graph.get_node(&pid, &old.node_id)?.unwrap();
+            ensure!(current.generation == old.generation && current.metadata == old.metadata,
+                "Compatible script and unrelated Rust source must retain their revisions");
+        }
+        for path in [GROUP, "src/empty.jsx"] {
+            let current = app.state.graph.get_node(&pid, &format!("file:{path}"))?.unwrap();
+            ensure!(current.metadata.as_ref().unwrap()["script_call_contract"] == 1);
+        }
+        let freshness = app.handle_get_index_freshness(serde_json::from_value(json!({
+            "project_id":pid,"check_disk":false
+        }))?).await?;
+        ensure!(freshness.content[0].as_text().unwrap().text.contains("source_index_format: current"));
+        for blast in [false, true] {
+            let mut args = json!({"project_id":pid,"symbol_fqn":cancel.node_id,
+                "detail":"summary","max_depth":6,"include_guidance":false});
+            let reply = if blast { app.handle_compute_blast_radius(serde_json::from_value(args)?).await? }
+                else { args.as_object_mut().unwrap().remove("include_guidance");
+                    app.handle_impact_analysis(serde_json::from_value(args)?).await? };
+            ensure!(reply.is_error != Some(true));
+            let report = packet(&reply.content[0].as_text().unwrap().text);
+            ensure!(report["direct_dependents_observed"] == 1);
+            ensure!(report["coverage"]["cycles_or_revisits"] == 0,
+                "The public impact must not retain the false self-call as a cycle");
+        }
+        ensure!(std::fs::read(owned.path().join("repo").join(GROUP))? == BODY.as_bytes());
+        let migrated = app.state.registry.capture_source_head(&pid)?;
+        settle(&app).await?;
+        drop(app);
+        let reopened = open(owned.path()).await?;
+        let reply = reopened.handle_update_project(serde_json::from_value(json!({
+            "project_id":pid,"wait":true,"index_antipatterns":false
+        }))?).await?;
+        ensure!(reply.is_error != Some(true));
+        settle(&reopened).await?;
+        ensure!(reopened.state.registry.source_head_is_current(&migrated)?,
+            "Cold ordinary update must not repeat the completed migration");
+        drop(reopened);
+        Ok::<(), anyhow::Error>(())
+    })?;
+    drop(runtime);
+    owned.close()?;
+    Ok(())
+}
+
 async fn settle(app: &Engram) -> Result<()> {
     loop {
         let jobs = app.state.active_jobs.write().await.drain()

@@ -185,6 +185,7 @@ pub async fn process_ingest_stats(
                 "source_extraction_identity": stats.source_extraction_identity,
                 "vb_parser_provenance": stats.vb_parser_provenance.get(rel_path.as_str()),
                 "webforms_position_contract": stats.webforms_position_contracts.get(rel_path.as_str()),
+                "script_call_contract": stats.script_call_contracts.get(rel_path.as_str()),
             }));
         }
 

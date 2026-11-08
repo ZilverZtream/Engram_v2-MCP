@@ -4,6 +4,38 @@ use super::*;
 use anyhow::{Result, ensure};
 use crate::vb_extractor::{self, VbFallbackReason, VbParserProvenance};
 
+#[test]
+fn script_reuse_requires_produced_receiver_contract_without_invalidating_other_languages() -> Result<()> {
+    let expected = SourceExtractionExpectation::for_paths(2000, ["owned.ts"])?;
+    let legacy = serde_json::json!({"source_index_version":crate::SOURCE_INDEX_VERSION,
+        "source_extraction_identity":SourceExtractionIdentity::for_chunk_target(2000)});
+    for path in ["owned.ts", "view.TSX", "plain.js", "empty.jsx"] {
+        ensure!(!expected.metadata_is_compatible(&legacy, path));
+        for unsupported in [serde_json::Value::Null, serde_json::json!(0), serde_json::json!(2), serde_json::json!("1")] {
+            let mut metadata = legacy.clone(); metadata["script_call_contract"] = unsupported;
+            ensure!(!expected.metadata_is_compatible(&metadata, path));
+        }
+        let mut metadata = legacy.clone(); metadata["script_call_contract"] = serde_json::json!(SCRIPT_CALL_CONTRACT);
+        ensure!(expected.metadata_is_compatible(&metadata, path));
+    }
+    for path in ["owned.rs", "style.css", "page.html", "server.cs"] {
+        ensure!(expected.metadata_is_compatible(&legacy, path));
+    }
+    let mut output = crate::IngestStats {
+        source_extraction_identity: Some(SourceExtractionIdentity::for_chunk_target(2000)),
+        files:1, all_files:vec![engram_core::RelPath::new("owned.ts")], ..Default::default()
+    };
+    ensure!(expected.verify_produced(&output).is_err(), "Cannot publish an unreceipted script parse");
+    output.script_call_contracts.insert("owned.ts".into(), SCRIPT_CALL_CONTRACT);
+    expected.verify_produced(&output)?;
+    output.script_call_contracts.insert("inherited.ts".into(), SCRIPT_CALL_CONTRACT);
+    ensure!(expected.verify_produced(&output).is_err(), "Do not claim a parse for inherited source");
+    output.script_call_contracts.remove("inherited.ts");
+    output.script_call_contracts.insert("owned.ts".into(), SCRIPT_CALL_CONTRACT + 1);
+    ensure!(expected.verify_produced(&output).is_err());
+    Ok(())
+}
+
 struct ParserOwner;
 impl Drop for ParserOwner {
     fn drop(&mut self) {
