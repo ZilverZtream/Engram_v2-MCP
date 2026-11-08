@@ -23,6 +23,44 @@ use std::path::Path;
 use tempfile::tempdir;
 
 #[tokio::test]
+async fn invalid_regex_reports_query_error_and_allows_explicit_literal_or_valid_recovery() {
+    let invalid = r"_resetGeneration\s*(\+\+|\+=|=(?!=))";
+    let source = format!("pub fn reset() {{\n    // this._resetGeneration++;\n    // {invalid}\n}}\n");
+    let (owned, engram, pid, _root) = setup_with_source(source.as_bytes()).await;
+    for freshness in ["off", "warn", "strict"] {
+        for empty_scope in [false, true] {
+            for output_json in [false, true] {
+                let mut request = grep_request(&pid, invalid, freshness);
+                request.regex = true;
+                request.output_json = output_json;
+                request.path_prefix = Some(if empty_scope { "missing/" } else { "src/" }.into());
+                let error = engram.grep_project(Parameters(request)).await.unwrap_err();
+                assert_eq!(error.code, rmcp::model::ErrorCode::INVALID_PARAMS);
+                assert!(error.message.contains("invalid regular expression"), "{error}");
+                assert!(error.message.contains("regex=false"), "Give the agent an explicit literal-mode recovery");
+            }
+        }
+        let mut request = grep_request(&pid, invalid, freshness);
+        request.output_json = true;
+        request.regex = false;
+        let literal: serde_json::Value = serde_json::from_str(&grep(&engram, request.clone()).await).unwrap();
+        assert_eq!(literal["matches"].as_array().unwrap().len(), 1);
+        assert_eq!(literal["matches"][0]["line"], 3);
+
+        request.regex = true;
+        request.pattern = r"_resetGeneration\s*(\+\+|\+=|=)".into();
+        let valid: serde_json::Value = serde_json::from_str(&grep(&engram, request.clone()).await).unwrap();
+        assert_eq!(valid["matches"].as_array().unwrap().len(), 1);
+        assert_eq!(valid["matches"][0]["line"], 2);
+        request.path_prefix = Some("missing/".into());
+        let empty: serde_json::Value = serde_json::from_str(&grep(&engram, request).await).unwrap();
+        assert_eq!(empty["matches"], serde_json::json!([]), "A valid empty search remains successful");
+    }
+    drop(engram);
+    owned.close().unwrap();
+}
+
+#[tokio::test]
 async fn markdown_budget_recovery_delivers_matches_and_usable_chunk_arguments() {
     let source = format!(
         "pub fn markers() {{\n{}}}\n",

@@ -179,6 +179,20 @@ fn resolve_case_sensitive(pattern: &str, flag: Option<bool>) -> bool {
     pattern.chars().any(|c| c.is_ascii_uppercase())
 }
 
+/// Compile the same regex dialect/options for indexed and current-source searches.
+/// Callers must report failure, never turn an invalid query into zero matches.
+pub fn compile_regex(
+    pattern: &str,
+    case_sensitive: Option<bool>,
+    multiline: bool,
+) -> Result<regex::Regex, regex::Error> {
+    regex::RegexBuilder::new(pattern)
+        .case_insensitive(!resolve_case_sensitive(pattern, case_sensitive))
+        .multi_line(true)
+        .dot_matches_new_line(multiline)
+        .build()
+}
+
 /// Guard against a SILENT wrong answer from the full-scan tier. FullScan
 /// is reached only for patterns the term index can't serve (a literal
 /// shorter than the trigram minimum, or a regex without a ≥3-char literal
@@ -507,6 +521,12 @@ where
 {
     let start = Instant::now();
 
+    // Validate even an empty search scope, before freshness or index reads.
+    let compiled = q
+        .regex
+        .then(|| compile_regex(&q.pattern, q.case_sensitive, q.multiline))
+        .transpose()?;
+
     // ── Step 1: freshness check ──
     let freshness = match q.freshness {
         FreshnessMode::Off => FreshnessCheck::default(),
@@ -547,8 +567,10 @@ where
     // ── Step 2: execute tier ──
     let (mut matches, chunks_scanned, files_scanned) = match tier {
         GrepTier::TermIndex => execute_term_index(engine, q, case_sensitive)?,
-        GrepTier::TermNarrowed => execute_term_narrowed(engine, q, case_sensitive)?,
-        GrepTier::FullScan => execute_full_scan(engine, q, case_sensitive)?,
+        GrepTier::TermNarrowed => {
+            execute_term_narrowed(engine, q, case_sensitive, compiled.as_ref())?
+        }
+        GrepTier::FullScan => execute_full_scan(engine, q, case_sensitive, compiled.as_ref())?,
     };
     dedup_source_matches(&mut matches);
 
@@ -682,10 +704,11 @@ fn execute_term_narrowed(
     engine: &HybridSearchEngine,
     q: &GrepQuery,
     case_sensitive: bool,
+    compiled: Option<&regex::Regex>,
 ) -> anyhow::Result<(Vec<GrepMatch>, usize, usize)> {
     let Some(anchor) = extract_literal_anchor(&q.pattern) else {
         // Shouldn't happen — pick_tier already checked. Safety net.
-        return execute_full_scan(engine, q, case_sensitive);
+        return execute_full_scan(engine, q, case_sensitive, compiled);
     };
 
     // Oversample a bit more aggressively than Tier 0 because the
@@ -714,15 +737,6 @@ fn execute_term_narrowed(
         use_mmr: false,
     };
     let hits = engine.lexical_search_with_content(&hybrid_q)?;
-
-    // Compile the regex ONCE and reuse across chunks — the builder
-    // allocation is a measurable cost when the anchor narrows to a
-    // few hundred chunks.
-    let mut builder = regex::RegexBuilder::new(&q.pattern);
-    builder.case_insensitive(!case_sensitive);
-    builder.multi_line(true);
-    builder.dot_matches_new_line(q.multiline);
-    let compiled = builder.build().ok();
 
     let mut matches: Vec<GrepMatch> = Vec::with_capacity(q.max_results);
     let mut chunks_scanned = 0usize;
@@ -753,7 +767,7 @@ fn execute_term_narrowed(
             case_sensitive,
             true,
             q.multiline,
-            compiled.as_ref(),
+            compiled,
             hit.path.as_str(),
             hit.chunk_id,
             q.context_before,
@@ -786,6 +800,7 @@ fn execute_full_scan(
     engine: &HybridSearchEngine,
     q: &GrepQuery,
     case_sensitive: bool,
+    compiled_regex: Option<&regex::Regex>,
 ) -> anyhow::Result<(Vec<GrepMatch>, usize, usize)> {
     use rayon::prelude::*;
     use std::sync::Mutex;
@@ -808,19 +823,6 @@ fn execute_full_scan(
     // coverage warning, so it has to count files, not chunks.
     let files_seen: Mutex<std::collections::HashSet<String>> =
         Mutex::new(std::collections::HashSet::new());
-
-    // Compile the regex once up front (if we're in regex mode) so
-    // workers don't each recompile on every line — saves tens of µs
-    // per chunk on hot patterns.
-    let compiled_regex: Option<regex::Regex> = if q.regex {
-        let mut builder = regex::RegexBuilder::new(&q.pattern);
-        builder.case_insensitive(!case_sensitive);
-        builder.multi_line(true);
-        builder.dot_matches_new_line(q.multiline);
-        builder.build().ok()
-    } else {
-        None
-    };
 
     // We share a single Result slot so a store error from any worker wins.
     // Workers bail cooperatively on the first failure.
@@ -873,7 +875,7 @@ fn execute_full_scan(
             case_sensitive,
             q.regex,
             q.multiline,
-            compiled_regex.as_ref(),
+            compiled_regex,
             &chunk.path,
             chunk.chunk_id,
             q.context_before,
@@ -928,13 +930,7 @@ pub fn scan_working_tree_content(
 ) -> anyhow::Result<Vec<GrepMatch>> {
     let case_sensitive = resolve_case_sensitive(&q.pattern, q.case_sensitive);
     let compiled = if q.regex {
-        Some(
-            regex::RegexBuilder::new(&q.pattern)
-                .case_insensitive(!case_sensitive)
-                .multi_line(true)
-                .dot_matches_new_line(q.multiline)
-                .build()?,
-        )
+        Some(compile_regex(&q.pattern, q.case_sensitive, q.multiline)?)
     } else {
         None
     };
