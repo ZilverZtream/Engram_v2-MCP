@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-08T11:04:44.701233+00:00",
+  "last_updated_at": "2026-11-08T11:16:07.029662+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-08T11:04:44.701233+00:00",
+    "at_utc": "2026-11-08T11:16:07.029662+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Core CodeMap/Blast agent usefulness: repair demonstrated class-impact recovery gap. EG24 historical collector and policy producer patch preserved, not current delivery.",
-    "next_user_visible_deliverable": "A selected class impact result offers an executable bounded type-name search that reaches current producer source despite zero graph dependents. Verify both impact tools on actual OciusX descriptor, preserve graph counts/witnesses and response caps, then deploy through existing native pair workflow.",
+    "active_original_item": "Original accepted-task usefulness verification for current CodeMap/Blast behavior (EG24/EG25 evidence remains open), following deployed class-impact recovery. Keep historical policy collector/producer artifacts preserved and separate.",
+    "next_user_visible_deliverable": "Fresh current-core task checks on the existing frozen classification and upload-cancellation tasks, with unchanged criteria/caps and independent source judging. Current source-controlled delivery is complete; fresh comparative/regular evaluation is not.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9855,8 +9855,8 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "Invalid-regex recovery delivered:28unique grep cases/29executions and native PASS.363candidate calls include one intended invalid-params error,50unchanged prior core controls and9unchanged valid task calls. Five task source windows/two reset hits raw-verified;150definitions, registry/3136selection/14metadata/300notes preserved.218active/218prior/5journals verified; normal22candidate comparisons include expected error and5raw source reads. Broader goal/full31/full19 remain open.",
-    "previous_goal_turn_classification": "PROGRESS: six actual OciusX calls exposed class-impact recovery gap; independent current source verified. Optional type-name recovery implemented.18unit checks and32public regression cases pass; initial fixture-schema failure preserved and corrected. Native candidate/action-chain/deployment still pending.",
+    "latest_completed_core_batch": "93a86e8 class-impact type-name recovery deployed and normal verified. Emitted narrow search -> producer CodeMap -> producer impact -> API serializer source succeeds7calls60322B within8/65536. Class graph unchanged;50priorcontrols/150definitions/3136selection/registry/14metadata/300notes preserved.18unit+32public regression cases pass; initial fixture-schema failure preserved. Full goal/EG24/EG25/31/19 remain open.",
+    "previous_goal_turn_classification": "PROGRESS: native build passed; actual seven-call emitted-action task succeeded within unchanged cap; three source windows and five grep lines independently checked. Candidate360calls preserved prior50corecontrols and selected data. Installed218files plus preserved218priorfiles/fivejournals verified; normal nine comparisons pass. Configuration restored unchanged. Broader goal remains active.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10838,15 +10838,15 @@
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\frozen-task-current-producer-recovery-20261108.json",
       "sha256": "ad4e82ec7725f6c2c5e3a9077bd3dd123c39d52b2fe42f6e648e7db9a7c775ad"
     },
-    "pending_fresh_agent_question": "Explicit request presented for eight fresh historical-task candidates and one independent judge; no response recorded, no agent launch authorized by elapsed time.",
-    "independent_next_action": "Poll SAME session1400/build driver39908 and actual child state; never restart on observation timeout. Do not edit compiled inputs while live. On PASS finalize existing release pair, then held exclusive actual OciusX candidate action-chain validation, reviewed installer and normal IPC verification.",
+    "pending_fresh_agent_question": "Supersedes historical8candidate policy question: explicit request presented for two fresh core-task agents (classification and upload cancellation) plus one independent judge. No answer yet; no agent launch authorized by elapsed time or automatic continuation.",
+    "independent_next_action": "Use existing saved core-task contracts, rubrics and observer lifecycle for the current installed build; prepare exact current-build task replay inputs while the explicit fresh-agent request is pending. Do not launch agents without a user request, reuse informed answers as fresh, apply the parked policy producer patch, repeat passing core tests or choose a new incidental issue.",
     "selected_class_impact_recovery": {
       "baseline": {
         "path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/class-impact-recovery-baseline-20261108.json",
         "sha256": "73960fc72b1cd48ad5ee2d6ea407a0e49b6f821fb42880d40f2353bca3e09ceb"
       },
-      "state": "SOURCE_TESTED_PUSHED_NATIVE_BUILD_RUNNING",
-      "session_id": 1400,
+      "state": "DEPLOYED_VERIFIED_CLASS_IMPACT_SOURCE_RECOVERY",
+      "session_id": null,
       "source_files": [
         "crates/engram_server/src/services/impact_walk_service.rs",
         "crates/engram_server/tests/typescript_receiver_behavior_tests.rs",
@@ -10875,8 +10875,17 @@
       "source_commit": "93a86e8",
       "native_checkpoint": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\class-impact-recovery-native-running-checkpoint-20261108.json",
-        "sha256": "7ea09e523a0fcbd97d31ad3c41d992cf8e7962774342f99457d7193eb2f0cbf9"
+        "sha256": "7ea09e523a0fcbd97d31ad3c41d992cf8e7962774342f99457d7193eb2f0cbf9",
+        "superseded_by": "Native PASS, candidate PASS, installed pair and normal IPC PASS; all owned build/test/reader resources closed."
+      },
+      "delivery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\class-impact-recovery-delivery-outcome-20261108.json",
+        "sha256": "b27ac44de0245b30976980e0cef4d05f93a27963483373ecb9f195b98466e076"
       }
+    },
+    "latest_class_impact_recovery_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\class-impact-recovery-delivery-outcome-20261108.json",
+      "sha256": "b27ac44de0245b30976980e0cef4d05f93a27963483373ecb9f195b98466e076"
     }
   }
 }
