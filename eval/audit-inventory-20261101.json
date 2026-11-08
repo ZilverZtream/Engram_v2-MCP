@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-08T10:52:03.902493+00:00",
+  "last_updated_at": "2026-11-08T11:04:44.701233+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-08T10:52:03.902493+00:00",
+    "at_utc": "2026-11-08T11:04:44.701233+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -10839,14 +10839,14 @@
       "sha256": "ad4e82ec7725f6c2c5e3a9077bd3dd123c39d52b2fe42f6e648e7db9a7c775ad"
     },
     "pending_fresh_agent_question": "Explicit request presented for eight fresh historical-task candidates and one independent judge; no response recorded, no agent launch authorized by elapsed time.",
-    "independent_next_action": "Finish class-impact recovery source tests, existing core regression controls, native build and actual OciusX candidate/installed action-chain validation. No new agent authorization required. Keep scoped-policy producer patch v4 unapplied.",
+    "independent_next_action": "Poll SAME session1400/build driver39908 and actual child state; never restart on observation timeout. Do not edit compiled inputs while live. On PASS finalize existing release pair, then held exclusive actual OciusX candidate action-chain validation, reviewed installer and normal IPC verification.",
     "selected_class_impact_recovery": {
       "baseline": {
         "path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/class-impact-recovery-baseline-20261108.json",
         "sha256": "73960fc72b1cd48ad5ee2d6ea407a0e49b6f821fb42880d40f2353bca3e09ceb"
       },
-      "state": "SOURCE_AND_REGRESSION_PASS_NATIVE_BUILD_NEXT_NOT_DEPLOYED",
-      "session_id": null,
+      "state": "SOURCE_TESTED_PUSHED_NATIVE_BUILD_RUNNING",
+      "session_id": 1400,
       "source_files": [
         "crates/engram_server/src/services/impact_walk_service.rs",
         "crates/engram_server/tests/typescript_receiver_behavior_tests.rs",
@@ -10871,7 +10871,12 @@
           "sha256": "d6a43447e183f9f7feea07e8e17cd59aae18c076aff18404e53bf76855994699"
         }
       ],
-      "fixture_failure_preserved": "First public case passed include_guidance to impact_analysis and was rejected by its strict schema; corrected test only, production unchanged.18unit cases passed in the same initial run, focused case thenPASS and full23transitive+9receiver casesPASS."
+      "fixture_failure_preserved": "First public case passed include_guidance to impact_analysis and was rejected by its strict schema; corrected test only, production unchanged.18unit cases passed in the same initial run, focused case thenPASS and full23transitive+9receiver casesPASS.",
+      "source_commit": "93a86e8",
+      "native_checkpoint": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\class-impact-recovery-native-running-checkpoint-20261108.json",
+        "sha256": "7ea09e523a0fcbd97d31ad3c41d992cf8e7962774342f99457d7193eb2f0cbf9"
+      }
     }
   }
 }
