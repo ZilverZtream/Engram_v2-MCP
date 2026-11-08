@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-08T11:16:07.029662+00:00",
+  "last_updated_at": "2026-11-08T11:18:08.876404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-08T11:16:07.029662+00:00",
+    "at_utc": "2026-11-08T11:18:08.876404+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -10839,7 +10839,7 @@
       "sha256": "ad4e82ec7725f6c2c5e3a9077bd3dd123c39d52b2fe42f6e648e7db9a7c775ad"
     },
     "pending_fresh_agent_question": "Supersedes historical8candidate policy question: explicit request presented for two fresh core-task agents (classification and upload cancellation) plus one independent judge. No answer yet; no agent launch authorized by elapsed time or automatic continuation.",
-    "independent_next_action": "Use existing saved core-task contracts, rubrics and observer lifecycle for the current installed build; prepare exact current-build task replay inputs while the explicit fresh-agent request is pending. Do not launch agents without a user request, reuse informed answers as fresh, apply the parked policy producer patch, repeat passing core tests or choose a new incidental issue.",
+    "independent_next_action": "Current-build classification/upload-cancellation packets are prepared with unchanged old criteria/caps and no prior answers. Before an authorized launch, adapt the existing read-only observer to current installed pair pins and new separate call ledgers, and revalidate source oracles for the independent judge. Explicit three-agent request is pending; no launch without user request. Keep policy producer patch and historical evaluation separate; no repeat tests or incidental new issue.",
     "selected_class_impact_recovery": {
       "baseline": {
         "path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/class-impact-recovery-baseline-20261108.json",
@@ -10886,6 +10886,11 @@
     "latest_class_impact_recovery_delivery": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\class-impact-recovery-delivery-outcome-20261108.json",
       "sha256": "b27ac44de0245b30976980e0cef4d05f93a27963483373ecb9f195b98466e076"
+    },
+    "prepared_current_core_tasks": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-task-preparation-20261108.json",
+      "sha256": "cee43051796212ca3c80278d87009317e1fa62f6008593be5be7afd199387f8e",
+      "status": "PREPARED_CURRENT_CORE_TASK_PACKETS_NO_AGENTS_LAUNCHED"
     }
   }
 }
