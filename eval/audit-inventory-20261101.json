@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-08T13:54:26.256542+00:00",
+  "last_updated_at": "2026-11-08T14:07:24.527296+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-08T13:54:26.256542+00:00",
+    "at_utc": "2026-11-08T14:07:24.527296+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Core CodeMap/Blast agent usefulness: sidecar property-binding correction deployed and verified; cancellation collection recovery independently source-verified. Continue the original classification HTTP/JSON-to-TS/editor navigation gap; prior omitted evidence alone is not a tool defect.",
-    "next_user_visible_deliverable": "Bounded actual recovery of the remaining representative classification HTTP/JSON-to-TS/editor path using existing source-route actions and independent source evidence; select a code change only for a demonstrated navigation, witness or recovery failure.",
+    "active_original_item": "Core CodeMap/Blast usefulness on real OciusX QA decisions. Deployed producer correctness fixes and bounded cancellation/classification recoveries are verified. Comparative QA benefit remains unproven; continue original EG-25 evidence requirement without changing frozen task scores or claiming complete routing/runtime knowledge.",
+    "next_user_visible_deliverable": "One bounded matched current-behavior OciusX classification QA comparison: identical task/source evidence and an equally capable source-only arm, followed by actual checks for selected QA decisions. Do not invent a threshold delta or claim prevented defects from a plausible test plan.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
     "latest_completed_core_batch": "adb4fa6 pushed origin/master, full native sidecar pair installed and normal13RPC PASS at generation3139. One ordinary update refreshed1016VB files by new entry MVID; both impact tools retain exactly5 source-confirmed CoordinateCount consumers and remove false resolved scalar bindings. Native14 and actual old/new two-file comparison passed.300memory sections/14other metadata/two inspected sources preserved. All owned test/maintenance/observer resources closed; config released unchanged. Exact new publish tmp retained after automatic cleanup denial; previous218-file runtime retained. Frozen task partials/full31/full19 unchanged.",
-    "previous_goal_turn_classification": "PROGRESS: authorized current public task evaluations and independent source judgment completed; concrete self-edge/source discrepancy identified for bounded follow-through.",
+    "previous_goal_turn_classification": "PROGRESS: adb4fa6 sidecar correction installed and normal-service verified; independently checked cancellation recovery recorded/pushed29eec1b. Current turn adds source-verified classification setter/API/editor recovery and a concrete QA decision; no frozen rescoring.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10839,7 +10839,7 @@
       "sha256": "ad4e82ec7725f6c2c5e3a9077bd3dd123c39d52b2fe42f6e648e7db9a7c775ad"
     },
     "pending_fresh_agent_question": "RESOLVED: user explicitly answered yes to launch two candidate agents and independent judge, then reactivated goal. No further authorization question required for this evaluation.",
-    "independent_next_action": "Use existing current-task classification ledger and retained oracle to identify the first untraced HTTP/JSON/client/editor boundary, then test the offered public recovery. Reuse prior verified evidence; no broad audit, instruction drafting, catalog expansion, frozen source review or repeated permission question.",
+    "independent_next_action": "Freeze the matched current-behavior QA task and acceptance criteria before fresh candidates. Reuse existing current-task IPC recording and packet/judge contracts, with current3139/server887d2b62/manifest81cd87c9 pins; add only scoped source-only request accounting if needed. eval/frozen_task_eval.py requires four categories/eight arms and frozen_task_run.py serves packets only, so neither may be misrepresented as a one-pair live validator. Do not expand tasks to satisfy that historical schema or build a generalized harness. No new permission dependency; retain original classification/cancellation scores and frozen Q/audit exclusions.",
     "selected_class_impact_recovery": {
       "baseline": {
         "path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/class-impact-recovery-baseline-20261108.json",
@@ -11096,6 +11096,21 @@
       "limits": "Informed recovery with four fresh calls, not completion within original remaining two calls. Producer origin outside returned windows; no exhaustive ownership, runtime stability or resolved graph-edge claim. Frozen partial scores unchanged.",
       "resources": "All observer pipes closed, no pending RPC, no source/index/process mutations; retain evidence for review.",
       "permission_dependency": false
-    }
+    },
+    "latest_classification_boundary_recovery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-classification-boundary-recovery-20261108.json",
+      "sha256": "a01715a4b80ea17c17ebbf234430d3d51b1d766aedadb8abf219f09bb1a4b70a",
+      "status": "SOURCE_VERIFIED_INFORMED_CLASSIFICATION_BOUNDARY_RECOVERY_PARTIAL",
+      "calls": 6,
+      "returned_text_utf8_bytes": 39176,
+      "decision": "Existing recovery supports setter/server acknowledgment, QueryViewport bridge and current editor threshold/options. No concrete backend failure selected; HTTP/config/serializer and other uninspected boundaries remain explicit."
+    },
+    "matched_qa_preparation_limits": [
+      "Existing agent read-only preparation identified reusable contracts and historical harness incompatibility; no new pair launched or comparative result claimed.",
+      "No actual threshold-change delta exists in the retained task packet. Evaluate current behavior or obtain concrete change evidence before change-specific claims; this is not a blocker to current-behavior QA.",
+      "Assisted arm must have the same baseline source search/read capabilities as source-only plus current core tools; charge searches, errors and returned evidence.",
+      "Independent judge must receive opaque answers without arm labels/costs. AGENTS injection and prior contextual exposure must be recorded; no history-blind/held-out claim by default.",
+      "A plan alone cannot prove a prevented defect. Apply selected checks and record observed outcomes before practical QA-benefit claims."
+    ]
   }
 }
