@@ -101,6 +101,113 @@ impl Drop for Harness {
 const SOURCE_V1: &str = "Class Widget\n  Public Sub Alpha()\n  End Sub\nEnd Class\n";
 const SOURCE_V2: &str = "Class Widget\n  Public Sub Beta()\n  End Sub\nEnd Class\n";
 
+/// A scalar with the same spelling as a source property must not become a
+/// property reader/writer in the native producer's dependency graph.
+#[test]
+fn resolved_non_property_symbols_do_not_bind_same_named_source_properties() {
+    let Some(bin) = sidecar_path() else { return; };
+    // Declaration order also closes the child before removing the fixture on panic.
+    let owned = tempfile::TempDir::new().unwrap();
+    let path = owned.path().join("property_shadowing.vb");
+    let source = r#"Public Class CacheMeta
+    Public Property CoordinateCount As Long
+End Class
+Public Class ScalarInputs
+    Public Function ClassifyAutomatic(coordinateCount As Long) As Long
+        Return coordinateCount
+    End Function
+    Public Function ReadLocal() As Long
+        Dim coordinateCount As Long = 7
+        Return coordinateCount
+    End Function
+    Public Function ReadProperty(meta As CacheMeta) As Long
+        Return meta.CoordinateCount
+    End Function
+    Public Sub WriteProperty(meta As CacheMeta, value As Long)
+        meta.CoordinateCount = value
+    End Sub
+End Class
+Public Class FieldInputs
+    Private coordinateCount As Long
+    Public Function ReadField() As Long
+        Return coordinateCount
+    End Function
+    Public Function ReadQualifiedField() As Long
+        Return Me.coordinateCount
+    End Function
+    Public Sub WriteField(value As Long)
+        Me.coordinateCount = value
+    End Sub
+End Class
+Public Class MethodInputs
+    Private Function CoordinateCount() As Long
+        Return 3
+    End Function
+    Public Function ReadMethod() As Long
+        Return CoordinateCount()
+    End Function
+End Class
+Public Class BarePropertyInputs
+    Public Property Count As Long
+    Public Function ReadBare() As Long
+        Return Count
+    End Function
+    Public Sub WriteBare(value As Long)
+        Count = value
+    End Sub
+    Public Function ReadShadowed(count As Long) As Long
+        Return count
+    End Function
+End Class
+Public Class LegacyInputs
+    Public Function ReadUnresolved() As Long
+        Return missing.CoordinateCount
+    End Function
+End Class
+"#;
+    std::fs::write(&path, source).unwrap();
+    let mut harness = Harness::start(&bin);
+    let response = harness.send(serde_json::json!({
+        "cmd": "parse", "path": path, "source": source, "standalone": true,
+    }));
+    assert!(response.get("error").is_none(), "native parse failed: {response}");
+    assert_eq!(response["parser_identity"]["contract"], "vb-ingestion-parser-v4");
+    let edges = response["edges"].as_array().unwrap();
+    let property_edges: Vec<_> = edges.iter().filter(|edge|
+        edge["kind"] == "calls" && edge["target_kind"] == "property").collect();
+    for caller in [
+        "ScalarInputs.ClassifyAutomatic", "ScalarInputs.ReadLocal",
+        "FieldInputs.ReadField", "FieldInputs.ReadQualifiedField", "FieldInputs.WriteField",
+        "MethodInputs.ReadMethod", "BarePropertyInputs.ReadShadowed",
+    ] {
+        assert!(!property_edges.iter().any(|edge| edge["source_name"] == caller),
+            "resolved scalar/method must not become a property dependency: {caller}: {property_edges:?}");
+    }
+    for (caller, target, via, statement) in [
+        ("ScalarInputs.ReadProperty", "CacheMeta.CoordinateCount", "property_get", "Return meta.CoordinateCount"),
+        ("ScalarInputs.WriteProperty", "CacheMeta.CoordinateCount", "property_set", "meta.CoordinateCount = value"),
+        ("BarePropertyInputs.ReadBare", "BarePropertyInputs.Count", "property_get", "Return Count"),
+        ("BarePropertyInputs.WriteBare", "BarePropertyInputs.Count", "property_set", "Count = value"),
+        ("LegacyInputs.ReadUnresolved", "CacheMeta.CoordinateCount", "property_get", "Return missing.CoordinateCount"),
+    ] {
+        let matches: Vec<_> = property_edges.iter().filter(|edge|
+            edge["source_name"] == caller && edge["target_name"] == target
+                && edge["metadata"]["via"] == via).collect();
+        assert_eq!(matches.len(), 1, "retain the existing property read/write: {caller}: {property_edges:?}");
+        let line = source.lines().position(|line| line.trim() == statement).unwrap() + 1;
+        assert_eq!(matches[0]["metadata"]["call_site_line"], line.to_string(),
+            "property navigation must retain its actual source witness");
+    }
+    assert!(edges.iter().any(|edge| edge["kind"] == "calls"
+        && edge["source_name"] == "MethodInputs.ReadMethod"
+        && edge["target_name"] == "MethodInputs.CoordinateCount"
+        && edge["target_kind"] == "function"), "the real method call must remain");
+    harness.send(serde_json::json!({"cmd": "shutdown"}));
+    assert!(harness.child.wait().unwrap().success());
+    drop(harness);
+    owned.close().unwrap();
+}
+
 /// Contract callers must remain discoverable without confusing overloads,
 /// namespaces or constructed generic interfaces. Drive the actual native
 /// producer, rather than manufacturing the metadata expected by ingestion.
