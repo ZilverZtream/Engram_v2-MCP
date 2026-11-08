@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-08T09:36:03.846583+00:00",
+  "last_updated_at": "2026-11-08T09:43:26.838954+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-08T09:36:03.846583+00:00",
+    "at_utc": "2026-11-08T09:43:26.838954+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap/Blast agent usefulness remains the active original priority. Invalid-regex false-empty recovery from60cef8b is deployed and verified on the actual generation-guard task: query failure is explicit and valid recovery still reaches the reset writer.",
-    "next_user_visible_deliverable": "Continue original CodeMap/Blast usefulness work from actual agent tasks and independent source evidence, preserving qualified outcomes. Select the next concrete navigation/witness/recovery requirement before another implementation; no new instruction/parser/catalog/ownership/performance project or optional-review blocker.",
+    "active_original_item": "CodeMap/Blast agent usefulness remains active. After delivered regex recovery, actual omitted-caller graph expansion succeeded within the bounded task. Continue original navigation/witness/recovery work; avoid further generation-guard replay or unsupported efficiency/safety claims.",
+    "next_user_visible_deliverable": "Evaluate a different change boundary already exposed by the original stateful task: imgGroupHandler.imageHandlers returns an escaping collection. Use CodeMap and both impact tools to plan a shallow-copy getter change, separating array mutation/identity from element operations and unassessed aliases. Inspect returned real evidence before selecting a fix; no application edits or parser/ownership expansion.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
     "latest_completed_core_batch": "Invalid-regex recovery delivered:28unique grep cases/29executions and native PASS.363candidate calls include one intended invalid-params error,50unchanged prior core controls and9unchanged valid task calls. Five task source windows/two reset hits raw-verified;150definitions, registry/3136selection/14metadata/300notes preserved.218active/218prior/5journals verified; normal22candidate comparisons include expected error and5raw source reads. Broader goal/full31/full19 remain open.",
-    "previous_goal_turn_classification": "PROGRESS: native completed, actual invalid-regex query now fails explicitly instead of claiming no matches; valid current-source recovery and prior core evidence preserved. Paired install and normal public checks verified. No parser/catalog/ownership/instruction detour, optional permission blocker or broad-completion claim.",
+    "previous_goal_turn_classification": "PROGRESS: executed the actual emitted full-graph recovery from generation-guard summary, then three source actions.4calls56450B within8/96KiB. All8summary-omitted direct identities recovered; all12direct witnesses/15positions and3current source windows188lines checked against rawsource. Source-backed tests distinguish generation suppression from shared-promise identity cleanup. Existing tool recovery suffices; no new backend fix selected from graph size or displayed omissions.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10542,7 +10542,7 @@
       "interpretation": "Current collection-element calls do not corroborate explicit self-recursion. Selected links carry weaker extractor-anchor positions; existing contract separates revision admission from binding. Source checks, not indexed labels, support the plan.",
       "disposition": "Recorded; no reindex, extraction/ownership investigation, scan expansion or speculative read-side filtering selected."
     },
-    "current_owned_resource_state": "All test/native/candidate/installer runners terminal, owned handles/fixtures closed/removed. Config hold released unchanged; normal daemon owns idle lifetime. All observer pipes closed with no pending RPC. Evidence and complete previous package retained at recorded exact paths; no preexisting deletion.",
+    "current_owned_resource_state": "All release/test/candidate/installer runners terminal and fixtures closed/removed as recorded. New omitted-caller task made4read-only calls through existing normal daemon; observer pipes closed/no pending RPC, no new fixture dirs. Scripts/ledger/plan/raw-source judgment retained only in existing diagnostics root. Normal daemon owns idle lifetime; no config/source/index writes or preexisting deletion.",
     "latest_fresh_batch_cancellation_run": {
       "status": "FRESH_BATCH_CANCELLATION_BOUNDED_PLANNING_CRITERIA_PASS_SOURCE_VERIFIED",
       "agent": "/root/batchcancel_fresh01",
@@ -10787,6 +10787,10 @@
     "latest_invalid_regex_recovery_delivery": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\invalid-regex-recovery-delivery-outcome-20261108.json",
       "sha256": "09885efddc42bac4571fee45b7dae2b06c93220727e70e58ea28e553de477fd0"
+    },
+    "latest_omitted_guard_callers_task": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\guard-omitted-callers-informed01-source-judgment-20261108.json",
+      "sha256": "1f0d1ec89a55dd730a912574d9dda19496ca2441608113fb50025e423dd6980d"
     }
   }
 }
