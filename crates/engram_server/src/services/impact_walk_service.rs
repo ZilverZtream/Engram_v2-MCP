@@ -557,8 +557,45 @@ fn summary_value(
     if let Some(inspection) = full.get("terminal_member_inspection") {
         append_terminal_inspection(&mut value, inspection, &fits);
     }
+    if let Some(inspection) = full.get("type_name_inspection") {
+        append_type_name_inspection(&mut value, inspection, &fits);
+    } else if full.get("type_name_inspection_omitted") == Some(&json!(true)) {
+        value["type_name_inspection_omitted"] = json!(true);
+        if !fits(&value) { value.as_object_mut().unwrap().remove("type_name_inspection_omitted"); }
+    }
     append_caller_file_starts(&mut value, project, &fits);
     value
+}
+
+// Type mentions can reveal constructors and return types that the incoming
+// callable graph does not model. Keep this lazy search separate from that graph.
+fn type_name_inspection(node: &engram_graph::Node, project: &str) -> Option<Value> {
+    let path = node.file_path.as_str();
+    if node.node_type != "class" || !recovery_path(path)
+        || !node.node_id.starts_with(&format!("sym:class:{path}:")) {
+        return None;
+    }
+    let name = node.name.rsplit('.').next()?;
+    if name.is_empty() || name.len() > 128 || !name.chars().enumerate().all(|(i, c)|
+        c == '_' || c == '$' || if i == 0 { c.is_alphabetic() } else { c.is_alphanumeric() }) {
+        return None;
+    }
+    let (directory, _) = path.rsplit_once('/')?;
+    Some(json!({
+        "scope":"Inspect indexed literal type-name mentions in the target directory, including constructors, return types and fields. This action has not run. Matches can include declarations, comments, prefix names and unrelated types; they do not add graph dependents or prove binding, serialization flow, breakage or absence. Other directories and aliases remain unassessed. Follow returned current-source actions/hashes before inferring a route.",
+        "action":{"tool":"grep_project","arguments":{"project_id":project,"pattern":name,
+            "regex":false,"case_sensitive":false,"path_prefix":format!("{directory}/"),
+            "max_results":8,"context_before":2,"context_after":2,"freshness":"off","output_json":true}}
+    }))
+}
+
+fn append_type_name_inspection(value: &mut Value, inspection: &Value, fits: &dyn Fn(&Value) -> bool) {
+    value["type_name_inspection"] = inspection.clone();
+    if !fits(value) {
+        value.as_object_mut().unwrap().remove("type_name_inspection");
+        value["type_name_inspection_omitted"] = json!(true);
+        if !fits(value) { value.as_object_mut().unwrap().remove("type_name_inspection_omitted"); }
+    }
 }
 
 // Keep the focused member search if its broader fallback alone would overflow.
@@ -1669,6 +1706,44 @@ mod caller_file_start_behavior {
     use super::*;
 
     #[test]
+    fn class_name_recovery_preserves_vb_case_inspection_and_mandatory_evidence() {
+        let mut node = engram_graph::Node {
+            node_id:"sym:class:src/contracts.vb:Demo.ViewportDescriptor:3".into(),
+            node_type:"class".into(),name:"Demo.ViewportDescriptor".into(),
+            namespace:"memory".into(),language:"vb".into(),
+            file_path:engram_core::RelPath::new("src/contracts.vb"),
+            start_line:3,end_line:8,generation:7,metadata:None,
+        };
+        let inspection = type_name_inspection(&node, "project").unwrap();
+        assert_eq!(inspection["action"]["arguments"]["pattern"], "ViewportDescriptor");
+        assert_eq!(inspection["action"]["arguments"]["case_sensitive"], false);
+        let original = json!({"target":{"name":"Demo.ViewportDescriptor"},
+            "coverage":{"truncated":true},"immediate_consumers":[{"source_read":{"tool":"get_full_method_body"}}]});
+        let mut full = original.clone();
+        append_type_name_inspection(&mut full, &inspection, &|_|true);
+        let size = serde_json::to_vec(&full).unwrap().len();
+        for limit in [serde_json::to_vec(&original).unwrap().len(), size - 1, size] {
+            let mut actual = original.clone();
+            append_type_name_inspection(&mut actual, &inspection, &|value|serde_json::to_vec(value).unwrap().len() <= limit);
+            assert!(serde_json::to_vec(&actual).unwrap().len() <= limit);
+            let action = actual.as_object_mut().unwrap().remove("type_name_inspection");
+            actual.as_object_mut().unwrap().remove("type_name_inspection_omitted");
+            assert_eq!(action.is_some(), limit == size);
+            assert_eq!(actual, original, "Recovery cannot evict source witnesses or coverage");
+        }
+        for name in ["Demo.Invalid(Type)", "Demo.", "Demo.a:b", "Demo.9bad"] {
+            node.name = name.into();
+            assert!(type_name_inspection(&node, "project").is_none());
+        }
+        node.name = "Demo.ViewportDescriptor".into();
+        node.node_id = "legacy-class".into();
+        assert!(type_name_inspection(&node, "project").is_none());
+        node.node_id = "sym:class:../outside.vb:Demo.ViewportDescriptor:3".into();
+        node.file_path = engram_core::RelPath::new("../outside.vb");
+        assert!(type_name_inspection(&node, "project").is_none());
+    }
+
+    #[test]
     fn hinted_file_declarations_cannot_displace_evidence_or_guess_a_source_range() {
         let original=json!({"source_routes":{"file_hints":["src/client.ts"],"nodes":[]},
             "coverage":{"truncated":true},"frontier":[{"reason":"missing_graph_node"}],
@@ -2374,6 +2449,11 @@ fn render_projection(
                     "action":action,"unrestricted_fallback":fallback});
                 append_terminal_inspection(&mut value, &inspection, &|value| section(value).len() <= RESPONSE_BYTES);
             }
+        }
+    }
+    if let Some(root) = lookup.get(target).filter(|n| n.admission == ImpactAdmission::Selected) {
+        if let Some(inspection) = type_name_inspection(&root.node, project) {
+            append_type_name_inspection(&mut value, &inspection, &|value| section(value).len() <= RESPONSE_BYTES);
         }
     }
     append_caller_file_starts(&mut value, project, &|value|section(value).len()<=RESPONSE_BYTES);
