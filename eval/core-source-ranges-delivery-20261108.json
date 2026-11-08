@@ -1,6 +1,6 @@
 {
   "status": "SOURCE_COMMITTED_FOCUSED42_AND_RELEASE_BUILD_PASS_PACKAGE_PREPARED_NOT_INSTALLED",
-  "at_utc": "2026-11-08T18:27:35.626629+00:00",
+  "at_utc": "2026-11-08T18:36:00.251269+00:00",
   "selected_original_need": "Reduce demonstrated CodeMap/Blast source-recovery calls while preserving current-source evidence and original task caps. Existing single-file literal windows and grouped impact reads can require separate hops for separated source.",
   "evidence": {
     "editor_threshold_read": {
@@ -88,7 +88,7 @@
     },
     "installed": "UNCHANGED",
     "fresh_task": {
-      "status": "BASELINE_COMPLETED_SOURCE_VERIFIED_CANDIDATE_NOT_RUN",
+      "status": "BASELINE_FOUR_CRITERIA_PASS_CANDIDATE_NOT_RUN",
       "baseline_capture": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-ranges-qa-baseline-capture-20261108.json",
         "sha256": "816380f817159e65cf77b45533df67ee6f8a2fc61a184eb444b9557ad4bf6ba0"
@@ -107,7 +107,18 @@
         "sha256": "5790234f9508787bccaa3b81ba1d0e5f5d411530ed544461d437ebacd60f86fb"
       },
       "baseline_calls": 3,
-      "baseline_total_bytes": 31549
+      "baseline_total_bytes": 31549,
+      "baseline_adequacy": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-ranges-qa-elm-adequacy-20261108.json",
+        "sha256": "ee8a34467a361ee37f07180c1aaead41fcecc43d174a934059879a153a20987b"
+      },
+      "baseline_grades": [
+        "PASS",
+        "PASS",
+        "PASS",
+        "PASS"
+      ],
+      "assessment_limits": "Source-based assessment by reader author, condition known. No blind external review, runtime test, original-task rescore or comparative usefulness claim."
     },
     "capabilities_matrix": "PASS135",
     "build_artifact": {
@@ -133,7 +144,21 @@
       "status": "AWAITING_ANSWER_FOR_NEWLY_OBSERVED_LIVE_CONNECTIONS",
       "reason": "Two additional Engram proxies are owned by a live Codex host. Proxy source returns on daemon EOF; installer requires those connections stopped. Async confirmation pending; no service or host process stopped, no configuration hold acquired. Independent work continues.",
       "goal_status": "active",
-      "installed_runtime": "887d2b622043ecef6cafbacaf716c982bc059f24ad12d6bdcad6474100f8b542"
+      "installed_runtime": "887d2b622043ecef6cafbacaf716c982bc059f24ad12d6bdcad6474100f8b542",
+      "latest_live_check": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\source-ranges-recovery-maintenance-wait-check-2-20261108.json",
+        "sha256": "00e3057a3a82f63ca1459b5cb3419ee76c53a1086195be5d4ab0c7b4d6ee458b"
+      },
+      "consecutive_goal_turns_with_pending_decision": 2
+    },
+    "normal_observer": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\verify_source_ranges_recovery_normal_20261108.py",
+      "sha256": "ed7390b17dccc6834be16a49d9a77966c2f2eff73d5f161a75e9d4495673e61e",
+      "review": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\source-ranges-recovery-normal-observer-review-20261108.json",
+        "sha256": "1caa310ddd3b32eb6ab0f46ca498d31ed695b19ce8f5e6e1edad33f36998f922"
+      },
+      "status": "STATICALLY_REVIEWED_NOT_EXECUTED"
     }
   },
   "resources": {
