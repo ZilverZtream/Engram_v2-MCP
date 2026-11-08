@@ -1,0 +1,302 @@
+{
+  "status": "FRESH_ORIGINAL_TASK_REPLAY_PARTIAL_NO_COMPARATIVE_QUALITY_UPLIFT_CLAIM",
+  "at_utc": "2026-11-08T17:18:29.053171+00:00",
+  "scope": "Fresh repetition of the unchanged original classification and upload-cancellation planning tasks after deployed TS receiver and VB bound-property corrections. Same source, task prompts, original criteria/caps and tool guards; known-task verification, not heldout or matched source-only productivity.",
+  "runtime": {
+    "server_sha256": "887d2b622043ecef6cafbacaf716c982bc059f24ad12d6bdcad6474100f8b542",
+    "manifest_sha256": "81cd87c9109ddc9afa6a4eee03d074211ade3361199c3b2843e02e56ff37c4d7",
+    "pid": 41632,
+    "generation": 3139,
+    "source_files_pinned": 14,
+    "source_bytes_pinned": 849350
+  },
+  "tasks": [
+    {
+      "task": "classification",
+      "fresh_agent": "/root/core_task_spruce",
+      "verdict": "PARTIAL",
+      "counts": {
+        "PASS": 4,
+        "PARTIAL": 1,
+        "FAIL": 0
+      },
+      "criteria": [
+        {
+          "number": 1,
+          "criterion": "Identify the actual current owner/signature and inclusive BOTH-count first-fit thresholds/fallback; do not conflate the unrelated category service.",
+          "verdict": "PASS",
+          "reason": "Correct current owner and two-Long classifier, inclusive ordered BOTH-count bands and 17 fallback are identified. The answer stays with FileLayerZoomPolicy and never substitutes the unrelated category service. Source also verifies the Integer return and Public Shared declaration; no invented input validation.",
+          "remaining_gap": null
+        },
+        {
+          "number": 2,
+          "criterion": "Trace the same-file Resolve call and its nullable-count, explicit-override and pending postconditions; distinguish direct caller from external indirect/payload consumers.",
+          "verdict": "PASS",
+          "reason": "Resolve is correctly the inspected direct invocation; both nullable counts are needed for AutomaticZoom, override still wins effective zoom, and no override plus unknown counts stays pending. External ResolvePolicy and JSON clients are explicitly indirect/data consumers.",
+          "remaining_gap": null
+        },
+        {
+          "number": 3,
+          "criterion": "Explain prepared-whole-file metadata counts and QueryCacheCore policy/gate ordering before per-viewport collection; do not propose viewport-sized classification.",
+          "verdict": "PASS",
+          "reason": "Explains that classification takes prepared whole-file metadata counts and resolves policy before MetaOnly/zoom gate/per-viewport collection. It explicitly rejects viewport-sized classification. Count production and ReadMeta validation are honestly deferred; this criterion asks explanation and ordering, not exhaustive producer inspection.",
+          "remaining_gap": "Producer implementation and ReadMeta validation were not inspected by candidate. They are independent corroboration only, not grounds to invent an additional required subtask."
+        },
+        {
+          "number": 4,
+          "criterion": "Follow at least one representative HTTP/JSON-to-TS consumption path and its effective-zoom/discovery/editor effects from current source, preserving manual override behavior and stale-policy guards.",
+          "verdict": "PARTIAL",
+          "reason": "Substantial current-source HTTP/JSON and TS policy evidence correctly covers effective zoom, override precedence, pending behavior, partial discovery, and stale-generation/policy-save guards. However the required editor effects are not inspected or explained. The source-level serializer/descriptor/URL bridge also remains a stated lead, so the narrative is a partially traced representative route. This does not become false guidance because the answer labels these gaps explicitly; no configured runtime URL verification is demanded.",
+          "remaining_gap": "Editor threshold behavior is missing. Override-save, descriptor/URL, endpoint dispatch and serializer links are named but uninspected. Oracle facts do not fill these candidate gaps; actual configuration/runtime mapping may remain an explicit uncertainty."
+        },
+        {
+          "number": 5,
+          "criterion": "Give a bounded method-change plan and behavior checks for equality boundaries, one count exceeding a band, heavy fallback, missing prepared counts, manual override and downstream gate/client effects; state omitted caller coverage, configuration/runtime and build-output uncertainty without claiming completeness.",
+          "verdict": "PASS",
+          "reason": "Gives a bounded threshold-only plan with concrete equality, one-dimension overflow, fallback, missing-count, manual-override, gate and client cases. It names omitted indexed/source routes, URL/deployment/runtime uncertainty and build-output uncertainty, and explicitly says no tests ran. These are proposed checks rather than executed results or safety proof.",
+          "remaining_gap": null
+        }
+      ],
+      "metrics": {
+        "calls": 8,
+        "max_calls": 8,
+        "returned_bytes": 64037,
+        "max_returned_bytes": 65536,
+        "setup_bytes_outside_original_cap": 39386,
+        "errors": 0,
+        "source_rpc_seconds_sum": 0.09498639998491853,
+        "preflight_observations_outside_task_cap": 2,
+        "preflight_freshness_retry": 0,
+        "same_pending_observation_timeouts": 0,
+        "delivered_text_exact": true,
+        "task_packet_byte_identical": true,
+        "protocol_only_status_changed": true,
+        "source_pins_verified": 11,
+        "answer_sha256": "d2e2789907a48c356688a38545929e780d3056548a5d4bb24bab57f6c708fb7b",
+        "ledger_sha256": "888462be4499e45a04e016dca91803760090f59f019d34d835c43f62b83d448e"
+      },
+      "answer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-fixed-replay-20261108-classification-answer.txt",
+        "sha256": "d2e2789907a48c356688a38545929e780d3056548a5d4bb24bab57f6c708fb7b"
+      },
+      "closed_ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-fixed-replay-20261108-classification-ledger.json",
+        "sha256": "888462be4499e45a04e016dca91803760090f59f019d34d835c43f62b83d448e"
+      },
+      "tests": "Proposed regression plans only; none executed."
+    },
+    {
+      "task": "upload-cancellation",
+      "fresh_agent": "/root/core_task_willow",
+      "verdict": "PARTIAL",
+      "counts": {
+        "PASS": 4,
+        "PARTIAL": 1,
+        "FAIL": 0
+      },
+      "criteria": [
+        {
+          "number": 1,
+          "criterion": "Select actual imgManager.cancelUpload and inspect its current body, including its opening statements and ordering of batch state changes versus per-handler cancellation.",
+          "verdict": "PASS",
+          "reason": "Selects the actual manager cancelUpload and captures its opening batch invalidation and state changes before either nested collection loop reaches per-handler cancellation. It distinguishes the similarly named handler method.",
+          "remaining_gap": null
+        },
+        {
+          "number": 2,
+          "criterion": "Identify admitted callers and trace reset/reload session entry paths far enough to explain their source ordering and state-clearing effects; mark any omitted/uninspected routes explicitly.",
+          "verdict": "PASS",
+          "reason": "Identifies the sole admitted direct caller and two transitive entry methods, verifies their current call order and session clearing, and follows representative group and handler reset/reload bodies. It marks external/dynamic/receiver routes as unassessed instead of inflating indexed callers.",
+          "remaining_gap": null
+        },
+        {
+          "number": 3,
+          "criterion": "Inspect complete representative completion and stall callback guards and explain what their captured/current session identity protects. Identify the invalidating operation from source, without claiming exhaustive callback coverage.",
+          "verdict": "PASS",
+          "reason": "Complete representative manager completion and stall closures are inspected and accurately explained. Both guard captured batchId against current batchId; cancel invalidates before per-handler abort effects. Handler attempt identity, metadata/send, completion and timeout guards add a second boundary. The candidate names incomplete helper/callback coverage and does not claim exhaustive or runtime safety.",
+          "remaining_gap": null
+        },
+        {
+          "number": 4,
+          "criterion": "Inspect the handler cancellation boundary and the collection relationship used to reach handlers. Separate indexed edges, intended source flow, exposed aliases and unknown runtime receiver stability.",
+          "verdict": "PARTIAL",
+          "reason": "Handler cancellation boundary is thoroughly inspected and loop syntax is correctly separated from admitted incoming edges. Unknown runtime receiver stability is named. But the collection relationship is left at group.imageHandlers versus _imgHandlers syntax: the candidate did not inspect the getter returning the backing array or identify that exposed alias. That missing explicit criterion element cannot be supplied by the oracle.",
+          "remaining_gap": "Exposed array alias and direct mapping of imageHandlers to _imgHandlers remain uninspected. This is honest incomplete collection coverage, not a claimed resolved binding. No exhaustive alias search or runtime-stability proof is added as a requirement."
+        },
+        {
+          "number": 5,
+          "criterion": "Produce concrete regression scenarios for cancel/reset/reload and late callbacks with accurate source anchors and named remaining unknowns. Stay within12calls/96KiB; do not infer runtime safety or absence from small counts.",
+          "verdict": "PASS",
+          "reason": "Concrete controllable-promise/timer regressions cover cancel, both reset/reload entries, late batch/handler completion and stall, preparation waits and new-session progress. Anchors support intended checks and named unknowns. 10 calls and 91,548 bytes fit the original 12-call/96-KiB cap. No small-count absence inference, executed-test claim or runtime-safety conclusion is made.",
+          "remaining_gap": null
+        }
+      ],
+      "metrics": {
+        "calls": 10,
+        "max_calls": 12,
+        "returned_bytes": 91548,
+        "max_returned_bytes": 98304,
+        "setup_bytes_outside_original_cap": 29401,
+        "errors": 0,
+        "source_rpc_seconds_sum": 0.11987530000624247,
+        "preflight_observations_outside_task_cap": 3,
+        "preflight_freshness_retry": 1,
+        "same_pending_observation_timeouts": 0,
+        "delivered_text_exact": true,
+        "task_packet_byte_identical": true,
+        "protocol_only_status_changed": true,
+        "source_pins_verified": 3,
+        "answer_sha256": "58fbe630b624466a374bb27805a7111e7febad6225143d93d4bad774e3aeaeb7",
+        "ledger_sha256": "21aa1945af12dab0793155205b43adf1f3c21523356d1baaac8863f530e9bff6"
+      },
+      "answer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-fixed-replay-20261108-upload-cancellation-answer.txt",
+        "sha256": "58fbe630b624466a374bb27805a7111e7febad6225143d93d4bad774e3aeaeb7"
+      },
+      "closed_ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-fixed-replay-20261108-upload-cancellation-ledger.json",
+        "sha256": "21aa1945af12dab0793155205b43adf1f3c21523356d1baaac8863f530e9bff6"
+      },
+      "tests": "Proposed regression plans only; none executed."
+    }
+  ],
+  "comparison": {
+    "original_frozen_outcome": {
+      "path": "eval\\core-current-task-outcomes-20261108.json",
+      "sha256": "db641105ae1edea9765b9bcec345def50d61bad440bf503157944b9925d84059"
+    },
+    "clean_judgment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-fixed-replay-20261108-independent-judgment-clean.json",
+      "sha256": "b10e5788898796c098a60915dd08443cc62e4a0963d744af8536f0ea08cc5985"
+    },
+    "post_freeze_comparability_note": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-fixed-replay-20261108-comparability-note.json",
+      "sha256": "eb54d39411f726a882b87c0dee888d66c6240d763f4519dd2f6de39514385f1b"
+    },
+    "conclusion": "No numeric quality uplift or causal tool-benefit claim. Classification criterion3 grade differs because reviewers interpreted explanation versus inspected producer evidence differently; the new answer still defers production/ReadMeta. Criterion5 adds explicit build-output uncertainty, but the grade delta also mixes interpretation and remaining config/editor/count gaps. Cancellation verdict pattern and collection-alias gap are unchanged. Both frozen judgments remain intact.",
+    "source_costs_only": {
+      "classification": {
+        "original_returned_bytes": 61921,
+        "current_returned_bytes": 64037,
+        "original_public_rpcs": 7,
+        "original_charged_attempts": 8,
+        "original_coordinator_refusals": 1,
+        "current_public_rpcs": 8,
+        "current_errors_or_refusals": 0
+      },
+      "upload_cancellation": {
+        "original_returned_bytes": 92052,
+        "current_returned_bytes": 91548,
+        "calls_each": 10
+      }
+    },
+    "limits": "Single known-task samples, model choices and two deployed changes are confounded; no latency/productivity attribution. Original setup is outside returned-byte caps and separately disclosed."
+  },
+  "verification": {
+    "source_windows_verified": 22,
+    "oracle_windows_verified": 33,
+    "source_files_verified": 14,
+    "exact_delivered_response_texts_verified": 18,
+    "frozen_source_and_old_outcomes_unchanged": true,
+    "material_false_guidance_identified": false,
+    "new_tests_or_builds": false
+  },
+  "judge_isolation": {
+    "first_attempt_exposed_legacy_prior_result_field": true,
+    "first_attempt_scored": false,
+    "exposure_receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-fixed-replay-20261108-judge-exposure-attempt1.json",
+      "sha256": "945d7cee182c79e0bafccece6fed34bc2f24d1779c7afc6293873e62995cdf10"
+    },
+    "correction": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-fixed-replay-20261108-judge-packet-isolation-fix.json",
+      "sha256": "4e429ff8a0faf665015edc20049fd24f6d4e69e1bec2c2cbe6b8cef79c6ac8b0"
+    },
+    "clean_packet": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-fixed-replay-20261108-judge-packet-clean.json",
+      "sha256": "5ef0a6d700e1c94e3b2d2c655ec23a20d6837108ebac6f5476ee9107fbee95ac"
+    },
+    "clean_judge": "/root/core_task_clean_judge, fresh fork_none; unchanged extracted criteria and source-only oracles, no prior outcomes/metrics until judgment frozen. Shared AGENTS context remains disclosed.",
+    "original_packets_and_attempt_preserved": true
+  },
+  "protocol_evidence": {
+    "readiness": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-fixed-replay-20261108-readiness.json",
+      "sha256": "dfc0112060393287b53a0d1d99bee9284bc36c9c3123a64cd111f488e9dfd45c"
+    },
+    "relay": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-fixed-replay-20261108-relay.py",
+      "sha256": "2a559ac6a75b015fd521b9f71ef79a8afedfcf270c41d3f1a65d3c57d6c49f40"
+    },
+    "relay_diff": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-fixed-replay-20261108-relay.diff",
+      "sha256": "6b9430f9238ac3781155c1031d91172e73f8adf2b3d7eff141f71d6ae8de25ba"
+    },
+    "review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-fixed-replay-20261108-independent-review.json",
+      "sha256": "576f58459016ae1fa12d24318340b30b7bdde4bcb26a5af0ed16d76550634d7d"
+    },
+    "source_pins": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-fixed-replay-20261108-source-pins.json",
+      "sha256": "6f4483816613b6d49243447329a9b025f5b0edce2d1734db00288b38cdefcf3e"
+    },
+    "runtime_pins": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-fixed-replay-20261108-runtime-pins.json",
+      "sha256": "e4f247a5ff2b41049fcf1538f2302df582b18c717e388113017d704c1baa1695"
+    },
+    "freeze": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-fixed-replay-20261108-freeze.json",
+      "sha256": "2620b51010b2283607c23a2ee684c9a0bd4768bb7896d792141316309685c09a"
+    },
+    "exposure_execution_notes": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-fixed-replay-20261108-exposure-and-execution-notes.json",
+      "sha256": "00166697453aa068d8882cfd159d5a86f2acdbefb537ba7be5ff4428bd0bd133"
+    },
+    "delivery_verification": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-fixed-replay-20261108-delivery-verification.json",
+      "sha256": "42842ce6d57530695ca36f01812e07b4050cc95e2290430801a83be1e37f1189"
+    }
+  },
+  "navigation_hypothesis": {
+    "artifact": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-referenced-property-navigation-feasibility-20261108.json",
+      "sha256": "f475b671b4dcf5d78f30a04c28e73a7dd89ec7d44a0cc847ec801f4ba9f57b20"
+    },
+    "decision": "NOT_SELECTED_FOR_IMPLEMENTATION_IN_THIS_TURN",
+    "reason": "Admitted property references can provide a separate graph navigation action, but the current12109byte summary has179bytes free while the action alone needs269bytes. Bounded candidate selection cannot promise the relevant count property survives. Graph-only extra-hop benefit within the original task budget is unproved. Do not hand-pick names, discard mandatory evidence, or equate generic reference kind with validated producer/read/write roles.",
+    "production_changes": false
+  },
+  "resources": {
+    "all_observer_pipes_closed": true,
+    "pending_requests": 0,
+    "new_test_fixtures": false,
+    "source_or_index_changes": false,
+    "runtime_restart": false,
+    "builds_or_deployment": false,
+    "preexisting_deletions": false,
+    "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "retained_prefixes": [
+      "core-current-fixed-replay-20261108-",
+      "core-referenced-property-navigation-feasibility-20261108"
+    ],
+    "purpose": "Exact setup/protocols, replay requests/responses, closed ledgers, original answers, reviews and clean judgment retained for original queue continuity.",
+    "removal_condition": "Retain for review; future deletion needs exact-path authorization. No current deletion."
+  },
+  "original31findings_closed": false,
+  "original19gates_closed": false,
+  "eg24_closed": false,
+  "eg25_closed": false,
+  "goal_complete": false,
+  "post_freeze_getter_recovery_probe": {
+    "artifact": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-alias-compact-recovery-probe-20261108.json",
+      "sha256": "098c5953d714f08cc1ddddcdfa08d320326aed722789417ae2e7f553c334a048"
+    },
+    "status": "EXISTING_COMPACT_GETTER_RECOVERY_FITS_REMAINING_BUDGET",
+    "calls": 2,
+    "returned_bytes": 6547,
+    "available_remaining_bytes": 6756,
+    "fresh_task_not_rescored": true,
+    "production_change_selected": false
+  }
+}
