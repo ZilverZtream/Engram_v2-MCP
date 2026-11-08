@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-08T10:10:55.300553+00:00",
+  "last_updated_at": "2026-11-08T10:19:11.933331+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-08T10:10:55.300553+00:00",
+    "at_utc": "2026-11-08T10:19:11.933331+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap/Blast agent usefulness remains the core priority. The original fresh batch plan and subsequent preparation plan now have bounded production-method execution evidence, not just source checks. No new backend defect was demonstrated. Stop adding static cancellation/getter microtasks; assess the core delivery against its original concrete failures before choosing more implementation.",
-    "next_user_visible_deliverable": "Perform a focused core-delivery completion check against the original observed CodeMap/Blast failures and promised behavior: selected-source orientation, usable symbol/source navigation, revision-admitted downstream impact, honest safety/coverage and executable evidence recovery. Use existing installed receipts and real task/source/behavior evidence; identify any specific unmet requirement. Do not rerun passed tasks, invent perfection requirements, launch a broad31/19 audit or replace delivery with infrastructure. Preserve overall unfinished original backlog and EG24/EG25 limits.",
+    "active_original_item": "Original tool-improvement queue, rank5 accepted-task benchmark (EG24), following verified delivery of the observed CodeMap/Blast navigation/witness/recovery work. Keep core task usefulness as the subject of verification. EG25 matched real-workflow benefit remains separate and open. Do not restart completed cancellation/getter/guard microtasks or instruction drafting.",
+    "next_user_visible_deliverable": "Extend the existing frozen-task evaluation path with the smallest concrete regular-run mechanism that collects and scores new task responses under the frozen packet/read/canary protocol. First resolve the actual runner and private-corpus boundary from existing code; keep private OciusX packets out of Git and shared CI artifacts. Reuse current evaluator and benchmark entrypoints, rather than build a new evaluation platform. Saved-run validation and mock adapter tests must remain explicitly distinct from fresh task execution; no new subagents without explicit authorization.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
     "latest_completed_core_batch": "Invalid-regex recovery delivered:28unique grep cases/29executions and native PASS.363candidate calls include one intended invalid-params error,50unchanged prior core controls and9unchanged valid task calls. Five task source windows/two reset hits raw-verified;150definitions, registry/3136selection/14metadata/300notes preserved.218active/218prior/5journals verified; normal22candidate comparisons include expected error and5raw source reads. Broader goal/full31/full19 remain open.",
-    "previous_goal_turn_classification": "PROGRESS: executed tool-derived cancellation/retry decisions against maintained production handler and manager methods. Eighteen handler methods, fifteen manager methods and the group getter match current TypeScript emission. Eleven isolated handler cases and five batch/boundary cases supported; one wrong fixture spy retained and corrected with only its failed case rerun. No application edits, real network, fixture directories or Engram source changes; all runners terminal and owned fake timers closed.",
+    "previous_goal_turn_classification": "PROGRESS: checked seven explicit core requirements against actual installed responses, task/source judgments, production-method execution and current source/commit ancestry. Current installed pair matches latest verified hashes; explicit original adjacency checkpoint is delivered. Core observed failures have delivery evidence. Existing benchmark-ci and frozen_task_eval reveal a specific remaining gap: regular fresh task evaluation is absent; current evaluator verifies saved runs only.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10509,7 +10509,7 @@
         "selection": "Recorded only. No fix selected from this limitation; continue actual core-tool task validation."
       }
     ],
-    "next_core_task_rationale": "The current concrete cancellation decision has been exercised and no new defect blocks it. The next step must distinguish completed core delivery from actual remaining requirements, rather than perpetuating an open-ended chain of narrower inspections. This is a scoped completion check, not overall-goal completion or a new broad audit.",
+    "next_core_task_rationale": "The original ranked queue explicitly leaves its fifth item, regular accepted-task verification, incomplete. The core delivery check now supports moving to that unmet requirement instead of generating more passing inspection receipts. Inspecting current workflow confirms no regular fresh frozen-task invocation. Implementation/QA comparative benefit is not established by the16isolated production cases and stays open.",
     "latest_batch_cancellation_task": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\batchcancel-informed01-source-judgment-20261107.json",
       "sha256": "c8bff5ac3935ccc5648a62a78b7d2fa61d0e15affa8ba118da7862fe38f2e06e"
@@ -10818,6 +10818,17 @@
       "status": "TOOL_DERIVED_CANCELLATION_DECISIONS_CONFIRMED_IN_ISOLATED_PRODUCTION_EXECUTION",
       "unique_cases_supported": 16,
       "case_executions": 17
-    }
+    },
+    "latest_core_delivery_requirements_check": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-delivery-requirements-check-20261108.json",
+      "sha256": "8f9f31d4cca5650c0ac3eadc3d64263c7ca8defd8bd7835bc3c736ec4b1f3313",
+      "status": "CORE_DELIVERY_REQUIREMENTS_SUPPORTED_BROADER_ORIGINAL_GOAL_OPEN"
+    },
+    "core_delivery_milestone_limits": [
+      "The observed CodeMap/Blast failures and named adjacency checkpoint are delivered, not a claim of perfect semantic mapping or safe-change prediction.",
+      "Fresh09 partial remains unchanged; controlled13 informed success is not fresh autonomous success.",
+      "Current isolated QA confirms specific tool-derived decisions, not live browser/server behavior or matched productivity.",
+      "All31 findings/19gates original records and parked unfinished work remain unchanged."
+    ]
   }
 }
