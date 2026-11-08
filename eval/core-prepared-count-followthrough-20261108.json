@@ -1,0 +1,184 @@
+{
+  "status": "PREPARED_COUNT_SOURCE_RECOVERY_VERIFIED_WITH_EXPLICIT_PROVENANCE",
+  "at_utc": "2026-11-08T15:48:11.008246+00:00",
+  "original_task": "classification criterion3: prepared whole-source counts, persistence and validation; no threshold change or application patch",
+  "scope": "Additional informed source recovery, not a fresh comparative task, original budget extension or frozen-score revision. The deployed sidecar-backed property links supplied useful source navigation; ordinary source inspection supplied the upstream accumulator context.",
+  "starting_hint": "sym:property:Site/App_Code/visualisering/code/FileLayerSpatialService.vb:_vs.FileLayerSpatialService.CacheMeta.CoordinateCount:221",
+  "runtime": {
+    "pid": 41632,
+    "generation": 3139,
+    "server_sha256": "887d2b622043ecef6cafbacaf716c982bc059f24ad12d6bdcad6474100f8b542",
+    "manifest_sha256": "81cd87c9109ddc9afa6a4eee03d074211ade3361199c3b2843e02e56ff37c4d7",
+    "source_sha256": "94a2f3fbb18f241018c3e93866eb2be1af09d6ea9465e37596cca11064f9a576",
+    "source_blake3": "a4beea3062721ae819f887b783a5c4c1fd88366ffd0701f6b63738c3f38f27ec"
+  },
+  "evidence": {
+    "agent": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-prepared-count-followthrough-20261108.json",
+      "sha256": "540939b69d4f4e51f7a21755d721fb76699b50c4cd538e8a903a52b93b59455b"
+    },
+    "agent_source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-prepared-count-followthrough-source-review-20261108.json",
+      "sha256": "3e4c511314dbe00a9fc7608cb83ab995244eefeec7c95beb0b784f3e60d356cc"
+    },
+    "root_additional_tools": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-prepared-count-root-supplement-20261108.json",
+      "sha256": "60d4124615b70971550c04ae168a380e5005dcc8c03e7c71a3f0338bbb0f1299"
+    },
+    "root_source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-prepared-count-root-source-review-20261108.json",
+      "sha256": "2e9f79912ecd24b5a6a8e52973a97ce67b5864b0bd984669767b5991fef0157f"
+    },
+    "independent_combined_judgment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-prepared-count-combined-judgment-20261108.json",
+      "sha256": "816b741da9b8e5186c38b72827a74d78d7f42d45743fd1fcf0beb0837dda598b"
+    }
+  },
+  "costs_and_provenance": {
+    "agent_tool_calls": 4,
+    "agent_returned_bytes": 28791,
+    "agent_caps": {
+      "calls": 4,
+      "bytes": 32768
+    },
+    "root_additional_tool_calls": 2,
+    "root_additional_returned_bytes": 13124,
+    "combined_tool_calls": 6,
+    "combined_returned_bytes": 41915,
+    "ordinary_source_ranges_outside_tool_exposure": [
+      [
+        926,
+        1015
+      ],
+      [
+        1069,
+        1150
+      ],
+      [
+        1160,
+        1203
+      ],
+      [
+        1269,
+        1310
+      ]
+    ],
+    "root_steering_arrived_after_agent_call4": true,
+    "agent_direct_source_reads": false,
+    "not_fresh_or_comparative": true
+  },
+  "verified_findings": [
+    {
+      "finding": "After successful CreateFeature, FeatureCount increments once and CoordinateCount adds the full Long helper result. Null/empty geometries skip counting; per-feature stored count is separately clamped to Int32.MaxValue.",
+      "source": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+      "lines": [
+        1386,
+        1472
+      ],
+      "provenance": "agent exact emitted current-source action, independently verified"
+    },
+    {
+      "finding": "WriteMeta writes both totals from stats as invariant strings into key/value metadata; failed layer/field/row creation returns preparation failure.",
+      "source": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+      "lines": [
+        1979,
+        2021
+      ],
+      "provenance": "separate root current-source action using a previously source-confirmed writer lead"
+    },
+    {
+      "finding": "ReadMeta checks cache format and requires both strict count parses; missing/malformed/signed/negative/overflow values reject metadata as Nothing, while valid zero is retained.",
+      "source": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+      "lines": [
+        2497,
+        2569
+      ],
+      "provenance": "agent ReadMeta action plus current literal helper inspection, independently verified"
+    },
+    {
+      "finding": "One CacheMeta accumulator is created per BuildCache attempt, passed through source-file or converted-document processing, checked against stored feature count and then persisted. Counts concern prepared written spatial features across that source, not viewport filtering.",
+      "source": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+      "lines": [
+        926,
+        1150
+      ],
+      "provenance": "ordinary independent source inspection, supplemented by tool-returned per-feature caller windows; not credited to agent navigation"
+    }
+  ],
+  "source_derived_regression_expectations_not_executed": [
+    {
+      "case": "Null or empty geometry",
+      "expected": "Skip without incrementing the two totals.",
+      "source_lines": [
+        1386,
+        1435
+      ]
+    },
+    {
+      "case": "Feature storage fails",
+      "expected": "Return failure before incrementing totals.",
+      "source_lines": [
+        1458,
+        1465
+      ]
+    },
+    {
+      "case": "Successful storage of a valid feature with helper count n",
+      "expected": "FeatureCount increases by1 and CoordinateCount by n.",
+      "source_lines": [
+        1435,
+        1465
+      ]
+    },
+    {
+      "case": "Persist totals5 and42",
+      "expected": "Write featureCount=\"5\" and coordinateCount=\"42\" using invariant formatting.",
+      "source_lines": [
+        1996,
+        2015
+      ]
+    },
+    {
+      "case": "Valid zero metadata counts with valid format",
+      "expected": "Construct CacheMeta with both zero values, rather than treating them as absent.",
+      "source_lines": [
+        2515,
+        2569
+      ]
+    },
+    {
+      "case": "Either count missing, empty, malformed, signed/negative or above Int64 range",
+      "expected": "ReadMeta returns Nothing; it does not substitute zero.",
+      "source_lines": [
+        2526,
+        2569
+      ]
+    },
+    {
+      "case": "WriteFeatures returns failure after partial processing",
+      "expected": "BuildCache returns before its WriteMeta and PublishCache calls on that source branch. Runtime atomic-publication behavior still needs separate execution.",
+      "source_lines": [
+        971,
+        1006
+      ]
+    }
+  ],
+  "remaining_limits": [
+    "CountCoordinates geometry semantics/completeness were not inspected.",
+    "No GDAL/database/cache-rebuild/publication/concurrency runtime checks were executed.",
+    "Whole-source accumulation context required ordinary source inspection outside agent/tool-return exposure.",
+    "No causal productivity gain or new backend defect is established; original task scores and source-only-preferred QA result remain unchanged."
+  ],
+  "resources": {
+    "agent_and_root_pipes_closed": true,
+    "pending_rpc": false,
+    "source_or_index_mutation": false,
+    "temporary_fixtures_created": false,
+    "retained_evidence_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Retain bounded receipts for source and task-outcome review; no preexisting paths removed."
+  },
+  "frozen_scores_changed": false,
+  "original31findings_closed": false,
+  "original19gates_closed": false,
+  "goal_complete": false
+}
