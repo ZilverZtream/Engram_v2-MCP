@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-07T22:01:20.054296+00:00",
+  "last_updated_at": "2026-11-08T06:01:48.627202+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-07T22:01:20.054296+00:00",
+    "at_utc": "2026-11-08T06:01:48.627202+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
     "latest_completed_core_batch": "Capped member recovery deployed:8focused behaviors/native build PASS, frozen inputs and owned cleanup. Actual382calls preserve63prior controls,150definitions and full cancelUpload Graph; returned search/current source reaches manager772 without adding indexed callers.218active/218prior/5journals verified; normal runtime matches candidate. Original31/full19 and broader adoption remain open.",
-    "previous_goal_turn_classification": "PROGRESS: explicit user go ahead resolved delegation blocker; one no-history task consumer completed11publiccalls with no tool errors and stayed within12calls/96KiB. Frozen plan and complete transport retained; root raw-source judgment passes five criteria with explicit scope and unknowns. No second judge agent, runtime safety or overall completion claim.",
+    "previous_goal_turn_classification": "PROGRESS: corrected improper goal-level stall and continued authorized root work. Three actual installed-tool calls verified against raw source; former grep blocker absent and existing first-hit recovery exposes discovery response path. No new feature justified by this diagnostic; historical partial/fresh and informed outcomes remain distinct.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10542,7 +10542,7 @@
       "interpretation": "Current collection-element calls do not corroborate explicit self-recursion. Selected links carry weaker extractor-anchor positions; existing contract separates revision admission from binding. Source checks, not indexed labels, support the plan.",
       "disposition": "Recorded; no reindex, extraction/ownership investigation, scan expansion or speculative read-side filtering selected."
     },
-    "current_owned_resource_state": "Fresh consumer completed and returned protocol audit. All11task RPCs terminal and observer pipes closed; no pending request or owned temporary directories. No source edits or extra agents. Evidence remains in existing diagnostics directory; normal daemon owns idle lifetime. Prior retained installation pairs unchanged.",
+    "current_owned_resource_state": "All RPCs terminal and pipe handles closed. No new temporary directory. Retained scripts/contracts/ledger/report all in existing diagnostics location until evidence review. Normal daemon owns idle lifetime; preexisting installation pairs untouched.",
     "latest_fresh_batch_cancellation_run": {
       "status": "FRESH_BATCH_CANCELLATION_BOUNDED_PLANNING_CRITERIA_PASS_SOURCE_VERIFIED",
       "agent": "/root/batchcancel_fresh01",
@@ -10581,6 +10581,21 @@
       "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\batchcancel-fresh01-source-judgment-20261107.json",
       "observation": "Fresh consumer noted timeout-handle clearing before attempt guard and proposed a queued-timer regression. Raw source confirms order only; no execution evidence or proven app bug.",
       "disposition": "Recorded only; no OciusX edits or new application-fix work selected."
+    },
+    "goal_stall_correction_20261108": {
+      "at_utc": "2026-11-08T06:01:48.627202+00:00",
+      "status": "ACTIVE_AUTHORIZED_ROOT_WORK_CONTINUES",
+      "error": "An optional fresh-agent permission question was incorrectly promoted to a blocker for the entire unfinished goal, stopping automatic continuation.",
+      "correct_rule": "Restriction on spawning additional agents does not block authorized root implementation, source verification or original core-tool work. Do not make optional fresh-agent validation a prerequisite for continuing the goal.",
+      "authorization": "User explicitly reactivated goal; no additional permission needed for original authorized work.",
+      "scope": "Original CodeMap/Blast queue remains active; no original finding or storage gate closed."
+    },
+    "latest_vb_navigation_diagnostic": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-navigation-probe01-20261108-source-judgment.json",
+      "sha256": "3256aa4dbcd0b50c91b394f37e4926a1e66a6cab6122a8615a5e0e9bae84d58c",
+      "classification": "CURRENT_RECOVERY_SOURCE_VERIFIED_NO_NEW_FIX_SELECTED",
+      "calls": 3,
+      "returned_bytes": 15898
     }
   }
 }
