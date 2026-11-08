@@ -1,0 +1,141 @@
+{
+  "status": "PRESENTATION_HYPOTHESIS_NOT_SUPPORTED_CANDIDATE_REVERTED_NOT_INSTALLED",
+  "at_utc": "2026-11-08T15:31:32.934201+00:00",
+  "scope": "Original CodeMap/Blast usefulness queue: test whether surfacing an existing external read changes the next evidence choice after actual CodeMap and Blast replies.",
+  "prototype_commit": "619e1a64d3c9d4ec4d50c45097ca786002ce458f",
+  "revert_commit": "f9a8eae22843f1e1b121cf6626e1669b6ea913db",
+  "candidate_installed": false,
+  "production_source_delta_retained": false,
+  "source_and_runtime_checks": {
+    "unit_passed": 3,
+    "public_behavior_passed": 23,
+    "native_release_build": "PASS",
+    "candidate_public_calls": 10,
+    "candidate_summary_bytes_each": 12241,
+    "canonical_json_unchanged": true,
+    "graph_overview_unchanged_except_age": true,
+    "both_tools_actions_executed_and_source_verified": true,
+    "generation": 3139
+  },
+  "next_action_result": {
+    "prior_and_candidate_chose_same_request": true,
+    "kind": "source_read",
+    "path": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+    "line_start": 2247,
+    "line_end": 2345,
+    "response_bytes": 5500,
+    "prior_remaining_bytes": 9332,
+    "candidate_remaining_bytes": 9200,
+    "candidate_added_response_bytes": 132,
+    "incremental_benefit_demonstrated": false
+  },
+  "interpretation": "Two fresh controlled next-action continuations both followed the useful99-line external range. The prior oversized400-line choice was not reproduced. This narrow pair establishes neither general equivalence nor full QA success. Do not ship the speculative presentation change or rescore the earlier source-only-preferred matched QA.",
+  "evidence": {
+    "baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-summary-action-baseline-20261108.json",
+      "sha256": "af14e3d991166bf25140e599dccbf143a60ba77025b4fb2f0b7593d5f8bafeab"
+    },
+    "protocol": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-summary-next-action-protocol-20261108.json",
+      "sha256": "facec69434101932577e39628483ee42f2e49563589efe2bb3a58006f9ae4bba"
+    },
+    "next_action_outcome": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-summary-next-action-outcome-20261108.json",
+      "sha256": "3de825432e6dac6be606b30ca3fc4d3643da1f81c4ea0e9f8a16c7eabc754d79"
+    },
+    "candidate_acceptance": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\summary-source-actions-cold-v1-20261108\\acceptance.json",
+      "sha256": "8e89b1715cf85a1892dc8194a7d9d451695129c7ffcf4831510a322ffd0c43cc"
+    },
+    "original_runtime_restored": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\summary-source-actions-original-normal-restored-20261108.json",
+      "sha256": "eae334aa7c8c4d85543940ce76ca0647c524e628e376afa8eb518e273bec611f"
+    },
+    "source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\summary-source-actions-source-review-20261108.json",
+      "sha256": "6489d7020c502dd3ae6c9c20d3467e19a3eba26e529798e7fb32a397268d1d1d"
+    },
+    "adapter_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\summary-source-actions-adapter-review-20261108.json",
+      "sha256": "80328f0cd44c75c366007e519e0fbf19dc12ebf00e6a1115799b3333c3a1206b"
+    },
+    "package": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\summary-source-actions-paired-package-20261108.json",
+      "sha256": "02901a4bb33cdf96e48e677f74bd8d9ea5f8d53e17b4b9f6b5f067e08f1fc11d"
+    }
+  },
+  "restored_runtime": {
+    "pid": 41632,
+    "launcher_pid": 17876,
+    "server_sha256": "887d2b622043ecef6cafbacaf716c982bc059f24ad12d6bdcad6474100f8b542",
+    "manifest_sha256": "81cd87c9109ddc9afa6a4eee03d074211ade3361199c3b2843e02e56ff37c4d7",
+    "read_checks_passed": 6,
+    "candidate_installed": false,
+    "configuration_released_unchanged": true,
+    "sidecar_fix_preserved": true
+  },
+  "resources": {
+    "closed_build_and_test_runs": [
+      {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\summary-source-actions-unit-v1-20261108.json",
+          "sha256": "dda2492fc9853a3d80ef4c1f0129e731714d99bdf6dfcf70df79db8910642e95"
+        },
+        "owned_temp": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\edit-workload-focused-siq98d5v",
+        "removed": true,
+        "job_empty_and_closed": true,
+        "relay_handle_closed": true
+      },
+      {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\summary-source-actions-regression-v1-20261108.json",
+          "sha256": "afb96b5534e8a85f10d76f423a7485d5800fd96ec7293aff70f5da028e7db5f3"
+        },
+        "owned_temp": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\edit-workload-focused-2mvk2b70",
+        "removed": true,
+        "job_empty_and_closed": true,
+        "relay_handle_closed": true
+      },
+      {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\summary-source-actions-shipping-20261108.json",
+          "sha256": "ef90d88e6921d47e9161293409c3f397fdb18c38d22fa4612d3e93c1870ebf7e"
+        },
+        "owned_temp": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\edit-workload-focused-_ivd5nm_",
+        "removed": true,
+        "job_empty_and_closed": true,
+        "relay_handle_closed": true
+      }
+    ],
+    "cold_reader_closed": true,
+    "cold_tmp_removed": true,
+    "configuration_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\summary-source-actions-config-hold-20261108.json.released.json",
+      "sha256": "4b8635fc1d78fc875c9ab6775606f3e772853260a37f0b8b5a1ff5b9586bf655"
+    },
+    "retained_candidate_package": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\summary-source-actions-package-20261108",
+      "files": 216,
+      "bytes": 336313841,
+      "cleanup_condition": "Retain rejected candidate and receipts for review. Never deploy this package based on the prepared release gates. Shared target/release executable is also the rejected candidate build, not the restored installed runtime."
+    },
+    "evidence_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "preexisting_files_deleted": false,
+    "new_installation_backup_created": false
+  },
+  "frozen_findings_sha256": "5ec1ba2cafc48f6d4c7d46e6821bb0e0ce0bec8d31c486ea492880cd1ceadec9",
+  "frozen_gates_sha256": "63b0598123293cb5f662601c39dce7a3b319619f589bc6a18649faade83457bd",
+  "original31findings_closed": false,
+  "original19gates_closed": false,
+  "frozen_task_scores_changed": false,
+  "goal_complete": false,
+  "independent_output_inspection": {
+    "reviewer": "/root/core_current_judge",
+    "scope": "Same four captured outputs only; no new catalog/audit/source scan.",
+    "codemap_plus_blast_bytes": 24325,
+    "codemap_current_source_bytes": 5755,
+    "exact_duplicate_action_bytes_across_pair": 469,
+    "optional_codemap_browse_and_edit_context_action_bytes": 684,
+    "conclusion": "No demonstrated backend output defect selected. Both candidates found the existing route; duplication and byte counts alone do not justify another presentation/dedup patch."
+  }
+}
