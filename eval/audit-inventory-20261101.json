@@ -3096,7 +3096,7 @@
           "before_bytes": 504,
           "after_bytes": 504
         },
-        "unwatch_response": "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Unwatched.",
+        "unwatch_response": "\u00c3\u0192\u00c6\u2019\u00c3\u2020\u00e2\u20ac\u2122\u00c3\u0192\u00e2\u20ac\u0161\u00c3\u201a\u00c2\u00a2\u00c3\u0192\u00c6\u2019\u00c3\u00a2\u00e2\u201a\u00ac\u00c2\u00a6\u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u20ac\u0161\u00c2\u00ac\u00c3\u2026\u00e2\u20ac\u0153\u00c3\u0192\u00c6\u2019\u00c3\u201a\u00c2\u00a2\u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u201a\u00ac\u00c5\u00a1\u00c3\u201a\u00c2\u00ac\u00c3\u0192\u00e2\u20ac\u0161\u00c3\u201a\u00c2\u00a6 Unwatched.",
         "error": "RuntimeError('Updated project_id: 7efa788d-05ab-4892-b981-ca1462fb427a\\nstatus: done\\nsource_update: no_changes_detected\\nactive_generation: 1\\nfiles=0 chunks=0 bytes=0\\ncommits=0; git history already current at the approved history root\\n')",
         "fixture_removed": true,
         "required_candidate_behavior": "Same immutable binary/config/workload probe must index the changed source, preserve sibling queries and survive restart; no sleep is added to hide failure."
@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-08T12:04:43.244866+00:00",
+  "last_updated_at": "2026-11-08T13:48:00.087906+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-08T13:16:21.150479+00:00",
+    "at_utc": "2026-11-08T13:48:00.087906+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Core CodeMap/Blast usefulness: script-call compatibility migration delivered; use existing sidecar-derived property dependencies on actual classification producer task and source-check a suspicious parameter-to-property link before selecting any fix.",
-    "next_user_visible_deliverable": "Validate actual retained property navigation against current source; distinguish useful producer recovery from false bindings. Do not turn sidecar discovery into a broad infrastructure/audit project.",
+    "active_original_item": "Core CodeMap/Blast agent usefulness: VB known-symbol property-binding delivery complete; continue the original navigation/witness/recovery gaps in current task outcomes without rescoring frozen evaluations.",
+    "next_user_visible_deliverable": "Select and verify the next concrete remaining agent-task gap against existing independent source evidence; distinguish missed navigation from a tool defect before changing production.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9855,7 +9855,7 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "6fe7b36 pushed origin/master; native and no-vector ordinary-update behavior passed; installed887d2b62/manifest4221a353 normal11requestsPASS. One ordinary OciusX update3137->3138 refreshed357scripts, kept1950revisions, pruned8already-absent entries, processed1gitcommit/55temporal edges. Both impacttools correct3invocationedges/no false selfedges;300notes/14metadata/3upload files preserved. Both runtime observer FAILs retained/reconciled independently; allownedresourcesclosed/configreleased/218oldpair retained. Frozen task outcomes/fullgoal unchanged.",
+    "latest_completed_core_batch": "adb4fa6 pushed origin/master, full native sidecar pair installed and normal13RPC PASS at generation3139. One ordinary update refreshed1016VB files by new entry MVID; both impact tools retain exactly5 source-confirmed CoordinateCount consumers and remove false resolved scalar bindings. Native14 and actual old/new two-file comparison passed.300memory sections/14other metadata/two inspected sources preserved. All owned test/maintenance/observer resources closed; config released unchanged. Exact new publish tmp retained after automatic cleanup denial; previous218-file runtime retained. Frozen task partials/full31/full19 unchanged.",
     "previous_goal_turn_classification": "PROGRESS: authorized current public task evaluations and independent source judgment completed; concrete self-edge/source discrepancy identified for bounded follow-through.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
@@ -10839,7 +10839,7 @@
       "sha256": "ad4e82ec7725f6c2c5e3a9077bd3dd123c39d52b2fe42f6e648e7db9a7c775ad"
     },
     "pending_fresh_agent_question": "RESOLVED: user explicitly answered yes to launch two candidate agents and independent judge, then reactivated goal. No further authorization question required for this evaluation.",
-    "independent_next_action": "Continue read-only retained Roslyn property navigation: ResolvePolicy outgoing yielded FeatureCount/CoordinateCount/OverrideZoom; incoming count properties yielded WriteFeature/WriteMeta/ReadMeta and current source validates those3stages. CoordinateCount also returned ClassifyAutomatic, whose inspected body uses a same-named parameter, not CacheMeta; inspect exact current impact edge before deciding next narrow fix. Do not rerun migration/rebuild or ask agent permission. Installed normal daemon9416; original goalactive.",
+    "independent_next_action": "Judge is checking existing frozen partial task evidence for the next single bounded navigation/witness/recovery check. No permission dependency, broad audit, further instruction drafting or frozen source review.",
     "selected_class_impact_recovery": {
       "baseline": {
         "path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/class-impact-recovery-baseline-20261108.json",
@@ -11014,6 +11014,76 @@
         "sha256": "3ce78d6f4d2ad7e22aba5d7d129b3acc06ad196387d84e0d65f62b1f7528dc90"
       },
       "limits": "Root-informed diagnostic. First3sourcechecks passed; fourthsource comparison request1..85 ended on blankline and assertionfailed before response retained. Preserve partial file, no4checkPASS claimed; need inspect bounded finalmethodrange. No frozen evaluation rescoring."
+    },
+    "selected_vb_property_binding_fix": {
+      "status": "DEPLOYED_NORMAL_IPC_VERIFIED",
+      "source_commit": "adb4fa6a6549aaf248d52d0958827b82af6c8e49",
+      "actual_impact": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-sidecar-parameter-property-impact-20261108.json",
+        "sha256": "3c78be7bef9f681dcd07d6eb3a1929f585c29ad3b6214d37f5161d870b13dd64"
+      },
+      "fresh_native_reproduction": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-sidecar-bound-parameter-repro-20261108.json",
+        "sha256": "3ca9cf92e538a2422619f1e08d034f09f4a2ad3e72f637021d1005c4c2fe0c1d"
+      },
+      "before_expected_failure": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-bound-property-before-20261108.json",
+        "sha256": "cda5ac04762ceb30c1c270fa0505465e87bd1ed05c19e9120e556300de4461a0"
+      },
+      "after_focused": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-bound-property-after-20261108.json",
+        "sha256": "575d6e467f7a7426bb2b3b4bf6c4ef3b9e13240e6f6b466b7e3ecb1aea7b617c"
+      },
+      "native14_regression": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-bound-property-native-regression-20261108.json",
+        "sha256": "5cf0874c930381e17a90862928afc2094a1061b3bb80fda99e39accae86cbaba"
+      },
+      "native_build": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-bound-property-native-20261108\\build-result.json",
+        "sha256": "4df5a913cc486c40250cf41e5b3458f10686c87858102a5a3fde9390ca656309"
+      },
+      "build_temp_retained": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-bound-property-native-20261108\\tmp",
+        "reason": "Automatic approval review rejected removal with generic blocked by policy. No bypass attempted.",
+        "cleanup_condition": "Exact owned directory may be removed when policy permits; preserve package/evidence until delivery review."
+      },
+      "fresh_source_evidence_limit": "Known-symbol fix only; unresolved lexical fallback still unverified, no full value-flow analysis or overall graph correctness claim.",
+      "current_source_comparison": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-sidecar-bound-property-actual-two-file-comparison-20261108.json",
+        "sha256": "97f0b6b881caa54f46e21b4edc1effbb94a29722590bc7308bf2cacd1408e3c9"
+      },
+      "source_review": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-bound-property-source-review-20261108.json",
+        "sha256": "3246d6ef3a9f230afc8b3843806dcf451b00e81dc07cb06beedeb6762c566886"
+      },
+      "pair": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-bound-property-paired-package-20261108.json",
+        "sha256": "28c6619f0ea649bf3799f2a9fb5cc20924c2cfbfe36d2db828b72a574126c74c"
+      },
+      "config_hold": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-bound-property-config-hold-20261108.json",
+        "sha256": "2ee18e9e898969bc6d1cae8ce2f49b76b07549a5de19a7ef263cbcadfc68b95e"
+      },
+      "owned_proxy_close": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-bound-property-owned-proxy-close-20261108.json",
+        "sha256": "0c099e29149890e82065864084872fefc69b55c3d395542965ed025f35709ff3"
+      },
+      "delivery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\vb-bound-property-delivery-20261108.json",
+        "sha256": "4f4b05d2a15f49dca8281b82b8d6582bc504c9693f2b4d434e382b75ab844ede"
+      },
+      "candidate_migration": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-bound-property-cold-v1-20261108\\acceptance.json",
+        "sha256": "d259298b0d8d16dd173d5412972f769cdb9527ca2501bbc4991514b414017a11"
+      },
+      "installed_normal": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-bound-property-normal-validation-20261108.json",
+        "sha256": "400716fce2851eabdbff11589ea3f9cc88787632edeea3f2a2ab86a44ade70d4"
+      }
+    },
+    "latest_vb_bound_property_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\vb-bound-property-delivery-20261108.json",
+      "sha256": "4f4b05d2a15f49dca8281b82b8d6582bc504c9693f2b4d434e382b75ab844ede"
     }
   }
 }

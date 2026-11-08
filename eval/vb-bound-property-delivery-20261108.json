@@ -1,0 +1,127 @@
+{
+  "status": "DEPLOYED_NORMAL_IPC_VERIFIED_VB_BOUND_PROPERTY_WITNESSES",
+  "at_utc": "2026-11-08T13:48:00.087906+00:00",
+  "implementation_commit": "adb4fa6a6549aaf248d52d0958827b82af6c8e49",
+  "behavior": "Roslyn-resolved parameters, locals, fields and methods no longer fall through to an unrelated same-named source property. Real source properties and unresolved legacy fallback remain supported.",
+  "actual_ociusx": {
+    "generation_before": 3138,
+    "generation_after": 3139,
+    "ordinary_updates": 1,
+    "source_selection_transition": {
+      "added": 0,
+      "removed": 0,
+      "revised": 1016,
+      "unchanged": 1291,
+      "artifact": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-bound-property-cold-v1-20261108\\source-selection-transition.json",
+        "sha256": "232a6cf944ff7f2407b7406082184e962307cbd5fe79e57d51cd5811ebe3d624"
+      }
+    },
+    "ordinary_update_git_effects": {
+      "commits_processed": null,
+      "temporal_edges_added": null,
+      "antipattern_docs": null,
+      "public_reply": "\u2705 Updated project_id: 5a35e8e0-d37a-41b3-a250-a26957e7aedb\nstatus: done\nactive_generation: 3139\nSource generation 3139 published.\nupdate_scope: project\npurge: ok\nfiles=1016 chunks=9294 bytes=13874968\ncommits=0; git history already current at the approved history root\n\n",
+      "scope": "Actual ordinary-update reply retained. max_commits=0 does not establish no incremental history work; null means the field was not reported."
+    },
+    "both_impact_tools_agree": true,
+    "false_scalar_property_edges_absent": true,
+    "property_witnesses": {
+      "sym:function:Site/App_Code/visualisering/code/FileLayerSpatialService.vb:_vs.FileLayerSpatialService.BuildMetaOnlyJson:2584": [
+        2593
+      ],
+      "sym:function:Site/App_Code/visualisering/code/FileLayerSpatialService.vb:_vs.FileLayerSpatialService.ReadMeta:2497": [
+        2533
+      ],
+      "sym:function:Site/App_Code/visualisering/code/FileLayerSpatialService.vb:_vs.FileLayerSpatialService.ResolvePolicy:2343": [
+        2344
+      ],
+      "sym:function:Site/App_Code/visualisering/code/FileLayerSpatialService.vb:_vs.FileLayerSpatialService.WriteFeature:1386": [
+        1465
+      ],
+      "sym:function:Site/App_Code/visualisering/code/FileLayerSpatialService.vb:_vs.FileLayerSpatialService.WriteMeta:1979": [
+        2000
+      ]
+    },
+    "memory_sections_preserved": 300,
+    "other14_metadata_unchanged": true,
+    "two_inspected_source_files_unchanged": true,
+    "normal_requests": 13,
+    "normal_returned_tool_text_bytes": 59897
+  },
+  "validation": {
+    "expected_before_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-bound-property-before-20261108.json",
+      "sha256": "cda5ac04762ceb30c1c270fa0505465e87bd1ed05c19e9120e556300de4461a0"
+    },
+    "focused_after": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-bound-property-after-20261108.json",
+      "sha256": "575d6e467f7a7426bb2b3b4bf6c4ef3b9e13240e6f6b466b7e3ecb1aea7b617c"
+    },
+    "native14": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-bound-property-native-regression-20261108.json",
+      "sha256": "5cf0874c930381e17a90862928afc2094a1061b3bb80fda99e39accae86cbaba"
+    },
+    "source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-bound-property-source-review-20261108.json",
+      "sha256": "3246d6ef3a9f230afc8b3843806dcf451b00e81dc07cb06beedeb6762c566886"
+    },
+    "actual_two_file_native_comparison": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-sidecar-bound-property-actual-two-file-comparison-20261108.json",
+      "sha256": "97f0b6b881caa54f46e21b4edc1effbb94a29722590bc7308bf2cacd1408e3c9"
+    },
+    "native_publish": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-bound-property-native-20261108\\build-result.json",
+      "sha256": "4df5a913cc486c40250cf41e5b3458f10686c87858102a5a3fde9390ca656309"
+    },
+    "full_pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-bound-property-paired-package-20261108.json",
+      "sha256": "28c6619f0ea649bf3799f2a9fb5cc20924c2cfbfe36d2db828b72a574126c74c"
+    },
+    "candidate_migration": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-bound-property-cold-v1-20261108\\acceptance.json",
+      "sha256": "d259298b0d8d16dd173d5412972f769cdb9527ca2501bbc4991514b414017a11"
+    },
+    "scoped_release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-bound-property-release-gates-20261108.json",
+      "sha256": "87d39b93a5e0b9e5a2b9a65fc4b36588b02f858cc19f62e681ffa4e5b0a7935e"
+    },
+    "installed_pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-bound-property-installed-pair-20261108.json",
+      "sha256": "aa633b59ac1d4c78a764af111e657fccc6caede1cfeaa6da1bdb4fd8f02fc4aa"
+    },
+    "normal_runtime": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-bound-property-normal-validation-20261108.json",
+      "sha256": "400716fce2851eabdbff11589ea3f9cc88787632edeea3f2a2ab86a44ade70d4"
+    }
+  },
+  "resources": {
+    "config_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-bound-property-config-hold-20261108.json.released.json",
+      "sha256": "5ca87e99c3b6f8bea018ea98c5bdc85fed73baa494c3aeac8021f0b194079ff0"
+    },
+    "normal_launch": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-bound-property-normal-launch-20261108.json",
+      "sha256": "b00b1b43eacb021eb6b5ce2f1623dc87c3a12727162275bee387e0a9f6e82061"
+    },
+    "normal_primary_pid": 44948,
+    "owned_candidate_resources_closed": true,
+    "candidate_tmp_removed": true,
+    "normal_observer_pipe_closed": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-857233e512a24d619b0fe51700ca5502",
+    "retained_old_pair_cleanup_condition": "Prior complete runtime retained for reviewed recovery; exact-path cleanup approval required. No automatic deletion or rollback proof.",
+    "retained_build_temp": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-bound-property-native-20261108\\tmp",
+      "reason": "Automatic approval review rejected exact-path cleanup with generic blocked by policy. No bypass attempted.",
+      "cleanup_condition": "Remove only when policy permits; preserve package and evidence for delivery review."
+    },
+    "evidence_cleanup_condition": "Retain this delivery evidence and candidate package until reviewed; no preexisting directory deletion authorized."
+  },
+  "limits": [
+    "Known-symbol property-binding correction; unresolved lexical fallback remains and is not full dataflow analysis.",
+    "Root-informed actual source verification, not a fresh autonomous task win; frozen partial task outcomes unchanged.",
+    "Same Rust shipping executable as 6fe7b36; native sidecar published separately, no new Rust release-build claim.",
+    "Full original 31 findings and 19 gates remain unchanged; no global correctness, performance, rollback or complete knowledge proof."
+  ],
+  "goal_complete": false
+}
