@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-08T08:17:01.010247+00:00",
+  "last_updated_at": "2026-11-08T08:24:06.123022+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-08T08:17:01.010247+00:00",
+    "at_utc": "2026-11-08T08:24:06.123022+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9842,7 +9842,7 @@
       }
     ],
     "active_original_item": "CodeMap/Blast usefulness for real agent contract edits. Selected class-name navigation fix0394db3 is now deployed and checked against actual OciusX names, source/impact actions and prior controls. Original core-tool goal remains active; no instruction drafting, parser/catalog/ownership expansion or broad audit substituted.",
-    "next_user_visible_deliverable": "Continue the original CodeMap/Blast agent-task work using the delivered declaration navigation. Preserve the existing contract-edit task judgments and assess remaining concrete navigation/witness/recovery needs from actual outputs and independent source before another implementation. Class-target impacts currently report zero observed dependents with non-exhaustive coverage; do not equate that with no users or safe edits, and do not start a parser/ownership detour. No optional fresh-agent or external-review permission is needed to continue authorized root work.",
+    "next_user_visible_deliverable": "Continue original CodeMap/Blast usefulness work from actual agent tasks and independently checked evidence. Class-name delivery and direct descriptor serialization are now verified; do not replay them or broaden this bounded task into exhaustive application serialization. Select a concrete remaining navigation/witness/recovery requirement from original task work before another implementation. Keep parser/catalog/ownership/performance/instruction drafting parked and do not stall for optional agents or external review.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
     "latest_completed_core_batch": "Selected class-name navigation deployed from0394db3:33unique CodeMap cases/35executions and native774.74s PASS. Candidate348calls verifies two originally failed names, explicit source/impact actions, exact-ID controls and filename-filtered directory names;35prior controls admitted. One Classify preview documentation line113 moves to continuation; relevant Classify/Resolve bodies and all other previews preserved.149otherdefinitions, registry/3136selection/14metadata/300notes preserved.218active/218prior/5journals verified;17normal calls match candidate including both source reads. Overall goal/original31/full19 remain open.",
-    "previous_goal_turn_classification": "DELIVERED: concrete selected class-name recovery now installed and normal-runtime verified. Controlled evidence only, not a fresh-agent productivity or exhaustive type-impact claim. Optional delegation no longer blocks root work.",
+    "previous_goal_turn_classification": "PROGRESS: completed the existing descriptor-serialization source question with actual CodeMap, impact_analysis and compute_blast_radius output.8calls62749B under8/65536;5current windows274lines,6grep matches and3recorded call witnesses verified against independent raw source. Direct save-response serialization is now established, nested viewport assignment is observed with its downstream serializer still uninspected. No application edit, backend defect, fresh-agent or complete runtime safety claim.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10542,7 +10542,7 @@
       "interpretation": "Current collection-element calls do not corroborate explicit self-recursion. Selected links carry weaker extractor-anchor positions; existing contract separates revision admission from binding. Source checks, not indexed labels, support the plan.",
       "disposition": "Recorded; no reindex, extraction/ownership investigation, scan expansion or speculative read-side filtering selected."
     },
-    "current_owned_resource_state": "All current tests/native/candidate/installer sessions terminal and owned handles/fixtures closed/removed. Hold released without config changes; normal launcher46176 started only after actual zero-owner query and absent PRIMARY; normal primary35380 verified. Observer pipe closed, no pending RPC. Normal daemon owns idle lifetime. Evidence stays in existing diagnostics root; complete prior runtime retained at exact recorded path requiring cleanup approval.",
+    "current_owned_resource_state": "All previous delivery owners/fixtures/hold are closed. New descriptor follow-up used existing normal daemon35380;8completed public calls, every observer pipe closed, no pending RPC, no new fixture directories or config/app edits. Evidence/plan/source judgment retained under existing diagnostics root. Prior complete runtime pairs retain exact-path cleanup approval conditions.",
     "latest_fresh_batch_cancellation_run": {
       "status": "FRESH_BATCH_CANCELLATION_BOUNDED_PLANNING_CRITERIA_PASS_SOURCE_VERIFIED",
       "agent": "/root/batchcancel_fresh01",
@@ -10721,6 +10721,20 @@
       ],
       "exhaustive_codebase": false,
       "disposition": "Recorded bounded graph limitation, not absence/safety or automatic selection of an extraction/ownership investigation."
+    },
+    "latest_descriptor_serialization_task": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\descriptor-serialization-informed01-source-judgment-20261108.json",
+      "sha256": "f7e6f4a20167d2249603094cdb3af829b75dfc6eb3cd67e3592c3c1d4769126e",
+      "classification": "BOUNDED_DESCRIPTOR_PRODUCER_AND_SERIALIZATION_PATH_SOURCE_VERIFIED",
+      "calls": 8,
+      "returned_bytes": 62749
+    },
+    "descriptor_serialization_source_conclusion": {
+      "direct_serializer": "api-visualisering-kml.vb400 invokes JsonConvert.SerializeObject(descriptor, appGlobal.jsetInclChild) after BuildDescriptor399, then s.SetOK. This is separate from AppendJson.",
+      "nested_transport": "KmlGeoJsonConversionService.vb386 assigns BuildDescriptor result to layerData.viewport; downstream serialization not inspected.",
+      "useful_tools": "Scoped type-name grep recovers producer and direct serializer despite zero class dependents. CodeMap resolves BuildDescriptor and current source; impact and Blast return3actual caller read actions with source-corroborated reference lines.",
+      "bounds": "Both producer summaries show46indexed dependents3direct43transitive with depth7/frontier and unassessed interface mapping;12later source-route windows omitted. Counts do not prove breakage or coverage.",
+      "disposition": "Existing tools answer this bounded task; no additional backend fix selected merely from displayed omissions or zero class observations."
     }
   }
 }
