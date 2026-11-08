@@ -1,0 +1,197 @@
+{
+  "status": "MATCHED_CURRENT_QA_SOURCE_ONLY_PREFERRED_NO_ASSISTED_BENEFIT_ESTABLISHED",
+  "at_utc": "2026-11-08T14:48:33.269404+00:00",
+  "implementation_baseline": "adb4fa6",
+  "task": "Review the CURRENT automatic zoom and manual-override workflow in OciusX for QA coverage. Decide whether tests of ClassifyAutomatic alone are sufficient to sign off that workflow, and give the minimum backend-to-UI regression matrix you can justify from inspected code. Starting point: Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb, ClassifyAutomatic. No threshold change or application patch is proposed; do not invent one or edit application code. Distinguish direct calls, data dependencies and unresolved leads. Return concrete test setups and expected results, source path/line citations, and explicit uninspected/deployment limits. Keep the final answer at most1200words.",
+  "criteria": [
+    "Identify the actual classifier and explain exact inclusive BOTH-count bands, first-fit ordering and fallback from current code.",
+    "Explain where prepared whole-file counts come from, how persistence/validation affects classification, and why viewport-sized counts must not substitute for them.",
+    "Explain nullable-count and manual-override precedence, pending policy, and metadata/discovery versus geometry gating, with expected boundary behavior.",
+    "Trace a representative backend JSON to client/editor path: policy consumption, editor constraints and save acknowledgment, stale-response handling. Separate inspected source linkage from deployment/runtime assumptions.",
+    "Produce a concrete expected-result regression matrix and a justified classifier-only sign-off decision. Cite inspected evidence for expectations, expose missing boundaries and avoid unsupported safety/completeness claims."
+  ],
+  "generation": 3139,
+  "server_sha256": "887d2b622043ecef6cafbacaf716c982bc059f24ad12d6bdcad6474100f8b542",
+  "manifest_sha256": "81cd87c9109ddc9afa6a4eee03d074211ade3361199c3b2843e02e56ff37c4d7",
+  "protocol": {
+    "contract": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-qa-clean-20261108-contract.json",
+      "sha256": "8eacf31f077610da6f4d3d3aaec6f2ab4ed1a076dff0a967a690a28738aeee44"
+    },
+    "bindings": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-qa-clean-20261108-bindings.json",
+      "sha256": "82d12de43558f4e8c27326ef2461e1ab3bd442ba1803b4382fade00bc8c6c596"
+    },
+    "readiness": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-qa-clean-20261108-readiness.json",
+      "sha256": "502c76e7195732c5cb825f82d889a631ea2a7e8d007523b6bae3589f2447ea04"
+    },
+    "frozen_quality_rubric": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-qa-clean-20261108-quality-rubric.json",
+      "sha256": "def256ace980c39f37169fefb067c52f03916ed14a8399bc9db025b76de877ff"
+    },
+    "relay": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\run_core_matched_qa_v2_20261108.py",
+      "sha256": "086ff642d2323856b2723c5b578863712acf2d1a7f42f4922595ee123aaea71e"
+    },
+    "same_task_and_source_capabilities": true,
+    "request_cap_each": 8,
+    "byte_cap_each_including_setup": 65536,
+    "source_pins_unchanged": 16,
+    "fresh_threads": true,
+    "history_blind_or_held_out": false,
+    "exposure": "Both fresh candidates reported injected user AGENTS/environment including historical ClassifyAutomatic33-node caution and deployed commits; neither clean candidate reports parent assistant/tool outputs, prior answers, private ledgers or other forbidden artifacts. Birch clarified initial parent-context wording meant only injected instructions.",
+    "private_public_separation": "Public ledger allowlist excludes root source pins and verification details; private ledger restricted by protocol, not filesystem isolation.",
+    "blinding": "Independent fresh judge received opaque answers and normalized evidence availability, source pins and frozen rubric; no arm labels or cost metrics before its quality judgment was saved. Arm identities were revealed by root afterward."
+  },
+  "arms": {
+    "assisted": {
+      "opaque_answer": "A",
+      "agent": "/root/qa_birch_clean",
+      "quality": [
+        "pass",
+        "partial",
+        "partial",
+        "fail",
+        "partial"
+      ],
+      "setup_bytes": 26379,
+      "response_delivered_bytes": 24479,
+      "total_delivered_bytes": 50858,
+      "requests": 3,
+      "status": "STOPPED_BYTE_BUDGET",
+      "withheld": [
+        {
+          "number": 3,
+          "utf8_bytes": 21146,
+          "sha256": "bcffe377fdcc2c8a21f053f663130aff1c2738dd52bea52ea679ad0f8c6a4430"
+        }
+      ],
+      "request_service_seconds_sum": 0.6411121000128333,
+      "answer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-qa-clean-20261108-birch-answer.txt",
+        "sha256": "dc1b2feef8abbef10d538c38162f608364a29fdccc663e7b596374e31b71cd46"
+      },
+      "private_ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-qa-clean-20261108-birch-private-ledger.json",
+        "sha256": "de0aef0ea825089b5d8b1f11850b43513334072697fede4a4ee8b6bace8c7393"
+      },
+      "public_ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-qa-clean-20261108-birch-ledger.json",
+        "sha256": "10d147752b8fc2417a581be07cd1239a878f7a6e21ea73cf28dd541249944de8"
+      }
+    },
+    "source_only": {
+      "opaque_answer": "B",
+      "agent": "/root/qa_cedar_clean",
+      "quality": [
+        "pass",
+        "partial",
+        "partial",
+        "partial",
+        "partial"
+      ],
+      "setup_bytes": 3793,
+      "response_delivered_bytes": 59006,
+      "total_delivered_bytes": 62799,
+      "requests": 8,
+      "status": "COMPLETE_REQUEST_BUDGET",
+      "withheld": [],
+      "request_service_seconds_sum": 8.671291100006783,
+      "answer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-qa-clean-20261108-cedar-answer.txt",
+        "sha256": "6257321c4c0064d3a7e2bdf978c1991589922b02f4158b7de42b3649e5503f45"
+      },
+      "private_ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-qa-clean-20261108-cedar-private-ledger.json",
+        "sha256": "49d1453318deacab24b885e30008f23a9a3263081430f640de0f7eb21b97cb0c"
+      },
+      "public_ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-qa-clean-20261108-cedar-ledger.json",
+        "sha256": "f2c56c8d3ac13dcaff4999c1ae6cb1fbb14554973fcd6be2054abbc522241dcb"
+      }
+    }
+  },
+  "quality_judgment": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-qa-clean-20261108-quality-judgment.json",
+    "sha256": "b9bb1c600af6a458b4a4fbbc20ae967a078d4ba280be3e5ed60c440d0a0e8892"
+  },
+  "quality_conclusion": {
+    "quality_separated": true,
+    "preferred_answer": "B",
+    "basis": "B supplies more independently corroborated, actionable non-classifier behavior: persisted metadata reader-to-resolver, strict request and stored override handling, client policy consumption, discovery guards, optimistic save/rollback and malformed-success acknowledgment. A explicitly stops at classifier/resolver and leaves the entire trace unresolved. The same coarse pass/partial labels do not erase this within-criterion difference.",
+    "limits": "Neither meets the full frozen task or supports workflow sign-off. This is a quality preference between opaque answers only, with no access-mode/tool benefit, cost or causal attribution."
+  },
+  "comparative_conclusion": "Source-only supplied stronger actionable coverage in this one pair; neither satisfied the full frozen QA task or supported workflow sign-off. Engram comparative benefit is not established. No high/medium-severity false guidance was found. This is not proof of general tool harm or a backend defect.",
+  "cost_limits": [
+    "All five Engram schemas were delivered up front and charged:26379B setup versus3793B baseline. This does not model amortized or deferred tool discovery.",
+    "Assisted made two successful public core calls, then requested a21146B source window with14830B left; that response was withheld and the diagnostic stopped. This is budget exhaustion, not an MCP failure.",
+    "Delivered bytes include setup, successful results and the exhaustion message. Withheld bytes/hashes are separately retained; no claims of hidden source being inspected.",
+    "Service time covers relay checks/I/O, not complete agent/model/coordinator effort. No token, monetary, robust latency or statistical productivity claim.",
+    "One pair, shared historical AGENTS exposure and different read choices cannot isolate causal tool effects."
+  ],
+  "retained_protocol_pilot": {
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-qa-current-20261108-protocol-pilot.json",
+      "sha256": "014872bb78e827a669e790deec9d73984a51b06e57eaced2180a4de0930a0b2a"
+    },
+    "limit": "Earlier source-only candidate printed full own ledger and saw uncharged verification filenames/hashes. Preserve pilot outcomes, do not merge or substitute them into the clean pair. Private/public separation was corrected before fresh rerun; task/criteria/caps/setupbytes stayed unchanged."
+  },
+  "applied_qa_checks": {
+    "selection": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-qa-clean-20261108-case-selection.json",
+      "sha256": "633fef38ae790f5f28c9d212e5d6c02dcb57649d4a24613f8827d30ba9902592"
+    },
+    "cases": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-qa-clean-20261108-cases.json",
+      "sha256": "15d32f6934ae2ad326877bdb6ae3e1e71fad1f0709f239a4f0adb97f5541d57b"
+    },
+    "executor": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\run_core_matched_qa_checks_v2_20261108.py",
+      "sha256": "62d5f3d7d0ba0ab688dcf63bdba3082b8d7d0f6c7d1515366e318835ae59939e"
+    },
+    "result": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-qa-current-20261108-execution\\result.json",
+      "sha256": "cb1c0479f15fb36d9a5db40064cbaed54285794557c894dfdf0ade6e77c763d4"
+    },
+    "independent_execution_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-qa-clean-20261108-execution-review.json",
+      "sha256": "6b4bee911c4f9a819422dcea491324ec8c29566db8eb9081603971ef2d5e3b45"
+    },
+    "selected_groups": 7,
+    "cases_passed": 30,
+    "cases_total": 30,
+    "actual_scope": "Full unchanged FileLayerZoomPolicy.vb compiled with local SDK8.0.422/Newtonsoft; only unused two-property row type stubbed. Three verbatim client gate helpers transpiled with pinned TypeScript6.0.2 and declared policy/map inputs.",
+    "expectations": "Original independently selected candidate inputs/expected values preserved. Resolve/parse compare exactly proposed fields and retain full actual outputs.",
+    "not_proven": [
+      "No invented AppendJson or actual editor-widget tests.",
+      "No HTTP/database/browser/deployed-bundle execution or prevented actual defect.",
+      "No complete producer, serializer, routing or whole-workflow sign-off."
+    ]
+  },
+  "post_judgment_recovery_attribution": {
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-qa-clean-20261108-offered-action-followthrough.json",
+      "sha256": "9295059df40046347b51e4bcbade254373834757c87983a5cdfd5d1394cd9be4"
+    },
+    "source_read_bytes": 6886,
+    "remaining_bytes_at_candidate_choice": 14830,
+    "source_verified": true,
+    "interpretation": "Actual offered99-line recovery succeeds within remaining context where selected400-line read was withheld. This does not prove all remaining task requirements fit the original budget or erase up-front schema cost; no emitted recovery failure established.",
+    "candidate_scores_changed": false
+  },
+  "next_core_hypothesis": "The bounded external source action existed and fit, but the fresh assisted candidate chose a larger range. Inspect whether its presentation after a same-file immediate-consumer action obstructs navigation; test any small presentation change against actual action choice before claiming a fix. Do not infer an extraction or dataflow defect from this result.",
+  "resources": {
+    "new_fixture_removed": true,
+    "owned_child_processes_exit0_and_handles_closed": true,
+    "new_evidence_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "retention": "Retain pilot, clean candidate records, drivers, cases, results and provenance for review. No preexisting directory deleted. Prior blocked native-build temp remains untouched.",
+    "application_sources_unchanged": true,
+    "source16pins_rechecked_after_execution": true,
+    "no_index_or_service_mutation_requested": true
+  },
+  "original_frozen_outcomes_changed": false,
+  "eg24_closed": false,
+  "eg25_closed": false,
+  "goal_complete": false
+}

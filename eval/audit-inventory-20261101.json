@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-08T14:07:24.527296+00:00",
+  "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-08T14:07:24.527296+00:00",
+    "at_utc": "2026-11-08T14:48:33.269404+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Core CodeMap/Blast usefulness on real OciusX QA decisions. Deployed producer correctness fixes and bounded cancellation/classification recoveries are verified. Comparative QA benefit remains unproven; continue original EG-25 evidence requirement without changing frozen task scores or claiming complete routing/runtime knowledge.",
-    "next_user_visible_deliverable": "One bounded matched current-behavior OciusX classification QA comparison: identical task/source evidence and an equally capable source-only arm, followed by actual checks for selected QA decisions. Do not invent a threshold delta or claim prevented defects from a plausible test plan.",
+    "active_original_item": "Core CodeMap/Blast navigation for agents: matched QA did not establish comparative benefit. Existing bounded external source action works and fits; investigate its visibility/adoption before choosing a narrow source-navigation presentation fix. Keep all original witness/coverage semantics and frozen task outcomes.",
+    "next_user_visible_deliverable": "A concrete, source-checked improvement to the next source-read handoff if actual action-choice evidence supports it; preserve direct-caller facts, coverage limits and response bounds. Do not replace this with another broad audit, catalog/performance project or generalized evaluation harness.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
     "latest_completed_core_batch": "adb4fa6 pushed origin/master, full native sidecar pair installed and normal13RPC PASS at generation3139. One ordinary update refreshed1016VB files by new entry MVID; both impact tools retain exactly5 source-confirmed CoordinateCount consumers and remove false resolved scalar bindings. Native14 and actual old/new two-file comparison passed.300memory sections/14other metadata/two inspected sources preserved. All owned test/maintenance/observer resources closed; config released unchanged. Exact new publish tmp retained after automatic cleanup denial; previous218-file runtime retained. Frozen task partials/full31/full19 unchanged.",
-    "previous_goal_turn_classification": "PROGRESS: adb4fa6 sidecar correction installed and normal-service verified; independently checked cancellation recovery recorded/pushed29eec1b. Current turn adds source-verified classification setter/API/editor recovery and a concrete QA decision; no frozen rescoring.",
+    "previous_goal_turn_classification": "PROGRESS: e52a8b9 source-verified classification boundary recovery pushed; this turn completed a clean matched QA pair after retaining a metadata-exposed pilot, independently judged opaque answers and executed30candidate-derived unitcases on unchanged actual source.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10839,7 +10839,7 @@
       "sha256": "ad4e82ec7725f6c2c5e3a9077bd3dd123c39d52b2fe42f6e648e7db9a7c775ad"
     },
     "pending_fresh_agent_question": "RESOLVED: user explicitly answered yes to launch two candidate agents and independent judge, then reactivated goal. No further authorization question required for this evaluation.",
-    "independent_next_action": "Freeze the matched current-behavior QA task and acceptance criteria before fresh candidates. Reuse existing current-task IPC recording and packet/judge contracts, with current3139/server887d2b62/manifest81cd87c9 pins; add only scoped source-only request accounting if needed. eval/frozen_task_eval.py requires four categories/eight arms and frozen_task_run.py serves packets only, so neither may be misrepresented as a one-pair live validator. Do not expand tasks to satisfy that historical schema or build a generalized harness. No new permission dependency; retain original classification/cancellation scores and frozen Q/audit exclusions.",
+    "independent_next_action": "Inspect current Blast/impact first-immediate-consumer rendering and source_routes read projection using clean actual3139 responses. CodeMap already returned classifier/Resolve source; headline points to same-file Resolve while external QueryCacheCore/ResolvePolicy99-line action is nested. Root executed that exact emitted action:6886B fits14830B remaining, versus selected400-line read21146B. This is a navigation-presentation hypothesis, not proven backend failure. Develop/test only a small presentation change if it preserves necessary facts and demonstrates better next-action use; no threshold delta, source edits in OciusX, new permission question or expanded pilot machinery.",
     "selected_class_impact_recovery": {
       "baseline": {
         "path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/class-impact-recovery-baseline-20261108.json",
@@ -11111,6 +11111,13 @@
       "Assisted arm must have the same baseline source search/read capabilities as source-only plus current core tools; charge searches, errors and returned evidence.",
       "Independent judge must receive opaque answers without arm labels/costs. AGENTS injection and prior contextual exposure must be recorded; no history-blind/held-out claim by default.",
       "A plan alone cannot prove a prevented defect. Apply selected checks and record observed outcomes before practical QA-benefit claims."
-    ]
+    ],
+    "latest_matched_current_qa": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-matched-qa-clean-outcome-20261108.json",
+      "sha256": "e42e7d762373dd81a972fbca1c6fe09486a8218a4a0d274daa9c0c6d8cd15373",
+      "status": "MATCHED_CURRENT_QA_SOURCE_ONLY_PREFERRED_NO_ASSISTED_BENEFIT_ESTABLISHED",
+      "quality": "Source-only B preferred; both incomplete. Assisted A PASS/PARTIAL/PARTIAL/FAIL/PARTIAL; source-only B PASS/PARTIAL/PARTIAL/PARTIAL/PARTIAL. No comparative Engram win claimed.",
+      "executed_cases": "30/30 actualsourceunitcasesPASS, independentreview, sourcepinsunchanged,ownedfixturegone."
+    }
   }
 }
