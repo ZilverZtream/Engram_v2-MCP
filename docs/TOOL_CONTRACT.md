@@ -15,6 +15,9 @@ Impact and Blast Radius may expose `terminal_member_inspection` for an admitted 
 Engram MCP v2 keeps v1 tool names and basic intent, with expanded parameters.
 
 ## Project tools
+
+Script extraction records a per-file `script_call_contract` for `.ts`, `.tsx`, `.js` and `.jsx` files, including empty output. Missing or incompatible receipts require re-extraction even when source bytes are unchanged: `get_index_freshness` reports `reindex_required`, and an ordinary `update_project` replaces legacy receiver bindings and declaration-only positions. Compatible files in other languages keep their existing extraction contracts; VB continues to use its separate Roslyn provenance. The script receipt records the extraction policy used, not complete receiver binding or runtime safety. Explicit `only_paths` refresh remains available for a bounded repair and does not certify outside source freshness.
+
 - `index_project(directory, project_name, project_type, wait=true, dedupe_by_directory=true)`
 - `update_project(project_id, wait=true, max_commits=200, index_antipatterns=false)`
 - `list_projects()`

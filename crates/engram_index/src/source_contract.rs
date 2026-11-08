@@ -1,5 +1,15 @@
 //! Compatibility of produced source chunks and extraction metadata.
 
+/// Script Calls preserve unknown member receivers and actual invocation lines.
+/// Earlier version-7 files may contain same-name bindings from the old parser.
+/// Keep this per-file so unrelated source and VB parser receipts stay reusable.
+pub const SCRIPT_CALL_CONTRACT: u64 = 1;
+
+pub fn requires_script_call_contract(path: &std::path::Path) -> bool {
+    path.extension().and_then(|value| value.to_str()).is_some_and(|extension|
+        matches!(extension.to_ascii_lowercase().as_str(), "ts" | "tsx" | "js" | "jsx"))
+}
+
 /// The extraction contract actually used to produce one ingestion result.
 /// Runtime sidecar availability/identity is recorded separately per VB file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -36,6 +46,9 @@ impl SourceExtractionExpectation {
         if crate::webforms::is_webforms_markup(std::path::Path::new(path))
             && metadata.get("webforms_position_contract").and_then(serde_json::Value::as_u64)
                 != Some(crate::webforms::POSITION_CONTRACT) { return false; }
+        if requires_script_call_contract(std::path::Path::new(path))
+            && metadata.get("script_call_contract").and_then(serde_json::Value::as_u64)
+                != Some(SCRIPT_CALL_CONTRACT) { return false; }
         if !crate::vb_extractor::requires_parser_provenance(path) { return true; }
         self.vb_parser.as_ref().is_some_and(|expected| metadata.get("vb_parser_provenance")
             .is_some_and(|actual| expected.matches_metadata(actual)))
@@ -51,7 +64,7 @@ impl SourceExtractionExpectation {
             None => anyhow::ensure!(stats.files == 0 && stats.chunks == 0 && stats.bytes == 0
                 && stats.all_files.is_empty() && stats.fingerprints.is_empty() && stats.symbols.is_empty()
                 && stats.edges.is_empty() && stats.vb_parser_provenance.is_empty()
-                && stats.webforms_position_contracts.is_empty(),
+                && stats.webforms_position_contracts.is_empty() && stats.script_call_contracts.is_empty(),
                 "Produced source output has no captured extraction configuration"),
         }
         for (path, actual) in &stats.vb_parser_provenance {
@@ -64,7 +77,17 @@ impl SourceExtractionExpectation {
                 && stats.all_files.iter().any(|produced| produced.as_str() == path),
                 "WebForms position receipt does not belong to current produced output: {}", path);
         }
+        for (path, contract) in &stats.script_call_contracts {
+            anyhow::ensure!(*contract == SCRIPT_CALL_CONTRACT
+                && requires_script_call_contract(std::path::Path::new(path))
+                && stats.all_files.iter().any(|produced| produced.as_str() == path),
+                "Script call receipt does not belong to current produced output: {}", path);
+        }
         for path in &stats.all_files {
+            if requires_script_call_contract(std::path::Path::new(path.as_str())) {
+                anyhow::ensure!(stats.script_call_contracts.get(path.as_str()) == Some(&SCRIPT_CALL_CONTRACT),
+                    "Produced script file {} has no current call contract", path.as_str());
+            }
             if crate::webforms::is_webforms_markup(std::path::Path::new(path.as_str())) {
                 anyhow::ensure!(stats.webforms_position_contracts.get(path.as_str())
                     == Some(&crate::webforms::POSITION_CONTRACT),

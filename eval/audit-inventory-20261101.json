@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Core CodeMap/Blast witness usefulness: current independent tasks are partial; trace observed manager self-edge witnesses against actual handler/group receiver calls before selecting a concrete correction.",
-    "next_user_visible_deliverable": "A source-grounded disposition or correction of the three actual cancellation self-edge witnesses; preserve legitimate recursion and unresolved receiver coverage. Current task outcomes remain classification2pass/3partial and cancellation4pass/1partial.",
+    "active_original_item": "Core CodeMap/Blast witness correctness: deployed scoped refresh removed three false upload manager self-edges; implement automatic migration of unchanged legacy script extraction using per-file receiver/position compatibility.",
+    "next_user_visible_deliverable": "Package and deploy the reviewed per-file script call compatibility fix; actual ordinary OciusX refresh must require then clear incompatible extraction and preserve correct source witnesses.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -10839,7 +10839,7 @@
       "sha256": "ad4e82ec7725f6c2c5e3a9077bd3dd123c39d52b2fe42f6e648e7db9a7c775ad"
     },
     "pending_fresh_agent_question": "RESOLVED: user explicitly answered yes to launch two candidate agents and independent judge, then reactivated goal. No further authorization question required for this evaluation.",
-    "independent_next_action": "Trace receiver resolution and witness projection for these three observed self-edges. Preserve legitimate recursive calls and unresolved receiver leads; no broad graph/catalog audit. User authorization question is resolved. No need for more agents or permission to inspect this concrete core discrepancy.",
+    "independent_next_action": "Build one native release through existing owned runner, finalize unchanged-sidecar pair, review prepared candidate/gate scripts, then perform held exclusive current-data migration/validation and paired install. No user permission dependency. All test processes/fixtures now closed.",
     "selected_class_impact_recovery": {
       "baseline": {
         "path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/class-impact-recovery-baseline-20261108.json",
@@ -10910,6 +10910,52 @@
     "latest_current_core_task_evaluation": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-current-task-outcomes-20261108.json",
       "sha256": "db641105ae1edea9765b9bcec345def50d61bad440bf503157944b9925d84059"
+    },
+    "latest_live_receiver_refresh": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-receiver-refresh-verification-20261108.json",
+      "sha256": "5ff6e82d42dfd3194fde499d8c2608d8c328bb661d34cce879e8ad9c8fc88cb7"
+    },
+    "latest_script_call_contract_checkpoint": {
+      "at_utc": "2026-11-08T12:18:15.778121+00:00",
+      "before_regression": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-upgrade-before-20261108.json",
+        "sha256": "f50b5f3cd5b90bdef25c0349e2f4b8d9fcaa3e09edfac8e057f9ce81a9bfb11a"
+      },
+      "before_result": "Expected failure: ordinary unchanged update retained old binding. Fixture/job/handles cleaned.",
+      "current_run": null,
+      "session_id": null,
+      "source_changes": [
+        "crates/engram_index/src/source_contract.rs",
+        "crates/engram_index/src/source_contract/publication_tests.rs",
+        "crates/engram_index/src/hybrid.rs",
+        "crates/engram_server/src/services/ingest_service.rs",
+        "crates/engram_server/tests/typescript_receiver_behavior_tests.rs",
+        "docs/TOOL_CONTRACT.md"
+      ],
+      "source_scope": "Per-file script receipt; global version remains7; VB Roslyn provenance unchanged. No semantic receiver/type binding expansion.",
+      "review_agent": "/root/core_current_judge",
+      "deployment": "Installed runtime still3b8c19b...; three files refreshed at3137 using existing parser. Automatic upgrade patch not yet built/deployed.",
+      "no_permission_dependency": true,
+      "status": "NATIVE_AND_ACTUAL_NO_VECTOR_PUBLIC_MIGRATION_PASS_REVIEWED_NOT_DEPLOYED",
+      "source_review": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-upgrade-source-review-20261108.json",
+        "sha256": "48bd807a02cdfd8cabc60bcedcec30d0dc4d5eeb1b65367c947eda95f187c34b"
+      },
+      "tests": {
+        "focused": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-upgrade-retry-20261108.json",
+          "sha256": "a45ff85503df6859dfe190f8681e98cab594780def6607b554a0d8b03c87f41e"
+        },
+        "unit": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-contract-unit-20261108.json",
+          "sha256": "399cbeb60a3f5e4843ed00c9445ec6f70ae80616d485973f386a96dd65fd29b1"
+        },
+        "no_vector": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-upgrade-no-vector-20261108.json",
+          "sha256": "0131c1c6b44aef347b334583d35fe8fccb739c74479e9e45ad7c887db05bb921"
+        }
+      },
+      "fixture_correction": "Initial after-run:9 existing tests passed, new test incorrectly unwrapped optional source_routes. Replaced with public no-false-cycle check; focused retry passed. Production logic unchanged."
     }
   }
 }
