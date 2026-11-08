@@ -3504,6 +3504,14 @@ pub struct GetMethodInfoRequest {
     pub output_json: bool,
 }
 
+/// One inclusive current-source range; boundaries do not identify a method.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SourceLineRange {
+    pub line_start: u32,
+    pub line_end: u32,
+}
+
 /// Retrieve an indexed method, explicit source range, or bounded current-file
 /// excerpt. File/range reads do not resolve method boundaries.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -3526,6 +3534,13 @@ pub struct GetFullMethodBodyRequest {
     /// Inclusive end line. Omit for bounded file-excerpt pagination.
     #[serde(default)]
     pub line_end: Option<u32>,
+    /// One to three ordered, nonoverlapping inclusive ranges in file_path,
+    /// totaling at most120 lines from one current snapshot. Mutually exclusive
+    /// with fqn, line_start and line_end. Requires context_lines=0 and
+    /// include_caller_bodies=false. The4MiB file/32KiB complete-response limits
+    /// are strict: invalid bounds or oversized output fail without partial windows.
+    #[serde(default)]
+    pub source_ranges: Option<Vec<SourceLineRange>>,
     /// Lines of context above the returned source span. Default: 5.
     #[serde(default = "default_context_lines")]
     pub context_lines: u32,

@@ -163,6 +163,105 @@ const EXCERPT_FILE_BYTES: u64 = 4 * 1024 * 1024;
 pub const EXCERPT_RESPONSE_BYTES: usize = 32 * 1024;
 const EXCERPT_LINES: usize = 120;
 
+#[derive(Debug, Serialize)]
+struct SourceRangeWindow {
+    line_start: u32,
+    line_end: u32,
+    source_code: String,
+}
+
+#[derive(Debug, Serialize)]
+struct CurrentSourceRanges {
+    retrieval_scope: &'static str,
+    boundary_guidance: &'static str,
+    source_verification: &'static str,
+    source_file_hash: String,
+    source_file_hash_algorithm: &'static str,
+    file_path: String,
+    language: String,
+    total_lines: u32,
+    total_returned_lines: u32,
+    windows: Vec<SourceRangeWindow>,
+    ranges_complete: bool,
+    max_ranges: usize,
+    max_total_lines: usize,
+    read_limit_bytes: u64,
+    response_limit_bytes: usize,
+}
+
+fn validate_source_ranges(request: &GetFullMethodBodyRequest) -> Result<(), String> {
+    let Some(ranges) = &request.source_ranges else { return Ok(()); };
+    if request.fqn.is_some() || request.line_start.is_some() || request.line_end.is_some() {
+        return Err("source_ranges is mutually exclusive with fqn, line_start and line_end".into());
+    }
+    if request.context_lines != 0 || request.include_caller_bodies {
+        return Err("source_ranges requires context_lines=0 and include_caller_bodies=false; neither option is silently ignored".into());
+    }
+    let file = request.file_path.as_deref().ok_or("source_ranges requires file_path")?;
+    if file.is_empty() || file.len() > 2048 || file.chars().any(char::is_control) {
+        return Err("source_ranges requires a nonempty relative file path up to2048bytes without control characters".into());
+    }
+    if ranges.is_empty() || ranges.len() > 3 {
+        return Err("source_ranges requires one to three ranges".into());
+    }
+    let mut previous_end = 0;
+    let mut total = 0u64;
+    for range in ranges {
+        if range.line_start == 0 || range.line_end < range.line_start {
+            return Err("source_ranges requires positive inclusive bounds with line_end >= line_start".into());
+        }
+        if range.line_start <= previous_end {
+            return Err("source_ranges must be ordered and nonoverlapping".into());
+        }
+        total += u64::from(range.line_end) - u64::from(range.line_start) + 1;
+        previous_end = range.line_end;
+    }
+    if total > EXCERPT_LINES as u64 {
+        return Err("source_ranges exceeds the120 total-line limit".into());
+    }
+    Ok(())
+}
+
+fn current_source_ranges(directory: &Path, request: &GetFullMethodBodyRequest) -> Result<CurrentSourceRanges, String> {
+    validate_source_ranges(request)?;
+    let ranges = request.source_ranges.as_ref().ok_or("source_ranges required")?;
+    let file = request.file_path.as_deref().ok_or("source_ranges requires file_path")?;
+    // One bounded raw snapshot supplies every window and the complete-file hash.
+    let (source, hash) = read_current_source_snapshot(directory, file)?;
+    let lines: Vec<_> = source.lines().collect();
+    for range in ranges {
+        if range.line_end as usize > lines.len() {
+            return Err(format!("source_ranges end {} exceeds file length {}; no partial windows returned", range.line_end, lines.len()));
+        }
+    }
+    let windows: Vec<_> = ranges.iter().map(|range| SourceRangeWindow {
+        line_start: range.line_start,
+        line_end: range.line_end,
+        source_code: lines[range.line_start as usize - 1..range.line_end as usize].join("\n"),
+    }).collect();
+    // The complete escaped/rendered output is checked separately, after freshness.
+    if windows.iter().map(|window| window.source_code.len()).sum::<usize>() > EXCERPT_RESPONSE_BYTES {
+        return Err("source_ranges source exceeds the32KiB response budget; no partial windows returned".into());
+    }
+    Ok(CurrentSourceRanges {
+        retrieval_scope: "current_source_ranges",
+        boundary_guidance: "Separate requested windows from one current file snapshot. Gaps are intentionally omitted, not contiguous source. These ranges do not resolve method boundaries, indexed freshness, call binding, value flow or runtime execution.",
+        source_verification: "explicit_ranges_current_file_snapshot",
+        source_file_hash: hash,
+        source_file_hash_algorithm: "blake3",
+        file_path: file.into(),
+        language: engram_core::types::guess_language(Path::new(file)).into(),
+        total_lines: lines.len() as u32,
+        total_returned_lines: ranges.iter().map(|range| range.line_end - range.line_start + 1).sum(),
+        windows,
+        ranges_complete: true,
+        max_ranges: 3,
+        max_total_lines: EXCERPT_LINES,
+        read_limit_bytes: EXCERPT_FILE_BYTES,
+        response_limit_bytes: EXCERPT_RESPONSE_BYTES,
+    })
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct FileExcerptPage {
     pub total_lines: u32,
@@ -3869,6 +3968,7 @@ impl Engram {
         &self,
         req: GetFullMethodBodyRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_source_ranges(&req).map_err(|e| McpError::invalid_params(e, None))?;
         if req.fqn.is_some()
             && (req.file_path.is_some() || req.line_start.is_some() || req.line_end.is_some())
         {
@@ -3878,6 +3978,34 @@ impl Engram {
             ));
         }
         let rec = self.ensure_project_record(&req.project_id).await?;
+        if req.source_ranges.is_some() {
+            let request = req.clone();
+            let directory = rec.directory.clone();
+            let result = tokio::task::spawn_blocking(move || {
+                current_source_ranges(Path::new(&directory), &request)
+            }).await.map_err(|e| McpError::internal_error(e.to_string(), None))?
+                .map_err(|e| McpError::invalid_params(e, None))?;
+            let freshness = self.access_freshness(&req.project_id, &rec.directory, Some(&result.file_path)).await;
+            let out = if req.output_json {
+                serde_json::to_string_pretty(&FreshAccessResponse { result: &result, freshness })
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            } else {
+                let (banner, footer) = freshness.markdown_parts();
+                let mut text = banner.unwrap_or_default();
+                text.push_str(&format!("# Current source ranges: {}\n\n{}\n\nComplete-file BLAKE3: {}\nTotal returned lines: {}\n",
+                    result.file_path, result.boundary_guidance, result.source_file_hash, result.total_returned_lines));
+                for window in &result.windows {
+                    text.push_str(&format!("\n## Lines {}–{}\n\n```{}\n{}\n```\n",
+                        window.line_start, window.line_end, result.language, window.source_code));
+                }
+                text.push_str(&footer);
+                text
+            };
+            if out.len() > EXCERPT_RESPONSE_BYTES {
+                return Err(McpError::invalid_params("source_ranges rendered response exceeds the32KiB budget; no partial windows returned", None));
+            }
+            return Ok(CallToolResult::success(vec![Content::text(out)]));
+        }
         let project_dir = rec.directory.clone();
         let graph = self.state.graph.clone();
         let project_id = req.project_id.clone();
