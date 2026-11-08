@@ -1,0 +1,112 @@
+{
+  "status": "EXISTING_EDITOR_RECOVERY_SOURCE_VERIFIED_NO_NEW_SEMANTIC_ROUTE_CLAIM",
+  "at_utc": "2026-11-08T17:34:00.392213+00:00",
+  "scope": "Root-informed followthrough from exact setter identity offered by fresh classification report; not a fresh candidate or rescore. User reminder prompted checking full native sidecar participation.",
+  "origin": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-fixed-replay-20261108-classification-response-2.txt",
+    "sha256": "579482f0532e5de2b2121fd8f5325c39e2258434b011cc9911aa7654ecc90aae"
+  },
+  "calls": [
+    {
+      "request": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-editor-navigation-probe-20261108-request-1.json",
+        "sha256": "e952d772d7a6e38b780243e52c2e095cb237e1a43f11e31edba45caea7061ae2"
+      },
+      "reply": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-editor-navigation-probe-20261108-reply-1.json",
+        "sha256": "922e9779d216b99668d0453788dba875d91d84c55ee26bb05a778fb2df232e26"
+      },
+      "bytes": 6719
+    },
+    {
+      "request": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-editor-navigation-probe-20261108-request-2.json",
+        "sha256": "fe658c873feb1fd5cea4ca0d4218a22f6d0c156f538fd603792ba33804bd2315"
+      },
+      "reply": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-editor-navigation-probe-20261108-reply-2.json",
+        "sha256": "4bd8056b33d4db893aea3f497015d04737dfe0e09cb1f6ba48f7c4de075a3b73"
+      },
+      "bytes": 3490
+    },
+    {
+      "request": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-editor-navigation-probe-20261108-request-3.json",
+        "sha256": "f0826a2cc2f2b0f16664567a8a50ed2d6c64376c887641a0f55e50b564118546"
+      },
+      "reply": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-editor-navigation-probe-20261108-reply-3.json",
+        "sha256": "bdd57b6181f1ddb01cfd8510b116468274ec82d074c4fc57e6140872807d882b"
+      },
+      "bytes": 8111
+    }
+  ],
+  "total_returned_bytes": 18320,
+  "observations": {
+    "generation": 3139,
+    "selected_dependents": 0,
+    "unbound_member_scan": {
+      "cycles_or_revisits": 0,
+      "frontier_omitted": 0,
+      "internal_rows_skipped": 0,
+      "max_depth_reached": 0,
+      "missing_nodes": 0,
+      "nodes_observed": 0,
+      "non_selected_nodes": 0,
+      "raw_rows": 512,
+      "reasons": [
+        "unbound_raw_row_limit"
+      ],
+      "truncated": true,
+      "unknown_nodes": 0
+    },
+    "exact_returned_actions_followed": 2,
+    "editor_match_line": 853,
+    "current_excerpt": [
+      849,
+      968
+    ],
+    "current_source_sha256": "162bae19110ad44279e30d6bde1c0ca6558b483c5a0490bd8913ecfc56137aef",
+    "current_source_blake3": "cc1ca474d2c4cd1dd5d2d57c153b50a819be2c14457dff5931222f46d0c21021",
+    "source_and_two_grep_matches_verified": true
+  },
+  "meaning": "Setter impact found no admitted caller and bounded member scan exhausted512rows. Its literal directory recovery found editor call and a comment mention; exact current-source recovery verified callback success closes editor and failure retains selection/rebuilds options. No absence, receiver-binding or runtime proof.",
+  "full_sidecar": {
+    "existing_used": "Roslyn VB call/property identities and positions already feed impact. Script api_call extraction joins the setter to the VB endpoint.",
+    "other_capabilities": "VB invocations and return_paths provide argument and bounded branch evidence; they do not resolve TypeScript editor receivers.",
+    "independent_inspector": "/root/core_classification_current",
+    "implementation_references": [
+      "tools/vb_roslyn_sidecar/Program.cs:114",
+      "tools/vb_roslyn_sidecar/AstEmitter.cs:847",
+      "tools/vb_roslyn_sidecar/AstEmitter.cs:1469",
+      "tools/vb_roslyn_sidecar/InvocationAnalyzer.cs:16",
+      "tools/vb_roslyn_sidecar/ReturnPathAnalyzer.cs:160",
+      "crates/engram_index/src/vb_extractor.rs:798",
+      "crates/engram_index/src/js_extractor.rs:590"
+    ]
+  },
+  "limits": [
+    "Three additional informed calls18320bytes; fresh classifier already used8calls64037bytes. This is not recovery within its exhausted call budget or task completion.",
+    "Current excerpt starts849 and does not include full _saveZoomOverride declaration or earlier threshold checks. Those remain separate prior/source evidence.",
+    "Existing sidecar binding correction remains deployed; no new production change, build or test was needed for this read-only verification.",
+    "Two root verifier attempts failed because of trailing-blank-line normalization; corrected verifier compared exact newline-joined120requested lines and complete-fileBLAKE3 without normalization. Tool output unchanged."
+  ],
+  "decision": "Existing offered recovery reaches editor. No unused native sidecar route or missing recovery defect demonstrated. Do not expand scan cap, semantic binding or generic report prose from this result.",
+  "resources": {
+    "adapter": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-editor-navigation-probe-20261108-call.py",
+      "sha256": "d4bda0a5075456c9ce5a6d4a388d62f9e724bb41137833fc5987469e5be8a1c7"
+    },
+    "all_pipes_closed": true,
+    "pending_requests": 0,
+    "source_index_runtime_mutations": false,
+    "retention": "Retain all request/reply/adapter evidence in the existing diagnostics location until delivery review; no preexisting deletion."
+  },
+  "overall_goal_complete": false,
+  "independent_verification": {
+    "agent": "/root/core_classification_current",
+    "reviewed_outcome_sha256": "e1958dc0b302cf7813b0a75c102eed0b3f2f5ec3e150a512ba80cb20296895ea",
+    "status": "PASS",
+    "checks": "All request/reply hashes, two exact offered action transitions,18320bytes,512-row truncation, two grep matches/context, exact120-line current excerpt and full-fileSHA256/BLAKE3. No binding/absence/runtime overclaim; only two permitted source files read."
+  }
+}
