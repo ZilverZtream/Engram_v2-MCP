@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-08T10:19:11.933331+00:00",
+  "last_updated_at": "2026-11-08T10:37:10.492418+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-08T10:19:11.933331+00:00",
+    "at_utc": "2026-11-08T10:37:10.492418+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Original tool-improvement queue, rank5 accepted-task benchmark (EG24), following verified delivery of the observed CodeMap/Blast navigation/witness/recovery work. Keep core task usefulness as the subject of verification. EG25 matched real-workflow benefit remains separate and open. Do not restart completed cancellation/getter/guard microtasks or instruction drafting.",
-    "next_user_visible_deliverable": "Extend the existing frozen-task evaluation path with the smallest concrete regular-run mechanism that collects and scores new task responses under the frozen packet/read/canary protocol. First resolve the actual runner and private-corpus boundary from existing code; keep private OciusX packets out of Git and shared CI artifacts. Reuse current evaluator and benchmark entrypoints, rather than build a new evaluation platform. Saved-run validation and mock adapter tests must remain explicitly distinct from fresh task execution; no new subagents without explicit authorization.",
+    "active_original_item": "Original rank5 accepted-task verification (EG24), after core CodeMap/Blast delivery. Collection mechanism and protocol gate implemented; a real new model run is not yet executed and regular current-tool evaluation is still incomplete. EG25 remains separate.",
+    "next_user_visible_deliverable": "Use the prepared private historical regression only if fresh candidate/judge delegation is explicitly authorized under current session instructions. Eight separate fresh candidate contexts and one independent judge are required by that protocol; do not substitute root-informed responses or reuse old answers. The collector itself does not prove freshness. Also retain the distinct remaining need to collect current Engram tool context for regular tool-regression evidence; historical fixed packets alone do not test new CodeMap/Blast builds.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
     "latest_completed_core_batch": "Invalid-regex recovery delivered:28unique grep cases/29executions and native PASS.363candidate calls include one intended invalid-params error,50unchanged prior core controls and9unchanged valid task calls. Five task source windows/two reset hits raw-verified;150definitions, registry/3136selection/14metadata/300notes preserved.218active/218prior/5journals verified; normal22candidate comparisons include expected error and5raw source reads. Broader goal/full31/full19 remain open.",
-    "previous_goal_turn_classification": "PROGRESS: checked seven explicit core requirements against actual installed responses, task/source judgments, production-method execution and current source/commit ancestry. Current installed pair matches latest verified hashes; explicit original adjacency checkpoint is delivered. Core observed failures have delivery evidence. Existing benchmark-ci and frozen_task_eval reveal a specific remaining gap: regular fresh task evaluation is absent; current evaluator verifies saved runs only.",
+    "previous_goal_turn_classification": "PROGRESS: added supported preparation/binding/response/judgment collection commands to the existing frozen-task path, fixed judge-oracle/task integrity and escaped-canary acceptance gaps, and wired explicitly labeled protocol tests into existing benchmark CI. Eight casesPASS; archived real8candidate metrics unchanged. Actual new private8packet run prepared with116original corpus files unchanged. No model agents launched; EG24/EG25 remain open.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10509,7 +10509,7 @@
         "selection": "Recorded only. No fix selected from this limitation; continue actual core-tool task validation."
       }
     ],
-    "next_core_task_rationale": "The original ranked queue explicitly leaves its fifth item, regular accepted-task verification, incomplete. The core delivery check now supports moving to that unmet requirement instead of generating more passing inspection receipts. Inspecting current workflow confirms no regular fresh frozen-task invocation. Implementation/QA comparative benefit is not established by the16isolated production cases and stays open.",
+    "next_core_task_rationale": "The previous evaluator could only inspect manually recorded runs and accepted changed judge facts. The implementation supplies concrete collection and integrity gates without a provider platform or source publication. Current session disallows new subagents without explicit user request, so do not silently launch the nine required model contexts or call this prepared run a fresh success.",
     "latest_batch_cancellation_task": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\batchcancel-informed01-source-judgment-20261107.json",
       "sha256": "c8bff5ac3935ccc5648a62a78b7d2fa61d0e15affa8ba118da7862fe38f2e06e"
@@ -10829,6 +10829,10 @@
       "Fresh09 partial remains unchanged; controlled13 informed success is not fresh autonomous success.",
       "Current isolated QA confirms specific tool-derived decisions, not live browser/server behavior or matched productivity.",
       "All31 findings/19gates original records and parked unfinished work remain unchanged."
-    ]
+    ],
+    "latest_frozen_task_collector": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\frozen-task-collector-implementation-20261108.json",
+      "sha256": "fcc6421b8b8155ede950d6efa4b6b68ff31f28e5593a2fa915e29a9a114d0bb3"
+    }
   }
 }

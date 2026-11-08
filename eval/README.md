@@ -39,6 +39,46 @@ review/plan tasks do not establish completed OciusX implementation or matched QA
 productivity. Private source packets remain outside Git in the recorded evidence
 directory. The collector examples open no index, database, server or model.
 
+### Collecting another run
+
+`frozen_task_run.py` collects new responses without rewriting the original
+corpus or its results. Use a new private directory outside Git. It copies only
+frozen inputs, prepares eight opaque candidate packets, and records requested
+reads under the existing limits: three IDs per turn and eight per candidate.
+Candidate responses retain their original bytes for cost accounting.
+
+```powershell
+python -B eval/frozen_task_run.py prepare <recorded-corpus> <new-private-run>
+python -B eval/frozen_task_run.py status <new-private-run>
+python -B eval/frozen_task_run.py bind <new-private-run> <candidate-id> --agent-id <fresh-agent-id>
+python -B eval/frozen_task_run.py record <new-private-run> <candidate-id> --agent-id <same-agent-id> --response <response.json>
+```
+
+The coordinator must use a fresh, isolated agent for each candidate, deliver
+only the exact packet instruction printed by `status`, and continue that same
+agent when it requests reads. The commands do not launch agents or grant
+permission to do so. An agent identity in a ledger is not proof of isolation;
+retain the actual execution provenance separately. Never supply old answers,
+the oracle, the other arm, or prior results to candidates. Status output omits
+the arm mapping. Keep the whole run directory private, including transcripts.
+
+After all eight candidates finish, `status` names a blinded judge packet.
+Give only that packet to a separate fresh judge. Record its JSON array with:
+
+```powershell
+python -B eval/frozen_task_run.py judge <new-private-run> --agent-id <fresh-judge-id> --response <judgments.json>
+python -B eval/frozen_task_eval.py report <new-private-run>
+```
+
+Changed recorded packets, reused agent identities, exceeded read limits,
+leakage canaries, and a judge task/oracle differing from the frozen originals
+are rejected. Interrupted runs retain evidence; an existing lock must be
+investigated, not deleted because of its age. `--kind protocol_test` labels
+synthetic protocol exercises. Benchmark CI runs these protocol tests only;
+it does not launch models or establish fresh task quality. A completed
+collection remains an evaluation of historical frozen context, not a new
+query against the current Engram build or matched implementation/QA benefit.
+
 Separate instruction-maintenance examples cover a real reporting `no_change`,
 a present KML code/policy `conflict`, and a historical PR2077 marker API `change`.
 The last uses only two original files in an owned replay fixture: the old guide
