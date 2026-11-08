@@ -301,6 +301,24 @@ fn directory_named_navigation(
             "Source actions check current bytes, not method bounds or freshness (indexed ranges capped120lines). For method context expand exact-file scope+symbol_node_id. No current source read here."
         ]});
     if let Some(term)=req.path_contains.as_deref(){out["path_contains"]=serde_json::json!(term);}
+    if out["coverage"]["matching_candidates_observed"] == 0 {
+        // Exact-name pagination cannot recover qualified names from a bare
+        // name. Offer a separate lexical lead without changing graph evidence
+        // or running another query. Grep cannot preserve a path-substring filter.
+        if req.path_contains.is_some() {
+            out["name_search_recovery_omitted"]=serde_json::json!(
+                "grep_project cannot preserve path_contains; retain the filter and use the file/page actions.");
+        } else if let Some(term)=req.symbol_name.as_deref()
+            .and_then(|name|name.rsplit('.').next()).filter(|term|!term.trim().is_empty()) {
+            out["name_search_recovery"]=serde_json::json!({"tool":"grep_project","arguments":{
+                "project_id":req.project_id,"namespace":"memory","pattern":term,"regex":false,
+                "case_sensitive":true,"path_prefix":format!("{}/",req.scope.as_deref().expect("directory scope")),
+                "exclude_path_prefixes":req.exclude_paths,"max_results":8,"context_before":2,"context_after":3,
+                "freshness":"off","output_json":true}});
+            out["name_search_recovery_scope"]=serde_json::json!(
+                "Fresh bounded indexed text search for the terminal name in the requested directory, beyond this file page. May match comments or unrelated declarations; not binding or absence proof. Follow returned current-source recovery and compare hashes. No search has run.");
+        }
+    }
     if attempted==0 && !paths.files.is_empty() {
         out["retry_page"]=page(req.offset,req.limit);
         out["retry_page_scope"]=serde_json::json!("Fresh retry of this selected-file page after zero attempts; not a progress cursor");
