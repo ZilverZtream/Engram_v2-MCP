@@ -39,9 +39,15 @@ def read_json(root, relative):
 
 def candidate_response(root, relative, canary):
     raw = bounded(root, relative).read_bytes()
+    return raw, parse_candidate_response(raw, canary)
+
+
+def parse_candidate_response(raw, canary):
     if canary in raw:
         raise ValueError('Judge-only canary appeared in a candidate response')
     parsed = json.loads(raw)
+    if canary in json.dumps(parsed, ensure_ascii=False).encode('utf-8'):
+        raise ValueError('Judge-only canary appeared in a candidate response')
     if (not isinstance(parsed, dict)
             or set(parsed) != {'decision','plan','evidence','uncertainties','read_requests'}
             or not isinstance(parsed['decision'], str)
@@ -49,7 +55,7 @@ def candidate_response(root, relative, canary):
                    or any(not isinstance(item, str) for item in parsed[key])
                    for key in ('plan','evidence','uncertainties','read_requests'))):
         raise ValueError('Candidate did not return the required response shape')
-    return raw, parsed
+    return parsed
 
 
 def delivery_instruction(root, relative):
@@ -81,15 +87,21 @@ def load(root):
     if len({case['id'] for case in cases}) != 4:
         raise ValueError('Task IDs must be unique')
     oracle = read_json(root, manifest['judge_oracle'])
+    referenced = {manifest['judge_oracle']}
+    for case in cases:
+        referenced.update(arm['input'] for arm in case['arms'].values())
+        referenced.update(case['available_reads'].values())
+    if not referenced <= set(manifest['frozen_files']):
+        raise ValueError('Every task input, readable source and oracle must be frozen')
     canary = oracle['judge_only_canary'].encode('utf-8')
     for case in cases:
         if set(case['arms']) != {'baseline', 'assisted'}:
             raise ValueError('Each task needs both frozen arms')
         for arm in case['arms'].values():
-            if canary in bounded(root, arm['input']).read_bytes():
+            if canary in json.dumps(read_json(root, arm['input']), ensure_ascii=False).encode('utf-8'):
                 raise ValueError('Judge-only evidence leaked into a candidate input')
         for source in case['available_reads'].values():
-            if canary in bounded(root, source).read_bytes():
+            if canary in json.dumps(read_json(root, source), ensure_ascii=False).encode('utf-8'):
                 raise ValueError('Judge-only evidence leaked into a readable source')
     return manifest, oracle
 
@@ -106,9 +118,12 @@ def packet(root, manifest, case_id, arm, requested):
         available_reads=sorted(case['available_reads']))
 
 
-def results(root, manifest, oracle):
+def results(root, manifest, oracle, judgments=None):
     runs = read_json(root, 'runs.json')
-    judgments = read_json(root, 'judgments.json')
+    if judgments is None:
+        judgments = read_json(root, 'judgments.json')
+    if not isinstance(judgments, list) or any(not isinstance(j, dict) for j in judgments):
+        raise ValueError('Judgments must be a list of candidate judgments')
     expected = {(case['id'], arm) for case in manifest['cases'] for arm in case['arms']}
     if {(run['case_id'], run['arm']) for run in runs} != expected or len(runs) != 8:
         raise ValueError('Results require exactly eight candidate runs')
@@ -170,6 +185,9 @@ def results(root, manifest, oracle):
     prompt = read_json(root,'judge/prompt.json')
     if set(prompt) != {'instructions','tasks','candidates','oracle'}:
         raise ValueError('Unexpected judge input or exposed run metadata')
+    if prompt['oracle'] != oracle or prompt['tasks'] != {
+            case['id']: case['task'] for case in manifest['cases']}:
+        raise ValueError('Judge task or oracle differs from frozen evidence')
     if {c['candidate_id'] for c in prompt['candidates']} != set(mapping):
         raise ValueError('Judge did not receive all opaque candidates')
     for candidate in prompt['candidates']:
@@ -180,6 +198,9 @@ def results(root, manifest, oracle):
         if candidate['case_id'] != identity['case_id'] or candidate['response'] != read_json(root,run['response']):
             raise ValueError('Judge candidate differs from the captured response')
     for judgment in judgments:
+        if (not isinstance(judgment.get('false_guidance'), list)
+                or any(not isinstance(item, str) for item in judgment['false_guidance'])):
+            raise ValueError('False guidance must be a list of specific findings')
         identity = mapping[judgment['candidate_id']]
         item = next(m for m in metrics if (m['case_id'],m['arm']) == (identity['case_id'],identity['arm']))
         criteria = oracle['cases'][identity['case_id']]['criteria']
