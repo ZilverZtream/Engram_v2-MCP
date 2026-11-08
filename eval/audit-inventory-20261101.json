@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-08T11:29:54.680192+00:00",
+  "last_updated_at": "2026-11-08T12:04:43.244866+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-08T11:29:54.680192+00:00",
+    "at_utc": "2026-11-08T12:04:43.244866+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Original accepted-task usefulness verification for current CodeMap/Blast behavior (EG24/EG25 evidence remains open), following deployed class-impact recovery. Keep historical policy collector/producer artifacts preserved and separate.",
-    "next_user_visible_deliverable": "Fresh current-core task checks on the existing frozen classification and upload-cancellation tasks, with unchanged criteria/caps and independent source judging. Current source-controlled delivery is complete; fresh comparative/regular evaluation is not.",
+    "active_original_item": "Core CodeMap/Blast witness usefulness: current independent tasks are partial; trace observed manager self-edge witnesses against actual handler/group receiver calls before selecting a concrete correction.",
+    "next_user_visible_deliverable": "A source-grounded disposition or correction of the three actual cancellation self-edge witnesses; preserve legitimate recursion and unresolved receiver coverage. Current task outcomes remain classification2pass/3partial and cancellation4pass/1partial.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
     "latest_completed_core_batch": "93a86e8 class-impact type-name recovery deployed and normal verified. Emitted narrow search -> producer CodeMap -> producer impact -> API serializer source succeeds7calls60322B within8/65536. Class graph unchanged;50priorcontrols/150definitions/3136selection/registry/14metadata/300notes preserved.18unit+32public regression cases pass; initial fixture-schema failure preserved. Full goal/EG24/EG25/31/19 remain open.",
-    "previous_goal_turn_classification": "PROGRESS: prepared current-build existing observer with original8/5tool availability and caps, verified no-binding refusal/scope controls withoutRPC; revalidated14explicit source files and33excerpt ranges, prepared judge inputs without prior outcomes. No models launched; fresh evaluation remains pending explicit user request.",
+    "previous_goal_turn_classification": "PROGRESS: authorized current public task evaluations and independent source judgment completed; concrete self-edge/source discrepancy identified for bounded follow-through.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10838,8 +10838,8 @@
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\frozen-task-current-producer-recovery-20261108.json",
       "sha256": "ad4e82ec7725f6c2c5e3a9077bd3dd123c39d52b2fe42f6e648e7db9a7c775ad"
     },
-    "pending_fresh_agent_question": "Supersedes historical8candidate policy question: explicit request presented for two fresh core-task agents (classification and upload cancellation) plus one independent judge. No answer yet; no agent launch authorized by elapsed time or automatic continuation.",
-    "independent_next_action": "Current core-task observerv2, candidate packets/public definitions, unchanged criteria/caps, source oracles and independent-judge packet are prepared and checked. Await the already-present explicit request to launch two fresh candidates plus one judge; do not interpret automatic goal continuation as authorization. On approval use readiness receipt. No pending build/RPC/job exists, no further preparation is necessary, and unrelated infrastructure/new issue work must not replace this next task.",
+    "pending_fresh_agent_question": "RESOLVED: user explicitly answered yes to launch two candidate agents and independent judge, then reactivated goal. No further authorization question required for this evaluation.",
+    "independent_next_action": "Trace receiver resolution and witness projection for these three observed self-edges. Preserve legitimate recursive calls and unresolved receiver leads; no broad graph/catalog audit. User authorization question is resolved. No need for more agents or permission to inspect this concrete core discrepancy.",
     "selected_class_impact_recovery": {
       "baseline": {
         "path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/class-impact-recovery-baseline-20261108.json",
@@ -10901,10 +10901,15 @@
       "sha256": "d5cdd6a102cd9c019be4d1c89e0179bfdaa870148ea4ad7fe5b1aafa8012524d"
     },
     "current_evaluation_dependency": {
-      "condition": "Explicit fresh-agent request pending under session no-delegation-without-user-request instruction",
-      "independent_preparation_complete": true,
+      "condition": "Resolved; authorized two candidates and independent judge finished",
       "consecutive_no_progress_turns": 0,
-      "note": "This turn made concrete preparation/source-verification progress. Revalidate pending user response before any later blocked audit; do not claim a live wait."
+      "evaluation_running": false,
+      "outcomes": "eval/core-current-task-outcomes-20261108.json",
+      "context_exposure": "All three received injected workspace AGENTS.md; fresh conversation contexts were not history-blind."
+    },
+    "latest_current_core_task_evaluation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-current-task-outcomes-20261108.json",
+      "sha256": "db641105ae1edea9765b9bcec345def50d61bad440bf503157944b9925d84059"
     }
   }
 }
