@@ -1,0 +1,147 @@
+{
+  "status": "SOURCE_COMMITTED_FOCUSED42_AND_RELEASE_BUILD_PASS_PACKAGE_PREPARED_NOT_INSTALLED",
+  "at_utc": "2026-11-08T18:27:35.626629+00:00",
+  "selected_original_need": "Reduce demonstrated CodeMap/Blast source-recovery calls while preserving current-source evidence and original task caps. Existing single-file literal windows and grouped impact reads can require separate hops for separated source.",
+  "evidence": {
+    "editor_threshold_read": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-editor-budget-probe-20261108-reply-1.json",
+      "sha256": "43f5cb3d4f4c2e2051c550489e0d0fa7c82113dadcf10eb14a5b1dafa0ad946f"
+    },
+    "combined_client_read": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-editor-budget-probe-20261108-reply-2.json",
+      "sha256": "150bde004fd070a1d677723c227bbac042278dc322cc49e6fd7cc8513a1d98dd"
+    },
+    "sufficiency": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-editor-budget-sufficiency-20261108.json",
+      "sha256": "07ff9e59b5053bfa873cf42c43707cc0e40961470a2e7e45b42a8ff3b4ca0d4a"
+    },
+    "informed_bundle_calls": 8,
+    "informed_bundle_bytes": 61217,
+    "informed_bundle_limit": "Fits cost but loses QueryViewport and discovery response coverage. Not a successful candidate or rescore.",
+    "source_verification": "Both new public response ranges match current file lines and complete-fileBLAKE3; mapLayer SHA162bae19110ad44279e30d6bde1c0ca6558b483c5a0490bd8913ecfc56137aef; TS layer SHA71dfd6f1d9f320331910950a01da05c3da4acfa177e848337301c39badf87f21."
+  },
+  "implementation_contract": {
+    "source_ranges": "One to3 ordered nonoverlapping inclusive ranges, one file, <=120total lines,4MiBread/32KiBwhole response; one raw snapshot/hash, separately labelled windows. Conflicting options or excess limits fail atomically.",
+    "core_navigation": "CodeMap optionally combines earliest omitted literal windows only after existing inline selection, without losing any existing facts or source. Impact grouping remains unchanged: exact offline projection did not fit existing budgets while preserving useful reads.",
+    "limits_unchanged": "4KiB source-route metadata,12KiB impactsummary;8KiB CodeMap sourcepreview/12KiB wholeCodeMap; original8calls/65536bytes evaluation caps unchanged."
+  },
+  "review": {
+    "coderabbit": "Native trusted CLI auth status authenticated:false; no login or remote review started; independent local review used.",
+    "source_reader": "Independent /root/core_task_clean_judge found no actionable defect. All four new reader tests subsequently passed.",
+    "route_risk": "Independent review identified possible loss of existing source reads. Exact actual-output projection exceeded both caps; prototype reverted before build, with patch retained. No impact grouping change ships.",
+    "route_disposition": {
+      "status": "PROTOTYPE_REVERTED_BEFORE_BUILD",
+      "patch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-ranges-rejected-route-prototype-20261108.patch",
+      "old_route_bytes": 4040,
+      "new_route_bytes": 4923,
+      "old_summary_bytes": 12109,
+      "new_summary_bytes": 12992,
+      "limits": [
+        4096,
+        12288
+      ],
+      "omitted_extra_edge_still_too_large": [
+        4609,
+        12678
+      ],
+      "runtime_untouched": true
+    },
+    "codemap_projection": {
+      "old_reply": 8810,
+      "new_reply": 8866,
+      "old_source_preview": 6803,
+      "new_source_preview": 6859,
+      "omitted_ranges": [
+        [
+          1217,
+          1241
+        ],
+        [
+          1495,
+          1519
+        ]
+      ],
+      "combined_lines": 50,
+      "limits_unchanged": true,
+      "offline_only": true
+    },
+    "codemap": "Independent /root/core_classification_current: no blocker; checked final-only recovery upgrade, all original facts/inline preserved, firstmissing/3/120 bounds, fallback and meaningful tests."
+  },
+  "validation": {
+    "tests": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-ranges-focused-v1-20261108.json",
+      "sha256": "50bc76c200b3c9d507b0e48645bd69858de33fd7264d58e4a1a989d852b00a7c",
+      "passed": 42,
+      "split": [
+        38,
+        4
+      ],
+      "owned_resources_closed_and_removed": true,
+      "source_inputs_unchanged": true
+    },
+    "release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-ranges-shipping-20261108.json",
+      "sha256": "360c08bf19317a076c5e5b56ffe6383e61678697bff931d6d82367b2f1e02e2b",
+      "status": "PASS",
+      "owned_resources_closed_and_removed": true,
+      "source_inputs_unchanged": true
+    },
+    "installed": "UNCHANGED",
+    "fresh_task": {
+      "status": "BASELINE_COMPLETED_SOURCE_VERIFIED_CANDIDATE_NOT_RUN",
+      "baseline_capture": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-ranges-qa-baseline-capture-20261108.json",
+        "sha256": "816380f817159e65cf77b45533df67ee6f8a2fc61a184eb444b9557ad4bf6ba0"
+      },
+      "frozen_rubric": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-ranges-qa-rubric-20261108.json",
+        "sha256": "b158aa8c433a0e711b80fbecf1e546de0d2ed3ac0eab7fde713bd30a28598f02"
+      },
+      "setup": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-ranges-qa-elm-setup-20261108.json",
+        "sha256": "ab80cca4daa73fa0bb5e8d4c32f5489eb939e9f23dafd90f4c63a8045116c8d1"
+      },
+      "limit": "Known omitted-source recovery task; original capped scores unchanged; no usefulness win claimed.",
+      "baseline_outcome": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-ranges-qa-elm-outcome-20261108.json",
+        "sha256": "5790234f9508787bccaa3b81ba1d0e5f5d411530ed544461d437ebacd60f86fb"
+      },
+      "baseline_calls": 3,
+      "baseline_total_bytes": 31549
+    },
+    "capabilities_matrix": "PASS135",
+    "build_artifact": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-ranges-build-artifact-20261108.json",
+      "sha256": "f611d0eb6a147e688de8a30a641c5f0bf46278ef60f2204c53fa98679dbf9e20"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\source-ranges-recovery-paired-package-20261108.json",
+      "sha256": "a60b5e060ba935bf709697a89f2cffa78e55e01961368c0840840ea2e614844c",
+      "status": "PREPARED_NOT_INSTALLED",
+      "native_assets_unchanged": 214
+    },
+    "package_preparation_correction": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\source-ranges-pair-preparation-correction-20261108.json",
+      "sha256": "ddfeb78452a64ac4d478fc867c7144ca379fbd35d8728b66885af46b23681b44"
+    },
+    "candidate_verifier": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\verify_source_ranges_recovery_candidate_20261108.py",
+      "sha256": "681d4a41425479d921d35735ccfbf5579cf9242a3ab509657bc62103462f98d3",
+      "status": "REVIEWED_NOT_EXECUTED"
+    },
+    "maintenance": {
+      "status": "AWAITING_ANSWER_FOR_NEWLY_OBSERVED_LIVE_CONNECTIONS",
+      "reason": "Two additional Engram proxies are owned by a live Codex host. Proxy source returns on daemon EOF; installer requires those connections stopped. Async confirmation pending; no service or host process stopped, no configuration hold acquired. Independent work continues.",
+      "goal_status": "active",
+      "installed_runtime": "887d2b622043ecef6cafbacaf716c982bc059f24ad12d6bdcad6474100f8b542"
+    }
+  },
+  "resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "new_observers_closed": true,
+    "pending_rpc": null,
+    "retention": "Retain package, build and test receipts, bounded task evidence and helper corrections in the recorded diagnostics location until delivery review. Build/test temporary fixtures removed with handles closed; no preexisting folder deletion."
+  },
+  "goal_complete": false,
+  "implementation_commit": "74065a56c9562545c0f8edb885d3488857c03077"
+}
